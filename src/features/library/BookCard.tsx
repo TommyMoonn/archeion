@@ -1,3 +1,6 @@
+import { Heart } from "@phosphor-icons/react";
+
+import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
 import { BookCover } from "./BookCover";
@@ -7,9 +10,15 @@ type BookCardProps = {
   book: Book;
   onDelete: (book: Book) => void;
   onSelect: (book: Book) => void;
+  onToggleFavorite: (book: Book) => void;
 };
 
-export function BookCard({ book, onDelete, onSelect }: BookCardProps) {
+export function BookCard({
+  book,
+  onDelete,
+  onSelect,
+  onToggleFavorite,
+}: BookCardProps) {
   return (
     <article className="book-card">
       <button
@@ -24,10 +33,27 @@ export function BookCard({ book, onDelete, onSelect }: BookCardProps) {
           <span>{bookAuthor(book)}</span>
         </span>
       </button>
+      <IconButton
+        className="book-favorite"
+        data-active={book.isFavorite || undefined}
+        label={
+          book.isFavorite
+            ? `Remove ${bookTitle(book)} from favorites`
+            : `Add ${bookTitle(book)} to favorites`
+        }
+        onClick={() => onToggleFavorite(book)}
+      >
+        <Heart
+          aria-hidden="true"
+          size={17}
+          weight={book.isFavorite ? "fill" : "regular"}
+        />
+      </IconButton>
       <BookContextMenu
         book={book}
         onDelete={onDelete}
         onDetails={onSelect}
+        onToggleFavorite={onToggleFavorite}
       />
     </article>
   );

@@ -1,6 +1,7 @@
 import {
   Info,
   DotsThree,
+  Heart,
   Trash,
 } from "@phosphor-icons/react";
 import { useEffect, useRef } from "react";
@@ -11,12 +12,14 @@ type BookContextMenuProps = {
   book: Book;
   onDelete: (book: Book) => void;
   onDetails: (book: Book) => void;
+  onToggleFavorite: (book: Book) => void;
 };
 
 export function BookContextMenu({
   book,
   onDelete,
   onDetails,
+  onToggleFavorite,
 }: BookContextMenuProps) {
   const menuRef = useRef<HTMLDetailsElement>(null);
 
@@ -57,6 +60,18 @@ export function BookContextMenu({
         <DotsThree aria-hidden="true" size={20} weight="bold" />
       </summary>
       <div className="book-menu__popover" role="menu">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => runAction(onToggleFavorite)}
+        >
+          <Heart
+            aria-hidden="true"
+            size={17}
+            weight={book.isFavorite ? "fill" : "regular"}
+          />
+          {book.isFavorite ? "Remove favorite" : "Add favorite"}
+        </button>
         <button type="button" role="menuitem" onClick={() => runAction(onDetails)}>
           <Info aria-hidden="true" size={17} weight="regular" />
           Details

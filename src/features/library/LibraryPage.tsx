@@ -8,6 +8,11 @@ import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
 import { bookRepository } from "../../db/bookRepository";
+import { folderRepository } from "../../db/folderRepository";
+import type { Book, UpdateBookInput } from "../../types/book";
+import type { Folder } from "../../types/folder";
+import { FolderCreateDialog } from "../folders/FolderCreateDialog";
+import { FolderRenameDialog } from "../folders/FolderRenameDialog";
 import { ImportDropzone } from "../import/ImportDropzone";
 import {
   importEpubFiles,
@@ -18,6 +23,7 @@ import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import {
   getVisibleBooks,
+  type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
 import { LibrarySidebar } from "./LibrarySidebar";
@@ -25,12 +31,12 @@ import {
   LibraryToolbar,
   type LibraryView,
 } from "./LibraryToolbar";
-import type { Book } from "../../types/book";
 
 type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
 export function LibraryPage() {
   const books = useLiveQuery(() => bookRepository.list(), [], []);
+  const folders = useLiveQuery(() => folderRepository.list(), [], []);
   const importLock = useRef(false);
   const [isImporting, setIsImporting] = useState(false);
   const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
@@ -38,8 +44,16 @@ export function LibraryPage() {
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LibrarySort>("recently-added");
   const [view, setView] = useState<LibraryView>("grid");
+  const [location, setLocation] = useState<LibraryLocation>({
+    type: "library",
+  });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
+  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
+  const [renameFolderTarget, setRenameFolderTarget] =
+    useState<Folder | null>(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] =
+    useState<Folder | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
   async function handleFiles(files: File[]) {
@@ -66,13 +80,39 @@ export function LibraryPage() {
   }
 
   const bookCount = books?.length ?? 0;
+  const favoriteCount =
+    books?.filter((book) => book.isFavorite).length ?? 0;
+  const bookCountsByFolder = useMemo(() => {
+    const counts = new Map<string, number>();
+
+    for (const book of books ?? []) {
+      if (book.folderId) {
+        counts.set(book.folderId, (counts.get(book.folderId) ?? 0) + 1);
+      }
+    }
+
+    return counts;
+  }, [books]);
   const visibleBooks = useMemo(
-    () => getVisibleBooks(books ?? [], query, sort),
-    [books, query, sort],
+    () => getVisibleBooks(books ?? [], query, sort, location),
+    [books, location, query, sort],
   );
   const selectedBook =
     books?.find((book) => book.id === selectedBookId) ?? null;
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
+  const currentFolder =
+    location.type === "folder"
+      ? folders?.find((folder) => folder.id === location.folderId)
+      : undefined;
+  const libraryTitle =
+    location.type === "favorites"
+      ? "Favorites"
+      : currentFolder?.name ?? "Library";
+
+  function changeLocation(nextLocation: LibraryLocation) {
+    setLocation(nextLocation);
+    setQuery("");
+  }
 
   function requestDelete(book: Book) {
     setSelectedBookId(null);
@@ -98,8 +138,107 @@ export function LibraryPage() {
     }
   }
 
+  async function toggleFavorite(book: Book) {
+    setLibraryError(null);
+
+    try {
+      await bookRepository.update(book.id, {
+        isFavorite: !book.isFavorite,
+      });
+    } catch {
+      setLibraryError("Favorite status could not be updated.");
+    }
+  }
+
+  async function saveBook(book: Book, changes: UpdateBookInput) {
+    setLibraryError(null);
+
+    try {
+      await bookRepository.update(book.id, changes);
+    } catch (error) {
+      setLibraryError("Book details could not be updated.");
+      throw error;
+    }
+  }
+
+  async function createFolder(name: string) {
+    await folderRepository.create({ name, parentId: null });
+  }
+
+  async function renameFolder(name: string) {
+    if (!renameFolderTarget) {
+      return;
+    }
+
+    await folderRepository.update(renameFolderTarget.id, { name });
+  }
+
+  async function confirmDeleteFolder() {
+    if (!deleteFolderTarget || isDeleting) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setLibraryError(null);
+
+    try {
+      await folderRepository.remove(deleteFolderTarget.id);
+
+      if (
+        location.type === "folder" &&
+        location.folderId === deleteFolderTarget.id
+      ) {
+        setLocation({ type: "library" });
+      }
+
+      setDeleteFolderTarget(null);
+    } catch {
+      setLibraryError("This folder could not be deleted. Please try again.");
+      setDeleteFolderTarget(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  function locationEmptyState() {
+    if (location.type === "favorites") {
+      return {
+        title: "No favorites yet",
+        description: "Mark books as favorites to keep them close.",
+      };
+    }
+
+    if (location.type === "folder") {
+      return {
+        title: "This folder is empty",
+        description: "Move books here from their details.",
+      };
+    }
+
+    return {
+      title: "No books yet",
+      description: "Import an EPUB or drop files here to start your collection.",
+    };
+  }
+
+  const emptyState = locationEmptyState();
+
   return (
-    <PageShell sidebar={<LibrarySidebar bookCount={bookCount} />}>
+    <PageShell
+      sidebar={
+        <LibrarySidebar
+          bookCount={bookCount}
+          bookCountsByFolder={bookCountsByFolder}
+          favoriteCount={favoriteCount}
+          folders={folders ?? []}
+          location={location}
+          onCreateFolder={() => setIsCreateFolderOpen(true)}
+          onDeleteFolder={setDeleteFolderTarget}
+          onLocationChange={changeLocation}
+          onRenameFolder={setRenameFolderTarget}
+        />
+      }
+    >
       <ImportDropzone disabled={isImporting} onFiles={handleFiles}>
         <LibraryToolbar
           isImporting={isImporting}
@@ -109,6 +248,7 @@ export function LibraryPage() {
           onViewChange={setView}
           query={query}
           sort={sort}
+          title={libraryTitle}
           view={view}
         />
 
@@ -162,11 +302,11 @@ export function LibraryPage() {
                 {isImporting ? "Importing EPUB files" : "Loading library"}
               </span>
             </div>
-          ) : books.length === 0 ? (
+          ) : visibleBooks.length === 0 && !query ? (
             <EmptyState
-              description="Import an EPUB or drop files here to start your collection."
+              description={emptyState.description}
               icon={<BookOpenText size={42} weight="thin" />}
-              title="No books yet"
+              title={emptyState.title}
             />
           ) : visibleBooks.length === 0 ? (
             <EmptyState
@@ -184,12 +324,14 @@ export function LibraryPage() {
               books={visibleBooks}
               onDelete={requestDelete}
               onSelect={(book) => setSelectedBookId(book.id)}
+              onToggleFavorite={toggleFavorite}
             />
           ) : (
             <BookList
               books={visibleBooks}
               onDelete={requestDelete}
               onSelect={(book) => setSelectedBookId(book.id)}
+              onToggleFavorite={toggleFavorite}
             />
           )}
         </div>
@@ -198,8 +340,26 @@ export function LibraryPage() {
       {selectedBook ? (
         <BookDetailsDrawer
           book={selectedBook}
+          folders={folders ?? []}
           onClose={closeDetails}
           onDelete={requestDelete}
+          onSave={saveBook}
+          onToggleFavorite={toggleFavorite}
+        />
+      ) : null}
+
+      {isCreateFolderOpen ? (
+        <FolderCreateDialog
+          onClose={() => setIsCreateFolderOpen(false)}
+          onCreate={createFolder}
+        />
+      ) : null}
+
+      {renameFolderTarget ? (
+        <FolderRenameDialog
+          folder={renameFolderTarget}
+          onClose={() => setRenameFolderTarget(null)}
+          onRename={renameFolder}
         />
       ) : null}
 
@@ -227,6 +387,36 @@ export function LibraryPage() {
                 onClick={confirmDelete}
               >
                 {isDeleting ? "Deleting" : "Delete book"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {deleteFolderTarget ? (
+        <Dialog
+          title="Delete this folder?"
+          description={`“${deleteFolderTarget.name}” will be removed. Its books will return to Library.`}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteFolderTarget(null);
+            }
+          }}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                disabled={isDeleting}
+                onClick={() => setDeleteFolderTarget(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                disabled={isDeleting}
+                onClick={confirmDeleteFolder}
+              >
+                {isDeleting ? "Deleting" : "Delete folder"}
               </Button>
             </>
           }

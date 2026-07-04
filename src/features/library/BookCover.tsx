@@ -1,5 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useRef } from "react";
 
 import type { Book } from "../../types/book";
 
@@ -9,21 +9,23 @@ type BookCoverProps = {
 };
 
 export function BookCover({ book, className = "" }: BookCoverProps) {
-  const coverUrl = useMemo(
-    () => (book.coverBlob ? URL.createObjectURL(book.coverBlob) : null),
-    [book.coverBlob],
-  );
+  const imageRef = useRef<HTMLImageElement>(null);
 
-  useEffect(
-    () => () => {
-      if (coverUrl) {
-        URL.revokeObjectURL(coverUrl);
-      }
-    },
-    [coverUrl],
-  );
+  useEffect(() => {
+    if (!book.coverBlob || !imageRef.current) {
+      return;
+    }
 
-  if (!coverUrl) {
+    const coverUrl = URL.createObjectURL(book.coverBlob);
+
+    imageRef.current.src = coverUrl;
+
+    return () => {
+      URL.revokeObjectURL(coverUrl);
+    };
+  }, [book.coverBlob]);
+
+  if (!book.coverBlob) {
     return (
       <div
         className={`book-cover book-cover--placeholder ${className}`.trim()}
@@ -36,7 +38,7 @@ export function BookCover({ book, className = "" }: BookCoverProps) {
 
   return (
     <div className={`book-cover ${className}`.trim()}>
-      <img src={coverUrl} alt="" />
+      <img ref={imageRef} alt="" />
     </div>
   );
 }

@@ -1,3 +1,6 @@
+import { Heart } from "@phosphor-icons/react";
+
+import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
 import { BookCover } from "./BookCover";
@@ -7,6 +10,7 @@ type BookListProps = {
   books: Book[];
   onDelete: (book: Book) => void;
   onSelect: (book: Book) => void;
+  onToggleFavorite: (book: Book) => void;
 };
 
 function formatDate(value: string): string {
@@ -15,7 +19,12 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-export function BookList({ books, onDelete, onSelect }: BookListProps) {
+export function BookList({
+  books,
+  onDelete,
+  onSelect,
+  onToggleFavorite,
+}: BookListProps) {
   return (
     <section className="book-list" aria-label="Books">
       {books.map((book) => (
@@ -33,10 +42,27 @@ export function BookList({ books, onDelete, onSelect }: BookListProps) {
             <span className="book-row__file">{book.fileName}</span>
             <span className="book-row__date">{formatDate(book.addedAt)}</span>
           </button>
+          <IconButton
+            className="book-row__favorite"
+            data-active={book.isFavorite || undefined}
+            label={
+              book.isFavorite
+                ? `Remove ${bookTitle(book)} from favorites`
+                : `Add ${bookTitle(book)} to favorites`
+            }
+            onClick={() => onToggleFavorite(book)}
+          >
+            <Heart
+              aria-hidden="true"
+              size={17}
+              weight={book.isFavorite ? "fill" : "regular"}
+            />
+          </IconButton>
           <BookContextMenu
             book={book}
             onDelete={onDelete}
             onDetails={onSelect}
+            onToggleFavorite={onToggleFavorite}
           />
         </article>
       ))}

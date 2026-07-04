@@ -5,9 +5,15 @@ type BookGridProps = {
   books: Book[];
   onDelete: (book: Book) => void;
   onSelect: (book: Book) => void;
+  onToggleFavorite: (book: Book) => void;
 };
 
-export function BookGrid({ books, onDelete, onSelect }: BookGridProps) {
+export function BookGrid({
+  books,
+  onDelete,
+  onSelect,
+  onToggleFavorite,
+}: BookGridProps) {
   return (
     <section className="book-grid" aria-label="Books">
       {books.map((book) => (
@@ -16,6 +22,7 @@ export function BookGrid({ books, onDelete, onSelect }: BookGridProps) {
           key={book.id}
           onDelete={onDelete}
           onSelect={onSelect}
+          onToggleFavorite={onToggleFavorite}
         />
       ))}
     </section>

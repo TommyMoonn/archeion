@@ -6,6 +6,11 @@ export type LibrarySort =
   | "title"
   | "author";
 
+export type LibraryLocation =
+  | { type: "library" }
+  | { type: "favorites" }
+  | { type: "folder"; folderId: string };
+
 function normalize(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase() ?? "";
 }
@@ -39,6 +44,20 @@ export function filterBooks(books: Book[], query: string): Book[] {
   );
 }
 
+export function filterBooksByLocation(
+  books: Book[],
+  location: LibraryLocation,
+): Book[] {
+  switch (location.type) {
+    case "library":
+      return books;
+    case "favorites":
+      return books.filter((book) => book.isFavorite);
+    case "folder":
+      return books.filter((book) => book.folderId === location.folderId);
+  }
+}
+
 export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
@@ -69,6 +88,10 @@ export function getVisibleBooks(
   books: Book[],
   query: string,
   sort: LibrarySort,
+  location: LibraryLocation = { type: "library" },
 ): Book[] {
-  return sortBooks(filterBooks(books, query), sort);
+  return sortBooks(
+    filterBooks(filterBooksByLocation(books, location), query),
+    sort,
+  );
 }

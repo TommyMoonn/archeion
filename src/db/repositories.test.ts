@@ -19,6 +19,11 @@ describe("local repositories", () => {
 
   it("creates, lists, updates, and removes books", async () => {
     const repository = createBookRepository(database);
+    const folders = createFolderRepository(database);
+    const folder = await folders.create({
+      name: "Reading",
+      parentId: null,
+    });
     const created = await repository.create({
       fileName: "volume-01.epub",
       fileBlob: new Blob(["epub-content"], {
@@ -35,12 +40,18 @@ describe("local repositories", () => {
 
     const updated = await repository.update(created.id, {
       displayTitle: "Volume One",
+      displayAuthor: "Display Author",
+      folderId: folder.id,
       isFavorite: true,
     });
 
     expect(updated).toMatchObject({
       displayTitle: "Volume One",
+      displayAuthor: "Display Author",
+      folderId: folder.id,
       isFavorite: true,
+      originalTitle: "Volume 01",
+      originalAuthor: "Author",
     });
     await expect(repository.remove(created.id)).resolves.toBe(true);
     await expect(repository.get(created.id)).resolves.toBeUndefined();

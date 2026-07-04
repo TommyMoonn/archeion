@@ -1,19 +1,37 @@
 import {
   Books,
-  CaretDown,
-  Folder,
   Heart,
   Plus,
 } from "@phosphor-icons/react";
-import { NavLink } from "react-router-dom";
 
 import { IconButton } from "../../components/IconButton";
+import { FolderTree } from "../folders/FolderTree";
+import type { Folder } from "../../types/folder";
+import type { LibraryLocation } from "./libraryFilters";
 
 type LibrarySidebarProps = {
   bookCount: number;
+  bookCountsByFolder: Map<string, number>;
+  favoriteCount: number;
+  folders: Folder[];
+  location: LibraryLocation;
+  onCreateFolder: () => void;
+  onDeleteFolder: (folder: Folder) => void;
+  onLocationChange: (location: LibraryLocation) => void;
+  onRenameFolder: (folder: Folder) => void;
 };
 
-export function LibrarySidebar({ bookCount }: LibrarySidebarProps) {
+export function LibrarySidebar({
+  bookCount,
+  bookCountsByFolder,
+  favoriteCount,
+  folders,
+  location,
+  onCreateFolder,
+  onDeleteFolder,
+  onLocationChange,
+  onRenameFolder,
+}: LibrarySidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -26,41 +44,56 @@ export function LibrarySidebar({ bookCount }: LibrarySidebarProps) {
       </div>
 
       <nav className="sidebar__nav" aria-label="Library navigation">
-        <NavLink className="nav-item" to="/">
+        <button
+          className={`nav-item ${location.type === "library" ? "active" : ""}`}
+          type="button"
+          onClick={() => onLocationChange({ type: "library" })}
+        >
           <Books aria-hidden="true" size={19} weight="regular" />
           <span>Library</span>
           <span className="nav-item__count">{bookCount}</span>
-        </NavLink>
+        </button>
         <button
-          className="nav-item"
+          className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
           type="button"
-          disabled
-          title="Favorites are not available yet."
+          onClick={() => onLocationChange({ type: "favorites" })}
         >
-          <Heart aria-hidden="true" size={19} weight="regular" />
+          <Heart
+            aria-hidden="true"
+            size={19}
+            weight={location.type === "favorites" ? "fill" : "regular"}
+          />
           <span>Favorites</span>
-          <span className="nav-item__count">0</span>
+          <span className="nav-item__count">{favoriteCount}</span>
         </button>
       </nav>
 
       <div className="sidebar__section">
         <div className="sidebar__section-heading">
           <div className="section-label">
-            <CaretDown aria-hidden="true" size={14} weight="bold" />
             Folders
           </div>
           <IconButton
             label="Create folder"
-            disabled
-            title="Folders are not available yet."
+            onClick={onCreateFolder}
           >
             <Plus aria-hidden="true" size={17} weight="regular" />
           </IconButton>
         </div>
-        <div className="folder-placeholder">
-          <Folder aria-hidden="true" size={17} weight="regular" />
-          <span>No folders yet</span>
-        </div>
+        {folders.length > 0 ? (
+          <FolderTree
+            bookCounts={bookCountsByFolder}
+            folders={folders}
+            location={location}
+            onDelete={onDeleteFolder}
+            onRename={onRenameFolder}
+            onSelect={(folder) =>
+              onLocationChange({ type: "folder", folderId: folder.id })
+            }
+          />
+        ) : (
+          <p className="folder-placeholder">No folders yet</p>
+        )}
       </div>
 
       <p className="sidebar__storage">

@@ -20,6 +20,7 @@ type LibraryToolbarProps = {
   onViewChange: (view: LibraryView) => void;
   query: string;
   sort: LibrarySort;
+  title: string;
   view: LibraryView;
 };
 
@@ -31,13 +32,14 @@ export function LibraryToolbar({
   onViewChange,
   query,
   sort,
+  title,
   view,
 }: LibraryToolbarProps) {
   return (
     <header className="library-header">
       <div className="library-header__title">
         <p className="eyebrow">Your collection</p>
-        <h1>Library</h1>
+        <h1>{title}</h1>
       </div>
 
       <div className="library-header__actions">

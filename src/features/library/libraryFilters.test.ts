@@ -5,6 +5,7 @@ import {
   bookAuthor,
   bookTitle,
   filterBooks,
+  filterBooksByLocation,
   sortBooks,
 } from "./libraryFilters";
 
@@ -36,6 +37,8 @@ describe("library filters", () => {
       originalAuthor: "Alpha",
       addedAt: "2026-07-03T00:00:00.000Z",
       lastOpenedAt: "2026-07-04T00:00:00.000Z",
+      isFavorite: true,
+      folderId: "folder-one",
     }),
     createBook({
       id: "third",
@@ -67,6 +70,20 @@ describe("library filters", () => {
       "second",
       "third",
     ]);
+  });
+
+  it("filters favorites and direct folder contents", () => {
+    expect(
+      filterBooksByLocation(books, { type: "favorites" }).map(
+        (book) => book.id,
+      ),
+    ).toEqual(["first"]);
+    expect(
+      filterBooksByLocation(books, {
+        type: "folder",
+        folderId: "folder-one",
+      }).map((book) => book.id),
+    ).toEqual(["first"]);
   });
 
   it("sorts titles naturally and authors with title tie-breaking", () => {
