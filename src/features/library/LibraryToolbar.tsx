@@ -1,5 +1,5 @@
 import {
-  ArrowDown,
+  CaretDown,
   GridFour,
   List,
   MagnifyingGlass,
@@ -8,15 +8,30 @@ import {
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { ImportButton } from "../import/ImportButton";
+import type { LibrarySort } from "./libraryFilters";
+
+export type LibraryView = "grid" | "list";
 
 type LibraryToolbarProps = {
   isImporting: boolean;
   onFiles: (files: File[]) => void;
+  onQueryChange: (query: string) => void;
+  onSortChange: (sort: LibrarySort) => void;
+  onViewChange: (view: LibraryView) => void;
+  query: string;
+  sort: LibrarySort;
+  view: LibraryView;
 };
 
 export function LibraryToolbar({
   isImporting,
   onFiles,
+  onQueryChange,
+  onSortChange,
+  onViewChange,
+  query,
+  sort,
+  view,
 }: LibraryToolbarProps) {
   return (
     <header className="library-header">
@@ -27,36 +42,54 @@ export function LibraryToolbar({
 
       <div className="library-header__actions">
         <Input
-          disabled
           icon={<MagnifyingGlass aria-hidden="true" size={18} weight="regular" />}
           label="Search library"
           placeholder="Search books"
-          title="Search is not available yet."
+          value={query}
+          onChange={(event) => onQueryChange(event.currentTarget.value)}
           type="search"
         />
         <ImportButton disabled={isImporting} onFiles={onFiles} />
       </div>
 
       <div className="library-controls">
-        <button
-          className="sort-control"
-          type="button"
-          disabled
-          title="Sorting is not available yet."
-        >
-          <span>Recently added</span>
-          <ArrowDown aria-hidden="true" size={14} weight="bold" />
-        </button>
+        <label className="sort-control">
+          <span className="sr-only">Sort library</span>
+          <select
+            value={sort}
+            onChange={(event) =>
+              onSortChange(event.currentTarget.value as LibrarySort)
+            }
+          >
+            <option value="recently-added">Recently added</option>
+            <option value="recently-opened">Recently opened</option>
+            <option value="title">Title</option>
+            <option value="author">Author</option>
+          </select>
+          <CaretDown aria-hidden="true" size={13} weight="bold" />
+        </label>
         <div className="view-toggle" aria-label="Library view">
-          <IconButton label="Grid view" aria-pressed="true">
-            <GridFour aria-hidden="true" size={17} weight="fill" />
+          <IconButton
+            label="Grid view"
+            aria-pressed={view === "grid"}
+            onClick={() => onViewChange("grid")}
+          >
+            <GridFour
+              aria-hidden="true"
+              size={17}
+              weight={view === "grid" ? "fill" : "regular"}
+            />
           </IconButton>
           <IconButton
             label="List view"
-            disabled
-            title="List view is not available yet."
+            aria-pressed={view === "list"}
+            onClick={() => onViewChange("list")}
           >
-            <List aria-hidden="true" size={18} weight="regular" />
+            <List
+              aria-hidden="true"
+              size={18}
+              weight={view === "list" ? "bold" : "regular"}
+            />
           </IconButton>
         </div>
       </div>
