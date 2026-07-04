@@ -1,6 +1,7 @@
 import { BookOpenText, WarningCircle, X } from "@phosphor-icons/react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -35,6 +36,7 @@ import {
 type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
 export function LibraryPage() {
+  const navigate = useNavigate();
   const books = useLiveQuery(() => bookRepository.list(), [], []);
   const folders = useLiveQuery(() => folderRepository.list(), [], []);
   const importLock = useRef(false);
@@ -117,6 +119,10 @@ export function LibraryPage() {
   function requestDelete(book: Book) {
     setSelectedBookId(null);
     setDeleteTarget(book);
+  }
+
+  function readBook(book: Book) {
+    void navigate(`/reader/${book.id}`);
   }
 
   async function confirmDelete() {
@@ -323,6 +329,7 @@ export function LibraryPage() {
             <BookGrid
               books={visibleBooks}
               onDelete={requestDelete}
+              onRead={readBook}
               onSelect={(book) => setSelectedBookId(book.id)}
               onToggleFavorite={toggleFavorite}
             />
@@ -330,6 +337,7 @@ export function LibraryPage() {
             <BookList
               books={visibleBooks}
               onDelete={requestDelete}
+              onRead={readBook}
               onSelect={(book) => setSelectedBookId(book.id)}
               onToggleFavorite={toggleFavorite}
             />
@@ -343,6 +351,7 @@ export function LibraryPage() {
           folders={folders ?? []}
           onClose={closeDetails}
           onDelete={requestDelete}
+          onRead={readBook}
           onSave={saveBook}
           onToggleFavorite={toggleFavorite}
         />

@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   File,
   FloppyDisk,
   Heart,
@@ -20,6 +21,7 @@ type BookDetailsDrawerProps = {
   folders: Folder[];
   onClose: () => void;
   onDelete: (book: Book) => void;
+  onRead: (book: Book) => void;
   onSave: (book: Book, changes: UpdateBookInput) => Promise<void>;
   onToggleFavorite: (book: Book) => void;
 };
@@ -47,6 +49,7 @@ export function BookDetailsDrawer({
   folders,
   onClose,
   onDelete,
+  onRead,
   onSave,
   onToggleFavorite,
 }: BookDetailsDrawerProps) {
@@ -212,6 +215,13 @@ export function BookDetailsDrawer({
         </div>
 
         <footer className="details-drawer__footer">
+          <Button
+            className="details-drawer__read"
+            icon={<BookOpen aria-hidden="true" size={17} weight="regular" />}
+            onClick={() => onRead(book)}
+          >
+            Read book
+          </Button>
           <Button
             variant="secondary"
             icon={

@@ -4,6 +4,7 @@ import { BookCard } from "./BookCard";
 type BookGridProps = {
   books: Book[];
   onDelete: (book: Book) => void;
+  onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
 };
@@ -11,6 +12,7 @@ type BookGridProps = {
 export function BookGrid({
   books,
   onDelete,
+  onRead,
   onSelect,
   onToggleFavorite,
 }: BookGridProps) {
@@ -21,6 +23,7 @@ export function BookGrid({
           book={book}
           key={book.id}
           onDelete={onDelete}
+          onRead={onRead}
           onSelect={onSelect}
           onToggleFavorite={onToggleFavorite}
         />

@@ -9,6 +9,7 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 type BookCardProps = {
   book: Book;
   onDelete: (book: Book) => void;
+  onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
 };
@@ -16,6 +17,7 @@ type BookCardProps = {
 export function BookCard({
   book,
   onDelete,
+  onRead,
   onSelect,
   onToggleFavorite,
 }: BookCardProps) {
@@ -53,6 +55,7 @@ export function BookCard({
         book={book}
         onDelete={onDelete}
         onDetails={onSelect}
+        onRead={onRead}
         onToggleFavorite={onToggleFavorite}
       />
     </article>

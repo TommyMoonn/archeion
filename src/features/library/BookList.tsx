@@ -9,6 +9,7 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 type BookListProps = {
   books: Book[];
   onDelete: (book: Book) => void;
+  onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
 };
@@ -22,6 +23,7 @@ function formatDate(value: string): string {
 export function BookList({
   books,
   onDelete,
+  onRead,
   onSelect,
   onToggleFavorite,
 }: BookListProps) {
@@ -62,6 +64,7 @@ export function BookList({
             book={book}
             onDelete={onDelete}
             onDetails={onSelect}
+            onRead={onRead}
             onToggleFavorite={onToggleFavorite}
           />
         </article>

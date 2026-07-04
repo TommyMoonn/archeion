@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   Info,
   DotsThree,
   Heart,
@@ -12,6 +13,7 @@ type BookContextMenuProps = {
   book: Book;
   onDelete: (book: Book) => void;
   onDetails: (book: Book) => void;
+  onRead: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
 };
 
@@ -19,6 +21,7 @@ export function BookContextMenu({
   book,
   onDelete,
   onDetails,
+  onRead,
   onToggleFavorite,
 }: BookContextMenuProps) {
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -60,6 +63,10 @@ export function BookContextMenu({
         <DotsThree aria-hidden="true" size={20} weight="bold" />
       </summary>
       <div className="book-menu__popover" role="menu">
+        <button type="button" role="menuitem" onClick={() => runAction(onRead)}>
+          <BookOpen aria-hidden="true" size={17} weight="regular" />
+          Read
+        </button>
         <button
           type="button"
           role="menuitem"
