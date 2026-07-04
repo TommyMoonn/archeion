@@ -9,7 +9,11 @@ import { NavLink } from "react-router-dom";
 
 import { IconButton } from "../../components/IconButton";
 
-export function LibrarySidebar() {
+type LibrarySidebarProps = {
+  bookCount: number;
+};
+
+export function LibrarySidebar({ bookCount }: LibrarySidebarProps) {
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -25,9 +29,14 @@ export function LibrarySidebar() {
         <NavLink className="nav-item" to="/">
           <Books aria-hidden="true" size={19} weight="regular" />
           <span>Library</span>
-          <span className="nav-item__count">0</span>
+          <span className="nav-item__count">{bookCount}</span>
         </NavLink>
-        <button className="nav-item" type="button" disabled>
+        <button
+          className="nav-item"
+          type="button"
+          disabled
+          title="Favorites are not available yet."
+        >
           <Heart aria-hidden="true" size={19} weight="regular" />
           <span>Favorites</span>
           <span className="nav-item__count">0</span>
@@ -40,7 +49,11 @@ export function LibrarySidebar() {
             <CaretDown aria-hidden="true" size={14} weight="bold" />
             Folders
           </div>
-          <IconButton label="Create folder" disabled>
+          <IconButton
+            label="Create folder"
+            disabled
+            title="Folders are not available yet."
+          >
             <Plus aria-hidden="true" size={17} weight="regular" />
           </IconButton>
         </div>

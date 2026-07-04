@@ -3,14 +3,21 @@ import {
   GridFour,
   List,
   MagnifyingGlass,
-  Plus,
 } from "@phosphor-icons/react";
 
-import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
+import { ImportButton } from "../import/ImportButton";
 
-export function LibraryToolbar() {
+type LibraryToolbarProps = {
+  isImporting: boolean;
+  onFiles: (files: File[]) => void;
+};
+
+export function LibraryToolbar({
+  isImporting,
+  onFiles,
+}: LibraryToolbarProps) {
   return (
     <header className="library-header">
       <div className="library-header__title">
@@ -24,20 +31,19 @@ export function LibraryToolbar() {
           icon={<MagnifyingGlass aria-hidden="true" size={18} weight="regular" />}
           label="Search library"
           placeholder="Search books"
-          title="Search will be available when books can be imported."
+          title="Search is not available yet."
           type="search"
         />
-        <Button
-          disabled
-          icon={<Plus aria-hidden="true" size={17} weight="bold" />}
-          title="Importing will be available in the next phase."
-        >
-          Import books
-        </Button>
+        <ImportButton disabled={isImporting} onFiles={onFiles} />
       </div>
 
       <div className="library-controls">
-        <button className="sort-control" type="button" disabled>
+        <button
+          className="sort-control"
+          type="button"
+          disabled
+          title="Sorting is not available yet."
+        >
           <span>Recently added</span>
           <ArrowDown aria-hidden="true" size={14} weight="bold" />
         </button>
@@ -45,7 +51,11 @@ export function LibraryToolbar() {
           <IconButton label="Grid view" aria-pressed="true">
             <GridFour aria-hidden="true" size={17} weight="fill" />
           </IconButton>
-          <IconButton label="List view" disabled>
+          <IconButton
+            label="List view"
+            disabled
+            title="List view is not available yet."
+          >
             <List aria-hidden="true" size={18} weight="regular" />
           </IconButton>
         </div>
