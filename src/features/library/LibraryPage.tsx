@@ -145,8 +145,8 @@ export function LibraryPage() {
     return counts;
   }, [books]);
   const visibleBooks = useMemo(
-    () => getVisibleBooks(books ?? [], query, sort, location),
-    [books, location, query, sort],
+    () => getVisibleBooks(books ?? [], query, sort, location, folders),
+    [books, folders, location, query, sort],
   );
   const selectedBook =
     books?.find((book) => book.id === selectedBookId) ?? null;
@@ -166,7 +166,6 @@ export function LibraryPage() {
 
   function changeLocation(nextLocation: LibraryLocation) {
     setLocation(nextLocation);
-    setQuery("");
     if (nextLocation.type === "continue") {
       setSort("recently-opened");
     }
@@ -444,9 +443,9 @@ export function LibraryPage() {
                   Clear search
                 </Button>
               }
-              description="Try a different title or author."
+              description="Try another title, author, or folder name."
               icon={<BookOpenText size={42} weight="thin" />}
-              title="No matching books"
+              title="No search results"
             />
           ) : view === "grid" ? (
             <BookGrid

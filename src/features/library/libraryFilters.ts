@@ -1,4 +1,5 @@
 import type { Book } from "../../types/book";
+import type { Folder } from "../../types/folder";
 
 export type LibrarySort =
   | "recently-added"
@@ -15,7 +16,13 @@ export type LibraryLocation =
   | { type: "folder"; folderId: string };
 
 function normalize(value: string | undefined): string {
-  return value?.trim().toLocaleLowerCase() ?? "";
+  return (
+    value
+      ?.trim()
+      .toLocaleLowerCase()
+      .normalize("NFKD")
+      .replace(/\p{Diacritic}/gu, "") ?? ""
+  );
 }
 
 export function bookTitle(book: Book): string {
@@ -30,15 +37,35 @@ export function bookAuthor(book: Book): string {
   );
 }
 
-export function filterBooks(books: Book[], query: string): Book[] {
+function foldersById(folders: Folder[]): Map<string, Folder> {
+  return new Map(folders.map((folder) => [folder.id, folder]));
+}
+
+function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
+  const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
+  return [
+    book.folderPath,
+    folder?.name,
+    folder?.relativePath,
+  ].filter((value): value is string => Boolean(value));
+}
+
+export function filterBooks(
+  books: Book[],
+  query: string,
+  folders: Folder[] = [],
+): Book[] {
   const normalizedQuery = normalize(query);
 
   if (!normalizedQuery) {
     return books;
   }
 
-  return books.filter((book) =>
-    [
+  const terms = normalizedQuery.split(/\s+/);
+  const folderLookup = foldersById(folders);
+
+  return books.filter((book) => {
+    const searchableValues = [
       book.displayTitle,
       book.originalTitle,
       book.displayAuthor,
@@ -46,8 +73,13 @@ export function filterBooks(books: Book[], query: string): Book[] {
       book.fileName,
       book.relativePath,
       book.folderPath,
-    ].some((value) => normalize(value).includes(normalizedQuery)),
-  );
+      ...bookFolder(book, folderLookup),
+    ].map(normalize);
+
+    return terms.every((term) =>
+      searchableValues.some((value) => value.includes(term)),
+    );
+  });
 }
 
 export function filterBooksByLocation(
@@ -72,11 +104,16 @@ export function filterBooksByLocation(
   }
 }
 
-export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
+export function sortBooks(
+  books: Book[],
+  sort: LibrarySort,
+  folders: Folder[] = [],
+): Book[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: "base",
   });
+  const folderLookup = foldersById(folders);
 
   return [...books].sort((left, right) => {
     switch (sort) {
@@ -93,12 +130,25 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
           right.addedAt.localeCompare(left.addedAt)
         );
       case "recently-added":
-        return right.addedAt.localeCompare(left.addedAt);
-      case "folder":
         return (
-          collator.compare(left.folderPath ?? "", right.folderPath ?? "") ||
+          right.addedAt.localeCompare(left.addedAt) ||
           collator.compare(bookTitle(left), bookTitle(right))
         );
+      case "folder": {
+        const leftFolder = bookFolder(left, folderLookup)[0] ?? "";
+        const rightFolder = bookFolder(right, folderLookup)[0] ?? "";
+
+        if (!leftFolder && rightFolder) {
+          return 1;
+        }
+        if (leftFolder && !rightFolder) {
+          return -1;
+        }
+        return (
+          collator.compare(leftFolder, rightFolder) ||
+          collator.compare(bookTitle(left), bookTitle(right))
+        );
+      }
     }
   });
 }
@@ -108,9 +158,11 @@ export function getVisibleBooks(
   query: string,
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
+  folders: Folder[] = [],
 ): Book[] {
   return sortBooks(
-    filterBooks(filterBooksByLocation(books, location), query),
+    filterBooks(filterBooksByLocation(books, location), query, folders),
     sort,
+    folders,
   );
 }

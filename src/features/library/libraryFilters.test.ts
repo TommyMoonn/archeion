@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
+import type { Folder } from "../../types/folder";
 import {
   bookAuthor,
   bookTitle,
@@ -46,6 +47,15 @@ describe("library filters", () => {
       addedAt: "2026-07-01T00:00:00.000Z",
     }),
   ];
+  const folders: Folder[] = [
+    {
+      id: "folder-one",
+      name: "Science Fiction",
+      relativePath: "Fiction/Science Fiction",
+      createdAt: "2026-07-01T00:00:00.000Z",
+      updatedAt: "2026-07-01T00:00:00.000Z",
+    },
+  ];
 
   it("prefers display metadata and provides an author fallback", () => {
     expect(bookTitle(books[0])).toBe("Renamed volume");
@@ -57,6 +67,27 @@ describe("library filters", () => {
     expect(filterBooks(books, "series 10")).toEqual([books[0]]);
     expect(filterBooks(books, "alpha")).toEqual([books[1]]);
     expect(filterBooks(books, "missing")).toEqual([]);
+  });
+
+  it("matches multiple terms across metadata and file context", () => {
+    const contextualBook = createBook({
+      id: "context",
+      originalTitle: "Café at the Edge",
+      originalAuthor: "Mira Chen",
+      fileName: "edge-volume-02.epub",
+      relativePath: "Mira/Edge/edge-volume-02.epub",
+      folderId: "folder-one",
+    });
+
+    expect(filterBooks([contextualBook], "cafe chen")).toEqual([
+      contextualBook,
+    ]);
+    expect(filterBooks([contextualBook], "volume 02")).toEqual([
+      contextualBook,
+    ]);
+    expect(filterBooks([contextualBook], "science", folders)).toEqual([
+      contextualBook,
+    ]);
   });
 
   it("sorts by added and opened timestamps", () => {
@@ -96,6 +127,14 @@ describe("library filters", () => {
       "first",
       "second",
       "third",
+    ]);
+  });
+
+  it("sorts folder-backed books by folder name with unfiled books last", () => {
+    expect(sortBooks(books, "folder", folders).map((book) => book.id)).toEqual([
+      "first",
+      "third",
+      "second",
     ]);
   });
 });

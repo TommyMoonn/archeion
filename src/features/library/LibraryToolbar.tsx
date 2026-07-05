@@ -3,6 +3,7 @@ import {
   GridFour,
   List,
   MagnifyingGlass,
+  X,
 } from "@phosphor-icons/react";
 
 import { IconButton } from "../../components/IconButton";
@@ -48,14 +49,31 @@ export function LibraryToolbar({
       </div>
 
       <div className="library-header__actions">
-        <Input
-          icon={<MagnifyingGlass aria-hidden="true" size={18} weight="regular" />}
-          label="Search library"
-          placeholder="Search books"
-          value={query}
-          onChange={(event) => onQueryChange(event.currentTarget.value)}
-          type="search"
-        />
+        <div className="library-search">
+          <Input
+            icon={
+              <MagnifyingGlass
+                aria-hidden="true"
+                size={18}
+                weight="regular"
+              />
+            }
+            label="Search library"
+            placeholder="Search books"
+            value={query}
+            onChange={(event) => onQueryChange(event.currentTarget.value)}
+            type="search"
+          />
+          {query ? (
+            <IconButton
+              className="library-search__clear"
+              label="Clear search"
+              onClick={() => onQueryChange("")}
+            >
+              <X aria-hidden="true" size={14} weight="bold" />
+            </IconButton>
+          ) : null}
+        </div>
         {storageSource === "vault" ? (
           <RescanVaultButton onError={onRescanError} />
         ) : (
@@ -72,7 +90,7 @@ export function LibraryToolbar({
               onSortChange(event.currentTarget.value as LibrarySort)
             }
           >
-            <option value="recently-added">Recently added</option>
+            <option value="recently-added">Recently discovered</option>
             <option value="recently-opened">Recently opened</option>
             <option value="title">Title</option>
             <option value="author">Author</option>

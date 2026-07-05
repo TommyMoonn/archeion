@@ -559,6 +559,33 @@ a {
   gap: 10px;
 }
 
+.library-search {
+  position: relative;
+  width: min(260px, 28vw);
+}
+
+.library-search .input-shell {
+  width: 100%;
+  padding-right: 40px;
+}
+
+.library-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.library-search__clear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  width: 30px;
+  height: 30px;
+  transform: translateY(-50%);
+}
+
+.library-search__clear:active:not(:disabled) {
+  transform: translateY(calc(-50% + 1px));
+}
+
 .library-controls {
   grid-column: 1 / -1;
   display: flex;
@@ -2265,6 +2292,10 @@ select {
   }
 
   .input-shell {
+    width: 100%;
+  }
+
+  .library-search {
     width: 100%;
   }
 
