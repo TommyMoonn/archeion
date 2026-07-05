@@ -1,15 +1,19 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
+import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
 
 type BookCoverProps = {
   book: Book;
   className?: string;
 };
 
-export function BookCover({ book, className = "" }: BookCoverProps) {
+export const BookCover = memo(function BookCover({
+  book,
+  className = "",
+}: BookCoverProps) {
   const storage = useLibraryStorage();
   const coverRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(Boolean(book.coverBlob));
@@ -40,21 +44,25 @@ export function BookCover({ book, className = "" }: BookCoverProps) {
       return;
     }
     let cancelled = false;
-    let objectUrl: string | null = null;
+    setCoverUrl(null);
+    setState("loading");
+    const acquired = acquireCoverUrl(
+      coverCacheKey(book.id, book.modifiedAt, book.size),
+      () =>
+        book.coverBlob
+          ? Promise.resolve(book.coverBlob)
+          : storage.loadBookCover(book.id),
+    );
 
-    const cover = book.coverBlob
-      ? Promise.resolve(book.coverBlob)
-      : storage.loadBookCover(book.id);
-    void cover
-      .then((blob) => {
-        if (cancelled || !blob) {
+    void acquired.promise
+      .then((url) => {
+        if (cancelled || !url) {
           if (!cancelled) {
             setState("unavailable");
           }
           return;
         }
-        objectUrl = URL.createObjectURL(blob);
-        setCoverUrl(objectUrl);
+        setCoverUrl(url);
         setState("available");
       })
       .catch(() => {
@@ -65,11 +73,16 @@ export function BookCover({ book, className = "" }: BookCoverProps) {
 
     return () => {
       cancelled = true;
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      acquired.release();
     };
-  }, [book.coverBlob, book.id, shouldLoad, storage]);
+  }, [
+    book.coverBlob,
+    book.id,
+    book.modifiedAt,
+    book.size,
+    shouldLoad,
+    storage,
+  ]);
 
   return (
     <div
@@ -79,11 +92,13 @@ export function BookCover({ book, className = "" }: BookCoverProps) {
       aria-hidden="true"
       title={state === "unavailable" ? "Cover unavailable" : undefined}
     >
-      {coverUrl ? <img alt="" src={coverUrl} /> : null}
+      {coverUrl ? (
+        <img alt="" decoding="async" loading="lazy" src={coverUrl} />
+      ) : null}
       {state === "unavailable" ? (
         <BookOpenText size={30} weight="thin" />
       ) : null}
       {state === "loading" ? <span className="book-cover__loading" /> : null}
     </div>
   );
-}
+});

@@ -1,4 +1,5 @@
 import { Heart } from "@phosphor-icons/react";
+import { memo } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
@@ -21,57 +22,70 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-export function BookList({
-  books,
+type BookRowProps = Omit<BookListProps, "books"> & {
+  book: Book;
+};
+
+const BookRow = memo(function BookRow({
+  book,
   onDelete,
   onRead,
   onSelect,
   onToggleFavorite,
   canDelete = true,
+}: BookRowProps) {
+  return (
+    <article className="book-row">
+      <button
+        className="book-row__select"
+        type="button"
+        onClick={() => onSelect(book)}
+      >
+        <BookCover book={book} className="book-cover--row" />
+        <span className="book-row__identity">
+          <strong>{bookTitle(book)}</strong>
+          <span>{bookAuthor(book)}</span>
+        </span>
+        <span className="book-row__file">{book.fileName}</span>
+        <span className="book-row__date">{formatDate(book.addedAt)}</span>
+      </button>
+      <IconButton
+        className="book-row__favorite"
+        data-active={book.isFavorite || undefined}
+        label={
+          book.isFavorite
+            ? `Remove ${bookTitle(book)} from favorites`
+            : `Add ${bookTitle(book)} to favorites`
+        }
+        onClick={() => onToggleFavorite(book)}
+      >
+        <Heart
+          aria-hidden="true"
+          size={17}
+          weight={book.isFavorite ? "fill" : "regular"}
+        />
+      </IconButton>
+      <BookContextMenu
+        book={book}
+        onDelete={onDelete}
+        onDetails={onSelect}
+        onRead={onRead}
+        onToggleFavorite={onToggleFavorite}
+        canDelete={canDelete}
+      />
+    </article>
+  );
+});
+
+export const BookList = memo(function BookList({
+  books,
+  ...rowProps
 }: BookListProps) {
   return (
     <section className="book-list" aria-label="Books">
       {books.map((book) => (
-        <article className="book-row" key={book.id}>
-          <button
-            className="book-row__select"
-            type="button"
-            onClick={() => onSelect(book)}
-          >
-            <BookCover book={book} className="book-cover--row" />
-            <span className="book-row__identity">
-              <strong>{bookTitle(book)}</strong>
-              <span>{bookAuthor(book)}</span>
-            </span>
-            <span className="book-row__file">{book.fileName}</span>
-            <span className="book-row__date">{formatDate(book.addedAt)}</span>
-          </button>
-          <IconButton
-            className="book-row__favorite"
-            data-active={book.isFavorite || undefined}
-            label={
-              book.isFavorite
-                ? `Remove ${bookTitle(book)} from favorites`
-                : `Add ${bookTitle(book)} to favorites`
-            }
-            onClick={() => onToggleFavorite(book)}
-          >
-            <Heart
-              aria-hidden="true"
-              size={17}
-              weight={book.isFavorite ? "fill" : "regular"}
-            />
-          </IconButton>
-          <BookContextMenu
-            book={book}
-            onDelete={onDelete}
-            onDetails={onSelect}
-            onRead={onRead}
-            onToggleFavorite={onToggleFavorite}
-            canDelete={canDelete}
-          />
-        </article>
+        <BookRow book={book} key={book.id} {...rowProps} />
       ))}
     </section>
   );
-}
+});

@@ -10,7 +10,7 @@ import {
   Plus,
   Question,
 } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useRef } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { FolderTree } from "../folders/FolderTree";
@@ -36,7 +36,7 @@ type LibrarySidebarProps = {
   onRenameFolder: (folder: Folder) => void;
 };
 
-export function LibrarySidebar({
+export const LibrarySidebar = memo(function LibrarySidebar({
   bookCount,
   bookCountsByFolder,
   favoriteCount,
@@ -210,4 +210,4 @@ export function LibrarySidebar({
       </div>
     </aside>
   );
-}
+});

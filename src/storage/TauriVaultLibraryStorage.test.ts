@@ -181,6 +181,18 @@ describe("TauriVaultLibraryStorage", () => {
     await expect(observed).resolves.toBe(1);
   });
 
+  it("does not notify observers when a rescan is unchanged", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listBooks();
+    const observer = vi.fn();
+    const stop = storage.observeBooks({ next: observer });
+
+    await storage.rescan();
+
+    expect(observer).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
   it("persists display metadata and progress in separate files", async () => {
     const storage = new TauriVaultLibraryStorage();
     await storage.listBooks();

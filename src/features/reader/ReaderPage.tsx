@@ -14,6 +14,7 @@ import {
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
+import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   defaultReaderSettings,
   type ReaderSettings,
@@ -36,6 +37,11 @@ export function ReaderPage() {
   const storage = useLibraryStorage();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const progressWriter = useRef<DebouncedTask<{
+    bookId: string;
+    location: ReaderLocation;
+  }> | null>(null);
+  const mountedRef = useRef(true);
   const settingsSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const controlsTimer = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -120,6 +126,52 @@ export function ReaderPage() {
       });
   }, [book, storage]);
 
+  const queueProgressSave = useCallback(
+    (bookId: string, nextLocation: ReaderLocation) => {
+      progressSaveQueue.current = progressSaveQueue.current
+        .catch(() => undefined)
+        .then(() =>
+          storage.updateBook(bookId, {
+            progressCfi: nextLocation.cfi,
+            progressPercent: nextLocation.percentage,
+          }),
+        )
+        .then(() => {
+          if (mountedRef.current) setProgressSaveFailed(false);
+        })
+        .catch(() => {
+          if (mountedRef.current) setProgressSaveFailed(true);
+        });
+    },
+    [storage],
+  );
+
+  useEffect(() => {
+    const writer = new DebouncedTask<{
+      bookId: string;
+      location: ReaderLocation;
+    }>(600, ({ bookId, location: nextLocation }) => {
+      queueProgressSave(bookId, nextLocation);
+    });
+
+    progressWriter.current = writer;
+
+    return () => {
+      writer.flush();
+      if (progressWriter.current === writer) {
+        progressWriter.current = null;
+      }
+    };
+  }, [queueProgressSave]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      progressWriter.current?.flush();
+      mountedRef.current = false;
+    };
+  }, []);
+
   const handleLocationChange = useCallback(
     (nextLocation: ReaderLocation) => {
       if (!book) {
@@ -127,21 +179,12 @@ export function ReaderPage() {
       }
 
       setLocation(nextLocation);
-      progressSaveQueue.current = progressSaveQueue.current
-        .then(() =>
-          storage.updateBook(book.id, {
-            progressCfi: nextLocation.cfi,
-            progressPercent: nextLocation.percentage,
-          }),
-        )
-        .then(() => {
-          setProgressSaveFailed(false);
-        })
-        .catch(() => {
-          setProgressSaveFailed(true);
-        });
+      progressWriter.current?.schedule({
+        bookId: book.id,
+        location: nextLocation,
+      });
     },
-    [book, storage],
+    [book],
   );
 
   const handleViewerError = useCallback((message: string) => {

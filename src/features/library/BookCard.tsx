@@ -1,4 +1,5 @@
 import { Heart } from "@phosphor-icons/react";
+import { memo } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
@@ -15,7 +16,7 @@ type BookCardProps = {
   canDelete?: boolean;
 };
 
-export function BookCard({
+export const BookCard = memo(function BookCard({
   book,
   onDelete,
   onRead,
@@ -63,4 +64,4 @@ export function BookCard({
       />
     </article>
   );
-}
+});

@@ -1,11 +1,13 @@
 use std::{
     collections::HashMap,
     fs,
-    io::Read,
+    io::{Cursor, Read},
     path::{Component, Path, PathBuf},
     process::Command,
+    time::UNIX_EPOCH,
 };
 
+use image::{ImageFormat, ImageReader, Limits};
 use percent_encoding::percent_decode_str;
 use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
@@ -172,6 +174,69 @@ fn extract_cover(epub_path: &Path) -> Result<Option<Vec<u8>>, String> {
     Ok((!bytes.is_empty()).then_some(bytes))
 }
 
+fn thumbnail_cover(bytes: &[u8]) -> Result<Vec<u8>, String> {
+    let mut reader = ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .map_err(|error| error.to_string())?;
+    let mut limits = Limits::default();
+    limits.max_alloc = Some(128 * 1024 * 1024);
+    reader.limits(limits);
+    let image = reader.decode().map_err(|error| error.to_string())?;
+    let thumbnail = image.thumbnail(320, 480);
+    let mut output = Cursor::new(Vec::new());
+    thumbnail
+        .write_to(&mut output, ImageFormat::Png)
+        .map_err(|error| error.to_string())?;
+    Ok(output.into_inner())
+}
+
+fn cover_cache_path(cache_dir: &Path, epub_path: &Path, book_id: &str) -> Result<PathBuf, String> {
+    let metadata = fs::metadata(epub_path).map_err(|error| error.to_string())?;
+    let modified = metadata
+        .modified()
+        .map_err(|error| error.to_string())?
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_nanos();
+    Ok(cache_dir.join(format!("{book_id}-{}-{modified}.cover", metadata.len())))
+}
+
+fn remove_stale_covers(cache_dir: &Path, book_id: &str, keep: &Path) {
+    let prefix = format!("{book_id}-");
+    let legacy_name = format!("{book_id}.cover");
+    let Ok(entries) = fs::read_dir(cache_dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if path != keep && (name == legacy_name || name.starts_with(&prefix)) {
+            let _ = fs::remove_file(path);
+        }
+    }
+}
+
+fn load_epub_cover_at(root: &Path, relative_path: &str, book_id: &str) -> Result<Vec<u8>, String> {
+    let epub_path = resolve_epub_path(root, relative_path)?;
+    let cache_dir = root.join(".archeion").join("covers");
+    let cache_path = cover_cache_path(&cache_dir, &epub_path, book_id)?;
+    if cache_path.is_file() {
+        return fs::read(cache_path).map_err(|error| error.to_string());
+    }
+
+    let extracted = extract_cover(&epub_path)?.unwrap_or_default();
+    fs::create_dir_all(&cache_dir).map_err(|error| error.to_string())?;
+    remove_stale_covers(&cache_dir, book_id, &cache_path);
+    if extracted.is_empty() {
+        fs::write(&cache_path, &[] as &[u8]).map_err(|error| error.to_string())?;
+        return Ok(extracted);
+    }
+    let bytes = thumbnail_cover(&extracted).unwrap_or(extracted);
+    fs::write(&cache_path, &bytes).map_err(|error| error.to_string())?;
+    Ok(bytes)
+}
+
 #[tauri::command]
 pub fn read_epub_file(
     app: tauri::AppHandle,
@@ -222,7 +287,7 @@ pub fn reveal_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<
 }
 
 #[tauri::command]
-pub fn load_epub_cover(
+pub async fn load_epub_cover(
     app: tauri::AppHandle,
     relative_path: String,
     book_id: String,
@@ -236,26 +301,11 @@ pub fn load_epub_cover(
     let root = vault::read_vault_path(&app)?
         .map(PathBuf::from)
         .ok_or_else(|| "No library folder has been selected.".to_string())?;
-    let cache_path = root
-        .join(".archeion")
-        .join("covers")
-        .join(format!("{book_id}.cover"));
-    if cache_path.is_file() {
-        return fs::read(cache_path)
-            .map(tauri::ipc::Response::new)
-            .map_err(|error| error.to_string());
-    }
-    let epub_path = resolve_epub_path(&root, &relative_path)?;
-    let bytes = extract_cover(&epub_path)?.unwrap_or_default();
-    if !bytes.is_empty() {
-        fs::create_dir_all(
-            cache_path
-                .parent()
-                .ok_or_else(|| "Cover cache is unavailable.".to_string())?,
-        )
-        .map_err(|error| error.to_string())?;
-        fs::write(&cache_path, &bytes).map_err(|error| error.to_string())?;
-    }
+    let bytes = tauri::async_runtime::spawn_blocking(move || {
+        load_epub_cover_at(&root, &relative_path, &book_id)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
@@ -267,7 +317,7 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{extract_cover, resolve_epub_path};
+    use super::{cover_cache_path, extract_cover, resolve_epub_path, thumbnail_cover};
 
     fn test_root() -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -350,5 +400,40 @@ mod tests {
 
         assert_eq!(cover, vec![255, 216, 255, 217]);
         fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn creates_bounded_cover_thumbnails() {
+        let source = image::DynamicImage::new_rgb8(1200, 1800);
+        let mut source_bytes = std::io::Cursor::new(Vec::new());
+        source
+            .write_to(&mut source_bytes, image::ImageFormat::Png)
+            .expect("source image should encode");
+
+        let thumbnail =
+            thumbnail_cover(source_bytes.get_ref()).expect("thumbnail should be generated");
+        let decoded =
+            image::load_from_memory(&thumbnail).expect("thumbnail should be a readable image");
+
+        assert!(decoded.width() <= 320);
+        assert!(decoded.height() <= 480);
+    }
+
+    #[test]
+    fn cover_cache_key_changes_with_source_file() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test root should be created");
+        let epub_path = root.join("book.epub");
+        let cache_dir = root.join(".archeion").join("covers");
+        fs::write(&epub_path, [1, 2, 3]).expect("source should be written");
+        let first =
+            cover_cache_path(&cache_dir, &epub_path, "book-1").expect("cache path should resolve");
+
+        fs::write(&epub_path, [1, 2, 3, 4]).expect("source should be updated");
+        let second =
+            cover_cache_path(&cache_dir, &epub_path, "book-1").expect("cache path should resolve");
+
+        assert_ne!(first, second);
+        let _ = fs::remove_dir_all(root);
     }
 }

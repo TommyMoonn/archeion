@@ -21,6 +21,10 @@ import {
   type MetadataBundle,
   type SettingsMetadata,
 } from "./metadataFiles";
+import {
+  reconcileById,
+  shallowEqualRecords,
+} from "../utils/reconcileById";
 import type {
   LibraryStorage,
   StorageObserver,
@@ -90,6 +94,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   private async performScan() {
+    const wasLoaded = this.loaded;
     try {
       const [scan, metadata] = await Promise.all([
         invoke<VaultScan>("scan_vault"),
@@ -105,7 +110,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       const timestamp = new Date().toISOString();
       let libraryChanged = false;
 
-      this.folders = scan.folders.map((folder) => ({
+      const nextFolders = scan.folders.map((folder) => ({
         ...folder,
         parentId: folder.parentPath
           ? (folderIds.get(folder.parentPath) ?? null)
@@ -174,15 +179,27 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
             lastOpenedAt: progress?.lastOpenedAt,
           } satisfies Book;
         });
-      this.books = [...scannedBooks, ...missingBooks];
+      const nextBooks = [...scannedBooks, ...missingBooks];
+      const reconciledBooks = reconcileById(
+        this.books,
+        nextBooks,
+        shallowEqualRecords,
+      );
+      const reconciledFolders = reconcileById(
+        this.folders,
+        nextFolders,
+        shallowEqualRecords,
+      );
+      this.books = reconciledBooks.items;
+      this.folders = reconciledFolders.items;
       if (libraryChanged) {
         await invoke("save_library_metadata", {
           metadata: this.libraryMetadata,
         });
       }
       this.loaded = true;
-      this.emitBooks();
-      this.emitFolders();
+      if (!wasLoaded || reconciledBooks.changed) this.emitBooks();
+      if (!wasLoaded || reconciledFolders.changed) this.emitFolders();
     } catch (error) {
       if (!this.loaded) {
         this.loaded = true;
@@ -240,28 +257,33 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return new Blob([contents], { type: "application/epub+zip" });
   }
 
-  loadBookCover(id: string): Promise<Blob | undefined> {
-    const current = this.coverPromises.get(id);
-    if (current) {
-      return current;
-    }
-    const pending = this.loadVaultBookCover(id).catch((error) => {
-      this.coverPromises.delete(id);
-      throw error;
-    });
-    this.coverPromises.set(id, pending);
-    return pending;
-  }
-
-  private async loadVaultBookCover(id: string): Promise<Blob | undefined> {
+  async loadBookCover(id: string): Promise<Blob | undefined> {
     await this.ensureLoaded();
     const book = this.books.find((candidate) => candidate.id === id);
     if (!book?.relativePath || book.isFileMissing) {
       return undefined;
     }
+    const cacheKey = `${id}:${book.size ?? "unknown"}:${book.modifiedAt ?? "unknown"}`;
+    const current = this.coverPromises.get(cacheKey);
+    if (current) {
+      return current;
+    }
+    const pending = this.loadVaultBookCover(book);
+    this.coverPromises.set(cacheKey, pending);
+    void pending
+      .finally(() => {
+        if (this.coverPromises.get(cacheKey) === pending) {
+          this.coverPromises.delete(cacheKey);
+        }
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
+  private async loadVaultBookCover(book: Book): Promise<Blob | undefined> {
     const contents = await invoke<ArrayBuffer>("load_epub_cover", {
       relativePath: book.relativePath,
-      bookId: id,
+      bookId: book.id,
     });
     return contents.byteLength
       ? new Blob([contents], { type: "application/octet-stream" })
@@ -375,7 +397,9 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     });
 
     this.books.splice(index, 1);
-    this.coverPromises.delete(id);
+    for (const key of this.coverPromises.keys()) {
+      if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
+    }
     this.emitBooks();
     return true;
   }

@@ -1599,6 +1599,8 @@ select {
 }
 
 .book-card__select {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 360px;
   display: block;
   width: 100%;
   padding: 0;
@@ -1818,6 +1820,8 @@ select {
 }
 
 .book-row__select {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 74px;
   display: grid;
   grid-template-columns: 42px minmax(180px, 1.2fr) minmax(150px, 1fr) 120px;
   align-items: center;

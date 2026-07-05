@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import type { Book } from "../../types/book";
 import { BookCard } from "./BookCard";
 
@@ -10,7 +12,7 @@ type BookGridProps = {
   canDelete?: boolean;
 };
 
-export function BookGrid({
+export const BookGrid = memo(function BookGrid({
   books,
   onDelete,
   onRead,
@@ -33,4 +35,4 @@ export function BookGrid({
       ))}
     </section>
   );
-}
+});

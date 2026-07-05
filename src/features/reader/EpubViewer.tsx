@@ -88,12 +88,6 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
             return;
           }
 
-          try {
-            await epubBook.locations.generate(1600);
-          } catch {
-            // Reading can continue without a calculated percentage.
-          }
-
           const currentSettings = settingsRef.current;
           rendition = epubBook.renderTo(containerRef.current, {
             width: "100%",
@@ -122,6 +116,9 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           } catch {
             await rendition.display();
           }
+          void epubBook.locations.generate(1600).catch(() => {
+            // Reading can continue without a calculated percentage.
+          });
 
           if (!cancelled) {
             setIsLoading(false);

@@ -19,6 +19,8 @@ import { useAppPreferences } from "../../stores/appPreferencesStore";
 import { vaultStore } from "../../stores/vaultStore";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { measurePerformance } from "../../utils/measurePerformance";
+import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderCreateDialog } from "../folders/FolderCreateDialog";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { FolderRenameDialog } from "../folders/FolderRenameDialog";
@@ -82,6 +84,7 @@ export function LibraryPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const debouncedQuery = useDebouncedValue(query, 150);
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -129,8 +132,10 @@ export function LibraryPage() {
   }
 
   const bookCount = books?.length ?? 0;
-  const favoriteCount =
-    books?.filter((book) => book.isFavorite).length ?? 0;
+  const favoriteCount = useMemo(
+    () => books?.filter((book) => book.isFavorite).length ?? 0,
+    [books],
+  );
   const continueBooks = useMemo(
     () =>
       [...(books ?? [])]
@@ -144,6 +149,10 @@ export function LibraryPage() {
         ),
     [books],
   );
+  const continuePreview = useMemo(
+    () => continueBooks.slice(0, 5),
+    [continueBooks],
+  );
   const bookCountsByFolder = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -156,13 +165,26 @@ export function LibraryPage() {
     return counts;
   }, [books]);
   const visibleBooks = useMemo(
-    () => getVisibleBooks(books ?? [], query, sort, location, folders),
-    [books, folders, location, query, sort],
+    () =>
+      measurePerformance("archeion:filter-and-sort-library", () =>
+        getVisibleBooks(
+          books ?? [],
+          debouncedQuery,
+          sort,
+          location,
+          folders,
+        ),
+      ),
+    [books, debouncedQuery, folders, location, sort],
   );
-  const selectedBook =
-    books?.find((book) => book.id === selectedBookId) ?? null;
-  const metadataEditBook =
-    books?.find((book) => book.id === metadataEditBookId) ?? null;
+  const selectedBook = useMemo(
+    () => books?.find((book) => book.id === selectedBookId) ?? null,
+    [books, selectedBookId],
+  );
+  const metadataEditBook = useMemo(
+    () => books?.find((book) => book.id === metadataEditBookId) ?? null,
+    [books, metadataEditBookId],
+  );
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
   const currentFolder =
     location.type === "folder"
@@ -175,27 +197,27 @@ export function LibraryPage() {
         ? "Continue reading"
         : currentFolder?.name ?? "Library";
 
-  function changeLocation(nextLocation: LibraryLocation) {
+  const changeLocation = useCallback((nextLocation: LibraryLocation) => {
     setLocation(nextLocation);
     if (nextLocation.type === "continue") {
       setSort("recently-opened");
     }
-  }
+  }, []);
 
-  function requestDelete(book: Book) {
+  const requestDelete = useCallback((book: Book) => {
     setSelectedBookId(null);
     setDeleteTarget(book);
-  }
+  }, []);
 
-  function requestClearProgress(book: Book) {
+  const requestClearProgress = useCallback((book: Book) => {
     setSelectedBookId(null);
     setClearProgressTarget(book);
-  }
+  }, []);
 
-  function openMetadataEdit(book: Book) {
+  const openMetadataEdit = useCallback((book: Book) => {
     setSelectedBookId(null);
     setMetadataEditBookId(book.id);
-  }
+  }, []);
 
   function closeMetadataEdit() {
     const bookId = metadataEditBookId;
@@ -203,13 +225,25 @@ export function LibraryPage() {
     setSelectedBookId(bookId);
   }
 
-  function readBook(book: Book) {
+  const readBook = useCallback((book: Book) => {
     void navigate(`/reader/${book.id}`);
-  }
+  }, [navigate]);
 
-  function readBookFromBeginning(book: Book) {
+  const readBookFromBeginning = useCallback((book: Book) => {
     void navigate(`/reader/${book.id}?start=beginning`);
-  }
+  }, [navigate]);
+
+  const selectBook = useCallback((book: Book) => {
+    setSelectedBookId(book.id);
+  }, []);
+
+  const openChangeArchive = useCallback(() => setChangeArchiveOpen(true), []);
+  const openCreateFolder = useCallback(
+    () => setIsCreateFolderOpen(true),
+    [],
+  );
+  const openAbout = useCallback(() => setAboutOpen(true), []);
+  const openSettings = useCallback(() => setSettingsOpen(true), []);
 
   async function rescanLibrary() {
     setLibraryError(null);
@@ -279,7 +313,7 @@ export function LibraryPage() {
     }
   }
 
-  async function toggleFavorite(book: Book) {
+  const toggleFavorite = useCallback(async (book: Book) => {
     setLibraryError(null);
 
     try {
@@ -289,7 +323,7 @@ export function LibraryPage() {
     } catch {
       setLibraryError("Favorite status could not be updated.");
     }
-  }
+  }, [storage]);
 
   async function saveBook(book: Book, changes: UpdateBookInput) {
     setLibraryError(null);
@@ -389,12 +423,12 @@ export function LibraryPage() {
           location={location}
           archivePath={vault.status === "ready" ? vault.path : ""}
           canManageFolders={storage.source !== "vault"}
-          onChangeArchive={() => setChangeArchiveOpen(true)}
-          onCreateFolder={() => setIsCreateFolderOpen(true)}
+          onChangeArchive={openChangeArchive}
+          onCreateFolder={openCreateFolder}
           onDeleteFolder={setDeleteFolderTarget}
           onLocationChange={changeLocation}
-          onOpenAbout={() => setAboutOpen(true)}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenAbout={openAbout}
+          onOpenSettings={openSettings}
           onRenameFolder={setRenameFolderTarget}
         />
       }
@@ -476,7 +510,7 @@ export function LibraryPage() {
           !query &&
           preferences.showContinueReading ? (
             <ContinueReading
-              books={continueBooks.slice(0, 5)}
+              books={continuePreview}
               onContinue={readBook}
             />
           ) : null}
@@ -487,7 +521,7 @@ export function LibraryPage() {
                 {isImporting ? "Adding EPUB files" : "Loading library"}
               </span>
             </div>
-          ) : visibleBooks.length === 0 && !query ? (
+          ) : visibleBooks.length === 0 && !debouncedQuery ? (
             <EmptyState
               description={emptyState.description}
               icon={<BookOpenText size={42} weight="thin" />}
@@ -510,7 +544,7 @@ export function LibraryPage() {
               canDelete={storage.source !== "vault"}
               onDelete={requestDelete}
               onRead={readBook}
-              onSelect={(book) => setSelectedBookId(book.id)}
+              onSelect={selectBook}
               onToggleFavorite={toggleFavorite}
             />
           ) : (
@@ -519,7 +553,7 @@ export function LibraryPage() {
               canDelete={storage.source !== "vault"}
               onDelete={requestDelete}
               onRead={readBook}
-              onSelect={(book) => setSelectedBookId(book.id)}
+              onSelect={selectBook}
               onToggleFavorite={toggleFavorite}
             />
           )}

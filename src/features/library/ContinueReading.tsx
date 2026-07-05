@@ -1,4 +1,5 @@
 import { ArrowRight } from "@phosphor-icons/react";
+import { memo } from "react";
 
 import type { Book } from "../../types/book";
 import { BookCover } from "./BookCover";
@@ -9,7 +10,7 @@ type ContinueReadingProps = {
   onContinue: (book: Book) => void;
 };
 
-export function ContinueReading({
+export const ContinueReading = memo(function ContinueReading({
   books,
   onContinue,
 }: ContinueReadingProps) {
@@ -45,4 +46,4 @@ export function ContinueReading({
       </div>
     </section>
   );
-}
+});
