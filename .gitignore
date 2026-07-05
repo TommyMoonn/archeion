@@ -4,6 +4,8 @@ node_modules/
 # Build output
 dist/
 dist-ssr/
+src-tauri/target/
+src-tauri/gen/schemas/
 
 # Local environment files
 .env
