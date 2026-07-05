@@ -181,6 +181,37 @@ describe("TauriVaultLibraryStorage", () => {
     );
   });
 
+  it("clears display overrides without changing the EPUB record", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listBooks();
+
+    const updated = await storage.updateBook("book-1", {
+      displayTitle: undefined,
+      displayAuthor: undefined,
+    });
+
+    expect(updated?.displayTitle).toBeUndefined();
+    expect(updated?.relativePath).toBe("Author/Series/Volume_01.epub");
+    const saveCall = invokeMock.mock.calls.find(
+      ([command]) => command === "save_library_metadata",
+    );
+    expect(
+      (
+        saveCall?.[1] as {
+          metadata: {
+            books: Record<
+              string,
+              { displayTitle?: string; displayAuthor?: string }
+            >;
+          };
+        }
+      ).metadata.books["book-1"],
+    ).toMatchObject({
+      displayTitle: undefined,
+      displayAuthor: undefined,
+    });
+  });
+
   it("persists reader settings", async () => {
     const storage = new TauriVaultLibraryStorage();
     const settings = await storage.updateReaderSettings({ fontSize: 22 });

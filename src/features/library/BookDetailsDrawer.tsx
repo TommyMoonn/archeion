@@ -1,28 +1,26 @@
 import {
   BookOpen,
   File,
-  FloppyDisk,
   Heart,
+  PencilSimple,
   Trash,
   User,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import type { Book, UpdateBookInput } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { Book } from "../../types/book";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
 type BookDetailsDrawerProps = {
   book: Book;
-  folders: Folder[];
   onClose: () => void;
   onDelete: (book: Book) => void;
   onRead: (book: Book) => void;
-  onSave: (book: Book, changes: UpdateBookInput) => Promise<void>;
+  onEdit: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
   canManageFile?: boolean;
 };
@@ -47,29 +45,19 @@ function formatDate(value: string): string {
 
 export function BookDetailsDrawer({
   book,
-  folders,
   onClose,
   onDelete,
   onRead,
-  onSave,
+  onEdit,
   onToggleFavorite,
   canManageFile = true,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [displayTitle, setDisplayTitle] = useState(book.displayTitle ?? "");
-  const [displayAuthor, setDisplayAuthor] = useState(book.displayAuthor ?? "");
-  const [folderId, setFolderId] = useState(book.folderId ?? "");
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
   const hasMetadataOverride =
     (book.displayTitle?.trim() &&
       book.displayTitle.trim() !== book.originalTitle) ||
     (book.displayAuthor?.trim() &&
       book.displayAuthor.trim() !== (book.originalAuthor ?? ""));
-  const hasChanges =
-    displayTitle !== (book.displayTitle ?? "") ||
-    displayAuthor !== (book.displayAuthor ?? "") ||
-    (canManageFile && folderId !== (book.folderId ?? ""));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -84,29 +72,6 @@ export function BookDetailsDrawer({
       }
     };
   }, []);
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!hasChanges || isSaving) {
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    try {
-      await onSave(book, {
-        displayTitle: displayTitle.trim() || undefined,
-        displayAuthor: displayAuthor.trim() || undefined,
-        ...(canManageFile ? { folderId: folderId || null } : {}),
-      });
-    } catch {
-      setSaveError("These changes could not be saved. Please try again.");
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   return (
     <dialog
@@ -136,56 +101,14 @@ export function BookDetailsDrawer({
           <div className="details-drawer__title">
             <h2 id="book-details-title">{bookTitle(book)}</h2>
             <p>{bookAuthor(book)}</p>
-          </div>
-
-          <form className="book-editor" onSubmit={handleSubmit}>
-            <label className="form-field">
-              <span>Display title</span>
-              <input
-                value={displayTitle}
-                placeholder={book.originalTitle}
-                onChange={(event) =>
-                  setDisplayTitle(event.currentTarget.value)
-                }
-              />
-            </label>
-            <label className="form-field">
-              <span>Display author</span>
-              <input
-                value={displayAuthor}
-                placeholder={book.originalAuthor ?? "Unknown author"}
-                onChange={(event) =>
-                  setDisplayAuthor(event.currentTarget.value)
-                }
-              />
-            </label>
-            <label className="form-field">
-              <span>Folder</span>
-              <select
-                disabled={!canManageFile}
-                value={folderId}
-                onChange={(event) => setFolderId(event.currentTarget.value)}
-              >
-                <option value="">Library</option>
-                {folders.map((folder) => (
-                  <option key={folder.id} value={folder.id}>
-                    {folder.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {saveError ? <p className="form-error">{saveError}</p> : null}
             <Button
-              variant="secondary"
-              disabled={!hasChanges || isSaving}
-              icon={
-                <FloppyDisk aria-hidden="true" size={17} weight="regular" />
-              }
-              type="submit"
+              icon={<PencilSimple aria-hidden="true" size={16} />}
+              onClick={() => onEdit(book)}
+              variant="ghost"
             >
-              {isSaving ? "Saving" : "Save changes"}
+              Edit metadata
             </Button>
-          </form>
+          </div>
 
           <dl className="book-metadata">
             {hasMetadataOverride ? (
@@ -207,6 +130,7 @@ export function BookDetailsDrawer({
               </dt>
               <dd>
                 <span>{book.fileName}</span>
+                {book.relativePath ? <span>{book.relativePath}</span> : null}
                 <span>{formatFileSize(book.size ?? book.fileBlob?.size ?? 0)}</span>
               </dd>
             </div>

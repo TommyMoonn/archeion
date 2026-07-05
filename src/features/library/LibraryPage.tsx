@@ -30,6 +30,7 @@ import { VaultStatusBar } from "../vault/VaultStatusBar";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
+import { BookMetadataDialog } from "./BookMetadataDialog";
 import { ContinueReading } from "./ContinueReading";
 import {
   getVisibleBooks,
@@ -61,6 +62,8 @@ export function LibraryPage() {
     type: "library",
   });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
+  const [metadataEditBookId, setMetadataEditBookId] =
+    useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] =
@@ -147,6 +150,8 @@ export function LibraryPage() {
   );
   const selectedBook =
     books?.find((book) => book.id === selectedBookId) ?? null;
+  const metadataEditBook =
+    books?.find((book) => book.id === metadataEditBookId) ?? null;
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
   const currentFolder =
     location.type === "folder"
@@ -170,6 +175,17 @@ export function LibraryPage() {
   function requestDelete(book: Book) {
     setSelectedBookId(null);
     setDeleteTarget(book);
+  }
+
+  function openMetadataEdit(book: Book) {
+    setSelectedBookId(null);
+    setMetadataEditBookId(book.id);
+  }
+
+  function closeMetadataEdit() {
+    const bookId = metadataEditBookId;
+    setMetadataEditBookId(null);
+    setSelectedBookId(bookId);
   }
 
   function readBook(book: Book) {
@@ -442,12 +458,19 @@ export function LibraryPage() {
         <BookDetailsDrawer
           book={selectedBook}
           canManageFile={storage.source !== "vault"}
-          folders={folders ?? []}
           onClose={closeDetails}
           onDelete={requestDelete}
+          onEdit={openMetadataEdit}
           onRead={readBook}
-          onSave={saveBook}
           onToggleFavorite={toggleFavorite}
+        />
+      ) : null}
+
+      {metadataEditBook ? (
+        <BookMetadataDialog
+          book={metadataEditBook}
+          onClose={closeMetadataEdit}
+          onSave={saveBook}
         />
       ) : null}
 

@@ -1403,6 +1403,13 @@ select {
   font-size: 13px;
 }
 
+.details-drawer__title .button {
+  min-height: 34px;
+  margin-top: 15px;
+  padding-inline: 12px;
+  color: var(--muted);
+}
+
 .book-editor {
   display: grid;
   gap: 14px;
@@ -1567,6 +1574,40 @@ select {
   display: grid;
   gap: 10px;
   margin-top: 20px;
+}
+
+.metadata-original {
+  display: grid;
+  gap: 4px;
+  padding: 13px 14px;
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--canvas-deep);
+}
+
+.metadata-original > span {
+  margin-bottom: 3px;
+  color: var(--muted-soft);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.metadata-original strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.metadata-original small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dialog__footer > .button--ghost:first-child {
+  margin-right: auto;
 }
 
 @keyframes loading-sheen {
