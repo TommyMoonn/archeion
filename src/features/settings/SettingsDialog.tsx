@@ -75,6 +75,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
+  const [changeLibraryOpen, setChangeLibraryOpen] = useState(false);
+  const [rescanOpen, setRescanOpen] = useState(false);
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("General");
 
@@ -120,6 +122,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }
 
   async function rescan() {
+    setRescanOpen(false);
     setStatus("Rescanning library");
     try {
       await storage.rescan();
@@ -130,6 +133,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }
 
   async function changeLibrary() {
+    setChangeLibraryOpen(false);
     const changed = await vaultStore.chooseVault();
     if (changed) setStatus("Library folder changed.");
   }
@@ -215,7 +219,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             {storage.source === "vault" ? (
               <Button
                 icon={<FolderOpen aria-hidden="true" size={17} />}
-                onClick={() => void changeLibrary()}
+                onClick={() => setChangeLibraryOpen(true)}
                 variant="secondary"
               >
                 Change
@@ -241,7 +245,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 </div>
                 <Button
                   icon={<ArrowsClockwise aria-hidden="true" size={17} />}
-                  onClick={() => void rescan()}
+                  onClick={() => setRescanOpen(true)}
                   variant="secondary"
                 >
                   Rescan
@@ -445,6 +449,46 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               <>
                 <Button variant="secondary" onClick={() => setClearCacheOpen(false)}>Cancel</Button>
                 <Button variant="danger" onClick={() => void clearCache()}>Clear cache</Button>
+              </>
+            }
+          />
+        ) : null}
+        {changeLibraryOpen ? (
+          <Dialog
+            title="Change library folder?"
+            description="You’ll switch to another local folder. The current folder and its metadata will remain unchanged."
+            onClose={() => setChangeLibraryOpen(false)}
+            footer={
+              <>
+                <Button
+                  onClick={() => setChangeLibraryOpen(false)}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={() => void changeLibrary()}>
+                  Choose folder
+                </Button>
+              </>
+            }
+          />
+        ) : null}
+        {rescanOpen ? (
+          <Dialog
+            title="Rescan library?"
+            description="This refreshes book and missing-file records. EPUB files are not changed."
+            onClose={() => setRescanOpen(false)}
+            footer={
+              <>
+                <Button
+                  onClick={() => setRescanOpen(false)}
+                  variant="secondary"
+                >
+                  Cancel
+                </Button>
+                <Button onClick={() => void rescan()}>
+                  Rescan library
+                </Button>
               </>
             }
           />

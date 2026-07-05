@@ -19,6 +19,7 @@ export function BookMetadataDialog({
   const [displayAuthor, setDisplayAuthor] = useState(book.displayAuthor ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
   const hasOverrides = Boolean(book.displayTitle || book.displayAuthor);
   const hasChanges =
     displayTitle !== (book.displayTitle ?? "") ||
@@ -48,6 +49,41 @@ export function BookMetadataDialog({
     });
   }
 
+  if (resetConfirmationOpen) {
+    return (
+      <Dialog
+        title="Reset metadata overrides?"
+        description="The original title and author from the EPUB will be shown again. The EPUB file is not changed."
+        onClose={() => {
+          if (!isSaving) setResetConfirmationOpen(false);
+        }}
+        footer={
+          <>
+            <Button
+              disabled={isSaving}
+              onClick={() => setResetConfirmationOpen(false)}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={isSaving}
+              onClick={() =>
+                void save({
+                  displayTitle: undefined,
+                  displayAuthor: undefined,
+                })
+              }
+              variant="danger"
+            >
+              {isSaving ? "Resetting" : "Reset overrides"}
+            </Button>
+          </>
+        }
+      />
+    );
+  }
+
   return (
     <Dialog
       onClose={() => {
@@ -61,12 +97,7 @@ export function BookMetadataDialog({
           {hasOverrides ? (
             <Button
               disabled={isSaving}
-              onClick={() =>
-                void save({
-                  displayTitle: undefined,
-                  displayAuthor: undefined,
-                })
-              }
+              onClick={() => setResetConfirmationOpen(true)}
               variant="ghost"
             >
               Reset overrides

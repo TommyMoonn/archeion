@@ -69,6 +69,10 @@ export function LibraryPage() {
   const [metadataEditBookId, setMetadataEditBookId] =
     useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
+  const [clearProgressTarget, setClearProgressTarget] =
+    useState<Book | null>(null);
+  const [changeArchiveOpen, setChangeArchiveOpen] = useState(false);
+  const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] =
     useState<Folder | null>(null);
@@ -182,6 +186,11 @@ export function LibraryPage() {
     setDeleteTarget(book);
   }
 
+  function requestClearProgress(book: Book) {
+    setSelectedBookId(null);
+    setClearProgressTarget(book);
+  }
+
   function openMetadataEdit(book: Book) {
     setSelectedBookId(null);
     setMetadataEditBookId(book.id);
@@ -209,6 +218,31 @@ export function LibraryPage() {
     } catch {
       setLibraryError("The library folder could not be scanned.");
     }
+  }
+
+  async function clearProgress() {
+    if (!clearProgressTarget || isDeleting) return;
+
+    setIsDeleting(true);
+    setLibraryError(null);
+    try {
+      await storage.updateBook(clearProgressTarget.id, {
+        progressCfi: undefined,
+        progressPercent: 0,
+        lastOpenedAt: undefined,
+      });
+      setSelectedBookId(clearProgressTarget.id);
+      setClearProgressTarget(null);
+    } catch {
+      setLibraryError("Reading progress could not be cleared.");
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
+  async function changeArchive() {
+    setChangeArchiveOpen(false);
+    await vaultStore.chooseVault();
   }
 
   async function confirmDelete() {
@@ -341,7 +375,7 @@ export function LibraryPage() {
           location={location}
           archivePath={vault.status === "ready" ? vault.path : ""}
           canManageFolders={storage.source !== "vault"}
-          onChangeArchive={() => void vaultStore.chooseVault()}
+          onChangeArchive={() => setChangeArchiveOpen(true)}
           onCreateFolder={() => setIsCreateFolderOpen(true)}
           onDeleteFolder={setDeleteFolderTarget}
           onLocationChange={changeLocation}
@@ -485,11 +519,15 @@ export function LibraryPage() {
           book={selectedBook}
           canManageFile={storage.source !== "vault"}
           onClose={closeDetails}
+          onClearProgress={requestClearProgress}
           onDelete={requestDelete}
           onEdit={openMetadataEdit}
           onRead={readBook}
           onReadFromBeginning={readBookFromBeginning}
-          onRescan={() => void rescanLibrary()}
+          onRescan={() => {
+            setSelectedBookId(null);
+            setRescanConfirmationOpen(true);
+          }}
           onToggleFavorite={toggleFavorite}
         />
       ) : null}
@@ -528,13 +566,13 @@ export function LibraryPage() {
         <Dialog
           title={
             deleteTarget.isFileMissing
-              ? "Remove saved metadata?"
-              : "Delete this book?"
+              ? "Remove book metadata?"
+              : "Delete EPUB file?"
           }
           description={
             deleteTarget.isFileMissing
-              ? `Saved details and reading progress for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” will be removed.`
-              : `“${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” and its saved reading progress will be removed from this device.`
+              ? `Favorites, progress, and display metadata for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” will be removed. No EPUB file will be deleted.`
+              : `The stored EPUB for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” and its reading data will be permanently deleted from this device.`
           }
           onClose={() => {
             if (!isDeleting) {
@@ -559,7 +597,88 @@ export function LibraryPage() {
                   ? "Removing"
                   : deleteTarget.isFileMissing
                     ? "Remove metadata"
-                    : "Delete book"}
+                    : "Delete EPUB"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {clearProgressTarget ? (
+        <Dialog
+          title="Clear reading progress?"
+          description={`The saved reading position for “${clearProgressTarget.displayTitle ?? clearProgressTarget.originalTitle}” will be removed. The EPUB file is not changed.`}
+          onClose={() => {
+            if (!isDeleting) {
+              setSelectedBookId(clearProgressTarget.id);
+              setClearProgressTarget(null);
+            }
+          }}
+          footer={
+            <>
+              <Button
+                disabled={isDeleting}
+                onClick={() => {
+                  setSelectedBookId(clearProgressTarget.id);
+                  setClearProgressTarget(null);
+                }}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={isDeleting}
+                onClick={() => void clearProgress()}
+                variant="danger"
+              >
+                {isDeleting ? "Clearing" : "Clear progress"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {changeArchiveOpen ? (
+        <Dialog
+          title="Change library folder?"
+          description="You’ll switch to another local folder. The current folder and its metadata will remain unchanged."
+          onClose={() => setChangeArchiveOpen(false)}
+          footer={
+            <>
+              <Button
+                onClick={() => setChangeArchiveOpen(false)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button onClick={() => void changeArchive()}>
+                Choose folder
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {rescanConfirmationOpen ? (
+        <Dialog
+          title="Rescan library?"
+          description="This refreshes book and missing-file records. EPUB files are not changed."
+          onClose={() => setRescanConfirmationOpen(false)}
+          footer={
+            <>
+              <Button
+                onClick={() => setRescanConfirmationOpen(false)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setRescanConfirmationOpen(false);
+                  void rescanLibrary();
+                }}
+              >
+                Rescan library
               </Button>
             </>
           }

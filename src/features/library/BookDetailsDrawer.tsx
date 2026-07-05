@@ -25,6 +25,7 @@ type BookDetailsDrawerProps = {
   onDelete: (book: Book) => void;
   onRead: (book: Book) => void;
   onReadFromBeginning: (book: Book) => void;
+  onClearProgress: (book: Book) => void;
   onRescan: () => void;
   onEdit: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
@@ -55,6 +56,7 @@ export function BookDetailsDrawer({
   onDelete,
   onRead,
   onReadFromBeginning,
+  onClearProgress,
   onRescan,
   onEdit,
   onToggleFavorite,
@@ -192,6 +194,12 @@ export function BookDetailsDrawer({
               <span aria-hidden="true">
                 <i style={{ width: `${progress}%` }} />
               </span>
+              <Button
+                onClick={() => onClearProgress(book)}
+                variant="ghost"
+              >
+                Clear progress
+              </Button>
             </section>
           ) : null}
 
@@ -249,7 +257,7 @@ export function BookDetailsDrawer({
               icon={<Trash aria-hidden="true" size={17} weight="regular" />}
               onClick={() => onDelete(book)}
             >
-              Delete book
+              Delete EPUB
             </Button>
           </footer>
         ) : null}
