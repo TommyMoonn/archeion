@@ -59,6 +59,10 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
     return book.fileBlob;
   }
 
+  async loadBookCover(id: string) {
+    return (await this.books.get(id))?.coverBlob;
+  }
+
   listBooks() {
     return this.books.list();
   }

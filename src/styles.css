@@ -1116,12 +1116,34 @@ select {
   place-items: center;
   color: var(--muted-soft);
   background:
-    radial-gradient(
-      circle at 35% 25%,
-      rgb(143 193 227 / 12%),
-      transparent 55%
-    ),
+    linear-gradient(90deg, rgb(255 255 255 / 4%), transparent 14%),
     var(--surface);
+}
+
+.book-cover--placeholder::after {
+  position: absolute;
+  top: 9%;
+  bottom: 9%;
+  left: 11%;
+  width: 1px;
+  background: var(--line);
+  content: "";
+}
+
+.book-cover__loading {
+  width: 48%;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background:
+    linear-gradient(
+      100deg,
+      transparent 25%,
+      rgb(214 211 217 / 8%) 50%,
+      transparent 75%
+    ),
+    var(--surface-raised);
+  background-size: 220% 100%;
+  animation: loading-sheen 1.5s ease-in-out infinite;
 }
 
 .book-card__copy {

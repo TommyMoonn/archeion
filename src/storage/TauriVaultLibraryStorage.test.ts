@@ -251,4 +251,31 @@ describe("TauriVaultLibraryStorage", () => {
     expect(blob.size).toBe(4);
     expect((await storage.getBook("book-1"))?.fileBlob).toBeUndefined();
   });
+
+  it("loads and reuses cached cover bytes", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return firstScan;
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "load_epub_cover") {
+        return new Uint8Array([255, 216, 255]).buffer;
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const [first, second] = await Promise.all([
+      storage.loadBookCover("book-1"),
+      storage.loadBookCover("book-1"),
+    ]);
+
+    expect(first?.size).toBe(3);
+    expect(second).toBe(first);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "load_epub_cover"),
+    ).toHaveLength(1);
+  });
 });

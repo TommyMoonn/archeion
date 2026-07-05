@@ -69,6 +69,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private loaded = false;
   private scanPromise: Promise<void> | null = null;
   private metadataWriteQueue: Promise<void> = Promise.resolve();
+  private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
   private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
   private libraryMetadata = createLibraryMetadata();
@@ -207,6 +208,34 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       relativePath: book.relativePath,
     });
     return new Blob([contents], { type: "application/epub+zip" });
+  }
+
+  loadBookCover(id: string): Promise<Blob | undefined> {
+    const current = this.coverPromises.get(id);
+    if (current) {
+      return current;
+    }
+    const pending = this.loadVaultBookCover(id).catch((error) => {
+      this.coverPromises.delete(id);
+      throw error;
+    });
+    this.coverPromises.set(id, pending);
+    return pending;
+  }
+
+  private async loadVaultBookCover(id: string): Promise<Blob | undefined> {
+    await this.ensureLoaded();
+    const book = this.books.find((candidate) => candidate.id === id);
+    if (!book?.relativePath) {
+      return undefined;
+    }
+    const contents = await invoke<ArrayBuffer>("load_epub_cover", {
+      relativePath: book.relativePath,
+      bookId: id,
+    });
+    return contents.byteLength
+      ? new Blob([contents], { type: "application/octet-stream" })
+      : undefined;
   }
 
   async listBooks(): Promise<Book[]> {

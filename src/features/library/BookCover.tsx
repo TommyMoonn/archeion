@@ -1,6 +1,7 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 
 type BookCoverProps = {
@@ -9,36 +10,79 @@ type BookCoverProps = {
 };
 
 export function BookCover({ book, className = "" }: BookCoverProps) {
-  const imageRef = useRef<HTMLImageElement>(null);
+  const storage = useLibraryStorage();
+  const coverRef = useRef<HTMLDivElement>(null);
+  const [shouldLoad, setShouldLoad] = useState(Boolean(book.coverBlob));
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [state, setState] = useState<"loading" | "available" | "unavailable">(
+    book.coverBlob ? "available" : "loading",
+  );
 
   useEffect(() => {
-    if (!book.coverBlob || !imageRef.current) {
+    if (shouldLoad || !coverRef.current) {
       return;
     }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) {
+          setShouldLoad(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "240px" },
+    );
+    observer.observe(coverRef.current);
+    return () => observer.disconnect();
+  }, [shouldLoad]);
 
-    const coverUrl = URL.createObjectURL(book.coverBlob);
+  useEffect(() => {
+    if (!shouldLoad) {
+      return;
+    }
+    let cancelled = false;
+    let objectUrl: string | null = null;
 
-    imageRef.current.src = coverUrl;
+    const cover = book.coverBlob
+      ? Promise.resolve(book.coverBlob)
+      : storage.loadBookCover(book.id);
+    void cover
+      .then((blob) => {
+        if (cancelled || !blob) {
+          if (!cancelled) {
+            setState("unavailable");
+          }
+          return;
+        }
+        objectUrl = URL.createObjectURL(blob);
+        setCoverUrl(objectUrl);
+        setState("available");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setState("unavailable");
+        }
+      });
 
     return () => {
-      URL.revokeObjectURL(coverUrl);
+      cancelled = true;
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
-  }, [book.coverBlob]);
-
-  if (!book.coverBlob) {
-    return (
-      <div
-        className={`book-cover book-cover--placeholder ${className}`.trim()}
-        aria-hidden="true"
-      >
-        <BookOpenText size={30} weight="thin" />
-      </div>
-    );
-  }
+  }, [book.coverBlob, book.id, shouldLoad, storage]);
 
   return (
-    <div className={`book-cover ${className}`.trim()}>
-      <img ref={imageRef} alt="" />
+    <div
+      ref={coverRef}
+      className={`book-cover ${state !== "available" ? "book-cover--placeholder" : ""} ${className}`.trim()}
+      data-cover-state={state}
+      aria-hidden="true"
+    >
+      {coverUrl ? <img alt="" src={coverUrl} /> : null}
+      {state === "unavailable" ? (
+        <BookOpenText size={30} weight="thin" />
+      ) : null}
+      {state === "loading" ? <span className="book-cover__loading" /> : null}
     </div>
   );
 }

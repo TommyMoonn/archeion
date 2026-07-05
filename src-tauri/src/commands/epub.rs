@@ -1,11 +1,17 @@
 use std::{
+    collections::HashMap,
     fs,
+    io::Read,
     path::{Component, Path, PathBuf},
 };
 
+use percent_encoding::percent_decode_str;
+use quick_xml::{events::Event, Reader};
+use zip::ZipArchive;
+
 use super::vault;
 
-fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     let relative = Path::new(relative_path);
     if relative.is_absolute() {
         return Err("EPUB paths must be relative to the library folder.".to_string());
@@ -43,6 +49,128 @@ fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String
     Ok(path)
 }
 
+fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<String, String>)> {
+    let mut reader = Reader::from_str(xml);
+    let mut elements = Vec::new();
+    loop {
+        match reader.read_event() {
+            Ok(Event::Start(event)) | Ok(Event::Empty(event))
+                if names
+                    .iter()
+                    .any(|name| event.local_name().as_ref() == *name) =>
+            {
+                let attributes = event
+                    .attributes()
+                    .filter_map(Result::ok)
+                    .filter_map(|attribute| {
+                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
+                            .into_owned();
+                        let value = attribute
+                            .decoded_and_normalized_value(
+                                quick_xml::XmlVersion::Implicit1_0,
+                                reader.decoder(),
+                            )
+                            .ok()?
+                            .into_owned();
+                        Some((key, value))
+                    })
+                    .collect();
+                elements.push((
+                    String::from_utf8_lossy(event.local_name().as_ref()).into_owned(),
+                    attributes,
+                ));
+            }
+            Ok(Event::Eof) => break,
+            Err(_) => break,
+            _ => {}
+        }
+    }
+    elements
+}
+
+fn archive_relative_path(package_path: &str, href: &str) -> String {
+    let mut parts = Path::new(package_path)
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .components()
+        .filter_map(|component| match component {
+            Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    for component in Path::new(href).components() {
+        match component {
+            Component::ParentDir => {
+                parts.pop();
+            }
+            Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
+            _ => {}
+        }
+    }
+    parts.join("/")
+}
+
+fn read_zip_text(
+    archive: &mut ZipArchive<fs::File>,
+    path: &str,
+    limit: u64,
+) -> Result<String, String> {
+    let entry = archive.by_name(path).map_err(|error| error.to_string())?;
+    if entry.size() > limit {
+        return Err("EPUB metadata file is too large.".to_string());
+    }
+    let mut text = String::new();
+    entry
+        .take(limit)
+        .read_to_string(&mut text)
+        .map_err(|error| error.to_string())?;
+    Ok(text)
+}
+
+fn extract_cover(epub_path: &Path) -> Result<Option<Vec<u8>>, String> {
+    let file = fs::File::open(epub_path).map_err(|error| error.to_string())?;
+    let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
+    let container = read_zip_text(&mut archive, "META-INF/container.xml", 512 * 1024)?;
+    let package_path = xml_elements(&container, &[b"rootfile"])
+        .into_iter()
+        .find_map(|(_, attributes)| attributes.get("full-path").cloned())
+        .ok_or_else(|| "EPUB package document was not found.".to_string())?;
+    let package = read_zip_text(&mut archive, &package_path, 4 * 1024 * 1024)?;
+    let elements = xml_elements(&package, &[b"meta", b"item"]);
+    let cover_id = elements.iter().find_map(|(name, attributes)| {
+        (name == "meta" && attributes.get("name").is_some_and(|value| value == "cover"))
+            .then(|| attributes.get("content").cloned())
+            .flatten()
+    });
+    let cover_href = elements.iter().find_map(|(name, attributes)| {
+        if name != "item" {
+            return None;
+        }
+        let is_cover_id = cover_id
+            .as_ref()
+            .is_some_and(|id| attributes.get("id") == Some(id));
+        let is_cover_property = attributes
+            .get("properties")
+            .is_some_and(|value| value.split_whitespace().any(|part| part == "cover-image"));
+        (is_cover_id || is_cover_property)
+            .then(|| attributes.get("href").cloned())
+            .flatten()
+    });
+    let Some(cover_href) = cover_href else {
+        return Ok(None);
+    };
+    let decoded_href = percent_decode_str(&cover_href).decode_utf8_lossy();
+    let cover_path = archive_relative_path(&package_path, decoded_href.as_ref());
+    let mut bytes = Vec::new();
+    archive
+        .by_name(&cover_path)
+        .map_err(|error| error.to_string())?
+        .take(20 * 1024 * 1024)
+        .read_to_end(&mut bytes)
+        .map_err(|error| error.to_string())?;
+    Ok((!bytes.is_empty()).then_some(bytes))
+}
+
 #[tauri::command]
 pub fn read_epub_file(
     app: tauri::AppHandle,
@@ -56,14 +184,53 @@ pub fn read_epub_file(
     Ok(tauri::ipc::Response::new(bytes))
 }
 
+#[tauri::command]
+pub fn load_epub_cover(
+    app: tauri::AppHandle,
+    relative_path: String,
+    book_id: String,
+) -> Result<tauri::ipc::Response, String> {
+    if !book_id
+        .chars()
+        .all(|character| character.is_ascii_alphanumeric() || "-_".contains(character))
+    {
+        return Err("Invalid book identifier.".to_string());
+    }
+    let root = vault::read_vault_path(&app)?
+        .map(PathBuf::from)
+        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+    let cache_path = root
+        .join(".archeion")
+        .join("covers")
+        .join(format!("{book_id}.cover"));
+    if cache_path.is_file() {
+        return fs::read(cache_path)
+            .map(tauri::ipc::Response::new)
+            .map_err(|error| error.to_string());
+    }
+    let epub_path = resolve_epub_path(&root, &relative_path)?;
+    let bytes = extract_cover(&epub_path)?.unwrap_or_default();
+    if !bytes.is_empty() {
+        fs::create_dir_all(
+            cache_path
+                .parent()
+                .ok_or_else(|| "Cover cache is unavailable.".to_string())?,
+        )
+        .map_err(|error| error.to_string())?;
+        fs::write(&cache_path, &bytes).map_err(|error| error.to_string())?;
+    }
+    Ok(tauri::ipc::Response::new(bytes))
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
         fs,
+        io::Write,
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::resolve_epub_path;
+    use super::{extract_cover, resolve_epub_path};
 
     fn test_root() -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -102,6 +269,49 @@ mod tests {
         assert!(resolve_epub_path(&root, ".archeion/hidden.epub").is_err());
         assert!(resolve_epub_path(&root, "notes.txt").is_err());
         assert!(resolve_epub_path(&root, "missing.epub").is_err());
+        fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn extracts_an_epub_three_cover() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test vault should be created");
+        let epub_path = root.join("covered.epub");
+        let file = fs::File::create(&epub_path).expect("EPUB should be created");
+        let mut archive = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default();
+        archive
+            .start_file("META-INF/container.xml", options)
+            .expect("container entry should start");
+        archive
+            .write_all(
+                br#"<?xml version="1.0"?>
+                <container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>"#,
+            )
+            .expect("container should be written");
+        archive
+            .start_file("OEBPS/content.opf", options)
+            .expect("package entry should start");
+        archive
+            .write_all(
+                br#"<package><manifest>
+                <item id="cover" href="../images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>
+                </manifest></package>"#,
+            )
+            .expect("package should be written");
+        archive
+            .start_file("images/cover.jpg", options)
+            .expect("cover entry should start");
+        archive
+            .write_all(&[255, 216, 255, 217])
+            .expect("cover should be written");
+        archive.finish().expect("EPUB should finish");
+
+        let cover = extract_cover(&epub_path)
+            .expect("cover extraction should succeed")
+            .expect("cover should exist");
+
+        assert_eq!(cover, vec![255, 216, 255, 217]);
         fs::remove_dir_all(root).expect("test vault should be removed");
     }
 }
