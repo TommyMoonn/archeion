@@ -15,7 +15,7 @@ export type SettingRecord = {
   updatedAt: string;
 };
 
-export class EpubArchiveDatabase extends Dexie {
+export class ArcheionDatabase extends Dexie {
   books!: Table<Book, string>;
   folders!: Table<Folder, string>;
   settings!: Table<SettingRecord, string>;
@@ -27,4 +27,4 @@ export class EpubArchiveDatabase extends Dexie {
   }
 }
 
-export const db = new EpubArchiveDatabase();
+export const db = new ArcheionDatabase();

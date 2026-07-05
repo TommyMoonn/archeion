@@ -10,7 +10,7 @@ fn main() {
             .map(PathBuf::from)
             .filter(|path| !path.to_string_lossy().contains('\''))
             .expect("Windows PUBLIC directory must not contain an apostrophe");
-        let temporary_dir = public_dir.join(format!(".novel-archive-build-{}", process::id()));
+        let temporary_dir = public_dir.join(format!(".archeion-build-{}", process::id()));
         let temporary_icon = temporary_dir.join("icon.ico");
 
         fs::create_dir_all(&temporary_dir).expect("failed to create temporary icon directory");

@@ -1,9 +1,9 @@
 import { createBrowserRouter } from "react-router-dom";
 
 import { NotFoundPage } from "../components/NotFoundPage";
-import { bookRepository } from "../db/bookRepository";
 import { LibraryPage } from "../features/library/LibraryPage";
 import { ReaderPage } from "../features/reader/ReaderPage";
+import { libraryStorage } from "../storage/defaultLibraryStorage";
 
 export const router = createBrowserRouter([
   {
@@ -19,7 +19,7 @@ export const router = createBrowserRouter([
       }
 
       try {
-        return await bookRepository.get(params.bookId);
+        return await libraryStorage.getBook(params.bookId);
       } catch {
         return undefined;
       }

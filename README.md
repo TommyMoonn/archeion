@@ -1,4 +1,4 @@
-# NovelArchive
+# Archeion
 
 A local-first desktop app for organizing and reading EPUB libraries.
 

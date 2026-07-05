@@ -2,15 +2,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { defaultReaderSettings } from "../types/reader";
 import { createBookRepository } from "./bookRepository";
-import { EpubArchiveDatabase } from "./db";
+import { ArcheionDatabase } from "./db";
 import { createFolderRepository } from "./folderRepository";
 import { createSettingsRepository } from "./settingsRepository";
 
 describe("local repositories", () => {
-  let database: EpubArchiveDatabase;
+  let database: ArcheionDatabase;
 
   beforeEach(() => {
-    database = new EpubArchiveDatabase(`test-${crypto.randomUUID()}`);
+    database = new ArcheionDatabase(`test-${crypto.randomUUID()}`);
   });
 
   afterEach(async () => {
@@ -68,7 +68,7 @@ describe("local repositories", () => {
     const databaseName = database.name;
 
     database.close();
-    database = new EpubArchiveDatabase(databaseName);
+    database = new ArcheionDatabase(databaseName);
 
     await expect(
       createBookRepository(database).get(created.id),

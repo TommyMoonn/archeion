@@ -1,6 +1,11 @@
 import { BookOpenText, WarningCircle, X } from "@phosphor-icons/react";
-import { useLiveQuery } from "dexie-react-hooks";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
@@ -8,14 +13,14 @@ import { Dialog } from "../../components/Dialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
-import { bookRepository } from "../../db/bookRepository";
-import { folderRepository } from "../../db/folderRepository";
+import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { FolderCreateDialog } from "../folders/FolderCreateDialog";
 import { FolderRenameDialog } from "../folders/FolderRenameDialog";
 import { ImportDropzone } from "../import/ImportDropzone";
 import {
+  createImportEpubDependencies,
   importEpubFiles,
   type ImportResult,
 } from "../import/importEpub";
@@ -37,8 +42,9 @@ type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
 export function LibraryPage() {
   const navigate = useNavigate();
-  const books = useLiveQuery(() => bookRepository.list(), [], []);
-  const folders = useLiveQuery(() => folderRepository.list(), [], []);
+  const storage = useLibraryStorage();
+  const [books, setBooks] = useState<Book[] | undefined>();
+  const [folders, setFolders] = useState<Folder[] | undefined>();
   const importLock = useRef(false);
   const [isImporting, setIsImporting] = useState(false);
   const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
@@ -58,6 +64,25 @@ export function LibraryPage() {
     useState<Folder | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  useEffect(() => {
+    const handleStorageError = () => {
+      setLibraryError("The local library could not be loaded.");
+    };
+    const stopBooks = storage.observeBooks({
+      next: setBooks,
+      error: handleStorageError,
+    });
+    const stopFolders = storage.observeFolders({
+      next: setFolders,
+      error: handleStorageError,
+    });
+
+    return () => {
+      stopBooks();
+      stopFolders();
+    };
+  }, [storage]);
+
   async function handleFiles(files: File[]) {
     if (importLock.current) {
       return;
@@ -68,7 +93,10 @@ export function LibraryPage() {
     setFailedImports([]);
 
     try {
-      const results = await importEpubFiles(files);
+      const results = await importEpubFiles(
+        files,
+        createImportEpubDependencies(storage),
+      );
 
       setFailedImports(
         results.filter(
@@ -134,7 +162,7 @@ export function LibraryPage() {
     setLibraryError(null);
 
     try {
-      await bookRepository.remove(deleteTarget.id);
+      await storage.deleteBook(deleteTarget.id);
       setDeleteTarget(null);
     } catch {
       setLibraryError("This book could not be deleted. Please try again.");
@@ -148,7 +176,7 @@ export function LibraryPage() {
     setLibraryError(null);
 
     try {
-      await bookRepository.update(book.id, {
+      await storage.updateBook(book.id, {
         isFavorite: !book.isFavorite,
       });
     } catch {
@@ -160,7 +188,7 @@ export function LibraryPage() {
     setLibraryError(null);
 
     try {
-      await bookRepository.update(book.id, changes);
+      await storage.updateBook(book.id, changes);
     } catch (error) {
       setLibraryError("Book details could not be updated.");
       throw error;
@@ -168,7 +196,7 @@ export function LibraryPage() {
   }
 
   async function createFolder(name: string) {
-    await folderRepository.create({ name, parentId: null });
+    await storage.createFolder({ name, parentId: null });
   }
 
   async function renameFolder(name: string) {
@@ -176,7 +204,7 @@ export function LibraryPage() {
       return;
     }
 
-    await folderRepository.update(renameFolderTarget.id, { name });
+    await storage.updateFolder(renameFolderTarget.id, { name });
   }
 
   async function confirmDeleteFolder() {
@@ -188,7 +216,7 @@ export function LibraryPage() {
     setLibraryError(null);
 
     try {
-      await folderRepository.remove(deleteFolderTarget.id);
+      await storage.deleteFolder(deleteFolderTarget.id);
 
       if (
         location.type === "folder" &&

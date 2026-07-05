@@ -2,7 +2,7 @@ import {
   defaultReaderSettings,
   type ReaderSettings,
 } from "../types/reader";
-import { db, type EpubArchiveDatabase } from "./db";
+import { db, type ArcheionDatabase } from "./db";
 
 const READER_SETTINGS_KEY = "reader";
 
@@ -10,7 +10,7 @@ function copyDefaults(): ReaderSettings {
   return { ...defaultReaderSettings };
 }
 
-export function createSettingsRepository(database: EpubArchiveDatabase) {
+export function createSettingsRepository(database: ArcheionDatabase) {
   async function get(): Promise<ReaderSettings> {
     const record = await database.settings.get(READER_SETTINGS_KEY);
 

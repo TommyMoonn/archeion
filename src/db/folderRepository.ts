@@ -3,7 +3,7 @@ import type {
   UpdateFolderInput,
 } from "../types/folder";
 import { createId } from "../utils/ids";
-import { db, type EpubArchiveDatabase } from "./db";
+import { db, type ArcheionDatabase } from "./db";
 
 function normalizeName(name: string): string {
   const normalizedName = name.trim();
@@ -15,7 +15,7 @@ function normalizeName(name: string): string {
   return normalizedName;
 }
 
-export function createFolderRepository(database: EpubArchiveDatabase) {
+export function createFolderRepository(database: ArcheionDatabase) {
   async function validateParent(
     parentId: string | null | undefined,
     folderId?: string,

@@ -40,7 +40,7 @@ export function LibrarySidebar({
           <span />
           <span />
         </div>
-        <span>NovelArchive</span>
+        <span>Archeion</span>
       </div>
 
       <nav className="sidebar__nav" aria-label="Library navigation">

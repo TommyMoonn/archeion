@@ -11,7 +11,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 
-import { bookRepository } from "../../db/bookRepository";
+import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import {
   EpubViewer,
@@ -24,6 +24,7 @@ import { ReaderToolbar } from "./ReaderToolbar";
 export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
   const navigate = useNavigate();
+  const storage = useLibraryStorage();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const [error, setError] = useState<string | null>(null);
@@ -48,14 +49,14 @@ export function ReaderPage() {
       return;
     }
 
-    void bookRepository
-      .update(book.id, {
+    void storage
+      .updateBook(book.id, {
         lastOpenedAt: new Date().toISOString(),
       })
       .catch(() => {
         setProgressSaveFailed(true);
       });
-  }, [book]);
+  }, [book, storage]);
 
   const handleLocationChange = useCallback(
     (nextLocation: ReaderLocation) => {
@@ -66,7 +67,7 @@ export function ReaderPage() {
       setLocation(nextLocation);
       progressSaveQueue.current = progressSaveQueue.current
         .then(() =>
-          bookRepository.update(book.id, {
+          storage.updateBook(book.id, {
             progressCfi: nextLocation.cfi,
             progressPercent: nextLocation.percentage,
           }),
@@ -78,7 +79,7 @@ export function ReaderPage() {
           setProgressSaveFailed(true);
         });
     },
-    [book],
+    [book, storage],
   );
 
   const handleViewerError = useCallback((message: string) => {

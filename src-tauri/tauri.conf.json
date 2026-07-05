@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "NovelArchive",
+  "productName": "Archeion",
   "version": "0.1.0",
-  "identifier": "com.novelarchive.desktop",
+  "identifier": "com.archeion.desktop",
   "build": {
     "frontendDist": "../dist",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "NovelArchive",
+        "title": "Archeion",
         "width": 1280,
         "height": 800,
         "minWidth": 900,

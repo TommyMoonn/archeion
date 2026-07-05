@@ -1,8 +1,8 @@
 import type { CreateBookInput, UpdateBookInput } from "../types/book";
 import { createId } from "../utils/ids";
-import { db, type EpubArchiveDatabase } from "./db";
+import { db, type ArcheionDatabase } from "./db";
 
-export function createBookRepository(database: EpubArchiveDatabase) {
+export function createBookRepository(database: ArcheionDatabase) {
   async function requireFolder(folderId: string | null | undefined) {
     if (!folderId) {
       return;

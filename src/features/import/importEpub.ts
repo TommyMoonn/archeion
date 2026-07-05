@@ -1,4 +1,4 @@
-import { bookRepository } from "../../db/bookRepository";
+import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book } from "../../types/book";
 import {
   parseEpubMetadata,
@@ -28,10 +28,14 @@ export type ImportResult =
       message: string;
     };
 
-const defaultDependencies: ImportEpubDependencies = {
-  parseMetadata: parseEpubMetadata,
-  saveBook: (input) => bookRepository.create(input),
-};
+export function createImportEpubDependencies(
+  storage: Pick<LibraryStorage, "createBook">,
+): ImportEpubDependencies {
+  return {
+    parseMetadata: parseEpubMetadata,
+    saveBook: (input) => storage.createBook(input),
+  };
+}
 
 export function isEpubFile(file: File): boolean {
   return /\.epub$/i.test(file.name);
@@ -39,7 +43,7 @@ export function isEpubFile(file: File): boolean {
 
 export async function importEpub(
   file: File,
-  dependencies = defaultDependencies,
+  dependencies: ImportEpubDependencies,
 ): Promise<Book> {
   if (!isEpubFile(file)) {
     throw new Error("Only EPUB files can be imported.");
@@ -88,7 +92,7 @@ function messageFromError(error: unknown): string {
 
 export async function importEpubFiles(
   files: File[],
-  dependencies = defaultDependencies,
+  dependencies: ImportEpubDependencies,
 ): Promise<ImportResult[]> {
   const results: ImportResult[] = [];
 

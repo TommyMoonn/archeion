@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    novel_archive_lib::run();
+    archeion_lib::run();
 }
