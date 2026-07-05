@@ -126,6 +126,7 @@ export class VaultStore {
       }
 
       await invoke("save_vault_path", { path });
+      await invoke("initialize_vault_metadata");
       this.setState({ status: "ready", path, error: null });
       return true;
     } catch {

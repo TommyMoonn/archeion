@@ -14,6 +14,13 @@ import {
   defaultReaderSettings,
   type ReaderSettings,
 } from "../types/reader";
+import {
+  createLibraryMetadata,
+  createProgressMetadata,
+  createSettingsMetadata,
+  type MetadataBundle,
+  type SettingsMetadata,
+} from "./metadataFiles";
 import type {
   LibraryStorage,
   StorageObserver,
@@ -61,9 +68,12 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private readerSettings = { ...defaultReaderSettings };
   private loaded = false;
   private scanPromise: Promise<void> | null = null;
+  private metadataWriteQueue: Promise<void> = Promise.resolve();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
   private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
-  private readonly bookOverrides = new Map<string, UpdateBookInput>();
+  private libraryMetadata = createLibraryMetadata();
+  private progressMetadata = createProgressMetadata();
+  private settingsMetadata = createSettingsMetadata();
 
   async rescan(): Promise<void> {
     if (this.scanPromise) {
@@ -80,11 +90,19 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
 
   private async performScan() {
     try {
-      const scan = await invoke<VaultScan>("scan_vault");
+      const [scan, metadata] = await Promise.all([
+        invoke<VaultScan>("scan_vault"),
+        invoke<MetadataBundle>("load_vault_metadata"),
+      ]);
+      this.libraryMetadata = metadata.library;
+      this.progressMetadata = metadata.progress;
+      this.settingsMetadata = metadata.settings;
+      this.readerSettings = { ...metadata.settings.reader };
       const folderIds = new Map(
         scan.folders.map((folder) => [folder.relativePath, folder.id]),
       );
       const timestamp = new Date().toISOString();
+      let libraryChanged = false;
 
       this.folders = scan.folders.map((folder) => ({
         ...folder,
@@ -96,18 +114,41 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       }));
       this.books = scan.books.map((book) => {
         const modifiedAt = new Date(book.modifiedAt).toISOString();
+        let libraryEntry = this.libraryMetadata.books[book.id];
+        if (!libraryEntry) {
+          libraryEntry = {
+            relativePath: book.relativePath,
+            isFavorite: false,
+            addedAt: modifiedAt,
+            updatedAt: modifiedAt,
+          };
+          this.libraryMetadata.books[book.id] = libraryEntry;
+          libraryChanged = true;
+        }
+        const progress = this.progressMetadata.progress[book.id];
+
         return {
           ...book,
           folderId: folderIds.get(book.folderPath) ?? null,
           originalTitle: titleFromFileName(book.fileName),
           originalAuthor: "Unknown author",
-          isFavorite: false,
-          addedAt: modifiedAt,
-          updatedAt: modifiedAt,
+          displayTitle: libraryEntry.displayTitle,
+          displayAuthor: libraryEntry.displayAuthor,
+          coverPath: libraryEntry.coverPath,
+          isFavorite: libraryEntry.isFavorite,
+          addedAt: libraryEntry.addedAt,
+          updatedAt: libraryEntry.updatedAt,
           modifiedAt,
-          ...this.bookOverrides.get(book.id),
+          progressCfi: progress?.cfi,
+          progressPercent: progress?.percent,
+          lastOpenedAt: progress?.lastOpenedAt,
         };
       });
+      if (libraryChanged) {
+        await invoke("save_library_metadata", {
+          metadata: this.libraryMetadata,
+        });
+      }
       this.loaded = true;
       this.emitBooks();
       this.emitFolders();
@@ -139,6 +180,12 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     this.folderObservers.forEach((observer) => observer.next(folders));
   }
 
+  private enqueueMetadataWrite(write: () => Promise<void>) {
+    const pending = this.metadataWriteQueue.then(write);
+    this.metadataWriteQueue = pending.catch(() => undefined);
+    return pending;
+  }
+
   createBook(_input: CreateBookInput): Promise<Book> {
     void _input;
     return Promise.reject(unavailable());
@@ -163,15 +210,74 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     if (index < 0) {
       throw new Error(`Book "${id}" was not found.`);
     }
+    if (
+      changes.folderId !== undefined &&
+      changes.folderId !== this.books[index].folderId
+    ) {
+      throw unavailable();
+    }
 
-    this.bookOverrides.set(id, {
-      ...this.bookOverrides.get(id),
-      ...changes,
+    const timestamp = new Date().toISOString();
+    const libraryChanged =
+      "displayTitle" in changes ||
+      "displayAuthor" in changes ||
+      "isFavorite" in changes;
+    const progressChanged =
+      "progressCfi" in changes ||
+      "progressPercent" in changes ||
+      "lastOpenedAt" in changes;
+
+    if (libraryChanged) {
+      const current = this.libraryMetadata.books[id];
+      this.libraryMetadata.books[id] = {
+        ...current,
+        relativePath: this.books[index].relativePath ?? current.relativePath,
+        displayTitle:
+          "displayTitle" in changes
+            ? changes.displayTitle
+            : current.displayTitle,
+        displayAuthor:
+          "displayAuthor" in changes
+            ? changes.displayAuthor
+            : current.displayAuthor,
+        isFavorite: changes.isFavorite ?? current.isFavorite,
+        updatedAt: timestamp,
+      };
+    }
+    if (progressChanged) {
+      const current = this.progressMetadata.progress[id] ?? { percent: 0 };
+      this.progressMetadata.progress[id] = {
+        cfi: "progressCfi" in changes ? changes.progressCfi : current.cfi,
+        percent:
+          changes.progressPercent === undefined
+            ? current.percent
+            : changes.progressPercent,
+        lastOpenedAt:
+          "lastOpenedAt" in changes
+            ? changes.lastOpenedAt
+            : current.lastOpenedAt,
+      };
+    }
+
+    const writes: Array<() => Promise<unknown>> = [];
+    if (libraryChanged) {
+      const metadata = structuredClone(this.libraryMetadata);
+      writes.push(() => invoke("save_library_metadata", { metadata }));
+    }
+    if (progressChanged) {
+      const metadata = structuredClone(this.progressMetadata);
+      writes.push(() => invoke("save_progress_metadata", { metadata }));
+    }
+    await this.enqueueMetadataWrite(async () => {
+      for (const write of writes) {
+        await write();
+      }
     });
+
     this.books[index] = {
       ...this.books[index],
       ...changes,
-      updatedAt: new Date().toISOString(),
+      updatedAt: timestamp,
     };
     this.emitBooks();
     return this.books[index];
@@ -232,12 +338,22 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   async getReaderSettings(): Promise<ReaderSettings> {
+    await this.ensureLoaded();
     return { ...this.readerSettings };
   }
 
   async saveReaderSettings(
     settings: ReaderSettings,
   ): Promise<ReaderSettings> {
+    await this.ensureLoaded();
+    const metadata: SettingsMetadata = {
+      ...this.settingsMetadata,
+      reader: { ...settings },
+    };
+    await this.enqueueMetadataWrite(() =>
+      invoke("save_settings_metadata", { metadata }),
+    );
+    this.settingsMetadata = metadata;
     this.readerSettings = { ...settings };
     return { ...this.readerSettings };
   }

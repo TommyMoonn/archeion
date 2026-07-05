@@ -36,10 +36,58 @@ const firstScan = {
   ],
 };
 
+const metadata = {
+  library: {
+    version: 1,
+    books: {
+      "book-1": {
+        relativePath: "Author/Series/Volume_01.epub",
+        displayTitle: "Custom Volume",
+        isFavorite: true,
+        addedAt: "2023-11-01T00:00:00.000Z",
+        updatedAt: "2023-11-02T00:00:00.000Z",
+      },
+    },
+  },
+  progress: {
+    version: 1,
+    progress: {
+      "book-1": {
+        cfi: "epubcfi(/6/2)",
+        percent: 42,
+        lastOpenedAt: "2023-11-03T00:00:00.000Z",
+      },
+    },
+  },
+  settings: {
+    version: 1,
+    reader: {
+      fontSize: 20,
+      fontFamily: "serif",
+      lineHeight: 1.7,
+      margin: 40,
+      theme: "sepia",
+      flowMode: "paginated",
+    },
+    library: {
+      viewMode: "grid",
+      sortBy: "folder",
+    },
+  },
+};
+
 describe("TauriVaultLibraryStorage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    invokeMock.mockResolvedValue(firstScan);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return firstScan;
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
   });
 
   it("maps scan results into the shared library models", async () => {
@@ -50,12 +98,14 @@ describe("TauriVaultLibraryStorage", () => {
       storage.listFolders(),
     ]);
 
-    expect(invokeMock).toHaveBeenCalledTimes(1);
+    expect(invokeMock).toHaveBeenCalledTimes(2);
     expect(invokeMock).toHaveBeenCalledWith("scan_vault");
     expect(books[0]).toMatchObject({
       id: "book-1",
-      originalTitle: "Volume 01",
+      displayTitle: "Custom Volume",
       folderId: "folder:Author/Series",
+      isFavorite: true,
+      progressPercent: 42,
       relativePath: "Author/Series/Volume_01.epub",
       size: 2048,
     });
@@ -68,7 +118,15 @@ describe("TauriVaultLibraryStorage", () => {
   it("replaces deleted files when rescanning", async () => {
     const storage = new TauriVaultLibraryStorage();
     await storage.listBooks();
-    invokeMock.mockResolvedValue({ books: [], folders: [] });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return { books: [], folders: [] };
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
 
     await storage.rescan();
 
@@ -86,5 +144,55 @@ describe("TauriVaultLibraryStorage", () => {
     });
 
     await expect(observed).resolves.toBe(1);
+  });
+
+  it("persists display metadata and progress in separate files", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listBooks();
+
+    await storage.updateBook("book-1", {
+      displayTitle: "Renamed",
+      progressCfi: "epubcfi(/6/4)",
+      progressPercent: 50,
+    });
+
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_library_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          books: expect.objectContaining({
+            "book-1": expect.objectContaining({ displayTitle: "Renamed" }),
+          }),
+        }),
+      }),
+    );
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_progress_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          progress: expect.objectContaining({
+            "book-1": expect.objectContaining({
+              cfi: "epubcfi(/6/4)",
+              percent: 50,
+            }),
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("persists reader settings", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    const settings = await storage.updateReaderSettings({ fontSize: 22 });
+
+    expect(settings.fontSize).toBe(22);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_settings_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          reader: expect.objectContaining({ fontSize: 22 }),
+        }),
+      }),
+    );
   });
 });

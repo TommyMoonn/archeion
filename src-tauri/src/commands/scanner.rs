@@ -69,7 +69,7 @@ fn scan_directory(
         let path = entry.path();
 
         if file_type.is_dir() {
-            if entry.file_name() == ".novel-archive" {
+            if entry.file_name() == ".archeion" {
                 continue;
             }
 
@@ -165,7 +165,7 @@ mod tests {
             .as_nanos();
         let root = std::env::temp_dir().join(format!("archeion-scanner-{nonce}"));
         let series = root.join("Author").join("Series");
-        let metadata = root.join(".novel-archive");
+        let metadata = root.join(".archeion");
         fs::create_dir_all(&series).expect("series directory should be created");
         fs::create_dir_all(&metadata).expect("metadata directory should be created");
         fs::write(series.join("Volume 01.EPUB"), b"epub").expect("test EPUB should be written");
