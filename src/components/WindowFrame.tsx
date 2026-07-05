@@ -49,9 +49,13 @@ export function WindowFrame() {
   }
 
   const appWindow = getCurrentWindow();
+  const isArcheionFrame = appliedMode === "archeion";
 
   return (
     <header
+      aria-label={
+        isArcheionFrame ? "Archeion window frame" : "Hidden window frame"
+      }
       className="window-titlebar"
       data-mode={appliedMode}
     >
@@ -60,16 +64,22 @@ export function WindowFrame() {
         data-tauri-drag-region
         onDoubleClick={() => void appWindow.toggleMaximize()}
       >
-        <div className="window-titlebar__identity" data-tauri-drag-region>
-          <div className="window-titlebar__mark" aria-hidden="true">
-            <span />
-            <span />
-            <span />
+        {isArcheionFrame ? (
+          <div className="window-titlebar__identity" data-tauri-drag-region>
+            <div className="window-titlebar__mark" aria-hidden="true">
+              <span />
+              <span />
+              <span />
+            </div>
+            <span>Archeion</span>
           </div>
-          <span>Archeion</span>
-        </div>
+        ) : null}
       </div>
-      <div className="window-titlebar__controls">
+      <div
+        className="window-titlebar__controls"
+        role="group"
+        aria-label="Window controls"
+      >
         <button
           aria-label="Minimize window"
           title="Minimize window"

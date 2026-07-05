@@ -1,13 +1,16 @@
+import type { ReactNode } from "react";
+
 import {
-  CaretDown,
   GridFour,
   List,
   MagnifyingGlass,
   X,
 } from "@phosphor-icons/react";
 
+import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
+import { SegmentedControl } from "../../components/SegmentedControl";
 import { ImportButton } from "../import/ImportButton";
 import { RescanVaultButton } from "../vault/RescanVaultButton";
 import type { LibrarySort } from "./libraryFilters";
@@ -27,6 +30,31 @@ type LibraryToolbarProps = {
   view: LibraryView;
   storageSource: "indexeddb" | "vault";
 };
+
+const sortOptions: Array<{ label: string; value: LibrarySort }> = [
+  { label: "Recently discovered", value: "recently-added" },
+  { label: "Recently opened", value: "recently-opened" },
+  { label: "Title", value: "title" },
+  { label: "Author", value: "author" },
+  { label: "Folder path", value: "folder" },
+];
+
+const viewOptions: Array<{
+  icon: ReactNode;
+  label: string;
+  value: LibraryView;
+}> = [
+  {
+    icon: <GridFour aria-hidden="true" size={17} weight="regular" />,
+    label: "Grid",
+    value: "grid",
+  },
+  {
+    icon: <List aria-hidden="true" size={18} weight="regular" />,
+    label: "List",
+    value: "list",
+  },
+];
 
 export function LibraryToolbar({
   isImporting,
@@ -82,46 +110,20 @@ export function LibraryToolbar({
       </div>
 
       <div className="library-controls">
-        <label className="sort-control">
-          <span className="sr-only">Sort library</span>
-          <select
-            value={sort}
-            onChange={(event) =>
-              onSortChange(event.currentTarget.value as LibrarySort)
-            }
-          >
-            <option value="recently-added">Recently discovered</option>
-            <option value="recently-opened">Recently opened</option>
-            <option value="title">Title</option>
-            <option value="author">Author</option>
-            <option value="folder">Folder path</option>
-          </select>
-          <CaretDown aria-hidden="true" size={13} weight="bold" />
-        </label>
-        <div className="view-toggle" aria-label="Library view">
-          <IconButton
-            label="Grid view"
-            aria-pressed={view === "grid"}
-            onClick={() => onViewChange("grid")}
-          >
-            <GridFour
-              aria-hidden="true"
-              size={17}
-              weight={view === "grid" ? "fill" : "regular"}
-            />
-          </IconButton>
-          <IconButton
-            label="List view"
-            aria-pressed={view === "list"}
-            onClick={() => onViewChange("list")}
-          >
-            <List
-              aria-hidden="true"
-              size={18}
-              weight={view === "list" ? "bold" : "regular"}
-            />
-          </IconButton>
-        </div>
+        <AppSelect
+          ariaLabel="Sort library"
+          className="library-sort-select"
+          onChange={onSortChange}
+          options={sortOptions}
+          value={sort}
+        />
+        <SegmentedControl
+          className="library-view-toggle"
+          label="Library view"
+          onChange={onViewChange}
+          options={viewOptions}
+          value={view}
+        />
       </div>
     </header>
   );

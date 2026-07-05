@@ -1,11 +1,12 @@
 import {
-  CaretDown,
   Minus,
   Plus,
   X,
 } from "@phosphor-icons/react";
 
+import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
+import { SegmentedControl } from "../../components/SegmentedControl";
 import type {
   ReaderFlowMode,
   ReaderSettings,
@@ -25,17 +26,23 @@ const themes: Array<{ label: string; value: ReaderTheme }> = [
   { label: "Dark", value: "dark" },
 ];
 
+const typefaces = [
+  { label: "Book serif", value: "serif" },
+  { label: "Clean sans", value: "sans" },
+  { label: "System", value: "system" },
+];
+
 const lineHeights = [
-  { label: "Tight", value: 1.4 },
-  { label: "Normal", value: 1.6 },
-  { label: "Relaxed", value: 1.8 },
-  { label: "Airy", value: 2 },
+  { label: "Tight", value: "1.4" },
+  { label: "Normal", value: "1.6" },
+  { label: "Relaxed", value: "1.8" },
+  { label: "Airy", value: "2" },
 ];
 
 const margins = [
-  { label: "Narrow", value: 24 },
-  { label: "Medium", value: 48 },
-  { label: "Wide", value: 72 },
+  { label: "Narrow", value: "24" },
+  { label: "Medium", value: "48" },
+  { label: "Wide", value: "72" },
 ];
 
 const flowModes: Array<{ label: string; value: ReaderFlowMode }> = [
@@ -71,40 +78,34 @@ export function ReaderSettingsPanel({
 
       <div className="reader-setting">
         <span className="reader-setting__label">Theme</span>
-        <div className="reader-segments reader-segments--themes">
-          {themes.map((theme) => (
-            <button
-              aria-pressed={settings.theme === theme.value}
-              data-theme-option={theme.value}
-              key={theme.value}
-              onClick={() => update({ theme: theme.value })}
-              type="button"
-            >
-              <span aria-hidden="true" />
-              {theme.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="reader-control reader-control--themes"
+          label="Reader theme"
+          onChange={(theme) => update({ theme })}
+          options={themes.map((theme) => ({
+            ...theme,
+            icon: (
+              <span
+                aria-hidden="true"
+                className="reader-theme-swatch"
+                data-theme-option={theme.value}
+              />
+            ),
+          }))}
+          value={settings.theme}
+        />
       </div>
 
       <div className="reader-setting">
-        <label className="reader-setting__label" htmlFor="reader-font-family">
-          Typeface
-        </label>
-        <div className="reader-select">
-          <select
-            id="reader-font-family"
-            value={settings.fontFamily}
-            onChange={(event) =>
-              update({ fontFamily: event.currentTarget.value })
-            }
-          >
-            <option value="serif">Book serif</option>
-            <option value="sans">Clean sans</option>
-            <option value="system">System</option>
-          </select>
-          <CaretDown aria-hidden="true" size={13} weight="bold" />
-        </div>
+        <span className="reader-setting__label">Typeface</span>
+        <AppSelect
+          ariaLabel="Reader typeface"
+          className="reader-app-select"
+          id="reader-font-family"
+          onChange={(fontFamily) => update({ fontFamily })}
+          options={typefaces}
+          value={settings.fontFamily}
+        />
       </div>
 
       <div className="reader-setting reader-setting--inline">
@@ -134,50 +135,35 @@ export function ReaderSettingsPanel({
 
       <div className="reader-setting">
         <span className="reader-setting__label">Line spacing</span>
-        <div className="reader-segments">
-          {lineHeights.map((option) => (
-            <button
-              aria-pressed={settings.lineHeight === option.value}
-              key={option.value}
-              onClick={() => update({ lineHeight: option.value })}
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="reader-control"
+          label="Reader line spacing"
+          onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
+          options={lineHeights}
+          value={String(settings.lineHeight)}
+        />
       </div>
 
       <div className="reader-setting">
         <span className="reader-setting__label">Page width</span>
-        <div className="reader-segments">
-          {margins.map((option) => (
-            <button
-              aria-pressed={settings.margin === option.value}
-              key={option.value}
-              onClick={() => update({ margin: option.value })}
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="reader-control"
+          label="Reader page width"
+          onChange={(margin) => update({ margin: Number(margin) })}
+          options={margins}
+          value={String(settings.margin)}
+        />
       </div>
 
       <div className="reader-setting">
         <span className="reader-setting__label">Flow</span>
-        <div className="reader-segments">
-          {flowModes.map((option) => (
-            <button
-              aria-pressed={settings.flowMode === option.value}
-              key={option.value}
-              onClick={() => update({ flowMode: option.value })}
-              type="button"
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="reader-control"
+          label="Reader flow"
+          onChange={(flowMode) => update({ flowMode })}
+          options={flowModes}
+          value={settings.flowMode}
+        />
       </div>
 
       <p
