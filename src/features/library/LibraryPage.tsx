@@ -192,6 +192,20 @@ export function LibraryPage() {
     void navigate(`/reader/${book.id}`);
   }
 
+  function readBookFromBeginning(book: Book) {
+    void navigate(`/reader/${book.id}?start=beginning`);
+  }
+
+  async function rescanLibrary() {
+    setLibraryError(null);
+
+    try {
+      await storage.rescan();
+    } catch {
+      setLibraryError("The library folder could not be scanned.");
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget || isDeleting) {
       return;
@@ -204,7 +218,11 @@ export function LibraryPage() {
       await storage.deleteBook(deleteTarget.id);
       setDeleteTarget(null);
     } catch {
-      setLibraryError("This book could not be deleted. Please try again.");
+      setLibraryError(
+        deleteTarget.isFileMissing
+          ? "The saved metadata could not be removed."
+          : "This book could not be deleted. Please try again.",
+      );
       setDeleteTarget(null);
     } finally {
       setIsDeleting(false);
@@ -462,6 +480,8 @@ export function LibraryPage() {
           onDelete={requestDelete}
           onEdit={openMetadataEdit}
           onRead={readBook}
+          onReadFromBeginning={readBookFromBeginning}
+          onRescan={() => void rescanLibrary()}
           onToggleFavorite={toggleFavorite}
         />
       ) : null}
@@ -491,8 +511,16 @@ export function LibraryPage() {
 
       {deleteTarget ? (
         <Dialog
-          title="Delete this book?"
-          description={`“${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” and its saved reading progress will be removed from this device.`}
+          title={
+            deleteTarget.isFileMissing
+              ? "Remove saved metadata?"
+              : "Delete this book?"
+          }
+          description={
+            deleteTarget.isFileMissing
+              ? `Saved details and reading progress for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” will be removed.`
+              : `“${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” and its saved reading progress will be removed from this device.`
+          }
           onClose={() => {
             if (!isDeleting) {
               setDeleteTarget(null);
@@ -512,7 +540,11 @@ export function LibraryPage() {
                 disabled={isDeleting}
                 onClick={confirmDelete}
               >
-                {isDeleting ? "Deleting" : "Delete book"}
+                {isDeleting
+                  ? "Removing"
+                  : deleteTarget.isFileMissing
+                    ? "Remove metadata"
+                    : "Delete book"}
               </Button>
             </>
           }

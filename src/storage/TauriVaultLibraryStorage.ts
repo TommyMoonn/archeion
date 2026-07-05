@@ -113,7 +113,8 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         createdAt: timestamp,
         updatedAt: timestamp,
       }));
-      this.books = scan.books.map((book) => {
+      const scannedBookIds = new Set(scan.books.map((book) => book.id));
+      const scannedBooks = scan.books.map((book) => {
         const modifiedAt = new Date(book.modifiedAt).toISOString();
         let libraryEntry = this.libraryMetadata.books[book.id];
         if (!libraryEntry) {
@@ -136,6 +137,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
           displayTitle: libraryEntry.displayTitle,
           displayAuthor: libraryEntry.displayAuthor,
           coverPath: libraryEntry.coverPath,
+          isFileMissing: false,
           isFavorite: libraryEntry.isFavorite,
           addedAt: libraryEntry.addedAt,
           updatedAt: libraryEntry.updatedAt,
@@ -145,6 +147,34 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
           lastOpenedAt: progress?.lastOpenedAt,
         };
       });
+      const missingBooks = Object.entries(this.libraryMetadata.books)
+        .filter(([id]) => !scannedBookIds.has(id))
+        .map(([id, libraryEntry]) => {
+          const fileName =
+            libraryEntry.relativePath.split("/").at(-1) ??
+            libraryEntry.relativePath;
+          const progress = this.progressMetadata.progress[id];
+
+          return {
+            id,
+            relativePath: libraryEntry.relativePath,
+            fileName,
+            originalTitle: titleFromFileName(fileName),
+            originalAuthor: "Unknown author",
+            displayTitle: libraryEntry.displayTitle,
+            displayAuthor: libraryEntry.displayAuthor,
+            coverPath: libraryEntry.coverPath,
+            isFileMissing: true,
+            folderId: null,
+            isFavorite: libraryEntry.isFavorite,
+            addedAt: libraryEntry.addedAt,
+            updatedAt: libraryEntry.updatedAt,
+            progressCfi: progress?.cfi,
+            progressPercent: progress?.percent,
+            lastOpenedAt: progress?.lastOpenedAt,
+          } satisfies Book;
+        });
+      this.books = [...scannedBooks, ...missingBooks];
       if (libraryChanged) {
         await invoke("save_library_metadata", {
           metadata: this.libraryMetadata,
@@ -200,7 +230,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   async loadBookFile(id: string): Promise<Blob> {
     await this.ensureLoaded();
     const book = this.books.find((candidate) => candidate.id === id);
-    if (!book?.relativePath) {
+    if (!book?.relativePath || book.isFileMissing) {
       throw new Error(`Book file "${id}" was not found.`);
     }
 
@@ -226,7 +256,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private async loadVaultBookCover(id: string): Promise<Blob | undefined> {
     await this.ensureLoaded();
     const book = this.books.find((candidate) => candidate.id === id);
-    if (!book?.relativePath) {
+    if (!book?.relativePath || book.isFileMissing) {
       return undefined;
     }
     const contents = await invoke<ArrayBuffer>("load_epub_cover", {
@@ -325,9 +355,29 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return this.books[index];
   }
 
-  deleteBook(_id: string): Promise<boolean> {
-    void _id;
-    return Promise.reject(unavailable());
+  async deleteBook(id: string): Promise<boolean> {
+    await this.ensureLoaded();
+    const index = this.books.findIndex((book) => book.id === id);
+    if (index < 0) {
+      return false;
+    }
+    if (!this.books[index].isFileMissing) {
+      throw unavailable();
+    }
+
+    delete this.libraryMetadata.books[id];
+    delete this.progressMetadata.progress[id];
+    const library = structuredClone(this.libraryMetadata);
+    const progress = structuredClone(this.progressMetadata);
+    await this.enqueueMetadataWrite(async () => {
+      await invoke("save_library_metadata", { metadata: library });
+      await invoke("save_progress_metadata", { metadata: progress });
+    });
+
+    this.books.splice(index, 1);
+    this.coverPromises.delete(id);
+    this.emitBooks();
+    return true;
   }
 
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription {

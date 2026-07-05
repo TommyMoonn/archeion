@@ -12,6 +12,7 @@ export type Book = {
   displayAuthor?: string;
   coverBlob?: Blob;
   coverPath?: string;
+  isFileMissing?: boolean;
   folderId?: string | null;
   isFavorite: boolean;
   addedAt: string;

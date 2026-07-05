@@ -9,6 +9,7 @@ import {
   Link,
   useLoaderData,
   useNavigate,
+  useSearchParams,
 } from "react-router-dom";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
@@ -29,6 +30,8 @@ import { ReaderToolbar } from "./ReaderToolbar";
 export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
@@ -54,9 +57,9 @@ export function ReaderPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [location, setLocation] = useState<ReaderLocation>({
-    cfi: book?.progressCfi ?? "",
-    percentage: book?.progressPercent ?? 0,
-    atStart: !book?.progressCfi,
+    cfi: startFromBeginning ? "" : (book?.progressCfi ?? ""),
+    percentage: startFromBeginning ? 0 : (book?.progressPercent ?? 0),
+    atStart: startFromBeginning || !book?.progressCfi,
     atEnd: false,
   });
 
@@ -384,7 +387,7 @@ export function ReaderPage() {
         <EpubViewer
           ref={viewerRef}
           fileBlob={fileBlob}
-          initialCfi={book.progressCfi}
+          initialCfi={startFromBeginning ? undefined : book.progressCfi}
           onError={handleViewerError}
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}

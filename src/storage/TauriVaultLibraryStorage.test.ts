@@ -115,7 +115,7 @@ describe("TauriVaultLibraryStorage", () => {
     });
   });
 
-  it("replaces deleted files when rescanning", async () => {
+  it("retains metadata for files missing during a rescan", async () => {
     const storage = new TauriVaultLibraryStorage();
     await storage.listBooks();
     invokeMock.mockImplementation(async (command) => {
@@ -130,8 +130,43 @@ describe("TauriVaultLibraryStorage", () => {
 
     await storage.rescan();
 
-    await expect(storage.listBooks()).resolves.toEqual([]);
+    await expect(storage.listBooks()).resolves.toEqual([
+      expect.objectContaining({
+        id: "book-1",
+        isFileMissing: true,
+        relativePath: "Author/Series/Volume_01.epub",
+      }),
+    ]);
     await expect(storage.listFolders()).resolves.toEqual([]);
+  });
+
+  it("removes sidecar metadata for a missing file", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return { books: [], folders: [] };
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listBooks();
+
+    await expect(storage.deleteBook("book-1")).resolves.toBe(true);
+    await expect(storage.listBooks()).resolves.toEqual([]);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_library_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({ books: {} }),
+      }),
+    );
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_progress_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({ progress: {} }),
+      }),
+    );
   });
 
   it("notifies observers after a scan", async () => {
