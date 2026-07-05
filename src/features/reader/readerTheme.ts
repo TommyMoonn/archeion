@@ -33,12 +33,16 @@ export function readerThemeForSettings(settings: ReaderSettings) {
   const fontFamily = fontFamilies[settings.fontFamily] ?? fontFamilies.serif;
 
   return {
+    html: {
+      "overscroll-behavior": "contain !important",
+    },
     body: {
       color: `${colors.text} !important`,
       background: `${colors.background} !important`,
       "font-family": `${fontFamily} !important`,
       "font-size": `${settings.fontSize}px !important`,
       "line-height": `${settings.lineHeight} !important`,
+      "overscroll-behavior": "contain !important",
       padding: `0 ${settings.margin}px !important`,
     },
     "p, li": {

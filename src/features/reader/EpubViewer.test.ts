@@ -19,7 +19,9 @@ describe("readerThemeForSettings", () => {
       "line-height": "1.8 !important",
       padding: "0 72px !important",
       background: "#eee5d2 !important",
+      "overscroll-behavior": "contain !important",
     });
+    expect(theme.html["overscroll-behavior"]).toBe("contain !important");
     expect(theme.body["font-family"]).toContain("Segoe UI");
   });
 

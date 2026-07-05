@@ -374,6 +374,7 @@ html[data-window-frame-applied="hidden"] .reader-toolbar {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   margin-top: 32px;
   padding-right: 3px;
 }
@@ -632,8 +633,10 @@ html[data-window-frame-applied="hidden"] .reader-toolbar {
   min-width: 0;
   height: 100%;
   min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 54px clamp(28px, 5vw, 76px) 40px;
 }
 
@@ -673,6 +676,7 @@ html[data-card-size="large"] .book-grid {
   color: var(--text);
   background: transparent;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .settings-dialog::backdrop {
@@ -759,6 +763,8 @@ html[data-card-size="large"] .book-grid {
 .settings-content {
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   scroll-behavior: smooth;
   padding: 52px clamp(32px, 7vw, 96px) 90px;
 }
@@ -1911,6 +1917,7 @@ select {
   color: var(--text);
   background: var(--canvas-deep);
   box-shadow: -24px 0 70px rgb(5 8 12 / 32%);
+  overscroll-behavior: none;
 }
 
 .details-drawer[open] {
@@ -1946,8 +1953,11 @@ select {
 }
 
 .details-drawer__body {
-  overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 30px 28px;
 }
 
@@ -2362,6 +2372,7 @@ select {
   position: relative;
   height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
   color: var(--reader-text);
   background: var(--reader-bg);
 }
@@ -2489,6 +2500,8 @@ select {
   height: 100%;
   min-width: 0;
   min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
   background: var(--reader-bg);
 }
 
@@ -2496,6 +2509,8 @@ select {
 .epub-viewer__stage > div {
   width: 100%;
   height: 100%;
+  min-height: 0;
+  overscroll-behavior: none;
 }
 
 .epub-viewer__stage iframe {
@@ -2545,6 +2560,8 @@ select {
   bottom: 18px;
   width: min(340px, calc(100vw - 36px));
   overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
   padding: 22px;
   border: 1px solid var(--reader-line);
   border-radius: 14px;
