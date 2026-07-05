@@ -24,6 +24,8 @@ import {
   importEpubFiles,
   type ImportResult,
 } from "../import/importEpub";
+import { useVault } from "../vault/useVault";
+import { VaultStatusBar } from "../vault/VaultStatusBar";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -43,6 +45,7 @@ type FailedImport = Extract<ImportResult, { status: "failed" }>;
 export function LibraryPage() {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
+  const vault = useVault();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const importLock = useRef(false);
@@ -274,6 +277,9 @@ export function LibraryPage() {
       }
     >
       <ImportDropzone disabled={isImporting} onFiles={handleFiles}>
+        {vault.status === "ready" ? (
+          <VaultStatusBar path={vault.path} />
+        ) : null}
         <LibraryToolbar
           isImporting={isImporting}
           onFiles={handleFiles}

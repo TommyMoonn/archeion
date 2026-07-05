@@ -365,6 +365,128 @@ a {
   padding: 54px clamp(28px, 5vw, 76px) 40px;
 }
 
+.vault-status {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  max-width: 1440px;
+  min-height: 46px;
+  padding: 7px 8px 7px 13px;
+  margin: 0 auto 30px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--accent);
+  background: rgb(29 29 31 / 64%);
+}
+
+.vault-status__copy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.vault-status__copy span {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-status__copy code {
+  overflow: hidden;
+  color: var(--muted-soft);
+  font-family: inherit;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-status .button {
+  min-height: 30px;
+  padding: 0 10px;
+}
+
+.vault-setup {
+  display: grid;
+  min-height: 100dvh;
+  padding: 32px;
+  place-items: center;
+}
+
+.vault-setup__card {
+  width: min(100%, 480px);
+  padding: clamp(32px, 6vw, 52px);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: rgb(29 29 31 / 88%);
+  box-shadow: 0 28px 80px rgb(5 8 12 / 28%);
+}
+
+.vault-setup__icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin-bottom: 28px;
+  place-items: center;
+  border: 1px solid var(--accent-border);
+  border-radius: 15px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.vault-setup h1 {
+  margin: 8px 0 14px;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: clamp(34px, 7vw, 46px);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.vault-setup__card > p:not(.eyebrow, .vault-setup__note) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.vault-setup__path {
+  display: block;
+  overflow: hidden;
+  padding: 11px 13px;
+  margin-top: 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--canvas-deep);
+  font-family: inherit;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-setup__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 28px;
+}
+
+.vault-setup__note {
+  margin: 22px 0 0;
+  color: var(--muted-soft);
+  font-size: 11px;
+}
+
+.vault-loading {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .library-header {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto;
