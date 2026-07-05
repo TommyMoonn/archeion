@@ -32,6 +32,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
   return (
     <dialog
       aria-labelledby="about-title"
+      aria-modal="true"
       className="about-dialog"
       onCancel={(event) => {
         event.preventDefault();

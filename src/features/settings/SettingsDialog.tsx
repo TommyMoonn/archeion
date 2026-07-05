@@ -160,6 +160,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   return (
     <dialog
       aria-labelledby="settings-title"
+      aria-modal="true"
       className="settings-dialog"
       onCancel={(event) => {
         event.preventDefault();
@@ -466,7 +467,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 >
                   Cancel
                 </Button>
-                <Button onClick={() => void changeLibrary()}>
+                <Button autoFocus onClick={() => void changeLibrary()}>
                   Choose folder
                 </Button>
               </>
@@ -486,7 +487,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 >
                   Cancel
                 </Button>
-                <Button onClick={() => void rescan()}>
+                <Button autoFocus onClick={() => void rescan()}>
                   Rescan library
                 </Button>
               </>

@@ -10,6 +10,7 @@ import {
   Plus,
   Question,
 } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { FolderTree } from "../folders/FolderTree";
@@ -52,6 +53,38 @@ export function LibrarySidebar({
   onOpenSettings,
   onRenameFolder,
 }: LibrarySidebarProps) {
+  const archiveSwitcherRef = useRef<HTMLDetailsElement>(null);
+
+  useEffect(() => {
+    function closeArchiveSwitcher(event: KeyboardEvent | PointerEvent) {
+      const switcher = archiveSwitcherRef.current;
+      if (!switcher?.open) return;
+
+      if (
+        event instanceof PointerEvent &&
+        switcher.contains(event.target as Node)
+      ) {
+        return;
+      }
+
+      switcher.removeAttribute("open");
+      if (event instanceof KeyboardEvent && event.key === "Escape") {
+        switcher.querySelector("summary")?.focus();
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") closeArchiveSwitcher(event);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", closeArchiveSwitcher);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", closeArchiveSwitcher);
+    };
+  }, []);
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -65,6 +98,7 @@ export function LibrarySidebar({
 
       <nav className="sidebar__nav" aria-label="Library navigation">
         <button
+          aria-current={location.type === "library" ? "page" : undefined}
           className={`nav-item ${location.type === "library" ? "active" : ""}`}
           type="button"
           onClick={() => onLocationChange({ type: "library" })}
@@ -74,6 +108,7 @@ export function LibrarySidebar({
           <span className="nav-item__count">{bookCount}</span>
         </button>
         <button
+          aria-current={location.type === "continue" ? "page" : undefined}
           className={`nav-item ${location.type === "continue" ? "active" : ""}`}
           type="button"
           onClick={() => onLocationChange({ type: "continue" })}
@@ -87,6 +122,7 @@ export function LibrarySidebar({
           <span className="nav-item__count">{continueCount}</span>
         </button>
         <button
+          aria-current={location.type === "favorites" ? "page" : undefined}
           className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
           type="button"
           onClick={() => onLocationChange({ type: "favorites" })}
@@ -100,6 +136,7 @@ export function LibrarySidebar({
           <span className="nav-item__count">{favoriteCount}</span>
         </button>
         <button
+          aria-current={location.type === "folders" ? "page" : undefined}
           className={`nav-item ${location.type === "folders" ? "active" : ""}`}
           type="button"
           onClick={() => onLocationChange({ type: "folders" })}
@@ -142,8 +179,8 @@ export function LibrarySidebar({
       </div>
 
       <div className="sidebar-footer">
-        <details className="archive-switcher">
-          <summary>
+        <details className="archive-switcher" ref={archiveSwitcherRef}>
+          <summary aria-label={`Current archive: ${archiveName(archivePath)}`}>
             <CaretUpDown aria-hidden="true" size={14} weight="bold" />
             <span>{archiveName(archivePath)}</span>
           </summary>

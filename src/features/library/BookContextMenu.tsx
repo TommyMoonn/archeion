@@ -36,8 +36,9 @@ export function BookContextMenu({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && menuRef.current?.open) {
         menuRef.current?.removeAttribute("open");
+        menuRef.current?.querySelector("summary")?.focus();
       }
     }
 

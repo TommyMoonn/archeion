@@ -4,7 +4,12 @@ import {
   PencilSimple,
   Trash,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../library/libraryFilters";
@@ -42,8 +47,9 @@ function FolderMenu({
     }
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && menuRef.current?.open) {
         menuRef.current?.removeAttribute("open");
+        menuRef.current?.querySelector("summary")?.focus();
       }
     }
 
@@ -104,6 +110,7 @@ function FolderNode({
     <li>
       <div className="folder-tree__row">
         <button
+          aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
           data-active={isSelected || undefined}
           type="button"
@@ -157,9 +164,61 @@ export function FolderTree({
   showActions = true,
 }: FolderTreeProps) {
   const tree = useMemo(() => buildFolderTree(folders), [folders]);
+  const treeRef = useRef<HTMLUListElement>(null);
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLUListElement>) {
+    const target = event.target;
+    if (
+      !(target instanceof HTMLButtonElement) ||
+      !target.classList.contains("folder-tree__select")
+    ) {
+      return;
+    }
+
+    const items = Array.from(
+      treeRef.current?.querySelectorAll<HTMLButtonElement>(
+        ".folder-tree__select",
+      ) ?? [],
+    );
+    const index = items.indexOf(target);
+    let next: HTMLButtonElement | undefined;
+
+    if (event.key === "ArrowDown") {
+      next = items[index + 1];
+    } else if (event.key === "ArrowUp") {
+      next = items[index - 1];
+    } else if (event.key === "Home") {
+      next = items[0];
+    } else if (event.key === "End") {
+      next = items.at(-1);
+    } else if (event.key === "ArrowRight") {
+      next = target
+        .closest("li")
+        ?.querySelector<HTMLButtonElement>(
+          ":scope > .folder-tree__children > li > .folder-tree__row > .folder-tree__select",
+        ) ?? undefined;
+    } else if (event.key === "ArrowLeft") {
+      next = target
+        .closest("ul.folder-tree__children")
+        ?.closest("li")
+        ?.querySelector<HTMLButtonElement>(
+          ":scope > .folder-tree__row > .folder-tree__select",
+        ) ?? undefined;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    next?.focus();
+  }
 
   return (
-    <ul className="folder-tree">
+    <ul
+      aria-label="Library folders"
+      className="folder-tree"
+      onKeyDown={handleKeyDown}
+      ref={treeRef}
+    >
       {tree.map((folder) => (
         <FolderNode
           bookCounts={bookCounts}

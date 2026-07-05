@@ -56,7 +56,11 @@ export function RescanVaultButton({ onError }: RescanVaultButtonProps) {
               >
                 Cancel
               </Button>
-              <Button disabled={isScanning} onClick={() => void handleRescan()}>
+              <Button
+                autoFocus
+                disabled={isScanning}
+                onClick={() => void handleRescan()}
+              >
                 {isScanning ? "Scanning" : "Rescan library"}
               </Button>
             </>

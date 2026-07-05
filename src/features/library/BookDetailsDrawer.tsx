@@ -95,6 +95,7 @@ export function BookDetailsDrawer({
       ref={dialogRef}
       className="details-drawer"
       aria-labelledby="book-details-title"
+      aria-modal="true"
       onCancel={(event) => {
         event.preventDefault();
         onClose();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, type ReactNode } from "react";
 
 type DialogProps = {
   children?: ReactNode;
@@ -16,6 +16,8 @@ export function Dialog({
   title,
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const descriptionId = useId();
+  const titleId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -35,8 +37,9 @@ export function Dialog({
     <dialog
       ref={dialogRef}
       className="dialog"
-      aria-describedby={description ? "dialog-description" : undefined}
-      aria-labelledby="dialog-title"
+      aria-describedby={description ? descriptionId : undefined}
+      aria-labelledby={titleId}
+      aria-modal="true"
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -49,8 +52,8 @@ export function Dialog({
     >
       <div className="dialog__panel">
         <div className="dialog__copy">
-          <h2 id="dialog-title">{title}</h2>
-          {description ? <p id="dialog-description">{description}</p> : null}
+          <h2 id={titleId}>{title}</h2>
+          {description ? <p id={descriptionId}>{description}</p> : null}
         </div>
         {children}
         {footer ? <div className="dialog__footer">{footer}</div> : null}

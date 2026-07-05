@@ -667,7 +667,7 @@ export function LibraryPage() {
               >
                 Cancel
               </Button>
-              <Button onClick={() => void changeArchive()}>
+              <Button autoFocus onClick={() => void changeArchive()}>
                 Choose folder
               </Button>
             </>
@@ -689,6 +689,7 @@ export function LibraryPage() {
                 Cancel
               </Button>
               <Button
+                autoFocus
                 onClick={() => {
                   setRescanConfirmationOpen(false);
                   void rescanLibrary();
