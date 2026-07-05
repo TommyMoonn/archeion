@@ -17,6 +17,7 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { FolderCreateDialog } from "../folders/FolderCreateDialog";
+import { FolderBrowser } from "../folders/FolderBrowser";
 import { FolderRenameDialog } from "../folders/FolderRenameDialog";
 import { ImportDropzone } from "../import/ImportDropzone";
 import {
@@ -29,6 +30,7 @@ import { VaultStatusBar } from "../vault/VaultStatusBar";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
+import { ContinueReading } from "./ContinueReading";
 import {
   getVisibleBooks,
   type LibraryLocation,
@@ -115,6 +117,19 @@ export function LibraryPage() {
   const bookCount = books?.length ?? 0;
   const favoriteCount =
     books?.filter((book) => book.isFavorite).length ?? 0;
+  const continueBooks = useMemo(
+    () =>
+      [...(books ?? [])]
+        .filter(
+          (book) =>
+            (book.progressPercent ?? 0) > 0 &&
+            (book.progressPercent ?? 0) < 99.5,
+        )
+        .sort((left, right) =>
+          (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? ""),
+        ),
+    [books],
+  );
   const bookCountsByFolder = useMemo(() => {
     const counts = new Map<string, number>();
 
@@ -140,11 +155,16 @@ export function LibraryPage() {
   const libraryTitle =
     location.type === "favorites"
       ? "Favorites"
-      : currentFolder?.name ?? "Library";
+      : location.type === "continue"
+        ? "Continue reading"
+        : currentFolder?.name ?? "Library";
 
   function changeLocation(nextLocation: LibraryLocation) {
     setLocation(nextLocation);
     setQuery("");
+    if (nextLocation.type === "continue") {
+      setSort("recently-opened");
+    }
   }
 
   function requestDelete(book: Book) {
@@ -245,6 +265,13 @@ export function LibraryPage() {
       };
     }
 
+    if (location.type === "continue") {
+      return {
+        title: "No books in progress",
+        description: "Books you start reading will appear here.",
+      };
+    }
+
     if (location.type === "folder") {
       return {
         title: "This folder is empty",
@@ -270,6 +297,7 @@ export function LibraryPage() {
           bookCount={bookCount}
           bookCountsByFolder={bookCountsByFolder}
           favoriteCount={favoriteCount}
+          continueCount={continueBooks.length}
           folders={folders ?? []}
           location={location}
           canManageFolders={storage.source !== "vault"}
@@ -287,6 +315,16 @@ export function LibraryPage() {
         {vault.status === "ready" ? (
           <VaultStatusBar path={vault.path} />
         ) : null}
+        {location.type === "folders" ? (
+          <FolderBrowser
+            bookCounts={bookCountsByFolder}
+            folders={folders ?? []}
+            onOpen={(folder) =>
+              changeLocation({ type: "folder", folderId: folder.id })
+            }
+          />
+        ) : (
+          <>
         <LibraryToolbar
           isImporting={isImporting}
           onFiles={handleFiles}
@@ -346,6 +384,12 @@ export function LibraryPage() {
         ) : null}
 
         <div className="library-content">
+          {location.type === "library" && !query ? (
+            <ContinueReading
+              books={continueBooks.slice(0, 5)}
+              onContinue={readBook}
+            />
+          ) : null}
           {books === undefined || (isImporting && books.length === 0) ? (
             <div className="library-loading" role="status">
               <span className="library-loading__cover" />
@@ -390,6 +434,8 @@ export function LibraryPage() {
             />
           )}
         </div>
+          </>
+        )}
       </ImportDropzone>
 
       {selectedBook ? (

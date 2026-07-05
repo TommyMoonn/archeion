@@ -1,5 +1,7 @@
 import {
   Books,
+  ClockCounterClockwise,
+  Folders,
   Heart,
   Plus,
 } from "@phosphor-icons/react";
@@ -13,6 +15,7 @@ type LibrarySidebarProps = {
   bookCount: number;
   bookCountsByFolder: Map<string, number>;
   favoriteCount: number;
+  continueCount: number;
   folders: Folder[];
   location: LibraryLocation;
   canManageFolders?: boolean;
@@ -26,6 +29,7 @@ export function LibrarySidebar({
   bookCount,
   bookCountsByFolder,
   favoriteCount,
+  continueCount,
   folders,
   location,
   canManageFolders = true,
@@ -56,6 +60,19 @@ export function LibrarySidebar({
           <span className="nav-item__count">{bookCount}</span>
         </button>
         <button
+          className={`nav-item ${location.type === "continue" ? "active" : ""}`}
+          type="button"
+          onClick={() => onLocationChange({ type: "continue" })}
+        >
+          <ClockCounterClockwise
+            aria-hidden="true"
+            size={19}
+            weight="regular"
+          />
+          <span>Continue</span>
+          <span className="nav-item__count">{continueCount}</span>
+        </button>
+        <button
           className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
           type="button"
           onClick={() => onLocationChange({ type: "favorites" })}
@@ -67,6 +84,15 @@ export function LibrarySidebar({
           />
           <span>Favorites</span>
           <span className="nav-item__count">{favoriteCount}</span>
+        </button>
+        <button
+          className={`nav-item ${location.type === "folders" ? "active" : ""}`}
+          type="button"
+          onClick={() => onLocationChange({ type: "folders" })}
+        >
+          <Folders aria-hidden="true" size={19} weight="regular" />
+          <span>Folders</span>
+          <span className="nav-item__count">{folders.length}</span>
         </button>
       </nav>
 

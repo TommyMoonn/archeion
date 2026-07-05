@@ -4,11 +4,14 @@ export type LibrarySort =
   | "recently-added"
   | "recently-opened"
   | "title"
-  | "author";
+  | "author"
+  | "folder";
 
 export type LibraryLocation =
   | { type: "library" }
+  | { type: "continue" }
   | { type: "favorites" }
+  | { type: "folders" }
   | { type: "folder"; folderId: string };
 
 function normalize(value: string | undefined): string {
@@ -40,6 +43,9 @@ export function filterBooks(books: Book[], query: string): Book[] {
       book.originalTitle,
       book.displayAuthor,
       book.originalAuthor,
+      book.fileName,
+      book.relativePath,
+      book.folderPath,
     ].some((value) => normalize(value).includes(normalizedQuery)),
   );
 }
@@ -53,6 +59,14 @@ export function filterBooksByLocation(
       return books;
     case "favorites":
       return books.filter((book) => book.isFavorite);
+    case "continue":
+      return books.filter(
+        (book) =>
+          (book.progressPercent ?? 0) > 0 &&
+          (book.progressPercent ?? 0) < 99.5,
+      );
+    case "folders":
+      return [];
     case "folder":
       return books.filter((book) => book.folderId === location.folderId);
   }
@@ -80,6 +94,11 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
         );
       case "recently-added":
         return right.addedAt.localeCompare(left.addedAt);
+      case "folder":
+        return (
+          collator.compare(left.folderPath ?? "", right.folderPath ?? "") ||
+          collator.compare(bookTitle(left), bookTitle(right))
+        );
     }
   });
 }

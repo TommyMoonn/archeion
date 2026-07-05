@@ -76,6 +76,7 @@ export function LibraryToolbar({
             <option value="recently-opened">Recently opened</option>
             <option value="title">Title</option>
             <option value="author">Author</option>
+            <option value="folder">Folder path</option>
           </select>
           <CaretDown aria-hidden="true" size={13} weight="bold" />
         </label>

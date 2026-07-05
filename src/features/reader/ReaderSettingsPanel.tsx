@@ -1,4 +1,5 @@
 import {
+  CaretDown,
   Minus,
   Plus,
   X,
@@ -90,15 +91,20 @@ export function ReaderSettingsPanel({
         <label className="reader-setting__label" htmlFor="reader-font-family">
           Typeface
         </label>
-        <select
-          id="reader-font-family"
-          value={settings.fontFamily}
-          onChange={(event) => update({ fontFamily: event.currentTarget.value })}
-        >
-          <option value="serif">Book serif</option>
-          <option value="sans">Clean sans</option>
-          <option value="system">System</option>
-        </select>
+        <div className="reader-select">
+          <select
+            id="reader-font-family"
+            value={settings.fontFamily}
+            onChange={(event) =>
+              update({ fontFamily: event.currentTarget.value })
+            }
+          >
+            <option value="serif">Book serif</option>
+            <option value="sans">Clean sans</option>
+            <option value="system">System</option>
+          </select>
+          <CaretDown aria-hidden="true" size={13} weight="bold" />
+        </div>
       </div>
 
       <div className="reader-setting reader-setting--inline">
