@@ -51,6 +51,14 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
     return this.books.get(id);
   }
 
+  async loadBookFile(id: string) {
+    const book = await this.books.get(id);
+    if (!book?.fileBlob) {
+      throw new Error(`Book file "${id}" was not found.`);
+    }
+    return book.fileBlob;
+  }
+
   listBooks() {
     return this.books.list();
   }

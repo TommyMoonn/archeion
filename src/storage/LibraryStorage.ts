@@ -23,6 +23,7 @@ export interface LibraryStorage {
 
   createBook(input: CreateBookInput): Promise<Book>;
   getBook(id: string): Promise<Book | undefined>;
+  loadBookFile(id: string): Promise<Blob>;
   listBooks(): Promise<Book[]>;
   updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;

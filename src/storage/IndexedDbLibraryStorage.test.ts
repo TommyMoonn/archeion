@@ -29,6 +29,10 @@ describe("IndexedDbLibraryStorage", () => {
     });
 
     await expect(storage.listBooks()).resolves.toEqual([book]);
+    const storedFile = await storage.loadBookFile(book.id);
+    expect(await storedFile.arrayBuffer()).toEqual(
+      await book.fileBlob?.arrayBuffer(),
+    );
     await expect(storage.listFolders()).resolves.toEqual([folder]);
     await expect(
       storage.updateBook(book.id, { isFavorite: true }),

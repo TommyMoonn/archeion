@@ -196,6 +196,19 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return this.books.find((book) => book.id === id);
   }
 
+  async loadBookFile(id: string): Promise<Blob> {
+    await this.ensureLoaded();
+    const book = this.books.find((candidate) => candidate.id === id);
+    if (!book?.relativePath) {
+      throw new Error(`Book file "${id}" was not found.`);
+    }
+
+    const contents = await invoke<ArrayBuffer>("read_epub_file", {
+      relativePath: book.relativePath,
+    });
+    return new Blob([contents], { type: "application/epub+zip" });
+  }
+
   async listBooks(): Promise<Book[]> {
     await this.ensureLoaded();
     return [...this.books];

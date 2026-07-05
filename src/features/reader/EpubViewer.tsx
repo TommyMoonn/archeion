@@ -7,10 +7,12 @@ import {
 } from "react";
 import type { Book as EpubBook, Rendition, Location } from "epubjs";
 
+import type { ReaderSettings } from "../../types/reader";
 import {
   normalizeReaderLocation,
   type ReaderLocation,
 } from "./readerLocation";
+import { readerThemeForSettings } from "./readerTheme";
 
 export type EpubViewerHandle = {
   next: () => Promise<void>;
@@ -21,36 +23,11 @@ type EpubViewerProps = {
   fileBlob: Blob;
   initialCfi?: string;
   onError: (message: string) => void;
+  onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
   onReady: () => void;
-};
-
-const readerTheme = {
-  body: {
-    color: "#d6d3d9 !important",
-    background: "#171717 !important",
-    "font-family":
-      '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif !important',
-    "font-size": "18px !important",
-    "line-height": "1.65 !important",
-    padding: "0 5% !important",
-  },
-  "p, li": {
-    color: "#d6d3d9 !important",
-  },
-  "h1, h2, h3, h4, h5, h6": {
-    color: "#ebe8ef !important",
-    "font-weight": "500 !important",
-    "line-height": "1.3 !important",
-  },
-  a: {
-    color: "#8fc1e3 !important",
-  },
-  img: {
-    "max-width": "100% !important",
-    "object-fit": "contain !important",
-  },
+  settings: ReaderSettings;
 };
 
 export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
@@ -59,15 +36,19 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
       fileBlob,
       initialCfi,
       onError,
+      onInteraction,
       onKeyDown,
       onLocationChange,
       onReady,
+      settings,
     },
     ref,
   ) {
     const containerRef = useRef<HTMLDivElement>(null);
     const renditionRef = useRef<Rendition | null>(null);
+    const settingsRef = useRef(settings);
     const [isLoading, setIsLoading] = useState(true);
+    settingsRef.current = settings;
 
     useImperativeHandle(
       ref,
@@ -113,16 +94,27 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
             // Reading can continue without a calculated percentage.
           }
 
+          const currentSettings = settingsRef.current;
           rendition = epubBook.renderTo(containerRef.current, {
             width: "100%",
             height: "100%",
-            flow: "paginated",
+            flow:
+              currentSettings.flowMode === "scrolled"
+                ? "scrolled-doc"
+                : "paginated",
             spread: "none",
             allowScriptedContent: false,
           });
           renditionRef.current = rendition;
-          rendition.themes.default(readerTheme);
+          rendition.themes.register(
+            "archeion-reader",
+            readerThemeForSettings(currentSettings),
+          );
+          rendition.themes.select("archeion-reader");
           rendition.on("keydown", onKeyDown);
+          rendition.on("mousemove", onInteraction);
+          rendition.on("touchstart", onInteraction);
+          rendition.on("click", onInteraction);
           rendition.on("relocated", onRelocated);
 
           try {
@@ -164,6 +156,9 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
 
         if (rendition) {
           rendition.off("keydown", onKeyDown);
+          rendition.off("mousemove", onInteraction);
+          rendition.off("touchstart", onInteraction);
+          rendition.off("click", onInteraction);
           rendition.off("relocated", onRelocated);
         }
 
@@ -174,13 +169,33 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
       fileBlob,
       initialCfi,
       onError,
+      onInteraction,
       onKeyDown,
       onLocationChange,
       onReady,
     ]);
 
+    useEffect(() => {
+      const rendition = renditionRef.current;
+      if (!rendition) {
+        return;
+      }
+
+      rendition.themes.register(
+        "archeion-reader",
+        readerThemeForSettings(settings),
+      );
+      rendition.themes.select("archeion-reader");
+    }, [settings]);
+
+    useEffect(() => {
+      renditionRef.current?.flow(
+        settings.flowMode === "scrolled" ? "scrolled-doc" : "paginated",
+      );
+    }, [settings.flowMode]);
+
     return (
-      <div className="epub-viewer">
+      <div className="epub-viewer" data-reader-theme={settings.theme}>
         <div ref={containerRef} className="epub-viewer__stage" />
         {isLoading ? (
           <div className="reader-loading" role="status">

@@ -195,4 +195,29 @@ describe("TauriVaultLibraryStorage", () => {
       }),
     );
   });
+
+  it("loads EPUB bytes without storing them in the book record", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return firstScan;
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "read_epub_file") {
+        return new Uint8Array([80, 75, 3, 4]).buffer;
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const blob = await storage.loadBookFile("book-1");
+
+    expect(invokeMock).toHaveBeenCalledWith("read_epub_file", {
+      relativePath: "Author/Series/Volume_01.epub",
+    });
+    expect(blob.type).toBe("application/epub+zip");
+    expect(blob.size).toBe(4);
+    expect((await storage.getBook("book-1"))?.fileBlob).toBeUndefined();
+  });
 });

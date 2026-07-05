@@ -14,11 +14,16 @@ import {
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import {
+  defaultReaderSettings,
+  type ReaderSettings,
+} from "../../types/reader";
+import {
   EpubViewer,
   type EpubViewerHandle,
 } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
 import { ReaderProgressBar } from "./ReaderProgressBar";
+import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
 
 export function ReaderPage() {
@@ -27,8 +32,27 @@ export function ReaderPage() {
   const storage = useLibraryStorage();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const settingsSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const controlsTimer = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadedFile, setLoadedFile] = useState<{
+    bookId: string;
+    blob?: Blob;
+    failed: boolean;
+  } | null>(
+    book?.fileBlob
+      ? { bookId: book.id, blob: book.fileBlob, failed: false }
+      : null,
+  );
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const [settings, setSettings] = useState<ReaderSettings>({
+    ...defaultReaderSettings,
+  });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsPersistenceFailed, setSettingsPersistenceFailed] =
+    useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
   const [location, setLocation] = useState<ReaderLocation>({
     cfi: book?.progressCfi ?? "",
     percentage: book?.progressPercent ?? 0,
@@ -43,6 +67,39 @@ export function ReaderPage() {
   const moveNext = useCallback(() => {
     void viewerRef.current?.next();
   }, []);
+
+  const revealControls = useCallback(() => {
+    setControlsVisible(true);
+    if (controlsTimer.current !== null) {
+      window.clearTimeout(controlsTimer.current);
+    }
+    if (!settingsOpen) {
+      controlsTimer.current = window.setTimeout(() => {
+        setControlsVisible(false);
+      }, 2400);
+    }
+  }, [settingsOpen]);
+
+  const openSettings = useCallback(() => {
+    setControlsVisible(true);
+    setSettingsOpen(true);
+  }, []);
+
+  const changeSettings = useCallback(
+    (nextSettings: ReaderSettings) => {
+      setSettings(nextSettings);
+      settingsSaveQueue.current = settingsSaveQueue.current
+        .catch(() => undefined)
+        .then(() => storage.saveReaderSettings(nextSettings))
+        .then(() => {
+          setSettingsPersistenceFailed(false);
+        })
+        .catch(() => {
+          setSettingsPersistenceFailed(true);
+        });
+    },
+    [storage],
+  );
 
   const handleReady = useCallback(() => {
     if (!book) {
@@ -92,7 +149,8 @@ export function ReaderPage() {
         event.defaultPrevented ||
         event.altKey ||
         event.ctrlKey ||
-        event.metaKey
+        event.metaKey ||
+        event.shiftKey
       ) {
         return;
       }
@@ -102,17 +160,35 @@ export function ReaderPage() {
           event.preventDefault();
         }
 
-        void navigate("/");
+        if (settingsOpen) {
+          setSettingsOpen(false);
+        } else {
+          void navigate("/");
+        }
         return;
       }
 
       const target = event.target as HTMLElement | null;
+      const selection = target?.ownerDocument.getSelection();
 
       if (
         target?.closest(
           "a, button, input, select, textarea, [contenteditable='true']",
-        )
+        ) ||
+        (selection && !selection.isCollapsed)
       ) {
+        return;
+      }
+
+      if (event.key.toLowerCase() === "s") {
+        if (preventDefault) {
+          event.preventDefault();
+        }
+        openSettings();
+        return;
+      }
+
+      if (settings.flowMode === "scrolled") {
         return;
       }
 
@@ -130,7 +206,14 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [moveNext, movePrevious, navigate],
+    [
+      moveNext,
+      movePrevious,
+      navigate,
+      openSettings,
+      settings.flowMode,
+      settingsOpen,
+    ],
   );
 
   const handleContentKeyDown = useCallback(
@@ -139,6 +222,75 @@ export function ReaderPage() {
     },
     [handleReaderKeyDown],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!book || book.fileBlob) {
+      return;
+    }
+
+    void storage
+      .loadBookFile(book.id)
+      .then((blob) => {
+        if (!cancelled) {
+          setLoadedFile({ bookId: book.id, blob, failed: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadedFile({ bookId: book.id, failed: true });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [book, storage]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void storage
+      .getReaderSettings()
+      .then((savedSettings) => {
+        if (!cancelled) {
+          setSettings(savedSettings);
+          setSettingsPersistenceFailed(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSettingsPersistenceFailed(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettingsLoaded(true);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storage]);
+
+  useEffect(() => {
+    if (controlsTimer.current !== null) {
+      window.clearTimeout(controlsTimer.current);
+    }
+    if (!settingsOpen) {
+      controlsTimer.current = window.setTimeout(() => {
+        setControlsVisible(false);
+      }, 2400);
+    }
+
+    return () => {
+      if (controlsTimer.current !== null) {
+        window.clearTimeout(controlsTimer.current);
+      }
+    };
+  }, [settingsOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -166,13 +318,28 @@ export function ReaderPage() {
   }
 
   const title = book.displayTitle ?? book.originalTitle;
+  const currentLoadedFile =
+    loadedFile?.bookId === book.id ? loadedFile : null;
+  const fileBlob = book.fileBlob ?? currentLoadedFile?.blob;
+  const fileLoadFailed = currentLoadedFile?.failed ?? false;
+  const isFileLoading = !fileBlob && !fileLoadFailed;
 
-  if (!book.fileBlob) {
+  if (isFileLoading || !settingsLoaded) {
+    return (
+      <main className="reader-status-page" aria-busy="true">
+        <BookOpenText aria-hidden="true" size={38} weight="thin" />
+        <h1>Loading EPUB</h1>
+        <p>{title}</p>
+      </main>
+    );
+  }
+
+  if (fileLoadFailed || !fileBlob) {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
-        <h1>Local file reading is not ready</h1>
-        <p>The book was found, but direct EPUB loading arrives in Phase 11.</p>
+        <h1>Unable to open book</h1>
+        <p>The EPUB file may have been moved or deleted. Rescan the library.</p>
         <Link className="text-link" to="/">
           Return to library
         </Link>
@@ -181,17 +348,28 @@ export function ReaderPage() {
   }
 
   return (
-    <main className="reader-page">
-      <ReaderToolbar
-        atEnd={location.atEnd}
-        atStart={location.atStart}
-        onNext={moveNext}
-        onPrevious={movePrevious}
-        percentage={location.percentage}
-        progressSaveFailed={progressSaveFailed}
-        title={title}
-      />
-      <ReaderProgressBar percentage={location.percentage} />
+    <main
+      className="reader-page"
+      data-reader-theme={settings.theme}
+      onFocusCapture={revealControls}
+      onPointerMove={revealControls}
+    >
+      <div
+        className="reader-controls"
+        data-visible={controlsVisible || settingsOpen || undefined}
+      >
+        <ReaderToolbar
+          atEnd={location.atEnd}
+          atStart={location.atStart}
+          onNext={moveNext}
+          onPrevious={movePrevious}
+          onSettings={openSettings}
+          percentage={location.percentage}
+          progressSaveFailed={progressSaveFailed}
+          title={title}
+        />
+        <ReaderProgressBar percentage={location.percentage} />
+      </div>
 
       {error ? (
         <section className="reader-error" role="alert">
@@ -205,14 +383,25 @@ export function ReaderPage() {
       ) : (
         <EpubViewer
           ref={viewerRef}
-          fileBlob={book.fileBlob}
+          fileBlob={fileBlob}
           initialCfi={book.progressCfi}
           onError={handleViewerError}
+          onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}
           onLocationChange={handleLocationChange}
           onReady={handleReady}
+          settings={settings}
         />
       )}
+
+      {settingsOpen ? (
+        <ReaderSettingsPanel
+          onChange={changeSettings}
+          onClose={() => setSettingsOpen(false)}
+          persistenceFailed={settingsPersistenceFailed}
+          settings={settings}
+        />
+      ) : null}
     </main>
   );
 }
