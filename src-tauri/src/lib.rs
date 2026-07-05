@@ -13,7 +13,10 @@ pub fn run() {
             commands::metadata::save_progress_metadata,
             commands::metadata::save_settings_metadata,
             commands::scanner::scan_vault,
+            commands::vault::clear_cover_cache,
+            commands::vault::cover_cache_status,
             commands::vault::load_vault_path,
+            commands::vault::reveal_archeion_folder,
             commands::vault::save_vault_path,
             commands::vault::validate_vault_path,
         ])

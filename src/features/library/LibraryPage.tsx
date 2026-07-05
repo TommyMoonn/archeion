@@ -14,6 +14,8 @@ import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import { useAppPreferences } from "../../stores/appPreferencesStore";
+import { vaultStore } from "../../stores/vaultStore";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { FolderCreateDialog } from "../folders/FolderCreateDialog";
@@ -26,7 +28,8 @@ import {
   type ImportResult,
 } from "../import/importEpub";
 import { useVault } from "../vault/useVault";
-import { VaultStatusBar } from "../vault/VaultStatusBar";
+import { SettingsDialog } from "../settings/SettingsDialog";
+import { AboutDialog } from "../settings/AboutDialog";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -49,6 +52,7 @@ export function LibraryPage() {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
   const vault = useVault();
+  const preferences = useAppPreferences();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const importLock = useRef(false);
@@ -71,6 +75,8 @@ export function LibraryPage() {
   const [deleteFolderTarget, setDeleteFolderTarget] =
     useState<Folder | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -333,10 +339,14 @@ export function LibraryPage() {
           continueCount={continueBooks.length}
           folders={folders ?? []}
           location={location}
+          archivePath={vault.status === "ready" ? vault.path : ""}
           canManageFolders={storage.source !== "vault"}
+          onChangeArchive={() => void vaultStore.chooseVault()}
           onCreateFolder={() => setIsCreateFolderOpen(true)}
           onDeleteFolder={setDeleteFolderTarget}
           onLocationChange={changeLocation}
+          onOpenAbout={() => setAboutOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
           onRenameFolder={setRenameFolderTarget}
         />
       }
@@ -345,9 +355,6 @@ export function LibraryPage() {
         disabled={isImporting || storage.source === "vault"}
         onFiles={handleFiles}
       >
-        {vault.status === "ready" ? (
-          <VaultStatusBar path={vault.path} />
-        ) : null}
         {location.type === "folders" ? (
           <FolderBrowser
             bookCounts={bookCountsByFolder}
@@ -417,7 +424,9 @@ export function LibraryPage() {
         ) : null}
 
         <div className="library-content">
-          {location.type === "library" && !query ? (
+          {location.type === "library" &&
+          !query &&
+          preferences.showContinueReading ? (
             <ContinueReading
               books={continueBooks.slice(0, 5)}
               onContinue={readBook}
@@ -491,6 +500,13 @@ export function LibraryPage() {
           onClose={closeMetadataEdit}
           onSave={saveBook}
         />
+      ) : null}
+
+      {settingsOpen ? (
+        <SettingsDialog onClose={() => setSettingsOpen(false)} />
+      ) : null}
+      {aboutOpen ? (
+        <AboutDialog onClose={() => setAboutOpen(false)} />
       ) : null}
 
       {isCreateFolderOpen ? (

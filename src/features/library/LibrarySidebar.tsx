@@ -1,14 +1,20 @@
 import {
   Books,
+  CaretUpDown,
+  Check,
   ClockCounterClockwise,
+  FolderOpen,
   Folders,
+  GearSix,
   Heart,
   Plus,
+  Question,
 } from "@phosphor-icons/react";
 
 import { IconButton } from "../../components/IconButton";
 import { FolderTree } from "../folders/FolderTree";
 import type { Folder } from "../../types/folder";
+import { archiveName } from "./archiveName";
 import type { LibraryLocation } from "./libraryFilters";
 
 type LibrarySidebarProps = {
@@ -18,10 +24,14 @@ type LibrarySidebarProps = {
   continueCount: number;
   folders: Folder[];
   location: LibraryLocation;
+  archivePath: string;
   canManageFolders?: boolean;
+  onChangeArchive: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
   onLocationChange: (location: LibraryLocation) => void;
+  onOpenAbout: () => void;
+  onOpenSettings: () => void;
   onRenameFolder: (folder: Folder) => void;
 };
 
@@ -32,10 +42,14 @@ export function LibrarySidebar({
   continueCount,
   folders,
   location,
+  archivePath,
   canManageFolders = true,
+  onChangeArchive,
   onCreateFolder,
   onDeleteFolder,
   onLocationChange,
+  onOpenAbout,
+  onOpenSettings,
   onRenameFolder,
 }: LibrarySidebarProps) {
   return (
@@ -127,9 +141,36 @@ export function LibrarySidebar({
         )}
       </div>
 
-      <p className="sidebar__storage">
-        Your books stay on this device.
-      </p>
+      <div className="sidebar-footer">
+        <details className="archive-switcher">
+          <summary>
+            <CaretUpDown aria-hidden="true" size={14} weight="bold" />
+            <span>{archiveName(archivePath)}</span>
+          </summary>
+          <div className="archive-switcher__menu">
+            <div className="archive-switcher__current">
+              <span>{archiveName(archivePath)}</span>
+              <Check aria-hidden="true" size={15} weight="bold" />
+            </div>
+            <button
+              onClick={(event) => {
+                event.currentTarget.closest("details")?.removeAttribute("open");
+                onChangeArchive();
+              }}
+              type="button"
+            >
+              <FolderOpen aria-hidden="true" size={16} />
+              Change archive
+            </button>
+          </div>
+        </details>
+        <IconButton label="About Archeion" onClick={onOpenAbout}>
+          <Question aria-hidden="true" size={17} weight="bold" />
+        </IconButton>
+        <IconButton label="Settings" onClick={onOpenSettings}>
+          <GearSix aria-hidden="true" size={18} />
+        </IconButton>
+      </div>
     </aside>
   );
 }
