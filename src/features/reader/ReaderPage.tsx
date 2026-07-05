@@ -167,6 +167,19 @@ export function ReaderPage() {
 
   const title = book.displayTitle ?? book.originalTitle;
 
+  if (!book.fileBlob) {
+    return (
+      <main className="reader-status-page">
+        <BookOpenText aria-hidden="true" size={38} weight="thin" />
+        <h1>Local file reading is not ready</h1>
+        <p>The book was found, but direct EPUB loading arrives in Phase 11.</p>
+        <Link className="text-link" to="/">
+          Return to library
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main className="reader-page">
       <ReaderToolbar

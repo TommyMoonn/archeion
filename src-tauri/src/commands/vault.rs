@@ -20,6 +20,10 @@ fn config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 
 #[tauri::command]
 pub fn load_vault_path(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    read_vault_path(&app)
+}
+
+pub(crate) fn read_vault_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
     let path = config_path(&app)?;
     let contents = match fs::read_to_string(path) {
         Ok(contents) => contents,

@@ -5,6 +5,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            commands::scanner::scan_vault,
             commands::vault::load_vault_path,
             commands::vault::save_vault_path,
             commands::vault::validate_vault_path,

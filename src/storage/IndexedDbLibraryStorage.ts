@@ -30,6 +30,7 @@ import type {
 } from "./LibraryStorage";
 
 export class IndexedDbLibraryStorage implements LibraryStorage {
+  readonly source = "indexeddb";
   private readonly books;
   private readonly folders;
   private readonly settings;
@@ -39,6 +40,8 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
     this.folders = createFolderRepository(database);
     this.settings = createSettingsRepository(database);
   }
+
+  async rescan() {}
 
   createBook(input: CreateBookInput) {
     return this.books.create(input);

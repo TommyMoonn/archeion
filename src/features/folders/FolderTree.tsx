@@ -20,6 +20,7 @@ type FolderTreeProps = {
   onDelete: (folder: Folder) => void;
   onRename: (folder: Folder) => void;
   onSelect: (folder: Folder) => void;
+  showActions?: boolean;
 };
 
 type FolderNodeProps = Omit<FolderTreeProps, "folders"> & {
@@ -91,6 +92,7 @@ function FolderNode({
   onDelete,
   onRename,
   onSelect,
+  showActions = true,
 }: FolderNodeProps) {
   const isSelected =
     location.type === "folder" && location.folderId === folder.id;
@@ -114,11 +116,13 @@ function FolderNode({
             {bookCounts.get(folder.id) ?? 0}
           </span>
         </button>
-        <FolderMenu
-          folder={folder}
-          onDelete={onDelete}
-          onRename={onRename}
-        />
+        {showActions ? (
+          <FolderMenu
+            folder={folder}
+            onDelete={onDelete}
+            onRename={onRename}
+          />
+        ) : null}
       </div>
       {folder.children.length > 0 ? (
         <ul className="folder-tree__children">
@@ -131,6 +135,7 @@ function FolderNode({
               onDelete={onDelete}
               onRename={onRename}
               onSelect={onSelect}
+              showActions={showActions}
             />
           ))}
         </ul>
@@ -146,6 +151,7 @@ export function FolderTree({
   onDelete,
   onRename,
   onSelect,
+  showActions = true,
 }: FolderTreeProps) {
   const tree = useMemo(() => buildFolderTree(folders), [folders]);
 
@@ -160,6 +166,7 @@ export function FolderTree({
           onDelete={onDelete}
           onRename={onRename}
           onSelect={onSelect}
+          showActions={showActions}
         />
       ))}
     </ul>

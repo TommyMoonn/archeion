@@ -7,6 +7,7 @@ type BookGridProps = {
   onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  canDelete?: boolean;
 };
 
 export function BookGrid({
@@ -15,6 +16,7 @@ export function BookGrid({
   onRead,
   onSelect,
   onToggleFavorite,
+  canDelete = true,
 }: BookGridProps) {
   return (
     <section className="book-grid" aria-label="Books">
@@ -26,6 +28,7 @@ export function BookGrid({
           onRead={onRead}
           onSelect={onSelect}
           onToggleFavorite={onToggleFavorite}
+          canDelete={canDelete}
         />
       ))}
     </section>

@@ -253,8 +253,11 @@ export function LibraryPage() {
     }
 
     return {
-      title: "No books yet",
-      description: "Import an EPUB or drop files here to start your collection.",
+      title: storage.source === "vault" ? "No EPUB files found" : "No books yet",
+      description:
+        storage.source === "vault"
+          ? "Add EPUB files to this library folder, then rescan."
+          : "Import an EPUB or drop files here to start your collection.",
     };
   }
 
@@ -269,6 +272,7 @@ export function LibraryPage() {
           favoriteCount={favoriteCount}
           folders={folders ?? []}
           location={location}
+          canManageFolders={storage.source !== "vault"}
           onCreateFolder={() => setIsCreateFolderOpen(true)}
           onDeleteFolder={setDeleteFolderTarget}
           onLocationChange={changeLocation}
@@ -276,7 +280,10 @@ export function LibraryPage() {
         />
       }
     >
-      <ImportDropzone disabled={isImporting} onFiles={handleFiles}>
+      <ImportDropzone
+        disabled={isImporting || storage.source === "vault"}
+        onFiles={handleFiles}
+      >
         {vault.status === "ready" ? (
           <VaultStatusBar path={vault.path} />
         ) : null}
@@ -284,12 +291,16 @@ export function LibraryPage() {
           isImporting={isImporting}
           onFiles={handleFiles}
           onQueryChange={setQuery}
+          onRescanError={() =>
+            setLibraryError("The library folder could not be scanned.")
+          }
           onSortChange={setSort}
           onViewChange={setView}
           query={query}
           sort={sort}
           title={libraryTitle}
           view={view}
+          storageSource={storage.source}
         />
 
         {libraryError ? (
@@ -362,6 +373,7 @@ export function LibraryPage() {
           ) : view === "grid" ? (
             <BookGrid
               books={visibleBooks}
+              canDelete={storage.source !== "vault"}
               onDelete={requestDelete}
               onRead={readBook}
               onSelect={(book) => setSelectedBookId(book.id)}
@@ -370,6 +382,7 @@ export function LibraryPage() {
           ) : (
             <BookList
               books={visibleBooks}
+              canDelete={storage.source !== "vault"}
               onDelete={requestDelete}
               onRead={readBook}
               onSelect={(book) => setSelectedBookId(book.id)}
@@ -382,6 +395,7 @@ export function LibraryPage() {
       {selectedBook ? (
         <BookDetailsDrawer
           book={selectedBook}
+          canManageFile={storage.source !== "vault"}
           folders={folders ?? []}
           onClose={closeDetails}
           onDelete={requestDelete}

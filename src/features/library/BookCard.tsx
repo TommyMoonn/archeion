@@ -12,6 +12,7 @@ type BookCardProps = {
   onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  canDelete?: boolean;
 };
 
 export function BookCard({
@@ -20,6 +21,7 @@ export function BookCard({
   onRead,
   onSelect,
   onToggleFavorite,
+  canDelete = true,
 }: BookCardProps) {
   return (
     <article className="book-card">
@@ -57,6 +59,7 @@ export function BookCard({
         onDetails={onSelect}
         onRead={onRead}
         onToggleFavorite={onToggleFavorite}
+        canDelete={canDelete}
       />
     </article>
   );

@@ -1,3 +1,8 @@
-import { IndexedDbLibraryStorage } from "./IndexedDbLibraryStorage";
+import { isTauri } from "@tauri-apps/api/core";
 
-export const libraryStorage = new IndexedDbLibraryStorage();
+import { IndexedDbLibraryStorage } from "./IndexedDbLibraryStorage";
+import { TauriVaultLibraryStorage } from "./TauriVaultLibraryStorage";
+
+export const libraryStorage = isTauri()
+  ? new TauriVaultLibraryStorage()
+  : new IndexedDbLibraryStorage();

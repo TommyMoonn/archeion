@@ -12,6 +12,7 @@ type BookListProps = {
   onRead: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  canDelete?: boolean;
 };
 
 function formatDate(value: string): string {
@@ -26,6 +27,7 @@ export function BookList({
   onRead,
   onSelect,
   onToggleFavorite,
+  canDelete = true,
 }: BookListProps) {
   return (
     <section className="book-list" aria-label="Books">
@@ -66,6 +68,7 @@ export function BookList({
             onDetails={onSelect}
             onRead={onRead}
             onToggleFavorite={onToggleFavorite}
+            canDelete={canDelete}
           />
         </article>
       ))}

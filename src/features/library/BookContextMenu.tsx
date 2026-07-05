@@ -15,6 +15,7 @@ type BookContextMenuProps = {
   onDetails: (book: Book) => void;
   onRead: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  canDelete?: boolean;
 };
 
 export function BookContextMenu({
@@ -23,6 +24,7 @@ export function BookContextMenu({
   onDetails,
   onRead,
   onToggleFavorite,
+  canDelete = true,
 }: BookContextMenuProps) {
   const menuRef = useRef<HTMLDetailsElement>(null);
 
@@ -83,15 +85,17 @@ export function BookContextMenu({
           <Info aria-hidden="true" size={17} weight="regular" />
           Details
         </button>
-        <button
-          className="book-menu__danger"
-          type="button"
-          role="menuitem"
-          onClick={() => runAction(onDelete)}
-        >
-          <Trash aria-hidden="true" size={17} weight="regular" />
-          Delete
-        </button>
+        {canDelete ? (
+          <button
+            className="book-menu__danger"
+            type="button"
+            role="menuitem"
+            onClick={() => runAction(onDelete)}
+          >
+            <Trash aria-hidden="true" size={17} weight="regular" />
+            Delete
+          </button>
+        ) : null}
       </div>
     </details>
   );

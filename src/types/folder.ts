@@ -2,6 +2,8 @@ export type Folder = {
   id: string;
   name: string;
   parentId?: string | null;
+  relativePath?: string;
+  parentPath?: string | null;
   createdAt: string;
   updatedAt: string;
 };

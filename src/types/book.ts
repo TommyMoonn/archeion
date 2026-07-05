@@ -1,7 +1,11 @@
 export type Book = {
   id: string;
   fileName: string;
-  fileBlob: Blob;
+  fileBlob?: Blob;
+  relativePath?: string;
+  folderPath?: string;
+  size?: number;
+  modifiedAt?: string;
   originalTitle: string;
   originalAuthor?: string;
   displayTitle?: string;

@@ -18,6 +18,9 @@ export type StorageObserver<T> = {
 export type StorageSubscription = () => void;
 
 export interface LibraryStorage {
+  readonly source: "indexeddb" | "vault";
+  rescan(): Promise<void>;
+
   createBook(input: CreateBookInput): Promise<Book>;
   getBook(id: string): Promise<Book | undefined>;
   listBooks(): Promise<Book[]>;

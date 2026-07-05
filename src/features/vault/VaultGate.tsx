@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
+import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { vaultStore } from "../../stores/vaultStore";
 import { useVault } from "./useVault";
 import { VaultSetupPage } from "./VaultSetupPage";
@@ -11,10 +12,17 @@ type VaultGateProps = {
 
 export function VaultGate({ children }: VaultGateProps) {
   const state = useVault();
+  const storage = useLibraryStorage();
 
   useEffect(() => {
     void vaultStore.initialize();
   }, []);
+
+  useEffect(() => {
+    if (state.status === "ready" && storage.source === "vault") {
+      void storage.rescan().catch(() => undefined);
+    }
+  }, [state, storage]);
 
   if (state.status === "loading") {
     return (

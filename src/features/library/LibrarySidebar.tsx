@@ -15,6 +15,7 @@ type LibrarySidebarProps = {
   favoriteCount: number;
   folders: Folder[];
   location: LibraryLocation;
+  canManageFolders?: boolean;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
   onLocationChange: (location: LibraryLocation) => void;
@@ -27,6 +28,7 @@ export function LibrarySidebar({
   favoriteCount,
   folders,
   location,
+  canManageFolders = true,
   onCreateFolder,
   onDeleteFolder,
   onLocationChange,
@@ -73,12 +75,14 @@ export function LibrarySidebar({
           <div className="section-label">
             Folders
           </div>
-          <IconButton
-            label="Create folder"
-            onClick={onCreateFolder}
-          >
-            <Plus aria-hidden="true" size={17} weight="regular" />
-          </IconButton>
+          {canManageFolders ? (
+            <IconButton
+              label="Create folder"
+              onClick={onCreateFolder}
+            >
+              <Plus aria-hidden="true" size={17} weight="regular" />
+            </IconButton>
+          ) : null}
         </div>
         {folders.length > 0 ? (
           <FolderTree
@@ -87,6 +91,7 @@ export function LibrarySidebar({
             location={location}
             onDelete={onDeleteFolder}
             onRename={onRenameFolder}
+            showActions={canManageFolders}
             onSelect={(folder) =>
               onLocationChange({ type: "folder", folderId: folder.id })
             }

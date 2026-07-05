@@ -24,6 +24,7 @@ type BookDetailsDrawerProps = {
   onRead: (book: Book) => void;
   onSave: (book: Book, changes: UpdateBookInput) => Promise<void>;
   onToggleFavorite: (book: Book) => void;
+  canManageFile?: boolean;
 };
 
 function formatFileSize(bytes: number): string {
@@ -52,6 +53,7 @@ export function BookDetailsDrawer({
   onRead,
   onSave,
   onToggleFavorite,
+  canManageFile = true,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [displayTitle, setDisplayTitle] = useState(book.displayTitle ?? "");
@@ -67,7 +69,7 @@ export function BookDetailsDrawer({
   const hasChanges =
     displayTitle !== (book.displayTitle ?? "") ||
     displayAuthor !== (book.displayAuthor ?? "") ||
-    folderId !== (book.folderId ?? "");
+    (canManageFile && folderId !== (book.folderId ?? ""));
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -97,7 +99,7 @@ export function BookDetailsDrawer({
       await onSave(book, {
         displayTitle: displayTitle.trim() || undefined,
         displayAuthor: displayAuthor.trim() || undefined,
-        folderId: folderId || null,
+        ...(canManageFile ? { folderId: folderId || null } : {}),
       });
     } catch {
       setSaveError("These changes could not be saved. Please try again.");
@@ -160,6 +162,7 @@ export function BookDetailsDrawer({
             <label className="form-field">
               <span>Folder</span>
               <select
+                disabled={!canManageFile}
                 value={folderId}
                 onChange={(event) => setFolderId(event.currentTarget.value)}
               >
@@ -204,7 +207,7 @@ export function BookDetailsDrawer({
               </dt>
               <dd>
                 <span>{book.fileName}</span>
-                <span>{formatFileSize(book.fileBlob.size)}</span>
+                <span>{formatFileSize(book.size ?? book.fileBlob?.size ?? 0)}</span>
               </dd>
             </div>
             <div>
@@ -235,13 +238,15 @@ export function BookDetailsDrawer({
           >
             {book.isFavorite ? "Unfavorite" : "Favorite"}
           </Button>
-          <Button
-            variant="danger"
-            icon={<Trash aria-hidden="true" size={17} weight="regular" />}
-            onClick={() => onDelete(book)}
-          >
-            Delete book
-          </Button>
+          {canManageFile ? (
+            <Button
+              variant="danger"
+              icon={<Trash aria-hidden="true" size={17} weight="regular" />}
+              onClick={() => onDelete(book)}
+            >
+              Delete book
+            </Button>
+          ) : null}
         </footer>
       </div>
     </dialog>

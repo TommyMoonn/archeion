@@ -8,6 +8,7 @@ import {
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { ImportButton } from "../import/ImportButton";
+import { RescanVaultButton } from "../vault/RescanVaultButton";
 import type { LibrarySort } from "./libraryFilters";
 
 export type LibraryView = "grid" | "list";
@@ -16,24 +17,28 @@ type LibraryToolbarProps = {
   isImporting: boolean;
   onFiles: (files: File[]) => void;
   onQueryChange: (query: string) => void;
+  onRescanError: () => void;
   onSortChange: (sort: LibrarySort) => void;
   onViewChange: (view: LibraryView) => void;
   query: string;
   sort: LibrarySort;
   title: string;
   view: LibraryView;
+  storageSource: "indexeddb" | "vault";
 };
 
 export function LibraryToolbar({
   isImporting,
   onFiles,
   onQueryChange,
+  onRescanError,
   onSortChange,
   onViewChange,
   query,
   sort,
   title,
   view,
+  storageSource,
 }: LibraryToolbarProps) {
   return (
     <header className="library-header">
@@ -51,7 +56,11 @@ export function LibraryToolbar({
           onChange={(event) => onQueryChange(event.currentTarget.value)}
           type="search"
         />
-        <ImportButton disabled={isImporting} onFiles={onFiles} />
+        {storageSource === "vault" ? (
+          <RescanVaultButton onError={onRescanError} />
+        ) : (
+          <ImportButton disabled={isImporting} onFiles={onFiles} />
+        )}
       </div>
 
       <div className="library-controls">
