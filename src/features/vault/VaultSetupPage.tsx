@@ -11,12 +11,12 @@ type VaultSetupPageProps = {
 
 export function VaultSetupPage({ state }: VaultSetupPageProps) {
   const isMissing = state.status === "missing";
-  const title = isMissing ? "Library folder not found" : "Open your library";
+  const title = isMissing ? "Library folder not found" : "No library selected";
   const description = isMissing
     ? "The saved folder may have been moved, renamed, or disconnected."
     : state.status === "error"
       ? state.error
-      : "Choose the root folder that contains your EPUB collection.";
+      : "Choose a folder to start.";
 
   return (
     <main className="vault-setup">
@@ -27,9 +27,6 @@ export function VaultSetupPage({ state }: VaultSetupPageProps) {
         <p className="eyebrow">Archeion</p>
         <h1>{title}</h1>
         <p>{description}</p>
-        {state.path ? (
-          <code className="vault-setup__path">{state.path}</code>
-        ) : null}
         <div className="vault-setup__actions">
           {isMissing ? (
             <Button variant="secondary" onClick={() => void vaultStore.retry()}>
@@ -37,7 +34,7 @@ export function VaultSetupPage({ state }: VaultSetupPageProps) {
             </Button>
           ) : null}
           <OpenVaultButton
-            label={state.path ? "Choose Another Folder" : undefined}
+            label={state.path ? "Choose another folder" : undefined}
           />
         </div>
         <p className="vault-setup__note">

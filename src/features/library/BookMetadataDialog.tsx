@@ -91,7 +91,7 @@ export function BookMetadataDialog({
           onClose();
         }
       }}
-      title="Edit metadata"
+      title="Edit metadata overrides"
       footer={
         <>
           {hasOverrides ? (
@@ -117,7 +117,7 @@ export function BookMetadataDialog({
       }
     >
       <div className="metadata-original">
-        <span>Original</span>
+        <span>EPUB metadata</span>
         <strong>{book.originalTitle}</strong>
         <small>{book.originalAuthor ?? "Unknown author"}</small>
       </div>
@@ -127,7 +127,7 @@ export function BookMetadataDialog({
         onSubmit={handleSubmit}
       >
         <label className="form-field">
-          <span>Display title</span>
+          <span>Title override</span>
           <input
             autoFocus
             onChange={(event) => setDisplayTitle(event.currentTarget.value)}
@@ -136,7 +136,7 @@ export function BookMetadataDialog({
           />
         </label>
         <label className="form-field">
-          <span>Display author</span>
+          <span>Author override</span>
           <input
             onChange={(event) => setDisplayAuthor(event.currentTarget.value)}
             placeholder={book.originalAuthor ?? "Unknown author"}

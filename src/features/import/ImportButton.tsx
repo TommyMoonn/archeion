@@ -28,7 +28,7 @@ export function ImportButton({ disabled = false, onFiles }: ImportButtonProps) {
         icon={<Plus aria-hidden="true" size={17} weight="bold" />}
         onClick={() => inputRef.current?.click()}
       >
-        {disabled ? "Importing" : "Import books"}
+        {disabled ? "Adding" : "Add books"}
       </Button>
       <input
         ref={inputRef}

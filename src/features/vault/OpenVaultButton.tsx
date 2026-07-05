@@ -10,7 +10,7 @@ type OpenVaultButtonProps = {
 };
 
 export function OpenVaultButton({
-  label = "Open Library Folder",
+  label = "Choose library folder",
   variant = "primary",
 }: OpenVaultButtonProps) {
   const [isOpening, setIsOpening] = useState(false);

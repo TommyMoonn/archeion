@@ -316,8 +316,8 @@ export function ReaderPage() {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
-        <h1>Book not found</h1>
-        <p>It may have been removed from this library.</p>
+        <h1>Book file missing</h1>
+        <p>This EPUB is no longer in the library folder.</p>
         <Link className="text-link" to="/">
           Return to library
         </Link>

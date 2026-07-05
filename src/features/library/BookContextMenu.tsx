@@ -61,7 +61,10 @@ export function BookContextMenu({
       className="book-menu"
       onClick={(event) => event.stopPropagation()}
     >
-      <summary aria-label={`Actions for ${bookTitleForLabel(book)}`}>
+      <summary
+        aria-label={`Actions for ${bookTitleForLabel(book)}`}
+        title={`Actions for ${bookTitleForLabel(book)}`}
+      >
         <DotsThree aria-hidden="true" size={20} weight="bold" />
       </summary>
       <div className="book-menu__popover" role="menu">

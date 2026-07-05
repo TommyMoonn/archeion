@@ -137,7 +137,7 @@ export function LibrarySidebar({
             }
           />
         ) : (
-          <p className="folder-placeholder">No folders yet</p>
+          <p className="folder-placeholder">No folders found</p>
         )}
       </div>
 

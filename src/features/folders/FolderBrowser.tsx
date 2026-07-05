@@ -48,10 +48,10 @@ export function FolderBrowser({
       {visibleFolders.length === 0 ? (
         <EmptyState
           description={
-            query ? "Try another folder name or path." : "No folders found."
+            query ? "Try another folder name." : "No folders found."
           }
           icon={<FolderIcon size={40} weight="thin" />}
-          title={query ? "No folder results" : "No folders"}
+          title={query ? "No folders found" : "No folders"}
         />
       ) : (
         <div className="folder-browser__list">

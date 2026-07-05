@@ -4,6 +4,7 @@ import {
   BookOpen,
   Clock,
   File,
+  FolderOpen,
   Heart,
   PencilSimple,
   Trash,
@@ -26,10 +27,12 @@ type BookDetailsDrawerProps = {
   onRead: (book: Book) => void;
   onReadFromBeginning: (book: Book) => void;
   onClearProgress: (book: Book) => void;
+  onRevealFile: (book: Book) => void;
   onRescan: () => void;
   onEdit: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
   canManageFile?: boolean;
+  canRevealFile?: boolean;
 };
 
 function formatFileSize(bytes: number): string {
@@ -57,10 +60,12 @@ export function BookDetailsDrawer({
   onRead,
   onReadFromBeginning,
   onClearProgress,
+  onRevealFile,
   onRescan,
   onEdit,
   onToggleFavorite,
   canManageFile = true,
+  canRevealFile = false,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const hasMetadataOverride =
@@ -119,7 +124,7 @@ export function BookDetailsDrawer({
             <section className="details-missing" role="status">
               <WarningCircle aria-hidden="true" size={19} />
               <div>
-                <strong>File missing</strong>
+                <strong>Book file missing</strong>
                 <p>This book was not found in the library folder.</p>
               </div>
               <div>
@@ -181,6 +186,16 @@ export function BookDetailsDrawer({
                 >
                   {book.isFavorite ? "Unfavorite" : "Favorite"}
                 </Button>
+                {canRevealFile ? (
+                  <Button
+                    className="details-actions__wide"
+                    icon={<FolderOpen aria-hidden="true" size={16} />}
+                    onClick={() => onRevealFile(book)}
+                    variant="ghost"
+                  >
+                    Reveal in folder
+                  </Button>
+                ) : null}
               </div>
             </div>
           )}
@@ -208,7 +223,7 @@ export function BookDetailsDrawer({
               <div>
                 <dt>
                   <User aria-hidden="true" size={16} weight="regular" />
-                  Original metadata
+                  EPUB metadata
                 </dt>
                 <dd>
                   <span>{book.originalTitle}</span>

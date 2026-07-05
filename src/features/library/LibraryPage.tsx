@@ -1,3 +1,4 @@
+import { invoke } from "@tauri-apps/api/core";
 import { BookOpenText, WarningCircle, X } from "@phosphor-icons/react";
 import {
   useCallback,
@@ -245,6 +246,16 @@ export function LibraryPage() {
     await vaultStore.chooseVault();
   }
 
+  async function revealBookFile(book: Book) {
+    if (!book.relativePath) return;
+    setLibraryError(null);
+    try {
+      await invoke("reveal_epub_file", { relativePath: book.relativePath });
+    } catch {
+      setLibraryError("The EPUB could not be revealed in its folder.");
+    }
+  }
+
   async function confirmDelete() {
     if (!deleteTarget || isDeleting) {
       return;
@@ -334,7 +345,7 @@ export function LibraryPage() {
     if (location.type === "favorites") {
       return {
         title: "No favorites yet",
-        description: "Mark books as favorites to keep them close.",
+        description: "Mark books as favorites to keep them here.",
       };
     }
 
@@ -347,8 +358,11 @@ export function LibraryPage() {
 
     if (location.type === "folder") {
       return {
-        title: "This folder is empty",
-        description: "Move books here from their details.",
+        title: "No books in this folder",
+        description:
+          storage.source === "vault"
+            ? "EPUB files in this folder will appear here."
+            : "Add books to this folder from book details.",
       };
     }
 
@@ -357,7 +371,7 @@ export function LibraryPage() {
       description:
         storage.source === "vault"
           ? "Add EPUB files to this library folder, then rescan."
-          : "Import an EPUB or drop files here to start your collection.",
+          : "Add an EPUB or drop files here to start your collection.",
     };
   }
 
@@ -436,8 +450,8 @@ export function LibraryPage() {
             <div>
               <p>
                 {failedImports.length === 1
-                  ? "One file could not be imported."
-                  : `${failedImports.length} files could not be imported.`}
+                  ? "One file could not be added."
+                  : `${failedImports.length} files could not be added.`}
               </p>
               <ul>
                 {failedImports.map((result, index) => (
@@ -470,7 +484,7 @@ export function LibraryPage() {
             <div className="library-loading" role="status">
               <span className="library-loading__cover" />
               <span>
-                {isImporting ? "Importing EPUB files" : "Loading library"}
+                {isImporting ? "Adding EPUB files" : "Loading library"}
               </span>
             </div>
           ) : visibleBooks.length === 0 && !query ? (
@@ -518,12 +532,14 @@ export function LibraryPage() {
         <BookDetailsDrawer
           book={selectedBook}
           canManageFile={storage.source !== "vault"}
+          canRevealFile={storage.source === "vault"}
           onClose={closeDetails}
           onClearProgress={requestClearProgress}
           onDelete={requestDelete}
           onEdit={openMetadataEdit}
           onRead={readBook}
           onReadFromBeginning={readBookFromBeginning}
+          onRevealFile={(book) => void revealBookFile(book)}
           onRescan={() => {
             setSelectedBookId(null);
             setRescanConfirmationOpen(true);
@@ -688,7 +704,7 @@ export function LibraryPage() {
       {deleteFolderTarget ? (
         <Dialog
           title="Delete this folder?"
-          description={`“${deleteFolderTarget.name}” will be removed. Its books will return to Library.`}
+          description={`The “${deleteFolderTarget.name}” folder record will be removed. Its EPUB files will remain in Library.`}
           onClose={() => {
             if (!isDeleting) {
               setDeleteFolderTarget(null);

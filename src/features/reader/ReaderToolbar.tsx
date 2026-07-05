@@ -34,7 +34,12 @@ export function ReaderToolbar({
 }: ReaderToolbarProps) {
   return (
     <header className="reader-toolbar">
-      <Link aria-label="Return to library" className="icon-button" to="/">
+      <Link
+        aria-label="Return to library"
+        className="icon-button"
+        title="Return to library"
+        to="/"
+      >
         <ArrowLeft aria-hidden="true" size={20} weight="regular" />
       </Link>
       <div className="reader-toolbar__identity">

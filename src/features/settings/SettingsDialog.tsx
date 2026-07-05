@@ -257,7 +257,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                   <span>Open the sidecar metadata folder.</span>
                 </div>
                 <Button onClick={() => void revealMetadata()} variant="secondary">
-                  Reveal
+                  Reveal in folder
                 </Button>
               </div>
               <div className="settings-row">

@@ -72,6 +72,7 @@ export function WindowFrame() {
       <div className="window-titlebar__controls">
         <button
           aria-label="Minimize window"
+          title="Minimize window"
           onClick={() => void appWindow.minimize()}
           type="button"
         >
@@ -79,6 +80,7 @@ export function WindowFrame() {
         </button>
         <button
           aria-label="Maximize window"
+          title="Maximize window"
           onClick={() => void appWindow.toggleMaximize()}
           type="button"
         >
@@ -86,6 +88,7 @@ export function WindowFrame() {
         </button>
         <button
           aria-label="Close window"
+          title="Close window"
           className="window-titlebar__close"
           onClick={() => void appWindow.close()}
           type="button"

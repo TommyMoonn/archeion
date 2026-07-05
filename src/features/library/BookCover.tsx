@@ -77,6 +77,7 @@ export function BookCover({ book, className = "" }: BookCoverProps) {
       className={`book-cover ${state !== "available" ? "book-cover--placeholder" : ""} ${className}`.trim()}
       data-cover-state={state}
       aria-hidden="true"
+      title={state === "unavailable" ? "Cover unavailable" : undefined}
     >
       {coverUrl ? <img alt="" src={coverUrl} /> : null}
       {state === "unavailable" ? (

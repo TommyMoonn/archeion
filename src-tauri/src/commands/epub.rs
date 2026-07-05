@@ -3,6 +3,7 @@ use std::{
     fs,
     io::Read,
     path::{Component, Path, PathBuf},
+    process::Command,
 };
 
 use percent_encoding::percent_decode_str;
@@ -182,6 +183,42 @@ pub fn read_epub_file(
     let path = resolve_epub_path(&root, &relative_path)?;
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
+}
+
+#[tauri::command]
+pub fn reveal_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
+    let root = vault::read_vault_path(&app)?
+        .map(PathBuf::from)
+        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+    let path = resolve_epub_path(&root, &relative_path)?;
+
+    #[cfg(target_os = "windows")]
+    let mut command = {
+        let mut command = Command::new("explorer");
+        command.arg("/select,");
+        command
+    };
+    #[cfg(target_os = "macos")]
+    let mut command = {
+        let mut command = Command::new("open");
+        command.arg("-R");
+        command
+    };
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = Command::new("xdg-open");
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let target = path
+        .parent()
+        .ok_or_else(|| "The EPUB folder is unavailable.".to_string())?;
+    #[cfg(any(target_os = "windows", target_os = "macos"))]
+    let target = &path;
+
+    command
+        .arg(target)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

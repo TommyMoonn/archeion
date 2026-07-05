@@ -63,7 +63,10 @@ function FolderMenu({
 
   return (
     <details ref={menuRef} className="folder-menu">
-      <summary aria-label={`Actions for ${folder.name}`}>
+      <summary
+        aria-label={`Actions for ${folder.name}`}
+        title={`Actions for ${folder.name}`}
+      >
         <DotsThree aria-hidden="true" size={18} weight="bold" />
       </summary>
       <div className="folder-menu__popover" role="menu">

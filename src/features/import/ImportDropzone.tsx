@@ -77,7 +77,7 @@ export function ImportDropzone({
       {children}
       {isDragging ? (
         <div className="drop-overlay" aria-hidden="true">
-          <span>Drop EPUB files to import</span>
+          <span>Drop EPUB files to add</span>
         </div>
       ) : null}
     </div>

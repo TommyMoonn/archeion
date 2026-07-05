@@ -1024,21 +1024,6 @@ html[data-card-size="large"] .book-grid {
   line-height: 1.65;
 }
 
-.vault-setup__path {
-  display: block;
-  overflow: hidden;
-  padding: 11px 13px;
-  margin-top: 20px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--text);
-  background: var(--canvas-deep);
-  font-family: inherit;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .vault-setup__actions {
   display: flex;
   flex-wrap: wrap;
@@ -2010,6 +1995,10 @@ select {
   min-height: 34px;
   padding-inline: 8px;
   color: var(--muted);
+}
+
+.details-actions__secondary .details-actions__wide {
+  grid-column: 1 / -1;
 }
 
 .details-missing {
