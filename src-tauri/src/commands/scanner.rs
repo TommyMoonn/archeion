@@ -6,7 +6,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::{filesystem, vault};
+use super::{epub_metadata, filesystem, vault};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +17,7 @@ pub struct ScannedBook {
     folder_path: String,
     size: u64,
     modified_at: u64,
+    source_metadata: Option<epub_metadata::EpubPackageMetadata>,
 }
 
 #[derive(Serialize)]
@@ -33,6 +34,14 @@ pub struct ScannedFolder {
 pub struct VaultScan {
     books: Vec<ScannedBook>,
     folders: Vec<ScannedFolder>,
+    warnings: Vec<VaultScanWarning>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VaultScanWarning {
+    relative_path: String,
+    message: String,
 }
 
 fn discovery_id(relative_path: &str, size: u64, modified_at: u64) -> String {
@@ -51,6 +60,7 @@ fn scan_directory(
     directory: &Path,
     books: &mut Vec<ScannedBook>,
     folders: &mut Vec<ScannedFolder>,
+    warnings: &mut Vec<VaultScanWarning>,
 ) -> Result<(), String> {
     let entries = fs::read_dir(directory).map_err(|error| error.to_string())?;
 
@@ -78,7 +88,7 @@ fn scan_directory(
                 relative_path,
                 parent_path,
             });
-            scan_directory(root, &path, books, folders)?;
+            scan_directory(root, &path, books, folders, warnings)?;
             continue;
         }
 
@@ -102,6 +112,17 @@ fn scan_directory(
             .unwrap_or_default();
         let size = metadata.len();
 
+        let source_metadata = match epub_metadata::read_core_metadata(&path) {
+            Ok(metadata) => (!metadata.is_empty()).then_some(metadata),
+            Err(error) => {
+                warnings.push(VaultScanWarning {
+                    relative_path: relative_path.clone(),
+                    message: error,
+                });
+                None
+            }
+        };
+
         books.push(ScannedBook {
             discovery_id: discovery_id(&relative_path, size, modified_at),
             relative_path,
@@ -109,6 +130,7 @@ fn scan_directory(
             folder_path,
             size,
             modified_at,
+            source_metadata,
         });
     }
 
@@ -122,11 +144,16 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
 
     let mut books = Vec::new();
     let mut folders = Vec::new();
-    scan_directory(&root, &root, &mut books, &mut folders)?;
+    let mut warnings = Vec::new();
+    scan_directory(&root, &root, &mut books, &mut folders, &mut warnings)?;
     books.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     folders.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
-    Ok(VaultScan { books, folders })
+    Ok(VaultScan {
+        books,
+        folders,
+        warnings,
+    })
 }
 
 #[tauri::command]
@@ -140,10 +167,74 @@ pub fn scan_vault(app: tauri::AppHandle) -> Result<VaultScan, String> {
 mod tests {
     use std::{
         fs,
+        io::Write,
         time::{SystemTime, UNIX_EPOCH},
     };
 
     use super::scan_path;
+
+    fn write_minimal_epub(path: &std::path::Path, package_xml: &[u8]) {
+        let file = fs::File::create(path).expect("EPUB should be created");
+        let mut archive = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default();
+        archive
+            .start_file("META-INF/container.xml", options)
+            .expect("container entry should start");
+        archive
+            .write_all(
+                br#"<?xml version="1.0"?>
+                <container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>"#,
+            )
+            .expect("container should be written");
+        archive
+            .start_file("OEBPS/content.opf", options)
+            .expect("package entry should start");
+        archive
+            .write_all(package_xml)
+            .expect("package should be written");
+        archive.finish().expect("EPUB should finish");
+    }
+
+    #[test]
+    fn scans_core_epub_metadata_without_blocking_bad_epubs() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-scanner-metadata-{nonce}"));
+        fs::create_dir_all(&root).expect("test vault should be created");
+        write_minimal_epub(
+            &root.join("metadata.epub"),
+            br#"<package><metadata>
+                <dc:title>Package Title</dc:title>
+                <dc:creator>Package Author</dc:creator>
+                <dc:identifier>urn:test:book</dc:identifier>
+                <dc:language>en</dc:language>
+            </metadata></package>"#,
+        );
+        fs::write(root.join("broken.epub"), b"not a zip").expect("bad EPUB should be written");
+
+        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+
+        assert_eq!(scan.books.len(), 2);
+        let book = scan
+            .books
+            .iter()
+            .find(|book| book.file_name == "metadata.epub")
+            .expect("metadata EPUB should be scanned");
+        let metadata = book
+            .source_metadata
+            .as_ref()
+            .expect("source metadata should be parsed");
+        assert_eq!(metadata.title.as_deref(), Some("Package Title"));
+        assert_eq!(metadata.creator.as_deref(), Some("Package Author"));
+        assert_eq!(metadata.identifier.as_deref(), Some("urn:test:book"));
+        assert_eq!(metadata.language.as_deref(), Some("en"));
+        assert_eq!(scan.warnings.len(), 1);
+        assert_eq!(scan.warnings[0].relative_path, "broken.epub");
+
+        fs::remove_dir_all(root).expect("test vault should be removed");
+    }
 
     #[test]
     fn scans_nested_epubs_and_ignores_metadata_directory() {

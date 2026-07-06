@@ -1,3 +1,4 @@
+import type { EpubSourceMetadata } from "../types/book";
 import {
   normalizeReaderSettings,
   type ReaderSettings,
@@ -9,6 +10,7 @@ export type LibraryBookMetadata = {
   displayAuthor?: string;
   isFavorite: boolean;
   coverPath?: string;
+  sourceMetadata?: EpubSourceMetadata;
   addedAt: string;
   updatedAt: string;
 };

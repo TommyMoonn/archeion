@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TauriVaultLibraryStorage } from "./TauriVaultLibraryStorage";
+import type { LibraryMetadata } from "./metadataFiles";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -111,6 +112,60 @@ describe("TauriVaultLibraryStorage", () => {
     expect(folders[1]).toMatchObject({
       id: "folder:Author/Series",
       parentId: "folder:Author",
+    });
+  });
+
+  it("stores parsed source metadata without replacing filename titles", async () => {
+    const scanWithMetadata = {
+      ...firstScan,
+      books: [
+        {
+          ...firstScan.books[0],
+          sourceMetadata: {
+            title: "Parsed Package Title",
+            creator: "Parsed Package Author",
+            identifier: "urn:test:book",
+            language: "en",
+          },
+        },
+      ],
+    };
+    const metadataWithoutBook = structuredClone(metadata);
+    let savedLibrary: LibraryMetadata = { version: 1, books: {} };
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_vault") {
+        return structuredClone(scanWithMetadata);
+      }
+      if (command === "load_vault_metadata") {
+        return {
+          ...structuredClone(metadataWithoutBook),
+          library: structuredClone(savedLibrary),
+        };
+      }
+      if (command === "save_library_metadata") {
+        savedLibrary = (args as { metadata: LibraryMetadata }).metadata;
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const books = await storage.listBooks();
+
+    expect(books[0]).toMatchObject({
+      originalTitle: "Volume 01",
+      originalAuthor: "Parsed Package Author",
+      sourceMetadata: {
+        title: "Parsed Package Title",
+        creator: "Parsed Package Author",
+        identifier: "urn:test:book",
+        language: "en",
+      },
+    });
+    expect(savedLibrary.books[books[0].id].sourceMetadata).toEqual({
+      title: "Parsed Package Title",
+      creator: "Parsed Package Author",
+      identifier: "urn:test:book",
+      language: "en",
     });
   });
 

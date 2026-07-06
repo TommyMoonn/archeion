@@ -11,7 +11,7 @@ export type ImportEpubDependencies = {
     fileName: string;
     fileBlob: Blob;
     originalTitle: string;
-    originalAuthor: string;
+    originalAuthor?: string;
     coverBlob?: Blob;
   }) => Promise<Book>;
 };

@@ -1,5 +1,6 @@
 pub mod archive_import;
 pub mod epub;
+pub mod epub_metadata;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;

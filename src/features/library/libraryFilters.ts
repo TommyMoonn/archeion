@@ -26,14 +26,32 @@ function normalize(value: string | undefined): string {
 }
 
 export function bookTitle(book: Book): string {
-  return book.displayTitle?.trim() || book.originalTitle;
+  return (
+    book.displayTitle?.trim() ||
+    book.originalTitle?.trim() ||
+    book.sourceMetadata?.title?.trim() ||
+    "Untitled"
+  );
 }
 
 export function bookAuthor(book: Book): string {
   return (
     book.displayAuthor?.trim() ||
+    book.sourceMetadata?.creator?.trim() ||
     book.originalAuthor?.trim() ||
-    "Unknown author"
+    ""
+  );
+}
+
+export function bookSourceTitle(book: Book): string {
+  return book.sourceMetadata?.title?.trim() || book.originalTitle;
+}
+
+export function bookSourceAuthor(book: Book): string {
+  return (
+    book.sourceMetadata?.creator?.trim() ||
+    book.originalAuthor?.trim() ||
+    "Author unavailable"
   );
 }
 
@@ -68,8 +86,12 @@ export function filterBooks(
     const searchableValues = [
       book.displayTitle,
       book.originalTitle,
+      book.sourceMetadata?.title,
       book.displayAuthor,
+      book.sourceMetadata?.creator,
       book.originalAuthor,
+      book.sourceMetadata?.identifier,
+      book.sourceMetadata?.language,
       book.fileName,
       book.relativePath,
       book.folderPath,
@@ -119,11 +141,21 @@ export function sortBooks(
     switch (sort) {
       case "title":
         return collator.compare(bookTitle(left), bookTitle(right));
-      case "author":
+      case "author": {
+        const leftAuthor = bookAuthor(left);
+        const rightAuthor = bookAuthor(right);
+
+        if (!leftAuthor && rightAuthor) {
+          return 1;
+        }
+        if (leftAuthor && !rightAuthor) {
+          return -1;
+        }
         return (
-          collator.compare(bookAuthor(left), bookAuthor(right)) ||
+          collator.compare(leftAuthor, rightAuthor) ||
           collator.compare(bookTitle(left), bookTitle(right))
         );
+      }
       case "recently-opened":
         return (
           (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? "") ||

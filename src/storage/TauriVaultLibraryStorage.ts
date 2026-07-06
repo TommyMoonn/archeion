@@ -1,12 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import {
-  createBookIdentityIndex,
-  resolveBookIdFromScan,
-} from "./bookIdentity";
+import { createBookIdentityIndex, resolveBookIdFromScan } from "./bookIdentity";
 import type {
   Book,
   CreateBookInput,
+  EpubSourceMetadata,
   UpdateBookInput,
 } from "../types/book";
 import type {
@@ -14,10 +12,7 @@ import type {
   Folder,
   UpdateFolderInput,
 } from "../types/folder";
-import {
-  normalizeReaderSettings,
-  type ReaderSettings,
-} from "../types/reader";
+import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 import {
   createLibraryMetadata,
   createProgressMetadata,
@@ -25,10 +20,8 @@ import {
   type MetadataBundle,
   type SettingsMetadata,
 } from "./metadataFiles";
-import {
-  reconcileById,
-  shallowEqualRecords,
-} from "../utils/reconcileById";
+import { reconcileById, shallowEqualRecords } from "../utils/reconcileById";
+import { normalizeSourceMetadata, sourceMetadataEqual } from "./sourceMetadata";
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
@@ -45,6 +38,7 @@ type ScannedBook = {
   folderPath: string;
   size: number;
   modifiedAt: number;
+  sourceMetadata?: EpubSourceMetadata;
 };
 
 type ScannedFolder = {
@@ -54,9 +48,15 @@ type ScannedFolder = {
   parentPath: string | null;
 };
 
+type VaultScanWarning = {
+  relativePath: string;
+  message: string;
+};
+
 type VaultScan = {
   books: ScannedBook[];
   folders: ScannedFolder[];
+  warnings?: VaultScanWarning[];
 };
 
 function titleFromFileName(fileName: string) {
@@ -73,7 +73,9 @@ function unavailable() {
 }
 
 function isInsideFolderPath(relativePath: string, folderPath: string): boolean {
-  return relativePath === folderPath || relativePath.startsWith(`${folderPath}/`);
+  return (
+    relativePath === folderPath || relativePath.startsWith(`${folderPath}/`)
+  );
 }
 
 function replacePathPrefix(
@@ -134,6 +136,9 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         scan.folders.map((folder) => [folder.relativePath, folder.id]),
       );
       const timestamp = new Date().toISOString();
+      const metadataWarningPaths = new Set(
+        scan.warnings?.map((warning) => warning.relativePath) ?? [],
+      );
       let libraryChanged = false;
 
       const nextFolders = scan.folders.map((folder) => ({
@@ -149,12 +154,26 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         const id = resolveBookIdFromScan(book, identityIndex);
         const modifiedAt = new Date(book.modifiedAt).toISOString();
         let libraryEntry = this.libraryMetadata.books[id];
+        const sourceMetadata = metadataWarningPaths.has(book.relativePath)
+          ? normalizeSourceMetadata(libraryEntry?.sourceMetadata)
+          : normalizeSourceMetadata(book.sourceMetadata);
         if (!libraryEntry) {
           libraryEntry = {
             relativePath: book.relativePath,
             isFavorite: false,
             addedAt: modifiedAt,
             updatedAt: modifiedAt,
+            sourceMetadata,
+          };
+          this.libraryMetadata.books[id] = libraryEntry;
+          libraryChanged = true;
+        } else if (
+          !sourceMetadataEqual(libraryEntry.sourceMetadata, sourceMetadata)
+        ) {
+          libraryEntry = {
+            ...libraryEntry,
+            sourceMetadata,
+            updatedAt: timestamp,
           };
           this.libraryMetadata.books[id] = libraryEntry;
           libraryChanged = true;
@@ -169,7 +188,8 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
           size: book.size,
           folderId: folderIds.get(book.folderPath) ?? null,
           originalTitle: titleFromFileName(book.fileName),
-          originalAuthor: "Unknown author",
+          originalAuthor: sourceMetadata?.creator,
+          sourceMetadata,
           displayTitle: libraryEntry.displayTitle,
           displayAuthor: libraryEntry.displayAuthor,
           coverPath: libraryEntry.coverPath,
@@ -197,7 +217,8 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
             relativePath: libraryEntry.relativePath,
             fileName,
             originalTitle: titleFromFileName(fileName),
-            originalAuthor: "Unknown author",
+            originalAuthor: libraryEntry.sourceMetadata?.creator,
+            sourceMetadata: libraryEntry.sourceMetadata,
             displayTitle: libraryEntry.displayTitle,
             displayAuthor: libraryEntry.displayAuthor,
             coverPath: libraryEntry.coverPath,
@@ -566,7 +587,9 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       if (!book.relativePath) {
         throw new Error("The selected EPUB file is unavailable.");
       }
-      await invoke("delete_vault_epub_file", { relativePath: book.relativePath });
+      await invoke("delete_vault_epub_file", {
+        relativePath: book.relativePath,
+      });
     }
 
     delete this.libraryMetadata.books[id];
@@ -708,9 +731,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return { ...this.readerSettings };
   }
 
-  async saveReaderSettings(
-    settings: ReaderSettings,
-  ): Promise<ReaderSettings> {
+  async saveReaderSettings(settings: ReaderSettings): Promise<ReaderSettings> {
     await this.ensureLoaded();
     const metadata: SettingsMetadata = {
       ...this.settingsMetadata,

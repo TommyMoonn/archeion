@@ -1,3 +1,10 @@
+export type EpubSourceMetadata = {
+  title?: string;
+  creator?: string;
+  identifier?: string;
+  language?: string;
+};
+
 export type Book = {
   id: string;
   fileName: string;
@@ -8,6 +15,7 @@ export type Book = {
   modifiedAt?: string;
   originalTitle: string;
   originalAuthor?: string;
+  sourceMetadata?: EpubSourceMetadata;
   displayTitle?: string;
   displayAuthor?: string;
   coverBlob?: Blob;

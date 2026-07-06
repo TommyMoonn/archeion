@@ -57,9 +57,25 @@ describe("library filters", () => {
     },
   ];
 
-  it("prefers display metadata and provides an author fallback", () => {
+  it("resolves visible title and author from overrides, filename titles, and parsed metadata", () => {
     expect(bookTitle(books[0])).toBe("Renamed volume");
-    expect(bookAuthor(books[2])).toBe("Unknown author");
+    expect(bookAuthor(books[2])).toBe("");
+
+    const parsedMetadataBook = createBook({
+      originalTitle: "Filename Title",
+      sourceMetadata: {
+        title: "Parsed EPUB Title",
+        creator: "Parsed EPUB Author",
+      },
+    });
+    expect(bookTitle(parsedMetadataBook)).toBe("Filename Title");
+    expect(bookAuthor(parsedMetadataBook)).toBe("Parsed EPUB Author");
+    expect(
+      bookTitle({ ...parsedMetadataBook, originalTitle: "" }),
+    ).toBe("Parsed EPUB Title");
+    expect(
+      bookAuthor({ ...parsedMetadataBook, displayAuthor: "Display Author" }),
+    ).toBe("Display Author");
   });
 
   it("searches both display and original metadata", () => {
@@ -67,6 +83,23 @@ describe("library filters", () => {
     expect(filterBooks(books, "series 10")).toEqual([books[0]]);
     expect(filterBooks(books, "alpha")).toEqual([books[1]]);
     expect(filterBooks(books, "missing")).toEqual([]);
+
+    const parsedMetadataBook = createBook({
+      id: "parsed",
+      originalTitle: "Filename Title",
+      sourceMetadata: {
+        title: "Parsed Package Title",
+        creator: "Parsed Package Author",
+        identifier: "urn:test:book",
+        language: "en",
+      },
+    });
+    expect(filterBooks([parsedMetadataBook], "package author")).toEqual([
+      parsedMetadataBook,
+    ]);
+    expect(filterBooks([parsedMetadataBook], "urn:test:book")).toEqual([
+      parsedMetadataBook,
+    ]);
   });
 
   it("matches multiple terms across metadata and file context", () => {

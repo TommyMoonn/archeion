@@ -59,7 +59,11 @@ pub(crate) fn normalize_archive_relative_path(relative_path: &str) -> Result<Str
 
 fn is_windows_reserved_name(name: &str) -> bool {
     matches!(
-        name.split('.').next().unwrap_or_default().to_ascii_lowercase().as_str(),
+        name.split('.')
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str(),
         "con"
             | "prn"
             | "aux"
@@ -125,8 +129,8 @@ pub(crate) fn resolve_existing_archive_path(
 ) -> Result<PathBuf, String> {
     let relative_path = normalize_archive_relative_path(relative_path)?;
     let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
-    let resolved = fs::canonicalize(canonical_root.join(relative_path))
-        .map_err(|error| error.to_string())?;
+    let resolved =
+        fs::canonicalize(canonical_root.join(relative_path)).map_err(|error| error.to_string())?;
     if !resolved.starts_with(&canonical_root) {
         return Err("The selected path is outside the library folder.".to_string());
     }
@@ -233,7 +237,11 @@ fn path_change(root: &Path, old_path: &Path, new_path: &Path) -> Result<ArchiveP
 
 #[cfg(target_os = "windows")]
 fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
-    let method = if is_directory { "DeleteDirectory" } else { "DeleteFile" };
+    let method = if is_directory {
+        "DeleteDirectory"
+    } else {
+        "DeleteFile"
+    };
     let path = path.to_string_lossy();
     let script = format!(
         "Add-Type -AssemblyName Microsoft.VisualBasic\n[Microsoft.VisualBasic.FileIO.FileSystem]::{method}(@'\n{path}\n'@, 'OnlyErrorDialogs', 'SendToRecycleBin')"
@@ -251,7 +259,10 @@ fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
 
 #[cfg(target_os = "macos")]
 fn trash_with_platform(path: &Path, _is_directory: bool) -> Result<(), String> {
-    let escaped = path.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\"");
+    let escaped = path
+        .to_string_lossy()
+        .replace('\\', "\\\\")
+        .replace('"', "\\\"");
     let script = format!("tell application \"Finder\" to delete POSIX file \"{escaped}\"");
     let status = Command::new("osascript")
         .args(["-e", &script])
@@ -357,7 +368,8 @@ pub(crate) fn move_archive_epub_at(
     let file_name = source
         .file_name()
         .ok_or_else(|| "The selected EPUB file is unavailable.".to_string())?;
-    let (destination_parent, _) = resolve_destination_parent(&canonical_root, destination_folder_path)?;
+    let (destination_parent, _) =
+        resolve_destination_parent(&canonical_root, destination_folder_path)?;
     let destination = destination_parent.join(file_name);
 
     if !destination_available(&source, &destination)? {
@@ -398,7 +410,8 @@ pub(crate) fn move_archive_folder_at(
 ) -> Result<ArchivePathChange, String> {
     let canonical_root = canonical_root(root)?;
     let source = resolve_existing_folder_path(&canonical_root, relative_path)?;
-    let (destination_parent, _) = resolve_destination_parent(&canonical_root, destination_parent_path)?;
+    let (destination_parent, _) =
+        resolve_destination_parent(&canonical_root, destination_parent_path)?;
 
     if destination_parent == source || destination_parent.starts_with(&source) {
         return Err("A folder cannot be moved into itself.".to_string());
@@ -410,7 +423,9 @@ pub(crate) fn move_archive_folder_at(
     let destination = destination_parent.join(folder_name);
 
     if !destination_available(&source, &destination)? {
-        return Err("A folder with this name already exists in the destination folder.".to_string());
+        return Err(
+            "A folder with this name already exists in the destination folder.".to_string(),
+        );
     }
 
     let change = path_change(&canonical_root, &source, &destination)?;
@@ -559,8 +574,7 @@ mod tests {
             .expect("metadata EPUB should be created");
 
         assert_eq!(
-            resolve_existing_epub_path(&root, "Series/Volume.epub")
-                .expect("EPUB should resolve"),
+            resolve_existing_epub_path(&root, "Series/Volume.epub").expect("EPUB should resolve"),
             fs::canonicalize(&book).expect("book path should canonicalize")
         );
         assert!(resolve_existing_epub_path(&root, ".archeion/hidden.epub").is_err());

@@ -9,7 +9,6 @@ import {
   PencilSimple,
   ArrowRight,
   Trash,
-  User,
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
@@ -75,11 +74,6 @@ export function BookDetailsDrawer({
   canRevealFile = false,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const hasMetadataOverride =
-    (book.displayTitle?.trim() &&
-      book.displayTitle.trim() !== book.originalTitle) ||
-    (book.displayAuthor?.trim() &&
-      book.displayAuthor.trim() !== (book.originalAuthor ?? ""));
   const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
   const hasProgress = progress > 0;
 
@@ -245,18 +239,6 @@ export function BookDetailsDrawer({
           ) : null}
 
           <dl className="book-metadata">
-            {hasMetadataOverride ? (
-              <div>
-                <dt>
-                  <User aria-hidden="true" size={16} weight="regular" />
-                  EPUB metadata
-                </dt>
-                <dd>
-                  <span>{book.originalTitle}</span>
-                  <span>{book.originalAuthor ?? "Unknown author"}</span>
-                </dd>
-              </div>
-            ) : null}
             <div>
               <dt>
                 <File aria-hidden="true" size={16} weight="regular" />

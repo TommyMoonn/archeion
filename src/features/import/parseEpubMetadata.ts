@@ -2,7 +2,7 @@ import type { Book } from "epubjs";
 
 export type ParsedEpubMetadata = {
   title: string;
-  author: string;
+  author?: string;
   coverBlob?: Blob;
 };
 
@@ -59,7 +59,7 @@ export async function parseEpubMetadata(
 
     return {
       title: cleanMetadataValue(metadata.title) ?? titleFromFileName(file.name),
-      author: cleanMetadataValue(metadata.creator) ?? "Unknown author",
+      author: cleanMetadataValue(metadata.creator),
       ...(coverBlob ? { coverBlob } : {}),
     };
   } finally {

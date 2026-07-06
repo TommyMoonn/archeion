@@ -1,4 +1,7 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::{Deserialize, Serialize};
 
@@ -132,7 +135,12 @@ fn destination_for_conflict(
     let relative_path = archive_join(destination_folder_path, file_name);
 
     if !destination.exists() {
-        return Ok(Some((destination, file_name.to_string(), relative_path, false)));
+        return Ok(Some((
+            destination,
+            file_name.to_string(),
+            relative_path,
+            false,
+        )));
     }
 
     match conflict_action {
@@ -142,7 +150,12 @@ fn destination_for_conflict(
                 return Err("A folder with this name already exists.".to_string());
             }
 
-            Ok(Some((destination, file_name.to_string(), relative_path, true)))
+            Ok(Some((
+                destination,
+                file_name.to_string(),
+                relative_path,
+                true,
+            )))
         }
         ArchiveImportConflictAction::KeepBoth => {
             let (stem, extension) = split_epub_file_name(file_name);
@@ -264,7 +277,11 @@ fn add_epub_files_to_vault_at(
         };
 
         match copy_or_move_epub(&source, &destination, mode, replace_existing) {
-            Ok(()) => results.push(import_imported(&source_path, final_file_name, relative_path)),
+            Ok(()) => results.push(import_imported(
+                &source_path,
+                final_file_name,
+                relative_path,
+            )),
             Err(message) => results.push(import_failed(&source_path, file_name, message)),
         }
     }
@@ -285,7 +302,13 @@ pub async fn add_epub_files_to_vault(
         .ok_or_else(|| "No library folder has been selected.".to_string())?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        add_epub_files_to_vault_at(&root, source_paths, destination_folder_path, conflict_action, mode)
+        add_epub_files_to_vault_at(
+            &root,
+            source_paths,
+            destination_folder_path,
+            conflict_action,
+            mode,
+        )
     })
     .await
     .map_err(|error| error.to_string())?
@@ -331,8 +354,14 @@ mod tests {
 
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].status, ArchiveImportStatus::Imported);
-        assert_eq!(results[0].relative_path.as_deref(), Some("Series/Novel.epub"));
-        assert_eq!(fs::read(root.join("Series").join("Novel.epub")).unwrap(), b"epub");
+        assert_eq!(
+            results[0].relative_path.as_deref(),
+            Some("Series/Novel.epub")
+        );
+        assert_eq!(
+            fs::read(root.join("Series").join("Novel.epub")).unwrap(),
+            b"epub"
+        );
         assert!(source.is_file());
         let _ = fs::remove_dir_all(root);
         let _ = fs::remove_dir_all(external);

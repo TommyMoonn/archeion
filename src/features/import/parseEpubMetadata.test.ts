@@ -28,7 +28,7 @@ describe("EPUB metadata parsing", () => {
     expect(titleFromFileName(".epub")).toBe("Untitled");
   });
 
-  it("cleans metadata and uses an unknown-author fallback", async () => {
+  it("cleans metadata and leaves missing author metadata unavailable", async () => {
     const destroy = vi.fn();
 
     vi.mocked(ePub).mockReturnValue({
@@ -46,7 +46,7 @@ describe("EPUB metadata parsing", () => {
     await expect(parseEpubMetadata(createFile("fallback.epub"))).resolves.toEqual(
       {
         title: "A Book",
-        author: "Unknown author",
+        author: undefined,
       },
     );
     expect(destroy).toHaveBeenCalledOnce();

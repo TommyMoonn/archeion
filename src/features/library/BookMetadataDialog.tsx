@@ -3,12 +3,17 @@ import { useState, type FormEvent } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import type { Book, UpdateBookInput } from "../../types/book";
+import { bookSourceAuthor, bookSourceTitle } from "./libraryFilters";
 
 type BookMetadataDialogProps = {
   book: Book;
   onClose: () => void;
   onSave: (book: Book, changes: UpdateBookInput) => Promise<void>;
 };
+
+function bookTitlePlaceholder(title: string): string {
+  return title.trim() || "Untitled";
+}
 
 export function BookMetadataDialog({
   book,
@@ -20,6 +25,8 @@ export function BookMetadataDialog({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resetConfirmationOpen, setResetConfirmationOpen] = useState(false);
+  const sourceTitle = bookSourceTitle(book);
+  const sourceAuthor = bookSourceAuthor(book);
   const hasOverrides = Boolean(book.displayTitle || book.displayAuthor);
   const hasChanges =
     displayTitle !== (book.displayTitle ?? "") ||
@@ -53,7 +60,7 @@ export function BookMetadataDialog({
     return (
       <Dialog
         title="Reset metadata overrides?"
-        description="The original title and author from the EPUB will be shown again. The EPUB file is not changed."
+        description="The default title and author will be shown again. The EPUB file is not changed."
         onClose={() => {
           if (!isSaving) setResetConfirmationOpen(false);
         }}
@@ -118,8 +125,8 @@ export function BookMetadataDialog({
     >
       <div className="metadata-original">
         <span>EPUB metadata</span>
-        <strong>{book.originalTitle}</strong>
-        <small>{book.originalAuthor ?? "Unknown author"}</small>
+        <strong>{sourceTitle}</strong>
+        <small>{sourceAuthor}</small>
       </div>
       <form
         className="dialog-form"
@@ -131,7 +138,7 @@ export function BookMetadataDialog({
           <input
             autoFocus
             onChange={(event) => setDisplayTitle(event.currentTarget.value)}
-            placeholder={book.originalTitle}
+            placeholder={bookTitlePlaceholder(sourceTitle)}
             value={displayTitle}
           />
         </label>
@@ -139,7 +146,7 @@ export function BookMetadataDialog({
           <span>Author override</span>
           <input
             onChange={(event) => setDisplayAuthor(event.currentTarget.value)}
-            placeholder={book.originalAuthor ?? "Unknown author"}
+            placeholder={sourceAuthor}
             value={displayAuthor}
           />
         </label>

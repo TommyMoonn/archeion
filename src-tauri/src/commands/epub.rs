@@ -1,111 +1,25 @@
 use std::{
-    collections::HashMap,
     fs,
     io::{Cursor, Read},
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
     process::Command,
     time::UNIX_EPOCH,
 };
 
 use image::{ImageFormat, ImageReader, Limits};
-use percent_encoding::percent_decode_str;
-use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
-use super::{filesystem, vault};
+use super::{epub_metadata, filesystem, vault};
 
 pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     filesystem::resolve_existing_epub_path(root, relative_path)
 }
 
-fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<String, String>)> {
-    let mut reader = Reader::from_str(xml);
-    let mut elements = Vec::new();
-    loop {
-        match reader.read_event() {
-            Ok(Event::Start(event)) | Ok(Event::Empty(event))
-                if names
-                    .iter()
-                    .any(|name| event.local_name().as_ref() == *name) =>
-            {
-                let attributes = event
-                    .attributes()
-                    .filter_map(Result::ok)
-                    .filter_map(|attribute| {
-                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
-                            .into_owned();
-                        let value = attribute
-                            .decoded_and_normalized_value(
-                                quick_xml::XmlVersion::Implicit1_0,
-                                reader.decoder(),
-                            )
-                            .ok()?
-                            .into_owned();
-                        Some((key, value))
-                    })
-                    .collect();
-                elements.push((
-                    String::from_utf8_lossy(event.local_name().as_ref()).into_owned(),
-                    attributes,
-                ));
-            }
-            Ok(Event::Eof) => break,
-            Err(_) => break,
-            _ => {}
-        }
-    }
-    elements
-}
-
-fn archive_relative_path(package_path: &str, href: &str) -> String {
-    let mut parts = Path::new(package_path)
-        .parent()
-        .unwrap_or_else(|| Path::new(""))
-        .components()
-        .filter_map(|component| match component {
-            Component::Normal(part) => Some(part.to_string_lossy().into_owned()),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    for component in Path::new(href).components() {
-        match component {
-            Component::ParentDir => {
-                parts.pop();
-            }
-            Component::Normal(part) => parts.push(part.to_string_lossy().into_owned()),
-            _ => {}
-        }
-    }
-    parts.join("/")
-}
-
-fn read_zip_text(
-    archive: &mut ZipArchive<fs::File>,
-    path: &str,
-    limit: u64,
-) -> Result<String, String> {
-    let entry = archive.by_name(path).map_err(|error| error.to_string())?;
-    if entry.size() > limit {
-        return Err("EPUB metadata file is too large.".to_string());
-    }
-    let mut text = String::new();
-    entry
-        .take(limit)
-        .read_to_string(&mut text)
-        .map_err(|error| error.to_string())?;
-    Ok(text)
-}
-
 fn extract_cover(epub_path: &Path) -> Result<Option<Vec<u8>>, String> {
     let file = fs::File::open(epub_path).map_err(|error| error.to_string())?;
     let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
-    let container = read_zip_text(&mut archive, "META-INF/container.xml", 512 * 1024)?;
-    let package_path = xml_elements(&container, &[b"rootfile"])
-        .into_iter()
-        .find_map(|(_, attributes)| attributes.get("full-path").cloned())
-        .ok_or_else(|| "EPUB package document was not found.".to_string())?;
-    let package = read_zip_text(&mut archive, &package_path, 4 * 1024 * 1024)?;
-    let elements = xml_elements(&package, &[b"meta", b"item"]);
+    let package = epub_metadata::read_package_document(&mut archive)?;
+    let elements = epub_metadata::xml_elements(&package.xml, &[b"meta", b"item"]);
     let cover_id = elements.iter().find_map(|(name, attributes)| {
         (name == "meta" && attributes.get("name").is_some_and(|value| value == "cover"))
             .then(|| attributes.get("content").cloned())
@@ -128,8 +42,8 @@ fn extract_cover(epub_path: &Path) -> Result<Option<Vec<u8>>, String> {
     let Some(cover_href) = cover_href else {
         return Ok(None);
     };
-    let decoded_href = percent_decode_str(&cover_href).decode_utf8_lossy();
-    let cover_path = archive_relative_path(&package_path, decoded_href.as_ref());
+    let decoded_href = epub_metadata::decode_archive_href(&cover_href);
+    let cover_path = epub_metadata::resolve_zip_relative_path(&package.path, &decoded_href)?;
     let mut bytes = Vec::new();
     archive
         .by_name(&cover_path)
