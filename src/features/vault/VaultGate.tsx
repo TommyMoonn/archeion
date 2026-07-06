@@ -19,7 +19,7 @@ export function VaultGate({ children }: VaultGateProps) {
   }, []);
 
   useEffect(() => {
-    if (state.status === "ready" && storage.source === "vault") {
+    if (state.status === "ready") {
       void storage.rescan().catch(() => undefined);
     }
   }, [state, storage]);

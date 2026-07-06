@@ -13,7 +13,6 @@ import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import { ImportButton } from "../import/ImportButton";
 import { RescanVaultButton } from "../vault/RescanVaultButton";
 import type { LibrarySort } from "./libraryFilters";
 
@@ -21,7 +20,6 @@ export type LibraryView = "grid" | "list";
 
 type LibraryToolbarProps = {
   isImporting: boolean;
-  onFiles: (files: File[]) => void;
   onOpenAddEpub: () => void;
   onQueryChange: (query: string) => void;
   onRescanError: () => void;
@@ -31,7 +29,6 @@ type LibraryToolbarProps = {
   sort: LibrarySort;
   title: string;
   view: LibraryView;
-  storageSource: "indexeddb" | "vault";
 };
 
 const sortOptions: Array<{ label: string; value: LibrarySort }> = [
@@ -61,7 +58,6 @@ const viewOptions: Array<{
 
 export function LibraryToolbar({
   isImporting,
-  onFiles,
   onOpenAddEpub,
   onQueryChange,
   onRescanError,
@@ -71,7 +67,6 @@ export function LibraryToolbar({
   sort,
   title,
   view,
-  storageSource,
 }: LibraryToolbarProps) {
   return (
     <header className="library-header">
@@ -106,20 +101,14 @@ export function LibraryToolbar({
             </IconButton>
           ) : null}
         </div>
-        {storageSource === "vault" ? (
-          <>
-            <Button
-              disabled={isImporting}
-              icon={<Plus aria-hidden="true" size={17} weight="bold" />}
-              onClick={onOpenAddEpub}
-            >
-              {isImporting ? "Adding" : "Add EPUB"}
-            </Button>
-            <RescanVaultButton onError={onRescanError} />
-          </>
-        ) : (
-          <ImportButton disabled={isImporting} onFiles={onFiles} />
-        )}
+        <Button
+          disabled={isImporting}
+          icon={<Plus aria-hidden="true" size={17} weight="bold" />}
+          onClick={onOpenAddEpub}
+        >
+          {isImporting ? "Adding" : "Add EPUB"}
+        </Button>
+        <RescanVaultButton onError={onRescanError} />
       </div>
 
       <div className="library-controls">

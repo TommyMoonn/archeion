@@ -253,7 +253,7 @@ export function BookDetailsDrawer({
               <dd>
                 <span>{book.fileName}</span>
                 <span>
-                  {formatFileSize(book.size ?? book.fileBlob?.size ?? 0)}
+                  {formatFileSize(book.size ?? 0)}
                 </span>
               </dd>
             </div>

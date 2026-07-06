@@ -1,8 +1,4 @@
-import type {
-  Book,
-  CreateBookInput,
-  UpdateBookInput,
-} from "../types/book";
+import type { Book, UpdateBookInput } from "../types/book";
 import type {
   CreateFolderInput,
   Folder,
@@ -43,11 +39,9 @@ export type ArchiveImportResult = {
 };
 
 export interface LibraryStorage {
-  readonly source: "indexeddb" | "vault";
   rescan(): Promise<void>;
   addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
-  createBook(input: CreateBookInput): Promise<Book>;
   getBook(id: string): Promise<Book | undefined>;
   loadBookCover(id: string): Promise<Blob | undefined>;
   loadBookFile(id: string): Promise<Blob>;

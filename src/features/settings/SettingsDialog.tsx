@@ -1,4 +1,4 @@
-import { invoke, isTauri } from "@tauri-apps/api/core";
+import { invoke } from "@tauri-apps/api/core";
 import {
   Archive,
   ArrowsClockwise,
@@ -206,7 +206,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }, [storage]);
 
   useEffect(() => {
-    if (!isTauri()) return;
     void invoke<CoverCacheStatus>("cover_cache_status")
       .then(setCache)
       .catch(() => setCache(null));
@@ -314,17 +313,21 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </header>
             <SettingsRow
               label="Library folder"
-              note={vault.status === "ready" ? <code>{vault.path}</code> : "Browser storage"}
+              note={
+                vault.status === "ready" ? (
+                  <code>{vault.path}</code>
+                ) : (
+                  "No library folder selected"
+                )
+              }
             >
-              {storage.source === "vault" ? (
-                <Button
-                  icon={<FolderOpen aria-hidden="true" size={17} />}
-                  onClick={() => setChangeLibraryOpen(true)}
-                  variant="secondary"
-                >
-                  Change
-                </Button>
-              ) : null}
+              <Button
+                icon={<FolderOpen aria-hidden="true" size={17} />}
+                onClick={() => setChangeLibraryOpen(true)}
+                variant="secondary"
+              >
+                Change
+              </Button>
             </SettingsRow>
           </section>
 
@@ -336,46 +339,42 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <header>
               <h2>Library</h2>
             </header>
-            {storage.source === "vault" ? (
-              <>
-                <SettingsRow
-                  label="Library scan"
-                  note="Find new, moved, or missing EPUB files."
-                >
-                  <Button
-                    icon={<ArrowsClockwise aria-hidden="true" size={17} />}
-                    onClick={() => setRescanOpen(true)}
-                    variant="secondary"
-                  >
-                    Rescan
-                  </Button>
-                </SettingsRow>
-                <SettingsRow
-                  label="Archeion metadata"
-                  note="Open the sidecar metadata folder."
-                >
-                  <Button onClick={() => void revealMetadata()} variant="secondary">
-                    Reveal
-                  </Button>
-                </SettingsRow>
-                <SettingsRow
-                  label="Cover cache"
-                  note={
-                    cache
-                      ? `${cache.fileCount} covers, ${formatBytes(cache.totalBytes)}`
-                      : "Cache status unavailable"
-                  }
-                >
-                  <Button
-                    icon={<Broom aria-hidden="true" size={17} />}
-                    onClick={() => setClearCacheOpen(true)}
-                    variant="secondary"
-                  >
-                    Clear
-                  </Button>
-                </SettingsRow>
-              </>
-            ) : null}
+            <SettingsRow
+              label="Library scan"
+              note="Find new, moved, or missing EPUB files."
+            >
+              <Button
+                icon={<ArrowsClockwise aria-hidden="true" size={17} />}
+                onClick={() => setRescanOpen(true)}
+                variant="secondary"
+              >
+                Rescan
+              </Button>
+            </SettingsRow>
+            <SettingsRow
+              label="Archeion metadata"
+              note="Open the sidecar metadata folder."
+            >
+              <Button onClick={() => void revealMetadata()} variant="secondary">
+                Reveal
+              </Button>
+            </SettingsRow>
+            <SettingsRow
+              label="Cover cache"
+              note={
+                cache
+                  ? `${cache.fileCount} covers, ${formatBytes(cache.totalBytes)}`
+                  : "Cache status unavailable"
+              }
+            >
+              <Button
+                icon={<Broom aria-hidden="true" size={17} />}
+                onClick={() => setClearCacheOpen(true)}
+                variant="secondary"
+              >
+                Clear
+              </Button>
+            </SettingsRow>
           </section>
 
           <section
@@ -530,7 +529,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 <Button
                   onClick={() => setChangeLibraryOpen(false)}
                   variant="secondary"
-                >
+            >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void changeLibrary()}>
@@ -550,7 +549,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 <Button
                   onClick={() => setRescanOpen(false)}
                   variant="secondary"
-                >
+            >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void rescan()}>

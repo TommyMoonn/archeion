@@ -3,7 +3,6 @@ import { invoke } from "@tauri-apps/api/core";
 import { createBookIdentityIndex, resolveBookIdFromScan } from "./bookIdentity";
 import type {
   Book,
-  CreateBookInput,
   EpubSourceMetadata,
   UpdateBookInput,
 } from "../types/book";
@@ -68,9 +67,6 @@ function titleFromFileName(fileName: string) {
   );
 }
 
-function unavailable() {
-  return new Error("This operation is not available for filesystem libraries.");
-}
 
 function isInsideFolderPath(relativePath: string, folderPath: string): boolean {
   return (
@@ -94,7 +90,6 @@ function replacePathPrefix(
 }
 
 export class TauriVaultLibraryStorage implements LibraryStorage {
-  readonly source = "vault";
   private books: Book[] = [];
   private folders: Folder[] = [];
   private readerSettings = normalizeReaderSettings();
@@ -393,10 +388,6 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     );
   }
 
-  createBook(_input: CreateBookInput): Promise<Book> {
-    void _input;
-    return Promise.reject(unavailable());
-  }
 
   async getBook(id: string): Promise<Book | undefined> {
     await this.ensureLoaded();
@@ -467,7 +458,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       changes.folderId !== undefined &&
       changes.folderId !== this.books[index].folderId
     ) {
-      throw unavailable();
+      throw new Error("Move EPUB files with moveBookToFolder().");
     }
 
     const timestamp = new Date().toISOString();

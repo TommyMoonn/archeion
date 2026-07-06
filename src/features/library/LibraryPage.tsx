@@ -34,8 +34,6 @@ import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
-import { ImportDropzone } from "../import/ImportDropzone";
-import type { ImportResult } from "../import/importEpub";
 import { useVault } from "../vault/useVault";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -97,7 +95,6 @@ const SettingsDialog = lazy(() =>
   })),
 );
 
-type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
 function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
   if (!relativePath || !folder.relativePath) {
@@ -122,7 +119,6 @@ export function LibraryPage() {
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const importLock = useRef(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
   const [archiveImportResults, setArchiveImportResults] = useState<
     ArchiveImportResult[]
   >([]);
@@ -155,7 +151,6 @@ export function LibraryPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
-  const isFilesystemLibrary = storage.source === "vault";
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -176,36 +171,6 @@ export function LibraryPage() {
     };
   }, [storage]);
 
-  async function handleFiles(files: File[]) {
-    if (importLock.current) {
-      return;
-    }
-
-    importLock.current = true;
-    setIsImporting(true);
-    setFailedImports([]);
-    setArchiveImportResults([]);
-
-    try {
-      const { createImportEpubDependencies, importEpubFiles } = await import(
-        "../import/importEpub"
-      );
-      const results = await importEpubFiles(
-        files,
-        createImportEpubDependencies(storage),
-      );
-
-      setFailedImports(
-        results.filter(
-          (result): result is FailedImport => result.status === "failed",
-        ),
-      );
-    } finally {
-      importLock.current = false;
-      setIsImporting(false);
-    }
-  }
-
   async function handleArchiveImport(input: AddArchiveEpubInput) {
     if (importLock.current) {
       return;
@@ -213,7 +178,6 @@ export function LibraryPage() {
 
     importLock.current = true;
     setIsImporting(true);
-    setFailedImports([]);
     setArchiveImportResults([]);
     setLibraryError(null);
 
@@ -538,19 +502,13 @@ export function LibraryPage() {
     if (location.type === "folder") {
       return {
         title: "No books in this folder",
-        description:
-          storage.source === "vault"
-            ? "Use Add EPUB to place files in this folder."
-            : "Add books to this folder from book details.",
+        description: "Use Add EPUB to place files in this folder.",
       };
     }
 
     return {
-      title: storage.source === "vault" ? "No EPUB files found" : "No books yet",
-      description:
-        storage.source === "vault"
-          ? "Use Add EPUB to place files in this archive."
-          : "Add an EPUB or drop files here to start your collection.",
+      title: "No EPUB files found",
+      description: "Use Add EPUB to place files in this archive.",
     };
   }
 
@@ -595,7 +553,7 @@ export function LibraryPage() {
           location={location}
           archivePath={vault.status === "ready" ? vault.path : ""}
           canManageFolders
-          canRevealFolders={isFilesystemLibrary}
+          canRevealFolders
           onChangeArchive={openChangeArchive}
           onCreateFolder={openCreateFolder}
           onDeleteFolder={setDeleteFolderTarget}
@@ -608,74 +566,68 @@ export function LibraryPage() {
         />
       }
     >
-      <ImportDropzone
-        disabled={isImporting || storage.source === "vault"}
-        onFiles={handleFiles}
-      >
-        {location.type === "folders" ? (
-          <FolderBrowser
-            bookCounts={bookCountsByFolder}
-            canManageFolders
-            canRevealFolders={isFilesystemLibrary}
-            folders={folders ?? []}
-            onCreate={openCreateFolder}
+      {location.type === "folders" ? (
+        <FolderBrowser
+          bookCounts={bookCountsByFolder}
+          canManageFolders
+          canRevealFolders
+          folders={folders ?? []}
+          onCreate={openCreateFolder}
             onDelete={setDeleteFolderTarget}
-            onMove={setMoveFolderTarget}
-            onOpen={(folder) =>
-              changeLocation({ type: "folder", folderId: folder.id })
-            }
-            onRename={setRenameFolderTarget}
-            onReveal={(folder) => void revealFolder(folder)}
-          />
-        ) : (
-          <>
-        <LibraryToolbar
-          isImporting={isImporting}
-          onFiles={handleFiles}
-          onOpenAddEpub={openAddEpub}
-          onQueryChange={setQuery}
-          onRescanError={() =>
-            setLibraryError("The library folder could not be scanned.")
+          onMove={setMoveFolderTarget}
+          onOpen={(folder) =>
+            changeLocation({ type: "folder", folderId: folder.id })
           }
-          onSortChange={setSort}
-          onViewChange={setView}
-          query={query}
-          sort={sort}
-          title={libraryTitle}
-          view={view}
-          storageSource={storage.source}
+          onRename={setRenameFolderTarget}
+          onReveal={(folder) => void revealFolder(folder)}
         />
+      ) : (
+        <>
+          <LibraryToolbar
+            isImporting={isImporting}
+            onOpenAddEpub={openAddEpub}
+            onQueryChange={setQuery}
+            onRescanError={() =>
+              setLibraryError("The library folder could not be scanned.")
+            }
+            onSortChange={setSort}
+            onViewChange={setView}
+            query={query}
+            sort={sort}
+            title={libraryTitle}
+            view={view}
+          />
 
-        {libraryError ? (
-          <div className="import-notice import-notice--error" role="alert">
-            <WarningCircle aria-hidden="true" size={19} weight="regular" />
-            <div>
-              <p>{libraryError}</p>
-            </div>
-            <IconButton
-              label="Dismiss library error"
-              onClick={() => setLibraryError(null)}
-            >
-              <X aria-hidden="true" size={17} weight="regular" />
-            </IconButton>
-          </div>
-        ) : null}
-
-        {archiveImportSummary ? (
-          <div
-            className={archiveImportNoticeClass}
-            role={archiveImportSummary.failed > 0 ? "alert" : "status"}
-          >
-            {archiveImportSummary.failed > 0 ? (
+          {libraryError ? (
+            <div className="import-notice import-notice--error" role="alert">
               <WarningCircle aria-hidden="true" size={19} weight="regular" />
-            ) : (
-              <CheckCircle aria-hidden="true" size={19} weight="regular" />
-            )}
-            <div>
-              <p>{archiveImportSummary.message}</p>
-              {archiveImportDetails.length > 0 ? (
-                <ul>
-                  {archiveImportDetails.map((result, index) => (
+              <div>
+                <p>{libraryError}</p>
+              </div>
+              <IconButton
+                label="Dismiss library error"
+                onClick={() => setLibraryError(null)}
+              >
+                <X aria-hidden="true" size={17} weight="regular" />
+              </IconButton>
+            </div>
+          ) : null}
+
+          {archiveImportSummary ? (
+            <div
+              className={archiveImportNoticeClass}
+              role={archiveImportSummary.failed > 0 ? "alert" : "status"}
+            >
+              {archiveImportSummary.failed > 0 ? (
+                <WarningCircle aria-hidden="true" size={19} weight="regular" />
+              ) : (
+                <CheckCircle aria-hidden="true" size={19} weight="regular" />
+              )}
+              <div>
+                <p>{archiveImportSummary.message}</p>
+                {archiveImportDetails.length > 0 ? (
+                  <ul>
+                    {archiveImportDetails.map((result, index) => (
                       <li key={`${result.sourcePath}-${index}`}>
                         <span>{result.fileName}</span>
                         {result.message ??
@@ -684,110 +636,76 @@ export function LibraryPage() {
                             : "Failed.")}
                       </li>
                     ))}
-                </ul>
-              ) : null}
+                  </ul>
+                ) : null}
+              </div>
+              <IconButton
+                label="Dismiss import summary"
+                onClick={() => setArchiveImportResults([])}
+              >
+                <X aria-hidden="true" size={17} weight="regular" />
+              </IconButton>
             </div>
-            <IconButton
-              label="Dismiss import summary"
-              onClick={() => setArchiveImportResults([])}
-            >
-              <X aria-hidden="true" size={17} weight="regular" />
-            </IconButton>
-          </div>
-        ) : null}
-
-        {failedImports.length > 0 ? (
-          <div
-            className="import-notice import-notice--error import-notice--detailed"
-            role="alert"
-          >
-            <WarningCircle aria-hidden="true" size={19} weight="regular" />
-            <div>
-              <p>
-                {failedImports.length === 1
-                  ? "One file could not be added."
-                  : `${failedImports.length} files could not be added.`}
-              </p>
-              <ul>
-                {failedImports.map((result, index) => (
-                  <li key={`${result.fileName}-${index}`}>
-                    <span>{result.fileName}</span>
-                    {result.message}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <IconButton
-              label="Dismiss import errors"
-              onClick={() => setFailedImports([])}
-            >
-              <X aria-hidden="true" size={17} weight="regular" />
-            </IconButton>
-          </div>
-        ) : null}
-
-        <div className="library-content">
-          {location.type === "library" &&
-          !query &&
-          preferences.showContinueReading ? (
-            <ContinueReading
-              books={continuePreview}
-              onContinue={readBook}
-            />
           ) : null}
-          {books === undefined || (isImporting && books.length === 0) ? (
-            <div className="library-loading" role="status">
-              <span className="library-loading__cover" />
-              <span>
-                {isImporting ? "Adding EPUB files" : "Loading library"}
-              </span>
-            </div>
-          ) : visibleBooks.length === 0 && !debouncedQuery ? (
-            <EmptyState
-              description={emptyState.description}
-              icon={<BookOpenText size={42} weight="thin" />}
-              title={emptyState.title}
-            />
-          ) : visibleBooks.length === 0 ? (
-            <EmptyState
-              action={
-                <Button variant="secondary" onClick={() => setQuery("")}>
-                  Clear search
-                </Button>
-              }
-              description="Try another title, author, or folder name."
-              icon={<BookOpenText size={42} weight="thin" />}
-              title="No search results"
-            />
-          ) : view === "grid" ? (
-            <BookGrid
-              books={visibleBooks}
-              canManageFile={isFilesystemLibrary}
-              onDelete={requestDelete}
-              onMove={requestMoveBook}
-              onRead={readBook}
-              onRenameFile={requestRenameFile}
-              onRevealFile={(book) => void revealBookFile(book)}
-              onSelect={selectBook}
-              onToggleFavorite={toggleFavorite}
-            />
-          ) : (
-            <BookList
-              books={visibleBooks}
-              canManageFile={isFilesystemLibrary}
-              onDelete={requestDelete}
-              onMove={requestMoveBook}
-              onRead={readBook}
-              onRenameFile={requestRenameFile}
-              onRevealFile={(book) => void revealBookFile(book)}
-              onSelect={selectBook}
-              onToggleFavorite={toggleFavorite}
-            />
-          )}
-        </div>
-          </>
-        )}
-      </ImportDropzone>
+
+          <div className="library-content">
+            {location.type === "library" &&
+            !query &&
+            preferences.showContinueReading ? (
+              <ContinueReading books={continuePreview} onContinue={readBook} />
+            ) : null}
+            {books === undefined || (isImporting && books.length === 0) ? (
+              <div className="library-loading" role="status">
+                <span className="library-loading__cover" />
+                <span>
+                  {isImporting ? "Adding EPUB files" : "Loading library"}
+                </span>
+              </div>
+            ) : visibleBooks.length === 0 && !debouncedQuery ? (
+              <EmptyState
+                description={emptyState.description}
+                icon={<BookOpenText size={42} weight="thin" />}
+                title={emptyState.title}
+              />
+            ) : visibleBooks.length === 0 ? (
+              <EmptyState
+                action={
+                  <Button variant="secondary" onClick={() => setQuery("")}>
+                    Clear search
+                  </Button>
+                }
+                description="Try another title, author, or folder name."
+                icon={<BookOpenText size={42} weight="thin" />}
+                title="No search results"
+              />
+            ) : view === "grid" ? (
+              <BookGrid
+                books={visibleBooks}
+                canManageFile
+                  onDelete={requestDelete}
+                onMove={requestMoveBook}
+                  onRead={readBook}
+                  onRenameFile={requestRenameFile}
+                  onRevealFile={(book) => void revealBookFile(book)}
+                onSelect={selectBook}
+                  onToggleFavorite={toggleFavorite}
+              />
+            ) : (
+              <BookList
+                books={visibleBooks}
+                canManageFile
+                  onDelete={requestDelete}
+                onMove={requestMoveBook}
+                  onRead={readBook}
+                  onRenameFile={requestRenameFile}
+                  onRevealFile={(book) => void revealBookFile(book)}
+                onSelect={selectBook}
+                  onToggleFavorite={toggleFavorite}
+              />
+            )}
+          </div>
+        </>
+      )}
 
       {isAddEpubOpen ? (
         <Suspense fallback={null}>
@@ -803,25 +721,25 @@ export function LibraryPage() {
 
       {selectedBook ? (
         <Suspense fallback={null}>
-        <BookDetailsDrawer
-          book={selectedBook}
-          canManageFile={isFilesystemLibrary}
-          canRevealFile={isFilesystemLibrary}
-          onClose={closeDetails}
-          onClearProgress={requestClearProgress}
-          onDelete={requestDelete}
-          onEdit={openMetadataEdit}
-          onMoveFile={requestMoveBook}
-          onRead={readBook}
-          onReadFromBeginning={readBookFromBeginning}
-          onRenameFile={requestRenameFile}
-          onRevealFile={(book) => void revealBookFile(book)}
-          onRescan={() => {
-            setSelectedBookId(null);
-            setRescanConfirmationOpen(true);
-          }}
-          onToggleFavorite={toggleFavorite}
-        />
+          <BookDetailsDrawer
+            book={selectedBook}
+            canManageFile
+            canRevealFile
+            onClose={closeDetails}
+            onClearProgress={requestClearProgress}
+            onDelete={requestDelete}
+            onEdit={openMetadataEdit}
+            onMoveFile={requestMoveBook}
+            onRead={readBook}
+            onReadFromBeginning={readBookFromBeginning}
+            onRenameFile={requestRenameFile}
+            onRevealFile={(book) => void revealBookFile(book)}
+            onRescan={() => {
+              setSelectedBookId(null);
+              setRescanConfirmationOpen(true);
+            }}
+            onToggleFavorite={toggleFavorite}
+          />
         </Suspense>
       ) : null}
 
@@ -910,9 +828,7 @@ export function LibraryPage() {
           description={
             deleteTarget.isFileMissing
               ? `Favorites, progress, and display metadata for “${bookLabel(deleteTarget)}” will be removed. No EPUB file will be deleted.`
-              : isFilesystemLibrary
-                ? `The EPUB file for “${bookLabel(deleteTarget)}” will be moved to Trash when available. Reading data will be removed.`
-                : `The stored EPUB for “${bookLabel(deleteTarget)}” and its reading data will be removed.`
+              : `The EPUB file for “${bookLabel(deleteTarget)}” will be moved to Trash when available. Reading data will be removed.`
           }
           onClose={() => {
             if (!isDeleting) {
@@ -1029,13 +945,9 @@ export function LibraryPage() {
       {deleteFolderTarget ? (
         <Dialog
           title="Delete this folder?"
-          description={
-            isFilesystemLibrary
-              ? `The “${deleteFolderTarget.name}” folder and ${deleteFolderBookCount} contained EPUB ${
-                  deleteFolderBookCount === 1 ? "file" : "files"
-                } will be moved to Trash when available.`
-              : `The “${deleteFolderTarget.name}” folder record will be removed. Its EPUB files will remain in Library.`
-          }
+          description={`The “${deleteFolderTarget.name}” folder and ${deleteFolderBookCount} contained EPUB ${
+            deleteFolderBookCount === 1 ? "file" : "files"
+          } will be moved to Trash when available.`}
           onClose={() => {
             if (!isDeleting) {
               setDeleteFolderTarget(null);

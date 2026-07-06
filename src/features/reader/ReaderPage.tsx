@@ -50,11 +50,7 @@ export function ReaderPage() {
     bookId: string;
     blob?: Blob;
     failed: boolean;
-  } | null>(
-    book?.fileBlob
-      ? { bookId: book.id, blob: book.fileBlob, failed: false }
-      : null,
-  );
+  } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [settings, setSettings] = useState<ReaderSettings>({
     ...defaultReaderSettings,
@@ -237,7 +233,7 @@ export function ReaderPage() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!book || book.fileBlob) {
+    if (!book) {
       return;
     }
 
@@ -331,7 +327,7 @@ export function ReaderPage() {
   const title = book.displayTitle ?? book.originalTitle;
   const currentLoadedFile =
     loadedFile?.bookId === book.id ? loadedFile : null;
-  const fileBlob = book.fileBlob ?? currentLoadedFile?.blob;
+  const fileBlob = currentLoadedFile?.blob;
   const fileLoadFailed = currentLoadedFile?.failed ?? false;
   const isFileLoading = !fileBlob && !fileLoadFailed;
 

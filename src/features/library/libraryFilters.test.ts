@@ -14,7 +14,6 @@ function createBook(overrides: Partial<Book>): Book {
   return {
     id: overrides.id ?? "book",
     fileName: "book.epub",
-    fileBlob: new Blob(["book"]),
     originalTitle: "Original title",
     isFavorite: false,
     addedAt: "2026-07-01T00:00:00.000Z",

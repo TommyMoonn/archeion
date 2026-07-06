@@ -8,7 +8,6 @@ export type EpubSourceMetadata = {
 export type Book = {
   id: string;
   fileName: string;
-  fileBlob?: Blob;
   relativePath?: string;
   folderPath?: string;
   size?: number;
@@ -18,7 +17,6 @@ export type Book = {
   sourceMetadata?: EpubSourceMetadata;
   displayTitle?: string;
   displayAuthor?: string;
-  coverBlob?: Blob;
   coverPath?: string;
   isFileMissing?: boolean;
   folderId?: string | null;
@@ -28,13 +26,6 @@ export type Book = {
   lastOpenedAt?: string;
   progressCfi?: string;
   progressPercent?: number;
-};
-
-export type CreateBookInput = Omit<
-  Book,
-  "id" | "addedAt" | "updatedAt" | "isFavorite"
-> & {
-  isFavorite?: boolean;
 };
 
 export type UpdateBookInput = Partial<

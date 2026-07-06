@@ -16,10 +16,10 @@ export const BookCover = memo(function BookCover({
 }: BookCoverProps) {
   const storage = useLibraryStorage();
   const coverRef = useRef<HTMLDivElement>(null);
-  const [shouldLoad, setShouldLoad] = useState(Boolean(book.coverBlob));
+  const [shouldLoad, setShouldLoad] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "available" | "unavailable">(
-    book.coverBlob ? "available" : "loading",
+    "loading",
   );
 
   useEffect(() => {
@@ -48,10 +48,7 @@ export const BookCover = memo(function BookCover({
     setState("loading");
     const acquired = acquireCoverUrl(
       coverCacheKey(book.id, book.modifiedAt, book.size),
-      () =>
-        book.coverBlob
-          ? Promise.resolve(book.coverBlob)
-          : storage.loadBookCover(book.id),
+      () => storage.loadBookCover(book.id),
     );
 
     void acquired.promise
@@ -76,7 +73,6 @@ export const BookCover = memo(function BookCover({
       acquired.release();
     };
   }, [
-    book.coverBlob,
     book.id,
     book.modifiedAt,
     book.size,

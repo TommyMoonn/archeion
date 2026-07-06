@@ -571,7 +571,6 @@ describe("TauriVaultLibraryStorage", () => {
     });
     expect(blob.type).toBe("application/epub+zip");
     expect(blob.size).toBe(4);
-    expect((await storage.getBook("book-1"))?.fileBlob).toBeUndefined();
   });
 
   it("loads and reuses cached cover bytes", async () => {
