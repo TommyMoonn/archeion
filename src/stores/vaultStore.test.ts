@@ -63,6 +63,7 @@ describe("VaultStore", () => {
       status: "ready",
       path: "D:\\Books",
       error: null,
+      watcherError: null,
     });
   });
 
@@ -98,6 +99,36 @@ describe("VaultStore", () => {
       status: "ready",
       path: "D:\\Novels",
       error: null,
+      watcherError: null,
+    });
+  });
+
+  it("stores recoverable watcher errors without changing the active folder", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_vault_path") {
+        return "D:\\Books";
+      }
+      return true;
+    });
+    const store = new VaultStore();
+    await store.initialize();
+
+    store.setWatcherError("Live refresh paused.");
+
+    expect(store.getSnapshot()).toEqual({
+      status: "ready",
+      path: "D:\\Books",
+      error: null,
+      watcherError: "Live refresh paused.",
+    });
+
+    store.setWatcherError(null);
+
+    expect(store.getSnapshot()).toEqual({
+      status: "ready",
+      path: "D:\\Books",
+      error: null,
+      watcherError: null,
     });
   });
 

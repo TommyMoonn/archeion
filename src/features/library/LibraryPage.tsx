@@ -34,6 +34,7 @@ import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
+import { VaultStatusBar } from "../vault/VaultStatusBar";
 import { useVault } from "../vault/useVault";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -597,6 +598,8 @@ export function LibraryPage() {
             title={libraryTitle}
             view={view}
           />
+
+          <VaultStatusBar />
 
           {libraryError ? (
             <div className="import-notice import-notice--error" role="alert">

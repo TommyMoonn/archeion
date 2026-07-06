@@ -3,6 +3,7 @@ mod commands;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(commands::watcher::VaultWatcherState::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::archive_import::add_epub_files_to_vault,
@@ -29,6 +30,8 @@ pub fn run() {
             commands::vault::reveal_archeion_folder,
             commands::vault::save_vault_path,
             commands::vault::validate_vault_path,
+            commands::watcher::start_vault_watcher,
+            commands::watcher::stop_vault_watcher,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

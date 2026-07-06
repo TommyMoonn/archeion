@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 export type VaultState =
   | { status: "loading"; path: null; error: null }
   | { status: "setup"; path: null; error: null }
-  | { status: "ready"; path: string; error: null }
+  | { status: "ready"; path: string; error: null; watcherError: string | null }
   | { status: "missing"; path: string; error: null }
   | { status: "error"; path: string | null; error: string };
 
@@ -83,6 +83,18 @@ export class VaultStore {
     await this.useVault(this.state.path);
   }
 
+  setWatcherError(error: string | null): void {
+    if (this.state.status !== "ready") {
+      return;
+    }
+
+    if (this.state.watcherError === error) {
+      return;
+    }
+
+    this.setState({ ...this.state, watcherError: error });
+  }
+
   private async loadSavedVault(): Promise<void> {
     if (!isTauri()) {
       this.setState({
@@ -127,7 +139,7 @@ export class VaultStore {
 
       await invoke("save_vault_path", { path });
       await invoke("initialize_vault_metadata");
-      this.setState({ status: "ready", path, error: null });
+      this.setState({ status: "ready", path, error: null, watcherError: null });
       return true;
     } catch {
       this.setState({

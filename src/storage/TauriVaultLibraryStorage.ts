@@ -20,6 +20,7 @@ import type {
   ArchiveImportResult,
   ArchivePathChange,
   LibraryStorage,
+  RescanOptions,
   StorageObserver,
   StorageSubscription,
 } from "./LibraryStorage";
@@ -52,6 +53,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private readerSettings = normalizeReaderSettings();
   private loaded = false;
   private scanPromise: Promise<void> | null = null;
+  private followUpScanQueued = false;
   private metadataWriteQueue: Promise<void> = Promise.resolve();
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
@@ -60,17 +62,27 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private progressMetadata = createProgressMetadata();
   private settingsMetadata = createSettingsMetadata();
 
-  async rescan(): Promise<void> {
+  async rescan(options?: RescanOptions): Promise<void> {
     if (this.scanPromise) {
+      if (options?.followUpIfRunning) {
+        this.followUpScanQueued = true;
+      }
       return this.scanPromise;
     }
 
-    this.scanPromise = this.performScan();
+    this.scanPromise = this.performQueuedScans();
     try {
       await this.scanPromise;
     } finally {
       this.scanPromise = null;
     }
+  }
+
+  private async performQueuedScans() {
+    do {
+      this.followUpScanQueued = false;
+      await this.performScan();
+    } while (this.followUpScanQueued);
   }
 
   private async performScan() {

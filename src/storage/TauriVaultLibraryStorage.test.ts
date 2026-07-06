@@ -487,6 +487,38 @@ describe("TauriVaultLibraryStorage", () => {
     stop();
   });
 
+  it("queues one follow-up scan when requested during an active scan", async () => {
+    let finishFirstScan!: () => void;
+    let scanCount = 0;
+    const firstScanBlocked = new Promise<void>((resolve) => {
+      finishFirstScan = resolve;
+    });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        scanCount += 1;
+        if (scanCount === 1) {
+          await firstScanBlocked;
+        }
+        return firstScan;
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const initialScan = storage.rescan();
+    const queuedScan = storage.rescan({ followUpIfRunning: true });
+    const duplicateQueuedScan = storage.rescan({ followUpIfRunning: true });
+
+    expect(scanCount).toBe(1);
+    finishFirstScan();
+    await Promise.all([initialScan, queuedScan, duplicateQueuedScan]);
+
+    expect(scanCount).toBe(2);
+  });
+
   it("persists display metadata and progress in separate files", async () => {
     const storage = new TauriVaultLibraryStorage();
     await storage.listBooks();

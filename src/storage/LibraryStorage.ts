@@ -16,6 +16,10 @@ export type StorageObserver<T> = {
 
 export type StorageSubscription = () => void;
 
+export type RescanOptions = {
+  followUpIfRunning?: boolean;
+};
+
 export type ArchiveImportMode = "copy" | "move";
 
 export type ArchivePathChange = {
@@ -39,7 +43,7 @@ export type ArchiveImportResult = {
 };
 
 export interface LibraryStorage {
-  rescan(): Promise<void>;
+  rescan(options?: RescanOptions): Promise<void>;
   addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
   getBook(id: string): Promise<Book | undefined>;
