@@ -8,9 +8,8 @@ import {
   PencilSimple,
   Trash,
 } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
-
 import type { Book } from "../../types/book";
+import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import {
   getBookMenuClassName,
   type BookMenuPlacement,
@@ -45,40 +44,17 @@ export function BookContextMenu({
   canManageFile = false,
   showRenameFileAction = true,
 }: BookContextMenuProps) {
-  const menuRef = useRef<HTMLDetailsElement>(null);
+  const { closeDetails, detailsRef } = useDismissibleDetails();
   const showFileActions = canManageFile && !book.isFileMissing;
 
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        menuRef.current?.removeAttribute("open");
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && menuRef.current?.open) {
-        menuRef.current?.removeAttribute("open");
-        menuRef.current?.querySelector("summary")?.focus();
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
   function runAction(action: (book: Book) => void) {
-    menuRef.current?.removeAttribute("open");
+    closeDetails();
     action(book);
   }
 
   return (
     <details
-      ref={menuRef}
+      ref={detailsRef}
       className={getBookMenuClassName(placement)}
       onClick={(event) => event.stopPropagation()}
     >

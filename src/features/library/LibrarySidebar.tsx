@@ -10,9 +10,10 @@ import {
   Plus,
   Question,
 } from "@phosphor-icons/react";
-import { memo, useEffect, useRef } from "react";
+import { memo, useCallback } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
 import type { Folder } from "../../types/folder";
 import { archiveName } from "./archiveName";
@@ -57,37 +58,13 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onRevealFolder,
   canRevealFolders = false,
 }: LibrarySidebarProps) {
-  const archiveSwitcherRef = useRef<HTMLDetailsElement>(null);
+  const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
+    useDismissibleDetails();
 
-  useEffect(() => {
-    function closeArchiveSwitcher(event: KeyboardEvent | PointerEvent) {
-      const switcher = archiveSwitcherRef.current;
-      if (!switcher?.open) return;
-
-      if (
-        event instanceof PointerEvent &&
-        switcher.contains(event.target as Node)
-      ) {
-        return;
-      }
-
-      switcher.removeAttribute("open");
-      if (event instanceof KeyboardEvent && event.key === "Escape") {
-        switcher.querySelector("summary")?.focus();
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeArchiveSwitcher(event);
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("pointerdown", closeArchiveSwitcher);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("pointerdown", closeArchiveSwitcher);
-    };
-  }, []);
+  const changeArchive = useCallback(() => {
+    closeArchiveSwitcher();
+    onChangeArchive();
+  }, [closeArchiveSwitcher, onChangeArchive]);
 
   return (
     <aside className="sidebar">
@@ -186,13 +163,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               <span>{archiveName(archivePath)}</span>
               <Check aria-hidden="true" size={15} weight="bold" />
             </div>
-            <button
-              onClick={(event) => {
-                event.currentTarget.closest("details")?.removeAttribute("open");
-                onChangeArchive();
-              }}
-              type="button"
-            >
+            <button onClick={changeArchive} type="button">
               <FolderOpen aria-hidden="true" size={16} />
               Change archive
             </button>

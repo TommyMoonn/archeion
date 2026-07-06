@@ -88,7 +88,6 @@ const BookRow = memo(function BookRow({
         onDetails={onSelect}
         onMove={onMove}
         onRead={onRead}
-        onRenameFile={onRenameFile}
         onRevealFile={onRevealFile}
         onToggleFavorite={onToggleFavorite}
         placement="row"

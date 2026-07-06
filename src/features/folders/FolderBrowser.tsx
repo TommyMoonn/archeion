@@ -194,7 +194,6 @@ export function FolderBrowser({
                       folder={folder}
                       onDelete={onDelete}
                       onMove={onMove}
-                      onRename={onRename}
                       onReveal={onReveal}
                       showRename={false}
                       showReveal={canRevealFolders}

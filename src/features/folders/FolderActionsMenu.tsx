@@ -5,15 +5,14 @@ import {
   PencilSimple,
   Trash,
 } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
-
 import type { Folder } from "../../types/folder";
+import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
 type FolderActionsMenuProps = {
   folder: Folder;
   onDelete: (folder: Folder) => void;
   onMove: (folder: Folder) => void;
-  onRename: (folder: Folder) => void;
+  onRename?: (folder: Folder) => void;
   onReveal?: (folder: Folder) => void;
   showRename?: boolean;
   showReveal?: boolean;
@@ -28,39 +27,16 @@ export function FolderActionsMenu({
   showRename = true,
   showReveal = false,
 }: FolderActionsMenuProps) {
-  const menuRef = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        menuRef.current?.removeAttribute("open");
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && menuRef.current?.open) {
-        menuRef.current?.removeAttribute("open");
-        menuRef.current?.querySelector("summary")?.focus();
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
+  const { closeDetails, detailsRef } = useDismissibleDetails();
 
   function runAction(action: (folder: Folder) => void) {
-    menuRef.current?.removeAttribute("open");
+    closeDetails();
     action(folder);
   }
 
   return (
     <details
-      ref={menuRef}
+      ref={detailsRef}
       className="folder-menu"
       onClick={(event) => event.stopPropagation()}
     >
@@ -71,7 +47,7 @@ export function FolderActionsMenu({
         <DotsThree aria-hidden="true" size={18} weight="bold" />
       </summary>
       <div className="folder-menu__popover" role="menu">
-        {showRename ? (
+        {showRename && onRename ? (
           <button type="button" role="menuitem" onClick={() => runAction(onRename)}>
             <PencilSimple aria-hidden="true" size={16} weight="regular" />
             Rename
