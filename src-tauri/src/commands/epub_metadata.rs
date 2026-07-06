@@ -2,16 +2,16 @@ use std::{collections::HashMap, fs, io::Read, path::Path};
 
 use percent_encoding::percent_decode_str;
 use quick_xml::{events::Event, Reader};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use zip::ZipArchive;
 
 const CONTAINER_PATH: &str = "META-INF/container.xml";
 const CONTAINER_READ_LIMIT: u64 = 512 * 1024;
 const PACKAGE_READ_LIMIT: u64 = 4 * 1024 * 1024;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct EpubPackageMetadata {
+pub struct EpubPackageMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

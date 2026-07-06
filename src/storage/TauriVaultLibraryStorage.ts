@@ -1,11 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import { createBookIdentityIndex, resolveBookIdFromScan } from "./bookIdentity";
-import type {
-  Book,
-  EpubSourceMetadata,
-  UpdateBookInput,
-} from "../types/book";
+import type { Book, UpdateBookInput } from "../types/book";
 import type {
   CreateFolderInput,
   Folder,
@@ -19,8 +14,7 @@ import {
   type MetadataBundle,
   type SettingsMetadata,
 } from "./metadataFiles";
-import { reconcileById, shallowEqualRecords } from "../utils/reconcileById";
-import { normalizeSourceMetadata, sourceMetadataEqual } from "./sourceMetadata";
+import { reconcileLibraryState, type VaultScan } from "./reconcileLibraryState";
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
@@ -29,44 +23,6 @@ import type {
   StorageObserver,
   StorageSubscription,
 } from "./LibraryStorage";
-
-type ScannedBook = {
-  discoveryId: string;
-  relativePath: string;
-  fileName: string;
-  folderPath: string;
-  size: number;
-  modifiedAt: number;
-  sourceMetadata?: EpubSourceMetadata;
-};
-
-type ScannedFolder = {
-  id: string;
-  name: string;
-  relativePath: string;
-  parentPath: string | null;
-};
-
-type VaultScanWarning = {
-  relativePath: string;
-  message: string;
-};
-
-type VaultScan = {
-  books: ScannedBook[];
-  folders: ScannedFolder[];
-  warnings?: VaultScanWarning[];
-};
-
-function titleFromFileName(fileName: string) {
-  return (
-    fileName
-      .replace(/\.epub$/i, "")
-      .replaceAll(/[_-]+/g, " ")
-      .trim() || "Untitled"
-  );
-}
-
 
 function isInsideFolderPath(relativePath: string, folderPath: string): boolean {
   return (
@@ -91,6 +47,7 @@ function replacePathPrefix(
 
 export class TauriVaultLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
+  private missingBooks = new Map<string, Book>();
   private folders: Folder[] = [];
   private readerSettings = normalizeReaderSettings();
   private loaded = false;
@@ -123,131 +80,31 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         invoke<VaultScan>("scan_vault"),
         invoke<MetadataBundle>("load_vault_metadata"),
       ]);
-      this.libraryMetadata = metadata.library;
+      const reconciled = reconcileLibraryState({
+        previousBooks: this.books,
+        previousFolders: this.folders,
+        libraryMetadata: metadata.library,
+        progressMetadata: metadata.progress,
+        scan,
+        timestamp: new Date().toISOString(),
+      });
+
+      this.libraryMetadata = reconciled.libraryMetadata;
       this.progressMetadata = metadata.progress;
       this.settingsMetadata = metadata.settings;
       this.readerSettings = normalizeReaderSettings(metadata.settings.reader);
-      const folderIds = new Map(
-        scan.folders.map((folder) => [folder.relativePath, folder.id]),
-      );
-      const timestamp = new Date().toISOString();
-      const metadataWarningPaths = new Set(
-        scan.warnings?.map((warning) => warning.relativePath) ?? [],
-      );
-      let libraryChanged = false;
+      this.books = reconciled.books;
+      this.missingBooks = reconciled.missingBooks;
+      this.folders = reconciled.folders;
 
-      const nextFolders = scan.folders.map((folder) => ({
-        ...folder,
-        parentId: folder.parentPath
-          ? (folderIds.get(folder.parentPath) ?? null)
-          : null,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      }));
-      const identityIndex = createBookIdentityIndex(this.libraryMetadata.books);
-      const scannedBooks = scan.books.map((book) => {
-        const id = resolveBookIdFromScan(book, identityIndex);
-        const modifiedAt = new Date(book.modifiedAt).toISOString();
-        let libraryEntry = this.libraryMetadata.books[id];
-        const sourceMetadata = metadataWarningPaths.has(book.relativePath)
-          ? normalizeSourceMetadata(libraryEntry?.sourceMetadata)
-          : normalizeSourceMetadata(book.sourceMetadata);
-        if (!libraryEntry) {
-          libraryEntry = {
-            relativePath: book.relativePath,
-            isFavorite: false,
-            addedAt: modifiedAt,
-            updatedAt: modifiedAt,
-            sourceMetadata,
-          };
-          this.libraryMetadata.books[id] = libraryEntry;
-          libraryChanged = true;
-        } else if (
-          !sourceMetadataEqual(libraryEntry.sourceMetadata, sourceMetadata)
-        ) {
-          libraryEntry = {
-            ...libraryEntry,
-            sourceMetadata,
-            updatedAt: timestamp,
-          };
-          this.libraryMetadata.books[id] = libraryEntry;
-          libraryChanged = true;
-        }
-        const progress = this.progressMetadata.progress[id];
-
-        return {
-          id,
-          relativePath: book.relativePath,
-          fileName: book.fileName,
-          folderPath: book.folderPath,
-          size: book.size,
-          folderId: folderIds.get(book.folderPath) ?? null,
-          originalTitle: titleFromFileName(book.fileName),
-          originalAuthor: sourceMetadata?.creator,
-          sourceMetadata,
-          displayTitle: libraryEntry.displayTitle,
-          displayAuthor: libraryEntry.displayAuthor,
-          coverPath: libraryEntry.coverPath,
-          isFileMissing: false,
-          isFavorite: libraryEntry.isFavorite,
-          addedAt: libraryEntry.addedAt,
-          updatedAt: libraryEntry.updatedAt,
-          modifiedAt,
-          progressCfi: progress?.cfi,
-          progressPercent: progress?.percent,
-          lastOpenedAt: progress?.lastOpenedAt,
-        };
-      });
-      const scannedBookIds = new Set(scannedBooks.map((book) => book.id));
-      const missingBooks = Object.entries(this.libraryMetadata.books)
-        .filter(([id]) => !scannedBookIds.has(id))
-        .map(([id, libraryEntry]) => {
-          const fileName =
-            libraryEntry.relativePath.split("/").at(-1) ??
-            libraryEntry.relativePath;
-          const progress = this.progressMetadata.progress[id];
-
-          return {
-            id,
-            relativePath: libraryEntry.relativePath,
-            fileName,
-            originalTitle: titleFromFileName(fileName),
-            originalAuthor: libraryEntry.sourceMetadata?.creator,
-            sourceMetadata: libraryEntry.sourceMetadata,
-            displayTitle: libraryEntry.displayTitle,
-            displayAuthor: libraryEntry.displayAuthor,
-            coverPath: libraryEntry.coverPath,
-            isFileMissing: true,
-            folderId: null,
-            isFavorite: libraryEntry.isFavorite,
-            addedAt: libraryEntry.addedAt,
-            updatedAt: libraryEntry.updatedAt,
-            progressCfi: progress?.cfi,
-            progressPercent: progress?.percent,
-            lastOpenedAt: progress?.lastOpenedAt,
-          } satisfies Book;
-        });
-      const nextBooks = [...scannedBooks, ...missingBooks];
-      const reconciledBooks = reconcileById(
-        this.books,
-        nextBooks,
-        shallowEqualRecords,
-      );
-      const reconciledFolders = reconcileById(
-        this.folders,
-        nextFolders,
-        shallowEqualRecords,
-      );
-      this.books = reconciledBooks.items;
-      this.folders = reconciledFolders.items;
-      if (libraryChanged) {
+      if (reconciled.libraryChanged) {
         await invoke("save_library_metadata", {
           metadata: this.libraryMetadata,
         });
       }
       this.loaded = true;
-      if (!wasLoaded || reconciledBooks.changed) this.emitBooks();
-      if (!wasLoaded || reconciledFolders.changed) this.emitFolders();
+      if (!wasLoaded || reconciled.booksChanged) this.emitBooks();
+      if (!wasLoaded || reconciled.foldersChanged) this.emitFolders();
     } catch (error) {
       if (!this.loaded) {
         this.loaded = true;
@@ -388,10 +245,11 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     );
   }
 
-
   async getBook(id: string): Promise<Book | undefined> {
     await this.ensureLoaded();
-    return this.books.find((book) => book.id === id);
+    return (
+      this.books.find((book) => book.id === id) ?? this.missingBooks.get(id)
+    );
   }
 
   async loadBookFile(id: string): Promise<Blob> {
@@ -569,11 +427,15 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   async deleteBook(id: string): Promise<boolean> {
     await this.ensureLoaded();
     const index = this.books.findIndex((book) => book.id === id);
-    if (index < 0) {
+    const missingBook = this.missingBooks.get(id);
+    if (index < 0 && !missingBook) {
       return false;
     }
 
-    const book = this.books[index];
+    const book = index >= 0 ? this.books[index] : missingBook;
+    if (!book) {
+      return false;
+    }
     if (!book.isFileMissing) {
       if (!book.relativePath) {
         throw new Error("The selected EPUB file is unavailable.");
@@ -592,8 +454,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     }
 
     if (book.isFileMissing) {
-      this.books.splice(index, 1);
-      this.emitBooks();
+      this.missingBooks.delete(id);
     } else {
       await this.rescan();
     }

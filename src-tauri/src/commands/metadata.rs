@@ -8,7 +8,7 @@ use std::{
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::vault;
+use super::{epub_metadata, vault};
 
 const METADATA_DIRECTORY: &str = ".archeion";
 const LIBRARY_FILE: &str = "library.json";
@@ -28,6 +28,12 @@ pub struct LibraryBookMetadata {
     pub is_favorite: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cover_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_metadata: Option<epub_metadata::EpubPackageMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_size: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_modified_at: Option<u64>,
     pub added_at: String,
     pub updated_at: String,
 }

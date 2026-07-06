@@ -1,10 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Link,
   useLoaderData,
@@ -20,10 +15,7 @@ import {
   normalizeReaderSettings,
   type ReaderSettings,
 } from "../../types/reader";
-import {
-  EpubViewer,
-  type EpubViewerHandle,
-} from "./EpubViewer";
+import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
@@ -110,7 +102,7 @@ export function ReaderPage() {
   );
 
   const handleReady = useCallback(() => {
-    if (!book) {
+    if (!book || book.isFileMissing) {
       return;
     }
 
@@ -233,7 +225,7 @@ export function ReaderPage() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!book) {
+    if (!book || book.isFileMissing) {
       return;
     }
 
@@ -311,12 +303,12 @@ export function ReaderPage() {
     };
   }, [handleReaderKeyDown]);
 
-  if (!book) {
+  if (!book || book.isFileMissing) {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Book file missing</h1>
-        <p>This EPUB is no longer in the library folder.</p>
+        <p>This EPUB is no longer in the archive folder.</p>
         <Link className="text-link" to="/">
           Return to library
         </Link>
@@ -325,8 +317,7 @@ export function ReaderPage() {
   }
 
   const title = book.displayTitle ?? book.originalTitle;
-  const currentLoadedFile =
-    loadedFile?.bookId === book.id ? loadedFile : null;
+  const currentLoadedFile = loadedFile?.bookId === book.id ? loadedFile : null;
   const fileBlob = currentLoadedFile?.blob;
   const fileLoadFailed = currentLoadedFile?.failed ?? false;
   const isFileLoading = !fileBlob && !fileLoadFailed;

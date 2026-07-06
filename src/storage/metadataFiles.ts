@@ -1,8 +1,5 @@
 import type { EpubSourceMetadata } from "../types/book";
-import {
-  normalizeReaderSettings,
-  type ReaderSettings,
-} from "../types/reader";
+import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 
 export type LibraryBookMetadata = {
   relativePath: string;
@@ -11,6 +8,8 @@ export type LibraryBookMetadata = {
   isFavorite: boolean;
   coverPath?: string;
   sourceMetadata?: EpubSourceMetadata;
+  fileSize?: number;
+  fileModifiedAt?: number;
   addedAt: string;
   updatedAt: string;
 };
@@ -61,29 +60,6 @@ export function createSettingsMetadata(): SettingsMetadata {
     library: {
       viewMode: "grid",
       sortBy: "folder",
-    },
-  };
-}
-
-export function updateLibraryBookRelativePath(
-  metadata: LibraryMetadata,
-  bookId: string,
-  relativePath: string,
-  updatedAt: string,
-): LibraryMetadata {
-  const current = metadata.books[bookId];
-  if (!current) {
-    throw new Error(`Book metadata "${bookId}" was not found.`);
-  }
-  return {
-    ...metadata,
-    books: {
-      ...metadata.books,
-      [bookId]: {
-        ...current,
-        relativePath,
-        updatedAt,
-      },
     },
   };
 }

@@ -45,6 +45,8 @@ const metadata = {
         relativePath: "Author/Series/Volume_01.epub",
         displayTitle: "Custom Volume",
         isFavorite: true,
+        fileSize: 2048,
+        fileModifiedAt: 1_700_000_000_000,
         addedAt: "2023-11-01T00:00:00.000Z",
         updatedAt: "2023-11-02T00:00:00.000Z",
       },
@@ -234,7 +236,7 @@ describe("TauriVaultLibraryStorage", () => {
     });
   });
 
-  it("retains metadata for files missing during a rescan", async () => {
+  it("keeps missing file metadata recoverable without listing it as visible", async () => {
     const storage = new TauriVaultLibraryStorage();
     await storage.listBooks();
     invokeMock.mockImplementation(async (command) => {
@@ -249,13 +251,12 @@ describe("TauriVaultLibraryStorage", () => {
 
     await storage.rescan();
 
-    await expect(storage.listBooks()).resolves.toEqual([
-      expect.objectContaining({
-        id: "book-1",
-        isFileMissing: true,
-        relativePath: "Author/Series/Volume_01.epub",
-      }),
-    ]);
+    await expect(storage.listBooks()).resolves.toEqual([]);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      id: "book-1",
+      isFileMissing: true,
+      relativePath: "Author/Series/Volume_01.epub",
+    });
     await expect(storage.listFolders()).resolves.toEqual([]);
   });
 
@@ -287,7 +288,6 @@ describe("TauriVaultLibraryStorage", () => {
       }),
     );
   });
-
 
   it("renames a vault EPUB and preserves its sidecar metadata", async () => {
     let currentScan = structuredClone(firstScan);
@@ -322,7 +322,11 @@ describe("TauriVaultLibraryStorage", () => {
       if (command === "save_library_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as typeof currentMetadata & { metadata: typeof currentMetadata.library }).metadata,
+          library: (
+            args as typeof currentMetadata & {
+              metadata: typeof currentMetadata.library;
+            }
+          ).metadata,
         };
       }
       return undefined;
@@ -385,7 +389,8 @@ describe("TauriVaultLibraryStorage", () => {
       if (command === "save_library_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library }).metadata,
+          library: (args as { metadata: typeof currentMetadata.library })
+            .metadata,
         };
       }
       return undefined;
@@ -424,13 +429,15 @@ describe("TauriVaultLibraryStorage", () => {
       if (command === "save_library_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library }).metadata,
+          library: (args as { metadata: typeof currentMetadata.library })
+            .metadata,
         };
       }
       if (command === "save_progress_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          progress: (args as { metadata: typeof currentMetadata.progress }).metadata,
+          progress: (args as { metadata: typeof currentMetadata.progress })
+            .metadata,
         };
       }
       return undefined;
@@ -461,6 +468,18 @@ describe("TauriVaultLibraryStorage", () => {
     await storage.listBooks();
     const observer = vi.fn();
     const stop = storage.observeBooks({ next: observer });
+
+    await storage.rescan();
+
+    expect(observer).toHaveBeenCalledTimes(1);
+    stop();
+  });
+
+  it("does not notify folder observers when a rescan is unchanged", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listFolders();
+    const observer = vi.fn();
+    const stop = storage.observeFolders({ next: observer });
 
     await storage.rescan();
 
@@ -596,7 +615,9 @@ describe("TauriVaultLibraryStorage", () => {
     expect(first?.size).toBe(3);
     expect(second).toBe(first);
     expect(
-      invokeMock.mock.calls.filter(([command]) => command === "load_epub_cover"),
+      invokeMock.mock.calls.filter(
+        ([command]) => command === "load_epub_cover",
+      ),
     ).toHaveLength(1);
   });
 });
