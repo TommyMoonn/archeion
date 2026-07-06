@@ -103,7 +103,10 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       this.libraryMetadata = metadata.library;
       this.progressMetadata = metadata.progress;
       this.settingsMetadata = metadata.settings;
-      this.readerSettings = { ...metadata.settings.reader };
+      this.readerSettings = {
+        ...defaultReaderSettings,
+        ...metadata.settings.reader,
+      };
       const folderIds = new Map(
         scan.folders.map((folder) => [folder.relativePath, folder.id]),
       );
@@ -464,13 +467,13 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     await this.ensureLoaded();
     const metadata: SettingsMetadata = {
       ...this.settingsMetadata,
-      reader: { ...settings },
+      reader: { ...defaultReaderSettings, ...settings },
     };
     await this.enqueueMetadataWrite(() =>
       invoke("save_settings_metadata", { metadata }),
     );
     this.settingsMetadata = metadata;
-    this.readerSettings = { ...settings };
+    this.readerSettings = { ...defaultReaderSettings, ...settings };
     return { ...this.readerSettings };
   }
 

@@ -2,6 +2,8 @@ export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderFlowMode = "paginated" | "scrolled";
 
+export type ReaderProgressPlacement = "top" | "side";
+
 export type ReaderSettings = {
   fontSize: number;
   fontFamily: string;
@@ -9,6 +11,7 @@ export type ReaderSettings = {
   margin: number;
   theme: ReaderTheme;
   flowMode: ReaderFlowMode;
+  progressPlacement: ReaderProgressPlacement;
 };
 
 export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
@@ -18,4 +21,5 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   margin: 48,
   theme: "dark",
   flowMode: "paginated",
+  progressPlacement: "top",
 });

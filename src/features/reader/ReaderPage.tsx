@@ -19,7 +19,6 @@ import {
   defaultReaderSettings,
   type ReaderSettings,
 } from "../../types/reader";
-import { SettingsDialog } from "../settings/SettingsDialog";
 import {
   EpubViewer,
   type EpubViewerHandle,
@@ -62,7 +61,6 @@ export function ReaderPage() {
   const [settingsPersistenceFailed, setSettingsPersistenceFailed] =
     useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [appSettingsOpen, setAppSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [location, setLocation] = useState<ReaderLocation>({
     cfi: startFromBeginning ? "" : (book?.progressCfi ?? ""),
@@ -84,12 +82,12 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !appSettingsOpen) {
+    if (!settingsOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
     }
-  }, [appSettingsOpen, settingsOpen]);
+  }, [settingsOpen]);
 
   const openSettings = useCallback(() => {
     setControlsVisible(true);
@@ -208,9 +206,7 @@ export function ReaderPage() {
           event.preventDefault();
         }
 
-        if (appSettingsOpen) {
-          setAppSettingsOpen(false);
-        } else if (settingsOpen) {
+        if (settingsOpen) {
           setSettingsOpen(false);
         } else {
           void navigate("/");
@@ -261,7 +257,6 @@ export function ReaderPage() {
       movePrevious,
       navigate,
       openSettings,
-      appSettingsOpen,
       settings.flowMode,
       settingsOpen,
     ],
@@ -330,7 +325,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !appSettingsOpen) {
+    if (!settingsOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -341,7 +336,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [appSettingsOpen, settingsOpen]);
+  }, [settingsOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -407,23 +402,23 @@ export function ReaderPage() {
     >
       <div
         className="reader-controls"
-        data-visible={
-          controlsVisible || settingsOpen || appSettingsOpen || undefined
-        }
+        data-visible={controlsVisible || settingsOpen || undefined}
       >
         <ReaderToolbar
           atEnd={location.atEnd}
           atStart={location.atStart}
           onNext={moveNext}
           onPrevious={movePrevious}
-          onAppSettings={() => setAppSettingsOpen(true)}
           onSettings={openSettings}
           percentage={location.percentage}
           progressSaveFailed={progressSaveFailed}
           title={title}
         />
-        <ReaderProgressBar percentage={location.percentage} />
       </div>
+      <ReaderProgressBar
+        percentage={location.percentage}
+        placement={settings.progressPlacement}
+      />
 
       {error ? (
         <section className="reader-error" role="alert">
@@ -449,15 +444,17 @@ export function ReaderPage() {
       )}
 
       {settingsOpen ? (
-        <ReaderSettingsPanel
-          onChange={changeSettings}
-          onClose={() => setSettingsOpen(false)}
-          persistenceFailed={settingsPersistenceFailed}
-          settings={settings}
-        />
-      ) : null}
-      {appSettingsOpen ? (
-        <SettingsDialog onClose={() => setAppSettingsOpen(false)} />
+        <div
+          className="reader-settings-layer"
+          onClick={() => setSettingsOpen(false)}
+        >
+          <ReaderSettingsPanel
+            onChange={changeSettings}
+            onClose={() => setSettingsOpen(false)}
+            persistenceFailed={settingsPersistenceFailed}
+            settings={settings}
+          />
+        </div>
       ) : null}
     </main>
   );

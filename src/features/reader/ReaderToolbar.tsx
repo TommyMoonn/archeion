@@ -2,7 +2,6 @@ import {
   ArrowLeft,
   CaretLeft,
   CaretRight,
-  GearSix,
   TextAa,
 } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
@@ -14,7 +13,6 @@ type ReaderToolbarProps = {
   atStart: boolean;
   onNext: () => void;
   onPrevious: () => void;
-  onAppSettings: () => void;
   onSettings: () => void;
   percentage: number;
   progressSaveFailed: boolean;
@@ -26,7 +24,6 @@ export function ReaderToolbar({
   atStart,
   onNext,
   onPrevious,
-  onAppSettings,
   onSettings,
   percentage,
   progressSaveFailed,
@@ -36,11 +33,12 @@ export function ReaderToolbar({
     <header className="reader-toolbar">
       <Link
         aria-label="Return to library"
-        className="icon-button"
+        className="reader-toolbar__back"
         title="Return to library"
         to="/"
       >
-        <ArrowLeft aria-hidden="true" size={20} weight="regular" />
+        <ArrowLeft aria-hidden="true" size={18} weight="regular" />
+        <span>Library</span>
       </Link>
       <div className="reader-toolbar__identity">
         <p>{title}</p>
@@ -64,9 +62,6 @@ export function ReaderToolbar({
         <span className="reader-toolbar__divider" />
         <IconButton label="Reader settings" onClick={onSettings}>
           <TextAa aria-hidden="true" size={19} weight="regular" />
-        </IconButton>
-        <IconButton label="App settings" onClick={onAppSettings}>
-          <GearSix aria-hidden="true" size={19} weight="regular" />
         </IconButton>
       </div>
     </header>

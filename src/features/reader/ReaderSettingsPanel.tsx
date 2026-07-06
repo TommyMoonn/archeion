@@ -9,6 +9,7 @@ import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type {
   ReaderFlowMode,
+  ReaderProgressPlacement,
   ReaderSettings,
   ReaderTheme,
 } from "../../types/reader";
@@ -48,6 +49,14 @@ const margins = [
 const flowModes: Array<{ label: string; value: ReaderFlowMode }> = [
   { label: "Pages", value: "paginated" },
   { label: "Scroll", value: "scrolled" },
+];
+
+const progressPlacements: Array<{
+  label: string;
+  value: ReaderProgressPlacement;
+}> = [
+  { label: "Top", value: "top" },
+  { label: "Side", value: "side" },
 ];
 
 export function ReaderSettingsPanel({
@@ -163,6 +172,17 @@ export function ReaderSettingsPanel({
           onChange={(flowMode) => update({ flowMode })}
           options={flowModes}
           value={settings.flowMode}
+        />
+      </div>
+
+      <div className="reader-setting">
+        <span className="reader-setting__label">Progress bar</span>
+        <SegmentedControl
+          className="reader-control"
+          label="Reader progress bar placement"
+          onChange={(progressPlacement) => update({ progressPlacement })}
+          options={progressPlacements}
+          value={settings.progressPlacement}
         />
       </div>
 
