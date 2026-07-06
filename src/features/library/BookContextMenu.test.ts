@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { getBookMenuClassName } from "./bookContextMenuPlacement";
 
-const styles = readFileSync(new URL("../../styles.css", import.meta.url), "utf8");
+const styles = readFileSync(new URL("../../styles/features/library.css", import.meta.url), "utf8");
 
 function cssBlock(selector: string): string {
   const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

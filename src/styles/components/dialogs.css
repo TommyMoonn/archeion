@@ -1,0 +1,52 @@
+.dialog {
+  width: min(430px, calc(100% - 32px));
+  max-width: none;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 30px 90px rgb(4 6 10 / 48%);
+}
+
+.dialog::backdrop {
+  background: rgb(6 7 9 / 72%);
+  backdrop-filter: blur(3px);
+}
+
+.dialog__panel {
+  padding: 26px;
+}
+
+.dialog__copy h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+.dialog__copy p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 9px;
+  margin-top: 25px;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.dialog__footer > .button--ghost:first-child {
+  margin-right: auto;
+}

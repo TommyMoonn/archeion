@@ -1,0 +1,353 @@
+.settings-dialog {
+  width: min(1040px, calc(100% - 48px));
+  height: min(760px, calc(100% - 48px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.settings-dialog::backdrop {
+  background: rgb(5 5 6 / 68%);
+  backdrop-filter: blur(5px);
+}
+
+.settings-window {
+  position: relative;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--canvas);
+  box-shadow: 0 28px 90px rgb(0 0 0 / 52%);
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 34px;
+  min-height: 0;
+  padding: 28px 22px;
+  border-right: 1px solid var(--line);
+  background: var(--canvas-deep);
+}
+
+.settings-sidebar > div p,
+.settings-sidebar > div h1 {
+  margin: 0;
+}
+
+.settings-sidebar > div p {
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.settings-sidebar > div h1 {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 400;
+}
+
+.settings-sidebar nav {
+  display: grid;
+  gap: 3px;
+}
+
+.settings-sidebar nav button {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: transparent;
+  font-size: 13px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.settings-sidebar nav button:hover,
+.settings-sidebar nav button:focus-visible {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.settings-sidebar nav button[aria-current="page"] {
+  color: var(--text-strong);
+  background: var(--surface-raised);
+}
+
+.settings-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  padding: 52px clamp(32px, 7vw, 96px) 90px;
+}
+
+.settings-close {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 16px;
+  background: var(--canvas);
+}
+
+.settings-section {
+  width: min(100%, 760px);
+  padding-top: 8px;
+  margin: 0 auto;
+  scroll-margin-top: 32px;
+}
+
+.settings-section > header {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.settings-section h2 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 15px;
+  font-weight: 650;
+}
+
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  min-height: 68px;
+  padding: 13px 0;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-row > div:first-child,
+.settings-row > span,
+.settings-row > div:first-child > div {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-row strong,
+.settings-row legend {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-row span,
+.settings-row small,
+.settings-row code {
+  color: var(--muted);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.settings-row code {
+  overflow: hidden;
+  max-width: 54ch;
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-row legend {
+  padding: 0;
+}
+
+.settings-row select {
+  min-width: 150px;
+  min-height: 36px;
+  padding: 0 34px 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: var(--surface);
+  font-size: 12px;
+}
+
+.settings-row input[type="range"] {
+  width: 180px;
+  accent-color: var(--accent);
+}
+
+.settings-row input[type="checkbox"] {
+  width: 34px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.settings-status {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  padding: 9px 12px;
+  margin: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: var(--surface-raised);
+  font-size: 11px;
+}
+
+.about-dialog {
+  width: min(390px, calc(100% - 40px));
+  max-width: none;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  background: transparent;
+}
+
+.about-dialog::backdrop {
+  background: rgb(5 5 6 / 68%);
+  backdrop-filter: blur(5px);
+}
+
+.about-window {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 17px;
+  padding: 27px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: var(--canvas);
+  box-shadow: 0 24px 74px rgb(0 0 0 / 52%);
+}
+
+.about-window__close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.about-window > svg {
+  margin-top: 2px;
+  color: var(--accent);
+}
+
+.about-window > div {
+  display: grid;
+  gap: 2px;
+}
+
+.about-window p,
+.about-window h1,
+.about-window span {
+  margin: 0;
+}
+
+.about-window > div p {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.about-window h1 {
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 400;
+}
+
+.about-window span,
+.about-window > p {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.about-window > p {
+  grid-column: 1 / -1;
+  padding-top: 15px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-row__meta {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.settings-row__control {
+  display: flex;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.settings-row__control .app-select {
+  width: 188px;
+}
+
+.settings-row__control .segmented-control {
+  min-width: 188px;
+}
+
+.settings-row__control input[type="range"] {
+  width: min(220px, 28vw);
+}
+
+.settings-row__meta code {
+  display: inline-block;
+  overflow: hidden;
+  max-width: min(54ch, 46vw);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 820px) {
+  .settings-window {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+
+  .settings-sidebar {
+    padding-inline: 16px;
+  }
+
+  .settings-content {
+    padding-inline: 28px;
+  }
+
+  .settings-row {
+    gap: 16px;
+  }
+
+  .settings-row input[type="range"] {
+    width: 140px;
+  }
+}
+
+@media (max-width: 760px) {
+  .settings-row__control {
+    justify-content: stretch;
+  }
+
+  .settings-row__control .app-select,
+  .settings-row__control .segmented-control,
+  .settings-row__control input[type="range"] {
+    width: 100%;
+  }
+}

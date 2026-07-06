@@ -1,0 +1,85 @@
+.input-shell {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: min(260px, 28vw);
+  min-height: 40px;
+  padding: 0 13px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  background: var(--surface);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease;
+}
+
+.input-shell:focus-within {
+  border-color: var(--accent-border);
+  background: var(--surface-raised);
+}
+
+.input-shell:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.input-shell input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font-size: 13px;
+}
+
+.input-shell input::placeholder {
+  color: var(--muted);
+}
+
+select {
+  color-scheme: dark;
+}
+
+.form-field {
+  display: grid;
+  gap: 7px;
+}
+
+.form-field > span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.form-field input,
+.form-field select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  outline: 0;
+  color: var(--text);
+  background: var(--canvas-deep);
+  font-size: 13px;
+}
+
+.form-field input::placeholder {
+  color: var(--muted-soft);
+}
+
+.form-field input:focus,
+.form-field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.form-error {
+  margin: 0;
+  color: #e58a96;
+  font-size: 12px;
+  line-height: 1.45;
+}
