@@ -586,7 +586,7 @@ html[data-card-size="large"] .book-grid {
   gap: 16px;
   width: 100%;
   min-height: 74px;
-  padding: 9px 88px 9px 10px;
+  padding: 9px 124px 9px 10px;
   border: 0;
   color: inherit;
   background: transparent;
@@ -638,12 +638,20 @@ html[data-card-size="large"] .book-grid {
   white-space: nowrap;
 }
 
+.book-row__rename,
 .book-row__favorite {
   position: absolute;
   top: 50%;
-  right: 45px;
   color: var(--muted);
   transform: translateY(-50%);
+}
+
+.book-row__rename {
+  right: 78px;
+}
+
+.book-row__favorite {
+  right: 45px;
 }
 
 .book-row__favorite[data-active] {

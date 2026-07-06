@@ -29,10 +29,13 @@ type LibrarySidebarProps = {
   onChangeArchive: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
+  onMoveFolder: (folder: Folder) => void;
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
   onRenameFolder: (folder: Folder) => void;
+  onRevealFolder?: (folder: Folder) => void;
+  canRevealFolders?: boolean;
 };
 
 export const LibrarySidebar = memo(function LibrarySidebar({
@@ -46,10 +49,13 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onChangeArchive,
   onCreateFolder,
   onDeleteFolder,
+  onMoveFolder,
   onLocationChange,
   onOpenAbout,
   onOpenSettings,
   onRenameFolder,
+  onRevealFolder,
+  canRevealFolders = false,
 }: LibrarySidebarProps) {
   const archiveSwitcherRef = useRef<HTMLDetailsElement>(null);
 
@@ -155,8 +161,11 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             folders={folders}
             location={location}
             onDelete={onDeleteFolder}
+            onMove={onMoveFolder}
             onRename={onRenameFolder}
+            onReveal={onRevealFolder}
             showActions={canManageFolders}
+            showReveal={canRevealFolders}
             onSelect={(folder) =>
               onLocationChange({ type: "folder", folderId: folder.id })
             }

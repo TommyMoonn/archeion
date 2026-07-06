@@ -1,7 +1,12 @@
 use std::{
     fs,
     path::{Component, Path, PathBuf},
+    process::Command,
 };
+
+use serde::Serialize;
+
+use super::vault;
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const RESERVED_ITEM_NAME_CHARS: [char; 9] = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
@@ -143,6 +148,355 @@ pub(crate) fn resolve_existing_epub_path(
         return Err("The selected EPUB file is unavailable.".to_string());
     }
     Ok(resolved)
+}
+
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchivePathChange {
+    old_relative_path: String,
+    new_relative_path: String,
+}
+
+fn vault_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    vault::read_vault_path(app)?
+        .map(PathBuf::from)
+        .ok_or_else(|| "No library folder has been selected.".to_string())
+}
+
+fn canonical_root(root: &Path) -> Result<PathBuf, String> {
+    fs::canonicalize(root).map_err(|_| "The saved library folder is unavailable.".to_string())
+}
+
+fn resolve_existing_folder_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
+    let normalized = normalize_archive_relative_path(relative_path)?;
+    let canonical_root = canonical_root(root)?;
+    let resolved = fs::canonicalize(canonical_root.join(normalized))
+        .map_err(|_| "The selected folder is unavailable.".to_string())?;
+
+    if !resolved.starts_with(&canonical_root) || !resolved.is_dir() {
+        return Err("The selected folder is unavailable.".to_string());
+    }
+
+    Ok(resolved)
+}
+
+fn resolve_destination_parent(
+    root: &Path,
+    relative_path: Option<&str>,
+) -> Result<(PathBuf, String), String> {
+    let canonical_root = canonical_root(root)?;
+    let Some(relative_path) = relative_path.filter(|path| !path.trim().is_empty()) else {
+        return Ok((canonical_root, String::new()));
+    };
+    let normalized = normalize_archive_relative_path(relative_path)?;
+    let parent = fs::canonicalize(canonical_root.join(&normalized))
+        .map_err(|_| "The destination folder is unavailable.".to_string())?;
+
+    if !parent.starts_with(&canonical_root) || !parent.is_dir() {
+        return Err("The destination folder is unavailable.".to_string());
+    }
+
+    Ok((parent, normalized))
+}
+
+fn join_archive_path(parent_path: &str, item_name: &str) -> String {
+    if parent_path.is_empty() {
+        item_name.to_string()
+    } else {
+        format!("{parent_path}/{item_name}")
+    }
+}
+
+fn destination_available(source: &Path, destination: &Path) -> Result<bool, String> {
+    if !destination.exists() {
+        return Ok(true);
+    }
+
+    let destination = fs::canonicalize(destination).map_err(|error| error.to_string())?;
+    Ok(destination == source)
+}
+
+fn rename_archive_path(source: &Path, destination: &Path) -> Result<(), String> {
+    if source == destination {
+        return Ok(());
+    }
+
+    fs::rename(source, destination).map_err(|error| error.to_string())
+}
+
+fn path_change(root: &Path, old_path: &Path, new_path: &Path) -> Result<ArchivePathChange, String> {
+    Ok(ArchivePathChange {
+        old_relative_path: path_relative_to(root, old_path)?,
+        new_relative_path: path_relative_to(root, new_path)?,
+    })
+}
+
+#[cfg(target_os = "windows")]
+fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
+    let method = if is_directory { "DeleteDirectory" } else { "DeleteFile" };
+    let path = path.to_string_lossy();
+    let script = format!(
+        "Add-Type -AssemblyName Microsoft.VisualBasic\n[Microsoft.VisualBasic.FileIO.FileSystem]::{method}(@'\n{path}\n'@, 'OnlyErrorDialogs', 'SendToRecycleBin')"
+    );
+    let status = Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .status()
+        .map_err(|error| error.to_string())?;
+
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(|| "The item could not be moved to the recycle bin.".to_string())
+}
+
+#[cfg(target_os = "macos")]
+fn trash_with_platform(path: &Path, _is_directory: bool) -> Result<(), String> {
+    let escaped = path.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\"");
+    let script = format!("tell application \"Finder\" to delete POSIX file \"{escaped}\"");
+    let status = Command::new("osascript")
+        .args(["-e", &script])
+        .status()
+        .map_err(|error| error.to_string())?;
+
+    status
+        .success()
+        .then_some(())
+        .ok_or_else(|| "The item could not be moved to Trash.".to_string())
+}
+
+#[cfg(all(unix, not(target_os = "macos")))]
+fn trash_with_platform(path: &Path, _is_directory: bool) -> Result<(), String> {
+    let gio = Command::new("gio").arg("trash").arg(path).status();
+    if gio.is_ok_and(|status| status.success()) {
+        return Ok(());
+    }
+
+    for command_name in ["kioclient5", "kioclient"] {
+        let status = Command::new(command_name)
+            .arg("move")
+            .arg(path)
+            .arg("trash:/")
+            .status();
+        if status.is_ok_and(|status| status.success()) {
+            return Ok(());
+        }
+    }
+
+    Err("The item could not be moved to Trash.".to_string())
+}
+
+fn delete_archive_item(path: &Path, is_directory: bool) -> Result<(), String> {
+    match trash_with_platform(path, is_directory) {
+        Ok(()) => Ok(()),
+        Err(_) if is_directory => fs::remove_dir_all(path).map_err(|error| error.to_string()),
+        Err(_) => fs::remove_file(path).map_err(|error| error.to_string()),
+    }
+}
+
+fn open_folder(path: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    let mut command = Command::new("explorer");
+    #[cfg(target_os = "macos")]
+    let mut command = Command::new("open");
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let mut command = Command::new("xdg-open");
+
+    command
+        .arg(path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+pub(crate) fn create_archive_folder_at(
+    root: &Path,
+    parent_relative_path: Option<&str>,
+    name: &str,
+) -> Result<String, String> {
+    let (parent, parent_path) = resolve_destination_parent(root, parent_relative_path)?;
+    let folder_name = validate_archive_item_name(name)?;
+    let destination = parent.join(&folder_name);
+
+    if destination.exists() {
+        return Err("An item with this name already exists.".to_string());
+    }
+
+    fs::create_dir(&destination).map_err(|error| error.to_string())?;
+    Ok(join_archive_path(&parent_path, &folder_name))
+}
+
+pub(crate) fn rename_archive_epub_at(
+    root: &Path,
+    relative_path: &str,
+    new_file_name: &str,
+) -> Result<ArchivePathChange, String> {
+    let canonical_root = canonical_root(root)?;
+    let source = resolve_existing_epub_path(&canonical_root, relative_path)?;
+    let file_name = validate_epub_file_name(new_file_name)?;
+    let parent = source
+        .parent()
+        .ok_or_else(|| "The EPUB folder is unavailable.".to_string())?;
+    let destination = parent.join(file_name);
+
+    if !destination_available(&source, &destination)? {
+        return Err("An item with this name already exists.".to_string());
+    }
+
+    let change = path_change(&canonical_root, &source, &destination)?;
+    rename_archive_path(&source, &destination)?;
+    Ok(change)
+}
+
+pub(crate) fn move_archive_epub_at(
+    root: &Path,
+    relative_path: &str,
+    destination_folder_path: Option<&str>,
+) -> Result<ArchivePathChange, String> {
+    let canonical_root = canonical_root(root)?;
+    let source = resolve_existing_epub_path(&canonical_root, relative_path)?;
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "The selected EPUB file is unavailable.".to_string())?;
+    let (destination_parent, _) = resolve_destination_parent(&canonical_root, destination_folder_path)?;
+    let destination = destination_parent.join(file_name);
+
+    if !destination_available(&source, &destination)? {
+        return Err("An EPUB with this name already exists in the destination folder.".to_string());
+    }
+
+    let change = path_change(&canonical_root, &source, &destination)?;
+    rename_archive_path(&source, &destination)?;
+    Ok(change)
+}
+
+pub(crate) fn rename_archive_folder_at(
+    root: &Path,
+    relative_path: &str,
+    new_name: &str,
+) -> Result<ArchivePathChange, String> {
+    let canonical_root = canonical_root(root)?;
+    let source = resolve_existing_folder_path(&canonical_root, relative_path)?;
+    let folder_name = validate_archive_item_name(new_name)?;
+    let parent = source
+        .parent()
+        .ok_or_else(|| "The selected folder is unavailable.".to_string())?;
+    let destination = parent.join(folder_name);
+
+    if !destination_available(&source, &destination)? {
+        return Err("An item with this name already exists.".to_string());
+    }
+
+    let change = path_change(&canonical_root, &source, &destination)?;
+    rename_archive_path(&source, &destination)?;
+    Ok(change)
+}
+
+pub(crate) fn move_archive_folder_at(
+    root: &Path,
+    relative_path: &str,
+    destination_parent_path: Option<&str>,
+) -> Result<ArchivePathChange, String> {
+    let canonical_root = canonical_root(root)?;
+    let source = resolve_existing_folder_path(&canonical_root, relative_path)?;
+    let (destination_parent, _) = resolve_destination_parent(&canonical_root, destination_parent_path)?;
+
+    if destination_parent == source || destination_parent.starts_with(&source) {
+        return Err("A folder cannot be moved into itself.".to_string());
+    }
+
+    let folder_name = source
+        .file_name()
+        .ok_or_else(|| "The selected folder is unavailable.".to_string())?;
+    let destination = destination_parent.join(folder_name);
+
+    if !destination_available(&source, &destination)? {
+        return Err("A folder with this name already exists in the destination folder.".to_string());
+    }
+
+    let change = path_change(&canonical_root, &source, &destination)?;
+    rename_archive_path(&source, &destination)?;
+    Ok(change)
+}
+
+pub(crate) fn delete_archive_epub_at(root: &Path, relative_path: &str) -> Result<(), String> {
+    let canonical_root = canonical_root(root)?;
+    let path = resolve_existing_epub_path(&canonical_root, relative_path)?;
+    delete_archive_item(&path, false)
+}
+
+pub(crate) fn delete_archive_folder_at(root: &Path, relative_path: &str) -> Result<(), String> {
+    let canonical_root = canonical_root(root)?;
+    let path = resolve_existing_folder_path(&canonical_root, relative_path)?;
+    delete_archive_item(&path, true)
+}
+
+#[tauri::command]
+pub fn create_vault_folder(
+    app: tauri::AppHandle,
+    parent_relative_path: Option<String>,
+    name: String,
+) -> Result<String, String> {
+    let root = vault_root(&app)?;
+    create_archive_folder_at(&root, parent_relative_path.as_deref(), &name)
+}
+
+#[tauri::command]
+pub fn rename_vault_epub_file(
+    app: tauri::AppHandle,
+    relative_path: String,
+    new_file_name: String,
+) -> Result<ArchivePathChange, String> {
+    let root = vault_root(&app)?;
+    rename_archive_epub_at(&root, &relative_path, &new_file_name)
+}
+
+#[tauri::command]
+pub fn move_vault_epub_file(
+    app: tauri::AppHandle,
+    relative_path: String,
+    destination_folder_path: Option<String>,
+) -> Result<ArchivePathChange, String> {
+    let root = vault_root(&app)?;
+    move_archive_epub_at(&root, &relative_path, destination_folder_path.as_deref())
+}
+
+#[tauri::command]
+pub fn rename_vault_folder(
+    app: tauri::AppHandle,
+    relative_path: String,
+    new_name: String,
+) -> Result<ArchivePathChange, String> {
+    let root = vault_root(&app)?;
+    rename_archive_folder_at(&root, &relative_path, &new_name)
+}
+
+#[tauri::command]
+pub fn move_vault_folder(
+    app: tauri::AppHandle,
+    relative_path: String,
+    destination_parent_path: Option<String>,
+) -> Result<ArchivePathChange, String> {
+    let root = vault_root(&app)?;
+    move_archive_folder_at(&root, &relative_path, destination_parent_path.as_deref())
+}
+
+#[tauri::command]
+pub fn delete_vault_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
+    let root = vault_root(&app)?;
+    delete_archive_epub_at(&root, &relative_path)
+}
+
+#[tauri::command]
+pub fn delete_vault_folder(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
+    let root = vault_root(&app)?;
+    delete_archive_folder_at(&root, &relative_path)
+}
+
+#[tauri::command]
+pub fn reveal_vault_folder(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
+    let root = vault_root(&app)?;
+    let path = resolve_existing_folder_path(&root, &relative_path)?;
+    open_folder(&path)
 }
 
 #[cfg(test)]

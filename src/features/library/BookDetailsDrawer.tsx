@@ -7,6 +7,7 @@ import {
   FolderOpen,
   Heart,
   PencilSimple,
+  ArrowRight,
   Trash,
   User,
   WarningCircle,
@@ -27,10 +28,13 @@ type BookDetailsDrawerProps = {
   onRead: (book: Book) => void;
   onReadFromBeginning: (book: Book) => void;
   onClearProgress: (book: Book) => void;
+  onMoveFile: (book: Book) => void;
+  onRenameFile: (book: Book) => void;
   onRevealFile: (book: Book) => void;
   onRescan: () => void;
   onEdit: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  canDeleteBook?: boolean;
   canManageFile?: boolean;
   canRevealFile?: boolean;
 };
@@ -60,11 +64,14 @@ export function BookDetailsDrawer({
   onRead,
   onReadFromBeginning,
   onClearProgress,
+  onMoveFile,
+  onRenameFile,
   onRevealFile,
   onRescan,
   onEdit,
   onToggleFavorite,
-  canManageFile = true,
+  canDeleteBook = true,
+  canManageFile = false,
   canRevealFile = false,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -187,6 +194,24 @@ export function BookDetailsDrawer({
                 >
                   {book.isFavorite ? "Unfavorite" : "Favorite"}
                 </Button>
+                {canManageFile ? (
+                  <>
+                    <Button
+                      icon={<PencilSimple aria-hidden="true" size={16} />}
+                      onClick={() => onRenameFile(book)}
+                      variant="ghost"
+                    >
+                      Rename file
+                    </Button>
+                    <Button
+                      icon={<ArrowRight aria-hidden="true" size={16} />}
+                      onClick={() => onMoveFile(book)}
+                      variant="ghost"
+                    >
+                      Move
+                    </Button>
+                  </>
+                ) : null}
                 {canRevealFile ? (
                   <Button
                     className="details-actions__wide"
@@ -266,7 +291,7 @@ export function BookDetailsDrawer({
           </dl>
         </div>
 
-        {canManageFile && !book.isFileMissing ? (
+        {canDeleteBook && !book.isFileMissing ? (
           <footer className="details-drawer__footer">
             <Button
               variant="danger"

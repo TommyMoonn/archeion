@@ -1,4 +1,4 @@
-import { Heart } from "@phosphor-icons/react";
+import { Heart, PencilSimple } from "@phosphor-icons/react";
 import { memo } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -10,10 +10,14 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 type BookListProps = {
   books: Book[];
   onDelete: (book: Book) => void;
+  onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
+  onRenameFile?: (book: Book) => void;
+  onRevealFile?: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
   canDelete?: boolean;
+  canManageFile?: boolean;
 };
 
 function formatDate(value: string): string {
@@ -29,10 +33,14 @@ type BookRowProps = Omit<BookListProps, "books"> & {
 const BookRow = memo(function BookRow({
   book,
   onDelete,
+  onMove,
   onRead,
+  onRenameFile,
+  onRevealFile,
   onSelect,
   onToggleFavorite,
   canDelete = true,
+  canManageFile = false,
 }: BookRowProps) {
   return (
     <article className="book-row">
@@ -49,6 +57,15 @@ const BookRow = memo(function BookRow({
         <span className="book-row__file">{book.fileName}</span>
         <span className="book-row__date">{formatDate(book.addedAt)}</span>
       </button>
+      {canManageFile && !book.isFileMissing && onRenameFile ? (
+        <IconButton
+          className="book-row__rename"
+          label={`Rename file for ${bookTitle(book)}`}
+          onClick={() => onRenameFile(book)}
+        >
+          <PencilSimple aria-hidden="true" size={17} weight="regular" />
+        </IconButton>
+      ) : null}
       <IconButton
         className="book-row__favorite"
         data-active={book.isFavorite || undefined}
@@ -69,10 +86,15 @@ const BookRow = memo(function BookRow({
         book={book}
         onDelete={onDelete}
         onDetails={onSelect}
+        onMove={onMove}
         onRead={onRead}
+        onRenameFile={onRenameFile}
+        onRevealFile={onRevealFile}
         onToggleFavorite={onToggleFavorite}
         placement="row"
         canDelete={canDelete}
+        canManageFile={canManageFile}
+        showRenameFileAction={false}
       />
     </article>
   );

@@ -79,6 +79,18 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
     return this.books.update(id, changes);
   }
 
+  renameBookFile(_id: string, _fileName: string) {
+    void _id;
+    void _fileName;
+    return Promise.reject(
+      new Error("This operation is only available for filesystem libraries."),
+    );
+  }
+
+  moveBookToFolder(id: string, folderId: string | null) {
+    return this.books.update(id, { folderId });
+  }
+
   deleteBook(id: string) {
     return this.books.remove(id);
   }
@@ -106,6 +118,13 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
 
   updateFolder(id: string, changes: UpdateFolderInput) {
     return this.folders.update(id, changes);
+  }
+
+  revealFolder(_id: string) {
+    void _id;
+    return Promise.reject(
+      new Error("This operation is only available for filesystem libraries."),
+    );
   }
 
   deleteFolder(id: string) {

@@ -56,6 +56,16 @@ const AddEpubDialog = lazy(() =>
     default: module.AddEpubDialog,
   })),
 );
+const MoveToFolderDialog = lazy(() =>
+  import("../filesystem/MoveToFolderDialog").then((module) => ({
+    default: module.MoveToFolderDialog,
+  })),
+);
+const RenameFileDialog = lazy(() =>
+  import("../filesystem/RenameFileDialog").then((module) => ({
+    default: module.RenameFileDialog,
+  })),
+);
 const AboutDialog = lazy(() =>
   import("../settings/AboutDialog").then((module) => ({
     default: module.AboutDialog,
@@ -89,6 +99,20 @@ const SettingsDialog = lazy(() =>
 
 type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
+function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
+  if (!relativePath || !folder.relativePath) {
+    return false;
+  }
+  return (
+    relativePath === folder.relativePath ||
+    relativePath.startsWith(`${folder.relativePath}/`)
+  );
+}
+
+function bookLabel(book: Book): string {
+  return book.displayTitle?.trim() || book.originalTitle;
+}
+
 export function LibraryPage() {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
@@ -121,12 +145,17 @@ export function LibraryPage() {
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] =
     useState<Folder | null>(null);
+  const [moveFolderTarget, setMoveFolderTarget] =
+    useState<Folder | null>(null);
   const [deleteFolderTarget, setDeleteFolderTarget] =
     useState<Folder | null>(null);
+  const [renameFileTarget, setRenameFileTarget] = useState<Book | null>(null);
+  const [moveBookTarget, setMoveBookTarget] = useState<Book | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
+  const isFilesystemLibrary = storage.source === "vault";
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -285,6 +314,16 @@ export function LibraryPage() {
     setMetadataEditBookId(book.id);
   }, []);
 
+  const requestRenameFile = useCallback((book: Book) => {
+    setSelectedBookId(null);
+    setRenameFileTarget(book);
+  }, []);
+
+  const requestMoveBook = useCallback((book: Book) => {
+    setSelectedBookId(null);
+    setMoveBookTarget(book);
+  }, []);
+
   function closeMetadataEdit() {
     const bookId = metadataEditBookId;
     setMetadataEditBookId(null);
@@ -403,8 +442,29 @@ export function LibraryPage() {
     }
   }
 
+  async function renameBookFile(fileName: string) {
+    if (!renameFileTarget) {
+      return;
+    }
+
+    setLibraryError(null);
+    await storage.renameBookFile(renameFileTarget.id, fileName);
+  }
+
+  async function moveBook(folderId: string | null) {
+    if (!moveBookTarget) {
+      return;
+    }
+
+    setLibraryError(null);
+    await storage.moveBookToFolder(moveBookTarget.id, folderId);
+  }
+
   async function createFolder(name: string) {
-    await storage.createFolder({ name, parentId: null });
+    await storage.createFolder({
+      name,
+      parentId: location.type === "folder" ? location.folderId : null,
+    });
   }
 
   async function renameFolder(name: string) {
@@ -413,6 +473,23 @@ export function LibraryPage() {
     }
 
     await storage.updateFolder(renameFolderTarget.id, { name });
+  }
+
+  async function moveFolder(folderId: string | null) {
+    if (!moveFolderTarget) {
+      return;
+    }
+
+    await storage.updateFolder(moveFolderTarget.id, { parentId: folderId });
+  }
+
+  async function revealFolder(folder: Folder) {
+    setLibraryError(null);
+    try {
+      await storage.revealFolder(folder.id);
+    } catch {
+      setLibraryError("The folder could not be revealed.");
+    }
   }
 
   async function confirmDeleteFolder() {
@@ -428,7 +505,8 @@ export function LibraryPage() {
 
       if (
         location.type === "folder" &&
-        location.folderId === deleteFolderTarget.id
+        (location.folderId === deleteFolderTarget.id ||
+          isInsideFolder(currentFolder?.relativePath, deleteFolderTarget))
       ) {
         setLocation({ type: "library" });
       }
@@ -492,6 +570,19 @@ export function LibraryPage() {
         .filter(Boolean)
         .join(" ")
     : "";
+  const moveFolderExcludedIds = moveFolderTarget
+    ? (folders ?? [])
+        .filter((folder) =>
+          folder.id === moveFolderTarget.id ||
+          isInsideFolder(folder.relativePath, moveFolderTarget),
+        )
+        .map((folder) => folder.id)
+    : [];
+  const deleteFolderBookCount = deleteFolderTarget
+    ? (books ?? []).filter((book) =>
+        isInsideFolder(book.relativePath, deleteFolderTarget),
+      ).length
+    : 0;
 
   return (
     <PageShell
@@ -503,14 +594,17 @@ export function LibraryPage() {
           folders={folders ?? []}
           location={location}
           archivePath={vault.status === "ready" ? vault.path : ""}
-          canManageFolders={storage.source !== "vault"}
+          canManageFolders
+          canRevealFolders={isFilesystemLibrary}
           onChangeArchive={openChangeArchive}
           onCreateFolder={openCreateFolder}
           onDeleteFolder={setDeleteFolderTarget}
+          onMoveFolder={setMoveFolderTarget}
           onLocationChange={changeLocation}
           onOpenAbout={openAbout}
           onOpenSettings={openSettings}
           onRenameFolder={setRenameFolderTarget}
+          onRevealFolder={(folder) => void revealFolder(folder)}
         />
       }
     >
@@ -521,10 +615,17 @@ export function LibraryPage() {
         {location.type === "folders" ? (
           <FolderBrowser
             bookCounts={bookCountsByFolder}
+            canManageFolders
+            canRevealFolders={isFilesystemLibrary}
             folders={folders ?? []}
+            onCreate={openCreateFolder}
+            onDelete={setDeleteFolderTarget}
+            onMove={setMoveFolderTarget}
             onOpen={(folder) =>
               changeLocation({ type: "folder", folderId: folder.id })
             }
+            onRename={setRenameFolderTarget}
+            onReveal={(folder) => void revealFolder(folder)}
           />
         ) : (
           <>
@@ -661,18 +762,24 @@ export function LibraryPage() {
           ) : view === "grid" ? (
             <BookGrid
               books={visibleBooks}
-              canDelete={storage.source !== "vault"}
+              canManageFile={isFilesystemLibrary}
               onDelete={requestDelete}
+              onMove={requestMoveBook}
               onRead={readBook}
+              onRenameFile={requestRenameFile}
+              onRevealFile={(book) => void revealBookFile(book)}
               onSelect={selectBook}
               onToggleFavorite={toggleFavorite}
             />
           ) : (
             <BookList
               books={visibleBooks}
-              canDelete={storage.source !== "vault"}
+              canManageFile={isFilesystemLibrary}
               onDelete={requestDelete}
+              onMove={requestMoveBook}
               onRead={readBook}
+              onRenameFile={requestRenameFile}
+              onRevealFile={(book) => void revealBookFile(book)}
               onSelect={selectBook}
               onToggleFavorite={toggleFavorite}
             />
@@ -698,14 +805,16 @@ export function LibraryPage() {
         <Suspense fallback={null}>
         <BookDetailsDrawer
           book={selectedBook}
-          canManageFile={storage.source !== "vault"}
-          canRevealFile={storage.source === "vault"}
+          canManageFile={isFilesystemLibrary}
+          canRevealFile={isFilesystemLibrary}
           onClose={closeDetails}
           onClearProgress={requestClearProgress}
           onDelete={requestDelete}
           onEdit={openMetadataEdit}
+          onMoveFile={requestMoveBook}
           onRead={readBook}
           onReadFromBeginning={readBookFromBeginning}
+          onRenameFile={requestRenameFile}
           onRevealFile={(book) => void revealBookFile(book)}
           onRescan={() => {
             setSelectedBookId(null);
@@ -722,6 +831,28 @@ export function LibraryPage() {
             book={metadataEditBook}
             onClose={closeMetadataEdit}
             onSave={saveBook}
+          />
+        </Suspense>
+      ) : null}
+
+      {renameFileTarget ? (
+        <Suspense fallback={null}>
+          <RenameFileDialog
+            book={renameFileTarget}
+            onClose={() => setRenameFileTarget(null)}
+            onRename={renameBookFile}
+          />
+        </Suspense>
+      ) : null}
+
+      {moveBookTarget ? (
+        <Suspense fallback={null}>
+          <MoveToFolderDialog
+            currentFolderId={moveBookTarget.folderId ?? null}
+            folders={folders ?? []}
+            onClose={() => setMoveBookTarget(null)}
+            onMove={moveBook}
+            title="Move EPUB file"
           />
         </Suspense>
       ) : null}
@@ -756,6 +887,19 @@ export function LibraryPage() {
         </Suspense>
       ) : null}
 
+      {moveFolderTarget ? (
+        <Suspense fallback={null}>
+          <MoveToFolderDialog
+            currentFolderId={moveFolderTarget.parentId ?? null}
+            excludedFolderIds={moveFolderExcludedIds}
+            folders={folders ?? []}
+            onClose={() => setMoveFolderTarget(null)}
+            onMove={moveFolder}
+            title="Move folder"
+          />
+        </Suspense>
+      ) : null}
+
       {deleteTarget ? (
         <Dialog
           title={
@@ -765,8 +909,10 @@ export function LibraryPage() {
           }
           description={
             deleteTarget.isFileMissing
-              ? `Favorites, progress, and display metadata for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” will be removed. No EPUB file will be deleted.`
-              : `The stored EPUB for “${deleteTarget.displayTitle ?? deleteTarget.originalTitle}” and its reading data will be permanently deleted from this device.`
+              ? `Favorites, progress, and display metadata for “${bookLabel(deleteTarget)}” will be removed. No EPUB file will be deleted.`
+              : isFilesystemLibrary
+                ? `The EPUB file for “${bookLabel(deleteTarget)}” will be moved to Trash when available. Reading data will be removed.`
+                : `The stored EPUB for “${bookLabel(deleteTarget)}” and its reading data will be removed.`
           }
           onClose={() => {
             if (!isDeleting) {
@@ -883,7 +1029,13 @@ export function LibraryPage() {
       {deleteFolderTarget ? (
         <Dialog
           title="Delete this folder?"
-          description={`The “${deleteFolderTarget.name}” folder record will be removed. Its EPUB files will remain in Library.`}
+          description={
+            isFilesystemLibrary
+              ? `The “${deleteFolderTarget.name}” folder and ${deleteFolderBookCount} contained EPUB ${
+                  deleteFolderBookCount === 1 ? "file" : "files"
+                } will be moved to Trash when available.`
+              : `The “${deleteFolderTarget.name}” folder record will be removed. Its EPUB files will remain in Library.`
+          }
           onClose={() => {
             if (!isDeleting) {
               setDeleteFolderTarget(null);

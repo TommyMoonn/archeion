@@ -32,6 +32,7 @@ import {
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
+  ArchivePathChange,
   LibraryStorage,
   StorageObserver,
   StorageSubscription,
@@ -69,6 +70,25 @@ function titleFromFileName(fileName: string) {
 
 function unavailable() {
   return new Error("This operation is not available for filesystem libraries.");
+}
+
+function isInsideFolderPath(relativePath: string, folderPath: string): boolean {
+  return relativePath === folderPath || relativePath.startsWith(`${folderPath}/`);
+}
+
+function replacePathPrefix(
+  relativePath: string,
+  oldPrefix: string,
+  newPrefix: string,
+): string {
+  if (relativePath === oldPrefix) {
+    return newPrefix;
+  }
+  if (!relativePath.startsWith(`${oldPrefix}/`)) {
+    return relativePath;
+  }
+  const suffix = relativePath.slice(oldPrefix.length + 1);
+  return newPrefix ? `${newPrefix}/${suffix}` : suffix;
 }
 
 export class TauriVaultLibraryStorage implements LibraryStorage {
@@ -259,6 +279,99 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return results;
   }
 
+  private async saveLibraryMetadata() {
+    const metadata = structuredClone(this.libraryMetadata);
+    await this.enqueueMetadataWrite(() =>
+      invoke("save_library_metadata", { metadata }),
+    );
+  }
+
+  private async saveLibraryAndProgressMetadata() {
+    const library = structuredClone(this.libraryMetadata);
+    const progress = structuredClone(this.progressMetadata);
+    await this.enqueueMetadataWrite(async () => {
+      await invoke("save_library_metadata", { metadata: library });
+      await invoke("save_progress_metadata", { metadata: progress });
+    });
+  }
+
+  private requireBook(id: string): Book {
+    const book = this.books.find((candidate) => candidate.id === id);
+    if (!book) {
+      throw new Error(`Book "${id}" was not found.`);
+    }
+    return book;
+  }
+
+  private requireFolder(id: string): Folder & { relativePath: string } {
+    const folder = this.folders.find((candidate) => candidate.id === id);
+    if (!folder?.relativePath) {
+      throw new Error(`Folder "${id}" was not found.`);
+    }
+    return folder as Folder & { relativePath: string };
+  }
+
+  private updateBookMetadataPath(
+    id: string,
+    relativePath: string,
+    timestamp: string,
+  ) {
+    const current = this.libraryMetadata.books[id];
+    if (!current) {
+      throw new Error(`Book metadata "${id}" was not found.`);
+    }
+    this.libraryMetadata.books[id] = {
+      ...current,
+      relativePath,
+      updatedAt: timestamp,
+    };
+  }
+
+  private updateMetadataPathPrefix(
+    oldRelativePath: string,
+    newRelativePath: string,
+    timestamp: string,
+  ) {
+    for (const [id, entry] of Object.entries(this.libraryMetadata.books)) {
+      if (!isInsideFolderPath(entry.relativePath, oldRelativePath)) {
+        continue;
+      }
+      this.libraryMetadata.books[id] = {
+        ...entry,
+        relativePath: replacePathPrefix(
+          entry.relativePath,
+          oldRelativePath,
+          newRelativePath,
+        ),
+        updatedAt: timestamp,
+      };
+    }
+  }
+
+  private async applyBookPathChange(id: string, change: ArchivePathChange) {
+    this.updateBookMetadataPath(
+      id,
+      change.newRelativePath,
+      new Date().toISOString(),
+    );
+    await this.saveLibraryMetadata();
+    await this.rescan();
+    return this.getBook(id);
+  }
+
+  private async applyFolderPathChange(change: ArchivePathChange) {
+    this.updateMetadataPathPrefix(
+      change.oldRelativePath,
+      change.newRelativePath,
+      new Date().toISOString(),
+    );
+    await this.saveLibraryMetadata();
+    await this.rescan();
+    return this.folders.find(
+      (folder) => folder.relativePath === change.newRelativePath,
+    );
+  }
+
   createBook(_input: CreateBookInput): Promise<Book> {
     void _input;
     return Promise.reject(unavailable());
@@ -402,30 +515,75 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return this.books[index];
   }
 
+  async renameBookFile(
+    id: string,
+    fileName: string,
+  ): Promise<Book | undefined> {
+    await this.ensureLoaded();
+    const book = this.requireBook(id);
+    if (!book.relativePath || book.isFileMissing) {
+      throw new Error("The selected EPUB file is unavailable.");
+    }
+
+    const change = await invoke<ArchivePathChange>("rename_vault_epub_file", {
+      relativePath: book.relativePath,
+      newFileName: fileName,
+    });
+
+    return this.applyBookPathChange(id, change);
+  }
+
+  async moveBookToFolder(
+    id: string,
+    folderId: string | null,
+  ): Promise<Book | undefined> {
+    await this.ensureLoaded();
+    const book = this.requireBook(id);
+    if (!book.relativePath || book.isFileMissing) {
+      throw new Error("The selected EPUB file is unavailable.");
+    }
+
+    const destinationFolderPath = folderId
+      ? this.requireFolder(folderId).relativePath
+      : undefined;
+    const change = await invoke<ArchivePathChange>("move_vault_epub_file", {
+      relativePath: book.relativePath,
+      destinationFolderPath,
+    });
+
+    return this.applyBookPathChange(id, change);
+  }
+
   async deleteBook(id: string): Promise<boolean> {
     await this.ensureLoaded();
     const index = this.books.findIndex((book) => book.id === id);
     if (index < 0) {
       return false;
     }
-    if (!this.books[index].isFileMissing) {
-      throw unavailable();
+
+    const book = this.books[index];
+    if (!book.isFileMissing) {
+      if (!book.relativePath) {
+        throw new Error("The selected EPUB file is unavailable.");
+      }
+      await invoke("delete_vault_epub_file", { relativePath: book.relativePath });
     }
 
     delete this.libraryMetadata.books[id];
     delete this.progressMetadata.progress[id];
-    const library = structuredClone(this.libraryMetadata);
-    const progress = structuredClone(this.progressMetadata);
-    await this.enqueueMetadataWrite(async () => {
-      await invoke("save_library_metadata", { metadata: library });
-      await invoke("save_progress_metadata", { metadata: progress });
-    });
+    await this.saveLibraryAndProgressMetadata();
 
-    this.books.splice(index, 1);
     for (const key of this.coverPromises.keys()) {
       if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
     }
-    this.emitBooks();
+
+    if (book.isFileMissing) {
+      this.books.splice(index, 1);
+      this.emitBooks();
+    } else {
+      await this.rescan();
+    }
+
     return true;
   }
 
@@ -439,9 +597,24 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return () => this.bookObservers.delete(observer);
   }
 
-  createFolder(_input: CreateFolderInput): Promise<Folder> {
-    void _input;
-    return Promise.reject(unavailable());
+  async createFolder(input: CreateFolderInput): Promise<Folder> {
+    await this.ensureLoaded();
+    const parentRelativePath = input.parentId
+      ? this.requireFolder(input.parentId).relativePath
+      : undefined;
+    const relativePath = await invoke<string>("create_vault_folder", {
+      parentRelativePath,
+      name: input.name,
+    });
+
+    await this.rescan();
+    const folder = this.folders.find(
+      (candidate) => candidate.relativePath === relativePath,
+    );
+    if (!folder) {
+      throw new Error("The new folder could not be found after rescan.");
+    }
+    return folder;
   }
 
   async getFolder(id: string): Promise<Folder | undefined> {
@@ -454,18 +627,70 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return [...this.folders];
   }
 
-  updateFolder(
-    _id: string,
-    _changes: UpdateFolderInput,
+  async updateFolder(
+    id: string,
+    changes: UpdateFolderInput,
   ): Promise<Folder | undefined> {
-    void _id;
-    void _changes;
-    return Promise.reject(unavailable());
+    await this.ensureLoaded();
+    const folder = this.requireFolder(id);
+    const changesParent = Object.hasOwn(changes, "parentId");
+    const changesName = Object.hasOwn(changes, "name");
+
+    if (changesParent && changesName) {
+      throw new Error("Rename and move folders as separate operations.");
+    }
+
+    if (changesName) {
+      const newName = changes.name;
+      if (!newName) {
+        throw new Error("Folder name is required.");
+      }
+      const change = await invoke<ArchivePathChange>("rename_vault_folder", {
+        relativePath: folder.relativePath,
+        newName,
+      });
+      return this.applyFolderPathChange(change);
+    }
+
+    if (changesParent) {
+      const destinationParentPath = changes.parentId
+        ? this.requireFolder(changes.parentId).relativePath
+        : undefined;
+      const change = await invoke<ArchivePathChange>("move_vault_folder", {
+        relativePath: folder.relativePath,
+        destinationParentPath,
+      });
+      return this.applyFolderPathChange(change);
+    }
+
+    return folder;
   }
 
-  deleteFolder(_id: string): Promise<boolean> {
-    void _id;
-    return Promise.reject(unavailable());
+  async revealFolder(id: string): Promise<void> {
+    await this.ensureLoaded();
+    const folder = this.requireFolder(id);
+    await invoke("reveal_vault_folder", { relativePath: folder.relativePath });
+  }
+
+  async deleteFolder(id: string): Promise<boolean> {
+    await this.ensureLoaded();
+    const index = this.folders.findIndex((folder) => folder.id === id);
+    if (index < 0) {
+      return false;
+    }
+
+    const folder = this.requireFolder(id);
+    await invoke("delete_vault_folder", { relativePath: folder.relativePath });
+
+    for (const [bookId, entry] of Object.entries(this.libraryMetadata.books)) {
+      if (isInsideFolderPath(entry.relativePath, folder.relativePath)) {
+        delete this.libraryMetadata.books[bookId];
+        delete this.progressMetadata.progress[bookId];
+      }
+    }
+    await this.saveLibraryAndProgressMetadata();
+    await this.rescan();
+    return true;
   }
 
   observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription {

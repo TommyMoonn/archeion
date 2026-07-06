@@ -22,6 +22,11 @@ export type StorageSubscription = () => void;
 
 export type ArchiveImportMode = "copy" | "move";
 
+export type ArchivePathChange = {
+  oldRelativePath: string;
+  newRelativePath: string;
+};
+
 export type AddArchiveEpubInput = {
   conflictAction: ArchiveImportConflictAction;
   destinationFolderPath?: string;
@@ -48,6 +53,8 @@ export interface LibraryStorage {
   loadBookFile(id: string): Promise<Blob>;
   listBooks(): Promise<Book[]>;
   updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined>;
+  renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
+  moveBookToFolder(id: string, folderId: string | null): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
@@ -58,6 +65,7 @@ export interface LibraryStorage {
     id: string,
     changes: UpdateFolderInput,
   ): Promise<Folder | undefined>;
+  revealFolder(id: string): Promise<void>;
   deleteFolder(id: string): Promise<boolean>;
   observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription;
 

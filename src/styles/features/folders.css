@@ -78,19 +78,14 @@
   color: var(--muted);
   cursor: pointer;
   list-style: none;
-  opacity: 0;
 }
 
 .folder-menu summary::-webkit-details-marker {
   display: none;
 }
 
-.folder-tree__row:hover .folder-menu summary,
 .folder-menu[open] summary,
-.folder-menu summary:focus-visible {
-  opacity: 1;
-}
-
+.folder-menu summary:focus-visible,
 .folder-menu summary:hover {
   color: var(--text);
   background: var(--surface-raised);
@@ -189,13 +184,27 @@
 }
 
 .folder-browser__item {
+  position: relative;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.folder-browser__item:has(.folder-menu[open]) {
+  z-index: 3;
+}
+
+.folder-browser__items--list .folder-browser__item {
+  border-bottom: 1px solid var(--line);
+}
+
+.folder-browser__open {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
   width: 100%;
   border: 0;
-  color: var(--muted);
+  color: inherit;
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -205,30 +214,30 @@
     border-color 150ms ease;
 }
 
-.folder-browser__items--list .folder-browser__item {
+.folder-browser__items--list .folder-browser__open {
   min-height: 58px;
-  padding: 0 10px;
-  border-bottom: 1px solid var(--line);
+  padding: 0 88px 0 10px;
 }
 
-.folder-browser__items--cards .folder-browser__item {
+.folder-browser__items--cards .folder-browser__open {
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 116px;
   align-content: start;
-  padding: 17px;
+  padding: 17px 82px 17px 17px;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: rgb(255 255 255 / 1.8%);
 }
 
-.folder-browser__item:hover,
-.folder-browser__item:focus-visible {
+.folder-browser__open:hover,
+.folder-browser__open:focus-visible {
   color: var(--text);
   background: var(--surface);
 }
 
-.folder-browser__items--cards .folder-browser__item:hover,
-.folder-browser__items--cards .folder-browser__item:focus-visible {
+.folder-browser__items--cards .folder-browser__open:hover,
+.folder-browser__items--cards .folder-browser__open:focus-visible,
+.folder-browser__item:has(.folder-menu[open]) .folder-browser__open {
   border-color: var(--line-strong);
   background: var(--surface);
 }
@@ -279,6 +288,33 @@
   align-self: end;
   justify-self: start;
   margin-top: 16px;
+}
+
+.folder-browser__item-actions {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transform: translateY(-50%);
+}
+
+.folder-browser__items--cards .folder-browser__item-actions {
+  top: 9px;
+  right: 9px;
+  transform: none;
+}
+
+.folder-browser__item-actions .folder-menu {
+  position: static;
+}
+
+
+.folder-browser__item-actions .folder-menu__popover {
+  top: 34px;
+  right: 0;
 }
 
 .folder-view-toggle.segmented-control {
@@ -343,8 +379,3 @@
   }
 }
 
-@media (hover: none) {
-  .folder-menu summary {
-    opacity: 1;
-  }
-}

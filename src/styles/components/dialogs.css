@@ -14,6 +14,11 @@
   backdrop-filter: blur(3px);
 }
 
+.dialog:has(.app-select__menu),
+.dialog:has(.app-select__menu) .dialog__panel {
+  overflow: visible;
+}
+
 .dialog__panel {
   padding: 26px;
 }

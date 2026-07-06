@@ -98,3 +98,85 @@
   align-items: center;
   gap: 6px;
 }
+
+.move-to-folder-dialog {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.move-to-folder-dialog .app-select,
+.move-to-folder-dialog .app-select__trigger {
+  width: 100%;
+}
+
+.move-to-folder-dialog .app-select__trigger {
+  justify-content: space-between;
+}
+
+.move-to-folder-dialog .app-select__menu {
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.move-to-folder-dialog__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.epub-filename-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: var(--canvas-deep);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.epub-filename-field:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.epub-filename-field input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.epub-filename-field input:focus,
+.epub-filename-field input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.epub-filename-field__extension {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  padding: 0 11px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  background: rgb(214 211 217 / 4%);
+  font-size: 13px;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.epub-filename-field:focus-within .epub-filename-field__extension {
+  border-left-color: var(--accent-border);
+  color: var(--text);
+}

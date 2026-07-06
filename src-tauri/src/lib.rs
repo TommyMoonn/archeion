@@ -6,6 +6,14 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::archive_import::add_epub_files_to_vault,
+            commands::filesystem::create_vault_folder,
+            commands::filesystem::delete_vault_epub_file,
+            commands::filesystem::delete_vault_folder,
+            commands::filesystem::move_vault_epub_file,
+            commands::filesystem::move_vault_folder,
+            commands::filesystem::rename_vault_epub_file,
+            commands::filesystem::rename_vault_folder,
+            commands::filesystem::reveal_vault_folder,
             commands::epub::read_epub_file,
             commands::epub::reveal_epub_file,
             commands::epub::load_epub_cover,

@@ -1,11 +1,5 @@
+import { Folder as FolderIcon } from "@phosphor-icons/react";
 import {
-  DotsThree,
-  Folder as FolderIcon,
-  PencilSimple,
-  Trash,
-} from "@phosphor-icons/react";
-import {
-  useEffect,
   useMemo,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -17,89 +11,34 @@ import {
   buildFolderTree,
   type FolderTreeNode,
 } from "./folderTreeUtils";
+import { FolderActionsMenu } from "./FolderActionsMenu";
 
 type FolderTreeProps = {
   folders: Folder[];
   location: LibraryLocation;
   onDelete: (folder: Folder) => void;
+  onMove: (folder: Folder) => void;
   onRename: (folder: Folder) => void;
+  onReveal?: (folder: Folder) => void;
   onSelect: (folder: Folder) => void;
   showActions?: boolean;
+  showReveal?: boolean;
 };
 
 type FolderNodeProps = Omit<FolderTreeProps, "folders"> & {
   folder: FolderTreeNode;
 };
 
-function FolderMenu({
-  folder,
-  onDelete,
-  onRename,
-}: Pick<FolderNodeProps, "folder" | "onDelete" | "onRename">) {
-  const menuRef = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!menuRef.current?.contains(event.target as Node)) {
-        menuRef.current?.removeAttribute("open");
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && menuRef.current?.open) {
-        menuRef.current?.removeAttribute("open");
-        menuRef.current?.querySelector("summary")?.focus();
-      }
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  function runAction(action: (folder: Folder) => void) {
-    menuRef.current?.removeAttribute("open");
-    action(folder);
-  }
-
-  return (
-    <details ref={menuRef} className="folder-menu">
-      <summary
-        aria-label={`Actions for ${folder.name}`}
-        title={`Actions for ${folder.name}`}
-      >
-        <DotsThree aria-hidden="true" size={18} weight="bold" />
-      </summary>
-      <div className="folder-menu__popover" role="menu">
-        <button type="button" role="menuitem" onClick={() => runAction(onRename)}>
-          <PencilSimple aria-hidden="true" size={16} weight="regular" />
-          Rename
-        </button>
-        <button
-          className="folder-menu__danger"
-          type="button"
-          role="menuitem"
-          onClick={() => runAction(onDelete)}
-        >
-          <Trash aria-hidden="true" size={16} weight="regular" />
-          Delete
-        </button>
-      </div>
-    </details>
-  );
-}
-
 function FolderNode({
   folder,
   location,
   onDelete,
+  onMove,
   onRename,
+  onReveal,
   onSelect,
   showActions = true,
+  showReveal = false,
 }: FolderNodeProps) {
   const isSelected =
     location.type === "folder" && location.folderId === folder.id;
@@ -125,10 +64,13 @@ function FolderNode({
           <span>{folder.name}</span>
         </button>
         {showActions ? (
-          <FolderMenu
+          <FolderActionsMenu
             folder={folder}
             onDelete={onDelete}
+            onMove={onMove}
             onRename={onRename}
+            onReveal={onReveal}
+            showReveal={showReveal}
           />
         ) : null}
       </div>
@@ -140,9 +82,12 @@ function FolderNode({
               key={child.id}
               location={location}
               onDelete={onDelete}
+              onMove={onMove}
               onRename={onRename}
+              onReveal={onReveal}
               onSelect={onSelect}
               showActions={showActions}
+              showReveal={showReveal}
             />
           ))}
         </ul>
@@ -155,9 +100,12 @@ export function FolderTree({
   folders,
   location,
   onDelete,
+  onMove,
   onRename,
+  onReveal,
   onSelect,
   showActions = true,
+  showReveal = false,
 }: FolderTreeProps) {
   const tree = useMemo(() => buildFolderTree(folders), [folders]);
   const treeRef = useRef<HTMLUListElement>(null);
@@ -221,9 +169,12 @@ export function FolderTree({
           key={folder.id}
           location={location}
           onDelete={onDelete}
+          onMove={onMove}
           onRename={onRename}
+          onReveal={onReveal}
           onSelect={onSelect}
           showActions={showActions}
+          showReveal={showReveal}
         />
       ))}
     </ul>

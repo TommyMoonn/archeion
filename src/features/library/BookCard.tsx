@@ -10,19 +10,27 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 type BookCardProps = {
   book: Book;
   onDelete: (book: Book) => void;
+  onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
+  onRenameFile?: (book: Book) => void;
+  onRevealFile?: (book: Book) => void;
   onSelect: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
   canDelete?: boolean;
+  canManageFile?: boolean;
 };
 
 export const BookCard = memo(function BookCard({
   book,
   onDelete,
+  onMove,
   onRead,
+  onRenameFile,
+  onRevealFile,
   onSelect,
   onToggleFavorite,
   canDelete = true,
+  canManageFile = false,
 }: BookCardProps) {
   return (
     <article className="book-card">
@@ -58,10 +66,14 @@ export const BookCard = memo(function BookCard({
         book={book}
         onDelete={onDelete}
         onDetails={onSelect}
+        onMove={onMove}
         onRead={onRead}
+        onRenameFile={onRenameFile}
+        onRevealFile={onRevealFile}
         onToggleFavorite={onToggleFavorite}
         placement="card"
         canDelete={canDelete}
+        canManageFile={canManageFile}
       />
     </article>
   );
