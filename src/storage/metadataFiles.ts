@@ -62,3 +62,26 @@ export function createSettingsMetadata(): SettingsMetadata {
     },
   };
 }
+
+export function updateLibraryBookRelativePath(
+  metadata: LibraryMetadata,
+  bookId: string,
+  relativePath: string,
+  updatedAt: string,
+): LibraryMetadata {
+  const current = metadata.books[bookId];
+  if (!current) {
+    throw new Error(`Book metadata "${bookId}" was not found.`);
+  }
+  return {
+    ...metadata,
+    books: {
+      ...metadata.books,
+      [bookId]: {
+        ...current,
+        relativePath,
+        updatedAt,
+      },
+    },
+  };
+}

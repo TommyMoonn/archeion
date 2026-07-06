@@ -6,12 +6,12 @@ use std::{
 
 use serde::Serialize;
 
-use super::vault;
+use super::{filesystem, vault};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannedBook {
-    id: String,
+    discovery_id: String,
     relative_path: String,
     file_name: String,
     folder_path: String,
@@ -35,16 +35,7 @@ pub struct VaultScan {
     folders: Vec<ScannedFolder>,
 }
 
-fn path_relative_to(root: &Path, path: &Path) -> Result<String, String> {
-    let relative = path.strip_prefix(root).map_err(|error| error.to_string())?;
-    Ok(relative
-        .components()
-        .map(|component| component.as_os_str().to_string_lossy())
-        .collect::<Vec<_>>()
-        .join("/"))
-}
-
-fn stable_id(relative_path: &str, size: u64, modified_at: u64) -> String {
+fn discovery_id(relative_path: &str, size: u64, modified_at: u64) -> String {
     let identity = format!("{relative_path}\0{size}\0{modified_at}");
     let hash = identity
         .as_bytes()
@@ -69,16 +60,16 @@ fn scan_directory(
         let path = entry.path();
 
         if file_type.is_dir() {
-            if entry.file_name() == ".archeion" {
+            if entry.file_name() == filesystem::METADATA_DIRECTORY {
                 continue;
             }
 
-            let relative_path = path_relative_to(root, &path)?;
+            let relative_path = filesystem::path_relative_to(root, &path)?;
             let name = entry.file_name().to_string_lossy().into_owned();
             let parent_path = path
                 .parent()
                 .filter(|parent| *parent != root)
-                .map(|parent| path_relative_to(root, parent))
+                .map(|parent| filesystem::path_relative_to(root, parent))
                 .transpose()?;
 
             folders.push(ScannedFolder {
@@ -91,11 +82,8 @@ fn scan_directory(
             continue;
         }
 
-        let is_epub = path
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"));
-        if !file_type.is_file() || !is_epub {
+        let file_name = entry.file_name().to_string_lossy().into_owned();
+        if !file_type.is_file() || filesystem::validate_epub_file_name(&file_name).is_err() {
             continue;
         }
 
@@ -106,18 +94,18 @@ fn scan_directory(
             .and_then(|time| time.duration_since(UNIX_EPOCH).ok())
             .map(|duration| duration.as_millis().min(u128::from(u64::MAX)) as u64)
             .unwrap_or_default();
-        let relative_path = path_relative_to(root, &path)?;
+        let relative_path = filesystem::path_relative_to(root, &path)?;
         let folder_path = path
             .parent()
-            .map(|parent| path_relative_to(root, parent))
+            .map(|parent| filesystem::path_relative_to(root, parent))
             .transpose()?
             .unwrap_or_default();
         let size = metadata.len();
 
         books.push(ScannedBook {
-            id: stable_id(&relative_path, size, modified_at),
+            discovery_id: discovery_id(&relative_path, size, modified_at),
             relative_path,
-            file_name: entry.file_name().to_string_lossy().into_owned(),
+            file_name,
             folder_path,
             size,
             modified_at,

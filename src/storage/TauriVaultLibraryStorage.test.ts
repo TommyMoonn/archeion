@@ -26,7 +26,7 @@ const firstScan = {
   ],
   books: [
     {
-      id: "book-1",
+      discoveryId: "book-1",
       relativePath: "Author/Series/Volume_01.epub",
       fileName: "Volume_01.epub",
       folderPath: "Author/Series",
@@ -111,6 +111,71 @@ describe("TauriVaultLibraryStorage", () => {
     expect(folders[1]).toMatchObject({
       id: "folder:Author/Series",
       parentId: "folder:Author",
+    });
+  });
+
+  it("keeps the metadata book id when a known relative path is scanned again", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return {
+          ...firstScan,
+          books: [
+            {
+              ...firstScan.books[0],
+              discoveryId: "book-different-discovery-id",
+            },
+          ],
+        };
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const books = await storage.listBooks();
+
+    expect(books[0]).toMatchObject({
+      id: "book-1",
+      relativePath: "Author/Series/Volume_01.epub",
+      isFavorite: true,
+    });
+  });
+
+  it("preserves the book id after metadata points to an app-controlled moved path", async () => {
+    const movedMetadata = structuredClone(metadata);
+    movedMetadata.library.books["book-1"].relativePath =
+      "Author/Series/Renamed.epub";
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return {
+          ...firstScan,
+          books: [
+            {
+              ...firstScan.books[0],
+              discoveryId: "book-renamed-discovery-id",
+              relativePath: "Author/Series/Renamed.epub",
+              fileName: "Renamed.epub",
+            },
+          ],
+        };
+      }
+      if (command === "load_vault_metadata") {
+        return movedMetadata;
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+
+    const books = await storage.listBooks();
+
+    expect(books).toHaveLength(1);
+    expect(books[0]).toMatchObject({
+      id: "book-1",
+      relativePath: "Author/Series/Renamed.epub",
+      fileName: "Renamed.epub",
+      isFileMissing: false,
     });
   });
 

@@ -1,5 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 
+import {
+  createBookIdentityIndex,
+  resolveBookIdFromScan,
+} from "./bookIdentity";
 import type {
   Book,
   CreateBookInput,
@@ -32,7 +36,7 @@ import type {
 } from "./LibraryStorage";
 
 type ScannedBook = {
-  id: string;
+  discoveryId: string;
   relativePath: string;
   fileName: string;
   folderPath: string;
@@ -118,10 +122,11 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         createdAt: timestamp,
         updatedAt: timestamp,
       }));
-      const scannedBookIds = new Set(scan.books.map((book) => book.id));
+      const identityIndex = createBookIdentityIndex(this.libraryMetadata.books);
       const scannedBooks = scan.books.map((book) => {
+        const id = resolveBookIdFromScan(book, identityIndex);
         const modifiedAt = new Date(book.modifiedAt).toISOString();
-        let libraryEntry = this.libraryMetadata.books[book.id];
+        let libraryEntry = this.libraryMetadata.books[id];
         if (!libraryEntry) {
           libraryEntry = {
             relativePath: book.relativePath,
@@ -129,13 +134,17 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
             addedAt: modifiedAt,
             updatedAt: modifiedAt,
           };
-          this.libraryMetadata.books[book.id] = libraryEntry;
+          this.libraryMetadata.books[id] = libraryEntry;
           libraryChanged = true;
         }
-        const progress = this.progressMetadata.progress[book.id];
+        const progress = this.progressMetadata.progress[id];
 
         return {
-          ...book,
+          id,
+          relativePath: book.relativePath,
+          fileName: book.fileName,
+          folderPath: book.folderPath,
+          size: book.size,
           folderId: folderIds.get(book.folderPath) ?? null,
           originalTitle: titleFromFileName(book.fileName),
           originalAuthor: "Unknown author",
@@ -152,6 +161,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
           lastOpenedAt: progress?.lastOpenedAt,
         };
       });
+      const scannedBookIds = new Set(scannedBooks.map((book) => book.id));
       const missingBooks = Object.entries(this.libraryMetadata.books)
         .filter(([id]) => !scannedBookIds.has(id))
         .map(([id, libraryEntry]) => {

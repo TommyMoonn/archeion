@@ -12,44 +12,10 @@ use percent_encoding::percent_decode_str;
 use quick_xml::{events::Event, Reader};
 use zip::ZipArchive;
 
-use super::vault;
+use super::{filesystem, vault};
 
 pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
-    let relative = Path::new(relative_path);
-    if relative.is_absolute() {
-        return Err("EPUB paths must be relative to the library folder.".to_string());
-    }
-    if relative.components().any(|component| {
-        matches!(
-            component,
-            Component::ParentDir | Component::RootDir | Component::Prefix(_)
-        )
-    }) {
-        return Err("The EPUB path is outside the library folder.".to_string());
-    }
-    if relative
-        .components()
-        .next()
-        .is_some_and(|component| component.as_os_str() == ".archeion")
-    {
-        return Err("App metadata cannot be opened as an EPUB.".to_string());
-    }
-    let is_epub = relative
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("epub"));
-    if !is_epub {
-        return Err("The selected file is not an EPUB.".to_string());
-    }
-
-    let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
-    let path =
-        fs::canonicalize(canonical_root.join(relative)).map_err(|error| error.to_string())?;
-    if !path.starts_with(&canonical_root) || !path.is_file() {
-        return Err("The EPUB file is outside the library folder.".to_string());
-    }
-
-    Ok(path)
+    filesystem::resolve_existing_epub_path(root, relative_path)
 }
 
 fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<String, String>)> {
