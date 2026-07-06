@@ -7,6 +7,9 @@
 
   --window-titlebar-archeion-height: 36px;
   --window-titlebar-hidden-height: 32px;
+
+  --sidebar-surface-bg: rgb(18 18 19 / 88%);
+  --sidebar-surface-blur: blur(16px);
 }
 
 .window-app__content {
@@ -47,10 +50,31 @@
 }
 
 .window-titlebar[data-mode="hidden"] {
+  position: relative;
   height: var(--window-titlebar-hidden-height);
   padding-left: 0;
   border-bottom: 0;
   background: transparent;
+}
+
+.window-titlebar[data-mode="hidden"]::before {
+  content: "";
+  position: absolute;
+  box-sizing: border-box;
+  inset: 0 auto 0 0;
+  width: var(--sidebar-width);
+  background: var(--sidebar-surface-bg);
+  backdrop-filter: var(--sidebar-surface-blur);
+  border-right: 1px solid var(--line);
+  pointer-events: none;
+}
+
+@media (max-width: 560px) {
+  .window-titlebar[data-mode="hidden"]::before {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
 }
 
 .window-titlebar__drag-region {

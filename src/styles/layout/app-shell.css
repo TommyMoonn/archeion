@@ -14,8 +14,8 @@
   overflow: hidden;
   padding: 18px 0 18px 16px;
   border-right: 1px solid var(--line);
-  background: rgb(18 18 19 / 88%);
-  backdrop-filter: blur(16px);
+  background: var(--sidebar-surface-bg, rgb(18 18 19 / 88%));
+  backdrop-filter: var(--sidebar-surface-blur, blur(16px));
 }
 
 .sidebar__nav {
