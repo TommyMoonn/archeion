@@ -587,14 +587,21 @@ describe("TauriVaultLibraryStorage", () => {
 
   it("persists reader settings", async () => {
     const storage = new TauriVaultLibraryStorage();
-    const settings = await storage.updateReaderSettings({ fontSize: 22 });
+    const settings = await storage.updateReaderSettings({
+      fontSize: 22,
+      progressPlacement: "side",
+    });
 
     expect(settings.fontSize).toBe(22);
+    expect(settings.progressPlacement).toBe("side");
     expect(invokeMock).toHaveBeenCalledWith(
       "save_settings_metadata",
       expect.objectContaining({
         metadata: expect.objectContaining({
-          reader: expect.objectContaining({ fontSize: 22 }),
+          reader: expect.objectContaining({
+            fontSize: 22,
+            progressPlacement: "side",
+          }),
         }),
       }),
     );

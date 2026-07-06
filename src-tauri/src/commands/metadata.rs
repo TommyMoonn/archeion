@@ -82,23 +82,60 @@ impl Default for ProgressMetadata {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ReaderSettings {
+    #[serde(default = "default_reader_font_size")]
     pub font_size: f64,
+    #[serde(default = "default_reader_font_family")]
     pub font_family: String,
+    #[serde(default = "default_reader_line_height")]
     pub line_height: f64,
+    #[serde(default = "default_reader_margin")]
     pub margin: f64,
+    #[serde(default = "default_reader_theme")]
     pub theme: String,
+    #[serde(default = "default_reader_progress_placement")]
+    pub progress_placement: String,
+    #[serde(default = "default_reader_flow_mode")]
     pub flow_mode: String,
+}
+
+fn default_reader_font_size() -> f64 {
+    18.0
+}
+
+fn default_reader_font_family() -> String {
+    "serif".to_string()
+}
+
+fn default_reader_line_height() -> f64 {
+    1.6
+}
+
+fn default_reader_margin() -> f64 {
+    48.0
+}
+
+fn default_reader_theme() -> String {
+    "dark".to_string()
+}
+
+fn default_reader_progress_placement() -> String {
+    "top".to_string()
+}
+
+fn default_reader_flow_mode() -> String {
+    "paginated".to_string()
 }
 
 impl Default for ReaderSettings {
     fn default() -> Self {
         Self {
-            font_size: 18.0,
-            font_family: "serif".to_string(),
-            line_height: 1.6,
-            margin: 48.0,
-            theme: "dark".to_string(),
-            flow_mode: "paginated".to_string(),
+            font_size: default_reader_font_size(),
+            font_family: default_reader_font_family(),
+            line_height: default_reader_line_height(),
+            margin: default_reader_margin(),
+            theme: default_reader_theme(),
+            progress_placement: default_reader_progress_placement(),
+            flow_mode: default_reader_flow_mode(),
         }
     }
 }
@@ -299,7 +336,9 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{initialize_at, metadata_path, read_json, write_json, LibraryMetadata};
+    use super::{
+        initialize_at, metadata_path, read_json, write_json, LibraryMetadata, SettingsMetadata,
+    };
 
     fn test_root(label: &str) -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -354,5 +393,31 @@ mod tests {
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
         fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn reader_settings_accept_frontend_shape_without_flow_mode() {
+        let value = serde_json::json!({
+            "version": 1,
+            "reader": {
+                "fontSize": 22.0,
+                "fontFamily": "serif",
+                "lineHeight": 1.8,
+                "margin": 72.0,
+                "theme": "sepia",
+                "progressPlacement": "side"
+            },
+            "library": {
+                "viewMode": "grid",
+                "sortBy": "folder"
+            }
+        });
+
+        let parsed: SettingsMetadata =
+            serde_json::from_value(value).expect("frontend settings should deserialize");
+
+        assert_eq!(parsed.settings.reader.font_size, 22.0);
+        assert_eq!(parsed.settings.reader.progress_placement, "side");
+        assert_eq!(parsed.settings.reader.flow_mode, "paginated");
     }
 }
