@@ -67,7 +67,6 @@ const metadata = {
       lineHeight: 1.7,
       margin: 40,
       theme: "sepia",
-      flowMode: "paginated",
     },
     library: {
       viewMode: "grid",

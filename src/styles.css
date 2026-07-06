@@ -2600,7 +2600,6 @@ select {
     height 180ms ease;
 }
 
-
 .epub-viewer {
   position: relative;
   width: 100%;
@@ -2617,13 +2616,89 @@ select {
 .epub-viewer__stage > div {
   width: 100%;
   height: 100%;
+  min-width: 0;
   min-height: 0;
   overscroll-behavior: none;
 }
 
+.epub-viewer__stage {
+  overflow: hidden;
+}
+
 .epub-viewer__stage iframe {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
   border: 0 !important;
   background: var(--reader-bg) !important;
+}
+
+.epub-viewer__click-zone {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  width: min(22%, 220px);
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.epub-viewer__click-zone::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  opacity: 0;
+  border-top: 1.5px solid currentcolor;
+  color: color-mix(in srgb, var(--reader-strong) 58%, transparent);
+  transition:
+    opacity 140ms ease,
+    transform 140ms ease;
+}
+
+.epub-viewer__click-zone:hover::before,
+.epub-viewer__click-zone:focus-visible::before {
+  opacity: 0.65;
+  transform: translateX(0);
+}
+
+.epub-viewer__click-zone--previous {
+  left: 0;
+  justify-content: flex-start;
+  padding-left: 22px;
+}
+
+.epub-viewer__click-zone--previous::before {
+  border-left: 1.5px solid currentcolor;
+  transform: translateX(6px) rotate(-45deg);
+}
+
+.epub-viewer__click-zone--previous:hover::before,
+.epub-viewer__click-zone--previous:focus-visible::before {
+  transform: translateX(0) rotate(-45deg);
+}
+
+.epub-viewer__click-zone--next {
+  right: 0;
+  justify-content: flex-end;
+  padding-right: 22px;
+}
+
+.epub-viewer__click-zone--next::before {
+  border-right: 1.5px solid currentcolor;
+  transform: translateX(-6px) rotate(45deg);
+}
+
+.epub-viewer__click-zone--next:hover::before,
+.epub-viewer__click-zone--next:focus-visible::before {
+  transform: translateX(0) rotate(45deg);
 }
 
 .reader-loading {
@@ -2634,6 +2709,7 @@ select {
   align-items: center;
   justify-content: center;
   gap: 9px;
+  z-index: 3;
   color: var(--reader-muted);
   background: var(--reader-bg);
   font-size: 12px;
@@ -2731,90 +2807,6 @@ select {
   font-size: 11px;
   font-weight: 650;
   letter-spacing: 0.04em;
-}
-
-.reader-setting select {
-  width: 100%;
-  min-height: 38px;
-  padding: 0 34px 0 11px;
-  border: 1px solid var(--reader-line);
-  border-radius: 7px;
-  color: var(--reader-text);
-  background: var(--reader-surface);
-  font: inherit;
-  font-size: 12px;
-  appearance: none;
-  cursor: pointer;
-}
-
-.reader-select {
-  position: relative;
-}
-
-.reader-select svg {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  color: var(--reader-muted);
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-
-.reader-page[data-reader-theme="light"] select,
-.reader-page[data-reader-theme="sepia"] select {
-  color-scheme: light;
-}
-
-.reader-segments {
-  display: grid;
-  grid-auto-columns: 1fr;
-  grid-auto-flow: column;
-  gap: 4px;
-}
-
-.reader-segments button {
-  min-width: 0;
-  min-height: 34px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--reader-muted);
-  background: transparent;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.reader-segments button:hover,
-.reader-segments button[aria-pressed="true"] {
-  color: var(--reader-strong);
-  background: var(--reader-surface);
-}
-
-.reader-segments button[aria-pressed="true"] {
-  border-color: var(--reader-line);
-}
-
-.reader-segments--themes button {
-  display: grid;
-  place-items: center;
-  gap: 5px;
-  min-height: 56px;
-}
-
-.reader-segments--themes button > span {
-  width: 22px;
-  height: 17px;
-  border: 1px solid var(--reader-line);
-  border-radius: 4px;
-  background: #f5f4f1;
-}
-
-.reader-segments--themes button[data-theme-option="sepia"] > span {
-  background: #eee5d2;
-}
-
-.reader-segments--themes button[data-theme-option="dark"] > span {
-  background: #171717;
 }
 
 .reader-stepper {
@@ -3475,7 +3467,6 @@ select {
 .reader-theme-swatch[data-theme-option="dark"] {
   background: #171717;
 }
-
 
 @media (max-width: 760px) {
   .settings-row__control {

@@ -17,6 +17,7 @@ import type { Book } from "../../types/book";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   defaultReaderSettings,
+  normalizeReaderSettings,
   type ReaderSettings,
 } from "../../types/reader";
 import {
@@ -27,6 +28,7 @@ import type { ReaderLocation } from "./readerLocation";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
+import { getReaderKeyboardIntent } from "./readerNavigation";
 
 export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
@@ -96,10 +98,11 @@ export function ReaderPage() {
 
   const changeSettings = useCallback(
     (nextSettings: ReaderSettings) => {
-      setSettings(nextSettings);
+      const normalizedSettings = normalizeReaderSettings(nextSettings);
+      setSettings(normalizedSettings);
       settingsSaveQueue.current = settingsSaveQueue.current
         .catch(() => undefined)
-        .then(() => storage.saveReaderSettings(nextSettings))
+        .then(() => storage.saveReaderSettings(normalizedSettings))
         .then(() => {
           setSettingsPersistenceFailed(false);
         })
@@ -191,21 +194,17 @@ export function ReaderPage() {
 
   const handleReaderKeyDown = useCallback(
     (event: KeyboardEvent, preventDefault: boolean) => {
-      if (
-        event.defaultPrevented ||
-        event.altKey ||
-        event.ctrlKey ||
-        event.metaKey ||
-        event.shiftKey
-      ) {
+      const intent = getReaderKeyboardIntent(event);
+
+      if (!intent) {
         return;
       }
 
-      if (event.key === "Escape") {
-        if (preventDefault) {
-          event.preventDefault();
-        }
+      if (preventDefault) {
+        event.preventDefault();
+      }
 
+      if (intent === "close") {
         if (settingsOpen) {
           setSettingsOpen(false);
         } else {
@@ -214,57 +213,23 @@ export function ReaderPage() {
         return;
       }
 
-      const target = event.target as HTMLElement | null;
-      const selection = target?.ownerDocument.getSelection();
-
-      if (
-        target?.closest(
-          "a, button, input, select, textarea, [contenteditable='true']",
-        ) ||
-        (selection && !selection.isCollapsed)
-      ) {
-        return;
-      }
-
-      if (event.key.toLowerCase() === "s") {
-        if (preventDefault) {
-          event.preventDefault();
-        }
+      if (intent === "settings") {
         openSettings();
         return;
       }
 
-      if (settings.flowMode === "scrolled") {
-        return;
-      }
-
-      if (event.key === "ArrowLeft") {
-        if (preventDefault) {
-          event.preventDefault();
-        }
-
+      if (intent === "backward") {
         movePrevious();
-      } else if (event.key === "ArrowRight" || event.key === " ") {
-        if (preventDefault) {
-          event.preventDefault();
-        }
-
+      } else {
         moveNext();
       }
     },
-    [
-      moveNext,
-      movePrevious,
-      navigate,
-      openSettings,
-      settings.flowMode,
-      settingsOpen,
-    ],
+    [moveNext, movePrevious, navigate, openSettings, settingsOpen],
   );
 
   const handleContentKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      handleReaderKeyDown(event, false);
+      handleReaderKeyDown(event, true);
     },
     [handleReaderKeyDown],
   );
@@ -301,7 +266,7 @@ export function ReaderPage() {
       .getReaderSettings()
       .then((savedSettings) => {
         if (!cancelled) {
-          setSettings(savedSettings);
+          setSettings(normalizeReaderSettings(savedSettings));
           setSettingsPersistenceFailed(false);
         }
       })

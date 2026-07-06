@@ -11,7 +11,7 @@ import type {
   UpdateFolderInput,
 } from "../types/folder";
 import {
-  defaultReaderSettings,
+  normalizeReaderSettings,
   type ReaderSettings,
 } from "../types/reader";
 import {
@@ -69,7 +69,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   readonly source = "vault";
   private books: Book[] = [];
   private folders: Folder[] = [];
-  private readerSettings = { ...defaultReaderSettings };
+  private readerSettings = normalizeReaderSettings();
   private loaded = false;
   private scanPromise: Promise<void> | null = null;
   private metadataWriteQueue: Promise<void> = Promise.resolve();
@@ -103,10 +103,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       this.libraryMetadata = metadata.library;
       this.progressMetadata = metadata.progress;
       this.settingsMetadata = metadata.settings;
-      this.readerSettings = {
-        ...defaultReaderSettings,
-        ...metadata.settings.reader,
-      };
+      this.readerSettings = normalizeReaderSettings(metadata.settings.reader);
       const folderIds = new Map(
         scan.folders.map((folder) => [folder.relativePath, folder.id]),
       );
@@ -467,13 +464,13 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     await this.ensureLoaded();
     const metadata: SettingsMetadata = {
       ...this.settingsMetadata,
-      reader: { ...defaultReaderSettings, ...settings },
+      reader: normalizeReaderSettings(settings),
     };
     await this.enqueueMetadataWrite(() =>
       invoke("save_settings_metadata", { metadata }),
     );
     this.settingsMetadata = metadata;
-    this.readerSettings = { ...defaultReaderSettings, ...settings };
+    this.readerSettings = normalizeReaderSettings(settings);
     return { ...this.readerSettings };
   }
 
@@ -484,6 +481,6 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   resetReaderSettings(): Promise<ReaderSettings> {
-    return this.saveReaderSettings(defaultReaderSettings);
+    return this.saveReaderSettings(normalizeReaderSettings());
   }
 }

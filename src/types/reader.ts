@@ -1,7 +1,5 @@
 export type ReaderTheme = "light" | "dark" | "sepia";
 
-export type ReaderFlowMode = "paginated" | "scrolled";
-
 export type ReaderProgressPlacement = "top" | "side";
 
 export type ReaderSettings = {
@@ -10,7 +8,6 @@ export type ReaderSettings = {
   lineHeight: number;
   margin: number;
   theme: ReaderTheme;
-  flowMode: ReaderFlowMode;
   progressPlacement: ReaderProgressPlacement;
 };
 
@@ -20,6 +17,42 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   lineHeight: 1.6,
   margin: 48,
   theme: "dark",
-  flowMode: "paginated",
   progressPlacement: "top",
 });
+
+export function normalizeReaderSettings(
+  settings?: Partial<ReaderSettings>,
+): ReaderSettings {
+  return {
+    fontSize: numberOrDefault(settings?.fontSize, defaultReaderSettings.fontSize),
+    fontFamily:
+      typeof settings?.fontFamily === "string"
+        ? settings.fontFamily
+        : defaultReaderSettings.fontFamily,
+    lineHeight: numberOrDefault(
+      settings?.lineHeight,
+      defaultReaderSettings.lineHeight,
+    ),
+    margin: numberOrDefault(settings?.margin, defaultReaderSettings.margin),
+    theme: isReaderTheme(settings?.theme)
+      ? settings.theme
+      : defaultReaderSettings.theme,
+    progressPlacement: isReaderProgressPlacement(settings?.progressPlacement)
+      ? settings.progressPlacement
+      : defaultReaderSettings.progressPlacement,
+  };
+}
+
+function numberOrDefault(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function isReaderTheme(value: unknown): value is ReaderTheme {
+  return value === "light" || value === "dark" || value === "sepia";
+}
+
+function isReaderProgressPlacement(
+  value: unknown,
+): value is ReaderProgressPlacement {
+  return value === "top" || value === "side";
+}

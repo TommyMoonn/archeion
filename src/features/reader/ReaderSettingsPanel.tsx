@@ -8,7 +8,6 @@ import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type {
-  ReaderFlowMode,
   ReaderProgressPlacement,
   ReaderSettings,
   ReaderTheme,
@@ -44,11 +43,6 @@ const margins = [
   { label: "Narrow", value: "24" },
   { label: "Medium", value: "48" },
   { label: "Wide", value: "72" },
-];
-
-const flowModes: Array<{ label: string; value: ReaderFlowMode }> = [
-  { label: "Pages", value: "paginated" },
-  { label: "Scroll", value: "scrolled" },
 ];
 
 const progressPlacements: Array<{
@@ -109,7 +103,6 @@ export function ReaderSettingsPanel({
         <span className="reader-setting__label">Typeface</span>
         <AppSelect
           ariaLabel="Reader typeface"
-          className="reader-app-select"
           id="reader-font-family"
           onChange={(fontFamily) => update({ fontFamily })}
           options={typefaces}
@@ -161,17 +154,6 @@ export function ReaderSettingsPanel({
           onChange={(margin) => update({ margin: Number(margin) })}
           options={margins}
           value={String(settings.margin)}
-        />
-      </div>
-
-      <div className="reader-setting">
-        <span className="reader-setting__label">Flow</span>
-        <SegmentedControl
-          className="reader-control"
-          label="Reader flow"
-          onChange={(flowMode) => update({ flowMode })}
-          options={flowModes}
-          value={settings.flowMode}
         />
       </div>
 

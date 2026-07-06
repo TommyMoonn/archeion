@@ -1,5 +1,5 @@
 import {
-  defaultReaderSettings,
+  normalizeReaderSettings,
   type ReaderSettings,
 } from "../types/reader";
 
@@ -55,7 +55,7 @@ export function createProgressMetadata(): ProgressMetadata {
 export function createSettingsMetadata(): SettingsMetadata {
   return {
     version: 1,
-    reader: { ...defaultReaderSettings },
+    reader: normalizeReaderSettings(),
     library: {
       viewMode: "grid",
       sortBy: "folder",

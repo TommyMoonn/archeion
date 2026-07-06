@@ -31,7 +31,6 @@ import type {
 } from "../../types/appSettings";
 import {
   defaultReaderSettings,
-  type ReaderFlowMode,
   type ReaderProgressPlacement,
   type ReaderSettings,
   type ReaderTheme,
@@ -72,11 +71,6 @@ const themeOptions: Array<{ label: string; value: ReaderTheme }> = [
   { label: "Light", value: "light" },
   { label: "Sepia", value: "sepia" },
   { label: "Dark", value: "dark" },
-];
-
-const flowOptions: Array<{ label: string; value: ReaderFlowMode }> = [
-  { label: "Pages", value: "paginated" },
-  { label: "Scroll", value: "scrolled" },
 ];
 
 const progressPlacementOptions: Array<{
@@ -431,14 +425,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 onChange={(theme) => updateReader({ theme })}
                 options={themeOptions}
                 value={reader.theme}
-              />
-            </SettingsRow>
-            <SettingsRow label="Flow">
-              <SegmentedControl
-                label="Reader flow"
-                onChange={(flowMode) => updateReader({ flowMode })}
-                options={flowOptions}
-                value={reader.flowMode}
               />
             </SettingsRow>
             <SettingsRow label="Progress bar">

@@ -31,10 +31,11 @@ const themeColors = {
 export function readerThemeForSettings(settings: ReaderSettings) {
   const colors = themeColors[settings.theme];
   const fontFamily = fontFamilies[settings.fontFamily] ?? fontFamilies.serif;
-
   return {
     html: {
+      background: `${colors.background} !important`,
       "overscroll-behavior": "contain !important",
+      "scrollbar-width": "none !important",
     },
     body: {
       color: `${colors.text} !important`,
@@ -42,8 +43,17 @@ export function readerThemeForSettings(settings: ReaderSettings) {
       "font-family": `${fontFamily} !important`,
       "font-size": `${settings.fontSize}px !important`,
       "line-height": `${settings.lineHeight} !important`,
-      "overscroll-behavior": "contain !important",
       padding: `0 ${settings.margin}px !important`,
+      "box-sizing": "border-box !important",
+      "overflow-x": "hidden !important",
+      "overscroll-behavior": "contain !important",
+      "scrollbar-width": "none !important",
+    },
+    "body::-webkit-scrollbar": {
+      display: "none !important",
+    },
+    "*, *::before, *::after": {
+      "box-sizing": "border-box !important",
     },
     "p, li": {
       color: `${colors.text} !important`,
@@ -56,9 +66,15 @@ export function readerThemeForSettings(settings: ReaderSettings) {
     a: {
       color: `${colors.link} !important`,
     },
-    img: {
+    "img, svg, video, canvas": {
       "max-width": "100% !important",
+      height: "auto !important",
       "object-fit": "contain !important",
+    },
+    "table, pre": {
+      "max-width": "100% !important",
+      "overflow-wrap": "anywhere !important",
+      "white-space": "pre-wrap !important",
     },
   };
 }

@@ -1,5 +1,5 @@
 import {
-  defaultReaderSettings,
+  normalizeReaderSettings,
   type ReaderSettings,
 } from "../types/reader";
 import { db, type ArcheionDatabase } from "./db";
@@ -7,23 +7,18 @@ import { db, type ArcheionDatabase } from "./db";
 const READER_SETTINGS_KEY = "reader";
 
 function copyDefaults(): ReaderSettings {
-  return { ...defaultReaderSettings };
+  return normalizeReaderSettings();
 }
 
 export function createSettingsRepository(database: ArcheionDatabase) {
   async function get(): Promise<ReaderSettings> {
     const record = await database.settings.get(READER_SETTINGS_KEY);
 
-    return record
-      ? { ...defaultReaderSettings, ...record.value }
-      : copyDefaults();
+    return record ? normalizeReaderSettings(record.value) : copyDefaults();
   }
 
   async function save(settings: ReaderSettings): Promise<ReaderSettings> {
-    const value = {
-      ...defaultReaderSettings,
-      ...settings,
-    };
+    const value = normalizeReaderSettings(settings);
 
     await database.settings.put({
       key: READER_SETTINGS_KEY,

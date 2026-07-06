@@ -1,13 +1,21 @@
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useRef,
   useState,
 } from "react";
-import type { Book as EpubBook, Rendition, Location } from "epubjs";
+import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
 import type { ReaderSettings } from "../../types/reader";
+import {
+  canRunReaderWheelTurn,
+  getReaderWheelDelta,
+  getReaderWheelIntentFromDelta,
+  READER_WHEEL_GESTURE_RESET_MS,
+  type ReaderNavigationIntent,
+} from "./readerNavigation";
 import {
   normalizeReaderLocation,
   type ReaderLocation,
@@ -30,6 +38,52 @@ type EpubViewerProps = {
   settings: ReaderSettings;
 };
 
+type EpubViewerCallbacks = Pick<
+  EpubViewerProps,
+  | "onError"
+  | "onInteraction"
+  | "onKeyDown"
+  | "onLocationChange"
+  | "onReady"
+>;
+
+type RenderedView = {
+  document?: Document;
+  iframe?: HTMLIFrameElement;
+  contents?: {
+    document?: Document;
+    window?: Window;
+  };
+};
+
+type EpubContent = {
+  document?: Document;
+  window?: Window;
+};
+
+type RenditionWithContentHook = Rendition & {
+  hooks?: {
+    content?: {
+      register?: (callback: (contents: EpubContent) => void) => void;
+    };
+  };
+};
+
+function documentFromRenderedView(view: unknown) {
+  const renderedView = view as RenderedView | null;
+
+  return (
+    renderedView?.document ??
+    renderedView?.contents?.document ??
+    renderedView?.iframe?.contentDocument ??
+    null
+  );
+}
+
+function windowFromContentDocument(document: Document | null) {
+  return document?.defaultView ?? null;
+}
+
 export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
   function EpubViewer(
     {
@@ -44,31 +98,209 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     },
     ref,
   ) {
+    const viewerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
+    const contentCleanupRef = useRef<Array<() => void>>([]);
+    const callbacksRef = useRef<EpubViewerCallbacks>({
+      onError,
+      onInteraction,
+      onKeyDown,
+      onLocationChange,
+      onReady,
+    });
     const renditionRef = useRef<Rendition | null>(null);
+    const isTurningPageRef = useRef(false);
+    const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
+    const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
+    const wheelDeltaRef = useRef(0);
     const settingsRef = useRef(settings);
     const [isLoading, setIsLoading] = useState(true);
+
+    callbacksRef.current = {
+      onError,
+      onInteraction,
+      onKeyDown,
+      onLocationChange,
+      onReady,
+    };
     settingsRef.current = settings;
+
+    const runPageTurn = useCallback(
+      async (intent: ReaderNavigationIntent) => {
+        const rendition = renditionRef.current;
+
+        if (!rendition || isTurningPageRef.current) {
+          return;
+        }
+
+        isTurningPageRef.current = true;
+
+        try {
+          if (intent === "forward") {
+            await rendition.next();
+          } else {
+            await rendition.prev();
+          }
+        } finally {
+          window.setTimeout(() => {
+            isTurningPageRef.current = false;
+          }, 80);
+        }
+      },
+      [],
+    );
+
+    const handleWheel = useCallback(
+      (event: WheelEvent) => {
+        const deltaY = getReaderWheelDelta(event);
+
+        if (deltaY === null) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        callbacksRef.current.onInteraction();
+
+        const now = performance.now();
+
+        if (
+          now - lastWheelEventAtRef.current >
+          READER_WHEEL_GESTURE_RESET_MS
+        ) {
+          wheelDeltaRef.current = 0;
+        }
+
+        lastWheelEventAtRef.current = now;
+        wheelDeltaRef.current += deltaY;
+
+        const intent = getReaderWheelIntentFromDelta(wheelDeltaRef.current);
+
+        if (!intent) {
+          return;
+        }
+
+        wheelDeltaRef.current = 0;
+
+        if (!canRunReaderWheelTurn(now, lastWheelTurnAtRef.current)) {
+          return;
+        }
+
+        lastWheelTurnAtRef.current = now;
+        void runPageTurn(intent);
+      },
+      [runPageTurn],
+    );
+
+    const handleClickZone = useCallback(
+      (intent: ReaderNavigationIntent) => {
+        callbacksRef.current.onInteraction();
+        void runPageTurn(intent);
+      },
+      [runPageTurn],
+    );
 
     useImperativeHandle(
       ref,
       () => ({
-        next: async () => {
-          await renditionRef.current?.next();
-        },
-        previous: async () => {
-          await renditionRef.current?.prev();
-        },
+        next: () => runPageTurn("forward"),
+        previous: () => runPageTurn("backward"),
       }),
-      [],
+      [runPageTurn],
     );
+
+    useEffect(() => {
+      const container = viewerRef.current;
+
+      if (!container) {
+        return;
+      }
+
+      const options: AddEventListenerOptions = { passive: false };
+      container.addEventListener("wheel", handleWheel, options);
+
+      return () => {
+        container.removeEventListener("wheel", handleWheel, options);
+      };
+    }, [handleWheel]);
 
     useEffect(() => {
       let cancelled = false;
       let epubBook: EpubBook | null = null;
       let rendition: Rendition | null = null;
+      let lastContentDocument: Document | null = null;
+
+      function removeContentListeners() {
+        for (const cleanup of contentCleanupRef.current) {
+          cleanup();
+        }
+        contentCleanupRef.current = [];
+        lastContentDocument = null;
+      }
+
+      function bindContent(content: EpubContent | null) {
+        const document = content?.document ?? null;
+
+        if (!document || document === lastContentDocument) {
+          return;
+        }
+
+        removeContentListeners();
+        lastContentDocument = document;
+        const contentWindow =
+          content?.window ?? windowFromContentDocument(document);
+
+        const wheelOptions: AddEventListenerOptions = {
+          capture: true,
+          passive: false,
+        };
+        const keyOptions: AddEventListenerOptions = { capture: true };
+        const onContentKeyDown = (event: KeyboardEvent) => {
+          callbacksRef.current.onKeyDown(event);
+        };
+        const onContentInteraction = () => {
+          callbacksRef.current.onInteraction();
+        };
+        const onContentWheel: EventListener = (event) => {
+          handleWheel(event as WheelEvent);
+        };
+
+        const wheelTargets: Array<Window | Document> = contentWindow
+          ? [contentWindow, document]
+          : [document];
+
+        for (const target of wheelTargets) {
+          target.addEventListener("wheel", onContentWheel, wheelOptions);
+        }
+
+        document.addEventListener("keydown", onContentKeyDown, keyOptions);
+        document.addEventListener("mousemove", onContentInteraction);
+        document.addEventListener("touchstart", onContentInteraction);
+        document.addEventListener("click", onContentInteraction);
+
+        contentCleanupRef.current = [
+          ...wheelTargets.map((target) => () =>
+            target.removeEventListener("wheel", onContentWheel, wheelOptions),
+          ),
+          () =>
+            document.removeEventListener("keydown", onContentKeyDown, keyOptions),
+          () => document.removeEventListener("mousemove", onContentInteraction),
+          () => document.removeEventListener("touchstart", onContentInteraction),
+          () => document.removeEventListener("click", onContentInteraction),
+        ];
+      }
+
+      function bindMountedIframeDocument() {
+        const frame = containerRef.current?.querySelector("iframe");
+        bindContent({
+          document: frame?.contentDocument ?? undefined,
+          window: frame?.contentWindow ?? undefined,
+        });
+      }
 
       async function openBook() {
+        setIsLoading(true);
+
         try {
           const [{ default: ePub }, fileContents] = await Promise.all([
             import("epubjs"),
@@ -92,23 +324,20 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           rendition = epubBook.renderTo(containerRef.current, {
             width: "100%",
             height: "100%",
-            flow:
-              currentSettings.flowMode === "scrolled"
-                ? "scrolled-doc"
-                : "paginated",
+            flow: "paginated",
             spread: "none",
             allowScriptedContent: false,
           });
           renditionRef.current = rendition;
+          (rendition as RenditionWithContentHook).hooks?.content?.register?.(
+            bindContent,
+          );
           rendition.themes.register(
             "archeion-reader",
             readerThemeForSettings(currentSettings),
           );
           rendition.themes.select("archeion-reader");
-          rendition.on("keydown", onKeyDown);
-          rendition.on("mousemove", onInteraction);
-          rendition.on("touchstart", onInteraction);
-          rendition.on("click", onInteraction);
+          rendition.on("rendered", onRendered);
           rendition.on("relocated", onRelocated);
 
           try {
@@ -116,13 +345,15 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           } catch {
             await rendition.display();
           }
+
+          bindMountedIframeDocument();
           void epubBook.locations.generate(1600).catch(() => {
             // Reading can continue without a calculated percentage.
           });
 
           if (!cancelled) {
             setIsLoading(false);
-            onReady();
+            callbacksRef.current.onReady();
           }
         } catch {
           epubBook?.destroy();
@@ -130,14 +361,22 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
 
           if (!cancelled) {
             setIsLoading(false);
-            onError("This EPUB could not be opened.");
+            callbacksRef.current.onError("This EPUB could not be opened.");
           }
         }
       }
 
+      function onRendered(_section: unknown, view: unknown) {
+        const document = documentFromRenderedView(view);
+        bindContent({
+          document: document ?? undefined,
+          window: windowFromContentDocument(document) ?? undefined,
+        });
+      }
+
       function onRelocated(location: Location) {
         if (!cancelled) {
-          onLocationChange(
+          callbacksRef.current.onLocationChange(
             normalizeReaderLocation(
               location,
               epubBook?.packaging.spine.length ?? 0,
@@ -150,27 +389,17 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
 
       return () => {
         cancelled = true;
+        removeContentListeners();
 
         if (rendition) {
-          rendition.off("keydown", onKeyDown);
-          rendition.off("mousemove", onInteraction);
-          rendition.off("touchstart", onInteraction);
-          rendition.off("click", onInteraction);
+          rendition.off("rendered", onRendered);
           rendition.off("relocated", onRelocated);
         }
 
         renditionRef.current = null;
         epubBook?.destroy();
       };
-    }, [
-      fileBlob,
-      initialCfi,
-      onError,
-      onInteraction,
-      onKeyDown,
-      onLocationChange,
-      onReady,
-    ]);
+    }, [fileBlob, handleWheel, initialCfi]);
 
     useEffect(() => {
       const rendition = renditionRef.current;
@@ -185,15 +414,29 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
       rendition.themes.select("archeion-reader");
     }, [settings]);
 
-    useEffect(() => {
-      renditionRef.current?.flow(
-        settings.flowMode === "scrolled" ? "scrolled-doc" : "paginated",
-      );
-    }, [settings.flowMode]);
-
     return (
-      <div className="epub-viewer" data-reader-theme={settings.theme}>
+      <div
+        ref={viewerRef}
+        className="epub-viewer"
+        data-reader-theme={settings.theme}
+      >
         <div ref={containerRef} className="epub-viewer__stage" />
+        <button
+          aria-label="Previous page"
+          className="epub-viewer__click-zone epub-viewer__click-zone--previous"
+          onClick={() => handleClickZone("backward")}
+          onMouseMove={onInteraction}
+          tabIndex={-1}
+          type="button"
+        />
+        <button
+          aria-label="Next page"
+          className="epub-viewer__click-zone epub-viewer__click-zone--next"
+          onClick={() => handleClickZone("forward")}
+          onMouseMove={onInteraction}
+          tabIndex={-1}
+          type="button"
+        />
         {isLoading ? (
           <div className="reader-loading" role="status">
             <span className="reader-loading__line" />

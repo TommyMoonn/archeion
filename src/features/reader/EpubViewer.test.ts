@@ -19,9 +19,15 @@ describe("readerThemeForSettings", () => {
       "line-height": "1.8 !important",
       padding: "0 72px !important",
       background: "#eee5d2 !important",
+      "overflow-x": "hidden !important",
       "overscroll-behavior": "contain !important",
     });
+    const bodyRules = theme.body as Record<string, string | undefined>;
+
     expect(theme.html["overscroll-behavior"]).toBe("contain !important");
+    expect(bodyRules.margin).toBeUndefined();
+    expect(bodyRules["max-width"]).toBeUndefined();
+    expect(bodyRules.overflow).toBeUndefined();
     expect(theme.body["font-family"]).toContain("Segoe UI");
   });
 
