@@ -1,17 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import type { Folder } from "../../types/folder";
-import { buildFolderTree } from "./folderTreeUtils";
+import {
+  buildFolderTree,
+  formatFolderBookCount,
+  getFolderDisplayPath,
+} from "./folderTreeUtils";
 
 function createFolder(
   id: string,
   name: string,
   parentId: string | null = null,
+  relativePath?: string,
 ): Folder {
   return {
     id,
     name,
     parentId,
+    relativePath,
     createdAt: "2026-07-04T00:00:00.000Z",
     updatedAt: "2026-07-04T00:00:00.000Z",
   };
@@ -39,5 +45,24 @@ describe("folder tree utilities", () => {
     ]);
 
     expect(tree.map((folder) => folder.id)).toEqual(["orphan"]);
+  });
+
+  it("hides folder paths that repeat the folder name", () => {
+    expect(getFolderDisplayPath(createFolder("root", "Manga", null, "Manga")))
+      .toBeUndefined();
+  });
+
+  it("shows nested folder paths for useful context", () => {
+    expect(
+      getFolderDisplayPath(
+        createFolder("nested", "Volume 1", "series", "Manga/Volume 1"),
+      ),
+    ).toBe("Manga/Volume 1");
+  });
+
+  it("formats folder book counts", () => {
+    expect(formatFolderBookCount(0)).toBe("0 books");
+    expect(formatFolderBookCount(1)).toBe("1 book");
+    expect(formatFolderBookCount(2)).toBe("2 books");
   });
 });

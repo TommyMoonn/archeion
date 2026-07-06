@@ -416,7 +416,6 @@ export function LibraryPage() {
       sidebar={
         <LibrarySidebar
           bookCount={bookCount}
-          bookCountsByFolder={bookCountsByFolder}
           favoriteCount={favoriteCount}
           continueCount={continueBooks.length}
           folders={folders ?? []}

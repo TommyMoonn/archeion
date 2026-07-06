@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef } from "react";
 
 import type { Book } from "../../types/book";
+import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
 
 type BookContextMenuProps = {
   book: Book;
@@ -15,6 +16,7 @@ type BookContextMenuProps = {
   onDetails: (book: Book) => void;
   onRead: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  placement: BookMenuPlacement;
   canDelete?: boolean;
 };
 
@@ -24,6 +26,7 @@ export function BookContextMenu({
   onDetails,
   onRead,
   onToggleFavorite,
+  placement,
   canDelete = true,
 }: BookContextMenuProps) {
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -59,7 +62,7 @@ export function BookContextMenu({
   return (
     <details
       ref={menuRef}
-      className="book-menu"
+      className={getBookMenuClassName(placement)}
       onClick={(event) => event.stopPropagation()}
     >
       <summary
@@ -108,3 +111,4 @@ export function BookContextMenu({
 function bookTitleForLabel(book: Book): string {
   return book.displayTitle?.trim() || book.originalTitle;
 }
+

@@ -19,7 +19,6 @@ import {
 } from "./folderTreeUtils";
 
 type FolderTreeProps = {
-  bookCounts: Map<string, number>;
   folders: Folder[];
   location: LibraryLocation;
   onDelete: (folder: Folder) => void;
@@ -95,7 +94,6 @@ function FolderMenu({
 }
 
 function FolderNode({
-  bookCounts,
   folder,
   location,
   onDelete,
@@ -108,7 +106,10 @@ function FolderNode({
 
   return (
     <li>
-      <div className="folder-tree__row">
+      <div
+        className="folder-tree__row"
+        data-has-actions={showActions ? "true" : undefined}
+      >
         <button
           aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
@@ -122,9 +123,6 @@ function FolderNode({
             weight={isSelected ? "fill" : "regular"}
           />
           <span>{folder.name}</span>
-          <span className="nav-item__count">
-            {bookCounts.get(folder.id) ?? 0}
-          </span>
         </button>
         {showActions ? (
           <FolderMenu
@@ -138,7 +136,6 @@ function FolderNode({
         <ul className="folder-tree__children">
           {folder.children.map((child) => (
             <FolderNode
-              bookCounts={bookCounts}
               folder={child}
               key={child.id}
               location={location}
@@ -155,7 +152,6 @@ function FolderNode({
 }
 
 export function FolderTree({
-  bookCounts,
   folders,
   location,
   onDelete,
@@ -221,7 +217,6 @@ export function FolderTree({
     >
       {tree.map((folder) => (
         <FolderNode
-          bookCounts={bookCounts}
           folder={folder}
           key={folder.id}
           location={location}

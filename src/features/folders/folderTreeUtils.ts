@@ -4,6 +4,8 @@ export type FolderTreeNode = Folder & {
   children: FolderTreeNode[];
 };
 
+const pathSeparatorPattern = /[/\\]+/;
+
 export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
@@ -31,4 +33,25 @@ export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
 
   sortNodes(roots);
   return roots;
+}
+
+export function getFolderDisplayPath(folder: Folder): string | undefined {
+  const relativePath = folder.relativePath?.trim();
+  if (!relativePath) {
+    return undefined;
+  }
+
+  const normalizedName = folder.name.trim().toLocaleLowerCase();
+  const normalizedPath = relativePath.toLocaleLowerCase();
+  const pathParts = relativePath.split(pathSeparatorPattern).filter(Boolean);
+
+  if (pathParts.length <= 1 && normalizedPath === normalizedName) {
+    return undefined;
+  }
+
+  return relativePath;
+}
+
+export function formatFolderBookCount(count: number): string {
+  return count === 1 ? "1 book" : `${count} books`;
 }

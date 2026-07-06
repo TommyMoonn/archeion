@@ -60,6 +60,7 @@ export const BookCard = memo(function BookCard({
         onDetails={onSelect}
         onRead={onRead}
         onToggleFavorite={onToggleFavorite}
+        placement="card"
         canDelete={canDelete}
       />
     </article>

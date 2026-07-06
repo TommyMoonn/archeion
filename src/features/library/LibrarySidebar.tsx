@@ -20,7 +20,6 @@ import type { LibraryLocation } from "./libraryFilters";
 
 type LibrarySidebarProps = {
   bookCount: number;
-  bookCountsByFolder: Map<string, number>;
   favoriteCount: number;
   continueCount: number;
   folders: Folder[];
@@ -38,7 +37,6 @@ type LibrarySidebarProps = {
 
 export const LibrarySidebar = memo(function LibrarySidebar({
   bookCount,
-  bookCountsByFolder,
   favoriteCount,
   continueCount,
   folders,
@@ -87,15 +85,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand__mark" aria-hidden="true">
-          <span />
-          <span />
-          <span />
-        </div>
-        <span>Archeion</span>
-      </div>
-
       <nav className="sidebar__nav" aria-label="Library navigation">
         <button
           aria-current={location.type === "library" ? "page" : undefined}
@@ -163,7 +152,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         </div>
         {folders.length > 0 ? (
           <FolderTree
-            bookCounts={bookCountsByFolder}
             folders={folders}
             location={location}
             onDelete={onDeleteFolder}

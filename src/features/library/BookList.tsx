@@ -71,6 +71,7 @@ const BookRow = memo(function BookRow({
         onDetails={onSelect}
         onRead={onRead}
         onToggleFavorite={onToggleFavorite}
+        placement="row"
         canDelete={canDelete}
       />
     </article>
