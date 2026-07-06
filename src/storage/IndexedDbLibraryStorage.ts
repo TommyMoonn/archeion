@@ -25,6 +25,7 @@ import type {
 } from "../types/folder";
 import type { ReaderSettings } from "../types/reader";
 import type {
+  AddArchiveEpubInput,
   LibraryStorage,
   StorageObserver,
 } from "./LibraryStorage";
@@ -42,6 +43,13 @@ export class IndexedDbLibraryStorage implements LibraryStorage {
   }
 
   async rescan() {}
+
+  addEpubFilesToArchive(_input: AddArchiveEpubInput) {
+    void _input;
+    return Promise.reject(
+      new Error("This operation is only available for filesystem libraries."),
+    );
+  }
 
   createBook(input: CreateBookInput) {
     return this.books.create(input);

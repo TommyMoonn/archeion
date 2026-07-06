@@ -220,22 +220,66 @@ html[data-card-size="large"] .book-grid {
 .import-notice {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: start;
+  align-items: center;
   gap: 11px;
   max-width: 1440px;
   margin: 18px auto 0;
   padding: 13px 13px 13px 15px;
-  border: 1px solid rgb(217 112 126 / 28%);
+  border: 1px solid var(--line);
   border-radius: var(--radius-control);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.import-notice--detailed {
+  align-items: start;
+}
+
+.import-notice--success {
+  border-color: var(--success-border);
+  color: var(--success);
+  background: var(--success-soft);
+}
+
+.import-notice--error {
+  border-color: var(--error-border);
   color: var(--error);
-  background: rgb(217 112 126 / 7%);
+  background: var(--error-soft);
+}
+
+.import-notice > svg {
+  align-self: center;
+}
+
+.import-notice--detailed > svg {
+  align-self: start;
+  margin-top: 1px;
+}
+
+.import-notice > .icon-button {
+  align-self: center;
+}
+
+.import-notice--detailed > .icon-button {
+  align-self: start;
+}
+
+.import-notice--success > svg,
+.import-notice--success > div > p {
+  color: var(--success);
+}
+
+.import-notice--error > svg,
+.import-notice--error > div > p {
+  color: var(--error);
 }
 
 .import-notice > div > p {
-  margin: 1px 0 0;
+  margin: 0;
   color: var(--text);
   font-size: 13px;
   font-weight: 600;
+  line-height: 1.35;
 }
 
 .import-notice ul {

@@ -22,7 +22,12 @@
   --accent-soft: rgb(143 193 227 / 12%);
   --accent-border: rgb(143 193 227 / 24%);
   --focus: #c9c4ef;
+  --success: #a0cdb0;
+  --success-soft: rgb(160 205 176 / 8%);
+  --success-border: rgb(160 205 176 / 24%);
   --error: #d9707e;
+  --error-soft: rgb(217 112 126 / 7%);
+  --error-border: rgb(217 112 126 / 28%);
 
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
     serif;

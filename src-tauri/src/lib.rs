@@ -5,6 +5,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            commands::archive_import::add_epub_files_to_vault,
             commands::epub::read_epub_file,
             commands::epub::reveal_epub_file,
             commands::epub::load_epub_cover,

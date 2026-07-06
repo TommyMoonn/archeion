@@ -3,11 +3,13 @@ import type { ReactNode } from "react";
 import {
   GridFour,
   List,
+  Plus,
   MagnifyingGlass,
   X,
 } from "@phosphor-icons/react";
 
 import { AppSelect } from "../../components/AppSelect";
+import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
@@ -20,6 +22,7 @@ export type LibraryView = "grid" | "list";
 type LibraryToolbarProps = {
   isImporting: boolean;
   onFiles: (files: File[]) => void;
+  onOpenAddEpub: () => void;
   onQueryChange: (query: string) => void;
   onRescanError: () => void;
   onSortChange: (sort: LibrarySort) => void;
@@ -59,6 +62,7 @@ const viewOptions: Array<{
 export function LibraryToolbar({
   isImporting,
   onFiles,
+  onOpenAddEpub,
   onQueryChange,
   onRescanError,
   onSortChange,
@@ -103,7 +107,16 @@ export function LibraryToolbar({
           ) : null}
         </div>
         {storageSource === "vault" ? (
-          <RescanVaultButton onError={onRescanError} />
+          <>
+            <Button
+              disabled={isImporting}
+              icon={<Plus aria-hidden="true" size={17} weight="bold" />}
+              onClick={onOpenAddEpub}
+            >
+              {isImporting ? "Adding" : "Add EPUB"}
+            </Button>
+            <RescanVaultButton onError={onRescanError} />
+          </>
         ) : (
           <ImportButton disabled={isImporting} onFiles={onFiles} />
         )}

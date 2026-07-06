@@ -30,6 +30,8 @@ import {
   shallowEqualRecords,
 } from "../utils/reconcileById";
 import type {
+  AddArchiveEpubInput,
+  ArchiveImportResult,
   LibraryStorage,
   StorageObserver,
   StorageSubscription,
@@ -242,6 +244,19 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     const pending = this.metadataWriteQueue.then(write);
     this.metadataWriteQueue = pending.catch(() => undefined);
     return pending;
+  }
+
+  async addEpubFilesToArchive(
+    input: AddArchiveEpubInput,
+  ): Promise<ArchiveImportResult[]> {
+    const results = await invoke<ArchiveImportResult[]>(
+      "add_epub_files_to_vault",
+      input,
+    );
+    if (results.some((result) => result.status === "imported")) {
+      await this.rescan();
+    }
+    return results;
   }
 
   createBook(_input: CreateBookInput): Promise<Book> {

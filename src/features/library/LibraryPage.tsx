@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { BookOpenText, WarningCircle, X } from "@phosphor-icons/react";
+import {
+  BookOpenText,
+  CheckCircle,
+  WarningCircle,
+  X,
+} from "@phosphor-icons/react";
 import {
   lazy,
   Suspense,
@@ -16,6 +21,10 @@ import { Dialog } from "../../components/Dialog";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
+import type {
+  AddArchiveEpubInput,
+  ArchiveImportResult,
+} from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { useAppPreferences } from "../../stores/appPreferencesStore";
 import { vaultStore } from "../../stores/vaultStore";
@@ -24,6 +33,7 @@ import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
+import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
 import { ImportDropzone } from "../import/ImportDropzone";
 import type { ImportResult } from "../import/importEpub";
 import { useVault } from "../vault/useVault";
@@ -41,6 +51,11 @@ import {
   type LibraryView,
 } from "./LibraryToolbar";
 
+const AddEpubDialog = lazy(() =>
+  import("../filesystem/AddEpubDialog").then((module) => ({
+    default: module.AddEpubDialog,
+  })),
+);
 const AboutDialog = lazy(() =>
   import("../settings/AboutDialog").then((module) => ({
     default: module.AboutDialog,
@@ -84,6 +99,9 @@ export function LibraryPage() {
   const importLock = useRef(false);
   const [isImporting, setIsImporting] = useState(false);
   const [failedImports, setFailedImports] = useState<FailedImport[]>([]);
+  const [archiveImportResults, setArchiveImportResults] = useState<
+    ArchiveImportResult[]
+  >([]);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<LibrarySort>("recently-added");
@@ -99,6 +117,7 @@ export function LibraryPage() {
     useState<Book | null>(null);
   const [changeArchiveOpen, setChangeArchiveOpen] = useState(false);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
+  const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] =
     useState<Folder | null>(null);
@@ -136,6 +155,7 @@ export function LibraryPage() {
     importLock.current = true;
     setIsImporting(true);
     setFailedImports([]);
+    setArchiveImportResults([]);
 
     try {
       const { createImportEpubDependencies, importEpubFiles } = await import(
@@ -151,6 +171,26 @@ export function LibraryPage() {
           (result): result is FailedImport => result.status === "failed",
         ),
       );
+    } finally {
+      importLock.current = false;
+      setIsImporting(false);
+    }
+  }
+
+  async function handleArchiveImport(input: AddArchiveEpubInput) {
+    if (importLock.current) {
+      return;
+    }
+
+    importLock.current = true;
+    setIsImporting(true);
+    setFailedImports([]);
+    setArchiveImportResults([]);
+    setLibraryError(null);
+
+    try {
+      const results = await storage.addEpubFilesToArchive(input);
+      setArchiveImportResults(results);
     } finally {
       importLock.current = false;
       setIsImporting(false);
@@ -264,6 +304,7 @@ export function LibraryPage() {
   }, []);
 
   const openChangeArchive = useCallback(() => setChangeArchiveOpen(true), []);
+  const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
   const openCreateFolder = useCallback(
     () => setIsCreateFolderOpen(true),
     [],
@@ -421,7 +462,7 @@ export function LibraryPage() {
         title: "No books in this folder",
         description:
           storage.source === "vault"
-            ? "EPUB files in this folder will appear here."
+            ? "Use Add EPUB to place files in this folder."
             : "Add books to this folder from book details.",
       };
     }
@@ -430,12 +471,27 @@ export function LibraryPage() {
       title: storage.source === "vault" ? "No EPUB files found" : "No books yet",
       description:
         storage.source === "vault"
-          ? "Add EPUB files to this library folder, then rescan."
+          ? "Use Add EPUB to place files in this archive."
           : "Add an EPUB or drop files here to start your collection.",
     };
   }
 
   const emptyState = locationEmptyState();
+  const archiveImportSummary = summarizeArchiveImportResults(archiveImportResults);
+  const archiveImportDetails = archiveImportResults.filter(
+    (result) => result.status !== "imported",
+  );
+  const archiveImportNoticeClass = archiveImportSummary
+    ? [
+        "import-notice",
+        archiveImportSummary.failed > 0
+          ? "import-notice--error"
+          : "import-notice--success",
+        archiveImportDetails.length > 0 ? "import-notice--detailed" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")
+    : "";
 
   return (
     <PageShell
@@ -475,6 +531,7 @@ export function LibraryPage() {
         <LibraryToolbar
           isImporting={isImporting}
           onFiles={handleFiles}
+          onOpenAddEpub={openAddEpub}
           onQueryChange={setQuery}
           onRescanError={() =>
             setLibraryError("The library folder could not be scanned.")
@@ -489,7 +546,7 @@ export function LibraryPage() {
         />
 
         {libraryError ? (
-          <div className="import-notice" role="alert">
+          <div className="import-notice import-notice--error" role="alert">
             <WarningCircle aria-hidden="true" size={19} weight="regular" />
             <div>
               <p>{libraryError}</p>
@@ -503,8 +560,46 @@ export function LibraryPage() {
           </div>
         ) : null}
 
+        {archiveImportSummary ? (
+          <div
+            className={archiveImportNoticeClass}
+            role={archiveImportSummary.failed > 0 ? "alert" : "status"}
+          >
+            {archiveImportSummary.failed > 0 ? (
+              <WarningCircle aria-hidden="true" size={19} weight="regular" />
+            ) : (
+              <CheckCircle aria-hidden="true" size={19} weight="regular" />
+            )}
+            <div>
+              <p>{archiveImportSummary.message}</p>
+              {archiveImportDetails.length > 0 ? (
+                <ul>
+                  {archiveImportDetails.map((result, index) => (
+                      <li key={`${result.sourcePath}-${index}`}>
+                        <span>{result.fileName}</span>
+                        {result.message ??
+                          (result.status === "skipped"
+                            ? "Skipped."
+                            : "Failed.")}
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+            </div>
+            <IconButton
+              label="Dismiss import summary"
+              onClick={() => setArchiveImportResults([])}
+            >
+              <X aria-hidden="true" size={17} weight="regular" />
+            </IconButton>
+          </div>
+        ) : null}
+
         {failedImports.length > 0 ? (
-          <div className="import-notice" role="alert">
+          <div
+            className="import-notice import-notice--error import-notice--detailed"
+            role="alert"
+          >
             <WarningCircle aria-hidden="true" size={19} weight="regular" />
             <div>
               <p>
@@ -586,6 +681,18 @@ export function LibraryPage() {
           </>
         )}
       </ImportDropzone>
+
+      {isAddEpubOpen ? (
+        <Suspense fallback={null}>
+          <AddEpubDialog
+            folders={folders ?? []}
+            initialFolderPath={currentFolder?.relativePath}
+            isImporting={isImporting}
+            onClose={() => setIsAddEpubOpen(false)}
+            onImport={handleArchiveImport}
+          />
+        </Suspense>
+      ) : null}
 
       {selectedBook ? (
         <Suspense fallback={null}>

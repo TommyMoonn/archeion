@@ -6,7 +6,7 @@ export type FileOperationStatus =
   | "missingSource"
   | "failed";
 
-export type ConflictChoice = "skip" | "replace" | "keepBoth" | "renameIncoming";
+export type ArchiveImportConflictAction = "keepBoth" | "skip" | "replace";
 
 export type FileOperationResult = {
   status: FileOperationStatus;

@@ -1,0 +1,100 @@
+.add-epub-dialog {
+  display: grid;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.add-epub-dialog__picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 0 13px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: var(--canvas-deep);
+  text-align: left;
+  cursor: pointer;
+}
+
+.add-epub-dialog__picker:hover:not(:disabled),
+.add-epub-dialog__picker:focus-visible {
+  border-color: var(--accent-border);
+  background: var(--surface-raised);
+}
+
+.add-epub-dialog__picker:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.add-epub-dialog__picker svg {
+  color: var(--accent);
+}
+
+.add-epub-dialog__picker span {
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-epub-dialog__files {
+  display: grid;
+  gap: 4px;
+  max-height: 116px;
+  padding: 10px 12px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  background: rgb(18 18 19 / 46%);
+  font-size: 12px;
+  line-height: 1.45;
+  list-style: none;
+}
+
+.add-epub-dialog .app-select {
+  width: 100%;
+}
+
+.add-epub-dialog .app-select__trigger {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.add-epub-dialog .app-select__menu {
+  width: 100%;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.add-epub-dialog__label,
+.add-epub-dialog__field > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.add-epub-dialog__field {
+  display: grid;
+  gap: 8px;
+}
+
+.add-epub-dialog__field .segmented-control {
+  justify-self: start;
+}
+
+.add-epub-dialog__error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

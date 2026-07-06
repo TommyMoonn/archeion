@@ -16,6 +16,7 @@
 
 @import "./features/vault.css";
 @import "./features/library.css";
+@import "./features/filesystem.css";
 @import "./features/folders.css";
 @import "./features/reader.css";
 @import "./features/settings.css";

@@ -9,6 +9,9 @@ import type {
   UpdateFolderInput,
 } from "../types/folder";
 import type { ReaderSettings } from "../types/reader";
+import type { ArchiveImportConflictAction } from "./pathSafety";
+
+export type { ArchiveImportConflictAction } from "./pathSafety";
 
 export type StorageObserver<T> = {
   next: (value: T) => void;
@@ -17,9 +20,27 @@ export type StorageObserver<T> = {
 
 export type StorageSubscription = () => void;
 
+export type ArchiveImportMode = "copy" | "move";
+
+export type AddArchiveEpubInput = {
+  conflictAction: ArchiveImportConflictAction;
+  destinationFolderPath?: string;
+  mode: ArchiveImportMode;
+  sourcePaths: string[];
+};
+
+export type ArchiveImportResult = {
+  status: "imported" | "skipped" | "failed";
+  fileName: string;
+  message?: string;
+  relativePath?: string;
+  sourcePath: string;
+};
+
 export interface LibraryStorage {
   readonly source: "indexeddb" | "vault";
   rescan(): Promise<void>;
+  addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
   createBook(input: CreateBookInput): Promise<Book>;
   getBook(id: string): Promise<Book | undefined>;
