@@ -1,25 +1,32 @@
 import { createBrowserRouter } from "react-router-dom";
 
-import { NotFoundPage } from "../components/NotFoundPage";
-import { LibraryPage } from "../features/library/LibraryPage";
-import { ReaderPage } from "../features/reader/ReaderPage";
-import { libraryStorage } from "../storage/defaultLibraryStorage";
+import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <LibraryPage />,
+    lazy: async () => {
+      const { LibraryPage } = await import("../features/library/LibraryPage");
+
+      return { Component: LibraryPage };
+    },
   },
   {
     path: "/reader/:bookId",
-    element: <ReaderPage />,
+    lazy: async () => {
+      const { ReaderPage } = await import("../features/reader/ReaderPage");
+
+      return { Component: ReaderPage };
+    },
     loader: async ({ params }) => {
       if (!params.bookId) {
         return undefined;
       }
 
       try {
-        return await libraryStorage.getBook(params.bookId);
+        const storage = await getLibraryStorage();
+
+        return await storage.getBook(params.bookId);
       } catch {
         return undefined;
       }
@@ -27,6 +34,10 @@ export const router = createBrowserRouter([
   },
   {
     path: "*",
-    element: <NotFoundPage />,
+    lazy: async () => {
+      const { NotFoundPage } = await import("../components/NotFoundPage");
+
+      return { Component: NotFoundPage };
+    },
   },
 ]);

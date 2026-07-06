@@ -1,8 +1,27 @@
 import { isTauri } from "@tauri-apps/api/core";
 
-import { IndexedDbLibraryStorage } from "./IndexedDbLibraryStorage";
-import { TauriVaultLibraryStorage } from "./TauriVaultLibraryStorage";
+import type { LibraryStorage } from "./LibraryStorage";
 
-export const libraryStorage = isTauri()
-  ? new TauriVaultLibraryStorage()
-  : new IndexedDbLibraryStorage();
+let libraryStoragePromise: Promise<LibraryStorage> | null = null;
+
+async function createLibraryStorage(): Promise<LibraryStorage> {
+  if (isTauri()) {
+    const { TauriVaultLibraryStorage } = await import(
+      "./TauriVaultLibraryStorage"
+    );
+
+    return new TauriVaultLibraryStorage();
+  }
+
+  const { IndexedDbLibraryStorage } = await import(
+    "./IndexedDbLibraryStorage"
+  );
+
+  return new IndexedDbLibraryStorage();
+}
+
+export function getLibraryStorage(): Promise<LibraryStorage> {
+  libraryStoragePromise ??= createLibraryStorage();
+
+  return libraryStoragePromise;
+}

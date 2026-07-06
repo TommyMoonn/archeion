@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { BookOpenText, WarningCircle, X } from "@phosphor-icons/react";
 import {
+  lazy,
+  Suspense,
   useCallback,
   useEffect,
   useMemo,
@@ -21,22 +23,12 @@ import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
-import { FolderCreateDialog } from "../folders/FolderCreateDialog";
 import { FolderBrowser } from "../folders/FolderBrowser";
-import { FolderRenameDialog } from "../folders/FolderRenameDialog";
 import { ImportDropzone } from "../import/ImportDropzone";
-import {
-  createImportEpubDependencies,
-  importEpubFiles,
-  type ImportResult,
-} from "../import/importEpub";
+import type { ImportResult } from "../import/importEpub";
 import { useVault } from "../vault/useVault";
-import { SettingsDialog } from "../settings/SettingsDialog";
-import { AboutDialog } from "../settings/AboutDialog";
-import { BookDetailsDrawer } from "./BookDetailsDrawer";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
-import { BookMetadataDialog } from "./BookMetadataDialog";
 import { ContinueReading } from "./ContinueReading";
 import {
   getVisibleBooks,
@@ -48,6 +40,37 @@ import {
   LibraryToolbar,
   type LibraryView,
 } from "./LibraryToolbar";
+
+const AboutDialog = lazy(() =>
+  import("../settings/AboutDialog").then((module) => ({
+    default: module.AboutDialog,
+  })),
+);
+const BookDetailsDrawer = lazy(() =>
+  import("./BookDetailsDrawer").then((module) => ({
+    default: module.BookDetailsDrawer,
+  })),
+);
+const BookMetadataDialog = lazy(() =>
+  import("./BookMetadataDialog").then((module) => ({
+    default: module.BookMetadataDialog,
+  })),
+);
+const FolderCreateDialog = lazy(() =>
+  import("../folders/FolderCreateDialog").then((module) => ({
+    default: module.FolderCreateDialog,
+  })),
+);
+const FolderRenameDialog = lazy(() =>
+  import("../folders/FolderRenameDialog").then((module) => ({
+    default: module.FolderRenameDialog,
+  })),
+);
+const SettingsDialog = lazy(() =>
+  import("../settings/SettingsDialog").then((module) => ({
+    default: module.SettingsDialog,
+  })),
+);
 
 type FailedImport = Extract<ImportResult, { status: "failed" }>;
 
@@ -115,6 +138,9 @@ export function LibraryPage() {
     setFailedImports([]);
 
     try {
+      const { createImportEpubDependencies, importEpubFiles } = await import(
+        "../import/importEpub"
+      );
       const results = await importEpubFiles(
         files,
         createImportEpubDependencies(storage),
@@ -562,6 +588,7 @@ export function LibraryPage() {
       </ImportDropzone>
 
       {selectedBook ? (
+        <Suspense fallback={null}>
         <BookDetailsDrawer
           book={selectedBook}
           canManageFile={storage.source !== "vault"}
@@ -579,36 +606,47 @@ export function LibraryPage() {
           }}
           onToggleFavorite={toggleFavorite}
         />
+        </Suspense>
       ) : null}
 
       {metadataEditBook ? (
-        <BookMetadataDialog
-          book={metadataEditBook}
-          onClose={closeMetadataEdit}
-          onSave={saveBook}
-        />
+        <Suspense fallback={null}>
+          <BookMetadataDialog
+            book={metadataEditBook}
+            onClose={closeMetadataEdit}
+            onSave={saveBook}
+          />
+        </Suspense>
       ) : null}
 
       {settingsOpen ? (
-        <SettingsDialog onClose={() => setSettingsOpen(false)} />
+        <Suspense fallback={null}>
+          <SettingsDialog onClose={() => setSettingsOpen(false)} />
+        </Suspense>
       ) : null}
       {aboutOpen ? (
-        <AboutDialog onClose={() => setAboutOpen(false)} />
+        <Suspense fallback={null}>
+          <AboutDialog onClose={() => setAboutOpen(false)} />
+        </Suspense>
       ) : null}
 
       {isCreateFolderOpen ? (
-        <FolderCreateDialog
-          onClose={() => setIsCreateFolderOpen(false)}
-          onCreate={createFolder}
-        />
+        <Suspense fallback={null}>
+          <FolderCreateDialog
+            onClose={() => setIsCreateFolderOpen(false)}
+            onCreate={createFolder}
+          />
+        </Suspense>
       ) : null}
 
       {renameFolderTarget ? (
-        <FolderRenameDialog
-          folder={renameFolderTarget}
-          onClose={() => setRenameFolderTarget(null)}
-          onRename={renameFolder}
-        />
+        <Suspense fallback={null}>
+          <FolderRenameDialog
+            folder={renameFolderTarget}
+            onClose={() => setRenameFolderTarget(null)}
+            onRename={renameFolder}
+          />
+        </Suspense>
       ) : null}
 
       {deleteTarget ? (
