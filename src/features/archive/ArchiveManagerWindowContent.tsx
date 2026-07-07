@@ -1,5 +1,4 @@
 import {
-  Check,
   DotsThree,
   FolderOpen,
   PencilSimple,
@@ -22,7 +21,7 @@ type ArchiveManagerMode = "launcher" | "manager";
 type ArchiveManagerWindowContentProps = {
   mode: ArchiveManagerMode;
   state: ArchiveState;
-  onArchiveActivated?: () => void;
+  onArchiveChoiceComplete?: () => void | Promise<unknown>;
   standalone?: boolean;
 };
 
@@ -30,7 +29,7 @@ type ArchiveRowProps = {
   activeArchiveId: string | null;
   archive: KnownArchive;
   isMissing: boolean;
-  onArchiveActivated?: () => void;
+  onArchiveChoiceComplete?: () => void | Promise<unknown>;
   setStatus: (status: string | null) => void;
 };
 
@@ -74,19 +73,10 @@ function surfaceTitle(mode: ArchiveManagerMode, state: ArchiveState): string {
   return "No archive open";
 }
 
-function sortArchives(
-  archives: KnownArchive[],
-  activeArchiveId: string | null,
-): KnownArchive[] {
-  return [...archives].sort((left, right) => {
-    if (left.id === activeArchiveId) {
-      return -1;
-    }
-    if (right.id === activeArchiveId) {
-      return 1;
-    }
-    return right.lastOpenedAt.localeCompare(left.lastOpenedAt);
-  });
+function sortArchives(archives: KnownArchive[]): KnownArchive[] {
+  return [...archives].sort((left, right) =>
+    right.lastOpenedAt.localeCompare(left.lastOpenedAt),
+  );
 }
 
 function ArchiveRowActions({
@@ -153,7 +143,7 @@ function ArchiveRow({
   activeArchiveId,
   archive,
   isMissing,
-  onArchiveActivated,
+  onArchiveChoiceComplete,
   setStatus,
 }: ArchiveRowProps) {
   const [isRenaming, setIsRenaming] = useState(false);
@@ -162,16 +152,21 @@ function ArchiveRow({
   const isActive = archive.id === activeArchiveId;
 
   async function activateArchive() {
-    if (isActive || isBusy || isRenaming) {
+    if (isBusy || isRenaming) {
       return;
     }
 
     setIsBusy(true);
     setStatus(null);
     try {
+      if (isActive) {
+        await onArchiveChoiceComplete?.();
+        return;
+      }
+
       const changed = await archiveStore.switchArchive(archive.id);
       if (changed) {
-        onArchiveActivated?.();
+        await onArchiveChoiceComplete?.();
       } else {
         setStatus("Archive folder not found.");
       }
@@ -229,7 +224,7 @@ function ArchiveRow({
 
   return (
     <div
-      className={`archive-row${isActive ? " archive-row--active" : ""}${
+      className={`archive-row${isBusy ? " archive-row--busy" : ""}${
         isMissing ? " archive-row--missing" : ""
       }`}
     >
@@ -254,9 +249,8 @@ function ArchiveRow({
           />
         ) : (
           <button
-            aria-current={isActive ? "page" : undefined}
             className="archive-row__activate"
-            disabled={isActive || isBusy}
+            disabled={isBusy}
             onClick={() => void activateArchive()}
             type="button"
           >
@@ -275,10 +269,6 @@ function ArchiveRow({
           </span>
         </div>
       ) : null}
-
-      <div className="archive-row__state" aria-hidden="true">
-        {isActive ? <Check size={14} weight="bold" /> : null}
-      </div>
 
       <div className="archive-row__actions">
         {isRenaming ? (
@@ -310,7 +300,7 @@ function ArchiveRow({
 export function ArchiveManagerWindowContent({
   mode,
   state,
-  onArchiveActivated,
+  onArchiveChoiceComplete,
   standalone = false,
 }: ArchiveManagerWindowContentProps) {
   const [status, setStatus] = useState<string | null>(null);
@@ -318,8 +308,8 @@ export function ArchiveManagerWindowContent({
   const missingArchiveId =
     state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(
-    () => sortArchives(state.archives, activeArchiveId),
-    [activeArchiveId, state.archives],
+    () => sortArchives(state.archives),
+    [state.archives],
   );
   const title = surfaceTitle(mode, state);
   const errorText = state.status === "error" ? state.error : null;
@@ -345,7 +335,7 @@ export function ArchiveManagerWindowContent({
                     archive={archive}
                     isMissing={archive.id === missingArchiveId}
                     key={archive.id}
-                    onArchiveActivated={onArchiveActivated}
+                    onArchiveChoiceComplete={onArchiveChoiceComplete}
                     setStatus={setStatus}
                   />
                 ))}
@@ -380,13 +370,13 @@ export function ArchiveManagerWindowContent({
               <OpenArchiveButton
                 action="create"
                 className="archive-action-row"
-                onOpened={onArchiveActivated}
+                onOpened={onArchiveChoiceComplete}
                 variant="secondary"
               />
               <OpenArchiveButton
                 action="open"
                 className="archive-action-row"
-                onOpened={onArchiveActivated}
+                onOpened={onArchiveChoiceComplete}
                 variant="secondary"
               />
             </div>

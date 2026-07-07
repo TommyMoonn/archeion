@@ -12,9 +12,32 @@ pub(crate) fn read_archive_path(app: &tauri::AppHandle) -> Result<Option<String>
     archive::read_active_archive_path(app)
 }
 
+pub(crate) fn clean_user_facing_path(path: &str) -> String {
+    const EXTENDED_UNC_PREFIX: &str = r"\\?\UNC\";
+    const EXTENDED_PATH_PREFIX: &str = r"\\?\";
+
+    if let Some(path_without_prefix) = path.strip_prefix(EXTENDED_UNC_PREFIX) {
+        return format!(r"\\{}", path_without_prefix);
+    }
+
+    if let Some(path_without_prefix) = path.strip_prefix(EXTENDED_PATH_PREFIX) {
+        return path_without_prefix.to_string();
+    }
+
+    path.to_string()
+}
+
+pub(crate) fn display_archive_path(path: &Path) -> String {
+    clean_user_facing_path(path.to_string_lossy().as_ref())
+}
+
+pub(crate) fn is_inside_archeion_metadata(path: &Path) -> bool {
+    path.components().any(|component| component.as_os_str() == ".archeion")
+}
+
 #[tauri::command]
 pub fn validate_archive_path(path: String) -> bool {
-    PathBuf::from(path).is_dir()
+    root_path_from_string(path).is_ok()
 }
 
 fn root_path_from_string(path: String) -> Result<PathBuf, String> {
@@ -22,7 +45,13 @@ fn root_path_from_string(path: String) -> Result<PathBuf, String> {
     if !root.is_dir() {
         return Err("The selected archive folder is unavailable.".to_string());
     }
-    Ok(root.canonicalize().unwrap_or(root))
+
+    let normalized = root.canonicalize().unwrap_or(root);
+    if is_inside_archeion_metadata(&normalized) {
+        return Err("Choose the archive folder, not an .archeion metadata folder.".to_string());
+    }
+
+    Ok(normalized)
 }
 
 pub(crate) fn resolve_archive_root(
@@ -121,7 +150,31 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::cover_cache_status_at;
+    use super::{clean_user_facing_path, cover_cache_status_at, root_path_from_string};
+
+    #[test]
+    fn keeps_normal_windows_paths_readable() {
+        assert_eq!(
+            clean_user_facing_path(r"C:\Users\Name\Books"),
+            r"C:\Users\Name\Books"
+        );
+    }
+
+    #[test]
+    fn removes_extended_windows_drive_prefixes() {
+        assert_eq!(
+            clean_user_facing_path(r"\\?\C:\Users\Name\Books"),
+            r"C:\Users\Name\Books"
+        );
+    }
+
+    #[test]
+    fn removes_extended_windows_unc_prefixes() {
+        assert_eq!(
+            clean_user_facing_path(r"\\?\UNC\server\share\Books"),
+            r"\\server\share\Books"
+        );
+    }
 
     #[test]
     fn reports_cover_cache_files_and_bytes() {
@@ -139,5 +192,22 @@ mod tests {
         assert_eq!(status.file_count, 2);
         assert_eq!(status.total_bytes, 5);
         fs::remove_dir_all(root).expect("test cache should be removed");
+    }
+
+    #[test]
+    fn rejects_metadata_directory_as_archive_root() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-root-{nonce}"));
+        let metadata = root.join(".archeion");
+        fs::create_dir_all(&metadata).expect("metadata directory should be created");
+
+        let error = root_path_from_string(metadata.to_string_lossy().into_owned())
+            .expect_err("metadata directory should be rejected");
+
+        assert!(error.contains("archive folder"));
+        fs::remove_dir_all(root).expect("test root should be removed");
     }
 }

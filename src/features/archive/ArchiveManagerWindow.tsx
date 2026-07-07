@@ -3,6 +3,7 @@ import type { ErrorInfo, ReactNode } from "react";
 
 import { archiveStore } from "../../stores/archiveStore";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
+import { completeArchiveManagerAction } from "./archiveManagerCompletion";
 import { useArchive } from "./useArchive";
 
 type ArchiveManagerErrorBoundaryProps = {
@@ -101,7 +102,7 @@ export function ArchiveManagerWindow() {
     <ArchiveManagerErrorBoundary>
       <ArchiveManagerWindowContent
         mode="manager"
-        onArchiveActivated={() => void archiveStore.focusMainWindow()}
+        onArchiveChoiceComplete={completeArchiveManagerAction}
         standalone
         state={archive}
       />

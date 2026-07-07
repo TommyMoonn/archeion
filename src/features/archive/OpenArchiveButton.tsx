@@ -10,7 +10,7 @@ type OpenArchiveButtonProps = {
   action?: ArchiveAction;
   className?: string;
   label?: string;
-  onOpened?: () => void;
+  onOpened?: () => void | Promise<unknown>;
   variant?: "primary" | "secondary" | "ghost";
 };
 
@@ -40,7 +40,7 @@ export function OpenArchiveButton({
           ? await archiveStore.createArchive()
           : await archiveStore.chooseArchive();
       if (opened) {
-        onOpened?.();
+        await onOpened?.();
       }
     } finally {
       setIsOpening(false);

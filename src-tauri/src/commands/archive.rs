@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use super::metadata;
+use super::{archive_root, metadata};
 
 const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
 const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
@@ -79,10 +79,12 @@ fn hash_archive_path(path: &str) -> u64 {
 }
 
 fn archive_identity_path(path: &str) -> String {
+    let path = archive_root::clean_user_facing_path(path);
+
     if cfg!(windows) {
         path.to_ascii_lowercase()
     } else {
-        path.to_string()
+        path
     }
 }
 
@@ -99,27 +101,45 @@ fn archive_display_name(path: &Path) -> String {
         .to_string()
 }
 
-fn is_inside_archeion_metadata(path: &Path) -> bool {
-    path.components().any(|component| component.as_os_str() == ".archeion")
-}
-
-fn normalized_root_path(path: &str) -> Result<String, String> {
+fn validated_root_path(path: &str) -> Result<PathBuf, String> {
     let root = PathBuf::from(path);
     if !root.is_dir() {
         return Err("The selected archive folder is unavailable.".to_string());
     }
 
     let normalized = root.canonicalize().unwrap_or(root);
-    if is_inside_archeion_metadata(&normalized) {
+    if archive_root::is_inside_archeion_metadata(&normalized) {
         return Err("Choose the archive folder, not an .archeion metadata folder.".to_string());
     }
 
-    Ok(normalized.to_string_lossy().into_owned())
+    Ok(normalized)
+}
+
+fn validated_display_root_path(path: &str) -> Result<String, String> {
+    let root = validated_root_path(path)?;
+    Ok(archive_root::display_archive_path(&root))
+}
+
+fn normalize_registry_paths(registry: &mut ArchiveRegistry) -> bool {
+    let mut changed = false;
+
+    for archive in &mut registry.archives {
+        let root_path = archive_root::clean_user_facing_path(&archive.root_path);
+        if root_path != archive.root_path {
+            archive.root_path = root_path;
+            changed = true;
+        }
+    }
+
+    changed
 }
 
 fn archive_paths_match(left: &str, right: &str) -> bool {
+    let left = archive_root::clean_user_facing_path(left);
+    let right = archive_root::clean_user_facing_path(right);
+
     if cfg!(windows) {
-        left.eq_ignore_ascii_case(right)
+        left.eq_ignore_ascii_case(&right)
     } else {
         left == right
     }
@@ -142,9 +162,9 @@ fn read_legacy_registry(app: &tauri::AppHandle) -> Result<Option<ArchiveRegistry
     };
     let legacy: LegacyArchiveConfig =
         serde_json::from_str(&contents).map_err(|error| error.to_string())?;
-    let root_path = match normalized_root_path(&legacy.archive_path) {
+    let root_path = match validated_display_root_path(&legacy.archive_path) {
         Ok(path) => path,
-        Err(_) => legacy.archive_path,
+        Err(_) => archive_root::clean_user_facing_path(&legacy.archive_path),
     };
     let timestamp = now_timestamp();
     let archive = ArchiveRecord {
@@ -176,7 +196,14 @@ fn read_registry(app: &tauri::AppHandle) -> Result<ArchiveRegistry, String> {
         Err(error) => return Err(error.to_string()),
     };
 
-    serde_json::from_str(&contents).map_err(|error| error.to_string())
+    let mut registry: ArchiveRegistry =
+        serde_json::from_str(&contents).map_err(|error| error.to_string())?;
+
+    if normalize_registry_paths(&mut registry) {
+        write_registry(app, &registry)?;
+    }
+
+    Ok(registry)
 }
 
 fn write_registry(app: &tauri::AppHandle, registry: &ArchiveRegistry) -> Result<(), String> {
@@ -283,6 +310,7 @@ fn upsert_archive_at_path(
     path: String,
     display_name: Option<String>,
 ) -> ArchiveRecord {
+    let path = archive_root::clean_user_facing_path(&path);
     let timestamp = now_timestamp();
 
     if let Some(archive) = registry
@@ -331,8 +359,9 @@ pub(crate) fn save_active_archive_path(
     app: &tauri::AppHandle,
     path: String,
 ) -> Result<ArchiveRecord, String> {
-    let root_path = normalized_root_path(&path)?;
-    metadata::initialize_at(Path::new(&root_path))?;
+    let root = validated_root_path(&path)?;
+    metadata::initialize_at(&root)?;
+    let root_path = archive_root::display_archive_path(&root);
     let mut registry = read_registry(app)?;
     let archive = upsert_archive_at_path(&mut registry, root_path, None);
     write_registry(app, &registry)?;
@@ -366,11 +395,11 @@ pub fn activate_archive(
         .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
     let root_path = registry.archives[index].root_path.clone();
 
-    if !PathBuf::from(&root_path).is_dir() {
+    if let Err(error) = validated_root_path(&root_path) {
         registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
         write_registry(&app, &registry)?;
         emit_archive_registry_changed(&app, &registry);
-        return Err("The selected archive folder is unavailable.".to_string());
+        return Err(error);
     }
 
     registry.archives[index].last_opened_at = timestamp;
@@ -467,10 +496,7 @@ pub fn reveal_archive(app: tauri::AppHandle, archive_id: String) -> Result<(), S
         .iter()
         .find(|archive| archive.id == archive_id)
         .ok_or_else(|| "The selected archive is no longer registered.".to_string())?;
-    let path = PathBuf::from(&archive.root_path);
-    if !path.is_dir() {
-        return Err("The selected archive folder is unavailable.".to_string());
-    }
+    let path = validated_root_path(&archive.root_path)?;
 
     #[cfg(target_os = "windows")]
     let mut command = Command::new("explorer");
@@ -494,9 +520,10 @@ mod tests {
     };
 
     use super::{
-        archive_id_for_path, archive_manager_url_parts, archive_paths_match, metadata,
-        normalized_root_path, upsert_archive_at_path, ArchiveManagerUrlKind,
-        ArchiveRegistry,
+        archive_id_for_path, archive_manager_url_parts, archive_paths_match, archive_root, metadata,
+        normalize_registry_paths, upsert_archive_at_path, validated_display_root_path,
+        validated_root_path,
+        ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -528,19 +555,66 @@ mod tests {
     }
 
     #[test]
+    fn upserts_equivalent_extended_windows_paths_without_duplicate_archives() {
+        let mut registry = ArchiveRegistry::default();
+
+        let first = upsert_archive_at_path(
+            &mut registry,
+            r"\\?\C:\Users\Name\Books".to_string(),
+            None,
+        );
+        let second = upsert_archive_at_path(
+            &mut registry,
+            r"C:\Users\Name\Books".to_string(),
+            Some("Books".to_string()),
+        );
+
+        assert_eq!(registry.archives.len(), 1);
+        assert_eq!(first.id, second.id);
+        assert_eq!(registry.archives[0].root_path, r"C:\Users\Name\Books");
+    }
+
+    #[test]
+    fn archive_ids_ignore_extended_windows_path_prefixes() {
+        assert_eq!(
+            archive_id_for_path(r"\\?\C:\Users\Name\Books"),
+            archive_id_for_path(r"C:\Users\Name\Books")
+        );
+        assert!(archive_paths_match(
+            r"\\?\C:\Users\Name\Books",
+            r"C:\Users\Name\Books"
+        ));
+    }
+
+    #[test]
+    fn registry_load_normalization_cleans_stored_extended_paths() {
+        let mut registry = ArchiveRegistry {
+            version: 1,
+            last_opened_archive_id: Some("archive-books".to_string()),
+            archives: vec![ArchiveRecord {
+                id: "archive-books".to_string(),
+                display_name: "Books".to_string(),
+                root_path: r"\\?\UNC\server\share\Books".to_string(),
+                created_at: "1".to_string(),
+                last_opened_at: "2".to_string(),
+            }],
+        };
+
+        assert!(normalize_registry_paths(&mut registry));
+        assert_eq!(registry.archives[0].root_path, r"\\server\share\Books");
+        assert_eq!(registry.last_opened_archive_id.as_deref(), Some("archive-books"));
+    }
+
+    #[test]
     fn accepts_existing_folder_without_metadata_directory() {
         let root = test_root("plain");
         fs::create_dir_all(&root).expect("test archive should be created");
 
-        let normalized = normalized_root_path(root.to_string_lossy().as_ref())
+        let display_path = validated_display_root_path(root.to_string_lossy().as_ref())
             .expect("plain archive folder should be accepted");
+        let canonical_root = root.canonicalize().expect("root should canonicalize");
 
-        assert_eq!(
-            normalized,
-            root.canonicalize()
-                .expect("root should canonicalize")
-                .to_string_lossy()
-        );
+        assert_eq!(display_path, archive_root::display_archive_path(&canonical_root));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -548,11 +622,10 @@ mod tests {
     fn initializes_metadata_for_plain_folder() {
         let root = test_root("initialize");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let normalized = normalized_root_path(root.to_string_lossy().as_ref())
+        let canonical_root = validated_root_path(root.to_string_lossy().as_ref())
             .expect("plain archive folder should be accepted");
 
-        metadata::initialize_at(std::path::Path::new(&normalized))
-            .expect("archive metadata should initialize");
+        metadata::initialize_at(&canonical_root).expect("archive metadata should initialize");
 
         assert!(root.join(".archeion").join("library.json").is_file());
         assert!(root.join(".archeion").join("progress.json").is_file());
@@ -566,7 +639,7 @@ mod tests {
         let metadata = root.join(".archeion");
         fs::create_dir_all(&metadata).expect("metadata directory should be created");
 
-        let error = normalized_root_path(metadata.to_string_lossy().as_ref())
+        let error = validated_display_root_path(metadata.to_string_lossy().as_ref())
             .expect_err("metadata directory should be rejected");
 
         assert!(error.contains("archive folder"));

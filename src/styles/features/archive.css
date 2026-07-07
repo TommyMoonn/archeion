@@ -196,9 +196,9 @@
   position: relative;
   display: grid;
   grid-template-areas:
-    "main state actions"
-    "meta meta actions";
-  grid-template-columns: minmax(0, 1fr) 18px 26px;
+    "main actions"
+    "meta actions";
+  grid-template-columns: minmax(0, 1fr) 26px;
   gap: 2px 7px;
   align-items: center;
   min-height: 48px;
@@ -208,28 +208,12 @@
   background: transparent;
 }
 
-.archive-row::before {
-  position: absolute;
-  top: 9px;
-  bottom: 9px;
-  left: 2px;
-  width: 2px;
-  border-radius: 999px;
-  background: transparent;
-  content: "";
-}
-
 .archive-row:hover {
   background: rgb(255 255 255 / 4%);
 }
 
-.archive-row--active {
-  border-color: color-mix(in srgb, var(--accent) 16%, transparent);
-  background: rgb(255 255 255 / 5.5%);
-}
-
-.archive-row--active::before {
-  background: color-mix(in srgb, var(--accent) 68%, transparent);
+.archive-row--busy {
+  background: rgb(255 255 255 / 4.5%);
 }
 
 .archive-row--missing {
@@ -274,7 +258,7 @@
 .archive-row__title {
   color: var(--text-strong);
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.2;
 }
 
@@ -291,15 +275,6 @@
   min-width: 0;
   flex-wrap: wrap;
   gap: 5px;
-}
-
-.archive-row__state {
-  grid-area: state;
-  display: grid;
-  width: 18px;
-  height: 26px;
-  place-items: center;
-  color: color-mix(in srgb, var(--accent) 78%, var(--text-strong));
 }
 
 .archive-row__badge {
