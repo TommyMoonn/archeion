@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 
 import type { ArchiveRegistry, KnownArchive } from "../types/archive";
@@ -31,6 +32,8 @@ export type ArchiveState =
 
 type Listener = () => void;
 
+const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
+
 type ArchiveFolderPickerOptions = {
   title: string;
 };
@@ -60,6 +63,7 @@ export class ArchiveStore {
   };
   private listeners = new Set<Listener>();
   private initialization: Promise<void> | null = null;
+  private registryListenerStarted = false;
 
   getSnapshot = (): ArchiveState => this.state;
 
@@ -69,6 +73,8 @@ export class ArchiveStore {
   };
 
   initialize(): Promise<void> {
+    this.startRegistryListener();
+
     if (this.initialization) {
       return this.initialization;
     }
@@ -183,6 +189,34 @@ export class ArchiveStore {
     }
   }
 
+  async openArchiveManagerWindow(): Promise<boolean> {
+    if (!isTauri()) {
+      return false;
+    }
+
+    try {
+      await invoke("open_archive_manager_window");
+      return true;
+    } catch (error) {
+      console.error("open_archive_manager_window failed", error);
+      return false;
+    }
+  }
+
+  async focusMainWindow(): Promise<boolean> {
+    if (!isTauri()) {
+      return false;
+    }
+
+    try {
+      await invoke("focus_main_window");
+      return true;
+    } catch (error) {
+      console.error("focus_main_window failed", error);
+      return false;
+    }
+  }
+
   async retry(): Promise<void> {
     if (this.state.status === "missing" && this.state.archive) {
       await this.switchArchive(this.state.archive.id);
@@ -202,6 +236,20 @@ export class ArchiveStore {
     }
 
     this.setState({ ...this.state, watcherError: error });
+  }
+
+  private startRegistryListener(): void {
+    if (this.registryListenerStarted || !isTauri()) {
+      return;
+    }
+
+    this.registryListenerStarted = true;
+    void listen<ArchiveRegistry>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
+      void this.useRegistryActiveArchive(event.payload);
+    }).catch((error) => {
+      this.registryListenerStarted = false;
+      console.error("archive registry event listener failed", error);
+    });
   }
 
   private async chooseArchiveFolder({

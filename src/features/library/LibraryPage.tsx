@@ -330,7 +330,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setSelectedBookId(book.id);
   }, []);
 
-  const openArchiveManager = useCallback(() => void navigate("/archives"), [navigate]);
+  const openArchiveManager = useCallback(
+    () => void archiveStore.openArchiveManagerWindow(),
+    [],
+  );
   const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
   const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);

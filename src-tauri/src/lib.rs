@@ -7,9 +7,11 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::archive::activate_archive,
+            commands::archive::focus_main_window,
             commands::archive::forget_archive,
             commands::archive::load_archive_registry,
             commands::archive::open_archive,
+            commands::archive::open_archive_manager_window,
             commands::archive::rename_archive,
             commands::archive::reveal_archive,
             commands::archive_import::add_epub_files_to_archive,

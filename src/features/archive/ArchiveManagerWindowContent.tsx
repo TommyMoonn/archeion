@@ -1,5 +1,4 @@
 import {
-  ArrowLeft,
   Check,
   DotsThree,
   FolderDashed,
@@ -24,7 +23,7 @@ type ArchiveManagerWindowContentProps = {
   mode: ArchiveManagerMode;
   state: ArchiveState;
   onArchiveActivated?: () => void;
-  onBack?: () => void;
+  standalone?: boolean;
 };
 
 type ArchiveRowProps = {
@@ -314,7 +313,7 @@ export function ArchiveManagerWindowContent({
   mode,
   state,
   onArchiveActivated,
-  onBack,
+  standalone = false,
 }: ArchiveManagerWindowContentProps) {
   const [status, setStatus] = useState<string | null>(null);
   const activeArchiveId = activeArchiveIdForState(state);
@@ -328,23 +327,15 @@ export function ArchiveManagerWindowContent({
   const errorText = state.status === "error" ? state.error : null;
 
   return (
-    <main className="archive-manager-shell">
+    <main
+      className={`archive-manager-shell${standalone ? " archive-manager-shell--standalone" : ""}`}
+    >
       <section
         className={`archive-manager-window archive-manager-window--${mode}`}
         aria-labelledby="archive-manager-title"
       >
         <div className="archive-manager-window__chrome">
           <span>{mode === "manager" ? "Archive Manager" : "Archive Launcher"}</span>
-          {onBack ? (
-            <button
-              className="archive-manager-window__back"
-              onClick={onBack}
-              type="button"
-            >
-              <ArrowLeft aria-hidden="true" size={15} weight="bold" />
-              Back to Library
-            </button>
-          ) : null}
         </div>
 
         <div className="archive-manager-window__body">

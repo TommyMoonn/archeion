@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,13 +11,21 @@ vi.mock("@tauri-apps/api/core", () => ({
   isTauri: vi.fn(),
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(),
+}));
+
 vi.mock("@tauri-apps/plugin-dialog", () => ({
   open: vi.fn(),
 }));
 
 const invokeMock = vi.mocked(invoke);
 const isTauriMock = vi.mocked(isTauri);
+const listenMock = vi.mocked(listen);
 const openMock = vi.mocked(open);
+
+type ArchiveRegistryEvent = { payload: ArchiveRegistry };
+let registryEventHandler: ((event: ArchiveRegistryEvent) => void) | undefined;
 
 const emptyRegistry: ArchiveRegistry = {
   version: 1,
@@ -51,7 +60,12 @@ function registry(activeId: string | null, archives = [booksArchive]): ArchiveRe
 describe("ArchiveStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    registryEventHandler = undefined;
     isTauriMock.mockReturnValue(true);
+    listenMock.mockImplementation(async (_event, handler) => {
+      registryEventHandler = handler as (event: ArchiveRegistryEvent) => void;
+      return () => undefined;
+    });
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_archive_registry") {
         return emptyRegistry;
@@ -258,6 +272,85 @@ describe("ArchiveStore", () => {
       path: null,
       error: null,
       archives: [],
+    });
+  });
+
+  it("opens the separate archive manager window through Tauri", async () => {
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.openArchiveManagerWindow()).resolves.toBe(true);
+
+    expect(invokeMock).toHaveBeenCalledWith("open_archive_manager_window");
+  });
+
+  it("does not change archive state when the manager window command fails", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return emptyRegistry;
+      }
+      if (command === "open_archive_manager_window") {
+        throw new Error("window failed");
+      }
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.openArchiveManagerWindow()).resolves.toBe(false);
+
+    expect(store.getSnapshot()).toEqual({
+      status: "setup",
+      path: null,
+      error: null,
+      archives: [],
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      "open_archive_manager_window failed",
+      expect.any(Error),
+    );
+    consoleError.mockRestore();
+  });
+
+  it("focuses the main window through Tauri", async () => {
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.focusMainWindow()).resolves.toBe(true);
+
+    expect(invokeMock).toHaveBeenCalledWith("focus_main_window");
+  });
+
+  it("applies archive registry events from another window", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") {
+        return true;
+      }
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    registryEventHandler?.({
+      payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+    });
+
+    await vi.waitFor(() => {
+      expect(store.getSnapshot()).toMatchObject({
+        status: "ready",
+        path: "E:\\Comics",
+        archive: comicsArchive,
+        archives: [booksArchive, comicsArchive],
+      });
+    });
+    expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
+      rootPath: "E:\\Comics",
     });
   });
 

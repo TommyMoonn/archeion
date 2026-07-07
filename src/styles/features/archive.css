@@ -15,6 +15,11 @@
   font-size: 13px;
 }
 
+.archive-manager-shell--standalone {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
 .archive-manager-window {
   display: grid;
   width: min(800px, calc(100vw - 56px));
@@ -45,25 +50,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.archive-manager-window__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 24px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  background: transparent;
-  font-size: 11px;
-  cursor: pointer;
-}
-
-.archive-manager-window__back:hover {
-  color: var(--text-strong);
-  background: var(--surface);
 }
 
 .archive-manager-window__body {
@@ -109,6 +95,34 @@
   align-content: center;
   gap: 28px;
   padding: clamp(34px, 6vw, 58px) clamp(34px, 6vw, 52px);
+}
+
+.archive-manager-window__fallback {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+  padding: 48px;
+  text-align: center;
+}
+
+.archive-manager-window__fallback h1 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.archive-manager-window__fallback p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--error);
+  font-size: 13px;
+  line-height: 1.55;
 }
 
 .archive-manager-window__identity {

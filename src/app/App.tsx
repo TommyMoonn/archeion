@@ -1,11 +1,26 @@
+import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { WindowFrame } from "../components/WindowFrame";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
+import { ArchiveManagerWindow } from "../features/archive/ArchiveManagerWindow";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { router } from "./router";
+import { resolveWindowMode } from "./windowMode";
 
 export function App() {
+  const windowMode = resolveWindowMode();
+
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      console.info(`[archeion] window mode: ${windowMode}`);
+    }
+  }, [windowMode]);
+
+  if (windowMode === "archive-manager") {
+    return <ArchiveManagerWindow />;
+  }
+
   return (
     <div className="window-app">
       <WindowFrame />

@@ -1,16 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { ArchiveState } from "../../stores/archiveStore";
-import { ArchiveManagerPage } from "./ArchiveManagerPage";
-import { useArchive } from "./useArchive";
-
-vi.mock("./useArchive", () => ({
-  useArchive: vi.fn(),
-}));
-
-const useArchiveMock = vi.mocked(useArchive);
+import { ArchiveManagerFallback } from "./ArchiveManagerWindow";
+import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
 
 const activeArchive = {
   id: "archive-books",
@@ -37,22 +30,21 @@ const readyState: ArchiveState = {
   archives: [activeArchive, savedArchive],
 };
 
-function renderManager() {
+function renderManager(state: ArchiveState = readyState) {
   return renderToStaticMarkup(
-    <MemoryRouter>
-      <ArchiveManagerPage />
-    </MemoryRouter>,
+    <ArchiveManagerWindowContent
+      mode="manager"
+      standalone
+      state={state}
+    />,
   );
 }
 
-describe("ArchiveManagerPage", () => {
-  beforeEach(() => {
-    useArchiveMock.mockReturnValue(readyState);
-  });
-
-  it("renders a dedicated two-panel archive management surface", () => {
+describe("ArchiveManagerWindow", () => {
+  it("renders the manager surface for the separate window", () => {
     const markup = renderManager();
 
+    expect(markup).toContain("archive-manager-shell--standalone");
     expect(markup).toContain("Archive Manager");
     expect(markup).toContain("Manage archives");
     expect(markup).toContain("Known archives");
@@ -67,5 +59,16 @@ describe("ArchiveManagerPage", () => {
     expect(markup).toContain("Reveal folder");
     expect(markup).toContain("Forget archive");
     expect(markup).not.toContain("Open another archive");
+    expect(markup).not.toContain("Back to Library");
+  });
+
+  it("shows a visible fallback when initialization fails", () => {
+    const markup = renderToStaticMarkup(
+      <ArchiveManagerFallback message="Manager failed to initialize." />,
+    );
+
+    expect(markup).toContain("Archive Manager");
+    expect(markup).toContain("Manager failed to initialize.");
+    expect(markup).toContain("role=\"alert\"");
   });
 });

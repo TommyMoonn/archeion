@@ -11,17 +11,6 @@ export const router = createBrowserRouter([
       return { Component: LibraryPage };
     },
   },
-
-  {
-    path: "/archives",
-    lazy: async () => {
-      const { ArchiveManagerPage } = await import(
-        "../features/archive/ArchiveManagerPage"
-      );
-
-      return { Component: ArchiveManagerPage };
-    },
-  },
   {
     path: "/reader/:bookId",
     lazy: async () => {
