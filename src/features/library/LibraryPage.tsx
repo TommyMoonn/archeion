@@ -27,7 +27,7 @@ import type {
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { useAppPreferences } from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
-import type { Book, UpdateBookInput } from "../../types/book";
+import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
@@ -39,6 +39,7 @@ import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
 import {
+  bookTitle,
   createLibrarySearchIndex,
   getVisibleBooksFromSearchIndex,
   type LibraryLocation,
@@ -72,9 +73,9 @@ const BookDetailsDrawer = lazy(() =>
     default: module.BookDetailsDrawer,
   })),
 );
-const BookMetadataDialog = lazy(() =>
-  import("./BookMetadataDialog").then((module) => ({
-    default: module.BookMetadataDialog,
+const BookMetadataReferenceDialog = lazy(() =>
+  import("./BookMetadataReferenceDialog").then((module) => ({
+    default: module.BookMetadataReferenceDialog,
   })),
 );
 const FolderCreateDialog = lazy(() =>
@@ -104,10 +105,6 @@ function isInsideFolder(
     relativePath === folder.relativePath ||
     relativePath.startsWith(`${folder.relativePath}/`)
   );
-}
-
-function bookLabel(book: Book): string {
-  return book.displayTitle?.trim() || book.originalTitle;
 }
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
@@ -141,9 +138,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     type: "library",
   });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [metadataEditBookId, setMetadataEditBookId] = useState<string | null>(
-    null,
-  );
+  const [metadataReferenceBookId, setMetadataReferenceBookId] = useState<
+    string | null
+  >(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(
     null,
@@ -258,9 +255,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => books?.find((book) => book.id === selectedBookId) ?? null,
     [books, selectedBookId],
   );
-  const metadataEditBook = useMemo(
-    () => books?.find((book) => book.id === metadataEditBookId) ?? null,
-    [books, metadataEditBookId],
+  const metadataReferenceBook = useMemo(
+    () => books?.find((book) => book.id === metadataReferenceBookId) ?? null,
+    [books, metadataReferenceBookId],
   );
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
   const currentFolder =
@@ -291,9 +288,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setClearProgressTarget(book);
   }, []);
 
-  const openMetadataEdit = useCallback((book: Book) => {
+  const openMetadataReference = useCallback((book: Book) => {
     setSelectedBookId(null);
-    setMetadataEditBookId(book.id);
+    setMetadataReferenceBookId(book.id);
   }, []);
 
   const requestRenameFile = useCallback((book: Book) => {
@@ -306,9 +303,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setMoveBookTarget(book);
   }, []);
 
-  function closeMetadataEdit() {
-    const bookId = metadataEditBookId;
-    setMetadataEditBookId(null);
+  function closeMetadataReference() {
+    const bookId = metadataReferenceBookId;
+    setMetadataReferenceBookId(null);
     setSelectedBookId(bookId);
   }
 
@@ -420,17 +417,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [storage],
   );
-
-  async function saveBook(book: Book, changes: UpdateBookInput) {
-    setLibraryError(null);
-
-    try {
-      await storage.updateBook(book.id, changes);
-    } catch (error) {
-      setLibraryError("Book details could not be updated.");
-      throw error;
-    }
-  }
 
   async function renameBookFile(fileName: string) {
     if (!renameFileTarget) {
@@ -760,7 +746,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onClose={closeDetails}
             onClearProgress={requestClearProgress}
             onDelete={requestDelete}
-            onEdit={openMetadataEdit}
+            onViewMetadata={openMetadataReference}
             onMoveFile={requestMoveBook}
             onRead={readBook}
             onReadFromBeginning={readBookFromBeginning}
@@ -775,12 +761,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         </Suspense>
       ) : null}
 
-      {metadataEditBook ? (
+      {metadataReferenceBook ? (
         <Suspense fallback={null}>
-          <BookMetadataDialog
-            book={metadataEditBook}
-            onClose={closeMetadataEdit}
-            onSave={saveBook}
+          <BookMetadataReferenceDialog
+            book={metadataReferenceBook}
+            onClose={closeMetadataReference}
           />
         </Suspense>
       ) : null}
@@ -859,8 +844,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           }
           description={
             deleteTarget.isFileMissing
-              ? `Favorites, progress, and display metadata for “${bookLabel(deleteTarget)}” will be removed. No EPUB file will be deleted.`
-              : `The EPUB file for “${bookLabel(deleteTarget)}” will be moved to Trash when available. Reading data will be removed.`
+              ? `Favorites and progress for “${bookTitle(deleteTarget)}” will be removed. No EPUB file will be deleted.`
+              : `The EPUB file for “${bookTitle(deleteTarget)}” will be moved to Trash when available. Reading data will be removed.`
           }
           onClose={() => {
             if (!isDeleting) {
@@ -895,7 +880,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       {clearProgressTarget ? (
         <Dialog
           title="Clear reading progress?"
-          description={`The saved reading position for “${clearProgressTarget.displayTitle ?? clearProgressTarget.originalTitle}” will be removed. The EPUB file is not changed.`}
+          description={`The saved reading position for “${bookTitle(clearProgressTarget)}” will be removed. The EPUB file is not changed.`}
           onClose={() => {
             if (!isDeleting) {
               setSelectedBookId(clearProgressTarget.id);

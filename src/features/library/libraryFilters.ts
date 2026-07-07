@@ -1,5 +1,12 @@
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+export {
+  bookAuthor,
+  bookSourceAuthor,
+  bookSourceTitle,
+  bookTitle,
+} from "../../utils/bookDisplay";
 
 export type LibrarySort =
   | "recently-added"
@@ -22,36 +29,6 @@ function normalize(value: string | undefined): string {
       .toLocaleLowerCase()
       .normalize("NFKD")
       .replace(/\p{Diacritic}/gu, "") ?? ""
-  );
-}
-
-export function bookTitle(book: Book): string {
-  return (
-    book.displayTitle?.trim() ||
-    book.originalTitle?.trim() ||
-    book.sourceMetadata?.title?.trim() ||
-    "Untitled"
-  );
-}
-
-export function bookAuthor(book: Book): string {
-  return (
-    book.displayAuthor?.trim() ||
-    book.sourceMetadata?.creator?.trim() ||
-    book.originalAuthor?.trim() ||
-    ""
-  );
-}
-
-export function bookSourceTitle(book: Book): string {
-  return book.sourceMetadata?.title?.trim() || book.originalTitle;
-}
-
-export function bookSourceAuthor(book: Book): string {
-  return (
-    book.sourceMetadata?.creator?.trim() ||
-    book.originalAuthor?.trim() ||
-    "Author unavailable"
   );
 }
 
@@ -82,10 +59,8 @@ export function createLibrarySearchIndex(
   return books.map((book) => ({
     book,
     searchText: [
-      book.displayTitle,
-      book.originalTitle,
       book.sourceMetadata?.title,
-      book.displayAuthor,
+      book.originalTitle,
       book.sourceMetadata?.creator,
       book.originalAuthor,
       book.sourceMetadata?.identifier,

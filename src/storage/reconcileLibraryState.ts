@@ -53,6 +53,41 @@ export type ReconciledLibraryState = {
   missingBooks: Map<string, Book>;
 };
 
+type LegacyLibraryBookMetadata = LibraryBookMetadata & {
+  displayTitle?: unknown;
+  displayAuthor?: unknown;
+};
+
+function omitLegacyDisplayOverrides(
+  metadata: LibraryMetadata,
+): { metadata: LibraryMetadata; changed: boolean } {
+  let changed = false;
+  const books: Record<string, LibraryBookMetadata> = {};
+
+  for (const [id, entry] of Object.entries(metadata.books)) {
+    const legacyEntry = entry as LegacyLibraryBookMetadata;
+    if ("displayTitle" in legacyEntry || "displayAuthor" in legacyEntry) {
+      changed = true;
+    }
+
+    books[id] = {
+      relativePath: entry.relativePath,
+      isFavorite: entry.isFavorite,
+      coverPath: entry.coverPath,
+      sourceMetadata: entry.sourceMetadata,
+      fileSize: entry.fileSize,
+      fileModifiedAt: entry.fileModifiedAt,
+      addedAt: entry.addedAt,
+      updatedAt: entry.updatedAt,
+    };
+  }
+
+  return {
+    metadata: { ...metadata, books },
+    changed,
+  };
+}
+
 function titleFromFileName(fileName: string) {
   return (
     fileName
@@ -110,8 +145,6 @@ function buildBook(
     originalTitle: titleFromFileName(scanned.fileName),
     originalAuthor: sourceMetadata?.creator,
     sourceMetadata,
-    displayTitle: metadata.displayTitle,
-    displayAuthor: metadata.displayAuthor,
     coverPath: metadata.coverPath,
     isFileMissing: false,
     isFavorite: metadata.isFavorite,
@@ -145,8 +178,6 @@ function buildMissingBook(
     originalTitle: titleFromFileName(fileName),
     originalAuthor: metadata.sourceMetadata?.creator,
     sourceMetadata: metadata.sourceMetadata,
-    displayTitle: metadata.displayTitle,
-    displayAuthor: metadata.displayAuthor,
     coverPath: metadata.coverPath,
     isFileMissing: true,
     folderId: null,
@@ -213,11 +244,12 @@ export function reconcileLibraryState({
     scannedBooks: scan.books,
     previousBooks,
   });
+  const normalizedLibraryMetadata = omitLegacyDisplayOverrides(libraryMetadata);
   const nextLibraryMetadata: LibraryMetadata = {
-    ...libraryMetadata,
-    books: { ...libraryMetadata.books },
+    ...normalizedLibraryMetadata.metadata,
+    books: { ...normalizedLibraryMetadata.metadata.books },
   };
-  let libraryChanged = false;
+  let libraryChanged = normalizedLibraryMetadata.changed;
   const visibleBooks: Book[] = [];
   const matchedBookIds = new Set<string>();
 

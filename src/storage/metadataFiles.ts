@@ -3,8 +3,6 @@ import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 
 export type LibraryBookMetadata = {
   relativePath: string;
-  displayTitle?: string;
-  displayAuthor?: string;
   isFavorite: boolean;
   coverPath?: string;
   sourceMetadata?: EpubSourceMetadata;

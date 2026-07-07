@@ -20,10 +20,6 @@ pub(crate) const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
 #[serde(rename_all = "camelCase")]
 pub struct LibraryBookMetadata {
     pub relative_path: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_title: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub display_author: Option<String>,
     #[serde(default)]
     pub is_favorite: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -423,6 +419,34 @@ mod tests {
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
         fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+
+    #[test]
+    fn old_display_override_fields_are_ignored_when_serializing_library_metadata() {
+        let value = serde_json::json!({
+            "version": 1,
+            "books": {
+                "book-1": {
+                    "relativePath": "Books/Example.epub",
+                    "displayTitle": "Old app title",
+                    "displayAuthor": "Old app author",
+                    "isFavorite": true,
+                    "addedAt": "2026-07-01T00:00:00.000Z",
+                    "updatedAt": "2026-07-01T00:00:00.000Z"
+                }
+            }
+        });
+
+        let parsed: LibraryMetadata =
+            serde_json::from_value(value).expect("old metadata should deserialize");
+        let serialized = serde_json::to_value(parsed).expect("metadata should serialize");
+        let book = &serialized["books"]["book-1"];
+
+        assert_eq!(book["relativePath"], "Books/Example.epub");
+        assert_eq!(book["isFavorite"], true);
+        assert!(book.get("displayTitle").is_none());
+        assert!(book.get("displayAuthor").is_none());
     }
 
     #[test]

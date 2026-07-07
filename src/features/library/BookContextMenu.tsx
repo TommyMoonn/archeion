@@ -9,6 +9,7 @@ import {
   Trash,
 } from "@phosphor-icons/react";
 import type { Book } from "../../types/book";
+import { bookTitle } from "../../utils/bookDisplay";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import {
   getBookMenuClassName,
@@ -59,8 +60,8 @@ export function BookContextMenu({
       onClick={(event) => event.stopPropagation()}
     >
       <summary
-        aria-label={`Actions for ${bookTitleForLabel(book)}`}
-        title={`Actions for ${bookTitleForLabel(book)}`}
+        aria-label={`Actions for ${bookTitle(book)}`}
+        title={`Actions for ${bookTitle(book)}`}
       >
         <DotsThree aria-hidden="true" size={20} weight="bold" />
       </summary>
@@ -125,8 +126,4 @@ export function BookContextMenu({
       </div>
     </details>
   );
-}
-
-function bookTitleForLabel(book: Book): string {
-  return book.displayTitle?.trim() || book.originalTitle;
 }

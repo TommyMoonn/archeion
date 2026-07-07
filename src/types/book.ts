@@ -15,8 +15,6 @@ export type Book = {
   originalTitle: string;
   originalAuthor?: string;
   sourceMetadata?: EpubSourceMetadata;
-  displayTitle?: string;
-  displayAuthor?: string;
   coverPath?: string;
   isFileMissing?: boolean;
   folderId?: string | null;
@@ -31,8 +29,6 @@ export type Book = {
 export type UpdateBookInput = Partial<
   Pick<
     Book,
-    | "displayTitle"
-    | "displayAuthor"
     | "folderId"
     | "isFavorite"
     | "lastOpenedAt"

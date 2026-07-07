@@ -42,6 +42,8 @@ const BookRow = memo(function BookRow({
   canDelete = true,
   canManageFile = false,
 }: BookRowProps) {
+  const author = bookAuthor(book);
+
   return (
     <article className="book-row">
       <button
@@ -52,7 +54,7 @@ const BookRow = memo(function BookRow({
         <BookCover book={book} className="book-cover--row" />
         <span className="book-row__identity">
           <strong>{bookTitle(book)}</strong>
-          <span>{bookAuthor(book)}</span>
+          {author ? <span>{author}</span> : null}
         </span>
         <span className="book-row__file">{book.fileName}</span>
         <span className="book-row__date">{formatDate(book.addedAt)}</span>

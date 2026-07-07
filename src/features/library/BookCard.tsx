@@ -32,6 +32,8 @@ export const BookCard = memo(function BookCard({
   canDelete = true,
   canManageFile = false,
 }: BookCardProps) {
+  const author = bookAuthor(book);
+
   return (
     <article className="book-card">
       <button
@@ -43,7 +45,7 @@ export const BookCard = memo(function BookCard({
         <BookCover book={book} />
         <span className="book-card__copy">
           <strong>{bookTitle(book)}</strong>
-          <span>{bookAuthor(book)}</span>
+          {author ? <span>{author}</span> : null}
         </span>
       </button>
       <IconButton

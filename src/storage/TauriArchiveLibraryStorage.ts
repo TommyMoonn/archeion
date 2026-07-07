@@ -537,30 +537,16 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     let libraryChanged = false;
     let progressChanged = false;
 
-    if (
-      Object.hasOwn(changes, "displayTitle") ||
-      Object.hasOwn(changes, "displayAuthor") ||
-      Object.hasOwn(changes, "isFavorite")
-    ) {
+    if (Object.hasOwn(changes, "isFavorite")) {
       const current = this.libraryMetadata.books[id];
       const nextEntry = {
         ...current,
         relativePath: this.books[index].relativePath ?? current.relativePath,
-        displayTitle: Object.hasOwn(changes, "displayTitle")
-          ? changes.displayTitle
-          : current.displayTitle,
-        displayAuthor: Object.hasOwn(changes, "displayAuthor")
-          ? changes.displayAuthor
-          : current.displayAuthor,
-        isFavorite: Object.hasOwn(changes, "isFavorite")
-          ? Boolean(changes.isFavorite)
-          : current.isFavorite,
+        isFavorite: Boolean(changes.isFavorite),
       };
 
       libraryChanged =
         current.relativePath !== nextEntry.relativePath ||
-        current.displayTitle !== nextEntry.displayTitle ||
-        current.displayAuthor !== nextEntry.displayAuthor ||
         current.isFavorite !== nextEntry.isFavorite;
 
       if (libraryChanged) {

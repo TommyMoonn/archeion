@@ -9,6 +9,7 @@ import {
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
+import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   defaultReaderSettings,
@@ -316,7 +317,7 @@ export function ReaderPage() {
     );
   }
 
-  const title = book.displayTitle ?? book.originalTitle;
+  const title = bookTitle(book);
   const currentLoadedFile = loadedFile?.bookId === book.id ? loadedFile : null;
   const fileBlob = currentLoadedFile?.blob;
   const fileLoadFailed = currentLoadedFile?.failed ?? false;

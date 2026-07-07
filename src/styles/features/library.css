@@ -928,34 +928,37 @@ html[data-card-size="large"] .book-grid {
   width: 100%;
 }
 
-.metadata-original {
+.metadata-reference {
   display: grid;
-  gap: 4px;
-  padding: 13px 14px;
-  margin-top: 20px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  background: var(--canvas-deep);
+  gap: 0;
+  margin: 0;
 }
 
-.metadata-original > span {
-  margin-bottom: 3px;
+.metadata-reference > div {
+  display: grid;
+  grid-template-columns: 94px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-subtle);
+}
+
+.metadata-reference > div:last-child {
+  border-bottom: 0;
+}
+
+.metadata-reference dt {
   color: var(--muted-soft);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 650;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
-.metadata-original strong {
+.metadata-reference dd {
+  min-width: 0;
+  margin: 0;
   color: var(--text);
   font-size: 12px;
-  font-weight: 600;
-}
-
-.metadata-original small {
-  color: var(--muted);
-  font-size: 11px;
+  overflow-wrap: anywhere;
 }
 
 .library-sort-select {

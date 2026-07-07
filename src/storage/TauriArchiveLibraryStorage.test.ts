@@ -43,7 +43,6 @@ const metadata = {
     books: {
       "book-1": {
         relativePath: "Author/Series/Volume_01.epub",
-        displayTitle: "Custom Volume",
         isFavorite: true,
         fileSize: 2048,
         fileModifiedAt: 1_700_000_000_000,
@@ -158,7 +157,6 @@ describe("TauriArchiveLibraryStorage", () => {
     expect(invokeMock).toHaveBeenCalledWith("scan_archive");
     expect(books[0]).toMatchObject({
       id: "book-1",
-      displayTitle: "Custom Volume",
       folderId: "folder:Author/Series",
       isFavorite: true,
       progressPercent: 42,
@@ -394,7 +392,6 @@ describe("TauriArchiveLibraryStorage", () => {
       id: "book-1",
       fileName: "Renamed.epub",
       relativePath: "Author/Series/Renamed.epub",
-      displayTitle: "Custom Volume",
       progressPercent: 42,
     });
     expect(currentMetadata.library.books["book-1"].relativePath).toBe(
@@ -597,11 +594,11 @@ describe("TauriArchiveLibraryStorage", () => {
     await storage.listBooks();
 
     const firstUpdate = storage.updateBook("book-1", {
-      displayTitle: "Queued first",
+      isFavorite: false,
     });
     await firstSaveStarted;
     const secondUpdate = storage.updateBook("book-1", {
-      displayAuthor: "Queued second",
+      isFavorite: true,
     });
     await Promise.resolve();
 
@@ -617,12 +614,12 @@ describe("TauriArchiveLibraryStorage", () => {
     expect(saveCalls[0][1]).not.toMatchObject({ rootPath: "C:/ArchiveB" });
   });
 
-  it("persists display metadata and progress in separate files", async () => {
+  it("persists favorites and progress in separate metadata files", async () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     await storage.updateBook("book-1", {
-      displayTitle: "Renamed",
+      isFavorite: false,
       progressCfi: "epubcfi(/6/4)",
       progressPercent: 50,
     });
@@ -632,7 +629,7 @@ describe("TauriArchiveLibraryStorage", () => {
       expect.objectContaining({
         metadata: expect.objectContaining({
           books: expect.objectContaining({
-            "book-1": expect.objectContaining({ displayTitle: "Renamed" }),
+            "book-1": expect.objectContaining({ isFavorite: false }),
           }),
         }),
       }),
@@ -652,35 +649,48 @@ describe("TauriArchiveLibraryStorage", () => {
     );
   });
 
-  it("clears display overrides without changing the EPUB record", async () => {
+  it("loads legacy display overrides without using or saving them", async () => {
+    const legacyMetadata = structuredClone(metadata) as typeof metadata & {
+      library: {
+        books: Record<
+          string,
+          { displayTitle?: string; displayAuthor?: string }
+        >;
+      };
+    };
+    const legacyBook = legacyMetadata.library.books[
+      "book-1"
+    ] as typeof metadata.library.books["book-1"] & {
+      displayTitle?: string;
+      displayAuthor?: string;
+    };
+    legacyBook.displayTitle = "Legacy Title";
+    legacyBook.displayAuthor = "Legacy Author";
+    let savedLibrary: LibraryMetadata | undefined;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") {
+        return structuredClone(firstScan);
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(legacyMetadata);
+      }
+      if (command === "save_library_metadata") {
+        savedLibrary = (args as { metadata: LibraryMetadata }).metadata;
+      }
+      return undefined;
+    });
     const storage = new TauriArchiveLibraryStorage();
-    await storage.listBooks();
 
-    const updated = await storage.updateBook("book-1", {
-      displayTitle: undefined,
-      displayAuthor: undefined,
-    });
+    const books = await storage.listBooks();
 
-    expect(updated?.displayTitle).toBeUndefined();
-    expect(updated?.relativePath).toBe("Author/Series/Volume_01.epub");
-    const saveCall = invokeMock.mock.calls.find(
-      ([command]) => command === "save_library_metadata",
-    );
-    expect(
-      (
-        saveCall?.[1] as {
-          metadata: {
-            books: Record<
-              string,
-              { displayTitle?: string; displayAuthor?: string }
-            >;
-          };
-        }
-      ).metadata.books["book-1"],
-    ).toMatchObject({
-      displayTitle: undefined,
-      displayAuthor: undefined,
+    expect(books[0]).toMatchObject({
+      originalTitle: "Volume 01",
+      isFavorite: true,
     });
+    expect(books[0]).not.toHaveProperty("displayTitle");
+    expect(books[0]).not.toHaveProperty("displayAuthor");
+    expect(savedLibrary?.books["book-1"]).not.toHaveProperty("displayTitle");
+    expect(savedLibrary?.books["book-1"]).not.toHaveProperty("displayAuthor");
   });
 
   it("reports scan status while a rescan is active", async () => {

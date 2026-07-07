@@ -166,7 +166,6 @@ describe("reconcileLibraryState", () => {
       previousFolders: [],
       libraryMetadata: library({
         "book-1": metadata("Author/Series/Volume 01.epub", {
-          displayTitle: "Custom Title",
           isFavorite: true,
           fileSize: 2048,
           fileModifiedAt: 1_700_000_000_000,
@@ -197,7 +196,6 @@ describe("reconcileLibraryState", () => {
     expect(result.books[0]).toMatchObject({
       id: "book-1",
       relativePath: "Author/Series/Renamed.epub",
-      displayTitle: "Custom Title",
       isFavorite: true,
       progressPercent: 50,
     });
@@ -206,6 +204,52 @@ describe("reconcileLibraryState", () => {
       updatedAt: timestamp,
     });
     expect(result.missingBooks.size).toBe(0);
+  });
+
+  it("ignores legacy display overrides while preserving source metadata and favorites", () => {
+    const result = reconcileLibraryState({
+      previousBooks: [],
+      previousFolders: [],
+      libraryMetadata: library({
+        "book-1": {
+          ...metadata("Author/Series/Volume 01.epub", {
+            isFavorite: true,
+            fileSize: 2048,
+            fileModifiedAt: 1_700_000_000_000,
+            sourceMetadata: {
+              title: "Cached EPUB Title",
+              creator: "Cached EPUB Author",
+            },
+          }),
+          displayTitle: "Legacy Override",
+          displayAuthor: "Legacy Author",
+        } as LibraryBookMetadata & {
+          displayTitle: string;
+          displayAuthor: string;
+        },
+      }),
+      progressMetadata: progress(),
+      scan: scan(),
+      timestamp,
+    });
+
+    expect(result.books[0]).toMatchObject({
+      id: "book-1",
+      isFavorite: true,
+      sourceMetadata: {
+        title: "Volume One",
+        creator: "Author Name",
+      },
+    });
+    expect(result.books[0]).not.toHaveProperty("displayTitle");
+    expect(result.books[0]).not.toHaveProperty("displayAuthor");
+    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty(
+      "displayTitle",
+    );
+    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty(
+      "displayAuthor",
+    );
+    expect(result.libraryChanged).toBe(true);
   });
 
   it("preserves book identity across simple external folder moves", () => {

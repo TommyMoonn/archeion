@@ -30,7 +30,6 @@ describe("library filters", () => {
       id: "second",
       originalTitle: "Series 10",
       originalAuthor: "Beta",
-      displayTitle: "Renamed volume",
       addedAt: "2026-07-02T00:00:00.000Z",
     }),
     createBook({
@@ -58,8 +57,8 @@ describe("library filters", () => {
     },
   ];
 
-  it("resolves visible title and author from overrides, filename titles, and parsed metadata", () => {
-    expect(bookTitle(books[0])).toBe("Renamed volume");
+  it("resolves visible title and author from parsed EPUB metadata before filename fallback", () => {
+    expect(bookTitle(books[0])).toBe("Series 10");
     expect(bookAuthor(books[2])).toBe("");
 
     const parsedMetadataBook = createBook({
@@ -69,18 +68,29 @@ describe("library filters", () => {
         creator: "Parsed EPUB Author",
       },
     });
-    expect(bookTitle(parsedMetadataBook)).toBe("Filename Title");
+    expect(bookTitle(parsedMetadataBook)).toBe("Parsed EPUB Title");
     expect(bookAuthor(parsedMetadataBook)).toBe("Parsed EPUB Author");
-    expect(
-      bookTitle({ ...parsedMetadataBook, originalTitle: "" }),
-    ).toBe("Parsed EPUB Title");
-    expect(
-      bookAuthor({ ...parsedMetadataBook, displayAuthor: "Display Author" }),
-    ).toBe("Display Author");
+    expect(bookTitle({ ...parsedMetadataBook, sourceMetadata: {} })).toBe(
+      "Filename Title",
+    );
   });
 
-  it("searches both display and original metadata", () => {
-    expect(filterBooks(books, "renamed")).toEqual([books[0]]);
+  it("ignores old display override fields when resolving visible metadata", () => {
+    const legacyBook = createBook({
+      originalTitle: "Filename Title",
+      sourceMetadata: {
+        title: "Parsed Package Title",
+        creator: "Parsed Package Author",
+      },
+      displayTitle: "Legacy Override",
+      displayAuthor: "Legacy Author",
+    } as Partial<Book> & { displayTitle: string; displayAuthor: string });
+
+    expect(bookTitle(legacyBook)).toBe("Parsed Package Title");
+    expect(bookAuthor(legacyBook)).toBe("Parsed Package Author");
+  });
+
+  it("searches parsed metadata and file context", () => {
     expect(filterBooks(books, "series 10")).toEqual([books[0]]);
     expect(filterBooks(books, "alpha")).toEqual([books[1]]);
     expect(filterBooks(books, "missing")).toEqual([]);
@@ -124,11 +134,10 @@ describe("library filters", () => {
     ]);
   });
 
-
   it("builds a reusable search index for repeated queries", () => {
     const index = createLibrarySearchIndex(books, folders);
 
-    expect(filterBookSearchIndex(index, "renamed")).toEqual([books[0]]);
+    expect(filterBookSearchIndex(index, "series 10")).toEqual([books[0]]);
     expect(filterBookSearchIndex(index, "science fiction")).toEqual([books[1]]);
     expect(filterBookSearchIndex(index, "missing")).toEqual([]);
   });
@@ -163,8 +172,8 @@ describe("library filters", () => {
   it("sorts titles naturally and authors with title tie-breaking", () => {
     expect(sortBooks(books, "title").map((book) => book.id)).toEqual([
       "third",
-      "second",
       "first",
+      "second",
     ]);
     expect(sortBooks(books, "author").map((book) => book.id)).toEqual([
       "first",

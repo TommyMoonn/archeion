@@ -6,6 +6,7 @@ import {
   File,
   FolderOpen,
   Heart,
+  Info,
   PencilSimple,
   ArrowRight,
   Trash,
@@ -31,7 +32,7 @@ type BookDetailsDrawerProps = {
   onRenameFile: (book: Book) => void;
   onRevealFile: (book: Book) => void;
   onRescan: () => void;
-  onEdit: (book: Book) => void;
+  onViewMetadata: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
   canDeleteBook?: boolean;
   canManageFile?: boolean;
@@ -67,7 +68,7 @@ export function BookDetailsDrawer({
   onRenameFile,
   onRevealFile,
   onRescan,
-  onEdit,
+  onViewMetadata,
   onToggleFavorite,
   canDeleteBook = true,
   canManageFile = false,
@@ -76,6 +77,7 @@ export function BookDetailsDrawer({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
   const hasProgress = progress > 0;
+  const author = bookAuthor(book);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -119,7 +121,7 @@ export function BookDetailsDrawer({
           <BookCover book={book} className="book-cover--details" />
           <div className="details-drawer__title">
             <h2 id="book-details-title">{bookTitle(book)}</h2>
-            <p>{bookAuthor(book)}</p>
+            {author ? <p>{author}</p> : null}
           </div>
 
           {book.isFileMissing ? (
@@ -169,11 +171,11 @@ export function BookDetailsDrawer({
               ) : null}
               <div className="details-actions__secondary">
                 <Button
-                  icon={<PencilSimple aria-hidden="true" size={16} />}
-                  onClick={() => onEdit(book)}
+                  icon={<Info aria-hidden="true" size={16} />}
+                  onClick={() => onViewMetadata(book)}
                   variant="ghost"
                 >
-                  Edit metadata
+                  View metadata
                 </Button>
                 <Button
                   icon={
