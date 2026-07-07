@@ -5,11 +5,11 @@ import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 
-type RescanVaultButtonProps = {
+type RescanArchiveButtonProps = {
   onError: () => void;
 };
 
-export function RescanVaultButton({ onError }: RescanVaultButtonProps) {
+export function RescanArchiveButton({ onError }: RescanArchiveButtonProps) {
   const storage = useLibraryStorage();
   const [isScanning, setIsScanning] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -42,7 +42,7 @@ export function RescanVaultButton({ onError }: RescanVaultButtonProps) {
       </Button>
       {confirmationOpen ? (
         <Dialog
-          title="Rescan library?"
+          title="Rescan archive?"
           description="This refreshes book and missing-file records. EPUB files are not changed."
           onClose={() => {
             if (!isScanning) setConfirmationOpen(false);
@@ -61,7 +61,7 @@ export function RescanVaultButton({ onError }: RescanVaultButtonProps) {
                 disabled={isScanning}
                 onClick={() => void handleRescan()}
               >
-                {isScanning ? "Scanning" : "Rescan library"}
+                {isScanning ? "Scanning" : "Rescan archive"}
               </Button>
             </>
           }

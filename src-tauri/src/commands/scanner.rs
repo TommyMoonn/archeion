@@ -7,7 +7,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::{epub_metadata, filesystem, metadata, vault};
+use super::{archive_root, epub_metadata, filesystem, metadata};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -32,15 +32,15 @@ pub struct ScannedFolder {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VaultScan {
+pub struct ArchiveScan {
     books: Vec<ScannedBook>,
     folders: Vec<ScannedFolder>,
-    warnings: Vec<VaultScanWarning>,
+    warnings: Vec<ArchiveScanWarning>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct VaultScanWarning {
+pub struct ArchiveScanWarning {
     relative_path: String,
     message: String,
 }
@@ -123,7 +123,7 @@ fn scan_source_metadata(
     modified_at: u64,
     cache: &metadata::ScannerCache,
     next_cache_entries: &mut BTreeMap<String, metadata::ScannerCacheEntry>,
-    warnings: &mut Vec<VaultScanWarning>,
+    warnings: &mut Vec<ArchiveScanWarning>,
 ) -> Option<epub_metadata::EpubPackageMetadata> {
     if let Some(source_metadata) = cached_source_metadata(relative_path, size, modified_at, cache) {
         next_cache_entries.insert(
@@ -153,7 +153,7 @@ fn scan_source_metadata(
             source_metadata
         }
         Err(error) => {
-            warnings.push(VaultScanWarning {
+            warnings.push(ArchiveScanWarning {
                 relative_path: relative_path.to_string(),
                 message: error,
             });
@@ -169,7 +169,7 @@ fn scan_directory(
     next_cache_entries: &mut BTreeMap<String, metadata::ScannerCacheEntry>,
     books: &mut Vec<ScannedBook>,
     folders: &mut Vec<ScannedFolder>,
-    warnings: &mut Vec<VaultScanWarning>,
+    warnings: &mut Vec<ArchiveScanWarning>,
 ) -> Result<(), String> {
     let entries = fs::read_dir(directory).map_err(|error| error.to_string())?;
 
@@ -253,9 +253,9 @@ fn scan_directory(
     Ok(())
 }
 
-fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
+fn scan_path(root: PathBuf) -> Result<ArchiveScan, String> {
     if !root.is_dir() {
-        return Err("The saved library folder is unavailable.".to_string());
+        return Err("The saved archive folder is unavailable.".to_string());
     }
 
     let cache = metadata::load_scanner_cache_at(&root).unwrap_or_default();
@@ -279,7 +279,7 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
         let _ = metadata::save_scanner_cache_at(&root, &next_cache);
     }
 
-    Ok(VaultScan {
+    Ok(ArchiveScan {
         books,
         folders,
         warnings,
@@ -287,11 +287,11 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
 }
 
 #[tauri::command]
-pub async fn scan_vault(
+pub async fn scan_archive(
     app: tauri::AppHandle,
     root_path: Option<String>,
-) -> Result<VaultScan, String> {
-    let path = vault::resolve_vault_root(&app, root_path)?;
+) -> Result<ArchiveScan, String> {
+    let path = archive_root::resolve_archive_root(&app, root_path)?;
     tauri::async_runtime::spawn_blocking(move || scan_path(path))
         .await
         .map_err(|error| error.to_string())?
@@ -347,7 +347,7 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         let root = std::env::temp_dir().join(format!("archeion-scanner-metadata-{nonce}"));
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
         write_minimal_epub(
             &root.join("metadata.epub"),
             br#"<package><metadata>
@@ -359,7 +359,7 @@ mod tests {
         );
         fs::write(root.join("broken.epub"), b"not a zip").expect("bad EPUB should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.books.len(), 2);
         let book = scan
@@ -378,7 +378,7 @@ mod tests {
         assert_eq!(scan.warnings.len(), 1);
         assert_eq!(scan.warnings[0].relative_path, "broken.epub");
 
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -412,7 +412,7 @@ mod tests {
         )
         .expect("scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.warnings.len(), 0);
         let metadata = scan.books[0]
@@ -422,7 +422,7 @@ mod tests {
         assert_eq!(metadata.title.as_deref(), Some("Cached Title"));
         assert_eq!(metadata.creator.as_deref(), Some("Cached Author"));
         assert_eq!(metadata.identifier.as_deref(), Some("urn:cached"));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -458,7 +458,7 @@ mod tests {
         )
         .expect("scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.warnings.len(), 0);
         let metadata = scan.books[0]
@@ -467,7 +467,7 @@ mod tests {
             .expect("moved cached metadata should be used");
         assert_eq!(metadata.title.as_deref(), Some("Moved Cached Title"));
         assert_eq!(metadata.identifier.as_deref(), Some("urn:moved-cache"));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -503,12 +503,12 @@ mod tests {
         )
         .expect("scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.books[0].source_metadata, None);
         assert_eq!(scan.warnings.len(), 1);
         assert_eq!(scan.warnings[0].relative_path, "different.epub");
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -550,11 +550,11 @@ mod tests {
         )
         .expect("scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.books[0].source_metadata, None);
         assert_eq!(scan.warnings.len(), 1);
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -564,10 +564,10 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         let root = std::env::temp_dir().join(format!("archeion-scanner-cache-errors-{nonce}"));
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
         fs::write(root.join("broken.epub"), b"not a zip").expect("bad EPUB should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.warnings.len(), 1);
         let cache_contents = fs::read_to_string(root.join(".archeion/scanner-cache.json"))
@@ -576,7 +576,7 @@ mod tests {
             serde_json::from_str(&cache_contents).expect("scanner cache should be valid JSON");
         assert_eq!(cache["entries"].as_object().expect("entries should be an object").len(), 0);
         assert!(!cache_contents.contains("metadataError"));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -595,7 +595,7 @@ mod tests {
         fs::write(metadata_dir.join("scanner-cache.json"), b"{not-json")
             .expect("corrupted scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should recover and succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should recover and succeed");
 
         assert_eq!(scan.books.len(), 1);
         let metadata = scan.books[0]
@@ -612,7 +612,7 @@ mod tests {
                 .file_name()
                 .to_string_lossy()
                 .contains("scanner-cache.json.corrupt-")));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -643,14 +643,14 @@ mod tests {
         )
         .expect("scanner cache should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         let metadata = scan.books[0]
             .source_metadata
             .as_ref()
             .expect("fresh metadata should be parsed");
         assert_eq!(metadata.title.as_deref(), Some("Fresh Title"));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -669,13 +669,13 @@ mod tests {
         fs::write(metadata.join("hidden.epub"), b"hidden")
             .expect("metadata EPUB should be written");
 
-        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
 
         assert_eq!(scan.books.len(), 1);
         assert_eq!(scan.books[0].relative_path, "Author/Series/Volume 01.EPUB");
         assert_eq!(scan.folders.len(), 2);
         assert_eq!(scan.folders[1].parent_path.as_deref(), Some("Author"));
 
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 }

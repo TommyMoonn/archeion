@@ -5,5 +5,5 @@ pub mod epub_metadata;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;
-pub mod vault;
+pub mod archive_root;
 pub mod watcher;

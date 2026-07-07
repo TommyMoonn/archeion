@@ -9,7 +9,7 @@ use std::{
 use image::{ImageFormat, ImageReader, Limits};
 use zip::ZipArchive;
 
-use super::{epub_metadata, filesystem, vault};
+use super::{archive_root, epub_metadata, filesystem};
 
 pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     filesystem::resolve_existing_epub_path(root, relative_path)
@@ -123,7 +123,7 @@ pub fn read_epub_file(
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<tauri::ipc::Response, String> {
-    let root = vault::resolve_vault_root(&app, root_path)?;
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
     let path = resolve_epub_path(&root, &relative_path)?;
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
@@ -135,7 +135,7 @@ pub fn reveal_epub_file(
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<(), String> {
-    let root = vault::resolve_vault_root(&app, root_path)?;
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
     let path = resolve_epub_path(&root, &relative_path)?;
 
     #[cfg(target_os = "windows")]
@@ -180,7 +180,7 @@ pub async fn load_epub_cover(
     {
         return Err("Invalid book identifier.".to_string());
     }
-    let root = vault::resolve_vault_root(&app, root_path)?;
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
     let bytes = tauri::async_runtime::spawn_blocking(move || {
         load_epub_cover_at(&root, &relative_path, &book_id)
     })
@@ -208,7 +208,7 @@ mod tests {
     }
 
     #[test]
-    fn resolves_epubs_inside_the_vault() {
+    fn resolves_epubs_inside_the_archive() {
         let root = test_root();
         let book = root.join("Series").join("Volume.epub");
         fs::create_dir_all(book.parent().expect("book should have a parent"))
@@ -221,7 +221,7 @@ mod tests {
             resolved,
             fs::canonicalize(&book).expect("book path should canonicalize")
         );
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
@@ -236,13 +236,13 @@ mod tests {
         assert!(resolve_epub_path(&root, ".archeion/hidden.epub").is_err());
         assert!(resolve_epub_path(&root, "notes.txt").is_err());
         assert!(resolve_epub_path(&root, "missing.epub").is_err());
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
     fn extracts_an_epub_three_cover() {
         let root = test_root();
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
         let epub_path = root.join("covered.epub");
         let file = fs::File::create(&epub_path).expect("EPUB should be created");
         let mut archive = zip::ZipWriter::new(file);
@@ -279,7 +279,7 @@ mod tests {
             .expect("cover should exist");
 
         assert_eq!(cover, vec![255, 216, 255, 217]);
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]

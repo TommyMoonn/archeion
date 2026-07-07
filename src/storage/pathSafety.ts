@@ -51,7 +51,7 @@ export function normalizeArchiveRelativePath(path: string): string {
   for (const part of normalized) {
     if (part === ".") continue;
     if (part === "..") {
-      throw new Error("Archive paths cannot leave the library folder.");
+      throw new Error("Archive paths cannot leave the archive folder.");
     }
     parts.push(part);
   }

@@ -14,7 +14,7 @@ import {
   type MetadataBundle,
   type SettingsMetadata,
 } from "./metadataFiles";
-import { reconcileLibraryState, type VaultScan } from "./reconcileLibraryState";
+import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
@@ -53,7 +53,7 @@ type ArchiveCommandScope = {
   rootPath: string | null;
 };
 
-export class TauriVaultLibraryStorage implements LibraryStorage {
+export class TauriArchiveLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
   private missingBooks = new Map<string, Book>();
   private folders: Folder[] = [];
@@ -131,9 +131,13 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     const rootPath = this.archiveRootPath;
     try {
       const [scan, metadata] = await Promise.all([
-        this.invokeArchiveCommand<VaultScan>("scan_vault", undefined, rootPath),
+        this.invokeArchiveCommand<ArchiveScan>(
+          "scan_archive",
+          undefined,
+          rootPath,
+        ),
         this.invokeArchiveCommand<MetadataBundle>(
-          "load_vault_metadata",
+          "load_archive_metadata",
           undefined,
           rootPath,
         ),
@@ -284,7 +288,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   ): Promise<ArchiveImportResult[]> {
     const scope = this.createArchiveCommandScope();
     const results = await this.invokeArchiveCommand<ArchiveImportResult[]>(
-      "add_epub_files_to_vault",
+      "add_epub_files_to_archive",
       input,
       scope.rootPath,
     );
@@ -462,7 +466,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     if (current) {
       return current;
     }
-    const pending = this.loadVaultBookCover(book, scope.rootPath);
+    const pending = this.loadArchiveBookCover(book, scope.rootPath);
     this.coverPromises.set(cacheKey, pending);
     void pending
       .finally(() => {
@@ -474,7 +478,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return pending;
   }
 
-  private async loadVaultBookCover(
+  private async loadArchiveBookCover(
     book: Book,
     rootPath: string | null,
   ): Promise<Blob | undefined> {
@@ -652,7 +656,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     }
 
     const change = await this.invokeArchiveCommand<ArchivePathChange>(
-      "rename_vault_epub_file",
+      "rename_archive_epub_file",
       {
         relativePath: book.relativePath,
         newFileName: fileName,
@@ -679,7 +683,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       ? this.requireFolder(folderId).relativePath
       : undefined;
     const change = await this.invokeArchiveCommand<ArchivePathChange>(
-      "move_vault_epub_file",
+      "move_archive_epub_file",
       {
         relativePath: book.relativePath,
         destinationFolderPath,
@@ -709,7 +713,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         throw new Error("The selected EPUB file is unavailable.");
       }
       await this.invokeArchiveCommand(
-        "delete_vault_epub_file",
+        "delete_archive_epub_file",
         { relativePath: book.relativePath },
         scope.rootPath,
       );
@@ -753,7 +757,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       ? this.requireFolder(input.parentId).relativePath
       : undefined;
     const relativePath = await this.invokeArchiveCommand<string>(
-      "create_vault_folder",
+      "create_archive_folder",
       {
         parentRelativePath,
         name: input.name,
@@ -807,7 +811,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         throw new Error("Folder name is required.");
       }
       const change = await this.invokeArchiveCommand<ArchivePathChange>(
-        "rename_vault_folder",
+        "rename_archive_folder",
         {
           relativePath: folder.relativePath,
           newName,
@@ -822,7 +826,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         ? this.requireFolder(changes.parentId).relativePath
         : undefined;
       const change = await this.invokeArchiveCommand<ArchivePathChange>(
-        "move_vault_folder",
+        "move_archive_folder",
         {
           relativePath: folder.relativePath,
           destinationParentPath,
@@ -841,7 +845,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     if (loading) await loading;
     const folder = this.requireFolder(id);
     await this.invokeArchiveCommand(
-      "reveal_vault_folder",
+      "reveal_archive_folder",
       { relativePath: folder.relativePath },
       scope.rootPath,
     );
@@ -858,7 +862,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
 
     const folder = this.requireFolder(id);
     await this.invokeArchiveCommand(
-      "delete_vault_folder",
+      "delete_archive_folder",
       { relativePath: folder.relativePath },
       scope.rootPath,
     );

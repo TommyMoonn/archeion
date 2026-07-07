@@ -3,10 +3,10 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 
-export const VAULT_CHANGED_EVENT = "vault://changed";
-export const VAULT_WATCHER_ERROR_EVENT = "vault://watcher-error";
+export const ARCHIVE_CHANGED_EVENT = "archive://changed";
+export const ARCHIVE_WATCHER_ERROR_EVENT = "archive://watcher-error";
 
-export type VaultWatcherOptions = {
+export type ArchiveWatcherOptions = {
   debounceMs?: number;
   onError?: (error: unknown) => void;
   onRecovered?: () => void;
@@ -22,7 +22,7 @@ function clearTimer(timer: Timer | null): null {
   return null;
 }
 
-export class VaultWatcherController {
+export class ArchiveWatcherController {
   private readonly debounceMs: number;
   private readonly onError?: (error: unknown) => void;
   private readonly onRecovered?: () => void;
@@ -39,7 +39,7 @@ export class VaultWatcherController {
     onError,
     onRecovered,
     storage,
-  }: VaultWatcherOptions) {
+  }: ArchiveWatcherOptions) {
     this.debounceMs = debounceMs;
     this.onError = onError;
     this.onRecovered = onRecovered;
@@ -55,13 +55,13 @@ export class VaultWatcherController {
 
     try {
       const [stopChangeListener, stopErrorListener] = await Promise.all([
-        listen(VAULT_CHANGED_EVENT, () => this.notifyChanged()),
-        listen(VAULT_WATCHER_ERROR_EVENT, (event) => {
+        listen(ARCHIVE_CHANGED_EVENT, () => this.notifyChanged()),
+        listen(ARCHIVE_WATCHER_ERROR_EVENT, (event) => {
           this.reportError(event.payload);
         }),
       ]);
       this.unlistenCallbacks = [stopChangeListener, stopErrorListener];
-      const watcherId = await invoke<string>("start_vault_watcher");
+      const watcherId = await invoke<string>("start_archive_watcher");
 
       if (this.stopped) {
         await this.stopStartedWatcher(watcherId);
@@ -132,13 +132,12 @@ export class VaultWatcherController {
     }
   }
 
-
   private async stopStartedWatcher(watcherId: string): Promise<void> {
     if (!isTauri()) {
       return;
     }
 
-    await invoke("stop_vault_watcher", { watcherId }).catch((error) => {
+    await invoke("stop_archive_watcher", { watcherId }).catch((error) => {
       this.reportError(error);
     });
   }

@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import type { ArchiveRegistry, KnownArchive } from "../types/archive";
 import { activeArchiveFromRegistry } from "../types/archive";
 
-export type VaultState =
+export type ArchiveState =
   | { status: "loading"; path: null; error: null; archives: KnownArchive[] }
   | { status: "setup"; path: null; error: null; archives: KnownArchive[] }
   | {
@@ -35,7 +35,7 @@ type ArchiveFolderPickerOptions = {
   title: string;
 };
 
-function setupState(archives: KnownArchive[]): VaultState {
+function setupState(archives: KnownArchive[]): ArchiveState {
   return { status: "setup", path: null, error: null, archives };
 }
 
@@ -51,8 +51,8 @@ function errorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export class VaultStore {
-  private state: VaultState = {
+export class ArchiveStore {
+  private state: ArchiveState = {
     status: "loading",
     path: null,
     error: null,
@@ -61,7 +61,7 @@ export class VaultStore {
   private listeners = new Set<Listener>();
   private initialization: Promise<void> | null = null;
 
-  getSnapshot = (): VaultState => this.state;
+  getSnapshot = (): ArchiveState => this.state;
 
   subscribe = (listener: Listener) => {
     this.listeners.add(listener);
@@ -77,7 +77,7 @@ export class VaultStore {
     return this.initialization;
   }
 
-  chooseVault(): Promise<boolean> {
+  chooseArchive(): Promise<boolean> {
     return this.chooseArchiveFolder({ title: "Open folder as archive" });
   }
 
@@ -211,7 +211,7 @@ export class VaultStore {
       this.setState({
         status: "error",
         path: this.state.path,
-        error: "Library folders can only be opened in the desktop app.",
+        error: "Archive folders can only be opened in the desktop app.",
         archives: this.state.archives,
       });
       return false;
@@ -253,7 +253,7 @@ export class VaultStore {
       this.setState({
         status: "error",
         path: null,
-        error: "Library folders can only be opened in the desktop app.",
+        error: "Archive folders can only be opened in the desktop app.",
         archives: [],
       });
       return;
@@ -293,7 +293,7 @@ export class VaultStore {
     }
 
     try {
-      const exists = await invoke<boolean>("validate_vault_path", {
+      const exists = await invoke<boolean>("validate_archive_path", {
         path: active.rootPath,
       });
 
@@ -308,7 +308,7 @@ export class VaultStore {
         return false;
       }
 
-      await invoke("initialize_vault_metadata", { rootPath: active.rootPath });
+      await invoke("initialize_archive_metadata", { rootPath: active.rootPath });
       this.setState({
         status: "ready",
         path: active.rootPath,
@@ -375,7 +375,7 @@ export class VaultStore {
     });
   }
 
-  private setState(state: VaultState) {
+  private setState(state: ArchiveState) {
     this.state = state;
     for (const listener of this.listeners) {
       listener();
@@ -383,4 +383,4 @@ export class VaultStore {
   }
 }
 
-export const vaultStore = new VaultStore();
+export const archiveStore = new ArchiveStore();

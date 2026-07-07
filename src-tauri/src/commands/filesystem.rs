@@ -6,7 +6,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::vault;
+use super::archive_root;
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const RESERVED_ITEM_NAME_CHARS: [char; 9] = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
@@ -32,7 +32,7 @@ pub(crate) fn normalize_archive_relative_path(relative_path: &str) -> Result<Str
     let normalized_input = relative_path.replace('\\', "/");
     let path = Path::new(&normalized_input);
     if path.is_absolute() {
-        return Err("Archive paths must be relative to the library folder.".to_string());
+        return Err("Archive paths must be relative to the archive folder.".to_string());
     }
 
     let mut parts = Vec::new();
@@ -41,7 +41,7 @@ pub(crate) fn normalize_archive_relative_path(relative_path: &str) -> Result<Str
             Component::Normal(part) => parts.push(part.to_string_lossy().trim().to_string()),
             Component::CurDir => {}
             Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                return Err("Archive paths cannot leave the library folder.".to_string());
+                return Err("Archive paths cannot leave the archive folder.".to_string());
             }
         }
     }
@@ -132,7 +132,7 @@ pub(crate) fn resolve_existing_archive_path(
     let resolved =
         fs::canonicalize(canonical_root.join(relative_path)).map_err(|error| error.to_string())?;
     if !resolved.starts_with(&canonical_root) {
-        return Err("The selected path is outside the library folder.".to_string());
+        return Err("The selected path is outside the archive folder.".to_string());
     }
     Ok(resolved)
 }
@@ -161,12 +161,15 @@ pub struct ArchivePathChange {
     new_relative_path: String,
 }
 
-fn vault_root(app: &tauri::AppHandle, root_path: Option<String>) -> Result<PathBuf, String> {
-    vault::resolve_vault_root(app, root_path)
+fn resolve_command_archive_root(
+    app: &tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<PathBuf, String> {
+    archive_root::resolve_archive_root(app, root_path)
 }
 
 fn canonical_root(root: &Path) -> Result<PathBuf, String> {
-    fs::canonicalize(root).map_err(|_| "The saved library folder is unavailable.".to_string())
+    fs::canonicalize(root).map_err(|_| "The saved archive folder is unavailable.".to_string())
 }
 
 fn resolve_existing_folder_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
@@ -444,87 +447,87 @@ pub(crate) fn delete_archive_folder_at(root: &Path, relative_path: &str) -> Resu
 }
 
 #[tauri::command]
-pub fn create_vault_folder(
+pub fn create_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     parent_relative_path: Option<String>,
     name: String,
 ) -> Result<String, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     create_archive_folder_at(&root, parent_relative_path.as_deref(), &name)
 }
 
 #[tauri::command]
-pub fn rename_vault_epub_file(
+pub fn rename_archive_epub_file(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
     new_file_name: String,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     rename_archive_epub_at(&root, &relative_path, &new_file_name)
 }
 
 #[tauri::command]
-pub fn move_vault_epub_file(
+pub fn move_archive_epub_file(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
     destination_folder_path: Option<String>,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     move_archive_epub_at(&root, &relative_path, destination_folder_path.as_deref())
 }
 
 #[tauri::command]
-pub fn rename_vault_folder(
+pub fn rename_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
     new_name: String,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     rename_archive_folder_at(&root, &relative_path, &new_name)
 }
 
 #[tauri::command]
-pub fn move_vault_folder(
+pub fn move_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
     destination_parent_path: Option<String>,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     move_archive_folder_at(&root, &relative_path, destination_parent_path.as_deref())
 }
 
 #[tauri::command]
-pub fn delete_vault_epub_file(
+pub fn delete_archive_epub_file(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<(), String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     delete_archive_epub_at(&root, &relative_path)
 }
 
 #[tauri::command]
-pub fn delete_vault_folder(
+pub fn delete_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<(), String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     delete_archive_folder_at(&root, &relative_path)
 }
 
 #[tauri::command]
-pub fn reveal_vault_folder(
+pub fn reveal_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<(), String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     let path = resolve_existing_folder_path(&root, &relative_path)?;
     open_folder(&path)
 }
@@ -595,6 +598,6 @@ mod tests {
         assert!(resolve_existing_epub_path(&root, ".archeion/hidden.epub").is_err());
         assert!(resolve_existing_epub_path(&root, "../outside.epub").is_err());
         assert!(resolve_existing_epub_path(&root, "missing.epub").is_err());
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 }

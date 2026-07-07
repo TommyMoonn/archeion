@@ -26,15 +26,15 @@ import type {
 } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { useAppPreferences } from "../../stores/appPreferencesStore";
-import { vaultStore, type VaultState } from "../../stores/vaultStore";
+import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
-import { VaultStatusBar } from "../vault/VaultStatusBar";
-import { useVault } from "../vault/useVault";
+import { ArchiveStatusBar } from "../archive/ArchiveStatusBar";
+import { useArchive } from "../archive/useArchive";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
@@ -115,19 +115,19 @@ function bookLabel(book: Book): string {
   return book.displayTitle?.trim() || book.originalTitle;
 }
 
-type ReadyVaultState = Extract<VaultState, { status: "ready" }>;
+type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
 export function LibraryPage() {
-  const vault = useVault();
+  const archive = useArchive();
 
-  if (vault.status !== "ready") {
+  if (archive.status !== "ready") {
     return null;
   }
 
-  return <LibraryPageContent key={vault.archive.id} vault={vault} />;
+  return <LibraryPageContent key={archive.archive.id} archive={archive} />;
 }
 
-function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
+function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
   const preferences = useAppPreferences();
@@ -170,11 +170,11 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
-  const activeArchive = vault.archive;
+  const activeArchive = archive.archive;
 
   useEffect(() => {
     const handleStorageError = () => {
-      setLibraryError("The local library could not be loaded.");
+      setLibraryError("The active archive could not be loaded.");
     };
     const stopBooks = storage.observeBooks({
       next: setBooks,
@@ -373,11 +373,11 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
   }
 
   async function openArchiveFolder() {
-    await vaultStore.chooseVault();
+    await archiveStore.chooseArchive();
   }
 
   async function switchArchive(archiveId: string) {
-    await vaultStore.switchArchive(archiveId);
+    await archiveStore.switchArchive(archiveId);
   }
 
   async function revealBookFile(book: Book) {
@@ -582,7 +582,7 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
       sidebar={
         <LibrarySidebar
           activeArchive={activeArchive}
-          archives={vault.archives}
+          archives={archive.archives}
           bookCount={bookCount}
           favoriteCount={favoriteCount}
           continueCount={continueBooks.length}
@@ -636,7 +636,7 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
             view={view}
           />
 
-          <VaultStatusBar />
+          <ArchiveStatusBar />
 
           {libraryError ? (
             <div className="import-notice import-notice--error" role="alert">
@@ -941,7 +941,7 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
 
       {rescanConfirmationOpen ? (
         <Dialog
-          title="Rescan library?"
+          title="Rescan archive?"
           description="This refreshes book and missing-file records. EPUB files are not changed."
           onClose={() => setRescanConfirmationOpen(false)}
           footer={
@@ -959,7 +959,7 @@ function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
                   void rescanLibrary();
                 }}
               >
-                Rescan library
+                Rescan archive
               </Button>
             </>
           }

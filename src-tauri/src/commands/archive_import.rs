@@ -5,7 +5,7 @@ use std::{
 
 use serde::{Deserialize, Serialize};
 
-use super::{filesystem, vault};
+use super::{archive_root, filesystem};
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
@@ -199,7 +199,7 @@ fn copy_or_move_epub(
     }
 }
 
-fn add_epub_files_to_vault_at(
+fn add_epub_files_to_archive_at(
     root: &Path,
     source_paths: Vec<String>,
     destination_folder_path: Option<String>,
@@ -290,7 +290,7 @@ fn add_epub_files_to_vault_at(
 }
 
 #[tauri::command]
-pub async fn add_epub_files_to_vault(
+pub async fn add_epub_files_to_archive(
     app: tauri::AppHandle,
     root_path: Option<String>,
     source_paths: Vec<String>,
@@ -298,10 +298,10 @@ pub async fn add_epub_files_to_vault(
     conflict_action: ArchiveImportConflictAction,
     mode: ArchiveImportMode,
 ) -> Result<Vec<ArchiveImportResult>, String> {
-    let root = vault::resolve_vault_root(&app, root_path)?;
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
 
     tauri::async_runtime::spawn_blocking(move || {
-        add_epub_files_to_vault_at(
+        add_epub_files_to_archive_at(
             &root,
             source_paths,
             destination_folder_path,
@@ -321,7 +321,7 @@ mod tests {
     };
 
     use super::{
-        add_epub_files_to_vault_at, ArchiveImportConflictAction, ArchiveImportMode,
+        add_epub_files_to_archive_at, ArchiveImportConflictAction, ArchiveImportMode,
         ArchiveImportStatus,
     };
 
@@ -342,7 +342,7 @@ mod tests {
         let source = external.join("Novel.epub");
         fs::write(&source, b"epub").expect("source EPUB should be written");
 
-        let results = add_epub_files_to_vault_at(
+        let results = add_epub_files_to_archive_at(
             &root,
             vec![source.to_string_lossy().into_owned()],
             Some("Series".to_string()),
@@ -376,7 +376,7 @@ mod tests {
         let source = external.join("Novel.epub");
         fs::write(&source, b"incoming").expect("incoming EPUB should exist");
 
-        let results = add_epub_files_to_vault_at(
+        let results = add_epub_files_to_archive_at(
             &root,
             vec![source.to_string_lossy().into_owned()],
             None,
@@ -403,7 +403,7 @@ mod tests {
         let source = external.join("Novel.epub");
         fs::write(&source, b"incoming").expect("incoming EPUB should exist");
 
-        let skipped = add_epub_files_to_vault_at(
+        let skipped = add_epub_files_to_archive_at(
             &root,
             vec![source.to_string_lossy().into_owned()],
             None,
@@ -414,7 +414,7 @@ mod tests {
         assert_eq!(skipped[0].status, ArchiveImportStatus::Skipped);
         assert_eq!(fs::read(root.join("Novel.epub")).unwrap(), b"existing");
 
-        let replaced = add_epub_files_to_vault_at(
+        let replaced = add_epub_files_to_archive_at(
             &root,
             vec![source.to_string_lossy().into_owned()],
             None,
@@ -434,7 +434,7 @@ mod tests {
         fs::create_dir_all(root.join(".archeion")).expect("metadata should be created");
         fs::write(root.join("Inside.epub"), b"inside").expect("inside EPUB should exist");
 
-        assert!(add_epub_files_to_vault_at(
+        assert!(add_epub_files_to_archive_at(
             &root,
             vec![root.join("Inside.epub").to_string_lossy().into_owned()],
             Some(".archeion".to_string()),
@@ -443,7 +443,7 @@ mod tests {
         )
         .is_err());
 
-        let results = add_epub_files_to_vault_at(
+        let results = add_epub_files_to_archive_at(
             &root,
             vec![root.join("Inside.epub").to_string_lossy().into_owned()],
             None,

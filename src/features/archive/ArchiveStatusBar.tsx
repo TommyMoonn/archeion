@@ -3,10 +3,10 @@ import { useEffect, useState } from "react";
 
 import type { ScanStatus } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
-import { useVault } from "./useVault";
+import { useArchive } from "./useArchive";
 
-export function VaultStatusBar() {
-  const state = useVault();
+export function ArchiveStatusBar() {
+  const state = useArchive();
   const storage = useLibraryStorage();
   const [scanStatus, setScanStatus] = useState<ScanStatus>({ status: "idle" });
 
@@ -37,7 +37,7 @@ export function VaultStatusBar() {
     <div className="import-notice" role="status" aria-live="polite">
       <ArrowsClockwise aria-hidden="true" size={18} weight="regular" />
       <div>
-        <p>Scanning library</p>
+        <p>Scanning archive</p>
       </div>
     </div>
   );

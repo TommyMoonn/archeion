@@ -2,7 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { VaultWatcherController } from "./vaultWatcher";
+import { ArchiveWatcherController } from "./archiveWatcher";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -17,14 +17,14 @@ const invokeMock = vi.mocked(invoke);
 const isTauriMock = vi.mocked(isTauri);
 const listenMock = vi.mocked(listen);
 
-describe("VaultWatcherController", () => {
+describe("ArchiveWatcherController", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
     isTauriMock.mockReturnValue(true);
     listenMock.mockResolvedValue(vi.fn());
     invokeMock.mockImplementation(async (command) => {
-      if (command === "start_vault_watcher") {
+      if (command === "start_archive_watcher") {
         return "watcher-1";
       }
       return undefined;
@@ -37,7 +37,7 @@ describe("VaultWatcherController", () => {
 
   it("debounces filesystem events into one rescan", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const watcher = new VaultWatcherController({
+    const watcher = new ArchiveWatcherController({
       debounceMs: 100,
       storage: { rescan },
     });
@@ -63,7 +63,7 @@ describe("VaultWatcherController", () => {
       .fn<() => Promise<void>>()
       .mockReturnValueOnce(firstScan)
       .mockResolvedValue(undefined);
-    const watcher = new VaultWatcherController({
+    const watcher = new ArchiveWatcherController({
       debounceMs: 100,
       storage: { rescan },
     });
@@ -86,7 +86,7 @@ describe("VaultWatcherController", () => {
 
   it("stops pending debounce work when stopped", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const watcher = new VaultWatcherController({
+    const watcher = new ArchiveWatcherController({
       debounceMs: 100,
       storage: { rescan },
     });
@@ -99,14 +99,14 @@ describe("VaultWatcherController", () => {
   });
 
   it("stops the active native watcher by id", async () => {
-    const watcher = new VaultWatcherController({
+    const watcher = new ArchiveWatcherController({
       storage: { rescan: vi.fn() },
     });
 
     await watcher.start();
     await watcher.stop();
 
-    expect(invokeMock).toHaveBeenCalledWith("stop_vault_watcher", {
+    expect(invokeMock).toHaveBeenCalledWith("stop_archive_watcher", {
       watcherId: "watcher-1",
     });
   });
@@ -117,12 +117,12 @@ describe("VaultWatcherController", () => {
       finishStart = resolve;
     });
     invokeMock.mockImplementation(async (command) => {
-      if (command === "start_vault_watcher") {
+      if (command === "start_archive_watcher") {
         return startResult;
       }
       return undefined;
     });
-    const watcher = new VaultWatcherController({
+    const watcher = new ArchiveWatcherController({
       storage: { rescan: vi.fn() },
     });
 
@@ -131,7 +131,7 @@ describe("VaultWatcherController", () => {
     finishStart("watcher-pending");
     await pendingStart;
 
-    expect(invokeMock).toHaveBeenCalledWith("stop_vault_watcher", {
+    expect(invokeMock).toHaveBeenCalledWith("stop_archive_watcher", {
       watcherId: "watcher-pending",
     });
   });

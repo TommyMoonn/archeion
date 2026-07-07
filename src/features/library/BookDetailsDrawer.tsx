@@ -127,7 +127,7 @@ export function BookDetailsDrawer({
               <WarningCircle aria-hidden="true" size={19} />
               <div>
                 <strong>Book file missing</strong>
-                <p>This book was not found in the library folder.</p>
+                <p>This book was not found in the archive folder.</p>
               </div>
               <div>
                 <Button

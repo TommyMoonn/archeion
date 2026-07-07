@@ -3,13 +3,13 @@ import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
-import type { VaultState } from "../../stores/vaultStore";
-import { vaultStore } from "../../stores/vaultStore";
+import type { ArchiveState } from "../../stores/archiveStore";
+import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
-import { OpenVaultButton } from "./OpenVaultButton";
+import { OpenArchiveButton } from "./OpenArchiveButton";
 
-type VaultSetupPageProps = {
-  state: Exclude<VaultState, { status: "ready" }>;
+type ArchiveLauncherPageProps = {
+  state: Exclude<ArchiveState, { status: "ready" }>;
 };
 
 function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
@@ -25,7 +25,7 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
 
     setIsBusy(true);
     try {
-      const renamed = await vaultStore.renameArchive(archive.id, nextName);
+      const renamed = await archiveStore.renameArchive(archive.id, nextName);
       if (renamed) {
         setIsRenaming(false);
       }
@@ -37,7 +37,7 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
   async function openArchive() {
     setIsBusy(true);
     try {
-      await vaultStore.switchArchive(archive.id);
+      await archiveStore.switchArchive(archive.id);
     } finally {
       setIsBusy(false);
     }
@@ -46,7 +46,7 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
   async function revealArchive() {
     setIsBusy(true);
     try {
-      await vaultStore.revealArchive(archive.id);
+      await archiveStore.revealArchive(archive.id);
     } finally {
       setIsBusy(false);
     }
@@ -55,15 +55,15 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
   async function forgetArchive() {
     setIsBusy(true);
     try {
-      await vaultStore.forgetArchive(archive.id);
+      await archiveStore.forgetArchive(archive.id);
     } finally {
       setIsBusy(false);
     }
   }
 
   return (
-    <div className="vault-archive-row">
-      <div className="vault-archive-row__copy">
+    <div className="archive-row">
+      <div className="archive-row__copy">
         {isRenaming ? (
           <Input
             autoFocus
@@ -86,17 +86,29 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
         )}
         <span title={archive.rootPath}>{archive.rootPath}</span>
       </div>
-      <div className="vault-archive-row__actions">
+      <div className="archive-row__actions">
         {isRenaming ? (
-          <Button disabled={isBusy} onClick={() => void rename()} variant="secondary">
+          <Button
+            disabled={isBusy}
+            onClick={() => void rename()}
+            variant="secondary"
+          >
             Save
           </Button>
         ) : (
           <>
-            <Button disabled={isBusy} onClick={() => void openArchive()} variant="secondary">
+            <Button
+              disabled={isBusy}
+              onClick={() => void openArchive()}
+              variant="secondary"
+            >
               Open
             </Button>
-            <Button disabled={isBusy} onClick={() => void revealArchive()} variant="ghost">
+            <Button
+              disabled={isBusy}
+              onClick={() => void revealArchive()}
+              variant="ghost"
+            >
               Reveal
             </Button>
             <Button
@@ -109,7 +121,11 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
             >
               Rename
             </Button>
-            <Button disabled={isBusy} onClick={() => void forgetArchive()} variant="ghost">
+            <Button
+              disabled={isBusy}
+              onClick={() => void forgetArchive()}
+              variant="ghost"
+            >
               Forget
             </Button>
           </>
@@ -119,11 +135,12 @@ function SavedArchiveRow({ archive }: { archive: KnownArchive }) {
   );
 }
 
-function launcherCopy(state: VaultSetupPageProps["state"]) {
+function launcherCopy(state: ArchiveLauncherPageProps["state"]) {
   if (state.status === "missing") {
     return {
       title: "Archive folder not found",
-      description: "The saved folder may have been moved, renamed, or disconnected.",
+      description:
+        "The saved folder may have been moved, renamed, or disconnected.",
     };
   }
 
@@ -140,31 +157,34 @@ function launcherCopy(state: VaultSetupPageProps["state"]) {
   };
 }
 
-export function VaultSetupPage({ state }: VaultSetupPageProps) {
+export function ArchiveLauncherPage({ state }: ArchiveLauncherPageProps) {
   const isMissing = state.status === "missing";
   const { title, description } = launcherCopy(state);
 
   return (
-    <main className="vault-launcher">
-      <aside className="vault-launcher__sidebar" aria-label="Saved archives">
-        <div className="vault-launcher__sidebar-header">
+    <main className="archive-launcher">
+      <aside className="archive-launcher__sidebar" aria-label="Saved archives">
+        <div className="archive-launcher__sidebar-header">
           <span className="section-label">Archives</span>
           <span>{state.archives.length}</span>
         </div>
         {state.archives.length > 0 ? (
-          <div className="vault-archive-list">
+          <div className="archive-list">
             {state.archives.map((archive) => (
               <SavedArchiveRow archive={archive} key={archive.id} />
             ))}
           </div>
         ) : (
-          <p className="vault-launcher__empty">No saved archives.</p>
+          <p className="archive-launcher__empty">No saved archives.</p>
         )}
       </aside>
 
-      <section className="vault-launcher__main" aria-labelledby="archive-launcher-title">
-        <div className="vault-launcher__identity">
-          <div className="vault-launcher__icon" aria-hidden="true">
+      <section
+        className="archive-launcher__main"
+        aria-labelledby="archive-launcher-title"
+      >
+        <div className="archive-launcher__identity">
+          <div className="archive-launcher__icon" aria-hidden="true">
             <FolderDashed size={34} weight="thin" />
           </div>
           <p className="eyebrow">Archeion</p>
@@ -172,20 +192,25 @@ export function VaultSetupPage({ state }: VaultSetupPageProps) {
           <p>{description}</p>
         </div>
 
-        <div className="vault-launcher__actions">
-          <OpenVaultButton action="create" variant="secondary" />
-          <OpenVaultButton action="open" />
+        <div className="archive-launcher__actions">
+          <OpenArchiveButton action="create" variant="secondary" />
+          <OpenArchiveButton action="open" />
         </div>
 
         {isMissing ? (
-          <div className="vault-launcher__recovery">
-            <Button variant="secondary" onClick={() => void vaultStore.retry()}>
+          <div className="archive-launcher__recovery">
+            <Button
+              variant="secondary"
+              onClick={() => void archiveStore.retry()}
+            >
               Try again
             </Button>
             {state.archive ? (
               <Button
                 variant="ghost"
-                onClick={() => void vaultStore.forgetArchive(state.archive!.id)}
+                onClick={() =>
+                  void archiveStore.forgetArchive(state.archive!.id)
+                }
               >
                 Forget missing archive
               </Button>
@@ -193,7 +218,9 @@ export function VaultSetupPage({ state }: VaultSetupPageProps) {
           </div>
         ) : null}
 
-        <p className="vault-launcher__note">EPUB files stay in their existing folders.</p>
+        <p className="archive-launcher__note">
+          EPUB files stay in their existing folders.
+        </p>
       </section>
     </main>
   );

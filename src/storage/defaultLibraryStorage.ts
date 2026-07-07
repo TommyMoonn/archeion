@@ -3,11 +3,11 @@ import type { LibraryStorage } from "./LibraryStorage";
 let libraryStoragePromise: Promise<LibraryStorage> | null = null;
 
 async function createLibraryStorage(): Promise<LibraryStorage> {
-  const { TauriVaultLibraryStorage } = await import(
-    "./TauriVaultLibraryStorage"
+  const { TauriArchiveLibraryStorage } = await import(
+    "./TauriArchiveLibraryStorage"
   );
 
-  return new TauriVaultLibraryStorage();
+  return new TauriArchiveLibraryStorage();
 }
 
 export function getLibraryStorage(): Promise<LibraryStorage> {

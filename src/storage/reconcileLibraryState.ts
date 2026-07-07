@@ -23,15 +23,15 @@ export type ScannedFolder = {
   parentPath: string | null;
 };
 
-export type VaultScanWarning = {
+export type ArchiveScanWarning = {
   relativePath: string;
   message: string;
 };
 
-export type VaultScan = {
+export type ArchiveScan = {
   books: ScannedBook[];
   folders: ScannedFolder[];
-  warnings?: VaultScanWarning[];
+  warnings?: ArchiveScanWarning[];
 };
 
 export type ReconcileLibraryStateInput = {
@@ -39,7 +39,7 @@ export type ReconcileLibraryStateInput = {
   previousFolders: Folder[];
   libraryMetadata: LibraryMetadata;
   progressMetadata: ProgressMetadata;
-  scan: VaultScan;
+  scan: ArchiveScan;
   timestamp: string;
 };
 

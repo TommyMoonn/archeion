@@ -8,33 +8,33 @@ use serde::Serialize;
 
 use super::archive;
 
-pub(crate) fn read_vault_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
+pub(crate) fn read_archive_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
     archive::read_active_archive_path(app)
 }
 
 #[tauri::command]
-pub fn validate_vault_path(path: String) -> bool {
+pub fn validate_archive_path(path: String) -> bool {
     PathBuf::from(path).is_dir()
 }
 
 fn root_path_from_string(path: String) -> Result<PathBuf, String> {
     let root = PathBuf::from(path);
     if !root.is_dir() {
-        return Err("The selected library folder is unavailable.".to_string());
+        return Err("The selected archive folder is unavailable.".to_string());
     }
     Ok(root.canonicalize().unwrap_or(root))
 }
 
-pub(crate) fn resolve_vault_root(
+pub(crate) fn resolve_archive_root(
     app: &tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<PathBuf, String> {
     match root_path {
         Some(path) => root_path_from_string(path),
-        None => read_vault_path(app)?
+        None => read_archive_path(app)?
             .map(root_path_from_string)
             .transpose()?
-            .ok_or_else(|| "No library folder has been selected.".to_string()),
+            .ok_or_else(|| "No archive folder has been selected.".to_string()),
     }
 }
 
@@ -46,7 +46,7 @@ pub struct CoverCacheStatus {
 }
 
 fn archeion_path(app: &tauri::AppHandle, root_path: Option<String>) -> Result<PathBuf, String> {
-    Ok(resolve_vault_root(app, root_path)?.join(".archeion"))
+    Ok(resolve_archive_root(app, root_path)?.join(".archeion"))
 }
 
 fn cover_cache_status_at(path: &Path) -> Result<CoverCacheStatus, String> {

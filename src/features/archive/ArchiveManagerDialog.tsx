@@ -10,9 +10,9 @@ import { useState } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { Input } from "../../components/Input";
-import { vaultStore } from "../../stores/vaultStore";
+import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
-import { useVault } from "../vault/useVault";
+import { useArchive } from "./useArchive";
 
 type ArchiveManagerDialogProps = {
   onClose: () => void;
@@ -23,7 +23,7 @@ function archivePathLabel(archive: KnownArchive) {
 }
 
 export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
-  const state = useVault();
+  const state = useArchive();
   const activeArchiveId = state.status === "ready" ? state.archive.id : null;
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -33,7 +33,7 @@ export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
 
   async function openAnotherArchive() {
     setStatus(null);
-    const changed = await vaultStore.chooseVault();
+    const changed = await archiveStore.chooseArchive();
     if (changed) {
       onClose();
     }
@@ -47,7 +47,7 @@ export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
     setBusyId(archive.id);
     setStatus(null);
     try {
-      const changed = await vaultStore.switchArchive(archive.id);
+      const changed = await archiveStore.switchArchive(archive.id);
       if (changed) {
         onClose();
       } else {
@@ -62,7 +62,7 @@ export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
     setBusyId(archive.id);
     setStatus(null);
     try {
-      const revealed = await vaultStore.revealArchive(archive.id);
+      const revealed = await archiveStore.revealArchive(archive.id);
       if (!revealed) {
         setStatus("Archive folder could not be revealed.");
       }
@@ -81,7 +81,7 @@ export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
     setBusyId(archive.id);
     setStatus(null);
     try {
-      const renamed = await vaultStore.renameArchive(archive.id, name);
+      const renamed = await archiveStore.renameArchive(archive.id, name);
       if (renamed) {
         setRenamingId(null);
         setRenameValue("");
@@ -97,7 +97,7 @@ export function ArchiveManagerDialog({ onClose }: ArchiveManagerDialogProps) {
     setBusyId(archive.id);
     setStatus(null);
     try {
-      const forgotten = await vaultStore.forgetArchive(archive.id);
+      const forgotten = await archiveStore.forgetArchive(archive.id);
       if (!forgotten) {
         setStatus("Archive could not be forgotten.");
       }

@@ -11,7 +11,7 @@ use tauri::Manager;
 use super::metadata;
 
 const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
-const LEGACY_VAULT_FILE: &str = "vault.json";
+const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -44,8 +44,9 @@ impl Default for ArchiveRegistry {
 
 #[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct LegacyVaultConfig {
-    vault_path: String,
+struct LegacyArchiveConfig {
+    #[serde(rename = "vaultPath")]
+    archive_path: String,
 }
 
 fn app_config_path(app: &tauri::AppHandle, file_name: &str) -> Result<PathBuf, String> {
@@ -121,22 +122,22 @@ fn registry_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app_config_path(app, ARCHIVE_REGISTRY_FILE)
 }
 
-fn legacy_vault_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app_config_path(app, LEGACY_VAULT_FILE)
+fn legacy_archive_registry_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app_config_path(app, LEGACY_ARCHIVE_REGISTRY_FILE)
 }
 
 fn read_legacy_registry(app: &tauri::AppHandle) -> Result<Option<ArchiveRegistry>, String> {
-    let path = legacy_vault_path(app)?;
+    let path = legacy_archive_registry_path(app)?;
     let contents = match fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(error) => return Err(error.to_string()),
     };
-    let legacy: LegacyVaultConfig =
+    let legacy: LegacyArchiveConfig =
         serde_json::from_str(&contents).map_err(|error| error.to_string())?;
-    let root_path = match normalized_root_path(&legacy.vault_path) {
+    let root_path = match normalized_root_path(&legacy.archive_path) {
         Ok(path) => path,
-        Err(_) => legacy.vault_path,
+        Err(_) => legacy.archive_path,
     };
     let timestamp = now_timestamp();
     let archive = ArchiveRecord {

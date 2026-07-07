@@ -23,7 +23,7 @@ import {
   appPreferencesStore,
   useAppPreferences,
 } from "../../stores/appPreferencesStore";
-import { vaultStore } from "../../stores/vaultStore";
+import { archiveStore } from "../../stores/archiveStore";
 import type {
   BookCardSize,
   InterfaceDensity,
@@ -35,7 +35,7 @@ import {
   type ReaderSettings,
   type ReaderTheme,
 } from "../../types/reader";
-import { useVault } from "../vault/useVault";
+import { useArchive } from "../archive/useArchive";
 
 const sections = [
   "General",
@@ -162,7 +162,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   const storage = useLibraryStorage();
-  const vault = useVault();
+  const archive = useArchive();
   const preferences = useAppPreferences();
   const [reader, setReader] = useState<ReaderSettings>({
     ...defaultReaderSettings,
@@ -170,7 +170,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [clearCacheOpen, setClearCacheOpen] = useState(false);
-  const [changeLibraryOpen, setChangeLibraryOpen] = useState(false);
+  const [changeArchiveOpen, setChangeArchiveOpen] = useState(false);
   const [rescanOpen, setRescanOpen] = useState(false);
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("General");
@@ -218,18 +218,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
   async function rescan() {
     setRescanOpen(false);
-    setStatus("Rescanning library");
+    setStatus("Rescanning archive");
     try {
       await storage.rescan();
-      setStatus("Library scan complete.");
+      setStatus("Archive scan complete.");
     } catch {
-      setStatus("The library could not be scanned.");
+      setStatus("The archive could not be scanned.");
     }
   }
 
-  async function changeLibrary() {
-    setChangeLibraryOpen(false);
-    const changed = await vaultStore.chooseVault();
+  async function changeArchive() {
+    setChangeArchiveOpen(false);
+    const changed = await archiveStore.chooseArchive();
     if (changed) setStatus("Archive changed.");
   }
 
@@ -310,8 +310,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <SettingsRow
               label="Archive folder"
               note={
-                vault.status === "ready" ? (
-                  <code>{vault.path}</code>
+                archive.status === "ready" ? (
+                  <code>{archive.path}</code>
                 ) : (
                   "No archive selected"
                 )
@@ -319,7 +319,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             >
               <Button
                 icon={<FolderOpen aria-hidden="true" size={17} />}
-                onClick={() => setChangeLibraryOpen(true)}
+                onClick={() => setChangeArchiveOpen(true)}
                 variant="secondary"
               >
                 Change
@@ -521,20 +521,20 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             }
           />
         ) : null}
-        {changeLibraryOpen ? (
+        {changeArchiveOpen ? (
           <Dialog
             title="Open another archive?"
             description="The current archive and its metadata will remain unchanged."
-            onClose={() => setChangeLibraryOpen(false)}
+            onClose={() => setChangeArchiveOpen(false)}
             footer={
               <>
                 <Button
-                  onClick={() => setChangeLibraryOpen(false)}
+                  onClick={() => setChangeArchiveOpen(false)}
                   variant="secondary"
                 >
                   Cancel
                 </Button>
-                <Button autoFocus onClick={() => void changeLibrary()}>
+                <Button autoFocus onClick={() => void changeArchive()}>
                   Choose archive
                 </Button>
               </>
@@ -543,7 +543,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         ) : null}
         {rescanOpen ? (
           <Dialog
-            title="Rescan library?"
+            title="Rescan archive?"
             description="EPUB files are not changed."
             onClose={() => setRescanOpen(false)}
             footer={
@@ -555,7 +555,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void rescan()}>
-                  Rescan library
+                  Rescan archive
                 </Button>
               </>
             }

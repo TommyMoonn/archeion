@@ -51,11 +51,11 @@ export function LibraryStorageProvider({
 
   if (!resolvedStorage) {
     return (
-      <main className="vault-setup" aria-busy={!didStorageFail}>
-        <p className="vault-loading">
+      <main className="archive-setup" aria-busy={!didStorageFail}>
+        <p className="archive-loading">
           {didStorageFail
-            ? "The local library could not be loaded."
-            : "Opening library"}
+            ? "The active archive could not be loaded."
+            : "Opening archive"}
         </p>
       </main>
     );

@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TauriVaultLibraryStorage } from "./TauriVaultLibraryStorage";
+import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
 import type { LibraryMetadata } from "./metadataFiles";
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -78,14 +78,14 @@ const metadata = {
   },
 };
 
-describe("TauriVaultLibraryStorage", () => {
+describe("TauriArchiveLibraryStorage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return firstScan;
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       if (command === "read_epub_file") {
@@ -94,31 +94,31 @@ describe("TauriVaultLibraryStorage", () => {
       if (command === "load_epub_cover") {
         return new Uint8Array([255, 216, 255]).buffer;
       }
-      if (command === "add_epub_files_to_vault") {
+      if (command === "add_epub_files_to_archive") {
         return [];
       }
-      if (command === "rename_vault_epub_file") {
+      if (command === "rename_archive_epub_file") {
         return {
           oldRelativePath: "Author/Series/Volume_01.epub",
           newRelativePath: "Author/Series/Renamed.epub",
         };
       }
-      if (command === "move_vault_epub_file") {
+      if (command === "move_archive_epub_file") {
         return {
           oldRelativePath: "Author/Series/Volume_01.epub",
           newRelativePath: "Author/Volume_01.epub",
         };
       }
-      if (command === "create_vault_folder") {
+      if (command === "create_archive_folder") {
         return "New Folder";
       }
-      if (command === "rename_vault_folder") {
+      if (command === "rename_archive_folder") {
         return {
           oldRelativePath: "Author/Series",
           newRelativePath: "Author/Renamed",
         };
       }
-      if (command === "move_vault_folder") {
+      if (command === "move_archive_folder") {
         return {
           oldRelativePath: "Author/Series",
           newRelativePath: "Series",
@@ -132,7 +132,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   async function scopedStorage(rootPath = "C:/ArchiveA") {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     storage.reset(rootPath);
     await storage.listBooks();
     invokeMock.mockClear();
@@ -147,7 +147,7 @@ describe("TauriVaultLibraryStorage", () => {
   }
 
   it("maps scan results into the shared library models", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const [books, folders] = await Promise.all([
       storage.listBooks(),
@@ -155,7 +155,7 @@ describe("TauriVaultLibraryStorage", () => {
     ]);
 
     expect(invokeMock).toHaveBeenCalledTimes(2);
-    expect(invokeMock).toHaveBeenCalledWith("scan_vault");
+    expect(invokeMock).toHaveBeenCalledWith("scan_archive");
     expect(books[0]).toMatchObject({
       id: "book-1",
       displayTitle: "Custom Volume",
@@ -189,10 +189,10 @@ describe("TauriVaultLibraryStorage", () => {
     const metadataWithoutBook = structuredClone(metadata);
     let savedLibrary: LibraryMetadata = { version: 1, books: {} };
     invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return structuredClone(scanWithMetadata);
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return {
           ...structuredClone(metadataWithoutBook),
           library: structuredClone(savedLibrary),
@@ -203,7 +203,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const books = await storage.listBooks();
 
@@ -227,7 +227,7 @@ describe("TauriVaultLibraryStorage", () => {
 
   it("keeps the metadata book id when a known relative path is scanned again", async () => {
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return {
           ...firstScan,
           books: [
@@ -238,12 +238,12 @@ describe("TauriVaultLibraryStorage", () => {
           ],
         };
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const books = await storage.listBooks();
 
@@ -259,7 +259,7 @@ describe("TauriVaultLibraryStorage", () => {
     movedMetadata.library.books["book-1"].relativePath =
       "Author/Series/Renamed.epub";
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return {
           ...firstScan,
           books: [
@@ -272,12 +272,12 @@ describe("TauriVaultLibraryStorage", () => {
           ],
         };
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return movedMetadata;
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const books = await storage.listBooks();
 
@@ -291,13 +291,13 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("keeps missing file metadata recoverable without listing it as visible", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return { books: [], folders: [] };
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       return undefined;
@@ -316,15 +316,15 @@ describe("TauriVaultLibraryStorage", () => {
 
   it("removes sidecar metadata for a missing file", async () => {
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return { books: [], folders: [] };
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     await expect(storage.deleteBook("book-1")).resolves.toBe(true);
@@ -343,17 +343,17 @@ describe("TauriVaultLibraryStorage", () => {
     );
   });
 
-  it("renames a vault EPUB and preserves its sidecar metadata", async () => {
+  it("renames an archive EPUB and preserves its sidecar metadata", async () => {
     let currentScan = structuredClone(firstScan);
     let currentMetadata = structuredClone(metadata);
     invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return structuredClone(currentScan);
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(currentMetadata);
       }
-      if (command === "rename_vault_epub_file") {
+      if (command === "rename_archive_epub_file") {
         expect(args).toMatchObject({
           relativePath: "Author/Series/Volume_01.epub",
           newFileName: "Renamed.epub",
@@ -385,7 +385,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     const renamed = await storage.renameBookFile("book-1", "Renamed.epub");
@@ -402,17 +402,17 @@ describe("TauriVaultLibraryStorage", () => {
     );
   });
 
-  it("moves a vault folder and rewrites contained book metadata paths", async () => {
+  it("moves an archive folder and rewrites contained book metadata paths", async () => {
     let currentScan = structuredClone(firstScan);
     let currentMetadata = structuredClone(metadata);
     invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return structuredClone(currentScan);
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(currentMetadata);
       }
-      if (command === "move_vault_folder") {
+      if (command === "move_archive_folder") {
         expect(args).toMatchObject({
           relativePath: "Author/Series",
           destinationParentPath: undefined,
@@ -449,7 +449,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listFolders();
 
     const moved = await storage.updateFolder("folder:Author/Series", {
@@ -470,13 +470,13 @@ describe("TauriVaultLibraryStorage", () => {
     let currentScan = structuredClone(firstScan);
     let currentMetadata = structuredClone(metadata);
     invokeMock.mockImplementation(async (command, args) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return structuredClone(currentScan);
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(currentMetadata);
       }
-      if (command === "delete_vault_epub_file") {
+      if (command === "delete_archive_epub_file") {
         expect(args).toEqual({ relativePath: "Author/Series/Volume_01.epub" });
         currentScan = { ...currentScan, books: [] };
       }
@@ -496,7 +496,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     await expect(storage.deleteBook("book-1")).resolves.toBe(true);
@@ -506,7 +506,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("notifies observers after a scan", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     const observed = new Promise<number>((resolve, reject) => {
       storage.observeBooks({
         next: (books) => resolve(books.length),
@@ -518,7 +518,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("does not notify observers when a rescan is unchanged", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     const observer = vi.fn();
     const stop = storage.observeBooks({ next: observer });
@@ -530,7 +530,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("does not notify folder observers when a rescan is unchanged", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listFolders();
     const observer = vi.fn();
     const stop = storage.observeFolders({ next: observer });
@@ -548,19 +548,19 @@ describe("TauriVaultLibraryStorage", () => {
       finishFirstScan = resolve;
     });
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         scanCount += 1;
         if (scanCount === 1) {
           await firstScanBlocked;
         }
         return firstScan;
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const initialScan = storage.rescan();
     const queuedScan = storage.rescan({ followUpIfRunning: true });
@@ -577,10 +577,10 @@ describe("TauriVaultLibraryStorage", () => {
     let releaseFirstSave!: () => void;
     const firstSaveStarted = new Promise<void>((resolve) => {
       invokeMock.mockImplementation(async (command) => {
-        if (command === "scan_vault") {
+        if (command === "scan_archive") {
           return structuredClone(firstScan);
         }
-        if (command === "load_vault_metadata") {
+        if (command === "load_archive_metadata") {
           return structuredClone(metadata);
         }
         if (command === "save_library_metadata") {
@@ -592,7 +592,7 @@ describe("TauriVaultLibraryStorage", () => {
         return undefined;
       });
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     storage.reset("C:/ArchiveA");
     await storage.listBooks();
 
@@ -618,7 +618,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("persists display metadata and progress in separate files", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     await storage.updateBook("book-1", {
@@ -653,7 +653,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("clears display overrides without changing the EPUB record", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
     const updated = await storage.updateBook("book-1", {
@@ -689,15 +689,15 @@ describe("TauriVaultLibraryStorage", () => {
       finishScan = resolve;
     });
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return scanPromise;
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     const statuses: string[] = [];
     storage.observeScanStatus({
       next: (status) => statuses.push(status.status),
@@ -714,7 +714,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("does not write metadata for unchanged progress updates", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     invokeMock.mockClear();
 
@@ -734,7 +734,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("persists reader settings", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     const settings = await storage.updateReaderSettings({
       fontSize: 22,
       progressPlacement: "side",
@@ -759,28 +759,28 @@ describe("TauriVaultLibraryStorage", () => {
     [
       "loadBookFile",
       "read_epub_file",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.loadBookFile("book-1");
       },
     ],
     [
       "loadBookCover",
       "load_epub_cover",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.loadBookCover("book-1");
       },
     ],
     [
       "revealBookFile",
       "reveal_epub_file",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.revealBookFile("book-1");
       },
     ],
     [
       "addEpubFilesToArchive",
-      "add_epub_files_to_vault",
-      async (storage: TauriVaultLibraryStorage) => {
+      "add_epub_files_to_archive",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.addEpubFilesToArchive({
           conflictAction: "skip",
           mode: "copy",
@@ -790,78 +790,78 @@ describe("TauriVaultLibraryStorage", () => {
     ],
     [
       "renameBookFile",
-      "rename_vault_epub_file",
-      async (storage: TauriVaultLibraryStorage) => {
+      "rename_archive_epub_file",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.renameBookFile("book-1", "Renamed.epub");
       },
     ],
     [
       "moveBookToFolder",
-      "move_vault_epub_file",
-      async (storage: TauriVaultLibraryStorage) => {
+      "move_archive_epub_file",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.moveBookToFolder("book-1", "folder:Author");
       },
     ],
     [
       "deleteBook",
-      "delete_vault_epub_file",
-      async (storage: TauriVaultLibraryStorage) => {
+      "delete_archive_epub_file",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.deleteBook("book-1");
       },
     ],
     [
       "createFolder",
-      "create_vault_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      "create_archive_folder",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.createFolder({ name: "New Folder", parentId: null });
       },
     ],
     [
       "renameFolder",
-      "rename_vault_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      "rename_archive_folder",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.updateFolder("folder:Author/Series", { name: "Renamed" });
       },
     ],
     [
       "moveFolder",
-      "move_vault_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      "move_archive_folder",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.updateFolder("folder:Author/Series", { parentId: null });
       },
     ],
     [
       "revealFolder",
-      "reveal_vault_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      "reveal_archive_folder",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.revealFolder("folder:Author/Series");
       },
     ],
     [
       "deleteFolder",
-      "delete_vault_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      "delete_archive_folder",
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.deleteFolder("folder:Author/Series");
       },
     ],
     [
       "getCoverCacheStatus",
       "cover_cache_status",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.getCoverCacheStatus();
       },
     ],
     [
       "clearCoverCache",
       "clear_cover_cache",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.clearCoverCache();
       },
     ],
     [
       "revealMetadataFolder",
       "reveal_archeion_folder",
-      async (storage: TauriVaultLibraryStorage) => {
+      async (storage: TauriArchiveLibraryStorage) => {
         await storage.revealMetadataFolder();
       },
     ],
@@ -874,7 +874,7 @@ describe("TauriVaultLibraryStorage", () => {
   });
 
   it("keeps cover loading scoped to the original archive after a switch", async () => {
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
     storage.reset("C:/ArchiveA");
     await storage.listBooks();
     invokeMock.mockClear();
@@ -888,10 +888,10 @@ describe("TauriVaultLibraryStorage", () => {
 
   it("loads EPUB bytes without storing them in the book record", async () => {
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return firstScan;
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       if (command === "read_epub_file") {
@@ -899,7 +899,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const blob = await storage.loadBookFile("book-1");
 
@@ -912,10 +912,10 @@ describe("TauriVaultLibraryStorage", () => {
 
   it("loads and reuses cached cover bytes", async () => {
     invokeMock.mockImplementation(async (command) => {
-      if (command === "scan_vault") {
+      if (command === "scan_archive") {
         return firstScan;
       }
-      if (command === "load_vault_metadata") {
+      if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
       if (command === "load_epub_cover") {
@@ -923,7 +923,7 @@ describe("TauriVaultLibraryStorage", () => {
       }
       return undefined;
     });
-    const storage = new TauriVaultLibraryStorage();
+    const storage = new TauriArchiveLibraryStorage();
 
     const [first, second] = await Promise.all([
       storage.loadBookCover("book-1"),

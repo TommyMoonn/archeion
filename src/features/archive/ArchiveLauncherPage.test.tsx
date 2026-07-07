@@ -5,9 +5,9 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { vaultStore } from "../../stores/vaultStore";
+import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
-import { VaultSetupPage } from "./VaultSetupPage";
+import { ArchiveLauncherPage } from "./ArchiveLauncherPage";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -41,13 +41,13 @@ function renderInteractive() {
   const root = createRoot(container);
 
   act(() => {
-    root.render(<VaultSetupPage state={setupState} />);
+    root.render(<ArchiveLauncherPage state={setupState} />);
   });
 
   return { container, root };
 }
 
-describe("VaultSetupPage", () => {
+describe("ArchiveLauncherPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -57,7 +57,7 @@ describe("VaultSetupPage", () => {
   });
 
   it("renders the first-run launcher actions", () => {
-    const markup = renderToStaticMarkup(<VaultSetupPage state={setupState} />);
+    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={setupState} />);
 
     expect(markup).toContain("No archive open");
     expect(markup).toContain("Choose a folder that contains your EPUBs.");
@@ -68,7 +68,7 @@ describe("VaultSetupPage", () => {
 
   it("shows saved archives in the left column", () => {
     const markup = renderToStaticMarkup(
-      <VaultSetupPage state={{ ...setupState, archives: [savedArchive] }} />,
+      <ArchiveLauncherPage state={{ ...setupState, archives: [savedArchive] }} />,
     );
 
     expect(markup).toContain("Archives");
@@ -77,8 +77,8 @@ describe("VaultSetupPage", () => {
   });
 
   it("calls the folder picker flow from Open folder as archive", async () => {
-    const chooseVault = vi.spyOn(vaultStore, "chooseVault").mockResolvedValue(true);
-    const createArchive = vi.spyOn(vaultStore, "createArchive").mockResolvedValue(true);
+    const chooseArchive = vi.spyOn(archiveStore, "chooseArchive").mockResolvedValue(true);
+    const createArchive = vi.spyOn(archiveStore, "createArchive").mockResolvedValue(true);
     const { container, root } = renderInteractive();
     const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
       candidate.textContent?.includes("Open folder as archive"),
@@ -89,14 +89,14 @@ describe("VaultSetupPage", () => {
       button?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(chooseVault).toHaveBeenCalledTimes(1);
+    expect(chooseArchive).toHaveBeenCalledTimes(1);
     expect(createArchive).not.toHaveBeenCalled();
 
     act(() => root.unmount());
   });
 
   it("shows the missing remembered archive recovery state", () => {
-    const markup = renderToStaticMarkup(<VaultSetupPage state={missingState} />);
+    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={missingState} />);
 
     expect(markup).toContain("Archive folder not found");
     expect(markup).toContain(
@@ -108,7 +108,7 @@ describe("VaultSetupPage", () => {
 
   it("shows the actual open failure message", () => {
     const markup = renderToStaticMarkup(
-      <VaultSetupPage
+      <ArchiveLauncherPage
         state={{
           status: "error",
           path: "D:\\Broken",

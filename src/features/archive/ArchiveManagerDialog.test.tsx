@@ -1,15 +1,15 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { VaultState } from "../../stores/vaultStore";
+import type { ArchiveState } from "../../stores/archiveStore";
 import { ArchiveManagerDialog } from "./ArchiveManagerDialog";
-import { useVault } from "../vault/useVault";
+import { useArchive } from "./useArchive";
 
-vi.mock("../vault/useVault", () => ({
-  useVault: vi.fn(),
+vi.mock("./useArchive", () => ({
+  useArchive: vi.fn(),
 }));
 
-const useVaultMock = vi.mocked(useVault);
+const useArchiveMock = vi.mocked(useArchive);
 
 const activeArchive = {
   id: "archive-books",
@@ -19,7 +19,7 @@ const activeArchive = {
   lastOpenedAt: "1",
 };
 
-const readyState: VaultState = {
+const readyState: ArchiveState = {
   status: "ready",
   path: activeArchive.rootPath,
   archive: activeArchive,
@@ -30,7 +30,7 @@ const readyState: VaultState = {
 
 describe("ArchiveManagerDialog", () => {
   beforeEach(() => {
-    useVaultMock.mockReturnValue(readyState);
+    useArchiveMock.mockReturnValue(readyState);
   });
 
   it("exposes the open-another-archive action", () => {

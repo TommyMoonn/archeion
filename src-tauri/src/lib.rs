@@ -3,7 +3,7 @@ mod commands;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .manage(commands::watcher::VaultWatcherState::default())
+        .manage(commands::watcher::ArchiveWatcherState::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             commands::archive::activate_archive,
@@ -12,30 +12,30 @@ pub fn run() {
             commands::archive::open_archive,
             commands::archive::rename_archive,
             commands::archive::reveal_archive,
-            commands::archive_import::add_epub_files_to_vault,
-            commands::filesystem::create_vault_folder,
-            commands::filesystem::delete_vault_epub_file,
-            commands::filesystem::delete_vault_folder,
-            commands::filesystem::move_vault_epub_file,
-            commands::filesystem::move_vault_folder,
-            commands::filesystem::rename_vault_epub_file,
-            commands::filesystem::rename_vault_folder,
-            commands::filesystem::reveal_vault_folder,
+            commands::archive_import::add_epub_files_to_archive,
+            commands::filesystem::create_archive_folder,
+            commands::filesystem::delete_archive_epub_file,
+            commands::filesystem::delete_archive_folder,
+            commands::filesystem::move_archive_epub_file,
+            commands::filesystem::move_archive_folder,
+            commands::filesystem::rename_archive_epub_file,
+            commands::filesystem::rename_archive_folder,
+            commands::filesystem::reveal_archive_folder,
             commands::epub::read_epub_file,
             commands::epub::reveal_epub_file,
             commands::epub::load_epub_cover,
-            commands::metadata::initialize_vault_metadata,
-            commands::metadata::load_vault_metadata,
+            commands::metadata::initialize_archive_metadata,
+            commands::metadata::load_archive_metadata,
             commands::metadata::save_library_metadata,
             commands::metadata::save_progress_metadata,
             commands::metadata::save_settings_metadata,
-            commands::scanner::scan_vault,
-            commands::vault::clear_cover_cache,
-            commands::vault::cover_cache_status,
-            commands::vault::reveal_archeion_folder,
-            commands::vault::validate_vault_path,
-            commands::watcher::start_vault_watcher,
-            commands::watcher::stop_vault_watcher,
+            commands::scanner::scan_archive,
+            commands::archive_root::clear_cover_cache,
+            commands::archive_root::cover_cache_status,
+            commands::archive_root::reveal_archeion_folder,
+            commands::archive_root::validate_archive_path,
+            commands::watcher::start_archive_watcher,
+            commands::watcher::stop_archive_watcher,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

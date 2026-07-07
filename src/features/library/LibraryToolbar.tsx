@@ -13,7 +13,7 @@ import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import { RescanVaultButton } from "../vault/RescanVaultButton";
+import { RescanArchiveButton } from "../archive/RescanArchiveButton";
 import type { LibrarySort } from "./libraryFilters";
 
 export type LibraryView = "grid" | "list";
@@ -108,7 +108,7 @@ export function LibraryToolbar({
         >
           {isImporting ? "Adding" : "Add EPUB"}
         </Button>
-        <RescanVaultButton onError={onRescanError} />
+        <RescanArchiveButton onError={onRescanError} />
       </div>
 
       <div className="library-controls">

@@ -1,7 +1,7 @@
 import { RouterProvider } from "react-router-dom";
 
 import { WindowFrame } from "../components/WindowFrame";
-import { VaultGate } from "../features/vault/VaultGate";
+import { ArchiveGate } from "../features/archive/ArchiveGate";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { router } from "./router";
 
@@ -11,9 +11,9 @@ export function App() {
       <WindowFrame />
       <div className="window-app__content">
         <LibraryStorageProvider>
-          <VaultGate>
+          <ArchiveGate>
             <RouterProvider router={router} />
-          </VaultGate>
+          </ArchiveGate>
         </LibraryStorageProvider>
       </div>
     </div>

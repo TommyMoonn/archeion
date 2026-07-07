@@ -3,7 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArchiveRegistry } from "../types/archive";
-import { VaultStore } from "./vaultStore";
+import { ArchiveStore } from "./archiveStore";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -48,7 +48,7 @@ function registry(activeId: string | null, archives = [booksArchive]): ArchiveRe
   };
 }
 
-describe("VaultStore", () => {
+describe("ArchiveStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     isTauriMock.mockReturnValue(true);
@@ -56,7 +56,7 @@ describe("VaultStore", () => {
       if (command === "load_archive_registry") {
         return emptyRegistry;
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
@@ -64,7 +64,7 @@ describe("VaultStore", () => {
   });
 
   it("starts in setup when no archive has been saved", async () => {
-    const store = new VaultStore();
+    const store = new ArchiveStore();
 
     await store.initialize();
 
@@ -82,16 +82,16 @@ describe("VaultStore", () => {
       if (command === "load_archive_registry") {
         return registry(booksArchive.id);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
 
     await store.initialize();
 
-    expect(invokeMock).toHaveBeenCalledWith("initialize_vault_metadata", {
+    expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Books",
     });
     expect(store.getSnapshot()).toEqual({
@@ -109,12 +109,12 @@ describe("VaultStore", () => {
       if (command === "load_archive_registry") {
         return registry(booksArchive.id);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return false;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
 
     await store.initialize();
 
@@ -143,15 +143,15 @@ describe("VaultStore", () => {
       if (command === "open_archive") {
         return registry(novels.id, [novels]);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
-    await expect(store.chooseVault()).resolves.toBe(true);
+    await expect(store.chooseArchive()).resolves.toBe(true);
 
     expect(openMock).toHaveBeenCalledWith({
       directory: true,
@@ -161,7 +161,7 @@ describe("VaultStore", () => {
     expect(invokeMock).toHaveBeenCalledWith("open_archive", {
       path: "D:\\Novels",
     });
-    expect(invokeMock).toHaveBeenCalledWith("initialize_vault_metadata", {
+    expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Novels",
     });
     expect(store.getSnapshot()).toEqual({
@@ -182,17 +182,17 @@ describe("VaultStore", () => {
       if (command === "activate_archive") {
         return registry(comicsArchive.id, [booksArchive, comicsArchive]);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
     await expect(store.switchArchive(comicsArchive.id)).resolves.toBe(true);
 
-    expect(invokeMock).toHaveBeenCalledWith("initialize_vault_metadata", {
+    expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "E:\\Comics",
     });
     expect(store.getSnapshot()).toEqual({
@@ -214,12 +214,12 @@ describe("VaultStore", () => {
       if (command === "rename_archive") {
         return registry(renamed.id, [renamed]);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
     await expect(store.renameArchive(booksArchive.id, "Novels")).resolves.toBe(true);
@@ -240,12 +240,12 @@ describe("VaultStore", () => {
       if (command === "forget_archive") {
         return emptyRegistry;
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
     await expect(store.forgetArchive(booksArchive.id)).resolves.toBe(true);
@@ -266,12 +266,12 @@ describe("VaultStore", () => {
       if (command === "load_archive_registry") {
         return registry(booksArchive.id);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
     store.setWatcherError("Live refresh paused.");
@@ -293,10 +293,10 @@ describe("VaultStore", () => {
 
   it("leaves the current state unchanged when selection is canceled", async () => {
     openMock.mockResolvedValue(null);
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
-    await expect(store.chooseVault()).resolves.toBe(false);
+    await expect(store.chooseArchive()).resolves.toBe(false);
 
     expect(store.getSnapshot()).toEqual({
       status: "setup",
@@ -324,12 +324,12 @@ describe("VaultStore", () => {
       if (command === "open_archive") {
         return registry(emptyArchive.id, [emptyArchive]);
       }
-      if (command === "validate_vault_path") {
+      if (command === "validate_archive_path") {
         return true;
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
     await expect(store.createArchive()).resolves.toBe(true);
@@ -342,7 +342,7 @@ describe("VaultStore", () => {
     expect(invokeMock).toHaveBeenCalledWith("open_archive", {
       path: "D:\\Empty",
     });
-    expect(invokeMock).toHaveBeenCalledWith("initialize_vault_metadata", {
+    expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
       rootPath: "D:\\Empty",
     });
     expect(store.getSnapshot()).toMatchObject({
@@ -366,10 +366,10 @@ describe("VaultStore", () => {
       }
       return undefined;
     });
-    const store = new VaultStore();
+    const store = new ArchiveStore();
     await store.initialize();
 
-    await expect(store.chooseVault()).resolves.toBe(false);
+    await expect(store.chooseArchive()).resolves.toBe(false);
 
     expect(store.getSnapshot()).toEqual({
       status: "error",

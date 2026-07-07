@@ -6,7 +6,7 @@ import type {
   LibraryMetadata,
   ProgressMetadata,
 } from "./metadataFiles";
-import { reconcileLibraryState, type VaultScan } from "./reconcileLibraryState";
+import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
 
 const timestamp = "2026-07-06T00:00:00.000Z";
 const previousTimestamp = "2026-07-01T00:00:00.000Z";
@@ -36,7 +36,7 @@ function metadata(
   };
 }
 
-function scan(overrides: Partial<VaultScan> = {}): VaultScan {
+function scan(overrides: Partial<ArchiveScan> = {}): ArchiveScan {
   return {
     folders: [
       {

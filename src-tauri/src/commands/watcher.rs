@@ -10,26 +10,26 @@ use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Watcher};
 use serde::Serialize;
 use tauri::{Emitter, State};
 
-use super::vault;
+use super::archive_root;
 
-const VAULT_CHANGED_EVENT: &str = "vault://changed";
-const VAULT_WATCHER_ERROR_EVENT: &str = "vault://watcher-error";
+const ARCHIVE_CHANGED_EVENT: &str = "archive://changed";
+const ARCHIVE_WATCHER_ERROR_EVENT: &str = "archive://watcher-error";
 const METADATA_DIRECTORY: &str = ".archeion";
 
 #[derive(Default)]
-pub struct VaultWatcherState {
-    watcher: Mutex<Option<ActiveVaultWatcher>>,
+pub struct ArchiveWatcherState {
+    watcher: Mutex<Option<ActiveArchiveWatcher>>,
     next_id: AtomicU64,
 }
 
-impl VaultWatcherState {
+impl ArchiveWatcherState {
     fn next_watcher_id(&self) -> String {
         let sequence = self.next_id.fetch_add(1, Ordering::Relaxed) + 1;
-        format!("vault-watcher-{sequence}")
+        format!("archive-watcher-{sequence}")
     }
 }
 
-struct ActiveVaultWatcher {
+struct ActiveArchiveWatcher {
     id: String,
     root: PathBuf,
     _watcher: RecommendedWatcher,
@@ -37,13 +37,13 @@ struct ActiveVaultWatcher {
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct VaultWatcherEvent {
+struct ArchiveWatcherEvent {
     path: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
-struct VaultWatcherError {
+struct ArchiveWatcherError {
     message: String,
 }
 
@@ -99,16 +99,16 @@ fn event_touches_user_content(root: &Path, event: &Event) -> bool {
 }
 
 #[tauri::command]
-pub fn start_vault_watcher(
+pub fn start_archive_watcher(
     app: tauri::AppHandle,
-    state: State<'_, VaultWatcherState>,
+    state: State<'_, ArchiveWatcherState>,
 ) -> Result<String, String> {
-    let root = vault::read_vault_path(&app)?
+    let root = archive_root::read_archive_path(&app)?
         .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+        .ok_or_else(|| "No archive folder has been selected.".to_string())?;
 
     if !root.is_dir() {
-        return Err("The selected library folder is unavailable.".to_string());
+        return Err("The selected archive folder is unavailable.".to_string());
     }
 
     let canonical_root = root.canonicalize().unwrap_or(root);
@@ -125,8 +125,8 @@ pub fn start_vault_watcher(
         move |result: notify::Result<Event>| match result {
             Ok(event) if event_touches_user_content(&watched_root, &event) => {
                 let _ = emit_app.emit(
-                    VAULT_CHANGED_EVENT,
-                    VaultWatcherEvent {
+                    ARCHIVE_CHANGED_EVENT,
+                    ArchiveWatcherEvent {
                         path: event_path_for_payload(&watched_root, &event),
                     },
                 );
@@ -134,8 +134,8 @@ pub fn start_vault_watcher(
             Ok(_) => {}
             Err(error) => {
                 let _ = emit_app.emit(
-                    VAULT_WATCHER_ERROR_EVENT,
-                    VaultWatcherError {
+                    ARCHIVE_WATCHER_ERROR_EVENT,
+                    ArchiveWatcherError {
                         message: error.to_string(),
                     },
                 );
@@ -150,7 +150,7 @@ pub fn start_vault_watcher(
         .map_err(|error| error.to_string())?;
 
     let watcher_id = state.next_watcher_id();
-    *guard = Some(ActiveVaultWatcher {
+    *guard = Some(ActiveArchiveWatcher {
         id: watcher_id.clone(),
         root: canonical_root,
         _watcher: watcher,
@@ -160,8 +160,8 @@ pub fn start_vault_watcher(
 }
 
 #[tauri::command]
-pub fn stop_vault_watcher(
-    state: State<'_, VaultWatcherState>,
+pub fn stop_archive_watcher(
+    state: State<'_, ArchiveWatcherState>,
     watcher_id: String,
 ) -> Result<(), String> {
     let mut guard = state.watcher.lock().map_err(|error| error.to_string())?;
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn ignores_metadata_directory_events() {
-        let root = std::path::PathBuf::from("/vault");
+        let root = std::path::PathBuf::from("/archive");
         assert!(path_is_inside_metadata_directory(
             &root,
             &root.join(".archeion/library.json")
@@ -227,7 +227,7 @@ mod tests {
 
     #[test]
     fn reports_events_when_at_least_one_user_path_changed() {
-        let root = std::path::PathBuf::from("/vault");
+        let root = std::path::PathBuf::from("/archive");
         let mut event = Event::new(notify::EventKind::Any);
         event.paths.push(root.join(".archeion/library.json"));
         assert!(!event_touches_user_content(&root, &event));

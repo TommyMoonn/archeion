@@ -14,7 +14,7 @@
 @import "./components/empty-state.css";
 @import "./components/status-page.css";
 
-@import "./features/vault.css";
+@import "./features/archive.css";
 @import "./features/library.css";
 @import "./features/filesystem.css";
 @import "./features/folders.css";

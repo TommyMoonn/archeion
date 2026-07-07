@@ -8,7 +8,7 @@ use std::{
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-use super::{epub_metadata, vault};
+use super::{archive_root, epub_metadata};
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const LIBRARY_FILE: &str = "library.json";
@@ -298,27 +298,27 @@ pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result
     write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
 }
 
-fn vault_root(
+fn resolve_command_archive_root(
     app: &tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<PathBuf, String> {
-    vault::resolve_vault_root(app, root_path)
+    archive_root::resolve_archive_root(app, root_path)
 }
 
 #[tauri::command]
-pub fn initialize_vault_metadata(
+pub fn initialize_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<(), String> {
-    initialize_at(&vault_root(&app, root_path)?)
+    initialize_at(&resolve_command_archive_root(&app, root_path)?)
 }
 
 #[tauri::command]
-pub fn load_vault_metadata(
+pub fn load_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<MetadataBundle, String> {
-    let root = vault_root(&app, root_path)?;
+    let root = resolve_command_archive_root(&app, root_path)?;
     initialize_at(&root)?;
     let directory = metadata_path(&root);
 
@@ -335,7 +335,7 @@ pub fn save_library_metadata(
     root_path: Option<String>,
     metadata: LibraryMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app, root_path)?).join(LIBRARY_FILE);
+    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(LIBRARY_FILE);
     write_json(&path, &metadata, true)
 }
 
@@ -345,7 +345,7 @@ pub fn save_progress_metadata(
     root_path: Option<String>,
     metadata: ProgressMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app, root_path)?).join(PROGRESS_FILE);
+    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(PROGRESS_FILE);
     write_json(&path, &metadata, true)
 }
 
@@ -355,7 +355,7 @@ pub fn save_settings_metadata(
     root_path: Option<String>,
     metadata: SettingsMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app, root_path)?).join(SETTINGS_FILE);
+    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(SETTINGS_FILE);
     write_json(&path, &metadata, true)
 }
 
@@ -381,7 +381,7 @@ mod tests {
     #[test]
     fn initializes_the_complete_metadata_layout() {
         let root = test_root("layout");
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
 
         initialize_at(&root).expect("metadata should initialize");
 
@@ -391,26 +391,26 @@ mod tests {
         assert!(metadata.join("settings.json").is_file());
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
     fn backs_up_existing_metadata_before_writing() {
         let root = test_root("backup");
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
         let path = root.join("library.json");
         write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
 
         write_json(&path, &LibraryMetadata::default(), true).expect("second write should work");
 
         assert!(root.join("library.json.bak").is_file());
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]
     fn preserves_corrupted_json_and_recovers_defaults() {
         let root = test_root("corrupt");
-        fs::create_dir_all(&root).expect("test vault should be created");
+        fs::create_dir_all(&root).expect("test archive should be created");
         let path = root.join("library.json");
         fs::write(&path, b"{not-json").expect("corrupt file should be written");
 
@@ -422,7 +422,7 @@ mod tests {
             .expect("directory should be readable")
             .filter_map(Result::ok)
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
-        fs::remove_dir_all(root).expect("test vault should be removed");
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]

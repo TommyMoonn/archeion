@@ -1,11 +1,11 @@
-.vault-launcher {
+.archive-launcher {
   display: grid;
   min-height: 100dvh;
   grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
   background: linear-gradient(135deg, rgb(19 20 23 / 96%), rgb(12 13 15 / 98%));
 }
 
-.vault-launcher__sidebar {
+.archive-launcher__sidebar {
   display: flex;
   min-height: 0;
   flex-direction: column;
@@ -15,7 +15,7 @@
   background: rgb(18 18 20 / 76%);
 }
 
-.vault-launcher__sidebar-header {
+.archive-launcher__sidebar-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,17 +24,17 @@
   font-size: 11px;
 }
 
-.vault-launcher__sidebar-header > span:last-child {
+.archive-launcher__sidebar-header > span:last-child {
   color: var(--muted-soft);
 }
 
-.vault-launcher__empty {
+.archive-launcher__empty {
   margin: 0;
   color: var(--muted-soft);
   font-size: 12px;
 }
 
-.vault-launcher__main {
+.archive-launcher__main {
   display: grid;
   align-content: center;
   justify-items: start;
@@ -42,11 +42,11 @@
   padding: clamp(36px, 8vw, 96px);
 }
 
-.vault-launcher__identity {
+.archive-launcher__identity {
   max-width: 560px;
 }
 
-.vault-launcher__icon {
+.archive-launcher__icon {
   display: grid;
   width: 58px;
   height: 58px;
@@ -58,7 +58,7 @@
   background: var(--accent-soft);
 }
 
-.vault-launcher h1 {
+.archive-launcher h1 {
   margin: 8px 0 14px;
   color: var(--text-strong);
   font-family: var(--font-display);
@@ -68,43 +68,43 @@
   letter-spacing: -0.04em;
 }
 
-.vault-launcher__identity > p:not(.eyebrow) {
+.archive-launcher__identity > p:not(.eyebrow) {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
 }
 
-.vault-launcher__actions,
-.vault-launcher__recovery {
+.archive-launcher__actions,
+.archive-launcher__recovery {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
 }
 
-.vault-launcher__recovery {
+.archive-launcher__recovery {
   margin-top: -12px;
 }
 
-.vault-launcher__note {
+.archive-launcher__note {
   margin: 0;
   color: var(--muted-soft);
   font-size: 11px;
 }
 
-.vault-loading {
+.archive-loading {
   color: var(--muted);
   font-size: 13px;
 }
 
-.vault-archive-list {
+.archive-list {
   display: grid;
   min-height: 0;
   gap: 8px;
   overflow: auto;
 }
 
-.vault-archive-row {
+.archive-row {
   display: grid;
   gap: 10px;
   padding: 11px;
@@ -113,47 +113,47 @@
   background: rgb(20 20 22 / 48%);
 }
 
-.vault-archive-row__copy {
+.archive-row__copy {
   display: grid;
   min-width: 0;
   gap: 4px;
 }
 
-.vault-archive-row__copy strong,
-.vault-archive-row__copy span {
+.archive-row__copy strong,
+.archive-row__copy span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.vault-archive-row__copy strong {
+.archive-row__copy strong {
   color: var(--text-strong);
   font-size: 13px;
 }
 
-.vault-archive-row__copy span {
+.archive-row__copy span {
   color: var(--muted);
   font-size: 11px;
 }
 
-.vault-archive-row__actions {
+.archive-row__actions {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
 
 @media (max-width: 760px) {
-  .vault-launcher {
+  .archive-launcher {
     grid-template-columns: 1fr;
   }
 
-  .vault-launcher__sidebar {
+  .archive-launcher__sidebar {
     min-height: auto;
     border-right: 0;
     border-bottom: 1px solid var(--line);
   }
 
-  .vault-launcher__main {
+  .archive-launcher__main {
     align-content: start;
   }
 }
