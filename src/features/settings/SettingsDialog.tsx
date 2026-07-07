@@ -3,7 +3,6 @@ import {
   ArrowsClockwise,
   BookOpenText,
   Broom,
-  Browsers,
   Database,
   DownloadSimple,
   FolderOpen,
@@ -61,13 +60,12 @@ import { librarySortOptions } from "../library/librarySortOptions";
 
 const sections = [
   "General",
-  "Archives",
   "Library",
   "Reader",
   "Appearance",
-  "Files and Metadata",
+  "Archives",
+  "Storage",
   "Import",
-  "Window",
 ] as const;
 type SettingsSection = (typeof sections)[number];
 
@@ -77,6 +75,7 @@ type SettingsDialogProps = {
 
 type SettingsRowProps = {
   children: ReactNode;
+  description?: ReactNode;
   label: string;
   note?: ReactNode;
 };
@@ -84,57 +83,112 @@ type SettingsRowProps = {
 const searchIndex: Record<SettingsSection, string[]> = {
   General: [
     "general",
+    "startup behavior",
     "startup",
     "open last archive",
     "archive manager",
     "destructive",
+    "confirm destructive file actions",
     "confirm",
+    "restore last reader route",
     "restore reader",
-  ],
-  Archives: [
-    "archives",
-    "archive folder",
-    "current archive",
-    "manager",
-    "reveal folder",
-    "archeion folder",
+    "reopen last book route",
   ],
   Library: [
     "library",
     "grid",
     "list",
     "sort",
+    "default view",
+    "default sort",
     "title",
     "author",
     "recently opened",
+    "book card size",
     "card size",
+    "show continue reading",
     "continue reading",
+    "cover size",
   ],
   Reader: [
     "reader",
+    "font family",
+    "font size",
     "font",
     "typeface",
     "line height",
+    "page margin",
     "margin",
+    "reader theme",
     "theme",
+    "progress placement",
     "progress",
     "wheel",
     "reading position",
+    "epub reader",
   ],
-  Appearance: ["appearance", "theme", "density", "accent", "compact"],
-  "Files and Metadata": [
+  Appearance: [
+    "appearance",
+    "appearance",
+    "app theme preset",
+    "theme",
+    "interface density",
+    "density",
+    "accent",
+    "compact",
+    "window",
+    "window frame style",
+    "frame",
+    "hidden",
+    "archeion",
+    "native",
+    "size",
+    "position",
+    "remember window size and position",
+    "chrome",
+  ],
+  Archives: [
+    "archives",
+    "archive folder",
+    "current archive folder",
+    "current archive",
+    "manager",
+    "archive manager",
+    "reveal folder",
+  ],
+  Storage: [
+    "storage",
     "files",
     "metadata",
+    "scan on startup",
     "scan",
+    "rescan archive",
     "rescan",
+    "scanner cache",
     "cache",
+    "cover cache status",
     "cover",
+    "live filesystem watcher",
     "watcher",
     "live refresh",
+    "re-extract epub source metadata",
+    "re-extract source metadata",
     "source metadata",
+    ".archeion",
+    ".archeion folder",
+    "archeion folder",
   ],
-  Import: ["import", "copy", "move", "conflict", "destination", "epub"],
-  Window: ["window", "frame", "hidden", "archeion", "native", "size"],
+  Import: [
+    "import",
+    "default import mode",
+    "copy",
+    "move",
+    "default conflict handling",
+    "conflict",
+    "default destination folder",
+    "destination",
+    "epub",
+  ],
 };
 
 const typefaceOptions = [
@@ -214,21 +268,22 @@ function SectionIcon({ section }: { section: SettingsSection }) {
       return <BookOpenText aria-hidden="true" size={16} />;
     case "Appearance":
       return <Palette aria-hidden="true" size={16} />;
-    case "Files and Metadata":
+    case "Storage":
       return <Broom aria-hidden="true" size={16} />;
     case "Import":
       return <DownloadSimple aria-hidden="true" size={16} />;
-    case "Window":
-      return <Browsers aria-hidden="true" size={16} />;
   }
 }
 
-function SettingsRow({ children, label, note }: SettingsRowProps) {
+function SettingsRow({ children, description, label, note }: SettingsRowProps) {
   return (
     <div className="settings-row">
       <div className="settings-row__meta">
         <strong>{label}</strong>
-        {note ? <span>{note}</span> : null}
+        {description ? (
+          <span className="settings-row__description">{description}</span>
+        ) : null}
+        {note ? <span className="settings-row__note">{note}</span> : null}
       </div>
       <div className="settings-row__control">{children}</div>
     </div>
@@ -236,6 +291,7 @@ function SettingsRow({ children, label, note }: SettingsRowProps) {
 }
 
 function SliderRow({
+  description,
   label,
   max,
   min,
@@ -244,6 +300,7 @@ function SliderRow({
   suffix = "",
   value,
 }: {
+  description?: ReactNode;
   label: string;
   max: number;
   min: number;
@@ -253,7 +310,11 @@ function SliderRow({
   value: number;
 }) {
   return (
-    <SettingsRow label={label} note={`${value}${suffix}`}>
+    <SettingsRow
+      description={description}
+      label={label}
+      note={`${value}${suffix}`}
+    >
       <input
         aria-label={label}
         max={max}
@@ -267,7 +328,9 @@ function SliderRow({
   );
 }
 
-function statusMessage(status: ReturnType<typeof appPreferencesStore.getPersistenceSnapshot>) {
+function statusMessage(
+  status: ReturnType<typeof appPreferencesStore.getPersistenceSnapshot>,
+) {
   if (status.status === "saving") return "Saving settings.";
   if (status.status === "saved") return "Settings saved.";
   if (status.status === "loading") return "Loading settings.";
@@ -371,7 +434,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       return true;
     } catch (error) {
       setStatus(
-        error instanceof Error ? error.message : "App settings could not be saved.",
+        error instanceof Error
+          ? error.message
+          : "App settings could not be saved.",
       );
       return false;
     }
@@ -494,12 +559,14 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         filesAndMetadata: defaultAppPreferences.filesAndMetadata,
       })
     ) {
-      setStatus("Files and metadata settings reset.");
+      setStatus("Storage settings reset.");
     }
   }
 
   async function resetImport() {
-    if (!(await updateAppPreferences({ import: defaultAppPreferences.import }))) {
+    if (
+      !(await updateAppPreferences({ import: defaultAppPreferences.import }))
+    ) {
       return;
     }
 
@@ -514,7 +581,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const selectedSection = visibleSections.includes(activeSection)
     ? activeSection
     : (visibleSections[0] ?? activeSection);
-  const sectionHidden = (section: SettingsSection) => selectedSection !== section;
+  const sectionHidden = (section: SettingsSection) =>
+    selectedSection !== section;
 
   return (
     <dialog
@@ -572,19 +640,30 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         </IconButton>
 
         <main className="settings-content" ref={contentRef}>
-          <section hidden={sectionHidden("General")} className="settings-section">
+          <section
+            hidden={sectionHidden("General")}
+            className="settings-section"
+          >
             <header>
               <h2>General</h2>
             </header>
-            <SettingsRow label="Startup behavior">
+            <SettingsRow
+              description="Choose what opens when Archeion starts."
+              label="Startup behavior"
+            >
               <AppSelect
                 ariaLabel="Startup behavior"
-                onChange={(startupBehavior) => updateAppPreferences({ startupBehavior })}
+                onChange={(startupBehavior) =>
+                  updateAppPreferences({ startupBehavior })
+                }
                 options={startupOptions}
                 value={preferences.startupBehavior}
               />
             </SettingsRow>
-            <SettingsRow label="Confirm destructive file actions">
+            <SettingsRow
+              description="Ask before deleting or replacing real files."
+              label="Confirm destructive file actions"
+            >
               <Toggle
                 checked={preferences.confirmDestructiveFileActions}
                 label="Confirm destructive file actions"
@@ -593,7 +672,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 }
               />
             </SettingsRow>
-            <SettingsRow label="Restore last reader route">
+            <SettingsRow
+              description="Reopen the last book route when the file is still available."
+              label="Restore last reader route"
+            >
               <Toggle
                 checked={preferences.restoreLastReader}
                 label="Restore last reader route"
@@ -619,11 +701,15 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </SettingsRow>
           </section>
 
-          <section hidden={sectionHidden("Archives")} className="settings-section">
+          <section
+            hidden={sectionHidden("Archives")}
+            className="settings-section"
+          >
             <header>
               <h2>Archives</h2>
             </header>
             <SettingsRow
+              description="The active archive root on disk."
               label="Current archive folder"
               note={
                 archive.status === "ready" ? (
@@ -641,23 +727,30 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 Reveal in folder
               </Button>
             </SettingsRow>
-            <SettingsRow label="Archive Manager">
-              <Button onClick={() => void openArchiveManager()} variant="secondary">
+            <SettingsRow
+              description="Manage archive switching, naming, and removal."
+              label="Archive Manager"
+            >
+              <Button
+                onClick={() => void openArchiveManager()}
+                variant="secondary"
+              >
                 Open Archive Manager
-              </Button>
-            </SettingsRow>
-            <SettingsRow label=".archeion folder">
-              <Button onClick={() => void revealMetadata()} variant="secondary">
-                Reveal .archeion folder
               </Button>
             </SettingsRow>
           </section>
 
-          <section hidden={sectionHidden("Library")} className="settings-section">
+          <section
+            hidden={sectionHidden("Library")}
+            className="settings-section"
+          >
             <header>
               <h2>Library</h2>
             </header>
-            <SettingsRow label="Default view">
+            <SettingsRow
+              description="Used when browsing an archive."
+              label="Default view"
+            >
               <SegmentedControl
                 label="Default library view"
                 onChange={(viewMode) => updateLibrary({ viewMode })}
@@ -665,7 +758,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 value={library.viewMode}
               />
             </SettingsRow>
-            <SettingsRow label="Default sort">
+            <SettingsRow
+              description="Used for Library, Favorites, and folder views."
+              label="Default sort"
+            >
               <AppSelect<LibrarySort>
                 ariaLabel="Default library sort"
                 onChange={(sortBy) => updateLibrary({ sortBy })}
@@ -673,15 +769,23 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 value={library.sortBy}
               />
             </SettingsRow>
-            <SettingsRow label="Book card size">
+            <SettingsRow
+              description="Changes cover size in grid view."
+              label="Book card size"
+            >
               <AppSelect
                 ariaLabel="Book card size"
-                onChange={(bookCardSize) => updateAppPreferences({ bookCardSize })}
+                onChange={(bookCardSize) =>
+                  updateAppPreferences({ bookCardSize })
+                }
                 options={cardSizeOptions}
                 value={preferences.bookCardSize}
               />
             </SettingsRow>
-            <SettingsRow label="Show Continue Reading">
+            <SettingsRow
+              description="Shows started books on the Library page."
+              label="Show Continue Reading"
+            >
               <Toggle
                 checked={preferences.showContinueReading}
                 label="Show Continue Reading"
@@ -697,11 +801,17 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </SettingsRow>
           </section>
 
-          <section hidden={sectionHidden("Reader")} className="settings-section">
+          <section
+            hidden={sectionHidden("Reader")}
+            className="settings-section"
+          >
             <header>
               <h2>Reader</h2>
             </header>
-            <SettingsRow label="Font family">
+            <SettingsRow
+              description="Sets the default reader typeface."
+              label="Font family"
+            >
               <AppSelect
                 ariaLabel="Reader font family"
                 onChange={(fontFamily) => updateReader({ fontFamily })}
@@ -710,6 +820,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               />
             </SettingsRow>
             <SliderRow
+              description="Sets the default text size in the reader."
               label="Font size"
               max={28}
               min={14}
@@ -718,6 +829,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               value={reader.fontSize}
             />
             <SliderRow
+              description="Adjusts spacing between lines in the reader."
               label="Line height"
               max={2}
               min={1.4}
@@ -726,6 +838,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               value={Number(reader.lineHeight.toFixed(1))}
             />
             <SliderRow
+              description="Adjusts page padding inside the reader."
               label="Page margin"
               max={72}
               min={24}
@@ -734,7 +847,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               suffix="px"
               value={reader.margin}
             />
-            <SettingsRow label="Reader theme">
+            <SettingsRow
+              description="Applies inside the EPUB reader."
+              label="Reader theme"
+            >
               <SegmentedControl
                 label="Reader theme"
                 onChange={(theme) => updateReader({ theme })}
@@ -742,10 +858,15 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 value={reader.theme}
               />
             </SettingsRow>
-            <SettingsRow label="Progress placement">
+            <SettingsRow
+              description="Chooses where reading progress appears."
+              label="Progress placement"
+            >
               <SegmentedControl
                 label="Reader progress placement"
-                onChange={(progressPlacement) => updateReader({ progressPlacement })}
+                onChange={(progressPlacement) =>
+                  updateReader({ progressPlacement })
+                }
                 options={progressPlacementOptions}
                 value={reader.progressPlacement}
               />
@@ -757,124 +878,235 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </SettingsRow>
           </section>
 
-          <section hidden={sectionHidden("Appearance")} className="settings-section">
-            <header>
-              <h2>Appearance</h2>
-            </header>
-            <SettingsRow label="App theme preset">
-              <AppSelect
-                ariaLabel="App theme preset"
-                onChange={(appThemePreset) => updateAppPreferences({ appThemePreset })}
-                options={appThemeOptions}
-                value={preferences.appThemePreset}
-              />
-            </SettingsRow>
-            <SettingsRow label="Interface density">
-              <SegmentedControl
-                label="Interface density"
-                onChange={(density) => updateAppPreferences({ density })}
-                options={densityOptions}
-                value={preferences.density}
-              />
-            </SettingsRow>
-            <SettingsRow label="Reset appearance settings">
-              <Button
-                onClick={() =>
-                  updateAppPreferences({
-                    appThemePreset: defaultAppPreferences.appThemePreset,
-                    density: defaultAppPreferences.density,
-                  })
-                }
-                variant="secondary"
-              >
-                Reset
-              </Button>
-            </SettingsRow>
-          </section>
-
           <section
-            hidden={sectionHidden("Files and Metadata")}
+            hidden={sectionHidden("Appearance")}
             className="settings-section"
           >
             <header>
-              <h2>Files and Metadata</h2>
+              <h2>Appearance</h2>
             </header>
-            <SettingsRow label="Rescan archive">
-              <Button
-                icon={<ArrowsClockwise aria-hidden="true" size={17} />}
-                onClick={() => setRescanOpen(true)}
-                variant="secondary"
+            <div className="settings-section__group">
+              <h3>App appearance</h3>
+              <SettingsRow
+                description="Sets the app interface theme."
+                label="App theme preset"
               >
-                Rescan archive
-              </Button>
-            </SettingsRow>
-            <SettingsRow label="Scan on startup">
-              <Toggle
-                checked={files.scanOnStartup}
-                label="Scan on startup"
-                onChange={(scanOnStartup) => updateFiles({ scanOnStartup })}
-              />
-            </SettingsRow>
-            <SettingsRow label="Live filesystem watcher">
-              <Toggle
-                checked={files.liveWatcherEnabled}
-                label="Live filesystem watcher"
-                onChange={(liveWatcherEnabled) =>
-                  updateFiles({ liveWatcherEnabled })
-                }
-              />
-            </SettingsRow>
-            <SettingsRow label="Scanner cache">
-              <Button onClick={() => setClearScannerOpen(true)} variant="secondary">
-                Clear scanner cache
-              </Button>
-            </SettingsRow>
-            <SettingsRow label="Re-extract EPUB source metadata">
-              <Button onClick={() => setReextractOpen(true)} variant="secondary">
-                Re-extract source metadata
-              </Button>
-            </SettingsRow>
-            <SettingsRow
-              label="Cover cache status"
-              note={
-                cache
-                  ? `${cache.fileCount} covers, ${formatBytes(cache.totalBytes)}`
-                  : "Unavailable"
-              }
-            >
-              <Button
-                icon={<Broom aria-hidden="true" size={17} />}
-                onClick={() => setClearCacheOpen(true)}
-                variant="secondary"
+                <AppSelect
+                  ariaLabel="App theme preset"
+                  onChange={(appThemePreset) =>
+                    updateAppPreferences({ appThemePreset })
+                  }
+                  options={appThemeOptions}
+                  value={preferences.appThemePreset}
+                />
+              </SettingsRow>
+              <SettingsRow
+                description="Adjusts spacing across the app."
+                label="Interface density"
               >
-                Clear cover cache
-              </Button>
-            </SettingsRow>
-            <SettingsRow label=".archeion folder">
-              <Button onClick={() => void revealMetadata()} variant="secondary">
-                Reveal .archeion folder
-              </Button>
-            </SettingsRow>
-            <SettingsRow label="Reset files and metadata settings">
-              <Button onClick={() => void resetFiles()} variant="secondary">
-                Reset
-              </Button>
-            </SettingsRow>
+                <SegmentedControl
+                  label="Interface density"
+                  onChange={(density) => updateAppPreferences({ density })}
+                  options={densityOptions}
+                  value={preferences.density}
+                />
+              </SettingsRow>
+            </div>
+
+            <div className="settings-section__group">
+              <h3>Window behavior</h3>
+              <SettingsRow
+                description="Controls the desktop window chrome."
+                label="Window frame style"
+              >
+                <AppSelect
+                  ariaLabel="Window frame style"
+                  onChange={(windowFrameStyle) =>
+                    updateAppPreferences({ windowFrameStyle })
+                  }
+                  options={frameOptions}
+                  value={preferences.windowFrameStyle}
+                />
+              </SettingsRow>
+              <SettingsRow
+                description="Restores the previous window layout when supported."
+                label="Remember window size and position"
+              >
+                <Toggle
+                  checked={preferences.rememberWindowState}
+                  label="Remember window size and position"
+                  onChange={(rememberWindowState) =>
+                    updateAppPreferences({ rememberWindowState })
+                  }
+                />
+              </SettingsRow>
+            </div>
+
+            <div className="settings-section__group settings-section__group--actions">
+              <h3>Reset</h3>
+              <SettingsRow label="Reset appearance settings">
+                <Button
+                  onClick={() =>
+                    updateAppPreferences({
+                      appThemePreset: defaultAppPreferences.appThemePreset,
+                      density: defaultAppPreferences.density,
+                    })
+                  }
+                  variant="secondary"
+                >
+                  Reset
+                </Button>
+              </SettingsRow>
+              <SettingsRow label="Reset window settings">
+                <Button
+                  onClick={() =>
+                    updateAppPreferences({
+                      rememberWindowState:
+                        defaultAppPreferences.rememberWindowState,
+                      windowFrameStyle: defaultAppPreferences.windowFrameStyle,
+                    })
+                  }
+                  variant="secondary"
+                >
+                  Reset
+                </Button>
+              </SettingsRow>
+            </div>
           </section>
 
-          <section hidden={sectionHidden("Import")} className="settings-section">
+          <section
+            hidden={sectionHidden("Storage")}
+            className="settings-section"
+          >
+            <header>
+              <h2>Storage</h2>
+            </header>
+            <div className="settings-section__group">
+              <h3>Scanning</h3>
+              <SettingsRow
+                description="Checks the active archive when it opens."
+                label="Scan on startup"
+              >
+                <Toggle
+                  checked={files.scanOnStartup}
+                  label="Scan on startup"
+                  onChange={(scanOnStartup) => updateFiles({ scanOnStartup })}
+                />
+              </SettingsRow>
+              <SettingsRow
+                description="Refreshes the archive when files change on disk."
+                label="Live filesystem watcher"
+              >
+                <Toggle
+                  checked={files.liveWatcherEnabled}
+                  label="Live filesystem watcher"
+                  onChange={(liveWatcherEnabled) =>
+                    updateFiles({ liveWatcherEnabled })
+                  }
+                />
+              </SettingsRow>
+            </div>
+
+            <div className="settings-section__group settings-section__group--actions">
+              <h3>Maintenance</h3>
+              <SettingsRow
+                description="Checks the active archive without changing EPUB files."
+                label="Rescan archive"
+              >
+                <Button
+                  icon={<ArrowsClockwise aria-hidden="true" size={17} />}
+                  onClick={() => setRescanOpen(true)}
+                  variant="secondary"
+                >
+                  Rescan archive
+                </Button>
+              </SettingsRow>
+              <SettingsRow
+                description="Forces EPUB files to be checked again later."
+                label="Scanner cache"
+              >
+                <Button
+                  onClick={() => setClearScannerOpen(true)}
+                  variant="secondary"
+                >
+                  Clear scanner cache
+                </Button>
+              </SettingsRow>
+              <SettingsRow
+                description="Rebuilds parsed EPUB title and author data."
+                label="Re-extract EPUB source metadata"
+              >
+                <Button
+                  onClick={() => setReextractOpen(true)}
+                  variant="secondary"
+                >
+                  Re-extract source metadata
+                </Button>
+              </SettingsRow>
+              <SettingsRow
+                description="Shows extracted covers stored for this archive."
+                label="Cover cache status"
+                note={
+                  cache
+                    ? `${cache.fileCount} covers, ${formatBytes(cache.totalBytes)}`
+                    : "Unavailable"
+                }
+              >
+                <Button
+                  icon={<Broom aria-hidden="true" size={17} />}
+                  onClick={() => setClearCacheOpen(true)}
+                  variant="secondary"
+                >
+                  Clear cover cache
+                </Button>
+              </SettingsRow>
+              <SettingsRow
+                description="Opens the active archive metadata folder."
+                label=".archeion folder"
+              >
+                <Button
+                  onClick={() => void revealMetadata()}
+                  variant="secondary"
+                >
+                  Reveal .archeion folder
+                </Button>
+              </SettingsRow>
+            </div>
+
+            <div className="settings-section__group settings-section__group--actions">
+              <h3>Reset</h3>
+              <SettingsRow label="Reset storage settings">
+                <Button onClick={() => void resetFiles()} variant="secondary">
+                  Reset
+                </Button>
+              </SettingsRow>
+            </div>
+          </section>
+
+          <section
+            hidden={sectionHidden("Import")}
+            className="settings-section"
+          >
             <header>
               <h2>Import</h2>
             </header>
-            <SettingsRow label="Default import mode">
+            <SettingsRow
+              description="Chooses how new EPUB files are added."
+              label="Default import mode"
+            >
               <SegmentedControl
                 label="Default import mode"
-                onChange={(defaultMode) => updateImportDefaults({ defaultMode })}
+                onChange={(defaultMode) =>
+                  updateImportDefaults({ defaultMode })
+                }
                 options={archiveImportModeOptions}
                 value={importSettings.defaultMode}
               />
             </SettingsRow>
-            <SettingsRow label="Default conflict handling">
+            <SettingsRow
+              description="Chooses what happens when a file name already exists."
+              label="Default conflict handling"
+            >
               <AppSelect
                 ariaLabel="Default conflict handling"
                 onChange={(defaultConflictAction) =>
@@ -884,12 +1116,16 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 value={importSettings.defaultConflictAction}
               />
             </SettingsRow>
-            <SettingsRow label="Default destination folder">
+            <SettingsRow
+              description="Stored per archive because folders differ."
+              label="Default destination folder"
+            >
               <AppSelect
                 ariaLabel="Default import destination folder"
                 onChange={(value) =>
                   updateArchiveImport({
-                    defaultDestinationFolderPath: destinationValueToFolderPath(value),
+                    defaultDestinationFolderPath:
+                      destinationValueToFolderPath(value),
                   })
                 }
                 options={destinationOptions}
@@ -898,44 +1134,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             </SettingsRow>
             <SettingsRow label="Reset import settings">
               <Button onClick={() => void resetImport()} variant="secondary">
-                Reset
-              </Button>
-            </SettingsRow>
-          </section>
-
-          <section hidden={sectionHidden("Window")} className="settings-section">
-            <header>
-              <h2>Window</h2>
-            </header>
-            <SettingsRow label="Window frame style">
-              <AppSelect
-                ariaLabel="Window frame style"
-                onChange={(windowFrameStyle) =>
-                  updateAppPreferences({ windowFrameStyle })
-                }
-                options={frameOptions}
-                value={preferences.windowFrameStyle}
-              />
-            </SettingsRow>
-            <SettingsRow label="Remember window size and position">
-              <Toggle
-                checked={preferences.rememberWindowState}
-                label="Remember window size and position"
-                onChange={(rememberWindowState) =>
-                  updateAppPreferences({ rememberWindowState })
-                }
-              />
-            </SettingsRow>
-            <SettingsRow label="Reset window settings">
-              <Button
-                onClick={() =>
-                  updateAppPreferences({
-                    rememberWindowState: defaultAppPreferences.rememberWindowState,
-                    windowFrameStyle: defaultAppPreferences.windowFrameStyle,
-                  })
-                }
-                variant="secondary"
-              >
                 Reset
               </Button>
             </SettingsRow>
@@ -959,7 +1157,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onClose={() => setClearCacheOpen(false)}
             footer={
               <>
-                <Button variant="secondary" onClick={() => setClearCacheOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setClearCacheOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button variant="danger" onClick={() => void clearCache()}>
@@ -976,10 +1177,16 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onClose={() => setClearScannerOpen(false)}
             footer={
               <>
-                <Button variant="secondary" onClick={() => setClearScannerOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setClearScannerOpen(false)}
+                >
                   Cancel
                 </Button>
-                <Button variant="danger" onClick={() => void clearScannerCache()}>
+                <Button
+                  variant="danger"
+                  onClick={() => void clearScannerCache()}
+                >
                   Clear scanner cache
                 </Button>
               </>
@@ -993,7 +1200,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onClose={() => setReextractOpen(false)}
             footer={
               <>
-                <Button variant="secondary" onClick={() => setReextractOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setReextractOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void reextractMetadata()}>
@@ -1010,7 +1220,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onClose={() => setRescanOpen(false)}
             footer={
               <>
-                <Button onClick={() => setRescanOpen(false)} variant="secondary">
+                <Button
+                  onClick={() => setRescanOpen(false)}
+                  variant="secondary"
+                >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void rescan()}>

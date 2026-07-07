@@ -141,13 +141,39 @@
   font-weight: 650;
 }
 
+.settings-section__group {
+  display: grid;
+}
+
+.settings-section__group + .settings-section__group {
+  margin-top: 18px;
+}
+
+.settings-section__group h3 {
+  padding: 16px 0 2px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.settings-section__group--actions {
+  margin-top: 20px;
+}
+
+.settings-section__group--actions h3 {
+  color: var(--muted);
+}
+
 .settings-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 24px;
-  min-height: 68px;
-  padding: 13px 0;
+  min-height: 64px;
+  padding: 11px 0;
   margin: 0;
   border: 0;
   border-bottom: 1px solid var(--line);
@@ -173,7 +199,16 @@
 .settings-row code {
   color: var(--muted);
   font-size: 11px;
+  line-height: 1.45;
   font-style: normal;
+}
+
+.settings-row__description {
+  max-width: 54ch;
+}
+
+.settings-row__note {
+  color: var(--muted);
 }
 
 .settings-row code {
