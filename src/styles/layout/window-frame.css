@@ -4,18 +4,17 @@
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  background: var(--surface-base);
 
   --window-titlebar-archeion-height: 36px;
   --window-titlebar-hidden-height: 32px;
-
-  --sidebar-surface-bg: rgb(18 18 19 / 88%);
-  --sidebar-surface-blur: blur(16px);
 }
 
 .window-app__content {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  background: var(--surface-main);
 }
 
 .window-app__content .app-shell,
@@ -39,43 +38,15 @@
   height: var(--window-titlebar-archeion-height);
   padding-left: 12px;
   color: var(--muted);
-  background: var(--canvas-deep);
-  border-bottom: 1px solid var(--line);
+  background: var(--surface-sidebar);
+  border-bottom: 1px solid var(--surface-border);
   user-select: none;
 }
 
-.window-titlebar[data-mode="archeion"] {
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 2%), transparent),
-    var(--canvas-deep);
-}
-
 .window-titlebar[data-mode="hidden"] {
-  position: relative;
   height: var(--window-titlebar-hidden-height);
   padding-left: 0;
-  border-bottom: 0;
   background: transparent;
-}
-
-.window-titlebar[data-mode="hidden"]::before {
-  content: "";
-  position: absolute;
-  box-sizing: border-box;
-  inset: 0 auto 0 0;
-  width: var(--sidebar-width);
-  background: var(--sidebar-surface-bg);
-  backdrop-filter: var(--sidebar-surface-blur);
-  border-right: 1px solid var(--line);
-  pointer-events: none;
-}
-
-@media (max-width: 560px) {
-  .window-titlebar[data-mode="hidden"]::before {
-    width: 100%;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
-  }
 }
 
 .window-titlebar__drag-region {
@@ -91,34 +62,18 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
-  font-size: 11px;
-  font-weight: 600;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
   pointer-events: none;
 }
 
-.window-titlebar__mark {
-  display: flex;
-  align-items: flex-end;
-  gap: 2px;
-  width: 15px;
-}
-
-.window-titlebar__mark span {
-  width: 3px;
-  border-radius: 1px;
-  background: var(--accent);
-}
-
-.window-titlebar__mark span:nth-child(1) {
-  height: 7px;
-}
-
-.window-titlebar__mark span:nth-child(2) {
-  height: 13px;
-}
-
-.window-titlebar__mark span:nth-child(3) {
-  height: 9px;
+.window-titlebar__icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
 }
 
 .window-titlebar__controls {
@@ -145,7 +100,7 @@
 
 .window-titlebar__controls button:hover {
   color: var(--text-strong);
-  background: var(--surface-hover);
+  background: var(--surface-shell-hover);
 }
 
 .window-titlebar__controls button:focus-visible {

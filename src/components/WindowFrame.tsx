@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
+import archeionIcon from "../assets/brand/archeion-icon-128.png";
 import { useAppPreferences } from "../stores/appPreferencesStore";
 import type { WindowFrameStyle } from "../types/appSettings";
 
@@ -66,11 +67,12 @@ export function WindowFrame() {
       >
         {isArcheionFrame ? (
           <div className="window-titlebar__identity" data-tauri-drag-region>
-            <div className="window-titlebar__mark" aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </div>
+            <img
+              alt=""
+              aria-hidden="true"
+              className="window-titlebar__icon"
+              src={archeionIcon}
+            />
             <span>Archeion</span>
           </div>
         ) : null}

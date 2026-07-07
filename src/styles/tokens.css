@@ -29,6 +29,16 @@
   --error-soft: rgb(217 112 126 / 7%);
   --error-border: rgb(217 112 126 / 28%);
 
+  --surface-base: #202023;
+  --surface-app-frame: var(--surface-base);
+  --surface-sidebar: var(--surface-base);
+  --surface-main: #151516;
+  --surface-main-raised: #1d1d20;
+  --surface-border: var(--line);
+  --surface-border-strong: var(--line-strong);
+  --surface-shell-hover: rgb(255 255 255 / 5.5%);
+  --surface-shell-active: rgb(255 255 255 / 8%);
+
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
     serif;
   --radius-control: 8px;

@@ -4,6 +4,7 @@
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
+  background: var(--surface-main);
 }
 
 .sidebar {
@@ -13,9 +14,8 @@
   min-height: 0;
   overflow: hidden;
   padding: 18px 0 18px 16px;
-  border-right: 1px solid var(--line);
-  background: var(--sidebar-surface-bg, rgb(18 18 19 / 88%));
-  backdrop-filter: var(--sidebar-surface-blur, blur(16px));
+  border-right: 1px solid var(--surface-border);
+  background: var(--surface-sidebar);
 }
 
 .sidebar__nav {
@@ -46,12 +46,12 @@
 
 .nav-item:hover:not(:disabled) {
   color: var(--text);
-  background: var(--surface);
+  background: var(--surface-shell-hover);
 }
 
 .nav-item.active {
   color: var(--text-strong);
-  background: var(--surface-raised);
+  background: var(--surface-shell-active);
 }
 
 .nav-item.active svg {
@@ -104,7 +104,7 @@
   gap: 2px;
   padding: 10px 16px 0 0;
   margin-top: auto;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--surface-border);
 }
 
 .archive-switcher {
@@ -132,7 +132,7 @@
 
 .archive-switcher summary:hover,
 .archive-switcher[open] summary {
-  background: var(--surface);
+  background: var(--surface-shell-hover);
 }
 
 .archive-switcher summary > span {
@@ -149,9 +149,9 @@
   display: grid;
   width: 214px;
   padding: 5px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--surface-border-strong);
   border-radius: 9px;
-  background: var(--surface-raised);
+  background: var(--surface-main-raised);
   box-shadow: 0 16px 44px rgb(0 0 0 / 42%);
 }
 
@@ -201,7 +201,7 @@
 .archive-switcher__divider {
   height: 1px;
   margin: 5px 3px;
-  background: var(--line);
+  background: var(--surface-border);
 }
 
 .archive-switcher__menu button:hover {
@@ -217,6 +217,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  background: var(--surface-main);
   padding: 54px clamp(28px, 5vw, 76px) 40px;
 }
 
@@ -269,7 +270,7 @@ html[data-density="compact"] .nav-item {
     height: auto;
     padding: 11px 16px;
     border-right: 0;
-    border-bottom: 1px solid var(--line);
+    border-bottom: 1px solid var(--surface-border);
   }
 
   .sidebar__nav {

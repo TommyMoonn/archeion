@@ -1,7 +1,7 @@
 html {
   min-width: 320px;
   height: 100%;
-  background: var(--canvas);
+  background: var(--surface-main);
 }
 
 body {
@@ -16,7 +16,7 @@ body {
       rgb(143 193 227 / 4%),
       transparent 28rem
     ),
-    var(--canvas);
+    var(--surface-main);
 }
 
 button,
