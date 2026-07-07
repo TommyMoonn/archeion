@@ -1,9 +1,9 @@
 import {
+  Archive,
   Books,
   CaretUpDown,
   Check,
   ClockCounterClockwise,
-  FolderOpen,
   Folders,
   GearSix,
   Heart,
@@ -70,10 +70,13 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     onManageArchives();
   }, [closeArchiveSwitcher, onManageArchives]);
 
-  const switchArchive = useCallback((archive: KnownArchive) => {
-    closeArchiveSwitcher();
-    onSwitchArchive(archive);
-  }, [closeArchiveSwitcher, onSwitchArchive]);
+  const switchArchive = useCallback(
+    (archive: KnownArchive) => {
+      closeArchiveSwitcher();
+      onSwitchArchive(archive);
+    },
+    [closeArchiveSwitcher, onSwitchArchive],
+  );
 
   return (
     <aside className="sidebar">
@@ -172,17 +175,21 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               .slice(0, 5)
               .map((archive) => (
                 <button
+                  className="archive-switcher__archive"
                   key={archive.id}
                   onClick={() => switchArchive(archive)}
                   type="button"
                 >
-                  <FolderOpen aria-hidden="true" size={16} />
                   <span>{archive.displayName}</span>
                 </button>
               ))}
             <div className="archive-switcher__divider" role="separator" />
-            <button onClick={manageArchives} type="button">
-              <GearSix aria-hidden="true" size={16} />
+            <button
+              className="archive-switcher__manage"
+              onClick={manageArchives}
+              type="button"
+            >
+              <Archive aria-hidden="true" size={16} weight="regular" />
               <span>Manage archives</span>
             </button>
           </div>

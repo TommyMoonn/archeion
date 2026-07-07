@@ -17,6 +17,8 @@ const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
 const MAIN_WINDOW_LABEL: &str = "main";
 const ARCHIVE_MANAGER_QUERY: &str = "window=archive-manager";
 const ARCHIVE_MANAGER_APP_URL: &str = "index.html?window=archive-manager";
+const ARCHIVE_MANAGER_WIDTH: f64 = 860.0;
+const ARCHIVE_MANAGER_HEIGHT: f64 = 620.0;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -237,6 +239,28 @@ fn archive_manager_webview_url(
     Ok((webview_url, kind, url))
 }
 
+fn archive_manager_window_size() -> tauri::Size {
+    tauri::Size::Logical(tauri::LogicalSize::new(
+        ARCHIVE_MANAGER_WIDTH,
+        ARCHIVE_MANAGER_HEIGHT,
+    ))
+}
+
+fn apply_archive_manager_window_constraints(window: &tauri::WebviewWindow) -> Result<(), String> {
+    let size = archive_manager_window_size();
+
+    window.set_size(size).map_err(|error| error.to_string())?;
+    window
+        .set_min_size(Some(size))
+        .map_err(|error| error.to_string())?;
+    window
+        .set_max_size(Some(size))
+        .map_err(|error| error.to_string())?;
+    window
+        .set_resizable(false)
+        .map_err(|error| error.to_string())
+}
+
 fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     window.show().map_err(|error| error.to_string())?;
     window.set_focus().map_err(|error| error.to_string())?;
@@ -396,67 +420,34 @@ pub fn forget_archive(
 
 #[tauri::command]
 pub async fn open_archive_manager_window(app: tauri::AppHandle) -> Result<(), String> {
-    println!("[archive-manager] command entered");
-
     if let Some(existing_window) = app.get_webview_window(ARCHIVE_MANAGER_WINDOW_LABEL) {
-        println!("[archive-manager] existing window found");
         if existing_archive_manager_is_unhealthy(&existing_window) {
-            eprintln!("[archive-manager] existing window is unhealthy; closing before recreate");
             let _ = existing_window.close();
         } else {
-            show_and_focus_window(&existing_window).map_err(|error| {
-                eprintln!("[archive-manager] error details before returning: {error}");
-                error
-            })?;
-            println!("[archive-manager] show/focus success");
+            apply_archive_manager_window_constraints(&existing_window)?;
+            show_and_focus_window(&existing_window)?;
             return Ok(());
         }
     }
 
-    println!(
-        "[archive-manager] debug or release mode: {}",
-        if cfg!(debug_assertions) { "debug" } else { "release" }
-    );
-    println!(
-        "[archive-manager] dev_url from config: {}",
-        app.config()
-            .build
-            .dev_url
-            .as_ref()
-            .map(|url| url.as_str())
-            .unwrap_or("<none>")
-    );
-
-    let (webview_url, url_kind, final_url) = archive_manager_webview_url(&app).map_err(|error| {
-        eprintln!("[archive-manager] error details before returning: {error}");
-        error
-    })?;
-    println!("[archive-manager] final URL: {final_url}");
-    println!("[archive-manager] WebviewUrl variant: {url_kind:?}");
-    println!("[archive-manager] builder start");
+    let (webview_url, _, _) = archive_manager_webview_url(&app)?;
 
     let window = WebviewWindowBuilder::new(&app, ARCHIVE_MANAGER_WINDOW_LABEL, webview_url)
         .title("Archive Manager")
-        .inner_size(800.0, 590.0)
-        .min_inner_size(680.0, 460.0)
+        .inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
+        .min_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
+        .max_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)
         .center()
-        .resizable(true)
+        .resizable(false)
+        .maximizable(false)
         .decorations(true)
         .closable(true)
         .visible(false)
         .build()
-        .map_err(|error| {
-            eprintln!("[archive-manager] error details before returning: {error}");
-            error.to_string()
-        })?;
+        .map_err(|error| error.to_string())?;
 
-    println!("[archive-manager] builder success");
-    show_and_focus_window(&window).map_err(|error| {
-        eprintln!("[archive-manager] error details before returning: {error}");
-        error
-    })?;
-    println!("[archive-manager] show/focus success");
-    Ok(())
+    apply_archive_manager_window_constraints(&window)?;
+    show_and_focus_window(&window)
 }
 
 #[tauri::command]

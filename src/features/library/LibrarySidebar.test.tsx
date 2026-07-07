@@ -46,13 +46,21 @@ function renderSidebar() {
 describe("LibrarySidebar", () => {
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
+    const archiveRows = markup.match(
+      /<button class="archive-switcher__archive"[\s\S]*?<\/button>/g,
+    );
 
     expect(markup).toContain("Books");
     expect(markup).toContain("Comics");
     expect(markup).toContain("Manage archives");
+    expect(markup).not.toContain("Manage vaults");
     expect(markup).not.toContain("Open archive");
     expect(markup).not.toContain("Open folder as archive");
     expect(markup).not.toContain("Create empty archive");
     expect(markup).not.toContain("E:\\Comics");
+    expect(markup.match(/role="separator"/g)).toHaveLength(1);
+    expect(archiveRows).toHaveLength(1);
+    expect(archiveRows?.[0]).not.toContain("<svg");
+    expect(markup).toContain("archive-switcher__current");
   });
 });

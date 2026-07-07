@@ -1,14 +1,14 @@
 import {
   Check,
   DotsThree,
-  FolderDashed,
   FolderOpen,
   PencilSimple,
   Trash,
-  WarningCircle,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
+// Copied from src-tauri/icons/128x128.png so the frontend can load it through Vite.
+import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import type { ArchiveState } from "../../stores/archiveStore";
@@ -132,7 +132,7 @@ function ArchiveRowActions({
           type="button"
         >
           <FolderOpen aria-hidden="true" size={16} weight="regular" />
-          <span>Reveal folder</span>
+          <span>Reveal in folder</span>
         </button>
         <button
           className="archive-row-menu__danger"
@@ -142,7 +142,7 @@ function ArchiveRowActions({
           type="button"
         >
           <Trash aria-hidden="true" size={16} weight="regular" />
-          <span>Forget archive</span>
+          <span>Forget</span>
         </button>
       </div>
     </details>
@@ -268,18 +268,16 @@ function ArchiveRow({
         )}
       </div>
 
-      <div className="archive-row__meta" aria-label="Archive state">
-        {isActive ? (
-          <span className="archive-row__badge">
-            <Check aria-hidden="true" size={13} weight="bold" />
-            Active
-          </span>
-        ) : null}
-        {isMissing ? (
+      {isMissing ? (
+        <div className="archive-row__meta" aria-label="Archive state">
           <span className="archive-row__badge archive-row__badge--missing">
             Archive folder not found
           </span>
-        ) : null}
+        </div>
+      ) : null}
+
+      <div className="archive-row__state" aria-hidden="true">
+        {isActive ? <Check size={14} weight="bold" /> : null}
       </div>
 
       <div className="archive-row__actions">
@@ -318,7 +316,7 @@ export function ArchiveManagerWindowContent({
   const [status, setStatus] = useState<string | null>(null);
   const activeArchiveId = activeArchiveIdForState(state);
   const missingArchiveId =
-    state.status === "missing" ? state.archive?.id ?? null : null;
+    state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(
     () => sortArchives(state.archives, activeArchiveId),
     [activeArchiveId, state.archives],
@@ -334,20 +332,11 @@ export function ArchiveManagerWindowContent({
         className={`archive-manager-window archive-manager-window--${mode}`}
         aria-labelledby="archive-manager-title"
       >
-        <div className="archive-manager-window__chrome">
-          <span>{mode === "manager" ? "Archive Manager" : "Archive Launcher"}</span>
-        </div>
-
         <div className="archive-manager-window__body">
           <aside
             className="archive-manager-window__sidebar"
-            aria-label="Known archives"
+            aria-label="Archives"
           >
-            <div className="archive-manager-window__sidebar-header">
-              <span className="section-label">Known archives</span>
-              <span>{state.archives.length}</span>
-            </div>
-
             {sortedArchives.length > 0 ? (
               <div className="archive-list">
                 {sortedArchives.map((archive) => (
@@ -361,19 +350,17 @@ export function ArchiveManagerWindowContent({
                   />
                 ))}
               </div>
-            ) : (
-              <p className="archive-manager-window__empty">No saved archives.</p>
-            )}
+            ) : null}
           </aside>
 
           <section className="archive-manager-window__main">
             <div className="archive-manager-window__identity">
               <div className="archive-manager-window__mark" aria-hidden="true">
-                {state.status === "missing" || state.status === "error" ? (
-                  <WarningCircle size={38} weight="thin" />
-                ) : (
-                  <FolderDashed size={38} weight="thin" />
-                )}
+                <img
+                  className="archive-manager-window__icon"
+                  src={archeionIcon}
+                  alt=""
+                />
               </div>
               <h1 id="archive-manager-title">Archeion</h1>
               <p>{title}</p>

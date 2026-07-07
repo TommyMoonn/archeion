@@ -9,8 +9,9 @@ import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
 import { ArchiveLauncherPage } from "./ArchiveLauncherPage";
 
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
-  .IS_REACT_ACT_ENVIRONMENT = true;
+(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const savedArchive: KnownArchive = {
   id: "archive-books",
@@ -57,10 +58,12 @@ describe("ArchiveLauncherPage", () => {
   });
 
   it("renders the first-run launcher actions in the manager surface", () => {
-    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={setupState} />);
+    const markup = renderToStaticMarkup(
+      <ArchiveLauncherPage state={setupState} />,
+    );
 
-    expect(markup).toContain("Archive Launcher");
     expect(markup).toContain("No archive open");
+    expect(markup).not.toContain("Archive Launcher");
     expect(markup).toContain("Create empty archive");
     expect(markup).toContain("Open folder as archive");
     expect(markup).not.toContain("Open another archive");
@@ -70,20 +73,27 @@ describe("ArchiveLauncherPage", () => {
 
   it("shows saved archives in the left panel", () => {
     const markup = renderToStaticMarkup(
-      <ArchiveLauncherPage state={{ ...setupState, archives: [savedArchive] }} />,
+      <ArchiveLauncherPage
+        state={{ ...setupState, archives: [savedArchive] }}
+      />,
     );
 
-    expect(markup).toContain("Known archives");
+    expect(markup).toContain('aria-label="Archives"');
+    expect(markup).not.toContain("Known archives");
     expect(markup).toContain("Books");
     expect(markup).toContain("D:\\Books");
   });
 
   it("calls the folder picker flow from Open folder as archive", async () => {
-    const chooseArchive = vi.spyOn(archiveStore, "chooseArchive").mockResolvedValue(true);
-    const createArchive = vi.spyOn(archiveStore, "createArchive").mockResolvedValue(true);
+    const chooseArchive = vi
+      .spyOn(archiveStore, "chooseArchive")
+      .mockResolvedValue(true);
+    const createArchive = vi
+      .spyOn(archiveStore, "createArchive")
+      .mockResolvedValue(true);
     const { container, root } = renderInteractive();
-    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
-      candidate.textContent?.includes("Open folder as archive"),
+    const button = Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent?.includes("Open folder as archive"),
     );
 
     expect(button).toBeDefined();
@@ -98,7 +108,9 @@ describe("ArchiveLauncherPage", () => {
   });
 
   it("shows the missing remembered archive state", () => {
-    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={missingState} />);
+    const markup = renderToStaticMarkup(
+      <ArchiveLauncherPage state={missingState} />,
+    );
 
     expect(markup).toContain("Archive folder not found");
     expect(markup).toContain("Books");

@@ -32,11 +32,7 @@ const readyState: ArchiveState = {
 
 function renderManager(state: ArchiveState = readyState) {
   return renderToStaticMarkup(
-    <ArchiveManagerWindowContent
-      mode="manager"
-      standalone
-      state={state}
-    />,
+    <ArchiveManagerWindowContent mode="manager" standalone state={state} />,
   );
 }
 
@@ -45,21 +41,30 @@ describe("ArchiveManagerWindow", () => {
     const markup = renderManager();
 
     expect(markup).toContain("archive-manager-shell--standalone");
-    expect(markup).toContain("Archive Manager");
     expect(markup).toContain("Manage archives");
-    expect(markup).toContain("Known archives");
+    expect(markup).toContain('aria-label="Archives"');
+    expect(markup).not.toContain("Known archives");
+    expect(markup).not.toContain("archive-manager-window__sidebar-header");
     expect(markup).toContain("Books");
     expect(markup).toContain("Comics");
     expect(markup).toContain("D:\\Books");
     expect(markup).toContain("E:\\Comics");
-    expect(markup).toContain("Active");
+    expect(markup).toContain("archive-row--active");
+    expect(markup).toContain("archive-manager-window__icon");
     expect(markup).toContain("Create empty archive");
     expect(markup).toContain("Open folder as archive");
     expect(markup).toContain("Rename");
-    expect(markup).toContain("Reveal folder");
-    expect(markup).toContain("Forget archive");
+    expect(markup).toContain("Reveal in folder");
+    expect(markup).toContain("Forget");
+    expect(markup).not.toContain("archive-manager-window__chrome");
+    expect(markup).not.toContain(">Archive Manager<");
+    expect(markup).not.toContain("Active");
+    expect(markup).not.toContain("Reveal folder");
+    expect(markup).not.toContain("Forget archive");
+    expect(markup).not.toContain(">2</span>");
     expect(markup).not.toContain("Open another archive");
     expect(markup).not.toContain("Back to Library");
+    expect(markup.toLowerCase()).not.toContain("vault");
   });
 
   it("shows a visible fallback when initialization fails", () => {
@@ -69,6 +74,6 @@ describe("ArchiveManagerWindow", () => {
 
     expect(markup).toContain("Archive Manager");
     expect(markup).toContain("Manager failed to initialize.");
-    expect(markup).toContain("role=\"alert\"");
+    expect(markup).toContain('role="alert"');
   });
 });

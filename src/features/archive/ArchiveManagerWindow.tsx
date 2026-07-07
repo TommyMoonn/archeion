@@ -32,9 +32,6 @@ export function ArchiveManagerFallback({ message }: { message: string }) {
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-fallback-title"
       >
-        <div className="archive-manager-window__chrome">
-          <span>Archive Manager</span>
-        </div>
         <div className="archive-manager-window__fallback" role="alert">
           <h1 id="archive-manager-fallback-title">Archive Manager</h1>
           <p>{message}</p>
@@ -50,7 +47,9 @@ class ArchiveManagerErrorBoundary extends Component<
 > {
   state: ArchiveManagerErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(error: unknown): ArchiveManagerErrorBoundaryState {
+  static getDerivedStateFromError(
+    error: unknown,
+  ): ArchiveManagerErrorBoundaryState {
     return { error: messageFromError(error) };
   }
 
