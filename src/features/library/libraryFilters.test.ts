@@ -10,6 +10,8 @@ import {
   filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
+  getEffectiveLibrarySort,
+  getVisibleBooks,
   normalizeLibrarySort,
   sortBooks,
 } from "./libraryFilters";
@@ -154,6 +156,70 @@ describe("library filters", () => {
     expect(normalizeLibrarySort("recently-opened")).toBe("recently-opened");
     expect(normalizeLibrarySort("recently-added")).toBe("title");
     expect(normalizeLibrarySort("folder")).toBe("title");
+    expect(normalizeLibrarySort("folder-path")).toBe("title");
+    expect(normalizeLibrarySort("file-created-time")).toBe("title");
+    expect(normalizeLibrarySort("file-modified-time")).toBe("title");
+  });
+
+  it("derives continue sorting without mutating the selected library sort", () => {
+    const selectedSort = "author";
+
+    expect(getEffectiveLibrarySort({ type: "continue" }, selectedSort)).toBe(
+      "recently-opened",
+    );
+    expect(selectedSort).toBe("author");
+    expect(getEffectiveLibrarySort({ type: "library" }, selectedSort)).toBe(
+      "author",
+    );
+    expect(getEffectiveLibrarySort({ type: "favorites" }, selectedSort)).toBe(
+      "author",
+    );
+    expect(
+      getEffectiveLibrarySort({ type: "folder", folderId: "folder-one" }, selectedSort),
+    ).toBe("author");
+  });
+
+  it("orders the continue view by recently opened without changing the library default sort", () => {
+    const continueCandidates = [
+      createBook({
+        id: "title-first",
+        originalTitle: "A Title",
+        progressPercent: 50,
+        lastOpenedAt: "2026-07-03T00:00:00.000Z",
+      }),
+      createBook({
+        id: "recent",
+        originalTitle: "Z Title",
+        progressPercent: 50,
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+      }),
+      createBook({
+        id: "finished",
+        originalTitle: "Finished",
+        progressPercent: 100,
+        lastOpenedAt: "2026-07-06T00:00:00.000Z",
+      }),
+    ];
+
+    expect(DEFAULT_LIBRARY_SORT).toBe("title");
+    expect(
+      getVisibleBooks(continueCandidates, "", DEFAULT_LIBRARY_SORT, {
+        type: "continue",
+      }).map((book) => book.id),
+    ).toEqual(["recent", "title-first"]);
+    expect(
+      getVisibleBooks(continueCandidates, "", DEFAULT_LIBRARY_SORT, {
+        type: "library",
+      }).map((book) => book.id),
+    ).toEqual(["title-first", "finished", "recent"]);
+  });
+
+  it("keeps manual sort changes view-local to normal library views", () => {
+    expect(
+      getVisibleBooks(books, "", "author", { type: "library" }).map(
+        (book) => book.id,
+      ),
+    ).toEqual(["first", "second", "third"]);
   });
 
   it("sorts titles naturally with deterministic metadata and path tie-breakers", () => {

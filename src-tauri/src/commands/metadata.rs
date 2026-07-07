@@ -421,7 +421,6 @@ mod tests {
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
-
     #[test]
     fn old_display_override_fields_are_ignored_when_serializing_library_metadata() {
         let value = serde_json::json!({

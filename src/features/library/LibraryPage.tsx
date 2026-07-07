@@ -42,6 +42,7 @@ import {
   bookTitle,
   createLibrarySearchIndex,
   DEFAULT_LIBRARY_SORT,
+  getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
   sortBooks,
   type LibraryLocation,
@@ -239,17 +240,21 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => createLibrarySearchIndex(books ?? [], folders),
     [books, folders],
   );
+  const effectiveSort = useMemo(
+    () => getEffectiveLibrarySort(location, sort),
+    [location, sort],
+  );
   const visibleBooks = useMemo(
     () =>
       measurePerformance("archeion:filter-and-sort-library", () =>
         getVisibleBooksFromSearchIndex(
           searchIndex,
           debouncedQuery,
-          sort,
+          effectiveSort,
           location,
         ),
       ),
-    [debouncedQuery, location, searchIndex, sort],
+    [debouncedQuery, effectiveSort, location, searchIndex],
   );
   const selectedBook = useMemo(
     () => books?.find((book) => book.id === selectedBookId) ?? null,
@@ -273,9 +278,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const changeLocation = useCallback((nextLocation: LibraryLocation) => {
     setLocation(nextLocation);
-    if (nextLocation.type === "continue") {
-      setSort("recently-opened");
-    }
   }, []);
 
   const requestDelete = useCallback((book: Book) => {
@@ -609,7 +611,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onSortChange={setSort}
             onViewChange={setView}
             query={query}
-            sort={sort}
+            sort={effectiveSort}
             title={libraryTitle}
             view={view}
           />

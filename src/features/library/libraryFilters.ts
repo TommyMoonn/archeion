@@ -164,6 +164,17 @@ function compareStablePath(
   return collator.compare(stablePath(left), stablePath(right));
 }
 
+export function getEffectiveLibrarySort(
+  location: LibraryLocation,
+  selectedSort: LibrarySort,
+): LibrarySort {
+  if (location.type === "continue") {
+    return "recently-opened";
+  }
+
+  return normalizeLibrarySort(selectedSort);
+}
+
 export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
   const normalizedSort = normalizeLibrarySort(sort);
   const collator = new Intl.Collator(undefined, {
@@ -228,7 +239,7 @@ export function getVisibleBooksFromSearchIndex(
 ): Book[] {
   return sortBooks(
     filterBookSearchIndex(filterSearchIndexByLocation(index, location), query),
-    sort,
+    getEffectiveLibrarySort(location, sort),
   );
 }
 
