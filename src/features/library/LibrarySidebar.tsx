@@ -34,7 +34,6 @@ type LibrarySidebarProps = {
   onMoveFolder: (folder: Folder) => void;
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
-  onOpenArchive: () => void;
   onOpenSettings: () => void;
   onRenameFolder: (folder: Folder) => void;
   onRevealFolder?: (folder: Folder) => void;
@@ -57,7 +56,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onMoveFolder,
   onLocationChange,
   onOpenAbout,
-  onOpenArchive,
   onOpenSettings,
   onRenameFolder,
   onRevealFolder,
@@ -71,11 +69,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     closeArchiveSwitcher();
     onManageArchives();
   }, [closeArchiveSwitcher, onManageArchives]);
-
-  const openArchive = useCallback(() => {
-    closeArchiveSwitcher();
-    onOpenArchive();
-  }, [closeArchiveSwitcher, onOpenArchive]);
 
   const switchArchive = useCallback((archive: KnownArchive) => {
     closeArchiveSwitcher();
@@ -181,17 +174,13 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                 <button
                   key={archive.id}
                   onClick={() => switchArchive(archive)}
-                  title={archive.rootPath}
                   type="button"
                 >
                   <FolderOpen aria-hidden="true" size={16} />
                   <span>{archive.displayName}</span>
                 </button>
               ))}
-            <button onClick={openArchive} type="button">
-              <FolderOpen aria-hidden="true" size={16} />
-              <span>Open archive</span>
-            </button>
+            <div className="archive-switcher__divider" role="separator" />
             <button onClick={manageArchives} type="button">
               <GearSix aria-hidden="true" size={16} />
               <span>Manage archives</span>

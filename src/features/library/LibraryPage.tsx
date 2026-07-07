@@ -92,11 +92,6 @@ const SettingsDialog = lazy(() =>
     default: module.SettingsDialog,
   })),
 );
-const ArchiveManagerDialog = lazy(() =>
-  import("../archive/ArchiveManagerDialog").then((module) => ({
-    default: module.ArchiveManagerDialog,
-  })),
-);
 
 function isInsideFolder(
   relativePath: string | undefined,
@@ -153,7 +148,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(
     null,
   );
-  const [archiveManagerOpen, setArchiveManagerOpen] = useState(false);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -336,7 +330,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setSelectedBookId(book.id);
   }, []);
 
-  const openArchiveManager = useCallback(() => setArchiveManagerOpen(true), []);
+  const openArchiveManager = useCallback(() => void navigate("/archives"), [navigate]);
   const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
   const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);
@@ -370,10 +364,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     } finally {
       setIsDeleting(false);
     }
-  }
-
-  async function openArchiveFolder() {
-    await archiveStore.chooseArchive();
   }
 
   async function switchArchive(archiveId: string) {
@@ -596,7 +586,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onMoveFolder={setMoveFolderTarget}
           onLocationChange={changeLocation}
           onOpenAbout={openAbout}
-          onOpenArchive={() => void openArchiveFolder()}
           onOpenSettings={openSettings}
           onRenameFolder={setRenameFolderTarget}
           onRevealFolder={(folder) => void revealFolder(folder)}
@@ -818,11 +807,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       {settingsOpen ? (
         <Suspense fallback={null}>
           <SettingsDialog onClose={() => setSettingsOpen(false)} />
-        </Suspense>
-      ) : null}
-      {archiveManagerOpen ? (
-        <Suspense fallback={null}>
-          <ArchiveManagerDialog onClose={() => setArchiveManagerOpen(false)} />
         </Suspense>
       ) : null}
       {aboutOpen ? (

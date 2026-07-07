@@ -24,6 +24,7 @@
 }
 
 .window-app__content .archive-setup,
+.window-app__content .archive-manager-shell,
 .window-app__content .reader-status-page {
   min-height: 100%;
 }

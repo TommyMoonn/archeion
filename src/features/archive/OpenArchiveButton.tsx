@@ -8,7 +8,9 @@ type ArchiveAction = "create" | "open";
 
 type OpenArchiveButtonProps = {
   action?: ArchiveAction;
+  className?: string;
   label?: string;
+  onOpened?: () => void;
   variant?: "primary" | "secondary" | "ghost";
 };
 
@@ -19,7 +21,9 @@ const actionLabels: Record<ArchiveAction, string> = {
 
 export function OpenArchiveButton({
   action = "open",
+  className,
   label = actionLabels[action],
+  onOpened,
   variant = "primary",
 }: OpenArchiveButtonProps) {
   const [isOpening, setIsOpening] = useState(false);
@@ -31,10 +35,12 @@ export function OpenArchiveButton({
 
     setIsOpening(true);
     try {
-      if (action === "create") {
-        await archiveStore.createArchive();
-      } else {
-        await archiveStore.chooseArchive();
+      const opened =
+        action === "create"
+          ? await archiveStore.createArchive()
+          : await archiveStore.chooseArchive();
+      if (opened) {
+        onOpened?.();
       }
     } finally {
       setIsOpening(false);
@@ -43,6 +49,7 @@ export function OpenArchiveButton({
 
   return (
     <Button
+      className={className}
       disabled={isOpening}
       icon={
         action === "create" ? (

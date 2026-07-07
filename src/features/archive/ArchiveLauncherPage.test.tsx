@@ -56,22 +56,24 @@ describe("ArchiveLauncherPage", () => {
     document.body.innerHTML = "";
   });
 
-  it("renders the first-run launcher actions", () => {
+  it("renders the first-run launcher actions in the manager surface", () => {
     const markup = renderToStaticMarkup(<ArchiveLauncherPage state={setupState} />);
 
+    expect(markup).toContain("Archive Launcher");
     expect(markup).toContain("No archive open");
-    expect(markup).toContain("Choose a folder that contains your EPUBs.");
     expect(markup).toContain("Create empty archive");
     expect(markup).toContain("Open folder as archive");
     expect(markup).not.toContain("Open another archive");
+    expect(markup).not.toContain("Choose a folder that contains your EPUBs.");
+    expect(markup).not.toContain("EPUB files stay in their existing folders.");
   });
 
-  it("shows saved archives in the left column", () => {
+  it("shows saved archives in the left panel", () => {
     const markup = renderToStaticMarkup(
       <ArchiveLauncherPage state={{ ...setupState, archives: [savedArchive] }} />,
     );
 
-    expect(markup).toContain("Archives");
+    expect(markup).toContain("Known archives");
     expect(markup).toContain("Books");
     expect(markup).toContain("D:\\Books");
   });
@@ -95,15 +97,15 @@ describe("ArchiveLauncherPage", () => {
     act(() => root.unmount());
   });
 
-  it("shows the missing remembered archive recovery state", () => {
+  it("shows the missing remembered archive state", () => {
     const markup = renderToStaticMarkup(<ArchiveLauncherPage state={missingState} />);
 
     expect(markup).toContain("Archive folder not found");
-    expect(markup).toContain(
-      "The saved folder may have been moved, renamed, or disconnected.",
-    );
-    expect(markup).toContain("Try again");
-    expect(markup).toContain("Forget missing archive");
+    expect(markup).toContain("Books");
+    expect(markup).toContain("D:\\Books");
+    expect(markup).toContain("Create empty archive");
+    expect(markup).toContain("Open folder as archive");
+    expect(markup).not.toContain("Forget missing archive");
   });
 
   it("shows the actual open failure message", () => {
