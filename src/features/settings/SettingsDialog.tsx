@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import {
   Archive,
   ArrowsClockwise,
@@ -18,6 +17,7 @@ import { Dialog } from "../../components/Dialog";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
+import type { CoverCacheStatus } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -36,11 +36,6 @@ import {
   type ReaderTheme,
 } from "../../types/reader";
 import { useVault } from "../vault/useVault";
-
-type CoverCacheStatus = {
-  fileCount: number;
-  totalBytes: number;
-};
 
 const sections = [
   "General",
@@ -206,10 +201,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }, [storage]);
 
   useEffect(() => {
-    void invoke<CoverCacheStatus>("cover_cache_status")
+    void storage
+      .getCoverCacheStatus()
       .then(setCache)
       .catch(() => setCache(null));
-  }, []);
+  }, [storage]);
 
   function updateReader(changes: Partial<ReaderSettings>) {
     const next = { ...reader, ...changes };
@@ -234,12 +230,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   async function changeLibrary() {
     setChangeLibraryOpen(false);
     const changed = await vaultStore.chooseVault();
-    if (changed) setStatus("Library folder changed.");
+    if (changed) setStatus("Archive changed.");
   }
 
   async function revealMetadata() {
     try {
-      await invoke("reveal_archeion_folder");
+      await storage.revealMetadataFolder();
     } catch {
       setStatus("The metadata folder could not be opened.");
     }
@@ -247,7 +243,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
   async function clearCache() {
     try {
-      setCache(await invoke<CoverCacheStatus>("clear_cover_cache"));
+      setCache(await storage.clearCoverCache());
       setStatus("Cover cache cleared.");
     } catch {
       setStatus("The cover cache could not be cleared.");
@@ -312,12 +308,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               <h2>General</h2>
             </header>
             <SettingsRow
-              label="Library folder"
+              label="Archive folder"
               note={
                 vault.status === "ready" ? (
                   <code>{vault.path}</code>
                 ) : (
-                  "No library folder selected"
+                  "No archive selected"
                 )
               }
             >
@@ -464,7 +460,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 value={preferences.bookCardSize}
               />
             </SettingsRow>
-            <SettingsRow label="Continue Reading" note="Show on the Library page.">
+            <SettingsRow
+              label="Continue Reading"
+              note="Show on the Library page."
+            >
               <Toggle
                 checked={preferences.showContinueReading}
                 label="Show Continue Reading"
@@ -509,7 +508,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             onClose={() => setClearCacheOpen(false)}
             footer={
               <>
-                <Button variant="secondary" onClick={() => setClearCacheOpen(false)}>
+                <Button
+                  variant="secondary"
+                  onClick={() => setClearCacheOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button variant="danger" onClick={() => void clearCache()}>
@@ -521,19 +523,19 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         ) : null}
         {changeLibraryOpen ? (
           <Dialog
-            title="Change library folder?"
-            description="The current folder and its metadata will remain unchanged."
+            title="Open another archive?"
+            description="The current archive and its metadata will remain unchanged."
             onClose={() => setChangeLibraryOpen(false)}
             footer={
               <>
                 <Button
                   onClick={() => setChangeLibraryOpen(false)}
                   variant="secondary"
-            >
+                >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void changeLibrary()}>
-                  Choose folder
+                  Choose archive
                 </Button>
               </>
             }
@@ -549,7 +551,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 <Button
                   onClick={() => setRescanOpen(false)}
                   variant="secondary"
-            >
+                >
                   Cancel
                 </Button>
                 <Button autoFocus onClick={() => void rescan()}>

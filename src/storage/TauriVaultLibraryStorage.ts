@@ -19,6 +19,7 @@ import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
   ArchivePathChange,
+  CoverCacheStatus,
   LibraryStorage,
   RescanOptions,
   ScanStatus,
@@ -47,12 +48,19 @@ function replacePathPrefix(
   return newPrefix ? `${newPrefix}/${suffix}` : suffix;
 }
 
+type ArchiveCommandScope = {
+  generation: number;
+  rootPath: string | null;
+};
+
 export class TauriVaultLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
   private missingBooks = new Map<string, Book>();
   private folders: Folder[] = [];
   private readerSettings = normalizeReaderSettings();
   private loaded = false;
+  private generation = 0;
+  private archiveRootPath: string | null = null;
   private scanPromise: Promise<void> | null = null;
   private followUpScanQueued = false;
   private metadataWriteQueue: Promise<void> = Promise.resolve();
@@ -65,6 +73,27 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private progressMetadata = createProgressMetadata();
   private settingsMetadata = createSettingsMetadata();
 
+  reset(archiveRootPath?: string | null): void {
+    this.generation += 1;
+    if (archiveRootPath !== undefined) {
+      this.archiveRootPath = archiveRootPath;
+    }
+    this.books = [];
+    this.missingBooks = new Map();
+    this.folders = [];
+    this.readerSettings = normalizeReaderSettings();
+    this.loaded = false;
+    this.scanPromise = null;
+    this.followUpScanQueued = false;
+    this.coverPromises.clear();
+    this.libraryMetadata = createLibraryMetadata();
+    this.progressMetadata = createProgressMetadata();
+    this.settingsMetadata = createSettingsMetadata();
+    this.setScanStatus({ status: "idle" });
+    this.emitBooks();
+    this.emitFolders();
+  }
+
   async rescan(options?: RescanOptions): Promise<void> {
     if (this.scanPromise) {
       if (options?.followUpIfRunning) {
@@ -73,33 +102,47 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       return this.scanPromise;
     }
 
+    const generation = this.generation;
     this.setScanStatus({
       status: "scanning",
       startedAt: new Date().toISOString(),
     });
-    this.scanPromise = this.performQueuedScans();
+    const scanPromise = this.performQueuedScans(generation);
+    this.scanPromise = scanPromise;
     try {
-      await this.scanPromise;
+      await scanPromise;
     } finally {
-      this.scanPromise = null;
-      this.setScanStatus({ status: "idle" });
+      if (this.scanPromise === scanPromise) {
+        this.scanPromise = null;
+        this.setScanStatus({ status: "idle" });
+      }
     }
   }
 
-  private async performQueuedScans() {
+  private async performQueuedScans(generation: number) {
     do {
       this.followUpScanQueued = false;
-      await this.performScan();
-    } while (this.followUpScanQueued);
+      await this.performScan(generation);
+    } while (this.generation === generation && this.followUpScanQueued);
   }
 
-  private async performScan() {
+  private async performScan(generation: number) {
     const wasLoaded = this.loaded;
+    const rootPath = this.archiveRootPath;
     try {
       const [scan, metadata] = await Promise.all([
-        invoke<VaultScan>("scan_vault"),
-        invoke<MetadataBundle>("load_vault_metadata"),
+        this.invokeArchiveCommand<VaultScan>("scan_vault", undefined, rootPath),
+        this.invokeArchiveCommand<MetadataBundle>(
+          "load_vault_metadata",
+          undefined,
+          rootPath,
+        ),
       ]);
+
+      if (this.generation !== generation) {
+        return;
+      }
+
       const reconciled = reconcileLibraryState({
         previousBooks: this.books,
         previousFolders: this.folders,
@@ -117,10 +160,16 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       this.missingBooks = reconciled.missingBooks;
       this.folders = reconciled.folders;
 
+      if (this.generation !== generation) {
+        return;
+      }
+
       if (reconciled.libraryChanged) {
-        await invoke("save_library_metadata", {
-          metadata: this.libraryMetadata,
-        });
+        await this.invokeArchiveCommand(
+          "save_library_metadata",
+          { metadata: this.libraryMetadata },
+          rootPath,
+        );
       }
       this.loaded = true;
       if (!wasLoaded || reconciled.booksChanged) this.emitBooks();
@@ -137,10 +186,33 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     }
   }
 
-  private async ensureLoaded() {
+  private createArchiveCommandScope(): ArchiveCommandScope {
+    return { generation: this.generation, rootPath: this.archiveRootPath };
+  }
+
+  private assertCurrentArchiveScope(scope: ArchiveCommandScope) {
+    if (this.generation !== scope.generation) {
+      throw new Error(
+        "The active archive changed before the operation completed.",
+      );
+    }
+  }
+
+  private async ensureLoaded(scope = this.createArchiveCommandScope()) {
     if (!this.loaded) {
       await this.rescan();
     }
+    this.assertCurrentArchiveScope(scope);
+  }
+
+  private ensureLoadedOrPromise(
+    scope = this.createArchiveCommandScope(),
+  ): Promise<void> | undefined {
+    if (!this.loaded) {
+      return this.ensureLoaded(scope);
+    }
+    this.assertCurrentArchiveScope(scope);
+    return undefined;
   }
 
   private emitBooks() {
@@ -179,8 +251,30 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return () => this.scanStatusObservers.delete(observer);
   }
 
-  private enqueueMetadataWrite(write: () => Promise<void>) {
-    const pending = this.metadataWriteQueue.then(write);
+  private invokeArchiveCommand<T>(
+    command: string,
+    args?: Record<string, unknown>,
+    rootPath = this.archiveRootPath,
+  ): Promise<T> {
+    if (rootPath) {
+      return invoke<T>(command, { ...args, rootPath });
+    }
+    if (args) {
+      return invoke<T>(command, args);
+    }
+    return invoke<T>(command);
+  }
+
+  private enqueueMetadataWrite(
+    write: () => Promise<void>,
+    generation = this.generation,
+  ) {
+    const pending = this.metadataWriteQueue.then(async () => {
+      if (this.generation !== generation) {
+        return;
+      }
+      await write();
+    });
     this.metadataWriteQueue = pending.catch(() => undefined);
     return pending;
   }
@@ -188,30 +282,51 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   async addEpubFilesToArchive(
     input: AddArchiveEpubInput,
   ): Promise<ArchiveImportResult[]> {
-    const results = await invoke<ArchiveImportResult[]>(
+    const scope = this.createArchiveCommandScope();
+    const results = await this.invokeArchiveCommand<ArchiveImportResult[]>(
       "add_epub_files_to_vault",
       input,
+      scope.rootPath,
     );
-    if (results.some((result) => result.status === "imported")) {
+    if (
+      this.generation === scope.generation &&
+      results.some((result) => result.status === "imported")
+    ) {
       await this.rescan();
     }
     return results;
   }
 
-  private async saveLibraryMetadata() {
+  private async saveLibraryMetadata(scope = this.createArchiveCommandScope()) {
     const metadata = structuredClone(this.libraryMetadata);
-    await this.enqueueMetadataWrite(() =>
-      invoke("save_library_metadata", { metadata }),
+    await this.enqueueMetadataWrite(
+      () =>
+        this.invokeArchiveCommand(
+          "save_library_metadata",
+          { metadata },
+          scope.rootPath,
+        ),
+      scope.generation,
     );
   }
 
-  private async saveLibraryAndProgressMetadata() {
+  private async saveLibraryAndProgressMetadata(
+    scope = this.createArchiveCommandScope(),
+  ) {
     const library = structuredClone(this.libraryMetadata);
     const progress = structuredClone(this.progressMetadata);
     await this.enqueueMetadataWrite(async () => {
-      await invoke("save_library_metadata", { metadata: library });
-      await invoke("save_progress_metadata", { metadata: progress });
-    });
+      await this.invokeArchiveCommand(
+        "save_library_metadata",
+        { metadata: library },
+        scope.rootPath,
+      );
+      await this.invokeArchiveCommand(
+        "save_progress_metadata",
+        { metadata: progress },
+        scope.rootPath,
+      );
+    }, scope.generation);
   }
 
   private requireBook(id: string): Book {
@@ -267,24 +382,43 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     }
   }
 
-  private async applyBookPathChange(id: string, change: ArchivePathChange) {
+  private async applyBookPathChange(
+    id: string,
+    change: ArchivePathChange,
+    scope = this.createArchiveCommandScope(),
+  ) {
+    if (this.generation !== scope.generation) {
+      return undefined;
+    }
     this.updateBookMetadataPath(
       id,
       change.newRelativePath,
       new Date().toISOString(),
     );
-    await this.saveLibraryMetadata();
+    await this.saveLibraryMetadata(scope);
+    if (this.generation !== scope.generation) {
+      return undefined;
+    }
     await this.rescan();
     return this.getBook(id);
   }
 
-  private async applyFolderPathChange(change: ArchivePathChange) {
+  private async applyFolderPathChange(
+    change: ArchivePathChange,
+    scope = this.createArchiveCommandScope(),
+  ) {
+    if (this.generation !== scope.generation) {
+      return undefined;
+    }
     this.updateMetadataPathPrefix(
       change.oldRelativePath,
       change.newRelativePath,
       new Date().toISOString(),
     );
-    await this.saveLibraryMetadata();
+    await this.saveLibraryMetadata(scope);
+    if (this.generation !== scope.generation) {
+      return undefined;
+    }
     await this.rescan();
     return this.folders.find(
       (folder) => folder.relativePath === change.newRelativePath,
@@ -299,20 +433,26 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   async loadBookFile(id: string): Promise<Blob> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const book = this.books.find((candidate) => candidate.id === id);
     if (!book?.relativePath || book.isFileMissing) {
       throw new Error(`Book file "${id}" was not found.`);
     }
 
-    const contents = await invoke<ArrayBuffer>("read_epub_file", {
-      relativePath: book.relativePath,
-    });
+    const contents = await this.invokeArchiveCommand<ArrayBuffer>(
+      "read_epub_file",
+      { relativePath: book.relativePath },
+      scope.rootPath,
+    );
     return new Blob([contents], { type: "application/epub+zip" });
   }
 
   async loadBookCover(id: string): Promise<Blob | undefined> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const book = this.books.find((candidate) => candidate.id === id);
     if (!book?.relativePath || book.isFileMissing) {
       return undefined;
@@ -322,7 +462,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     if (current) {
       return current;
     }
-    const pending = this.loadVaultBookCover(book);
+    const pending = this.loadVaultBookCover(book, scope.rootPath);
     this.coverPromises.set(cacheKey, pending);
     void pending
       .finally(() => {
@@ -334,14 +474,35 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     return pending;
   }
 
-  private async loadVaultBookCover(book: Book): Promise<Blob | undefined> {
-    const contents = await invoke<ArrayBuffer>("load_epub_cover", {
-      relativePath: book.relativePath,
-      bookId: book.id,
-    });
+  private async loadVaultBookCover(
+    book: Book,
+    rootPath: string | null,
+  ): Promise<Blob | undefined> {
+    const contents = await this.invokeArchiveCommand<ArrayBuffer>(
+      "load_epub_cover",
+      {
+        relativePath: book.relativePath,
+        bookId: book.id,
+      },
+      rootPath,
+    );
     return contents.byteLength
       ? new Blob([contents], { type: "application/octet-stream" })
       : undefined;
+  }
+  async revealBookFile(id: string): Promise<void> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const book = this.books.find((candidate) => candidate.id === id);
+    if (!book?.relativePath || book.isFileMissing) {
+      throw new Error(`Book file "${id}" was not found.`);
+    }
+    await this.invokeArchiveCommand(
+      "reveal_epub_file",
+      { relativePath: book.relativePath },
+      scope.rootPath,
+    );
   }
 
   async listBooks(): Promise<Book[]> {
@@ -353,11 +514,14 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     id: string,
     changes: UpdateBookInput,
   ): Promise<Book | undefined> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const index = this.books.findIndex((book) => book.id === id);
     if (index < 0) {
       throw new Error(`Book "${id}" was not found.`);
     }
+    const generation = scope.generation;
     if (
       changes.folderId !== undefined &&
       changes.folderId !== this.books[index].folderId
@@ -438,17 +602,33 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     const writes: Array<() => Promise<unknown>> = [];
     if (libraryChanged) {
       const metadata = structuredClone(this.libraryMetadata);
-      writes.push(() => invoke("save_library_metadata", { metadata }));
+      writes.push(() =>
+        this.invokeArchiveCommand(
+          "save_library_metadata",
+          { metadata },
+          scope.rootPath,
+        ),
+      );
     }
     if (progressChanged) {
       const metadata = structuredClone(this.progressMetadata);
-      writes.push(() => invoke("save_progress_metadata", { metadata }));
+      writes.push(() =>
+        this.invokeArchiveCommand(
+          "save_progress_metadata",
+          { metadata },
+          scope.rootPath,
+        ),
+      );
     }
     await this.enqueueMetadataWrite(async () => {
       for (const write of writes) {
         await write();
       }
-    });
+    }, generation);
+
+    if (this.generation !== generation) {
+      return undefined;
+    }
 
     this.books[index] = {
       ...this.books[index],
@@ -463,25 +643,33 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     id: string,
     fileName: string,
   ): Promise<Book | undefined> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const book = this.requireBook(id);
     if (!book.relativePath || book.isFileMissing) {
       throw new Error("The selected EPUB file is unavailable.");
     }
 
-    const change = await invoke<ArchivePathChange>("rename_vault_epub_file", {
-      relativePath: book.relativePath,
-      newFileName: fileName,
-    });
+    const change = await this.invokeArchiveCommand<ArchivePathChange>(
+      "rename_vault_epub_file",
+      {
+        relativePath: book.relativePath,
+        newFileName: fileName,
+      },
+      scope.rootPath,
+    );
 
-    return this.applyBookPathChange(id, change);
+    return this.applyBookPathChange(id, change, scope);
   }
 
   async moveBookToFolder(
     id: string,
     folderId: string | null,
   ): Promise<Book | undefined> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const book = this.requireBook(id);
     if (!book.relativePath || book.isFileMissing) {
       throw new Error("The selected EPUB file is unavailable.");
@@ -490,16 +678,22 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     const destinationFolderPath = folderId
       ? this.requireFolder(folderId).relativePath
       : undefined;
-    const change = await invoke<ArchivePathChange>("move_vault_epub_file", {
-      relativePath: book.relativePath,
-      destinationFolderPath,
-    });
+    const change = await this.invokeArchiveCommand<ArchivePathChange>(
+      "move_vault_epub_file",
+      {
+        relativePath: book.relativePath,
+        destinationFolderPath,
+      },
+      scope.rootPath,
+    );
 
-    return this.applyBookPathChange(id, change);
+    return this.applyBookPathChange(id, change, scope);
   }
 
   async deleteBook(id: string): Promise<boolean> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const index = this.books.findIndex((book) => book.id === id);
     const missingBook = this.missingBooks.get(id);
     if (index < 0 && !missingBook) {
@@ -514,14 +708,19 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       if (!book.relativePath) {
         throw new Error("The selected EPUB file is unavailable.");
       }
-      await invoke("delete_vault_epub_file", {
-        relativePath: book.relativePath,
-      });
+      await this.invokeArchiveCommand(
+        "delete_vault_epub_file",
+        { relativePath: book.relativePath },
+        scope.rootPath,
+      );
+      if (this.generation !== scope.generation) {
+        return false;
+      }
     }
 
     delete this.libraryMetadata.books[id];
     delete this.progressMetadata.progress[id];
-    await this.saveLibraryAndProgressMetadata();
+    await this.saveLibraryAndProgressMetadata(scope);
 
     for (const key of this.coverPromises.keys()) {
       if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
@@ -547,15 +746,26 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   async createFolder(input: CreateFolderInput): Promise<Folder> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const parentRelativePath = input.parentId
       ? this.requireFolder(input.parentId).relativePath
       : undefined;
-    const relativePath = await invoke<string>("create_vault_folder", {
-      parentRelativePath,
-      name: input.name,
-    });
+    const relativePath = await this.invokeArchiveCommand<string>(
+      "create_vault_folder",
+      {
+        parentRelativePath,
+        name: input.name,
+      },
+      scope.rootPath,
+    );
 
+    if (this.generation !== scope.generation) {
+      throw new Error(
+        "The active archive changed before the operation completed.",
+      );
+    }
     await this.rescan();
     const folder = this.folders.find(
       (candidate) => candidate.relativePath === relativePath,
@@ -580,7 +790,9 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     id: string,
     changes: UpdateFolderInput,
   ): Promise<Folder | undefined> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const folder = this.requireFolder(id);
     const changesParent = Object.hasOwn(changes, "parentId");
     const changesName = Object.hasOwn(changes, "name");
@@ -594,42 +806,65 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       if (!newName) {
         throw new Error("Folder name is required.");
       }
-      const change = await invoke<ArchivePathChange>("rename_vault_folder", {
-        relativePath: folder.relativePath,
-        newName,
-      });
-      return this.applyFolderPathChange(change);
+      const change = await this.invokeArchiveCommand<ArchivePathChange>(
+        "rename_vault_folder",
+        {
+          relativePath: folder.relativePath,
+          newName,
+        },
+        scope.rootPath,
+      );
+      return this.applyFolderPathChange(change, scope);
     }
 
     if (changesParent) {
       const destinationParentPath = changes.parentId
         ? this.requireFolder(changes.parentId).relativePath
         : undefined;
-      const change = await invoke<ArchivePathChange>("move_vault_folder", {
-        relativePath: folder.relativePath,
-        destinationParentPath,
-      });
-      return this.applyFolderPathChange(change);
+      const change = await this.invokeArchiveCommand<ArchivePathChange>(
+        "move_vault_folder",
+        {
+          relativePath: folder.relativePath,
+          destinationParentPath,
+        },
+        scope.rootPath,
+      );
+      return this.applyFolderPathChange(change, scope);
     }
 
     return folder;
   }
 
   async revealFolder(id: string): Promise<void> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const folder = this.requireFolder(id);
-    await invoke("reveal_vault_folder", { relativePath: folder.relativePath });
+    await this.invokeArchiveCommand(
+      "reveal_vault_folder",
+      { relativePath: folder.relativePath },
+      scope.rootPath,
+    );
   }
 
   async deleteFolder(id: string): Promise<boolean> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const index = this.folders.findIndex((folder) => folder.id === id);
     if (index < 0) {
       return false;
     }
 
     const folder = this.requireFolder(id);
-    await invoke("delete_vault_folder", { relativePath: folder.relativePath });
+    await this.invokeArchiveCommand(
+      "delete_vault_folder",
+      { relativePath: folder.relativePath },
+      scope.rootPath,
+    );
+    if (this.generation !== scope.generation) {
+      return false;
+    }
 
     for (const [bookId, entry] of Object.entries(this.libraryMetadata.books)) {
       if (isInsideFolderPath(entry.relativePath, folder.relativePath)) {
@@ -637,7 +872,7 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
         delete this.progressMetadata.progress[bookId];
       }
     }
-    await this.saveLibraryAndProgressMetadata();
+    await this.saveLibraryAndProgressMetadata(scope);
     await this.rescan();
     return true;
   }
@@ -653,19 +888,33 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   }
 
   async getReaderSettings(): Promise<ReaderSettings> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     return { ...this.readerSettings };
   }
 
   async saveReaderSettings(settings: ReaderSettings): Promise<ReaderSettings> {
-    await this.ensureLoaded();
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
     const metadata: SettingsMetadata = {
       ...this.settingsMetadata,
       reader: normalizeReaderSettings(settings),
     };
-    await this.enqueueMetadataWrite(() =>
-      invoke("save_settings_metadata", { metadata }),
+    const generation = scope.generation;
+    await this.enqueueMetadataWrite(
+      () =>
+        this.invokeArchiveCommand(
+          "save_settings_metadata",
+          { metadata },
+          scope.rootPath,
+        ),
+      generation,
     );
+    if (this.generation !== generation) {
+      return { ...this.readerSettings };
+    }
     this.settingsMetadata = metadata;
     this.readerSettings = normalizeReaderSettings(settings);
     return { ...this.readerSettings };
@@ -679,5 +928,32 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
 
   resetReaderSettings(): Promise<ReaderSettings> {
     return this.saveReaderSettings(normalizeReaderSettings());
+  }
+
+  getCoverCacheStatus(): Promise<CoverCacheStatus> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand<CoverCacheStatus>(
+      "cover_cache_status",
+      undefined,
+      rootPath,
+    );
+  }
+
+  clearCoverCache(): Promise<CoverCacheStatus> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand<CoverCacheStatus>(
+      "clear_cover_cache",
+      undefined,
+      rootPath,
+    );
+  }
+
+  revealMetadataFolder(): Promise<void> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand(
+      "reveal_archeion_folder",
+      undefined,
+      rootPath,
+    );
   }
 }

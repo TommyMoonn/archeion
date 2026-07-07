@@ -21,8 +21,7 @@ export type RescanOptions = {
 };
 
 export type ScanStatus =
-  | { status: "idle" }
-  | { status: "scanning"; startedAt: string };
+  { status: "idle" } | { status: "scanning"; startedAt: string };
 
 export type ArchiveImportMode = "copy" | "move";
 
@@ -46,18 +45,30 @@ export type ArchiveImportResult = {
   sourcePath: string;
 };
 
+export type CoverCacheStatus = {
+  fileCount: number;
+  totalBytes: number;
+};
+
 export interface LibraryStorage {
+  reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
   observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription;
-  addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
+  addEpubFilesToArchive(
+    input: AddArchiveEpubInput,
+  ): Promise<ArchiveImportResult[]>;
 
   getBook(id: string): Promise<Book | undefined>;
   loadBookCover(id: string): Promise<Blob | undefined>;
   loadBookFile(id: string): Promise<Blob>;
+  revealBookFile(id: string): Promise<void>;
   listBooks(): Promise<Book[]>;
   updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined>;
   renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
-  moveBookToFolder(id: string, folderId: string | null): Promise<Book | undefined>;
+  moveBookToFolder(
+    id: string,
+    folderId: string | null,
+  ): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
@@ -78,4 +89,8 @@ export interface LibraryStorage {
     changes: Partial<ReaderSettings>,
   ): Promise<ReaderSettings>;
   resetReaderSettings(): Promise<ReaderSettings>;
+
+  getCoverCacheStatus(): Promise<CoverCacheStatus>;
+  clearCoverCache(): Promise<CoverCacheStatus>;
+  revealMetadataFolder(): Promise<void>;
 }

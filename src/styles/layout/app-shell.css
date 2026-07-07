@@ -291,3 +291,9 @@ html[data-density="compact"] .nav-item {
     padding: 34px 18px 28px;
   }
 }
+
+.archive-switcher__menu button span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

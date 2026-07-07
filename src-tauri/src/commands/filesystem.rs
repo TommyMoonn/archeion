@@ -161,10 +161,8 @@ pub struct ArchivePathChange {
     new_relative_path: String,
 }
 
-fn vault_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    vault::read_vault_path(app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())
+fn vault_root(app: &tauri::AppHandle, root_path: Option<String>) -> Result<PathBuf, String> {
+    vault::resolve_vault_root(app, root_path)
 }
 
 fn canonical_root(root: &Path) -> Result<PathBuf, String> {
@@ -448,68 +446,85 @@ pub(crate) fn delete_archive_folder_at(root: &Path, relative_path: &str) -> Resu
 #[tauri::command]
 pub fn create_vault_folder(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     parent_relative_path: Option<String>,
     name: String,
 ) -> Result<String, String> {
-    let root = vault_root(&app)?;
+    let root = vault_root(&app, root_path)?;
     create_archive_folder_at(&root, parent_relative_path.as_deref(), &name)
 }
 
 #[tauri::command]
 pub fn rename_vault_epub_file(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
     new_file_name: String,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app)?;
+    let root = vault_root(&app, root_path)?;
     rename_archive_epub_at(&root, &relative_path, &new_file_name)
 }
 
 #[tauri::command]
 pub fn move_vault_epub_file(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
     destination_folder_path: Option<String>,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app)?;
+    let root = vault_root(&app, root_path)?;
     move_archive_epub_at(&root, &relative_path, destination_folder_path.as_deref())
 }
 
 #[tauri::command]
 pub fn rename_vault_folder(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
     new_name: String,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app)?;
+    let root = vault_root(&app, root_path)?;
     rename_archive_folder_at(&root, &relative_path, &new_name)
 }
 
 #[tauri::command]
 pub fn move_vault_folder(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
     destination_parent_path: Option<String>,
 ) -> Result<ArchivePathChange, String> {
-    let root = vault_root(&app)?;
+    let root = vault_root(&app, root_path)?;
     move_archive_folder_at(&root, &relative_path, destination_parent_path.as_deref())
 }
 
 #[tauri::command]
-pub fn delete_vault_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
-    let root = vault_root(&app)?;
+pub fn delete_vault_epub_file(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_path: String,
+) -> Result<(), String> {
+    let root = vault_root(&app, root_path)?;
     delete_archive_epub_at(&root, &relative_path)
 }
 
 #[tauri::command]
-pub fn delete_vault_folder(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
-    let root = vault_root(&app)?;
+pub fn delete_vault_folder(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_path: String,
+) -> Result<(), String> {
+    let root = vault_root(&app, root_path)?;
     delete_archive_folder_at(&root, &relative_path)
 }
 
 #[tauri::command]
-pub fn reveal_vault_folder(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
-    let root = vault_root(&app)?;
+pub fn reveal_vault_folder(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_path: String,
+) -> Result<(), String> {
+    let root = vault_root(&app, root_path)?;
     let path = resolve_existing_folder_path(&root, &relative_path)?;
     open_folder(&path)
 }

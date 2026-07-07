@@ -287,10 +287,12 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
 }
 
 #[tauri::command]
-pub async fn scan_vault(app: tauri::AppHandle) -> Result<VaultScan, String> {
-    let path = vault::read_vault_path(&app)?
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
-    tauri::async_runtime::spawn_blocking(move || scan_path(PathBuf::from(path)))
+pub async fn scan_vault(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<VaultScan, String> {
+    let path = vault::resolve_vault_root(&app, root_path)?;
+    tauri::async_runtime::spawn_blocking(move || scan_path(path))
         .await
         .map_err(|error| error.to_string())?
 }

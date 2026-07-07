@@ -1,3 +1,4 @@
+pub mod archive;
 pub mod archive_import;
 pub mod epub;
 pub mod epub_metadata;

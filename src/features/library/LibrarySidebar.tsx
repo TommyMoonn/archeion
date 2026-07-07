@@ -13,58 +13,74 @@ import {
 import { memo, useCallback } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import type { KnownArchive } from "../../types/archive";
+import type { Folder } from "../../types/folder";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
-import type { Folder } from "../../types/folder";
-import { archiveName } from "./archiveName";
 import type { LibraryLocation } from "./libraryFilters";
 
 type LibrarySidebarProps = {
+  activeArchive: KnownArchive;
+  archives: KnownArchive[];
   bookCount: number;
   favoriteCount: number;
   continueCount: number;
   folders: Folder[];
   location: LibraryLocation;
-  archivePath: string;
   canManageFolders?: boolean;
-  onChangeArchive: () => void;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
+  onManageArchives: () => void;
   onMoveFolder: (folder: Folder) => void;
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
+  onOpenArchive: () => void;
   onOpenSettings: () => void;
   onRenameFolder: (folder: Folder) => void;
   onRevealFolder?: (folder: Folder) => void;
+  onSwitchArchive: (archive: KnownArchive) => void;
   canRevealFolders?: boolean;
 };
 
 export const LibrarySidebar = memo(function LibrarySidebar({
+  activeArchive,
+  archives,
   bookCount,
   favoriteCount,
   continueCount,
   folders,
   location,
-  archivePath,
   canManageFolders = true,
-  onChangeArchive,
   onCreateFolder,
   onDeleteFolder,
+  onManageArchives,
   onMoveFolder,
   onLocationChange,
   onOpenAbout,
+  onOpenArchive,
   onOpenSettings,
   onRenameFolder,
   onRevealFolder,
+  onSwitchArchive,
   canRevealFolders = false,
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
 
-  const changeArchive = useCallback(() => {
+  const manageArchives = useCallback(() => {
     closeArchiveSwitcher();
-    onChangeArchive();
-  }, [closeArchiveSwitcher, onChangeArchive]);
+    onManageArchives();
+  }, [closeArchiveSwitcher, onManageArchives]);
+
+  const openArchive = useCallback(() => {
+    closeArchiveSwitcher();
+    onOpenArchive();
+  }, [closeArchiveSwitcher, onOpenArchive]);
+
+  const switchArchive = useCallback((archive: KnownArchive) => {
+    closeArchiveSwitcher();
+    onSwitchArchive(archive);
+  }, [closeArchiveSwitcher, onSwitchArchive]);
 
   return (
     <aside className="sidebar">
@@ -121,14 +137,9 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 
       <div className="sidebar__section">
         <div className="sidebar__section-heading">
-          <div className="section-label">
-            Folders
-          </div>
+          <div className="section-label">Folders</div>
           {canManageFolders ? (
-            <IconButton
-              label="Create folder"
-              onClick={onCreateFolder}
-            >
+            <IconButton label="Create folder" onClick={onCreateFolder}>
               <Plus aria-hidden="true" size={17} weight="regular" />
             </IconButton>
           ) : null}
@@ -154,18 +165,36 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 
       <div className="sidebar-footer">
         <details className="archive-switcher" ref={archiveSwitcherRef}>
-          <summary aria-label={`Current archive: ${archiveName(archivePath)}`}>
+          <summary aria-label={`Current archive: ${activeArchive.displayName}`}>
             <CaretUpDown aria-hidden="true" size={14} weight="bold" />
-            <span>{archiveName(archivePath)}</span>
+            <span>{activeArchive.displayName}</span>
           </summary>
           <div className="archive-switcher__menu">
             <div className="archive-switcher__current">
-              <span>{archiveName(archivePath)}</span>
+              <span>{activeArchive.displayName}</span>
               <Check aria-hidden="true" size={15} weight="bold" />
             </div>
-            <button onClick={changeArchive} type="button">
+            {archives
+              .filter((archive) => archive.id !== activeArchive.id)
+              .slice(0, 5)
+              .map((archive) => (
+                <button
+                  key={archive.id}
+                  onClick={() => switchArchive(archive)}
+                  title={archive.rootPath}
+                  type="button"
+                >
+                  <FolderOpen aria-hidden="true" size={16} />
+                  <span>{archive.displayName}</span>
+                </button>
+              ))}
+            <button onClick={openArchive} type="button">
               <FolderOpen aria-hidden="true" size={16} />
-              Change archive
+              <span>Open archive</span>
+            </button>
+            <button onClick={manageArchives} type="button">
+              <GearSix aria-hidden="true" size={16} />
+              <span>Manage archives</span>
             </button>
           </div>
         </details>

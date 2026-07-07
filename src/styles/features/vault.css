@@ -1,20 +1,52 @@
-.vault-setup {
+.vault-launcher {
   display: grid;
   min-height: 100dvh;
-  padding: 32px;
-  place-items: center;
+  grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+  background: linear-gradient(135deg, rgb(19 20 23 / 96%), rgb(12 13 15 / 98%));
 }
 
-.vault-setup__card {
-  width: min(100%, 480px);
-  padding: clamp(32px, 6vw, 52px);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgb(29 29 31 / 88%);
-  box-shadow: 0 28px 80px rgb(5 8 12 / 28%);
+.vault-launcher__sidebar {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  gap: 16px;
+  padding: clamp(22px, 4vw, 34px);
+  border-right: 1px solid var(--line);
+  background: rgb(18 18 20 / 76%);
 }
 
-.vault-setup__icon {
+.vault-launcher__sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.vault-launcher__sidebar-header > span:last-child {
+  color: var(--muted-soft);
+}
+
+.vault-launcher__empty {
+  margin: 0;
+  color: var(--muted-soft);
+  font-size: 12px;
+}
+
+.vault-launcher__main {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 26px;
+  padding: clamp(36px, 8vw, 96px);
+}
+
+.vault-launcher__identity {
+  max-width: 560px;
+}
+
+.vault-launcher__icon {
   display: grid;
   width: 58px;
   height: 58px;
@@ -26,32 +58,36 @@
   background: var(--accent-soft);
 }
 
-.vault-setup h1 {
+.vault-launcher h1 {
   margin: 8px 0 14px;
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: clamp(34px, 7vw, 46px);
+  font-size: clamp(36px, 7vw, 58px);
   font-weight: 400;
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
 }
 
-.vault-setup__card > p:not(.eyebrow, .vault-setup__note) {
+.vault-launcher__identity > p:not(.eyebrow) {
   margin: 0;
   color: var(--muted);
   font-size: 14px;
   line-height: 1.65;
 }
 
-.vault-setup__actions {
+.vault-launcher__actions,
+.vault-launcher__recovery {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 28px;
 }
 
-.vault-setup__note {
-  margin: 22px 0 0;
+.vault-launcher__recovery {
+  margin-top: -12px;
+}
+
+.vault-launcher__note {
+  margin: 0;
   color: var(--muted-soft);
   font-size: 11px;
 }
@@ -59,4 +95,65 @@
 .vault-loading {
   color: var(--muted);
   font-size: 13px;
+}
+
+.vault-archive-list {
+  display: grid;
+  min-height: 0;
+  gap: 8px;
+  overflow: auto;
+}
+
+.vault-archive-row {
+  display: grid;
+  gap: 10px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: rgb(20 20 22 / 48%);
+}
+
+.vault-archive-row__copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
+.vault-archive-row__copy strong,
+.vault-archive-row__copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-archive-row__copy strong {
+  color: var(--text-strong);
+  font-size: 13px;
+}
+
+.vault-archive-row__copy span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.vault-archive-row__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+@media (max-width: 760px) {
+  .vault-launcher {
+    grid-template-columns: 1fr;
+  }
+
+  .vault-launcher__sidebar {
+    min-height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .vault-launcher__main {
+    align-content: start;
+  }
 }

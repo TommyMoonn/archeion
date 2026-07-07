@@ -4,61 +4,38 @@ use std::{
     process::Command,
 };
 
-use serde::{Deserialize, Serialize};
-use tauri::Manager;
+use serde::Serialize;
 
-const CONFIG_FILE: &str = "vault.json";
-
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct VaultConfig {
-    vault_path: String,
-}
-
-fn config_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map(|directory| directory.join(CONFIG_FILE))
-        .map_err(|error| error.to_string())
-}
-
-#[tauri::command]
-pub fn load_vault_path(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    read_vault_path(&app)
-}
+use super::archive;
 
 pub(crate) fn read_vault_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
-    let path = config_path(&app)?;
-    let contents = match fs::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
-        Err(error) => return Err(error.to_string()),
-    };
-    let config: VaultConfig = serde_json::from_str(&contents).map_err(|error| error.to_string())?;
-
-    Ok(Some(config.vault_path))
-}
-
-#[tauri::command]
-pub fn save_vault_path(app: tauri::AppHandle, path: String) -> Result<(), String> {
-    if !PathBuf::from(&path).is_dir() {
-        return Err("The selected library folder is unavailable.".to_string());
-    }
-
-    let config_path = config_path(&app)?;
-    let directory = config_path
-        .parent()
-        .ok_or_else(|| "App config directory is unavailable.".to_string())?;
-    fs::create_dir_all(directory).map_err(|error| error.to_string())?;
-
-    let contents = serde_json::to_string_pretty(&VaultConfig { vault_path: path })
-        .map_err(|error| error.to_string())?;
-    fs::write(config_path, contents).map_err(|error| error.to_string())
+    archive::read_active_archive_path(app)
 }
 
 #[tauri::command]
 pub fn validate_vault_path(path: String) -> bool {
     PathBuf::from(path).is_dir()
+}
+
+fn root_path_from_string(path: String) -> Result<PathBuf, String> {
+    let root = PathBuf::from(path);
+    if !root.is_dir() {
+        return Err("The selected library folder is unavailable.".to_string());
+    }
+    Ok(root.canonicalize().unwrap_or(root))
+}
+
+pub(crate) fn resolve_vault_root(
+    app: &tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<PathBuf, String> {
+    match root_path {
+        Some(path) => root_path_from_string(path),
+        None => read_vault_path(app)?
+            .map(root_path_from_string)
+            .transpose()?
+            .ok_or_else(|| "No library folder has been selected.".to_string()),
+    }
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -68,11 +45,8 @@ pub struct CoverCacheStatus {
     total_bytes: u64,
 }
 
-fn archeion_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    read_vault_path(app)?
-        .map(PathBuf::from)
-        .map(|root| root.join(".archeion"))
-        .ok_or_else(|| "No library folder has been selected.".to_string())
+fn archeion_path(app: &tauri::AppHandle, root_path: Option<String>) -> Result<PathBuf, String> {
+    Ok(resolve_vault_root(app, root_path)?.join(".archeion"))
 }
 
 fn cover_cache_status_at(path: &Path) -> Result<CoverCacheStatus, String> {
@@ -97,13 +71,19 @@ fn cover_cache_status_at(path: &Path) -> Result<CoverCacheStatus, String> {
 }
 
 #[tauri::command]
-pub fn cover_cache_status(app: tauri::AppHandle) -> Result<CoverCacheStatus, String> {
-    cover_cache_status_at(&archeion_path(&app)?.join("covers"))
+pub fn cover_cache_status(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<CoverCacheStatus, String> {
+    cover_cache_status_at(&archeion_path(&app, root_path)?.join("covers"))
 }
 
 #[tauri::command]
-pub fn clear_cover_cache(app: tauri::AppHandle) -> Result<CoverCacheStatus, String> {
-    let path = archeion_path(&app)?.join("covers");
+pub fn clear_cover_cache(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<CoverCacheStatus, String> {
+    let path = archeion_path(&app, root_path)?.join("covers");
     match fs::remove_dir_all(&path) {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
@@ -113,8 +93,11 @@ pub fn clear_cover_cache(app: tauri::AppHandle) -> Result<CoverCacheStatus, Stri
 }
 
 #[tauri::command]
-pub fn reveal_archeion_folder(app: tauri::AppHandle) -> Result<(), String> {
-    let path = archeion_path(&app)?;
+pub fn reveal_archeion_folder(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<(), String> {
+    let path = archeion_path(&app, root_path)?;
     fs::create_dir_all(&path).map_err(|error| error.to_string())?;
 
     #[cfg(target_os = "windows")]

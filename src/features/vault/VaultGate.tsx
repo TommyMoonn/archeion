@@ -25,6 +25,7 @@ export function VaultGate({ children }: VaultGateProps) {
       return;
     }
 
+    storage.reset(vaultPath);
     void storage.rescan().catch(() => undefined);
 
     const watcher = new VaultWatcherController({

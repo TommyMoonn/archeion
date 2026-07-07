@@ -1,4 +1,3 @@
-import { invoke } from "@tauri-apps/api/core";
 import {
   BookOpenText,
   CheckCircle,
@@ -27,7 +26,7 @@ import type {
 } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { useAppPreferences } from "../../stores/appPreferencesStore";
-import { vaultStore } from "../../stores/vaultStore";
+import { vaultStore, type VaultState } from "../../stores/vaultStore";
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
@@ -46,10 +45,7 @@ import {
   type LibrarySort,
 } from "./libraryFilters";
 import { LibrarySidebar } from "./LibrarySidebar";
-import {
-  LibraryToolbar,
-  type LibraryView,
-} from "./LibraryToolbar";
+import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
 
 const AddEpubDialog = lazy(() =>
   import("../filesystem/AddEpubDialog").then((module) => ({
@@ -96,9 +92,16 @@ const SettingsDialog = lazy(() =>
     default: module.SettingsDialog,
   })),
 );
+const ArchiveManagerDialog = lazy(() =>
+  import("../archive/ArchiveManagerDialog").then((module) => ({
+    default: module.ArchiveManagerDialog,
+  })),
+);
 
-
-function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
+function isInsideFolder(
+  relativePath: string | undefined,
+  folder: Folder,
+): boolean {
   if (!relativePath || !folder.relativePath) {
     return false;
   }
@@ -112,10 +115,21 @@ function bookLabel(book: Book): string {
   return book.displayTitle?.trim() || book.originalTitle;
 }
 
+type ReadyVaultState = Extract<VaultState, { status: "ready" }>;
+
 export function LibraryPage() {
+  const vault = useVault();
+
+  if (vault.status !== "ready") {
+    return null;
+  }
+
+  return <LibraryPageContent key={vault.archive.id} vault={vault} />;
+}
+
+function LibraryPageContent({ vault }: { vault: ReadyVaultState }) {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
-  const vault = useVault();
   const preferences = useAppPreferences();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
@@ -132,27 +146,31 @@ export function LibraryPage() {
     type: "library",
   });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [metadataEditBookId, setMetadataEditBookId] =
-    useState<string | null>(null);
+  const [metadataEditBookId, setMetadataEditBookId] = useState<string | null>(
+    null,
+  );
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
-  const [clearProgressTarget, setClearProgressTarget] =
-    useState<Book | null>(null);
-  const [changeArchiveOpen, setChangeArchiveOpen] = useState(false);
+  const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(
+    null,
+  );
+  const [archiveManagerOpen, setArchiveManagerOpen] = useState(false);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
-  const [renameFolderTarget, setRenameFolderTarget] =
-    useState<Folder | null>(null);
-  const [moveFolderTarget, setMoveFolderTarget] =
-    useState<Folder | null>(null);
-  const [deleteFolderTarget, setDeleteFolderTarget] =
-    useState<Folder | null>(null);
+  const [renameFolderTarget, setRenameFolderTarget] = useState<Folder | null>(
+    null,
+  );
+  const [moveFolderTarget, setMoveFolderTarget] = useState<Folder | null>(null);
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<Folder | null>(
+    null,
+  );
   const [renameFileTarget, setRenameFileTarget] = useState<Book | null>(null);
   const [moveBookTarget, setMoveBookTarget] = useState<Book | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
+  const activeArchive = vault.archive;
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -260,7 +278,7 @@ export function LibraryPage() {
       ? "Favorites"
       : location.type === "continue"
         ? "Continue reading"
-        : currentFolder?.name ?? "Library";
+        : (currentFolder?.name ?? "Library");
 
   const changeLocation = useCallback((nextLocation: LibraryLocation) => {
     setLocation(nextLocation);
@@ -300,24 +318,27 @@ export function LibraryPage() {
     setSelectedBookId(bookId);
   }
 
-  const readBook = useCallback((book: Book) => {
-    void navigate(`/reader/${book.id}`);
-  }, [navigate]);
+  const readBook = useCallback(
+    (book: Book) => {
+      void navigate(`/reader/${book.id}`);
+    },
+    [navigate],
+  );
 
-  const readBookFromBeginning = useCallback((book: Book) => {
-    void navigate(`/reader/${book.id}?start=beginning`);
-  }, [navigate]);
+  const readBookFromBeginning = useCallback(
+    (book: Book) => {
+      void navigate(`/reader/${book.id}?start=beginning`);
+    },
+    [navigate],
+  );
 
   const selectBook = useCallback((book: Book) => {
     setSelectedBookId(book.id);
   }, []);
 
-  const openChangeArchive = useCallback(() => setChangeArchiveOpen(true), []);
+  const openArchiveManager = useCallback(() => setArchiveManagerOpen(true), []);
   const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
-  const openCreateFolder = useCallback(
-    () => setIsCreateFolderOpen(true),
-    [],
-  );
+  const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
 
@@ -327,7 +348,7 @@ export function LibraryPage() {
     try {
       await storage.rescan();
     } catch {
-      setLibraryError("The library folder could not be scanned.");
+      setLibraryError("The archive could not be scanned.");
     }
   }
 
@@ -351,16 +372,19 @@ export function LibraryPage() {
     }
   }
 
-  async function changeArchive() {
-    setChangeArchiveOpen(false);
+  async function openArchiveFolder() {
     await vaultStore.chooseVault();
+  }
+
+  async function switchArchive(archiveId: string) {
+    await vaultStore.switchArchive(archiveId);
   }
 
   async function revealBookFile(book: Book) {
     if (!book.relativePath) return;
     setLibraryError(null);
     try {
-      await invoke("reveal_epub_file", { relativePath: book.relativePath });
+      await storage.revealBookFile(book.id);
     } catch {
       setLibraryError("The EPUB could not be revealed in its folder.");
     }
@@ -389,17 +413,20 @@ export function LibraryPage() {
     }
   }
 
-  const toggleFavorite = useCallback(async (book: Book) => {
-    setLibraryError(null);
+  const toggleFavorite = useCallback(
+    async (book: Book) => {
+      setLibraryError(null);
 
-    try {
-      await storage.updateBook(book.id, {
-        isFavorite: !book.isFavorite,
-      });
-    } catch {
-      setLibraryError("Favorite status could not be updated.");
-    }
-  }, [storage]);
+      try {
+        await storage.updateBook(book.id, {
+          isFavorite: !book.isFavorite,
+        });
+      } catch {
+        setLibraryError("Favorite status could not be updated.");
+      }
+    },
+    [storage],
+  );
 
   async function saveBook(book: Book, changes: UpdateBookInput) {
     setLibraryError(null);
@@ -519,7 +546,8 @@ export function LibraryPage() {
   }
 
   const emptyState = locationEmptyState();
-  const archiveImportSummary = summarizeArchiveImportResults(archiveImportResults);
+  const archiveImportSummary =
+    summarizeArchiveImportResults(archiveImportResults);
   const archiveImportDetails = archiveImportResults.filter(
     (result) => result.status !== "imported",
   );
@@ -536,9 +564,10 @@ export function LibraryPage() {
     : "";
   const moveFolderExcludedIds = moveFolderTarget
     ? (folders ?? [])
-        .filter((folder) =>
-          folder.id === moveFolderTarget.id ||
-          isInsideFolder(folder.relativePath, moveFolderTarget),
+        .filter(
+          (folder) =>
+            folder.id === moveFolderTarget.id ||
+            isInsideFolder(folder.relativePath, moveFolderTarget),
         )
         .map((folder) => folder.id)
     : [];
@@ -552,23 +581,26 @@ export function LibraryPage() {
     <PageShell
       sidebar={
         <LibrarySidebar
+          activeArchive={activeArchive}
+          archives={vault.archives}
           bookCount={bookCount}
           favoriteCount={favoriteCount}
           continueCount={continueBooks.length}
           folders={folders ?? []}
           location={location}
-          archivePath={vault.status === "ready" ? vault.path : ""}
           canManageFolders
           canRevealFolders
-          onChangeArchive={openChangeArchive}
           onCreateFolder={openCreateFolder}
           onDeleteFolder={setDeleteFolderTarget}
+          onManageArchives={openArchiveManager}
           onMoveFolder={setMoveFolderTarget}
           onLocationChange={changeLocation}
           onOpenAbout={openAbout}
+          onOpenArchive={() => void openArchiveFolder()}
           onOpenSettings={openSettings}
           onRenameFolder={setRenameFolderTarget}
           onRevealFolder={(folder) => void revealFolder(folder)}
+          onSwitchArchive={(archive) => void switchArchive(archive.id)}
         />
       }
     >
@@ -594,7 +626,7 @@ export function LibraryPage() {
             onOpenAddEpub={openAddEpub}
             onQueryChange={setQuery}
             onRescanError={() =>
-              setLibraryError("The library folder could not be scanned.")
+              setLibraryError("The archive could not be scanned.")
             }
             onSortChange={setSort}
             onViewChange={setView}
@@ -788,6 +820,11 @@ export function LibraryPage() {
           <SettingsDialog onClose={() => setSettingsOpen(false)} />
         </Suspense>
       ) : null}
+      {archiveManagerOpen ? (
+        <Suspense fallback={null}>
+          <ArchiveManagerDialog onClose={() => setArchiveManagerOpen(false)} />
+        </Suspense>
+      ) : null}
       {aboutOpen ? (
         <Suspense fallback={null}>
           <AboutDialog onClose={() => setAboutOpen(false)} />
@@ -896,27 +933,6 @@ export function LibraryPage() {
                 variant="danger"
               >
                 {isDeleting ? "Clearing" : "Clear progress"}
-              </Button>
-            </>
-          }
-        />
-      ) : null}
-
-      {changeArchiveOpen ? (
-        <Dialog
-          title="Change library folder?"
-          description="You’ll switch to another local folder. The current folder and its metadata will remain unchanged."
-          onClose={() => setChangeArchiveOpen(false)}
-          footer={
-            <>
-              <Button
-                onClick={() => setChangeArchiveOpen(false)}
-                variant="secondary"
-              >
-                Cancel
-              </Button>
-              <Button autoFocus onClick={() => void changeArchive()}>
-                Choose folder
               </Button>
             </>
           }

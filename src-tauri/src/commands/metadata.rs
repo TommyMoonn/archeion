@@ -277,9 +277,9 @@ where
     }
 }
 
-fn initialize_at(root: &Path) -> Result<(), String> {
+pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     if !root.is_dir() {
-        return Err("The selected library folder is unavailable.".to_string());
+        return Err("The selected archive folder is unavailable.".to_string());
     }
 
     let directory = metadata_path(root);
@@ -298,20 +298,27 @@ pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result
     write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
 }
 
-fn vault_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
-    vault::read_vault_path(app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())
+fn vault_root(
+    app: &tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<PathBuf, String> {
+    vault::resolve_vault_root(app, root_path)
 }
 
 #[tauri::command]
-pub fn initialize_vault_metadata(app: tauri::AppHandle) -> Result<(), String> {
-    initialize_at(&vault_root(&app)?)
+pub fn initialize_vault_metadata(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<(), String> {
+    initialize_at(&vault_root(&app, root_path)?)
 }
 
 #[tauri::command]
-pub fn load_vault_metadata(app: tauri::AppHandle) -> Result<MetadataBundle, String> {
-    let root = vault_root(&app)?;
+pub fn load_vault_metadata(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<MetadataBundle, String> {
+    let root = vault_root(&app, root_path)?;
     initialize_at(&root)?;
     let directory = metadata_path(&root);
 
@@ -325,27 +332,30 @@ pub fn load_vault_metadata(app: tauri::AppHandle) -> Result<MetadataBundle, Stri
 #[tauri::command]
 pub fn save_library_metadata(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     metadata: LibraryMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app)?).join(LIBRARY_FILE);
+    let path = metadata_path(&vault_root(&app, root_path)?).join(LIBRARY_FILE);
     write_json(&path, &metadata, true)
 }
 
 #[tauri::command]
 pub fn save_progress_metadata(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     metadata: ProgressMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app)?).join(PROGRESS_FILE);
+    let path = metadata_path(&vault_root(&app, root_path)?).join(PROGRESS_FILE);
     write_json(&path, &metadata, true)
 }
 
 #[tauri::command]
 pub fn save_settings_metadata(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     metadata: SettingsMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&vault_root(&app)?).join(SETTINGS_FILE);
+    let path = metadata_path(&vault_root(&app, root_path)?).join(SETTINGS_FILE);
     write_json(&path, &metadata, true)
 }
 

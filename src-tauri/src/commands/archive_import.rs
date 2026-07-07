@@ -292,14 +292,13 @@ fn add_epub_files_to_vault_at(
 #[tauri::command]
 pub async fn add_epub_files_to_vault(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     source_paths: Vec<String>,
     destination_folder_path: Option<String>,
     conflict_action: ArchiveImportConflictAction,
     mode: ArchiveImportMode,
 ) -> Result<Vec<ArchiveImportResult>, String> {
-    let root = vault::read_vault_path(&app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+    let root = vault::resolve_vault_root(&app, root_path)?;
 
     tauri::async_runtime::spawn_blocking(move || {
         add_epub_files_to_vault_at(

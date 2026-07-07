@@ -1,16 +1,25 @@
-import { FolderOpen } from "@phosphor-icons/react";
+import { FolderOpen, Plus } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { vaultStore } from "../../stores/vaultStore";
 
+type ArchiveAction = "create" | "open";
+
 type OpenVaultButtonProps = {
+  action?: ArchiveAction;
   label?: string;
   variant?: "primary" | "secondary" | "ghost";
 };
 
+const actionLabels: Record<ArchiveAction, string> = {
+  create: "Create empty archive",
+  open: "Open folder as archive",
+};
+
 export function OpenVaultButton({
-  label = "Choose library folder",
+  action = "open",
+  label = actionLabels[action],
   variant = "primary",
 }: OpenVaultButtonProps) {
   const [isOpening, setIsOpening] = useState(false);
@@ -22,7 +31,11 @@ export function OpenVaultButton({
 
     setIsOpening(true);
     try {
-      await vaultStore.chooseVault();
+      if (action === "create") {
+        await vaultStore.createArchive();
+      } else {
+        await vaultStore.chooseVault();
+      }
     } finally {
       setIsOpening(false);
     }
@@ -31,7 +44,13 @@ export function OpenVaultButton({
   return (
     <Button
       disabled={isOpening}
-      icon={<FolderOpen aria-hidden="true" size={18} />}
+      icon={
+        action === "create" ? (
+          <Plus aria-hidden="true" size={18} />
+        ) : (
+          <FolderOpen aria-hidden="true" size={18} />
+        )
+      }
       onClick={handleOpen}
       variant={variant}
     >

@@ -120,21 +120,22 @@ fn load_epub_cover_at(root: &Path, relative_path: &str, book_id: &str) -> Result
 #[tauri::command]
 pub fn read_epub_file(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
 ) -> Result<tauri::ipc::Response, String> {
-    let root = vault::read_vault_path(&app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+    let root = vault::resolve_vault_root(&app, root_path)?;
     let path = resolve_epub_path(&root, &relative_path)?;
     let bytes = fs::read(path).map_err(|error| error.to_string())?;
     Ok(tauri::ipc::Response::new(bytes))
 }
 
 #[tauri::command]
-pub fn reveal_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<(), String> {
-    let root = vault::read_vault_path(&app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+pub fn reveal_epub_file(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_path: String,
+) -> Result<(), String> {
+    let root = vault::resolve_vault_root(&app, root_path)?;
     let path = resolve_epub_path(&root, &relative_path)?;
 
     #[cfg(target_os = "windows")]
@@ -169,6 +170,7 @@ pub fn reveal_epub_file(app: tauri::AppHandle, relative_path: String) -> Result<
 #[tauri::command]
 pub async fn load_epub_cover(
     app: tauri::AppHandle,
+    root_path: Option<String>,
     relative_path: String,
     book_id: String,
 ) -> Result<tauri::ipc::Response, String> {
@@ -178,9 +180,7 @@ pub async fn load_epub_cover(
     {
         return Err("Invalid book identifier.".to_string());
     }
-    let root = vault::read_vault_path(&app)?
-        .map(PathBuf::from)
-        .ok_or_else(|| "No library folder has been selected.".to_string())?;
+    let root = vault::resolve_vault_root(&app, root_path)?;
     let bytes = tauri::async_runtime::spawn_blocking(move || {
         load_epub_cover_at(&root, &relative_path, &book_id)
     })
