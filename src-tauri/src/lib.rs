@@ -6,6 +6,8 @@ pub fn run() {
         .manage(commands::watcher::ArchiveWatcherState::default())
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
+            commands::app_settings::load_app_settings,
+            commands::app_settings::save_app_settings,
             commands::archive::activate_archive,
             commands::archive::focus_main_window,
             commands::archive::forget_archive,
@@ -31,6 +33,7 @@ pub fn run() {
             commands::metadata::save_library_metadata,
             commands::metadata::save_progress_metadata,
             commands::metadata::save_settings_metadata,
+            commands::scanner::clear_scanner_cache,
             commands::scanner::scan_archive,
             commands::archive_root::clear_cover_cache,
             commands::archive_root::cover_cache_status,

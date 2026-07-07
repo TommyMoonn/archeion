@@ -4,7 +4,7 @@ import type {
   Folder,
   UpdateFolderInput,
 } from "../types/folder";
-import type { ReaderSettings } from "../types/reader";
+import type { ArchiveImportSettings } from "../types/settings";
 import type { ArchiveImportConflictAction } from "./pathSafety";
 
 export type { ArchiveImportConflictAction } from "./pathSafety";
@@ -83,14 +83,17 @@ export interface LibraryStorage {
   deleteFolder(id: string): Promise<boolean>;
   observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription;
 
-  getReaderSettings(): Promise<ReaderSettings>;
-  saveReaderSettings(settings: ReaderSettings): Promise<ReaderSettings>;
-  updateReaderSettings(
-    changes: Partial<ReaderSettings>,
-  ): Promise<ReaderSettings>;
-  resetReaderSettings(): Promise<ReaderSettings>;
+  getArchiveImportSettings(): Promise<ArchiveImportSettings>;
+  saveArchiveImportSettings(
+    settings: ArchiveImportSettings,
+  ): Promise<ArchiveImportSettings>;
+  updateArchiveImportSettings(
+    changes: Partial<ArchiveImportSettings>,
+  ): Promise<ArchiveImportSettings>;
+  resetArchiveImportSettings(): Promise<ArchiveImportSettings>;
 
   getCoverCacheStatus(): Promise<CoverCacheStatus>;
   clearCoverCache(): Promise<CoverCacheStatus>;
+  clearScannerCache(): Promise<void>;
   revealMetadataFolder(): Promise<void>;
 }

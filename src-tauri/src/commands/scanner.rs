@@ -297,6 +297,16 @@ pub async fn scan_archive(
         .map_err(|error| error.to_string())?
 }
 
+
+#[tauri::command]
+pub fn clear_scanner_cache(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<(), String> {
+    let path = archive_root::resolve_archive_root(&app, root_path)?;
+    metadata::clear_scanner_cache_at(&path)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{

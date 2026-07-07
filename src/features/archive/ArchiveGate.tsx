@@ -3,9 +3,10 @@ import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
-import { useArchive } from "./useArchive";
+import { useAppPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { ArchiveLauncherPage } from "./ArchiveLauncherPage";
+import { useArchive } from "./useArchive";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -14,35 +15,54 @@ type ArchiveGateProps = {
 export function ArchiveGate({ children }: ArchiveGateProps) {
   const state = useArchive();
   const storage = useLibraryStorage();
+  const preferences = useAppPreferences();
   const archivePath = state.status === "ready" ? state.path : null;
+  const { liveWatcherEnabled, scanOnStartup } = preferences.filesAndMetadata;
 
   useEffect(() => {
     void archiveStore.initialize();
   }, []);
 
   useEffect(() => {
+    storage.reset(archivePath);
+  }, [archivePath, storage]);
+
+  useEffect(() => {
     if (!archivePath) {
       return;
     }
 
-    storage.reset(archivePath);
-    void storage.rescan().catch(() => undefined);
+    let watcher: ArchiveWatcherController | null = null;
+    let cancelled = false;
 
-    const watcher = new ArchiveWatcherController({
-      storage,
-      onError: () => {
-        archiveStore.setWatcherError(
-          "Live refresh paused. Use Rescan archive if files change.",
-        );
-      },
-      onRecovered: () => archiveStore.setWatcherError(null),
-    });
-    void watcher.start().catch(() => undefined);
+    if (scanOnStartup) {
+      void storage.rescan().catch(() => undefined);
+    }
+
+    if (liveWatcherEnabled) {
+      watcher = new ArchiveWatcherController({
+        storage,
+        onError: () => {
+          archiveStore.setWatcherError(
+            "Live refresh paused. Use Rescan archive if files change.",
+          );
+        },
+        onRecovered: () => archiveStore.setWatcherError(null),
+      });
+      void watcher.start().catch(() => {
+        if (!cancelled) {
+          archiveStore.setWatcherError(
+            "Live refresh paused. Use Rescan archive if files change.",
+          );
+        }
+      });
+    }
 
     return () => {
-      void watcher.stop();
+      cancelled = true;
+      void watcher?.stop();
     };
-  }, [archivePath, storage]);
+  }, [archivePath, liveWatcherEnabled, scanOnStartup, storage]);
 
   if (state.status === "loading") {
     return (

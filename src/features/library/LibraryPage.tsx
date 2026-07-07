@@ -25,10 +25,15 @@ import type {
   ArchiveImportResult,
 } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
-import { useAppPreferences } from "../../stores/appPreferencesStore";
+import {
+  appPreferencesStore,
+  useAppPreferences,
+} from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
+import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
@@ -41,7 +46,6 @@ import { ContinueReading } from "./ContinueReading";
 import {
   bookTitle,
   createLibrarySearchIndex,
-  DEFAULT_LIBRARY_SORT,
   getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
   sortBooks,
@@ -135,8 +139,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   >([]);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<LibrarySort>(DEFAULT_LIBRARY_SORT);
-  const [view, setView] = useState<LibraryView>("grid");
+  const [archiveImportSettings, setArchiveImportSettings] =
+    useState<ArchiveImportSettings>(defaultArchiveImportSettings);
   const [location, setLocation] = useState<LibraryLocation>({
     type: "library",
   });
@@ -165,6 +169,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const activeArchive = archive.archive;
+  const sort = preferences.library.sortBy;
+  const view = preferences.library.viewMode;
+  const importSettings: ImportSettings = {
+    ...preferences.import,
+    ...archiveImportSettings,
+  };
 
   useEffect(() => {
     const handleStorageError = () => {
@@ -184,6 +194,38 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       stopFolders();
     };
   }, [storage]);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void storage
+      .getArchiveImportSettings()
+      .then((loadedImportSettings) => {
+        if (!cancelled) setArchiveImportSettings(loadedImportSettings);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [storage]);
+
+  function changeSort(nextSort: LibrarySort) {
+    void appPreferencesStore
+      .update({
+        library: { ...preferences.library, sortBy: nextSort },
+      })
+      .catch(() => setLibraryError("Library preferences could not be saved."));
+  }
+
+  function changeView(nextView: LibraryView) {
+    void appPreferencesStore
+      .update({
+        library: { ...preferences.library, viewMode: nextView },
+      })
+      .catch(() => setLibraryError("Library preferences could not be saved."));
+  }
 
   async function handleArchiveImport(input: AddArchiveEpubInput) {
     if (importLock.current) {
@@ -608,8 +650,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onRescanError={() =>
               setLibraryError("The archive could not be scanned.")
             }
-            onSortChange={setSort}
-            onViewChange={setView}
+            onSortChange={changeSort}
+            onViewChange={changeView}
             query={query}
             sort={effectiveSort}
             title={libraryTitle}
@@ -731,6 +773,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         <Suspense fallback={null}>
           <AddEpubDialog
             folders={folders ?? []}
+            importDefaults={importSettings}
             initialFolderPath={currentFolder?.relativePath}
             isImporting={isImporting}
             onClose={() => setIsAddEpubOpen(false)}

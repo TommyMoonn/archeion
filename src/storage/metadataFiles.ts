@@ -1,10 +1,5 @@
 import type { EpubSourceMetadata } from "../types/book";
-import {
-  DEFAULT_LIBRARY_SORT,
-  normalizeLibrarySort,
-  type LibrarySort,
-} from "../types/library";
-import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
+import type { ArchiveImportSettings } from "../types/settings";
 
 export type LibraryBookMetadata = {
   relativePath: string;
@@ -35,11 +30,14 @@ export type ProgressMetadata = {
 
 export type SettingsMetadata = {
   version: 1;
-  reader: ReaderSettings;
-  library: {
-    viewMode: string;
-    sortBy: LibrarySort;
-  };
+  import: ArchiveImportSettings;
+};
+
+export type LegacySettingsMetadata = Partial<SettingsMetadata> & {
+  reader?: unknown;
+  library?: unknown;
+  filesAndMetadata?: unknown;
+  import?: Partial<ArchiveImportSettings> & Record<string, unknown>;
 };
 
 export type MetadataBundle = {
@@ -47,6 +45,9 @@ export type MetadataBundle = {
   progress: ProgressMetadata;
   settings: SettingsMetadata;
 };
+
+export const defaultArchiveImportSettings: Readonly<ArchiveImportSettings> =
+  Object.freeze({});
 
 export function createLibraryMetadata(): LibraryMetadata {
   return { version: 1, books: {} };
@@ -59,24 +60,33 @@ export function createProgressMetadata(): ProgressMetadata {
 export function createSettingsMetadata(): SettingsMetadata {
   return {
     version: 1,
-    reader: normalizeReaderSettings(),
-    library: {
-      viewMode: "grid",
-      sortBy: DEFAULT_LIBRARY_SORT,
-    },
+    import: { ...defaultArchiveImportSettings },
+  };
+}
+
+function normalizeOptionalFolderPath(value: unknown): string | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim().replaceAll("\\", "/");
+  return trimmed ? trimmed : undefined;
+}
+
+export function normalizeArchiveImportSettings(
+  settings?: Partial<ArchiveImportSettings>,
+): ArchiveImportSettings {
+  return {
+    defaultDestinationFolderPath: normalizeOptionalFolderPath(
+      settings?.defaultDestinationFolderPath,
+    ),
   };
 }
 
 export function normalizeSettingsMetadata(
-  metadata: SettingsMetadata,
+  metadata?: LegacySettingsMetadata,
 ): SettingsMetadata {
   return {
-    ...metadata,
-    reader: normalizeReaderSettings(metadata.reader),
-    library: {
-      ...metadata.library,
-      viewMode: metadata.library.viewMode || "grid",
-      sortBy: normalizeLibrarySort(metadata.library.sortBy),
-    },
+    version: 1,
+    import: normalizeArchiveImportSettings(metadata?.import),
   };
 }

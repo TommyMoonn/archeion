@@ -32,7 +32,7 @@ export function MoveToFolderDialog({
   );
   const options = useMemo(
     () => [
-      { label: "Library root", value: ARCHIVE_ROOT_DESTINATION },
+      { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
       ...[...folders]
         .filter((folder) => folder.relativePath)
         .sort((left, right) =>

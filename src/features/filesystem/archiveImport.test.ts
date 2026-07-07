@@ -43,7 +43,7 @@ describe("archiveImport", () => {
     ];
 
     expect(createArchiveDestinationOptions(folders)).toEqual([
-      { label: "Library root", value: ARCHIVE_ROOT_DESTINATION },
+      { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
       { label: "A", value: "A" },
       { label: "B", value: "B" },
     ]);

@@ -75,101 +75,25 @@ impl Default for ProgressMetadata {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct ReaderSettings {
-    #[serde(default = "default_reader_font_size")]
-    pub font_size: f64,
-    #[serde(default = "default_reader_font_family")]
-    pub font_family: String,
-    #[serde(default = "default_reader_line_height")]
-    pub line_height: f64,
-    #[serde(default = "default_reader_margin")]
-    pub margin: f64,
-    #[serde(default = "default_reader_theme")]
-    pub theme: String,
-    #[serde(default = "default_reader_progress_placement")]
-    pub progress_placement: String,
-    #[serde(default = "default_reader_flow_mode")]
-    pub flow_mode: String,
-}
-
-fn default_reader_font_size() -> f64 {
-    18.0
-}
-
-fn default_reader_font_family() -> String {
-    "serif".to_string()
-}
-
-fn default_reader_line_height() -> f64 {
-    1.6
-}
-
-fn default_reader_margin() -> f64 {
-    48.0
-}
-
-fn default_reader_theme() -> String {
-    "dark".to_string()
-}
-
-fn default_reader_progress_placement() -> String {
-    "top".to_string()
-}
-
-fn default_reader_flow_mode() -> String {
-    "paginated".to_string()
-}
-
-impl Default for ReaderSettings {
-    fn default() -> Self {
-        Self {
-            font_size: default_reader_font_size(),
-            font_family: default_reader_font_family(),
-            line_height: default_reader_line_height(),
-            margin: default_reader_margin(),
-            theme: default_reader_theme(),
-            progress_placement: default_reader_progress_placement(),
-            flow_mode: default_reader_flow_mode(),
-        }
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct LibrarySettings {
-    pub view_mode: String,
-    pub sort_by: String,
-}
-
-impl Default for LibrarySettings {
-    fn default() -> Self {
-        Self {
-            view_mode: "grid".to_string(),
-            sort_by: "title".to_string(),
-        }
-    }
-}
-
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct AppSettings {
-    pub reader: ReaderSettings,
-    pub library: LibrarySettings,
+#[serde(rename_all = "camelCase")]
+pub struct ImportSettings {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub default_destination_folder_path: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SettingsMetadata {
     pub version: u8,
-    #[serde(flatten)]
-    pub settings: AppSettings,
+    #[serde(default)]
+    pub import: ImportSettings,
 }
 
 impl Default for SettingsMetadata {
     fn default() -> Self {
         Self {
             version: 1,
-            settings: AppSettings::default(),
+            import: ImportSettings::default(),
         }
     }
 }
@@ -292,6 +216,14 @@ pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String>
 
 pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result<(), String> {
     write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
+}
+
+pub(crate) fn clear_scanner_cache_at(root: &Path) -> Result<(), String> {
+    let path = metadata_path(root).join(SCANNER_CACHE_FILE);
+    if path.exists() {
+        fs::remove_file(path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn resolve_command_archive_root(
@@ -449,28 +381,36 @@ mod tests {
     }
 
     #[test]
-    fn reader_settings_accept_frontend_shape_without_flow_mode() {
+    fn archive_settings_ignore_old_app_level_fields() {
         let value = serde_json::json!({
             "version": 1,
             "reader": {
                 "fontSize": 22.0,
-                "fontFamily": "serif",
-                "lineHeight": 1.8,
-                "margin": 72.0,
-                "theme": "sepia",
                 "progressPlacement": "side"
             },
             "library": {
                 "viewMode": "grid",
                 "sortBy": "folder"
+            },
+            "filesAndMetadata": {
+                "scanOnStartup": false
+            },
+            "import": {
+                "defaultMode": "move",
+                "defaultConflictAction": "replace",
+                "defaultDestinationFolderPath": "Fiction"
             }
         });
 
         let parsed: SettingsMetadata =
-            serde_json::from_value(value).expect("frontend settings should deserialize");
+            serde_json::from_value(value).expect("old settings should deserialize");
+        let serialized = serde_json::to_value(parsed).expect("settings should serialize");
 
-        assert_eq!(parsed.settings.reader.font_size, 22.0);
-        assert_eq!(parsed.settings.reader.progress_placement, "side");
-        assert_eq!(parsed.settings.reader.flow_mode, "paginated");
+        assert_eq!(serialized["import"]["defaultDestinationFolderPath"], "Fiction");
+        assert!(serialized.get("reader").is_none());
+        assert!(serialized.get("library").is_none());
+        assert!(serialized.get("filesAndMetadata").is_none());
+        assert!(serialized["import"].get("defaultMode").is_none());
+        assert!(serialized["import"].get("defaultConflictAction").is_none());
     }
 }

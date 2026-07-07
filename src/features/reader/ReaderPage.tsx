@@ -8,11 +8,15 @@ import {
 } from "react-router-dom";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import {
+  appPreferencesStore,
+  useAppPreferences,
+  useAppPreferencesPersistenceStatus,
+} from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
-  defaultReaderSettings,
   normalizeReaderSettings,
   type ReaderSettings,
 } from "../../types/reader";
@@ -29,6 +33,8 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
+  const preferences = useAppPreferences();
+  const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const progressWriter = useRef<DebouncedTask<{
@@ -36,7 +42,6 @@ export function ReaderPage() {
     location: ReaderLocation;
   }> | null>(null);
   const mountedRef = useRef(true);
-  const settingsSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const controlsTimer = useRef<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loadedFile, setLoadedFile] = useState<{
@@ -45,12 +50,6 @@ export function ReaderPage() {
     failed: boolean;
   } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
-  const [settings, setSettings] = useState<ReaderSettings>({
-    ...defaultReaderSettings,
-  });
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [settingsPersistenceFailed, setSettingsPersistenceFailed] =
-    useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [location, setLocation] = useState<ReaderLocation>({
@@ -59,6 +58,8 @@ export function ReaderPage() {
     atStart: startFromBeginning || !book?.progressCfi,
     atEnd: false,
   });
+  const settings = preferences.reader;
+  const settingsPersistenceFailed = appSettingsStatus.status === "error";
 
   const movePrevious = useCallback(() => {
     void viewerRef.current?.previous();
@@ -85,22 +86,12 @@ export function ReaderPage() {
     setSettingsOpen(true);
   }, []);
 
-  const changeSettings = useCallback(
-    (nextSettings: ReaderSettings) => {
-      const normalizedSettings = normalizeReaderSettings(nextSettings);
-      setSettings(normalizedSettings);
-      settingsSaveQueue.current = settingsSaveQueue.current
-        .catch(() => undefined)
-        .then(() => storage.saveReaderSettings(normalizedSettings))
-        .then(() => {
-          setSettingsPersistenceFailed(false);
-        })
-        .catch(() => {
-          setSettingsPersistenceFailed(true);
-        });
-    },
-    [storage],
-  );
+  const changeSettings = useCallback((nextSettings: ReaderSettings) => {
+    const normalizedSettings = normalizeReaderSettings(nextSettings);
+    void appPreferencesStore
+      .update({ reader: normalizedSettings })
+      .catch(() => undefined);
+  }, []);
 
   const handleReady = useCallback(() => {
     if (!book || book.isFileMissing) {
@@ -249,33 +240,6 @@ export function ReaderPage() {
   }, [book, storage]);
 
   useEffect(() => {
-    let cancelled = false;
-
-    void storage
-      .getReaderSettings()
-      .then((savedSettings) => {
-        if (!cancelled) {
-          setSettings(normalizeReaderSettings(savedSettings));
-          setSettingsPersistenceFailed(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setSettingsPersistenceFailed(true);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setSettingsLoaded(true);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storage]);
-
-  useEffect(() => {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
@@ -323,7 +287,7 @@ export function ReaderPage() {
   const fileLoadFailed = currentLoadedFile?.failed ?? false;
   const isFileLoading = !fileBlob && !fileLoadFailed;
 
-  if (isFileLoading || !settingsLoaded) {
+  if (isFileLoading) {
     return (
       <main className="reader-status-page" aria-busy="true">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />

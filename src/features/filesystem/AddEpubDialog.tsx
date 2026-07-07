@@ -17,6 +17,8 @@ import type {
   ArchiveImportMode,
 } from "../../storage/LibraryStorage";
 import type { Folder } from "../../types/folder";
+import { defaultAppPreferences } from "../../types/appSettings";
+import type { ImportSettings } from "../../types/settings";
 import {
   ARCHIVE_ROOT_DESTINATION,
   archiveImportConflictOptions,
@@ -30,6 +32,7 @@ import {
 
 type AddEpubDialogProps = {
   folders: Folder[];
+  importDefaults?: ImportSettings;
   initialFolderPath?: string;
   isImporting?: boolean;
   onClose: () => void;
@@ -45,6 +48,7 @@ function normalizeSelectedPaths(selected: string | string[] | null): string[] {
 
 export function AddEpubDialog({
   folders,
+  importDefaults = defaultAppPreferences.import,
   initialFolderPath,
   isImporting = false,
   onClose,
@@ -54,7 +58,9 @@ export function AddEpubDialog({
     () => createArchiveDestinationOptions(folders),
     [folders],
   );
-  const initialDestination = destinationValueFromFolderPath(initialFolderPath);
+  const initialDestination = destinationValueFromFolderPath(
+    initialFolderPath ?? importDefaults.defaultDestinationFolderPath,
+  );
   const hasInitialDestination = destinations.some(
     (destination) => destination.value === initialDestination,
   );
@@ -65,8 +71,12 @@ export function AddEpubDialog({
       : (destinations[0]?.value ?? ARCHIVE_ROOT_DESTINATION),
   );
   const [conflictAction, setConflictAction] =
-    useState<ArchiveImportConflictAction>("keepBoth");
-  const [mode, setMode] = useState<ArchiveImportMode>("copy");
+    useState<ArchiveImportConflictAction>(
+      importDefaults.defaultConflictAction,
+    );
+  const [mode, setMode] = useState<ArchiveImportMode>(
+    importDefaults.defaultMode,
+  );
   const [error, setError] = useState<string | null>(null);
 
   async function chooseFiles() {

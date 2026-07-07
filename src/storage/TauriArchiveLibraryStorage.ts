@@ -6,11 +6,13 @@ import type {
   Folder,
   UpdateFolderInput,
 } from "../types/folder";
-import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
+import type { ArchiveImportSettings } from "../types/settings";
 import {
   createLibraryMetadata,
   createProgressMetadata,
   createSettingsMetadata,
+  defaultArchiveImportSettings,
+  normalizeArchiveImportSettings,
   normalizeSettingsMetadata,
   type MetadataBundle,
   type SettingsMetadata,
@@ -58,7 +60,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
   private missingBooks = new Map<string, Book>();
   private folders: Folder[] = [];
-  private readerSettings = normalizeReaderSettings();
   private loaded = false;
   private generation = 0;
   private archiveRootPath: string | null = null;
@@ -82,7 +83,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.books = [];
     this.missingBooks = new Map();
     this.folders = [];
-    this.readerSettings = normalizeReaderSettings();
     this.loaded = false;
     this.scanPromise = null;
     this.followUpScanQueued = false;
@@ -162,7 +162,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       this.libraryMetadata = reconciled.libraryMetadata;
       this.progressMetadata = metadata.progress;
       this.settingsMetadata = settingsMetadata;
-      this.readerSettings = settingsMetadata.reader;
       this.books = reconciled.books;
       this.missingBooks = reconciled.missingBooks;
       this.folders = reconciled.folders;
@@ -334,6 +333,50 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         scope.rootPath,
       );
     }, scope.generation);
+  }
+
+  private async loadSettingsMetadataOnly(
+    scope = this.createArchiveCommandScope(),
+  ): Promise<SettingsMetadata> {
+    const metadata = await this.invokeArchiveCommand<MetadataBundle>(
+      "load_archive_metadata",
+      undefined,
+      scope.rootPath,
+    );
+    this.assertCurrentArchiveScope(scope);
+    this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
+    return this.settingsMetadata;
+  }
+
+  private async ensureSettingsMetadata(
+    scope = this.createArchiveCommandScope(),
+  ): Promise<SettingsMetadata> {
+    if (!this.loaded) {
+      return this.loadSettingsMetadataOnly(scope);
+    }
+    this.assertCurrentArchiveScope(scope);
+    return this.settingsMetadata;
+  }
+
+  private async saveSettingsMetadata(
+    metadata: SettingsMetadata,
+    scope = this.createArchiveCommandScope(),
+  ): Promise<SettingsMetadata> {
+    const normalized = normalizeSettingsMetadata(metadata);
+    const generation = scope.generation;
+    await this.enqueueMetadataWrite(
+      () =>
+        this.invokeArchiveCommand(
+          "save_settings_metadata",
+          { metadata: normalized },
+          scope.rootPath,
+        ),
+      generation,
+    );
+    if (this.generation === generation) {
+      this.settingsMetadata = normalized;
+    }
+    return normalized;
   }
 
   private requireBook(id: string): Book {
@@ -873,47 +916,37 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return () => this.folderObservers.delete(observer);
   }
 
-  async getReaderSettings(): Promise<ReaderSettings> {
-    const scope = this.createArchiveCommandScope();
-    const loading = this.ensureLoadedOrPromise(scope);
-    if (loading) await loading;
-    return { ...this.readerSettings };
+  async getArchiveImportSettings(): Promise<ArchiveImportSettings> {
+    const settings = await this.ensureSettingsMetadata();
+    return { ...settings.import };
   }
 
-  async saveReaderSettings(settings: ReaderSettings): Promise<ReaderSettings> {
+  async saveArchiveImportSettings(
+    settings: ArchiveImportSettings,
+  ): Promise<ArchiveImportSettings> {
     const scope = this.createArchiveCommandScope();
-    const loading = this.ensureLoadedOrPromise(scope);
-    if (loading) await loading;
-    const metadata: SettingsMetadata = {
-      ...this.settingsMetadata,
-      reader: normalizeReaderSettings(settings),
-    };
-    const generation = scope.generation;
-    await this.enqueueMetadataWrite(
-      () =>
-        this.invokeArchiveCommand(
-          "save_settings_metadata",
-          { metadata },
-          scope.rootPath,
-        ),
-      generation,
+    const current = await this.ensureSettingsMetadata(scope);
+    const metadata = await this.saveSettingsMetadata(
+      {
+        ...current,
+        import: normalizeArchiveImportSettings(settings),
+      },
+      scope,
     );
-    if (this.generation !== generation) {
-      return { ...this.readerSettings };
-    }
-    this.settingsMetadata = metadata;
-    this.readerSettings = normalizeReaderSettings(settings);
-    return { ...this.readerSettings };
+    return { ...metadata.import };
   }
 
-  updateReaderSettings(
-    changes: Partial<ReaderSettings>,
-  ): Promise<ReaderSettings> {
-    return this.saveReaderSettings({ ...this.readerSettings, ...changes });
+  updateArchiveImportSettings(
+    changes: Partial<ArchiveImportSettings>,
+  ): Promise<ArchiveImportSettings> {
+    return this.saveArchiveImportSettings({
+      ...this.settingsMetadata.import,
+      ...changes,
+    });
   }
 
-  resetReaderSettings(): Promise<ReaderSettings> {
-    return this.saveReaderSettings(normalizeReaderSettings());
+  resetArchiveImportSettings(): Promise<ArchiveImportSettings> {
+    return this.saveArchiveImportSettings({ ...defaultArchiveImportSettings });
   }
 
   getCoverCacheStatus(): Promise<CoverCacheStatus> {
@@ -932,6 +965,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       undefined,
       rootPath,
     );
+  }
+
+  clearScannerCache(): Promise<void> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand("clear_scanner_cache", undefined, rootPath);
   }
 
   revealMetadataFolder(): Promise<void> {

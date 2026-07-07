@@ -74,6 +74,9 @@ const metadata = {
       viewMode: "grid",
       sortBy: "title",
     },
+    import: {
+      defaultDestinationFolderPath: "Author",
+    },
   },
 };
 
@@ -743,24 +746,22 @@ describe("TauriArchiveLibraryStorage", () => {
     );
   });
 
-  it("persists reader settings", async () => {
+  it("persists only archive import destination in archive settings", async () => {
     const storage = new TauriArchiveLibraryStorage();
-    const settings = await storage.updateReaderSettings({
-      fontSize: 22,
-      progressPlacement: "side",
+    const settings = await storage.updateArchiveImportSettings({
+      defaultDestinationFolderPath: "Author/Series",
     });
 
-    expect(settings.fontSize).toBe(22);
-    expect(settings.progressPlacement).toBe("side");
+    expect(settings.defaultDestinationFolderPath).toBe("Author/Series");
     expect(invokeMock).toHaveBeenCalledWith(
       "save_settings_metadata",
       expect.objectContaining({
-        metadata: expect.objectContaining({
-          reader: expect.objectContaining({
-            fontSize: 22,
-            progressPlacement: "side",
-          }),
-        }),
+        metadata: {
+          version: 1,
+          import: {
+            defaultDestinationFolderPath: "Author/Series",
+          },
+        },
       }),
     );
   });

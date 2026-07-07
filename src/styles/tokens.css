@@ -46,3 +46,72 @@
   --radius-pill: 999px;
   --sidebar-width: 248px;
 }
+
+html[data-app-theme="light"] {
+  color-scheme: light;
+
+  --canvas: #f6f3ed;
+  --canvas-deep: #eee8de;
+  --surface: #ffffff;
+  --surface-raised: #fbf8f2;
+  --surface-hover: #f2ece2;
+  --line: #ddd4c8;
+  --line-strong: #cabeae;
+  --text: #403b34;
+  --text-strong: #1e1a17;
+  --muted: #746b5f;
+  --muted-soft: #91887d;
+  --accent: #386f99;
+  --accent-strong: #22577c;
+  --accent-soft: rgb(56 111 153 / 10%);
+  --accent-border: rgb(56 111 153 / 22%);
+  --focus: #386f99;
+  --success: #467a55;
+  --success-soft: rgb(70 122 85 / 9%);
+  --success-border: rgb(70 122 85 / 24%);
+  --error: #aa4350;
+  --error-soft: rgb(170 67 80 / 8%);
+  --error-border: rgb(170 67 80 / 24%);
+
+  --surface-base: #eee8de;
+  --surface-app-frame: var(--surface-base);
+  --surface-sidebar: var(--surface-base);
+  --surface-main: #f8f5ef;
+  --surface-main-raised: #ffffff;
+  --surface-border: var(--line);
+  --surface-border-strong: var(--line-strong);
+  --surface-shell-hover: rgb(30 26 23 / 5.5%);
+  --surface-shell-active: rgb(30 26 23 / 8%);
+}
+
+@media (prefers-color-scheme: light) {
+  html[data-app-theme="system"] {
+    color-scheme: light;
+
+    --canvas: #f6f3ed;
+    --canvas-deep: #eee8de;
+    --surface: #ffffff;
+    --surface-raised: #fbf8f2;
+    --surface-hover: #f2ece2;
+    --line: #ddd4c8;
+    --line-strong: #cabeae;
+    --text: #403b34;
+    --text-strong: #1e1a17;
+    --muted: #746b5f;
+    --muted-soft: #91887d;
+    --accent: #386f99;
+    --accent-strong: #22577c;
+    --accent-soft: rgb(56 111 153 / 10%);
+    --accent-border: rgb(56 111 153 / 22%);
+    --focus: #386f99;
+    --surface-base: #eee8de;
+    --surface-app-frame: var(--surface-base);
+    --surface-sidebar: var(--surface-base);
+    --surface-main: #f8f5ef;
+    --surface-main-raised: #ffffff;
+    --surface-border: var(--line);
+    --surface-border-strong: var(--line-strong);
+    --surface-shell-hover: rgb(30 26 23 / 5.5%);
+    --surface-shell-active: rgb(30 26 23 / 8%);
+  }
+}

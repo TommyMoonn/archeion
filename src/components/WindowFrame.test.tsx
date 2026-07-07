@@ -12,6 +12,7 @@ import { WindowFrame } from "./WindowFrame";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(async () => ({})),
   isTauri: () => true,
 }));
 

@@ -33,26 +33,26 @@
 .settings-sidebar {
   display: flex;
   flex-direction: column;
-  gap: 34px;
+  gap: 20px;
   min-height: 0;
-  padding: 28px 22px;
+  padding: 24px 18px;
   border-right: 1px solid var(--line);
   background: var(--canvas-deep);
 }
 
-.settings-sidebar > div p,
-.settings-sidebar > div h1 {
+.settings-sidebar__header p,
+.settings-sidebar__header h1 {
   margin: 0;
 }
 
-.settings-sidebar > div p {
+.settings-sidebar__header p {
   color: var(--muted);
   font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
-.settings-sidebar > div h1 {
+.settings-sidebar__header h1 {
   margin-top: 4px;
   color: var(--text-strong);
   font-family: var(--font-display);
@@ -63,6 +63,19 @@
 .settings-sidebar nav {
   display: grid;
   gap: 3px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 2px;
+}
+
+.settings-search {
+  width: 100%;
+  min-height: 34px;
+}
+
+.settings-search input {
+  min-width: 0;
+  font-size: 12px;
 }
 
 .settings-sidebar nav button {
@@ -70,8 +83,8 @@
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 9px 10px;
+  min-height: 34px;
+  padding: 8px 10px;
   border: 0;
   border-radius: var(--radius-control);
   color: var(--muted);
@@ -98,7 +111,7 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
-  padding: 52px clamp(32px, 7vw, 96px) 90px;
+  padding: 44px clamp(30px, 6vw, 84px) 88px;
 }
 
 .settings-close {

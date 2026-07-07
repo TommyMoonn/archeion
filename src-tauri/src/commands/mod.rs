@@ -1,3 +1,4 @@
+pub mod app_settings;
 pub mod archive;
 pub mod archive_import;
 pub mod epub;
