@@ -11,6 +11,7 @@ import {
   createLibraryMetadata,
   createProgressMetadata,
   createSettingsMetadata,
+  normalizeSettingsMetadata,
   type MetadataBundle,
   type SettingsMetadata,
 } from "./metadataFiles";
@@ -156,10 +157,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         timestamp: new Date().toISOString(),
       });
 
+      const settingsMetadata = normalizeSettingsMetadata(metadata.settings);
+
       this.libraryMetadata = reconciled.libraryMetadata;
       this.progressMetadata = metadata.progress;
-      this.settingsMetadata = metadata.settings;
-      this.readerSettings = normalizeReaderSettings(metadata.settings.reader);
+      this.settingsMetadata = settingsMetadata;
+      this.readerSettings = settingsMetadata.reader;
       this.books = reconciled.books;
       this.missingBooks = reconciled.missingBooks;
       this.folders = reconciled.folders;
@@ -526,13 +529,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       throw new Error(`Book "${id}" was not found.`);
     }
     const generation = scope.generation;
-    if (
-      changes.folderId !== undefined &&
-      changes.folderId !== this.books[index].folderId
-    ) {
-      throw new Error("Move EPUB files with moveBookToFolder().");
-    }
-
     const timestamp = new Date().toISOString();
     let libraryChanged = false;
     let progressChanged = false;

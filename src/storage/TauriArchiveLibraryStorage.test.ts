@@ -72,7 +72,7 @@ const metadata = {
     },
     library: {
       viewMode: "grid",
-      sortBy: "folder",
+      sortBy: "title",
     },
   },
 };

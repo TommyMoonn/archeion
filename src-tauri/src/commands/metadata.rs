@@ -147,7 +147,7 @@ impl Default for LibrarySettings {
     fn default() -> Self {
         Self {
             view_mode: "grid".to_string(),
-            sort_by: "folder".to_string(),
+            sort_by: "title".to_string(),
         }
     }
 }

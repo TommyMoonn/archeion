@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import {
+  DEFAULT_LIBRARY_SORT,
   bookAuthor,
   bookTitle,
   createLibrarySearchIndex,
   filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
+  normalizeLibrarySort,
   sortBooks,
 } from "./libraryFilters";
 
@@ -31,6 +33,7 @@ describe("library filters", () => {
       originalTitle: "Series 10",
       originalAuthor: "Beta",
       addedAt: "2026-07-02T00:00:00.000Z",
+      relativePath: "Beta/Series 10.epub",
     }),
     createBook({
       id: "first",
@@ -40,11 +43,13 @@ describe("library filters", () => {
       lastOpenedAt: "2026-07-04T00:00:00.000Z",
       isFavorite: true,
       folderId: "folder-one",
+      relativePath: "Alpha/Series 2.epub",
     }),
     createBook({
       id: "third",
       originalTitle: "Another book",
       addedAt: "2026-07-01T00:00:00.000Z",
+      relativePath: "Another book.epub",
     }),
   ];
   const folders: Folder[] = [
@@ -142,17 +147,128 @@ describe("library filters", () => {
     expect(filterBookSearchIndex(index, "missing")).toEqual([]);
   });
 
-  it("sorts by added and opened timestamps", () => {
-    expect(sortBooks(books, "recently-added").map((book) => book.id)).toEqual([
+  it("normalizes unsupported persisted sort values to the title sort", () => {
+    expect(DEFAULT_LIBRARY_SORT).toBe("title");
+    expect(normalizeLibrarySort("title")).toBe("title");
+    expect(normalizeLibrarySort("author")).toBe("author");
+    expect(normalizeLibrarySort("recently-opened")).toBe("recently-opened");
+    expect(normalizeLibrarySort("recently-added")).toBe("title");
+    expect(normalizeLibrarySort("folder")).toBe("title");
+  });
+
+  it("sorts titles naturally with deterministic metadata and path tie-breakers", () => {
+    const tiedBooks = [
+      createBook({
+        id: "no-author",
+        originalTitle: "Same Title",
+        relativePath: "Zeta.epub",
+      }),
+      createBook({
+        id: "recent-author",
+        originalTitle: "Same Title",
+        originalAuthor: "Ada",
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+        relativePath: "Ada/recent.epub",
+      }),
+      createBook({
+        id: "older-author",
+        originalTitle: "Same Title",
+        originalAuthor: "Ada",
+        lastOpenedAt: "2026-07-04T00:00:00.000Z",
+        relativePath: "Ada/older.epub",
+      }),
+    ];
+
+    expect(sortBooks(books, "title").map((book) => book.id)).toEqual([
+      "third",
+      "first",
+      "second",
+    ]);
+    expect(sortBooks(tiedBooks, "title").map((book) => book.id)).toEqual([
+      "recent-author",
+      "older-author",
+      "no-author",
+    ]);
+  });
+
+  it("sorts authors with title and recently opened tie-breakers", () => {
+    const tiedBooks = [
+      createBook({
+        id: "older",
+        originalTitle: "Same Title",
+        originalAuthor: "Ada",
+        lastOpenedAt: "2026-07-04T00:00:00.000Z",
+        relativePath: "Ada/older.epub",
+      }),
+      createBook({
+        id: "recent",
+        originalTitle: "Same Title",
+        originalAuthor: "Ada",
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+        relativePath: "Ada/recent.epub",
+      }),
+      createBook({
+        id: "no-author",
+        originalTitle: "Earlier Title",
+        relativePath: "No Author.epub",
+      }),
+    ];
+
+    expect(sortBooks(books, "author").map((book) => book.id)).toEqual([
       "first",
       "second",
       "third",
     ]);
+    expect(sortBooks(tiedBooks, "author").map((book) => book.id)).toEqual([
+      "recent",
+      "older",
+      "no-author",
+    ]);
+  });
+
+  it("sorts recently opened by lastOpenedAt before stable metadata tie-breakers", () => {
+    const recentlyOpenedBooks = [
+      createBook({
+        id: "unopened",
+        originalTitle: "A Book",
+        originalAuthor: "Zed",
+        relativePath: "A Book.epub",
+      }),
+      createBook({
+        id: "recent-beta",
+        originalTitle: "Same Date B",
+        originalAuthor: "Beta",
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+        addedAt: "2026-07-01T00:00:00.000Z",
+        relativePath: "B.epub",
+      }),
+      createBook({
+        id: "recent-alpha",
+        originalTitle: "Same Date A",
+        originalAuthor: "Alpha",
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+        addedAt: "2026-07-03T00:00:00.000Z",
+        relativePath: "A.epub",
+      }),
+      createBook({
+        id: "older",
+        originalTitle: "Older Book",
+        originalAuthor: "Alpha",
+        lastOpenedAt: "2026-07-04T00:00:00.000Z",
+        relativePath: "Older.epub",
+      }),
+    ];
+
     expect(sortBooks(books, "recently-opened").map((book) => book.id)).toEqual([
       "first",
-      "second",
       "third",
+      "second",
     ]);
+    expect(
+      sortBooks(recentlyOpenedBooks, "recently-opened").map(
+        (book) => book.id,
+      ),
+    ).toEqual(["recent-alpha", "recent-beta", "older", "unopened"]);
   });
 
   it("filters favorites and direct folder contents", () => {
@@ -167,26 +283,5 @@ describe("library filters", () => {
         folderId: "folder-one",
       }).map((book) => book.id),
     ).toEqual(["first"]);
-  });
-
-  it("sorts titles naturally and authors with title tie-breaking", () => {
-    expect(sortBooks(books, "title").map((book) => book.id)).toEqual([
-      "third",
-      "first",
-      "second",
-    ]);
-    expect(sortBooks(books, "author").map((book) => book.id)).toEqual([
-      "first",
-      "second",
-      "third",
-    ]);
-  });
-
-  it("sorts folder-backed books by folder name with unfiled books last", () => {
-    expect(sortBooks(books, "folder", folders).map((book) => book.id)).toEqual([
-      "first",
-      "third",
-      "second",
-    ]);
   });
 });

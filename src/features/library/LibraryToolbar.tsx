@@ -15,6 +15,7 @@ import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { RescanArchiveButton } from "../archive/RescanArchiveButton";
 import type { LibrarySort } from "./libraryFilters";
+import { librarySortOptions } from "./librarySortOptions";
 
 export type LibraryView = "grid" | "list";
 
@@ -30,14 +31,6 @@ type LibraryToolbarProps = {
   title: string;
   view: LibraryView;
 };
-
-const sortOptions: Array<{ label: string; value: LibrarySort }> = [
-  { label: "Recently discovered", value: "recently-added" },
-  { label: "Recently opened", value: "recently-opened" },
-  { label: "Title", value: "title" },
-  { label: "Author", value: "author" },
-  { label: "Folder path", value: "folder" },
-];
 
 const viewOptions: Array<{
   icon: ReactNode;
@@ -116,7 +109,7 @@ export function LibraryToolbar({
           ariaLabel="Sort library"
           className="library-sort-select"
           onChange={onSortChange}
-          options={sortOptions}
+          options={librarySortOptions}
           value={sort}
         />
         <SegmentedControl

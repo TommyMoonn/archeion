@@ -1,5 +1,9 @@
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import {
+  normalizeLibrarySort,
+  type LibrarySort,
+} from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 export {
   bookAuthor,
@@ -8,12 +12,8 @@ export {
   bookTitle,
 } from "../../utils/bookDisplay";
 
-export type LibrarySort =
-  | "recently-added"
-  | "recently-opened"
-  | "title"
-  | "author"
-  | "folder";
+export { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../../types/library";
+export type { LibrarySort } from "../../types/library";
 
 export type LibraryLocation =
   | { type: "library" }
@@ -123,61 +123,77 @@ export function filterBooksByLocation(
   }
 }
 
-export function sortBooks(
-  books: Book[],
-  sort: LibrarySort,
-  folders: Folder[] = [],
-): Book[] {
+function stablePath(book: Book): string {
+  return book.relativePath?.trim() || book.fileName;
+}
+
+function compareOptionalTextLast(
+  collator: Intl.Collator,
+  left: string,
+  right: string,
+): number {
+  if (!left && right) {
+    return 1;
+  }
+  if (left && !right) {
+    return -1;
+  }
+
+  return collator.compare(left, right);
+}
+
+function compareRecentlyOpened(left: Book, right: Book): number {
+  const leftOpened = left.lastOpenedAt ?? "";
+  const rightOpened = right.lastOpenedAt ?? "";
+
+  if (!leftOpened && rightOpened) {
+    return 1;
+  }
+  if (leftOpened && !rightOpened) {
+    return -1;
+  }
+
+  return rightOpened.localeCompare(leftOpened);
+}
+
+function compareStablePath(
+  collator: Intl.Collator,
+  left: Book,
+  right: Book,
+): number {
+  return collator.compare(stablePath(left), stablePath(right));
+}
+
+export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
+  const normalizedSort = normalizeLibrarySort(sort);
   const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: "base",
   });
-  const folderLookup = foldersById(folders);
 
   return [...books].sort((left, right) => {
-    switch (sort) {
+    switch (normalizedSort) {
       case "title":
-        return collator.compare(bookTitle(left), bookTitle(right));
-      case "author": {
-        const leftAuthor = bookAuthor(left);
-        const rightAuthor = bookAuthor(right);
-
-        if (!leftAuthor && rightAuthor) {
-          return 1;
-        }
-        if (leftAuthor && !rightAuthor) {
-          return -1;
-        }
         return (
-          collator.compare(leftAuthor, rightAuthor) ||
-          collator.compare(bookTitle(left), bookTitle(right))
+          collator.compare(bookTitle(left), bookTitle(right)) ||
+          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+          compareRecentlyOpened(left, right) ||
+          compareStablePath(collator, left, right)
         );
-      }
+      case "author":
+        return (
+          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+          collator.compare(bookTitle(left), bookTitle(right)) ||
+          compareRecentlyOpened(left, right) ||
+          compareStablePath(collator, left, right)
+        );
       case "recently-opened":
         return (
-          (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? "") ||
-          right.addedAt.localeCompare(left.addedAt)
+          compareRecentlyOpened(left, right) ||
+          collator.compare(bookTitle(left), bookTitle(right)) ||
+          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+          compareStablePath(collator, left, right)
         );
-      case "recently-added":
-        return (
-          right.addedAt.localeCompare(left.addedAt) ||
-          collator.compare(bookTitle(left), bookTitle(right))
-        );
-      case "folder": {
-        const leftFolder = bookFolder(left, folderLookup)[0] ?? "";
-        const rightFolder = bookFolder(right, folderLookup)[0] ?? "";
-
-        if (!leftFolder && rightFolder) {
-          return 1;
-        }
-        if (leftFolder && !rightFolder) {
-          return -1;
-        }
-        return (
-          collator.compare(leftFolder, rightFolder) ||
-          collator.compare(bookTitle(left), bookTitle(right))
-        );
-      }
     }
   });
 }
@@ -209,12 +225,10 @@ export function getVisibleBooksFromSearchIndex(
   query: string,
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
-  folders: Folder[] = [],
 ): Book[] {
   return sortBooks(
     filterBookSearchIndex(filterSearchIndexByLocation(index, location), query),
     sort,
-    folders,
   );
 }
 
@@ -230,6 +244,5 @@ export function getVisibleBooks(
     query,
     sort,
     location,
-    folders,
   );
 }

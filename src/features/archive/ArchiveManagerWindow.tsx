@@ -78,10 +78,6 @@ export function ArchiveManagerWindow() {
   useEffect(() => {
     let cancelled = false;
 
-    if (import.meta.env.DEV) {
-      console.info("[archive-manager] frontend boot");
-    }
-
     void archiveStore.initialize().catch((error) => {
       if (!cancelled) {
         setInitializationError(messageFromError(error));

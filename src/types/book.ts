@@ -12,7 +12,14 @@ export type Book = {
   folderPath?: string;
   size?: number;
   modifiedAt?: string;
+  /**
+   * Filesystem-derived fallback title captured during scan.
+   * Parsed EPUB package metadata remains in sourceMetadata.
+   */
   originalTitle: string;
+  /**
+   * Legacy source/fallback author field. Not an app-level display override.
+   */
   originalAuthor?: string;
   sourceMetadata?: EpubSourceMetadata;
   coverPath?: string;
@@ -29,10 +36,6 @@ export type Book = {
 export type UpdateBookInput = Partial<
   Pick<
     Book,
-    | "folderId"
-    | "isFavorite"
-    | "lastOpenedAt"
-    | "progressCfi"
-    | "progressPercent"
+    "isFavorite" | "lastOpenedAt" | "progressCfi" | "progressPercent"
   >
 >;

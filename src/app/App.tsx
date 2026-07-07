@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { WindowFrame } from "../components/WindowFrame";
@@ -10,12 +9,6 @@ import { resolveWindowMode } from "./windowMode";
 
 export function App() {
   const windowMode = resolveWindowMode();
-
-  useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.info(`[archeion] window mode: ${windowMode}`);
-    }
-  }, [windowMode]);
 
   if (windowMode === "archive-manager") {
     return <ArchiveManagerWindow />;

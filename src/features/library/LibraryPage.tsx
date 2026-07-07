@@ -41,7 +41,9 @@ import { ContinueReading } from "./ContinueReading";
 import {
   bookTitle,
   createLibrarySearchIndex,
+  DEFAULT_LIBRARY_SORT,
   getVisibleBooksFromSearchIndex,
+  sortBooks,
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
@@ -132,7 +134,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   >([]);
   const [libraryError, setLibraryError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<LibrarySort>("recently-added");
+  const [sort, setSort] = useState<LibrarySort>(DEFAULT_LIBRARY_SORT);
   const [view, setView] = useState<LibraryView>("grid");
   const [location, setLocation] = useState<LibraryLocation>({
     type: "library",
@@ -208,15 +210,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const continueBooks = useMemo(
     () =>
-      [...(books ?? [])]
-        .filter(
+      sortBooks(
+        (books ?? []).filter(
           (book) =>
             (book.progressPercent ?? 0) > 0 &&
             (book.progressPercent ?? 0) < 99.5,
-        )
-        .sort((left, right) =>
-          (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? ""),
         ),
+        "recently-opened",
+      ),
     [books],
   );
   const continuePreview = useMemo(
@@ -246,10 +247,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           debouncedQuery,
           sort,
           location,
-          folders,
         ),
       ),
-    [debouncedQuery, folders, location, searchIndex, sort],
+    [debouncedQuery, location, searchIndex, sort],
   );
   const selectedBook = useMemo(
     () => books?.find((book) => book.id === selectedBookId) ?? null,

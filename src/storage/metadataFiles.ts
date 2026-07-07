@@ -1,4 +1,9 @@
 import type { EpubSourceMetadata } from "../types/book";
+import {
+  DEFAULT_LIBRARY_SORT,
+  normalizeLibrarySort,
+  type LibrarySort,
+} from "../types/library";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 
 export type LibraryBookMetadata = {
@@ -33,7 +38,7 @@ export type SettingsMetadata = {
   reader: ReaderSettings;
   library: {
     viewMode: string;
-    sortBy: string;
+    sortBy: LibrarySort;
   };
 };
 
@@ -57,7 +62,21 @@ export function createSettingsMetadata(): SettingsMetadata {
     reader: normalizeReaderSettings(),
     library: {
       viewMode: "grid",
-      sortBy: "folder",
+      sortBy: DEFAULT_LIBRARY_SORT,
+    },
+  };
+}
+
+export function normalizeSettingsMetadata(
+  metadata: SettingsMetadata,
+): SettingsMetadata {
+  return {
+    ...metadata,
+    reader: normalizeReaderSettings(metadata.reader),
+    library: {
+      ...metadata.library,
+      viewMode: metadata.library.viewMode || "grid",
+      sortBy: normalizeLibrarySort(metadata.library.sortBy),
     },
   };
 }
