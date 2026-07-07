@@ -40,7 +40,8 @@ import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
 import {
-  getVisibleBooks,
+  createLibrarySearchIndex,
+  getVisibleBooksFromSearchIndex,
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
@@ -224,18 +225,22 @@ export function LibraryPage() {
 
     return counts;
   }, [books]);
+  const searchIndex = useMemo(
+    () => createLibrarySearchIndex(books ?? [], folders),
+    [books, folders],
+  );
   const visibleBooks = useMemo(
     () =>
       measurePerformance("archeion:filter-and-sort-library", () =>
-        getVisibleBooks(
-          books ?? [],
+        getVisibleBooksFromSearchIndex(
+          searchIndex,
           debouncedQuery,
           sort,
           location,
           folders,
         ),
       ),
-    [books, debouncedQuery, folders, location, sort],
+    [debouncedQuery, folders, location, searchIndex, sort],
   );
   const selectedBook = useMemo(
     () => books?.find((book) => book.id === selectedBookId) ?? null,
@@ -574,7 +579,7 @@ export function LibraryPage() {
           canRevealFolders
           folders={folders ?? []}
           onCreate={openCreateFolder}
-            onDelete={setDeleteFolderTarget}
+          onDelete={setDeleteFolderTarget}
           onMove={setMoveFolderTarget}
           onOpen={(folder) =>
             changeLocation({ type: "folder", folderId: folder.id })
@@ -685,25 +690,25 @@ export function LibraryPage() {
               <BookGrid
                 books={visibleBooks}
                 canManageFile
-                  onDelete={requestDelete}
+                onDelete={requestDelete}
                 onMove={requestMoveBook}
-                  onRead={readBook}
-                  onRenameFile={requestRenameFile}
-                  onRevealFile={(book) => void revealBookFile(book)}
+                onRead={readBook}
+                onRenameFile={requestRenameFile}
+                onRevealFile={(book) => void revealBookFile(book)}
                 onSelect={selectBook}
-                  onToggleFavorite={toggleFavorite}
+                onToggleFavorite={toggleFavorite}
               />
             ) : (
               <BookList
                 books={visibleBooks}
                 canManageFile
-                  onDelete={requestDelete}
+                onDelete={requestDelete}
                 onMove={requestMoveBook}
-                  onRead={readBook}
-                  onRenameFile={requestRenameFile}
-                  onRevealFile={(book) => void revealBookFile(book)}
+                onRead={readBook}
+                onRenameFile={requestRenameFile}
+                onRevealFile={(book) => void revealBookFile(book)}
                 onSelect={selectBook}
-                  onToggleFavorite={toggleFavorite}
+                onToggleFavorite={toggleFavorite}
               />
             )}
           </div>

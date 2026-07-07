@@ -5,6 +5,8 @@ import type { Folder } from "../../types/folder";
 import {
   bookAuthor,
   bookTitle,
+  createLibrarySearchIndex,
+  filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
   sortBooks,
@@ -120,6 +122,15 @@ describe("library filters", () => {
     expect(filterBooks([contextualBook], "science", folders)).toEqual([
       contextualBook,
     ]);
+  });
+
+
+  it("builds a reusable search index for repeated queries", () => {
+    const index = createLibrarySearchIndex(books, folders);
+
+    expect(filterBookSearchIndex(index, "renamed")).toEqual([books[0]]);
+    expect(filterBookSearchIndex(index, "science fiction")).toEqual([books[1]]);
+    expect(filterBookSearchIndex(index, "missing")).toEqual([]);
   });
 
   it("sorts by added and opened timestamps", () => {

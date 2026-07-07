@@ -68,22 +68,20 @@ function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
   ].filter((value): value is string => Boolean(value));
 }
 
-export function filterBooks(
+export type LibrarySearchIndexEntry = {
+  book: Book;
+  searchText: string;
+};
+
+export function createLibrarySearchIndex(
   books: Book[],
-  query: string,
   folders: Folder[] = [],
-): Book[] {
-  const normalizedQuery = normalize(query);
-
-  if (!normalizedQuery) {
-    return books;
-  }
-
-  const terms = normalizedQuery.split(/\s+/);
+): LibrarySearchIndexEntry[] {
   const folderLookup = foldersById(folders);
 
-  return books.filter((book) => {
-    const searchableValues = [
+  return books.map((book) => ({
+    book,
+    searchText: [
       book.displayTitle,
       book.originalTitle,
       book.sourceMetadata?.title,
@@ -96,12 +94,36 @@ export function filterBooks(
       book.relativePath,
       book.folderPath,
       ...bookFolder(book, folderLookup),
-    ].map(normalize);
+    ]
+      .map(normalize)
+      .filter(Boolean)
+      .join("\u0000"),
+  }));
+}
 
-    return terms.every((term) =>
-      searchableValues.some((value) => value.includes(term)),
-    );
-  });
+export function filterBookSearchIndex(
+  index: LibrarySearchIndexEntry[],
+  query: string,
+): Book[] {
+  const normalizedQuery = normalize(query);
+
+  if (!normalizedQuery) {
+    return index.map((entry) => entry.book);
+  }
+
+  const terms = normalizedQuery.split(/\s+/);
+
+  return index
+    .filter((entry) => terms.every((term) => entry.searchText.includes(term)))
+    .map((entry) => entry.book);
+}
+
+export function filterBooks(
+  books: Book[],
+  query: string,
+  folders: Folder[] = [],
+): Book[] {
+  return filterBookSearchIndex(createLibrarySearchIndex(books, folders), query);
 }
 
 export function filterBooksByLocation(
@@ -185,6 +207,42 @@ export function sortBooks(
   });
 }
 
+function filterSearchIndexByLocation(
+  index: LibrarySearchIndexEntry[],
+  location: LibraryLocation,
+): LibrarySearchIndexEntry[] {
+  switch (location.type) {
+    case "library":
+      return index;
+    case "favorites":
+      return index.filter((entry) => entry.book.isFavorite);
+    case "continue":
+      return index.filter(
+        (entry) =>
+          (entry.book.progressPercent ?? 0) > 0 &&
+          (entry.book.progressPercent ?? 0) < 99.5,
+      );
+    case "folders":
+      return [];
+    case "folder":
+      return index.filter((entry) => entry.book.folderId === location.folderId);
+  }
+}
+
+export function getVisibleBooksFromSearchIndex(
+  index: LibrarySearchIndexEntry[],
+  query: string,
+  sort: LibrarySort,
+  location: LibraryLocation = { type: "library" },
+  folders: Folder[] = [],
+): Book[] {
+  return sortBooks(
+    filterBookSearchIndex(filterSearchIndexByLocation(index, location), query),
+    sort,
+    folders,
+  );
+}
+
 export function getVisibleBooks(
   books: Book[],
   query: string,
@@ -192,9 +250,11 @@ export function getVisibleBooks(
   location: LibraryLocation = { type: "library" },
   folders: Folder[] = [],
 ): Book[] {
-  return sortBooks(
-    filterBooks(filterBooksByLocation(books, location), query, folders),
+  return getVisibleBooksFromSearchIndex(
+    createLibrarySearchIndex(books, folders),
+    query,
     sort,
+    location,
     folders,
   );
 }
