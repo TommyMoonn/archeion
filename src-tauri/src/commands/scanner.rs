@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
     time::UNIX_EPOCH,
@@ -6,7 +7,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::{epub_metadata, filesystem, vault};
+use super::{epub_metadata, filesystem, metadata, vault};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -55,9 +56,93 @@ fn discovery_id(relative_path: &str, size: u64, modified_at: u64) -> String {
     format!("book-{hash:016x}")
 }
 
+fn cached_source_metadata(
+    relative_path: &str,
+    size: u64,
+    modified_at: u64,
+    cache: &metadata::ScannerCache,
+    warnings: &mut Vec<VaultScanWarning>,
+) -> Option<Option<epub_metadata::EpubPackageMetadata>> {
+    let entry = cache.entries.get(relative_path)?;
+    if entry.size != size || entry.modified_at != modified_at {
+        return None;
+    }
+
+    if let Some(error) = &entry.metadata_error {
+        warnings.push(VaultScanWarning {
+            relative_path: relative_path.to_string(),
+            message: error.clone(),
+        });
+    }
+
+    Some(entry.source_metadata.clone())
+}
+
+fn scan_source_metadata(
+    path: &Path,
+    relative_path: &str,
+    size: u64,
+    modified_at: u64,
+    cache: &metadata::ScannerCache,
+    next_cache_entries: &mut BTreeMap<String, metadata::ScannerCacheEntry>,
+    warnings: &mut Vec<VaultScanWarning>,
+) -> Option<epub_metadata::EpubPackageMetadata> {
+    if let Some(source_metadata) =
+        cached_source_metadata(relative_path, size, modified_at, cache, warnings)
+    {
+        next_cache_entries.insert(
+            relative_path.to_string(),
+            metadata::ScannerCacheEntry {
+                size,
+                modified_at,
+                source_metadata: source_metadata.clone(),
+                metadata_error: cache
+                    .entries
+                    .get(relative_path)
+                    .and_then(|entry| entry.metadata_error.clone()),
+            },
+        );
+        return source_metadata;
+    }
+
+    match epub_metadata::read_core_metadata(path) {
+        Ok(metadata) => {
+            let source_metadata = (!metadata.is_empty()).then_some(metadata);
+            next_cache_entries.insert(
+                relative_path.to_string(),
+                metadata::ScannerCacheEntry {
+                    size,
+                    modified_at,
+                    source_metadata: source_metadata.clone(),
+                    metadata_error: None,
+                },
+            );
+            source_metadata
+        }
+        Err(error) => {
+            warnings.push(VaultScanWarning {
+                relative_path: relative_path.to_string(),
+                message: error.clone(),
+            });
+            next_cache_entries.insert(
+                relative_path.to_string(),
+                metadata::ScannerCacheEntry {
+                    size,
+                    modified_at,
+                    source_metadata: None,
+                    metadata_error: Some(error),
+                },
+            );
+            None
+        }
+    }
+}
+
 fn scan_directory(
     root: &Path,
     directory: &Path,
+    cache: &metadata::ScannerCache,
+    next_cache_entries: &mut BTreeMap<String, metadata::ScannerCacheEntry>,
     books: &mut Vec<ScannedBook>,
     folders: &mut Vec<ScannedFolder>,
     warnings: &mut Vec<VaultScanWarning>,
@@ -88,7 +173,15 @@ fn scan_directory(
                 relative_path,
                 parent_path,
             });
-            scan_directory(root, &path, books, folders, warnings)?;
+            scan_directory(
+                root,
+                &path,
+                cache,
+                next_cache_entries,
+                books,
+                folders,
+                warnings,
+            )?;
             continue;
         }
 
@@ -112,16 +205,15 @@ fn scan_directory(
             .unwrap_or_default();
         let size = metadata.len();
 
-        let source_metadata = match epub_metadata::read_core_metadata(&path) {
-            Ok(metadata) => (!metadata.is_empty()).then_some(metadata),
-            Err(error) => {
-                warnings.push(VaultScanWarning {
-                    relative_path: relative_path.clone(),
-                    message: error,
-                });
-                None
-            }
-        };
+        let source_metadata = scan_source_metadata(
+            &path,
+            &relative_path,
+            size,
+            modified_at,
+            cache,
+            next_cache_entries,
+            warnings,
+        );
 
         books.push(ScannedBook {
             discovery_id: discovery_id(&relative_path, size, modified_at),
@@ -142,12 +234,26 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
         return Err("The saved library folder is unavailable.".to_string());
     }
 
+    let cache = metadata::load_scanner_cache_at(&root).unwrap_or_default();
+    let mut next_cache = metadata::ScannerCache::default();
     let mut books = Vec::new();
     let mut folders = Vec::new();
     let mut warnings = Vec::new();
-    scan_directory(&root, &root, &mut books, &mut folders, &mut warnings)?;
+    scan_directory(
+        &root,
+        &root,
+        &cache,
+        &mut next_cache.entries,
+        &mut books,
+        &mut folders,
+        &mut warnings,
+    )?;
     books.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     folders.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+
+    if next_cache != cache {
+        let _ = metadata::save_scanner_cache_at(&root, &next_cache);
+    }
 
     Ok(VaultScan {
         books,
@@ -157,10 +263,12 @@ fn scan_path(root: PathBuf) -> Result<VaultScan, String> {
 }
 
 #[tauri::command]
-pub fn scan_vault(app: tauri::AppHandle) -> Result<VaultScan, String> {
+pub async fn scan_vault(app: tauri::AppHandle) -> Result<VaultScan, String> {
     let path = vault::read_vault_path(&app)?
         .ok_or_else(|| "No library folder has been selected.".to_string())?;
-    scan_path(PathBuf::from(path))
+    tauri::async_runtime::spawn_blocking(move || scan_path(PathBuf::from(path)))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[cfg(test)]
@@ -193,6 +301,17 @@ mod tests {
             .write_all(package_xml)
             .expect("package should be written");
         archive.finish().expect("EPUB should finish");
+    }
+
+    fn modified_at_millis(path: &std::path::Path) -> u64 {
+        fs::metadata(path)
+            .expect("file metadata should be readable")
+            .modified()
+            .expect("modified time should exist")
+            .duration_since(UNIX_EPOCH)
+            .expect("modified time should be after epoch")
+            .as_millis()
+            .min(u128::from(u64::MAX)) as u64
     }
 
     #[test]
@@ -233,6 +352,124 @@ mod tests {
         assert_eq!(scan.warnings.len(), 1);
         assert_eq!(scan.warnings[0].relative_path, "broken.epub");
 
+        fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn uses_cached_metadata_for_unchanged_epubs() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-scanner-cache-{nonce}"));
+        fs::create_dir_all(root.join(".archeion")).expect("metadata directory should be created");
+        let epub_path = root.join("cached.epub");
+        fs::write(&epub_path, b"bad").expect("bad EPUB should be written");
+        let modified_at = modified_at_millis(&epub_path);
+        fs::write(
+            root.join(".archeion").join("scanner-cache.json"),
+            serde_json::json!({
+                "version": 1,
+                "entries": {
+                    "cached.epub": {
+                        "size": 3,
+                        "modifiedAt": modified_at,
+                        "sourceMetadata": {
+                            "title": "Cached Title",
+                            "creator": "Cached Author",
+                            "identifier": "urn:cached"
+                        }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("scanner cache should be written");
+
+        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+
+        assert_eq!(scan.warnings.len(), 0);
+        let metadata = scan.books[0]
+            .source_metadata
+            .as_ref()
+            .expect("cached metadata should be used");
+        assert_eq!(metadata.title.as_deref(), Some("Cached Title"));
+        assert_eq!(metadata.creator.as_deref(), Some("Cached Author"));
+        assert_eq!(metadata.identifier.as_deref(), Some("urn:cached"));
+        fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn recovers_from_corrupted_scanner_cache() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-scanner-cache-corrupt-{nonce}"));
+        let metadata_dir = root.join(".archeion");
+        fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
+        write_minimal_epub(
+            &root.join("recovered.epub"),
+            br#"<package><metadata><dc:title>Recovered Title</dc:title></metadata></package>"#,
+        );
+        fs::write(metadata_dir.join("scanner-cache.json"), b"{not-json")
+            .expect("corrupted scanner cache should be written");
+
+        let scan = scan_path(root.clone()).expect("vault scan should recover and succeed");
+
+        assert_eq!(scan.books.len(), 1);
+        let metadata = scan.books[0]
+            .source_metadata
+            .as_ref()
+            .expect("metadata should be parsed after cache recovery");
+        assert_eq!(metadata.title.as_deref(), Some("Recovered Title"));
+        assert!(metadata_dir.join("scanner-cache.json").is_file());
+        assert!(metadata_dir
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("scanner-cache.json.corrupt-")));
+        fs::remove_dir_all(root).expect("test vault should be removed");
+    }
+
+    #[test]
+    fn refreshes_stale_scanner_cache_entries() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-scanner-cache-refresh-{nonce}"));
+        fs::create_dir_all(root.join(".archeion")).expect("metadata directory should be created");
+        write_minimal_epub(
+            &root.join("changed.epub"),
+            br#"<package><metadata><dc:title>Fresh Title</dc:title></metadata></package>"#,
+        );
+        fs::write(
+            root.join(".archeion").join("scanner-cache.json"),
+            serde_json::json!({
+                "version": 1,
+                "entries": {
+                    "changed.epub": {
+                        "size": 1,
+                        "modifiedAt": 1,
+                        "sourceMetadata": { "title": "Stale Title" }
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("scanner cache should be written");
+
+        let scan = scan_path(root.clone()).expect("vault scan should succeed");
+
+        let metadata = scan.books[0]
+            .source_metadata
+            .as_ref()
+            .expect("fresh metadata should be parsed");
+        assert_eq!(metadata.title.as_deref(), Some("Fresh Title"));
         fs::remove_dir_all(root).expect("test vault should be removed");
     }
 

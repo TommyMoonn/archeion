@@ -20,6 +20,10 @@ export type RescanOptions = {
   followUpIfRunning?: boolean;
 };
 
+export type ScanStatus =
+  | { status: "idle" }
+  | { status: "scanning"; startedAt: string };
+
 export type ArchiveImportMode = "copy" | "move";
 
 export type ArchivePathChange = {
@@ -44,6 +48,7 @@ export type ArchiveImportResult = {
 
 export interface LibraryStorage {
   rescan(options?: RescanOptions): Promise<void>;
+  observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription;
   addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
   getBook(id: string): Promise<Book | undefined>;

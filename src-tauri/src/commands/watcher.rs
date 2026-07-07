@@ -65,11 +65,32 @@ fn path_is_inside_metadata_directory(root: &Path, path: &Path) -> bool {
     )
 }
 
+fn path_may_affect_archive_content(root: &Path, path: &Path) -> bool {
+    if path_is_inside_metadata_directory(root, path) {
+        return false;
+    }
+
+    if path
+        .extension()
+        .is_some_and(|extension| extension
+            .to_string_lossy()
+            .eq_ignore_ascii_case("epub"))
+    {
+        return true;
+    }
+
+    if path.exists() {
+        return path.is_dir() || path.extension().is_none();
+    }
+
+    true
+}
+
 fn event_path_for_payload(root: &Path, event: &Event) -> Option<String> {
     event
         .paths
         .iter()
-        .find(|path| !path_is_inside_metadata_directory(root, path))
+        .find(|path| path_may_affect_archive_content(root, path))
         .map(|path| path.to_string_lossy().into_owned())
 }
 
@@ -154,7 +175,10 @@ pub fn stop_vault_watcher(
 mod tests {
     use notify::Event;
 
-    use super::{event_touches_user_content, path_is_inside_metadata_directory};
+    use super::{
+        event_touches_user_content, path_is_inside_metadata_directory,
+        path_may_affect_archive_content,
+    };
 
     #[test]
     fn ignores_metadata_directory_events() {
@@ -167,6 +191,38 @@ mod tests {
             &root,
             &root.join("Author/Book.epub")
         ));
+    }
+
+    #[test]
+    fn filters_existing_non_epub_files_but_keeps_archive_paths() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-watcher-filter-{nonce}"));
+        std::fs::create_dir_all(root.join("Author/Series.v1"))
+            .expect("test directory should be created");
+        std::fs::write(root.join("notes.txt"), b"notes")
+            .expect("test file should be written");
+
+        assert!(!path_may_affect_archive_content(
+            &root,
+            &root.join("notes.txt")
+        ));
+        assert!(path_may_affect_archive_content(
+            &root,
+            &root.join("Author/Book.epub")
+        ));
+        assert!(path_may_affect_archive_content(
+            &root,
+            &root.join("Author/Series.v1")
+        ));
+        assert!(path_may_affect_archive_content(
+            &root,
+            &root.join("Author/Deleted.Series.v1")
+        ));
+
+        std::fs::remove_dir_all(root).expect("test directory should be removed");
     }
 
     #[test]

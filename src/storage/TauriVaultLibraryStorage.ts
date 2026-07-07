@@ -21,6 +21,7 @@ import type {
   ArchivePathChange,
   LibraryStorage,
   RescanOptions,
+  ScanStatus,
   StorageObserver,
   StorageSubscription,
 } from "./LibraryStorage";
@@ -55,9 +56,11 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private scanPromise: Promise<void> | null = null;
   private followUpScanQueued = false;
   private metadataWriteQueue: Promise<void> = Promise.resolve();
+  private scanStatus: ScanStatus = { status: "idle" };
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
   private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
+  private readonly scanStatusObservers = new Set<StorageObserver<ScanStatus>>();
   private libraryMetadata = createLibraryMetadata();
   private progressMetadata = createProgressMetadata();
   private settingsMetadata = createSettingsMetadata();
@@ -70,11 +73,16 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
       return this.scanPromise;
     }
 
+    this.setScanStatus({
+      status: "scanning",
+      startedAt: new Date().toISOString(),
+    });
     this.scanPromise = this.performQueuedScans();
     try {
       await this.scanPromise;
     } finally {
       this.scanPromise = null;
+      this.setScanStatus({ status: "idle" });
     }
   }
 
@@ -143,6 +151,32 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
   private emitFolders() {
     const folders = [...this.folders];
     this.folderObservers.forEach((observer) => observer.next(folders));
+  }
+
+  private setScanStatus(status: ScanStatus) {
+    const current = this.scanStatus;
+    if (current.status === status.status) {
+      if (current.status === "idle") {
+        return;
+      }
+      if (
+        status.status === "scanning" &&
+        current.startedAt === status.startedAt
+      ) {
+        return;
+      }
+    }
+
+    this.scanStatus = status;
+    this.scanStatusObservers.forEach((observer) => observer.next(status));
+  }
+
+  observeScanStatus(
+    observer: StorageObserver<ScanStatus>,
+  ): StorageSubscription {
+    this.scanStatusObservers.add(observer);
+    observer.next(this.scanStatus);
+    return () => this.scanStatusObservers.delete(observer);
   }
 
   private enqueueMetadataWrite(write: () => Promise<void>) {
@@ -332,45 +366,73 @@ export class TauriVaultLibraryStorage implements LibraryStorage {
     }
 
     const timestamp = new Date().toISOString();
-    const libraryChanged =
-      "displayTitle" in changes ||
-      "displayAuthor" in changes ||
-      "isFavorite" in changes;
-    const progressChanged =
-      "progressCfi" in changes ||
-      "progressPercent" in changes ||
-      "lastOpenedAt" in changes;
+    let libraryChanged = false;
+    let progressChanged = false;
 
-    if (libraryChanged) {
+    if (
+      Object.hasOwn(changes, "displayTitle") ||
+      Object.hasOwn(changes, "displayAuthor") ||
+      Object.hasOwn(changes, "isFavorite")
+    ) {
       const current = this.libraryMetadata.books[id];
-      this.libraryMetadata.books[id] = {
+      const nextEntry = {
         ...current,
         relativePath: this.books[index].relativePath ?? current.relativePath,
-        displayTitle:
-          "displayTitle" in changes
-            ? changes.displayTitle
-            : current.displayTitle,
-        displayAuthor:
-          "displayAuthor" in changes
-            ? changes.displayAuthor
-            : current.displayAuthor,
-        isFavorite: changes.isFavorite ?? current.isFavorite,
-        updatedAt: timestamp,
+        displayTitle: Object.hasOwn(changes, "displayTitle")
+          ? changes.displayTitle
+          : current.displayTitle,
+        displayAuthor: Object.hasOwn(changes, "displayAuthor")
+          ? changes.displayAuthor
+          : current.displayAuthor,
+        isFavorite: Object.hasOwn(changes, "isFavorite")
+          ? Boolean(changes.isFavorite)
+          : current.isFavorite,
       };
+
+      libraryChanged =
+        current.relativePath !== nextEntry.relativePath ||
+        current.displayTitle !== nextEntry.displayTitle ||
+        current.displayAuthor !== nextEntry.displayAuthor ||
+        current.isFavorite !== nextEntry.isFavorite;
+
+      if (libraryChanged) {
+        this.libraryMetadata.books[id] = {
+          ...nextEntry,
+          updatedAt: timestamp,
+        };
+      }
     }
-    if (progressChanged) {
+
+    if (
+      Object.hasOwn(changes, "progressCfi") ||
+      Object.hasOwn(changes, "progressPercent") ||
+      Object.hasOwn(changes, "lastOpenedAt")
+    ) {
       const current = this.progressMetadata.progress[id] ?? { percent: 0 };
-      this.progressMetadata.progress[id] = {
-        cfi: "progressCfi" in changes ? changes.progressCfi : current.cfi,
-        percent:
-          changes.progressPercent === undefined
-            ? current.percent
-            : changes.progressPercent,
-        lastOpenedAt:
-          "lastOpenedAt" in changes
-            ? changes.lastOpenedAt
-            : current.lastOpenedAt,
+      const nextProgress = {
+        cfi: Object.hasOwn(changes, "progressCfi")
+          ? changes.progressCfi
+          : current.cfi,
+        percent: Object.hasOwn(changes, "progressPercent")
+          ? (changes.progressPercent ?? 0)
+          : current.percent,
+        lastOpenedAt: Object.hasOwn(changes, "lastOpenedAt")
+          ? changes.lastOpenedAt
+          : current.lastOpenedAt,
       };
+
+      progressChanged =
+        current.cfi !== nextProgress.cfi ||
+        current.percent !== nextProgress.percent ||
+        current.lastOpenedAt !== nextProgress.lastOpenedAt;
+
+      if (progressChanged) {
+        this.progressMetadata.progress[id] = nextProgress;
+      }
+    }
+
+    if (!libraryChanged && !progressChanged) {
+      return this.books[index];
     }
 
     const writes: Array<() => Promise<unknown>> = [];

@@ -585,6 +585,56 @@ describe("TauriVaultLibraryStorage", () => {
     });
   });
 
+  it("reports scan status while a rescan is active", async () => {
+    let finishScan!: (value: typeof firstScan) => void;
+    const scanPromise = new Promise<typeof firstScan>((resolve) => {
+      finishScan = resolve;
+    });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_vault") {
+        return scanPromise;
+      }
+      if (command === "load_vault_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriVaultLibraryStorage();
+    const statuses: string[] = [];
+    storage.observeScanStatus({
+      next: (status) => statuses.push(status.status),
+    });
+
+    const rescan = storage.rescan();
+    await Promise.resolve();
+
+    expect(statuses).toEqual(["idle", "scanning"]);
+    finishScan(structuredClone(firstScan));
+    await rescan;
+
+    expect(statuses).toEqual(["idle", "scanning", "idle"]);
+  });
+
+  it("does not write metadata for unchanged progress updates", async () => {
+    const storage = new TauriVaultLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const updated = await storage.updateBook("book-1", {
+      progressPercent: 42,
+    });
+
+    expect(updated?.progressPercent).toBe(42);
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "save_progress_metadata",
+      expect.anything(),
+    );
+    expect(invokeMock).not.toHaveBeenCalledWith(
+      "save_library_metadata",
+      expect.anything(),
+    );
+  });
+
   it("persists reader settings", async () => {
     const storage = new TauriVaultLibraryStorage();
     const settings = await storage.updateReaderSettings({

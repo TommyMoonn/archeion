@@ -10,11 +10,11 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use super::{epub_metadata, vault};
 
-const METADATA_DIRECTORY: &str = ".archeion";
+pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const LIBRARY_FILE: &str = "library.json";
 const PROGRESS_FILE: &str = "progress.json";
 const SETTINGS_FILE: &str = "settings.json";
-const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
+pub(crate) const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -178,10 +178,23 @@ impl Default for SettingsMetadata {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ScannerCacheEntry {
+    #[serde(default)]
+    pub size: u64,
+    #[serde(default)]
+    pub modified_at: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_metadata: Option<epub_metadata::EpubPackageMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub metadata_error: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct ScannerCache {
     pub version: u8,
-    pub entries: BTreeMap<String, serde_json::Value>,
+    pub entries: BTreeMap<String, ScannerCacheEntry>,
 }
 
 impl Default for ScannerCache {
@@ -274,8 +287,15 @@ fn initialize_at(root: &Path) -> Result<(), String> {
     read_json::<LibraryMetadata>(&directory.join(LIBRARY_FILE))?;
     read_json::<ProgressMetadata>(&directory.join(PROGRESS_FILE))?;
     read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))?;
-    read_json::<ScannerCache>(&directory.join(SCANNER_CACHE_FILE))?;
     Ok(())
+}
+
+pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
+    read_json(&metadata_path(root).join(SCANNER_CACHE_FILE))
+}
+
+pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result<(), String> {
+    write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
 }
 
 fn vault_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -359,7 +379,7 @@ mod tests {
         assert!(metadata.join("library.json").is_file());
         assert!(metadata.join("progress.json").is_file());
         assert!(metadata.join("settings.json").is_file());
-        assert!(metadata.join("scanner-cache.json").is_file());
+        assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
         fs::remove_dir_all(root).expect("test vault should be removed");
     }
