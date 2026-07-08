@@ -1,45 +1,70 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { defaultAppPreferences } from "../../../types/appSettings";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { ArchivesSettingsSection } from "./ArchivesSettingsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
+import type { SettingsDialogController } from "../useSettingsDialogController";
 
-const noop = () => undefined;
+function createController(
+  overrides: Partial<SettingsDialogController> = {},
+): SettingsDialogController {
+  const preferences = { ...defaultAppPreferences };
+
+  return {
+    cache: { fileCount: 2, totalBytes: 4096 },
+    closeConfirmation: vi.fn(),
+    confirmations: {
+      clearCoverCache: false,
+      clearScannerCache: false,
+      reextractMetadata: false,
+      rescanArchive: false,
+    },
+    destinationOptions: [{ label: "Archive root", value: "" }],
+    files: preferences.filesAndMetadata,
+    importSettings: preferences.import,
+    library: preferences.library,
+    openArchiveManager: vi.fn(),
+    openConfirmation: vi.fn(),
+    persistenceStatus: { status: "idle" },
+    preferences,
+    reader: preferences.reader,
+    resetAppearance: vi.fn(),
+    resetGeneral: vi.fn(),
+    resetImport: vi.fn(),
+    resetLibrary: vi.fn(),
+    resetReader: vi.fn(),
+    resetStorage: vi.fn(),
+    resetWindow: vi.fn(),
+    revealArchiveFolder: vi.fn(),
+    revealMetadata: vi.fn(),
+    safeImportDestinationValue: "",
+    selectedArchivePath: undefined,
+    status: null,
+    updateAppPreferences: vi.fn(async () => true),
+    updateFiles: vi.fn(),
+    updateImportDefaults: vi.fn(),
+    updateImportDestination: vi.fn(),
+    updateLibrary: vi.fn(),
+    updateReader: vi.fn(),
+    confirmClearCoverCache: vi.fn(),
+    confirmClearScannerCache: vi.fn(),
+    confirmReextractMetadata: vi.fn(),
+    confirmRescanArchive: vi.fn(),
+    ...overrides,
+  } as unknown as SettingsDialogController;
+}
 
 function renderAppearance() {
   return renderToStaticMarkup(
-    <AppearanceSettingsSection
-      appThemePreset="dark"
-      density="comfortable"
-      hidden={false}
-      onAppThemePresetChange={noop}
-      onDensityChange={noop}
-      onRememberWindowStateChange={noop}
-      onResetAppearance={noop}
-      onResetWindow={noop}
-      onWindowFrameStyleChange={noop}
-      rememberWindowState={false}
-      windowFrameStyle="hidden"
-    />,
+    <AppearanceSettingsSection context={createController()} hidden={false} />,
   );
 }
 
 function renderStorage() {
   return renderToStaticMarkup(
-    <StorageSettingsSection
-      cache={{ fileCount: 2, totalBytes: 4096 }}
-      files={{ liveWatcherEnabled: true, scanOnStartup: true }}
-      hidden={false}
-      onClearCoverCache={noop}
-      onClearScannerCache={noop}
-      onLiveWatcherEnabledChange={noop}
-      onReextractMetadata={noop}
-      onRescan={noop}
-      onReset={noop}
-      onRevealMetadataFolder={noop}
-      onScanOnStartupChange={noop}
-    />,
+    <StorageSettingsSection context={createController()} hidden={false} />,
   );
 }
 
@@ -64,12 +89,7 @@ describe("settings section components", () => {
 
   it("disables archive reveal when no archive path is available", () => {
     const markup = renderToStaticMarkup(
-      <ArchivesSettingsSection
-        archivePath={undefined}
-        hidden={false}
-        onOpenArchiveManager={vi.fn()}
-        onRevealArchiveFolder={vi.fn()}
-      />,
+      <ArchivesSettingsSection context={createController()} hidden={false} />,
     );
 
     expect(markup).toContain("No archive selected");

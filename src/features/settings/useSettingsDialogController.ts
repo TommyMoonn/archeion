@@ -423,3 +423,6 @@ export function useSettingsDialogController() {
     confirmRescanArchive: () => void rescan(),
   };
 }
+
+
+export type SettingsDialogController = ReturnType<typeof useSettingsDialogController>;

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { SettingsConfirmations } from "./SettingsConfirmations";
+import { SettingsSearchResults } from "./SettingsSearchResults";
 import { SettingsSidebar } from "./SettingsSidebar";
 import { SettingsStatus } from "./SettingsStatus";
 import { AppearanceSettingsSection } from "./sections/AppearanceSettingsSection";
@@ -12,11 +13,7 @@ import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
 import { StorageSettingsSection } from "./sections/StorageSettingsSection";
-import {
-  sectionMatches,
-  settingsSections,
-  type SettingsSection,
-} from "./settingsSections";
+import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 
 type SettingsDialogProps = {
@@ -30,21 +27,25 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("general");
   const [query, setQuery] = useState("");
+  const trimmedQuery = query.trim();
+  const searchActive = trimmedQuery.length > 0;
 
-  const visibleSections = useMemo(
+  const selectedSection = useMemo(
     () =>
-      settingsSections.filter((section) => sectionMatches(section.id, query)),
-    [query],
+      settingsSections.some((section) => section.id === activeSection)
+        ? activeSection
+        : "general",
+    [activeSection],
   );
-  const selectedSection = visibleSections.some(
-    (section) => section.id === activeSection,
-  )
-    ? activeSection
-    : (visibleSections[0]?.id ?? activeSection);
   const sectionHidden = (section: SettingsSection) => selectedSection !== section;
 
   function showSection(section: SettingsSection) {
     setActiveSection(section);
+    contentRef.current?.scrollTo({ top: 0 });
+  }
+
+  function clearSearch() {
+    setQuery("");
     contentRef.current?.scrollTo({ top: 0 });
   }
 
@@ -60,6 +61,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       }
     };
   }, []);
+
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [trimmedQuery]);
 
   return (
     <dialog
@@ -82,7 +87,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           onQueryChange={setQuery}
           onSectionChange={showSection}
           query={query}
-          sections={visibleSections}
+          sections={settingsSections}
           selectedSection={selectedSection}
         />
 
@@ -96,118 +101,50 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         </IconButton>
 
         <main className="settings-content" ref={contentRef}>
-          <GeneralSettingsSection
-            confirmDestructiveFileActions={
-              controller.preferences.confirmDestructiveFileActions
-            }
-            hidden={sectionHidden("general")}
-            onConfirmDestructiveFileActionsChange={
-              (confirmDestructiveFileActions) =>
-                void controller.updateAppPreferences({
-                  confirmDestructiveFileActions,
-                })
-            }
-            onReset={() => void controller.resetGeneral()}
-            onRestoreLastReaderChange={(restoreLastReader) =>
-              void controller.updateAppPreferences({ restoreLastReader })
-            }
-            onStartupBehaviorChange={(startupBehavior) =>
-              void controller.updateAppPreferences({ startupBehavior })
-            }
-            restoreLastReader={controller.preferences.restoreLastReader}
-            startupBehavior={controller.preferences.startupBehavior}
-          />
+          {searchActive ? (
+            <SettingsSearchResults
+              controller={controller}
+              onClearSearch={clearSearch}
+              query={trimmedQuery}
+            />
+          ) : (
+            <>
+              <GeneralSettingsSection
+                context={controller}
+                hidden={sectionHidden("general")}
+              />
 
-          <ArchivesSettingsSection
-            archivePath={controller.selectedArchivePath}
-            hidden={sectionHidden("archives")}
-            onOpenArchiveManager={() => void controller.openArchiveManager()}
-            onRevealArchiveFolder={() => void controller.revealArchiveFolder()}
-          />
+              <ArchivesSettingsSection
+                context={controller}
+                hidden={sectionHidden("archives")}
+              />
 
-          <LibrarySettingsSection
-            bookCardSize={controller.preferences.bookCardSize}
-            hidden={sectionHidden("library")}
-            library={controller.library}
-            onBookCardSizeChange={(bookCardSize) =>
-              void controller.updateAppPreferences({ bookCardSize })
-            }
-            onReset={() => void controller.resetLibrary()}
-            onShowContinueReadingChange={(showContinueReading) =>
-              void controller.updateAppPreferences({ showContinueReading })
-            }
-            onSortByChange={(sortBy) => controller.updateLibrary({ sortBy })}
-            onViewModeChange={(viewMode) => controller.updateLibrary({ viewMode })}
-            showContinueReading={controller.preferences.showContinueReading}
-          />
+              <LibrarySettingsSection
+                context={controller}
+                hidden={sectionHidden("library")}
+              />
 
-          <ReaderSettingsSection
-            hidden={sectionHidden("reader")}
-            onChange={controller.updateReader}
-            onReset={() => void controller.resetReader()}
-            reader={controller.reader}
-          />
+              <ReaderSettingsSection
+                context={controller}
+                hidden={sectionHidden("reader")}
+              />
 
-          <AppearanceSettingsSection
-            appThemePreset={controller.preferences.appThemePreset}
-            density={controller.preferences.density}
-            hidden={sectionHidden("appearance")}
-            onAppThemePresetChange={(appThemePreset) =>
-              void controller.updateAppPreferences({ appThemePreset })
-            }
-            onDensityChange={(density) =>
-              void controller.updateAppPreferences({ density })
-            }
-            onRememberWindowStateChange={(rememberWindowState) =>
-              void controller.updateAppPreferences({ rememberWindowState })
-            }
-            onResetAppearance={() => void controller.resetAppearance()}
-            onResetWindow={() => void controller.resetWindow()}
-            onWindowFrameStyleChange={(windowFrameStyle) =>
-              void controller.updateAppPreferences({ windowFrameStyle })
-            }
-            rememberWindowState={controller.preferences.rememberWindowState}
-            windowFrameStyle={controller.preferences.windowFrameStyle}
-          />
+              <AppearanceSettingsSection
+                context={controller}
+                hidden={sectionHidden("appearance")}
+              />
 
-          <StorageSettingsSection
-            cache={controller.cache}
-            files={controller.files}
-            hidden={sectionHidden("storage")}
-            onClearCoverCache={() =>
-              controller.openConfirmation("clearCoverCache")
-            }
-            onClearScannerCache={() =>
-              controller.openConfirmation("clearScannerCache")
-            }
-            onLiveWatcherEnabledChange={(liveWatcherEnabled) =>
-              controller.updateFiles({ liveWatcherEnabled })
-            }
-            onReextractMetadata={() =>
-              controller.openConfirmation("reextractMetadata")
-            }
-            onRescan={() => controller.openConfirmation("rescanArchive")}
-            onReset={() => void controller.resetStorage()}
-            onRevealMetadataFolder={() => void controller.revealMetadata()}
-            onScanOnStartupChange={(scanOnStartup) =>
-              controller.updateFiles({ scanOnStartup })
-            }
-          />
+              <StorageSettingsSection
+                context={controller}
+                hidden={sectionHidden("storage")}
+              />
 
-          <ImportSettingsSection
-            destinationOptions={controller.destinationOptions}
-            hidden={sectionHidden("import")}
-            importSettings={controller.importSettings}
-            onConflictActionChange={(defaultConflictAction) =>
-              controller.updateImportDefaults({ defaultConflictAction })
-            }
-            onDestinationChange={controller.updateImportDestination}
-            onImportModeChange={(defaultMode) =>
-              controller.updateImportDefaults({ defaultMode })
-            }
-            onReset={() => void controller.resetImport()}
-            safeDestinationValue={controller.safeImportDestinationValue}
-          />
+              <ImportSettingsSection
+                context={controller}
+                hidden={sectionHidden("import")}
+              />
+            </>
+          )}
 
           <SettingsStatus
             persistenceStatus={controller.persistenceStatus}
