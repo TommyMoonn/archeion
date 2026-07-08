@@ -375,3 +375,18 @@ html.is-anchor-scrolling .terminal-card {
     animation: none !important;
   }
 }
+
+/* Anchor target fit responsive guards. */
+@media (max-width: 1040px) {
+  .archive-section,
+  .reader-section {
+    padding-block: 76px;
+  }
+}
+
+@media (max-width: 720px) {
+  .archive-section,
+  .reader-section {
+    padding-block: 66px;
+  }
+}

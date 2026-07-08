@@ -22,12 +22,21 @@
           anchorScrollTimer = 0;
         };
 
-        const beginAnchorScroll = (target) => {
+        const getAnchorScrollTop = (target) => {
+          const navHeight = document.querySelector(".site-nav")?.offsetHeight || 0;
+          const rect = target.getBoundingClientRect();
+          const anchorPadding = Math.min(6, Math.max(0, window.innerHeight * 0.006));
+          const readerNudge = target.id === "experience" ? 18 : 0;
+
+          return Math.max(0, Math.round(window.scrollY + rect.top - navHeight - anchorPadding + readerNudge));
+        };
+
+        const beginAnchorScroll = (destinationTop) => {
           pageRoot.classList.add("sections-prewarmed");
 
           if (prefersReducedMotion) return;
 
-          const distance = Math.abs(target.getBoundingClientRect().top);
+          const distance = Math.abs(window.scrollY - destinationTop);
           const settleDelay = Math.min(1200, Math.max(520, distance * 0.55));
 
           pageRoot.classList.add("is-anchor-scrolling");
@@ -44,8 +53,13 @@
             const target = document.querySelector(link.getAttribute("href"));
             if (!target) return;
             event.preventDefault();
-            beginAnchorScroll(target);
-            target.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
+
+            const destinationTop = getAnchorScrollTop(target);
+            beginAnchorScroll(destinationTop);
+            window.scrollTo({
+              top: destinationTop,
+              behavior: prefersReducedMotion ? "auto" : "smooth",
+            });
             history.pushState(null, "", link.getAttribute("href"));
           });
         });

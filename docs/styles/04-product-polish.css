@@ -788,7 +788,7 @@
 
 /* Reader showcase alignment fix. */
 .reader-section {
-  --reader-showcase-height: clamp(620px, 51vw, 644px);
+  --reader-showcase-height: clamp(580px, 47vw, 620px);
 }
 
 .reader-section .split-showcase {
@@ -839,4 +839,46 @@
     height: auto;
     min-height: auto;
   }
+}
+
+/* Anchor target fit: balanced spacing without skipping section titles. */
+.archive-section,
+.reader-section {
+  padding-block: clamp(76px, 8vh, 90px);
+}
+
+.archive-section .section-header,
+.reader-section .section-header {
+  margin-bottom: 30px;
+}
+
+.archive-section .product-grid {
+  gap: 14px;
+}
+
+.archive-section .product-grid .feature-card {
+  min-height: 252px;
+}
+
+.archive-section .feature-card.tall {
+  min-height: 482px;
+}
+
+.archive-section .archive-portal {
+  gap: 11px;
+  margin-top: 28px;
+  padding: 19px;
+}
+
+.reader-section {
+  --reader-showcase-height: clamp(580px, 47vw, 620px);
+}
+
+.reader-section .reader-card .feature-list {
+  gap: 9px;
+  margin-top: 17px;
+}
+
+.reader-section .reader-preview {
+  margin-top: 22px;
 }
