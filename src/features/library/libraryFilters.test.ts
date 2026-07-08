@@ -6,7 +6,9 @@ import {
   DEFAULT_LIBRARY_SORT,
   bookAuthor,
   bookTitle,
+  createCachedLibrarySearchIndex,
   createLibrarySearchIndex,
+  createLibrarySearchIndexCache,
   filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
@@ -141,6 +143,78 @@ describe("library filters", () => {
     expect(filterBooks([contextualBook], "science", folders)).toEqual([
       contextualBook,
     ]);
+  });
+
+  it("reuses cached search field variants while keeping current book state", () => {
+    const cache = createLibrarySearchIndexCache();
+    const book = createBook({
+      id: "cached",
+      originalTitle: "Cached Title",
+      isFavorite: false,
+    });
+
+    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
+    const updatedBook = { ...book, isFavorite: true };
+    const [secondEntry] = createCachedLibrarySearchIndex(
+      [updatedBook],
+      [],
+      cache,
+    );
+
+    expect(secondEntry.fields).toBe(firstEntry.fields);
+    expect(secondEntry.book).toBe(updatedBook);
+    expect(secondEntry.book.isFavorite).toBe(true);
+  });
+
+  it("rebuilds cached search fields when searchable book metadata changes", () => {
+    const cache = createLibrarySearchIndexCache();
+    const book = createBook({ id: "cached", originalTitle: "Old Title" });
+
+    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
+    const [secondEntry] = createCachedLibrarySearchIndex(
+      [{ ...book, originalTitle: "New Title" }],
+      [],
+      cache,
+    );
+
+    expect(secondEntry.fields).not.toBe(firstEntry.fields);
+    expect(secondEntry.fields.resolvedTitle.normalized).toBe("new title");
+  });
+
+  it("rebuilds cached search fields when folder search context changes", () => {
+    const cache = createLibrarySearchIndexCache();
+    const book = createBook({
+      id: "cached",
+      originalTitle: "Folder Book",
+      folderId: "folder-one",
+    });
+    const initialFolder: Folder = {
+      id: "folder-one",
+      name: "Old Folder",
+      relativePath: "Old Folder",
+      createdAt: "2026-07-01T00:00:00.000Z",
+      updatedAt: "2026-07-01T00:00:00.000Z",
+    };
+    const renamedFolder = {
+      ...initialFolder,
+      name: "New Folder",
+      relativePath: "New Folder",
+      updatedAt: "2026-07-02T00:00:00.000Z",
+    };
+
+    const [firstEntry] = createCachedLibrarySearchIndex(
+      [book],
+      [initialFolder],
+      cache,
+    );
+    const [secondEntry] = createCachedLibrarySearchIndex(
+      [book],
+      [renamedFolder],
+      cache,
+    );
+
+    expect(secondEntry.fields).not.toBe(firstEntry.fields);
+    expect(secondEntry.fields.folderName.normalized).toBe("new folder");
   });
 
   it("builds a reusable search index for repeated queries", () => {

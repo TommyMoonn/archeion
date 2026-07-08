@@ -47,7 +47,8 @@ import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
 import {
   bookTitle,
-  createLibrarySearchIndex,
+  createCachedLibrarySearchIndex,
+  createLibrarySearchIndexCache,
   getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
   sortBooks,
@@ -172,6 +173,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
+  const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const activeArchive = archive.archive;
   const sort = libraryPreferences.sortBy;
   const view = libraryPreferences.viewMode;
@@ -295,9 +297,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const searchIndex = useMemo(
     () =>
       measurePerformance("archeion:create-library-search-index", () =>
-        createLibrarySearchIndex(books ?? [], folders),
+        createCachedLibrarySearchIndex(books ?? [], folders, searchIndexCache),
       ),
-    [books, folders],
+    [books, folders, searchIndexCache],
   );
   const effectiveSort = useMemo(
     () => getEffectiveLibrarySort(location, sort),

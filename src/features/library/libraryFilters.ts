@@ -68,6 +68,35 @@ function fileTitle(fileName: string): string {
   return fileName.replace(/\.epub$/i, "").trim();
 }
 
+function cachePart(value: string | number | null | undefined): string {
+  return String(value ?? "");
+}
+
+function bookSearchIndexCacheKey(
+  book: Book,
+  folder: Folder | undefined,
+): string {
+  return [
+    book.id,
+    book.fileName,
+    book.relativePath,
+    book.folderId,
+    book.folderPath,
+    book.modifiedAt,
+    book.size,
+    book.originalTitle,
+    book.originalAuthor,
+    book.sourceMetadata?.title,
+    book.sourceMetadata?.creator,
+    book.sourceMetadata?.identifier,
+    folder?.name,
+    folder?.relativePath,
+    folder?.parentPath,
+  ]
+    .map(cachePart)
+    .join("\u0000");
+}
+
 type BookSearchFields = {
   resolvedTitle: SearchTextVariants;
   originalTitle: SearchTextVariants;
@@ -84,6 +113,17 @@ export type LibrarySearchIndexEntry = {
   book: Book;
   fields: BookSearchFields;
 };
+
+type LibrarySearchIndexCacheEntry = {
+  cacheKey: string;
+  entry: LibrarySearchIndexEntry;
+};
+
+export type LibrarySearchIndexCache = Map<string, LibrarySearchIndexCacheEntry>;
+
+export function createLibrarySearchIndexCache(): LibrarySearchIndexCache {
+  return new Map();
+}
 
 type WeightedBookField = {
   field: SearchTextVariants;
@@ -140,33 +180,72 @@ function scoreBookSearchEntry(
   );
 }
 
+function createLibrarySearchIndexEntry(
+  book: Book,
+  folderLookup: Map<string, Folder>,
+): LibrarySearchIndexEntry {
+  const folderValues = bookFolder(book, folderLookup);
+  const folderName = bookFolderName(book, folderLookup);
+
+  return {
+    book,
+    fields: {
+      resolvedTitle: createSearchTextVariants(bookTitle(book)),
+      originalTitle: createSearchTextVariants(book.originalTitle),
+      fileTitle: createSearchTextVariants(fileTitle(book.fileName)),
+      sourceAuthor: createSearchTextVariants(book.sourceMetadata?.creator),
+      originalAuthor: createSearchTextVariants(book.originalAuthor),
+      fileName: createSearchTextVariants(book.fileName),
+      folderName: createSearchTextVariants(folderName),
+      relativePath: createSearchTextVariants(
+        [book.relativePath, book.folderPath, ...folderValues]
+          .filter(Boolean)
+          .join(" "),
+      ),
+      sourceIdentifier: createSearchTextVariants(book.sourceMetadata?.identifier),
+    },
+  };
+}
+
 export function createLibrarySearchIndex(
   books: Book[],
   folders: Folder[] = [],
 ): LibrarySearchIndexEntry[] {
   const folderLookup = foldersById(folders);
 
-  return books.map((book) => {
-    const folderValues = bookFolder(book, folderLookup);
-    const folderName = bookFolderName(book, folderLookup);
+  return books.map((book) => createLibrarySearchIndexEntry(book, folderLookup));
+}
 
-    return {
-      book,
-      fields: {
-        resolvedTitle: createSearchTextVariants(bookTitle(book)),
-        originalTitle: createSearchTextVariants(book.originalTitle),
-        fileTitle: createSearchTextVariants(fileTitle(book.fileName)),
-        sourceAuthor: createSearchTextVariants(book.sourceMetadata?.creator),
-        originalAuthor: createSearchTextVariants(book.originalAuthor),
-        fileName: createSearchTextVariants(book.fileName),
-        folderName: createSearchTextVariants(folderName),
-        relativePath: createSearchTextVariants(
-          [book.relativePath, book.folderPath, ...folderValues].filter(Boolean).join(" "),
-        ),
-        sourceIdentifier: createSearchTextVariants(book.sourceMetadata?.identifier),
-      },
+export function createCachedLibrarySearchIndex(
+  books: Book[],
+  folders: Folder[] = [],
+  cache: LibrarySearchIndexCache,
+): LibrarySearchIndexEntry[] {
+  const folderLookup = foldersById(folders);
+  const nextCache: LibrarySearchIndexCache = new Map();
+  const entries = books.map((book) => {
+    const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
+    const cacheKey = bookSearchIndexCacheKey(book, folder);
+    const cached = cache.get(book.id);
+
+    if (cached?.cacheKey === cacheKey) {
+      const reusedEntry = { book, fields: cached.entry.fields };
+      nextCache.set(book.id, { cacheKey, entry: reusedEntry });
+      return reusedEntry;
+    }
+
+    const nextEntry = {
+      cacheKey,
+      entry: createLibrarySearchIndexEntry(book, folderLookup),
     };
+    nextCache.set(book.id, nextEntry);
+    return nextEntry.entry;
   });
+
+  cache.clear();
+  nextCache.forEach((entry, id) => cache.set(id, entry));
+
+  return entries;
 }
 
 function rankBookSearchIndex(

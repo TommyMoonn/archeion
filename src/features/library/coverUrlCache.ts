@@ -9,6 +9,7 @@ type CoverLoadTask = {
   load: () => Promise<Blob | undefined>;
   reject: (reason?: unknown) => void;
   resolve: (value: Blob | undefined) => void;
+  shouldStart: () => boolean;
 };
 
 const MAX_CONCURRENT_COVER_LOADS = 4;
@@ -24,6 +25,11 @@ function drainCoverLoadQueue(): void {
     const task = coverLoadQueue.shift();
     if (!task) return;
 
+    if (!task.shouldStart()) {
+      task.resolve(undefined);
+      continue;
+    }
+
     activeCoverLoads += 1;
     Promise.resolve()
       .then(task.load)
@@ -37,10 +43,10 @@ function drainCoverLoadQueue(): void {
 
 function enqueueCoverLoad(
   load: () => Promise<Blob | undefined>,
+  shouldStart: () => boolean,
 ): Promise<Blob | undefined> {
   return new Promise((resolve, reject) => {
-    coverLoadQueue.push({ load, reject, resolve });
-    drainCoverLoadQueue();
+    coverLoadQueue.push({ load, reject, resolve, shouldStart });
   });
 }
 
@@ -59,12 +65,27 @@ export function acquireCoverUrl(
     const nextEntry: CoverUrlEntry = {
       references: 0,
       revokeTimer: null,
-      promise: enqueueCoverLoad(load).then((blob) => {
-        if (!blob) return undefined;
-        nextEntry.url = URL.createObjectURL(blob);
-        return nextEntry.url;
-      }),
+      promise: Promise.resolve(undefined),
     };
+    nextEntry.promise = enqueueCoverLoad(
+      load,
+      () => nextEntry.references > 0 && coverUrls.get(key) === nextEntry,
+    ).then((blob) => {
+      if (
+        !blob ||
+        nextEntry.references === 0 ||
+        coverUrls.get(key) !== nextEntry
+      ) {
+        if (nextEntry.references === 0 && coverUrls.get(key) === nextEntry) {
+          coverUrls.delete(key);
+        }
+
+        return undefined;
+      }
+
+      nextEntry.url = URL.createObjectURL(blob);
+      return nextEntry.url;
+    });
     entry = nextEntry;
     coverUrls.set(key, entry);
   }
@@ -74,6 +95,7 @@ export function acquireCoverUrl(
     entry.revokeTimer = null;
   }
   entry.references += 1;
+  drainCoverLoadQueue();
   let released = false;
 
   return {
