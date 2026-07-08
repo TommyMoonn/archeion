@@ -39,7 +39,17 @@ const initialConfirmations: SettingsConfirmationState = {
 
 const LOCAL_STATUS_AUTO_DISMISS_MS = 2500;
 
-export function useSettingsDialogController() {
+export type SettingsDialogControllerOptions = {
+  loadArchiveImportSettings?: boolean;
+  loadCoverCacheStatus?: boolean;
+  loadFolders?: boolean;
+};
+
+export function useSettingsDialogController({
+  loadArchiveImportSettings = false,
+  loadCoverCacheStatus = false,
+  loadFolders = false,
+}: SettingsDialogControllerOptions = {}) {
   const storage = useLibraryStorage();
   const archive = useArchive();
   const preferences = useAppPreferences();
@@ -54,6 +64,13 @@ export function useSettingsDialogController() {
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
   const statusDismissTimerRef = useRef<number | null>(null);
+  const archiveImportLoadedRef = useRef(false);
+  const archiveImportLoadingRef = useRef(false);
+  const coverCacheLoadedRef = useRef(false);
+  const coverCacheLoadingRef = useRef(false);
+  const foldersLoadedRef = useRef(false);
+  const foldersLoadingRef = useRef(false);
+  const dataLoadGenerationRef = useRef(0);
   const statusRevisionRef = useRef(0);
   const appPreferenceSaveRevisionRef = useRef(0);
   const [confirmations, setConfirmations] =
@@ -137,33 +154,106 @@ export function useSettingsDialogController() {
 
   useEffect(() => {
     return () => {
+      dataLoadGenerationRef.current += 1;
       clearStatusDismissTimer();
     };
   }, [clearStatusDismissTimer]);
 
   useEffect(() => {
-    let cancelled = false;
-    void Promise.all([
-      storage.getArchiveImportSettings(),
-      storage.listFolders(),
-      storage.getCoverCacheStatus(),
-    ])
-      .then(([loadedImportSettings, loadedFolders, cacheStatus]) => {
-        if (cancelled) return;
+    dataLoadGenerationRef.current += 1;
+    archiveImportLoadedRef.current = false;
+    archiveImportLoadingRef.current = false;
+    coverCacheLoadedRef.current = false;
+    coverCacheLoadingRef.current = false;
+    foldersLoadedRef.current = false;
+    foldersLoadingRef.current = false;
+  }, [storage]);
+
+  useEffect(() => {
+    if (
+      !loadArchiveImportSettings ||
+      archiveImportLoadedRef.current ||
+      archiveImportLoadingRef.current
+    ) {
+      return;
+    }
+
+    const generation = dataLoadGenerationRef.current;
+    archiveImportLoadingRef.current = true;
+    void storage
+      .getArchiveImportSettings()
+      .then((loadedImportSettings) => {
+        if (dataLoadGenerationRef.current !== generation) return;
+        archiveImportLoadedRef.current = true;
         setArchiveImport(loadedImportSettings);
+      })
+      .catch(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          setErrorStatus("Settings could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          archiveImportLoadingRef.current = false;
+        }
+      });
+  }, [loadArchiveImportSettings, storage, setErrorStatus]);
+
+  useEffect(() => {
+    if (!loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
+      return;
+    }
+
+    const generation = dataLoadGenerationRef.current;
+    foldersLoadingRef.current = true;
+    void storage
+      .listFolders()
+      .then((loadedFolders) => {
+        if (dataLoadGenerationRef.current !== generation) return;
+        foldersLoadedRef.current = true;
         setFolders(loadedFolders);
+      })
+      .catch(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          setErrorStatus("Settings could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          foldersLoadingRef.current = false;
+        }
+      });
+  }, [loadFolders, storage, setErrorStatus]);
+
+  useEffect(() => {
+    if (
+      !loadCoverCacheStatus ||
+      coverCacheLoadedRef.current ||
+      coverCacheLoadingRef.current
+    ) {
+      return;
+    }
+
+    const generation = dataLoadGenerationRef.current;
+    coverCacheLoadingRef.current = true;
+    void storage
+      .getCoverCacheStatus()
+      .then((cacheStatus) => {
+        if (dataLoadGenerationRef.current !== generation) return;
+        coverCacheLoadedRef.current = true;
         setCache(cacheStatus);
       })
       .catch(() => {
-        if (!cancelled) {
+        if (dataLoadGenerationRef.current === generation) {
           setErrorStatus("Settings could not be loaded.");
         }
+      })
+      .finally(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          coverCacheLoadingRef.current = false;
+        }
       });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [storage, setErrorStatus]);
+  }, [loadCoverCacheStatus, storage, setErrorStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
     setConfirmations((current) => ({ ...current, [confirmation]: true }));

@@ -35,7 +35,13 @@ import type { SettingsDialogController } from "./useSettingsDialogController";
 
 export type SettingsItemGroupStyle = "standard" | "actions";
 
+export type SettingsDeferredDataRequirement =
+  | "archiveImportSettings"
+  | "coverCacheStatus"
+  | "folders";
+
 export type SettingsItem = {
+  deferredData?: readonly SettingsDeferredDataRequirement[];
   description?: string;
   groupLabel?: string;
   groupStyle?: SettingsItemGroupStyle;
@@ -623,6 +629,7 @@ export const settingsItems: readonly SettingsItem[] = [
     description: "Shows extracted covers stored for this archive.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",
+    deferredData: ["coverCacheStatus"],
     id: "storage.cover-cache-status",
     label: "Cover cache status",
     render: (context) => (
@@ -725,6 +732,7 @@ export const settingsItems: readonly SettingsItem[] = [
   },
   {
     description: "Stored per archive because folders differ.",
+    deferredData: ["archiveImportSettings", "folders"],
     id: "import.default-destination-folder",
     label: "Default destination folder",
     render: (context) => (
@@ -766,4 +774,12 @@ function formatBytes(bytes: number) {
 
 export function getSettingsItemsForSection(sectionId: SettingsSection) {
   return settingsItems.filter((item) => item.sectionId === sectionId);
+}
+
+export function getSettingsItemsDataRequirements(
+  items: readonly SettingsItem[],
+): ReadonlySet<SettingsDeferredDataRequirement> {
+  return new Set(
+    items.flatMap((item) => [...(item.deferredData ?? [])]),
+  );
 }

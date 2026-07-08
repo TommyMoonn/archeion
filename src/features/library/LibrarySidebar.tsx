@@ -35,6 +35,8 @@ type LibrarySidebarProps = {
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
+  onPreloadAbout?: () => void;
+  onPreloadSettings?: () => void;
   onRenameFolder: (folder: Folder) => void;
   onRevealFolder?: (folder: Folder) => void;
   onSwitchArchive: (archive: KnownArchive) => void;
@@ -57,6 +59,8 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onLocationChange,
   onOpenAbout,
   onOpenSettings,
+  onPreloadAbout,
+  onPreloadSettings,
   onRenameFolder,
   onRevealFolder,
   onSwitchArchive,
@@ -194,10 +198,20 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             </button>
           </div>
         </details>
-        <IconButton label="About Archeion" onClick={onOpenAbout}>
+        <IconButton
+          label="About Archeion"
+          onClick={onOpenAbout}
+          onFocus={onPreloadAbout}
+          onPointerEnter={onPreloadAbout}
+        >
           <Question aria-hidden="true" size={17} weight="bold" />
         </IconButton>
-        <IconButton label="Settings" onClick={onOpenSettings}>
+        <IconButton
+          label="Settings"
+          onClick={onOpenSettings}
+          onFocus={onPreloadSettings}
+          onPointerEnter={onPreloadSettings}
+        >
           <GearSix aria-hidden="true" size={18} />
         </IconButton>
       </div>

@@ -17,6 +17,7 @@ import { useNavigate } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
@@ -58,51 +59,60 @@ import {
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
 
-const AddEpubDialog = lazy(() =>
+const loadAddEpubDialog = () =>
   import("../filesystem/AddEpubDialog").then((module) => ({
     default: module.AddEpubDialog,
-  })),
-);
-const MoveToFolderDialog = lazy(() =>
+  }));
+const loadMoveToFolderDialog = () =>
   import("../filesystem/MoveToFolderDialog").then((module) => ({
     default: module.MoveToFolderDialog,
-  })),
-);
-const RenameFileDialog = lazy(() =>
+  }));
+const loadRenameFileDialog = () =>
   import("../filesystem/RenameFileDialog").then((module) => ({
     default: module.RenameFileDialog,
-  })),
-);
-const AboutDialog = lazy(() =>
+  }));
+const loadAboutDialog = () =>
   import("../settings/AboutDialog").then((module) => ({
     default: module.AboutDialog,
-  })),
-);
-const BookDetailsDrawer = lazy(() =>
+  }));
+const loadBookDetailsDrawer = () =>
   import("./BookDetailsDrawer").then((module) => ({
     default: module.BookDetailsDrawer,
-  })),
-);
-const BookMetadataReferenceDialog = lazy(() =>
+  }));
+const loadBookMetadataReferenceDialog = () =>
   import("./BookMetadataReferenceDialog").then((module) => ({
     default: module.BookMetadataReferenceDialog,
-  })),
-);
-const FolderCreateDialog = lazy(() =>
+  }));
+const loadFolderCreateDialog = () =>
   import("../folders/FolderCreateDialog").then((module) => ({
     default: module.FolderCreateDialog,
-  })),
-);
-const FolderRenameDialog = lazy(() =>
+  }));
+const loadFolderRenameDialog = () =>
   import("../folders/FolderRenameDialog").then((module) => ({
     default: module.FolderRenameDialog,
-  })),
-);
-const SettingsDialog = lazy(() =>
+  }));
+const loadSettingsDialog = () =>
   import("../settings/SettingsDialog").then((module) => ({
     default: module.SettingsDialog,
-  })),
-);
+  }));
+
+const AddEpubDialog = lazy(loadAddEpubDialog);
+const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
+const RenameFileDialog = lazy(loadRenameFileDialog);
+const AboutDialog = lazy(loadAboutDialog);
+const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
+const BookMetadataReferenceDialog = lazy(loadBookMetadataReferenceDialog);
+const FolderCreateDialog = lazy(loadFolderCreateDialog);
+const FolderRenameDialog = lazy(loadFolderRenameDialog);
+const SettingsDialog = lazy(loadSettingsDialog);
+
+function preloadAboutDialog() {
+  void loadAboutDialog();
+}
+
+function preloadSettingsDialog() {
+  void loadSettingsDialog();
+}
 
 function isInsideFolder(
   relativePath: string | undefined,
@@ -642,6 +652,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onLocationChange={changeLocation}
           onOpenAbout={openAbout}
           onOpenSettings={openSettings}
+          onPreloadAbout={preloadAboutDialog}
+          onPreloadSettings={preloadSettingsDialog}
           onRenameFolder={setRenameFolderTarget}
           onRevealFolder={(folder) => void revealFolder(folder)}
           onSwitchArchive={(archive) => void switchArchive(archive.id)}
@@ -792,7 +804,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       )}
 
       {isAddEpubOpen ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening import dialog" />}>
           <AddEpubDialog
             folders={folders ?? []}
             importDefaults={importSettings}
@@ -805,7 +817,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {selectedBook ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening book details" />}>
           <BookDetailsDrawer
             book={selectedBook}
             canManageFile
@@ -829,7 +841,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {metadataReferenceBook ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening metadata reference" />}>
           <BookMetadataReferenceDialog
             book={metadataReferenceBook}
             onClose={closeMetadataReference}
@@ -838,7 +850,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFileTarget ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening rename dialog" />}>
           <RenameFileDialog
             book={renameFileTarget}
             onClose={() => setRenameFileTarget(null)}
@@ -848,7 +860,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveBookTarget ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
           <MoveToFolderDialog
             currentFolderId={moveBookTarget.folderId ?? null}
             folders={folders ?? []}
@@ -860,18 +872,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {settingsOpen ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
           <SettingsDialog onClose={() => setSettingsOpen(false)} />
         </Suspense>
       ) : null}
       {aboutOpen ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening About" />}>
           <AboutDialog onClose={() => setAboutOpen(false)} />
         </Suspense>
       ) : null}
 
       {isCreateFolderOpen ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
           <FolderCreateDialog
             onClose={() => setIsCreateFolderOpen(false)}
             onCreate={createFolder}
@@ -880,7 +892,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFolderTarget ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
           <FolderRenameDialog
             folder={renameFolderTarget}
             onClose={() => setRenameFolderTarget(null)}
@@ -890,7 +902,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveFolderTarget ? (
-        <Suspense fallback={null}>
+        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
           <MoveToFolderDialog
             currentFolderId={moveFolderTarget.parentId ?? null}
             excludedFolderIds={moveFolderExcludedIds}

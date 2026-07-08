@@ -13,6 +13,11 @@ import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
 import { StorageSettingsSection } from "./sections/StorageSettingsSection";
+import {
+  getSettingsItemsDataRequirements,
+  getSettingsItemsForSection,
+} from "./settingsItems";
+import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 
@@ -20,10 +25,36 @@ type SettingsDialogProps = {
   onClose: () => void;
 };
 
+function sectionIsKnown(sectionId: SettingsSection) {
+  return settingsSections.some((section) => section.id === sectionId);
+}
+
+function renderSettingsSection(
+  section: SettingsSection,
+  controller: ReturnType<typeof useSettingsDialogController>,
+) {
+  switch (section) {
+    case "archives":
+      return <ArchivesSettingsSection context={controller} hidden={false} />;
+    case "library":
+      return <LibrarySettingsSection context={controller} hidden={false} />;
+    case "reader":
+      return <ReaderSettingsSection context={controller} hidden={false} />;
+    case "appearance":
+      return <AppearanceSettingsSection context={controller} hidden={false} />;
+    case "storage":
+      return <StorageSettingsSection context={controller} hidden={false} />;
+    case "import":
+      return <ImportSettingsSection context={controller} hidden={false} />;
+    case "general":
+    default:
+      return <GeneralSettingsSection context={controller} hidden={false} />;
+  }
+}
+
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLElement>(null);
-  const controller = useSettingsDialogController();
   const [activeSection, setActiveSection] =
     useState<SettingsSection>("general");
   const [query, setQuery] = useState("");
@@ -31,13 +62,25 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const searchActive = trimmedQuery.length > 0;
 
   const selectedSection = useMemo(
-    () =>
-      settingsSections.some((section) => section.id === activeSection)
-        ? activeSection
-        : "general",
+    () => (sectionIsKnown(activeSection) ? activeSection : "general"),
     [activeSection],
   );
-  const sectionHidden = (section: SettingsSection) => selectedSection !== section;
+  const visibleSettingsItems = useMemo(() => {
+    if (searchActive) {
+      return findSettingsSearchResults(trimmedQuery).map((result) => result.item);
+    }
+
+    return getSettingsItemsForSection(selectedSection);
+  }, [searchActive, selectedSection, trimmedQuery]);
+  const dataRequirements = useMemo(
+    () => getSettingsItemsDataRequirements(visibleSettingsItems),
+    [visibleSettingsItems],
+  );
+  const controller = useSettingsDialogController({
+    loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
+    loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
+    loadFolders: dataRequirements.has("folders"),
+  });
 
   function showSection(section: SettingsSection) {
     setActiveSection(section);
@@ -108,42 +151,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               query={trimmedQuery}
             />
           ) : (
-            <>
-              <GeneralSettingsSection
-                context={controller}
-                hidden={sectionHidden("general")}
-              />
-
-              <ArchivesSettingsSection
-                context={controller}
-                hidden={sectionHidden("archives")}
-              />
-
-              <LibrarySettingsSection
-                context={controller}
-                hidden={sectionHidden("library")}
-              />
-
-              <ReaderSettingsSection
-                context={controller}
-                hidden={sectionHidden("reader")}
-              />
-
-              <AppearanceSettingsSection
-                context={controller}
-                hidden={sectionHidden("appearance")}
-              />
-
-              <StorageSettingsSection
-                context={controller}
-                hidden={sectionHidden("storage")}
-              />
-
-              <ImportSettingsSection
-                context={controller}
-                hidden={sectionHidden("import")}
-              />
-            </>
+            renderSettingsSection(selectedSection, controller)
           )}
 
           <SettingsStatus
