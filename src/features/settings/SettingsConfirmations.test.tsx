@@ -1,0 +1,62 @@
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+
+import {
+  SettingsConfirmations,
+  type SettingsConfirmationState,
+} from "./SettingsConfirmations";
+
+const closedConfirmations: SettingsConfirmationState = {
+  clearCoverCache: false,
+  clearScannerCache: false,
+  reextractMetadata: false,
+  rescanArchive: false,
+};
+
+function renderConfirmations(confirmations: Partial<SettingsConfirmationState>) {
+  return renderToStaticMarkup(
+    <SettingsConfirmations
+      confirmations={{ ...closedConfirmations, ...confirmations }}
+      onClearCoverCache={vi.fn()}
+      onClearScannerCache={vi.fn()}
+      onClose={vi.fn()}
+      onReextractMetadata={vi.fn()}
+      onRescanArchive={vi.fn()}
+    />,
+  );
+}
+
+describe("SettingsConfirmations", () => {
+  it("renders the cover cache confirmation", () => {
+    const markup = renderConfirmations({ clearCoverCache: true });
+
+    expect(markup).toContain("Clear cover cache?");
+    expect(markup).toContain("Covers will be extracted again when needed.");
+    expect(markup).toContain("Clear cover cache");
+  });
+
+  it("renders the scanner cache confirmation", () => {
+    const markup = renderConfirmations({ clearScannerCache: true });
+
+    expect(markup).toContain("Clear scanner cache?");
+    expect(markup).toContain(
+      "EPUB files, favorites, and reading progress will not be deleted.",
+    );
+    expect(markup).toContain("Clear scanner cache");
+  });
+
+  it("renders the metadata re-extraction confirmation", () => {
+    const markup = renderConfirmations({ reextractMetadata: true });
+
+    expect(markup).toContain("Re-extract source metadata?");
+    expect(markup).toContain("Re-extract");
+  });
+
+  it("renders the archive rescan confirmation", () => {
+    const markup = renderConfirmations({ rescanArchive: true });
+
+    expect(markup).toContain("Rescan archive?");
+    expect(markup).toContain("EPUB files are not changed.");
+    expect(markup).toContain("Rescan archive");
+  });
+});
