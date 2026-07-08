@@ -149,6 +149,71 @@ describe("library filters", () => {
     expect(filterBookSearchIndex(index, "missing")).toEqual([]);
   });
 
+  it.each([
+    ["I'm gonna be...", "im"],
+    ["I’m gonna be...", "im"],
+    ["Re:Zero", "rezero"],
+    ["Re:Zero", "re zero"],
+    ["gonna-be", "gonna be"],
+    ["Café", "cafe"],
+    ["[Novel] Book Title", "novel book"],
+  ])("matches normalized book title %s with query %s", (title, query) => {
+    const book = createBook({ id: "normalized", originalTitle: title });
+
+    expect(filterBooks([book], query)).toEqual([book]);
+  });
+
+  it("ranks title matches above path-only matches", () => {
+    const pathOnly = createBook({
+      id: "path-only",
+      originalTitle: "Archive",
+      relativePath: "Library/Re:Zero.epub",
+    });
+    const titleMatch = createBook({
+      id: "title-match",
+      originalTitle: "Re:Zero",
+      relativePath: "Library/Archive.epub",
+    });
+
+    expect(
+      filterBooks([pathOnly, titleMatch], "rezero").map((book) => book.id),
+    ).toEqual(["title-match", "path-only"]);
+  });
+
+  it("matches parsed author metadata", () => {
+    const authorBook = createBook({
+      id: "author",
+      originalTitle: "Filename Title",
+      sourceMetadata: {
+        creator: "Café Writer",
+        title: "Parsed Title",
+      },
+    });
+
+    expect(filterBooks([authorBook], "cafe writer")).toEqual([authorBook]);
+  });
+
+  it("matches filename fallback text with punctuation-insensitive queries", () => {
+    const fileBook = createBook({
+      id: "file",
+      fileName: "Re-Zero_Vol.1.epub",
+      originalTitle: "",
+    });
+
+    expect(filterBooks([fileBook], "re zero vol 1")).toEqual([fileBook]);
+  });
+
+  it("matches multi-term queries across fields without requiring query order", () => {
+    const mixedBook = createBook({
+      id: "mixed",
+      originalTitle: "Café Stories",
+      originalAuthor: "Mira Chen",
+      relativePath: "Authors/Mira/Cafe Stories.epub",
+    });
+
+    expect(filterBooks([mixedBook], "chen cafe")).toEqual([mixedBook]);
+  });
+
   it("normalizes unsupported persisted sort values to the title sort", () => {
     expect(DEFAULT_LIBRARY_SORT).toBe("title");
     expect(normalizeLibrarySort("title")).toBe("title");

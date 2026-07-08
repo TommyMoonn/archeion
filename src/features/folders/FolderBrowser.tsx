@@ -16,6 +16,7 @@ import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Folder } from "../../types/folder";
 import { FolderActionsMenu } from "./FolderActionsMenu";
+import { searchFolders } from "./folderSearch";
 import {
   formatFolderBookCount,
   getFolderDisplayPath,
@@ -67,17 +68,10 @@ export function FolderBrowser({
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<FolderBrowserView>("list");
-  const visibleFolders = useMemo(() => {
-    const normalized = query.trim().toLocaleLowerCase();
-    if (!normalized) {
-      return folders;
-    }
-    return folders.filter((folder) =>
-      [folder.name, folder.relativePath].some((value) =>
-        value?.toLocaleLowerCase().includes(normalized),
-      ),
-    );
-  }, [folders, query]);
+  const visibleFolders = useMemo(
+    () => searchFolders(folders, query),
+    [folders, query],
+  );
   const showFolderActions = Boolean(
     canManageFolders && onDelete && onMove && onRename,
   );

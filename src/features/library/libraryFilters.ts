@@ -5,6 +5,15 @@ import {
   type LibrarySort,
 } from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+import {
+  createSearchQuery,
+  createSearchTextVariants,
+  isEmptySearchQuery,
+  scoreSearchField,
+  searchFieldsMatchQuery,
+  type SearchQuery,
+  type SearchTextVariants,
+} from "../../utils/searchText";
 export {
   bookAuthor,
   bookSourceAuthor,
@@ -22,7 +31,6 @@ export type LibraryLocation =
   | { type: "folders" }
   | { type: "folder"; folderId: string };
 
-
 let librarySortCollator: Intl.Collator | null = null;
 
 function getLibrarySortCollator(): Intl.Collator {
@@ -32,16 +40,6 @@ function getLibrarySortCollator(): Intl.Collator {
   });
 
   return librarySortCollator;
-}
-
-function normalize(value: string | undefined): string {
-  return (
-    value
-      ?.trim()
-      .toLocaleLowerCase()
-      .normalize("NFKD")
-      .replace(/\p{Diacritic}/gu, "") ?? ""
-  );
 }
 
 function foldersById(folders: Folder[]): Map<string, Folder> {
@@ -57,10 +55,67 @@ function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
   ].filter((value): value is string => Boolean(value));
 }
 
+function fileTitle(fileName: string): string {
+  return fileName.replace(/\.epub$/i, "").trim();
+}
+
+type BookSearchFields = {
+  resolvedTitle: SearchTextVariants;
+  originalTitle: SearchTextVariants;
+  fileTitle: SearchTextVariants;
+  sourceAuthor: SearchTextVariants;
+  originalAuthor: SearchTextVariants;
+  fileName: SearchTextVariants;
+  folderName: SearchTextVariants;
+  relativePath: SearchTextVariants;
+  sourceIdentifier: SearchTextVariants;
+  language: SearchTextVariants;
+};
+
 export type LibrarySearchIndexEntry = {
   book: Book;
-  searchText: string;
+  fields: BookSearchFields;
 };
+
+type WeightedBookField = {
+  field: SearchTextVariants;
+  weight: number;
+};
+
+function weightedBookFields(entry: LibrarySearchIndexEntry): WeightedBookField[] {
+  return [
+    { field: entry.fields.resolvedTitle, weight: 12 },
+    { field: entry.fields.originalTitle, weight: 11 },
+    { field: entry.fields.fileTitle, weight: 10 },
+    { field: entry.fields.sourceAuthor, weight: 8 },
+    { field: entry.fields.originalAuthor, weight: 8 },
+    { field: entry.fields.fileName, weight: 5 },
+    { field: entry.fields.folderName, weight: 4 },
+    { field: entry.fields.relativePath, weight: 3 },
+    { field: entry.fields.sourceIdentifier, weight: 1 },
+    { field: entry.fields.language, weight: 1 },
+  ];
+}
+
+function searchableBookFields(
+  entry: LibrarySearchIndexEntry,
+): SearchTextVariants[] {
+  return weightedBookFields(entry).map(({ field }) => field);
+}
+
+function scoreBookSearchEntry(
+  entry: LibrarySearchIndexEntry,
+  query: SearchQuery,
+): number {
+  if (isEmptySearchQuery(query)) {
+    return 0;
+  }
+
+  return weightedBookFields(entry).reduce(
+    (score, { field, weight }) => score + scoreSearchField(field, query) * weight,
+    0,
+  );
+}
 
 export function createLibrarySearchIndex(
   books: Book[],
@@ -68,41 +123,56 @@ export function createLibrarySearchIndex(
 ): LibrarySearchIndexEntry[] {
   const folderLookup = foldersById(folders);
 
-  return books.map((book) => ({
-    book,
-    searchText: [
-      book.sourceMetadata?.title,
-      book.originalTitle,
-      book.sourceMetadata?.creator,
-      book.originalAuthor,
-      book.sourceMetadata?.identifier,
-      book.sourceMetadata?.language,
-      book.fileName,
-      book.relativePath,
-      book.folderPath,
-      ...bookFolder(book, folderLookup),
-    ]
-      .map(normalize)
-      .filter(Boolean)
-      .join("\u0000"),
-  }));
+  return books.map((book) => {
+    const folderValues = bookFolder(book, folderLookup);
+    const folderName = folderValues[1] ?? folderValues[0] ?? "";
+
+    return {
+      book,
+      fields: {
+        resolvedTitle: createSearchTextVariants(bookTitle(book)),
+        originalTitle: createSearchTextVariants(book.originalTitle),
+        fileTitle: createSearchTextVariants(fileTitle(book.fileName)),
+        sourceAuthor: createSearchTextVariants(book.sourceMetadata?.creator),
+        originalAuthor: createSearchTextVariants(book.originalAuthor),
+        fileName: createSearchTextVariants(book.fileName),
+        folderName: createSearchTextVariants(folderName),
+        relativePath: createSearchTextVariants(
+          [book.relativePath, book.folderPath, ...folderValues].filter(Boolean).join(" "),
+        ),
+        sourceIdentifier: createSearchTextVariants(book.sourceMetadata?.identifier),
+        language: createSearchTextVariants(book.sourceMetadata?.language),
+      },
+    };
+  });
+}
+
+function rankBookSearchIndex(
+  index: LibrarySearchIndexEntry[],
+  query: SearchQuery,
+): LibrarySearchIndexEntry[] {
+  return index
+    .map((entry, indexOrder) => ({
+      entry,
+      indexOrder,
+      score: scoreBookSearchEntry(entry, query),
+    }))
+    .filter(({ entry }) => searchFieldsMatchQuery(searchableBookFields(entry), query))
+    .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
+    .map(({ entry }) => entry);
 }
 
 export function filterBookSearchIndex(
   index: LibrarySearchIndexEntry[],
   query: string,
 ): Book[] {
-  const normalizedQuery = normalize(query);
+  const searchQuery = createSearchQuery(query);
 
-  if (!normalizedQuery) {
+  if (isEmptySearchQuery(searchQuery)) {
     return index.map((entry) => entry.book);
   }
 
-  const terms = normalizedQuery.split(/\s+/);
-
-  return index
-    .filter((entry) => terms.every((term) => entry.searchText.includes(term)))
-    .map((entry) => entry.book);
+  return rankBookSearchIndex(index, searchQuery).map((entry) => entry.book);
 }
 
 export function filterBooks(
@@ -176,6 +246,37 @@ function compareStablePath(
   return collator.compare(stablePath(left), stablePath(right));
 }
 
+function compareBooksBySort(
+  collator: Intl.Collator,
+  left: Book,
+  right: Book,
+  sort: LibrarySort,
+): number {
+  switch (normalizeLibrarySort(sort)) {
+    case "title":
+      return (
+        collator.compare(bookTitle(left), bookTitle(right)) ||
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+        compareRecentlyOpened(left, right) ||
+        compareStablePath(collator, left, right)
+      );
+    case "author":
+      return (
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+        collator.compare(bookTitle(left), bookTitle(right)) ||
+        compareRecentlyOpened(left, right) ||
+        compareStablePath(collator, left, right)
+      );
+    case "recently-opened":
+      return (
+        compareRecentlyOpened(left, right) ||
+        collator.compare(bookTitle(left), bookTitle(right)) ||
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
+        compareStablePath(collator, left, right)
+      );
+  }
+}
+
 export function getEffectiveLibrarySort(
   location: LibraryLocation,
   selectedSort: LibrarySort,
@@ -191,31 +292,9 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
   const normalizedSort = normalizeLibrarySort(sort);
   const collator = getLibrarySortCollator();
 
-  return [...books].sort((left, right) => {
-    switch (normalizedSort) {
-      case "title":
-        return (
-          collator.compare(bookTitle(left), bookTitle(right)) ||
-          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
-          compareRecentlyOpened(left, right) ||
-          compareStablePath(collator, left, right)
-        );
-      case "author":
-        return (
-          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
-          collator.compare(bookTitle(left), bookTitle(right)) ||
-          compareRecentlyOpened(left, right) ||
-          compareStablePath(collator, left, right)
-        );
-      case "recently-opened":
-        return (
-          compareRecentlyOpened(left, right) ||
-          collator.compare(bookTitle(left), bookTitle(right)) ||
-          compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
-          compareStablePath(collator, left, right)
-        );
-    }
-  });
+  return [...books].sort((left, right) =>
+    compareBooksBySort(collator, left, right, normalizedSort),
+  );
 }
 
 function filterSearchIndexByLocation(
@@ -246,10 +325,36 @@ export function getVisibleBooksFromSearchIndex(
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
 ): Book[] {
-  return sortBooks(
-    filterBookSearchIndex(filterSearchIndexByLocation(index, location), query),
-    getEffectiveLibrarySort(location, sort),
-  );
+  const filteredIndex = filterSearchIndexByLocation(index, location);
+  const effectiveSort = getEffectiveLibrarySort(location, sort);
+  const searchQuery = createSearchQuery(query);
+
+  if (isEmptySearchQuery(searchQuery)) {
+    return sortBooks(
+      filteredIndex.map((entry) => entry.book),
+      effectiveSort,
+    );
+  }
+
+  const collator = getLibrarySortCollator();
+
+  return filteredIndex
+    .map((entry, indexOrder) => ({
+      entry,
+      indexOrder,
+      score: scoreBookSearchEntry(entry, searchQuery),
+    }))
+    .filter(({ entry }) =>
+      searchFieldsMatchQuery(searchableBookFields(entry), searchQuery),
+    )
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        compareBooksBySort(collator, left.entry.book, right.entry.book, effectiveSort) ||
+        compareStablePath(collator, left.entry.book, right.entry.book) ||
+        left.indexOrder - right.indexOrder,
+    )
+    .map(({ entry }) => entry.book);
 }
 
 export function getVisibleBooks(
