@@ -45,6 +45,25 @@
   --radius-card: 16px;
   --radius-pill: 999px;
   --sidebar-width: 248px;
+
+  --motion-duration-fast: 0ms;
+  --motion-duration-standard: 0ms;
+  --motion-duration-slow: 0ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html[data-motion="on"] {
+  --motion-duration-fast: 120ms;
+  --motion-duration-standard: 180ms;
+  --motion-duration-slow: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion="on"] {
+    --motion-duration-fast: 0ms;
+    --motion-duration-standard: 0ms;
+    --motion-duration-slow: 0ms;
+  }
 }
 
 html[data-app-theme="light"] {

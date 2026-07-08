@@ -109,6 +109,24 @@ describe("SettingsSearchResults", () => {
     expect(container.textContent).not.toContain("Open section");
   });
 
+  it("renders the actual Animations toggle from search", () => {
+    const controller = createController();
+    const { container } = trackRoot(renderResults("animations", controller));
+
+    expect(container.textContent).toContain("Appearance");
+    expect(container.textContent).toContain("App appearance");
+    expect(container.textContent).toContain("Animations");
+
+    const switchControl = container.querySelector("[role='switch']");
+    act(() => {
+      (switchControl as HTMLButtonElement | null)?.click();
+    });
+
+    expect(controller.updateAppPreferences).toHaveBeenCalledWith({
+      appearance: { animationsEnabled: true },
+    });
+  });
+
   it("changes settings directly from a rendered search result control", () => {
     const controller = createController();
     const { container } = trackRoot(renderResults("display density", controller));

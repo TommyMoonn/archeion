@@ -3,6 +3,7 @@ import { useSyncExternalStore } from "react";
 
 import {
   defaultAppPreferences,
+  type AppearanceSettings,
   type AppPreferences,
 } from "../types/appSettings";
 import {
@@ -150,6 +151,27 @@ function normalizeReader(value: unknown): ReaderSettings {
   return normalizeReaderSettings(isRecord(value) ? value : undefined);
 }
 
+function normalizeAppearanceSettings(value: unknown): AppearanceSettings {
+  const settings = isRecord(value) ? value : {};
+  return {
+    animationsEnabled: settings.animationsEnabled === true,
+  };
+}
+
+function getEffectiveMotionState(preferences: AppPreferences): "off" | "on" {
+  if (!preferences.appearance.animationsEnabled) {
+    return "off";
+  }
+
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "on";
+  }
+
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ? "off"
+    : "on";
+}
+
 export function normalizeAppPreferences(value: unknown): AppPreferences {
   if (!isRecord(value)) {
     return { ...defaultAppPreferences };
@@ -162,6 +184,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
       value.appThemePreset === "light"
         ? value.appThemePreset
         : defaultAppPreferences.appThemePreset,
+    appearance: normalizeAppearanceSettings(value.appearance),
     bookCardSize:
       value.bookCardSize === "small" || value.bookCardSize === "large"
         ? value.bookCardSize
@@ -193,6 +216,13 @@ function mergeAppPreferences(
   const next = normalizeAppPreferences({
     ...base,
     ...changes,
+    appearance:
+      changes.appearance === undefined
+        ? base.appearance
+        : {
+            ...base.appearance,
+            ...changes.appearance,
+          },
     filesAndMetadata:
       changes.filesAndMetadata === undefined
         ? base.filesAndMetadata
@@ -223,6 +253,9 @@ function mergeAppPreferences(
           },
   });
 
+  if (changes.appearance === undefined) {
+    next.appearance = base.appearance;
+  }
   if (changes.filesAndMetadata === undefined) {
     next.filesAndMetadata = base.filesAndMetadata;
   }
@@ -399,6 +432,7 @@ export class AppPreferencesStore {
     }
 
     document.documentElement.dataset.appTheme = this.preferences.appThemePreset;
+    document.documentElement.dataset.motion = getEffectiveMotionState(this.preferences);
     document.documentElement.dataset.density = this.preferences.density;
     document.documentElement.dataset.cardSize = this.preferences.bookCardSize;
     document.documentElement.dataset.windowFrame =

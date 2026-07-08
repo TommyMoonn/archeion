@@ -75,6 +75,7 @@ describe("settings section components", () => {
     expect(markup).toContain("Appearance");
     expect(markup).toContain("App appearance");
     expect(markup).toContain("Window behavior");
+    expect(markup).toContain("Animations");
     expect(markup).toContain("Display density");
     expect(markup).not.toContain("Interface density");
   });

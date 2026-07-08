@@ -375,6 +375,30 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "appearance",
   },
   {
+    description: "Enable subtle app transitions.",
+    groupLabel: "App appearance",
+    id: "appearance.animations",
+    label: "Animations",
+    render: (context) => (
+      <SettingsRow
+        description="Enable subtle app transitions."
+        label="Animations"
+      >
+        <Toggle
+          checked={context.preferences.appearance.animationsEnabled}
+          label="Animations"
+          onChange={(animationsEnabled) =>
+            void context.updateAppPreferences({
+              appearance: { animationsEnabled },
+            })
+          }
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["animations", "motion", "transitions", "app appearance"],
+    sectionId: "appearance",
+  },
+  {
     description: "Adjusts spacing across the app.",
     groupLabel: "App appearance",
     id: "appearance.display-density",

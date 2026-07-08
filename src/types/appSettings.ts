@@ -11,8 +11,13 @@ export type WindowFrameStyle = "hidden" | "archeion" | "native";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
 export type AppThemePreset = "system" | "dark" | "light";
 
+export type AppearanceSettings = {
+  animationsEnabled: boolean;
+};
+
 export type AppPreferences = {
   appThemePreset: AppThemePreset;
+  appearance: AppearanceSettings;
   bookCardSize: BookCardSize;
   confirmDestructiveFileActions: boolean;
   density: InterfaceDensity;
@@ -29,6 +34,9 @@ export type AppPreferences = {
 
 export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   appThemePreset: "dark",
+  appearance: Object.freeze({
+    animationsEnabled: false,
+  }),
   bookCardSize: "medium",
   confirmDestructiveFileActions: true,
   density: "comfortable",

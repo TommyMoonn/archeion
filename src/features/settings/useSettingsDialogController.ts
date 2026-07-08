@@ -433,6 +433,7 @@ export function useSettingsDialogController({
     await updateAppPreferences(
       {
         appThemePreset: defaultAppPreferences.appThemePreset,
+        appearance: defaultAppPreferences.appearance,
         density: defaultAppPreferences.density,
       },
       { successMessage: "Appearance settings reset." },
@@ -514,5 +515,6 @@ export function useSettingsDialogController({
   };
 }
 
-
-export type SettingsDialogController = ReturnType<typeof useSettingsDialogController>;
+export type SettingsDialogController = ReturnType<
+  typeof useSettingsDialogController
+>;

@@ -52,6 +52,7 @@ describe("settingsSections", () => {
     expect(sectionMatches("storage", "scan preferences")).toBe(true);
     expect(sectionMatches("storage", "archive maintenance")).toBe(true);
     expect(sectionMatches("appearance", "display density")).toBe(true);
+    expect(sectionMatches("appearance", "animations")).toBe(true);
   });
 
   it("matches settings search aliases", () => {

@@ -1,3 +1,5 @@
+// @vitest-environment happy-dom
+
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -5,7 +7,9 @@ import {
   normalizeAppPreferences,
 } from "./appPreferencesStore";
 
-function createPersistence(overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {}) {
+function createPersistence(
+  overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
+) {
   return {
     isDesktop: () => true,
     loadDesktop: async () => ({}),
@@ -17,10 +21,34 @@ function createPersistence(overrides: Partial<ConstructorParameters<typeof AppPr
   };
 }
 
+function mockReducedMotion(matches: boolean) {
+  const original = Object.getOwnPropertyDescriptor(window, "matchMedia");
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn((query: string) =>
+      ({
+        matches: matches && query === "(prefers-reduced-motion: reduce)",
+      }) as MediaQueryList,
+    ),
+  });
+
+  return () => {
+    if (original) {
+      Object.defineProperty(window, "matchMedia", original);
+      return;
+    }
+
+    Reflect.deleteProperty(window, "matchMedia");
+  };
+}
+
 describe("app preferences", () => {
   it("uses defaults for missing and invalid values", () => {
     expect(normalizeAppPreferences(null)).toMatchObject({
       appThemePreset: "dark",
+      appearance: {
+        animationsEnabled: false,
+      },
       density: "comfortable",
       bookCardSize: "medium",
       showContinueReading: true,
@@ -46,6 +74,7 @@ describe("app preferences", () => {
     expect(
       normalizeAppPreferences({
         appThemePreset: "custom",
+        appearance: { animationsEnabled: "yes" },
         density: "dense",
         bookCardSize: "huge",
         startupBehavior: "unknown",
@@ -56,6 +85,9 @@ describe("app preferences", () => {
       }),
     ).toMatchObject({
       appThemePreset: "dark",
+      appearance: {
+        animationsEnabled: false,
+      },
       density: "comfortable",
       bookCardSize: "medium",
       startupBehavior: "open-last-archive",
@@ -79,6 +111,9 @@ describe("app preferences", () => {
     expect(
       normalizeAppPreferences({
         appThemePreset: "light",
+        appearance: {
+          animationsEnabled: true,
+        },
         density: "compact",
         bookCardSize: "large",
         confirmDestructiveFileActions: false,
@@ -110,6 +145,9 @@ describe("app preferences", () => {
       }),
     ).toEqual({
       appThemePreset: "light",
+      appearance: {
+        animationsEnabled: true,
+      },
       density: "compact",
       bookCardSize: "large",
       confirmDestructiveFileActions: false,
@@ -207,7 +245,6 @@ describe("app preferences", () => {
     expect(store.getSnapshot().density).toBe("compact");
   });
 
-
   it("merges updates with loaded settings before saving during startup", async () => {
     let resolveLoad: (value: unknown) => void = () => undefined;
     const saveDesktop = vi.fn(async () => undefined);
@@ -248,6 +285,7 @@ describe("app preferences", () => {
 
     const after = store.getSnapshot();
     expect(after.reader).not.toBe(before.reader);
+    expect(after.appearance).toBe(before.appearance);
     expect(after.filesAndMetadata).toBe(before.filesAndMetadata);
     expect(after.import).toBe(before.import);
     expect(after.library).toBe(before.library);
@@ -259,6 +297,7 @@ describe("app preferences", () => {
     await store.initialize();
 
     await store.update({
+      appearance: { animationsEnabled: true },
       filesAndMetadata: { liveWatcherEnabled: false, scanOnStartup: false },
       import: { defaultConflictAction: "skip", defaultMode: "move" },
       library: { sortBy: "recently-opened", viewMode: "list" },
@@ -271,6 +310,9 @@ describe("app preferences", () => {
 
     expect(saveDesktop).toHaveBeenLastCalledWith(
       expect.objectContaining({
+        appearance: {
+          animationsEnabled: true,
+        },
         filesAndMetadata: {
           liveWatcherEnabled: false,
           scanOnStartup: false,
@@ -289,5 +331,34 @@ describe("app preferences", () => {
         }),
       }),
     );
+  });
+
+  it("applies motion off when animations are disabled", async () => {
+    const store = new AppPreferencesStore(createPersistence());
+    await store.initialize();
+
+    expect(document.documentElement.dataset.motion).toBe("off");
+  });
+
+  it("applies motion on only when animations are enabled and reduced motion is not requested", async () => {
+    const restoreMatchMedia = mockReducedMotion(false);
+    const store = new AppPreferencesStore(createPersistence());
+    await store.initialize();
+
+    await store.update({ appearance: { animationsEnabled: true } });
+
+    expect(document.documentElement.dataset.motion).toBe("on");
+    restoreMatchMedia();
+  });
+
+  it("keeps effective motion off when the OS requests reduced motion", async () => {
+    const restoreMatchMedia = mockReducedMotion(true);
+    const store = new AppPreferencesStore(createPersistence());
+    await store.initialize();
+
+    await store.update({ appearance: { animationsEnabled: true } });
+
+    expect(document.documentElement.dataset.motion).toBe("off");
+    restoreMatchMedia();
   });
 });

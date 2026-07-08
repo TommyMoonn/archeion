@@ -8,6 +8,9 @@ describe("settingsSearch", () => {
       findSettingsSearchResults("display density").map((result) => result.item.id),
     ).toContain("appearance.display-density");
     expect(
+      findSettingsSearchResults("animations").map((result) => result.item.id),
+    ).toContain("appearance.animations");
+    expect(
       findSettingsSearchResults("scan preferences").map(
         (result) => result.item.id,
       ),

@@ -11,6 +11,13 @@ const APP_SETTINGS_FILE: &str = "settings.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct AppearanceSettings {
+    #[serde(default)]
+    pub animations_enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryDisplaySettings {
     #[serde(default = "default_library_sort")]
     pub sort_by: String,
@@ -58,6 +65,8 @@ pub struct GlobalImportSettings {
 pub struct AppPreferences {
     #[serde(default = "default_app_theme_preset")]
     pub app_theme_preset: String,
+    #[serde(default)]
+    pub appearance: AppearanceSettings,
     #[serde(default = "default_book_card_size")]
     pub book_card_size: String,
     #[serde(default = "default_true")]
@@ -101,6 +110,12 @@ fn default_startup_behavior() -> String { "open-last-archive".to_string() }
 fn default_true() -> bool { true }
 fn default_window_frame_style() -> String { "hidden".to_string() }
 
+impl Default for AppearanceSettings {
+    fn default() -> Self {
+        Self { animations_enabled: false }
+    }
+}
+
 impl Default for LibraryDisplaySettings {
     fn default() -> Self {
         Self { sort_by: default_library_sort(), view_mode: default_library_view() }
@@ -139,6 +154,7 @@ impl Default for AppPreferences {
     fn default() -> Self {
         Self {
             app_theme_preset: default_app_theme_preset(),
+            appearance: AppearanceSettings::default(),
             book_card_size: default_book_card_size(),
             confirm_destructive_file_actions: true,
             density: default_density(),
@@ -247,7 +263,7 @@ pub fn save_app_settings(
 
 #[cfg(test)]
 mod tests {
-    use super::{read_settings, write_settings, AppPreferences};
+    use super::{read_settings, write_settings, AppPreferences, AppearanceSettings};
 
     #[test]
     fn app_preferences_accept_missing_new_fields() {
@@ -264,6 +280,7 @@ mod tests {
         assert!(!parsed.show_continue_reading);
         assert_eq!(parsed.window_frame_style, "native");
         assert_eq!(parsed.startup_behavior, "open-last-archive");
+        assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
         assert_eq!(parsed.library.sort_by, "title");
         assert_eq!(parsed.reader.progress_placement, "top");
@@ -275,6 +292,7 @@ mod tests {
         let path = temporary_settings_path("round-trip");
         let preferences = AppPreferences {
             density: "compact".to_string(),
+            appearance: AppearanceSettings { animations_enabled: true },
             library: super::LibraryDisplaySettings {
                 sort_by: "author".to_string(),
                 view_mode: "list".to_string(),
