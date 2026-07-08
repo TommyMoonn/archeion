@@ -193,6 +193,35 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   };
 
   useEffect(() => {
+    const preloadDialogs = () => {
+      preloadSettingsDialog();
+      preloadAboutDialog();
+    };
+    const idleWindow = window as Window & {
+      cancelIdleCallback?: (handle: number) => void;
+      requestIdleCallback?: (
+        callback: () => void,
+        options?: { timeout?: number },
+      ) => number;
+    };
+
+    if (
+      typeof idleWindow.requestIdleCallback === "function" &&
+      typeof idleWindow.cancelIdleCallback === "function"
+    ) {
+      const idleId = idleWindow.requestIdleCallback(preloadDialogs, {
+        timeout: 2500,
+      });
+
+      return () => idleWindow.cancelIdleCallback?.(idleId);
+    }
+
+    const timeoutId = window.setTimeout(preloadDialogs, 1200);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
+
+  useEffect(() => {
     const handleStorageError = () => {
       setLibraryError("The active archive could not be loaded.");
     };
@@ -210,7 +239,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       stopFolders();
     };
   }, [storage]);
-
 
   useEffect(() => {
     let cancelled = false;
@@ -804,7 +832,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       )}
 
       {isAddEpubOpen ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening import dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening import dialog" />}
+        >
           <AddEpubDialog
             folders={folders ?? []}
             importDefaults={importSettings}
@@ -817,7 +847,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {selectedBook ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening book details" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening book details" />}
+        >
           <BookDetailsDrawer
             book={selectedBook}
             canManageFile
@@ -841,7 +873,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {metadataReferenceBook ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening metadata reference" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening metadata reference" />}
+        >
           <BookMetadataReferenceDialog
             book={metadataReferenceBook}
             onClose={closeMetadataReference}
@@ -850,7 +884,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFileTarget ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening rename dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening rename dialog" />}
+        >
           <RenameFileDialog
             book={renameFileTarget}
             onClose={() => setRenameFileTarget(null)}
@@ -860,7 +896,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveBookTarget ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening move dialog" />}
+        >
           <MoveToFolderDialog
             currentFolderId={moveBookTarget.folderId ?? null}
             folders={folders ?? []}
@@ -872,7 +910,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {settingsOpen ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening settings" />}
+        >
           <SettingsDialog onClose={() => setSettingsOpen(false)} />
         </Suspense>
       ) : null}
@@ -883,7 +923,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {isCreateFolderOpen ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening folder dialog" />}
+        >
           <FolderCreateDialog
             onClose={() => setIsCreateFolderOpen(false)}
             onCreate={createFolder}
@@ -892,7 +934,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFolderTarget ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening folder dialog" />}
+        >
           <FolderRenameDialog
             folder={renameFolderTarget}
             onClose={() => setRenameFolderTarget(null)}
@@ -902,7 +946,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveFolderTarget ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+        <Suspense
+          fallback={<DialogLoadingFallback label="Opening move dialog" />}
+        >
           <MoveToFolderDialog
             currentFolderId={moveFolderTarget.parentId ?? null}
             excludedFolderIds={moveFolderExcludedIds}

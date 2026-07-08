@@ -35,20 +35,20 @@ function renderSettingsSection(
 ) {
   switch (section) {
     case "archives":
-      return <ArchivesSettingsSection context={controller} hidden={false} />;
+      return <ArchivesSettingsSection context={controller} />;
     case "library":
-      return <LibrarySettingsSection context={controller} hidden={false} />;
+      return <LibrarySettingsSection context={controller} />;
     case "reader":
-      return <ReaderSettingsSection context={controller} hidden={false} />;
+      return <ReaderSettingsSection context={controller} />;
     case "appearance":
-      return <AppearanceSettingsSection context={controller} hidden={false} />;
+      return <AppearanceSettingsSection context={controller} />;
     case "storage":
-      return <StorageSettingsSection context={controller} hidden={false} />;
+      return <StorageSettingsSection context={controller} />;
     case "import":
-      return <ImportSettingsSection context={controller} hidden={false} />;
+      return <ImportSettingsSection context={controller} />;
     case "general":
     default:
-      return <GeneralSettingsSection context={controller} hidden={false} />;
+      return <GeneralSettingsSection context={controller} />;
   }
 }
 

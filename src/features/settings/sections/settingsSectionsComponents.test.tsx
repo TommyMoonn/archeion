@@ -58,13 +58,13 @@ function createController(
 
 function renderAppearance() {
   return renderToStaticMarkup(
-    <AppearanceSettingsSection context={createController()} hidden={false} />,
+    <AppearanceSettingsSection context={createController()} />,
   );
 }
 
 function renderStorage() {
   return renderToStaticMarkup(
-    <StorageSettingsSection context={createController()} hidden={false} />,
+    <StorageSettingsSection context={createController()} />,
   );
 }
 
@@ -89,7 +89,7 @@ describe("settings section components", () => {
 
   it("disables archive reveal when no archive path is available", () => {
     const markup = renderToStaticMarkup(
-      <ArchivesSettingsSection context={createController()} hidden={false} />,
+      <ArchivesSettingsSection context={createController()} />,
     );
 
     expect(markup).toContain("No archive selected");
