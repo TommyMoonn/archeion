@@ -1,9 +1,12 @@
 import { getVersion } from "@tauri-apps/api/app";
 import { isTauri } from "@tauri-apps/api/core";
-import { BookOpenText, X } from "@phosphor-icons/react";
+import { GithubLogo, X } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
+import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { IconButton } from "../../components/IconButton";
+
+const GITHUB_URL = "https://github.com/TommyMoonn/archeion";
 
 type AboutDialogProps = {
   onClose: () => void;
@@ -19,7 +22,9 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
       dialog.showModal();
     }
     if (isTauri()) {
-      void getVersion().then(setVersion).catch(() => undefined);
+      void getVersion()
+        .then(setVersion)
+        .catch(() => undefined);
     }
 
     return () => {
@@ -54,13 +59,31 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
         >
           <X aria-hidden="true" size={17} />
         </IconButton>
-        <BookOpenText aria-hidden="true" size={34} weight="thin" />
-        <div>
-          <p>Local EPUB archive</p>
-          <h1 id="about-title">Archeion</h1>
-          <span>Version {version}</span>
+
+        <div className="about-window__brand" aria-hidden="true">
+          <img alt="" src={archeionIcon} />
         </div>
-        <p>Your library and reading data stay on this device.</p>
+
+        <div className="about-window__copy">
+          <h1 id="about-title">Archeion</h1>
+          <p className="about-window__version">Version {version}</p>
+        </div>
+
+        <div className="about-window__github">
+          <GithubLogo aria-hidden="true" size={20} weight="regular" />
+          <div className="about-window__github-copy">
+            <span>GitHub</span>
+            <small>{GITHUB_URL}</small>
+          </div>
+          <a
+            className="about-window__github-action"
+            href={GITHUB_URL}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Open
+          </a>
+        </div>
       </section>
     </dialog>
   );
