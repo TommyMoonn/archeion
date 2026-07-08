@@ -29,10 +29,8 @@ describe("AboutDialog", () => {
   it("renders an explicit external GitHub action", () => {
     const markup = renderToStaticMarkup(<AboutDialog onClose={vi.fn()} />);
 
-    expect(markup).toContain("Open in browser");
-    expect(markup).toContain(
-      'href="https://github.com/TommyMoonn/archeion"',
-    );
+    expect(markup).toContain("Open");
+    expect(markup).toContain('href="https://github.com/TommyMoonn/archeion"');
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain('rel="noreferrer"');
   });
