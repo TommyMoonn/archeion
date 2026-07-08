@@ -1,0 +1,97 @@
+/* Full-width section field backgrounds and reduced-motion handling.
+   Keep stylesheet order from index.html. Later files intentionally override earlier layers. */
+
+/* Background consistency refinement: replace boxed section glows with a full-width, masked field. */
+      .alive-section {
+        position: relative;
+        isolation: isolate;
+      }
+
+      .alive-section::after {
+        position: absolute;
+        top: 7%;
+        bottom: 7%;
+        left: 50%;
+        z-index: -1;
+        width: min(100vw, 1680px);
+        pointer-events: none;
+        background:
+          radial-gradient(ellipse at 18% 30%, rgb(143 193 227 / 9%), transparent 42%),
+          radial-gradient(ellipse at 82% 22%, rgb(183 168 217 / 8%), transparent 44%),
+          radial-gradient(ellipse at 54% 82%, rgb(160 205 176 / 6%), transparent 48%),
+          linear-gradient(115deg, transparent 0 46%, rgb(255 255 255 / 2.6%) 47%, transparent 49%),
+          linear-gradient(90deg, rgb(255 255 255 / 2.4%) 1px, transparent 1px),
+          linear-gradient(0deg, rgb(255 255 255 / 2%) 1px, transparent 1px);
+        background-size: auto, auto, auto, 280px 280px, 96px 96px, 96px 96px;
+        mask-image: radial-gradient(ellipse 76% 72% at 50% 50%, black 0 58%, transparent 100%);
+        -webkit-mask-image: radial-gradient(ellipse 76% 72% at 50% 50%, black 0 58%, transparent 100%);
+        opacity: 0.74;
+        transform: translateX(-50%);
+        animation: sectionFieldDrift 30s ease-in-out infinite alternate;
+        content: "";
+      }
+
+      .archive-section::after {
+        background:
+          radial-gradient(ellipse at 20% 34%, rgb(143 193 227 / 10%), transparent 44%),
+          radial-gradient(ellipse at 76% 70%, rgb(160 205 176 / 7%), transparent 48%),
+          conic-gradient(from 90deg at 52% 50%, transparent 0 12%, rgb(143 193 227 / 4.8%) 20%, transparent 32% 100%),
+          linear-gradient(90deg, rgb(255 255 255 / 2.2%) 1px, transparent 1px),
+          linear-gradient(0deg, rgb(255 255 255 / 1.8%) 1px, transparent 1px);
+        background-size: auto, auto, auto, 108px 108px, 108px 108px;
+      }
+
+      .reader-section::after {
+        background:
+          radial-gradient(ellipse at 18% 78%, rgb(183 168 217 / 9%), transparent 46%),
+          radial-gradient(ellipse at 82% 28%, rgb(143 193 227 / 9%), transparent 44%),
+          linear-gradient(120deg, transparent 0 43%, rgb(255 255 255 / 3%) 44%, transparent 49% 100%),
+          linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px),
+          linear-gradient(0deg, rgb(255 255 255 / 1.8%) 1px, transparent 1px);
+        background-size: auto, auto, 360px 360px, 104px 104px, 104px 104px;
+      }
+
+      .principles-section::after,
+      .get-started-section::after {
+        background:
+          radial-gradient(ellipse at 18% 24%, rgb(183 168 217 / 10%), transparent 48%),
+          radial-gradient(ellipse at 84% 74%, rgb(143 193 227 / 9%), transparent 48%),
+          radial-gradient(circle at 50% 50%, rgb(255 255 255 / 3%) 1px, transparent 1.5px),
+          linear-gradient(90deg, rgb(255 255 255 / 2%) 1px, transparent 1px),
+          linear-gradient(0deg, rgb(255 255 255 / 1.8%) 1px, transparent 1px);
+        background-size: auto, auto, 34px 34px, 112px 112px, 112px 112px;
+      }
+
+      @keyframes sectionFieldDrift {
+        0% {
+          background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0;
+          opacity: 0.62;
+        }
+
+        100% {
+          background-position: 28px -24px, -22px 26px, 18px 30px, 34px 0, 18px 0, 0 18px;
+          opacity: 0.78;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .alive-section::after {
+          animation: none;
+        }
+
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .reveal {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+

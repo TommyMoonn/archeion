@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Archeion is a cinematic local EPUB library for browsing books, keeping progress, and reading from a calm local archive."
+    />
+    <meta name="theme-color" content="#151516" />
+    <title>Archeion - Local EPUB Library</title>
+    <link rel="icon" href="./assets/archeion-icon.png" />
+    <link rel="stylesheet" href="./styles/01-foundation.css" />
+    <link rel="stylesheet" href="./styles/02-cinematic-layer.css" />
+    <link rel="stylesheet" href="./styles/03-section-fields.css" />
+    <link rel="stylesheet" href="./styles/04-product-polish.css" />
+    <link rel="stylesheet" href="./styles/05-performance-responsive.css" />
+  </head>
+  <body>
+    <svg class="svg-sprite" aria-hidden="true" focusable="false">
+      <symbol id="github-mark" viewBox="0 0 24 24">
+        <path fill="currentColor" d="M12 2C6.48 2 2 6.59 2 12.25c0 4.52 2.87 8.35 6.84 9.7.5.1.68-.22.68-.49v-1.72c-2.78.62-3.37-1.38-3.37-1.38-.45-1.18-1.11-1.5-1.11-1.5-.91-.64.07-.63.07-.63 1.01.07 1.54 1.06 1.54 1.06.89 1.57 2.34 1.12 2.91.85.09-.66.35-1.12.63-1.37-2.22-.26-4.56-1.14-4.56-5.06 0-1.12.39-2.03 1.03-2.74-.1-.26-.45-1.3.1-2.71 0 0 .84-.28 2.75 1.05A9.34 9.34 0 0 1 12 6.96c.85 0 1.7.12 2.5.35 1.9-1.33 2.74-1.05 2.74-1.05.55 1.41.2 2.45.1 2.71.64.71 1.03 1.62 1.03 2.74 0 3.93-2.34 4.79-4.57 5.05.36.32.68.94.68 1.9v2.8c0 .27.18.6.69.49A10.1 10.1 0 0 0 22 12.25C22 6.59 17.52 2 12 2Z" />
+      </symbol>
+    </svg>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-nav" aria-label="Primary navigation">
+      <div class="nav-inner">
+        <a class="brand" href="#hero" aria-label="Archeion home">
+          <img class="brand-mark" data-logo src="./assets/archeion-icon.png" width="36" height="36" alt="" />
+          <span class="brand-copy">
+            <strong>Archeion</strong>
+          </span>
+        </a>
+
+        <nav class="nav-links" aria-label="Section links">
+          <a href="#archive">Library</a>
+          <a href="#experience">Reader</a>
+          <a href="#principles">Design</a>
+          <a href="#get-started">Get started</a>
+        </nav>
+
+        <a
+          class="nav-action"
+          href="https://github.com/TommyMoonn/archeion"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open Archeion on GitHub"
+        >
+          <svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#github-mark"></use></svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="hero" aria-labelledby="hero-title">
+        <div class="hero-copy reveal">
+          <p class="eyebrow">Local EPUB library</p>
+          <h1 id="hero-title">Pull every book into orbit.</h1>
+          <p class="hero-lede">
+            Open a folder. See your books become a focused library with covers, folders, progress, favorites, and a reader that stays out of the way.
+          </p>
+          <div class="hero-actions" aria-label="Primary actions">
+            <a class="button button-primary" href="#get-started">Get Started</a>
+            <a class="button button-secondary" href="#experience">See the experience</a>
+          </div>
+        </div>
+
+        <div class="hero-stage" aria-hidden="true">
+          <div class="blackhole-shell">
+            <div class="shockwave"></div>
+            <div class="shockwave"></div>
+            <div class="shockwave"></div>
+            <div class="singularity-flare"></div>
+            <div class="particle-field"></div>
+            <div class="accretion"></div>
+            <div class="event-horizon"></div>
+            <div class="orbital orbital-1"><span></span></div>
+            <div class="orbital orbital-2"><span></span></div>
+            <div class="orbital orbital-3"><span></span></div>
+          </div>
+          <div class="book-comet book-comet-a"></div>
+          <div class="book-comet book-comet-b"></div>
+
+          <aside class="archive-core-card">
+            <header>
+              <img data-logo src="./assets/archeion-icon.png" width="34" height="34" alt="" />
+              <div>
+                <strong>Reading orbit</strong>
+                <span>Library state at a glance</span>
+              </div>
+            </header>
+            <div class="file-row"><i class="file-dot"></i><span>Continue reading</span><span>active</span></div>
+            <div class="file-row"><i class="file-dot"></i><span>Favorites</span><span>saved</span></div>
+            <div class="file-row"><i class="file-dot"></i><span>Folders</span><span>matched</span></div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page-section alive-section archive-section" id="archive" aria-labelledby="archive-title">
+        <div class="section-header reveal">
+          <div>
+            <span class="section-kicker">Library</span>
+            <h2 id="archive-title">Your folder becomes a living library.</h2>
+          </div>
+          <div class="section-points" aria-label="Library promises">
+            <span>Real folders stay real</span>
+            <span>Covers and progress surface fast</span>
+            <span>Files remain portable</span>
+          </div>
+        </div>
+
+        <div class="feature-grid product-grid">
+          <article class="feature-card tall reveal interactive-glow orbit-card">
+            <h3>Keep the shape you already use</h3>
+            <ul class="feature-list">
+              <li>Open an existing EPUB archive folder</li>
+              <li>Browse nested collections as they are</li>
+              <li>Reveal the original book in your file manager</li>
+            </ul>
+            <div class="archive-portal" aria-hidden="true">
+              <div class="portal-row"><i class="portal-icon"></i><span>Light Novels</span><small>archive</small></div>
+              <div class="portal-row"><i class="portal-icon"></i><span>Backlog</span><small>folder</small></div>
+              <div class="portal-row"><i class="portal-icon"></i><span>Volume 01.epub</span><small>book</small></div>
+              <div class="portal-row"><i class="portal-icon"></i><span>.archeion</span><small>memory</small></div>
+            </div>
+          </article>
+
+          <article class="feature-card reveal interactive-glow pulse-card">
+            <h3>See the collection faster</h3>
+            <ul class="feature-list">
+              <li>Readable titles and authors</li>
+              <li>Cover thumbnails when available</li>
+              <li>Clean fallbacks when metadata is missing</li>
+            </ul>
+          </article>
+
+          <article class="feature-card reveal interactive-glow pulse-card">
+            <h3>Return without friction</h3>
+            <ul class="feature-list">
+              <li>Continue active books</li>
+              <li>Keep favorites visible</li>
+              <li>Track reading progress quietly</li>
+            </ul>
+          </article>
+
+          <article class="feature-card wide reveal interactive-glow orbit-card">
+            <h3>Manage the archive like a desktop library</h3>
+            <ul class="feature-list compact-list">
+              <li>Add EPUBs into the active archive</li>
+              <li>Create, rename, move, and delete real books and folders</li>
+              <li>Pick up outside changes through rescan or file watching</li>
+            </ul>
+            <div class="file-orbit" aria-hidden="true">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page-section alive-section reader-section" id="experience" aria-labelledby="experience-title">
+        <div class="section-header reveal">
+          <div>
+            <span class="section-kicker">Reader</span>
+            <h2 id="experience-title">Open, read, resume.</h2>
+          </div>
+          <div class="section-points" aria-label="Reader promises">
+            <span>Focused reader view</span>
+            <span>Readable controls</span>
+            <span>Progress follows the book</span>
+          </div>
+        </div>
+
+        <div class="split-showcase cosmic-frame">
+          <div class="showcase-panel reveal interactive-glow" aria-label="Library interface preview">
+            <div class="mock-window">
+              <aside class="mock-sidebar">
+                <strong>Archeion</strong>
+                <div class="mock-nav-item active">Library</div>
+                <div class="mock-nav-item">Continue Reading</div>
+                <div class="mock-nav-item">Favorites</div>
+                <div class="mock-nav-item">Folders</div>
+                <div class="mock-nav-item">Settings</div>
+              </aside>
+              <div class="mock-content">
+                <header>
+                  <div class="mock-title"></div>
+                  <div class="mock-search"></div>
+                </header>
+                <div class="book-grid-mock">
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                  <div class="book-mock"><div class="cover-mock"></div><div class="title-mock"></div><div class="title-mock short"></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <aside class="feature-card tall reveal interactive-glow reader-card">
+            <h3>Reader controls stay practical</h3>
+            <ul class="feature-list">
+              <li>Theme, spacing, and type controls</li>
+              <li>Last-read location stored beside the archive</li>
+              <li>Settings designed for reading, not decoration</li>
+            </ul>
+            <div class="reader-preview" aria-hidden="true">
+              <div class="reader-toolbar"><i class="reader-pill"></i><i class="reader-pill"></i><i class="reader-pill"></i></div>
+              <div class="reader-page">
+                <i class="reader-line"></i>
+                <i class="reader-line"></i>
+                <i class="reader-line"></i>
+                <i class="reader-line"></i>
+              </div>
+              <div class="reader-progress"><span></span></div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="quick-signals reveal" aria-label="User-facing benefits">
+          <div class="signal-card interactive-glow"><strong>Library first</strong><span>Browse by covers, folders, favorites, and active books.</span></div>
+          <div class="signal-card interactive-glow"><strong>Local first</strong><span>No backend, account, or cloud handoff required.</span></div>
+          <div class="signal-card interactive-glow"><strong>Local first</strong><span>Folder picking, file reveal, and safe file actions belong in the app.</span></div>
+        </div>
+      </section>
+
+      <section class="page-section alive-section principles-section" id="principles" aria-labelledby="principles-title">
+        <div class="section-header reveal">
+          <div>
+            <span class="section-kicker">Design</span>
+            <h2 id="principles-title">Cosmic outside. Calm inside.</h2>
+          </div>
+          <div class="section-points" aria-label="Design principles">
+            <span>Landing page spectacle</span>
+            <span>App UI restraint</span>
+            <span>Motion with control</span>
+          </div>
+        </div>
+
+        <div class="principles constellation-grid">
+          <article class="principle reveal interactive-glow">
+            <span>01</span>
+            <div>
+              <h3>Filesystem truth</h3>
+              <p>The folder hierarchy is the library. Archeion reflects it instead of hiding it.</p>
+            </div>
+          </article>
+          <article class="principle reveal interactive-glow">
+            <span>02</span>
+            <div>
+              <h3>Sidecar memory</h3>
+              <p>Progress, favorites, covers, and cache data support the books without replacing them.</p>
+            </div>
+          </article>
+          <article class="principle reveal interactive-glow">
+            <span>03</span>
+            <div>
+              <h3>Readable surface</h3>
+              <p>The product keeps controls crisp. The spectacle belongs to the brand layer.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="page-section alive-section get-started-section" id="get-started" aria-labelledby="get-started-title">
+        <div class="launch-band reveal interactive-glow">
+          <div class="launch-copy">
+            <span class="section-kicker">Get started</span>
+            <h2 id="get-started-title">Pull Archeion from GitHub.</h2>
+            <div class="launch-pills" aria-label="Project entry points">
+              <span>Clone the source</span>
+              <span>Run the desktop app</span>
+              <span>Build releases when ready</span>
+            </div>
+          </div>
+
+          <article class="terminal-card" aria-label="Clone and run commands">
+            <div class="terminal-chrome"><span></span><span></span><span></span></div>
+            <div class="terminal-stream">
+              <div class="terminal-line type-line"><span class="prompt">❯</span><code>git clone https://github.com/TommyMoonn/archeion.git</code><i></i></div>
+              <div class="terminal-line delay-one"><span class="prompt">❯</span><code>cd archeion</code></div>
+              <div class="terminal-line delay-two"><span class="prompt">❯</span><code>npm install</code></div>
+              <div class="terminal-line delay-three"><span class="prompt">❯</span><code>npm run tauri dev</code></div>
+            </div>
+            <button class="copy-command" type="button" data-copy-clone="git clone https://github.com/TommyMoonn/archeion.git">Copy clone command</button>
+          </article>
+        </div>
+
+        <div class="start-actions reveal">
+          <a class="button button-primary" href="https://github.com/TommyMoonn/archeion" target="_blank" rel="noreferrer">
+            <svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#github-mark"></use></svg>
+            GitHub
+          </a>
+          <a class="button button-secondary" href="#hero">Back to top</a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="page-section" aria-label="Footer">
+      <div class="author-strip">
+        <span><strong>Archeion</strong> by <strong>Khoa Luong</strong></span>
+        <a class="footer-github" href="https://github.com/TommyMoonn/archeion" target="_blank" rel="noreferrer">
+          <svg class="github-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><use href="#github-mark"></use></svg>
+          GitHub
+        </a>
+      </div>
+    </footer>
+    <script src="./landing.js" defer></script>
+  </body>
+</html>

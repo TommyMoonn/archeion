@@ -1,0 +1,167 @@
+/* Readability, terminal fit, content-visibility, and final responsive/performance guards.
+   Keep stylesheet order from index.html. Later files intentionally override earlier layers. */
+
+/* Refinement patch: readability, terminal fit, and performance containment */
+      :root {
+        --text: #e0dde5;
+        --muted: #b4afb9;
+        --muted-soft: #8d8993;
+        --line: #38383e;
+      }
+
+      body {
+        line-height: 1.5;
+      }
+
+      p,
+      .feature-list li,
+      .compact-list li,
+      .quick-signals span,
+      .section-points span,
+      .launch-pills span,
+      .file-row,
+      .mock-nav-item,
+      .principle p {
+        color: var(--muted);
+      }
+
+      .hero-lede,
+      .section-header p,
+      .feature-card p,
+      .principle p,
+      .quick-signals span {
+        line-height: 1.74;
+      }
+
+      .feature-card,
+      .showcase-panel,
+      .principle,
+      .launch-band,
+      .archive-core-card,
+      .terminal-card {
+        contain: layout paint;
+      }
+
+      .page-section {
+        content-visibility: auto;
+        contain-intrinsic-size: 820px;
+      }
+
+      .hero,
+      .get-started-section,
+      footer.page-section {
+        content-visibility: visible;
+      }
+
+      .interactive-glow::before,
+      .alive-section::after,
+      main::before,
+      .accretion,
+      .orbital,
+      .file-orbit,
+      .launch-band::before,
+      .launch-band::after {
+        will-change: transform, opacity;
+      }
+
+      .terminal-card {
+        min-width: 0;
+      }
+
+      .terminal-stream {
+        overflow-x: hidden;
+        padding: 24px 20px 22px;
+      }
+
+      .terminal-line {
+        min-width: 0;
+        align-items: center;
+        white-space: nowrap;
+        font-size: clamp(10px, 0.95vw, 12px);
+        line-height: 1.4;
+      }
+
+      .terminal-line .prompt {
+        flex: 0 0 auto;
+        padding-top: 0;
+      }
+
+      .terminal-line code {
+        min-width: 0;
+        max-width: none;
+        overflow-wrap: normal;
+        word-break: normal;
+        white-space: nowrap;
+      }
+
+      .type-line code {
+        flex: 0 1 auto;
+        max-width: 0;
+      }
+
+      @keyframes typeClone {
+        to { max-width: 54ch; }
+      }
+
+      @media (max-width: 860px) {
+        .site-nav {
+          backdrop-filter: blur(14px) saturate(118%);
+        }
+
+        body::after,
+        main::before,
+        .alive-section::after {
+          animation: none;
+        }
+
+        .blackhole-shell::before,
+        .accretion {
+          filter: none;
+        }
+      }
+
+      @media (max-width: 720px) {
+        .terminal-stream {
+          overflow-x: auto;
+          padding: 20px 16px 18px;
+          scrollbar-width: none;
+        }
+
+        .terminal-stream::-webkit-scrollbar {
+          display: none;
+        }
+
+        .terminal-line {
+          font-size: 10px;
+          white-space: nowrap;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        main::before,
+        .alive-section::after,
+        .file-orbit,
+        .cosmic-frame::before,
+        .launch-band::before,
+        .launch-band::after,
+        .type-line code,
+        .type-line i,
+        .delay-one,
+        .delay-two,
+        .delay-three {
+          animation: none !important;
+        }
+
+        .type-line code {
+          max-width: none;
+        }
+
+        .delay-one,
+        .delay-two,
+        .delay-three {
+          opacity: 0.98;
+          transform: none;
+        }
+      }
+
+    
