@@ -106,10 +106,7 @@ fn sanitize_zip_path(path: &str) -> Result<String, String> {
     Ok(parts.join("/"))
 }
 
-pub(crate) fn resolve_zip_relative_path(
-    package_path: &str,
-    href: &str,
-) -> Result<String, String> {
+pub(crate) fn resolve_zip_relative_path(package_path: &str, href: &str) -> Result<String, String> {
     let href = href.split(['#', '?']).next().unwrap_or(href);
     let mut parts = package_path
         .rsplit_once('/')
@@ -202,11 +199,7 @@ fn clean_metadata_value(value: &str) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
-fn assign_metadata_value(
-    metadata: &mut EpubPackageMetadata,
-    field: MetadataField,
-    value: &str,
-) {
+fn assign_metadata_value(metadata: &mut EpubPackageMetadata, field: MetadataField, value: &str) {
     let Some(value) = clean_metadata_value(value) else {
         return;
     };
@@ -358,7 +351,10 @@ mod tests {
 
     #[test]
     fn fails_on_malformed_package_metadata() {
-        assert!(parse_core_metadata("<package><metadata><dc:title>Broken</dc:creator></metadata></package>").is_err());
+        assert!(parse_core_metadata(
+            "<package><metadata><dc:title>Broken</dc:creator></metadata></package>"
+        )
+        .is_err());
     }
 
     #[test]

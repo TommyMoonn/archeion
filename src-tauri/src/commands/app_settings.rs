@@ -9,7 +9,7 @@ use tauri::Manager;
 
 const APP_SETTINGS_FILE: &str = "settings.json";
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppearanceSettings {
     #[serde(default)]
@@ -93,32 +93,61 @@ pub struct AppPreferences {
     pub window_frame_style: String,
 }
 
-fn default_app_theme_preset() -> String { "dark".to_string() }
-fn default_book_card_size() -> String { "medium".to_string() }
-fn default_density() -> String { "comfortable".to_string() }
-fn default_import_conflict_action() -> String { "keepBoth".to_string() }
-fn default_import_mode() -> String { "copy".to_string() }
-fn default_library_sort() -> String { "title".to_string() }
-fn default_library_view() -> String { "grid".to_string() }
-fn default_reader_font_family() -> String { "serif".to_string() }
-fn default_reader_font_size() -> f64 { 18.0 }
-fn default_reader_line_height() -> f64 { 1.6 }
-fn default_reader_margin() -> f64 { 48.0 }
-fn default_reader_progress_placement() -> String { "top".to_string() }
-fn default_reader_theme() -> String { "dark".to_string() }
-fn default_startup_behavior() -> String { "open-last-archive".to_string() }
-fn default_true() -> bool { true }
-fn default_window_frame_style() -> String { "hidden".to_string() }
-
-impl Default for AppearanceSettings {
-    fn default() -> Self {
-        Self { animations_enabled: false }
-    }
+fn default_app_theme_preset() -> String {
+    "dark".to_string()
+}
+fn default_book_card_size() -> String {
+    "medium".to_string()
+}
+fn default_density() -> String {
+    "comfortable".to_string()
+}
+fn default_import_conflict_action() -> String {
+    "keepBoth".to_string()
+}
+fn default_import_mode() -> String {
+    "copy".to_string()
+}
+fn default_library_sort() -> String {
+    "title".to_string()
+}
+fn default_library_view() -> String {
+    "grid".to_string()
+}
+fn default_reader_font_family() -> String {
+    "serif".to_string()
+}
+fn default_reader_font_size() -> f64 {
+    18.0
+}
+fn default_reader_line_height() -> f64 {
+    1.6
+}
+fn default_reader_margin() -> f64 {
+    48.0
+}
+fn default_reader_progress_placement() -> String {
+    "top".to_string()
+}
+fn default_reader_theme() -> String {
+    "dark".to_string()
+}
+fn default_startup_behavior() -> String {
+    "open-last-archive".to_string()
+}
+fn default_true() -> bool {
+    true
+}
+fn default_window_frame_style() -> String {
+    "hidden".to_string()
 }
 
 impl Default for LibraryDisplaySettings {
     fn default() -> Self {
-        Self { sort_by: default_library_sort(), view_mode: default_library_view() }
+        Self {
+            sort_by: default_library_sort(),
+            view_mode: default_library_view(),
+        }
     }
 }
 
@@ -137,7 +166,10 @@ impl Default for ReaderSettings {
 
 impl Default for FilesAndMetadataSettings {
     fn default() -> Self {
-        Self { live_watcher_enabled: true, scan_on_startup: true }
+        Self {
+            live_watcher_enabled: true,
+            scan_on_startup: true,
+        }
     }
 }
 
@@ -183,8 +215,8 @@ fn read_settings(path: &Path) -> Result<AppPreferences, String> {
         return Ok(AppPreferences::default());
     }
 
-    let contents = fs::read(path)
-        .map_err(|error| format!("App settings could not be read: {error}"))?;
+    let contents =
+        fs::read(path).map_err(|error| format!("App settings could not be read: {error}"))?;
     serde_json::from_slice(&contents)
         .map_err(|error| format!("App settings could not be parsed: {error}"))
 }
@@ -292,7 +324,9 @@ mod tests {
         let path = temporary_settings_path("round-trip");
         let preferences = AppPreferences {
             density: "compact".to_string(),
-            appearance: AppearanceSettings { animations_enabled: true },
+            appearance: AppearanceSettings {
+                animations_enabled: true,
+            },
             library: super::LibraryDisplaySettings {
                 sort_by: "author".to_string(),
                 view_mode: "list".to_string(),

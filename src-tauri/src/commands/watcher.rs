@@ -72,9 +72,7 @@ fn path_may_affect_archive_content(root: &Path, path: &Path) -> bool {
 
     if path
         .extension()
-        .is_some_and(|extension| extension
-            .to_string_lossy()
-            .eq_ignore_ascii_case("epub"))
+        .is_some_and(|extension| extension.to_string_lossy().eq_ignore_ascii_case("epub"))
     {
         return true;
     }
@@ -113,7 +111,10 @@ pub fn start_archive_watcher(
 
     let canonical_root = root.canonicalize().unwrap_or(root);
     let mut guard = state.watcher.lock().map_err(|error| error.to_string())?;
-    if let Some(active) = guard.as_ref().filter(|active| active.root == canonical_root) {
+    if let Some(active) = guard
+        .as_ref()
+        .filter(|active| active.root == canonical_root)
+    {
         return Ok(active.id.clone());
     }
 
@@ -202,8 +203,7 @@ mod tests {
         let root = std::env::temp_dir().join(format!("archeion-watcher-filter-{nonce}"));
         std::fs::create_dir_all(root.join("Author/Series.v1"))
             .expect("test directory should be created");
-        std::fs::write(root.join("notes.txt"), b"notes")
-            .expect("test file should be written");
+        std::fs::write(root.join("notes.txt"), b"notes").expect("test file should be written");
 
         assert!(!path_may_affect_archive_content(
             &root,

@@ -89,7 +89,10 @@ fn archive_identity_path(path: &str) -> String {
 }
 
 fn archive_id_for_path(path: &str) -> String {
-    format!("archive-{:016x}", hash_archive_path(&archive_identity_path(path)))
+    format!(
+        "archive-{:016x}",
+        hash_archive_path(&archive_identity_path(path))
+    )
 }
 
 fn archive_display_name(path: &Path) -> String {
@@ -212,8 +215,7 @@ fn write_registry(app: &tauri::AppHandle, registry: &ArchiveRegistry) -> Result<
         .parent()
         .ok_or_else(|| "App config directory is unavailable.".to_string())?;
     fs::create_dir_all(directory).map_err(|error| error.to_string())?;
-    let contents =
-        serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
+    let contents = serde_json::to_string_pretty(registry).map_err(|error| error.to_string())?;
     fs::write(path, contents).map_err(|error| error.to_string())
 }
 
@@ -250,10 +252,8 @@ fn archive_manager_url_parts(
 fn archive_manager_webview_url(
     app: &tauri::AppHandle,
 ) -> Result<(WebviewUrl, ArchiveManagerUrlKind, String), String> {
-    let (kind, url) = archive_manager_url_parts(
-        app.config().build.dev_url.as_ref(),
-        cfg!(debug_assertions),
-    )?;
+    let (kind, url) =
+        archive_manager_url_parts(app.config().build.dev_url.as_ref(), cfg!(debug_assertions))?;
 
     let webview_url = match kind {
         ArchiveManagerUrlKind::External => WebviewUrl::External(
@@ -520,10 +520,9 @@ mod tests {
     };
 
     use super::{
-        archive_id_for_path, archive_manager_url_parts, archive_paths_match, archive_root, metadata,
-        normalize_registry_paths, upsert_archive_at_path, validated_display_root_path,
-        validated_root_path,
-        ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
+        archive_id_for_path, archive_manager_url_parts, archive_paths_match, archive_root,
+        metadata, normalize_registry_paths, upsert_archive_at_path, validated_display_root_path,
+        validated_root_path, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -558,11 +557,8 @@ mod tests {
     fn upserts_equivalent_extended_windows_paths_without_duplicate_archives() {
         let mut registry = ArchiveRegistry::default();
 
-        let first = upsert_archive_at_path(
-            &mut registry,
-            r"\\?\C:\Users\Name\Books".to_string(),
-            None,
-        );
+        let first =
+            upsert_archive_at_path(&mut registry, r"\\?\C:\Users\Name\Books".to_string(), None);
         let second = upsert_archive_at_path(
             &mut registry,
             r"C:\Users\Name\Books".to_string(),
@@ -602,7 +598,10 @@ mod tests {
 
         assert!(normalize_registry_paths(&mut registry));
         assert_eq!(registry.archives[0].root_path, r"\\server\share\Books");
-        assert_eq!(registry.last_opened_archive_id.as_deref(), Some("archive-books"));
+        assert_eq!(
+            registry.last_opened_archive_id.as_deref(),
+            Some("archive-books")
+        );
     }
 
     #[test]
@@ -614,7 +613,10 @@ mod tests {
             .expect("plain archive folder should be accepted");
         let canonical_root = root.canonicalize().expect("root should canonicalize");
 
-        assert_eq!(display_path, archive_root::display_archive_path(&canonical_root));
+        assert_eq!(
+            display_path,
+            archive_root::display_archive_path(&canonical_root)
+        );
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -659,8 +661,8 @@ mod tests {
 
     #[test]
     fn archive_manager_production_url_uses_bundled_entry_with_marker() {
-        let (kind, url) = archive_manager_url_parts(None, false)
-            .expect("production manager URL should resolve");
+        let (kind, url) =
+            archive_manager_url_parts(None, false).expect("production manager URL should resolve");
 
         assert_eq!(kind, ArchiveManagerUrlKind::App);
         assert_eq!(url, "index.html?window=archive-manager");
@@ -668,8 +670,8 @@ mod tests {
 
     #[test]
     fn archive_manager_debug_url_fails_without_dev_url() {
-        let error = archive_manager_url_parts(None, true)
-            .expect_err("debug manager URL requires dev URL");
+        let error =
+            archive_manager_url_parts(None, true).expect_err("debug manager URL requires dev URL");
 
         assert!(error.contains("development URL"));
     }
@@ -677,7 +679,10 @@ mod tests {
     #[test]
     #[cfg(windows)]
     fn archive_ids_are_case_insensitive_on_windows() {
-        assert_eq!(archive_id_for_path("C:/Books"), archive_id_for_path("C:/books"));
+        assert_eq!(
+            archive_id_for_path("C:/Books"),
+            archive_id_for_path("C:/books")
+        );
         assert!(archive_paths_match("C:/Books", "C:/books"));
     }
 

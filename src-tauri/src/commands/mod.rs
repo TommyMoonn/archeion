@@ -1,10 +1,10 @@
 pub mod app_settings;
 pub mod archive;
 pub mod archive_import;
+pub mod archive_root;
 pub mod epub;
 pub mod epub_metadata;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;
-pub mod archive_root;
 pub mod watcher;

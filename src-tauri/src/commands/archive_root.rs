@@ -32,7 +32,8 @@ pub(crate) fn display_archive_path(path: &Path) -> String {
 }
 
 pub(crate) fn is_inside_archeion_metadata(path: &Path) -> bool {
-    path.components().any(|component| component.as_os_str() == ".archeion")
+    path.components()
+        .any(|component| component.as_os_str() == ".archeion")
 }
 
 #[tauri::command]
@@ -96,7 +97,8 @@ fn cover_cache_status_at(path: &Path) -> Result<CoverCacheStatus, String> {
                 .path()
                 .extension()
                 .and_then(|extension| extension.to_str())
-                == Some("cover") {
+                == Some("cover")
+        {
             status.file_count += 1;
             status.total_bytes += metadata.len();
         }

@@ -339,12 +339,8 @@ pub async fn scan_archive(
         .map_err(|error| error.to_string())?
 }
 
-
 #[tauri::command]
-pub fn clear_scanner_cache(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<(), String> {
+pub fn clear_scanner_cache(app: tauri::AppHandle, root_path: Option<String>) -> Result<(), String> {
     let path = archive_root::resolve_archive_root(&app, root_path)?;
     metadata::clear_scanner_cache_at(&path)
 }
@@ -528,9 +524,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be valid")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "archeion-scanner-cache-different-name-{nonce}"
-        ));
+        let root =
+            std::env::temp_dir().join(format!("archeion-scanner-cache-different-name-{nonce}"));
         let metadata_dir = root.join(".archeion");
         fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
         let epub_path = root.join("different.epub");
@@ -644,9 +639,7 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be valid")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "archeion-scanner-cache-error-reuse-{nonce}"
-        ));
+        let root = std::env::temp_dir().join(format!("archeion-scanner-cache-error-reuse-{nonce}"));
         let metadata_dir = root.join(".archeion");
         fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
         let epub_path = root.join("broken.epub");
@@ -683,9 +676,8 @@ mod tests {
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be valid")
             .as_nanos();
-        let root = std::env::temp_dir().join(format!(
-            "archeion-scanner-cache-error-refresh-{nonce}"
-        ));
+        let root =
+            std::env::temp_dir().join(format!("archeion-scanner-cache-error-refresh-{nonce}"));
         let metadata_dir = root.join(".archeion");
         fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
         let epub_path = root.join("changed.epub");

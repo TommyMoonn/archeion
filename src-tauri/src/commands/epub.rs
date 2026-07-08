@@ -345,7 +345,7 @@ mod tests {
         archive
             .start_file("OEBPS/content.opf", options)
             .expect("package entry should start");
-        if cover_bytes.is_some() {
+        if let Some(cover_bytes) = cover_bytes {
             archive
                 .write_all(
                     br#"<package><manifest>
@@ -357,7 +357,7 @@ mod tests {
                 .start_file("OEBPS/images/cover.bin", options)
                 .expect("cover entry should start");
             archive
-                .write_all(cover_bytes.expect("cover bytes should exist"))
+                .write_all(cover_bytes)
                 .expect("cover should be written");
         } else {
             archive
@@ -483,11 +483,11 @@ mod tests {
         let epub_path = root.join("book.epub");
         write_test_epub(&epub_path, Some(&[1, 2, 3]));
 
-        let first = load_epub_cover_at(&root, "book.epub", "book-1")
-            .expect("first cover load should work");
+        let first =
+            load_epub_cover_at(&root, "book.epub", "book-1").expect("first cover load should work");
         let cache_dir = root.join(".archeion").join("covers");
-        let cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
-            .expect("cache path should resolve");
+        let cache_path =
+            cover_cache_path(&cache_dir, &epub_path, "book-1").expect("cache path should resolve");
         fs::write(&cache_path, b"cached").expect("cache should be overwritten for reuse test");
 
         let second = load_epub_cover_at(&root, "book.epub", "book-1")
@@ -504,8 +504,8 @@ mod tests {
         fs::create_dir_all(&root).expect("test archive should be created");
         let epub_path = root.join("book.epub");
         write_test_epub(&epub_path, Some(&[1, 2, 3]));
-        let first = load_epub_cover_at(&root, "book.epub", "book-1")
-            .expect("first cover load should work");
+        let first =
+            load_epub_cover_at(&root, "book.epub", "book-1").expect("first cover load should work");
         assert_eq!(first, vec![1, 2, 3]);
         let cache_dir = root.join(".archeion").join("covers");
         let old_cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
@@ -531,18 +531,21 @@ mod tests {
         let epub_path = root.join("book.epub");
         write_test_epub(&epub_path, None);
 
-        let first = load_epub_cover_at(&root, "book.epub", "book-1")
-            .expect("first cover load should work");
+        let first =
+            load_epub_cover_at(&root, "book.epub", "book-1").expect("first cover load should work");
         let cache_dir = root.join(".archeion").join("covers");
-        let cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
-            .expect("cache path should resolve");
+        let cache_path =
+            cover_cache_path(&cache_dir, &epub_path, "book-1").expect("cache path should resolve");
         let second = load_epub_cover_at(&root, "book.epub", "book-1")
             .expect("second cover load should work");
 
         assert!(first.is_empty());
         assert!(second.is_empty());
         assert!(cache_path.is_file());
-        assert_eq!(fs::read(cache_path).expect("negative cache should read"), Vec::<u8>::new());
+        assert_eq!(
+            fs::read(cache_path).expect("negative cache should read"),
+            Vec::<u8>::new()
+        );
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -551,17 +554,19 @@ mod tests {
         let root = test_root();
         fs::create_dir_all(&root).expect("test archive should be created");
         let cache_path = root.join("book-1-3-100.cover");
-        let temporary_path = temporary_cover_cache_path(&cache_path)
-            .expect("temporary cache path should resolve");
+        let temporary_path =
+            temporary_cover_cache_path(&cache_path).expect("temporary cache path should resolve");
         fs::write(&cache_path, b"old").expect("old cache should be written");
         fs::write(&temporary_path, b"partial").expect("stale temporary cache should be written");
 
         write_cover_cache_atomic(&cache_path, b"new cache")
             .expect("atomic cover cache write should work");
 
-        assert_eq!(fs::read(&cache_path).expect("cache should read"), b"new cache");
+        assert_eq!(
+            fs::read(&cache_path).expect("cache should read"),
+            b"new cache"
+        );
         assert!(!temporary_path.exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 }
-
