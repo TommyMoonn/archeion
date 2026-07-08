@@ -13,11 +13,38 @@
           .map((link) => document.querySelector(link.getAttribute("href")))
           .filter(Boolean);
 
+        const pageRoot = document.documentElement;
+        let anchorScrollTimer = 0;
+
+        const endAnchorScroll = () => {
+          pageRoot.classList.remove("is-anchor-scrolling");
+          window.clearTimeout(anchorScrollTimer);
+          anchorScrollTimer = 0;
+        };
+
+        const beginAnchorScroll = (target) => {
+          pageRoot.classList.add("sections-prewarmed");
+
+          if (prefersReducedMotion) return;
+
+          const distance = Math.abs(target.getBoundingClientRect().top);
+          const settleDelay = Math.min(1200, Math.max(520, distance * 0.55));
+
+          pageRoot.classList.add("is-anchor-scrolling");
+          window.clearTimeout(anchorScrollTimer);
+          anchorScrollTimer = window.setTimeout(endAnchorScroll, settleDelay);
+
+          if ("onscrollend" in window) {
+            window.addEventListener("scrollend", endAnchorScroll, { once: true });
+          }
+        };
+
         document.querySelectorAll('a[href^="#"]').forEach((link) => {
           link.addEventListener("click", (event) => {
             const target = document.querySelector(link.getAttribute("href"));
             if (!target) return;
             event.preventDefault();
+            beginAnchorScroll(target);
             target.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
             history.pushState(null, "", link.getAttribute("href"));
           });
@@ -52,6 +79,18 @@
 
         sections.forEach((section) => navObserver.observe(section));
 
+        const prewarmSections = () => {
+          pageRoot.classList.add("sections-prewarmed");
+        };
+
+        if (!prefersReducedMotion) {
+          if ("requestIdleCallback" in window) {
+            window.requestIdleCallback(prewarmSections, { timeout: 900 });
+          } else {
+            window.setTimeout(prewarmSections, 240);
+          }
+        }
+
 
         const copyButton = document.querySelector("[data-copy-clone]");
         if (copyButton) {
@@ -70,7 +109,7 @@
         }
 
         if (!prefersReducedMotion && window.matchMedia("(pointer: fine)").matches) {
-          const root = document.documentElement;
+          const root = pageRoot;
           const stage = document.querySelector(".hero-stage");
           const reactiveNodes = [...document.querySelectorAll(".interactive-glow")];
           let frame = 0;
@@ -97,6 +136,8 @@
           };
 
           window.addEventListener("pointermove", (event) => {
+            if (root.classList.contains("is-anchor-scrolling")) return;
+
             pointerX = event.clientX;
             pointerY = event.clientY;
             if (!frame) {
@@ -119,10 +160,15 @@
         }
 
         if (!prefersReducedMotion) {
-          const root = document.documentElement;
+          const root = pageRoot;
           let scrollFrame = 0;
 
           window.addEventListener("scroll", () => {
+            if (root.classList.contains("is-anchor-scrolling")) {
+              root.style.setProperty("--scroll-glow", "0");
+              return;
+            }
+
             if (scrollFrame) return;
             scrollFrame = window.requestAnimationFrame(() => {
               const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);

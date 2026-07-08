@@ -57,6 +57,9 @@
       .alive-section::after,
       main::before,
       .accretion,
+      .singularity-flare,
+      .shockwave,
+      .particle-field,
       .orbital,
       .file-orbit,
       .launch-band::before,
@@ -221,4 +224,131 @@
   .start-actions .button:hover {
     transform: none;
   }
+}
+
+/* Black-hole wow-factor responsive guard. */
+@media (max-width: 1040px) {
+  .hero-stage {
+    min-height: 560px;
+  }
+
+  .blackhole-shell {
+    width: min(540px, 92vw);
+  }
+}
+
+@media (max-width: 720px) {
+  .hero-stage {
+    min-height: 380px;
+  }
+
+  .blackhole-shell {
+    width: min(380px, 94vw);
+  }
+
+  .particle-field,
+  .shockwave:nth-of-type(3),
+  .orbital::before {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .singularity-flare,
+  .shockwave,
+  .particle-field,
+  .accretion,
+  .accretion::before,
+  .accretion::after,
+  .orbital,
+  .orbital::before {
+    animation: none !important;
+  }
+}
+
+/* Section spatial motif guards. */
+@media (max-width: 1040px) {
+  .alive-section .section-header::before,
+  .alive-section .section-header::after,
+  .launch-copy::after {
+    opacity: 0.34;
+    transform: scale(0.86);
+  }
+
+  .archive-section .section-header::before,
+  .principles-section .section-header::before {
+    display: none;
+  }
+}
+
+@media (max-width: 720px) {
+  .alive-section .section-header::before,
+  .alive-section .section-header::after,
+  .launch-copy::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alive-section .section-header::before,
+  .alive-section .section-header::after,
+  .launch-copy::after {
+    animation: none !important;
+  }
+}
+
+/* Smooth anchor-scroll stability mode.
+   Pre-renders sections and avoids destructive display toggles during navbar jumps. */
+html.sections-prewarmed .page-section {
+  content-visibility: visible;
+}
+
+html.is-anchor-scrolling {
+  --scroll-glow: 0;
+}
+
+html.is-anchor-scrolling main::after,
+html.is-anchor-scrolling .hero::after,
+html.is-anchor-scrolling .hero-stage::before,
+html.is-anchor-scrolling .hero-stage::after,
+html.is-anchor-scrolling .blackhole-shell::before,
+html.is-anchor-scrolling .singularity-flare,
+html.is-anchor-scrolling .shockwave,
+html.is-anchor-scrolling .particle-field,
+html.is-anchor-scrolling .accretion,
+html.is-anchor-scrolling .accretion::before,
+html.is-anchor-scrolling .accretion::after,
+html.is-anchor-scrolling .orbital,
+html.is-anchor-scrolling .orbital::before,
+html.is-anchor-scrolling .alive-section::before,
+html.is-anchor-scrolling .alive-section::after,
+html.is-anchor-scrolling .alive-section .section-header::before,
+html.is-anchor-scrolling .alive-section .section-header::after,
+html.is-anchor-scrolling .launch-copy::after,
+html.is-anchor-scrolling .launch-band::before,
+html.is-anchor-scrolling .launch-band::after,
+html.is-anchor-scrolling .cover-mock::after,
+html.is-anchor-scrolling .cosmic-frame::before {
+  animation-play-state: paused !important;
+}
+
+html.is-anchor-scrolling main::after,
+html.is-anchor-scrolling .hero::after,
+html.is-anchor-scrolling .hero-stage::before,
+html.is-anchor-scrolling .hero-stage::after {
+  opacity: 0.18 !important;
+}
+
+html.is-anchor-scrolling .blackhole-shell {
+  filter:
+    drop-shadow(0 0 20px rgb(143 193 227 / 10%))
+    drop-shadow(0 0 42px rgb(183 168 217 / 7%));
+}
+
+html.is-anchor-scrolling .interactive-glow,
+html.is-anchor-scrolling .feature-card,
+html.is-anchor-scrolling .showcase-panel,
+html.is-anchor-scrolling .principle,
+html.is-anchor-scrolling .terminal-card {
+  transition-duration: 0ms !important;
 }

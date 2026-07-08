@@ -162,3 +162,162 @@
 .feature-card,
 .showcase-panel,
 .principle,
+
+/* Section spatial motifs: smaller echoes of the hero black-hole language. */
+.alive-section .section-header,
+.launch-copy {
+  position: relative;
+}
+
+.alive-section .section-header > *,
+.launch-copy > * {
+  position: relative;
+  z-index: 1;
+}
+
+.alive-section .section-header::before,
+.alive-section .section-header::after,
+.launch-copy::after {
+  position: absolute;
+  pointer-events: none;
+  content: "";
+}
+
+/* Library: compact accretion ring, offset behind the section promises. */
+.archive-section .section-header::after {
+  top: -74px;
+  right: clamp(12px, 8vw, 112px);
+  width: clamp(180px, 19vw, 280px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    conic-gradient(
+      from 24deg,
+      transparent 0 12%,
+      rgb(143 193 227 / 20%) 15%,
+      transparent 23% 45%,
+      rgb(160 205 176 / 13%) 51%,
+      transparent 62% 100%
+    ),
+    radial-gradient(circle, transparent 0 40%, rgb(143 193 227 / 9%) 41% 42%, transparent 43% 100%);
+  mask-image: radial-gradient(circle, transparent 0 34%, black 35% 48%, transparent 49%);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 34%, black 35% 48%, transparent 49%);
+  opacity: 0.72;
+  filter: blur(0.4px) drop-shadow(0 0 24px rgb(143 193 227 / 12%));
+  animation: sectionMiniOrbit 28s linear infinite;
+}
+
+/* Reader: calmer eclipse and sparse reading-orbit stars. */
+.reader-section .section-header::before {
+  top: -54px;
+  right: clamp(28px, 12vw, 180px);
+  width: clamp(140px, 15vw, 220px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(6 6 8 / 84%) 0 31%, transparent 32%),
+    radial-gradient(circle, transparent 0 41%, rgb(143 193 227 / 12%) 42% 43%, transparent 44% 100%),
+    radial-gradient(circle at 38% 31%, rgb(255 255 255 / 38%) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 72% 64%, rgb(183 168 217 / 42%) 0 1.5px, transparent 2.5px);
+  opacity: 0.62;
+  filter: drop-shadow(0 0 28px rgb(143 193 227 / 11%));
+  animation: sectionEclipseFloat 9s ease-in-out infinite;
+}
+
+/* Design: constellation diagram that reinforces the principle cards. */
+.principles-section .section-header::after {
+  top: -46px;
+  right: clamp(8px, 5vw, 82px);
+  width: clamp(190px, 23vw, 340px);
+  height: clamp(120px, 14vw, 210px);
+  background:
+    radial-gradient(circle at 10% 42%, rgb(255 255 255 / 60%) 0 2px, transparent 3px),
+    radial-gradient(circle at 34% 18%, rgb(143 193 227 / 64%) 0 2px, transparent 3px),
+    radial-gradient(circle at 58% 46%, rgb(183 168 217 / 60%) 0 2px, transparent 3px),
+    radial-gradient(circle at 84% 20%, rgb(168 216 216 / 54%) 0 2px, transparent 3px),
+    radial-gradient(circle at 74% 78%, rgb(255 255 255 / 46%) 0 1.5px, transparent 2.5px),
+    linear-gradient(24deg, transparent 0 18%, rgb(255 255 255 / 12%) 19% 20%, transparent 21% 100%),
+    linear-gradient(150deg, transparent 0 38%, rgb(143 193 227 / 11%) 39% 40%, transparent 41% 100%),
+    linear-gradient(10deg, transparent 0 60%, rgb(183 168 217 / 10%) 61% 62%, transparent 63% 100%);
+  opacity: 0.56;
+  filter: drop-shadow(0 0 20px rgb(143 193 227 / 10%));
+  animation: constellationDrift 12s ease-in-out infinite;
+}
+
+/* Get started: small quiet orbit near the launch copy, not another full hero. */
+.launch-copy::after {
+  right: clamp(-18px, 3vw, 34px);
+  bottom: -42px;
+  width: clamp(130px, 12vw, 190px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    conic-gradient(from 80deg, transparent 0 20%, rgb(143 193 227 / 17%) 25%, transparent 36% 66%, rgb(183 168 217 / 13%) 72%, transparent 84% 100%),
+    radial-gradient(circle, transparent 0 39%, rgb(255 255 255 / 6%) 40% 41%, transparent 42% 100%);
+  mask-image: radial-gradient(circle, transparent 0 31%, black 32% 47%, transparent 48%);
+  -webkit-mask-image: radial-gradient(circle, transparent 0 31%, black 32% 47%, transparent 48%);
+  opacity: 0.58;
+  filter: blur(0.5px) drop-shadow(0 0 22px rgb(143 193 227 / 11%));
+  animation: sectionMiniOrbit 32s linear infinite reverse;
+}
+
+/* Shared glimmer layer, low opacity to avoid fighting content. */
+.archive-section .section-header::before,
+.principles-section .section-header::before,
+.get-started-section::after {
+  position: absolute;
+  pointer-events: none;
+  content: "";
+}
+
+.archive-section .section-header::before,
+.principles-section .section-header::before {
+  inset: -42px -4% auto 46%;
+  height: 120px;
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 52%) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(143 193 227 / 36%) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(183 168 217 / 30%) 0 1px, transparent 1.5px);
+  background-position: 0 0, 44px 28px, 92px 70px;
+  background-size: 120px 120px, 170px 170px, 230px 230px;
+  opacity: 0.28;
+  mask-image: linear-gradient(90deg, transparent, black 22%, black 72%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, black 22%, black 72%, transparent);
+  animation: sectionGlimmerDrift 24s linear infinite;
+}
+
+@keyframes sectionMiniOrbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes sectionEclipseFloat {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) scale(0.98);
+    opacity: 0.52;
+  }
+
+  50% {
+    transform: translate3d(10px, -7px, 0) scale(1.03);
+    opacity: 0.68;
+  }
+}
+
+@keyframes constellationDrift {
+  0%, 100% {
+    transform: translate3d(0, 0, 0);
+    opacity: 0.46;
+  }
+
+  50% {
+    transform: translate3d(8px, -6px, 0);
+    opacity: 0.68;
+  }
+}
+
+@keyframes sectionGlimmerDrift {
+  to {
+    background-position: 120px -80px, -126px 96px, 190px 54px;
+  }
+}

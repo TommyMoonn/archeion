@@ -404,7 +404,7 @@
         width: min(560px, 78vw);
         aspect-ratio: 1;
         border-radius: 50%;
-        contain: layout paint style;
+        contain: layout style;
         isolation: isolate;
       }
 
