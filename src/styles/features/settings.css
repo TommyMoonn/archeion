@@ -179,13 +179,6 @@
   border-bottom: 1px solid var(--line);
 }
 
-.settings-row > div:first-child,
-.settings-row > span,
-.settings-row > div:first-child > div {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-}
 
 .settings-row strong,
 .settings-row legend {
