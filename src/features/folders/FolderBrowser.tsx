@@ -88,9 +88,14 @@ export function FolderBrowser({
           <div className="library-search folder-browser__search">
             <Input
               icon={<MagnifyingGlass aria-hidden="true" size={17} />}
+              autoCapitalize="none"
+              autoComplete="off"
+              autoCorrect="off"
               label="Search folders"
+              name="archeion-folder-search"
               onChange={(event) => setQuery(event.currentTarget.value)}
               placeholder="Search folders"
+              spellCheck={false}
               type="search"
               value={query}
             />

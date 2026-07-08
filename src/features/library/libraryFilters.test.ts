@@ -109,7 +109,7 @@ describe("library filters", () => {
         title: "Parsed Package Title",
         creator: "Parsed Package Author",
         identifier: "urn:test:book",
-        language: "en",
+        language: "zz",
       },
     });
     expect(filterBooks([parsedMetadataBook], "package author")).toEqual([
@@ -118,6 +118,8 @@ describe("library filters", () => {
     expect(filterBooks([parsedMetadataBook], "urn:test:book")).toEqual([
       parsedMetadataBook,
     ]);
+    expect(filterBooks([parsedMetadataBook], "zz")).toEqual([]);
+    expect(filterBooks([parsedMetadataBook], "urn")).toEqual([]);
   });
 
   it("matches multiple terms across metadata and file context", () => {
@@ -201,6 +203,37 @@ describe("library filters", () => {
     });
 
     expect(filterBooks([fileBook], "re zero vol 1")).toEqual([fileBook]);
+  });
+
+  it("derives folder-name search text from the final folder path segment", () => {
+    const book = createBook({
+      id: "folder-path-only",
+      originalTitle: "Plain Title",
+      fileName: "Plain Title.epub",
+      folderPath: "Light Novels/Re Zero",
+      relativePath: "Light Novels/Re Zero/Plain Title.epub",
+    });
+    const [entry] = createLibrarySearchIndex([book]);
+
+    expect(entry.fields.folderName.normalized).toBe("re zero");
+    expect(filterBookSearchIndex([entry], "re zero")).toEqual([book]);
+    expect(filterBookSearchIndex([entry], "light novels")).toEqual([book]);
+  });
+
+  it("gates low-value source identifier matches behind deliberate queries", () => {
+    const metadataBook = createBook({
+      id: "metadata",
+      originalTitle: "Plain Title",
+      fileName: "Plain Title.epub",
+      sourceMetadata: {
+        identifier: "id-only-match",
+        language: "jp",
+      },
+    });
+
+    expect(filterBooks([metadataBook], "id")).toEqual([]);
+    expect(filterBooks([metadataBook], "jp")).toEqual([]);
+    expect(filterBooks([metadataBook], "id-only")).toEqual([metadataBook]);
   });
 
   it("matches multi-term queries across fields without requiring query order", () => {

@@ -60,9 +60,14 @@ export function SettingsSidebar({
       <Input
         className="settings-search"
         icon={<MagnifyingGlass aria-hidden="true" size={16} />}
+        autoCapitalize="none"
+        autoComplete="off"
+        autoCorrect="off"
         label="Search settings"
+        name="archeion-settings-search"
         onChange={(event) => onQueryChange(event.currentTarget.value)}
         placeholder="Search settings"
+        spellCheck={false}
         type="search"
         value={query}
       />

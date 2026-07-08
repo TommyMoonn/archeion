@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverCacheStatus } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
@@ -9,9 +9,15 @@ import {
   useAppPreferencesPersistenceStatus,
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
+import {
+  defaultAppPreferences,
+  type AppPreferences,
+} from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
-import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
+import type {
+  ArchiveImportSettings,
+  ImportSettings,
+} from "../../types/settings";
 import { useArchive } from "../archive/useArchive";
 import {
   createArchiveDestinationOptions,
@@ -22,6 +28,7 @@ import type {
   SettingsConfirmationKey,
   SettingsConfirmationState,
 } from "./SettingsConfirmations";
+import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -29,6 +36,8 @@ const initialConfirmations: SettingsConfirmationState = {
   reextractMetadata: false,
   rescanArchive: false,
 };
+
+const LOCAL_STATUS_AUTO_DISMISS_MS = 2500;
 
 export function useSettingsDialogController() {
   const storage = useLibraryStorage();
@@ -43,7 +52,10 @@ export function useSettingsDialogController() {
   });
   const [folders, setFolders] = useState<Folder[]>([]);
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
+  const statusDismissTimerRef = useRef<number | null>(null);
+  const statusRevisionRef = useRef(0);
+  const appPreferenceSaveRevisionRef = useRef(0);
   const [confirmations, setConfirmations] =
     useState<SettingsConfirmationState>(initialConfirmations);
 
@@ -66,6 +78,69 @@ export function useSettingsDialogController() {
   const selectedArchivePath =
     archive.status === "ready" ? archive.path : undefined;
 
+  const clearStatusDismissTimer = useCallback(() => {
+    if (statusDismissTimerRef.current === null) return;
+    window.clearTimeout(statusDismissTimerRef.current);
+    statusDismissTimerRef.current = null;
+  }, []);
+
+  const clearLocalStatus = useCallback(() => {
+    statusRevisionRef.current += 1;
+    clearStatusDismissTimer();
+    setStatus(null);
+  }, [clearStatusDismissTimer]);
+
+  const setLocalStatus = useCallback(
+    (
+      message: string,
+      tone: SettingsStatusTone,
+      options?: { autoDismiss?: boolean },
+    ) => {
+      statusRevisionRef.current += 1;
+      const revision = statusRevisionRef.current;
+      const autoDismiss = options?.autoDismiss ?? tone !== "error";
+
+      clearStatusDismissTimer();
+      setStatus({ message, tone });
+
+      if (!autoDismiss) return;
+
+      statusDismissTimerRef.current = window.setTimeout(() => {
+        if (statusRevisionRef.current !== revision) return;
+        statusDismissTimerRef.current = null;
+        setStatus(null);
+      }, LOCAL_STATUS_AUTO_DISMISS_MS);
+    },
+    [clearStatusDismissTimer],
+  );
+
+  const setNeutralStatus = useCallback(
+    (message: string, options?: { autoDismiss?: boolean }) => {
+      setLocalStatus(message, "neutral", options);
+    },
+    [setLocalStatus],
+  );
+
+  const setSuccessStatus = useCallback(
+    (message: string) => {
+      setLocalStatus(message, "success");
+    },
+    [setLocalStatus],
+  );
+
+  const setErrorStatus = useCallback(
+    (message: string) => {
+      setLocalStatus(message, "error");
+    },
+    [setLocalStatus],
+  );
+
+  useEffect(() => {
+    return () => {
+      clearStatusDismissTimer();
+    };
+  }, [clearStatusDismissTimer]);
+
   useEffect(() => {
     let cancelled = false;
     void Promise.all([
@@ -81,14 +156,14 @@ export function useSettingsDialogController() {
       })
       .catch(() => {
         if (!cancelled) {
-          setStatus("Settings could not be loaded.");
+          setErrorStatus("Settings could not be loaded.");
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [storage]);
+  }, [storage, setErrorStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
     setConfirmations((current) => ({ ...current, [confirmation]: true }));
@@ -100,17 +175,31 @@ export function useSettingsDialogController() {
 
   async function updateAppPreferences(
     changes: Partial<AppPreferences>,
+    options?: { successMessage?: string | false },
   ): Promise<boolean> {
-    setStatus(null);
+    appPreferenceSaveRevisionRef.current += 1;
+    const saveRevision = appPreferenceSaveRevisionRef.current;
+    clearLocalStatus();
+
     try {
       await appPreferencesStore.update(changes);
+      if (appPreferenceSaveRevisionRef.current !== saveRevision) {
+        return true;
+      }
+
+      const successMessage = options?.successMessage ?? "Settings saved.";
+      if (successMessage) {
+        setSuccessStatus(successMessage);
+      }
       return true;
     } catch (error) {
-      setStatus(
-        error instanceof Error
-          ? error.message
-          : "App settings could not be saved.",
-      );
+      if (appPreferenceSaveRevisionRef.current === saveRevision) {
+        setErrorStatus(
+          error instanceof Error
+            ? error.message
+            : "App settings could not be saved.",
+        );
+      }
       return false;
     }
   }
@@ -139,11 +228,11 @@ export function useSettingsDialogController() {
     changes: Partial<ArchiveImportSettings>,
   ): Promise<void> {
     const next = { ...archiveImport, ...changes };
-    setStatus(null);
+    clearLocalStatus();
     try {
       setArchiveImport(await storage.saveArchiveImportSettings(next));
     } catch {
-      setStatus("Import destination could not be saved.");
+      setErrorStatus("Import destination could not be saved.");
     }
   }
 
@@ -155,43 +244,43 @@ export function useSettingsDialogController() {
 
   async function rescan() {
     closeConfirmation("rescanArchive");
-    setStatus("Rescanning archive");
+    setNeutralStatus("Rescanning archive", { autoDismiss: false });
     try {
       await storage.rescan();
-      setStatus("Archive scan complete.");
+      setSuccessStatus("Archive scan complete.");
     } catch {
-      setStatus("The archive could not be scanned.");
+      setErrorStatus("The archive could not be scanned.");
     }
   }
 
   async function openArchiveManager() {
-    setStatus(null);
+    clearLocalStatus();
     const opened = await archiveStore.openArchiveManagerWindow();
-    if (!opened) setStatus("Archive Manager could not be opened.");
+    if (!opened) setErrorStatus("Archive Manager could not be opened.");
   }
 
   async function revealArchiveFolder() {
-    setStatus(null);
+    clearLocalStatus();
     if (archive.status !== "ready") return;
     const revealed = await archiveStore.revealArchive(archive.archive.id);
-    if (!revealed) setStatus("The archive folder could not be opened.");
+    if (!revealed) setErrorStatus("The archive folder could not be opened.");
   }
 
   async function revealMetadata() {
-    setStatus(null);
+    clearLocalStatus();
     try {
       await storage.revealMetadataFolder();
     } catch {
-      setStatus("The .archeion folder could not be opened.");
+      setErrorStatus("The .archeion folder could not be opened.");
     }
   }
 
   async function clearCache() {
     try {
       setCache(await storage.clearCoverCache());
-      setStatus("Cover cache cleared.");
+      setSuccessStatus("Cover cache cleared.");
     } catch {
-      setStatus("The cover cache could not be cleared.");
+      setErrorStatus("The cover cache could not be cleared.");
     } finally {
       closeConfirmation("clearCoverCache");
     }
@@ -200,9 +289,9 @@ export function useSettingsDialogController() {
   async function clearScannerCache() {
     try {
       await storage.clearScannerCache();
-      setStatus("Scanner cache cleared.");
+      setSuccessStatus("Scanner cache cleared.");
     } catch {
-      setStatus("The scanner cache could not be cleared.");
+      setErrorStatus("The scanner cache could not be cleared.");
     } finally {
       closeConfirmation("clearScannerCache");
     }
@@ -212,88 +301,88 @@ export function useSettingsDialogController() {
     try {
       await storage.clearScannerCache();
       await storage.rescan();
-      setStatus("Source metadata re-extracted.");
+      setSuccessStatus("Source metadata re-extracted.");
     } catch {
-      setStatus("Source metadata could not be re-extracted.");
+      setErrorStatus("Source metadata could not be re-extracted.");
     } finally {
       closeConfirmation("reextractMetadata");
     }
   }
 
   async function resetGeneral() {
-    if (
-      await updateAppPreferences({
+    await updateAppPreferences(
+      {
         confirmDestructiveFileActions:
           defaultAppPreferences.confirmDestructiveFileActions,
         restoreLastReader: defaultAppPreferences.restoreLastReader,
         startupBehavior: defaultAppPreferences.startupBehavior,
-      })
-    ) {
-      setStatus("General settings reset.");
-    }
+      },
+      { successMessage: "General settings reset." },
+    );
   }
 
   async function resetReader() {
-    if (await updateAppPreferences({ reader: defaultAppPreferences.reader })) {
-      setStatus("Reader settings reset.");
-    }
+    await updateAppPreferences(
+      { reader: defaultAppPreferences.reader },
+      { successMessage: "Reader settings reset." },
+    );
   }
 
   async function resetLibrary() {
-    const saved = await updateAppPreferences({
-      bookCardSize: defaultAppPreferences.bookCardSize,
-      library: defaultAppPreferences.library,
-      showContinueReading: defaultAppPreferences.showContinueReading,
-    });
-    if (saved) {
-      setStatus("Library settings reset.");
-    }
+    await updateAppPreferences(
+      {
+        bookCardSize: defaultAppPreferences.bookCardSize,
+        library: defaultAppPreferences.library,
+        showContinueReading: defaultAppPreferences.showContinueReading,
+      },
+      { successMessage: "Library settings reset." },
+    );
   }
 
   async function resetAppearance() {
-    if (
-      await updateAppPreferences({
+    await updateAppPreferences(
+      {
         appThemePreset: defaultAppPreferences.appThemePreset,
         density: defaultAppPreferences.density,
-      })
-    ) {
-      setStatus("Appearance settings reset.");
-    }
+      },
+      { successMessage: "Appearance settings reset." },
+    );
   }
 
   async function resetWindow() {
-    if (
-      await updateAppPreferences({
+    await updateAppPreferences(
+      {
         rememberWindowState: defaultAppPreferences.rememberWindowState,
         windowFrameStyle: defaultAppPreferences.windowFrameStyle,
-      })
-    ) {
-      setStatus("Window settings reset.");
-    }
+      },
+      { successMessage: "Window settings reset." },
+    );
   }
 
   async function resetStorage() {
-    if (
-      await updateAppPreferences({
+    await updateAppPreferences(
+      {
         filesAndMetadata: defaultAppPreferences.filesAndMetadata,
-      })
-    ) {
-      setStatus("Storage settings reset.");
-    }
+      },
+      { successMessage: "Storage settings reset." },
+    );
   }
 
   async function resetImport() {
     if (
-      !(await updateAppPreferences({ import: defaultAppPreferences.import }))
+      !(await updateAppPreferences(
+        { import: defaultAppPreferences.import },
+        { successMessage: false },
+      ))
     ) {
       return;
     }
 
     try {
       setArchiveImport(await storage.resetArchiveImportSettings());
-      setStatus("Import settings reset.");
+      setSuccessStatus("Import settings reset.");
     } catch {
-      setStatus("Import destination could not be reset.");
+      setErrorStatus("Import destination could not be reset.");
     }
   }
 

@@ -78,8 +78,13 @@ export function LibraryToolbar({
                 weight="regular"
               />
             }
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect="off"
             label="Search library"
+            name="archeion-library-search"
             placeholder="Search books"
+            spellCheck={false}
             value={query}
             onChange={(event) => onQueryChange(event.currentTarget.value)}
             type="search"

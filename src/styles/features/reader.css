@@ -402,14 +402,27 @@
 }
 
 .reader-settings__status {
-  margin: 18px 0 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  max-width: 100%;
+  margin: 18px auto 0;
+  padding: 5px 9px;
+  border: 1px solid color-mix(in srgb, var(--reader-line) 78%, transparent);
+  border-radius: var(--radius-pill);
   color: var(--reader-muted);
+  background: color-mix(in srgb, var(--reader-surface) 72%, transparent);
   font-size: 10px;
+  line-height: 1.35;
   text-align: center;
 }
 
 .reader-settings__status[data-error] {
+  border-color: color-mix(in srgb, #b95b67 38%, transparent);
   color: #b95b67;
+  background: color-mix(in srgb, #b95b67 9%, transparent);
 }
 
 .reader-settings .app-select {

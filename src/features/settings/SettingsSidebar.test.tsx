@@ -17,6 +17,11 @@ describe("SettingsSidebar", () => {
     );
 
     expect(markup).toContain("Search settings");
+    expect(markup).toContain('autoComplete="off"');
+    expect(markup).toContain('autoCorrect="off"');
+    expect(markup).toContain('autoCapitalize="none"');
+    expect(markup).toContain('name="archeion-settings-search"');
+    expect(markup).toContain('spellCheck="false"');
     expect(markup).toContain("General");
     expect(markup).toContain("Appearance");
     expect(markup).toContain("Storage");

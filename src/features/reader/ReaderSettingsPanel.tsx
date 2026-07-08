@@ -172,9 +172,7 @@ export function ReaderSettingsPanel({
         className="reader-settings__status"
         data-error={persistenceFailed || undefined}
       >
-        {persistenceFailed
-          ? "Settings could not be saved"
-          : "Changes save automatically"}
+        {persistenceFailed ? "Settings could not be saved" : "Saved automatically"}
       </p>
     </aside>
   );

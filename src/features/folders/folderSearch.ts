@@ -27,6 +27,7 @@ function weightedFolderFields(
   entry: FolderSearchIndexEntry,
 ): WeightedFolderField[] {
   return [
+    // Folder search relevance is folder name > relative path > parent path.
     { field: entry.fields.name, weight: 10 },
     { field: entry.fields.relativePath, weight: 4 },
     { field: entry.fields.parentPath, weight: 3 },

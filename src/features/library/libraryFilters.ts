@@ -46,6 +46,10 @@ function foldersById(folders: Folder[]): Map<string, Folder> {
   return new Map(folders.map((folder) => [folder.id, folder]));
 }
 
+function folderPathName(folderPath: string | undefined): string {
+  return folderPath?.split(/[\\/]+/).filter(Boolean).at(-1)?.trim() ?? "";
+}
+
 function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
   return [
@@ -53,6 +57,11 @@ function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
     folder?.name,
     folder?.relativePath,
   ].filter((value): value is string => Boolean(value));
+}
+
+function bookFolderName(book: Book, folderLookup: Map<string, Folder>): string {
+  const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
+  return folder?.name?.trim() || folderPathName(book.folderPath);
 }
 
 function fileTitle(fileName: string): string {
@@ -69,7 +78,6 @@ type BookSearchFields = {
   folderName: SearchTextVariants;
   relativePath: SearchTextVariants;
   sourceIdentifier: SearchTextVariants;
-  language: SearchTextVariants;
 };
 
 export type LibrarySearchIndexEntry = {
@@ -82,8 +90,16 @@ type WeightedBookField = {
   weight: number;
 };
 
-function weightedBookFields(entry: LibrarySearchIndexEntry): WeightedBookField[] {
-  return [
+function shouldSearchLowValueMetadata(query: SearchQuery): boolean {
+  return query.compact.length >= 4;
+}
+
+function weightedBookFields(
+  entry: LibrarySearchIndexEntry,
+  includeLowValueMetadata = false,
+): WeightedBookField[] {
+  const fields: WeightedBookField[] = [
+    // Weights define normal user search relevance: title > author > filename > folder > path.
     { field: entry.fields.resolvedTitle, weight: 12 },
     { field: entry.fields.originalTitle, weight: 11 },
     { field: entry.fields.fileTitle, weight: 10 },
@@ -92,15 +108,22 @@ function weightedBookFields(entry: LibrarySearchIndexEntry): WeightedBookField[]
     { field: entry.fields.fileName, weight: 5 },
     { field: entry.fields.folderName, weight: 4 },
     { field: entry.fields.relativePath, weight: 3 },
-    { field: entry.fields.sourceIdentifier, weight: 1 },
-    { field: entry.fields.language, weight: 1 },
   ];
+
+  if (includeLowValueMetadata) {
+    fields.push({ field: entry.fields.sourceIdentifier, weight: 1 });
+  }
+
+  return fields;
 }
 
 function searchableBookFields(
   entry: LibrarySearchIndexEntry,
+  query: SearchQuery,
 ): SearchTextVariants[] {
-  return weightedBookFields(entry).map(({ field }) => field);
+  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).map(
+    ({ field }) => field,
+  );
 }
 
 function scoreBookSearchEntry(
@@ -111,7 +134,7 @@ function scoreBookSearchEntry(
     return 0;
   }
 
-  return weightedBookFields(entry).reduce(
+  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).reduce(
     (score, { field, weight }) => score + scoreSearchField(field, query) * weight,
     0,
   );
@@ -125,7 +148,7 @@ export function createLibrarySearchIndex(
 
   return books.map((book) => {
     const folderValues = bookFolder(book, folderLookup);
-    const folderName = folderValues[1] ?? folderValues[0] ?? "";
+    const folderName = bookFolderName(book, folderLookup);
 
     return {
       book,
@@ -141,7 +164,6 @@ export function createLibrarySearchIndex(
           [book.relativePath, book.folderPath, ...folderValues].filter(Boolean).join(" "),
         ),
         sourceIdentifier: createSearchTextVariants(book.sourceMetadata?.identifier),
-        language: createSearchTextVariants(book.sourceMetadata?.language),
       },
     };
   });
@@ -157,7 +179,7 @@ function rankBookSearchIndex(
       indexOrder,
       score: scoreBookSearchEntry(entry, query),
     }))
-    .filter(({ entry }) => searchFieldsMatchQuery(searchableBookFields(entry), query))
+    .filter(({ entry }) => searchFieldsMatchQuery(searchableBookFields(entry, query), query))
     .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
     .map(({ entry }) => entry);
 }
@@ -345,7 +367,7 @@ export function getVisibleBooksFromSearchIndex(
       score: scoreBookSearchEntry(entry, searchQuery),
     }))
     .filter(({ entry }) =>
-      searchFieldsMatchQuery(searchableBookFields(entry), searchQuery),
+      searchFieldsMatchQuery(searchableBookFields(entry, searchQuery), searchQuery),
     )
     .sort(
       (left, right) =>
