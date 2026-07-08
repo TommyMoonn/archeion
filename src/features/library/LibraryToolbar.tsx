@@ -21,6 +21,7 @@ export type LibraryView = "grid" | "list";
 
 type LibraryToolbarProps = {
   isImporting: boolean;
+  onClearSearch: () => void;
   onOpenAddEpub: () => void;
   onQueryChange: (query: string) => void;
   onRescanError: () => void;
@@ -51,6 +52,7 @@ const viewOptions: Array<{
 
 export function LibraryToolbar({
   isImporting,
+  onClearSearch,
   onOpenAddEpub,
   onQueryChange,
   onRescanError,
@@ -93,7 +95,7 @@ export function LibraryToolbar({
             <IconButton
               className="library-search__clear"
               label="Clear search"
-              onClick={() => onQueryChange("")}
+              onClick={onClearSearch}
             >
               <X aria-hidden="true" size={14} weight="bold" />
             </IconButton>

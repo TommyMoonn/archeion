@@ -102,6 +102,10 @@ html[data-card-size="large"] .book-grid {
   margin-top: clamp(48px, 10vh, 110px);
 }
 
+html[data-motion="on"] .library-content {
+  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
 .continue-reading {
   width: 100%;
   max-width: 1440px;
@@ -385,8 +389,7 @@ html[data-card-size="large"] .book-grid {
   left: 8px;
   border-color: rgb(214 211 217 / 11%);
   color: var(--text);
-  background: rgb(18 18 19 / 78%);
-  backdrop-filter: blur(8px);
+  background: rgb(18 18 19 / 88%);
   opacity: 0;
 }
 
@@ -496,8 +499,7 @@ html[data-card-size="large"] .book-grid {
   border: 1px solid rgb(214 211 217 / 11%);
   border-radius: var(--radius-control);
   color: var(--text);
-  background: rgb(18 18 19 / 78%);
-  backdrop-filter: blur(8px);
+  background: rgb(18 18 19 / 88%);
   cursor: pointer;
   list-style: none;
   opacity: 0;

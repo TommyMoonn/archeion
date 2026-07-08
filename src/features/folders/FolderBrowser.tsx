@@ -75,6 +75,9 @@ export function FolderBrowser({
   const showFolderActions = Boolean(
     canManageFolders && onDelete && onMove && onRename,
   );
+  const surfaceState =
+    visibleFolders.length > 0 ? "results" : query ? "search-empty" : "empty";
+  const surfaceKey = `${view}:${surfaceState}`;
 
   return (
     <section className="folder-browser">
@@ -132,6 +135,7 @@ export function FolderBrowser({
 
       {visibleFolders.length === 0 ? (
         <EmptyState
+          key={surfaceKey}
           action={
             query ? (
               <Button variant="secondary" onClick={() => setQuery("")}>
@@ -157,6 +161,8 @@ export function FolderBrowser({
       ) : (
         <div
           className={`folder-browser__items folder-browser__items--${view}`}
+          data-surface-state={surfaceState}
+          key={surfaceKey}
         >
           {visibleFolders.map((folder) => {
             const displayPath = getFolderDisplayPath(folder);

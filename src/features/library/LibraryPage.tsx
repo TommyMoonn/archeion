@@ -38,6 +38,7 @@ import type { Folder } from "../../types/folder";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { measurePerformance } from "../../utils/measurePerformance";
+import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
@@ -114,6 +115,29 @@ function preloadSettingsDialog() {
   void loadSettingsDialog();
 }
 
+function getLocationKey(location: LibraryLocation): string {
+  return location.type === "folder"
+    ? `folder:${location.folderId}`
+    : location.type;
+}
+
+function getLibrarySurfaceState(
+  books: Book[] | undefined,
+  debouncedQuery: string,
+  isImporting: boolean,
+  visibleBooks: Book[],
+): "empty" | "loading" | "results" | "search-empty" {
+  if (books === undefined || (isImporting && books.length === 0)) {
+    return "loading";
+  }
+
+  if (visibleBooks.length > 0) {
+    return "results";
+  }
+
+  return debouncedQuery ? "search-empty" : "empty";
+}
+
 function isInsideFolder(
   relativePath: string | undefined,
   folder: Folder,
@@ -147,6 +171,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const showContinueReading = useShowContinueReadingPreference();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
+  const pageShellRef = useRef<HTMLElement>(null);
   const importLock = useRef(false);
   const [isImporting, setIsImporting] = useState(false);
   const [archiveImportResults, setArchiveImportResults] = useState<
@@ -375,9 +400,25 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         ? "Continue reading"
         : (currentFolder?.name ?? "Library");
 
-  const changeLocation = useCallback((nextLocation: LibraryLocation) => {
-    setLocation(nextLocation);
+  const scrollMainContentToTop = useCallback(() => {
+    scrollElementToTop(pageShellRef.current);
   }, []);
+
+  const changeLocation = useCallback(
+    (nextLocation: LibraryLocation) => {
+      if (getLocationKey(location) !== getLocationKey(nextLocation)) {
+        scrollMainContentToTop();
+      }
+
+      setLocation(nextLocation);
+    },
+    [location, scrollMainContentToTop],
+  );
+
+  const clearLibrarySearch = useCallback(() => {
+    setQuery("");
+    scrollMainContentToTop();
+  }, [scrollMainContentToTop]);
 
   const requestDelete = useCallback((book: Book) => {
     setSelectedBookId(null);
@@ -588,7 +629,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         (location.folderId === deleteFolderTarget.id ||
           isInsideFolder(currentFolder?.relativePath, deleteFolderTarget))
       ) {
-        setLocation({ type: "library" });
+        changeLocation({ type: "library" });
       }
 
       setDeleteFolderTarget(null);
@@ -659,9 +700,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         isInsideFolder(book.relativePath, deleteFolderTarget),
       ).length
     : 0;
+  const librarySurfaceState = getLibrarySurfaceState(
+    books,
+    debouncedQuery,
+    isImporting,
+    visibleBooks,
+  );
+  const librarySurfaceKey = `${getLocationKey(location)}:${view}:${librarySurfaceState}`;
 
   return (
     <PageShell
+      mainRef={pageShellRef}
       sidebar={
         <LibrarySidebar
           activeArchive={activeArchive}
@@ -708,6 +757,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           <LibraryToolbar
             isImporting={isImporting}
             onOpenAddEpub={openAddEpub}
+            onClearSearch={clearLibrarySearch}
             onQueryChange={setQuery}
             onRescanError={() =>
               setLibraryError("The archive could not be scanned.")
@@ -772,7 +822,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             </div>
           ) : null}
 
-          <div className="library-content">
+          <div
+            className="library-content"
+            data-surface-state={librarySurfaceState}
+            key={librarySurfaceKey}
+          >
             {location.type === "library" &&
             !query &&
             showContinueReading ? (
@@ -794,7 +848,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             ) : visibleBooks.length === 0 ? (
               <EmptyState
                 action={
-                  <Button variant="secondary" onClick={() => setQuery("")}>
+                  <Button variant="secondary" onClick={clearLibrarySearch}>
                     Clear search
                   </Button>
                 }

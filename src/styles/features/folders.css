@@ -179,6 +179,11 @@ html[data-motion="on"] .folder-tree__children {
   padding-top: 22px;
 }
 
+html[data-motion="on"] .folder-browser__items,
+html[data-motion="on"] .folder-browser > .empty-state {
+  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
 .folder-browser__items--list {
   display: grid;
   grid-template-columns: 1fr;
