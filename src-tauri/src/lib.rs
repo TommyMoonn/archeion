@@ -30,6 +30,7 @@ pub fn run() {
             commands::epub::load_epub_cover,
             commands::metadata::initialize_archive_metadata,
             commands::metadata::load_archive_metadata,
+            commands::metadata::load_settings_metadata,
             commands::metadata::save_library_metadata,
             commands::metadata::save_progress_metadata,
             commands::metadata::save_settings_metadata,

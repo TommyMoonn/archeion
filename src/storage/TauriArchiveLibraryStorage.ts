@@ -65,7 +65,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private archiveRootPath: string | null = null;
   private scanPromise: Promise<void> | null = null;
   private followUpScanQueued = false;
-  private metadataWriteQueue: Promise<void> = Promise.resolve();
+  private metadataIoQueue: Promise<void> = Promise.resolve();
   private scanStatus: ScanStatus = { status: "idle" };
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
@@ -131,52 +131,59 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     const wasLoaded = this.loaded;
     const rootPath = this.archiveRootPath;
     try {
-      const [scan, metadata] = await Promise.all([
-        this.invokeArchiveCommand<ArchiveScan>(
-          "scan_archive",
-          undefined,
-          rootPath,
-        ),
-        this.invokeArchiveCommand<MetadataBundle>(
+      const scan = await this.invokeArchiveCommand<ArchiveScan>(
+        "scan_archive",
+        undefined,
+        rootPath,
+      );
+
+      const reconciled = await this.enqueueMetadataIo(async () => {
+        const metadata = await this.invokeArchiveCommand<MetadataBundle>(
           "load_archive_metadata",
           undefined,
           rootPath,
-        ),
-      ]);
-
-      if (this.generation !== generation) {
-        return;
-      }
-
-      const reconciled = reconcileLibraryState({
-        previousBooks: this.books,
-        previousFolders: this.folders,
-        libraryMetadata: metadata.library,
-        progressMetadata: metadata.progress,
-        scan,
-        timestamp: new Date().toISOString(),
-      });
-
-      const settingsMetadata = normalizeSettingsMetadata(metadata.settings);
-
-      this.libraryMetadata = reconciled.libraryMetadata;
-      this.progressMetadata = metadata.progress;
-      this.settingsMetadata = settingsMetadata;
-      this.books = reconciled.books;
-      this.missingBooks = reconciled.missingBooks;
-      this.folders = reconciled.folders;
-
-      if (this.generation !== generation) {
-        return;
-      }
-
-      if (reconciled.libraryChanged) {
-        await this.invokeArchiveCommand(
-          "save_library_metadata",
-          { metadata: this.libraryMetadata },
-          rootPath,
         );
+
+        if (this.generation !== generation) {
+          return undefined;
+        }
+
+        const next = reconcileLibraryState({
+          previousBooks: this.books,
+          previousFolders: this.folders,
+          libraryMetadata: metadata.library,
+          progressMetadata: metadata.progress,
+          scan,
+          timestamp: new Date().toISOString(),
+        });
+
+        if (next.libraryChanged) {
+          const metadataSnapshot = structuredClone(next.libraryMetadata);
+          await this.invokeArchiveCommand(
+            "save_library_metadata",
+            { metadata: metadataSnapshot },
+            rootPath,
+          );
+        }
+
+        if (this.generation !== generation) {
+          return undefined;
+        }
+
+        this.libraryMetadata = next.libraryMetadata;
+        this.progressMetadata = metadata.progress;
+        this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
+        this.books = next.books;
+        this.missingBooks = next.missingBooks;
+        this.folders = next.folders;
+
+        return next;
+      }, generation);
+
+      if (!reconciled || this.generation !== generation) {
+        return;
       }
+
       this.loaded = true;
       if (!wasLoaded || reconciled.booksChanged) this.emitBooks();
       if (!wasLoaded || reconciled.foldersChanged) this.emitFolders();
@@ -271,17 +278,20 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return invoke<T>(command);
   }
 
-  private enqueueMetadataWrite(
-    write: () => Promise<void>,
+  private enqueueMetadataIo<T>(
+    operation: () => Promise<T>,
     generation = this.generation,
-  ) {
-    const pending = this.metadataWriteQueue.then(async () => {
+  ): Promise<T | undefined> {
+    const pending = this.metadataIoQueue.then(async () => {
       if (this.generation !== generation) {
-        return;
+        return undefined;
       }
-      await write();
+      return operation();
     });
-    this.metadataWriteQueue = pending.catch(() => undefined);
+    this.metadataIoQueue = pending.then(
+      () => undefined,
+      () => undefined,
+    );
     return pending;
   }
 
@@ -305,7 +315,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   private async saveLibraryMetadata(scope = this.createArchiveCommandScope()) {
     const metadata = structuredClone(this.libraryMetadata);
-    await this.enqueueMetadataWrite(
+    await this.enqueueMetadataIo(
       () =>
         this.invokeArchiveCommand(
           "save_library_metadata",
@@ -321,7 +331,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   ) {
     const library = structuredClone(this.libraryMetadata);
     const progress = structuredClone(this.progressMetadata);
-    await this.enqueueMetadataWrite(async () => {
+    await this.enqueueMetadataIo(async () => {
       await this.invokeArchiveCommand(
         "save_library_metadata",
         { metadata: library },
@@ -338,13 +348,22 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private async loadSettingsMetadataOnly(
     scope = this.createArchiveCommandScope(),
   ): Promise<SettingsMetadata> {
-    const metadata = await this.invokeArchiveCommand<MetadataBundle>(
-      "load_archive_metadata",
-      undefined,
-      scope.rootPath,
+    const metadata = await this.enqueueMetadataIo(
+      () =>
+        this.invokeArchiveCommand<SettingsMetadata>(
+          "load_settings_metadata",
+          undefined,
+          scope.rootPath,
+        ),
+      scope.generation,
     );
     this.assertCurrentArchiveScope(scope);
-    this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
+    if (!metadata) {
+      throw new Error(
+        "The active archive changed before the operation completed.",
+      );
+    }
+    this.settingsMetadata = normalizeSettingsMetadata(metadata);
     return this.settingsMetadata;
   }
 
@@ -364,7 +383,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   ): Promise<SettingsMetadata> {
     const normalized = normalizeSettingsMetadata(metadata);
     const generation = scope.generation;
-    await this.enqueueMetadataWrite(
+    await this.enqueueMetadataIo(
       () =>
         this.invokeArchiveCommand(
           "save_settings_metadata",
@@ -649,7 +668,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         ),
       );
     }
-    await this.enqueueMetadataWrite(async () => {
+    await this.enqueueMetadataIo(async () => {
       for (const write of writes) {
         await write();
       }

@@ -91,7 +91,12 @@ fn cover_cache_status_at(path: &Path) -> Result<CoverCacheStatus, String> {
     for entry in entries {
         let entry = entry.map_err(|error| error.to_string())?;
         let metadata = entry.metadata().map_err(|error| error.to_string())?;
-        if metadata.is_file() {
+        if metadata.is_file()
+            && entry
+                .path()
+                .extension()
+                .and_then(|extension| extension.to_str())
+                == Some("cover") {
             status.file_count += 1;
             status.total_bytes += metadata.len();
         }
@@ -186,6 +191,8 @@ mod tests {
         fs::create_dir_all(&root).expect("cache directory should be created");
         fs::write(root.join("first.cover"), [1, 2, 3]).expect("first cover should be written");
         fs::write(root.join("second.cover"), [4, 5]).expect("second cover should be written");
+        fs::write(root.join("partial.cover.tmp"), [9, 9, 9])
+            .expect("temporary cover should be written");
 
         let status = cover_cache_status_at(&root).expect("status should load");
 

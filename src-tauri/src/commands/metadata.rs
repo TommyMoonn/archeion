@@ -3,7 +3,7 @@ use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -134,6 +134,14 @@ pub struct MetadataBundle {
     settings: SettingsMetadata,
 }
 
+fn log_metadata_command_timing(command: &str, started_at: Instant) {
+    #[cfg(debug_assertions)]
+    eprintln!("{command} completed in {:?}", started_at.elapsed());
+
+    #[cfg(not(debug_assertions))]
+    let _ = (command, started_at);
+}
+
 fn metadata_path(root: &Path) -> PathBuf {
     root.join(METADATA_DIRECTORY)
 }
@@ -158,21 +166,27 @@ fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), 
     let contents = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
     let temporary_path = path.with_extension("json.tmp");
 
-    {
+    let write_result = (|| -> Result<(), String> {
         let mut temporary = File::create(&temporary_path).map_err(|error| error.to_string())?;
         temporary
             .write_all(&contents)
             .map_err(|error| error.to_string())?;
         temporary.sync_all().map_err(|error| error.to_string())?;
+
+        if backup && path.exists() {
+            fs::copy(path, path.with_extension("json.bak")).map_err(|error| error.to_string())?;
+        }
+        if path.exists() {
+            fs::remove_file(path).map_err(|error| error.to_string())?;
+        }
+        fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temporary_path);
     }
 
-    if backup && path.exists() {
-        fs::copy(path, path.with_extension("json.bak")).map_err(|error| error.to_string())?;
-    }
-    if path.exists() {
-        fs::remove_file(path).map_err(|error| error.to_string())?;
-    }
-    fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+    write_result
 }
 
 fn read_json<T>(path: &Path) -> Result<T, String>
@@ -208,6 +222,16 @@ pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     read_json::<ProgressMetadata>(&directory.join(PROGRESS_FILE))?;
     read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))?;
     Ok(())
+}
+
+pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> {
+    if !root.is_dir() {
+        return Err("The selected archive folder is unavailable.".to_string());
+    }
+
+    let directory = metadata_path(root);
+    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
+    read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))
 }
 
 pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
@@ -246,15 +270,30 @@ pub fn load_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<MetadataBundle, String> {
+    let started_at = Instant::now();
     let root = resolve_command_archive_root(&app, root_path)?;
     initialize_at(&root)?;
     let directory = metadata_path(&root);
 
-    Ok(MetadataBundle {
+    let metadata = MetadataBundle {
         library: read_json(&directory.join(LIBRARY_FILE))?,
         progress: read_json(&directory.join(PROGRESS_FILE))?,
         settings: read_json(&directory.join(SETTINGS_FILE))?,
-    })
+    };
+    log_metadata_command_timing("load_archive_metadata", started_at);
+    Ok(metadata)
+}
+
+#[tauri::command]
+pub fn load_settings_metadata(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<SettingsMetadata, String> {
+    let started_at = Instant::now();
+    let root = resolve_command_archive_root(&app, root_path)?;
+    let metadata = load_settings_at(&root)?;
+    log_metadata_command_timing("load_settings_metadata", started_at);
+    Ok(metadata)
 }
 
 #[tauri::command]
@@ -295,7 +334,8 @@ mod tests {
     };
 
     use super::{
-        initialize_at, metadata_path, read_json, write_json, LibraryMetadata, SettingsMetadata,
+        initialize_at, load_settings_at, metadata_path, read_json, write_json, LibraryMetadata,
+        SettingsMetadata,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -323,6 +363,34 @@ mod tests {
     }
 
     #[test]
+    fn loads_archive_settings_without_initializing_library_or_progress_files() {
+        let root = test_root("settings-only");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let settings_path = metadata_path(&root).join("settings.json");
+        fs::create_dir_all(
+            settings_path
+                .parent()
+                .expect("settings should have a parent"),
+        )
+        .expect("metadata directory should be created");
+        fs::write(
+            &settings_path,
+            br#"{"version":1,"import":{"defaultDestinationFolderPath":"Fiction"}}"#,
+        )
+        .expect("settings metadata should be written");
+
+        let settings = load_settings_at(&root).expect("settings should load");
+
+        assert_eq!(
+            settings.import.default_destination_folder_path.as_deref(),
+            Some("Fiction")
+        );
+        assert!(!metadata_path(&root).join("library.json").exists());
+        assert!(!metadata_path(&root).join("progress.json").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
     fn backs_up_existing_metadata_before_writing() {
         let root = test_root("backup");
         fs::create_dir_all(&root).expect("test archive should be created");
@@ -332,6 +400,21 @@ mod tests {
         write_json(&path, &LibraryMetadata::default(), true).expect("second write should work");
 
         assert!(root.join("library.json.bak").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn removes_temporary_file_when_metadata_write_fails() {
+        let root = test_root("failed-write-cleanup");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+        fs::create_dir_all(&path).expect("conflicting directory should be created");
+        let temporary_path = path.with_extension("json.tmp");
+
+        let result = write_json(&path, &LibraryMetadata::default(), false);
+
+        assert!(result.is_err());
+        assert!(!temporary_path.exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -406,7 +489,10 @@ mod tests {
             serde_json::from_value(value).expect("old settings should deserialize");
         let serialized = serde_json::to_value(parsed).expect("settings should serialize");
 
-        assert_eq!(serialized["import"]["defaultDestinationFolderPath"], "Fiction");
+        assert_eq!(
+            serialized["import"]["defaultDestinationFolderPath"],
+            "Fiction"
+        );
         assert!(serialized.get("reader").is_none());
         assert!(serialized.get("library").is_none());
         assert!(serialized.get("filesAndMetadata").is_none());

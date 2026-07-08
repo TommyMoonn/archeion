@@ -1,8 +1,10 @@
 use std::{
-    fs,
-    io::{Cursor, Read},
+    collections::HashMap,
+    fs::{self, File},
+    io::{Cursor, Read, Write},
     path::{Path, PathBuf},
     process::Command,
+    sync::{Arc, Condvar, Mutex, OnceLock},
     time::UNIX_EPOCH,
 };
 
@@ -97,6 +99,96 @@ fn remove_stale_covers(cache_dir: &Path, book_id: &str, keep: &Path) {
     }
 }
 
+fn temporary_cover_cache_path(cache_path: &Path) -> Result<PathBuf, String> {
+    let file_name = cache_path
+        .file_name()
+        .ok_or_else(|| "The cover cache file is unavailable.".to_string())?
+        .to_string_lossy();
+    Ok(cache_path.with_file_name(format!("{file_name}.tmp")))
+}
+
+fn write_cover_cache_atomic(cache_path: &Path, bytes: &[u8]) -> Result<(), String> {
+    let temporary_path = temporary_cover_cache_path(cache_path)?;
+    let write_result = (|| {
+        let mut temporary = File::create(&temporary_path).map_err(|error| error.to_string())?;
+        temporary
+            .write_all(bytes)
+            .map_err(|error| error.to_string())?;
+        temporary.sync_all().map_err(|error| error.to_string())?;
+
+        if cache_path.exists() {
+            fs::remove_file(cache_path).map_err(|error| error.to_string())?;
+        }
+        fs::rename(&temporary_path, cache_path).map_err(|error| error.to_string())
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temporary_path);
+    }
+
+    write_result
+}
+
+struct CoverLoadWaiter {
+    state: Mutex<Option<Result<Vec<u8>, String>>>,
+    ready: Condvar,
+}
+
+impl CoverLoadWaiter {
+    fn new() -> Self {
+        Self {
+            state: Mutex::new(None),
+            ready: Condvar::new(),
+        }
+    }
+}
+
+fn cover_loads() -> &'static Mutex<HashMap<PathBuf, Arc<CoverLoadWaiter>>> {
+    static COVER_LOADS: OnceLock<Mutex<HashMap<PathBuf, Arc<CoverLoadWaiter>>>> = OnceLock::new();
+    COVER_LOADS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn wait_for_cover_load(waiter: &CoverLoadWaiter) -> Result<Vec<u8>, String> {
+    let mut state = waiter
+        .state
+        .lock()
+        .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
+
+    loop {
+        if let Some(result) = state.clone() {
+            return result;
+        }
+        state = waiter
+            .ready
+            .wait(state)
+            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
+    }
+}
+
+fn load_epub_cover_uncached(
+    epub_path: &Path,
+    cache_dir: &Path,
+    cache_path: &Path,
+    book_id: &str,
+) -> Result<Vec<u8>, String> {
+    if cache_path.is_file() {
+        return fs::read(cache_path).map_err(|error| error.to_string());
+    }
+
+    let extracted = extract_cover(epub_path)?.unwrap_or_default();
+    fs::create_dir_all(cache_dir).map_err(|error| error.to_string())?;
+    if extracted.is_empty() {
+        write_cover_cache_atomic(cache_path, &[])?;
+        remove_stale_covers(cache_dir, book_id, cache_path);
+        return Ok(extracted);
+    }
+
+    let bytes = thumbnail_cover(&extracted).unwrap_or(extracted);
+    write_cover_cache_atomic(cache_path, &bytes)?;
+    remove_stale_covers(cache_dir, book_id, cache_path);
+    Ok(bytes)
+}
+
 fn load_epub_cover_at(root: &Path, relative_path: &str, book_id: &str) -> Result<Vec<u8>, String> {
     let epub_path = resolve_epub_path(root, relative_path)?;
     let cache_dir = root.join(".archeion").join("covers");
@@ -105,16 +197,43 @@ fn load_epub_cover_at(root: &Path, relative_path: &str, book_id: &str) -> Result
         return fs::read(cache_path).map_err(|error| error.to_string());
     }
 
-    let extracted = extract_cover(&epub_path)?.unwrap_or_default();
-    fs::create_dir_all(&cache_dir).map_err(|error| error.to_string())?;
-    remove_stale_covers(&cache_dir, book_id, &cache_path);
-    if extracted.is_empty() {
-        fs::write(&cache_path, &[] as &[u8]).map_err(|error| error.to_string())?;
-        return Ok(extracted);
+    let (waiter, is_owner) = {
+        let mut loads = cover_loads()
+            .lock()
+            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
+        if let Some(waiter) = loads.get(&cache_path) {
+            (Arc::clone(waiter), false)
+        } else {
+            let waiter = Arc::new(CoverLoadWaiter::new());
+            loads.insert(cache_path.clone(), Arc::clone(&waiter));
+            (waiter, true)
+        }
+    };
+
+    if !is_owner {
+        return wait_for_cover_load(&waiter);
     }
-    let bytes = thumbnail_cover(&extracted).unwrap_or(extracted);
-    fs::write(&cache_path, &bytes).map_err(|error| error.to_string())?;
-    Ok(bytes)
+
+    let result = load_epub_cover_uncached(&epub_path, &cache_dir, &cache_path, book_id);
+    {
+        let mut state = waiter
+            .state
+            .lock()
+            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
+        *state = Some(result.clone());
+        waiter.ready.notify_all();
+    }
+
+    if let Ok(mut loads) = cover_loads().lock() {
+        if loads
+            .get(&cache_path)
+            .is_some_and(|current| Arc::ptr_eq(current, &waiter))
+        {
+            loads.remove(&cache_path);
+        }
+    }
+
+    result
 }
 
 #[tauri::command]
@@ -197,7 +316,10 @@ mod tests {
         time::{SystemTime, UNIX_EPOCH},
     };
 
-    use super::{cover_cache_path, extract_cover, resolve_epub_path, thumbnail_cover};
+    use super::{
+        cover_cache_path, extract_cover, load_epub_cover_at, resolve_epub_path,
+        temporary_cover_cache_path, thumbnail_cover, write_cover_cache_atomic,
+    };
 
     fn test_root() -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -205,6 +327,44 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-epub-{nonce}"))
+    }
+
+    fn write_test_epub(path: &std::path::Path, cover_bytes: Option<&[u8]>) {
+        let file = fs::File::create(path).expect("EPUB should be created");
+        let mut archive = zip::ZipWriter::new(file);
+        let options = zip::write::SimpleFileOptions::default();
+        archive
+            .start_file("META-INF/container.xml", options)
+            .expect("container entry should start");
+        archive
+            .write_all(
+                br#"<?xml version="1.0"?>
+                <container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>"#,
+            )
+            .expect("container should be written");
+        archive
+            .start_file("OEBPS/content.opf", options)
+            .expect("package entry should start");
+        if cover_bytes.is_some() {
+            archive
+                .write_all(
+                    br#"<package><manifest>
+                    <item id="cover" href="images/cover.bin" media-type="image/jpeg" properties="cover-image"/>
+                    </manifest></package>"#,
+                )
+                .expect("package should be written");
+            archive
+                .start_file("OEBPS/images/cover.bin", options)
+                .expect("cover entry should start");
+            archive
+                .write_all(cover_bytes.expect("cover bytes should exist"))
+                .expect("cover should be written");
+        } else {
+            archive
+                .write_all(br#"<package><manifest></manifest></package>"#)
+                .expect("package should be written");
+        }
+        archive.finish().expect("EPUB should finish");
     }
 
     #[test]
@@ -316,4 +476,92 @@ mod tests {
         assert_ne!(first, second);
         let _ = fs::remove_dir_all(root);
     }
+    #[test]
+    fn reuses_cover_cache_when_file_signature_is_unchanged() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_test_epub(&epub_path, Some(&[1, 2, 3]));
+
+        let first = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("first cover load should work");
+        let cache_dir = root.join(".archeion").join("covers");
+        let cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
+            .expect("cache path should resolve");
+        fs::write(&cache_path, b"cached").expect("cache should be overwritten for reuse test");
+
+        let second = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("second cover load should work");
+
+        assert_eq!(first, vec![1, 2, 3]);
+        assert_eq!(second, b"cached");
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn removes_stale_cover_files_after_new_cache_file_is_written() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_test_epub(&epub_path, Some(&[1, 2, 3]));
+        let first = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("first cover load should work");
+        assert_eq!(first, vec![1, 2, 3]);
+        let cache_dir = root.join(".archeion").join("covers");
+        let old_cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
+            .expect("old cache path should resolve");
+        assert!(old_cache_path.is_file());
+
+        write_test_epub(&epub_path, Some(&[4, 5, 6, 7, 8]));
+        let second = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("second cover load should work");
+
+        assert_eq!(second, vec![4, 5, 6, 7, 8]);
+        assert!(!old_cache_path.exists());
+        assert!(cover_cache_path(&cache_dir, &epub_path, "book-1")
+            .expect("new cache path should resolve")
+            .is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn empty_cover_cache_remains_valid() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_test_epub(&epub_path, None);
+
+        let first = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("first cover load should work");
+        let cache_dir = root.join(".archeion").join("covers");
+        let cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
+            .expect("cache path should resolve");
+        let second = load_epub_cover_at(&root, "book.epub", "book-1")
+            .expect("second cover load should work");
+
+        assert!(first.is_empty());
+        assert!(second.is_empty());
+        assert!(cache_path.is_file());
+        assert_eq!(fs::read(cache_path).expect("negative cache should read"), Vec::<u8>::new());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn cover_cache_writes_replace_through_temporary_files() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let cache_path = root.join("book-1-3-100.cover");
+        let temporary_path = temporary_cover_cache_path(&cache_path)
+            .expect("temporary cache path should resolve");
+        fs::write(&cache_path, b"old").expect("old cache should be written");
+        fs::write(&temporary_path, b"partial").expect("stale temporary cache should be written");
+
+        write_cover_cache_atomic(&cache_path, b"new cache")
+            .expect("atomic cover cache write should work");
+
+        assert_eq!(fs::read(&cache_path).expect("cache should read"), b"new cache");
+        assert!(!temporary_path.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
 }
+
