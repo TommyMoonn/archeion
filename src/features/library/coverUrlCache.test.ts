@@ -38,6 +38,40 @@ describe("coverUrlCache", () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:shared-cover");
   });
 
+  it("limits concurrent cover loads", async () => {
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:queued-cover");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const resolvers: Array<(blob: Blob | undefined) => void> = [];
+    const load = vi.fn(
+      () =>
+        new Promise<Blob | undefined>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+
+    const acquired = Array.from({ length: 6 }, (_, index) =>
+      acquireCoverUrl(`book-${index}:fingerprint`, load),
+    );
+
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(4);
+
+    resolvers[0]?.(new Blob(["cover"]));
+    await acquired[0].promise;
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(5);
+
+    resolvers.slice(1).forEach((resolve) => resolve(new Blob(["cover"])));
+    await Promise.all(acquired.slice(1, 5).map(({ promise }) => promise));
+    await Promise.resolve();
+    expect(load).toHaveBeenCalledTimes(6);
+
+    resolvers[5]?.(new Blob(["cover"]));
+    await Promise.all(acquired.map(({ promise }) => promise));
+    acquired.forEach(({ release }) => release());
+    await vi.advanceTimersByTimeAsync(1_000);
+  });
+
   it("includes source metadata in cache keys", () => {
     expect(coverCacheKey("book-1", "2026-07-05", 100)).not.toBe(
       coverCacheKey("book-1", "2026-07-06", 100),

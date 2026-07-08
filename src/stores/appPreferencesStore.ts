@@ -190,26 +190,53 @@ function mergeAppPreferences(
   base: AppPreferences,
   changes: Partial<AppPreferences>,
 ): AppPreferences {
-  return normalizeAppPreferences({
+  const next = normalizeAppPreferences({
     ...base,
     ...changes,
-    filesAndMetadata: {
-      ...base.filesAndMetadata,
-      ...changes.filesAndMetadata,
-    },
-    import: {
-      ...base.import,
-      ...changes.import,
-    },
-    library: {
-      ...base.library,
-      ...changes.library,
-    },
-    reader: {
-      ...base.reader,
-      ...changes.reader,
-    },
+    filesAndMetadata:
+      changes.filesAndMetadata === undefined
+        ? base.filesAndMetadata
+        : {
+            ...base.filesAndMetadata,
+            ...changes.filesAndMetadata,
+          },
+    import:
+      changes.import === undefined
+        ? base.import
+        : {
+            ...base.import,
+            ...changes.import,
+          },
+    library:
+      changes.library === undefined
+        ? base.library
+        : {
+            ...base.library,
+            ...changes.library,
+          },
+    reader:
+      changes.reader === undefined
+        ? base.reader
+        : {
+            ...base.reader,
+            ...changes.reader,
+          },
   });
+
+  if (changes.filesAndMetadata === undefined) {
+    next.filesAndMetadata = base.filesAndMetadata;
+  }
+  if (changes.import === undefined) {
+    next.import = base.import;
+  }
+  if (changes.library === undefined) {
+    next.library = base.library;
+  }
+  if (changes.reader === undefined) {
+    next.reader = base.reader;
+  }
+
+  return next;
 }
 
 export class AppPreferencesStore {
@@ -230,6 +257,18 @@ export class AppPreferencesStore {
   getSnapshot = () => this.preferences;
 
   getPersistenceSnapshot = () => this.persistenceStatus;
+
+  getFilesAndMetadataSnapshot = () => this.preferences.filesAndMetadata;
+
+  getImportSnapshot = () => this.preferences.import;
+
+  getLibrarySnapshot = () => this.preferences.library;
+
+  getReaderSnapshot = () => this.preferences.reader;
+
+  getShowContinueReadingSnapshot = () => this.preferences.showContinueReading;
+
+  getWindowFrameStyleSnapshot = () => this.preferences.windowFrameStyle;
 
   subscribe = (listener: Listener) => {
     this.listeners.add(listener);
@@ -375,6 +414,48 @@ export function useAppPreferences() {
   return useSyncExternalStore(
     appPreferencesStore.subscribe,
     appPreferencesStore.getSnapshot,
+  );
+}
+
+export function useFilesAndMetadataPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getFilesAndMetadataSnapshot,
+  );
+}
+
+export function useImportPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getImportSnapshot,
+  );
+}
+
+export function useLibraryPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getLibrarySnapshot,
+  );
+}
+
+export function useReaderPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getReaderSnapshot,
+  );
+}
+
+export function useShowContinueReadingPreference() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getShowContinueReadingSnapshot,
+  );
+}
+
+export function useWindowFrameStylePreference() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getWindowFrameStyleSnapshot,
   );
 }
 

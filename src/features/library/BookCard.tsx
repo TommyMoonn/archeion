@@ -4,6 +4,7 @@ import { memo } from "react";
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
+import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
@@ -20,7 +21,7 @@ type BookCardProps = {
   canManageFile?: boolean;
 };
 
-export const BookCard = memo(function BookCard({
+function BookCardComponent({
   book,
   onDelete,
   onMove,
@@ -79,4 +80,19 @@ export const BookCard = memo(function BookCard({
       />
     </article>
   );
-});
+}
+
+export const BookCard = memo(
+  BookCardComponent,
+  (previous, next) =>
+    isBookRenderEquivalent(previous.book, next.book) &&
+    previous.canDelete === next.canDelete &&
+    previous.canManageFile === next.canManageFile &&
+    previous.onDelete === next.onDelete &&
+    previous.onMove === next.onMove &&
+    previous.onRead === next.onRead &&
+    previous.onRenameFile === next.onRenameFile &&
+    previous.onRevealFile === next.onRevealFile &&
+    previous.onSelect === next.onSelect &&
+    previous.onToggleFavorite === next.onToggleFavorite,
+);

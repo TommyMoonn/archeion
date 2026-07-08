@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
-import { useAppPreferences } from "../../stores/appPreferencesStore";
+import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { ArchiveLauncherPage } from "./ArchiveLauncherPage";
 import { useArchive } from "./useArchive";
@@ -15,9 +15,8 @@ type ArchiveGateProps = {
 export function ArchiveGate({ children }: ArchiveGateProps) {
   const state = useArchive();
   const storage = useLibraryStorage();
-  const preferences = useAppPreferences();
+  const { liveWatcherEnabled, scanOnStartup } = useFilesAndMetadataPreferences();
   const archivePath = state.status === "ready" ? state.path : null;
-  const { liveWatcherEnabled, scanOnStartup } = preferences.filesAndMetadata;
 
   useEffect(() => {
     void archiveStore.initialize();

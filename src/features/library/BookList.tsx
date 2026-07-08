@@ -3,7 +3,9 @@ import { memo } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
+import { formatMediumDate } from "../../utils/formatters";
 import { BookContextMenu } from "./BookContextMenu";
+import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
@@ -20,17 +22,11 @@ type BookListProps = {
   canManageFile?: boolean;
 };
 
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-  }).format(new Date(value));
-}
-
 type BookRowProps = Omit<BookListProps, "books"> & {
   book: Book;
 };
 
-const BookRow = memo(function BookRow({
+function BookRowComponent({
   book,
   onDelete,
   onMove,
@@ -57,7 +53,7 @@ const BookRow = memo(function BookRow({
           {author ? <span>{author}</span> : null}
         </span>
         <span className="book-row__file">{book.fileName}</span>
-        <span className="book-row__date">{formatDate(book.addedAt)}</span>
+        <span className="book-row__date">{formatMediumDate(book.addedAt)}</span>
       </button>
       {canManageFile && !book.isFileMissing && onRenameFile ? (
         <IconButton
@@ -99,7 +95,23 @@ const BookRow = memo(function BookRow({
       />
     </article>
   );
-});
+}
+
+const BookRow = memo(
+  BookRowComponent,
+  (previous, next) =>
+    isBookRenderEquivalent(previous.book, next.book) &&
+    previous.canDelete === next.canDelete &&
+    previous.canManageFile === next.canManageFile &&
+    previous.onDelete === next.onDelete &&
+    previous.onMove === next.onMove &&
+    previous.onRead === next.onRead &&
+    previous.onRenameFile === next.onRenameFile &&
+    previous.onRevealFile === next.onRevealFile &&
+    previous.onSelect === next.onSelect &&
+    previous.onToggleFavorite === next.onToggleFavorite,
+);
+
 
 export const BookList = memo(function BookList({
   books,

@@ -1,17 +1,27 @@
+import { lazy, Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { WindowFrame } from "../components/WindowFrame";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
-import { ArchiveManagerWindow } from "../features/archive/ArchiveManagerWindow";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { router } from "./router";
 import { resolveWindowMode } from "./windowMode";
+
+const ArchiveManagerWindow = lazy(() =>
+  import("../features/archive/ArchiveManagerWindow").then((module) => ({
+    default: module.ArchiveManagerWindow,
+  })),
+);
 
 export function App() {
   const windowMode = resolveWindowMode();
 
   if (windowMode === "archive-manager") {
-    return <ArchiveManagerWindow />;
+    return (
+      <Suspense fallback={null}>
+        <ArchiveManagerWindow />
+      </Suspense>
+    );
   }
 
   return (

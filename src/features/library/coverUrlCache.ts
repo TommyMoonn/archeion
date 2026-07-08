@@ -5,7 +5,44 @@ type CoverUrlEntry = {
   url?: string;
 };
 
+type CoverLoadTask = {
+  load: () => Promise<Blob | undefined>;
+  reject: (reason?: unknown) => void;
+  resolve: (value: Blob | undefined) => void;
+};
+
+const MAX_CONCURRENT_COVER_LOADS = 4;
 const coverUrls = new Map<string, CoverUrlEntry>();
+const coverLoadQueue: CoverLoadTask[] = [];
+let activeCoverLoads = 0;
+
+function drainCoverLoadQueue(): void {
+  while (
+    activeCoverLoads < MAX_CONCURRENT_COVER_LOADS &&
+    coverLoadQueue.length > 0
+  ) {
+    const task = coverLoadQueue.shift();
+    if (!task) return;
+
+    activeCoverLoads += 1;
+    Promise.resolve()
+      .then(task.load)
+      .then(task.resolve, task.reject)
+      .finally(() => {
+        activeCoverLoads = Math.max(0, activeCoverLoads - 1);
+        drainCoverLoadQueue();
+      });
+  }
+}
+
+function enqueueCoverLoad(
+  load: () => Promise<Blob | undefined>,
+): Promise<Blob | undefined> {
+  return new Promise((resolve, reject) => {
+    coverLoadQueue.push({ load, reject, resolve });
+    drainCoverLoadQueue();
+  });
+}
 
 export type AcquiredCoverUrl = {
   promise: Promise<string | undefined>;
@@ -22,13 +59,11 @@ export function acquireCoverUrl(
     const nextEntry: CoverUrlEntry = {
       references: 0,
       revokeTimer: null,
-      promise: Promise.resolve()
-        .then(load)
-        .then((blob) => {
-          if (!blob) return undefined;
-          nextEntry.url = URL.createObjectURL(blob);
-          return nextEntry.url;
-        }),
+      promise: enqueueCoverLoad(load).then((blob) => {
+        if (!blob) return undefined;
+        nextEntry.url = URL.createObjectURL(blob);
+        return nextEntry.url;
+      }),
     };
     entry = nextEntry;
     coverUrls.set(key, entry);

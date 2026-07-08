@@ -234,6 +234,25 @@ describe("app preferences", () => {
     );
   });
 
+  it("preserves unrelated preference branch references after scoped updates", async () => {
+    const store = new AppPreferencesStore(createPersistence());
+    await store.initialize();
+    const before = store.getSnapshot();
+
+    await store.update({
+      reader: {
+        ...before.reader,
+        fontSize: before.reader.fontSize + 1,
+      },
+    });
+
+    const after = store.getSnapshot();
+    expect(after.reader).not.toBe(before.reader);
+    expect(after.filesAndMetadata).toBe(before.filesAndMetadata);
+    expect(after.import).toBe(before.import);
+    expect(after.library).toBe(before.library);
+  });
+
   it("persists reader, library, import, and file preferences at app level", async () => {
     const saveDesktop = vi.fn(async () => undefined);
     const store = new AppPreferencesStore(createPersistence({ saveDesktop }));

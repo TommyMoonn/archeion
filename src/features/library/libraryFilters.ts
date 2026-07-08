@@ -22,6 +22,18 @@ export type LibraryLocation =
   | { type: "folders" }
   | { type: "folder"; folderId: string };
 
+
+let librarySortCollator: Intl.Collator | null = null;
+
+function getLibrarySortCollator(): Intl.Collator {
+  librarySortCollator ??= new Intl.Collator(undefined, {
+    numeric: true,
+    sensitivity: "base",
+  });
+
+  return librarySortCollator;
+}
+
 function normalize(value: string | undefined): string {
   return (
     value
@@ -177,10 +189,7 @@ export function getEffectiveLibrarySort(
 
 export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
   const normalizedSort = normalizeLibrarySort(sort);
-  const collator = new Intl.Collator(undefined, {
-    numeric: true,
-    sensitivity: "base",
-  });
+  const collator = getLibrarySortCollator();
 
   return [...books].sort((left, right) => {
     switch (normalizedSort) {

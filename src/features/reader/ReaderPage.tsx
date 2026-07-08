@@ -10,8 +10,8 @@ import {
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
-  useAppPreferences,
   useAppPreferencesPersistenceStatus,
+  useReaderPreferences,
 } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
@@ -33,7 +33,7 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
-  const preferences = useAppPreferences();
+  const settings = useReaderPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
@@ -43,6 +43,7 @@ export function ReaderPage() {
   }> | null>(null);
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
+  const lastControlsRevealAt = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [loadedFile, setLoadedFile] = useState<{
     bookId: string;
@@ -58,7 +59,6 @@ export function ReaderPage() {
     atStart: startFromBeginning || !book?.progressCfi,
     atEnd: false,
   });
-  const settings = preferences.reader;
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
 
   const movePrevious = useCallback(() => {
@@ -70,6 +70,17 @@ export function ReaderPage() {
   }, []);
 
   const revealControls = useCallback(() => {
+    const now = Date.now();
+
+    if (
+      controlsVisible &&
+      !settingsOpen &&
+      now - lastControlsRevealAt.current < 250
+    ) {
+      return;
+    }
+
+    lastControlsRevealAt.current = now;
     setControlsVisible(true);
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
@@ -79,7 +90,7 @@ export function ReaderPage() {
         setControlsVisible(false);
       }, 2400);
     }
-  }, [settingsOpen]);
+  }, [controlsVisible, settingsOpen]);
 
   const openSettings = useCallback(() => {
     setControlsVisible(true);

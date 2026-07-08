@@ -18,6 +18,7 @@ import { useEffect, useRef } from "react";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
+import { formatFileSize, formatLongDate } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
@@ -38,24 +39,6 @@ type BookDetailsDrawerProps = {
   canManageFile?: boolean;
   canRevealFile?: boolean;
 };
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) {
-    return `${bytes} B`;
-  }
-
-  if (bytes < 1024 * 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  }
-
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function formatDate(value: string): string {
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "long",
-  }).format(new Date(value));
-}
 
 export function BookDetailsDrawer({
   book,
@@ -265,12 +248,12 @@ export function BookDetailsDrawer({
                   <Clock aria-hidden="true" size={16} />
                   Last opened
                 </dt>
-                <dd>{formatDate(book.lastOpenedAt)}</dd>
+                <dd>{formatLongDate(book.lastOpenedAt)}</dd>
               </div>
             ) : null}
             <div>
               <dt>Discovered</dt>
-              <dd>{formatDate(book.addedAt)}</dd>
+              <dd>{formatLongDate(book.addedAt)}</dd>
             </div>
           </dl>
         </div>

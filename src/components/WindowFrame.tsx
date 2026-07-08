@@ -4,7 +4,7 @@ import { Minus, Square, X } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
 import archeionIcon from "../assets/brand/archeion-icon-128.png";
-import { useAppPreferences } from "../stores/appPreferencesStore";
+import { useWindowFrameStylePreference } from "../stores/appPreferencesStore";
 import type { WindowFrameStyle } from "../types/appSettings";
 
 function setAppliedFrame(mode: WindowFrameStyle | "browser") {
@@ -12,7 +12,7 @@ function setAppliedFrame(mode: WindowFrameStyle | "browser") {
 }
 
 export function WindowFrame() {
-  const { windowFrameStyle } = useAppPreferences();
+  const windowFrameStyle = useWindowFrameStylePreference();
   const [appliedMode, setAppliedMode] =
     useState<WindowFrameStyle>(windowFrameStyle);
   const desktop = isTauri();

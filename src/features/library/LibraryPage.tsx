@@ -27,7 +27,9 @@ import type {
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
-  useAppPreferences,
+  useImportPreferences,
+  useLibraryPreferences,
+  useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
@@ -129,7 +131,9 @@ export function LibraryPage() {
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const navigate = useNavigate();
   const storage = useLibraryStorage();
-  const preferences = useAppPreferences();
+  const libraryPreferences = useLibraryPreferences();
+  const globalImportPreferences = useImportPreferences();
+  const showContinueReading = useShowContinueReadingPreference();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const importLock = useRef(false);
@@ -169,10 +173,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const activeArchive = archive.archive;
-  const sort = preferences.library.sortBy;
-  const view = preferences.library.viewMode;
+  const sort = libraryPreferences.sortBy;
+  const view = libraryPreferences.viewMode;
   const importSettings: ImportSettings = {
-    ...preferences.import,
+    ...globalImportPreferences,
     ...archiveImportSettings,
   };
 
@@ -211,21 +215,31 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     };
   }, [storage]);
 
-  function changeSort(nextSort: LibrarySort) {
-    void appPreferencesStore
-      .update({
-        library: { ...preferences.library, sortBy: nextSort },
-      })
-      .catch(() => setLibraryError("Library preferences could not be saved."));
-  }
+  const changeSort = useCallback(
+    (nextSort: LibrarySort) => {
+      void appPreferencesStore
+        .update({
+          library: { ...libraryPreferences, sortBy: nextSort },
+        })
+        .catch(() =>
+          setLibraryError("Library preferences could not be saved."),
+        );
+    },
+    [libraryPreferences],
+  );
 
-  function changeView(nextView: LibraryView) {
-    void appPreferencesStore
-      .update({
-        library: { ...preferences.library, viewMode: nextView },
-      })
-      .catch(() => setLibraryError("Library preferences could not be saved."));
-  }
+  const changeView = useCallback(
+    (nextView: LibraryView) => {
+      void appPreferencesStore
+        .update({
+          library: { ...libraryPreferences, viewMode: nextView },
+        })
+        .catch(() =>
+          setLibraryError("Library preferences could not be saved."),
+        );
+    },
+    [libraryPreferences],
+  );
 
   async function handleArchiveImport(input: AddArchiveEpubInput) {
     if (importLock.current) {
@@ -279,7 +293,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     return counts;
   }, [books]);
   const searchIndex = useMemo(
-    () => createLibrarySearchIndex(books ?? [], folders),
+    () =>
+      measurePerformance("archeion:create-library-search-index", () =>
+        createLibrarySearchIndex(books ?? [], folders),
+      ),
     [books, folders],
   );
   const effectiveSort = useMemo(
@@ -414,15 +431,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     await archiveStore.switchArchive(archiveId);
   }
 
-  async function revealBookFile(book: Book) {
-    if (!book.relativePath) return;
-    setLibraryError(null);
-    try {
-      await storage.revealBookFile(book.id);
-    } catch {
-      setLibraryError("The EPUB could not be revealed in its folder.");
-    }
-  }
+  const revealBookFile = useCallback(
+    async (book: Book) => {
+      if (!book.relativePath) return;
+      setLibraryError(null);
+      try {
+        await storage.revealBookFile(book.id);
+      } catch {
+        setLibraryError("The EPUB could not be revealed in its folder.");
+      }
+    },
+    [storage],
+  );
 
   async function confirmDelete() {
     if (!deleteTarget || isDeleting) {
@@ -713,7 +733,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           <div className="library-content">
             {location.type === "library" &&
             !query &&
-            preferences.showContinueReading ? (
+            showContinueReading ? (
               <ContinueReading books={continuePreview} onContinue={readBook} />
             ) : null}
             {books === undefined || (isImporting && books.length === 0) ? (
@@ -748,7 +768,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onMove={requestMoveBook}
                 onRead={readBook}
                 onRenameFile={requestRenameFile}
-                onRevealFile={(book) => void revealBookFile(book)}
+                onRevealFile={revealBookFile}
                 onSelect={selectBook}
                 onToggleFavorite={toggleFavorite}
               />
@@ -760,7 +780,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onMove={requestMoveBook}
                 onRead={readBook}
                 onRenameFile={requestRenameFile}
-                onRevealFile={(book) => void revealBookFile(book)}
+                onRevealFile={revealBookFile}
                 onSelect={selectBook}
                 onToggleFavorite={toggleFavorite}
               />
@@ -796,7 +816,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onRead={readBook}
             onReadFromBeginning={readBookFromBeginning}
             onRenameFile={requestRenameFile}
-            onRevealFile={(book) => void revealBookFile(book)}
+            onRevealFile={revealBookFile}
             onRescan={() => {
               setSelectedBookId(null);
               setRescanConfirmationOpen(true);
