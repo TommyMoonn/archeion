@@ -352,3 +352,26 @@ html.is-anchor-scrolling .principle,
 html.is-anchor-scrolling .terminal-card {
   transition-duration: 0ms !important;
 }
+
+/* Entrance animation guards. */
+@media (prefers-reduced-motion: reduce) {
+  .site-nav,
+  .hero-copy .eyebrow,
+  .hero-copy h1,
+  .hero-copy .hero-lede,
+  .hero-copy .hero-actions,
+  .hero-meta .meta-tile,
+  .hero-stage,
+  .blackhole-shell,
+  .blackhole-shell::before,
+  .accretion,
+  .singularity-flare,
+  .archive-core-card,
+  .book-comet-a,
+  .book-comet-b {
+    opacity: 1 !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+  }
+}

@@ -1088,15 +1088,18 @@
 
       .reveal {
         opacity: 0;
-        transform: translateY(18px);
+        transform: translateY(28px) scale(0.985);
+        filter: blur(8px);
         transition:
-          opacity 640ms ease,
-          transform 640ms ease;
+          opacity 780ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          transform 780ms cubic-bezier(0.2, 0.8, 0.2, 1),
+          filter 780ms ease;
       }
 
       .reveal.is-visible {
         opacity: 1;
-        transform: translateY(0);
+        transform: translateY(0) scale(1);
+        filter: blur(0);
       }
 
       @keyframes diskSpin {
