@@ -1080,3 +1080,206 @@ html[data-motion="on"] .details-drawer[open] {
     animation: none;
   }
 }
+
+.dialog:has(.metadata-writeback) {
+  width: min(800px, calc(100% - 32px));
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+
+.dialog:has(.metadata-writeback) .dialog__panel {
+  box-sizing: border-box;
+  display: grid;
+  max-height: calc(100vh - 34px);
+  padding: 28px;
+  overflow: hidden;
+}
+
+.dialog:has(.metadata-writeback) .dialog__footer {
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 18px;
+}
+
+.metadata-writeback {
+  display: grid;
+  gap: 14px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  padding-right: 2px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.metadata-writeback *,
+.metadata-writeback *::before,
+.metadata-writeback *::after {
+  box-sizing: border-box;
+}
+
+.metadata-writeback__changes,
+.metadata-writeback__status {
+  min-width: 0;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 76%, transparent);
+}
+
+.metadata-writeback__changes strong,
+.metadata-writeback__group h3 {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.metadata-writeback__changes p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.metadata-writeback__groups {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.metadata-writeback__group {
+  display: grid;
+  gap: 9px;
+  min-width: 0;
+}
+
+.metadata-writeback__group h3 {
+  margin: 0;
+}
+
+.metadata-writeback__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px 12px;
+  min-width: 0;
+}
+
+.metadata-writeback__field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.metadata-writeback__field span {
+  color: var(--muted-soft);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.metadata-writeback__field input,
+.metadata-writeback__field textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface-raised);
+  font: inherit;
+  font-size: 12px;
+}
+
+.metadata-writeback__field input {
+  min-height: 34px;
+  padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metadata-writeback__field textarea {
+  resize: vertical;
+  min-height: 82px;
+  padding: 9px 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.metadata-writeback__field input:focus-visible,
+.metadata-writeback__field textarea:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--accent) 58%, var(--line));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
+.metadata-writeback__field--wide {
+  grid-column: 1 / -1;
+}
+
+.metadata-writeback__changes ul {
+  display: grid;
+  gap: 6px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.metadata-writeback__changes li {
+  display: grid;
+  grid-template-columns: minmax(80px, 0.6fr) minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.metadata-writeback__changes li > span:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.metadata-writeback__changes code {
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
+  font: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.metadata-writeback__status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.metadata-writeback__status[data-tone="success"] {
+  border-color: color-mix(in srgb, var(--accent) 26%, var(--line));
+  color: var(--text);
+}
+
+.metadata-writeback__status[data-tone="error"] {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--line));
+  color: var(--danger);
+}
+
+@media (max-width: 720px) {
+  .dialog:has(.metadata-writeback) {
+    width: min(100% - 24px, 640px);
+  }
+
+  .dialog:has(.metadata-writeback) .dialog__panel {
+    padding: 22px;
+  }
+
+  .metadata-writeback__grid,
+  .metadata-writeback__changes li {
+    grid-template-columns: 1fr;
+  }
+}

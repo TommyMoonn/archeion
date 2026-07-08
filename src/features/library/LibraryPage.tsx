@@ -33,7 +33,7 @@ import {
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
-import type { Book } from "../../types/book";
+import type { Book, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
@@ -80,9 +80,9 @@ const loadBookDetailsDrawer = () =>
   import("./BookDetailsDrawer").then((module) => ({
     default: module.BookDetailsDrawer,
   }));
-const loadBookMetadataReferenceDialog = () =>
-  import("./BookMetadataReferenceDialog").then((module) => ({
-    default: module.BookMetadataReferenceDialog,
+const loadBookAdvancedMetadataDialog = () =>
+  import("./BookAdvancedMetadataDialog").then((module) => ({
+    default: module.BookAdvancedMetadataDialog,
   }));
 const loadFolderCreateDialog = () =>
   import("../folders/FolderCreateDialog").then((module) => ({
@@ -102,7 +102,7 @@ const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
 const RenameFileDialog = lazy(loadRenameFileDialog);
 const AboutDialog = lazy(loadAboutDialog);
 const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
-const BookMetadataReferenceDialog = lazy(loadBookMetadataReferenceDialog);
+const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
 const FolderCreateDialog = lazy(loadFolderCreateDialog);
 const FolderRenameDialog = lazy(loadFolderRenameDialog);
 const SettingsDialog = lazy(loadSettingsDialog);
@@ -185,7 +185,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     type: "library",
   });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [metadataReferenceBookId, setMetadataReferenceBookId] = useState<
+  const [metadataEditorBookId, setMetadataEditorBookId] = useState<
     string | null
   >(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
@@ -384,9 +384,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => books?.find((book) => book.id === selectedBookId) ?? null,
     [books, selectedBookId],
   );
-  const metadataReferenceBook = useMemo(
-    () => books?.find((book) => book.id === metadataReferenceBookId) ?? null,
-    [books, metadataReferenceBookId],
+  const metadataEditorBook = useMemo(
+    () => books?.find((book) => book.id === metadataEditorBookId) ?? null,
+    [books, metadataEditorBookId],
   );
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
   const currentFolder =
@@ -430,9 +430,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setClearProgressTarget(book);
   }, []);
 
-  const openMetadataReference = useCallback((book: Book) => {
+  const openMetadataEditor = useCallback((book: Book) => {
     setSelectedBookId(null);
-    setMetadataReferenceBookId(book.id);
+    setMetadataEditorBookId(book.id);
   }, []);
 
   const requestRenameFile = useCallback((book: Book) => {
@@ -445,11 +445,19 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setMoveBookTarget(book);
   }, []);
 
-  function closeMetadataReference() {
-    const bookId = metadataReferenceBookId;
-    setMetadataReferenceBookId(null);
+  function closeMetadataEditor() {
+    const bookId = metadataEditorBookId;
+    setMetadataEditorBookId(null);
     setSelectedBookId(bookId);
   }
+
+  const writeBookMetadata = useCallback(
+    async (book: Book, metadata: EpubMetadataWritebackInput) => {
+      const result = await storage.writeBookMetadata(book.id, metadata);
+      return result;
+    },
+    [storage],
+  );
 
   const readBook = useCallback(
     (book: Book) => {
@@ -911,7 +919,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onClose={closeDetails}
             onClearProgress={requestClearProgress}
             onDelete={requestDelete}
-            onViewMetadata={openMetadataReference}
+            onViewMetadata={openMetadataEditor}
             onMoveFile={requestMoveBook}
             onRead={readBook}
             onReadFromBeginning={readBookFromBeginning}
@@ -926,13 +934,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         </Suspense>
       ) : null}
 
-      {metadataReferenceBook ? (
+      {metadataEditorBook ? (
         <Suspense
-          fallback={<DialogLoadingFallback label="Opening metadata reference" />}
+          fallback={<DialogLoadingFallback label="Opening metadata editor" />}
         >
-          <BookMetadataReferenceDialog
-            book={metadataReferenceBook}
-            onClose={closeMetadataReference}
+          <BookAdvancedMetadataDialog
+            book={metadataEditorBook}
+            onClose={closeMetadataEditor}
+            onWriteMetadata={writeBookMetadata}
           />
         </Suspense>
       ) : null}

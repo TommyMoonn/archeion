@@ -5,6 +5,11 @@ const SOURCE_METADATA_FIELDS = [
   "creator",
   "identifier",
   "language",
+  "publisher",
+  "date",
+  "description",
+  "series",
+  "volume",
 ] as const satisfies readonly (keyof EpubSourceMetadata)[];
 
 function cleanMetadataValue(value: string | undefined): string | undefined {
@@ -30,6 +35,14 @@ export function normalizeSourceMetadata(
     }
   }
 
+  const subjects = metadata.subjects
+    ?.map(cleanMetadataValue)
+    .filter((value): value is string => Boolean(value));
+  const uniqueSubjects = [...new Set(subjects)];
+  if (uniqueSubjects.length > 0) {
+    cleaned.subjects = uniqueSubjects;
+  }
+
   return Object.keys(cleaned).length ? cleaned : undefined;
 }
 
@@ -40,7 +53,11 @@ export function sourceMetadataEqual(
   const normalizedLeft = normalizeSourceMetadata(left);
   const normalizedRight = normalizeSourceMetadata(right);
 
-  return SOURCE_METADATA_FIELDS.every(
-    (field) => normalizedLeft?.[field] === normalizedRight?.[field],
+  return (
+    SOURCE_METADATA_FIELDS.every(
+      (field) => normalizedLeft?.[field] === normalizedRight?.[field],
+    ) &&
+    (normalizedLeft?.subjects ?? []).join("\u0000") ===
+      (normalizedRight?.subjects ?? []).join("\u0000")
   );
 }

@@ -3,6 +3,19 @@ export type EpubSourceMetadata = {
   creator?: string;
   identifier?: string;
   language?: string;
+  publisher?: string;
+  date?: string;
+  description?: string;
+  subjects?: string[];
+  series?: string;
+  volume?: string;
+};
+
+export type EpubMetadataWritebackInput = EpubSourceMetadata;
+
+export type EpubMetadataWritebackResult = {
+  backupPath: string;
+  sourceMetadata: EpubSourceMetadata;
 };
 
 export type Book = {

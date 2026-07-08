@@ -18,7 +18,7 @@ export function bookTitle(book: Book): string {
 }
 
 export function bookAuthor(book: Book): string {
-  return book.sourceMetadata?.creator?.trim() || book.originalAuthor?.trim() || "";
+  return book.sourceMetadata?.creator?.trim() || "";
 }
 
 export function bookSourceTitle(book: Book): string {

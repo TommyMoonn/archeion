@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { Book, UpdateBookInput } from "../types/book";
+import type {
+  Book,
+  EpubMetadataWritebackInput,
+  EpubMetadataWritebackResult,
+  UpdateBookInput,
+} from "../types/book";
 import type {
   CreateFolderInput,
   Folder,
@@ -685,6 +690,47 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     };
     this.emitBooks();
     return this.books[index];
+  }
+
+  async writeBookMetadata(
+    id: string,
+    metadata: EpubMetadataWritebackInput,
+  ): Promise<EpubMetadataWritebackResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const book = this.requireBook(id);
+    if (!book.relativePath || book.isFileMissing) {
+      throw new Error("The selected EPUB file is unavailable.");
+    }
+
+    const result = await this.invokeArchiveCommand<EpubMetadataWritebackResult>(
+      "write_epub_metadata",
+      {
+        input: {
+          relativePath: book.relativePath,
+          metadata,
+        },
+      },
+      scope.rootPath,
+    );
+
+    if (this.generation !== scope.generation) {
+      return result;
+    }
+
+    for (const key of this.coverPromises.keys()) {
+      if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
+    }
+    try {
+      await this.rescan();
+    } catch (error) {
+      throw new Error(
+        "Metadata was written to the EPUB, but the library refresh failed. Use Rescan archive.",
+        { cause: error },
+      );
+    }
+    return result;
   }
 
   async renameBookFile(

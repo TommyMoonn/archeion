@@ -1,7 +1,10 @@
 use std::{collections::HashMap, fs, io::Read, path::Path};
 
 use percent_encoding::percent_decode_str;
-use quick_xml::{events::Event, Reader};
+use quick_xml::{
+    events::{BytesEnd, BytesStart, BytesText, Event},
+    Reader, Writer,
+};
 use serde::{Deserialize, Serialize};
 use zip::ZipArchive;
 
@@ -20,6 +23,18 @@ pub struct EpubPackageMetadata {
     pub identifier: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub publisher: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub date: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub subjects: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub series: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub volume: Option<String>,
 }
 
 impl EpubPackageMetadata {
@@ -28,6 +43,12 @@ impl EpubPackageMetadata {
             && self.creator.is_none()
             && self.identifier.is_none()
             && self.language.is_none()
+            && self.publisher.is_none()
+            && self.date.is_none()
+            && self.description.is_none()
+            && self.subjects.is_empty()
+            && self.series.is_none()
+            && self.volume.is_none()
     }
 }
 
@@ -162,6 +183,10 @@ enum MetadataField {
     Creator,
     Identifier,
     Language,
+    Publisher,
+    Date,
+    Description,
+    Subject,
 }
 
 fn metadata_field(name: &[u8]) -> Option<MetadataField> {
@@ -170,6 +195,10 @@ fn metadata_field(name: &[u8]) -> Option<MetadataField> {
         b"creator" => Some(MetadataField::Creator),
         b"identifier" => Some(MetadataField::Identifier),
         b"language" => Some(MetadataField::Language),
+        b"publisher" => Some(MetadataField::Publisher),
+        b"date" => Some(MetadataField::Date),
+        b"description" => Some(MetadataField::Description),
+        b"subject" => Some(MetadataField::Subject),
         _ => None,
     }
 }
@@ -210,7 +239,53 @@ fn assign_metadata_value(metadata: &mut EpubPackageMetadata, field: MetadataFiel
             metadata.identifier = Some(value)
         }
         MetadataField::Language if metadata.language.is_none() => metadata.language = Some(value),
+        MetadataField::Publisher if metadata.publisher.is_none() => {
+            metadata.publisher = Some(value)
+        }
+        MetadataField::Date if metadata.date.is_none() => metadata.date = Some(value),
+        MetadataField::Description if metadata.description.is_none() => {
+            metadata.description = Some(value)
+        }
+        MetadataField::Subject if !metadata.subjects.iter().any(|subject| subject == &value) => {
+            metadata.subjects.push(value);
+        }
         _ => {}
+    }
+}
+
+fn assign_meta_refinement(
+    metadata: &mut EpubPackageMetadata,
+    attributes: &HashMap<String, String>,
+) {
+    let key = attributes
+        .get("name")
+        .or_else(|| attributes.get("property"))
+        .map(|value| value.trim().to_ascii_lowercase());
+    let Some(key) = key else {
+        return;
+    };
+    let Some(value) = attributes
+        .get("content")
+        .and_then(|value| clean_metadata_value(value))
+    else {
+        return;
+    };
+
+    match key.as_str() {
+        "calibre:series" | "belongs-to-collection" if metadata.series.is_none() => {
+            metadata.series = Some(value)
+        }
+        "calibre:series_index" | "group-position" if metadata.volume.is_none() => {
+            metadata.volume = Some(value)
+        }
+        "dcterms:modified" if metadata.date.is_none() => metadata.date = Some(value),
+        _ => {}
+    }
+}
+
+fn assign_metadata_refinements(metadata: &mut EpubPackageMetadata, package_xml: &str) {
+    for (_, attributes) in xml_elements(package_xml, &[b"meta"]) {
+        assign_meta_refinement(metadata, &attributes);
     }
 }
 
@@ -277,7 +352,232 @@ pub(crate) fn parse_core_metadata(package_xml: &str) -> Result<EpubPackageMetada
         }
     }
 
+    assign_metadata_refinements(&mut metadata, package_xml);
+
     Ok(metadata)
+}
+
+fn metadata_start_has_dc_namespace(event: &BytesStart<'_>) -> bool {
+    event.attributes().filter_map(Result::ok).any(|attribute| {
+        attribute.key.as_ref() == b"xmlns:dc" || attribute.key.local_name().as_ref() == b"dc"
+    })
+}
+
+fn controlled_meta_refinement(attributes: &HashMap<String, String>) -> bool {
+    attributes
+        .get("name")
+        .or_else(|| attributes.get("property"))
+        .map(|value| {
+            matches!(
+                value.trim().to_ascii_lowercase().as_str(),
+                "calibre:series"
+                    | "calibre:series_index"
+                    | "belongs-to-collection"
+                    | "group-position"
+                    | "dcterms:modified"
+            )
+        })
+        .unwrap_or(false)
+}
+
+fn controlled_empty_metadata_element(name: &[u8], attributes: HashMap<String, String>) -> bool {
+    metadata_field(name).is_some() || (name == b"meta" && controlled_meta_refinement(&attributes))
+}
+
+fn write_text_metadata_element(
+    writer: &mut Writer<Vec<u8>>,
+    name: &str,
+    value: &str,
+) -> Result<(), String> {
+    let Some(value) = clean_metadata_value(value) else {
+        return Ok(());
+    };
+    writer
+        .write_event(Event::Start(BytesStart::new(name)))
+        .map_err(|error| error.to_string())?;
+    writer
+        .write_event(Event::Text(BytesText::new(&value)))
+        .map_err(|error| error.to_string())?;
+    writer
+        .write_event(Event::End(BytesEnd::new(name)))
+        .map_err(|error| error.to_string())
+}
+
+fn write_meta_metadata_element(
+    writer: &mut Writer<Vec<u8>>,
+    name: &str,
+    content: &str,
+) -> Result<(), String> {
+    let Some(content) = clean_metadata_value(content) else {
+        return Ok(());
+    };
+    let mut element = BytesStart::new("meta");
+    element.push_attribute(("name", name));
+    element.push_attribute(("content", content.as_str()));
+    writer
+        .write_event(Event::Empty(element))
+        .map_err(|error| error.to_string())
+}
+
+fn write_metadata_values(
+    writer: &mut Writer<Vec<u8>>,
+    metadata: &EpubPackageMetadata,
+) -> Result<(), String> {
+    if let Some(value) = &metadata.title {
+        write_text_metadata_element(writer, "dc:title", value)?;
+    }
+    if let Some(value) = &metadata.creator {
+        write_text_metadata_element(writer, "dc:creator", value)?;
+    }
+    if let Some(value) = &metadata.identifier {
+        write_text_metadata_element(writer, "dc:identifier", value)?;
+    }
+    if let Some(value) = &metadata.language {
+        write_text_metadata_element(writer, "dc:language", value)?;
+    }
+    if let Some(value) = &metadata.publisher {
+        write_text_metadata_element(writer, "dc:publisher", value)?;
+    }
+    if let Some(value) = &metadata.date {
+        write_text_metadata_element(writer, "dc:date", value)?;
+    }
+    if let Some(value) = &metadata.description {
+        write_text_metadata_element(writer, "dc:description", value)?;
+    }
+    for subject in &metadata.subjects {
+        write_text_metadata_element(writer, "dc:subject", subject)?;
+    }
+    if let Some(value) = &metadata.series {
+        write_meta_metadata_element(writer, "calibre:series", value)?;
+    }
+    if let Some(value) = &metadata.volume {
+        write_meta_metadata_element(writer, "calibre:series_index", value)?;
+    }
+
+    Ok(())
+}
+
+pub(crate) fn update_package_metadata_xml(
+    package_xml: &str,
+    metadata: &EpubPackageMetadata,
+) -> Result<String, String> {
+    let mut reader = Reader::from_str(package_xml);
+    let mut writer = Writer::new(Vec::new());
+    let mut in_metadata = false;
+    let mut metadata_depth = 0_usize;
+    let mut skip_depth = 0_usize;
+    let mut metadata_written = false;
+
+    loop {
+        let event = reader.read_event().map_err(|error| error.to_string())?;
+
+        if skip_depth > 0 {
+            match event {
+                Event::Start(_) => skip_depth += 1,
+                Event::End(_) => skip_depth -= 1,
+                Event::Eof => break,
+                _ => {}
+            }
+            continue;
+        }
+
+        match event {
+            Event::Start(event) if event.local_name().as_ref() == b"metadata" => {
+                in_metadata = true;
+                metadata_depth = 1;
+                let mut owned = event.into_owned();
+                if !metadata_start_has_dc_namespace(&owned) {
+                    owned.push_attribute(("xmlns:dc", "http://purl.org/dc/elements/1.1/"));
+                }
+                writer
+                    .write_event(Event::Start(owned))
+                    .map_err(|error| error.to_string())?;
+            }
+            Event::Start(event) if in_metadata => {
+                let name = event.local_name().as_ref().to_vec();
+                let attributes = event
+                    .attributes()
+                    .filter_map(Result::ok)
+                    .filter_map(|attribute| {
+                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
+                            .into_owned();
+                        let value = attribute
+                            .decoded_and_normalized_value(
+                                quick_xml::XmlVersion::Implicit1_0,
+                                reader.decoder(),
+                            )
+                            .ok()?
+                            .into_owned();
+                        Some((key, value))
+                    })
+                    .collect();
+                let is_controlled_meta =
+                    name.as_slice() == b"meta" && controlled_meta_refinement(&attributes);
+                if metadata_depth == 1
+                    && (metadata_field(name.as_slice()).is_some() || is_controlled_meta)
+                {
+                    skip_depth = 1;
+                    continue;
+                }
+                metadata_depth += 1;
+                writer
+                    .write_event(Event::Start(event.into_owned()))
+                    .map_err(|error| error.to_string())?;
+            }
+            Event::Empty(event) if in_metadata => {
+                let name = event.local_name().as_ref().to_vec();
+                let attributes = event
+                    .attributes()
+                    .filter_map(Result::ok)
+                    .filter_map(|attribute| {
+                        let key = String::from_utf8_lossy(attribute.key.local_name().as_ref())
+                            .into_owned();
+                        let value = attribute
+                            .decoded_and_normalized_value(
+                                quick_xml::XmlVersion::Implicit1_0,
+                                reader.decoder(),
+                            )
+                            .ok()?
+                            .into_owned();
+                        Some((key, value))
+                    })
+                    .collect();
+                if metadata_depth == 1
+                    && controlled_empty_metadata_element(name.as_slice(), attributes)
+                {
+                    continue;
+                }
+                writer
+                    .write_event(Event::Empty(event.into_owned()))
+                    .map_err(|error| error.to_string())?;
+            }
+            Event::End(event) if in_metadata && event.local_name().as_ref() == b"metadata" => {
+                write_metadata_values(&mut writer, metadata)?;
+                writer
+                    .write_event(Event::End(event.into_owned()))
+                    .map_err(|error| error.to_string())?;
+                in_metadata = false;
+                metadata_depth = 0;
+                metadata_written = true;
+            }
+            Event::End(event) if in_metadata => {
+                writer
+                    .write_event(Event::End(event.into_owned()))
+                    .map_err(|error| error.to_string())?;
+                metadata_depth = metadata_depth.saturating_sub(1);
+            }
+            Event::Eof => break,
+            event => writer
+                .write_event(event.into_owned())
+                .map_err(|error| error.to_string())?,
+        }
+    }
+
+    if !metadata_written {
+        return Err("EPUB package metadata section was not found.".to_string());
+    }
+
+    String::from_utf8(writer.into_inner()).map_err(|error| error.to_string())
 }
 
 pub(crate) fn read_core_metadata(epub_path: &Path) -> Result<EpubPackageMetadata, String> {

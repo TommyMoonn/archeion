@@ -158,7 +158,7 @@ export function BookDetailsDrawer({
                   onClick={() => onViewMetadata(book)}
                   variant="ghost"
                 >
-                  View metadata
+                  Edit metadata
                 </Button>
                 <Button
                   icon={

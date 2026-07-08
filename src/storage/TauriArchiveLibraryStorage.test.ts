@@ -1156,3 +1156,99 @@ describe("TauriArchiveLibraryStorage", () => {
     ).toHaveLength(1);
   });
 });
+
+describe("TauriArchiveLibraryStorage metadata writeback", () => {
+  it("writes EPUB metadata through the backend and refreshes source metadata", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        if (scanCount === 1) {
+          return firstScan;
+        }
+        return {
+          ...firstScan,
+          books: firstScan.books.map((book) => ({
+            ...book,
+            size: 4096,
+            modifiedAt: 1_700_000_001_000,
+            sourceMetadata: {
+              title: "Edited Title",
+              creator: "Edited Author",
+            },
+          })),
+        };
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "write_epub_metadata") {
+        expect(args).toEqual({
+          input: {
+            relativePath: "Author/Series/Volume_01.epub",
+            metadata: { title: "Edited Title" },
+          },
+        });
+        return {
+          backupPath: ".archeion/backups/Volume_01.epub.bak",
+          sourceMetadata: { title: "Edited Title" },
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+
+    const result = await storage.writeBookMetadata("book-1", {
+      title: "Edited Title",
+    });
+    const book = await storage.getBook("book-1");
+
+    expect(result.backupPath).toBe(".archeion/backups/Volume_01.epub.bak");
+    expect(book?.sourceMetadata?.title).toBe("Edited Title");
+    expect(book?.sourceMetadata?.creator).toBe("Edited Author");
+    expect(
+      invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
+    ).toBe(true);
+  });
+  it("distinguishes successful writeback from failed library refresh", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        if (scanCount === 1) {
+          return firstScan;
+        }
+        throw new Error("scan failed");
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "write_epub_metadata") {
+        expect(args).toEqual({
+          input: {
+            relativePath: "Author/Series/Volume_01.epub",
+            metadata: { title: "Edited Title" },
+          },
+        });
+        return {
+          backupPath: ".archeion/backups/Volume_01.epub.bak",
+          sourceMetadata: { title: "Edited Title" },
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+
+    await expect(
+      storage.writeBookMetadata("book-1", { title: "Edited Title" }),
+    ).rejects.toThrow(
+      "Metadata was written to the EPUB, but the library refresh failed.",
+    );
+    expect(
+      invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
+    ).toBe(true);
+  });
+
+});

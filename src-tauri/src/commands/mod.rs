@@ -4,6 +4,7 @@ pub mod archive_import;
 pub mod archive_root;
 pub mod epub;
 pub mod epub_metadata;
+pub mod epub_writeback;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;

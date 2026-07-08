@@ -28,6 +28,7 @@ pub fn run() {
             commands::epub::read_epub_file,
             commands::epub::reveal_epub_file,
             commands::epub::load_epub_cover,
+            commands::epub_writeback::write_epub_metadata,
             commands::metadata::initialize_archive_metadata,
             commands::metadata::load_archive_metadata,
             commands::metadata::load_settings_metadata,

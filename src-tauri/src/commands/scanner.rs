@@ -58,7 +58,7 @@ fn discovery_id(relative_path: &str, size: u64, modified_at: u64) -> String {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum CachedMetadataResult {
-    SourceMetadata(Option<epub_metadata::EpubPackageMetadata>),
+    SourceMetadata(Option<Box<epub_metadata::EpubPackageMetadata>>),
     MetadataError(String),
 }
 
@@ -78,7 +78,7 @@ fn cached_source_metadata_by_path(
     }
 
     Some(CachedMetadataResult::SourceMetadata(
-        entry.source_metadata.clone(),
+        entry.source_metadata.clone().map(Box::new),
     ))
 }
 
@@ -125,7 +125,7 @@ fn cached_source_metadata(
 ) -> Option<CachedMetadataResult> {
     cached_source_metadata_by_path(relative_path, size, modified_at, cache).or_else(|| {
         cached_source_metadata_by_signature(relative_path, size, modified_at, cache)
-            .map(|metadata| CachedMetadataResult::SourceMetadata(Some(metadata)))
+            .map(|metadata| CachedMetadataResult::SourceMetadata(Some(Box::new(metadata))))
     })
 }
 
@@ -146,11 +146,11 @@ fn scan_source_metadata(
                     metadata::ScannerCacheEntry {
                         size,
                         modified_at,
-                        source_metadata: source_metadata.clone(),
+                        source_metadata: source_metadata.as_deref().cloned(),
                         metadata_error: None,
                     },
                 );
-                return source_metadata;
+                return source_metadata.map(|metadata| *metadata);
             }
             CachedMetadataResult::MetadataError(error) => {
                 warnings.push(ArchiveScanWarning {

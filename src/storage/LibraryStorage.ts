@@ -1,4 +1,9 @@
-import type { Book, UpdateBookInput } from "../types/book";
+import type {
+  Book,
+  EpubMetadataWritebackInput,
+  EpubMetadataWritebackResult,
+  UpdateBookInput,
+} from "../types/book";
 import type {
   CreateFolderInput,
   Folder,
@@ -64,6 +69,10 @@ export interface LibraryStorage {
   revealBookFile(id: string): Promise<void>;
   listBooks(): Promise<Book[]>;
   updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined>;
+  writeBookMetadata(
+    id: string,
+    metadata: EpubMetadataWritebackInput,
+  ): Promise<EpubMetadataWritebackResult>;
   renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
   moveBookToFolder(
     id: string,
