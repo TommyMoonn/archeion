@@ -73,11 +73,36 @@ a {
   }
 }
 
+@keyframes app-motion-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance-small));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-motion-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-distance-small));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
   }
 }

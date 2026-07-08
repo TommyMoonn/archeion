@@ -30,6 +30,17 @@ function createStorage() {
   } as unknown as LibraryStorage;
 }
 
+function installScrollToMock() {
+  Object.defineProperty(HTMLElement.prototype, "scrollTo", {
+    configurable: true,
+    value: vi.fn(),
+  });
+}
+
+function scrollToMock() {
+  return HTMLElement.prototype.scrollTo as ReturnType<typeof vi.fn>;
+}
+
 function renderDialog(storage = createStorage()) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -75,6 +86,8 @@ describe("SettingsDialog responsiveness", () => {
 
   beforeEach(() => {
     installDialogPolyfill();
+    installScrollToMock();
+    delete document.documentElement.dataset.motion;
     document.body.innerHTML = "";
   });
 
@@ -86,6 +99,7 @@ describe("SettingsDialog responsiveness", () => {
     });
     roots.length = 0;
     document.body.innerHTML = "";
+    delete document.documentElement.dataset.motion;
     vi.restoreAllMocks();
   });
 
@@ -106,6 +120,35 @@ describe("SettingsDialog responsiveness", () => {
     expect(
       container.querySelector('[data-setting-id="storage.cover-cache-status"]'),
     ).toBeNull();
+  });
+
+  it("uses instant section scrolling when app motion is disabled", async () => {
+    const { container } = track(renderDialog());
+
+    clickButton(container, "Storage");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(scrollToMock()).toHaveBeenLastCalledWith({
+      top: 0,
+      behavior: "auto",
+    });
+  });
+
+  it("uses smooth section scrolling only when app motion is enabled", async () => {
+    document.documentElement.dataset.motion = "on";
+    const { container } = track(renderDialog());
+
+    clickButton(container, "Storage");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(scrollToMock()).toHaveBeenLastCalledWith({
+      top: 0,
+      behavior: "smooth",
+    });
   });
 
   it("does not request deferred Storage or Import data on initial open", async () => {
@@ -143,6 +186,7 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getArchiveImportSettings).toHaveBeenCalledTimes(1);
     expect(storage.listFolders).toHaveBeenCalledTimes(1);
   });
+
   it("loads cover cache status when a matching Storage search result needs it", async () => {
     const { container, storage } = track(renderDialog());
     const search = container.querySelector(
@@ -178,5 +222,4 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getArchiveImportSettings).toHaveBeenCalledTimes(1);
     expect(storage.listFolders).toHaveBeenCalledTimes(1);
   });
-
 });

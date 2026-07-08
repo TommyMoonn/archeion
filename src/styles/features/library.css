@@ -325,7 +325,6 @@ html[data-card-size="large"] .book-grid {
     ),
     var(--surface-raised);
   background-size: 220% 100%;
-  animation: loading-sheen 1.5s ease-in-out infinite;
 }
 
 .book-grid {
@@ -370,8 +369,8 @@ html[data-card-size="large"] .book-grid {
   background: var(--surface);
   box-shadow: 0 12px 32px rgb(5 10 15 / 16%);
   transition:
-    border-color 150ms ease,
-    transform 150ms ease;
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .book-card__select:hover .book-cover {
@@ -444,7 +443,6 @@ html[data-card-size="large"] .book-grid {
     ),
     var(--surface-raised);
   background-size: 220% 100%;
-  animation: loading-sheen 1.5s ease-in-out infinite;
 }
 
 .book-card__copy {
@@ -504,8 +502,8 @@ html[data-card-size="large"] .book-grid {
   list-style: none;
   opacity: 0;
   transition:
-    opacity 150ms ease,
-    background 150ms ease;
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .book-menu summary::-webkit-details-marker {
@@ -592,7 +590,7 @@ html[data-card-size="large"] .book-grid {
   background: transparent;
   text-align: left;
   cursor: pointer;
-  transition: background 150ms ease;
+  transition: background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .book-row__select:hover {
@@ -677,6 +675,10 @@ html[data-card-size="large"] .book-grid {
 
 .details-drawer[open] {
   display: block;
+}
+
+html[data-motion="on"] .details-drawer[open] {
+  animation: app-motion-slide-in-right var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .details-drawer::backdrop {

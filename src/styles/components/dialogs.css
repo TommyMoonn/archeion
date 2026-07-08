@@ -9,6 +9,10 @@
   box-shadow: 0 30px 90px rgb(4 6 10 / 48%);
 }
 
+html[data-motion="on"] .dialog[open] {
+  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
 .dialog::backdrop {
   background: rgb(6 7 9 / 72%);
   backdrop-filter: blur(3px);
@@ -85,4 +89,8 @@
   height: 8px;
   border-radius: 999px;
   background: var(--accent);
+}
+
+html[data-motion="on"] .dialog-loading-fallback__indicator {
+  animation: app-motion-enter var(--motion-duration-slow) var(--motion-ease-standard) infinite alternate;
 }

@@ -2,6 +2,7 @@ import { X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import { getProgrammaticScrollBehavior } from "../../utils/motion";
 import { SettingsConfirmations } from "./SettingsConfirmations";
 import { SettingsSearchResults } from "./SettingsSearchResults";
 import { SettingsSidebar } from "./SettingsSidebar";
@@ -24,6 +25,13 @@ import { useSettingsDialogController } from "./useSettingsDialogController";
 type SettingsDialogProps = {
   onClose: () => void;
 };
+
+function scrollSettingsContent(content: HTMLElement | null) {
+  content?.scrollTo({
+    top: 0,
+    behavior: getProgrammaticScrollBehavior(),
+  });
+}
 
 function sectionIsKnown(sectionId: SettingsSection) {
   return settingsSections.some((section) => section.id === sectionId);
@@ -67,7 +75,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   );
   const visibleSettingsItems = useMemo(() => {
     if (searchActive) {
-      return findSettingsSearchResults(trimmedQuery).map((result) => result.item);
+      return findSettingsSearchResults(trimmedQuery).map(
+        (result) => result.item,
+      );
     }
 
     return getSettingsItemsForSection(selectedSection);
@@ -84,12 +94,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
   function showSection(section: SettingsSection) {
     setActiveSection(section);
-    contentRef.current?.scrollTo({ top: 0 });
+    scrollSettingsContent(contentRef.current);
   }
 
   function clearSearch() {
     setQuery("");
-    contentRef.current?.scrollTo({ top: 0 });
+    scrollSettingsContent(contentRef.current);
   }
 
   useEffect(() => {
@@ -106,7 +116,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }, []);
 
   useEffect(() => {
-    contentRef.current?.scrollTo({ top: 0 });
+    scrollSettingsContent(contentRef.current);
   }, [trimmedQuery]);
 
   return (
@@ -146,6 +156,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <main className="settings-content" ref={contentRef}>
           {searchActive ? (
             <SettingsSearchResults
+              key={trimmedQuery}
               controller={controller}
               onClearSearch={clearSearch}
               query={trimmedQuery}

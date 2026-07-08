@@ -139,8 +139,8 @@
   border-radius: var(--radius-control);
   background: var(--canvas-deep);
   transition:
-    border-color 150ms ease,
-    box-shadow 150ms ease;
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    box-shadow var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .epub-filename-field:focus-within {
@@ -172,8 +172,8 @@
   background: rgb(214 211 217 / 4%);
   font-size: 13px;
   transition:
-    border-color 150ms ease,
-    color 150ms ease;
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .epub-filename-field:focus-within .epub-filename-field__extension {

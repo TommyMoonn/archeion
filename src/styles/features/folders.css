@@ -22,6 +22,10 @@
   padding-left: 11px;
 }
 
+html[data-motion="on"] .folder-tree__children {
+  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
 .folder-tree__row {
   position: relative;
 }
@@ -45,6 +49,9 @@
   font-size: 13px;
   text-align: left;
   cursor: pointer;
+  transition:
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .folder-tree__select > span {
@@ -209,9 +216,9 @@
   text-align: left;
   cursor: pointer;
   transition:
-    color 150ms ease,
-    background 150ms ease,
-    border-color 150ms ease;
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard),
+    border-color var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .folder-browser__items--list .folder-browser__open {
@@ -310,7 +317,6 @@
 .folder-browser__item-actions .folder-menu {
   position: static;
 }
-
 
 .folder-browser__item-actions .folder-menu__popover {
   top: 34px;

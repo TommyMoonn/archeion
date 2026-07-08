@@ -10,8 +10,8 @@
   color: var(--muted);
   background: var(--surface);
   transition:
-    border-color 150ms ease,
-    background 150ms ease;
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .input-shell:focus-within {

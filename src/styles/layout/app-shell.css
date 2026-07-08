@@ -40,8 +40,8 @@
   text-align: left;
   text-decoration: none;
   transition:
-    color 150ms ease,
-    background 150ms ease;
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .nav-item:hover:not(:disabled) {

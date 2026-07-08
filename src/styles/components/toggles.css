@@ -17,8 +17,8 @@
   border-radius: 50%;
   background: var(--muted);
   transition:
-    transform 140ms ease,
-    background 140ms ease;
+    transform var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .toggle-control[aria-checked="true"] {
