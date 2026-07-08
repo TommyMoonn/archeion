@@ -890,5 +890,85 @@
         }
       }
 
+/* Wow-factor pass: global, hero, card, and reader motion. */
+/* High-motion wow-factor pass.
+   This file intentionally sits last in the cascade. Keep heavy decorative motion
+   isolated here so core layout, content, and responsive rules remain readable. */
+
+:root {
+  --cursor-x: 50%;
+  --cursor-y: 42%;
+  --scroll-glow: 0;
+}
+
+main {
+  isolation: isolate;
+}
+
+main::after {
+  position: fixed;
+  inset: -18vmax;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--cursor-x) var(--cursor-y), rgb(143 193 227 / 11%), transparent 18vmax),
+    conic-gradient(from 120deg at 50% 45%, transparent 0 9%, rgb(143 193 227 / 3.2%) 13%, transparent 24% 56%, rgb(183 168 217 / 2.8%) 64%, transparent 74% 100%);
+  opacity: 0.72;
+  mix-blend-mode: screen;
+  transform: translate3d(0, calc(var(--scroll-glow) * -12px), 0);
+  animation: ambientConstellation 34s ease-in-out infinite alternate;
+  content: "";
+}
+
+.hero {
+  isolation: isolate;
+}
+
+.hero::after {
+  position: absolute;
+  inset: 10% -8% auto 42%;
+  z-index: -1;
+  height: 58%;
+  pointer-events: none;
+  background:
+    linear-gradient(112deg, transparent 0 23%, rgb(143 193 227 / 7%) 28%, transparent 42%),
+    linear-gradient(118deg, transparent 0 46%, rgb(183 168 217 / 6%) 50%, transparent 64%);
+  filter: blur(2px);
+  opacity: 0.72;
+  transform: skewY(-8deg);
+  animation: heroLightSweep 13s ease-in-out infinite;
+  content: "";
+}
+
+.hero-copy {
+  transform: translateZ(0);
+}
+
+.hero-lede {
+  text-wrap: pretty;
+}
+
+.hero-actions .button {
+  box-shadow:
+    0 18px 52px rgb(0 0 0 / 24%),
+    0 0 0 1px rgb(255 255 255 / 5%);
+}
+
+.hero-actions .button:hover {
+  transform: translateY(-3px);
+}
 
 
+.blackhole-shell::before {
+  animation:
+    lensPulse 6.8s ease-in-out infinite,
+    haloOrbit 18s linear infinite;
+}
+
+.archive-core-card {
+  transform: translate3d(calc(var(--hero-drift-x, 0) * 0.55px), calc(var(--hero-drift-y, 0) * 0.55px), 0);
+}
+
+.book-comet {
+  will-change: transform;
+}

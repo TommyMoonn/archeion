@@ -94,4 +94,71 @@
         }
       }
 
+/* Wow-factor pass: section-level ambient motion. */
+.page-section {
+  position: relative;
+}
 
+.alive-section {
+  overflow: clip;
+}
+
+.alive-section::before {
+  position: absolute;
+  inset: 4% -8%;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle, rgb(255 255 255 / 34%) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(143 193 227 / 28%) 0 1px, transparent 1.5px),
+    radial-gradient(circle, rgb(183 168 217 / 22%) 0 1px, transparent 1.5px);
+  background-position: 0 0, 42px 68px, 100px 22px;
+  background-size: 190px 190px, 270px 270px, 340px 340px;
+  mask-image: radial-gradient(ellipse 76% 70% at 50% 50%, black 0 48%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse 76% 70% at 50% 50%, black 0 48%, transparent 80%);
+  opacity: 0.3;
+  transform: translate3d(0, 0, 0);
+  animation: sectionStarCurrent 42s linear infinite;
+  content: "";
+}
+
+.section-header {
+  align-items: end;
+}
+
+.section-header h2 {
+  max-width: 11ch;
+}
+
+.section-points span,
+.launch-pills span {
+  position: relative;
+  overflow: hidden;
+}
+
+.section-points span::before,
+.launch-pills span::before {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 9%), transparent);
+  opacity: 0;
+  transform: translateX(-120%);
+  transition:
+    opacity 180ms ease,
+    transform 680ms ease;
+  content: "";
+}
+
+.section-points span:hover::before,
+.launch-pills span:hover::before {
+  opacity: 1;
+  transform: translateX(120%);
+}
+
+.product-grid {
+  align-items: stretch;
+}
+
+.feature-card,
+.showcase-panel,
+.principle,

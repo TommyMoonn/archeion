@@ -164,4 +164,61 @@
         }
       }
 
-    
+/* Wow-factor pass: responsive and reduced-motion guards. */
+@media (max-width: 1040px) {
+  .section-header {
+    align-items: start;
+  }
+
+  .section-header h2 {
+    max-width: 760px;
+  }
+
+  main::after {
+    opacity: 0.5;
+  }
+}
+
+@media (max-width: 720px) {
+  main::after,
+  .alive-section::before,
+  .hero::after {
+    animation: none;
+  }
+
+  main::after {
+    opacity: 0.32;
+  }
+
+  .feature-card:hover,
+  .showcase-panel:hover,
+  .principle:hover,
+  .launch-band:hover .terminal-card {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  main::after,
+  .hero::after,
+  .blackhole-shell::before,
+  .alive-section::before,
+  .archive-portal::before,
+  .file-orbit,
+  .cosmic-frame::before,
+  .cover-mock::after,
+  .constellation-grid .principle::before,
+  .launch-band::before,
+  .launch-band::after {
+    animation: none !important;
+  }
+
+  .feature-card:hover,
+  .showcase-panel:hover,
+  .principle:hover,
+  .launch-band:hover .terminal-card,
+  .hero-actions .button:hover,
+  .start-actions .button:hover {
+    transform: none;
+  }
+}

@@ -70,29 +70,66 @@
         }
 
         if (!prefersReducedMotion && window.matchMedia("(pointer: fine)").matches) {
+          const root = document.documentElement;
           const stage = document.querySelector(".hero-stage");
+          const reactiveNodes = [...document.querySelectorAll(".interactive-glow")];
           let frame = 0;
+          let pointerX = window.innerWidth / 2;
+          let pointerY = window.innerHeight / 2;
+
+          const updatePointerFrame = () => {
+            const viewportX = pointerX / window.innerWidth;
+            const viewportY = pointerY / window.innerHeight;
+            const tiltX = (viewportX - 0.5) * 8;
+            const tiltY = (viewportY - 0.5) * -7;
+
+            root.style.setProperty("--cursor-x", (viewportX * 100).toFixed(2) + "%");
+            root.style.setProperty("--cursor-y", (viewportY * 100).toFixed(2) + "%");
+            root.style.setProperty("--hero-drift-x", ((viewportX - 0.5) * 18).toFixed(2));
+            root.style.setProperty("--hero-drift-y", ((viewportY - 0.5) * 14).toFixed(2));
+
+            if (stage) {
+              stage.style.setProperty("--tilt-x", tiltX.toFixed(2) + "deg");
+              stage.style.setProperty("--tilt-y", tiltY.toFixed(2) + "deg");
+            }
+
+            frame = 0;
+          };
 
           window.addEventListener("pointermove", (event) => {
-            if (frame) return;
-            frame = window.requestAnimationFrame(() => {
-              const x = (event.clientX / window.innerWidth - 0.5) * 8;
-              const y = (event.clientY / window.innerHeight - 0.5) * -7;
-              if (stage) {
-                stage.style.setProperty("--tilt-x", x.toFixed(2) + "deg");
-                stage.style.setProperty("--tilt-y", y.toFixed(2) + "deg");
-              }
-              frame = 0;
-            });
+            pointerX = event.clientX;
+            pointerY = event.clientY;
+            if (!frame) {
+              frame = window.requestAnimationFrame(updatePointerFrame);
+            }
           }, { passive: true });
 
-          document.querySelectorAll(".interactive-glow").forEach((node) => {
+          reactiveNodes.forEach((node) => {
             node.addEventListener("pointermove", (event) => {
               const rect = node.getBoundingClientRect();
-              node.style.setProperty("--mx", (((event.clientX - rect.left) / rect.width) * 100).toFixed(1) + "%");
-              node.style.setProperty("--my", (((event.clientY - rect.top) / rect.height) * 100).toFixed(1) + "%");
+              const localX = (event.clientX - rect.left) / rect.width;
+              const localY = (event.clientY - rect.top) / rect.height;
+
+              node.style.setProperty("--mx", (localX * 100).toFixed(1) + "%");
+              node.style.setProperty("--my", (localY * 100).toFixed(1) + "%");
+              node.style.setProperty("--card-depth-x", ((localX - 0.5) * 5).toFixed(2) + "px");
+              node.style.setProperty("--card-depth-y", ((localY - 0.5) * 5).toFixed(2) + "px");
             }, { passive: true });
           });
+        }
+
+        if (!prefersReducedMotion) {
+          const root = document.documentElement;
+          let scrollFrame = 0;
+
+          window.addEventListener("scroll", () => {
+            if (scrollFrame) return;
+            scrollFrame = window.requestAnimationFrame(() => {
+              const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+              root.style.setProperty("--scroll-glow", (window.scrollY / maxScroll).toFixed(4));
+              scrollFrame = 0;
+            });
+          }, { passive: true });
         }
       })();
     
