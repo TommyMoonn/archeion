@@ -1121,7 +1121,6 @@ html[data-motion="on"] .details-drawer[open] {
 .metadata-writeback__changes,
 .metadata-writeback__status {
   min-width: 0;
-  padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: color-mix(in srgb, var(--surface) 76%, transparent);
@@ -1131,6 +1130,28 @@ html[data-motion="on"] .details-drawer[open] {
 .metadata-writeback__group h3 {
   color: var(--text);
   font-size: 12px;
+  font-weight: 650;
+}
+
+.metadata-writeback__changes {
+  max-height: 144px;
+  padding: 11px 13px;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.metadata-writeback__changes-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px 10px;
+  min-width: 0;
+}
+
+.metadata-writeback__changes-header span {
+  color: var(--muted-soft);
+  font-size: 11px;
   font-weight: 650;
 }
 
@@ -1215,7 +1236,8 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .metadata-writeback__changes ul {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   margin: 8px 0 0;
   padding: 0;
@@ -1223,29 +1245,21 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .metadata-writeback__changes li {
-  display: grid;
-  grid-template-columns: minmax(80px, 0.6fr) minmax(0, 1fr) auto minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
   min-width: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.35;
+  max-width: 100%;
 }
 
-.metadata-writeback__changes li > span:first-child {
-  color: var(--text);
-  font-weight: 600;
-}
-
-.metadata-writeback__changes code {
-  min-width: 0;
-  padding: 3px 6px;
+.metadata-writeback__changes li span {
+  display: block;
+  max-width: 100%;
+  padding: 4px 7px;
   border: 1px solid var(--line);
-  border-radius: 7px;
-  color: var(--muted);
+  border-radius: 999px;
+  color: var(--text);
   background: color-mix(in srgb, var(--surface-raised) 82%, transparent);
-  font: inherit;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.25;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1253,6 +1267,7 @@ html[data-motion="on"] .details-drawer[open] {
 
 .metadata-writeback__status {
   margin: 0;
+  padding: 11px 13px;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.45;
@@ -1278,8 +1293,7 @@ html[data-motion="on"] .details-drawer[open] {
     padding: 22px;
   }
 
-  .metadata-writeback__grid,
-  .metadata-writeback__changes li {
+  .metadata-writeback__grid {
     grid-template-columns: 1fr;
   }
 }

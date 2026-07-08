@@ -68,8 +68,6 @@ type BookAdvancedMetadataDialogProps = {
 type MetadataChange = {
   field: EditableField;
   label: string;
-  before: string;
-  after: string;
 };
 
 function cleanValue(value: string): string | undefined {
@@ -149,7 +147,7 @@ function changedFields(
     const nextValue = metadataFieldValue(next, field);
     return currentValue === nextValue
       ? []
-      : [{ field, label, before: currentValue, after: nextValue }];
+      : [{ field, label }];
   });
 }
 
@@ -169,8 +167,8 @@ function isTextAreaField(field: EditableField): field is "subjects" | "descripti
   return field === "subjects" || field === "description";
 }
 
-function formatChangeValue(value: string): string {
-  return value || "Empty";
+function changedFieldSummary(count: number): string {
+  return count === 1 ? "1 field changed" : `${count} fields changed`;
 }
 
 function writebackErrorMessage(error: unknown): string {
@@ -296,15 +294,15 @@ export function BookAdvancedMetadataDialog({
         </div>
 
         <section className="metadata-writeback__changes" aria-live="polite">
-          <strong>Pending changes</strong>
+          <div className="metadata-writeback__changes-header">
+            <strong>Pending changes</strong>
+            {hasChanges ? <span>{changedFieldSummary(changes.length)}</span> : null}
+          </div>
           {hasChanges ? (
-            <ul>
+            <ul aria-label="Changed metadata fields">
               {changes.map((change) => (
                 <li key={change.field}>
                   <span>{change.label}</span>
-                  <code>{formatChangeValue(change.before)}</code>
-                  <span aria-hidden="true">→</span>
-                  <code>{formatChangeValue(change.after)}</code>
                 </li>
               ))}
             </ul>

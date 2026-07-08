@@ -183,6 +183,23 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(writeButton(container).disabled).toBe(true);
   });
 
+  it("summarizes pending changes as compact changed field names", async () => {
+    const { container } = renderDialog(book);
+
+    await changeInput(input(container, "title"), "New Title");
+    await changeInput(input(container, "creator"), "New Author");
+
+    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+
+    expect(pendingChanges?.textContent).toContain("2 fields changed");
+    expect(pendingChanges?.textContent).toContain("Title");
+    expect(pendingChanges?.textContent).toContain("Author");
+    expect(pendingChanges?.textContent).not.toContain("Old Title");
+    expect(pendingChanges?.textContent).not.toContain("New Title");
+    expect(pendingChanges?.querySelectorAll("code")).toHaveLength(0);
+    expect(writeButton(container).disabled).toBe(false);
+  });
+
   it("does not create pending changes for long embedded metadata until edited", () => {
     const longMetadataBook: Book = {
       ...book,
