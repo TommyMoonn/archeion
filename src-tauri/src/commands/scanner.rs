@@ -56,18 +56,30 @@ fn discovery_id(relative_path: &str, size: u64, modified_at: u64) -> String {
     format!("book-{hash:016x}")
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum CachedMetadataResult {
+    SourceMetadata(Option<epub_metadata::EpubPackageMetadata>),
+    MetadataError(String),
+}
+
 fn cached_source_metadata_by_path(
     relative_path: &str,
     size: u64,
     modified_at: u64,
     cache: &metadata::ScannerCache,
-) -> Option<Option<epub_metadata::EpubPackageMetadata>> {
+) -> Option<CachedMetadataResult> {
     let entry = cache.entries.get(relative_path)?;
-    if entry.size != size || entry.modified_at != modified_at || entry.metadata_error.is_some() {
+    if entry.size != size || entry.modified_at != modified_at {
         return None;
     }
 
-    Some(entry.source_metadata.clone())
+    if let Some(error) = &entry.metadata_error {
+        return Some(CachedMetadataResult::MetadataError(error.clone()));
+    }
+
+    Some(CachedMetadataResult::SourceMetadata(
+        entry.source_metadata.clone(),
+    ))
 }
 
 fn file_name_from_relative_path(relative_path: &str) -> Option<&str> {
@@ -110,9 +122,10 @@ fn cached_source_metadata(
     size: u64,
     modified_at: u64,
     cache: &metadata::ScannerCache,
-) -> Option<Option<epub_metadata::EpubPackageMetadata>> {
+) -> Option<CachedMetadataResult> {
     cached_source_metadata_by_path(relative_path, size, modified_at, cache).or_else(|| {
-        cached_source_metadata_by_signature(relative_path, size, modified_at, cache).map(Some)
+        cached_source_metadata_by_signature(relative_path, size, modified_at, cache)
+            .map(|metadata| CachedMetadataResult::SourceMetadata(Some(metadata)))
     })
 }
 
@@ -125,17 +138,37 @@ fn scan_source_metadata(
     next_cache_entries: &mut BTreeMap<String, metadata::ScannerCacheEntry>,
     warnings: &mut Vec<ArchiveScanWarning>,
 ) -> Option<epub_metadata::EpubPackageMetadata> {
-    if let Some(source_metadata) = cached_source_metadata(relative_path, size, modified_at, cache) {
-        next_cache_entries.insert(
-            relative_path.to_string(),
-            metadata::ScannerCacheEntry {
-                size,
-                modified_at,
-                source_metadata: source_metadata.clone(),
-                metadata_error: None,
-            },
-        );
-        return source_metadata;
+    if let Some(cached_metadata) = cached_source_metadata(relative_path, size, modified_at, cache) {
+        match cached_metadata {
+            CachedMetadataResult::SourceMetadata(source_metadata) => {
+                next_cache_entries.insert(
+                    relative_path.to_string(),
+                    metadata::ScannerCacheEntry {
+                        size,
+                        modified_at,
+                        source_metadata: source_metadata.clone(),
+                        metadata_error: None,
+                    },
+                );
+                return source_metadata;
+            }
+            CachedMetadataResult::MetadataError(error) => {
+                warnings.push(ArchiveScanWarning {
+                    relative_path: relative_path.to_string(),
+                    message: error.clone(),
+                });
+                next_cache_entries.insert(
+                    relative_path.to_string(),
+                    metadata::ScannerCacheEntry {
+                        size,
+                        modified_at,
+                        source_metadata: None,
+                        metadata_error: Some(error),
+                    },
+                );
+                return None;
+            }
+        }
     }
 
     match epub_metadata::read_core_metadata(path) {
@@ -155,8 +188,17 @@ fn scan_source_metadata(
         Err(error) => {
             warnings.push(ArchiveScanWarning {
                 relative_path: relative_path.to_string(),
-                message: error,
+                message: error.clone(),
             });
+            next_cache_entries.insert(
+                relative_path.to_string(),
+                metadata::ScannerCacheEntry {
+                    size,
+                    modified_at,
+                    source_metadata: None,
+                    metadata_error: Some(error),
+                },
+            );
             None
         }
     }
@@ -568,7 +610,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_cache_metadata_errors() {
+    fn caches_metadata_errors_for_unchanged_epubs() {
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock should be valid")
@@ -577,15 +619,107 @@ mod tests {
         fs::create_dir_all(&root).expect("test archive should be created");
         fs::write(root.join("broken.epub"), b"not a zip").expect("bad EPUB should be written");
 
-        let scan = scan_path(root.clone()).expect("archive scan should succeed");
+        let first_scan = scan_path(root.clone()).expect("archive scan should succeed");
 
-        assert_eq!(scan.warnings.len(), 1);
+        assert_eq!(first_scan.warnings.len(), 1);
         let cache_contents = fs::read_to_string(root.join(".archeion/scanner-cache.json"))
             .expect("scanner cache should exist");
         let cache: serde_json::Value =
             serde_json::from_str(&cache_contents).expect("scanner cache should be valid JSON");
-        assert_eq!(cache["entries"].as_object().expect("entries should be an object").len(), 0);
-        assert!(!cache_contents.contains("metadataError"));
+        let broken_entry = &cache["entries"]["broken.epub"];
+        assert_eq!(broken_entry["size"], 9);
+        assert!(broken_entry["metadataError"].as_str().is_some());
+        assert!(broken_entry["sourceMetadata"].is_null());
+
+        let second_scan = scan_path(root.clone()).expect("archive scan should succeed");
+
+        assert_eq!(second_scan.warnings.len(), 1);
+        assert_eq!(second_scan.warnings[0].relative_path, "broken.epub");
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn uses_cached_metadata_error_for_unchanged_epubs() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "archeion-scanner-cache-error-reuse-{nonce}"
+        ));
+        let metadata_dir = root.join(".archeion");
+        fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
+        let epub_path = root.join("broken.epub");
+        fs::write(&epub_path, b"not a zip").expect("bad EPUB should be written");
+        let modified_at = modified_at_millis(&epub_path);
+        fs::write(
+            metadata_dir.join("scanner-cache.json"),
+            serde_json::json!({
+                "version": 1,
+                "entries": {
+                    "broken.epub": {
+                        "size": 9,
+                        "modifiedAt": modified_at,
+                        "metadataError": "cached metadata failure"
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("scanner cache should be written");
+
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
+
+        assert_eq!(scan.books[0].source_metadata, None);
+        assert_eq!(scan.warnings.len(), 1);
+        assert_eq!(scan.warnings[0].relative_path, "broken.epub");
+        assert_eq!(scan.warnings[0].message, "cached metadata failure");
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn refreshes_stale_metadata_error_cache_entries() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!(
+            "archeion-scanner-cache-error-refresh-{nonce}"
+        ));
+        let metadata_dir = root.join(".archeion");
+        fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
+        let epub_path = root.join("changed.epub");
+        write_minimal_epub(
+            &epub_path,
+            br#"<package><metadata><dc:title>Recovered Title</dc:title></metadata></package>"#,
+        );
+        fs::write(
+            metadata_dir.join("scanner-cache.json"),
+            serde_json::json!({
+                "version": 1,
+                "entries": {
+                    "changed.epub": {
+                        "size": 1,
+                        "modifiedAt": 1,
+                        "metadataError": "stale metadata failure"
+                    }
+                }
+            })
+            .to_string(),
+        )
+        .expect("scanner cache should be written");
+
+        let scan = scan_path(root.clone()).expect("archive scan should succeed");
+
+        assert_eq!(scan.warnings.len(), 0);
+        let metadata = scan.books[0]
+            .source_metadata
+            .as_ref()
+            .expect("fresh metadata should be parsed after stale error cache");
+        assert_eq!(metadata.title.as_deref(), Some("Recovered Title"));
+        let cache_contents = fs::read_to_string(metadata_dir.join("scanner-cache.json"))
+            .expect("scanner cache should exist");
+        assert!(!cache_contents.contains("stale metadata failure"));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
