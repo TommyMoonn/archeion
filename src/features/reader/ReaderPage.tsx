@@ -4,6 +4,7 @@ import {
   Link,
   useLoaderData,
   useNavigate,
+  useParams,
   useSearchParams,
 } from "react-router-dom";
 
@@ -22,10 +23,20 @@ import {
 } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
+import { createReaderSessionInitialState } from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
 import { getReaderKeyboardIntent } from "./readerNavigation";
+
+export function ReaderRoute() {
+  const { bookId } = useParams();
+  const [searchParams] = useSearchParams();
+  const startMode =
+    searchParams.get("start") === "beginning" ? "beginning" : "resume";
+
+  return <ReaderPage key={`${bookId ?? "missing"}:${startMode}`} />;
+}
 
 export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
@@ -53,13 +64,19 @@ export function ReaderPage() {
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [location, setLocation] = useState<ReaderLocation>({
-    cfi: startFromBeginning ? "" : (book?.progressCfi ?? ""),
-    percentage: startFromBeginning ? 0 : (book?.progressPercent ?? 0),
-    atStart: startFromBeginning || !book?.progressCfi,
-    atEnd: false,
-  });
+  const [readerSession] = useState(() =>
+    createReaderSessionInitialState(book, startFromBeginning),
+  );
+  const [location, setLocation] = useState<ReaderLocation>(
+    readerSession.initialLocation,
+  );
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
+
+  useEffect(() => {
+    return () => {
+      progressWriter.current?.flush();
+    };
+  }, [book?.id]);
 
   const movePrevious = useCallback(() => {
     void viewerRef.current?.previous();
@@ -361,7 +378,7 @@ export function ReaderPage() {
         <EpubViewer
           ref={viewerRef}
           fileBlob={fileBlob}
-          initialCfi={startFromBeginning ? undefined : book.progressCfi}
+          initialCfi={readerSession.initialCfi}
           onError={handleViewerError}
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}

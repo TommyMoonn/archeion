@@ -1,0 +1,54 @@
+import type { Book } from "../../types/book";
+import type { ReaderLocation } from "./readerLocation";
+
+export type ReaderSessionInitialState = {
+  bookId: string | null;
+  initialCfi?: string;
+  initialLocation: ReaderLocation;
+  startFromBeginning: boolean;
+};
+
+const EMPTY_READER_LOCATION: ReaderLocation = {
+  cfi: "",
+  percentage: 0,
+  atStart: true,
+  atEnd: false,
+};
+
+export function createReaderSessionInitialState(
+  book: Book | undefined,
+  startFromBeginning: boolean,
+): ReaderSessionInitialState {
+  if (!book || startFromBeginning) {
+    return {
+      bookId: book?.id ?? null,
+      initialLocation: EMPTY_READER_LOCATION,
+      startFromBeginning,
+    };
+  }
+
+  const cfi = book.progressCfi ?? "";
+
+  return {
+    bookId: book.id,
+    initialCfi: cfi || undefined,
+    initialLocation: {
+      cfi,
+      percentage: book.progressPercent ?? 0,
+      atStart: !cfi,
+      atEnd: false,
+    },
+    startFromBeginning,
+  };
+}
+
+export function shouldResetReaderSession(
+  current: ReaderSessionInitialState,
+  book: Book | undefined,
+  startFromBeginning: boolean,
+): boolean {
+  return (
+    current.bookId !== (book?.id ?? null) ||
+    current.startFromBeginning !== startFromBeginning
+  );
+}

@@ -14,9 +14,9 @@ export const router = createBrowserRouter([
   {
     path: "/reader/:bookId",
     lazy: async () => {
-      const { ReaderPage } = await import("../features/reader/ReaderPage");
+      const { ReaderRoute } = await import("../features/reader/ReaderPage");
 
-      return { Component: ReaderPage };
+      return { Component: ReaderRoute };
     },
     loader: async ({ params }) => {
       if (!params.bookId) {

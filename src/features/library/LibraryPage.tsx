@@ -101,6 +101,7 @@ const loadSettingsDialog = () =>
   import("../settings/SettingsDialog").then((module) => ({
     default: module.SettingsDialog,
   }));
+const loadReaderPage = () => import("../reader/ReaderPage");
 
 const AddEpubDialog = lazy(loadAddEpubDialog);
 const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
@@ -114,6 +115,18 @@ const SettingsDialog = lazy(loadSettingsDialog);
 
 function preloadAboutDialog() {
   void loadAboutDialog();
+}
+
+function preloadBookAdvancedMetadataDialog() {
+  void loadBookAdvancedMetadataDialog();
+}
+
+function preloadBookDetailsDrawer() {
+  void loadBookDetailsDrawer();
+}
+
+function preloadReaderPage() {
+  void loadReaderPage();
 }
 
 function preloadSettingsDialog() {
@@ -270,7 +283,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
 
   useEffect(() => {
-    const preloadDialogs = () => {
+    const preloadPrimarySurfaces = () => {
+      preloadReaderPage();
+      preloadBookDetailsDrawer();
+      preloadBookAdvancedMetadataDialog();
       preloadSettingsDialog();
       preloadAboutDialog();
     };
@@ -286,14 +302,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       typeof idleWindow.requestIdleCallback === "function" &&
       typeof idleWindow.cancelIdleCallback === "function"
     ) {
-      const idleId = idleWindow.requestIdleCallback(preloadDialogs, {
+      const idleId = idleWindow.requestIdleCallback(preloadPrimarySurfaces, {
         timeout: 2500,
       });
 
       return () => idleWindow.cancelIdleCallback?.(idleId);
     }
 
-    const timeoutId = window.setTimeout(preloadDialogs, 1200);
+    const timeoutId = window.setTimeout(preloadPrimarySurfaces, 1200);
 
     return () => window.clearTimeout(timeoutId);
   }, []);

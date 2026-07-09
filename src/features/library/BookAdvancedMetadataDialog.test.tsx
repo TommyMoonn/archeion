@@ -60,17 +60,21 @@ function renderDialog(
   const root = createRoot(container);
   activeRoot = root;
 
-  act(() => {
+  function render(nextBook: Book) {
     root.render(
       <BookAdvancedMetadataDialog
-        book={renderedBook}
+        book={nextBook}
         onClose={vi.fn()}
         onWriteMetadata={onWriteMetadata}
       />,
     );
+  }
+
+  act(() => {
+    render(renderedBook);
   });
 
-  return { container, onWriteMetadata };
+  return { container, onWriteMetadata, rerender: render };
 }
 
 function writeButton(container: Element): HTMLButtonElement {
@@ -307,6 +311,47 @@ describe("BookAdvancedMetadataDialog", () => {
 
     expect(container.textContent).toContain("No metadata changes.");
     expect(writeButton(container).disabled).toBe(true);
+  });
+
+  it("renders the empty pending-change state once", () => {
+    const { container } = renderDialog(book);
+    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+    const emptyMessages = pendingChanges?.textContent?.match(
+      /No metadata changes\./g,
+    );
+
+    expect(emptyMessages).toHaveLength(1);
+  });
+
+  it("keeps the editor state mounted across parent book updates after writeback", async () => {
+    const onWriteMetadata = vi.fn(async () => ({
+      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+      sourceMetadata: {
+        ...book.sourceMetadata,
+        title: "New Title",
+      },
+      fileStat: writebackFileStat,
+    }));
+    const { container, rerender } = renderDialog(book, onWriteMetadata);
+
+    await changeInput(input(container, "title"), "New Title");
+    await act(async () => {
+      writeButton(container).click();
+    });
+
+    await act(async () => {
+      rerender({
+        ...book,
+        sourceMetadata: {
+          ...book.sourceMetadata,
+          title: "Parent Updated Title",
+        },
+      });
+    });
+
+    expect(input(container, "title").value).toBe("New Title");
+    expect(container.textContent).toContain("Metadata written to EPUB.");
+    expect(container.textContent).toContain("No metadata changes.");
   });
 
   it("summarizes pending changes as compact changed field names", async () => {
