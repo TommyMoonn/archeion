@@ -5,9 +5,7 @@ import type { Book } from "../../types/book";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 
 vi.mock("./BookCover", () => ({
-  BookCover: ({ className }: { className?: string }) => (
-    <div className={className}>Cover</div>
-  ),
+  BookCover: ({ className }: { className?: string }) => <div className={className}>Cover</div>,
 }));
 
 const book: Book = {

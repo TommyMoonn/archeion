@@ -74,7 +74,6 @@ describe("LibraryFeedbackStack", () => {
     expect(tokens[1]?.getAttribute("data-has-detail")).toBe("true");
   });
 
-
   it("renders delete success tokens as non-inline auto-dismiss feedback", () => {
     const onDismiss = vi.fn();
     const container = document.createElement("div");

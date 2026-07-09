@@ -110,10 +110,7 @@ export class ArchiveWatcherController {
       return;
     }
 
-    const relativePath = archiveRelativePathFromAbsolutePath(
-      this.archiveRootPath,
-      payload?.path,
-    );
+    const relativePath = archiveRelativePathFromAbsolutePath(this.archiveRootPath, payload?.path);
     if (
       relativePath !== undefined &&
       shouldSuppressWritebackWatcherEvent(this.archiveRootPath, relativePath)

@@ -14,13 +14,7 @@ function keyEvent(
   options: Partial<
     Pick<
       KeyboardEvent,
-      | "altKey"
-      | "ctrlKey"
-      | "defaultPrevented"
-      | "key"
-      | "metaKey"
-      | "shiftKey"
-      | "target"
+      "altKey" | "ctrlKey" | "defaultPrevented" | "key" | "metaKey" | "shiftKey" | "target"
     >
   >,
 ) {
@@ -40,13 +34,7 @@ function wheelEvent(
   options: Partial<
     Pick<
       WheelEvent,
-      | "altKey"
-      | "ctrlKey"
-      | "deltaMode"
-      | "deltaX"
-      | "deltaY"
-      | "metaKey"
-      | "shiftKey"
+      "altKey" | "ctrlKey" | "deltaMode" | "deltaX" | "deltaY" | "metaKey" | "shiftKey"
     >
   >,
 ) {
@@ -64,36 +52,20 @@ function wheelEvent(
 
 describe("reader navigation helpers", () => {
   it("maps paged reader keyboard shortcuts", () => {
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight" }))).toBe(
-      "forward",
-    );
-    expect(getReaderKeyboardIntent(keyEvent({ key: "PageDown" }))).toBe(
-      "forward",
-    );
+    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight" }))).toBe("forward");
+    expect(getReaderKeyboardIntent(keyEvent({ key: "PageDown" }))).toBe("forward");
     expect(getReaderKeyboardIntent(keyEvent({ key: " " }))).toBe("forward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowLeft" }))).toBe(
-      "backward",
-    );
-    expect(getReaderKeyboardIntent(keyEvent({ key: "PageUp" }))).toBe(
-      "backward",
-    );
-    expect(
-      getReaderKeyboardIntent(keyEvent({ key: " ", shiftKey: true })),
-    ).toBe("backward");
+    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowLeft" }))).toBe("backward");
+    expect(getReaderKeyboardIntent(keyEvent({ key: "PageUp" }))).toBe("backward");
+    expect(getReaderKeyboardIntent(keyEvent({ key: " ", shiftKey: true }))).toBe("backward");
     expect(getReaderKeyboardIntent(keyEvent({ key: "s" }))).toBe("settings");
     expect(getReaderKeyboardIntent(keyEvent({ key: "Escape" }))).toBe("close");
   });
 
   it("does not treat modified or selection-style shortcuts as page turns", () => {
-    expect(
-      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", shiftKey: true })),
-    ).toBeNull();
-    expect(
-      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", ctrlKey: true })),
-    ).toBeNull();
-    expect(
-      getReaderKeyboardIntent(keyEvent({ key: "s", metaKey: true })),
-    ).toBeNull();
+    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", shiftKey: true }))).toBeNull();
+    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", ctrlKey: true }))).toBeNull();
+    expect(getReaderKeyboardIntent(keyEvent({ key: "s", metaKey: true }))).toBeNull();
   });
 
   it("maps vertical wheel gestures to page direction", () => {
@@ -107,20 +79,14 @@ describe("reader navigation helpers", () => {
     expect(getReaderWheelDelta(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe(
       READER_WHEEL_TURN_DELTA,
     );
-    expect(getReaderWheelIntent(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe(
-      "forward",
-    );
+    expect(getReaderWheelIntent(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe("forward");
   });
 
   it("allows small smooth-wheel deltas to accumulate before turning", () => {
     expect(getReaderWheelIntentFromDelta(12)).toBeNull();
     expect(getReaderWheelIntentFromDelta(36)).toBeNull();
-    expect(getReaderWheelIntentFromDelta(READER_WHEEL_TURN_DELTA)).toBe(
-      "forward",
-    );
-    expect(getReaderWheelIntentFromDelta(-READER_WHEEL_TURN_DELTA)).toBe(
-      "backward",
-    );
+    expect(getReaderWheelIntentFromDelta(READER_WHEEL_TURN_DELTA)).toBe("forward");
+    expect(getReaderWheelIntentFromDelta(-READER_WHEEL_TURN_DELTA)).toBe("backward");
   });
 
   it("ignores modified wheel gestures", () => {
@@ -130,8 +96,6 @@ describe("reader navigation helpers", () => {
 
   it("throttles wheel page turns", () => {
     expect(canRunReaderWheelTurn(1000, 1000)).toBe(false);
-    expect(canRunReaderWheelTurn(1000 + READER_WHEEL_THROTTLE_MS, 1000)).toBe(
-      true,
-    );
+    expect(canRunReaderWheelTurn(1000 + READER_WHEEL_THROTTLE_MS, 1000)).toBe(true);
   });
 });

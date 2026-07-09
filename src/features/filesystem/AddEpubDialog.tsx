@@ -1,10 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import {
-  FilePlus,
-  Files,
-  Folder as FolderIcon,
-  WarningCircle,
-} from "@phosphor-icons/react";
+import { FilePlus, Files, Folder as FolderIcon, WarningCircle } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
@@ -54,10 +49,7 @@ export function AddEpubDialog({
   onClose,
   onImport,
 }: AddEpubDialogProps) {
-  const destinations = useMemo(
-    () => createArchiveDestinationOptions(folders),
-    [folders],
-  );
+  const destinations = useMemo(() => createArchiveDestinationOptions(folders), [folders]);
   const initialDestination = destinationValueFromFolderPath(
     initialFolderPath ?? importDefaults.defaultDestinationFolderPath,
   );
@@ -70,13 +62,10 @@ export function AddEpubDialog({
       ? initialDestination
       : (destinations[0]?.value ?? ARCHIVE_ROOT_DESTINATION),
   );
-  const [conflictAction, setConflictAction] =
-    useState<ArchiveImportConflictAction>(
-      importDefaults.defaultConflictAction,
-    );
-  const [mode, setMode] = useState<ArchiveImportMode>(
-    importDefaults.defaultMode,
+  const [conflictAction, setConflictAction] = useState<ArchiveImportConflictAction>(
+    importDefaults.defaultConflictAction,
   );
+  const [mode, setMode] = useState<ArchiveImportMode>(importDefaults.defaultMode);
   const [error, setError] = useState<string | null>(null);
 
   async function chooseFiles() {
@@ -164,9 +153,7 @@ export function AddEpubDialog({
             {sourcePaths.slice(0, 5).map((path) => (
               <li key={path}>{getFileNameFromPath(path)}</li>
             ))}
-            {sourcePaths.length > 5 ? (
-              <li>{sourcePaths.length - 5} more</li>
-            ) : null}
+            {sourcePaths.length > 5 ? <li>{sourcePaths.length - 5} more</li> : null}
           </ul>
         ) : null}
 

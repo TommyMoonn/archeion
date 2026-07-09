@@ -48,9 +48,7 @@ class ArchiveManagerErrorBoundary extends Component<
 > {
   state: ArchiveManagerErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(
-    error: unknown,
-  ): ArchiveManagerErrorBoundaryState {
+  static getDerivedStateFromError(error: unknown): ArchiveManagerErrorBoundaryState {
     return { error: messageFromError(error) };
   }
 
@@ -71,9 +69,7 @@ class ArchiveManagerErrorBoundary extends Component<
 
 export function ArchiveManagerWindow() {
   const archive = useArchive();
-  const [initializationError, setInitializationError] = useState<string | null>(
-    null,
-  );
+  const [initializationError, setInitializationError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;

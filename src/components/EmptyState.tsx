@@ -7,12 +7,7 @@ type EmptyStateProps = {
   title: string;
 };
 
-export function EmptyState({
-  action,
-  description,
-  icon,
-  title,
-}: EmptyStateProps) {
+export function EmptyState({ action, description, icon, title }: EmptyStateProps) {
   return (
     <section className="empty-state">
       <div className="empty-state__art" aria-hidden="true">

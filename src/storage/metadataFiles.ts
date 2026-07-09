@@ -46,8 +46,7 @@ export type MetadataBundle = {
   settings: SettingsMetadata;
 };
 
-export const defaultArchiveImportSettings: Readonly<ArchiveImportSettings> =
-  Object.freeze({});
+export const defaultArchiveImportSettings: Readonly<ArchiveImportSettings> = Object.freeze({});
 
 export function createLibraryMetadata(): LibraryMetadata {
   return { version: 1, books: {} };
@@ -82,9 +81,7 @@ export function normalizeArchiveImportSettings(
   };
 }
 
-export function normalizeSettingsMetadata(
-  metadata?: LegacySettingsMetadata,
-): SettingsMetadata {
+export function normalizeSettingsMetadata(metadata?: LegacySettingsMetadata): SettingsMetadata {
   return {
     version: 1,
     import: normalizeArchiveImportSettings(metadata?.import),

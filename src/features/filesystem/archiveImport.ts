@@ -44,16 +44,12 @@ export function isEpubSourcePath(path: string): boolean {
   return /\.epub$/i.test(getFileNameFromPath(path));
 }
 
-export function createArchiveDestinationOptions(
-  folders: Folder[],
-): ArchiveImportDestination[] {
+export function createArchiveDestinationOptions(folders: Folder[]): ArchiveImportDestination[] {
   return [
     { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
     ...[...folders]
       .filter((folder) => folder.relativePath)
-      .sort((left, right) =>
-        (left.relativePath ?? "").localeCompare(right.relativePath ?? ""),
-      )
+      .sort((left, right) => (left.relativePath ?? "").localeCompare(right.relativePath ?? ""))
       .map((folder) => ({
         label: folder.relativePath ?? folder.name,
         value: folder.relativePath ?? folder.name,

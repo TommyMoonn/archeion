@@ -45,7 +45,6 @@ const firstScan = {
   ],
 };
 
-
 const editedFileStat = {
   relativePath: "Author/Series/Volume_01.epub",
   fileName: "Volume_01.epub",
@@ -162,19 +161,14 @@ describe("TauriArchiveLibraryStorage", () => {
   }
 
   function expectCommandRootPath(command: string, rootPath: string) {
-    const call = invokeMock.mock.calls.find(
-      ([candidate]) => candidate === command,
-    );
+    const call = invokeMock.mock.calls.find(([candidate]) => candidate === command);
     expect(call?.[1]).toMatchObject({ rootPath });
   }
 
   it("maps scan results into the shared library models", async () => {
     const storage = new TauriArchiveLibraryStorage();
 
-    const [books, folders] = await Promise.all([
-      storage.listBooks(),
-      storage.listFolders(),
-    ]);
+    const [books, folders] = await Promise.all([storage.listBooks(), storage.listFolders()]);
 
     expect(invokeMock).toHaveBeenCalledTimes(2);
     expect(invokeMock).toHaveBeenCalledWith("scan_archive");
@@ -277,8 +271,7 @@ describe("TauriArchiveLibraryStorage", () => {
 
   it("preserves the book id after metadata points to an app-controlled moved path", async () => {
     const movedMetadata = structuredClone(metadata);
-    movedMetadata.library.books["book-1"].relativePath =
-      "Author/Series/Renamed.epub";
+    movedMetadata.library.books["book-1"].relativePath = "Author/Series/Renamed.epub";
     invokeMock.mockImplementation(async (command) => {
       if (command === "scan_archive") {
         return {
@@ -417,9 +410,7 @@ describe("TauriArchiveLibraryStorage", () => {
       relativePath: "Author/Series/Renamed.epub",
       progressPercent: 42,
     });
-    expect(currentMetadata.library.books["book-1"].relativePath).toBe(
-      "Author/Series/Renamed.epub",
-    );
+    expect(currentMetadata.library.books["book-1"].relativePath).toBe("Author/Series/Renamed.epub");
   });
 
   it("moves an archive folder and rewrites contained book metadata paths", async () => {
@@ -463,8 +454,7 @@ describe("TauriArchiveLibraryStorage", () => {
       if (command === "save_library_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library })
-            .metadata,
+          library: (args as { metadata: typeof currentMetadata.library }).metadata,
         };
       }
       return undefined;
@@ -481,9 +471,7 @@ describe("TauriArchiveLibraryStorage", () => {
       relativePath: "Series",
       parentId: null,
     });
-    expect(currentMetadata.library.books["book-1"].relativePath).toBe(
-      "Series/Volume_01.epub",
-    );
+    expect(currentMetadata.library.books["book-1"].relativePath).toBe("Series/Volume_01.epub");
   });
 
   it("moves a present EPUB to Trash before removing its metadata", async () => {
@@ -503,15 +491,13 @@ describe("TauriArchiveLibraryStorage", () => {
       if (command === "save_library_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          library: (args as { metadata: typeof currentMetadata.library })
-            .metadata,
+          library: (args as { metadata: typeof currentMetadata.library }).metadata,
         };
       }
       if (command === "save_progress_metadata") {
         currentMetadata = {
           ...currentMetadata,
-          progress: (args as { metadata: typeof currentMetadata.progress })
-            .metadata,
+          progress: (args as { metadata: typeof currentMetadata.progress }).metadata,
         };
       }
       return undefined;
@@ -677,18 +663,14 @@ describe("TauriArchiveLibraryStorage", () => {
     await Promise.resolve();
 
     expect(
-      invokeMock.mock.calls.filter(
-        ([command]) => command === "save_library_metadata",
-      ),
+      invokeMock.mock.calls.filter(([command]) => command === "save_library_metadata"),
     ).toHaveLength(1);
 
     releaseFirstSave();
     await Promise.all([firstUpdate, scan]);
 
     expect(
-      invokeMock.mock.calls.filter(
-        ([command]) => command === "save_library_metadata",
-      ),
+      invokeMock.mock.calls.filter(([command]) => command === "save_library_metadata"),
     ).toHaveLength(2);
   });
 
@@ -818,9 +800,7 @@ describe("TauriArchiveLibraryStorage", () => {
 
     expect(emittedBookIds).toEqual([]);
     expect(
-      invokeMock.mock.calls.filter(
-        ([command]) => command === "save_library_metadata",
-      ),
+      invokeMock.mock.calls.filter(([command]) => command === "save_library_metadata"),
     ).toHaveLength(0);
   });
 
@@ -862,10 +842,7 @@ describe("TauriArchiveLibraryStorage", () => {
   it("loads legacy display overrides without using or saving them", async () => {
     const legacyMetadata = structuredClone(metadata) as typeof metadata & {
       library: {
-        books: Record<
-          string,
-          { displayTitle?: string; displayAuthor?: string }
-        >;
+        books: Record<string, { displayTitle?: string; displayAuthor?: string }>;
       };
     };
     const legacyBook = legacyMetadata.library.books[
@@ -1012,11 +989,8 @@ describe("TauriArchiveLibraryStorage", () => {
 
     expect(results).toMatchObject([{ status: "imported", fileName: "New.epub" }]);
     expect(statuses).toEqual(["idle"]);
-    expect(
-      invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
-    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
   });
-
 
   it("does not write metadata for unchanged progress updates", async () => {
     const storage = new TauriArchiveLibraryStorage();
@@ -1028,14 +1002,8 @@ describe("TauriArchiveLibraryStorage", () => {
     });
 
     expect(updated?.progressPercent).toBe(42);
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "save_progress_metadata",
-      expect.anything(),
-    );
-    expect(invokeMock).not.toHaveBeenCalledWith(
-      "save_library_metadata",
-      expect.anything(),
-    );
+    expect(invokeMock).not.toHaveBeenCalledWith("save_progress_metadata", expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith("save_library_metadata", expect.anything());
   });
 
   it("persists only archive import destination in archive settings", async () => {
@@ -1251,11 +1219,9 @@ describe("TauriArchiveLibraryStorage", () => {
 
     expect(first?.size).toBe(3);
     expect(second).toBe(first);
-    expect(
-      invokeMock.mock.calls.filter(
-        ([command]) => command === "load_epub_cover",
-      ),
-    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "load_epub_cover")).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -1312,16 +1278,10 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     expect(book?.modifiedAt).toBe(new Date(1_700_000_001_000).toISOString());
     expect(book?.coverRevision).toBe(initialBook?.coverRevision);
     expect(book).not.toBe(initialBook);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata")).toBe(true);
     expect(
-      invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
-    ).toHaveLength(1);
-    expect(
-      invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
-    ).toBe(true);
-    expect(
-      invokeMock.mock.calls.some(
-        ([command]) => command === "cleanup_epub_writeback_backup",
-      ),
+      invokeMock.mock.calls.some(([command]) => command === "cleanup_epub_writeback_backup"),
     ).toBe(false);
   });
 
@@ -1338,12 +1298,9 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
         return undefined;
       }
       if (command === "write_epub_metadata") {
-        expect(
-          shouldSuppressWritebackWatcherEvent(
-            rootPath,
-            "Author/Series/Volume_01.epub",
-          ),
-        ).toBe(true);
+        expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+          true,
+        );
         return {
           backupPath: null,
           sourceMetadata: { title: "Edited Title" },
@@ -1359,10 +1316,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
 
     await storage.writeBookMetadata("book-1", { title: "Edited Title" });
 
-    expect(invokeMock).toHaveBeenCalledWith(
-      "write_epub_metadata",
-      expect.any(Object),
-    );
+    expect(invokeMock).toHaveBeenCalledWith("write_epub_metadata", expect.any(Object));
   });
 
   it("keeps watcher suppression active until backend writeback resolves", async () => {
@@ -1399,12 +1353,9 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
       await Promise.resolve();
       vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
 
-      expect(
-        shouldSuppressWritebackWatcherEvent(
-          rootPath,
-          "Author/Series/Volume_01.epub",
-        ),
-      ).toBe(true);
+      expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+        true,
+      );
 
       resolveWriteback({
         backupPath: null,
@@ -1412,20 +1363,14 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
         fileStat: editedFileStat,
       });
       await writeback;
-      expect(
-        shouldSuppressWritebackWatcherEvent(
-          rootPath,
-          "Author/Series/Volume_01.epub",
-        ),
-      ).toBe(true);
+      expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+        true,
+      );
 
       vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
-      expect(
-        shouldSuppressWritebackWatcherEvent(
-          rootPath,
-          "Author/Series/Volume_01.epub",
-        ),
-      ).toBe(false);
+      expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+        false,
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -1452,23 +1397,17 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
       await storage.listBooks();
       invokeMock.mockClear();
 
-      await expect(
-        storage.writeBookMetadata("book-1", { title: "Edited Title" }),
-      ).rejects.toThrow("writeback failed");
-      expect(
-        shouldSuppressWritebackWatcherEvent(
-          rootPath,
-          "Author/Series/Volume_01.epub",
-        ),
-      ).toBe(true);
+      await expect(storage.writeBookMetadata("book-1", { title: "Edited Title" })).rejects.toThrow(
+        "writeback failed",
+      );
+      expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+        true,
+      );
 
       vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
-      expect(
-        shouldSuppressWritebackWatcherEvent(
-          rootPath,
-          "Author/Series/Volume_01.epub",
-        ),
-      ).toBe(false);
+      expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+        false,
+      );
     } finally {
       vi.useRealTimers();
     }
@@ -1502,12 +1441,9 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
 
     await storage.writeBookMetadata("book-1", { title: "Edited Title" });
 
-    expect(
-      shouldSuppressWritebackWatcherEvent(
-        rootPath,
-        "Author/Series/Volume_01.epub",
-      ),
-    ).toBe(true);
+    expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+      true,
+    );
   });
 
   it("adds a TTL suppression for a changed result relative path", async () => {
@@ -1543,15 +1479,10 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
 
     await storage.writeBookMetadata("book-1", { title: "Edited Title" });
 
-    expect(
-      shouldSuppressWritebackWatcherEvent(
-        rootPath,
-        "Author/Series/Volume_01.epub",
-      ),
-    ).toBe(true);
-    expect(
-      shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Renamed.epub"),
-    ).toBe(true);
+    expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+      true,
+    );
+    expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Renamed.epub")).toBe(true);
   });
 
   it("keeps manual rescan unaffected by writeback watcher suppression", async () => {
@@ -1581,9 +1512,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     invokeMock.mockClear();
     await storage.rescan();
 
-    expect(
-      invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
-    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
   });
 
   it("does not emit scanning status for successful targeted writeback refresh", async () => {
@@ -1651,9 +1580,9 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     await storage.writeBookMetadata("book-1", { title: "" });
 
     expect(emissions).toHaveLength(1);
-    expect(
-      invokeMock.mock.calls.some(([command]) => command === "save_library_metadata"),
-    ).toBe(false);
+    expect(invokeMock.mock.calls.some(([command]) => command === "save_library_metadata")).toBe(
+      false,
+    );
     unsubscribe();
   });
 
@@ -1740,13 +1669,9 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
 
     await storage.writeBookMetadata("book-1", { title: "Edited Title" });
 
-    expect(savedMetadata?.books["book-1"]?.sourceMetadata?.title).toBe(
-      "Edited Title",
-    );
+    expect(savedMetadata?.books["book-1"]?.sourceMetadata?.title).toBe("Edited Title");
     expect(savedMetadata?.books["book-1"]?.fileSize).toBe(4096);
-    expect(savedMetadata?.books["book-1"]?.fileModifiedAt).toBe(
-      1_700_000_001_000,
-    );
+    expect(savedMetadata?.books["book-1"]?.fileModifiedAt).toBe(1_700_000_001_000);
   });
 
   it("distinguishes successful writeback from failed targeted refresh", async () => {
@@ -1772,14 +1697,10 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
 
-    await expect(
-      storage.writeBookMetadata("book-1", { title: "Edited Title" }),
-    ).rejects.toThrow(
+    await expect(storage.writeBookMetadata("book-1", { title: "Edited Title" })).rejects.toThrow(
       "Metadata was written, but the library could not refresh this book. Rescan to update the display.",
     );
-    expect(
-      invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
-    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
   });
 
   it("keeps the successful writeback backup when the app preference is enabled", async () => {
@@ -1809,8 +1730,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
           },
         });
         return {
-          backupPath:
-            ".archeion/backups/Volume_01.metadata-writeback-retained-1.epub.bak",
+          backupPath: ".archeion/backups/Volume_01.metadata-writeback-retained-1.epub.bak",
           sourceMetadata: { title: "Edited Title" },
           fileStat: editedFileStat,
         };
@@ -1826,9 +1746,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
 
     expect(result.backupPath ?? "").toContain("metadata-writeback-retained");
     expect(
-      invokeMock.mock.calls.some(
-        ([command]) => command === "cleanup_epub_writeback_backup",
-      ),
+      invokeMock.mock.calls.some(([command]) => command === "cleanup_epub_writeback_backup"),
     ).toBe(false);
     getSnapshot.mockRestore();
   });
@@ -1853,10 +1771,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
       fileCount: 0,
       totalBytes: 0,
     });
-    expect(invokeMock).toHaveBeenCalledWith(
-      "get_epub_writeback_backup_status",
-    );
+    expect(invokeMock).toHaveBeenCalledWith("get_epub_writeback_backup_status");
     expect(invokeMock).toHaveBeenCalledWith("clear_epub_writeback_backups");
   });
 });
-

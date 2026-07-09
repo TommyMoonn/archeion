@@ -10,10 +10,7 @@ type RescanArchiveButtonProps = {
   onSuccess: () => void;
 };
 
-export function RescanArchiveButton({
-  onError,
-  onSuccess,
-}: RescanArchiveButtonProps) {
+export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonProps) {
   const storage = useLibraryStorage();
   const [isScanning, setIsScanning] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -61,11 +58,7 @@ export function RescanArchiveButton({
               >
                 Cancel
               </Button>
-              <Button
-                autoFocus
-                disabled={isScanning}
-                onClick={() => void handleRescan()}
-              >
+              <Button autoFocus disabled={isScanning} onClick={() => void handleRescan()}>
                 {isScanning ? "Scanning" : "Rescan archive"}
               </Button>
             </>

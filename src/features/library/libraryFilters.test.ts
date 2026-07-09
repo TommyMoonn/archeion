@@ -83,9 +83,7 @@ describe("library filters", () => {
     });
     expect(bookTitle(parsedMetadataBook)).toBe("Parsed EPUB Title");
     expect(bookAuthor(parsedMetadataBook)).toBe("Parsed EPUB Author");
-    expect(bookTitle({ ...parsedMetadataBook, sourceMetadata: {} })).toBe(
-      "Filename Title",
-    );
+    expect(bookTitle({ ...parsedMetadataBook, sourceMetadata: {} })).toBe("Filename Title");
   });
 
   it("ignores old display override fields when resolving visible metadata", () => {
@@ -118,12 +116,8 @@ describe("library filters", () => {
         language: "zz",
       },
     });
-    expect(filterBooks([parsedMetadataBook], "package author")).toEqual([
-      parsedMetadataBook,
-    ]);
-    expect(filterBooks([parsedMetadataBook], "urn:test:book")).toEqual([
-      parsedMetadataBook,
-    ]);
+    expect(filterBooks([parsedMetadataBook], "package author")).toEqual([parsedMetadataBook]);
+    expect(filterBooks([parsedMetadataBook], "urn:test:book")).toEqual([parsedMetadataBook]);
     expect(filterBooks([parsedMetadataBook], "zz")).toEqual([]);
     expect(filterBooks([parsedMetadataBook], "urn")).toEqual([]);
   });
@@ -138,15 +132,9 @@ describe("library filters", () => {
       folderId: "folder-one",
     });
 
-    expect(filterBooks([contextualBook], "cafe chen")).toEqual([
-      contextualBook,
-    ]);
-    expect(filterBooks([contextualBook], "volume 02")).toEqual([
-      contextualBook,
-    ]);
-    expect(filterBooks([contextualBook], "science", folders)).toEqual([
-      contextualBook,
-    ]);
+    expect(filterBooks([contextualBook], "cafe chen")).toEqual([contextualBook]);
+    expect(filterBooks([contextualBook], "volume 02")).toEqual([contextualBook]);
+    expect(filterBooks([contextualBook], "science", folders)).toEqual([contextualBook]);
   });
 
   it("reuses cached search field variants while keeping current book state", () => {
@@ -159,11 +147,7 @@ describe("library filters", () => {
 
     const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
     const updatedBook = { ...book, isFavorite: true };
-    const [secondEntry] = createCachedLibrarySearchIndex(
-      [updatedBook],
-      [],
-      cache,
-    );
+    const [secondEntry] = createCachedLibrarySearchIndex([updatedBook], [], cache);
 
     expect(secondEntry.fields).toBe(firstEntry.fields);
     expect(secondEntry.book).toBe(updatedBook);
@@ -206,16 +190,8 @@ describe("library filters", () => {
       updatedAt: "2026-07-02T00:00:00.000Z",
     };
 
-    const [firstEntry] = createCachedLibrarySearchIndex(
-      [book],
-      [initialFolder],
-      cache,
-    );
-    const [secondEntry] = createCachedLibrarySearchIndex(
-      [book],
-      [renamedFolder],
-      cache,
-    );
+    const [firstEntry] = createCachedLibrarySearchIndex([book], [initialFolder], cache);
+    const [secondEntry] = createCachedLibrarySearchIndex([book], [renamedFolder], cache);
 
     expect(secondEntry.fields).not.toBe(firstEntry.fields);
     expect(secondEntry.fields.folderName.normalized).toBe("new folder");
@@ -344,9 +320,10 @@ describe("library filters", () => {
       relativePath: "Library/Archive.epub",
     });
 
-    expect(
-      filterBooks([pathOnly, titleMatch], "rezero").map((book) => book.id),
-    ).toEqual(["title-match", "path-only"]);
+    expect(filterBooks([pathOnly, titleMatch], "rezero").map((book) => book.id)).toEqual([
+      "title-match",
+      "path-only",
+    ]);
   });
 
   it("matches parsed author metadata", () => {
@@ -429,22 +406,13 @@ describe("library filters", () => {
   it("derives continue sorting without mutating the selected library sort", () => {
     const selectedSort = "author";
 
-    expect(getEffectiveLibrarySort({ type: "continue" }, selectedSort)).toBe(
-      "recently-opened",
-    );
+    expect(getEffectiveLibrarySort({ type: "continue" }, selectedSort)).toBe("recently-opened");
     expect(selectedSort).toBe("author");
-    expect(getEffectiveLibrarySort({ type: "library" }, selectedSort)).toBe(
+    expect(getEffectiveLibrarySort({ type: "library" }, selectedSort)).toBe("author");
+    expect(getEffectiveLibrarySort({ type: "favorites" }, selectedSort)).toBe("author");
+    expect(getEffectiveLibrarySort({ type: "folder", folderId: "folder-one" }, selectedSort)).toBe(
       "author",
     );
-    expect(getEffectiveLibrarySort({ type: "favorites" }, selectedSort)).toBe(
-      "author",
-    );
-    expect(
-      getEffectiveLibrarySort(
-        { type: "folder", folderId: "folder-one" },
-        selectedSort,
-      ),
-    ).toBe("author");
   });
 
   it("orders the continue view by recently opened without changing the library default sort", () => {
@@ -484,9 +452,7 @@ describe("library filters", () => {
 
   it("keeps manual sort changes view-local to normal library views", () => {
     expect(
-      getVisibleBooks(books, "", "author", { type: "library" }).map(
-        (book) => book.id,
-      ),
+      getVisibleBooks(books, "", "author", { type: "library" }).map((book) => book.id),
     ).toEqual(["first", "second", "third"]);
   });
 
@@ -515,11 +481,7 @@ describe("library filters", () => {
       }),
     ];
 
-    expect(sortBooks(books, "title").map((book) => book.id)).toEqual([
-      "third",
-      "first",
-      "second",
-    ]);
+    expect(sortBooks(books, "title").map((book) => book.id)).toEqual(["third", "first", "second"]);
     expect(sortBooks(tiedBooks, "title").map((book) => book.id)).toEqual([
       "recent-author",
       "older-author",
@@ -552,11 +514,7 @@ describe("library filters", () => {
       }),
     ];
 
-    expect(sortBooks(books, "author").map((book) => book.id)).toEqual([
-      "first",
-      "second",
-      "third",
-    ]);
+    expect(sortBooks(books, "author").map((book) => book.id)).toEqual(["first", "second", "third"]);
     expect(sortBooks(tiedBooks, "author").map((book) => book.id)).toEqual([
       "recent",
       "older",
@@ -602,17 +560,18 @@ describe("library filters", () => {
       "third",
       "second",
     ]);
-    expect(
-      sortBooks(recentlyOpenedBooks, "recently-opened").map((book) => book.id),
-    ).toEqual(["recent-alpha", "recent-beta", "older", "unopened"]);
+    expect(sortBooks(recentlyOpenedBooks, "recently-opened").map((book) => book.id)).toEqual([
+      "recent-alpha",
+      "recent-beta",
+      "older",
+      "unopened",
+    ]);
   });
 
   it("filters favorites and direct folder contents", () => {
-    expect(
-      filterBooksByLocation(books, { type: "favorites" }).map(
-        (book) => book.id,
-      ),
-    ).toEqual(["first"]);
+    expect(filterBooksByLocation(books, { type: "favorites" }).map((book) => book.id)).toEqual([
+      "first",
+    ]);
     expect(
       filterBooksByLocation(books, {
         type: "folder",

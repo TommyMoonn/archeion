@@ -5,9 +5,7 @@ type ImportSettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function ImportSettingsSection({
-  context,
-}: ImportSettingsSectionProps) {
+export function ImportSettingsSection({ context }: ImportSettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

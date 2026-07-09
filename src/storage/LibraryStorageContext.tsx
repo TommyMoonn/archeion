@@ -1,8 +1,4 @@
-import {
-  type ReactNode,
-  useEffect,
-  useState,
-} from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import type { LibraryStorage } from "./LibraryStorage";
 import { getLibraryStorage } from "./defaultLibraryStorage";
@@ -13,13 +9,8 @@ type LibraryStorageProviderProps = {
   storage?: LibraryStorage;
 };
 
-export function LibraryStorageProvider({
-  children,
-  storage,
-}: LibraryStorageProviderProps) {
-  const [defaultStorage, setDefaultStorage] = useState<LibraryStorage | null>(
-    null,
-  );
+export function LibraryStorageProvider({ children, storage }: LibraryStorageProviderProps) {
+  const [defaultStorage, setDefaultStorage] = useState<LibraryStorage | null>(null);
   const [storageFailed, setStorageFailed] = useState(false);
   const resolvedStorage = storage ?? defaultStorage;
   const didStorageFail = storage ? false : storageFailed;
@@ -53,17 +44,11 @@ export function LibraryStorageProvider({
     return (
       <main className="archive-setup" aria-busy={!didStorageFail}>
         <p className="archive-loading">
-          {didStorageFail
-            ? "The active archive could not be loaded."
-            : "Opening archive"}
+          {didStorageFail ? "The active archive could not be loaded." : "Opening archive"}
         </p>
       </main>
     );
   }
 
-  return (
-    <LibraryStorageContext value={resolvedStorage}>
-      {children}
-    </LibraryStorageContext>
-  );
+  return <LibraryStorageContext value={resolvedStorage}>{children}</LibraryStorageContext>;
 }

@@ -1,8 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 type CloseDetailsOptions = {
   restoreFocus?: boolean;

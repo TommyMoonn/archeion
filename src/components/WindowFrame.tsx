@@ -18,8 +18,7 @@ type WindowFrameProps = {
 export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
   const preferredWindowFrameStyle = useWindowFrameStylePreference();
   const windowFrameStyle = frameStyleOverride ?? preferredWindowFrameStyle;
-  const [appliedMode, setAppliedMode] =
-    useState<WindowFrameStyle>(windowFrameStyle);
+  const [appliedMode, setAppliedMode] = useState<WindowFrameStyle>(windowFrameStyle);
   const desktop = isTauri();
 
   useEffect(() => {
@@ -59,9 +58,7 @@ export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
 
   return (
     <header
-      aria-label={
-        isArcheionFrame ? "Archeion window frame" : "Hidden window frame"
-      }
+      aria-label={isArcheionFrame ? "Archeion window frame" : "Hidden window frame"}
       className="window-titlebar"
       data-mode={appliedMode}
     >
@@ -72,21 +69,12 @@ export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
       >
         {isArcheionFrame ? (
           <div className="window-titlebar__identity" data-tauri-drag-region>
-            <img
-              alt=""
-              aria-hidden="true"
-              className="window-titlebar__icon"
-              src={archeionIcon}
-            />
+            <img alt="" aria-hidden="true" className="window-titlebar__icon" src={archeionIcon} />
             <span>Archeion</span>
           </div>
         ) : null}
       </div>
-      <div
-        className="window-titlebar__controls"
-        role="group"
-        aria-label="Window controls"
-      >
+      <div className="window-titlebar__controls" role="group" aria-label="Window controls">
         <button
           aria-label="Minimize window"
           title="Minimize window"

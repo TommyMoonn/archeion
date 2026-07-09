@@ -101,8 +101,7 @@ export class ArchiveStore {
     this.lastOperationError = null;
 
     if (!isTauri()) {
-      this.lastOperationError =
-        "Archive folders can only be created in the desktop app.";
+      this.lastOperationError = "Archive folders can only be created in the desktop app.";
       return null;
     }
 
@@ -121,10 +120,7 @@ export class ArchiveStore {
       return path || null;
     } catch (error) {
       console.error("archive parent folder picker failed", error);
-      this.lastOperationError = errorMessage(
-        error,
-        "The folder picker could not be opened.",
-      );
+      this.lastOperationError = errorMessage(error, "The folder picker could not be opened.");
       return null;
     }
   }
@@ -309,14 +305,11 @@ export class ArchiveStore {
     });
   }
 
-  private async chooseArchiveFolder({
-    title,
-  }: ArchiveFolderPickerOptions): Promise<boolean> {
+  private async chooseArchiveFolder({ title }: ArchiveFolderPickerOptions): Promise<boolean> {
     this.lastOperationError = null;
 
     if (!isTauri()) {
-      this.lastOperationError =
-        "Archive folders can only be opened in the desktop app.";
+      this.lastOperationError = "Archive folders can only be opened in the desktop app.";
       this.setState({
         status: "error",
         path: this.state.path,
@@ -336,10 +329,7 @@ export class ArchiveStore {
       });
     } catch (error) {
       console.error("archive folder picker failed", error);
-      this.lastOperationError = errorMessage(
-        error,
-        "The folder picker could not be opened.",
-      );
+      this.lastOperationError = errorMessage(error, "The folder picker could not be opened.");
       this.setState({
         status: "error",
         path: this.state.path,
@@ -396,9 +386,7 @@ export class ArchiveStore {
     await this.useRegistryActiveArchive(registry);
   }
 
-  private async useRegistryActiveArchive(
-    registry: ArchiveRegistry,
-  ): Promise<boolean> {
+  private async useRegistryActiveArchive(registry: ArchiveRegistry): Promise<boolean> {
     const active = activeArchiveFromRegistry(registry);
     if (!active) {
       this.setState(setupState(registry.archives));
@@ -447,9 +435,7 @@ export class ArchiveStore {
     const current = this.state;
 
     if (current.status === "ready") {
-      const active = registry.archives.find(
-        (archive) => archive.id === current.archive.id,
-      );
+      const active = registry.archives.find((archive) => archive.id === current.archive.id);
       if (active) {
         this.setState({
           ...current,
@@ -462,9 +448,7 @@ export class ArchiveStore {
     }
 
     if (current.status === "missing" && current.archive) {
-      const active = registry.archives.find(
-        (archive) => archive.id === current.archive?.id,
-      );
+      const active = registry.archives.find((archive) => archive.id === current.archive?.id);
       if (active) {
         this.setState({
           ...current,

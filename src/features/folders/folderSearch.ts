@@ -23,9 +23,7 @@ type WeightedFolderField = {
   weight: number;
 };
 
-function weightedFolderFields(
-  entry: FolderSearchIndexEntry,
-): WeightedFolderField[] {
+function weightedFolderFields(entry: FolderSearchIndexEntry): WeightedFolderField[] {
   return [
     // Folder search relevance is folder name > relative path > parent path.
     { field: entry.fields.name, weight: 10 },
@@ -38,19 +36,14 @@ function searchableFolderFields(entry: FolderSearchIndexEntry): SearchTextVarian
   return weightedFolderFields(entry).map(({ field }) => field);
 }
 
-function scoreFolderSearchEntry(
-  entry: FolderSearchIndexEntry,
-  query: SearchQuery,
-): number {
+function scoreFolderSearchEntry(entry: FolderSearchIndexEntry, query: SearchQuery): number {
   return weightedFolderFields(entry).reduce(
     (score, { field, weight }) => score + scoreSearchField(field, query) * weight,
     0,
   );
 }
 
-export function createFolderSearchIndex(
-  folders: Folder[],
-): FolderSearchIndexEntry[] {
+export function createFolderSearchIndex(folders: Folder[]): FolderSearchIndexEntry[] {
   return folders.map((folder) => ({
     folder,
     fields: {
@@ -61,10 +54,7 @@ export function createFolderSearchIndex(
   }));
 }
 
-export function searchFolderIndex(
-  index: FolderSearchIndexEntry[],
-  query: string,
-): Folder[] {
+export function searchFolderIndex(index: FolderSearchIndexEntry[], query: string): Folder[] {
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
@@ -77,9 +67,7 @@ export function searchFolderIndex(
       indexOrder,
       score: scoreFolderSearchEntry(entry, searchQuery),
     }))
-    .filter(({ entry }) =>
-      searchFieldsMatchQuery(searchableFolderFields(entry), searchQuery),
-    )
+    .filter(({ entry }) => searchFieldsMatchQuery(searchableFolderFields(entry), searchQuery))
     .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
     .map(({ entry }) => entry.folder);
 }

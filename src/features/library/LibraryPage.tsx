@@ -1,13 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../../components/Button";
@@ -27,10 +19,7 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
-import type {
-  ArchiveImportSettings,
-  ImportSettings,
-} from "../../types/settings";
+import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
@@ -134,9 +123,7 @@ function preloadSettingsDialog() {
 }
 
 function getLocationKey(location: LibraryLocation): string {
-  return location.type === "folder"
-    ? `folder:${location.folderId}`
-    : location.type;
+  return location.type === "folder" ? `folder:${location.folderId}` : location.type;
 }
 
 function getLibrarySurfaceState(
@@ -156,17 +143,11 @@ function getLibrarySurfaceState(
   return debouncedQuery ? "search-empty" : "empty";
 }
 
-function isInsideFolder(
-  relativePath: string | undefined,
-  folder: Folder,
-): boolean {
+function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
   if (!relativePath || !folder.relativePath) {
     return false;
   }
-  return (
-    relativePath === folder.relativePath ||
-    relativePath.startsWith(`${folder.relativePath}/`)
-  );
+  return relativePath === folder.relativePath || relativePath.startsWith(`${folder.relativePath}/`);
 }
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
@@ -194,27 +175,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const importLock = useRef(false);
   const feedbackSequenceRef = useRef(0);
   const [isImporting, setIsImporting] = useState(false);
-  const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>(
-    [],
-  );
+  const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
   const [query, setQuery] = useState("");
-  const [archiveImportSettings, setArchiveImportSettings] =
-    useState<ArchiveImportSettings>(defaultArchiveImportSettings);
+  const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
+    defaultArchiveImportSettings,
+  );
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
-  const [metadataEditorBookId, setMetadataEditorBookId] = useState<
-    string | null
-  >(null);
+  const [metadataEditorBookId, setMetadataEditorBookId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
-  const [renameFolderTarget, setRenameFolderTarget] = useState<Folder | null>(
-    null,
-  );
+  const [renameFolderTarget, setRenameFolderTarget] = useState<Folder | null>(null);
   const [moveFolderTarget, setMoveFolderTarget] = useState<Folder | null>(null);
-  const [deleteFolderTarget, setDeleteFolderTarget] = useState<Folder | null>(
-    null,
-  );
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<Folder | null>(null);
   const [renameFileTarget, setRenameFileTarget] = useState<Book | null>(null);
   const [moveBookTarget, setMoveBookTarget] = useState<Book | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -231,14 +205,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   };
 
   const dismissFeedback = useCallback((id: string) => {
-    setFeedbackTokens((currentTokens) =>
-      currentTokens.filter((token) => token.id !== id),
-    );
+    setFeedbackTokens((currentTokens) => currentTokens.filter((token) => token.id !== id));
   }, []);
 
   const pushFeedback = useCallback((feedback: LibraryFeedbackDraft) => {
-    const id =
-      feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
+    const id = feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
     setFeedbackTokens((currentTokens) =>
       upsertLibraryFeedbackToken(currentTokens, { ...feedback, id }),
     );
@@ -269,12 +240,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     });
   }, [pushFeedback]);
   const location = useMemo(
-    () =>
-      libraryLocationFromSearchParams(
-        searchParams,
-        folders ?? [],
-        activeArchive.id,
-      ),
+    () => libraryLocationFromSearchParams(searchParams, folders ?? [], activeArchive.id),
     [activeArchive.id, folders, searchParams],
   );
   const folderBrowserView = useMemo(
@@ -292,10 +258,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     };
     const idleWindow = window as Window & {
       cancelIdleCallback?: (handle: number) => void;
-      requestIdleCallback?: (
-        callback: () => void,
-        options?: { timeout?: number },
-      ) => number;
+      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
     };
 
     if (
@@ -364,9 +327,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         .update({
           library: { ...libraryPreferences, sortBy: nextSort },
         })
-        .catch(() =>
-          showLibraryError("Library preferences could not be saved."),
-        );
+        .catch(() => showLibraryError("Library preferences could not be saved."));
     },
     [libraryPreferences, showLibraryError],
   );
@@ -377,9 +338,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         .update({
           library: { ...libraryPreferences, viewMode: nextView },
         })
-        .catch(() =>
-          showLibraryError("Library preferences could not be saved."),
-        );
+        .catch(() => showLibraryError("Library preferences could not be saved."));
     },
     [libraryPreferences, showLibraryError],
   );
@@ -457,22 +416,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         setSearchParams(nextParams);
       }
     },
-    [
-      activeArchive.id,
-      folders,
-      location,
-      scrollMainContentToTop,
-      searchParams,
-      setSearchParams,
-    ],
+    [activeArchive.id, folders, location, scrollMainContentToTop, searchParams, setSearchParams],
   );
 
   const changeFolderBrowserView = useCallback(
     (nextView: FolderBrowserView) => {
-      const nextParams = searchParamsForFolderBrowserView(
-        searchParams,
-        nextView,
-      );
+      const nextParams = searchParamsForFolderBrowserView(searchParams, nextView);
 
       if (nextParams.toString() !== searchParams.toString()) {
         setSearchParams(nextParams, { replace: true });
@@ -538,10 +487,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setSelectedBookId(book.id);
   }, []);
 
-  const openArchiveManager = useCallback(
-    () => void archiveStore.openArchiveManagerWindow(),
-    [],
-  );
+  const openArchiveManager = useCallback(() => void archiveStore.openArchiveManagerWindow(), []);
   const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
   const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);
@@ -560,12 +506,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   async function switchArchive(archiveId: string) {
     setSearchParams(
-      searchParamsForLibraryLocation(
-        searchParams,
-        { type: "library" },
-        folders ?? [],
-        archiveId,
-      ),
+      searchParamsForLibraryLocation(searchParams, { type: "library" }, folders ?? [], archiveId),
       { replace: true },
     );
     await archiveStore.switchArchive(archiveId);
@@ -603,9 +544,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     } catch {
       pushFeedback(
         createDeleteErrorFeedbackToken(
-          deleteTarget.isFileMissing
-            ? "metadataRemoveFailed"
-            : "bookDeleteFailed",
+          deleteTarget.isFileMissing ? "metadataRemoveFailed" : "bookDeleteFailed",
         ),
       );
       setDeleteTarget(null);
@@ -748,9 +687,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         .map((folder) => folder.id)
     : [];
   const deleteFolderBookCount = deleteFolderTarget
-    ? (books ?? []).filter((book) =>
-        isInsideFolder(book.relativePath, deleteFolderTarget),
-      ).length
+    ? (books ?? []).filter((book) => isInsideFolder(book.relativePath, deleteFolderTarget)).length
     : 0;
   const librarySurfaceState = getLibrarySurfaceState(
     books,
@@ -798,9 +735,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onCreate={openCreateFolder}
           onDelete={setDeleteFolderTarget}
           onMove={setMoveFolderTarget}
-          onOpen={(folder) =>
-            changeLocation({ type: "folder", folderId: folder.id })
-          }
+          onOpen={(folder) => changeLocation({ type: "folder", folderId: folder.id })}
           onRename={setRenameFolderTarget}
           onReveal={(folder) => void revealFolder(folder)}
           onViewChange={changeFolderBrowserView}
@@ -834,9 +769,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             {books === undefined || (isImporting && books.length === 0) ? (
               <div className="library-loading" role="status">
                 <span className="library-loading__cover" />
-                <span>
-                  {isImporting ? "Adding EPUB files" : "Loading library"}
-                </span>
+                <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
               </div>
             ) : visibleBooks.length === 0 && !debouncedQuery ? (
               <EmptyState
@@ -884,15 +817,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         </>
       )}
 
-      <LibraryFeedbackStack
-        onDismiss={dismissFeedback}
-        tokens={feedbackTokens}
-      />
+      <LibraryFeedbackStack onDismiss={dismissFeedback} tokens={feedbackTokens} />
 
       {isAddEpubOpen ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening import dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening import dialog" />}>
           <AddEpubDialog
             folders={folders ?? []}
             importDefaults={importSettings}
@@ -905,9 +833,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {selectedBook ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening book details" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening book details" />}>
           <BookDetailsDrawer
             book={selectedBook}
             canManageFile
@@ -930,9 +856,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {metadataEditorBook ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening metadata editor" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening metadata editor" />}>
           <BookAdvancedMetadataDialog
             book={metadataEditorBook}
             onClose={closeMetadataEditor}
@@ -942,9 +866,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFileTarget ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening rename dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening rename dialog" />}>
           <RenameFileDialog
             book={renameFileTarget}
             onClose={() => setRenameFileTarget(null)}
@@ -954,9 +876,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveBookTarget ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening move dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
           <MoveToFolderDialog
             currentFolderId={moveBookTarget.folderId ?? null}
             folders={folders ?? []}
@@ -979,9 +899,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {isCreateFolderOpen ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening folder dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
           <FolderCreateDialog
             onClose={() => setIsCreateFolderOpen(false)}
             onCreate={createFolder}
@@ -990,9 +908,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {renameFolderTarget ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening folder dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening folder dialog" />}>
           <FolderRenameDialog
             folder={renameFolderTarget}
             onClose={() => setRenameFolderTarget(null)}
@@ -1002,9 +918,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {moveFolderTarget ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening move dialog" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
           <MoveToFolderDialog
             currentFolderId={moveFolderTarget.parentId ?? null}
             excludedFolderIds={moveFolderExcludedIds}
@@ -1018,11 +932,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
       {deleteTarget ? (
         <Dialog
-          title={
-            deleteTarget.isFileMissing
-              ? "Remove book metadata?"
-              : "Delete EPUB file?"
-          }
+          title={deleteTarget.isFileMissing ? "Remove book metadata?" : "Delete EPUB file?"}
           description={
             deleteTarget.isFileMissing
               ? `Favorites and progress for “${bookTitle(deleteTarget)}” will be removed. No EPUB file will be deleted.`
@@ -1042,11 +952,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
               >
                 Cancel
               </Button>
-              <Button
-                variant="danger"
-                disabled={isDeleting}
-                onClick={confirmDelete}
-              >
+              <Button variant="danger" disabled={isDeleting} onClick={confirmDelete}>
                 {isDeleting
                   ? "Removing"
                   : deleteTarget.isFileMissing
@@ -1065,10 +971,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onClose={() => setRescanConfirmationOpen(false)}
           footer={
             <>
-              <Button
-                onClick={() => setRescanConfirmationOpen(false)}
-                variant="secondary"
-              >
+              <Button onClick={() => setRescanConfirmationOpen(false)} variant="secondary">
                 Cancel
               </Button>
               <Button
@@ -1105,11 +1008,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
               >
                 Cancel
               </Button>
-              <Button
-                variant="danger"
-                disabled={isDeleting}
-                onClick={confirmDeleteFolder}
-              >
+              <Button variant="danger" disabled={isDeleting} onClick={confirmDeleteFolder}>
                 {isDeleting ? "Deleting" : "Delete folder"}
               </Button>
             </>

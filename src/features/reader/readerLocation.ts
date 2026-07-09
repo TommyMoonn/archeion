@@ -11,10 +11,7 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
-export function normalizeReaderLocation(
-  location: Location,
-  sectionCount = 0,
-): ReaderLocation {
+export function normalizeReaderLocation(location: Location, sectionCount = 0): ReaderLocation {
   let rawPercentage = location.start.percentage;
 
   if (!Number.isFinite(rawPercentage)) {
@@ -22,10 +19,7 @@ export function normalizeReaderLocation(
     const displayedTotal = location.start.displayed?.total ?? 1;
     const sectionProgress = displayedPage / Math.max(displayedTotal, 1);
 
-    rawPercentage =
-      sectionCount > 0
-        ? (location.start.index + sectionProgress) / sectionCount
-        : 0;
+    rawPercentage = sectionCount > 0 ? (location.start.index + sectionProgress) / sectionCount : 0;
   }
 
   if (location.atStart) {

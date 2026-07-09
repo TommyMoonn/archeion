@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Folder } from "../../types/folder";
-import {
-  buildFolderTree,
-  formatFolderBookCount,
-  getFolderDisplayPath,
-} from "./folderTreeUtils";
+import { buildFolderTree, formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
 
 function createFolder(
   id: string,
@@ -33,30 +29,22 @@ describe("folder tree utilities", () => {
     ]);
 
     expect(tree.map((folder) => folder.id)).toEqual(["other", "series"]);
-    expect(tree[1].children.map((folder) => folder.id)).toEqual([
-      "volume-2",
-      "volume-10",
-    ]);
+    expect(tree[1].children.map((folder) => folder.id)).toEqual(["volume-2", "volume-10"]);
   });
 
   it("keeps folders with missing parents accessible at the root", () => {
-    const tree = buildFolderTree([
-      createFolder("orphan", "Orphan", "missing-parent"),
-    ]);
+    const tree = buildFolderTree([createFolder("orphan", "Orphan", "missing-parent")]);
 
     expect(tree.map((folder) => folder.id)).toEqual(["orphan"]);
   });
 
   it("hides folder paths that repeat the folder name", () => {
-    expect(getFolderDisplayPath(createFolder("root", "Manga", null, "Manga")))
-      .toBeUndefined();
+    expect(getFolderDisplayPath(createFolder("root", "Manga", null, "Manga"))).toBeUndefined();
   });
 
   it("shows nested folder paths for useful context", () => {
     expect(
-      getFolderDisplayPath(
-        createFolder("nested", "Volume 1", "series", "Manga/Volume 1"),
-      ),
+      getFolderDisplayPath(createFolder("nested", "Volume 1", "series", "Manga/Volume 1")),
     ).toBe("Manga/Volume 1");
   });
 

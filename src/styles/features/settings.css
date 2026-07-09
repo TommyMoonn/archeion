@@ -302,7 +302,11 @@ html[data-motion="on"] .settings-status {
   border: 1px solid var(--line-strong);
   border-radius: 16px;
   background:
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--accent-soft) 48%, transparent) 0, transparent 132px),
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--accent-soft) 48%, transparent) 0,
+      transparent 132px
+    ),
     var(--canvas);
   box-shadow: 0 24px 74px rgb(0 0 0 / 48%);
   text-align: center;

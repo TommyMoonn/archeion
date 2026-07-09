@@ -12,9 +12,7 @@ export function SettingsRow({ children, description, label, note }: SettingsRowP
     <div className="settings-row">
       <div className="settings-row__meta">
         <strong>{label}</strong>
-        {description ? (
-          <span className="settings-row__description">{description}</span>
-        ) : null}
+        {description ? <span className="settings-row__description">{description}</span> : null}
         {note ? <span className="settings-row__note">{note}</span> : null}
       </div>
       <div className="settings-row__control">{children}</div>
@@ -44,11 +42,7 @@ export function SliderRow({
   value,
 }: SliderRowProps) {
   return (
-    <SettingsRow
-      description={description}
-      label={label}
-      note={`${value}${suffix}`}
-    >
+    <SettingsRow description={description} label={label} note={`${value}${suffix}`}>
       <input
         aria-label={label}
         max={max}

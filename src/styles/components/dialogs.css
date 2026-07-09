@@ -92,5 +92,6 @@ html[data-motion="on"] .dialog[open] {
 }
 
 html[data-motion="on"] .dialog-loading-fallback__indicator {
-  animation: app-motion-enter var(--motion-duration-slow) var(--motion-ease-standard) infinite alternate;
+  animation: app-motion-enter var(--motion-duration-slow) var(--motion-ease-standard) infinite
+    alternate;
 }

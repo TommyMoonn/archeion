@@ -23,21 +23,13 @@ describe("search text normalization", () => {
   });
 
   it("tokenizes query text with the same normalization rules", () => {
-    expect(tokenizeSearchQuery("  Café / Re:Zero  ")).toEqual([
-      "cafe",
-      "re",
-      "zero",
-    ]);
+    expect(tokenizeSearchQuery("  Café / Re:Zero  ")).toEqual(["cafe", "re", "zero"]);
   });
 
   it("matches spaced and compact query forms against normalized fields", () => {
     const field = createSearchTextVariants("Re:Zero");
 
-    expect(searchFieldsMatchQuery([field], createSearchQuery("re zero"))).toBe(
-      true,
-    );
-    expect(searchFieldsMatchQuery([field], createSearchQuery("rezero"))).toBe(
-      true,
-    );
+    expect(searchFieldsMatchQuery([field], createSearchQuery("re zero"))).toBe(true);
+    expect(searchFieldsMatchQuery([field], createSearchQuery("rezero"))).toBe(true);
   });
 });

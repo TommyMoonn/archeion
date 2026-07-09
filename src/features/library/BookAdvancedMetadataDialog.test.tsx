@@ -32,7 +32,6 @@ const book: Book = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
-
 const writebackFileStat = {
   relativePath: "Series/Volume_01.epub",
   fileName: "Volume_01.epub",
@@ -92,19 +91,14 @@ function input(container: Element, field: string): HTMLInputElement {
 }
 
 function textarea(container: Element, field: string): HTMLTextAreaElement {
-  const element = container.querySelector<HTMLTextAreaElement>(
-    `#metadata-${field}`,
-  );
+  const element = container.querySelector<HTMLTextAreaElement>(`#metadata-${field}`);
   if (!element) throw new Error(`${field} textarea was not found`);
   return element;
 }
 
 async function changeInput(element: HTMLInputElement, value: string) {
   await act(async () => {
-    const valueSetter = Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )?.set;
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
     valueSetter?.call(element, value);
     element.dispatchEvent(new Event("input", { bubbles: true }));
     element.dispatchEvent(new Event("change", { bubbles: true }));
@@ -113,14 +107,10 @@ async function changeInput(element: HTMLInputElement, value: string) {
 
 describe("BookAdvancedMetadataDialog", () => {
   beforeEach(() => {
-    HTMLDialogElement.prototype.showModal = vi.fn(function showModal(
-      this: HTMLDialogElement,
-    ) {
+    HTMLDialogElement.prototype.showModal = vi.fn(function showModal(this: HTMLDialogElement) {
       this.open = true;
     });
-    HTMLDialogElement.prototype.close = vi.fn(function close(
-      this: HTMLDialogElement,
-    ) {
+    HTMLDialogElement.prototype.close = vi.fn(function close(this: HTMLDialogElement) {
       this.open = false;
     });
   });
@@ -134,28 +124,19 @@ describe("BookAdvancedMetadataDialog", () => {
 
   it("renders grouped EPUB writeback fields and action", () => {
     const markup = renderToStaticMarkup(
-      <BookAdvancedMetadataDialog
-        book={book}
-        onClose={vi.fn()}
-        onWriteMetadata={vi.fn()}
-      />,
+      <BookAdvancedMetadataDialog book={book} onClose={vi.fn()} onWriteMetadata={vi.fn()} />,
     );
 
     expect(markup).toContain("Edit EPUB metadata");
     expect(markup).not.toContain("Source file edit");
-    expect(markup).not.toContain(
-      "Writes changes into the EPUB file after creating a backup.",
-    );
-    expect(markup).not.toContain(
-      "Writes changes into this EPUB after creating a backup.",
-    );
+    expect(markup).not.toContain("Writes changes into the EPUB file after creating a backup.");
+    expect(markup).not.toContain("Writes changes into this EPUB after creating a backup.");
     expect(markup).toContain("Core metadata");
     expect(markup).toContain("Publishing metadata");
     expect(markup).toContain("Series metadata");
     expect(markup).toContain("Tags and description");
     expect(markup).toContain("Write metadata to EPUB");
   });
-
 
   it("uses a large-dialog layout with a scrollable metadata body", () => {
     const { container } = renderDialog(book);
@@ -206,9 +187,7 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(titleInput.getAttribute("autocorrect")).toBe("off");
     expect(titleInput.getAttribute("autocapitalize")).toBe("off");
     expect(titleInput.getAttribute("spellcheck")).toBe("false");
-    expect(descriptionTextarea.name).toBe(
-      "archeion-epub-metadata-description",
-    );
+    expect(descriptionTextarea.name).toBe("archeion-epub-metadata-description");
     expect(descriptionTextarea.getAttribute("autocomplete")).toBe("off");
     expect(descriptionTextarea.getAttribute("spellcheck")).toBe("false");
   });
@@ -316,9 +295,7 @@ describe("BookAdvancedMetadataDialog", () => {
   it("renders the empty pending-change state once", () => {
     const { container } = renderDialog(book);
     const pendingChanges = container.querySelector(".metadata-writeback__changes");
-    const emptyMessages = pendingChanges?.textContent?.match(
-      /No metadata changes\./g,
-    );
+    const emptyMessages = pendingChanges?.textContent?.match(/No metadata changes\./g);
 
     expect(emptyMessages).toHaveLength(1);
   });
@@ -370,7 +347,6 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(pendingChanges?.querySelectorAll("code")).toHaveLength(0);
     expect(writeButton(container).disabled).toBe(false);
   });
-
 
   it("shows concise in-dialog success and clears pending changes after writeback", async () => {
     const onWriteMetadata = vi.fn(async () => ({

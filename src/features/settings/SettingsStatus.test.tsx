@@ -5,13 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  PERSISTENCE_SAVING_STATUS_DELAY_MS,
-  SettingsStatus,
-} from "./SettingsStatus";
+import { PERSISTENCE_SAVING_STATUS_DELAY_MS, SettingsStatus } from "./SettingsStatus";
 
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
-  .IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
+  true;
 
 describe("SettingsStatus", () => {
   it("renders local success messages as status updates", () => {
@@ -42,10 +39,7 @@ describe("SettingsStatus", () => {
 
   it("renders persistence errors as alerts", () => {
     const markup = renderToStaticMarkup(
-      <SettingsStatus
-        persistenceStatus={{ status: "error", error: "Failed." }}
-        status={null}
-      />,
+      <SettingsStatus persistenceStatus={{ status: "error", error: "Failed." }} status={null} />,
     );
 
     expect(markup).toContain('role="alert"');
@@ -89,9 +83,7 @@ describe("SettingsStatus persistence saving delay", () => {
     vi.useRealTimers();
   });
 
-  function renderStatus(
-    props: React.ComponentProps<typeof SettingsStatus>,
-  ): void {
+  function renderStatus(props: React.ComponentProps<typeof SettingsStatus>): void {
     act(() => {
       root.render(<SettingsStatus {...props} />);
     });

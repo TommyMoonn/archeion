@@ -106,10 +106,7 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
 }
 
 function setInputValue(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )?.set;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
@@ -136,9 +133,7 @@ async function createFolderThroughDialog(container: HTMLElement, name: string) {
   await import("../folders/FolderCreateDialog");
 
   await act(async () => {
-    container
-      .querySelector<HTMLButtonElement>('button[aria-label="Create folder"]')
-      ?.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Create folder"]')?.click();
   });
   let input = container.querySelector<HTMLInputElement>(".dialog-form input");
   for (let attempt = 0; !input && attempt < 5; attempt += 1) {

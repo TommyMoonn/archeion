@@ -58,9 +58,7 @@ describe("ArchiveLauncherPage", () => {
   });
 
   it("renders the first-run launcher actions in the manager surface", () => {
-    const markup = renderToStaticMarkup(
-      <ArchiveLauncherPage state={setupState} />,
-    );
+    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={setupState} />);
 
     expect(markup).toContain("No archive open");
     expect(markup).not.toContain("Archive Launcher");
@@ -73,9 +71,7 @@ describe("ArchiveLauncherPage", () => {
 
   it("shows saved archives in the left panel", () => {
     const markup = renderToStaticMarkup(
-      <ArchiveLauncherPage
-        state={{ ...setupState, archives: [savedArchive] }}
-      />,
+      <ArchiveLauncherPage state={{ ...setupState, archives: [savedArchive] }} />,
     );
 
     expect(markup).toContain('aria-label="Archives"');
@@ -85,13 +81,11 @@ describe("ArchiveLauncherPage", () => {
   });
 
   it("calls the folder picker flow from Open folder as archive", async () => {
-    const chooseArchive = vi
-      .spyOn(archiveStore, "chooseArchive")
-      .mockResolvedValue(true);
+    const chooseArchive = vi.spyOn(archiveStore, "chooseArchive").mockResolvedValue(true);
     const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
     const { container, root } = renderInteractive();
-    const button = Array.from(container.querySelectorAll("button")).find(
-      (candidate) => candidate.textContent?.includes("Open folder as archive"),
+    const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
+      candidate.textContent?.includes("Open folder as archive"),
     );
 
     expect(button).toBeDefined();
@@ -106,9 +100,7 @@ describe("ArchiveLauncherPage", () => {
   });
 
   it("shows the missing remembered archive state", () => {
-    const markup = renderToStaticMarkup(
-      <ArchiveLauncherPage state={missingState} />,
-    );
+    const markup = renderToStaticMarkup(<ArchiveLauncherPage state={missingState} />);
 
     expect(markup).toContain("Archive folder not found");
     expect(markup).toContain("Books");

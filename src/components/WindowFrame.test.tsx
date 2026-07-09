@@ -78,7 +78,6 @@ describe("WindowFrame", () => {
     expect(container.textContent).toContain("Archeion");
   });
 
-
   it("can force hidden frame mode regardless of the saved preference", async () => {
     act(() => {
       appPreferencesStore.update({ windowFrameStyle: "archeion" });

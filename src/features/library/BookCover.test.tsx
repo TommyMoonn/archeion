@@ -12,9 +12,7 @@ import { BookCover } from "./BookCover";
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-type IntersectionObserverCallback = ConstructorParameters<
-  typeof IntersectionObserver
->[0];
+type IntersectionObserverCallback = ConstructorParameters<typeof IntersectionObserver>[0];
 
 class ImmediateIntersectionObserver implements IntersectionObserver {
   readonly root = null;
@@ -127,10 +125,7 @@ describe("BookCover", () => {
 
   it("reloads when coverRevision changes", async () => {
     const loadBookCover = vi.fn().mockResolvedValue(new Blob(["cover"]));
-    const { container, render } = renderCover(
-      { ...baseBook, id: "book-cover-2" },
-      loadBookCover,
-    );
+    const { container, render } = renderCover({ ...baseBook, id: "book-cover-2" }, loadBookCover);
     await waitForCover(container);
 
     render({
@@ -150,9 +145,7 @@ describe("BookCover", () => {
         .spyOn(URL, "createObjectURL")
         .mockReturnValueOnce("blob:first-cover")
         .mockReturnValueOnce("blob:second-cover");
-      const revokeObjectUrl = vi
-        .spyOn(URL, "revokeObjectURL")
-        .mockImplementation(() => undefined);
+      const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
       const loadBookCover = vi.fn().mockResolvedValue(new Blob(["cover"]));
       const { container, render } = renderCover(
         { ...baseBook, id: "book-cover-3", coverRevision: "cover:first" },

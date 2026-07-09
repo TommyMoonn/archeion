@@ -97,13 +97,8 @@ function packageCreator(metadata: EpubSourceMetadata | undefined): string {
   return normalizeText(metadata?.creator);
 }
 
-function fileSignature(
-  size: number | undefined,
-  modifiedAt: number | undefined,
-): string {
-  return size === undefined || modifiedAt === undefined
-    ? ""
-    : `${size}:${modifiedAt}`;
+function fileSignature(size: number | undefined, modifiedAt: number | undefined): string {
+  return size === undefined || modifiedAt === undefined ? "" : `${size}:${modifiedAt}`;
 }
 
 function countValues(values: string[]): Map<string, number> {
@@ -115,10 +110,7 @@ function countValues(values: string[]): Map<string, number> {
   return counts;
 }
 
-function uniqueIndex<T>(
-  items: T[],
-  keyForItem: (item: T) => string,
-): Map<string, T> {
+function uniqueIndex<T>(items: T[], keyForItem: (item: T) => string): Map<string, T> {
   const counts = countValues(items.map(keyForItem));
   const index = new Map<string, T>();
 
@@ -132,9 +124,7 @@ function uniqueIndex<T>(
   return index;
 }
 
-function previousBookById(
-  previousBooks: Book[] | undefined,
-): Map<string, Book> {
+function previousBookById(previousBooks: Book[] | undefined): Map<string, Book> {
   return new Map(previousBooks?.map((book) => [book.id, book]) ?? []);
 }
 
@@ -147,9 +137,7 @@ function previousIdentityFromMetadata(
   const fileName = previousBook?.fileName ?? lastPathSegment(relativePath);
   const fileModifiedAt =
     metadata.fileModifiedAt ??
-    (previousBook?.modifiedAt
-      ? Date.parse(previousBook.modifiedAt)
-      : undefined);
+    (previousBook?.modifiedAt ? Date.parse(previousBook.modifiedAt) : undefined);
 
   return {
     bookId,
@@ -157,9 +145,7 @@ function previousIdentityFromMetadata(
     fileName,
     folderPath: previousBook?.folderPath ?? parentPath(relativePath),
     fileSize: metadata.fileSize ?? previousBook?.size,
-    fileModifiedAt: Number.isFinite(fileModifiedAt)
-      ? fileModifiedAt
-      : undefined,
+    fileModifiedAt: Number.isFinite(fileModifiedAt) ? fileModifiedAt : undefined,
     sourceMetadata: metadata.sourceMetadata ?? previousBook?.sourceMetadata,
   };
 }
@@ -203,9 +189,8 @@ export function createBookIdentityIndex({
   previousBooks,
 }: IdentityResolverInput): IdentityIndex {
   const previousById = previousBookById(previousBooks);
-  const previousIdentities = Object.entries(metadataBooks).map(
-    ([bookId, metadata]) =>
-      previousIdentityFromMetadata(bookId, metadata, previousById.get(bookId)),
+  const previousIdentities = Object.entries(metadataBooks).map(([bookId, metadata]) =>
+    previousIdentityFromMetadata(bookId, metadata, previousById.get(bookId)),
   );
 
   return {
@@ -229,18 +214,13 @@ export function resolveBookIdFromScan(
   book: ScannedBookIdentity,
   identityIndex: IdentityIndex,
 ): BookIdentityMatch | undefined {
-  const pathMatch = identityIndex.byPath.get(
-    normalizeArchiveRelativePath(book.relativePath),
-  );
+  const pathMatch = identityIndex.byPath.get(normalizeArchiveRelativePath(book.relativePath));
   if (pathMatch) {
     return { bookId: pathMatch.bookId, confidence: "path" };
   }
 
   const identifier = packageIdentifier(book.sourceMetadata);
-  if (
-    identifier &&
-    identityIndex.scannedPackageIdentifierCounts.get(identifier) === 1
-  ) {
+  if (identifier && identityIndex.scannedPackageIdentifierCounts.get(identifier) === 1) {
     const identifierMatch = identityIndex.byPackageIdentifier.get(identifier);
     if (identifierMatch) {
       return {
@@ -251,10 +231,7 @@ export function resolveBookIdFromScan(
   }
 
   const signature = fileSignature(book.size, book.modifiedAt);
-  if (
-    signature &&
-    identityIndex.scannedFileSignatureCounts.get(signature) === 1
-  ) {
+  if (signature && identityIndex.scannedFileSignatureCounts.get(signature) === 1) {
     const signatureMatch = identityIndex.byFileSignature.get(signature);
     if (signatureMatch && hasSupportingFileSignal(signatureMatch, book)) {
       return { bookId: signatureMatch.bookId, confidence: "file-signature" };

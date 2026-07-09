@@ -3,10 +3,7 @@ type ReaderProgressBarProps = {
   placement: "top" | "side";
 };
 
-export function ReaderProgressBar({
-  percentage,
-  placement,
-}: ReaderProgressBarProps) {
+export function ReaderProgressBar({ percentage, placement }: ReaderProgressBarProps) {
   return (
     <div
       className="reader-progress"
@@ -18,11 +15,7 @@ export function ReaderProgressBar({
       aria-valuenow={Math.round(percentage)}
     >
       <span
-        style={
-          placement === "side"
-            ? { height: `${percentage}%` }
-            : { width: `${percentage}%` }
-        }
+        style={placement === "side" ? { height: `${percentage}%` } : { width: `${percentage}%` }}
       />
     </div>
   );

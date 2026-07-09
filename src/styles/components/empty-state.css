@@ -23,8 +23,7 @@
   border-radius: 50%;
   background:
     radial-gradient(circle at 38% 32%, rgb(143 193 227 / 20%), transparent 45%),
-    radial-gradient(circle at 67% 72%, rgb(154 127 199 / 13%), transparent 50%),
-    var(--surface);
+    radial-gradient(circle at 67% 72%, rgb(154 127 199 / 13%), transparent 50%), var(--surface);
   box-shadow: 0 20px 60px rgb(5 15 25 / 20%);
 }
 

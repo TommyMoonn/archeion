@@ -32,10 +32,12 @@ describe("libraryFeedback", () => {
   });
 
   it("replaces same-id feedback before limiting", () => {
-    const tokens = upsertLibraryFeedbackToken(
-      [successToken("same"), errorToken("error")],
-      { id: "same", tone: "success", title: "Updated", autoDismiss: true },
-    );
+    const tokens = upsertLibraryFeedbackToken([successToken("same"), errorToken("error")], {
+      id: "same",
+      tone: "success",
+      title: "Updated",
+      autoDismiss: true,
+    });
 
     expect(tokens).toHaveLength(2);
     expect(tokens.map((token) => token.id)).toEqual(["error", "same"]);
@@ -50,11 +52,7 @@ describe("libraryFeedback", () => {
       successToken("new-success"),
     ]);
 
-    expect(tokens.map((token) => token.id)).toEqual([
-      "first-error",
-      "second-error",
-      "new-success",
-    ]);
+    expect(tokens.map((token) => token.id)).toEqual(["first-error", "second-error", "new-success"]);
   });
 
   it("drops the oldest token when all visible tokens are persistent", () => {
@@ -65,11 +63,7 @@ describe("libraryFeedback", () => {
       errorToken("fourth"),
     ]);
 
-    expect(tokens.map((token) => token.id)).toEqual([
-      "second",
-      "third",
-      "fourth",
-    ]);
+    expect(tokens.map((token) => token.id)).toEqual(["second", "third", "fourth"]);
   });
 
   it("creates an auto-dismissing success token for folder creation", () => {

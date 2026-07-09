@@ -1,16 +1,9 @@
 import { Folder as FolderIcon } from "@phosphor-icons/react";
-import {
-  useMemo,
-  useRef,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
+import { useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../library/libraryFilters";
-import {
-  buildFolderTree,
-  type FolderTreeNode,
-} from "./folderTreeUtils";
+import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 
 type FolderTreeProps = {
@@ -40,15 +33,11 @@ function FolderNode({
   showActions = true,
   showReveal = false,
 }: FolderNodeProps) {
-  const isSelected =
-    location.type === "folder" && location.folderId === folder.id;
+  const isSelected = location.type === "folder" && location.folderId === folder.id;
 
   return (
     <li>
-      <div
-        className="folder-tree__row"
-        data-has-actions={showActions ? "true" : undefined}
-      >
+      <div className="folder-tree__row" data-has-actions={showActions ? "true" : undefined}>
         <button
           aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
@@ -56,11 +45,7 @@ function FolderNode({
           type="button"
           onClick={() => onSelect(folder)}
         >
-          <FolderIcon
-            aria-hidden="true"
-            size={17}
-            weight={isSelected ? "fill" : "regular"}
-          />
+          <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />
           <span>{folder.name}</span>
         </button>
         {showActions ? (
@@ -120,9 +105,7 @@ export function FolderTree({
     }
 
     const items = Array.from(
-      treeRef.current?.querySelectorAll<HTMLButtonElement>(
-        ".folder-tree__select",
-      ) ?? [],
+      treeRef.current?.querySelectorAll<HTMLButtonElement>(".folder-tree__select") ?? [],
     );
     const index = items.indexOf(target);
     let next: HTMLButtonElement | undefined;
@@ -136,18 +119,19 @@ export function FolderTree({
     } else if (event.key === "End") {
       next = items.at(-1);
     } else if (event.key === "ArrowRight") {
-      next = target
-        .closest("li")
-        ?.querySelector<HTMLButtonElement>(
-          ":scope > .folder-tree__children > li > .folder-tree__row > .folder-tree__select",
-        ) ?? undefined;
+      next =
+        target
+          .closest("li")
+          ?.querySelector<HTMLButtonElement>(
+            ":scope > .folder-tree__children > li > .folder-tree__row > .folder-tree__select",
+          ) ?? undefined;
     } else if (event.key === "ArrowLeft") {
-      next = target
-        .closest("ul.folder-tree__children")
-        ?.closest("li")
-        ?.querySelector<HTMLButtonElement>(
-          ":scope > .folder-tree__row > .folder-tree__select",
-        ) ?? undefined;
+      next =
+        target
+          .closest("ul.folder-tree__children")
+          ?.closest("li")
+          ?.querySelector<HTMLButtonElement>(":scope > .folder-tree__row > .folder-tree__select") ??
+        undefined;
     } else {
       return;
     }

@@ -11,10 +11,7 @@ import {
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
-import {
-  getBookMenuClassName,
-  type BookMenuPlacement,
-} from "./bookContextMenuPlacement";
+import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
 
 type BookContextMenuProps = {
   book: Book;
@@ -70,16 +67,8 @@ export function BookContextMenu({
           <BookOpen aria-hidden="true" size={17} weight="regular" />
           Read
         </button>
-        <button
-          type="button"
-          role="menuitem"
-          onClick={() => runAction(onToggleFavorite)}
-        >
-          <Heart
-            aria-hidden="true"
-            size={17}
-            weight={book.isFavorite ? "fill" : "regular"}
-          />
+        <button type="button" role="menuitem" onClick={() => runAction(onToggleFavorite)}>
+          <Heart aria-hidden="true" size={17} weight={book.isFavorite ? "fill" : "regular"} />
           {book.isFavorite ? "Remove favorite" : "Add favorite"}
         </button>
         <button type="button" role="menuitem" onClick={() => runAction(onDetails)}>
@@ -87,11 +76,7 @@ export function BookContextMenu({
           Details
         </button>
         {showRenameFileAction && showFileActions && onRenameFile ? (
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => runAction(onRenameFile)}
-          >
+          <button type="button" role="menuitem" onClick={() => runAction(onRenameFile)}>
             <PencilSimple aria-hidden="true" size={17} weight="regular" />
             Rename file
           </button>
@@ -103,11 +88,7 @@ export function BookContextMenu({
           </button>
         ) : null}
         {showFileActions && onRevealFile ? (
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => runAction(onRevealFile)}
-          >
+          <button type="button" role="menuitem" onClick={() => runAction(onRevealFile)}>
             <FolderOpen aria-hidden="true" size={17} weight="regular" />
             Reveal in folder
           </button>

@@ -4,11 +4,7 @@ import type {
   EpubMetadataWritebackResult,
   UpdateBookInput,
 } from "../types/book";
-import type {
-  CreateFolderInput,
-  Folder,
-  UpdateFolderInput,
-} from "../types/folder";
+import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
 import type { ArchiveImportSettings } from "../types/settings";
 import type { ArchiveImportConflictAction } from "./pathSafety";
 
@@ -26,8 +22,7 @@ export type RescanOptions = {
   quiet?: boolean;
 };
 
-export type ScanStatus =
-  { status: "idle" } | { status: "scanning"; startedAt: string };
+export type ScanStatus = { status: "idle" } | { status: "scanning"; startedAt: string };
 
 export type ArchiveImportMode = "copy" | "move";
 
@@ -65,9 +60,7 @@ export interface LibraryStorage {
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
   observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription;
-  addEpubFilesToArchive(
-    input: AddArchiveEpubInput,
-  ): Promise<ArchiveImportResult[]>;
+  addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
   getBook(id: string): Promise<Book | undefined>;
   loadBookCover(id: string): Promise<Blob | undefined>;
@@ -80,28 +73,20 @@ export interface LibraryStorage {
     metadata: EpubMetadataWritebackInput,
   ): Promise<EpubMetadataWritebackResult>;
   renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
-  moveBookToFolder(
-    id: string,
-    folderId: string | null,
-  ): Promise<Book | undefined>;
+  moveBookToFolder(id: string, folderId: string | null): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
   createFolder(input: CreateFolderInput): Promise<Folder>;
   getFolder(id: string): Promise<Folder | undefined>;
   listFolders(): Promise<Folder[]>;
-  updateFolder(
-    id: string,
-    changes: UpdateFolderInput,
-  ): Promise<Folder | undefined>;
+  updateFolder(id: string, changes: UpdateFolderInput): Promise<Folder | undefined>;
   revealFolder(id: string): Promise<void>;
   deleteFolder(id: string): Promise<boolean>;
   observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription;
 
   getArchiveImportSettings(): Promise<ArchiveImportSettings>;
-  saveArchiveImportSettings(
-    settings: ArchiveImportSettings,
-  ): Promise<ArchiveImportSettings>;
+  saveArchiveImportSettings(settings: ArchiveImportSettings): Promise<ArchiveImportSettings>;
   updateArchiveImportSettings(
     changes: Partial<ArchiveImportSettings>,
   ): Promise<ArchiveImportSettings>;

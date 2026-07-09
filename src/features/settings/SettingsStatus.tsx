@@ -23,11 +23,7 @@ type StatusMessageProps = {
 
 function StatusMessage({ message, tone }: StatusMessageProps) {
   return (
-    <p
-      className="settings-status"
-      data-tone={tone}
-      role={tone === "error" ? "alert" : "status"}
-    >
+    <p className="settings-status" data-tone={tone} role={tone === "error" ? "alert" : "status"}>
       {message}
     </p>
   );
@@ -51,10 +47,7 @@ function DelayedSavingStatus() {
   return <StatusMessage message="Saving settings." tone="neutral" />;
 }
 
-export function SettingsStatus({
-  persistenceStatus,
-  status,
-}: SettingsStatusProps) {
+export function SettingsStatus({ persistenceStatus, status }: SettingsStatusProps) {
   if (status) {
     return <StatusMessage message={status.message} tone={status.tone} />;
   }

@@ -54,9 +54,7 @@ export function sourceMetadataEqual(
   const normalizedRight = normalizeSourceMetadata(right);
 
   return (
-    SOURCE_METADATA_FIELDS.every(
-      (field) => normalizedLeft?.[field] === normalizedRight?.[field],
-    ) &&
+    SOURCE_METADATA_FIELDS.every((field) => normalizedLeft?.[field] === normalizedRight?.[field]) &&
     (normalizedLeft?.subjects ?? []).join("\u0000") ===
       (normalizedRight?.subjects ?? []).join("\u0000")
   );

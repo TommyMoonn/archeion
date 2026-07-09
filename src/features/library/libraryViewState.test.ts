@@ -35,18 +35,18 @@ function params(search: string): URLSearchParams {
 
 describe("library view URL state", () => {
   it("restores top-level library locations from search params", () => {
-    expect(
-      libraryLocationFromSearchParams(params("view=library"), folders),
-    ).toEqual({ type: "library" });
-    expect(
-      libraryLocationFromSearchParams(params("view=favorites"), folders),
-    ).toEqual({ type: "favorites" });
-    expect(
-      libraryLocationFromSearchParams(params("view=continue"), folders),
-    ).toEqual({ type: "continue" });
-    expect(
-      libraryLocationFromSearchParams(params("view=folders"), folders),
-    ).toEqual({ type: "folders" });
+    expect(libraryLocationFromSearchParams(params("view=library"), folders)).toEqual({
+      type: "library",
+    });
+    expect(libraryLocationFromSearchParams(params("view=favorites"), folders)).toEqual({
+      type: "favorites",
+    });
+    expect(libraryLocationFromSearchParams(params("view=continue"), folders)).toEqual({
+      type: "continue",
+    });
+    expect(libraryLocationFromSearchParams(params("view=folders"), folders)).toEqual({
+      type: "folders",
+    });
   });
 
   it("restores folder locations by normalized folder path", () => {
@@ -60,16 +60,10 @@ describe("library view URL state", () => {
 
   it("falls back to Library for stale or unsafe folder params", () => {
     expect(
-      libraryLocationFromSearchParams(
-        params("view=folder&folderPath=Missing"),
-        folders,
-      ),
+      libraryLocationFromSearchParams(params("view=folder&folderPath=Missing"), folders),
     ).toEqual({ type: "library" });
     expect(
-      libraryLocationFromSearchParams(
-        params("view=folder&folderPath=..%2FOutside"),
-        folders,
-      ),
+      libraryLocationFromSearchParams(params("view=folder&folderPath=..%2FOutside"), folders),
     ).toEqual({ type: "library" });
   });
 
@@ -111,10 +105,7 @@ describe("library view URL state", () => {
   });
 
   it("persists the selected Folders page view mode", () => {
-    const cards = searchParamsForFolderBrowserView(
-      params("view=folders"),
-      "cards",
-    );
+    const cards = searchParamsForFolderBrowserView(params("view=folders"), "cards");
     const list = searchParamsForFolderBrowserView(cards, "list");
 
     expect(cards.get("folderView")).toBe("cards");

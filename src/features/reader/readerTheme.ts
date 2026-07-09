@@ -1,8 +1,5 @@
 import type { ReaderSettings } from "../../types/reader";
-import {
-  readerFontFaceCssForId,
-  readerFontFamilyForId,
-} from "./readerFonts";
+import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
@@ -103,9 +100,7 @@ export function readerThemeForSettings(settings: ReaderContentSettings) {
   };
 }
 
-export function createReaderContentTheme(
-  settings: ReaderContentSettings,
-): ReaderContentTheme {
+export function createReaderContentTheme(settings: ReaderContentSettings): ReaderContentTheme {
   return {
     fontFaceCss: readerFontFaceCssForSettings(settings),
     name: READER_CONTENT_THEME_NAME,
@@ -143,10 +138,7 @@ export function applyReaderContentTheme(
   }
 }
 
-function applyReaderFontFaces(
-  document: Document | null,
-  fontFaceCss: string | undefined,
-) {
+function applyReaderFontFaces(document: Document | null, fontFaceCss: string | undefined) {
   if (!document?.head) {
     return;
   }

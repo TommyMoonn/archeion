@@ -285,9 +285,7 @@ describe("ArchiveStore", () => {
   });
 
   it("does not change archive state when the manager window command fails", async () => {
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_archive_registry") {
         return emptyRegistry;
@@ -399,7 +397,6 @@ describe("ArchiveStore", () => {
     });
     expect(invokeMock).toHaveBeenCalledTimes(1);
   });
-
 
   it("chooses an archive parent location without opening or activating it", async () => {
     openMock.mockResolvedValue("D:\\Books");
@@ -548,5 +545,4 @@ describe("ArchiveStore", () => {
     expect(consoleError).toHaveBeenCalledWith("open_archive failed", openError);
     consoleError.mockRestore();
   });
-
 });

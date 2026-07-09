@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
-import {
-  createReaderSessionInitialState,
-  createReaderSessionKey,
-} from "./readerSession";
+import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
 
 const book: Book = {
   id: "book-1",

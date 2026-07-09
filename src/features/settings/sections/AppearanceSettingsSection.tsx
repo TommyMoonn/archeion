@@ -5,9 +5,7 @@ type AppearanceSettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function AppearanceSettingsSection({
-  context,
-}: AppearanceSettingsSectionProps) {
+export function AppearanceSettingsSection({ context }: AppearanceSettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

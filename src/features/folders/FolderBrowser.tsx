@@ -17,10 +17,7 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Folder } from "../../types/folder";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 import { searchFolders } from "./folderSearch";
-import {
-  formatFolderBookCount,
-  getFolderDisplayPath,
-} from "./folderTreeUtils";
+import { formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
 
 export type FolderBrowserView = "list" | "cards";
 
@@ -74,15 +71,9 @@ export function FolderBrowser({
   const [localView, setLocalView] = useState<FolderBrowserView>("list");
   const view = controlledView ?? localView;
   const changeView = onViewChange ?? setLocalView;
-  const visibleFolders = useMemo(
-    () => searchFolders(folders, query),
-    [folders, query],
-  );
-  const showFolderActions = Boolean(
-    canManageFolders && onDelete && onMove && onRename,
-  );
-  const surfaceState =
-    visibleFolders.length > 0 ? "results" : query ? "search-empty" : "empty";
+  const visibleFolders = useMemo(() => searchFolders(folders, query), [folders, query]);
+  const showFolderActions = Boolean(canManageFolders && onDelete && onMove && onRename);
+  const surfaceState = visibleFolders.length > 0 ? "results" : query ? "search-empty" : "empty";
   const surfaceKey = `${view}:${surfaceState}`;
 
   return (
@@ -157,9 +148,7 @@ export function FolderBrowser({
             ) : undefined
           }
           description={
-            query
-              ? "No folder matches that search."
-              : "Folders from this library will appear here."
+            query ? "No folder matches that search." : "Folders from this library will appear here."
           }
           icon={<FolderIcon size={40} weight="thin" />}
           title={query ? "No folders found" : "No folders"}
@@ -188,9 +177,7 @@ export function FolderBrowser({
                     <strong>{folder.name}</strong>
                     {displayPath ? <small>{displayPath}</small> : null}
                   </span>
-                  <span className="folder-browser__count">
-                    {formatFolderBookCount(bookCount)}
-                  </span>
+                  <span className="folder-browser__count">{formatFolderBookCount(bookCount)}</span>
                 </button>
                 {showFolderActions && onDelete && onMove && onRename ? (
                   <span className="folder-browser__item-actions">

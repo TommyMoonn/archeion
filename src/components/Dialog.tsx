@@ -9,14 +9,7 @@ type DialogProps = {
   title: string;
 };
 
-export function Dialog({
-  children,
-  className,
-  description,
-  footer,
-  onClose,
-  title,
-}: DialogProps) {
+export function Dialog({ children, className, description, footer, onClose, title }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const descriptionId = useId();
   const titleId = useId();

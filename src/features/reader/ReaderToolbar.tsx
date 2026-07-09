@@ -1,9 +1,4 @@
-import {
-  ArrowLeft,
-  CaretLeft,
-  CaretRight,
-  TextAa,
-} from "@phosphor-icons/react";
+import { ArrowLeft, CaretLeft, CaretRight, TextAa } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
 
 import { IconButton } from "../../components/IconButton";
@@ -43,17 +38,11 @@ export function ReaderToolbar({
       <div className="reader-toolbar__identity">
         <p>{title}</p>
         <span data-error={progressSaveFailed || undefined}>
-          {progressSaveFailed
-            ? "Progress not saved"
-            : `${percentage.toFixed(1)}%`}
+          {progressSaveFailed ? "Progress not saved" : `${percentage.toFixed(1)}%`}
         </span>
       </div>
       <div className="reader-toolbar__navigation">
-        <IconButton
-          label="Previous page"
-          disabled={atStart}
-          onClick={onPrevious}
-        >
+        <IconButton label="Previous page" disabled={atStart} onClick={onPrevious}>
           <CaretLeft aria-hidden="true" size={19} weight="bold" />
         </IconButton>
         <IconButton label="Next page" disabled={atEnd} onClick={onNext}>

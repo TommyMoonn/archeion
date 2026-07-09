@@ -7,10 +7,7 @@ export type ReconciledItems<T> = {
   items: T[];
 };
 
-export function shallowEqualRecords<T extends object>(
-  left: T,
-  right: T,
-): boolean {
+export function shallowEqualRecords<T extends object>(left: T, right: T): boolean {
   const leftKeys = Object.keys(left) as Array<keyof T>;
   const rightKeys = Object.keys(right) as Array<keyof T>;
   return (
@@ -30,8 +27,7 @@ export function reconcileById<T extends Identified>(
     return current && isEqual(current, item) ? current : item;
   });
   const changed =
-    items.length !== previous.length ||
-    items.some((item, index) => item !== previous[index]);
+    items.length !== previous.length || items.some((item, index) => item !== previous[index]);
 
   return { changed, items: changed ? items : previous };
 }

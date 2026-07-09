@@ -11,12 +11,7 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(
-      circle at 78% 4%,
-      rgb(143 193 227 / 4%),
-      transparent 28rem
-    ),
-    var(--surface-main);
+    radial-gradient(circle at 78% 4%, rgb(143 193 227 / 4%), transparent 28rem), var(--surface-main);
 }
 
 button,
@@ -29,15 +24,7 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-:where(
-  button,
-  a,
-  input,
-  select,
-  textarea,
-  summary,
-  [tabindex]:not([tabindex="-1"])
-):focus-visible {
+:where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }

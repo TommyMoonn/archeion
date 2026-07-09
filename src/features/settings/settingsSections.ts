@@ -152,7 +152,5 @@ const searchTermsBySection = new Map<SettingsSection, readonly string[]>(
 export function sectionMatches(section: SettingsSection, query: string) {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return true;
-  return searchTermsBySection
-    .get(section)
-    ?.some((entry) => entry.includes(normalized)) ?? false;
+  return searchTermsBySection.get(section)?.some((entry) => entry.includes(normalized)) ?? false;
 }

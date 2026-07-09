@@ -69,9 +69,7 @@ export function BookDetailsDrawer({
   }, [book.progressPercent]);
   const fileDetails = useMemo(
     () => ({
-      lastOpenedAt: book.lastOpenedAt
-        ? formatLongDate(book.lastOpenedAt)
-        : null,
+      lastOpenedAt: book.lastOpenedAt ? formatLongDate(book.lastOpenedAt) : null,
       path: book.relativePath ?? book.fileName,
       size: formatFileSize(book.size ?? 0),
     }),
@@ -115,16 +113,10 @@ export function BookDetailsDrawer({
             <IconButton
               aria-pressed={book.isFavorite}
               className="details-favorite-button"
-              label={
-                book.isFavorite ? "Remove from favorites" : "Add to favorites"
-              }
+              label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
               onClick={() => onToggleFavorite(book)}
             >
-              <Heart
-                aria-hidden="true"
-                size={18}
-                weight={book.isFavorite ? "fill" : "regular"}
-              />
+              <Heart aria-hidden="true" size={18} weight={book.isFavorite ? "fill" : "regular"} />
             </IconButton>
             <IconButton label="Close book details" onClick={onClose} autoFocus>
               <X aria-hidden="true" size={18} weight="regular" />
@@ -169,10 +161,7 @@ export function BookDetailsDrawer({
             </section>
           ) : (
             <div className="details-actions">
-              <Button
-                icon={<BookOpen aria-hidden="true" size={17} />}
-                onClick={() => onRead(book)}
-              >
+              <Button icon={<BookOpen aria-hidden="true" size={17} />} onClick={() => onRead(book)}>
                 {progressDetails.hasProgress ? "Continue reading" : "Read book"}
               </Button>
               {progressDetails.hasProgress ? (
@@ -212,9 +201,7 @@ export function BookDetailsDrawer({
                 ) : null}
                 {canRevealFile ? (
                   <Button
-                    className={
-                      canManageFile ? undefined : "details-actions__wide"
-                    }
+                    className={canManageFile ? undefined : "details-actions__wide"}
                     icon={<FolderOpen aria-hidden="true" size={16} />}
                     onClick={() => onRevealFile(book)}
                     variant="ghost"
@@ -233,9 +220,7 @@ export function BookDetailsDrawer({
                 File
               </dt>
               <dd>
-                <span title={fileDetails.path}>
-                  {fileDetails.path}
-                </span>
+                <span title={fileDetails.path}>{fileDetails.path}</span>
                 <span>{fileDetails.size}</span>
               </dd>
             </div>

@@ -1,8 +1,5 @@
 export type ReaderNavigationIntent = "backward" | "forward";
-export type ReaderKeyboardIntent =
-  | ReaderNavigationIntent
-  | "close"
-  | "settings";
+export type ReaderKeyboardIntent = ReaderNavigationIntent | "close" | "settings";
 
 export const READER_WHEEL_THROTTLE_MS = 360;
 export const READER_WHEEL_TURN_DELTA = 48;
@@ -27,13 +24,7 @@ const interactiveSelector = [
 
 type ReaderWheelEvent = Pick<
   WheelEvent,
-  | "altKey"
-  | "ctrlKey"
-  | "deltaMode"
-  | "deltaX"
-  | "deltaY"
-  | "metaKey"
-  | "shiftKey"
+  "altKey" | "ctrlKey" | "deltaMode" | "deltaX" | "deltaY" | "metaKey" | "shiftKey"
 >;
 
 export function isReaderShortcutTargetBlocked(target: EventTarget | null) {
@@ -50,9 +41,7 @@ export function isReaderShortcutTargetBlocked(target: EventTarget | null) {
   return Boolean(selection && !selection.isCollapsed);
 }
 
-export function getReaderKeyboardIntent(
-  event: KeyboardEvent,
-): ReaderKeyboardIntent | null {
+export function getReaderKeyboardIntent(event: KeyboardEvent): ReaderKeyboardIntent | null {
   if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
     return null;
   }
@@ -100,9 +89,7 @@ export function getReaderWheelDelta(event: ReaderWheelEvent): number | null {
   return deltaY;
 }
 
-export function getReaderWheelIntentFromDelta(
-  deltaY: number,
-): ReaderNavigationIntent | null {
+export function getReaderWheelIntentFromDelta(deltaY: number): ReaderNavigationIntent | null {
   if (Math.abs(deltaY) < READER_WHEEL_TURN_DELTA) {
     return null;
   }
@@ -110,9 +97,7 @@ export function getReaderWheelIntentFromDelta(
   return deltaY > 0 ? "forward" : "backward";
 }
 
-export function getReaderWheelIntent(
-  event: ReaderWheelEvent,
-): ReaderNavigationIntent | null {
+export function getReaderWheelIntent(event: ReaderWheelEvent): ReaderNavigationIntent | null {
   const deltaY = getReaderWheelDelta(event);
 
   return deltaY === null ? null : getReaderWheelIntentFromDelta(deltaY);

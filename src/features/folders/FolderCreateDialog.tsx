@@ -5,15 +5,6 @@ type FolderCreateDialogProps = {
   onCreate: (name: string) => Promise<void>;
 };
 
-export function FolderCreateDialog({
-  onClose,
-  onCreate,
-}: FolderCreateDialogProps) {
-  return (
-    <FolderNameDialog
-      mode="create"
-      onClose={onClose}
-      onSubmit={onCreate}
-    />
-  );
+export function FolderCreateDialog({ onClose, onCreate }: FolderCreateDialogProps) {
+  return <FolderNameDialog mode="create" onClose={onClose} onSubmit={onCreate} />;
 }

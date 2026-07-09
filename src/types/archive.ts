@@ -12,16 +12,10 @@ export type ArchiveRegistry = {
   lastOpenedArchiveId?: string | null;
 };
 
-export function activeArchiveFromRegistry(
-  registry: ArchiveRegistry,
-): KnownArchive | null {
+export function activeArchiveFromRegistry(registry: ArchiveRegistry): KnownArchive | null {
   if (!registry.lastOpenedArchiveId) {
     return null;
   }
 
-  return (
-    registry.archives.find(
-      (archive) => archive.id === registry.lastOpenedArchiveId,
-    ) ?? null
-  );
+  return registry.archives.find((archive) => archive.id === registry.lastOpenedArchiveId) ?? null;
 }

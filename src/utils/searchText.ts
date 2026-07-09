@@ -89,10 +89,7 @@ export function searchFieldMatchesTerm(
   );
 }
 
-export function scoreSearchField(
-  field: SearchTextVariants,
-  query: SearchQuery,
-): number {
+export function scoreSearchField(field: SearchTextVariants, query: SearchQuery): number {
   if (isEmptySearchQuery(query) || !field.normalized) {
     return 0;
   }
@@ -130,17 +127,12 @@ export function scoreSearchField(
   return score;
 }
 
-export function searchFieldsMatchQuery(
-  fields: SearchTextVariants[],
-  query: SearchQuery,
-): boolean {
+export function searchFieldsMatchQuery(fields: SearchTextVariants[], query: SearchQuery): boolean {
   if (isEmptySearchQuery(query)) {
     return true;
   }
 
   return query.terms.every((term, index) =>
-    fields.some((field) =>
-      searchFieldMatchesTerm(field, term, query.compactTerms[index] ?? term),
-    ),
+    fields.some((field) => searchFieldMatchesTerm(field, term, query.compactTerms[index] ?? term)),
   );
 }

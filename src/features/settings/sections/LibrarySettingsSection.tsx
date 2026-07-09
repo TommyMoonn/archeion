@@ -5,9 +5,7 @@ type LibrarySettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function LibrarySettingsSection({
-  context,
-}: LibrarySettingsSectionProps) {
+export function LibrarySettingsSection({ context }: LibrarySettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

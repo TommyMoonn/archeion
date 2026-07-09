@@ -24,9 +24,7 @@ describe("reader fonts", () => {
 
   it("resolves bundled reader font stacks", () => {
     expect(readerFontFamilyForId("literata")).toContain("Literata");
-    expect(readerFontFamilyForId("atkinson")).toContain(
-      "Atkinson Hyperlegible",
-    );
+    expect(readerFontFamilyForId("atkinson")).toContain("Atkinson Hyperlegible");
   });
 
   it("falls back to book serif for unknown stored font values", () => {
@@ -35,11 +33,7 @@ describe("reader fonts", () => {
   });
 
   it("emits iframe font-face CSS for bundled fonts", () => {
-    expect(readerFontFaceCssForId("literata")).toContain(
-      'font-family: "Literata"',
-    );
-    expect(readerFontFaceCssForId("atkinson")).toContain(
-      'font-family: "Atkinson Hyperlegible"',
-    );
+    expect(readerFontFaceCssForId("literata")).toContain('font-family: "Literata"');
+    expect(readerFontFaceCssForId("atkinson")).toContain('font-family: "Atkinson Hyperlegible"');
   });
 });

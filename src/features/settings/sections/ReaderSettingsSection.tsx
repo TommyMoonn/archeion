@@ -5,9 +5,7 @@ type ReaderSettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function ReaderSettingsSection({
-  context,
-}: ReaderSettingsSectionProps) {
+export function ReaderSettingsSection({ context }: ReaderSettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

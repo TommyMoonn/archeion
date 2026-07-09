@@ -1,12 +1,6 @@
 import { BookOpenText } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Link,
-  useLoaderData,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
@@ -17,16 +11,10 @@ import {
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
-import {
-  normalizeReaderSettings,
-  type ReaderSettings,
-} from "../../types/reader";
+import { normalizeReaderSettings, type ReaderSettings } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
-import {
-  createReaderSessionInitialState,
-  createReaderSessionKey,
-} from "./readerSession";
+import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
@@ -35,8 +23,7 @@ import { getReaderKeyboardIntent } from "./readerNavigation";
 export function ReaderRoute() {
   const { bookId } = useParams();
   const [searchParams] = useSearchParams();
-  const startMode =
-    searchParams.get("start") === "beginning" ? "beginning" : "resume";
+  const startMode = searchParams.get("start") === "beginning" ? "beginning" : "resume";
 
   return <ReaderPage key={createReaderSessionKey(bookId, startMode)} />;
 }
@@ -69,12 +56,8 @@ export function ReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const settingsOpenRef = useRef(settingsOpen);
   const controlsVisibleRef = useRef(controlsVisible);
-  const [readerSession] = useState(() =>
-    createReaderSessionInitialState(book, startFromBeginning),
-  );
-  const [location, setLocation] = useState<ReaderLocation>(
-    readerSession.initialLocation,
-  );
+  const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
+  const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
   const bookId = book?.id;
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
@@ -105,11 +88,7 @@ export function ReaderPage() {
     const now = Date.now();
     const isSettingsOpen = settingsOpenRef.current;
 
-    if (
-      controlsVisibleRef.current &&
-      !isSettingsOpen &&
-      now - lastControlsRevealAt.current < 250
-    ) {
+    if (controlsVisibleRef.current && !isSettingsOpen && now - lastControlsRevealAt.current < 250) {
       return;
     }
 
@@ -132,9 +111,7 @@ export function ReaderPage() {
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
-    void appPreferencesStore
-      .update({ reader: normalizedSettings })
-      .catch(() => undefined);
+    void appPreferencesStore.update({ reader: normalizedSettings }).catch(() => undefined);
   }, []);
 
   const handleReady = useCallback(() => {
@@ -360,10 +337,7 @@ export function ReaderPage() {
       onFocusCapture={revealControls}
       onPointerMove={revealControls}
     >
-      <div
-        className="reader-controls"
-        data-visible={controlsVisible || settingsOpen || undefined}
-      >
+      <div className="reader-controls" data-visible={controlsVisible || settingsOpen || undefined}>
         <ReaderToolbar
           atEnd={location.atEnd}
           atStart={location.atStart}
@@ -375,10 +349,7 @@ export function ReaderPage() {
           title={title}
         />
       </div>
-      <ReaderProgressBar
-        percentage={location.percentage}
-        placement={settings.progressPlacement}
-      />
+      <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
 
       {error ? (
         <section className="reader-error" role="alert">
@@ -404,10 +375,7 @@ export function ReaderPage() {
       )}
 
       {settingsOpen ? (
-        <div
-          className="reader-settings-layer"
-          onClick={() => setSettingsOpen(false)}
-        >
+        <div className="reader-settings-layer" onClick={() => setSettingsOpen(false)}>
           <ReaderSettingsPanel
             onChange={changeSettings}
             onClose={() => setSettingsOpen(false)}

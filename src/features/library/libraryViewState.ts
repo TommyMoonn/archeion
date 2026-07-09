@@ -23,31 +23,20 @@ function normalizedFolderPathKey(path: string | undefined): string | null {
   }
 }
 
-function folderByRelativePath(
-  folders: Folder[],
-  folderPath: string | null,
-): Folder | undefined {
+function folderByRelativePath(folders: Folder[], folderPath: string | null): Folder | undefined {
   if (!folderPath) {
     return undefined;
   }
 
-  return folders.find(
-    (folder) => normalizedFolderPathKey(folder.relativePath) === folderPath,
-  );
+  return folders.find((folder) => normalizedFolderPathKey(folder.relativePath) === folderPath);
 }
 
-function folderPathForLocation(
-  location: LibraryLocation,
-  folders: Folder[],
-): string | null {
+function folderPathForLocation(location: LibraryLocation, folders: Folder[]): string | null {
   if (location.type !== "folder") {
     return null;
   }
 
-  return (
-    folders.find((folder) => folder.id === location.folderId)?.relativePath ??
-    null
-  );
+  return folders.find((folder) => folder.id === location.folderId)?.relativePath ?? null;
 }
 
 export function libraryLocationFromSearchParams(
@@ -71,14 +60,10 @@ export function libraryLocationFromSearchParams(
     case "folders":
       return { type: "folders" };
     case "folder": {
-      const folderPath = normalizedFolderPathKey(
-        searchParams.get(FOLDER_PATH_PARAM) ?? undefined,
-      );
+      const folderPath = normalizedFolderPathKey(searchParams.get(FOLDER_PATH_PARAM) ?? undefined);
       const folder = folderByRelativePath(folders, folderPath);
 
-      return folder
-        ? { type: "folder", folderId: folder.id }
-        : DEFAULT_LIBRARY_LOCATION;
+      return folder ? { type: "folder", folderId: folder.id } : DEFAULT_LIBRARY_LOCATION;
     }
     case "library":
     default:

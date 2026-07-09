@@ -85,10 +85,7 @@ describe("library derived state helpers", () => {
       createBook({ id: "finished", progressPercent: 100 }),
     ];
 
-    expect(getContinueReadingBooks(books).map((book) => book.id)).toEqual([
-      "recent",
-      "older",
-    ]);
+    expect(getContinueReadingBooks(books).map((book) => book.id)).toEqual(["recent", "older"]);
   });
 
   it("limits and memoizes the continue preview", async () => {

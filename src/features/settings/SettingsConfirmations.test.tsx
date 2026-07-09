@@ -1,10 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  SettingsConfirmations,
-  type SettingsConfirmationState,
-} from "./SettingsConfirmations";
+import { SettingsConfirmations, type SettingsConfirmationState } from "./SettingsConfirmations";
 
 const closedConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -41,9 +38,7 @@ describe("SettingsConfirmations", () => {
     const markup = renderConfirmations({ clearScannerCache: true });
 
     expect(markup).toContain("Clear scanner cache?");
-    expect(markup).toContain(
-      "EPUB files, favorites, and reading progress will not be deleted.",
-    );
+    expect(markup).toContain("EPUB files, favorites, and reading progress will not be deleted.");
     expect(markup).toContain("Clear scanner cache");
   });
 

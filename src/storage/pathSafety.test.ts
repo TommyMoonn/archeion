@@ -12,12 +12,10 @@ import {
 
 describe("pathSafety", () => {
   it("normalizes archive-relative paths", () => {
-    expect(
-      normalizeArchiveRelativePath(" Author\\Series / Volume 01.epub "),
-    ).toBe("Author/Series/Volume 01.epub");
-    expect(getArchiveParentPath("Author/Series/Volume 01.epub")).toBe(
-      "Author/Series",
+    expect(normalizeArchiveRelativePath(" Author\\Series / Volume 01.epub ")).toBe(
+      "Author/Series/Volume 01.epub",
     );
+    expect(getArchiveParentPath("Author/Series/Volume 01.epub")).toBe("Author/Series");
   });
 
   it("rejects traversal, empty, and reserved metadata paths", () => {
@@ -38,16 +36,10 @@ describe("pathSafety", () => {
 
   it("detects duplicate destinations without mutating files", () => {
     expect(
-      hasDestinationConflict(
-        ["Author/Series/Volume 01.epub"],
-        "author/series/volume 01.epub",
-      ),
+      hasDestinationConflict(["Author/Series/Volume 01.epub"], "author/series/volume 01.epub"),
     ).toBe(true);
     expect(
-      hasDestinationConflict(
-        ["Author/Series/Volume 01.epub"],
-        "Author/Series/Volume 02.epub",
-      ),
+      hasDestinationConflict(["Author/Series/Volume 01.epub"], "Author/Series/Volume 02.epub"),
     ).toBe(false);
   });
 

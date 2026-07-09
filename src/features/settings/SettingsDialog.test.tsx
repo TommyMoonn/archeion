@@ -8,8 +8,8 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { SettingsDialog } from "./SettingsDialog";
 
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
-  .IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
+  true;
 
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 
@@ -62,10 +62,7 @@ function renderDialog(storage = createStorage()) {
 }
 
 function changeInputValue(input: HTMLInputElement, value: string) {
-  const valueSetter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )?.set;
+  const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
 
   valueSetter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -115,15 +112,9 @@ describe("SettingsDialog responsiveness", () => {
   it("renders only the active settings section in normal mode", () => {
     const { container } = track(renderDialog());
 
-    expect(
-      container.querySelector('[data-setting-id="general.startup-behavior"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-setting-id="appearance.display-density"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[data-setting-id="storage.cover-cache-status"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
+    expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
+    expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();
   });
 
   it("uses instant section scrolling when app motion is disabled", async () => {

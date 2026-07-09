@@ -1,10 +1,4 @@
-import {
-  DotsThree,
-  FolderOpen,
-  PencilSimple,
-  Plus,
-  Trash,
-} from "@phosphor-icons/react";
+import { DotsThree, FolderOpen, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 // Copied from src-tauri/icons/128x128.png so the frontend can load it through Vite.
@@ -78,9 +72,7 @@ function surfaceTitle(mode: ArchiveManagerMode, state: ArchiveState): string {
 }
 
 function sortArchives(archives: KnownArchive[]): KnownArchive[] {
-  return [...archives].sort((left, right) =>
-    right.lastOpenedAt.localeCompare(left.lastOpenedAt),
-  );
+  return [...archives].sort((left, right) => right.lastOpenedAt.localeCompare(left.lastOpenedAt));
 }
 
 function ArchiveRowActions({
@@ -314,12 +306,8 @@ export function ArchiveManagerWindowContent({
   const [archiveName, setArchiveName] = useState("");
   const [locationPath, setLocationPath] = useState("");
   const activeArchiveId = activeArchiveIdForState(state);
-  const missingArchiveId =
-    state.status === "missing" ? (state.archive?.id ?? null) : null;
-  const sortedArchives = useMemo(
-    () => sortArchives(state.archives),
-    [state.archives],
-  );
+  const missingArchiveId = state.status === "missing" ? (state.archive?.id ?? null) : null;
+  const sortedArchives = useMemo(() => sortArchives(state.archives), [state.archives]);
   const title = surfaceTitle(mode, state);
   const errorText = state.status === "error" ? state.error : null;
 
@@ -338,10 +326,7 @@ export function ArchiveManagerWindowContent({
         aria-labelledby="archive-manager-title"
       >
         <div className="archive-manager-window__body">
-          <aside
-            className="archive-manager-window__sidebar"
-            aria-label="Archives"
-          >
+          <aside className="archive-manager-window__sidebar" aria-label="Archives">
             {sortedArchives.length > 0 ? (
               <div className="archive-list">
                 {sortedArchives.map((archive) => (
@@ -361,11 +346,7 @@ export function ArchiveManagerWindowContent({
           <section className="archive-manager-window__main">
             <div className="archive-manager-window__identity">
               <div className="archive-manager-window__mark" aria-hidden="true">
-                <img
-                  className="archive-manager-window__icon"
-                  src={archeionIcon}
-                  alt=""
-                />
+                <img className="archive-manager-window__icon" src={archeionIcon} alt="" />
               </div>
               <h1 id="archive-manager-title">Archeion</h1>
               <p>{title}</p>
@@ -418,9 +399,7 @@ export function ArchiveManagerWindowContent({
                       variant="secondary"
                     >
                       <span className="archive-action-row__copy">
-                        <span className="archive-action-row__title">
-                          Create empty archive
-                        </span>
+                        <span className="archive-action-row__title">Create empty archive</span>
                         <span className="archive-action-row__description">
                           Start with a new local folder.
                         </span>

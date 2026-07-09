@@ -2,10 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability for the Archeion main window",
-  "windows": [
-    "main",
-    "archive-manager"
-  ],
+  "windows": ["main", "archive-manager"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

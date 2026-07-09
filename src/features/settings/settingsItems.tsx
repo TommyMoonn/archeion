@@ -36,10 +36,7 @@ import type { SettingsDialogController } from "./useSettingsDialogController";
 export type SettingsItemGroupStyle = "standard" | "actions";
 
 export type SettingsDeferredDataRequirement =
-  | "archiveImportSettings"
-  | "coverCacheStatus"
-  | "epubWritebackBackupStatus"
-  | "folders";
+  "archiveImportSettings" | "coverCacheStatus" | "epubWritebackBackupStatus" | "folders";
 
 export type SettingsItem = {
   deferredData?: readonly SettingsDeferredDataRequirement[];
@@ -53,10 +50,7 @@ export type SettingsItem = {
   sectionId: SettingsSection;
 };
 
-function updateReader(
-  context: SettingsDialogController,
-  changes: Partial<ReaderSettings>,
-) {
+function updateReader(context: SettingsDialogController, changes: Partial<ReaderSettings>) {
   context.updateReader(changes);
 }
 
@@ -66,15 +60,10 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "general.startup-behavior",
     label: "Startup behavior",
     render: (context) => (
-      <SettingsRow
-        description="Choose what opens when Archeion starts."
-        label="Startup behavior"
-      >
+      <SettingsRow description="Choose what opens when Archeion starts." label="Startup behavior">
         <AppSelect
           ariaLabel="Startup behavior"
-          onChange={(startupBehavior) =>
-            void context.updateAppPreferences({ startupBehavior })
-          }
+          onChange={(startupBehavior) => void context.updateAppPreferences({ startupBehavior })}
           options={startupOptions}
           value={context.preferences.startupBehavior}
         />
@@ -116,9 +105,7 @@ export const settingsItems: readonly SettingsItem[] = [
         <Toggle
           checked={context.preferences.restoreLastReader}
           label="Restore last reader route"
-          onChange={(restoreLastReader) =>
-            void context.updateAppPreferences({ restoreLastReader })
-          }
+          onChange={(restoreLastReader) => void context.updateAppPreferences({ restoreLastReader })}
         />
       </SettingsRow>
     ),
@@ -183,9 +170,7 @@ export const settingsItems: readonly SettingsItem[] = [
       <SettingsRow description="Changes cover size in grid view." label="Book card size">
         <AppSelect<BookCardSize>
           ariaLabel="Book card size"
-          onChange={(bookCardSize) =>
-            void context.updateAppPreferences({ bookCardSize })
-          }
+          onChange={(bookCardSize) => void context.updateAppPreferences({ bookCardSize })}
           options={cardSizeOptions}
           value={context.preferences.bookCardSize}
         />
@@ -233,10 +218,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.font-family",
     label: "Font family",
     render: (context) => (
-      <SettingsRow
-        description="Sets the default reader typeface."
-        label="Font family"
-      >
+      <SettingsRow description="Sets the default reader typeface." label="Font family">
         <AppSelect
           ariaLabel="Reader font family"
           onChange={(fontFamily) => updateReader(context, { fontFamily })}
@@ -245,15 +227,7 @@ export const settingsItems: readonly SettingsItem[] = [
         />
       </SettingsRow>
     ),
-    searchTerms: [
-      "font",
-      "typeface",
-      "serif",
-      "sans",
-      "literata",
-      "atkinson",
-      "hyperlegible",
-    ],
+    searchTerms: ["font", "typeface", "serif", "sans", "literata", "atkinson", "hyperlegible"],
     sectionId: "reader",
   },
   {
@@ -333,15 +307,10 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.progress-placement",
     label: "Progress placement",
     render: (context) => (
-      <SettingsRow
-        description="Chooses where reading progress appears."
-        label="Progress placement"
-      >
+      <SettingsRow description="Chooses where reading progress appears." label="Progress placement">
         <SegmentedControl
           label="Reader progress placement"
-          onChange={(progressPlacement) =>
-            updateReader(context, { progressPlacement })
-          }
+          onChange={(progressPlacement) => updateReader(context, { progressPlacement })}
           options={progressPlacementOptions}
           value={context.reader.progressPlacement}
         />
@@ -372,9 +341,7 @@ export const settingsItems: readonly SettingsItem[] = [
       <SettingsRow description="Sets the app theme." label="App theme preset">
         <AppSelect<AppThemePreset>
           ariaLabel="App theme preset"
-          onChange={(appThemePreset) =>
-            void context.updateAppPreferences({ appThemePreset })
-          }
+          onChange={(appThemePreset) => void context.updateAppPreferences({ appThemePreset })}
           options={appThemeOptions}
           value={context.preferences.appThemePreset}
         />
@@ -389,10 +356,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "appearance.animations",
     label: "Animations",
     render: (context) => (
-      <SettingsRow
-        description="Enable subtle app transitions."
-        label="Animations"
-      >
+      <SettingsRow description="Enable subtle app transitions." label="Animations">
         <Toggle
           checked={context.preferences.appearance.animationsEnabled}
           label="Animations"
@@ -413,10 +377,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "appearance.display-density",
     label: "Display density",
     render: (context) => (
-      <SettingsRow
-        description="Adjusts spacing across the app."
-        label="Display density"
-      >
+      <SettingsRow description="Adjusts spacing across the app." label="Display density">
         <SegmentedControl<InterfaceDensity>
           label="Display density"
           onChange={(density) => void context.updateAppPreferences({ density })}
@@ -434,15 +395,10 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "appearance.window-frame-style",
     label: "Window frame style",
     render: (context) => (
-      <SettingsRow
-        description="Controls the desktop window chrome."
-        label="Window frame style"
-      >
+      <SettingsRow description="Controls the desktop window chrome." label="Window frame style">
         <AppSelect<WindowFrameStyle>
           ariaLabel="Window frame style"
-          onChange={(windowFrameStyle) =>
-            void context.updateAppPreferences({ windowFrameStyle })
-          }
+          onChange={(windowFrameStyle) => void context.updateAppPreferences({ windowFrameStyle })}
           options={frameOptions}
           value={context.preferences.windowFrameStyle}
         />
@@ -555,10 +511,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "storage.scan-on-startup",
     label: "Scan on startup",
     render: (context) => (
-      <SettingsRow
-        description="Checks the active archive when it opens."
-        label="Scan on startup"
-      >
+      <SettingsRow description="Checks the active archive when it opens." label="Scan on startup">
         <Toggle
           checked={context.files.scanOnStartup}
           label="Scan on startup"
@@ -582,9 +535,7 @@ export const settingsItems: readonly SettingsItem[] = [
         <Toggle
           checked={context.files.liveWatcherEnabled}
           label="Live filesystem watcher"
-          onChange={(liveWatcherEnabled) =>
-            context.updateFiles({ liveWatcherEnabled })
-          }
+          onChange={(liveWatcherEnabled) => context.updateFiles({ liveWatcherEnabled })}
         />
       </SettingsRow>
     ),
@@ -605,18 +556,11 @@ export const settingsItems: readonly SettingsItem[] = [
         <Toggle
           checked={context.files.keepEpubWritebackBackup}
           label="Keep EPUB writeback backup"
-          onChange={(keepEpubWritebackBackup) =>
-            context.updateFiles({ keepEpubWritebackBackup })
-          }
+          onChange={(keepEpubWritebackBackup) => context.updateFiles({ keepEpubWritebackBackup })}
         />
       </SettingsRow>
     ),
-    searchTerms: [
-      "epub backup",
-      "writeback backup",
-      "metadata backup",
-      "archive maintenance",
-    ],
+    searchTerms: ["epub backup", "writeback backup", "metadata backup", "archive maintenance"],
     sectionId: "storage",
   },
   {
@@ -649,14 +593,8 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "storage.scanner-cache",
     label: "Scanner cache",
     render: (context) => (
-      <SettingsRow
-        description="Forces EPUB files to be checked again later."
-        label="Scanner cache"
-      >
-        <Button
-          onClick={() => context.openConfirmation("clearScannerCache")}
-          variant="secondary"
-        >
+      <SettingsRow description="Forces EPUB files to be checked again later." label="Scanner cache">
+        <Button onClick={() => context.openConfirmation("clearScannerCache")} variant="secondary">
           Clear scanner cache
         </Button>
       </SettingsRow>
@@ -675,10 +613,7 @@ export const settingsItems: readonly SettingsItem[] = [
         description="Rebuilds parsed EPUB title and author data."
         label="Re-extract EPUB source metadata"
       >
-        <Button
-          onClick={() => context.openConfirmation("reextractMetadata")}
-          variant="secondary"
-        >
+        <Button onClick={() => context.openConfirmation("reextractMetadata")} variant="secondary">
           Re-extract source metadata
         </Button>
       </SettingsRow>
@@ -756,10 +691,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "storage.metadata-folder",
     label: ".archeion folder",
     render: (context) => (
-      <SettingsRow
-        description="Opens the active archive metadata folder."
-        label=".archeion folder"
-      >
+      <SettingsRow description="Opens the active archive metadata folder." label=".archeion folder">
         <Button onClick={() => void context.revealMetadata()} variant="secondary">
           Reveal .archeion folder
         </Button>
@@ -788,10 +720,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "import.default-import-mode",
     label: "Default import mode",
     render: (context) => (
-      <SettingsRow
-        description="Chooses how new EPUB files are added."
-        label="Default import mode"
-      >
+      <SettingsRow description="Chooses how new EPUB files are added." label="Default import mode">
         <SegmentedControl
           label="Default import mode"
           onChange={(defaultMode) => context.updateImportDefaults({ defaultMode })}
@@ -887,7 +816,5 @@ export function getSettingsItemsForSection(sectionId: SettingsSection) {
 export function getSettingsItemsDataRequirements(
   items: readonly SettingsItem[],
 ): ReadonlySet<SettingsDeferredDataRequirement> {
-  return new Set(
-    items.flatMap((item) => [...(item.deferredData ?? [])]),
-  );
+  return new Set(items.flatMap((item) => [...(item.deferredData ?? [])]));
 }

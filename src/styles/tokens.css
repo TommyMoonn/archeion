@@ -1,7 +1,11 @@
 :root {
   color-scheme: dark;
   font-family:
-    Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Inter,
+    ui-sans-serif,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
     sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -39,8 +43,7 @@
   --surface-shell-hover: rgb(255 255 255 / 5.5%);
   --surface-shell-active: rgb(255 255 255 / 8%);
 
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia,
-    serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
   --radius-control: 8px;
   --radius-card: 16px;
   --radius-pill: 999px;

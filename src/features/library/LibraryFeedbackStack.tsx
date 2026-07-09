@@ -2,10 +2,7 @@ import { CheckCircle, Info, WarningCircle, X } from "@phosphor-icons/react";
 import { useEffect } from "react";
 
 import { IconButton } from "../../components/IconButton";
-import {
-  LIBRARY_FEEDBACK_AUTO_DISMISS_MS,
-  type LibraryFeedbackToken,
-} from "./libraryFeedback";
+import { LIBRARY_FEEDBACK_AUTO_DISMISS_MS, type LibraryFeedbackToken } from "./libraryFeedback";
 
 type LibraryFeedbackStackProps = {
   onDismiss: (id: string) => void;
@@ -24,10 +21,7 @@ function feedbackIcon(tone: LibraryFeedbackToken["tone"]) {
   return <Info aria-hidden="true" size={19} weight="regular" />;
 }
 
-export function LibraryFeedbackStack({
-  onDismiss,
-  tokens,
-}: LibraryFeedbackStackProps) {
+export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStackProps) {
   useEffect(() => {
     const timeoutIds = tokens
       .filter((token) => token.autoDismiss)
@@ -48,11 +42,7 @@ export function LibraryFeedbackStack({
   }
 
   return (
-    <div
-      aria-label="Library feedback"
-      className="library-feedback"
-      role="region"
-    >
+    <div aria-label="Library feedback" className="library-feedback" role="region">
       {tokens.map((token) => (
         <section
           aria-live={token.tone === "error" ? "assertive" : "polite"}

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type {
-  CoverCacheStatus,
-  EpubWritebackBackupStatus,
-} from "../../storage/LibraryStorage";
+import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
@@ -12,25 +9,16 @@ import {
   useAppPreferencesPersistenceStatus,
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import {
-  defaultAppPreferences,
-  type AppPreferences,
-} from "../../types/appSettings";
+import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
-import type {
-  ArchiveImportSettings,
-  ImportSettings,
-} from "../../types/settings";
+import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { useArchive } from "../archive/useArchive";
 import {
   createArchiveDestinationOptions,
   destinationValueFromFolderPath,
   destinationValueToFolderPath,
 } from "../filesystem/archiveImport";
-import type {
-  SettingsConfirmationKey,
-  SettingsConfirmationState,
-} from "./SettingsConfirmations";
+import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 
 const initialConfirmations: SettingsConfirmationState = {
@@ -70,8 +58,9 @@ export function useSettingsDialogController({
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [epubWritebackBackupStatus, setEpubWritebackBackupStatus] =
     useState<EpubWritebackBackupStatus | null>(null);
-  const [epubWritebackBackupStatusState, setEpubWritebackBackupStatusState] =
-    useState<"loading" | "loaded" | "unavailable">("loading");
+  const [epubWritebackBackupStatusState, setEpubWritebackBackupStatusState] = useState<
+    "loading" | "loaded" | "unavailable"
+  >("loading");
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
   const statusDismissTimerRef = useRef<number | null>(null);
   const archiveImportLoadedRef = useRef(false);
@@ -92,10 +81,7 @@ export function useSettingsDialogController({
     ...preferences.import,
     ...archiveImport,
   };
-  const destinationOptions = useMemo(
-    () => createArchiveDestinationOptions(folders),
-    [folders],
-  );
+  const destinationOptions = useMemo(() => createArchiveDestinationOptions(folders), [folders]);
   const importDestinationValue = destinationValueFromFolderPath(
     importSettings.defaultDestinationFolderPath,
   );
@@ -104,8 +90,7 @@ export function useSettingsDialogController({
   )
     ? importDestinationValue
     : destinationOptions[0]?.value;
-  const selectedArchivePath =
-    archive.status === "ready" ? archive.path : undefined;
+  const selectedArchivePath = archive.status === "ready" ? archive.path : undefined;
 
   const clearStatusDismissTimer = useCallback(() => {
     if (statusDismissTimerRef.current === null) return;
@@ -120,11 +105,7 @@ export function useSettingsDialogController({
   }, [clearStatusDismissTimer]);
 
   const setLocalStatus = useCallback(
-    (
-      message: string,
-      tone: SettingsStatusTone,
-      options?: { autoDismiss?: boolean },
-    ) => {
+    (message: string, tone: SettingsStatusTone, options?: { autoDismiss?: boolean }) => {
       statusRevisionRef.current += 1;
       const revision = statusRevisionRef.current;
       const autoDismiss = options?.autoDismiss ?? tone !== "error";
@@ -240,11 +221,7 @@ export function useSettingsDialogController({
   }, [loadFolders, storage, setErrorStatus]);
 
   useEffect(() => {
-    if (
-      !loadCoverCacheStatus ||
-      coverCacheLoadedRef.current ||
-      coverCacheLoadingRef.current
-    ) {
+    if (!loadCoverCacheStatus || coverCacheLoadedRef.current || coverCacheLoadingRef.current) {
       return;
     }
 
@@ -330,11 +307,7 @@ export function useSettingsDialogController({
       return true;
     } catch (error) {
       if (appPreferenceSaveRevisionRef.current === saveRevision) {
-        setErrorStatus(
-          error instanceof Error
-            ? error.message
-            : "App settings could not be saved.",
-        );
+        setErrorStatus(error instanceof Error ? error.message : "App settings could not be saved.");
       }
       return false;
     }
@@ -360,9 +333,7 @@ export function useSettingsDialogController({
     });
   }
 
-  async function updateArchiveImport(
-    changes: Partial<ArchiveImportSettings>,
-  ): Promise<void> {
+  async function updateArchiveImport(changes: Partial<ArchiveImportSettings>): Promise<void> {
     const next = { ...archiveImport, ...changes };
     clearLocalStatus();
     try {
@@ -460,8 +431,7 @@ export function useSettingsDialogController({
   async function resetGeneral() {
     await updateAppPreferences(
       {
-        confirmDestructiveFileActions:
-          defaultAppPreferences.confirmDestructiveFileActions,
+        confirmDestructiveFileActions: defaultAppPreferences.confirmDestructiveFileActions,
         restoreLastReader: defaultAppPreferences.restoreLastReader,
         startupBehavior: defaultAppPreferences.startupBehavior,
       },
@@ -576,6 +546,4 @@ export function useSettingsDialogController({
   };
 }
 
-export type SettingsDialogController = ReturnType<
-  typeof useSettingsDialogController
->;
+export type SettingsDialogController = ReturnType<typeof useSettingsDialogController>;

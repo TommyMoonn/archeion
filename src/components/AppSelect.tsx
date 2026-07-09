@@ -1,15 +1,5 @@
-import {
-  CaretDown,
-  Check,
-} from "@phosphor-icons/react";
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { CaretDown, Check } from "@phosphor-icons/react";
+import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 export type AppSelectOption<TValue extends string> = {
   disabled?: boolean;
@@ -60,9 +50,7 @@ export function AppSelect<TValue extends string>({
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
-  const [activeIndex, setActiveIndex] = useState(
-    selectedIndex >= 0 ? selectedIndex : 0,
-  );
+  const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : 0);
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? options[0],
     [options, value],
@@ -109,11 +97,7 @@ export function AppSelect<TValue extends string>({
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const direction = event.key === "ArrowDown" ? 1 : -1;
-      const nextIndex = getNextEnabledIndex(
-        options,
-        open ? activeIndex : selectedIndex,
-        direction,
-      );
+      const nextIndex = getNextEnabledIndex(options, open ? activeIndex : selectedIndex, direction);
 
       if (nextIndex >= 0) {
         setActiveIndex(nextIndex);
@@ -196,9 +180,7 @@ export function AppSelect<TValue extends string>({
               type="button"
             >
               <span>{option.label}</span>
-              {option.value === value ? (
-                <Check aria-hidden="true" size={14} weight="bold" />
-              ) : null}
+              {option.value === value ? <Check aria-hidden="true" size={14} weight="bold" /> : null}
             </button>
           ))}
         </div>

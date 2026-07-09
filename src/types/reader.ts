@@ -2,12 +2,7 @@ export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
 
-export type ReaderFontFamily =
-  | "serif"
-  | "sans"
-  | "system"
-  | "literata"
-  | "atkinson";
+export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
 
 export type ReaderSettings = {
   fontSize: number;
@@ -29,20 +24,13 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
 
 type ReaderSettingsInput = Partial<Record<keyof ReaderSettings, unknown>>;
 
-export function normalizeReaderSettings(
-  settings?: ReaderSettingsInput,
-): ReaderSettings {
+export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderSettings {
   return {
     fontSize: numberOrDefault(settings?.fontSize, defaultReaderSettings.fontSize),
     fontFamily: normalizeReaderFontFamily(settings?.fontFamily),
-    lineHeight: numberOrDefault(
-      settings?.lineHeight,
-      defaultReaderSettings.lineHeight,
-    ),
+    lineHeight: numberOrDefault(settings?.lineHeight, defaultReaderSettings.lineHeight),
     margin: numberOrDefault(settings?.margin, defaultReaderSettings.margin),
-    theme: isReaderTheme(settings?.theme)
-      ? settings.theme
-      : defaultReaderSettings.theme,
+    theme: isReaderTheme(settings?.theme) ? settings.theme : defaultReaderSettings.theme,
     progressPlacement: isReaderProgressPlacement(settings?.progressPlacement)
       ? settings.progressPlacement
       : defaultReaderSettings.progressPlacement,
@@ -71,8 +59,6 @@ function isReaderTheme(value: unknown): value is ReaderTheme {
   return value === "light" || value === "dark" || value === "sepia";
 }
 
-function isReaderProgressPlacement(
-  value: unknown,
-): value is ReaderProgressPlacement {
+function isReaderProgressPlacement(value: unknown): value is ReaderProgressPlacement {
   return value === "top" || value === "side";
 }

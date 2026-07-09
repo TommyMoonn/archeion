@@ -1,25 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import type { Book } from "../types/book";
-import type {
-  LibraryBookMetadata,
-  LibraryMetadata,
-  ProgressMetadata,
-} from "./metadataFiles";
+import type { LibraryBookMetadata, LibraryMetadata, ProgressMetadata } from "./metadataFiles";
 import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
 
 const timestamp = "2026-07-06T00:00:00.000Z";
 const previousTimestamp = "2026-07-01T00:00:00.000Z";
 
-function library(
-  books: Record<string, LibraryBookMetadata> = {},
-): LibraryMetadata {
+function library(books: Record<string, LibraryBookMetadata> = {}): LibraryMetadata {
   return { version: 1, books };
 }
 
-function progress(
-  progress: ProgressMetadata["progress"] = {},
-): ProgressMetadata {
+function progress(progress: ProgressMetadata["progress"] = {}): ProgressMetadata {
   return { version: 1, progress };
 }
 
@@ -243,12 +235,8 @@ describe("reconcileLibraryState", () => {
     });
     expect(result.books[0]).not.toHaveProperty("displayTitle");
     expect(result.books[0]).not.toHaveProperty("displayAuthor");
-    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty(
-      "displayTitle",
-    );
-    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty(
-      "displayAuthor",
-    );
+    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty("displayTitle");
+    expect(result.libraryMetadata.books["book-1"]).not.toHaveProperty("displayAuthor");
     expect(result.libraryChanged).toBe(true);
   });
 
@@ -291,9 +279,7 @@ describe("reconcileLibraryState", () => {
       relativePath: "Moved/Volume 01.epub",
       folderId: "folder:Moved",
     });
-    expect(result.libraryMetadata.books["book-1"].relativePath).toBe(
-      "Moved/Volume 01.epub",
-    );
+    expect(result.libraryMetadata.books["book-1"].relativePath).toBe("Moved/Volume 01.epub");
   });
 
   it("keeps ambiguous duplicate identifier matches separate", () => {
@@ -330,10 +316,7 @@ describe("reconcileLibraryState", () => {
       timestamp,
     });
 
-    expect(result.books.map((book) => book.id)).toEqual([
-      "book-new-a",
-      "book-new-b",
-    ]);
+    expect(result.books.map((book) => book.id)).toEqual(["book-new-a", "book-new-b"]);
     expect(result.missingBooks.has("book-1")).toBe(true);
   });
 

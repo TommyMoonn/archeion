@@ -52,11 +52,7 @@ export function SettingsSearchResults({
   const groupedResults = useMemo(() => groupSearchResults(query), [query]);
   const resultCount = groupedResults.reduce(
     (count, section) =>
-      count +
-      section.groups.reduce(
-        (groupCount, group) => groupCount + group.items.length,
-        0,
-      ),
+      count + section.groups.reduce((groupCount, group) => groupCount + group.items.length, 0),
     0,
   );
 
@@ -110,9 +106,7 @@ export function SettingsSearchResults({
           ))}
         </div>
       ) : (
-        <p className="settings-search-results__empty">
-          No settings found for “{query.trim()}”.
-        </p>
+        <p className="settings-search-results__empty">No settings found for “{query.trim()}”.</p>
       )}
     </section>
   );

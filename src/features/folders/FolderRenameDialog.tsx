@@ -7,11 +7,7 @@ type FolderRenameDialogProps = {
   onRename: (name: string) => Promise<void>;
 };
 
-export function FolderRenameDialog({
-  folder,
-  onClose,
-  onRename,
-}: FolderRenameDialogProps) {
+export function FolderRenameDialog({ folder, onClose, onRename }: FolderRenameDialogProps) {
   return (
     <FolderNameDialog
       initialName={folder.name}

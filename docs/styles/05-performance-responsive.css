@@ -2,170 +2,172 @@
    Keep stylesheet order from index.html. Later files intentionally override earlier layers. */
 
 /* Refinement patch: readability, terminal fit, and performance containment */
-      :root {
-        --text: #e0dde5;
-        --muted: #b4afb9;
-        --muted-soft: #8d8993;
-        --line: #38383e;
-      }
+:root {
+  --text: #e0dde5;
+  --muted: #b4afb9;
+  --muted-soft: #8d8993;
+  --line: #38383e;
+}
 
-      body {
-        line-height: 1.5;
-      }
+body {
+  line-height: 1.5;
+}
 
-      p,
-      .feature-list li,
-      .compact-list li,
-      .quick-signals span,
-      .section-points span,
-      .launch-pills span,
-      .file-row,
-      .mock-nav-item,
-      .principle p {
-        color: var(--muted);
-      }
+p,
+.feature-list li,
+.compact-list li,
+.quick-signals span,
+.section-points span,
+.launch-pills span,
+.file-row,
+.mock-nav-item,
+.principle p {
+  color: var(--muted);
+}
 
-      .hero-lede,
-      .section-header p,
-      .feature-card p,
-      .principle p,
-      .quick-signals span {
-        line-height: 1.74;
-      }
+.hero-lede,
+.section-header p,
+.feature-card p,
+.principle p,
+.quick-signals span {
+  line-height: 1.74;
+}
 
-      .feature-card,
-      .showcase-panel,
-      .principle,
-      .launch-band,
-      .archive-core-card,
-      .terminal-card {
-        contain: layout paint;
-      }
+.feature-card,
+.showcase-panel,
+.principle,
+.launch-band,
+.archive-core-card,
+.terminal-card {
+  contain: layout paint;
+}
 
-      .page-section {
-        content-visibility: auto;
-        contain-intrinsic-size: 820px;
-      }
+.page-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 820px;
+}
 
-      .hero,
-      .get-started-section,
-      footer.page-section {
-        content-visibility: visible;
-      }
+.hero,
+.get-started-section,
+footer.page-section {
+  content-visibility: visible;
+}
 
-      .interactive-glow::before,
-      .alive-section::after,
-      main::before,
-      .accretion,
-      .singularity-flare,
-      .shockwave,
-      .particle-field,
-      .orbital,
-      .file-orbit,
-      .launch-band::before,
-      .launch-band::after {
-        will-change: transform, opacity;
-      }
+.interactive-glow::before,
+.alive-section::after,
+main::before,
+.accretion,
+.singularity-flare,
+.shockwave,
+.particle-field,
+.orbital,
+.file-orbit,
+.launch-band::before,
+.launch-band::after {
+  will-change: transform, opacity;
+}
 
-      .terminal-card {
-        min-width: 0;
-      }
+.terminal-card {
+  min-width: 0;
+}
 
-      .terminal-stream {
-        overflow-x: hidden;
-        padding: 24px 20px 22px;
-      }
+.terminal-stream {
+  overflow-x: hidden;
+  padding: 24px 20px 22px;
+}
 
-      .terminal-line {
-        min-width: 0;
-        align-items: center;
-        white-space: nowrap;
-        font-size: clamp(10px, 0.95vw, 12px);
-        line-height: 1.4;
-      }
+.terminal-line {
+  min-width: 0;
+  align-items: center;
+  white-space: nowrap;
+  font-size: clamp(10px, 0.95vw, 12px);
+  line-height: 1.4;
+}
 
-      .terminal-line .prompt {
-        flex: 0 0 auto;
-        padding-top: 0;
-      }
+.terminal-line .prompt {
+  flex: 0 0 auto;
+  padding-top: 0;
+}
 
-      .terminal-line code {
-        min-width: 0;
-        max-width: none;
-        overflow-wrap: normal;
-        word-break: normal;
-        white-space: nowrap;
-      }
+.terminal-line code {
+  min-width: 0;
+  max-width: none;
+  overflow-wrap: normal;
+  word-break: normal;
+  white-space: nowrap;
+}
 
-      .type-line code {
-        flex: 0 1 auto;
-        max-width: 0;
-      }
+.type-line code {
+  flex: 0 1 auto;
+  max-width: 0;
+}
 
-      @keyframes typeClone {
-        to { max-width: 54ch; }
-      }
+@keyframes typeClone {
+  to {
+    max-width: 54ch;
+  }
+}
 
-      @media (max-width: 860px) {
-        .site-nav {
-          backdrop-filter: blur(14px) saturate(118%);
-        }
+@media (max-width: 860px) {
+  .site-nav {
+    backdrop-filter: blur(14px) saturate(118%);
+  }
 
-        body::after,
-        main::before,
-        .alive-section::after {
-          animation: none;
-        }
+  body::after,
+  main::before,
+  .alive-section::after {
+    animation: none;
+  }
 
-        .blackhole-shell::before,
-        .accretion {
-          filter: none;
-        }
-      }
+  .blackhole-shell::before,
+  .accretion {
+    filter: none;
+  }
+}
 
-      @media (max-width: 720px) {
-        .terminal-stream {
-          overflow-x: auto;
-          padding: 20px 16px 18px;
-          scrollbar-width: none;
-        }
+@media (max-width: 720px) {
+  .terminal-stream {
+    overflow-x: auto;
+    padding: 20px 16px 18px;
+    scrollbar-width: none;
+  }
 
-        .terminal-stream::-webkit-scrollbar {
-          display: none;
-        }
+  .terminal-stream::-webkit-scrollbar {
+    display: none;
+  }
 
-        .terminal-line {
-          font-size: 10px;
-          white-space: nowrap;
-        }
-      }
+  .terminal-line {
+    font-size: 10px;
+    white-space: nowrap;
+  }
+}
 
-      @media (prefers-reduced-motion: reduce) {
-        main::before,
-        .alive-section::after,
-        .file-orbit,
-        .cosmic-frame::before,
-        .launch-band::before,
-        .launch-band::after,
-        .type-line code,
-        .type-line i,
-        .delay-one,
-        .delay-two,
-        .delay-three {
-          animation: none !important;
-        }
+@media (prefers-reduced-motion: reduce) {
+  main::before,
+  .alive-section::after,
+  .file-orbit,
+  .cosmic-frame::before,
+  .launch-band::before,
+  .launch-band::after,
+  .type-line code,
+  .type-line i,
+  .delay-one,
+  .delay-two,
+  .delay-three {
+    animation: none !important;
+  }
 
-        .type-line code {
-          max-width: none;
-        }
+  .type-line code {
+    max-width: none;
+  }
 
-        .delay-one,
-        .delay-two,
-        .delay-three {
-          opacity: 0.98;
-          transform: none;
-        }
-      }
+  .delay-one,
+  .delay-two,
+  .delay-three {
+    opacity: 0.98;
+    transform: none;
+  }
+}
 
 /* Wow-factor pass: responsive and reduced-motion guards. */
 @media (max-width: 1040px) {
@@ -340,9 +342,7 @@ html.is-anchor-scrolling .hero-stage::after {
 }
 
 html.is-anchor-scrolling .blackhole-shell {
-  filter:
-    drop-shadow(0 0 20px rgb(143 193 227 / 10%))
-    drop-shadow(0 0 42px rgb(183 168 217 / 7%));
+  filter: drop-shadow(0 0 20px rgb(143 193 227 / 10%)) drop-shadow(0 0 42px rgb(183 168 217 / 7%));
 }
 
 html.is-anchor-scrolling .interactive-glow,
@@ -413,9 +413,7 @@ main::before,
 
 .blackhole-shell {
   width: min(610px, 86vw);
-  filter:
-    drop-shadow(0 0 24px rgb(143 193 227 / 14%))
-    drop-shadow(0 0 52px rgb(183 168 217 / 8%));
+  filter: drop-shadow(0 0 24px rgb(143 193 227 / 14%)) drop-shadow(0 0 52px rgb(183 168 217 / 8%));
 }
 
 .blackhole-shell::before {
@@ -424,9 +422,7 @@ main::before,
 }
 
 .accretion {
-  filter:
-    blur(0.6px)
-    drop-shadow(0 0 12px rgb(143 193 227 / 14%));
+  filter: blur(0.6px) drop-shadow(0 0 12px rgb(143 193 227 / 14%));
 }
 
 .singularity-flare {
@@ -477,9 +473,7 @@ html.performance-lite .hero-stage {
 
 html.performance-lite .blackhole-shell {
   width: min(540px, 86vw);
-  filter:
-    drop-shadow(0 0 16px rgb(143 193 227 / 10%))
-    drop-shadow(0 0 34px rgb(183 168 217 / 6%));
+  filter: drop-shadow(0 0 16px rgb(143 193 227 / 10%)) drop-shadow(0 0 34px rgb(183 168 217 / 6%));
 }
 
 html.performance-lite .blackhole-shell::before {
@@ -866,7 +860,12 @@ html:not(.cinematic-enabled) .blackhole-shell::before {
   display: block;
   border-radius: 50%;
   background:
-    radial-gradient(circle at center, transparent 0 30%, rgb(143 193 227 / 12%) 31% 34%, transparent 35%),
+    radial-gradient(
+      circle at center,
+      transparent 0 30%,
+      rgb(143 193 227 / 12%) 31% 34%,
+      transparent 35%
+    ),
     radial-gradient(ellipse at center, rgb(240 200 120 / 12%) 0 24%, transparent 48%);
   opacity: 0.75;
   mix-blend-mode: normal;
@@ -1032,9 +1031,7 @@ html.cinematic-enabled .site-nav {
 }
 
 html.cinematic-enabled .blackhole-shell {
-  filter:
-    drop-shadow(0 0 18px rgb(143 193 227 / 12%))
-    drop-shadow(0 0 36px rgb(183 168 217 / 7%));
+  filter: drop-shadow(0 0 18px rgb(143 193 227 / 12%)) drop-shadow(0 0 36px rgb(183 168 217 / 7%));
 }
 
 html.cinematic-enabled .blackhole-shell::before {

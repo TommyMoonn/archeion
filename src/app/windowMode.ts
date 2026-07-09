@@ -12,8 +12,7 @@ type ResolveWindowModeOptions = {
 };
 
 function queryWindowMode(search: string): AppWindowMode {
-  return new URLSearchParams(search).get("window") ===
-    ARCHIVE_MANAGER_WINDOW_LABEL
+  return new URLSearchParams(search).get("window") === ARCHIVE_MANAGER_WINDOW_LABEL
     ? ARCHIVE_MANAGER_WINDOW_LABEL
     : "main";
 }
@@ -53,9 +52,7 @@ export function resolveWindowMode({
       : (currentWindowLabel ?? null);
 
   if (isDesktop && windowLabel) {
-    return windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL
-      ? ARCHIVE_MANAGER_WINDOW_LABEL
-      : "main";
+    return windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL ? ARCHIVE_MANAGER_WINDOW_LABEL : "main";
   }
 
   return queryWindowMode(search);

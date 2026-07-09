@@ -11,17 +11,9 @@ import {
   type SearchQuery,
   type SearchTextVariants,
 } from "../../utils/searchText";
-export {
-  bookAuthor,
-  bookSourceAuthor,
-  bookSourceTitle,
-  bookTitle,
-} from "../../utils/bookDisplay";
+export { bookAuthor, bookSourceAuthor, bookSourceTitle, bookTitle } from "../../utils/bookDisplay";
 
-export {
-  DEFAULT_LIBRARY_SORT,
-  normalizeLibrarySort,
-} from "../../types/library";
+export { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../../types/library";
 export type { LibrarySort } from "../../types/library";
 
 export type LibraryLocation =
@@ -58,8 +50,8 @@ function folderPathName(folderPath: string | undefined): string {
 
 function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
-  return [book.folderPath, folder?.name, folder?.relativePath].filter(
-    (value): value is string => Boolean(value),
+  return [book.folderPath, folder?.name, folder?.relativePath].filter((value): value is string =>
+    Boolean(value),
   );
 }
 
@@ -76,10 +68,7 @@ function cachePart(value: string | number | null | undefined): string {
   return String(value ?? "");
 }
 
-function bookSearchIndexCacheKey(
-  book: Book,
-  folder: Folder | undefined,
-): string {
+function bookSearchIndexCacheKey(book: Book, folder: Folder | undefined): string {
   return [
     book.id,
     book.fileName,
@@ -172,22 +161,16 @@ function searchableBookFields(
   entry: LibrarySearchIndexEntry,
   query: SearchQuery,
 ): SearchTextVariants[] {
-  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).map(
-    ({ field }) => field,
-  );
+  return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).map(({ field }) => field);
 }
 
-function scoreBookSearchEntry(
-  entry: LibrarySearchIndexEntry,
-  query: SearchQuery,
-): number {
+function scoreBookSearchEntry(entry: LibrarySearchIndexEntry, query: SearchQuery): number {
   if (isEmptySearchQuery(query)) {
     return 0;
   }
 
   return weightedBookFields(entry, shouldSearchLowValueMetadata(query)).reduce(
-    (score, { field, weight }) =>
-      score + scoreSearchField(field, query) * weight,
+    (score, { field, weight }) => score + scoreSearchField(field, query) * weight,
     0,
   );
 }
@@ -210,13 +193,9 @@ function createLibrarySearchIndexEntry(
       fileName: createSearchTextVariants(book.fileName),
       folderName: createSearchTextVariants(folderName),
       relativePath: createSearchTextVariants(
-        [book.relativePath, book.folderPath, ...folderValues]
-          .filter(Boolean)
-          .join(" "),
+        [book.relativePath, book.folderPath, ...folderValues].filter(Boolean).join(" "),
       ),
-      sourceIdentifier: createSearchTextVariants(
-        book.sourceMetadata?.identifier,
-      ),
+      sourceIdentifier: createSearchTextVariants(book.sourceMetadata?.identifier),
     },
   };
 }
@@ -272,20 +251,12 @@ function rankBookSearchIndex(
       indexOrder,
       score: scoreBookSearchEntry(entry, query),
     }))
-    .filter(({ entry }) =>
-      searchFieldsMatchQuery(searchableBookFields(entry, query), query),
-    )
-    .sort(
-      (left, right) =>
-        right.score - left.score || left.indexOrder - right.indexOrder,
-    )
+    .filter(({ entry }) => searchFieldsMatchQuery(searchableBookFields(entry, query), query))
+    .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
     .map(({ entry }) => entry);
 }
 
-export function filterBookSearchIndex(
-  index: LibrarySearchIndexEntry[],
-  query: string,
-): Book[] {
+export function filterBookSearchIndex(index: LibrarySearchIndexEntry[], query: string): Book[] {
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
@@ -295,18 +266,11 @@ export function filterBookSearchIndex(
   return rankBookSearchIndex(index, searchQuery).map((entry) => entry.book);
 }
 
-export function filterBooks(
-  books: Book[],
-  query: string,
-  folders: Folder[] = [],
-): Book[] {
+export function filterBooks(books: Book[], query: string, folders: Folder[] = []): Book[] {
   return filterBookSearchIndex(createLibrarySearchIndex(books, folders), query);
 }
 
-export function filterBooksByLocation(
-  books: Book[],
-  location: LibraryLocation,
-): Book[] {
+export function filterBooksByLocation(books: Book[], location: LibraryLocation): Book[] {
   switch (location.type) {
     case "library":
       return books;
@@ -314,8 +278,7 @@ export function filterBooksByLocation(
       return books.filter((book) => book.isFavorite);
     case "continue":
       return books.filter(
-        (book) =>
-          (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5,
+        (book) => (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5,
       );
     case "folders":
       return [];
@@ -328,11 +291,7 @@ function stablePath(book: Book): string {
   return book.relativePath?.trim() || book.fileName;
 }
 
-function compareOptionalTextLast(
-  collator: Intl.Collator,
-  left: string,
-  right: string,
-): number {
+function compareOptionalTextLast(collator: Intl.Collator, left: string, right: string): number {
   if (!left && right) {
     return 1;
   }
@@ -357,11 +316,7 @@ function compareRecentlyOpened(left: Book, right: Book): number {
   return rightOpened.localeCompare(leftOpened);
 }
 
-function compareStablePath(
-  collator: Intl.Collator,
-  left: Book,
-  right: Book,
-): number {
+function compareStablePath(collator: Intl.Collator, left: Book, right: Book): number {
   return collator.compare(stablePath(left), stablePath(right));
 }
 
@@ -375,21 +330,13 @@ function compareBooksBySort(
     case "title":
       return (
         collator.compare(bookTitle(left), bookTitle(right)) ||
-        compareOptionalTextLast(
-          collator,
-          bookAuthor(left),
-          bookAuthor(right),
-        ) ||
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
         compareRecentlyOpened(left, right) ||
         compareStablePath(collator, left, right)
       );
     case "author":
       return (
-        compareOptionalTextLast(
-          collator,
-          bookAuthor(left),
-          bookAuthor(right),
-        ) ||
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
         collator.compare(bookTitle(left), bookTitle(right)) ||
         compareRecentlyOpened(left, right) ||
         compareStablePath(collator, left, right)
@@ -398,11 +345,7 @@ function compareBooksBySort(
       return (
         compareRecentlyOpened(left, right) ||
         collator.compare(bookTitle(left), bookTitle(right)) ||
-        compareOptionalTextLast(
-          collator,
-          bookAuthor(left),
-          bookAuthor(right),
-        ) ||
+        compareOptionalTextLast(collator, bookAuthor(left), bookAuthor(right)) ||
         compareStablePath(collator, left, right)
       );
   }
@@ -429,9 +372,7 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
 }
 
 function libraryLocationCacheKey(location: LibraryLocation): string {
-  return location.type === "folder"
-    ? `${location.type}:${location.folderId}`
-    : location.type;
+  return location.type === "folder" ? `${location.type}:${location.folderId}` : location.type;
 }
 
 function searchFieldsCacheKey(entry: LibrarySearchIndexEntry): string {
@@ -493,9 +434,7 @@ function visibleBooksCacheKey(
     query,
     normalizeLibrarySort(sort),
     libraryLocationCacheKey(location),
-    ...index.map((entry) =>
-      visibleBookCacheKey(entry, sort, includeSearchFields),
-    ),
+    ...index.map((entry) => visibleBookCacheKey(entry, sort, includeSearchFields)),
   ].join("\u0003");
 }
 
@@ -511,8 +450,7 @@ function filterSearchIndexByLocation(
     case "continue":
       return index.filter(
         (entry) =>
-          (entry.book.progressPercent ?? 0) > 0 &&
-          (entry.book.progressPercent ?? 0) < 99.5,
+          (entry.book.progressPercent ?? 0) > 0 && (entry.book.progressPercent ?? 0) < 99.5,
       );
     case "folders":
       return [];
@@ -547,20 +485,12 @@ export function getVisibleBooksFromSearchIndex(
       score: scoreBookSearchEntry(entry, searchQuery),
     }))
     .filter(({ entry }) =>
-      searchFieldsMatchQuery(
-        searchableBookFields(entry, searchQuery),
-        searchQuery,
-      ),
+      searchFieldsMatchQuery(searchableBookFields(entry, searchQuery), searchQuery),
     )
     .sort(
       (left, right) =>
         right.score - left.score ||
-        compareBooksBySort(
-          collator,
-          left.entry.book,
-          right.entry.book,
-          effectiveSort,
-        ) ||
+        compareBooksBySort(collator, left.entry.book, right.entry.book, effectiveSort) ||
         compareStablePath(collator, left.entry.book, right.entry.book) ||
         left.indexOrder - right.indexOrder,
     )

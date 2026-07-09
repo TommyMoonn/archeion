@@ -57,16 +57,8 @@ export function FolderNameDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            disabled={isSaving}
-            form={formId}
-            type="submit"
-          >
-            {isSaving
-              ? "Saving"
-              : mode === "create"
-                ? "Create"
-                : "Save"}
+          <Button disabled={isSaving} form={formId} type="submit">
+            {isSaving ? "Saving" : mode === "create" ? "Create" : "Save"}
           </Button>
         </>
       }

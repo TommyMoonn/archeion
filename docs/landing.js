@@ -47,7 +47,10 @@
     const anchorPadding = Math.min(6, Math.max(0, window.innerHeight * 0.006));
     const readerNudge = target.id === "experience" ? 18 : 0;
 
-    return Math.max(0, Math.round(window.scrollY + rect.top - navHeight - anchorPadding + readerNudge));
+    return Math.max(
+      0,
+      Math.round(window.scrollY + rect.top - navHeight - anchorPadding + readerNudge),
+    );
   };
 
   const startAnchorScrollMode = (destinationTop) => {
@@ -131,7 +134,9 @@
     sectionTargets.forEach((section) => navObserver.observe(section));
   }
 
-  const sectionNodes = Array.from(document.querySelectorAll(".hero, .alive-section, .get-started-section"));
+  const sectionNodes = Array.from(
+    document.querySelectorAll(".hero, .alive-section, .get-started-section"),
+  );
   if (!usesCinematicMode) {
     sectionNodes.forEach((section) => section.classList.add("is-visible-section"));
   } else {

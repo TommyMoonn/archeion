@@ -5,9 +5,7 @@ type ArchivesSettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function ArchivesSettingsSection({
-  context,
-}: ArchivesSettingsSectionProps) {
+export function ArchivesSettingsSection({ context }: ArchivesSettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

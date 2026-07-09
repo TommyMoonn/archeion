@@ -64,10 +64,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses exact writeback EPUB watcher events during the settled suppression window", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    suppressWritebackWatcherPath(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -83,10 +80,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses parent-directory watcher events while writeback is in flight", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -103,10 +97,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses exact writeback EPUB watcher events during the TTL tail", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
@@ -123,10 +114,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses parent-directory watcher events during the TTL tail", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
@@ -143,10 +131,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses archive-root directory watcher events for active root-level writeback", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -163,10 +148,7 @@ describe("ArchiveWatcherController", () => {
 
   it("suppresses archive-root directory watcher events during the TTL tail for root-level writeback", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
@@ -183,10 +165,7 @@ describe("ArchiveWatcherController", () => {
 
   it("does not suppress archive-root directory watcher events for nested-only writeback", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    const token = beginWritebackWatcherSuppression(
-      "C:/Archive",
-      "Books/Volume_01.epub",
-    );
+    const token = beginWritebackWatcherSuppression("C:/Archive", "Books/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -235,10 +214,7 @@ describe("ArchiveWatcherController", () => {
 
   it("does not suppress watcher rescans for different EPUB paths", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    suppressWritebackWatcherPath(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -254,10 +230,7 @@ describe("ArchiveWatcherController", () => {
 
   it("allows exact watcher rescans after writeback suppression expires", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    suppressWritebackWatcherPath(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
@@ -274,10 +247,7 @@ describe("ArchiveWatcherController", () => {
 
   it("allows parent-directory watcher rescans after writeback suppression expires", async () => {
     const rescan = vi.fn().mockResolvedValue(undefined);
-    suppressWritebackWatcherPath(
-      "C:/Archive",
-      "Author/Series/Volume_01.epub",
-    );
+    suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,

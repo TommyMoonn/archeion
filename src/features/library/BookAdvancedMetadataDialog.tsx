@@ -93,14 +93,9 @@ type MetadataChange = {
 };
 
 type MetadataStatus =
-  | { tone: "success"; message: string }
-  | { tone: "error"; message: string }
-  | null;
+  { tone: "success"; message: string } | { tone: "error"; message: string } | null;
 
-type MetadataFieldUpdate = (
-  field: keyof MetadataFormState,
-  value: string,
-) => void;
+type MetadataFieldUpdate = (field: keyof MetadataFormState, value: string) => void;
 
 function cleanValue(value: string): string | undefined {
   const cleaned = value.replace(/\s+/g, " ").trim();
@@ -120,9 +115,7 @@ function subjectsToFormValue(subjects: string[] | undefined): string {
   return subjects?.join("\n") ?? "";
 }
 
-function formStateFromMetadata(
-  metadata: EpubSourceMetadata | undefined,
-): MetadataFormState {
+function formStateFromMetadata(metadata: EpubSourceMetadata | undefined): MetadataFormState {
   return {
     title: metadata?.title ?? "",
     creator: metadata?.creator ?? "",
@@ -150,10 +143,7 @@ function metadataFromForm(state: MetadataFormState): EpubMetadataWritebackInput 
   };
 }
 
-function metadataFieldValue(
-  metadata: EpubSourceMetadata,
-  field: EditableField,
-): string {
+function metadataFieldValue(metadata: EpubSourceMetadata, field: EditableField): string {
   if (field === "subjects") {
     return metadata.subjects?.join("\n") ?? "";
   }
@@ -161,9 +151,7 @@ function metadataFieldValue(
   return metadata[field] ?? "";
 }
 
-function normalizedSourceMetadata(
-  metadata: EpubSourceMetadata | undefined,
-): EpubSourceMetadata {
+function normalizedSourceMetadata(metadata: EpubSourceMetadata | undefined): EpubSourceMetadata {
   const form = formStateFromMetadata(metadata);
   return {
     ...metadataFromForm(form),
@@ -178,9 +166,7 @@ function changedFields(
   return EDITABLE_FIELDS.flatMap(([field, label]) => {
     const currentValue = metadataFieldValue(current, field);
     const nextValue = metadataFieldValue(next, field);
-    return currentValue === nextValue
-      ? []
-      : [{ field, label }];
+    return currentValue === nextValue ? [] : [{ field, label }];
   });
 }
 
@@ -348,11 +334,7 @@ function MetadataWritebackStatus({
   return (
     <>
       {isFileMissing ? (
-        <p
-          className="metadata-writeback__status"
-          data-tone="error"
-          role="alert"
-        >
+        <p className="metadata-writeback__status" data-tone="error" role="alert">
           The EPUB file is missing. Metadata writeback is unavailable.
         </p>
       ) : null}
@@ -450,10 +432,7 @@ export function BookAdvancedMetadataDialog({
         </div>
 
         <PendingChangesSummary changes={changes} />
-        <MetadataWritebackStatus
-          isFileMissing={book.isFileMissing}
-          status={status}
-        />
+        <MetadataWritebackStatus isFileMissing={book.isFileMissing} status={status} />
       </div>
     </Dialog>
   );

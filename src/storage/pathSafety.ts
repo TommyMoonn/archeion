@@ -1,10 +1,5 @@
 export type FileOperationStatus =
-  | "success"
-  | "skipped"
-  | "conflict"
-  | "denied"
-  | "missingSource"
-  | "failed";
+  "success" | "skipped" | "conflict" | "denied" | "missingSource" | "failed";
 
 export type ArchiveImportConflictAction = "keepBoth" | "skip" | "replace";
 
@@ -74,10 +69,7 @@ export function getArchiveParentPath(relativePath: string): string {
 }
 
 export function isReservedArchivePath(relativePath: string): boolean {
-  const firstPart = relativePath
-    .replaceAll("\\", "/")
-    .split("/")
-    .filter(Boolean)[0];
+  const firstPart = relativePath.replaceAll("\\", "/").split("/").filter(Boolean)[0];
   return firstPart?.toLowerCase() === RESERVED_METADATA_DIRECTORY;
 }
 
@@ -90,9 +82,7 @@ export function validateArchiveItemName(name: string): string {
     throw new Error("Names cannot use path traversal segments.");
   }
   if (/[\\/:*?"<>|]/.test(trimmed)) {
-    throw new Error(
-      "Names cannot contain path separators or reserved characters.",
-    );
+    throw new Error("Names cannot contain path separators or reserved characters.");
   }
   if (/[ .]$/.test(trimmed)) {
     throw new Error("Names cannot end with a space or period.");
@@ -119,9 +109,7 @@ export function hasDestinationConflict(
   existingRelativePaths: Iterable<string>,
   destinationRelativePath: string,
 ): boolean {
-  const destination = normalizeArchiveRelativePath(
-    destinationRelativePath,
-  ).toLowerCase();
+  const destination = normalizeArchiveRelativePath(destinationRelativePath).toLowerCase();
   for (const existing of existingRelativePaths) {
     if (normalizeArchiveRelativePath(existing).toLowerCase() === destination) {
       return true;

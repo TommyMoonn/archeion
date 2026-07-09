@@ -53,9 +53,7 @@ type LibraryDerivedState = {
   visibleBooks: Book[];
 };
 
-function cachePart(
-  value: string | number | boolean | null | undefined,
-): string {
+function cachePart(value: string | number | boolean | null | undefined): string {
   return String(value ?? "");
 }
 
@@ -72,15 +70,11 @@ function getCachedDerivedValue<T>(
 }
 
 function createFolderCountSignature(books: Book[]): string {
-  return books
-    .map((book) => [book.id, book.folderId].map(cachePart).join(":"))
-    .join("\u0001");
+  return books.map((book) => [book.id, book.folderId].map(cachePart).join(":")).join("\u0001");
 }
 
 function createFavoriteCountSignature(books: Book[]): string {
-  return books
-    .map((book) => [book.id, book.isFavorite].map(cachePart).join(":"))
-    .join("\u0001");
+  return books.map((book) => [book.id, book.isFavorite].map(cachePart).join(":")).join("\u0001");
 }
 
 function createContinueBooksSignature(books: Book[]): string {
@@ -127,10 +121,7 @@ export function countFavoriteBooks(books: Book[]): number {
 
 export function getContinueReadingBooks(books: Book[]): Book[] {
   return sortBooks(
-    books.filter(
-      (book) =>
-        (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5,
-    ),
+    books.filter((book) => (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5),
     "recently-opened",
   );
 }
@@ -154,9 +145,9 @@ export function useLibraryDerivedState({
   const continueBooksCacheRef = useRef<DerivedValueCache<Book[]>>({
     current: null,
   });
-  const bookCountsByFolderCacheRef = useRef<
-    DerivedValueCache<Map<string, number>>
-  >({ current: null });
+  const bookCountsByFolderCacheRef = useRef<DerivedValueCache<Map<string, number>>>({
+    current: null,
+  });
   const favoriteCount = getCachedDerivedValue(
     favoriteCountCacheRef.current,
     createFavoriteCountSignature(currentBooks),
@@ -175,18 +166,11 @@ export function useLibraryDerivedState({
   const searchIndex = useMemo(
     () =>
       measurePerformance("archeion:create-library-search-index", () =>
-        createCachedLibrarySearchIndex(
-          currentBooks,
-          currentFolders,
-          searchIndexCache,
-        ),
+        createCachedLibrarySearchIndex(currentBooks, currentFolders, searchIndexCache),
       ),
     [currentBooks, currentFolders, searchIndexCache],
   );
-  const effectiveSort = useMemo(
-    () => getEffectiveLibrarySort(location, sort),
-    [location, sort],
-  );
+  const effectiveSort = useMemo(() => getEffectiveLibrarySort(location, sort), [location, sort]);
   const visibleBooks = useMemo(
     () =>
       measurePerformance("archeion:filter-and-sort-library", () =>

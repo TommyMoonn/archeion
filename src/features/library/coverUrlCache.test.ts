@@ -13,12 +13,8 @@ describe("coverUrlCache", () => {
   });
 
   it("shares one object URL and revokes it after the final consumer", async () => {
-    const createObjectUrl = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValue("blob:shared-cover");
-    const revokeObjectUrl = vi
-      .spyOn(URL, "revokeObjectURL")
-      .mockImplementation(() => undefined);
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:shared-cover");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const load = vi.fn().mockResolvedValue(new Blob(["cover"]));
 
     const first = acquireCoverUrl("book-1:fingerprint", load);
@@ -73,9 +69,7 @@ describe("coverUrlCache", () => {
   });
 
   it("skips queued cover loads after all consumers release them", async () => {
-    const createObjectUrl = vi
-      .spyOn(URL, "createObjectURL")
-      .mockReturnValue("blob:queued-cover");
+    const createObjectUrl = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:queued-cover");
     vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const resolvers: Array<(blob: Blob | undefined) => void> = [];
     const loaders = Array.from({ length: 5 }, () =>
@@ -92,9 +86,7 @@ describe("coverUrlCache", () => {
     );
 
     await Promise.resolve();
-    expect(
-      loaders.slice(0, 4).every((load) => load.mock.calls.length === 1),
-    ).toBe(true);
+    expect(loaders.slice(0, 4).every((load) => load.mock.calls.length === 1)).toBe(true);
     expect(loaders[4]).not.toHaveBeenCalled();
 
     acquired[4].release();
@@ -135,9 +127,7 @@ describe("coverUrlCache", () => {
     const cancelled = acquireCoverUrl("reacquired-book:fingerprint", cancelledLoad);
 
     await Promise.resolve();
-    expect(activeLoaders.every((load) => load.mock.calls.length === 1)).toBe(
-      true,
-    );
+    expect(activeLoaders.every((load) => load.mock.calls.length === 1)).toBe(true);
     expect(cancelledLoad).not.toHaveBeenCalled();
 
     cancelled.release();

@@ -18,10 +18,7 @@ const coverLoadQueue: CoverLoadTask[] = [];
 let activeCoverLoads = 0;
 
 function drainCoverLoadQueue(): void {
-  while (
-    activeCoverLoads < MAX_CONCURRENT_COVER_LOADS &&
-    coverLoadQueue.length > 0
-  ) {
+  while (activeCoverLoads < MAX_CONCURRENT_COVER_LOADS && coverLoadQueue.length > 0) {
     const task = coverLoadQueue.shift();
     if (!task) return;
 
@@ -71,11 +68,7 @@ export function acquireCoverUrl(
       load,
       () => nextEntry.references > 0 && coverUrls.get(key) === nextEntry,
     ).then((blob) => {
-      if (
-        !blob ||
-        nextEntry.references === 0 ||
-        coverUrls.get(key) !== nextEntry
-      ) {
+      if (!blob || nextEntry.references === 0 || coverUrls.get(key) !== nextEntry) {
         if (nextEntry.references === 0 && coverUrls.get(key) === nextEntry) {
           coverUrls.delete(key);
         }

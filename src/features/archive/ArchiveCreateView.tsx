@@ -39,9 +39,7 @@ export function ArchiveCreateView({
     () => deriveArchivePath(locationPath, archiveName),
     [archiveName, locationPath],
   );
-  const canCreate = Boolean(
-    !nameError && normalizedName && locationPath && !isCreating,
-  );
+  const canCreate = Boolean(!nameError && normalizedName && locationPath && !isCreating);
 
   useEffect(() => {
     nameInputRef.current?.focus();
@@ -79,9 +77,7 @@ export function ArchiveCreateView({
       });
 
       if (!created) {
-        setStatus(
-          archiveStore.getLastOperationError() ?? "Archive could not be created.",
-        );
+        setStatus(archiveStore.getLastOperationError() ?? "Archive could not be created.");
         return;
       }
 
@@ -108,11 +104,7 @@ export function ArchiveCreateView({
         }
       }}
     >
-      <button
-        className="archive-create-view__back"
-        onClick={onBack}
-        type="button"
-      >
+      <button className="archive-create-view__back" onClick={onBack} type="button">
         <ArrowLeft aria-hidden="true" size={16} />
         <span>Back</span>
       </button>

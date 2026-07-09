@@ -6,14 +6,8 @@ import {
   type AppearanceSettings,
   type AppPreferences,
 } from "../types/appSettings";
-import {
-  normalizeReaderSettings,
-  type ReaderSettings,
-} from "../types/reader";
-import {
-  DEFAULT_LIBRARY_SORT,
-  normalizeLibrarySort,
-} from "../types/library";
+import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
+import { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../types/library";
 import type {
   FilesAndMetadataSettings,
   GlobalImportSettings,
@@ -96,14 +90,11 @@ function createDefaultPersistence(): AppPreferencesPersistence {
     readLegacy: readLegacyPreferences,
     removeLegacy: removeLegacyPreferences,
     saveBrowserFallback,
-    saveDesktop: (preferences) =>
-      invokeAppSettings<void>("save_app_settings", preferences),
+    saveDesktop: (preferences) => invokeAppSettings<void>("save_app_settings", preferences),
   };
 }
 
-function normalizeLibraryViewMode(
-  value: unknown,
-): LibraryDisplaySettings["viewMode"] {
+function normalizeLibraryViewMode(value: unknown): LibraryDisplaySettings["viewMode"] {
   return value === "list" ? "list" : defaultAppPreferences.library.viewMode;
 }
 
@@ -115,9 +106,7 @@ function normalizeLibrarySettings(value: unknown): LibraryDisplaySettings {
   };
 }
 
-function normalizeFilesAndMetadataSettings(
-  value: unknown,
-): FilesAndMetadataSettings {
+function normalizeFilesAndMetadataSettings(value: unknown): FilesAndMetadataSettings {
   const settings = isRecord(value) ? value : {};
   return {
     keepEpubWritebackBackup: settings.keepEpubWritebackBackup === true,
@@ -141,9 +130,7 @@ function normalizeImportMode(value: unknown): GlobalImportSettings["defaultMode"
 function normalizeGlobalImportSettings(value: unknown): GlobalImportSettings {
   const settings = isRecord(value) ? value : {};
   return {
-    defaultConflictAction: normalizeImportConflictAction(
-      settings.defaultConflictAction,
-    ),
+    defaultConflictAction: normalizeImportConflictAction(settings.defaultConflictAction),
     defaultMode: normalizeImportMode(settings.defaultMode),
   };
 }
@@ -168,9 +155,7 @@ function getEffectiveMotionState(preferences: AppPreferences): "off" | "on" {
     return "on";
   }
 
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    ? "off"
-    : "on";
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "off" : "on";
 }
 
 export function normalizeAppPreferences(value: unknown): AppPreferences {
@@ -341,9 +326,7 @@ export class AppPreferencesStore {
     const loadRevision = this.mutationRevision;
     this.setPersistenceStatus({ status: "loading" });
     const legacy = this.persistence.readLegacy();
-    const legacyPreferences = isRecord(legacy)
-      ? normalizeAppPreferences(legacy)
-      : null;
+    const legacyPreferences = isRecord(legacy) ? normalizeAppPreferences(legacy) : null;
 
     if (!this.persistence.isDesktop()) {
       if (this.mutationRevision === loadRevision && legacyPreferences) {
@@ -436,8 +419,7 @@ export class AppPreferencesStore {
     document.documentElement.dataset.motion = getEffectiveMotionState(this.preferences);
     document.documentElement.dataset.density = this.preferences.density;
     document.documentElement.dataset.cardSize = this.preferences.bookCardSize;
-    document.documentElement.dataset.windowFrame =
-      this.preferences.windowFrameStyle;
+    document.documentElement.dataset.windowFrame = this.preferences.windowFrameStyle;
     document.documentElement.dataset.librarySort =
       this.preferences.library.sortBy ?? DEFAULT_LIBRARY_SORT;
   }
@@ -446,10 +428,7 @@ export class AppPreferencesStore {
 export const appPreferencesStore = new AppPreferencesStore();
 
 export function useAppPreferences() {
-  return useSyncExternalStore(
-    appPreferencesStore.subscribe,
-    appPreferencesStore.getSnapshot,
-  );
+  return useSyncExternalStore(appPreferencesStore.subscribe, appPreferencesStore.getSnapshot);
 }
 
 export function useFilesAndMetadataPreferences() {
@@ -460,10 +439,7 @@ export function useFilesAndMetadataPreferences() {
 }
 
 export function useImportPreferences() {
-  return useSyncExternalStore(
-    appPreferencesStore.subscribe,
-    appPreferencesStore.getImportSnapshot,
-  );
+  return useSyncExternalStore(appPreferencesStore.subscribe, appPreferencesStore.getImportSnapshot);
 }
 
 export function useLibraryPreferences() {
@@ -474,10 +450,7 @@ export function useLibraryPreferences() {
 }
 
 export function useReaderPreferences() {
-  return useSyncExternalStore(
-    appPreferencesStore.subscribe,
-    appPreferencesStore.getReaderSnapshot,
-  );
+  return useSyncExternalStore(appPreferencesStore.subscribe, appPreferencesStore.getReaderSnapshot);
 }
 
 export function useShowContinueReadingPreference() {

@@ -1,12 +1,6 @@
 import type { ReactNode } from "react";
 
-import {
-  GridFour,
-  List,
-  Plus,
-  MagnifyingGlass,
-  X,
-} from "@phosphor-icons/react";
+import { GridFour, List, Plus, MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -75,13 +69,7 @@ export function LibraryToolbar({
       <div className="library-header__actions">
         <div className="library-search">
           <Input
-            icon={
-              <MagnifyingGlass
-                aria-hidden="true"
-                size={18}
-                weight="regular"
-              />
-            }
+            icon={<MagnifyingGlass aria-hidden="true" size={18} weight="regular" />}
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"

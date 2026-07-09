@@ -30,15 +30,18 @@ describe("reader locations", () => {
       } as never).percentage,
     ).toBe(100);
     expect(
-      normalizeReaderLocation({
-        start: {
-          cfi: "unknown",
-          index: 2,
-          displayed: { page: 2, total: 4 },
-        },
-        atStart: false,
-        atEnd: false,
-      } as never, 5).percentage,
+      normalizeReaderLocation(
+        {
+          start: {
+            cfi: "unknown",
+            index: 2,
+            displayed: { page: 2, total: 4 },
+          },
+          atStart: false,
+          atEnd: false,
+        } as never,
+        5,
+      ).percentage,
     ).toBe(50);
   });
 });

@@ -51,12 +51,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
       ref={dialogRef}
     >
       <section className="about-window">
-        <IconButton
-          autoFocus
-          className="about-window__close"
-          label="Close About"
-          onClick={onClose}
-        >
+        <IconButton autoFocus className="about-window__close" label="Close About" onClick={onClose}>
           <X aria-hidden="true" size={17} />
         </IconButton>
 

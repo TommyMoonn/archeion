@@ -38,10 +38,7 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearCoverCache")}
           footer={
             <>
-              <Button
-                variant="secondary"
-                onClick={() => onClose("clearCoverCache")}
-              >
+              <Button variant="secondary" onClick={() => onClose("clearCoverCache")}>
                 Cancel
               </Button>
               <Button variant="danger" onClick={onClearCoverCache}>
@@ -58,10 +55,7 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearScannerCache")}
           footer={
             <>
-              <Button
-                variant="secondary"
-                onClick={() => onClose("clearScannerCache")}
-              >
+              <Button variant="secondary" onClick={() => onClose("clearScannerCache")}>
                 Cancel
               </Button>
               <Button variant="danger" onClick={onClearScannerCache}>
@@ -78,10 +72,7 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearEpubWritebackBackups")}
           footer={
             <>
-              <Button
-                variant="secondary"
-                onClick={() => onClose("clearEpubWritebackBackups")}
-              >
+              <Button variant="secondary" onClick={() => onClose("clearEpubWritebackBackups")}>
                 Cancel
               </Button>
               <Button variant="danger" onClick={onClearEpubWritebackBackups}>
@@ -98,10 +89,7 @@ export function SettingsConfirmations({
           onClose={() => onClose("reextractMetadata")}
           footer={
             <>
-              <Button
-                variant="secondary"
-                onClick={() => onClose("reextractMetadata")}
-              >
+              <Button variant="secondary" onClick={() => onClose("reextractMetadata")}>
                 Cancel
               </Button>
               <Button autoFocus onClick={onReextractMetadata}>
@@ -118,10 +106,7 @@ export function SettingsConfirmations({
           onClose={() => onClose("rescanArchive")}
           footer={
             <>
-              <Button
-                onClick={() => onClose("rescanArchive")}
-                variant="secondary"
-              >
+              <Button onClick={() => onClose("rescanArchive")} variant="secondary">
                 Cancel
               </Button>
               <Button autoFocus onClick={onRescanArchive}>

@@ -1,7 +1,4 @@
-import {
-  normalizeReaderFontFamily,
-  type ReaderFontFamily,
-} from "../../types/reader";
+import { normalizeReaderFontFamily, type ReaderFontFamily } from "../../types/reader";
 
 type ReaderFontOption = {
   label: string;
@@ -17,8 +14,7 @@ type ReaderFontDefinition = {
 
 export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
   {
-    fallbackFamily:
-      '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
+    fallbackFamily: '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
     id: "serif",
     label: "Book serif",
   },
@@ -33,8 +29,7 @@ export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
     label: "System",
   },
   {
-    fallbackFamily:
-      '"Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
+    fallbackFamily: '"Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
     fontFaceCss: `
 @font-face {
   font-family: "Literata";
@@ -48,8 +43,7 @@ export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
     label: "Literata",
   },
   {
-    fallbackFamily:
-      '"Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif',
+    fallbackFamily: '"Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif',
     fontFaceCss: `
 @font-face {
   font-family: "Atkinson Hyperlegible";
@@ -64,22 +58,23 @@ export const readerFontDefinitions: readonly ReaderFontDefinition[] = [
   },
 ];
 
-export const readerTypefaceOptions = readerFontDefinitions.map(
-  ({ id, label }) => ({ label, value: id }),
-) satisfies ReaderFontOption[];
+export const readerTypefaceOptions = readerFontDefinitions.map(({ id, label }) => ({
+  label,
+  value: id,
+})) satisfies ReaderFontOption[];
 
 export function readerFontFamilyForId(fontFamily: unknown): string {
   const normalizedFontFamily = normalizeReaderFontFamily(fontFamily);
   return (
-    readerFontDefinitions.find((font) => font.id === normalizedFontFamily)
-      ?.fallbackFamily ?? readerFontDefinitions[0].fallbackFamily
+    readerFontDefinitions.find((font) => font.id === normalizedFontFamily)?.fallbackFamily ??
+    readerFontDefinitions[0].fallbackFamily
   );
 }
 
 export function readerFontFaceCssForId(fontFamily: unknown): string {
   const normalizedFontFamily = normalizeReaderFontFamily(fontFamily);
   return (
-    readerFontDefinitions.find((font) => font.id === normalizedFontFamily)
-      ?.fontFaceCss?.trim() ?? ""
+    readerFontDefinitions.find((font) => font.id === normalizedFontFamily)?.fontFaceCss?.trim() ??
+    ""
   );
 }

@@ -72,8 +72,8 @@ function renderInteractive({
 }
 
 function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll("button")).find(
-    (candidate) => candidate.textContent?.includes(text),
+  const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
+    candidate.textContent?.includes(text),
   );
 
   if (!(button instanceof HTMLButtonElement)) {
@@ -84,10 +84,7 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
 }
 
 function setInputValue(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLInputElement.prototype,
-    "value",
-  )?.set;
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
@@ -151,9 +148,7 @@ describe("ArchiveManagerWindow", () => {
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
     await act(async () => {
-      buttonWithText(container, "Books").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Books").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(switchArchive).not.toHaveBeenCalled();
@@ -163,16 +158,12 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("switches a different archive before completing the manager action", async () => {
-    const switchArchive = vi
-      .spyOn(archiveStore, "switchArchive")
-      .mockResolvedValue(true);
+    const switchArchive = vi.spyOn(archiveStore, "switchArchive").mockResolvedValue(true);
     const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
     await act(async () => {
-      buttonWithText(container, "Comics").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Comics").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(switchArchive).toHaveBeenCalledWith(savedArchive.id);
@@ -187,9 +178,7 @@ describe("ArchiveManagerWindow", () => {
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
     await act(async () => {
-      buttonWithText(container, "Comics").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Comics").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
@@ -198,21 +187,14 @@ describe("ArchiveManagerWindow", () => {
     act(() => root.unmount());
   });
 
-
   it("keeps rename, reveal, and forget actions inside the manager", async () => {
-    const revealArchive = vi
-      .spyOn(archiveStore, "revealArchive")
-      .mockResolvedValue(true);
-    const forgetArchive = vi
-      .spyOn(archiveStore, "forgetArchive")
-      .mockResolvedValue(true);
+    const revealArchive = vi.spyOn(archiveStore, "revealArchive").mockResolvedValue(true);
+    const forgetArchive = vi.spyOn(archiveStore, "forgetArchive").mockResolvedValue(true);
     const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
     await act(async () => {
-      buttonWithText(container, "Rename").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Rename").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
@@ -273,10 +255,7 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("shows the guided create view instead of opening a folder picker", async () => {
-    const chooseArchiveParentLocation = vi.spyOn(
-      archiveStore,
-      "chooseArchiveParentLocation",
-    );
+    const chooseArchiveParentLocation = vi.spyOn(archiveStore, "chooseArchiveParentLocation");
     const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
     const { container, root } = renderInteractive();
 
@@ -290,26 +269,20 @@ describe("ArchiveManagerWindow", () => {
     expect(container.textContent).toContain("Archeion");
     expect(container.textContent).toContain("Manage archives");
     expect(container.textContent).not.toContain("Create local archive");
-    expect(container.querySelector("#archive-create-name")).toBeInstanceOf(
-      HTMLInputElement,
+    expect(container.querySelector("#archive-create-name")).toBeInstanceOf(HTMLInputElement);
+    expect(container.querySelector("#archive-create-name")?.getAttribute("placeholder")).toBe(
+      "Light novels",
     );
-    expect(
-      container.querySelector("#archive-create-name")?.getAttribute("placeholder"),
-    ).toBe("Light novels");
     expect(container.textContent).toContain("Creates a folder with this name.");
     expect(
-      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
-        "data-view",
-      ),
+      container.querySelector(".archive-manager-window__content-area")?.getAttribute("data-view"),
     ).toBe("create");
     expect(
-      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
-        "data-direction",
-      ),
+      container
+        .querySelector(".archive-manager-window__content-area")
+        ?.getAttribute("data-direction"),
     ).toBe("forward");
-    expect(container.textContent).not.toContain(
-      "Choose a name and parent location.",
-    );
+    expect(container.textContent).not.toContain("Choose a name and parent location.");
     expect(chooseArchiveParentLocation).not.toHaveBeenCalled();
     expect(createEmptyArchive).not.toHaveBeenCalled();
 
@@ -317,9 +290,7 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("browses for a parent location and preserves form state when going back", async () => {
-    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
-      "D:\\Books",
-    );
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue("D:\\Books");
     const { container, root } = renderInteractive();
 
     await act(async () => {
@@ -338,25 +309,21 @@ describe("ArchiveManagerWindow", () => {
     });
 
     await act(async () => {
-      buttonWithText(container, "Browse").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("D:\\Books");
     expect(container.textContent).toContain("D:\\Books\\Light Novels");
 
     await act(async () => {
-      buttonWithText(container, "Back").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Back").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("Manage archives");
     expect(
-      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
-        "data-direction",
-      ),
+      container
+        .querySelector(".archive-manager-window__content-area")
+        ?.getAttribute("data-direction"),
     ).toBe("back");
 
     await act(async () => {
@@ -384,9 +351,7 @@ describe("ArchiveManagerWindow", () => {
     });
 
     await act(async () => {
-      buttonWithText(container, "Browse").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("Create archive");
@@ -397,9 +362,7 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("rejects invalid archive names before invoking the backend", async () => {
-    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
-      "D:\\Books",
-    );
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue("D:\\Books");
     const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
     const { container, root } = renderInteractive();
 
@@ -419,9 +382,7 @@ describe("ArchiveManagerWindow", () => {
     });
 
     await act(async () => {
-      buttonWithText(container, "Browse").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(buttonWithText(container, "Create").disabled).toBe(true);
@@ -432,12 +393,8 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("creates a valid archive with separate name and parent path", async () => {
-    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
-      "D:\\Books",
-    );
-    const createEmptyArchive = vi
-      .spyOn(archiveStore, "createEmptyArchive")
-      .mockResolvedValue(true);
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue("D:\\Books");
+    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive").mockResolvedValue(true);
     const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
@@ -457,15 +414,11 @@ describe("ArchiveManagerWindow", () => {
     });
 
     await act(async () => {
-      buttonWithText(container, "Browse").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     await act(async () => {
-      buttonWithText(container, "Create").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Create").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(createEmptyArchive).toHaveBeenCalledWith({
@@ -478,9 +431,7 @@ describe("ArchiveManagerWindow", () => {
   });
 
   it("keeps the create form open and surfaces creation failure", async () => {
-    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
-      "D:\\Books",
-    );
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue("D:\\Books");
     vi.spyOn(archiveStore, "createEmptyArchive").mockResolvedValue(false);
     vi.spyOn(archiveStore, "getLastOperationError").mockReturnValue(
       "Archive folder already exists.",
@@ -504,15 +455,11 @@ describe("ArchiveManagerWindow", () => {
     });
 
     await act(async () => {
-      buttonWithText(container, "Browse").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     await act(async () => {
-      buttonWithText(container, "Create").dispatchEvent(
-        new MouseEvent("click", { bubbles: true }),
-      );
+      buttonWithText(container, "Create").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
     expect(container.textContent).toContain("Archive folder already exists.");

@@ -1,10 +1,4 @@
-import {
-  ArrowRight,
-  DotsThree,
-  FolderOpen,
-  PencilSimple,
-  Trash,
-} from "@phosphor-icons/react";
+import { ArrowRight, DotsThree, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Folder } from "../../types/folder";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
@@ -35,15 +29,8 @@ export function FolderActionsMenu({
   }
 
   return (
-    <details
-      ref={detailsRef}
-      className="folder-menu"
-      onClick={(event) => event.stopPropagation()}
-    >
-      <summary
-        aria-label={`Actions for ${folder.name}`}
-        title={`Actions for ${folder.name}`}
-      >
+    <details ref={detailsRef} className="folder-menu" onClick={(event) => event.stopPropagation()}>
+      <summary aria-label={`Actions for ${folder.name}`} title={`Actions for ${folder.name}`}>
         <DotsThree aria-hidden="true" size={18} weight="bold" />
       </summary>
       <div className="folder-menu__popover" role="menu">
@@ -58,11 +45,7 @@ export function FolderActionsMenu({
           Move
         </button>
         {showReveal && onReveal ? (
-          <button
-            type="button"
-            role="menuitem"
-            onClick={() => runAction(onReveal)}
-          >
+          <button type="button" role="menuitem" onClick={() => runAction(onReveal)}>
             <FolderOpen aria-hidden="true" size={16} weight="regular" />
             Reveal
           </button>

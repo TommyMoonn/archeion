@@ -1,18 +1,10 @@
-import {
-  Minus,
-  Plus,
-  X,
-} from "@phosphor-icons/react";
+import { Minus, Plus, X } from "@phosphor-icons/react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { readerTypefaceOptions } from "./readerFonts";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type {
-  ReaderProgressPlacement,
-  ReaderSettings,
-  ReaderTheme,
-} from "../../types/reader";
+import type { ReaderProgressPlacement, ReaderSettings, ReaderTheme } from "../../types/reader";
 
 type ReaderSettingsPanelProps = {
   onChange: (settings: ReaderSettings) => void;
@@ -111,9 +103,7 @@ export function ReaderSettingsPanel({
           <IconButton
             disabled={settings.fontSize <= 14}
             label="Decrease text size"
-            onClick={() =>
-              update({ fontSize: Math.max(14, settings.fontSize - 1) })
-            }
+            onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
           >
             <Minus aria-hidden="true" size={16} />
           </IconButton>
@@ -121,9 +111,7 @@ export function ReaderSettingsPanel({
           <IconButton
             disabled={settings.fontSize >= 28}
             label="Increase text size"
-            onClick={() =>
-              update({ fontSize: Math.min(28, settings.fontSize + 1) })
-            }
+            onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
           >
             <Plus aria-hidden="true" size={16} />
           </IconButton>
@@ -163,10 +151,7 @@ export function ReaderSettingsPanel({
         />
       </div>
 
-      <p
-        className="reader-settings__status"
-        data-error={persistenceFailed || undefined}
-      >
+      <p className="reader-settings__status" data-error={persistenceFailed || undefined}>
         {persistenceFailed ? "Settings could not be saved" : "Saved automatically"}
       </p>
     </aside>

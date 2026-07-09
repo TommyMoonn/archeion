@@ -8,8 +8,8 @@ import { defaultAppPreferences } from "../../types/appSettings";
 import { SettingsSearchResults } from "./SettingsSearchResults";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
-(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean })
-  .IS_REACT_ACT_ENVIRONMENT = true;
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
+  true;
 
 function createController(overrides: Partial<SettingsDialogController> = {}) {
   const preferences = { ...defaultAppPreferences };
@@ -69,11 +69,7 @@ function renderResults(query: string, controller = createController()) {
 
   act(() => {
     root.render(
-      <SettingsSearchResults
-        controller={controller}
-        onClearSearch={vi.fn()}
-        query={query}
-      />,
+      <SettingsSearchResults controller={controller} onClearSearch={vi.fn()} query={query} />,
     );
   });
 
@@ -165,7 +161,6 @@ describe("SettingsSearchResults", () => {
     });
   });
 
-
   it("disables clear EPUB backup action while status is not actionable", () => {
     for (const [state, note] of [
       ["loading", "Checking backups..."],
@@ -194,11 +189,7 @@ describe("SettingsSearchResults", () => {
   });
 
   it("does not match removed compatibility terms", () => {
-    for (const query of [
-      "appearance and window",
-      "files and maintenance",
-      "interface",
-    ]) {
+    for (const query of ["appearance and window", "files and maintenance", "interface"]) {
       const { container, root } = renderResults(query);
       roots.push(root);
       expect(container.textContent).toContain("No settings found");

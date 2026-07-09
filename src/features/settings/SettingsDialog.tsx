@@ -14,10 +14,7 @@ import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
 import { StorageSettingsSection } from "./sections/StorageSettingsSection";
-import {
-  getSettingsItemsDataRequirements,
-  getSettingsItemsForSection,
-} from "./settingsItems";
+import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useSettingsDialogController } from "./useSettingsDialogController";
@@ -63,8 +60,7 @@ function renderSettingsSection(
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLElement>(null);
-  const [activeSection, setActiveSection] =
-    useState<SettingsSection>("general");
+  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [query, setQuery] = useState("");
   const trimmedQuery = query.trim();
   const searchActive = trimmedQuery.length > 0;
@@ -75,9 +71,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   );
   const visibleSettingsItems = useMemo(() => {
     if (searchActive) {
-      return findSettingsSearchResults(trimmedQuery).map(
-        (result) => result.item,
-      );
+      return findSettingsSearchResults(trimmedQuery).map((result) => result.item);
     }
 
     return getSettingsItemsForSection(selectedSection);
@@ -89,9 +83,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const controller = useSettingsDialogController({
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
-    loadEpubWritebackBackupStatus: dataRequirements.has(
-      "epubWritebackBackupStatus",
-    ),
+    loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
     loadFolders: dataRequirements.has("folders"),
   });
 
@@ -147,12 +139,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           selectedSection={selectedSection}
         />
 
-        <IconButton
-          autoFocus
-          className="settings-close"
-          label="Close settings"
-          onClick={onClose}
-        >
+        <IconButton autoFocus className="settings-close" label="Close settings" onClick={onClose}>
           <X aria-hidden="true" size={18} />
         </IconButton>
 
@@ -177,9 +164,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <SettingsConfirmations
           confirmations={controller.confirmations}
           onClearCoverCache={controller.confirmClearCoverCache}
-          onClearEpubWritebackBackups={
-            controller.confirmClearEpubWritebackBackups
-          }
+          onClearEpubWritebackBackups={controller.confirmClearEpubWritebackBackups}
           onClearScannerCache={controller.confirmClearScannerCache}
           onClose={controller.closeConfirmation}
           onReextractMetadata={controller.confirmReextractMetadata}

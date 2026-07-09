@@ -6,10 +6,7 @@ import type {
   WindowFrameStyle,
 } from "../../types/appSettings";
 import type { LibrarySort } from "../../types/library";
-import type {
-  ReaderProgressPlacement,
-  ReaderTheme,
-} from "../../types/reader";
+import type { ReaderProgressPlacement, ReaderTheme } from "../../types/reader";
 import { readerTypefaceOptions } from "../reader/readerFonts";
 import type { LibraryView } from "../library/LibraryToolbar";
 import { librarySortOptions } from "../library/librarySortOptions";
@@ -65,5 +62,4 @@ export const viewOptions = [
   { label: "List", value: "list" },
 ] satisfies Array<SettingsOption<LibraryView>>;
 
-export const defaultLibrarySortOptions: Array<SettingsOption<LibrarySort>> =
-  librarySortOptions;
+export const defaultLibrarySortOptions: Array<SettingsOption<LibrarySort>> = librarySortOptions;

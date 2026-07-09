@@ -2,10 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  AppPreferencesStore,
-  normalizeAppPreferences,
-} from "./appPreferencesStore";
+import { AppPreferencesStore, normalizeAppPreferences } from "./appPreferencesStore";
 
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
@@ -25,10 +22,11 @@ function mockReducedMotion(matches: boolean) {
   const original = Object.getOwnPropertyDescriptor(window, "matchMedia");
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
-    value: vi.fn((query: string) =>
-      ({
-        matches: matches && query === "(prefers-reduced-motion: reduce)",
-      }) as MediaQueryList,
+    value: vi.fn(
+      (query: string) =>
+        ({
+          matches: matches && query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
     ),
   });
 
@@ -182,7 +180,6 @@ describe("app preferences", () => {
     });
   });
 
-
   it("preserves supported bundled reader fonts", () => {
     expect(
       normalizeAppPreferences({
@@ -233,9 +230,7 @@ describe("app preferences", () => {
       bookCardSize: "large",
       showContinueReading: false,
     });
-    expect(saveDesktop).toHaveBeenCalledWith(
-      expect.objectContaining({ density: "compact" }),
-    );
+    expect(saveDesktop).toHaveBeenCalledWith(expect.objectContaining({ density: "compact" }));
     expect(removeLegacy).toHaveBeenCalledTimes(1);
   });
 
@@ -249,9 +244,7 @@ describe("app preferences", () => {
     );
     await store.initialize();
 
-    await expect(store.update({ density: "compact" })).rejects.toThrow(
-      /disk full/,
-    );
+    await expect(store.update({ density: "compact" })).rejects.toThrow(/disk full/);
     expect(store.getPersistenceSnapshot()).toEqual({
       status: "error",
       error: expect.stringContaining("disk full"),

@@ -5,9 +5,7 @@ type StorageSettingsSectionProps = {
   context: SettingsDialogController;
 };
 
-export function StorageSettingsSection({
-  context,
-}: StorageSettingsSectionProps) {
+export function StorageSettingsSection({ context }: StorageSettingsSectionProps) {
   return (
     <section className="settings-section">
       <header>

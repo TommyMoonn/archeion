@@ -11,10 +11,7 @@ export function isAppMotionEnabled(): boolean {
     return false;
   }
 
-  return (
-    document.documentElement.dataset.motion === "on" &&
-    !isReducedMotionPreferred()
-  );
+  return document.documentElement.dataset.motion === "on" && !isReducedMotionPreferred();
 }
 
 export function getProgrammaticScrollBehavior(): ScrollBehavior {

@@ -10,17 +10,12 @@ type BookCoverProps = {
   className?: string;
 };
 
-export const BookCover = memo(function BookCover({
-  book,
-  className = "",
-}: BookCoverProps) {
+export const BookCover = memo(function BookCover({ book, className = "" }: BookCoverProps) {
   const storage = useLibraryStorage();
   const coverRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
-  const [state, setState] = useState<"loading" | "available" | "unavailable">(
-    "loading",
-  );
+  const [state, setState] = useState<"loading" | "available" | "unavailable">("loading");
 
   useEffect(() => {
     if (shouldLoad || !coverRef.current) {
@@ -84,12 +79,8 @@ export const BookCover = memo(function BookCover({
       aria-hidden="true"
       title={state === "unavailable" ? "Cover unavailable" : undefined}
     >
-      {coverUrl ? (
-        <img alt="" decoding="async" loading="lazy" src={coverUrl} />
-      ) : null}
-      {state === "unavailable" ? (
-        <BookOpenText size={30} weight="thin" />
-      ) : null}
+      {coverUrl ? <img alt="" decoding="async" loading="lazy" src={coverUrl} /> : null}
+      {state === "unavailable" ? <BookOpenText size={30} weight="thin" /> : null}
       {state === "loading" ? <span className="book-cover__loading" /> : null}
     </div>
   );

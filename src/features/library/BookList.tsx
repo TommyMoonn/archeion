@@ -42,11 +42,7 @@ function BookRowComponent({
 
   return (
     <article className="book-row">
-      <button
-        className="book-row__select"
-        type="button"
-        onClick={() => onSelect(book)}
-      >
+      <button className="book-row__select" type="button" onClick={() => onSelect(book)}>
         <BookCover book={book} className="book-cover--row" />
         <span className="book-row__identity">
           <strong>{bookTitle(book)}</strong>
@@ -74,11 +70,7 @@ function BookRowComponent({
         }
         onClick={() => onToggleFavorite(book)}
       >
-        <Heart
-          aria-hidden="true"
-          size={17}
-          weight={book.isFavorite ? "fill" : "regular"}
-        />
+        <Heart aria-hidden="true" size={17} weight={book.isFavorite ? "fill" : "regular"} />
       </IconButton>
       <BookContextMenu
         book={book}
@@ -112,11 +104,7 @@ const BookRow = memo(
     previous.onToggleFavorite === next.onToggleFavorite,
 );
 
-
-export const BookList = memo(function BookList({
-  books,
-  ...rowProps
-}: BookListProps) {
+export const BookList = memo(function BookList({ books, ...rowProps }: BookListProps) {
   return (
     <section className="book-list" aria-label="Books">
       {books.map((book) => (

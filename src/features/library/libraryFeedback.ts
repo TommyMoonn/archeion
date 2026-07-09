@@ -38,9 +38,7 @@ export const LIBRARY_DELETE_FEEDBACK_IDS = {
   metadataRemoveFailed: "library-error",
 } as const;
 
-export function limitLibraryFeedbackTokens(
-  tokens: LibraryFeedbackToken[],
-): LibraryFeedbackToken[] {
+export function limitLibraryFeedbackTokens(tokens: LibraryFeedbackToken[]): LibraryFeedbackToken[] {
   if (tokens.length <= LIBRARY_FEEDBACK_MAX_TOKENS) {
     return tokens;
   }
@@ -48,13 +46,8 @@ export function limitLibraryFeedbackTokens(
   const limitedTokens = [...tokens];
 
   while (limitedTokens.length > LIBRARY_FEEDBACK_MAX_TOKENS) {
-    const oldestAutoDismissIndex = limitedTokens.findIndex(
-      (token) => token.autoDismiss === true,
-    );
-    limitedTokens.splice(
-      oldestAutoDismissIndex >= 0 ? oldestAutoDismissIndex : 0,
-      1,
-    );
+    const oldestAutoDismissIndex = limitedTokens.findIndex((token) => token.autoDismiss === true);
+    limitedTokens.splice(oldestAutoDismissIndex >= 0 ? oldestAutoDismissIndex : 0, 1);
   }
 
   return limitedTokens;
@@ -70,14 +63,9 @@ export function upsertLibraryFeedbackToken(
   ]);
 }
 
-export type LibraryDeleteSuccessFeedbackType =
-  | "bookDeleted"
-  | "folderDeleted"
-  | "metadataRemoved";
+export type LibraryDeleteSuccessFeedbackType = "bookDeleted" | "folderDeleted" | "metadataRemoved";
 export type LibraryDeleteErrorFeedbackType =
-  | "bookDeleteFailed"
-  | "folderDeleteFailed"
-  | "metadataRemoveFailed";
+  "bookDeleteFailed" | "folderDeleteFailed" | "metadataRemoveFailed";
 
 const DELETE_SUCCESS_TITLES: Record<LibraryDeleteSuccessFeedbackType, string> = {
   bookDeleted: "EPUB deleted.",
@@ -135,8 +123,7 @@ export function createImportFeedbackToken(
     .filter((result) => result.status !== "imported")
     .map((result) => ({
       label: result.fileName,
-      message:
-        result.message ?? (result.status === "skipped" ? "Skipped." : "Failed."),
+      message: result.message ?? (result.status === "skipped" ? "Skipped." : "Failed."),
     }));
 
   if (summary.failed > 0) {

@@ -25,15 +25,12 @@ describe("settingsSections", () => {
       "storage",
       "import",
     ]);
+    expect(settingsSections.every((section) => section.id === section.id.toLocaleLowerCase())).toBe(
+      true,
+    );
     expect(
       settingsSections.every(
-        (section) => section.id === section.id.toLocaleLowerCase(),
-      ),
-    ).toBe(true);
-    expect(
-      settingsSections.every(
-        (section) =>
-          Object.hasOwn(section, "id") && Object.hasOwn(section, "label"),
+        (section) => Object.hasOwn(section, "id") && Object.hasOwn(section, "label"),
       ),
     ).toBe(true);
   });
@@ -63,8 +60,6 @@ describe("settingsSections", () => {
   });
 
   it("shows all sections for empty search", () => {
-    expect(settingsSections.every((section) => sectionMatches(section.id, ""))).toBe(
-      true,
-    );
+    expect(settingsSections.every((section) => sectionMatches(section.id, ""))).toBe(true);
   });
 });

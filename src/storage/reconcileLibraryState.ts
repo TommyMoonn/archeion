@@ -6,11 +6,7 @@ import {
   resolveBookIdFromScan,
   type ScannedBookIdentity,
 } from "./bookIdentity";
-import type {
-  LibraryBookMetadata,
-  LibraryMetadata,
-  ProgressMetadata,
-} from "./metadataFiles";
+import type { LibraryBookMetadata, LibraryMetadata, ProgressMetadata } from "./metadataFiles";
 import { normalizeArchiveRelativePath } from "./pathSafety";
 import { normalizeSourceMetadata, sourceMetadataEqual } from "./sourceMetadata";
 
@@ -58,9 +54,10 @@ type LegacyLibraryBookMetadata = LibraryBookMetadata & {
   displayAuthor?: unknown;
 };
 
-function omitLegacyDisplayOverrides(
-  metadata: LibraryMetadata,
-): { metadata: LibraryMetadata; changed: boolean } {
+function omitLegacyDisplayOverrides(metadata: LibraryMetadata): {
+  metadata: LibraryMetadata;
+  changed: boolean;
+} {
   let changed = false;
   const books: Record<string, LibraryBookMetadata> = {};
 
@@ -120,10 +117,7 @@ function sourceMetadataForScan(
   return normalizeSourceMetadata(book.sourceMetadata);
 }
 
-function metadataEntryChanged(
-  current: LibraryBookMetadata,
-  next: LibraryBookMetadata,
-): boolean {
+function metadataEntryChanged(current: LibraryBookMetadata, next: LibraryBookMetadata): boolean {
   return (
     current.relativePath !== next.relativePath ||
     current.fileSize !== next.fileSize ||
@@ -187,10 +181,7 @@ function buildMissingBook(
     originalAuthor: metadata.sourceMetadata?.creator,
     sourceMetadata: metadata.sourceMetadata,
     coverPath: metadata.coverPath,
-    coverRevision: coverRevisionFromFileStats(
-      metadata.fileSize,
-      metadata.fileModifiedAt,
-    ),
+    coverRevision: coverRevisionFromFileStats(metadata.fileSize, metadata.fileModifiedAt),
     isFileMissing: true,
     folderId: null,
     isFavorite: metadata.isFavorite,
@@ -207,17 +198,11 @@ function reconcileFolders(
   scanFolders: ScannedFolder[],
   timestamp: string,
 ) {
-  const folderIds = new Map(
-    scanFolders.map((folder) => [folder.relativePath, folder.id]),
-  );
-  const previousById = new Map(
-    previousFolders.map((folder) => [folder.id, folder]),
-  );
+  const folderIds = new Map(scanFolders.map((folder) => [folder.relativePath, folder.id]));
+  const previousById = new Map(previousFolders.map((folder) => [folder.id, folder]));
 
   const nextFolders = scanFolders.map((folder) => {
-    const parentId = folder.parentPath
-      ? (folderIds.get(folder.parentPath) ?? null)
-      : null;
+    const parentId = folder.parentPath ? (folderIds.get(folder.parentPath) ?? null) : null;
     const previous = previousById.get(folder.id);
     const unchanged =
       previous &&
@@ -245,12 +230,8 @@ export function reconcileLibraryState({
   scan,
   timestamp,
 }: ReconcileLibraryStateInput): ReconciledLibraryState {
-  const folderIds = new Map(
-    scan.folders.map((folder) => [folder.relativePath, folder.id]),
-  );
-  const metadataWarningPaths = new Set(
-    scan.warnings?.map((warning) => warning.relativePath) ?? [],
-  );
+  const folderIds = new Map(scan.folders.map((folder) => [folder.relativePath, folder.id]));
+  const metadataWarningPaths = new Set(scan.warnings?.map((warning) => warning.relativePath) ?? []);
   const identityIndex = createBookIdentityIndex({
     metadataBooks: libraryMetadata.books,
     scannedBooks: scan.books,
@@ -269,11 +250,7 @@ export function reconcileLibraryState({
     const match = resolveBookIdFromScan(scanned, identityIndex);
     const id = match?.bookId ?? scanned.discoveryId;
     const current = nextLibraryMetadata.books[id];
-    const sourceMetadata = sourceMetadataForScan(
-      scanned,
-      metadataWarningPaths,
-      current,
-    );
+    const sourceMetadata = sourceMetadataForScan(scanned, metadataWarningPaths, current);
     const nextEntry: LibraryBookMetadata = current
       ? {
           ...current,
@@ -326,16 +303,8 @@ export function reconcileLibraryState({
     missingBooks.set(id, buildMissingBook(id, metadata, progressMetadata));
   }
 
-  const reconciledBooks = reconcileById(
-    previousBooks,
-    visibleBooks,
-    shallowEqualRecords,
-  );
-  const reconciledFolders = reconcileFolders(
-    previousFolders,
-    scan.folders,
-    timestamp,
-  );
+  const reconciledBooks = reconcileById(previousBooks, visibleBooks, shallowEqualRecords);
+  const reconciledFolders = reconcileFolders(previousFolders, scan.folders, timestamp);
 
   return {
     books: reconciledBooks.items,

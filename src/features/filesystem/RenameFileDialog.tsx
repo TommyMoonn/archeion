@@ -27,11 +27,7 @@ function normalizeEpubFileName(value: string): string {
   return validateArchiveItemName(`${trimmedStem}${EPUB_EXTENSION}`);
 }
 
-export function RenameFileDialog({
-  book,
-  onClose,
-  onRename,
-}: RenameFileDialogProps) {
+export function RenameFileDialog({ book, onClose, onRename }: RenameFileDialogProps) {
   const [fileNameStem, setFileNameStem] = useState(getEpubNameStem(book.fileName));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -46,9 +42,7 @@ export function RenameFileDialog({
       normalizedFileName = normalizeEpubFileName(fileNameStem);
     } catch (validationError) {
       setError(
-        validationError instanceof Error
-          ? validationError.message
-          : "Enter a valid EPUB filename.",
+        validationError instanceof Error ? validationError.message : "Enter a valid EPUB filename.",
       );
       return;
     }

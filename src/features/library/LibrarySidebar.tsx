@@ -101,11 +101,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           type="button"
           onClick={() => onLocationChange({ type: "continue" })}
         >
-          <ClockCounterClockwise
-            aria-hidden="true"
-            size={19}
-            weight="regular"
-          />
+          <ClockCounterClockwise aria-hidden="true" size={19} weight="regular" />
           <span>Continue</span>
           <span className="nav-item__count">{continueCount}</span>
         </button>
@@ -155,9 +151,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
               onReveal={onRevealFolder}
               showActions={canManageFolders}
               showReveal={canRevealFolders}
-              onSelect={(folder) =>
-                onLocationChange({ type: "folder", folderId: folder.id })
-              }
+              onSelect={(folder) => onLocationChange({ type: "folder", folderId: folder.id })}
             />
           ) : (
             <p className="folder-placeholder">No folders found</p>
@@ -190,11 +184,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                 </button>
               ))}
             <div className="archive-switcher__divider" role="separator" />
-            <button
-              className="archive-switcher__manage"
-              onClick={manageArchives}
-              type="button"
-            >
+            <button className="archive-switcher__manage" onClick={manageArchives} type="button">
               <Archive aria-hidden="true" size={16} weight="regular" />
               <span>Manage archives</span>
             </button>

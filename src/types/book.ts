@@ -57,8 +57,5 @@ export type Book = {
 };
 
 export type UpdateBookInput = Partial<
-  Pick<
-    Book,
-    "isFavorite" | "lastOpenedAt" | "progressCfi" | "progressPercent"
-  >
+  Pick<Book, "isFavorite" | "lastOpenedAt" | "progressCfi" | "progressPercent">
 >;

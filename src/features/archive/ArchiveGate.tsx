@@ -43,17 +43,13 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
         archiveRootPath: archivePath,
         storage,
         onError: () => {
-          archiveStore.setWatcherError(
-            "Live refresh paused. Use Rescan archive if files change.",
-          );
+          archiveStore.setWatcherError("Live refresh paused. Use Rescan archive if files change.");
         },
         onRecovered: () => archiveStore.setWatcherError(null),
       });
       void watcher.start().catch(() => {
         if (!cancelled) {
-          archiveStore.setWatcherError(
-            "Live refresh paused. Use Rescan archive if files change.",
-          );
+          archiveStore.setWatcherError("Live refresh paused. Use Rescan archive if files change.");
         }
       });
     }

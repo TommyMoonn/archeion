@@ -26,18 +26,13 @@ export function MoveToFolderDialog({
   onMove,
   title,
 }: MoveToFolderDialogProps) {
-  const excluded = useMemo(
-    () => new Set(excludedFolderIds),
-    [excludedFolderIds],
-  );
+  const excluded = useMemo(() => new Set(excludedFolderIds), [excludedFolderIds]);
   const options = useMemo(
     () => [
       { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
       ...[...folders]
         .filter((folder) => folder.relativePath)
-        .sort((left, right) =>
-          (left.relativePath ?? "").localeCompare(right.relativePath ?? ""),
-        )
+        .sort((left, right) => (left.relativePath ?? "").localeCompare(right.relativePath ?? ""))
         .map((folder) => ({
           disabled: excluded.has(folder.id),
           label: folder.relativePath ?? folder.name,
@@ -86,10 +81,7 @@ export function MoveToFolderDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button
-            disabled={isSaving || isUnchanged}
-            onClick={() => void submit()}
-          >
+          <Button disabled={isSaving || isUnchanged} onClick={() => void submit()}>
             {isSaving ? "Moving" : "Move"}
           </Button>
         </>

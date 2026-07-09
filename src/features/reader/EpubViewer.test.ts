@@ -111,14 +111,11 @@ describe("readerThemeForSettings", () => {
 
     applyReaderContentTheme(target, contentTheme, [document, document]);
 
-    expect(target.themes.register).toHaveBeenCalledWith(
-      "archeion-reader",
-      contentTheme.rules,
-    );
+    expect(target.themes.register).toHaveBeenCalledWith("archeion-reader", contentTheme.rules);
     expect(target.themes.select).toHaveBeenCalledWith("archeion-reader");
-    expect(
-      document.getElementById("archeion-reader-font-faces")?.textContent,
-    ).toContain('font-family: "Atkinson Hyperlegible"');
+    expect(document.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+      'font-family: "Atkinson Hyperlegible"',
+    );
   });
 
   it("compares only EPUB-content reader settings for viewer memoization", () => {

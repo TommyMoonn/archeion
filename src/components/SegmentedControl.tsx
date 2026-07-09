@@ -1,8 +1,4 @@
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useRef,
-} from "react";
+import { type KeyboardEvent, type ReactNode, useRef } from "react";
 
 export type SegmentedControlOption<TValue extends string> = {
   disabled?: boolean;
@@ -108,9 +104,7 @@ export function SegmentedControl<TValue extends string>({
             tabIndex={selected ? 0 : -1}
             type="button"
           >
-            {option.icon ? (
-              <span className="segmented-control__icon">{option.icon}</span>
-            ) : null}
+            {option.icon ? <span className="segmented-control__icon">{option.icon}</span> : null}
             <span>{option.label}</span>
           </button>
         );
