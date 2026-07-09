@@ -20,7 +20,10 @@ import {
   normalizeReaderLocation,
   type ReaderLocation,
 } from "./readerLocation";
-import { readerThemeForSettings } from "./readerTheme";
+import {
+  readerFontFaceCssForSettings,
+  readerThemeForSettings,
+} from "./readerTheme";
 
 export type EpubViewerHandle = {
   next: () => Promise<void>;
@@ -69,6 +72,33 @@ type RenditionWithContentHook = Rendition & {
   };
 };
 
+const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
+
+function applyReaderFontFaces(
+  document: Document | null,
+  settings: ReaderSettings,
+) {
+  if (!document?.head) {
+    return;
+  }
+
+  const fontFaceCss = readerFontFaceCssForSettings(settings);
+  const existingStyle = document.getElementById(READER_FONT_FACE_STYLE_ID);
+
+  if (!fontFaceCss) {
+    existingStyle?.remove();
+    return;
+  }
+
+  const style = existingStyle ?? document.createElement("style");
+  style.id = READER_FONT_FACE_STYLE_ID;
+  style.textContent = fontFaceCss;
+
+  if (!existingStyle) {
+    document.head.appendChild(style);
+  }
+}
+
 function documentFromRenderedView(view: unknown) {
   const renderedView = view as RenderedView | null;
 
@@ -101,6 +131,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     const viewerRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const contentCleanupRef = useRef<Array<() => void>>([]);
+    const activeContentDocumentRef = useRef<Document | null>(null);
     const callbacksRef = useRef<EpubViewerCallbacks>({
       onError,
       onInteraction,
@@ -235,6 +266,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           cleanup();
         }
         contentCleanupRef.current = [];
+        activeContentDocumentRef.current = null;
         lastContentDocument = null;
       }
 
@@ -247,6 +279,8 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
 
         removeContentListeners();
         lastContentDocument = document;
+        activeContentDocumentRef.current = document;
+        applyReaderFontFaces(document, settingsRef.current);
         const contentWindow =
           content?.window ?? windowFromContentDocument(document);
 
@@ -412,6 +446,9 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
         readerThemeForSettings(settings),
       );
       rendition.themes.select("archeion-reader");
+      applyReaderFontFaces(activeContentDocumentRef.current, settings);
+      const mountedFrame = containerRef.current?.querySelector("iframe");
+      applyReaderFontFaces(mountedFrame?.contentDocument ?? null, settings);
     }, [settings]);
 
     return (

@@ -245,7 +245,15 @@ export const settingsItems: readonly SettingsItem[] = [
         />
       </SettingsRow>
     ),
-    searchTerms: ["font", "typeface", "serif", "sans"],
+    searchTerms: [
+      "font",
+      "typeface",
+      "serif",
+      "sans",
+      "literata",
+      "atkinson",
+      "hyperlegible",
+    ],
     sectionId: "reader",
   },
   {

@@ -5,6 +5,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { AppSelect } from "../../components/AppSelect";
+import { readerTypefaceOptions } from "./readerFonts";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type {
@@ -24,12 +25,6 @@ const themes: Array<{ label: string; value: ReaderTheme }> = [
   { label: "Light", value: "light" },
   { label: "Sepia", value: "sepia" },
   { label: "Dark", value: "dark" },
-];
-
-const typefaces = [
-  { label: "Book serif", value: "serif" },
-  { label: "Clean sans", value: "sans" },
-  { label: "System", value: "system" },
 ];
 
 const lineHeights = [
@@ -105,7 +100,7 @@ export function ReaderSettingsPanel({
           ariaLabel="Reader typeface"
           id="reader-font-family"
           onChange={(fontFamily) => update({ fontFamily })}
-          options={typefaces}
+          options={readerTypefaceOptions}
           value={settings.fontFamily}
         />
       </div>

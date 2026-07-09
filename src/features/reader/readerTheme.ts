@@ -1,11 +1,8 @@
 import type { ReaderSettings } from "../../types/reader";
-
-const fontFamilies: Record<string, string> = {
-  serif:
-    '"Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif',
-  sans: '"Segoe UI", Arial, sans-serif',
-  system: 'system-ui, -apple-system, "Segoe UI", sans-serif',
-};
+import {
+  readerFontFaceCssForId,
+  readerFontFamilyForId,
+} from "./readerFonts";
 
 const themeColors = {
   dark: {
@@ -28,9 +25,13 @@ const themeColors = {
   },
 };
 
+export function readerFontFaceCssForSettings(settings: ReaderSettings) {
+  return readerFontFaceCssForId(settings.fontFamily);
+}
+
 export function readerThemeForSettings(settings: ReaderSettings) {
   const colors = themeColors[settings.theme];
-  const fontFamily = fontFamilies[settings.fontFamily] ?? fontFamilies.serif;
+  const fontFamily = readerFontFamilyForId(settings.fontFamily);
   return {
     html: {
       background: `${colors.background} !important`,

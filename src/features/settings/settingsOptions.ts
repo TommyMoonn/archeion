@@ -10,6 +10,7 @@ import type {
   ReaderProgressPlacement,
   ReaderTheme,
 } from "../../types/reader";
+import { readerTypefaceOptions } from "../reader/readerFonts";
 import type { LibraryView } from "../library/LibraryToolbar";
 import { librarySortOptions } from "../library/librarySortOptions";
 
@@ -18,11 +19,7 @@ type SettingsOption<TValue extends string> = {
   value: TValue;
 };
 
-export const typefaceOptions = [
-  { label: "Book serif", value: "serif" },
-  { label: "Clean sans", value: "sans" },
-  { label: "System", value: "system" },
-] satisfies Array<SettingsOption<"serif" | "sans" | "system">>;
+export const typefaceOptions = readerTypefaceOptions;
 
 export const readerThemeOptions = [
   { label: "Light", value: "light" },

@@ -2,9 +2,16 @@ export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
 
+export type ReaderFontFamily =
+  | "serif"
+  | "sans"
+  | "system"
+  | "literata"
+  | "atkinson";
+
 export type ReaderSettings = {
   fontSize: number;
-  fontFamily: string;
+  fontFamily: ReaderFontFamily;
   lineHeight: number;
   margin: number;
   theme: ReaderTheme;
@@ -20,15 +27,14 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   progressPlacement: "top",
 });
 
+type ReaderSettingsInput = Partial<Record<keyof ReaderSettings, unknown>>;
+
 export function normalizeReaderSettings(
-  settings?: Partial<ReaderSettings>,
+  settings?: ReaderSettingsInput,
 ): ReaderSettings {
   return {
     fontSize: numberOrDefault(settings?.fontSize, defaultReaderSettings.fontSize),
-    fontFamily:
-      typeof settings?.fontFamily === "string"
-        ? settings.fontFamily
-        : defaultReaderSettings.fontFamily,
+    fontFamily: normalizeReaderFontFamily(settings?.fontFamily),
     lineHeight: numberOrDefault(
       settings?.lineHeight,
       defaultReaderSettings.lineHeight,
@@ -45,6 +51,20 @@ export function normalizeReaderSettings(
 
 function numberOrDefault(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+export function isReaderFontFamily(value: unknown): value is ReaderFontFamily {
+  return (
+    value === "serif" ||
+    value === "sans" ||
+    value === "system" ||
+    value === "literata" ||
+    value === "atkinson"
+  );
+}
+
+export function normalizeReaderFontFamily(value: unknown): ReaderFontFamily {
+  return isReaderFontFamily(value) ? value : defaultReaderSettings.fontFamily;
 }
 
 function isReaderTheme(value: unknown): value is ReaderTheme {

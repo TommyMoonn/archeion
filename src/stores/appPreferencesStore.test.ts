@@ -182,6 +182,34 @@ describe("app preferences", () => {
     });
   });
 
+
+  it("preserves supported bundled reader fonts", () => {
+    expect(
+      normalizeAppPreferences({
+        reader: {
+          fontFamily: "literata",
+        },
+      }).reader.fontFamily,
+    ).toBe("literata");
+    expect(
+      normalizeAppPreferences({
+        reader: {
+          fontFamily: "atkinson",
+        },
+      }).reader.fontFamily,
+    ).toBe("atkinson");
+  });
+
+  it("normalizes unknown reader fonts to book serif", () => {
+    expect(
+      normalizeAppPreferences({
+        reader: {
+          fontFamily: "legacy-custom-font",
+        },
+      }).reader.fontFamily,
+    ).toBe("serif");
+  });
+
   it("migrates legacy localStorage preferences into desktop app config", async () => {
     const saveDesktop = vi.fn(async () => undefined);
     const removeLegacy = vi.fn();

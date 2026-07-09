@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
-import { readerThemeForSettings } from "./readerTheme";
+import { readerTypefaceOptions } from "./readerFonts";
+import {
+  readerFontFaceCssForSettings,
+  readerThemeForSettings,
+} from "./readerTheme";
 
 describe("readerThemeForSettings", () => {
   it("maps typography and spacing settings into EPUB theme rules", () => {
@@ -31,10 +35,51 @@ describe("readerThemeForSettings", () => {
     expect(theme.body["font-family"]).toContain("Segoe UI");
   });
 
+
+  it("maps bundled Literata into reader theme output", () => {
+    const theme = readerThemeForSettings({
+      ...defaultReaderSettings,
+      fontFamily: "literata",
+    });
+
+    expect(theme.body["font-family"]).toContain("Literata");
+    expect(
+      readerFontFaceCssForSettings({
+        ...defaultReaderSettings,
+        fontFamily: "literata",
+      }),
+    ).toContain('font-family: "Literata"');
+  });
+
+  it("maps bundled Atkinson Hyperlegible into reader theme output", () => {
+    const theme = readerThemeForSettings({
+      ...defaultReaderSettings,
+      fontFamily: "atkinson",
+    });
+
+    expect(theme.body["font-family"]).toContain("Atkinson Hyperlegible");
+    expect(
+      readerFontFaceCssForSettings({
+        ...defaultReaderSettings,
+        fontFamily: "atkinson",
+      }),
+    ).toContain('font-family: "Atkinson Hyperlegible"');
+  });
+
+  it("shares typeface options with the reader settings UI", () => {
+    expect(readerTypefaceOptions.map((option) => option.value)).toEqual([
+      "serif",
+      "sans",
+      "system",
+      "literata",
+      "atkinson",
+    ]);
+  });
+
   it("falls back to the book serif for unknown stored font values", () => {
     const theme = readerThemeForSettings({
       ...defaultReaderSettings,
-      fontFamily: "removed-font",
+      fontFamily: "removed-font" as never,
     });
 
     expect(theme.body["font-family"]).toContain("Iowan Old Style");
