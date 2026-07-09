@@ -25,6 +25,7 @@ type LibraryToolbarProps = {
   onOpenAddEpub: () => void;
   onQueryChange: (query: string) => void;
   onRescanError: () => void;
+  onRescanSuccess: () => void;
   onSortChange: (sort: LibrarySort) => void;
   onViewChange: (view: LibraryView) => void;
   query: string;
@@ -56,6 +57,7 @@ export function LibraryToolbar({
   onOpenAddEpub,
   onQueryChange,
   onRescanError,
+  onRescanSuccess,
   onSortChange,
   onViewChange,
   query,
@@ -108,7 +110,7 @@ export function LibraryToolbar({
         >
           {isImporting ? "Adding" : "Add EPUB"}
         </Button>
-        <RescanArchiveButton onError={onRescanError} />
+        <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
       </div>
 
       <div className="library-controls">

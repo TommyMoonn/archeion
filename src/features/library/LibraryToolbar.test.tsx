@@ -23,6 +23,7 @@ function renderToolbar() {
       onOpenAddEpub={vi.fn()}
       onQueryChange={vi.fn()}
       onRescanError={vi.fn()}
+      onRescanSuccess={vi.fn()}
       onSortChange={vi.fn()}
       onViewChange={vi.fn()}
       query=""
@@ -51,6 +52,7 @@ function renderInteractiveToolbar({
         onOpenAddEpub={vi.fn()}
         onQueryChange={onQueryChange}
         onRescanError={vi.fn()}
+        onRescanSuccess={vi.fn()}
         onSortChange={vi.fn()}
         onViewChange={vi.fn()}
         query="Dune"

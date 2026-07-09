@@ -1,9 +1,4 @@
-import {
-  BookOpenText,
-  CheckCircle,
-  WarningCircle,
-  X,
-} from "@phosphor-icons/react";
+import { BookOpenText } from "@phosphor-icons/react";
 import {
   lazy,
   Suspense,
@@ -19,12 +14,8 @@ import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { EmptyState } from "../../components/EmptyState";
-import { IconButton } from "../../components/IconButton";
 import { PageShell } from "../../components/PageShell";
-import type {
-  AddArchiveEpubInput,
-  ArchiveImportResult,
-} from "../../storage/LibraryStorage";
+import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -41,8 +32,6 @@ import { measurePerformance } from "../../utils/measurePerformance";
 import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
-import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
-import { ArchiveStatusBar } from "../archive/ArchiveStatusBar";
 import { useArchive } from "../archive/useArchive";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -57,6 +46,12 @@ import {
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
+import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
+import {
+  createImportFeedbackToken,
+  type LibraryFeedbackDraft,
+  type LibraryFeedbackToken,
+} from "./libraryFeedback";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
 import {
@@ -181,11 +176,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const pageShellRef = useRef<HTMLElement>(null);
   const importLock = useRef(false);
+  const feedbackSequenceRef = useRef(0);
   const [isImporting, setIsImporting] = useState(false);
-  const [archiveImportResults, setArchiveImportResults] = useState<
-    ArchiveImportResult[]
-  >([]);
-  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
   const [query, setQuery] = useState("");
   const [archiveImportSettings, setArchiveImportSettings] =
     useState<ArchiveImportSettings>(defaultArchiveImportSettings);
@@ -218,6 +211,45 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...globalImportPreferences,
     ...archiveImportSettings,
   };
+
+  const dismissFeedback = useCallback((id: string) => {
+    setFeedbackTokens((currentTokens) =>
+      currentTokens.filter((token) => token.id !== id),
+    );
+  }, []);
+
+  const pushFeedback = useCallback((feedback: LibraryFeedbackDraft) => {
+    const id = feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
+    setFeedbackTokens((currentTokens) => [
+      ...currentTokens.filter((token) => token.id !== id),
+      { ...feedback, id },
+    ]);
+    return id;
+  }, []);
+
+  const showLibraryError = useCallback(
+    (title: string, detail?: string) => {
+      pushFeedback({ id: "library-error", tone: "error", title, detail });
+    },
+    [pushFeedback],
+  );
+
+  const showRescanSuccess = useCallback(() => {
+    pushFeedback({
+      id: "manual-rescan",
+      tone: "success",
+      title: "Archive refreshed.",
+      autoDismiss: true,
+    });
+  }, [pushFeedback]);
+
+  const showRescanError = useCallback(() => {
+    pushFeedback({
+      id: "manual-rescan",
+      tone: "error",
+      title: "The archive could not be scanned.",
+    });
+  }, [pushFeedback]);
   const location = useMemo(
     () =>
       libraryLocationFromSearchParams(
@@ -263,7 +295,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   useEffect(() => {
     const handleStorageError = () => {
-      setLibraryError("The active archive could not be loaded.");
+      showLibraryError("The active archive could not be loaded.");
     };
     const stopBooks = storage.observeBooks({
       next: setBooks,
@@ -278,7 +310,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       stopBooks();
       stopFolders();
     };
-  }, [storage]);
+  }, [showLibraryError, storage]);
+
+  useEffect(() => {
+    if (archive.watcherError) {
+      pushFeedback({
+        id: "watcher-error",
+        tone: "error",
+        title: archive.watcherError,
+      });
+    }
+  }, [archive.watcherError, pushFeedback]);
 
   useEffect(() => {
     let cancelled = false;
@@ -302,10 +344,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           library: { ...libraryPreferences, sortBy: nextSort },
         })
         .catch(() =>
-          setLibraryError("Library preferences could not be saved."),
+          showLibraryError("Library preferences could not be saved."),
         );
     },
-    [libraryPreferences],
+    [libraryPreferences, showLibraryError],
   );
 
   const changeView = useCallback(
@@ -315,10 +357,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           library: { ...libraryPreferences, viewMode: nextView },
         })
         .catch(() =>
-          setLibraryError("Library preferences could not be saved."),
+          showLibraryError("Library preferences could not be saved."),
         );
     },
-    [libraryPreferences],
+    [libraryPreferences, showLibraryError],
   );
 
   async function handleArchiveImport(input: AddArchiveEpubInput) {
@@ -328,12 +370,22 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
     importLock.current = true;
     setIsImporting(true);
-    setArchiveImportResults([]);
-    setLibraryError(null);
+    dismissFeedback("library-error");
+    dismissFeedback("archive-import");
 
     try {
       const results = await storage.addEpubFilesToArchive(input);
-      setArchiveImportResults(results);
+      const feedback = createImportFeedbackToken("archive-import", results);
+      if (feedback) {
+        pushFeedback(feedback);
+      }
+    } catch (error) {
+      pushFeedback({
+        id: "archive-import",
+        tone: "error",
+        title: "The EPUB files could not be added.",
+      });
+      throw error;
     } finally {
       importLock.current = false;
       setIsImporting(false);
@@ -524,12 +576,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const openSettings = useCallback(() => setSettingsOpen(true), []);
 
   async function rescanLibrary() {
-    setLibraryError(null);
+    dismissFeedback("library-error");
 
     try {
       await storage.rescan();
+      showRescanSuccess();
     } catch {
-      setLibraryError("The archive could not be scanned.");
+      showRescanError();
     }
   }
 
@@ -549,14 +602,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const revealBookFile = useCallback(
     async (book: Book) => {
       if (!book.relativePath) return;
-      setLibraryError(null);
+      dismissFeedback("library-error");
       try {
         await storage.revealBookFile(book.id);
       } catch {
-        setLibraryError("The EPUB could not be revealed in its folder.");
+        showLibraryError("The EPUB could not be revealed in its folder.");
       }
     },
-    [storage],
+    [dismissFeedback, showLibraryError, storage],
   );
 
   async function confirmDelete() {
@@ -565,13 +618,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
 
     setIsDeleting(true);
-    setLibraryError(null);
+    dismissFeedback("library-error");
 
     try {
       await storage.deleteBook(deleteTarget.id);
       setDeleteTarget(null);
     } catch {
-      setLibraryError(
+      showLibraryError(
         deleteTarget.isFileMissing
           ? "The saved metadata could not be removed."
           : "This book could not be deleted. Please try again.",
@@ -584,17 +637,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const toggleFavorite = useCallback(
     async (book: Book) => {
-      setLibraryError(null);
+      dismissFeedback("library-error");
 
       try {
         await storage.updateBook(book.id, {
           isFavorite: !book.isFavorite,
         });
       } catch {
-        setLibraryError("Favorite status could not be updated.");
+        showLibraryError("Favorite status could not be updated.");
       }
     },
-    [storage],
+    [dismissFeedback, showLibraryError, storage],
   );
 
   async function renameBookFile(fileName: string) {
@@ -602,7 +655,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       return;
     }
 
-    setLibraryError(null);
+    dismissFeedback("library-error");
     await storage.renameBookFile(renameFileTarget.id, fileName);
   }
 
@@ -611,7 +664,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       return;
     }
 
-    setLibraryError(null);
+    dismissFeedback("library-error");
     await storage.moveBookToFolder(moveBookTarget.id, folderId);
   }
 
@@ -639,11 +692,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }
 
   async function revealFolder(folder: Folder) {
-    setLibraryError(null);
+    dismissFeedback("library-error");
     try {
       await storage.revealFolder(folder.id);
     } catch {
-      setLibraryError("The folder could not be revealed.");
+      showLibraryError("The folder could not be revealed.");
     }
   }
 
@@ -653,7 +706,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
 
     setIsDeleting(true);
-    setLibraryError(null);
+    dismissFeedback("library-error");
 
     try {
       await storage.deleteFolder(deleteFolderTarget.id);
@@ -668,7 +721,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
       setDeleteFolderTarget(null);
     } catch {
-      setLibraryError("This folder could not be deleted. Please try again.");
+      showLibraryError("This folder could not be deleted. Please try again.");
       setDeleteFolderTarget(null);
     } finally {
       setIsDeleting(false);
@@ -704,22 +757,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }
 
   const emptyState = locationEmptyState();
-  const archiveImportSummary =
-    summarizeArchiveImportResults(archiveImportResults);
-  const archiveImportDetails = archiveImportResults.filter(
-    (result) => result.status !== "imported",
-  );
-  const archiveImportNoticeClass = archiveImportSummary
-    ? [
-        "import-notice",
-        archiveImportSummary.failed > 0
-          ? "import-notice--error"
-          : "import-notice--success",
-        archiveImportDetails.length > 0 ? "import-notice--detailed" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")
-    : "";
   const moveFolderExcludedIds = moveFolderTarget
     ? (folders ?? [])
         .filter(
@@ -795,9 +832,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onOpenAddEpub={openAddEpub}
             onClearSearch={clearLibrarySearch}
             onQueryChange={setQuery}
-            onRescanError={() =>
-              setLibraryError("The archive could not be scanned.")
-            }
+            onRescanError={showRescanError}
+            onRescanSuccess={showRescanSuccess}
             onSortChange={changeSort}
             onViewChange={changeView}
             query={query}
@@ -805,58 +841,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             title={libraryTitle}
             view={view}
           />
-
-          <ArchiveStatusBar />
-
-          {libraryError ? (
-            <div className="import-notice import-notice--error" role="alert">
-              <WarningCircle aria-hidden="true" size={19} weight="regular" />
-              <div>
-                <p>{libraryError}</p>
-              </div>
-              <IconButton
-                label="Dismiss library error"
-                onClick={() => setLibraryError(null)}
-              >
-                <X aria-hidden="true" size={17} weight="regular" />
-              </IconButton>
-            </div>
-          ) : null}
-
-          {archiveImportSummary ? (
-            <div
-              className={archiveImportNoticeClass}
-              role={archiveImportSummary.failed > 0 ? "alert" : "status"}
-            >
-              {archiveImportSummary.failed > 0 ? (
-                <WarningCircle aria-hidden="true" size={19} weight="regular" />
-              ) : (
-                <CheckCircle aria-hidden="true" size={19} weight="regular" />
-              )}
-              <div>
-                <p>{archiveImportSummary.message}</p>
-                {archiveImportDetails.length > 0 ? (
-                  <ul>
-                    {archiveImportDetails.map((result, index) => (
-                      <li key={`${result.sourcePath}-${index}`}>
-                        <span>{result.fileName}</span>
-                        {result.message ??
-                          (result.status === "skipped"
-                            ? "Skipped."
-                            : "Failed.")}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-              <IconButton
-                label="Dismiss import summary"
-                onClick={() => setArchiveImportResults([])}
-              >
-                <X aria-hidden="true" size={17} weight="regular" />
-              </IconButton>
-            </div>
-          ) : null}
 
           <div
             className="library-content"
@@ -920,6 +904,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           </div>
         </>
       )}
+
+      <LibraryFeedbackStack
+        onDismiss={dismissFeedback}
+        tokens={feedbackTokens}
+      />
 
       {isAddEpubOpen ? (
         <Suspense

@@ -7,9 +7,13 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 
 type RescanArchiveButtonProps = {
   onError: () => void;
+  onSuccess: () => void;
 };
 
-export function RescanArchiveButton({ onError }: RescanArchiveButtonProps) {
+export function RescanArchiveButton({
+  onError,
+  onSuccess,
+}: RescanArchiveButtonProps) {
   const storage = useLibraryStorage();
   const [isScanning, setIsScanning] = useState(false);
   const [confirmationOpen, setConfirmationOpen] = useState(false);
@@ -22,6 +26,7 @@ export function RescanArchiveButton({ onError }: RescanArchiveButtonProps) {
     setIsScanning(true);
     try {
       await storage.rescan();
+      onSuccess();
     } catch {
       onError();
     } finally {
