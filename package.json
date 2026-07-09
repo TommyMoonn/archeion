@@ -21,7 +21,8 @@
     "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "rust:fmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml",
     "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
-    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml"
+    "rust:test": "cargo test --manifest-path src-tauri/Cargo.toml",
+    "zip": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",
