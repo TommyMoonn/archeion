@@ -50,9 +50,11 @@ import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import {
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
+  createFolderSuccessFeedbackToken,
   createImportFeedbackToken,
   type LibraryFeedbackDraft,
   type LibraryFeedbackToken,
+  upsertLibraryFeedbackToken,
 } from "./libraryFeedback";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
@@ -222,10 +224,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const pushFeedback = useCallback((feedback: LibraryFeedbackDraft) => {
     const id = feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
-    setFeedbackTokens((currentTokens) => [
-      ...currentTokens.filter((token) => token.id !== id),
-      { ...feedback, id },
-    ]);
+    setFeedbackTokens((currentTokens) =>
+      upsertLibraryFeedbackToken(currentTokens, { ...feedback, id }),
+    );
     return id;
   }, []);
 
@@ -682,6 +683,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       name,
       parentId: location.type === "folder" ? location.folderId : null,
     });
+    pushFeedback(createFolderSuccessFeedbackToken());
   }
 
   async function renameFolder(name: string) {

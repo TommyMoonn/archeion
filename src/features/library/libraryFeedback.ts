@@ -23,6 +23,11 @@ export type LibraryFeedbackDraft = Omit<LibraryFeedbackToken, "id"> & {
 };
 
 export const LIBRARY_FEEDBACK_AUTO_DISMISS_MS = 4_000;
+export const LIBRARY_FEEDBACK_MAX_TOKENS = 3;
+
+export const LIBRARY_FOLDER_FEEDBACK_IDS = {
+  created: "library-folder-created",
+} as const;
 
 export const LIBRARY_DELETE_FEEDBACK_IDS = {
   bookDeleted: "library-delete-book",
@@ -32,6 +37,38 @@ export const LIBRARY_DELETE_FEEDBACK_IDS = {
   metadataRemoved: "library-delete-metadata",
   metadataRemoveFailed: "library-error",
 } as const;
+
+export function limitLibraryFeedbackTokens(
+  tokens: LibraryFeedbackToken[],
+): LibraryFeedbackToken[] {
+  if (tokens.length <= LIBRARY_FEEDBACK_MAX_TOKENS) {
+    return tokens;
+  }
+
+  const limitedTokens = [...tokens];
+
+  while (limitedTokens.length > LIBRARY_FEEDBACK_MAX_TOKENS) {
+    const oldestAutoDismissIndex = limitedTokens.findIndex(
+      (token) => token.autoDismiss === true,
+    );
+    limitedTokens.splice(
+      oldestAutoDismissIndex >= 0 ? oldestAutoDismissIndex : 0,
+      1,
+    );
+  }
+
+  return limitedTokens;
+}
+
+export function upsertLibraryFeedbackToken(
+  tokens: LibraryFeedbackToken[],
+  token: LibraryFeedbackToken,
+): LibraryFeedbackToken[] {
+  return limitLibraryFeedbackTokens([
+    ...tokens.filter((candidate) => candidate.id !== token.id),
+    token,
+  ]);
+}
 
 export type LibraryDeleteSuccessFeedbackType =
   | "bookDeleted"
@@ -53,6 +90,15 @@ const DELETE_ERROR_TITLES: Record<LibraryDeleteErrorFeedbackType, string> = {
   folderDeleteFailed: "This folder could not be deleted.",
   metadataRemoveFailed: "The saved metadata could not be removed.",
 };
+
+export function createFolderSuccessFeedbackToken(): LibraryFeedbackToken {
+  return {
+    id: LIBRARY_FOLDER_FEEDBACK_IDS.created,
+    tone: "success",
+    title: "Folder created.",
+    autoDismiss: true,
+  };
+}
 
 export function createDeleteSuccessFeedbackToken(
   type: LibraryDeleteSuccessFeedbackType,

@@ -4,12 +4,82 @@ import type { ArchiveImportResult } from "../../storage/LibraryStorage";
 import {
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
+  createFolderSuccessFeedbackToken,
   createImportFeedbackToken,
+  limitLibraryFeedbackTokens,
+  upsertLibraryFeedbackToken,
+  type LibraryFeedbackToken,
 } from "./libraryFeedback";
 
+function successToken(id: string): LibraryFeedbackToken {
+  return { id, tone: "success", title: id, autoDismiss: true };
+}
+
+function errorToken(id: string): LibraryFeedbackToken {
+  return { id, tone: "error", title: id };
+}
+
 describe("libraryFeedback", () => {
+  it("keeps at most three feedback tokens", () => {
+    const tokens = limitLibraryFeedbackTokens([
+      successToken("one"),
+      successToken("two"),
+      successToken("three"),
+      successToken("four"),
+    ]);
 
+    expect(tokens.map((token) => token.id)).toEqual(["two", "three", "four"]);
+  });
 
+  it("replaces same-id feedback before limiting", () => {
+    const tokens = upsertLibraryFeedbackToken(
+      [successToken("same"), errorToken("error")],
+      { id: "same", tone: "success", title: "Updated", autoDismiss: true },
+    );
+
+    expect(tokens).toHaveLength(2);
+    expect(tokens.map((token) => token.id)).toEqual(["error", "same"]);
+    expect(tokens[1]?.title).toBe("Updated");
+  });
+
+  it("drops older auto-dismiss tokens before persistent errors", () => {
+    const tokens = limitLibraryFeedbackTokens([
+      errorToken("first-error"),
+      successToken("old-success"),
+      errorToken("second-error"),
+      successToken("new-success"),
+    ]);
+
+    expect(tokens.map((token) => token.id)).toEqual([
+      "first-error",
+      "second-error",
+      "new-success",
+    ]);
+  });
+
+  it("drops the oldest token when all visible tokens are persistent", () => {
+    const tokens = limitLibraryFeedbackTokens([
+      errorToken("first"),
+      errorToken("second"),
+      errorToken("third"),
+      errorToken("fourth"),
+    ]);
+
+    expect(tokens.map((token) => token.id)).toEqual([
+      "second",
+      "third",
+      "fourth",
+    ]);
+  });
+
+  it("creates an auto-dismissing success token for folder creation", () => {
+    expect(createFolderSuccessFeedbackToken()).toMatchObject({
+      id: "library-folder-created",
+      tone: "success",
+      title: "Folder created.",
+      autoDismiss: true,
+    });
+  });
 
   it("creates persistent error tokens for failed delete operations", () => {
     expect(createDeleteErrorFeedbackToken("bookDeleteFailed")).toMatchObject({
@@ -49,6 +119,7 @@ describe("libraryFeedback", () => {
       autoDismiss: true,
     });
   });
+
   it("creates an auto-dismissing success token for successful import", () => {
     const token = createImportFeedbackToken("archive-import", [
       { status: "imported", fileName: "A.epub", sourcePath: "A.epub" },
