@@ -242,6 +242,20 @@ pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result
     write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
 }
 
+pub(crate) fn update_scanner_cache_entry_at(
+    root: &Path,
+    relative_path: &str,
+    entry: ScannerCacheEntry,
+) -> Result<(), String> {
+    let mut cache = load_scanner_cache_at(root)?;
+    if cache.entries.get(relative_path) == Some(&entry) {
+        return Ok(());
+    }
+
+    cache.entries.insert(relative_path.to_string(), entry);
+    save_scanner_cache_at(root, &cache)
+}
+
 pub(crate) fn clear_scanner_cache_at(root: &Path) -> Result<(), String> {
     let path = metadata_path(root).join(SCANNER_CACHE_FILE);
     if path.exists() {

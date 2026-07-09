@@ -3,6 +3,13 @@ import { listen } from "@tauri-apps/api/event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ArchiveWatcherController } from "./archiveWatcher";
+import {
+  WRITEBACK_WATCHER_SUPPRESSION_TTL_MS,
+  beginWritebackWatcherSuppression,
+  clearWritebackWatcherSuppressionsForTests,
+  finishWritebackWatcherSuppression,
+  suppressWritebackWatcherPath,
+} from "../../storage/writebackWatcherSuppression";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
@@ -32,6 +39,7 @@ describe("ArchiveWatcherController", () => {
   });
 
   afterEach(() => {
+    clearWritebackWatcherSuppressionsForTests();
     vi.useRealTimers();
   });
 
@@ -52,6 +60,251 @@ describe("ArchiveWatcherController", () => {
 
     expect(rescan).toHaveBeenCalledTimes(1);
     expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true });
+  });
+
+  it("suppresses exact writeback EPUB watcher events during the settled suppression window", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    suppressWritebackWatcherPath(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+  });
+
+  it("suppresses parent-directory watcher events while writeback is in flight", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+    finishWritebackWatcherSuppression(token);
+  });
+
+  it("suppresses exact writeback EPUB watcher events during the TTL tail", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    finishWritebackWatcherSuppression(token);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+  });
+
+  it("suppresses parent-directory watcher events during the TTL tail", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    finishWritebackWatcherSuppression(token);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+  });
+
+  it("suppresses archive-root directory watcher events for active root-level writeback", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+    finishWritebackWatcherSuppression(token);
+  });
+
+  it("suppresses archive-root directory watcher events during the TTL tail for root-level writeback", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Volume_01.epub",
+    );
+    finishWritebackWatcherSuppression(token);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).not.toHaveBeenCalled();
+  });
+
+  it("does not suppress archive-root directory watcher events for nested-only writeback", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const token = beginWritebackWatcherSuppression(
+      "C:/Archive",
+      "Books/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+    finishWritebackWatcherSuppression(token);
+  });
+
+  it("does not suppress archive-root directory watcher events without active writeback", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows archive-root directory watcher rescans after root-level suppression expires", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    suppressWritebackWatcherPath("C:/Archive", "Volume_01.epub");
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
+    watcher.notifyChanged({ path: "C:/Archive" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not suppress watcher rescans for different EPUB paths", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    suppressWritebackWatcherPath(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_02.epub" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows exact watcher rescans after writeback suppression expires", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    suppressWritebackWatcherPath(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows parent-directory watcher rescans after writeback suppression expires", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    suppressWritebackWatcherPath(
+      "C:/Archive",
+      "Author/Series/Volume_01.epub",
+    );
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not suppress parent-directory watcher events without active writeback", async () => {
+    const rescan = vi.fn().mockResolvedValue(undefined);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { rescan },
+    });
+
+    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(rescan).toHaveBeenCalledTimes(1);
   });
 
   it("queues one follow-up rescan when events arrive during an active scan", async () => {

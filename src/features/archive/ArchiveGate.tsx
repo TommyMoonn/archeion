@@ -40,6 +40,7 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
 
     if (liveWatcherEnabled) {
       watcher = new ArchiveWatcherController({
+        archiveRootPath: archivePath,
         storage,
         onError: () => {
           archiveStore.setWatcherError(

@@ -32,6 +32,15 @@ const book: Book = {
   updatedAt: "2026-01-01T00:00:00.000Z",
 };
 
+
+const writebackFileStat = {
+  relativePath: "Series/Volume_01.epub",
+  fileName: "Volume_01.epub",
+  folderPath: "Series",
+  size: 2048,
+  modifiedAt: 1_700_000_000_000,
+};
+
 let activeRoot: Root | null = null;
 
 type WriteMetadataHandler = (
@@ -44,6 +53,7 @@ function renderDialog(
   onWriteMetadata: WriteMetadataHandler = vi.fn(async () => ({
     backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
     sourceMetadata: renderedBook.sourceMetadata ?? {},
+    fileStat: writebackFileStat,
   })),
 ) {
   const container = document.createElement("div");
@@ -204,6 +214,7 @@ describe("BookAdvancedMetadataDialog", () => {
             ...identifierBook.sourceMetadata,
             title: "New Title",
           },
+          fileStat: writebackFileStat,
         };
       },
     );
@@ -256,6 +267,7 @@ describe("BookAdvancedMetadataDialog", () => {
     const onWriteMetadata = vi.fn(async () => ({
       backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
       sourceMetadata: { title: "Volume 01" },
+      fileStat: writebackFileStat,
     }));
     const { container } = renderDialog(bookWithoutPackageTitle, onWriteMetadata);
 
@@ -309,6 +321,7 @@ describe("BookAdvancedMetadataDialog", () => {
         ...book.sourceMetadata,
         title: "New Title",
       },
+      fileStat: writebackFileStat,
     }));
     const { container } = renderDialog(book, onWriteMetadata);
 

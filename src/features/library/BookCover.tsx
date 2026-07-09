@@ -1,5 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
@@ -39,6 +39,11 @@ export const BookCover = memo(function BookCover({
     return () => observer.disconnect();
   }, [shouldLoad]);
 
+  const coverKey = useMemo(
+    () => coverCacheKey(book.id, book.modifiedAt, book.size, book.coverRevision),
+    [book.id, book.modifiedAt, book.size, book.coverRevision],
+  );
+
   useEffect(() => {
     if (!shouldLoad) {
       return;
@@ -46,10 +51,7 @@ export const BookCover = memo(function BookCover({
     let cancelled = false;
     setCoverUrl(null);
     setState("loading");
-    const acquired = acquireCoverUrl(
-      coverCacheKey(book.id, book.modifiedAt, book.size),
-      () => storage.loadBookCover(book.id),
-    );
+    const acquired = acquireCoverUrl(coverKey, () => storage.loadBookCover(book.id));
 
     void acquired.promise
       .then((url) => {
@@ -72,13 +74,7 @@ export const BookCover = memo(function BookCover({
       cancelled = true;
       acquired.release();
     };
-  }, [
-    book.id,
-    book.modifiedAt,
-    book.size,
-    shouldLoad,
-    storage,
-  ]);
+  }, [book.id, coverKey, shouldLoad, storage]);
 
   return (
     <div

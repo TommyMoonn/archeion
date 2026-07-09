@@ -14,6 +14,11 @@ import type {
 import type { ArchiveImportSettings } from "../types/settings";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
 import {
+  beginWritebackWatcherSuppression,
+  finishWritebackWatcherSuppression,
+  suppressWritebackWatcherPath,
+} from "./writebackWatcherSuppression";
+import {
   createLibraryMetadata,
   createProgressMetadata,
   createSettingsMetadata,
@@ -24,6 +29,7 @@ import {
   type SettingsMetadata,
 } from "./metadataFiles";
 import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
+import { normalizeSourceMetadata, sourceMetadataEqual } from "./sourceMetadata";
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
@@ -56,6 +62,30 @@ function replacePathPrefix(
   }
   const suffix = relativePath.slice(oldPrefix.length + 1);
   return newPrefix ? `${newPrefix}/${suffix}` : suffix;
+}
+
+function isWritebackBookEquivalent(left: Book, right: Book): boolean {
+  return (
+    left.id === right.id &&
+    left.fileName === right.fileName &&
+    left.relativePath === right.relativePath &&
+    left.folderPath === right.folderPath &&
+    left.size === right.size &&
+    left.modifiedAt === right.modifiedAt &&
+    left.originalTitle === right.originalTitle &&
+    left.originalAuthor === right.originalAuthor &&
+    left.coverPath === right.coverPath &&
+    left.coverRevision === right.coverRevision &&
+    left.isFileMissing === right.isFileMissing &&
+    left.folderId === right.folderId &&
+    left.isFavorite === right.isFavorite &&
+    left.addedAt === right.addedAt &&
+    left.updatedAt === right.updatedAt &&
+    left.lastOpenedAt === right.lastOpenedAt &&
+    left.progressCfi === right.progressCfi &&
+    left.progressPercent === right.progressPercent &&
+    sourceMetadataEqual(left.sourceMetadata, right.sourceMetadata)
+  );
 }
 
 type ArchiveCommandScope = {
@@ -694,6 +724,67 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.books[index];
   }
 
+  private async applyMetadataWritebackResult(
+    id: string,
+    result: EpubMetadataWritebackResult,
+    scope: ArchiveCommandScope,
+  ): Promise<void> {
+    this.assertCurrentArchiveScope(scope);
+    const index = this.books.findIndex((book) => book.id === id);
+    if (index < 0) {
+      throw new Error(`Book "${id}" was not found.`);
+    }
+
+    const currentBook = this.books[index];
+    const currentEntry = this.libraryMetadata.books[id];
+    if (!currentEntry) {
+      throw new Error(`Book metadata "${id}" was not found.`);
+    }
+
+    const timestamp = new Date().toISOString();
+    const sourceMetadata = normalizeSourceMetadata(result.sourceMetadata);
+    const fileModifiedAt = result.fileStat.modifiedAt;
+    const fileSize = result.fileStat.size;
+    const normalizedRelativePath = result.fileStat.relativePath;
+    const metadataChanged =
+      currentEntry.relativePath !== normalizedRelativePath ||
+      currentEntry.fileSize !== fileSize ||
+      currentEntry.fileModifiedAt !== fileModifiedAt ||
+      !sourceMetadataEqual(currentEntry.sourceMetadata, sourceMetadata);
+
+    if (metadataChanged) {
+      this.libraryMetadata.books[id] = {
+        ...currentEntry,
+        relativePath: normalizedRelativePath,
+        sourceMetadata,
+        fileSize,
+        fileModifiedAt,
+        updatedAt: timestamp,
+      };
+      await this.saveLibraryMetadata(scope);
+      this.assertCurrentArchiveScope(scope);
+    }
+
+    const nextBook: Book = {
+      ...currentBook,
+      relativePath: normalizedRelativePath,
+      fileName: result.fileStat.fileName,
+      folderPath: result.fileStat.folderPath,
+      size: fileSize,
+      modifiedAt: new Date(fileModifiedAt).toISOString(),
+      originalAuthor: sourceMetadata?.creator,
+      sourceMetadata,
+      updatedAt: metadataChanged ? timestamp : currentBook.updatedAt,
+    };
+
+    if (!isWritebackBookEquivalent(currentBook, nextBook)) {
+      this.books = this.books.map((book, bookIndex) =>
+        bookIndex === index ? nextBook : book,
+      );
+      this.emitBooks();
+    }
+  }
+
   async writeBookMetadata(
     id: string,
     metadata: EpubMetadataWritebackInput,
@@ -708,37 +799,45 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     const keepSuccessfulBackup =
       appPreferencesStore.getSnapshot().filesAndMetadata.keepEpubWritebackBackup;
 
-    const result = await this.invokeArchiveCommand<EpubMetadataWritebackResult>(
-      "write_epub_metadata",
-      {
-        input: {
-          relativePath: book.relativePath,
-          metadata,
-          keepSuccessfulBackup,
-        },
-      },
+    const suppression = beginWritebackWatcherSuppression(
       scope.rootPath,
+      book.relativePath,
     );
 
-    if (this.generation !== scope.generation) {
-      return result;
-    }
-
-    for (const key of this.coverPromises.keys()) {
-      if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
-    }
-
-
     try {
-      await this.rescan();
-    } catch (error) {
-      throw new Error(
-        "Metadata was written, but the library could not refresh. Rescan the library to update the display.",
-        { cause: error },
+      const result = await this.invokeArchiveCommand<EpubMetadataWritebackResult>(
+        "write_epub_metadata",
+        {
+          input: {
+            relativePath: book.relativePath,
+            metadata,
+            keepSuccessfulBackup,
+          },
+        },
+        scope.rootPath,
       );
-    }
 
-    return result;
+      if (this.generation !== scope.generation) {
+        return result;
+      }
+
+      if (result.fileStat.relativePath !== book.relativePath) {
+        suppressWritebackWatcherPath(scope.rootPath, result.fileStat.relativePath);
+      }
+
+      try {
+        await this.applyMetadataWritebackResult(id, result, scope);
+      } catch (error) {
+        throw new Error(
+          "Metadata was written, but the library could not refresh this book. Rescan to update the display.",
+          { cause: error },
+        );
+      }
+
+      return result;
+    } finally {
+      finishWritebackWatcherSuppression(suppression);
+    }
   }
 
   async renameBookFile(

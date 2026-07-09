@@ -123,6 +123,7 @@ export function coverCacheKey(
   id: string,
   modifiedAt?: string,
   size?: number,
+  coverRevision?: string,
 ): string {
-  return `${id}:${size ?? "unknown"}:${modifiedAt ?? "unknown"}`;
+  return `${id}:${coverRevision ?? `${size ?? "unknown"}:${modifiedAt ?? "unknown"}`}`;
 }

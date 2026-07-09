@@ -13,9 +13,18 @@ export type EpubSourceMetadata = {
 
 export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
+export type EpubMetadataWritebackFileStat = {
+  relativePath: string;
+  fileName: string;
+  folderPath: string;
+  size: number;
+  modifiedAt: number;
+};
+
 export type EpubMetadataWritebackResult = {
   backupPath?: string | null;
   sourceMetadata: EpubSourceMetadata;
+  fileStat: EpubMetadataWritebackFileStat;
 };
 
 export type Book = {
@@ -36,6 +45,7 @@ export type Book = {
   originalAuthor?: string;
   sourceMetadata?: EpubSourceMetadata;
   coverPath?: string;
+  coverRevision?: string;
   isFileMissing?: boolean;
   folderId?: string | null;
   isFavorite: boolean;

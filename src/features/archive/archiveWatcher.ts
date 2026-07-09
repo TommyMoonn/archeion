@@ -2,11 +2,20 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
+import {
+  archiveRelativePathFromAbsolutePath,
+  shouldSuppressWritebackWatcherEvent,
+} from "../../storage/writebackWatcherSuppression";
 
 export const ARCHIVE_CHANGED_EVENT = "archive://changed";
 export const ARCHIVE_WATCHER_ERROR_EVENT = "archive://watcher-error";
 
+export type ArchiveChangedPayload = {
+  path?: string | null;
+};
+
 export type ArchiveWatcherOptions = {
+  archiveRootPath?: string | null;
   debounceMs?: number;
   onError?: (error: unknown) => void;
   onRecovered?: () => void;
@@ -23,6 +32,7 @@ function clearTimer(timer: Timer | null): null {
 }
 
 export class ArchiveWatcherController {
+  private readonly archiveRootPath?: string | null;
   private readonly debounceMs: number;
   private readonly onError?: (error: unknown) => void;
   private readonly onRecovered?: () => void;
@@ -35,11 +45,13 @@ export class ArchiveWatcherController {
   private unlistenCallbacks: UnlistenFn[] = [];
 
   constructor({
+    archiveRootPath,
     debounceMs = 350,
     onError,
     onRecovered,
     storage,
   }: ArchiveWatcherOptions) {
+    this.archiveRootPath = archiveRootPath;
     this.debounceMs = debounceMs;
     this.onError = onError;
     this.onRecovered = onRecovered;
@@ -55,7 +67,9 @@ export class ArchiveWatcherController {
 
     try {
       const [stopChangeListener, stopErrorListener] = await Promise.all([
-        listen(ARCHIVE_CHANGED_EVENT, () => this.notifyChanged()),
+        listen<ArchiveChangedPayload>(ARCHIVE_CHANGED_EVENT, (event) =>
+          this.notifyChanged(event.payload),
+        ),
         listen(ARCHIVE_WATCHER_ERROR_EVENT, (event) => {
           this.reportError(event.payload);
         }),
@@ -91,8 +105,19 @@ export class ArchiveWatcherController {
     }
   }
 
-  notifyChanged(): void {
+  notifyChanged(payload?: ArchiveChangedPayload | null): void {
     if (this.stopped) {
+      return;
+    }
+
+    const relativePath = archiveRelativePathFromAbsolutePath(
+      this.archiveRootPath,
+      payload?.path,
+    );
+    if (
+      relativePath !== undefined &&
+      shouldSuppressWritebackWatcherEvent(this.archiveRootPath, relativePath)
+    ) {
       return;
     }
 

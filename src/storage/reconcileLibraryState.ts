@@ -101,6 +101,13 @@ function fileNameFromPath(relativePath: string): string {
   return relativePath.split("/").at(-1) ?? relativePath;
 }
 
+function coverRevisionFromFileStats(size?: number, modifiedAt?: number): string | undefined {
+  if (size === undefined || modifiedAt === undefined) {
+    return undefined;
+  }
+  return `${size}:${modifiedAt}`;
+}
+
 function sourceMetadataForScan(
   book: ScannedBook,
   metadataWarningPaths: ReadonlySet<string>,
@@ -146,6 +153,7 @@ function buildBook(
     originalAuthor: sourceMetadata?.creator,
     sourceMetadata,
     coverPath: metadata.coverPath,
+    coverRevision: coverRevisionFromFileStats(scanned.size, scanned.modifiedAt),
     isFileMissing: false,
     isFavorite: metadata.isFavorite,
     addedAt: metadata.addedAt,
@@ -179,6 +187,10 @@ function buildMissingBook(
     originalAuthor: metadata.sourceMetadata?.creator,
     sourceMetadata: metadata.sourceMetadata,
     coverPath: metadata.coverPath,
+    coverRevision: coverRevisionFromFileStats(
+      metadata.fileSize,
+      metadata.fileModifiedAt,
+    ),
     isFileMissing: true,
     folderId: null,
     isFavorite: metadata.isFavorite,
