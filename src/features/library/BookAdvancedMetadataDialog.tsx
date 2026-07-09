@@ -72,6 +72,7 @@ const METADATA_FIELD_GROUPS = [
   fields: readonly MetadataField[];
 }[];
 
+type MetadataFieldGroupDefinition = (typeof METADATA_FIELD_GROUPS)[number];
 
 type MetadataFormState = Record<Exclude<EditableField, "subjects">, string> & {
   subjects: string;
@@ -90,6 +91,16 @@ type MetadataChange = {
   field: EditableField;
   label: string;
 };
+
+type MetadataStatus =
+  | { tone: "success"; message: string }
+  | { tone: "error"; message: string }
+  | null;
+
+type MetadataFieldUpdate = (
+  field: keyof MetadataFormState,
+  value: string,
+) => void;
 
 function cleanValue(value: string): string | undefined {
   const cleaned = value.replace(/\s+/g, " ").trim();
@@ -203,6 +214,162 @@ function writebackErrorMessage(error: unknown): string {
   return "Metadata could not be written to the EPUB.";
 }
 
+function MetadataFieldGroup({
+  book,
+  committedMetadata,
+  form,
+  group,
+  onFieldChange,
+}: {
+  book: Book;
+  committedMetadata: EpubSourceMetadata;
+  form: MetadataFormState;
+  group: MetadataFieldGroupDefinition;
+  onFieldChange: MetadataFieldUpdate;
+}) {
+  return (
+    <section className="metadata-writeback__group">
+      <h3>{group.title}</h3>
+      <div className="metadata-writeback__grid">
+        {group.fields.map((field) => (
+          <MetadataFieldControl
+            book={book}
+            committedMetadata={committedMetadata}
+            field={field}
+            form={form}
+            key={field}
+            onFieldChange={onFieldChange}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MetadataFieldControl({
+  book,
+  committedMetadata,
+  field,
+  form,
+  onFieldChange,
+}: {
+  book: Book;
+  committedMetadata: EpubSourceMetadata;
+  field: MetadataField;
+  form: MetadataFormState;
+  onFieldChange: MetadataFieldUpdate;
+}) {
+  const label = FIELD_LABELS[field];
+
+  if (field === "identifier") {
+    const identifier = committedMetadata.identifier;
+    const value = identifier ?? "—";
+    const labelId = "metadata-identifier-label";
+
+    return (
+      <div className="metadata-writeback__field metadata-writeback__field--reference">
+        <span id={labelId}>{label}</span>
+        <div
+          aria-labelledby={labelId}
+          className="metadata-writeback__reference-value"
+          title={identifier}
+        >
+          {value}
+        </div>
+      </div>
+    );
+  }
+
+  const id = textInputId(field);
+  const value = form[field];
+  const placeholder = fieldPlaceholder(book, field);
+  const className = isTextAreaField(field)
+    ? "metadata-writeback__field metadata-writeback__field--wide"
+    : "metadata-writeback__field";
+
+  return (
+    <label className={className}>
+      <span>{label}</span>
+      {isTextAreaField(field) ? (
+        <textarea
+          {...DISABLE_INPUT_ASSISTANCE}
+          id={id}
+          name={FIELD_INPUT_NAMES[field]}
+          rows={field === "description" ? 5 : 3}
+          value={value}
+          onChange={(event) => onFieldChange(field, event.target.value)}
+          placeholder={placeholder}
+        />
+      ) : (
+        <input
+          {...DISABLE_INPUT_ASSISTANCE}
+          id={id}
+          name={FIELD_INPUT_NAMES[field]}
+          value={value}
+          onChange={(event) => onFieldChange(field, event.target.value)}
+          placeholder={placeholder}
+        />
+      )}
+    </label>
+  );
+}
+
+function PendingChangesSummary({ changes }: { changes: MetadataChange[] }) {
+  const hasChanges = changes.length > 0;
+
+  return (
+    <section className="metadata-writeback__changes" aria-live="polite">
+      <div className="metadata-writeback__changes-header">
+        <strong>Pending changes</strong>
+        {hasChanges ? <span>{changedFieldSummary(changes.length)}</span> : null}
+      </div>
+      {hasChanges ? (
+        <ul aria-label="Changed metadata fields">
+          {changes.map((change) => (
+            <li key={change.field}>
+              <span>{change.label}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>No metadata changes.</p>
+      )}
+    </section>
+  );
+}
+
+function MetadataWritebackStatus({
+  isFileMissing,
+  status,
+}: {
+  isFileMissing: boolean | undefined;
+  status: MetadataStatus;
+}) {
+  return (
+    <>
+      {isFileMissing ? (
+        <p
+          className="metadata-writeback__status"
+          data-tone="error"
+          role="alert"
+        >
+          The EPUB file is missing. Metadata writeback is unavailable.
+        </p>
+      ) : null}
+
+      {status ? (
+        <p
+          className="metadata-writeback__status"
+          data-tone={status.tone}
+          role={status.tone === "error" ? "alert" : "status"}
+        >
+          {status.message}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 export function BookAdvancedMetadataDialog({
   book,
   onClose,
@@ -212,11 +379,7 @@ export function BookAdvancedMetadataDialog({
     normalizedSourceMetadata(book.sourceMetadata),
   );
   const [form, setForm] = useState(() => formStateFromMetadata(book.sourceMetadata));
-  const [status, setStatus] = useState<
-    | { tone: "success"; message: string }
-    | { tone: "error"; message: string }
-    | null
-  >(null);
+  const [status, setStatus] = useState<MetadataStatus>(null);
   const [isWriting, setIsWriting] = useState(false);
 
   const nextMetadata = useMemo(() => metadataFromForm(form), [form]);
@@ -256,65 +419,6 @@ export function BookAdvancedMetadataDialog({
     }
   }
 
-  function renderField(field: MetadataField) {
-    const label = FIELD_LABELS[field];
-
-    if (field === "identifier") {
-      const identifier = committedMetadata.identifier;
-      const value = identifier ?? "—";
-      const labelId = "metadata-identifier-label";
-
-      return (
-        <div
-          className="metadata-writeback__field metadata-writeback__field--reference"
-          key={field}
-        >
-          <span id={labelId}>{label}</span>
-          <div
-            aria-labelledby={labelId}
-            className="metadata-writeback__reference-value"
-            title={identifier}
-          >
-            {value}
-          </div>
-        </div>
-      );
-    }
-
-    const id = textInputId(field);
-    const value = form[field];
-    const placeholder = fieldPlaceholder(book, field);
-    const className = isTextAreaField(field)
-      ? "metadata-writeback__field metadata-writeback__field--wide"
-      : "metadata-writeback__field";
-
-    return (
-      <label className={className} key={field}>
-        <span>{label}</span>
-        {isTextAreaField(field) ? (
-          <textarea
-            {...DISABLE_INPUT_ASSISTANCE}
-            id={id}
-            name={FIELD_INPUT_NAMES[field]}
-            rows={field === "description" ? 5 : 3}
-            value={value}
-            onChange={(event) => updateField(field, event.target.value)}
-            placeholder={placeholder}
-          />
-        ) : (
-          <input
-            {...DISABLE_INPUT_ASSISTANCE}
-            id={id}
-            name={FIELD_INPUT_NAMES[field]}
-            value={value}
-            onChange={(event) => updateField(field, event.target.value)}
-            placeholder={placeholder}
-          />
-        )}
-      </label>
-    );
-  }
-
   return (
     <Dialog
       className="dialog--metadata-writeback"
@@ -334,52 +438,22 @@ export function BookAdvancedMetadataDialog({
       <div className="metadata-writeback">
         <div className="metadata-writeback__groups">
           {METADATA_FIELD_GROUPS.map((group) => (
-            <section className="metadata-writeback__group" key={group.title}>
-              <h3>{group.title}</h3>
-              <div className="metadata-writeback__grid">
-                {group.fields.map((field) => renderField(field))}
-              </div>
-            </section>
+            <MetadataFieldGroup
+              book={book}
+              committedMetadata={committedMetadata}
+              form={form}
+              group={group}
+              key={group.title}
+              onFieldChange={updateField}
+            />
           ))}
         </div>
 
-        <section className="metadata-writeback__changes" aria-live="polite">
-          <div className="metadata-writeback__changes-header">
-            <strong>Pending changes</strong>
-            {hasChanges ? <span>{changedFieldSummary(changes.length)}</span> : null}
-          </div>
-          {hasChanges ? (
-            <ul aria-label="Changed metadata fields">
-              {changes.map((change) => (
-                <li key={change.field}>
-                  <span>{change.label}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No metadata changes.</p>
-          )}
-        </section>
-
-        {book.isFileMissing ? (
-          <p
-            className="metadata-writeback__status"
-            data-tone="error"
-            role="alert"
-          >
-            The EPUB file is missing. Metadata writeback is unavailable.
-          </p>
-        ) : null}
-
-        {status ? (
-          <p
-            className="metadata-writeback__status"
-            data-tone={status.tone}
-            role={status.tone === "error" ? "alert" : "status"}
-          >
-            {status.message}
-          </p>
-        ) : null}
+        <PendingChangesSummary changes={changes} />
+        <MetadataWritebackStatus
+          isFileMissing={book.isFileMissing}
+          status={status}
+        />
       </div>
     </Dialog>
   );

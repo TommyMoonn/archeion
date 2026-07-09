@@ -13,7 +13,7 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -56,10 +56,27 @@ export function BookDetailsDrawer({
   canRevealFile = false,
 }: BookDetailsDrawerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
-  const hasProgress = progress > 0;
-  const progressLabel = `${Math.max(1, Math.round(progress))}%`;
+  const title = bookTitle(book);
   const author = bookAuthor(book);
+  const progressDetails = useMemo(() => {
+    const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
+    const hasProgress = progress > 0;
+
+    return {
+      hasProgress,
+      label: `${Math.max(1, Math.round(progress))}%`,
+    };
+  }, [book.progressPercent]);
+  const fileDetails = useMemo(
+    () => ({
+      lastOpenedAt: book.lastOpenedAt
+        ? formatLongDate(book.lastOpenedAt)
+        : null,
+      path: book.relativePath ?? book.fileName,
+      size: formatFileSize(book.size ?? 0),
+    }),
+    [book.fileName, book.lastOpenedAt, book.relativePath, book.size],
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -118,14 +135,14 @@ export function BookDetailsDrawer({
         <div className="details-drawer__body">
           <BookCover book={book} className="book-cover--details" />
           <div className="details-drawer__title">
-            <h2 id="book-details-title">{bookTitle(book)}</h2>
+            <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
-            {hasProgress ? (
+            {progressDetails.hasProgress ? (
               <span
                 className="details-progress-pill"
-                aria-label={`Reading progress ${progressLabel}`}
+                aria-label={`Reading progress ${progressDetails.label}`}
               >
-                {progressLabel}
+                {progressDetails.label}
               </span>
             ) : null}
           </div>
@@ -156,9 +173,9 @@ export function BookDetailsDrawer({
                 icon={<BookOpen aria-hidden="true" size={17} />}
                 onClick={() => onRead(book)}
               >
-                {hasProgress ? "Continue reading" : "Read book"}
+                {progressDetails.hasProgress ? "Continue reading" : "Read book"}
               </Button>
-              {hasProgress ? (
+              {progressDetails.hasProgress ? (
                 <Button
                   icon={<ArrowCounterClockwise aria-hidden="true" size={16} />}
                   onClick={() => onReadFromBeginning(book)}
@@ -216,19 +233,19 @@ export function BookDetailsDrawer({
                 File
               </dt>
               <dd>
-                <span title={book.relativePath ?? book.fileName}>
-                  {book.relativePath ?? book.fileName}
+                <span title={fileDetails.path}>
+                  {fileDetails.path}
                 </span>
-                <span>{formatFileSize(book.size ?? 0)}</span>
+                <span>{fileDetails.size}</span>
               </dd>
             </div>
-            {book.lastOpenedAt ? (
+            {fileDetails.lastOpenedAt ? (
               <div>
                 <dt>
                   <Clock aria-hidden="true" size={16} />
                   Last opened
                 </dt>
-                <dd>{formatLongDate(book.lastOpenedAt)}</dd>
+                <dd>{fileDetails.lastOpenedAt}</dd>
               </div>
             ) : null}
           </dl>

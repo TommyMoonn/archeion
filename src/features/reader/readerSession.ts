@@ -1,6 +1,8 @@
 import type { Book } from "../../types/book";
 import type { ReaderLocation } from "./readerLocation";
 
+export type ReaderStartMode = "resume" | "beginning";
+
 export type ReaderSessionInitialState = {
   bookId: string | null;
   initialCfi?: string;
@@ -14,6 +16,13 @@ const EMPTY_READER_LOCATION: ReaderLocation = {
   atStart: true,
   atEnd: false,
 };
+
+export function createReaderSessionKey(
+  bookId: string | undefined,
+  startMode: ReaderStartMode,
+): string {
+  return `${bookId ?? "missing"}:${startMode}`;
+}
 
 export function createReaderSessionInitialState(
   book: Book | undefined,
@@ -40,15 +49,4 @@ export function createReaderSessionInitialState(
     },
     startFromBeginning,
   };
-}
-
-export function shouldResetReaderSession(
-  current: ReaderSessionInitialState,
-  book: Book | undefined,
-  startFromBeginning: boolean,
-): boolean {
-  return (
-    current.bookId !== (book?.id ?? null) ||
-    current.startFromBeginning !== startFromBeginning
-  );
 }

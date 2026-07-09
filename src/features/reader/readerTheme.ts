@@ -4,6 +4,14 @@ import {
   readerFontFamilyForId,
 } from "./readerFonts";
 
+const READER_CONTENT_THEME_NAME = "archeion-reader";
+const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
+
+export type ReaderContentSettings = Pick<
+  ReaderSettings,
+  "fontFamily" | "fontSize" | "lineHeight" | "margin" | "theme"
+>;
+
 const themeColors = {
   dark: {
     background: "#171717",
@@ -25,11 +33,26 @@ const themeColors = {
   },
 };
 
-export function readerFontFaceCssForSettings(settings: ReaderSettings) {
+type ReaderThemeRules = ReturnType<typeof readerThemeForSettings>;
+
+type ReaderThemeTarget = {
+  themes: {
+    register: (name: string, rules: ReaderThemeRules) => void;
+    select: (name: string) => void;
+  };
+};
+
+export type ReaderContentTheme = {
+  fontFaceCss: string | undefined;
+  name: typeof READER_CONTENT_THEME_NAME;
+  rules: ReaderThemeRules;
+};
+
+export function readerFontFaceCssForSettings(settings: ReaderContentSettings) {
   return readerFontFaceCssForId(settings.fontFamily);
 }
 
-export function readerThemeForSettings(settings: ReaderSettings) {
+export function readerThemeForSettings(settings: ReaderContentSettings) {
   const colors = themeColors[settings.theme];
   const fontFamily = readerFontFamilyForId(settings.fontFamily);
   return {
@@ -78,4 +101,68 @@ export function readerThemeForSettings(settings: ReaderSettings) {
       "white-space": "pre-wrap !important",
     },
   };
+}
+
+export function createReaderContentTheme(
+  settings: ReaderContentSettings,
+): ReaderContentTheme {
+  return {
+    fontFaceCss: readerFontFaceCssForSettings(settings),
+    name: READER_CONTENT_THEME_NAME,
+    rules: readerThemeForSettings(settings),
+  };
+}
+
+export function readerContentSettingsEqual(
+  left: ReaderContentSettings,
+  right: ReaderContentSettings,
+): boolean {
+  return (
+    left.fontFamily === right.fontFamily &&
+    left.fontSize === right.fontSize &&
+    left.lineHeight === right.lineHeight &&
+    left.margin === right.margin &&
+    left.theme === right.theme
+  );
+}
+
+export function applyReaderContentTheme(
+  target: ReaderThemeTarget | null | undefined,
+  theme: ReaderContentTheme,
+  documents: Array<Document | null | undefined> = [],
+): void {
+  target?.themes.register(theme.name, theme.rules);
+  target?.themes.select(theme.name);
+
+  const uniqueDocuments = new Set(
+    documents.filter((document): document is Document => Boolean(document)),
+  );
+
+  for (const document of uniqueDocuments) {
+    applyReaderFontFaces(document, theme.fontFaceCss);
+  }
+}
+
+function applyReaderFontFaces(
+  document: Document | null,
+  fontFaceCss: string | undefined,
+) {
+  if (!document?.head) {
+    return;
+  }
+
+  const existingStyle = document.getElementById(READER_FONT_FACE_STYLE_ID);
+
+  if (!fontFaceCss) {
+    existingStyle?.remove();
+    return;
+  }
+
+  const style = existingStyle ?? document.createElement("style");
+  style.id = READER_FONT_FACE_STYLE_ID;
+  style.textContent = fontFaceCss;
+
+  if (!existingStyle) {
+    document.head.appendChild(style);
+  }
 }

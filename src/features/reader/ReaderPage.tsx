@@ -23,7 +23,10 @@ import {
 } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
-import { createReaderSessionInitialState } from "./readerSession";
+import {
+  createReaderSessionInitialState,
+  createReaderSessionKey,
+} from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
@@ -35,7 +38,7 @@ export function ReaderRoute() {
   const startMode =
     searchParams.get("start") === "beginning" ? "beginning" : "resume";
 
-  return <ReaderPage key={`${bookId ?? "missing"}:${startMode}`} />;
+  return <ReaderPage key={createReaderSessionKey(bookId, startMode)} />;
 }
 
 export function ReaderPage() {
@@ -64,13 +67,25 @@ export function ReaderPage() {
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const settingsOpenRef = useRef(settingsOpen);
+  const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() =>
     createReaderSessionInitialState(book, startFromBeginning),
   );
   const [location, setLocation] = useState<ReaderLocation>(
     readerSession.initialLocation,
   );
+  const bookId = book?.id;
+  const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
+
+  useEffect(() => {
+    settingsOpenRef.current = settingsOpen;
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    controlsVisibleRef.current = controlsVisible;
+  }, [controlsVisible]);
 
   useEffect(() => {
     return () => {
@@ -88,10 +103,11 @@ export function ReaderPage() {
 
   const revealControls = useCallback(() => {
     const now = Date.now();
+    const isSettingsOpen = settingsOpenRef.current;
 
     if (
-      controlsVisible &&
-      !settingsOpen &&
+      controlsVisibleRef.current &&
+      !isSettingsOpen &&
       now - lastControlsRevealAt.current < 250
     ) {
       return;
@@ -102,12 +118,12 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen) {
+    if (!isSettingsOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
     }
-  }, [controlsVisible, settingsOpen]);
+  }, []);
 
   const openSettings = useCallback(() => {
     setControlsVisible(true);
@@ -122,18 +138,18 @@ export function ReaderPage() {
   }, []);
 
   const handleReady = useCallback(() => {
-    if (!book || book.isFileMissing) {
+    if (!bookId || isBookFileMissing) {
       return;
     }
 
     void storage
-      .updateBook(book.id, {
+      .updateBook(bookId, {
         lastOpenedAt: new Date().toISOString(),
       })
       .catch(() => {
         setProgressSaveFailed(true);
       });
-  }, [book, storage]);
+  }, [bookId, isBookFileMissing, storage]);
 
   const queueProgressSave = useCallback(
     (bookId: string, nextLocation: ReaderLocation) => {
@@ -183,17 +199,17 @@ export function ReaderPage() {
 
   const handleLocationChange = useCallback(
     (nextLocation: ReaderLocation) => {
-      if (!book) {
+      if (!bookId) {
         return;
       }
 
       setLocation(nextLocation);
       progressWriter.current?.schedule({
-        bookId: book.id,
+        bookId,
         location: nextLocation,
       });
     },
-    [book],
+    [bookId],
   );
 
   const handleViewerError = useCallback((message: string) => {
@@ -213,7 +229,7 @@ export function ReaderPage() {
       }
 
       if (intent === "close") {
-        if (settingsOpen) {
+        if (settingsOpenRef.current) {
           setSettingsOpen(false);
         } else {
           void navigate("/");
@@ -232,7 +248,7 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [moveNext, movePrevious, navigate, openSettings, settingsOpen],
+    [moveNext, movePrevious, navigate, openSettings],
   );
 
   const handleContentKeyDown = useCallback(
@@ -244,28 +260,27 @@ export function ReaderPage() {
 
   useEffect(() => {
     let cancelled = false;
-
-    if (!book || book.isFileMissing) {
+    if (!bookId || isBookFileMissing) {
       return;
     }
 
     void storage
-      .loadBookFile(book.id)
+      .loadBookFile(bookId)
       .then((blob) => {
         if (!cancelled) {
-          setLoadedFile({ bookId: book.id, blob, failed: false });
+          setLoadedFile({ bookId, blob, failed: false });
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setLoadedFile({ bookId: book.id, failed: true });
+          setLoadedFile({ bookId, failed: true });
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [book, storage]);
+  }, [bookId, isBookFileMissing, storage]);
 
   useEffect(() => {
     if (controlsTimer.current !== null) {

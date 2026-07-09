@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "../../types/book";
 import {
   createReaderSessionInitialState,
-  shouldResetReaderSession,
+  createReaderSessionKey,
 } from "./readerSession";
 
 const book: Book = {
@@ -46,23 +46,15 @@ describe("reader session initial state", () => {
     });
   });
 
-  it("does not reset the reader session for progress-only parent updates", () => {
-    const session = createReaderSessionInitialState(book, false);
-    const updatedBook = {
-      ...book,
-      progressCfi: "epubcfi(/6/8)",
-      progressPercent: 54,
-    };
-
-    expect(shouldResetReaderSession(session, updatedBook, false)).toBe(false);
-  });
-
-  it("resets the reader session when the book or start mode changes", () => {
-    const session = createReaderSessionInitialState(book, false);
-
-    expect(shouldResetReaderSession(session, { ...book, id: "book-2" }, false)).toBe(
-      true,
+  it("keys reader route sessions by book and start mode only", () => {
+    const normalKey = createReaderSessionKey(book.id, "resume");
+    const progressOnlyUpdateKey = createReaderSessionKey(
+      { ...book, progressCfi: "epubcfi(/6/8)", progressPercent: 54 }.id,
+      "resume",
     );
-    expect(shouldResetReaderSession(session, book, true)).toBe(true);
+
+    expect(progressOnlyUpdateKey).toBe(normalKey);
+    expect(createReaderSessionKey(book.id, "beginning")).not.toBe(normalKey);
+    expect(createReaderSessionKey("book-2", "resume")).not.toBe(normalKey);
   });
 });

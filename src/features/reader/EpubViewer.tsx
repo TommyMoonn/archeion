@@ -1,8 +1,10 @@
 import {
   forwardRef,
+  memo,
   useCallback,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -21,8 +23,9 @@ import {
   type ReaderLocation,
 } from "./readerLocation";
 import {
-  readerFontFaceCssForSettings,
-  readerThemeForSettings,
+  applyReaderContentTheme,
+  createReaderContentTheme,
+  readerContentSettingsEqual,
 } from "./readerTheme";
 
 export type EpubViewerHandle = {
@@ -72,33 +75,6 @@ type RenditionWithContentHook = Rendition & {
   };
 };
 
-const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
-
-function applyReaderFontFaces(
-  document: Document | null,
-  settings: ReaderSettings,
-) {
-  if (!document?.head) {
-    return;
-  }
-
-  const fontFaceCss = readerFontFaceCssForSettings(settings);
-  const existingStyle = document.getElementById(READER_FONT_FACE_STYLE_ID);
-
-  if (!fontFaceCss) {
-    existingStyle?.remove();
-    return;
-  }
-
-  const style = existingStyle ?? document.createElement("style");
-  style.id = READER_FONT_FACE_STYLE_ID;
-  style.textContent = fontFaceCss;
-
-  if (!existingStyle) {
-    document.head.appendChild(style);
-  }
-}
-
 function documentFromRenderedView(view: unknown) {
   const renderedView = view as RenderedView | null;
 
@@ -114,7 +90,7 @@ function windowFromContentDocument(document: Document | null) {
   return document?.defaultView ?? null;
 }
 
-export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
+const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(
   function EpubViewer(
     {
       fileBlob,
@@ -144,7 +120,19 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
     const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
     const wheelDeltaRef = useRef(0);
-    const settingsRef = useRef(settings);
+    const { fontFamily, fontSize, lineHeight, margin, theme } = settings;
+    const contentTheme = useMemo(
+      () =>
+        createReaderContentTheme({
+          fontFamily,
+          fontSize,
+          lineHeight,
+          margin,
+          theme,
+        }),
+      [fontFamily, fontSize, lineHeight, margin, theme],
+    );
+    const contentThemeRef = useRef(contentTheme);
     const [isLoading, setIsLoading] = useState(true);
 
     callbacksRef.current = {
@@ -154,7 +142,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
       onLocationChange,
       onReady,
     };
-    settingsRef.current = settings;
+    contentThemeRef.current = contentTheme;
 
     const runPageTurn = useCallback(
       async (intent: ReaderNavigationIntent) => {
@@ -280,7 +268,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
         removeContentListeners();
         lastContentDocument = document;
         activeContentDocumentRef.current = document;
-        applyReaderFontFaces(document, settingsRef.current);
+        applyReaderContentTheme(null, contentThemeRef.current, [document]);
         const contentWindow =
           content?.window ?? windowFromContentDocument(document);
 
@@ -354,7 +342,6 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
             return;
           }
 
-          const currentSettings = settingsRef.current;
           rendition = epubBook.renderTo(containerRef.current, {
             width: "100%",
             height: "100%",
@@ -366,11 +353,7 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
           (rendition as RenditionWithContentHook).hooks?.content?.register?.(
             bindContent,
           );
-          rendition.themes.register(
-            "archeion-reader",
-            readerThemeForSettings(currentSettings),
-          );
-          rendition.themes.select("archeion-reader");
+          applyReaderContentTheme(rendition, contentThemeRef.current);
           rendition.on("rendered", onRendered);
           rendition.on("relocated", onRelocated);
 
@@ -436,26 +419,18 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     }, [fileBlob, handleWheel, initialCfi]);
 
     useEffect(() => {
-      const rendition = renditionRef.current;
-      if (!rendition) {
-        return;
-      }
-
-      rendition.themes.register(
-        "archeion-reader",
-        readerThemeForSettings(settings),
-      );
-      rendition.themes.select("archeion-reader");
-      applyReaderFontFaces(activeContentDocumentRef.current, settings);
       const mountedFrame = containerRef.current?.querySelector("iframe");
-      applyReaderFontFaces(mountedFrame?.contentDocument ?? null, settings);
-    }, [settings]);
+      applyReaderContentTheme(renditionRef.current, contentTheme, [
+        activeContentDocumentRef.current,
+        mountedFrame?.contentDocument ?? null,
+      ]);
+    }, [contentTheme]);
 
     return (
       <div
         ref={viewerRef}
         className="epub-viewer"
-        data-reader-theme={settings.theme}
+        data-reader-theme={theme}
       >
         <div ref={containerRef} className="epub-viewer__stage" />
         <button
@@ -485,3 +460,21 @@ export const EpubViewer = forwardRef<EpubViewerHandle, EpubViewerProps>(
     );
   },
 );
+
+function areEpubViewerPropsEqual(
+  previous: EpubViewerProps,
+  next: EpubViewerProps,
+): boolean {
+  return (
+    previous.fileBlob === next.fileBlob &&
+    previous.initialCfi === next.initialCfi &&
+    previous.onError === next.onError &&
+    previous.onInteraction === next.onInteraction &&
+    previous.onKeyDown === next.onKeyDown &&
+    previous.onLocationChange === next.onLocationChange &&
+    previous.onReady === next.onReady &&
+    readerContentSettingsEqual(previous.settings, next.settings)
+  );
+}
+
+export const EpubViewer = memo(EpubViewerComponent, areEpubViewerPropsEqual);
