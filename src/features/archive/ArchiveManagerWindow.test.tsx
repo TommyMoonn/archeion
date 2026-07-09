@@ -117,7 +117,9 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).not.toContain('aria-current="page"');
     expect(markup).toContain("archive-manager-window__icon");
     expect(markup).toContain("Create empty archive");
+    expect(markup).toContain("Start with a new local folder.");
     expect(markup).toContain("Open folder as archive");
+    expect(markup).toContain("Use an existing folder.");
     expect(markup).toContain("Rename");
     expect(markup).toContain("Reveal in folder");
     expect(markup).toContain("Forget");
@@ -284,9 +286,29 @@ describe("ArchiveManagerWindow", () => {
       );
     });
 
-    expect(container.textContent).toContain("Create local archive");
+    expect(container.textContent).toContain("Create archive");
+    expect(container.textContent).toContain("Archeion");
+    expect(container.textContent).toContain("Manage archives");
+    expect(container.textContent).not.toContain("Create local archive");
     expect(container.querySelector("#archive-create-name")).toBeInstanceOf(
       HTMLInputElement,
+    );
+    expect(
+      container.querySelector("#archive-create-name")?.getAttribute("placeholder"),
+    ).toBe("Light novels");
+    expect(container.textContent).toContain("Creates a folder with this name.");
+    expect(
+      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
+        "data-view",
+      ),
+    ).toBe("create");
+    expect(
+      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
+        "data-direction",
+      ),
+    ).toBe("forward");
+    expect(container.textContent).not.toContain(
+      "Choose a name and parent location.",
     );
     expect(chooseArchiveParentLocation).not.toHaveBeenCalled();
     expect(createEmptyArchive).not.toHaveBeenCalled();
@@ -331,6 +353,11 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(container.textContent).toContain("Manage archives");
+    expect(
+      container.querySelector(".archive-manager-window__content-area")?.getAttribute(
+        "data-direction",
+      ),
+    ).toBe("back");
 
     await act(async () => {
       buttonWithText(container, "Create empty archive").dispatchEvent(
@@ -362,8 +389,9 @@ describe("ArchiveManagerWindow", () => {
       );
     });
 
-    expect(container.textContent).toContain("Create local archive");
-    expect(container.textContent).toContain("Choose a location");
+    expect(container.textContent).toContain("Create archive");
+    expect(container.textContent).toContain("Choose a parent folder");
+    expect(container.textContent).not.toContain("Create local archive");
 
     act(() => root.unmount());
   });
@@ -488,7 +516,8 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(container.textContent).toContain("Archive folder already exists.");
-    expect(container.textContent).toContain("Create local archive");
+    expect(container.textContent).toContain("Create archive");
+    expect(container.textContent).not.toContain("Create local archive");
     expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
 
     act(() => root.unmount());

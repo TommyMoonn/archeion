@@ -20,6 +20,7 @@ import { OpenArchiveButton } from "./OpenArchiveButton";
 
 type ArchiveManagerMode = "launcher" | "manager";
 type ArchiveManagerView = "manager" | "create";
+type ArchiveManagerTransitionDirection = "forward" | "back";
 
 type ArchiveManagerWindowContentProps = {
   mode: ArchiveManagerMode;
@@ -308,6 +309,8 @@ export function ArchiveManagerWindowContent({
 }: ArchiveManagerWindowContentProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [view, setView] = useState<ArchiveManagerView>("manager");
+  const [transitionDirection, setTransitionDirection] =
+    useState<ArchiveManagerTransitionDirection>("forward");
   const [archiveName, setArchiveName] = useState("");
   const [locationPath, setLocationPath] = useState("");
   const activeArchiveId = activeArchiveIdForState(state);
@@ -356,66 +359,83 @@ export function ArchiveManagerWindowContent({
           </aside>
 
           <section className="archive-manager-window__main">
-            {view === "create" ? (
-              <ArchiveCreateView
-                archiveName={archiveName}
-                locationPath={locationPath}
-                onArchiveChoiceComplete={onArchiveChoiceComplete}
-                onArchiveNameChange={setArchiveName}
-                onBack={() => {
-                  setStatus(null);
-                  setView("manager");
-                }}
-                onCreated={() => {
-                  resetCreateForm();
-                  setView("manager");
-                }}
-                onLocationChange={setLocationPath}
-              />
-            ) : (
-              <>
-                <div className="archive-manager-window__identity">
-                  <div className="archive-manager-window__mark" aria-hidden="true">
-                    <img
-                      className="archive-manager-window__icon"
-                      src={archeionIcon}
-                      alt=""
+            <div className="archive-manager-window__identity">
+              <div className="archive-manager-window__mark" aria-hidden="true">
+                <img
+                  className="archive-manager-window__icon"
+                  src={archeionIcon}
+                  alt=""
+                />
+              </div>
+              <h1 id="archive-manager-title">Archeion</h1>
+              <p>{title}</p>
+              {errorText ? (
+                <p className="archive-manager-window__status" role="alert">
+                  {errorText}
+                </p>
+              ) : null}
+              {status ? (
+                <p className="archive-manager-window__status" role="status">
+                  {status}
+                </p>
+              ) : null}
+            </div>
+
+            <div
+              className="archive-manager-window__content-area"
+              data-direction={transitionDirection}
+              data-view={view}
+            >
+              {view === "create" ? (
+                <ArchiveCreateView
+                  archiveName={archiveName}
+                  locationPath={locationPath}
+                  onArchiveChoiceComplete={onArchiveChoiceComplete}
+                  onArchiveNameChange={setArchiveName}
+                  onBack={() => {
+                    setStatus(null);
+                    setTransitionDirection("back");
+                    setView("manager");
+                  }}
+                  onCreated={() => {
+                    resetCreateForm();
+                    setTransitionDirection("back");
+                    setView("manager");
+                  }}
+                  onLocationChange={setLocationPath}
+                />
+              ) : (
+                <div className="archive-manager-window__content-panel">
+                  <div className="archive-manager-window__actions">
+                    <Button
+                      className="archive-action-row"
+                      icon={<Plus aria-hidden="true" size={18} />}
+                      onClick={() => {
+                        setStatus(null);
+                        setTransitionDirection("forward");
+                        setView("create");
+                      }}
+                      variant="secondary"
+                    >
+                      <span className="archive-action-row__copy">
+                        <span className="archive-action-row__title">
+                          Create empty archive
+                        </span>
+                        <span className="archive-action-row__description">
+                          Start with a new local folder.
+                        </span>
+                      </span>
+                    </Button>
+                    <OpenArchiveButton
+                      className="archive-action-row"
+                      description="Use an existing folder."
+                      onOpened={onArchiveChoiceComplete}
+                      variant="secondary"
                     />
                   </div>
-                  <h1 id="archive-manager-title">Archeion</h1>
-                  <p>{title}</p>
-                  {errorText ? (
-                    <p className="archive-manager-window__status" role="alert">
-                      {errorText}
-                    </p>
-                  ) : null}
-                  {status ? (
-                    <p className="archive-manager-window__status" role="status">
-                      {status}
-                    </p>
-                  ) : null}
                 </div>
-
-                <div className="archive-manager-window__actions">
-                  <Button
-                    className="archive-action-row"
-                    icon={<Plus aria-hidden="true" size={18} />}
-                    onClick={() => {
-                      setStatus(null);
-                      setView("create");
-                    }}
-                    variant="secondary"
-                  >
-                    Create empty archive
-                  </Button>
-                  <OpenArchiveButton
-                    className="archive-action-row"
-                    onOpened={onArchiveChoiceComplete}
-                    variant="secondary"
-                  />
-                </div>
-              </>
-            )}
+              )}
+            </div>
           </section>
         </div>
       </section>

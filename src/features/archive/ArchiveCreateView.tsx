@@ -1,7 +1,6 @@
 import { ArrowLeft, FolderOpen } from "@phosphor-icons/react";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
-import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
 import { archiveStore } from "../../stores/archiveStore";
@@ -40,7 +39,9 @@ export function ArchiveCreateView({
     () => deriveArchivePath(locationPath, archiveName),
     [archiveName, locationPath],
   );
-  const canCreate = Boolean(!nameError && normalizedName && locationPath && !isCreating);
+  const canCreate = Boolean(
+    !nameError && normalizedName && locationPath && !isCreating,
+  );
 
   useEffect(() => {
     nameInputRef.current?.focus();
@@ -99,7 +100,7 @@ export function ArchiveCreateView({
   return (
     <section
       aria-labelledby="archive-create-title"
-      className="archive-create-view"
+      className="archive-create-view archive-manager-window__content-panel"
       onKeyDown={(event) => {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -116,15 +117,17 @@ export function ArchiveCreateView({
         <span>Back</span>
       </button>
 
-      <div className="archive-create-view__identity">
-        <img src={archeionIcon} alt="" aria-hidden="true" />
-        <h1 id="archive-create-title">Create local archive</h1>
+      <div className="archive-create-view__heading">
+        <h2 id="archive-create-title">Create archive</h2>
       </div>
 
       <form className="archive-create-form" onSubmit={submitForm}>
         <div className="archive-create-form__card">
           <div className="archive-create-form__row archive-create-form__row--input">
-            <label htmlFor="archive-create-name">Archive name</label>
+            <div className="archive-create-form__label-block">
+              <label htmlFor="archive-create-name">Archive name</label>
+              <span>Creates a folder with this name.</span>
+            </div>
             <Input
               autoCapitalize="off"
               autoComplete="off"
@@ -136,6 +139,7 @@ export function ArchiveCreateView({
                 onArchiveNameChange(event.currentTarget.value);
                 setStatus(null);
               }}
+              placeholder="Light novels"
               ref={nameInputRef}
               spellCheck={false}
               value={archiveName}
@@ -144,12 +148,16 @@ export function ArchiveCreateView({
 
           <div className="archive-create-form__row">
             <div className="archive-create-form__row-copy">
-              <span>Location</span>
-              <strong title={locationPath || undefined}>
-                {locationPath || "Choose a location"}
-              </strong>
+              <span className="archive-create-form__row-label">Location</span>
+              <span
+                className="archive-create-form__row-description"
+                title={locationPath || undefined}
+              >
+                {locationPath || "Choose a parent folder"}
+              </span>
             </div>
             <Button
+              className="archive-create-form__browse"
               disabled={isBrowsing || isCreating}
               icon={<FolderOpen aria-hidden="true" size={16} />}
               onClick={() => void browseLocation()}
@@ -178,9 +186,11 @@ export function ArchiveCreateView({
           </p>
         ) : null}
 
-        <Button disabled={!canCreate} type="submit" variant="primary">
-          {isCreating ? "Creating" : "Create"}
-        </Button>
+        <div className="archive-create-form__footer">
+          <Button disabled={!canCreate} type="submit" variant="primary">
+            {isCreating ? "Creating" : "Create"}
+          </Button>
+        </div>
       </form>
     </section>
   );

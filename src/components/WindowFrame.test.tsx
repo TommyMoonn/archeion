@@ -29,14 +29,14 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const mountedRoots: Root[] = [];
 
-function renderFrame() {
+function renderFrame(frameStyleOverride?: "hidden" | "archeion" | "native") {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   mountedRoots.push(root);
 
   act(() => {
-    root.render(<WindowFrame />);
+    root.render(<WindowFrame frameStyleOverride={frameStyleOverride} />);
   });
 
   return { container };
@@ -76,6 +76,23 @@ describe("WindowFrame", () => {
     expect(icon).toBeInstanceOf(HTMLImageElement);
     expect(icon?.getAttribute("src")).toContain("archeion-icon-128.png");
     expect(container.textContent).toContain("Archeion");
+  });
+
+
+  it("can force hidden frame mode regardless of the saved preference", async () => {
+    act(() => {
+      appPreferencesStore.update({ windowFrameStyle: "archeion" });
+    });
+
+    const { container } = renderFrame("hidden");
+
+    await act(async () => Promise.resolve());
+
+    const frame = container.querySelector(".window-titlebar");
+
+    expect(frame?.getAttribute("data-mode")).toBe("hidden");
+    expect(container.querySelector(".window-titlebar__icon")).toBeNull();
+    expect(container.textContent).not.toContain("Archeion");
   });
 
   it("does not render custom controls in native frame mode", async () => {

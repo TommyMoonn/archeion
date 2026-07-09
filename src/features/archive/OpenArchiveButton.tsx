@@ -6,6 +6,7 @@ import { archiveStore } from "../../stores/archiveStore";
 
 type OpenArchiveButtonProps = {
   className?: string;
+  description?: string;
   label?: string;
   onOpened?: () => void | Promise<unknown>;
   variant?: "primary" | "secondary" | "ghost";
@@ -13,6 +14,7 @@ type OpenArchiveButtonProps = {
 
 export function OpenArchiveButton({
   className,
+  description,
   label = "Open folder as archive",
   onOpened,
   variant = "primary",
@@ -35,6 +37,8 @@ export function OpenArchiveButton({
     }
   }
 
+  const buttonLabel = isOpening ? "Opening" : label;
+
   return (
     <Button
       className={className}
@@ -43,7 +47,14 @@ export function OpenArchiveButton({
       onClick={handleOpen}
       variant={variant}
     >
-      {isOpening ? "Opening" : label}
+      {description ? (
+        <span className="archive-action-row__copy">
+          <span className="archive-action-row__title">{buttonLabel}</span>
+          <span className="archive-action-row__description">{description}</span>
+        </span>
+      ) : (
+        buttonLabel
+      )}
     </Button>
   );
 }

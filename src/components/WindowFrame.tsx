@@ -11,8 +11,13 @@ function setAppliedFrame(mode: WindowFrameStyle | "browser") {
   document.documentElement.dataset.windowFrameApplied = mode;
 }
 
-export function WindowFrame() {
-  const windowFrameStyle = useWindowFrameStylePreference();
+type WindowFrameProps = {
+  frameStyleOverride?: WindowFrameStyle;
+};
+
+export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
+  const preferredWindowFrameStyle = useWindowFrameStylePreference();
+  const windowFrameStyle = frameStyleOverride ?? preferredWindowFrameStyle;
   const [appliedMode, setAppliedMode] =
     useState<WindowFrameStyle>(windowFrameStyle);
   const desktop = isTauri();

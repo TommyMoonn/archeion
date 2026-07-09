@@ -18,9 +18,14 @@ export function App() {
 
   if (windowMode === "archive-manager") {
     return (
-      <Suspense fallback={null}>
-        <ArchiveManagerWindow />
-      </Suspense>
+      <div className="window-app">
+        <WindowFrame frameStyleOverride="hidden" />
+        <div className="window-app__content">
+          <Suspense fallback={null}>
+            <ArchiveManagerWindow />
+          </Suspense>
+        </div>
+      </div>
     );
   }
 
