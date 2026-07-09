@@ -2,8 +2,6 @@
   <img src="docs/assets/archeion-wordmark.png" alt="Archeion" width="256" />
 </p>
 
-<h1 align="center">Archeion</h1>
-
 <p align="center">
   A local-first desktop EPUB reader and archive manager.
 </p>
