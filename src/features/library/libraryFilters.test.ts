@@ -9,9 +9,11 @@ import {
   createCachedLibrarySearchIndex,
   createLibrarySearchIndex,
   createLibrarySearchIndexCache,
+  createLibraryVisibleBooksCache,
   filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
+  getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
   getVisibleBooks,
   normalizeLibrarySort,
@@ -219,6 +221,95 @@ describe("library filters", () => {
     expect(secondEntry.fields.folderName.normalized).toBe("new folder");
   });
 
+  it("does not rebuild cached search fields for file-stat-only updates", () => {
+    const cache = createLibrarySearchIndexCache();
+    const book = createBook({
+      id: "cached-stats",
+      originalTitle: "Stable Title",
+      modifiedAt: "2026-07-01T00:00:00.000Z",
+      size: 2048,
+    });
+
+    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
+    const [secondEntry] = createCachedLibrarySearchIndex(
+      [
+        {
+          ...book,
+          modifiedAt: "2026-07-02T00:00:00.000Z",
+          size: 4096,
+          sourceMetadata: {
+            ...book.sourceMetadata,
+            publisher: "Updated Publisher",
+          },
+        },
+      ],
+      [],
+      cache,
+    );
+
+    expect(secondEntry.fields).toBe(firstEntry.fields);
+  });
+
+  it("reuses visible books when only non-rendering file stats change", () => {
+    const cache = createLibraryVisibleBooksCache();
+    const book = createBook({
+      id: "visible-stats",
+      originalTitle: "Stable Title",
+      modifiedAt: "2026-07-01T00:00:00.000Z",
+      size: 2048,
+      coverRevision: "cover:v1",
+    });
+    const firstIndex = createLibrarySearchIndex([book]);
+    const firstVisible = getCachedVisibleBooksFromSearchIndex(
+      firstIndex,
+      "",
+      "title",
+      { type: "library" },
+      cache,
+    );
+    const secondIndex = createLibrarySearchIndex([
+      {
+        ...book,
+        modifiedAt: "2026-07-02T00:00:00.000Z",
+        size: 4096,
+      },
+    ]);
+    const secondVisible = getCachedVisibleBooksFromSearchIndex(
+      secondIndex,
+      "",
+      "title",
+      { type: "library" },
+      cache,
+    );
+
+    expect(secondVisible).toBe(firstVisible);
+  });
+
+  it("recomputes visible books when displayed metadata changes", () => {
+    const cache = createLibraryVisibleBooksCache();
+    const book = createBook({
+      id: "visible-title",
+      originalTitle: "Old Title",
+    });
+    const firstVisible = getCachedVisibleBooksFromSearchIndex(
+      createLibrarySearchIndex([book]),
+      "",
+      "title",
+      { type: "library" },
+      cache,
+    );
+    const secondVisible = getCachedVisibleBooksFromSearchIndex(
+      createLibrarySearchIndex([{ ...book, originalTitle: "New Title" }]),
+      "",
+      "title",
+      { type: "library" },
+      cache,
+    );
+
+    expect(secondVisible).not.toBe(firstVisible);
+    expect(bookTitle(secondVisible[0])).toBe("New Title");
+  });
+
   it("builds a reusable search index for repeated queries", () => {
     const index = createLibrarySearchIndex(books, folders);
 
@@ -349,7 +440,10 @@ describe("library filters", () => {
       "author",
     );
     expect(
-      getEffectiveLibrarySort({ type: "folder", folderId: "folder-one" }, selectedSort),
+      getEffectiveLibrarySort(
+        { type: "folder", folderId: "folder-one" },
+        selectedSort,
+      ),
     ).toBe("author");
   });
 
@@ -509,9 +603,7 @@ describe("library filters", () => {
       "second",
     ]);
     expect(
-      sortBooks(recentlyOpenedBooks, "recently-opened").map(
-        (book) => book.id,
-      ),
+      sortBooks(recentlyOpenedBooks, "recently-opened").map((book) => book.id),
     ).toEqual(["recent-alpha", "recent-beta", "older", "unopened"]);
   });
 

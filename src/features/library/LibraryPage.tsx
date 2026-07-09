@@ -27,8 +27,10 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
-import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
-import { measurePerformance } from "../../utils/measurePerformance";
+import type {
+  ArchiveImportSettings,
+  ImportSettings,
+} from "../../types/settings";
 import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
@@ -38,14 +40,11 @@ import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
 import {
   bookTitle,
-  createCachedLibrarySearchIndex,
   createLibrarySearchIndexCache,
-  getEffectiveLibrarySort,
-  getVisibleBooksFromSearchIndex,
-  sortBooks,
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
+import { useLibraryDerivedState } from "./libraryDerivedState";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import {
   createDeleteErrorFeedbackToken,
@@ -182,7 +181,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const importLock = useRef(false);
   const feedbackSequenceRef = useRef(0);
   const [isImporting, setIsImporting] = useState(false);
-  const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
+  const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>(
+    [],
+  );
   const [query, setQuery] = useState("");
   const [archiveImportSettings, setArchiveImportSettings] =
     useState<ArchiveImportSettings>(defaultArchiveImportSettings);
@@ -223,7 +224,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, []);
 
   const pushFeedback = useCallback((feedback: LibraryFeedbackDraft) => {
-    const id = feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
+    const id =
+      feedback.id ?? `library-feedback-${feedbackSequenceRef.current++}`;
     setFeedbackTokens((currentTokens) =>
       upsertLibraryFeedbackToken(currentTokens, { ...feedback, id }),
     );
@@ -395,81 +397,29 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
   }
 
-  const bookCount = books?.length ?? 0;
-  const favoriteCount = useMemo(
-    () => books?.filter((book) => book.isFavorite).length ?? 0,
-    [books],
-  );
-  const continueBooks = useMemo(
-    () =>
-      sortBooks(
-        (books ?? []).filter(
-          (book) =>
-            (book.progressPercent ?? 0) > 0 &&
-            (book.progressPercent ?? 0) < 99.5,
-        ),
-        "recently-opened",
-      ),
-    [books],
-  );
-  const continuePreview = useMemo(
-    () => continueBooks.slice(0, 5),
-    [continueBooks],
-  );
-  const bookCountsByFolder = useMemo(() => {
-    const counts = new Map<string, number>();
-
-    for (const book of books ?? []) {
-      if (book.folderId) {
-        counts.set(book.folderId, (counts.get(book.folderId) ?? 0) + 1);
-      }
-    }
-
-    return counts;
-  }, [books]);
-  const searchIndex = useMemo(
-    () =>
-      measurePerformance("archeion:create-library-search-index", () =>
-        createCachedLibrarySearchIndex(books ?? [], folders, searchIndexCache),
-      ),
-    [books, folders, searchIndexCache],
-  );
-  const effectiveSort = useMemo(
-    () => getEffectiveLibrarySort(location, sort),
-    [location, sort],
-  );
-  const visibleBooks = useMemo(
-    () =>
-      measurePerformance("archeion:filter-and-sort-library", () =>
-        getVisibleBooksFromSearchIndex(
-          searchIndex,
-          debouncedQuery,
-          effectiveSort,
-          location,
-        ),
-      ),
-    [debouncedQuery, effectiveSort, location, searchIndex],
-  );
-  const selectedBook = useMemo(
-    () => books?.find((book) => book.id === selectedBookId) ?? null,
-    [books, selectedBookId],
-  );
-  const metadataEditorBook = useMemo(
-    () => books?.find((book) => book.id === metadataEditorBookId) ?? null,
-    [books, metadataEditorBookId],
-  );
+  const {
+    bookCount,
+    bookCountsByFolder,
+    continueBooks,
+    continuePreview,
+    currentFolder,
+    effectiveSort,
+    favoriteCount,
+    libraryTitle,
+    metadataEditorBook,
+    selectedBook,
+    visibleBooks,
+  } = useLibraryDerivedState({
+    books,
+    debouncedQuery,
+    folders,
+    location,
+    metadataEditorBookId,
+    searchIndexCache,
+    selectedBookId,
+    sort,
+  });
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
-  const currentFolder =
-    location.type === "folder"
-      ? folders?.find((folder) => folder.id === location.folderId)
-      : undefined;
-  const libraryTitle =
-    location.type === "favorites"
-      ? "Favorites"
-      : location.type === "continue"
-        ? "Continue reading"
-        : (currentFolder?.name ?? "Library");
-
   const scrollMainContentToTop = useCallback(() => {
     scrollElementToTop(pageShellRef.current);
   }, []);
@@ -503,7 +453,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const changeFolderBrowserView = useCallback(
     (nextView: FolderBrowserView) => {
-      const nextParams = searchParamsForFolderBrowserView(searchParams, nextView);
+      const nextParams = searchParamsForFolderBrowserView(
+        searchParams,
+        nextView,
+      );
 
       if (nextParams.toString() !== searchParams.toString()) {
         setSearchParams(nextParams, { replace: true });
@@ -859,9 +812,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             data-surface-state={librarySurfaceState}
             key={librarySurfaceKey}
           >
-            {location.type === "library" &&
-            !query &&
-            showContinueReading ? (
+            {location.type === "library" && !query && showContinueReading ? (
               <ContinueReading books={continuePreview} onContinue={readBook} />
             ) : null}
             {books === undefined || (isImporting && books.length === 0) ? (
@@ -1001,9 +952,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : null}
 
       {settingsOpen ? (
-        <Suspense
-          fallback={<DialogLoadingFallback label="Opening settings" />}
-        >
+        <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
           <SettingsDialog onClose={() => setSettingsOpen(false)} />
         </Suspense>
       ) : null}
