@@ -534,7 +534,7 @@ html.performance-lite .terminal-card {
 /* Mobile performance mode.
    Keep the desktop cinematic version intact, but remove paint-heavy animation,
    blur, and scroll work on touch and small-screen devices. */
-@media (max-width: 720px), (pointer: coarse) {
+@media (max-width: 1040px), (pointer: coarse) {
   :root {
     --scroll-glow: 0;
   }
@@ -741,5 +741,348 @@ html.performance-lite .terminal-card {
   .delay-two,
   .delay-three {
     transform: none;
+  }
+}
+
+/* Hard performance mode.
+   The cinematic layer is now opt-in for capable desktop devices. Weak,
+   touch, tablet, and mobile devices get a static version before first paint. */
+html:not(.cinematic-enabled) {
+  --scroll-glow: 0;
+}
+
+html:not(.cinematic-enabled) body {
+  background:
+    radial-gradient(circle at 50% 0%, rgb(143 193 227 / 7%), transparent 38rem),
+    linear-gradient(180deg, #171717 0%, #111113 52%, #151516 100%);
+}
+
+html:not(.cinematic-enabled) .page-section {
+  content-visibility: visible;
+  contain-intrinsic-size: auto;
+}
+
+html:not(.cinematic-enabled) .site-nav {
+  background: rgb(18 18 19 / 96%);
+  backdrop-filter: none;
+  animation: none !important;
+}
+
+html:not(.cinematic-enabled) body::before,
+html:not(.cinematic-enabled) body::after,
+html:not(.cinematic-enabled) main::before,
+html:not(.cinematic-enabled) main::after,
+html:not(.cinematic-enabled) .hero::before,
+html:not(.cinematic-enabled) .hero::after,
+html:not(.cinematic-enabled) .hero-stage::before,
+html:not(.cinematic-enabled) .hero-stage::after,
+html:not(.cinematic-enabled) .particle-field,
+html:not(.cinematic-enabled) .shockwave,
+html:not(.cinematic-enabled) .orbital,
+html:not(.cinematic-enabled) .book-comet,
+html:not(.cinematic-enabled) .file-orbit,
+html:not(.cinematic-enabled) .alive-section::before,
+html:not(.cinematic-enabled) .alive-section::after,
+html:not(.cinematic-enabled) .alive-section .section-header::before,
+html:not(.cinematic-enabled) .alive-section .section-header::after,
+html:not(.cinematic-enabled) .launch-copy::after,
+html:not(.cinematic-enabled) .launch-band::before,
+html:not(.cinematic-enabled) .launch-band::after,
+html:not(.cinematic-enabled) .cosmic-frame::before,
+html:not(.cinematic-enabled) .cover-mock::after,
+html:not(.cinematic-enabled) .reader-preview::before,
+html:not(.cinematic-enabled) .reader-page::after,
+html:not(.cinematic-enabled) .constellation-grid .principle::before,
+html:not(.cinematic-enabled) .release-card::after,
+html:not(.cinematic-enabled) .accretion::before,
+html:not(.cinematic-enabled) .accretion::after,
+html:not(.cinematic-enabled) .singularity-flare {
+  display: none !important;
+}
+
+html:not(.cinematic-enabled) .site-nav,
+html:not(.cinematic-enabled) .hero-copy .eyebrow,
+html:not(.cinematic-enabled) .hero-copy h1,
+html:not(.cinematic-enabled) .hero-copy .hero-lede,
+html:not(.cinematic-enabled) .hero-copy .hero-actions,
+html:not(.cinematic-enabled) .hero-meta .meta-tile,
+html:not(.cinematic-enabled) .hero-stage,
+html:not(.cinematic-enabled) .blackhole-shell,
+html:not(.cinematic-enabled) .blackhole-shell::before,
+html:not(.cinematic-enabled) .accretion,
+html:not(.cinematic-enabled) .event-horizon,
+html:not(.cinematic-enabled) .event-horizon::after,
+html:not(.cinematic-enabled) .archive-core-card,
+html:not(.cinematic-enabled) .reader-progress span,
+html:not(.cinematic-enabled) .type-line code,
+html:not(.cinematic-enabled) .type-line i,
+html:not(.cinematic-enabled) .archive-portal::before,
+html:not(.cinematic-enabled) .delay-one,
+html:not(.cinematic-enabled) .delay-two,
+html:not(.cinematic-enabled) .delay-three,
+html:not(.cinematic-enabled) .reveal {
+  animation: none !important;
+  filter: none !important;
+  transition: none !important;
+}
+
+html:not(.cinematic-enabled) .hero-copy .eyebrow,
+html:not(.cinematic-enabled) .hero-copy h1,
+html:not(.cinematic-enabled) .hero-copy .hero-lede,
+html:not(.cinematic-enabled) .hero-copy .hero-actions,
+html:not(.cinematic-enabled) .hero-meta .meta-tile,
+html:not(.cinematic-enabled) .hero-stage,
+html:not(.cinematic-enabled) .blackhole-shell,
+html:not(.cinematic-enabled) .archive-core-card,
+html:not(.cinematic-enabled) .delay-one,
+html:not(.cinematic-enabled) .delay-two,
+html:not(.cinematic-enabled) .delay-three,
+html:not(.cinematic-enabled) .reveal {
+  opacity: 1 !important;
+  transform: none !important;
+}
+
+html:not(.cinematic-enabled) .hero {
+  min-height: auto;
+}
+
+html:not(.cinematic-enabled) .hero-stage {
+  min-height: clamp(320px, 42vw, 520px);
+  perspective: none;
+}
+
+html:not(.cinematic-enabled) .blackhole-shell {
+  width: min(420px, 78vw);
+  contain: layout paint style;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 96%) 0 31%, transparent 32%),
+    radial-gradient(ellipse at 50% 50%, rgb(143 193 227 / 26%) 0 2px, transparent 3px),
+    radial-gradient(ellipse at 50% 50%, rgb(183 168 217 / 14%) 0 44%, transparent 58%);
+  box-shadow: none;
+}
+
+html:not(.cinematic-enabled) .blackhole-shell::before {
+  inset: 3%;
+  display: block;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at center, transparent 0 30%, rgb(143 193 227 / 12%) 31% 34%, transparent 35%),
+    radial-gradient(ellipse at center, rgb(240 200 120 / 12%) 0 24%, transparent 48%);
+  opacity: 0.75;
+  mix-blend-mode: normal;
+}
+
+html:not(.cinematic-enabled) .blackhole-shell::after {
+  inset: 24%;
+  box-shadow:
+    inset 0 0 34px rgb(0 0 0 / 92%),
+    0 0 28px rgb(0 0 0 / 72%);
+}
+
+html:not(.cinematic-enabled) .accretion {
+  inset: 10%;
+  opacity: 0.72;
+  transform: rotateX(68deg) rotateZ(12deg) scale(0.92);
+}
+
+html:not(.cinematic-enabled) .event-horizon {
+  box-shadow:
+    inset 0 0 36px rgb(0 0 0 / 92%),
+    0 0 34px rgb(0 0 0 / 72%);
+}
+
+html:not(.cinematic-enabled) .event-horizon::after {
+  box-shadow:
+    inset -8px -10px 18px rgb(255 255 255 / 3%),
+    0 0 24px rgb(0 0 0 / 84%);
+}
+
+html:not(.cinematic-enabled) .archive-core-card {
+  right: 50%;
+  bottom: 0;
+  transform: translateX(50%) !important;
+  background: rgb(28 28 31 / 92%);
+  backdrop-filter: none;
+}
+
+html:not(.cinematic-enabled) .feature-card,
+html:not(.cinematic-enabled) .showcase-panel,
+html:not(.cinematic-enabled) .principle,
+html:not(.cinematic-enabled) .launch-band,
+html:not(.cinematic-enabled) .terminal-card,
+html:not(.cinematic-enabled) .archive-core-card,
+html:not(.cinematic-enabled) .reader-page {
+  box-shadow: 0 12px 30px rgb(0 0 0 / 16%);
+}
+
+html:not(.cinematic-enabled) .feature-card:hover,
+html:not(.cinematic-enabled) .showcase-panel:hover,
+html:not(.cinematic-enabled) .principle:hover,
+html:not(.cinematic-enabled) .launch-band:hover .terminal-card,
+html:not(.cinematic-enabled) .hero-actions .button:hover,
+html:not(.cinematic-enabled) .start-actions .button:hover {
+  transform: none !important;
+}
+
+/* Tablets and phones should never run the cinematic scene, even before JS finishes. */
+@media (max-width: 1040px), (pointer: coarse) {
+  html {
+    --scroll-glow: 0;
+  }
+
+  .page-section {
+    content-visibility: visible;
+    contain-intrinsic-size: auto;
+  }
+
+  .hero-stage {
+    min-height: 320px;
+    perspective: none;
+  }
+
+  .blackhole-shell {
+    width: min(360px, 78vw);
+    filter: none !important;
+  }
+
+  .particle-field,
+  .shockwave,
+  .orbital,
+  .book-comet,
+  .file-orbit,
+  main::before,
+  main::after,
+  .hero::before,
+  .hero::after,
+  .hero-stage::before,
+  .hero-stage::after,
+  .alive-section::before,
+  .alive-section::after,
+  .alive-section .section-header::before,
+  .alive-section .section-header::after,
+  .launch-band::before,
+  .launch-band::after {
+    display: none !important;
+  }
+}
+
+/* Hard performance pass v2.
+   Keep the animated scene opt-in. The default path must be static, with no
+   scroll-driven repaint loop and no unused global blur/gradient overlays. */
+html:not(.cinematic-enabled) body {
+  background:
+    radial-gradient(circle at 50% 0%, rgb(143 193 227 / 7%), transparent 38rem),
+    linear-gradient(180deg, #171717 0%, #111113 52%, #151516 100%);
+}
+
+html:not(.cinematic-enabled) .page-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 760px;
+}
+
+html:not(.cinematic-enabled) .get-started-section,
+html:not(.cinematic-enabled) footer.page-section {
+  content-visibility: visible;
+}
+
+html:not(.cinematic-enabled) .interactive-glow::before,
+html:not(.cinematic-enabled) .feature-card::before,
+html:not(.cinematic-enabled) .reader-preview::before,
+html:not(.cinematic-enabled) .reader-page::after,
+html:not(.cinematic-enabled) .cover-mock::after,
+html:not(.cinematic-enabled) .release-card::after,
+html:not(.cinematic-enabled) .cosmic-frame::before,
+html:not(.cinematic-enabled) .archive-portal::before,
+html:not(.cinematic-enabled) .constellation-grid .principle::before {
+  display: none !important;
+}
+
+html:not(.cinematic-enabled) .blackhole-shell,
+html:not(.cinematic-enabled) .accretion,
+html:not(.cinematic-enabled) .event-horizon,
+html:not(.cinematic-enabled) .event-horizon::after,
+html:not(.cinematic-enabled) .archive-core-card,
+html:not(.cinematic-enabled) .feature-card,
+html:not(.cinematic-enabled) .showcase-panel,
+html:not(.cinematic-enabled) .principle,
+html:not(.cinematic-enabled) .launch-band,
+html:not(.cinematic-enabled) .terminal-card,
+html:not(.cinematic-enabled) .reader-page {
+  will-change: auto !important;
+}
+
+html:not(.cinematic-enabled) .button,
+html:not(.cinematic-enabled) .nav-action,
+html:not(.cinematic-enabled) .nav-links a,
+html:not(.cinematic-enabled) .copy-command {
+  transition-duration: 120ms;
+}
+
+html.cinematic-enabled .page-section {
+  content-visibility: auto;
+  contain-intrinsic-size: 820px;
+}
+
+html.cinematic-enabled.sections-prewarmed .page-section {
+  content-visibility: visible;
+}
+
+html.cinematic-enabled .site-nav {
+  backdrop-filter: blur(16px) saturate(118%);
+}
+
+html.cinematic-enabled .blackhole-shell {
+  filter:
+    drop-shadow(0 0 18px rgb(143 193 227 / 12%))
+    drop-shadow(0 0 36px rgb(183 168 217 / 7%));
+}
+
+html.cinematic-enabled .blackhole-shell::before {
+  filter: blur(1.6px);
+}
+
+html.cinematic-enabled .accretion {
+  filter: drop-shadow(0 0 10px rgb(143 193 227 / 12%));
+}
+
+html.cinematic-enabled .singularity-flare {
+  filter: drop-shadow(0 0 18px rgb(143 193 227 / 18%));
+}
+
+html.cinematic-enabled .particle-field {
+  opacity: 0.22;
+}
+
+html.cinematic-enabled .shockwave:nth-of-type(2),
+html.cinematic-enabled .shockwave:nth-of-type(3) {
+  display: none !important;
+}
+
+@media (max-width: 1180px), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .page-section {
+    content-visibility: auto;
+    contain-intrinsic-size: 760px;
+  }
+
+  .get-started-section,
+  footer.page-section {
+    content-visibility: visible;
+  }
+
+  .site-nav {
+    background: rgb(18 18 19 / 96%);
+    backdrop-filter: none !important;
+  }
+
+  .interactive-glow::before,
+  .feature-card::before,
+  .reader-preview::before,
+  .reader-page::after,
+  .cover-mock::after,
+  .release-card::after,
+  .cosmic-frame::before,
+  .archive-portal::before,
+  .constellation-grid .principle::before {
+    display: none !important;
   }
 }

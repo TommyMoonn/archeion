@@ -9,6 +9,25 @@
     />
     <meta name="theme-color" content="#151516" />
     <title>Archeion – Local EPUB Library</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const touchOrSmall = window.matchMedia("(max-width: 1180px), (pointer: coarse)").matches;
+        const weakCpu = Boolean(navigator.hardwareConcurrency && navigator.hardwareConcurrency < 8);
+        const weakMemory = Boolean(navigator.deviceMemory && navigator.deviceMemory < 8);
+        const saveData = connection?.saveData === true;
+        const lite = reducedMotion || touchOrSmall || weakCpu || weakMemory || saveData;
+        const cinematic =
+          !lite &&
+          window.matchMedia("(min-width: 1181px) and (hover: hover) and (pointer: fine)").matches;
+
+        root.classList.toggle("mobile-performance", touchOrSmall);
+        root.classList.toggle("performance-lite", lite);
+        root.classList.toggle("cinematic-enabled", cinematic);
+      })();
+    </script>
     <link rel="icon" href="./assets/archeion-icon.png" />
     <link rel="stylesheet" href="./styles/01-foundation.css" />
     <link rel="stylesheet" href="./styles/02-cinematic-layer.css" />
