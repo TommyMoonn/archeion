@@ -142,4 +142,41 @@ describe("BookCover", () => {
 
     expect(loadBookCover).toHaveBeenCalledTimes(2);
   });
+
+  it("releases the previous cover object URL when the cover key changes", async () => {
+    vi.useFakeTimers();
+    try {
+      const createObjectUrl = vi
+        .spyOn(URL, "createObjectURL")
+        .mockReturnValueOnce("blob:first-cover")
+        .mockReturnValueOnce("blob:second-cover");
+      const revokeObjectUrl = vi
+        .spyOn(URL, "revokeObjectURL")
+        .mockImplementation(() => undefined);
+      const loadBookCover = vi.fn().mockResolvedValue(new Blob(["cover"]));
+      const { container, render } = renderCover(
+        { ...baseBook, id: "book-cover-3", coverRevision: "cover:first" },
+        loadBookCover,
+      );
+      await waitForCover(container);
+
+      render({
+        ...baseBook,
+        id: "book-cover-3",
+        coverRevision: "cover:second",
+      });
+      await waitForCover(container);
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1_000);
+      });
+
+      expect(loadBookCover).toHaveBeenCalledTimes(2);
+      expect(createObjectUrl).toHaveBeenCalledTimes(2);
+      expect(revokeObjectUrl).toHaveBeenCalledWith("blob:first-cover");
+      expect(revokeObjectUrl).not.toHaveBeenCalledWith("blob:second-cover");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

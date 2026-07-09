@@ -932,6 +932,91 @@ describe("TauriArchiveLibraryStorage", () => {
 
     expect(statuses).toEqual(["idle", "scanning", "idle"]);
   });
+  it("keeps quiet rescans out of scan status observers", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+    const statuses: string[] = [];
+    storage.observeScanStatus({
+      next: (status) => statuses.push(status.status),
+    });
+
+    await storage.rescan({ quiet: true });
+
+    expect(statuses).toEqual(["idle"]);
+  });
+
+  it("allows a manual rescan to reveal an active quiet scan", async () => {
+    let finishScan!: (value: typeof firstScan) => void;
+    const scanPromise = new Promise<typeof firstScan>((resolve) => {
+      finishScan = resolve;
+    });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        return scanPromise;
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    const statuses: string[] = [];
+    storage.observeScanStatus({
+      next: (status) => statuses.push(status.status),
+    });
+
+    const quietScan = storage.rescan({ quiet: true });
+    await Promise.resolve();
+    const manualScan = storage.rescan();
+    await Promise.resolve();
+
+    expect(statuses).toEqual(["idle", "scanning"]);
+    finishScan(structuredClone(firstScan));
+    await Promise.all([quietScan, manualScan]);
+
+    expect(statuses).toEqual(["idle", "scanning", "idle"]);
+  });
+
+  it("keeps import-triggered refreshes quiet while returning import results", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        return firstScan;
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "add_epub_files_to_archive") {
+        return [
+          {
+            status: "imported",
+            fileName: "New.epub",
+            relativePath: "New.epub",
+            sourcePath: "C:/Incoming/New.epub",
+          },
+        ];
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    const statuses: string[] = [];
+    storage.observeScanStatus({
+      next: (status) => statuses.push(status.status),
+    });
+    invokeMock.mockClear();
+
+    const results = await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
+    expect(results).toMatchObject([{ status: "imported", fileName: "New.epub" }]);
+    expect(statuses).toEqual(["idle"]);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
+    ).toHaveLength(1);
+  });
+
 
   it("does not write metadata for unchanged progress updates", async () => {
     const storage = new TauriArchiveLibraryStorage();
@@ -1225,6 +1310,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     expect(book?.sourceMetadata?.creator).toBe("Edited Author");
     expect(book?.size).toBe(4096);
     expect(book?.modifiedAt).toBe(new Date(1_700_000_001_000).toISOString());
+    expect(book?.coverRevision).toBe(initialBook?.coverRevision);
     expect(book).not.toBe(initialBook);
     expect(
       invokeMock.mock.calls.filter(([command]) => command === "scan_archive"),
@@ -1238,7 +1324,6 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
       ),
     ).toBe(false);
   });
-
 
   it("begins watcher suppression before invoking backend writeback", async () => {
     const rootPath = "C:/ArchiveA";

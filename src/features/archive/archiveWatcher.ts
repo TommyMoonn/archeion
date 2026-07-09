@@ -147,7 +147,7 @@ export class ArchiveWatcherController {
     try {
       do {
         this.followUpScanQueued = false;
-        await this.storage.rescan({ followUpIfRunning: true });
+        await this.storage.rescan({ followUpIfRunning: true, quiet: true });
       } while (!this.stopped && this.followUpScanQueued);
       this.onRecovered?.();
     } catch (error) {

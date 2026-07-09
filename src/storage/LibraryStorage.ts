@@ -23,6 +23,7 @@ export type StorageSubscription = () => void;
 
 export type RescanOptions = {
   followUpIfRunning?: boolean;
+  quiet?: boolean;
 };
 
 export type ScanStatus =

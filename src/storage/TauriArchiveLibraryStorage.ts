@@ -104,6 +104,8 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private followUpScanQueued = false;
   private metadataIoQueue: Promise<void> = Promise.resolve();
   private scanStatus: ScanStatus = { status: "idle" };
+  private scanStatusVisible = false;
+  private scanStatusStartedAt: string | null = null;
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
   private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
@@ -123,6 +125,8 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.loaded = false;
     this.scanPromise = null;
     this.followUpScanQueued = false;
+    this.scanStatusVisible = false;
+    this.scanStatusStartedAt = null;
     this.coverPromises.clear();
     this.libraryMetadata = createLibraryMetadata();
     this.progressMetadata = createProgressMetadata();
@@ -133,18 +137,27 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   }
 
   async rescan(options?: RescanOptions): Promise<void> {
+    const shouldReportStatus = options?.quiet !== true;
+
     if (this.scanPromise) {
       if (options?.followUpIfRunning) {
         this.followUpScanQueued = true;
+      }
+      if (shouldReportStatus) {
+        this.showActiveScanStatus();
       }
       return this.scanPromise;
     }
 
     const generation = this.generation;
-    this.setScanStatus({
-      status: "scanning",
-      startedAt: new Date().toISOString(),
-    });
+    this.scanStatusVisible = shouldReportStatus;
+    this.scanStatusStartedAt = new Date().toISOString();
+    if (shouldReportStatus) {
+      this.setScanStatus({
+        status: "scanning",
+        startedAt: this.scanStatusStartedAt,
+      });
+    }
     const scanPromise = this.performQueuedScans(generation);
     this.scanPromise = scanPromise;
     try {
@@ -152,7 +165,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     } finally {
       if (this.scanPromise === scanPromise) {
         this.scanPromise = null;
-        this.setScanStatus({ status: "idle" });
+        this.scanStatusStartedAt = null;
+        if (this.scanStatusVisible) {
+          this.setScanStatus({ status: "idle" });
+        }
+        this.scanStatusVisible = false;
       }
     }
   }
@@ -162,6 +179,19 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       this.followUpScanQueued = false;
       await this.performScan(generation);
     } while (this.generation === generation && this.followUpScanQueued);
+  }
+
+  private showActiveScanStatus() {
+    if (this.scanStatusVisible) {
+      return;
+    }
+
+    this.scanStatusVisible = true;
+    this.scanStatusStartedAt ??= new Date().toISOString();
+    this.setScanStatus({
+      status: "scanning",
+      startedAt: this.scanStatusStartedAt,
+    });
   }
 
   private async performScan(generation: number) {
@@ -345,7 +375,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       this.generation === scope.generation &&
       results.some((result) => result.status === "imported")
     ) {
-      await this.rescan();
+      await this.rescan({ quiet: true });
     }
     return results;
   }

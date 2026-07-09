@@ -1350,7 +1350,7 @@ html[data-motion="on"] .details-drawer[open] {
   position: fixed;
   z-index: 12;
   top: 44px;
-  right: 22px;
+  right: 115px;
   display: grid;
   gap: 9px;
   width: min(440px, calc(100vw - 44px));

@@ -59,7 +59,7 @@ describe("ArchiveWatcherController", () => {
     await vi.runAllTimersAsync();
 
     expect(rescan).toHaveBeenCalledTimes(1);
-    expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true });
+    expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true, quiet: true });
   });
 
   it("suppresses exact writeback EPUB watcher events during the settled suppression window", async () => {
