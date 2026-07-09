@@ -22,18 +22,19 @@
   let navHeight = nav?.offsetHeight || 0;
   let anchorScrollTimer = 0;
 
+  const syncNavHeight = (height = nav?.offsetHeight || 0) => {
+    navHeight = Math.round(height);
+    root.style.setProperty("--nav-height", `${navHeight}px`);
+  };
+
+  syncNavHeight();
+
   if (nav && "ResizeObserver" in window) {
     new ResizeObserver((entries) => {
-      navHeight = Math.round(entries[0]?.contentRect.height || nav.offsetHeight || navHeight);
+      syncNavHeight(entries[0]?.contentRect.height || nav.offsetHeight || navHeight);
     }).observe(nav);
   } else {
-    window.addEventListener(
-      "resize",
-      () => {
-        navHeight = nav?.offsetHeight || 0;
-      },
-      { passive: true },
-    );
+    window.addEventListener("resize", () => syncNavHeight(), { passive: true });
   }
 
   const stopAnchorScrollMode = () => {
@@ -42,15 +43,28 @@
     anchorScrollTimer = 0;
   };
 
+  const anchorScrollFineTuning = {
+    library: 0,
+    experience: 24,
+    architecture: 0,
+    "get-started": 0,
+  };
+
   const getAnchorScrollTop = (target) => {
     const rect = target.getBoundingClientRect();
-    const anchorPadding = Math.min(6, Math.max(0, window.innerHeight * 0.006));
-    const readerNudge = target.id === "experience" ? 18 : 0;
+    const absoluteTop = window.scrollY + rect.top;
+    const viewportRoom = window.innerHeight - navHeight;
+    const sectionFits = rect.height <= viewportRoom - 32;
+    const fineTuneOffset = anchorScrollFineTuning[target.id] || 0;
 
-    return Math.max(
-      0,
-      Math.round(window.scrollY + rect.top - navHeight - anchorPadding + readerNudge),
-    );
+    if (sectionFits) {
+      return Math.max(
+        0,
+        Math.round(absoluteTop - navHeight + (rect.height - viewportRoom) / 2 + fineTuneOffset),
+      );
+    }
+
+    return Math.max(0, Math.round(absoluteTop - navHeight - 14 + fineTuneOffset));
   };
 
   const startAnchorScrollMode = (destinationTop) => {

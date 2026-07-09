@@ -1,50 +1,13 @@
-/* Readability, terminal fit, content-visibility, and final responsive/performance guards.
-   Keep stylesheet order from index.html. Later files intentionally override earlier layers. */
-
-/* Refinement patch: readability, terminal fit, and performance containment */
-:root {
-  --text: #e0dde5;
-  --muted: #b4afb9;
-  --muted-soft: #8d8993;
-  --line: #38383e;
-}
-
-body {
-  line-height: 1.5;
-}
-
-p,
-.feature-list li,
-.compact-list li,
-.quick-signals span,
-.section-points span,
-.launch-pills span,
-.file-row,
-.mock-nav-item,
-.principle p {
-  color: var(--muted);
-}
-
-.hero-lede,
-.section-header p,
-.feature-card p,
-.principle p,
-.quick-signals span {
-  line-height: 1.74;
-}
+/* Responsive behavior, section fit, and performance guards. */
 
 .feature-card,
 .showcase-panel,
 .principle,
 .launch-band,
+.terminal-card,
 .archive-core-card,
-.terminal-card {
+.mock-window {
   contain: layout paint;
-}
-
-.page-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 820px;
 }
 
 .hero,
@@ -53,1033 +16,396 @@ footer.page-section {
   content-visibility: visible;
 }
 
-.interactive-glow::before,
-.alive-section::after,
-main::before,
-.accretion,
-.singularity-flare,
-.shockwave,
-.particle-field,
-.orbital,
-.file-orbit,
-.launch-band::before,
-.launch-band::after {
+.cinematic-enabled .interactive-glow::before,
+.cinematic-enabled body::before,
+.cinematic-enabled .alive-section::before,
+.cinematic-enabled .alive-section::after,
+.cinematic-enabled .neural-core,
+.cinematic-enabled .neural-core::before,
+.cinematic-enabled .neural-ring,
+.cinematic-enabled .mesh-orb,
+.cinematic-enabled .node {
   will-change: transform, opacity;
 }
 
-.terminal-card {
-  min-width: 0;
+.performance-lite body::before,
+.performance-lite body::after,
+.mobile-performance body::before,
+.mobile-performance body::after {
+  animation: none;
 }
 
-.terminal-stream {
-  overflow-x: hidden;
-  padding: 24px 20px 22px;
+.performance-lite .neural-core::before,
+.performance-lite .neural-ring,
+.performance-lite .mesh-orb,
+.performance-lite .node,
+.performance-lite .alive-section::before,
+.performance-lite .alive-section::after,
+.performance-lite .cover-mock::after,
+.performance-lite .reader-progress span,
+.mobile-performance .neural-core::before,
+.mobile-performance .neural-ring,
+.mobile-performance .mesh-orb,
+.mobile-performance .node,
+.mobile-performance .alive-section::before,
+.mobile-performance .alive-section::after,
+.mobile-performance .cover-mock::after,
+.mobile-performance .reader-progress span {
+  animation: none !important;
 }
 
-.terminal-line {
-  min-width: 0;
-  align-items: center;
-  white-space: nowrap;
-  font-size: clamp(10px, 0.95vw, 12px);
-  line-height: 1.4;
+.performance-lite .feature-card,
+.performance-lite .showcase-panel,
+.performance-lite .principle,
+.performance-lite .launch-band,
+.performance-lite .terminal-card,
+.performance-lite .archive-core-card,
+.mobile-performance .feature-card,
+.mobile-performance .showcase-panel,
+.mobile-performance .principle,
+.mobile-performance .launch-band,
+.mobile-performance .terminal-card,
+.mobile-performance .archive-core-card {
+  backdrop-filter: none;
 }
 
-.terminal-line .prompt {
-  flex: 0 0 auto;
-  padding-top: 0;
+.performance-lite .hero-stage,
+.mobile-performance .hero-stage {
+  transform: none !important;
 }
 
-.terminal-line code {
-  min-width: 0;
-  max-width: none;
-  overflow-wrap: normal;
-  word-break: normal;
-  white-space: nowrap;
+.hero:not(.is-visible-section) .neural-core,
+.page-section:not(.is-visible-section) .cover-mock::after,
+.page-section:not(.is-visible-section) .reader-progress span,
+.page-section:not(.is-visible-section)::before,
+.page-section:not(.is-visible-section)::after {
+  animation-play-state: paused !important;
 }
 
-.type-line code {
-  flex: 0 1 auto;
-  max-width: 0;
+html.is-anchor-scrolling .neural-core::before,
+html.is-anchor-scrolling .neural-ring,
+html.is-anchor-scrolling .mesh-orb,
+html.is-anchor-scrolling .node,
+html.is-anchor-scrolling .alive-section::before,
+html.is-anchor-scrolling .alive-section::after,
+html.is-anchor-scrolling .cover-mock::after,
+html.is-anchor-scrolling .reader-progress span {
+  animation-play-state: paused !important;
 }
 
-@keyframes typeClone {
-  to {
-    max-width: 54ch;
+html.is-anchor-scrolling .hero-stage {
+  transform: none !important;
+}
+
+html:not(.cinematic-enabled) body::before,
+html:not(.cinematic-enabled) .neural-core::before,
+html:not(.cinematic-enabled) .neural-ring,
+html:not(.cinematic-enabled) .mesh-orb,
+html:not(.cinematic-enabled) .node,
+html:not(.cinematic-enabled) .alive-section::before,
+html:not(.cinematic-enabled) .alive-section::after,
+html:not(.cinematic-enabled) .cover-mock::after,
+html:not(.cinematic-enabled) .reader-progress span {
+  animation: none !important;
+}
+
+@media (max-width: 1180px) {
+  .hero {
+    grid-template-columns: 1fr;
+    min-height: max(760px, 100svh);
+    padding-top: calc(var(--nav-height) + 34px);
+    padding-bottom: clamp(54px, 7vh, 88px);
+  }
+
+  .hero-stage {
+    order: -1;
+    min-height: 430px;
+  }
+
+  .neural-core {
+    width: min(420px, 82vw);
+  }
+
+  .archive-core-card {
+    right: 4%;
+    width: min(300px, 52%);
+  }
+
+  .product-grid,
+  .principles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .feature-card.tall {
+    grid-row: span 1;
+    min-height: 320px;
+  }
+
+  .split-showcase,
+  .launch-band {
+    grid-template-columns: 1fr;
+  }
+
+  .reader-card {
+    min-height: 360px;
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 920px) {
+  :root {
+    --nav-height: 70px;
+  }
+
+  .nav-inner {
+    gap: 12px;
+  }
+
+  .nav-links {
+    gap: 2px;
+  }
+
+  .nav-links a {
+    padding: 0 10px;
+    font-size: 11px;
+  }
+
+  .section-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .section-points {
+    justify-content: flex-start;
+  }
+
+  .compact-list {
+    grid-template-columns: 1fr;
+  }
+
+  .mock-window {
+    min-height: 370px;
+    grid-template-columns: 142px minmax(0, 1fr);
+  }
+
+  .mock-sidebar {
+    padding: 14px;
+  }
+
+  .book-grid-mock {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  :root {
+    --page-x: 18px;
+  }
+
   .site-nav {
     backdrop-filter: blur(14px) saturate(118%);
   }
 
-  body::after,
-  main::before,
-  .alive-section::after {
-    animation: none;
+  .nav-links {
+    position: fixed;
+    right: 18px;
+    bottom: 16px;
+    left: 18px;
+    z-index: 42;
+    justify-content: space-between;
+    border-color: rgb(255 255 255 / 12%);
+    background: rgb(18 18 19 / 82%);
+    backdrop-filter: blur(16px) saturate(120%);
   }
 
-  .blackhole-shell::before,
-  .accretion {
-    filter: none;
-  }
-}
-
-@media (max-width: 720px) {
-  .terminal-stream {
-    overflow-x: auto;
-    padding: 20px 16px 18px;
-    scrollbar-width: none;
+  .nav-links a {
+    flex: 1;
+    justify-content: center;
+    padding: 0 8px;
   }
 
-  .terminal-stream::-webkit-scrollbar {
-    display: none;
+  .nav-action {
+    min-height: 36px;
+    padding: 0 12px;
   }
 
-  .terminal-line {
-    font-size: 10px;
-    white-space: nowrap;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  main::before,
-  .alive-section::after,
-  .file-orbit,
-  .cosmic-frame::before,
-  .launch-band::before,
-  .launch-band::after,
-  .type-line code,
-  .type-line i,
-  .delay-one,
-  .delay-two,
-  .delay-three {
-    animation: none !important;
+  h1 {
+    font-size: clamp(45px, 15vw, 70px);
   }
 
-  .type-line code {
-    max-width: none;
-  }
-
-  .delay-one,
-  .delay-two,
-  .delay-three {
-    opacity: 0.98;
-    transform: none;
-  }
-}
-
-/* Wow-factor pass: responsive and reduced-motion guards. */
-@media (max-width: 1040px) {
-  .section-header {
-    align-items: start;
-  }
-
-  .section-header h2 {
-    max-width: 760px;
-  }
-
-  main::after {
-    opacity: 0.5;
-  }
-}
-
-@media (max-width: 720px) {
-  main::after,
-  .alive-section::before,
-  .hero::after {
-    animation: none;
-  }
-
-  main::after {
-    opacity: 0.32;
-  }
-
-  .feature-card:hover,
-  .showcase-panel:hover,
-  .principle:hover,
-  .launch-band:hover .terminal-card {
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  main::after,
-  .hero::after,
-  .blackhole-shell::before,
-  .alive-section::before,
-  .archive-portal::before,
-  .file-orbit,
-  .cosmic-frame::before,
-  .cover-mock::after,
-  .constellation-grid .principle::before,
-  .launch-band::before,
-  .launch-band::after {
-    animation: none !important;
-  }
-
-  .feature-card:hover,
-  .showcase-panel:hover,
-  .principle:hover,
-  .launch-band:hover .terminal-card,
-  .hero-actions .button:hover,
-  .start-actions .button:hover {
-    transform: none;
-  }
-}
-
-/* Black-hole wow-factor responsive guard. */
-@media (max-width: 1040px) {
-  .hero-stage {
-    min-height: 560px;
-  }
-
-  .blackhole-shell {
-    width: min(540px, 92vw);
-  }
-}
-
-@media (max-width: 720px) {
-  .hero-stage {
-    min-height: 380px;
-  }
-
-  .blackhole-shell {
-    width: min(380px, 94vw);
-  }
-
-  .particle-field,
-  .shockwave:nth-of-type(3),
-  .orbital::before {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .singularity-flare,
-  .shockwave,
-  .particle-field,
-  .accretion,
-  .accretion::before,
-  .accretion::after,
-  .orbital,
-  .orbital::before {
-    animation: none !important;
-  }
-}
-
-/* Section spatial motif guards. */
-@media (max-width: 1040px) {
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-copy::after {
-    opacity: 0.34;
-    transform: scale(0.86);
-  }
-
-  .archive-section .section-header::before,
-  .principles-section .section-header::before {
-    display: none;
-  }
-}
-
-@media (max-width: 720px) {
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-copy::after {
-    display: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-copy::after {
-    animation: none !important;
-  }
-}
-
-/* Smooth anchor-scroll stability mode.
-   Pre-renders sections and avoids destructive display toggles during navbar jumps. */
-html.sections-prewarmed .page-section {
-  content-visibility: visible;
-}
-
-html.is-anchor-scrolling {
-  --scroll-glow: 0;
-}
-
-html.is-anchor-scrolling main::after,
-html.is-anchor-scrolling .hero::after,
-html.is-anchor-scrolling .hero-stage::before,
-html.is-anchor-scrolling .hero-stage::after,
-html.is-anchor-scrolling .blackhole-shell::before,
-html.is-anchor-scrolling .singularity-flare,
-html.is-anchor-scrolling .shockwave,
-html.is-anchor-scrolling .particle-field,
-html.is-anchor-scrolling .accretion,
-html.is-anchor-scrolling .accretion::before,
-html.is-anchor-scrolling .accretion::after,
-html.is-anchor-scrolling .orbital,
-html.is-anchor-scrolling .orbital::before,
-html.is-anchor-scrolling .alive-section::before,
-html.is-anchor-scrolling .alive-section::after,
-html.is-anchor-scrolling .alive-section .section-header::before,
-html.is-anchor-scrolling .alive-section .section-header::after,
-html.is-anchor-scrolling .launch-copy::after,
-html.is-anchor-scrolling .launch-band::before,
-html.is-anchor-scrolling .launch-band::after,
-html.is-anchor-scrolling .cover-mock::after,
-html.is-anchor-scrolling .cosmic-frame::before {
-  animation-play-state: paused !important;
-}
-
-html.is-anchor-scrolling main::after,
-html.is-anchor-scrolling .hero::after,
-html.is-anchor-scrolling .hero-stage::before,
-html.is-anchor-scrolling .hero-stage::after {
-  opacity: 0.18 !important;
-}
-
-html.is-anchor-scrolling .blackhole-shell {
-  filter: drop-shadow(0 0 20px rgb(143 193 227 / 10%)) drop-shadow(0 0 42px rgb(183 168 217 / 7%));
-}
-
-html.is-anchor-scrolling .interactive-glow,
-html.is-anchor-scrolling .feature-card,
-html.is-anchor-scrolling .showcase-panel,
-html.is-anchor-scrolling .principle,
-html.is-anchor-scrolling .terminal-card {
-  transition-duration: 0ms !important;
-}
-
-/* Entrance animation guards. */
-@media (prefers-reduced-motion: reduce) {
-  .site-nav,
-  .hero-copy .eyebrow,
-  .hero-copy h1,
-  .hero-copy .hero-lede,
-  .hero-copy .hero-actions,
-  .hero-meta .meta-tile,
-  .hero-stage,
-  .blackhole-shell,
-  .blackhole-shell::before,
-  .accretion,
-  .singularity-flare,
-  .archive-core-card,
-  .book-comet-a,
-  .book-comet-b {
-    opacity: 1 !important;
-    transform: none !important;
-    filter: none !important;
-    animation: none !important;
-  }
-}
-
-/* Anchor target fit responsive guards. */
-@media (max-width: 1040px) {
-  .archive-section,
-  .reader-section {
-    padding-block: 76px;
-  }
-}
-
-@media (max-width: 720px) {
-  .archive-section,
-  .reader-section {
-    padding-block: 66px;
-  }
-}
-
-/* Overall performance budget.
-   This reduces always-on paint work without changing the page structure. */
-.interactive-glow::before,
-.alive-section::after,
-main::before,
-.accretion,
-.singularity-flare,
-.shockwave,
-.particle-field,
-.orbital,
-.file-orbit,
-.launch-band::before,
-.launch-band::after {
-  will-change: auto;
-}
-
-.hero-stage {
-  min-height: 660px;
-}
-
-.blackhole-shell {
-  width: min(610px, 86vw);
-  filter: drop-shadow(0 0 24px rgb(143 193 227 / 14%)) drop-shadow(0 0 52px rgb(183 168 217 / 8%));
-}
-
-.blackhole-shell::before {
-  inset: -18%;
-  filter: blur(2.2px);
-}
-
-.accretion {
-  filter: blur(0.6px) drop-shadow(0 0 12px rgb(143 193 227 / 14%));
-}
-
-.singularity-flare {
-  filter: drop-shadow(0 0 26px rgb(143 193 227 / 22%));
-}
-
-.particle-field {
-  opacity: 0.28;
-}
-
-.shockwave:nth-of-type(2) {
-  display: none;
-}
-
-.feature-card,
-.showcase-panel,
-.principle,
-.launch-band,
-.terminal-card,
-.archive-core-card {
-  box-shadow: 0 18px 54px rgb(0 0 0 / 18%);
-}
-
-.hero:not(.is-visible-section) .blackhole-shell,
-.page-section:not(.is-visible-section) .archive-portal::before,
-.page-section:not(.is-visible-section) .file-orbit,
-.page-section:not(.is-visible-section) .cover-mock::after,
-.page-section:not(.is-visible-section) .reader-preview::before,
-.page-section:not(.is-visible-section) .reader-progress span,
-.page-section:not(.is-visible-section) .principle::before,
-.page-section:not(.is-visible-section) .launch-band::before,
-.page-section:not(.is-visible-section) .launch-band::after {
-  animation-play-state: paused !important;
-}
-
-html.performance-lite {
-  --scroll-glow: 0;
-}
-
-html.performance-lite .site-nav {
-  backdrop-filter: none;
-}
-
-html.performance-lite .hero-stage {
-  min-height: 600px;
-  perspective: none;
-}
-
-html.performance-lite .blackhole-shell {
-  width: min(540px, 86vw);
-  filter: drop-shadow(0 0 16px rgb(143 193 227 / 10%)) drop-shadow(0 0 34px rgb(183 168 217 / 6%));
-}
-
-html.performance-lite .blackhole-shell::before {
-  inset: -10%;
-  filter: none;
-  animation-duration: 44s, 44s, 980ms;
-}
-
-html.performance-lite .accretion,
-html.performance-lite .singularity-flare {
-  filter: none;
-}
-
-html.performance-lite .particle-field,
-html.performance-lite .shockwave:nth-of-type(2),
-html.performance-lite .orbital,
-html.performance-lite .book-comet,
-html.performance-lite .file-orbit,
-html.performance-lite .alive-section .section-header::before,
-html.performance-lite .alive-section .section-header::after,
-html.performance-lite .launch-copy::after {
-  display: none !important;
-}
-
-html.performance-lite .feature-card,
-html.performance-lite .showcase-panel,
-html.performance-lite .principle,
-html.performance-lite .launch-band,
-html.performance-lite .terminal-card,
-html.performance-lite .archive-core-card {
-  box-shadow: 0 16px 42px rgb(0 0 0 / 16%);
-}
-
-html.performance-lite .interactive-glow::before,
-html.performance-lite .feature-card::before,
-html.performance-lite .cosmic-frame::before,
-html.performance-lite .reader-preview::before,
-html.performance-lite .reader-page::after,
-html.performance-lite .cover-mock::after,
-html.performance-lite .release-card::after {
-  animation: none !important;
-  filter: none !important;
-}
-
-html.performance-lite .feature-card,
-html.performance-lite .showcase-panel,
-html.performance-lite .principle,
-html.performance-lite .terminal-card {
-  transition-duration: 120ms;
-}
-
-/* Mobile performance mode.
-   Keep the desktop cinematic version intact, but remove paint-heavy animation,
-   blur, and scroll work on touch and small-screen devices. */
-@media (max-width: 1040px), (pointer: coarse) {
-  :root {
-    --scroll-glow: 0;
-  }
-
-  html.mobile-performance .page-section {
-    content-visibility: auto;
-    contain-intrinsic-size: 760px;
-  }
-
-  html.mobile-performance.sections-prewarmed .page-section {
-    content-visibility: auto;
-  }
-
-  .site-nav {
-    background: rgb(18 18 19 / 94%);
-    backdrop-filter: none;
-  }
-
-  body::before,
-  body::after,
-  main::before,
-  main::after,
-  .hero::before,
-  .hero::after,
-  .hero-stage::before,
-  .hero-stage::after,
-  .alive-section::before,
-  .alive-section::after,
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-copy::after,
-  .launch-band::before,
-  .launch-band::after,
-  .cosmic-frame::before,
-  .cover-mock::after,
-  .reader-preview::before,
-  .reader-page::after,
-  .constellation-grid .principle::before,
-  .release-card::after {
-    animation: none !important;
-    filter: none !important;
-  }
-
-  main::after,
-  .hero::before,
-  .hero::after,
-  .hero-stage::before,
-  .hero-stage::after,
-  .particle-field,
-  .shockwave,
-  .orbital,
-  .book-comet,
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-copy::after,
-  .file-orbit {
-    display: none !important;
-  }
-
-  .site-nav,
-  .hero-copy .eyebrow,
-  .hero-copy h1,
-  .hero-copy .hero-lede,
-  .hero-copy .hero-actions,
-  .hero-meta .meta-tile,
-  .hero-stage,
-  .blackhole-shell,
-  .blackhole-shell::before,
-  .accretion,
-  .singularity-flare,
-  .archive-core-card,
-  .reader-progress span,
-  .type-line code,
-  .type-line i,
-  .delay-one,
-  .delay-two,
-  .delay-three,
-  .reveal {
-    animation: none !important;
-    filter: none !important;
-    transition: none !important;
-  }
-
-  .hero-copy .eyebrow,
-  .hero-copy h1,
-  .hero-copy .hero-lede,
-  .hero-copy .hero-actions,
-  .hero-meta .meta-tile,
-  .hero-stage,
-  .blackhole-shell,
-  .archive-core-card,
-  .book-comet,
-  .delay-one,
-  .delay-two,
-  .delay-three,
-  .reveal {
-    opacity: 1 !important;
-  }
-
-  .hero-copy .eyebrow,
-  .hero-copy h1,
-  .hero-copy .hero-lede,
-  .hero-copy .hero-actions,
-  .hero-meta .meta-tile,
-  .hero-stage,
-  .blackhole-shell,
-  .delay-one,
-  .delay-two,
-  .delay-three,
-  .reveal {
-    transform: none !important;
-  }
-
-  .hero {
-    min-height: auto;
-    padding-top: calc(var(--nav-height) + 42px);
-    padding-bottom: 46px;
+  h2 {
+    font-size: clamp(34px, 11vw, 54px);
   }
 
   .hero-stage {
-    min-height: 340px;
-    perspective: none;
+    min-height: 370px;
+    margin-right: -12px;
+    margin-left: -12px;
   }
 
-  .blackhole-shell {
-    width: min(330px, 84vw);
-    contain: layout paint style;
-    filter: none !important;
-  }
-
-  .blackhole-shell::before {
-    inset: -8%;
-    opacity: 0.42;
-    mix-blend-mode: normal;
-  }
-
-  .blackhole-shell::after {
-    inset: 10%;
-    box-shadow:
-      inset 0 0 42px rgb(0 0 0 / 88%),
-      0 0 44px rgb(0 0 0 / 78%),
-      0 0 52px rgb(143 193 227 / 10%);
-  }
-
-  .accretion {
-    inset: 3%;
-    opacity: 0.82;
-    transform: rotateX(68deg) rotateZ(16deg) scale(1);
-    filter: none !important;
-  }
-
-  .accretion::before,
-  .accretion::after,
-  .singularity-flare {
-    display: none !important;
-  }
-
-  .event-horizon {
-    box-shadow:
-      inset 0 0 40px rgb(0 0 0 / 90%),
-      0 0 42px rgb(0 0 0 / 82%),
-      0 0 58px rgb(183 168 217 / 14%);
-  }
-
-  .event-horizon::after {
-    box-shadow:
-      inset -10px -14px 24px rgb(255 255 255 / 3%),
-      0 0 34px rgb(0 0 0 / 90%);
+  .neural-stage-grid {
+    inset: 0;
   }
 
   .archive-core-card {
-    right: 50%;
-    bottom: -2%;
-    transform: translateX(50%) !important;
-    background: rgb(29 29 32 / 88%);
-    backdrop-filter: none;
+    position: relative;
+    right: auto;
+    bottom: auto;
+    width: min(286px, 82%);
+    margin: 220px auto 0 10px;
+  }
+
+  .product-grid,
+  .principles {
+    grid-template-columns: 1fr;
+  }
+
+  .feature-card.wide {
+    grid-column: span 1;
   }
 
   .feature-card,
+  .principle {
+    min-height: 0;
+    padding: 22px;
+  }
+
+  .feature-card.tall {
+    min-height: 320px;
+  }
+
   .showcase-panel,
-  .principle,
-  .launch-band,
-  .archive-core-card,
-  .terminal-card,
-  .reader-page {
-    box-shadow: 0 18px 44px rgb(0 0 0 / 18%);
-    transition: none !important;
+  .reader-card {
+    min-height: 0;
   }
 
-  .feature-card:hover,
-  .showcase-panel:hover,
-  .principle:hover,
-  .launch-band:hover .terminal-card,
-  .hero-actions .button:hover,
-  .start-actions .button:hover {
-    transform: none !important;
+  .mock-window {
+    grid-template-columns: 1fr;
   }
 
-  .type-line code {
-    max-width: none;
+  .mock-sidebar {
+    display: none;
   }
 
-  .delay-one,
-  .delay-two,
-  .delay-three {
-    transform: none;
+  .reader-preview,
+  .archive-portal {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    left: auto;
+    margin-top: 18px;
+  }
+
+  .launch-band {
+    padding: 22px;
+  }
+
+  .terminal-line {
+    font-size: 11px;
+  }
+
+  .terminal-line:first-child code {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .author-strip {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 
-/* Hard performance mode.
-   The cinematic layer is now opt-in for capable desktop devices. Weak,
-   touch, tablet, and mobile devices get a static version before first paint. */
-html:not(.cinematic-enabled) {
-  --scroll-glow: 0;
-}
-
-html:not(.cinematic-enabled) body {
-  background:
-    radial-gradient(circle at 50% 0%, rgb(143 193 227 / 7%), transparent 38rem),
-    linear-gradient(180deg, #171717 0%, #111113 52%, #151516 100%);
-}
-
-html:not(.cinematic-enabled) .page-section {
-  content-visibility: visible;
-  contain-intrinsic-size: auto;
-}
-
-html:not(.cinematic-enabled) .site-nav {
-  background: rgb(18 18 19 / 96%);
-  backdrop-filter: none;
-  animation: none !important;
-}
-
-html:not(.cinematic-enabled) body::before,
-html:not(.cinematic-enabled) body::after,
-html:not(.cinematic-enabled) main::before,
-html:not(.cinematic-enabled) main::after,
-html:not(.cinematic-enabled) .hero::before,
-html:not(.cinematic-enabled) .hero::after,
-html:not(.cinematic-enabled) .hero-stage::before,
-html:not(.cinematic-enabled) .hero-stage::after,
-html:not(.cinematic-enabled) .particle-field,
-html:not(.cinematic-enabled) .shockwave,
-html:not(.cinematic-enabled) .orbital,
-html:not(.cinematic-enabled) .book-comet,
-html:not(.cinematic-enabled) .file-orbit,
-html:not(.cinematic-enabled) .alive-section::before,
-html:not(.cinematic-enabled) .alive-section::after,
-html:not(.cinematic-enabled) .alive-section .section-header::before,
-html:not(.cinematic-enabled) .alive-section .section-header::after,
-html:not(.cinematic-enabled) .launch-copy::after,
-html:not(.cinematic-enabled) .launch-band::before,
-html:not(.cinematic-enabled) .launch-band::after,
-html:not(.cinematic-enabled) .cosmic-frame::before,
-html:not(.cinematic-enabled) .cover-mock::after,
-html:not(.cinematic-enabled) .reader-preview::before,
-html:not(.cinematic-enabled) .reader-page::after,
-html:not(.cinematic-enabled) .constellation-grid .principle::before,
-html:not(.cinematic-enabled) .release-card::after,
-html:not(.cinematic-enabled) .accretion::before,
-html:not(.cinematic-enabled) .accretion::after,
-html:not(.cinematic-enabled) .singularity-flare {
-  display: none !important;
-}
-
-html:not(.cinematic-enabled) .site-nav,
-html:not(.cinematic-enabled) .hero-copy .eyebrow,
-html:not(.cinematic-enabled) .hero-copy h1,
-html:not(.cinematic-enabled) .hero-copy .hero-lede,
-html:not(.cinematic-enabled) .hero-copy .hero-actions,
-html:not(.cinematic-enabled) .hero-meta .meta-tile,
-html:not(.cinematic-enabled) .hero-stage,
-html:not(.cinematic-enabled) .blackhole-shell,
-html:not(.cinematic-enabled) .blackhole-shell::before,
-html:not(.cinematic-enabled) .accretion,
-html:not(.cinematic-enabled) .event-horizon,
-html:not(.cinematic-enabled) .event-horizon::after,
-html:not(.cinematic-enabled) .archive-core-card,
-html:not(.cinematic-enabled) .reader-progress span,
-html:not(.cinematic-enabled) .type-line code,
-html:not(.cinematic-enabled) .type-line i,
-html:not(.cinematic-enabled) .archive-portal::before,
-html:not(.cinematic-enabled) .delay-one,
-html:not(.cinematic-enabled) .delay-two,
-html:not(.cinematic-enabled) .delay-three,
-html:not(.cinematic-enabled) .reveal {
-  animation: none !important;
-  filter: none !important;
-  transition: none !important;
-}
-
-html:not(.cinematic-enabled) .hero-copy .eyebrow,
-html:not(.cinematic-enabled) .hero-copy h1,
-html:not(.cinematic-enabled) .hero-copy .hero-lede,
-html:not(.cinematic-enabled) .hero-copy .hero-actions,
-html:not(.cinematic-enabled) .hero-meta .meta-tile,
-html:not(.cinematic-enabled) .hero-stage,
-html:not(.cinematic-enabled) .blackhole-shell,
-html:not(.cinematic-enabled) .archive-core-card,
-html:not(.cinematic-enabled) .delay-one,
-html:not(.cinematic-enabled) .delay-two,
-html:not(.cinematic-enabled) .delay-three,
-html:not(.cinematic-enabled) .reveal {
-  opacity: 1 !important;
-  transform: none !important;
-}
-
-html:not(.cinematic-enabled) .hero {
-  min-height: auto;
-}
-
-html:not(.cinematic-enabled) .hero-stage {
-  min-height: clamp(320px, 42vw, 520px);
-  perspective: none;
-}
-
-html:not(.cinematic-enabled) .blackhole-shell {
-  width: min(420px, 78vw);
-  contain: layout paint style;
-  background:
-    radial-gradient(circle at 50% 50%, rgb(0 0 0 / 96%) 0 31%, transparent 32%),
-    radial-gradient(ellipse at 50% 50%, rgb(143 193 227 / 26%) 0 2px, transparent 3px),
-    radial-gradient(ellipse at 50% 50%, rgb(183 168 217 / 14%) 0 44%, transparent 58%);
-  box-shadow: none;
-}
-
-html:not(.cinematic-enabled) .blackhole-shell::before {
-  inset: 3%;
-  display: block;
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      circle at center,
-      transparent 0 30%,
-      rgb(143 193 227 / 12%) 31% 34%,
-      transparent 35%
-    ),
-    radial-gradient(ellipse at center, rgb(240 200 120 / 12%) 0 24%, transparent 48%);
-  opacity: 0.75;
-  mix-blend-mode: normal;
-}
-
-html:not(.cinematic-enabled) .blackhole-shell::after {
-  inset: 24%;
-  box-shadow:
-    inset 0 0 34px rgb(0 0 0 / 92%),
-    0 0 28px rgb(0 0 0 / 72%);
-}
-
-html:not(.cinematic-enabled) .accretion {
-  inset: 10%;
-  opacity: 0.72;
-  transform: rotateX(68deg) rotateZ(12deg) scale(0.92);
-}
-
-html:not(.cinematic-enabled) .event-horizon {
-  box-shadow:
-    inset 0 0 36px rgb(0 0 0 / 92%),
-    0 0 34px rgb(0 0 0 / 72%);
-}
-
-html:not(.cinematic-enabled) .event-horizon::after {
-  box-shadow:
-    inset -8px -10px 18px rgb(255 255 255 / 3%),
-    0 0 24px rgb(0 0 0 / 84%);
-}
-
-html:not(.cinematic-enabled) .archive-core-card {
-  right: 50%;
-  bottom: 0;
-  transform: translateX(50%) !important;
-  background: rgb(28 28 31 / 92%);
-  backdrop-filter: none;
-}
-
-html:not(.cinematic-enabled) .feature-card,
-html:not(.cinematic-enabled) .showcase-panel,
-html:not(.cinematic-enabled) .principle,
-html:not(.cinematic-enabled) .launch-band,
-html:not(.cinematic-enabled) .terminal-card,
-html:not(.cinematic-enabled) .archive-core-card,
-html:not(.cinematic-enabled) .reader-page {
-  box-shadow: 0 12px 30px rgb(0 0 0 / 16%);
-}
-
-html:not(.cinematic-enabled) .feature-card:hover,
-html:not(.cinematic-enabled) .showcase-panel:hover,
-html:not(.cinematic-enabled) .principle:hover,
-html:not(.cinematic-enabled) .launch-band:hover .terminal-card,
-html:not(.cinematic-enabled) .hero-actions .button:hover,
-html:not(.cinematic-enabled) .start-actions .button:hover {
-  transform: none !important;
-}
-
-/* Tablets and phones should never run the cinematic scene, even before JS finishes. */
-@media (max-width: 1040px), (pointer: coarse) {
-  html {
-    --scroll-glow: 0;
-  }
-
-  .page-section {
-    content-visibility: visible;
-    contain-intrinsic-size: auto;
+@media (max-width: 520px) {
+  .brand-copy strong {
+    display: none;
   }
 
   .hero-stage {
-    min-height: 320px;
-    perspective: none;
+    min-height: 330px;
   }
 
-  .blackhole-shell {
-    width: min(360px, 78vw);
-    filter: none !important;
+  .hero {
+    min-height: max(720px, 100svh);
   }
 
-  .particle-field,
-  .shockwave,
-  .orbital,
-  .book-comet,
-  .file-orbit,
-  main::before,
-  main::after,
-  .hero::before,
-  .hero::after,
-  .hero-stage::before,
-  .hero-stage::after,
-  .alive-section::before,
-  .alive-section::after,
-  .alive-section .section-header::before,
-  .alive-section .section-header::after,
-  .launch-band::before,
-  .launch-band::after {
-    display: none !important;
+  .neural-core {
+    width: min(340px, 86vw);
   }
-}
 
-/* Hard performance pass v2.
-   Keep the animated scene opt-in. The default path must be static, with no
-   scroll-driven repaint loop and no unused global blur/gradient overlays. */
-html:not(.cinematic-enabled) body {
-  background:
-    radial-gradient(circle at 50% 0%, rgb(143 193 227 / 7%), transparent 38rem),
-    linear-gradient(180deg, #171717 0%, #111113 52%, #151516 100%);
-}
+  .archive-core-card {
+    display: none;
+  }
 
-html:not(.cinematic-enabled) .page-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 760px;
-}
-
-html:not(.cinematic-enabled) .get-started-section,
-html:not(.cinematic-enabled) footer.page-section {
-  content-visibility: visible;
-}
-
-html:not(.cinematic-enabled) .interactive-glow::before,
-html:not(.cinematic-enabled) .feature-card::before,
-html:not(.cinematic-enabled) .reader-preview::before,
-html:not(.cinematic-enabled) .reader-page::after,
-html:not(.cinematic-enabled) .cover-mock::after,
-html:not(.cinematic-enabled) .release-card::after,
-html:not(.cinematic-enabled) .cosmic-frame::before,
-html:not(.cinematic-enabled) .archive-portal::before,
-html:not(.cinematic-enabled) .constellation-grid .principle::before {
-  display: none !important;
-}
-
-html:not(.cinematic-enabled) .blackhole-shell,
-html:not(.cinematic-enabled) .accretion,
-html:not(.cinematic-enabled) .event-horizon,
-html:not(.cinematic-enabled) .event-horizon::after,
-html:not(.cinematic-enabled) .archive-core-card,
-html:not(.cinematic-enabled) .feature-card,
-html:not(.cinematic-enabled) .showcase-panel,
-html:not(.cinematic-enabled) .principle,
-html:not(.cinematic-enabled) .launch-band,
-html:not(.cinematic-enabled) .terminal-card,
-html:not(.cinematic-enabled) .reader-page {
-  will-change: auto !important;
-}
-
-html:not(.cinematic-enabled) .button,
-html:not(.cinematic-enabled) .nav-action,
-html:not(.cinematic-enabled) .nav-links a,
-html:not(.cinematic-enabled) .copy-command {
-  transition-duration: 120ms;
-}
-
-html.cinematic-enabled .page-section {
-  content-visibility: auto;
-  contain-intrinsic-size: 820px;
-}
-
-html.cinematic-enabled.sections-prewarmed .page-section {
-  content-visibility: visible;
-}
-
-html.cinematic-enabled .site-nav {
-  backdrop-filter: blur(16px) saturate(118%);
-}
-
-html.cinematic-enabled .blackhole-shell {
-  filter: drop-shadow(0 0 18px rgb(143 193 227 / 12%)) drop-shadow(0 0 36px rgb(183 168 217 / 7%));
-}
-
-html.cinematic-enabled .blackhole-shell::before {
-  filter: blur(1.6px);
-}
-
-html.cinematic-enabled .accretion {
-  filter: drop-shadow(0 0 10px rgb(143 193 227 / 12%));
-}
-
-html.cinematic-enabled .singularity-flare {
-  filter: drop-shadow(0 0 18px rgb(143 193 227 / 18%));
-}
-
-html.cinematic-enabled .particle-field {
-  opacity: 0.22;
-}
-
-html.cinematic-enabled .shockwave:nth-of-type(2),
-html.cinematic-enabled .shockwave:nth-of-type(3) {
-  display: none !important;
-}
-
-@media (max-width: 1180px), (pointer: coarse), (prefers-reduced-motion: reduce) {
   .page-section {
-    content-visibility: auto;
-    contain-intrinsic-size: 760px;
+    padding: 54px 0;
   }
 
-  .get-started-section,
-  footer.page-section {
-    content-visibility: visible;
+  .book-grid-mock {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 
-  .site-nav {
-    background: rgb(18 18 19 / 96%);
-    backdrop-filter: none !important;
+  .cover-mock {
+    border-radius: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
   }
 
-  .interactive-glow::before,
-  .feature-card::before,
-  .reader-preview::before,
-  .reader-page::after,
-  .cover-mock::after,
-  .release-card::after,
-  .cosmic-frame::before,
-  .archive-portal::before,
-  .constellation-grid .principle::before {
-    display: none !important;
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+@media (max-width: 1180px) {
+  .architecture-section {
+    margin-block: clamp(36px, 7vw, 76px);
+    padding-block: clamp(76px, 9vw, 112px);
+  }
+
+  .architecture-section .principle {
+    min-height: 188px;
+  }
+
+  .get-started-section {
+    padding-block: clamp(78px, 10vw, 120px) clamp(72px, 9vw, 108px);
+  }
+
+  .launch-band {
+    min-height: auto;
+    padding: clamp(30px, 5vw, 52px);
+  }
+}
+
+@media (max-width: 720px) {
+  .architecture-section {
+    margin-block: 34px;
+    padding-block: 64px;
+  }
+
+  .architecture-section::before,
+  .architecture-section::after,
+  .get-started-section::before {
+    top: -22%;
+    bottom: -22%;
+  }
+
+  .get-started-section {
+    padding-block: 68px 76px;
+  }
+
+  .launch-band {
+    padding: 26px;
+  }
+
+  .start-actions {
+    margin-top: 28px;
   }
 }

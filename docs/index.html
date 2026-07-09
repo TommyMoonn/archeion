@@ -65,7 +65,7 @@
         <nav class="nav-links" aria-label="Section links">
           <a href="#archive">Library</a>
           <a href="#experience">Reader</a>
-          <a href="#principles">Design</a>
+          <a href="#architecture">Architecture</a>
           <a href="#get-started">Get started</a>
         </nav>
 
@@ -100,21 +100,22 @@
         </div>
 
         <div class="hero-stage" aria-hidden="true">
-          <div class="blackhole-shell">
-            <div class="shockwave"></div>
-            <div class="shockwave"></div>
-            <div class="shockwave"></div>
-            <div class="singularity-flare"></div>
-            <div class="particle-field"></div>
-            <div class="accretion"></div>
-            <div class="event-horizon"></div>
-            <div class="orbital orbital-1"><span></span></div>
-            <div class="orbital orbital-2"><span></span></div>
-            <div class="orbital orbital-3"><span></span></div>
+          <div class="neural-stage-grid"></div>
+          <div class="neural-core">
+            <div class="mesh-orb mesh-orb-a"></div>
+            <div class="mesh-orb mesh-orb-b"></div>
+            <div class="mesh-orb mesh-orb-c"></div>
+            <div class="neural-ring neural-ring-a"></div>
+            <div class="neural-ring neural-ring-b"></div>
+            <div class="neural-ring neural-ring-c"></div>
+            <div class="node node-a"></div>
+            <div class="node node-b"></div>
+            <div class="node node-c"></div>
+            <div class="node node-d"></div>
+            <div class="neural-center">
+              <img data-logo src="./assets/archeion-icon.png" width="68" height="68" alt="" />
+            </div>
           </div>
-          <div class="book-comet book-comet-a"></div>
-          <div class="book-comet book-comet-b"></div>
-
           <aside class="archive-core-card">
             <header>
               <img data-logo src="./assets/archeion-icon.png" width="34" height="34" alt="" />
@@ -306,19 +307,19 @@
       </section>
 
       <section
-        class="page-section alive-section principles-section"
-        id="principles"
-        aria-labelledby="principles-title"
+        class="page-section alive-section architecture-section"
+        id="architecture"
+        aria-labelledby="architecture-title"
       >
         <div class="section-header reveal">
           <div>
-            <span class="section-kicker">Design</span>
-            <h2 id="principles-title">Cosmic outside. Calm inside.</h2>
+            <span class="section-kicker">Architecture</span>
+            <h2 id="architecture-title">Institutional-grade posture without institutional bloat.</h2>
           </div>
-          <div class="section-points" aria-label="Design principles">
-            <span>Landing page spectacle</span>
-            <span>App UI restraint</span>
-            <span>Motion with control</span>
+          <div class="section-points" aria-label="Architecture principles">
+            <span>No backend dependency</span>
+            <span>Sidecar metadata</span>
+            <span>Inspectable storage</span>
           </div>
         </div>
 
@@ -327,24 +328,21 @@
             <span>01</span>
             <div>
               <h3>Filesystem truth</h3>
-              <p>The folder hierarchy is the library. Archeion reflects it instead of hiding it.</p>
+              <p>The archive folder remains understandable outside Archeion. EPUBs stay as files.</p>
             </div>
           </article>
           <article class="principle reveal interactive-glow">
             <span>02</span>
             <div>
               <h3>Sidecar memory</h3>
-              <p>
-                Progress, favorites, covers, and cache data support the books without replacing
-                them.
-              </p>
+              <p>Progress, favorites, covers, and cache files live in <code>.archeion/</code> beside the books.</p>
             </div>
           </article>
           <article class="principle reveal interactive-glow">
             <span>03</span>
             <div>
-              <h3>Readable surface</h3>
-              <p>The product keeps controls crisp. The spectacle belongs to the brand layer.</p>
+              <h3>Desktop operations</h3>
+              <p>File actions go through Tauri commands with archive-root path safety checks.</p>
             </div>
           </article>
         </div>
