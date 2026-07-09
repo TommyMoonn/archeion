@@ -1105,21 +1105,29 @@ html[data-motion="on"] .details-drawer[open] {
   }
 }
 
-.dialog:has(.metadata-writeback) {
+.dialog--metadata-writeback {
   width: min(800px, calc(100% - 32px));
   max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
   overflow: hidden;
 }
 
-.dialog:has(.metadata-writeback) .dialog__panel {
+.dialog--metadata-writeback .dialog__panel {
   box-sizing: border-box;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   max-height: calc(100vh - 34px);
+  max-height: calc(100dvh - 34px);
   padding: 28px;
   overflow: hidden;
 }
 
-.dialog:has(.metadata-writeback) .dialog__footer {
+.dialog--metadata-writeback .dialog__copy,
+.dialog--metadata-writeback .dialog__footer {
+  min-width: 0;
+}
+
+.dialog--metadata-writeback .dialog__footer {
   flex-wrap: wrap;
   align-items: center;
   margin-top: 18px;
@@ -1130,6 +1138,7 @@ html[data-motion="on"] .details-drawer[open] {
   gap: 14px;
   box-sizing: border-box;
   min-width: 0;
+  min-height: 0;
   max-width: 100%;
   padding-right: 2px;
   overflow-x: hidden;
@@ -1324,11 +1333,11 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 @media (max-width: 720px) {
-  .dialog:has(.metadata-writeback) {
+  .dialog--metadata-writeback {
     width: min(100% - 24px, 640px);
   }
 
-  .dialog:has(.metadata-writeback) .dialog__panel {
+  .dialog--metadata-writeback .dialog__panel {
     padding: 22px;
   }
 

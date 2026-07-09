@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type ReactNode } from "react";
 
 type DialogProps = {
   children?: ReactNode;
+  className?: string;
   description?: string;
   footer?: ReactNode;
   onClose: () => void;
@@ -10,6 +11,7 @@ type DialogProps = {
 
 export function Dialog({
   children,
+  className,
   description,
   footer,
   onClose,
@@ -36,7 +38,7 @@ export function Dialog({
   return (
     <dialog
       ref={dialogRef}
-      className="dialog"
+      className={className ? `dialog ${className}` : "dialog"}
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
       aria-modal="true"

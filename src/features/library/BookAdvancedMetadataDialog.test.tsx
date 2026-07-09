@@ -152,6 +152,19 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(markup).toContain("Write metadata to EPUB");
   });
 
+
+  it("uses a large-dialog layout with a scrollable metadata body", () => {
+    const { container } = renderDialog(book);
+    const dialog = container.querySelector("dialog");
+    const body = container.querySelector(".metadata-writeback");
+    const footer = container.querySelector(".dialog__footer");
+
+    expect(dialog?.classList.contains("dialog--metadata-writeback")).toBe(true);
+    expect(body).not.toBeNull();
+    expect(footer?.textContent).toContain("Write metadata to EPUB");
+    expect(footer?.querySelector(".metadata-writeback")).toBeNull();
+  });
+
   it("displays Identifier as read-only reference metadata", () => {
     const identifierBook: Book = {
       ...book,

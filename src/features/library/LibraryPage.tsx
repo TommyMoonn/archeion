@@ -48,6 +48,8 @@ import {
 } from "./libraryFilters";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import {
+  createDeleteErrorFeedbackToken,
+  createDeleteSuccessFeedbackToken,
   createImportFeedbackToken,
   type LibraryFeedbackDraft,
   type LibraryFeedbackToken,
@@ -622,12 +624,19 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
     try {
       await storage.deleteBook(deleteTarget.id);
+      pushFeedback(
+        createDeleteSuccessFeedbackToken(
+          deleteTarget.isFileMissing ? "metadataRemoved" : "bookDeleted",
+        ),
+      );
       setDeleteTarget(null);
     } catch {
-      showLibraryError(
-        deleteTarget.isFileMissing
-          ? "The saved metadata could not be removed."
-          : "This book could not be deleted. Please try again.",
+      pushFeedback(
+        createDeleteErrorFeedbackToken(
+          deleteTarget.isFileMissing
+            ? "metadataRemoveFailed"
+            : "bookDeleteFailed",
+        ),
       );
       setDeleteTarget(null);
     } finally {
@@ -719,9 +728,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         changeLocation({ type: "library" });
       }
 
+      pushFeedback(createDeleteSuccessFeedbackToken("folderDeleted"));
       setDeleteFolderTarget(null);
     } catch {
-      showLibraryError("This folder could not be deleted. Please try again.");
+      pushFeedback(createDeleteErrorFeedbackToken("folderDeleteFailed"));
       setDeleteFolderTarget(null);
     } finally {
       setIsDeleting(false);

@@ -24,6 +24,57 @@ export type LibraryFeedbackDraft = Omit<LibraryFeedbackToken, "id"> & {
 
 export const LIBRARY_FEEDBACK_AUTO_DISMISS_MS = 4_000;
 
+export const LIBRARY_DELETE_FEEDBACK_IDS = {
+  bookDeleted: "library-delete-book",
+  bookDeleteFailed: "library-error",
+  folderDeleted: "library-delete-folder",
+  folderDeleteFailed: "library-error",
+  metadataRemoved: "library-delete-metadata",
+  metadataRemoveFailed: "library-error",
+} as const;
+
+export type LibraryDeleteSuccessFeedbackType =
+  | "bookDeleted"
+  | "folderDeleted"
+  | "metadataRemoved";
+export type LibraryDeleteErrorFeedbackType =
+  | "bookDeleteFailed"
+  | "folderDeleteFailed"
+  | "metadataRemoveFailed";
+
+const DELETE_SUCCESS_TITLES: Record<LibraryDeleteSuccessFeedbackType, string> = {
+  bookDeleted: "EPUB deleted.",
+  folderDeleted: "Folder deleted.",
+  metadataRemoved: "Metadata removed.",
+};
+
+const DELETE_ERROR_TITLES: Record<LibraryDeleteErrorFeedbackType, string> = {
+  bookDeleteFailed: "This book could not be deleted.",
+  folderDeleteFailed: "This folder could not be deleted.",
+  metadataRemoveFailed: "The saved metadata could not be removed.",
+};
+
+export function createDeleteSuccessFeedbackToken(
+  type: LibraryDeleteSuccessFeedbackType,
+): LibraryFeedbackToken {
+  return {
+    id: LIBRARY_DELETE_FEEDBACK_IDS[type],
+    tone: "success",
+    title: DELETE_SUCCESS_TITLES[type],
+    autoDismiss: true,
+  };
+}
+
+export function createDeleteErrorFeedbackToken(
+  type: LibraryDeleteErrorFeedbackType,
+): LibraryFeedbackToken {
+  return {
+    id: LIBRARY_DELETE_FEEDBACK_IDS[type],
+    tone: "error",
+    title: DELETE_ERROR_TITLES[type],
+  };
+}
+
 export function createImportFeedbackToken(
   id: string,
   results: ArchiveImportResult[],

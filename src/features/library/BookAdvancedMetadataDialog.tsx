@@ -317,6 +317,7 @@ export function BookAdvancedMetadataDialog({
 
   return (
     <Dialog
+      className="dialog--metadata-writeback"
       title="Edit EPUB metadata"
       onClose={onClose}
       footer={

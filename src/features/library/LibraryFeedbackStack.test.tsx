@@ -5,7 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
-import { LIBRARY_FEEDBACK_AUTO_DISMISS_MS } from "./libraryFeedback";
+import {
+  createDeleteSuccessFeedbackToken,
+  LIBRARY_FEEDBACK_AUTO_DISMISS_MS,
+} from "./libraryFeedback";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -69,6 +72,34 @@ describe("LibraryFeedbackStack", () => {
     expect(stack?.textContent).toContain("Invalid EPUB.");
     expect(tokens[0]?.getAttribute("data-has-detail")).toBe("false");
     expect(tokens[1]?.getAttribute("data-has-detail")).toBe("true");
+  });
+
+
+  it("renders delete success tokens as non-inline auto-dismiss feedback", () => {
+    const onDismiss = vi.fn();
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <LibraryFeedbackStack
+          onDismiss={onDismiss}
+          tokens={[createDeleteSuccessFeedbackToken("bookDeleted")]}
+        />,
+      );
+    });
+
+    const stack = container.querySelector(".library-feedback");
+
+    expect(stack?.textContent).toContain("EPUB deleted.");
+    expect(container.querySelector(".library-content .library-feedback")).toBeNull();
+
+    act(() => {
+      vi.advanceTimersByTime(LIBRARY_FEEDBACK_AUTO_DISMISS_MS);
+    });
+
+    expect(onDismiss).toHaveBeenCalledWith("library-delete-book");
   });
 
   it("auto-dismisses success tokens and leaves persistent errors", () => {

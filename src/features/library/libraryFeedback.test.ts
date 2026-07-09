@@ -1,9 +1,54 @@
 import { describe, expect, it } from "vitest";
 
 import type { ArchiveImportResult } from "../../storage/LibraryStorage";
-import { createImportFeedbackToken } from "./libraryFeedback";
+import {
+  createDeleteErrorFeedbackToken,
+  createDeleteSuccessFeedbackToken,
+  createImportFeedbackToken,
+} from "./libraryFeedback";
 
 describe("libraryFeedback", () => {
+
+
+
+  it("creates persistent error tokens for failed delete operations", () => {
+    expect(createDeleteErrorFeedbackToken("bookDeleteFailed")).toMatchObject({
+      id: "library-error",
+      tone: "error",
+      title: "This book could not be deleted.",
+    });
+    expect(createDeleteErrorFeedbackToken("metadataRemoveFailed")).toMatchObject({
+      id: "library-error",
+      tone: "error",
+      title: "The saved metadata could not be removed.",
+    });
+    expect(createDeleteErrorFeedbackToken("folderDeleteFailed")).toMatchObject({
+      id: "library-error",
+      tone: "error",
+      title: "This folder could not be deleted.",
+    });
+  });
+
+  it("creates auto-dismissing success tokens for delete operations", () => {
+    expect(createDeleteSuccessFeedbackToken("bookDeleted")).toMatchObject({
+      id: "library-delete-book",
+      tone: "success",
+      title: "EPUB deleted.",
+      autoDismiss: true,
+    });
+    expect(createDeleteSuccessFeedbackToken("metadataRemoved")).toMatchObject({
+      id: "library-delete-metadata",
+      tone: "success",
+      title: "Metadata removed.",
+      autoDismiss: true,
+    });
+    expect(createDeleteSuccessFeedbackToken("folderDeleted")).toMatchObject({
+      id: "library-delete-folder",
+      tone: "success",
+      title: "Folder deleted.",
+      autoDismiss: true,
+    });
+  });
   it("creates an auto-dismissing success token for successful import", () => {
     const token = createImportFeedbackToken("archive-import", [
       { status: "imported", fileName: "A.epub", sourcePath: "A.epub" },
