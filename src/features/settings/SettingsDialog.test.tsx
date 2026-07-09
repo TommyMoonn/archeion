@@ -26,6 +26,10 @@ function createStorage() {
   return {
     getArchiveImportSettings: vi.fn(async () => ({})),
     getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
+    getEpubWritebackBackupStatus: vi.fn(async () => ({
+      fileCount: 1,
+      totalBytes: 2048,
+    })),
     listFolders: vi.fn(async () => []),
   } as unknown as LibraryStorage;
 }
@@ -159,6 +163,7 @@ describe("SettingsDialog responsiveness", () => {
     });
 
     expect(storage.getCoverCacheStatus).not.toHaveBeenCalled();
+    expect(storage.getEpubWritebackBackupStatus).not.toHaveBeenCalled();
     expect(storage.listFolders).not.toHaveBeenCalled();
     expect(storage.getArchiveImportSettings).not.toHaveBeenCalled();
   });
@@ -172,6 +177,7 @@ describe("SettingsDialog responsiveness", () => {
     });
 
     expect(storage.getCoverCacheStatus).toHaveBeenCalledTimes(1);
+    expect(storage.getEpubWritebackBackupStatus).toHaveBeenCalledTimes(1);
     expect(storage.listFolders).not.toHaveBeenCalled();
   });
 
@@ -202,6 +208,26 @@ describe("SettingsDialog responsiveness", () => {
     });
 
     expect(storage.getCoverCacheStatus).toHaveBeenCalledTimes(1);
+    expect(storage.getEpubWritebackBackupStatus).not.toHaveBeenCalled();
+    expect(storage.listFolders).not.toHaveBeenCalled();
+  });
+
+  it("loads EPUB writeback backup status when a matching Storage search result needs it", async () => {
+    const { container, storage } = track(renderDialog());
+    const search = container.querySelector(
+      'input[name="archeion-settings-search"]',
+    ) as HTMLInputElement | null;
+
+    act(() => {
+      if (!search) throw new Error("Settings search input missing");
+      changeInputValue(search, "writeback backups");
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(storage.getEpubWritebackBackupStatus).toHaveBeenCalledTimes(1);
+    expect(storage.getCoverCacheStatus).not.toHaveBeenCalled();
     expect(storage.listFolders).not.toHaveBeenCalled();
   });
 

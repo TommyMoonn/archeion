@@ -38,6 +38,7 @@ export type SettingsItemGroupStyle = "standard" | "actions";
 export type SettingsDeferredDataRequirement =
   | "archiveImportSettings"
   | "coverCacheStatus"
+  | "epubWritebackBackupStatus"
   | "folders";
 
 export type SettingsItem = {
@@ -583,6 +584,34 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "storage",
   },
   {
+    description: "Keep one recovery copy after metadata edits. Off by default.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.keep-epub-writeback-backup",
+    label: "Keep EPUB writeback backup",
+    render: (context) => (
+      <SettingsRow
+        description="Keep one recovery copy after metadata edits. Off by default."
+        label="Keep EPUB writeback backup"
+      >
+        <Toggle
+          checked={context.files.keepEpubWritebackBackup}
+          label="Keep EPUB writeback backup"
+          onChange={(keepEpubWritebackBackup) =>
+            context.updateFiles({ keepEpubWritebackBackup })
+          }
+        />
+      </SettingsRow>
+    ),
+    searchTerms: [
+      "epub backup",
+      "writeback backup",
+      "metadata backup",
+      "archive maintenance",
+    ],
+    sectionId: "storage",
+  },
+  {
     description: "Checks the active archive without changing EPUB files.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",
@@ -647,6 +676,40 @@ export const settingsItems: readonly SettingsItem[] = [
       </SettingsRow>
     ),
     searchTerms: ["source metadata", "re-extract", "epub metadata", "archive maintenance"],
+    sectionId: "storage",
+  },
+  {
+    description: "Remove saved recovery copies from successful metadata edits.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    deferredData: ["epubWritebackBackupStatus"],
+    id: "storage.clear-epub-writeback-backups",
+    label: "Clear EPUB writeback backups",
+    render: (context) => (
+      <SettingsRow
+        description="Remove saved recovery copies from successful metadata edits."
+        label="Clear EPUB writeback backups"
+        note={formatEpubWritebackBackupStatusNote(context)}
+      >
+        <Button
+          disabled={
+            context.epubWritebackBackupStatusState !== "loaded" ||
+            !context.epubWritebackBackupStatus ||
+            context.epubWritebackBackupStatus.fileCount === 0
+          }
+          onClick={() => context.openConfirmation("clearEpubWritebackBackups")}
+          variant="secondary"
+        >
+          Clear backups
+        </Button>
+      </SettingsRow>
+    ),
+    searchTerms: [
+      "clear epub writeback backups",
+      "backup cleanup",
+      "metadata backup",
+      "archive maintenance",
+    ],
     sectionId: "storage",
   },
   {
@@ -789,6 +852,19 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "import",
   },
 ] as const;
+
+function formatEpubWritebackBackupStatusNote(context: SettingsDialogController) {
+  if (context.epubWritebackBackupStatusState !== "loaded") {
+    return context.epubWritebackBackupStatusState === "unavailable"
+      ? "Backup status unavailable."
+      : "Checking backups...";
+  }
+
+  const status = context.epubWritebackBackupStatus;
+  if (!status || status.fileCount === 0) return "0 backups";
+  const backupLabel = status.fileCount === 1 ? "1 backup" : `${status.fileCount} backups`;
+  return `${backupLabel}, ${formatBytes(status.totalBytes)}`;
+}
 
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;

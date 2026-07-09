@@ -17,11 +17,13 @@ function createController(
     closeConfirmation: vi.fn(),
     confirmations: {
       clearCoverCache: false,
+      clearEpubWritebackBackups: false,
       clearScannerCache: false,
       reextractMetadata: false,
       rescanArchive: false,
     },
     destinationOptions: [{ label: "Archive root", value: "" }],
+    epubWritebackBackupStatus: { fileCount: 1, totalBytes: 2048 },
     files: preferences.filesAndMetadata,
     importSettings: preferences.import,
     library: preferences.library,
@@ -49,6 +51,7 @@ function createController(
     updateLibrary: vi.fn(),
     updateReader: vi.fn(),
     confirmClearCoverCache: vi.fn(),
+    confirmClearEpubWritebackBackups: vi.fn(),
     confirmClearScannerCache: vi.fn(),
     confirmReextractMetadata: vi.fn(),
     confirmRescanArchive: vi.fn(),
@@ -86,6 +89,8 @@ describe("settings section components", () => {
     expect(markup).toContain("Storage");
     expect(markup).toContain("Scan preferences");
     expect(markup).toContain("Archive maintenance");
+    expect(markup).toContain("Keep EPUB writeback backup");
+    expect(markup).toContain("Clear EPUB writeback backups");
   });
 
   it("disables archive reveal when no archive path is available", () => {

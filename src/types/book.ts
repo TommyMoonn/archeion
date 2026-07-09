@@ -14,7 +14,7 @@ export type EpubSourceMetadata = {
 export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
 export type EpubMetadataWritebackResult = {
-  backupPath: string;
+  backupPath?: string | null;
   sourceMetadata: EpubSourceMetadata;
 };
 

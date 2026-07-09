@@ -67,6 +67,7 @@ describe("app preferences", () => {
         defaultMode: "copy",
       },
       filesAndMetadata: {
+        keepEpubWritebackBackup: false,
         liveWatcherEnabled: true,
         scanOnStartup: true,
       },
@@ -118,6 +119,7 @@ describe("app preferences", () => {
         bookCardSize: "large",
         confirmDestructiveFileActions: false,
         filesAndMetadata: {
+          keepEpubWritebackBackup: true,
           liveWatcherEnabled: false,
           scanOnStartup: false,
         },
@@ -152,6 +154,7 @@ describe("app preferences", () => {
       bookCardSize: "large",
       confirmDestructiveFileActions: false,
       filesAndMetadata: {
+        keepEpubWritebackBackup: true,
         liveWatcherEnabled: false,
         scanOnStartup: false,
       },
@@ -298,7 +301,11 @@ describe("app preferences", () => {
 
     await store.update({
       appearance: { animationsEnabled: true },
-      filesAndMetadata: { liveWatcherEnabled: false, scanOnStartup: false },
+      filesAndMetadata: {
+        keepEpubWritebackBackup: true,
+        liveWatcherEnabled: false,
+        scanOnStartup: false,
+      },
       import: { defaultConflictAction: "skip", defaultMode: "move" },
       library: { sortBy: "recently-opened", viewMode: "list" },
       reader: {
@@ -314,6 +321,7 @@ describe("app preferences", () => {
           animationsEnabled: true,
         },
         filesAndMetadata: {
+          keepEpubWritebackBackup: true,
           liveWatcherEnabled: false,
           scanOnStartup: false,
         },

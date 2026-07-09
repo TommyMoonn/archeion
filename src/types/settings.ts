@@ -8,6 +8,7 @@ export type LibraryDisplaySettings = {
 };
 
 export type FilesAndMetadataSettings = {
+  keepEpubWritebackBackup: boolean;
   liveWatcherEnabled: boolean;
   scanOnStartup: boolean;
 };

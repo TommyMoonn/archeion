@@ -120,6 +120,7 @@ function normalizeFilesAndMetadataSettings(
 ): FilesAndMetadataSettings {
   const settings = isRecord(value) ? value : {};
   return {
+    keepEpubWritebackBackup: settings.keepEpubWritebackBackup === true,
     liveWatcherEnabled: settings.liveWatcherEnabled !== false,
     scanOnStartup: settings.scanOnStartup !== false,
   };

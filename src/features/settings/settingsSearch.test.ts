@@ -20,6 +20,11 @@ describe("settingsSearch", () => {
         (result) => result.item.id,
       ),
     ).toContain("storage.rescan-archive");
+    expect(
+      findSettingsSearchResults("writeback backup").map(
+        (result) => result.item.id,
+      ),
+    ).toContain("storage.keep-epub-writeback-backup");
   });
 
   it("supports useful row-level searches", () => {

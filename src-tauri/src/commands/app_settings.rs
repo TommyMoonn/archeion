@@ -45,6 +45,8 @@ pub struct ReaderSettings {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FilesAndMetadataSettings {
+    #[serde(default)]
+    pub keep_epub_writeback_backup: bool,
     #[serde(default = "default_true")]
     pub live_watcher_enabled: bool,
     #[serde(default = "default_true")]
@@ -167,6 +169,7 @@ impl Default for ReaderSettings {
 impl Default for FilesAndMetadataSettings {
     fn default() -> Self {
         Self {
+            keep_epub_writeback_backup: false,
             live_watcher_enabled: true,
             scan_on_startup: true,
         }
@@ -317,6 +320,7 @@ mod tests {
         assert_eq!(parsed.library.sort_by, "title");
         assert_eq!(parsed.reader.progress_placement, "top");
         assert_eq!(parsed.import.default_mode, "copy");
+        assert!(!parsed.files_and_metadata.keep_epub_writeback_backup);
     }
 
     #[test]

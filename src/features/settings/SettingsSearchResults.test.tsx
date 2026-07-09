@@ -19,11 +19,14 @@ function createController(overrides: Partial<SettingsDialogController> = {}) {
     closeConfirmation: vi.fn(),
     confirmations: {
       clearCoverCache: false,
+      clearEpubWritebackBackups: false,
       clearScannerCache: false,
       reextractMetadata: false,
       rescanArchive: false,
     },
     destinationOptions: [{ label: "Archive root", value: "" }],
+    epubWritebackBackupStatus: { fileCount: 1, totalBytes: 2048 },
+    epubWritebackBackupStatusState: "loaded",
     files: preferences.filesAndMetadata,
     importSettings: preferences.import,
     library: preferences.library,
@@ -51,6 +54,7 @@ function createController(overrides: Partial<SettingsDialogController> = {}) {
     updateLibrary: vi.fn(),
     updateReader: vi.fn(),
     confirmClearCoverCache: vi.fn(),
+    confirmClearEpubWritebackBackups: vi.fn(),
     confirmClearScannerCache: vi.fn(),
     confirmReextractMetadata: vi.fn(),
     confirmRescanArchive: vi.fn(),
@@ -159,6 +163,26 @@ describe("SettingsSearchResults", () => {
     expect(controller.updateFiles).toHaveBeenCalledWith({
       scanOnStartup: false,
     });
+  });
+
+
+  it("disables clear EPUB backup action while status is not actionable", () => {
+    for (const [state, note] of [
+      ["loading", "Checking backups..."],
+      ["unavailable", "Backup status unavailable."],
+    ] as const) {
+      const controller = createController({
+        epubWritebackBackupStatus: null,
+        epubWritebackBackupStatusState: state,
+      });
+      const { container } = trackRoot(renderResults("writeback backups", controller));
+      const clearButton = Array.from(container.querySelectorAll("button")).find(
+        (button) => button.textContent === "Clear backups",
+      );
+
+      expect(container.textContent).toContain(note);
+      expect((clearButton as HTMLButtonElement | undefined)?.disabled).toBe(true);
+    }
   });
 
   it("does not render redirect-only result cards", () => {

@@ -41,6 +41,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   confirmDestructiveFileActions: true,
   density: "comfortable",
   filesAndMetadata: Object.freeze({
+    keepEpubWritebackBackup: false,
     liveWatcherEnabled: true,
     scanOnStartup: true,
   }),

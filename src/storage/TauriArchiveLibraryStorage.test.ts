@@ -2,10 +2,13 @@ import { invoke } from "@tauri-apps/api/core";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
+import { appPreferencesStore } from "../stores/appPreferencesStore";
+import { defaultAppPreferences } from "../types/appSettings";
 import type { LibraryMetadata } from "./metadataFiles";
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(),
+  isTauri: vi.fn(() => true),
 }));
 
 const invokeMock = vi.mocked(invoke);
@@ -1191,10 +1194,11 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
           input: {
             relativePath: "Author/Series/Volume_01.epub",
             metadata: { title: "Edited Title" },
+            keepSuccessfulBackup: false,
           },
         });
         return {
-          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
+          backupPath: null,
           sourceMetadata: { title: "Edited Title" },
         };
       }
@@ -1208,20 +1212,17 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     });
     const book = await storage.getBook("book-1");
 
-    expect(result.backupPath).toBe(".archeion/backups/Volume_01.metadata-writeback-1.epub.bak");
+    expect(result.backupPath).toBeNull();
     expect(book?.sourceMetadata?.title).toBe("Edited Title");
     expect(book?.sourceMetadata?.creator).toBe("Edited Author");
     expect(
       invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
     ).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith(
-      "cleanup_epub_writeback_backup",
-      {
-        input: {
-          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
-        },
-      },
-    );
+    expect(
+      invokeMock.mock.calls.some(
+        ([command]) => command === "cleanup_epub_writeback_backup",
+      ),
+    ).toBe(false);
   });
 
   it("distinguishes successful writeback from failed library refresh", async () => {
@@ -1242,10 +1243,11 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
           input: {
             relativePath: "Author/Series/Volume_01.epub",
             metadata: { title: "Edited Title" },
+            keepSuccessfulBackup: false,
           },
         });
         return {
-          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
+          backupPath: null,
           sourceMetadata: { title: "Edited Title" },
         };
       }
@@ -1262,21 +1264,97 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     expect(
       invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
     ).toBe(true);
-    expect(invokeMock).toHaveBeenCalledWith(
-      "cleanup_epub_writeback_backup",
-      {
-        input: {
-          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
-        },
+    expect(
+      invokeMock.mock.calls.some(
+        ([command]) => command === "cleanup_epub_writeback_backup",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps the successful writeback backup when the app preference is enabled", async () => {
+    const getSnapshot = vi.spyOn(appPreferencesStore, "getSnapshot").mockReturnValue({
+      ...defaultAppPreferences,
+      filesAndMetadata: {
+        ...defaultAppPreferences.filesAndMetadata,
+        keepEpubWritebackBackup: true,
       },
+    });
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        if (scanCount === 1) {
+          return firstScan;
+        }
+        return {
+          ...firstScan,
+          books: firstScan.books.map((book) => ({
+            ...book,
+            sourceMetadata: {
+              title: "Edited Title",
+            },
+          })),
+        };
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "write_epub_metadata") {
+        expect(args).toEqual({
+          input: {
+            relativePath: "Author/Series/Volume_01.epub",
+            metadata: { title: "Edited Title" },
+            keepSuccessfulBackup: true,
+          },
+        });
+        return {
+          backupPath:
+            ".archeion/backups/Volume_01.metadata-writeback-retained-1.epub.bak",
+          sourceMetadata: { title: "Edited Title" },
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+
+    const result = await storage.writeBookMetadata("book-1", {
+      title: "Edited Title",
+    });
+
+    expect(result.backupPath ?? "").toContain("metadata-writeback-retained");
+    expect(
+      invokeMock.mock.calls.some(
+        ([command]) => command === "cleanup_epub_writeback_backup",
+      ),
+    ).toBe(false);
+    getSnapshot.mockRestore();
+  });
+
+  it("loads and clears retained EPUB writeback backup status", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "get_epub_writeback_backup_status") {
+        return { fileCount: 2, totalBytes: 4096 };
+      }
+      if (command === "clear_epub_writeback_backups") {
+        return { fileCount: 0, totalBytes: 0 };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+
+    await expect(storage.getEpubWritebackBackupStatus()).resolves.toEqual({
+      fileCount: 2,
+      totalBytes: 4096,
+    });
+    await expect(storage.clearEpubWritebackBackups()).resolves.toEqual({
+      fileCount: 0,
+      totalBytes: 0,
+    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "get_epub_writeback_backup_status",
     );
-    const cleanupIndex = invokeMock.mock.calls.findIndex(
-      ([command]) => command === "cleanup_epub_writeback_backup",
-    );
-    const scanIndexes = invokeMock.mock.calls.flatMap(([command], index) =>
-      command === "scan_archive" ? [index] : [],
-    );
-    expect(cleanupIndex).toBeLessThan(scanIndexes[scanIndexes.length - 1] ?? -1);
+    expect(invokeMock).toHaveBeenCalledWith("clear_epub_writeback_backups");
   });
 
 });

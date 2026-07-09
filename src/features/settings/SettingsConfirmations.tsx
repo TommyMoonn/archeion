@@ -3,6 +3,7 @@ import { Dialog } from "../../components/Dialog";
 
 export type SettingsConfirmationKey =
   | "clearCoverCache"
+  | "clearEpubWritebackBackups"
   | "clearScannerCache"
   | "reextractMetadata"
   | "rescanArchive";
@@ -12,6 +13,7 @@ export type SettingsConfirmationState = Record<SettingsConfirmationKey, boolean>
 type SettingsConfirmationsProps = {
   confirmations: SettingsConfirmationState;
   onClearCoverCache: () => void;
+  onClearEpubWritebackBackups: () => void;
   onClearScannerCache: () => void;
   onClose: (confirmation: SettingsConfirmationKey) => void;
   onReextractMetadata: () => void;
@@ -21,6 +23,7 @@ type SettingsConfirmationsProps = {
 export function SettingsConfirmations({
   confirmations,
   onClearCoverCache,
+  onClearEpubWritebackBackups,
   onClearScannerCache,
   onClose,
   onReextractMetadata,
@@ -63,6 +66,26 @@ export function SettingsConfirmations({
               </Button>
               <Button variant="danger" onClick={onClearScannerCache}>
                 Clear scanner cache
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+      {confirmations.clearEpubWritebackBackups ? (
+        <Dialog
+          title="Clear EPUB writeback backups?"
+          description="This removes saved recovery copies created after successful metadata edits. Your EPUB files and library metadata will not be changed."
+          onClose={() => onClose("clearEpubWritebackBackups")}
+          footer={
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => onClose("clearEpubWritebackBackups")}
+              >
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={onClearEpubWritebackBackups}>
+                Clear backups
               </Button>
             </>
           }

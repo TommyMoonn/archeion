@@ -55,6 +55,11 @@ export type CoverCacheStatus = {
   totalBytes: number;
 };
 
+export type EpubWritebackBackupStatus = {
+  fileCount: number;
+  totalBytes: number;
+};
+
 export interface LibraryStorage {
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
@@ -103,6 +108,8 @@ export interface LibraryStorage {
 
   getCoverCacheStatus(): Promise<CoverCacheStatus>;
   clearCoverCache(): Promise<CoverCacheStatus>;
+  getEpubWritebackBackupStatus(): Promise<EpubWritebackBackupStatus>;
+  clearEpubWritebackBackups(): Promise<EpubWritebackBackupStatus>;
   clearScannerCache(): Promise<void>;
   revealMetadataFolder(): Promise<void>;
 }

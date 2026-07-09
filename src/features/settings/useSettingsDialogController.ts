@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { CoverCacheStatus } from "../../storage/LibraryStorage";
+import type {
+  CoverCacheStatus,
+  EpubWritebackBackupStatus,
+} from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
@@ -32,6 +35,7 @@ import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
+  clearEpubWritebackBackups: false,
   clearScannerCache: false,
   reextractMetadata: false,
   rescanArchive: false,
@@ -42,12 +46,14 @@ const LOCAL_STATUS_AUTO_DISMISS_MS = 2500;
 export type SettingsDialogControllerOptions = {
   loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
+  loadEpubWritebackBackupStatus?: boolean;
   loadFolders?: boolean;
 };
 
 export function useSettingsDialogController({
   loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
+  loadEpubWritebackBackupStatus = false,
   loadFolders = false,
 }: SettingsDialogControllerOptions = {}) {
   const storage = useLibraryStorage();
@@ -62,12 +68,18 @@ export function useSettingsDialogController({
   });
   const [folders, setFolders] = useState<Folder[]>([]);
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
+  const [epubWritebackBackupStatus, setEpubWritebackBackupStatus] =
+    useState<EpubWritebackBackupStatus | null>(null);
+  const [epubWritebackBackupStatusState, setEpubWritebackBackupStatusState] =
+    useState<"loading" | "loaded" | "unavailable">("loading");
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
   const statusDismissTimerRef = useRef<number | null>(null);
   const archiveImportLoadedRef = useRef(false);
   const archiveImportLoadingRef = useRef(false);
   const coverCacheLoadedRef = useRef(false);
   const coverCacheLoadingRef = useRef(false);
+  const epubWritebackBackupStatusLoadedRef = useRef(false);
+  const epubWritebackBackupStatusLoadingRef = useRef(false);
   const foldersLoadedRef = useRef(false);
   const foldersLoadingRef = useRef(false);
   const dataLoadGenerationRef = useRef(0);
@@ -165,6 +177,8 @@ export function useSettingsDialogController({
     archiveImportLoadingRef.current = false;
     coverCacheLoadedRef.current = false;
     coverCacheLoadingRef.current = false;
+    epubWritebackBackupStatusLoadedRef.current = false;
+    epubWritebackBackupStatusLoadingRef.current = false;
     foldersLoadedRef.current = false;
     foldersLoadingRef.current = false;
   }, [storage]);
@@ -254,6 +268,38 @@ export function useSettingsDialogController({
         }
       });
   }, [loadCoverCacheStatus, storage, setErrorStatus]);
+
+  useEffect(() => {
+    if (
+      !loadEpubWritebackBackupStatus ||
+      epubWritebackBackupStatusLoadedRef.current ||
+      epubWritebackBackupStatusLoadingRef.current
+    ) {
+      return;
+    }
+
+    const generation = dataLoadGenerationRef.current;
+    epubWritebackBackupStatusLoadingRef.current = true;
+    void storage
+      .getEpubWritebackBackupStatus()
+      .then((backupStatus) => {
+        if (dataLoadGenerationRef.current !== generation) return;
+        epubWritebackBackupStatusLoadedRef.current = true;
+        setEpubWritebackBackupStatus(backupStatus);
+        setEpubWritebackBackupStatusState("loaded");
+      })
+      .catch(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          setEpubWritebackBackupStatusState("unavailable");
+          setErrorStatus("Settings could not be loaded.");
+        }
+      })
+      .finally(() => {
+        if (dataLoadGenerationRef.current === generation) {
+          epubWritebackBackupStatusLoadingRef.current = false;
+        }
+      });
+  }, [loadEpubWritebackBackupStatus, storage, setErrorStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
     setConfirmations((current) => ({ ...current, [confirmation]: true }));
@@ -387,6 +433,18 @@ export function useSettingsDialogController({
     }
   }
 
+  async function clearEpubWritebackBackups() {
+    try {
+      setEpubWritebackBackupStatus(await storage.clearEpubWritebackBackups());
+      setEpubWritebackBackupStatusState("loaded");
+      setSuccessStatus("EPUB writeback backups cleared.");
+    } catch {
+      setErrorStatus("EPUB writeback backups could not be cleared.");
+    } finally {
+      closeConfirmation("clearEpubWritebackBackups");
+    }
+  }
+
   async function reextractMetadata() {
     try {
       await storage.clearScannerCache();
@@ -482,6 +540,8 @@ export function useSettingsDialogController({
     closeConfirmation,
     confirmations,
     destinationOptions,
+    epubWritebackBackupStatus,
+    epubWritebackBackupStatusState,
     files,
     importSettings,
     library,
@@ -509,6 +569,7 @@ export function useSettingsDialogController({
     updateLibrary,
     updateReader,
     confirmClearCoverCache: () => void clearCache(),
+    confirmClearEpubWritebackBackups: () => void clearEpubWritebackBackups(),
     confirmClearScannerCache: () => void clearScannerCache(),
     confirmReextractMetadata: () => void reextractMetadata(),
     confirmRescanArchive: () => void rescan(),

@@ -89,6 +89,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const controller = useSettingsDialogController({
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
+    loadEpubWritebackBackupStatus: dataRequirements.has(
+      "epubWritebackBackupStatus",
+    ),
     loadFolders: dataRequirements.has("folders"),
   });
 
@@ -174,6 +177,9 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         <SettingsConfirmations
           confirmations={controller.confirmations}
           onClearCoverCache={controller.confirmClearCoverCache}
+          onClearEpubWritebackBackups={
+            controller.confirmClearEpubWritebackBackups
+          }
           onClearScannerCache={controller.confirmClearScannerCache}
           onClose={controller.closeConfirmation}
           onReextractMetadata={controller.confirmReextractMetadata}

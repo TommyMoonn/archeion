@@ -12,6 +12,7 @@ import type {
   UpdateFolderInput,
 } from "../types/folder";
 import type { ArchiveImportSettings } from "../types/settings";
+import { appPreferencesStore } from "../stores/appPreferencesStore";
 import {
   createLibraryMetadata,
   createProgressMetadata,
@@ -28,6 +29,7 @@ import type {
   ArchiveImportResult,
   ArchivePathChange,
   CoverCacheStatus,
+  EpubWritebackBackupStatus,
   LibraryStorage,
   RescanOptions,
   ScanStatus,
@@ -703,6 +705,8 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     if (!book.relativePath || book.isFileMissing) {
       throw new Error("The selected EPUB file is unavailable.");
     }
+    const keepSuccessfulBackup =
+      appPreferencesStore.getSnapshot().filesAndMetadata.keepEpubWritebackBackup;
 
     const result = await this.invokeArchiveCommand<EpubMetadataWritebackResult>(
       "write_epub_metadata",
@@ -710,6 +714,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         input: {
           relativePath: book.relativePath,
           metadata,
+          keepSuccessfulBackup,
         },
       },
       scope.rootPath,
@@ -723,19 +728,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
     }
 
-    try {
-      await this.invokeArchiveCommand(
-        "cleanup_epub_writeback_backup",
-        {
-          input: {
-            backupPath: result.backupPath,
-          },
-        },
-        scope.rootPath,
-      );
-    } catch (error) {
-      console.warn("EPUB writeback backup could not be cleaned up.", error);
-    }
 
     try {
       await this.rescan();
@@ -1043,6 +1035,24 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     const { rootPath } = this.createArchiveCommandScope();
     return this.invokeArchiveCommand<CoverCacheStatus>(
       "clear_cover_cache",
+      undefined,
+      rootPath,
+    );
+  }
+
+  getEpubWritebackBackupStatus(): Promise<EpubWritebackBackupStatus> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand<EpubWritebackBackupStatus>(
+      "get_epub_writeback_backup_status",
+      undefined,
+      rootPath,
+    );
+  }
+
+  clearEpubWritebackBackups(): Promise<EpubWritebackBackupStatus> {
+    const { rootPath } = this.createArchiveCommandScope();
+    return this.invokeArchiveCommand<EpubWritebackBackupStatus>(
+      "clear_epub_writeback_backups",
       undefined,
       rootPath,
     );

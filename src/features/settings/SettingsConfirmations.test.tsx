@@ -8,6 +8,7 @@ import {
 
 const closedConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
+  clearEpubWritebackBackups: false,
   clearScannerCache: false,
   reextractMetadata: false,
   rescanArchive: false,
@@ -18,6 +19,7 @@ function renderConfirmations(confirmations: Partial<SettingsConfirmationState>) 
     <SettingsConfirmations
       confirmations={{ ...closedConfirmations, ...confirmations }}
       onClearCoverCache={vi.fn()}
+      onClearEpubWritebackBackups={vi.fn()}
       onClearScannerCache={vi.fn()}
       onClose={vi.fn()}
       onReextractMetadata={vi.fn()}
@@ -43,6 +45,15 @@ describe("SettingsConfirmations", () => {
       "EPUB files, favorites, and reading progress will not be deleted.",
     );
     expect(markup).toContain("Clear scanner cache");
+  });
+
+  it("renders the EPUB writeback backup confirmation", () => {
+    const markup = renderConfirmations({ clearEpubWritebackBackups: true });
+
+    expect(markup).toContain("Clear EPUB writeback backups?");
+    expect(markup).toContain("saved recovery copies");
+    expect(markup).toContain("Your EPUB files and library metadata will not be changed.");
+    expect(markup).toContain("Clear backups");
   });
 
   it("renders the metadata re-extraction confirmation", () => {
