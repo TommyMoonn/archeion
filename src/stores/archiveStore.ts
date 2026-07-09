@@ -38,6 +38,11 @@ type ArchiveFolderPickerOptions = {
   title: string;
 };
 
+export type CreateEmptyArchiveInput = {
+  archiveName: string;
+  parentPath: string;
+};
+
 function setupState(archives: KnownArchive[]): ArchiveState {
   return { status: "setup", path: null, error: null, archives };
 }
@@ -64,6 +69,7 @@ export class ArchiveStore {
   private listeners = new Set<Listener>();
   private initialization: Promise<void> | null = null;
   private registryListenerStarted = false;
+  private lastOperationError: string | null = null;
 
   getSnapshot = (): ArchiveState => this.state;
 
@@ -87,8 +93,59 @@ export class ArchiveStore {
     return this.chooseArchiveFolder({ title: "Open folder as archive" });
   }
 
-  createArchive(): Promise<boolean> {
-    return this.chooseArchiveFolder({ title: "Create empty archive" });
+  getLastOperationError(): string | null {
+    return this.lastOperationError;
+  }
+
+  async chooseArchiveParentLocation(): Promise<string | null> {
+    this.lastOperationError = null;
+
+    if (!isTauri()) {
+      this.lastOperationError =
+        "Archive folders can only be created in the desktop app.";
+      return null;
+    }
+
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Choose archive location",
+      });
+
+      if (selected === null) {
+        return null;
+      }
+
+      const path = Array.isArray(selected) ? selected[0] : selected;
+      return path || null;
+    } catch (error) {
+      console.error("archive parent folder picker failed", error);
+      this.lastOperationError = errorMessage(
+        error,
+        "The folder picker could not be opened.",
+      );
+      return null;
+    }
+  }
+
+  async createEmptyArchive(input: CreateEmptyArchiveInput): Promise<boolean> {
+    const previousState = this.state;
+    this.lastOperationError = null;
+
+    try {
+      const registry = await invoke<ArchiveRegistry>("create_empty_archive", {
+        archiveName: input.archiveName,
+        parentPath: input.parentPath,
+      });
+      return await this.useRegistryActiveArchive(registry);
+    } catch (error) {
+      const message = errorMessage(error, "Archive could not be created.");
+      console.error("create_empty_archive failed", error);
+      this.lastOperationError = message;
+      this.setState(previousState);
+      return false;
+    }
   }
 
   async openArchivePath(path: string): Promise<boolean> {
@@ -255,11 +312,15 @@ export class ArchiveStore {
   private async chooseArchiveFolder({
     title,
   }: ArchiveFolderPickerOptions): Promise<boolean> {
+    this.lastOperationError = null;
+
     if (!isTauri()) {
+      this.lastOperationError =
+        "Archive folders can only be opened in the desktop app.";
       this.setState({
         status: "error",
         path: this.state.path,
-        error: "Archive folders can only be opened in the desktop app.",
+        error: this.lastOperationError,
         archives: this.state.archives,
       });
       return false;
@@ -275,10 +336,14 @@ export class ArchiveStore {
       });
     } catch (error) {
       console.error("archive folder picker failed", error);
+      this.lastOperationError = errorMessage(
+        error,
+        "The folder picker could not be opened.",
+      );
       this.setState({
         status: "error",
         path: this.state.path,
-        error: errorMessage(error, "The folder picker could not be opened."),
+        error: this.lastOperationError,
         archives: this.state.archives,
       });
       return false;

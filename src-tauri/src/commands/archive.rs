@@ -104,6 +104,134 @@ fn archive_display_name(path: &Path) -> String {
         .to_string()
 }
 
+fn is_reserved_windows_name(name: &str) -> bool {
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+
+    matches!(
+        stem.as_str(),
+        "con"
+            | "prn"
+            | "aux"
+            | "nul"
+            | "com1"
+            | "com2"
+            | "com3"
+            | "com4"
+            | "com5"
+            | "com6"
+            | "com7"
+            | "com8"
+            | "com9"
+            | "lpt1"
+            | "lpt2"
+            | "lpt3"
+            | "lpt4"
+            | "lpt5"
+            | "lpt6"
+            | "lpt7"
+            | "lpt8"
+            | "lpt9"
+    )
+}
+
+fn validate_archive_name(name: &str) -> Result<String, String> {
+    let trimmed = name.trim();
+
+    if trimmed.is_empty() {
+        return Err("Archive name is required.".to_string());
+    }
+
+    if name.trim_end() != name || trimmed.ends_with('.') {
+        return Err("Archive name cannot end with a space or period.".to_string());
+    }
+
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("Archive name cannot contain path separators.".to_string());
+    }
+
+    if trimmed.chars().any(|character| {
+        matches!(
+            character,
+            '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*'
+        )
+    }) {
+        return Err(
+            "Archive name contains characters Windows cannot use in folder names.".to_string(),
+        );
+    }
+
+    if trimmed.chars().any(char::is_control) {
+        return Err("Archive name cannot contain control characters.".to_string());
+    }
+
+    if trimmed.eq_ignore_ascii_case(".archeion") {
+        return Err("Archive name cannot be .archeion.".to_string());
+    }
+
+    if is_reserved_windows_name(trimmed) {
+        return Err("Archive name is reserved on Windows.".to_string());
+    }
+
+    Ok(trimmed.to_string())
+}
+
+fn validated_parent_path(path: &str) -> Result<PathBuf, String> {
+    if path.trim().is_empty() {
+        return Err("Choose a location for the archive.".to_string());
+    }
+
+    let parent = PathBuf::from(path);
+    if !parent.is_dir() {
+        return Err("Archive location is unavailable.".to_string());
+    }
+
+    let normalized = parent.canonicalize().unwrap_or(parent);
+    if archive_root::is_inside_archeion_metadata(&normalized) {
+        return Err("Choose a location outside .archeion.".to_string());
+    }
+
+    Ok(normalized)
+}
+
+fn create_empty_archive_at_with_initializer<Initialize>(
+    parent: &Path,
+    name: &str,
+    initialize: Initialize,
+) -> Result<PathBuf, String>
+where
+    Initialize: Fn(&Path) -> Result<(), String>,
+{
+    let archive_name = validate_archive_name(name)?;
+    let final_root = parent.join(&archive_name);
+
+    if !final_root.starts_with(parent) {
+        return Err("Archive location is unavailable.".to_string());
+    }
+
+    if final_root.exists() {
+        return Err("Archive folder already exists.".to_string());
+    }
+
+    fs::create_dir(&final_root).map_err(|error| error.to_string())?;
+
+    if let Err(error) = initialize(&final_root) {
+        if let Err(cleanup_error) = fs::remove_dir_all(&final_root) {
+            eprintln!("failed to clean up incomplete archive creation: {cleanup_error}");
+        }
+        return Err(error);
+    }
+
+    Ok(final_root)
+}
+
+fn create_empty_archive_at(parent: &Path, name: &str) -> Result<PathBuf, String> {
+    create_empty_archive_at_with_initializer(parent, name, metadata::initialize_at)
+}
+
 fn validated_root_path(path: &str) -> Result<PathBuf, String> {
     let root = PathBuf::from(path);
     if !root.is_dir() {
@@ -382,6 +510,23 @@ pub fn open_archive(app: tauri::AppHandle, path: String) -> Result<ArchiveRegist
 }
 
 #[tauri::command]
+pub fn create_empty_archive(
+    app: tauri::AppHandle,
+    parent_path: String,
+    archive_name: String,
+) -> Result<ArchiveRegistry, String> {
+    let validated_name = validate_archive_name(&archive_name)?;
+    let parent = validated_parent_path(&parent_path)?;
+    let root = create_empty_archive_at(&parent, &validated_name)?;
+    let root_path = archive_root::display_archive_path(&root);
+    let mut registry = read_registry(&app)?;
+    upsert_archive_at_path(&mut registry, root_path, Some(validated_name));
+    write_registry(&app, &registry)?;
+    emit_archive_registry_changed(&app, &registry);
+    Ok(registry)
+}
+
+#[tauri::command]
 pub fn activate_archive(
     app: tauri::AppHandle,
     archive_id: String,
@@ -521,8 +666,10 @@ mod tests {
 
     use super::{
         archive_id_for_path, archive_manager_url_parts, archive_paths_match, archive_root,
-        metadata, normalize_registry_paths, upsert_archive_at_path, validated_display_root_path,
-        validated_root_path, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
+        create_empty_archive_at, create_empty_archive_at_with_initializer, metadata,
+        normalize_registry_paths, upsert_archive_at_path, validate_archive_name,
+        validated_display_root_path, validated_parent_path, validated_root_path,
+        ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -674,6 +821,100 @@ mod tests {
             archive_manager_url_parts(None, true).expect_err("debug manager URL requires dev URL");
 
         assert!(error.contains("development URL"));
+    }
+
+    #[test]
+    fn validates_archive_creation_names() {
+        assert_eq!(
+            validate_archive_name("Light Novels").as_deref(),
+            Ok("Light Novels")
+        );
+        assert!(validate_archive_name("   ").is_err());
+        assert!(validate_archive_name(".archeion").is_err());
+        assert!(validate_archive_name("Books/Novels").is_err());
+        assert!(validate_archive_name(r"Books\Novels").is_err());
+        assert!(validate_archive_name("Books:").is_err());
+        assert!(validate_archive_name("CON").is_err());
+        assert!(validate_archive_name("LPT1.txt").is_err());
+        assert!(validate_archive_name("Books.").is_err());
+        assert!(validate_archive_name("Books ").is_err());
+    }
+
+    #[test]
+    fn creates_empty_archive_as_child_folder() {
+        let root = test_root("create-empty");
+        fs::create_dir_all(&root).expect("parent should be created");
+
+        let created = create_empty_archive_at(&root, "Light Novels")
+            .expect("empty archive should be created");
+
+        assert_eq!(created, root.join("Light Novels"));
+        assert!(created.is_dir());
+        assert!(created.join(".archeion").join("library.json").is_file());
+        assert!(created.join(".archeion").join("progress.json").is_file());
+        assert!(created.join(".archeion").join("settings.json").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn rejects_existing_empty_archive_target() {
+        let root = test_root("create-collision");
+        let existing = root.join("Books");
+        fs::create_dir_all(&existing).expect("existing folder should be created");
+
+        let error = create_empty_archive_at(&root, "Books")
+            .expect_err("existing archive folder should be rejected");
+
+        assert_eq!(error, "Archive folder already exists.");
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn rejects_archive_parent_inside_metadata_directory() {
+        let root = test_root("metadata-parent");
+        let metadata = root.join(".archeion");
+        fs::create_dir_all(&metadata).expect("metadata directory should be created");
+
+        let error = validated_parent_path(metadata.to_string_lossy().as_ref())
+            .expect_err("metadata parent should be rejected");
+
+        assert!(error.contains(".archeion"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn cleans_created_folder_when_metadata_initialization_fails() {
+        let root = test_root("create-cleanup");
+        fs::create_dir_all(&root).expect("parent should be created");
+
+        let error = create_empty_archive_at_with_initializer(&root, "Broken", |_path| {
+            Err("metadata initialization failed".to_string())
+        })
+        .expect_err("metadata failure should fail creation");
+
+        assert_eq!(error, "metadata initialization failed");
+        assert!(!root.join("Broken").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn guided_creation_registry_record_uses_archive_name_and_final_path() {
+        let root = test_root("registry-record");
+        fs::create_dir_all(&root).expect("parent should be created");
+        let created =
+            create_empty_archive_at(&root, "Novels").expect("empty archive should be created");
+        let mut registry = ArchiveRegistry::default();
+        let root_path = archive_root::display_archive_path(&created);
+        let archive =
+            upsert_archive_at_path(&mut registry, root_path.clone(), Some("Novels".to_string()));
+
+        assert_eq!(archive.display_name, "Novels");
+        assert_eq!(archive.root_path, root_path);
+        assert_eq!(
+            registry.last_opened_archive_id.as_deref(),
+            Some(archive.id.as_str())
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]

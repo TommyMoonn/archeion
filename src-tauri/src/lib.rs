@@ -9,6 +9,7 @@ pub fn run() {
             commands::app_settings::load_app_settings,
             commands::app_settings::save_app_settings,
             commands::archive::activate_archive,
+            commands::archive::create_empty_archive,
             commands::archive::focus_main_window,
             commands::archive::forget_archive,
             commands::archive::load_archive_registry,

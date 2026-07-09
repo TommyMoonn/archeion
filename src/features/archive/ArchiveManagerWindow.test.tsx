@@ -83,6 +83,15 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
   return button;
 }
 
+function setInputValue(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 describe("ArchiveManagerWindow", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -233,14 +242,11 @@ describe("ArchiveManagerWindow", () => {
     act(() => forgetSession.root.unmount());
   });
 
-  it("completes the manager action after successful create or open flows", async () => {
+  it("keeps Open folder as archive on the existing folder picker flow", async () => {
     const chooseArchive = vi
       .spyOn(archiveStore, "chooseArchive")
       .mockResolvedValueOnce(false)
       .mockResolvedValueOnce(true);
-    const createArchive = vi
-      .spyOn(archiveStore, "createArchive")
-      .mockResolvedValue(true);
     const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
@@ -261,14 +267,229 @@ describe("ArchiveManagerWindow", () => {
 
     expect(onArchiveChoiceComplete).toHaveBeenCalledTimes(1);
 
+    act(() => root.unmount());
+  });
+
+  it("shows the guided create view instead of opening a folder picker", async () => {
+    const chooseArchiveParentLocation = vi.spyOn(
+      archiveStore,
+      "chooseArchiveParentLocation",
+    );
+    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
+    const { container, root } = renderInteractive();
+
     await act(async () => {
       buttonWithText(container, "Create empty archive").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });
 
-    expect(createArchive).toHaveBeenCalledTimes(1);
-    expect(onArchiveChoiceComplete).toHaveBeenCalledTimes(2);
+    expect(container.textContent).toContain("Create local archive");
+    expect(container.querySelector("#archive-create-name")).toBeInstanceOf(
+      HTMLInputElement,
+    );
+    expect(chooseArchiveParentLocation).not.toHaveBeenCalled();
+    expect(createEmptyArchive).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+  });
+
+  it("browses for a parent location and preserves form state when going back", async () => {
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
+      "D:\\Books",
+    );
+    const { container, root } = renderInteractive();
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const nameInput = container.querySelector("#archive-create-name");
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error("Archive name input was not rendered.");
+    }
+
+    await act(async () => {
+      setInputValue(nameInput, "Light Novels");
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Browse").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(container.textContent).toContain("D:\\Books");
+    expect(container.textContent).toContain("D:\\Books\\Light Novels");
+
+    await act(async () => {
+      buttonWithText(container, "Back").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(container.textContent).toContain("Manage archives");
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const restoredInput = container.querySelector("#archive-create-name");
+    expect(restoredInput).toBeInstanceOf(HTMLInputElement);
+    expect((restoredInput as HTMLInputElement).value).toBe("Light Novels");
+    expect(container.textContent).toContain("D:\\Books");
+
+    act(() => root.unmount());
+  });
+
+  it("keeps the create form open when Browse is canceled", async () => {
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(null);
+    const { container, root } = renderInteractive();
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Browse").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(container.textContent).toContain("Create local archive");
+    expect(container.textContent).toContain("Choose a location");
+
+    act(() => root.unmount());
+  });
+
+  it("rejects invalid archive names before invoking the backend", async () => {
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
+      "D:\\Books",
+    );
+    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
+    const { container, root } = renderInteractive();
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const nameInput = container.querySelector("#archive-create-name");
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error("Archive name input was not rendered.");
+    }
+
+    await act(async () => {
+      setInputValue(nameInput, "CON");
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Browse").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(buttonWithText(container, "Create").disabled).toBe(true);
+    expect(container.textContent).toContain("Archive name is reserved on Windows.");
+    expect(createEmptyArchive).not.toHaveBeenCalled();
+
+    act(() => root.unmount());
+  });
+
+  it("creates a valid archive with separate name and parent path", async () => {
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
+      "D:\\Books",
+    );
+    const createEmptyArchive = vi
+      .spyOn(archiveStore, "createEmptyArchive")
+      .mockResolvedValue(true);
+    const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
+    const { container, root } = renderInteractive({ onArchiveChoiceComplete });
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const nameInput = container.querySelector("#archive-create-name");
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error("Archive name input was not rendered.");
+    }
+
+    await act(async () => {
+      setInputValue(nameInput, "Light Novels");
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Browse").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Create").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(createEmptyArchive).toHaveBeenCalledWith({
+      archiveName: "Light Novels",
+      parentPath: "D:\\Books",
+    });
+    expect(onArchiveChoiceComplete).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+  });
+
+  it("keeps the create form open and surfaces creation failure", async () => {
+    vi.spyOn(archiveStore, "chooseArchiveParentLocation").mockResolvedValue(
+      "D:\\Books",
+    );
+    vi.spyOn(archiveStore, "createEmptyArchive").mockResolvedValue(false);
+    vi.spyOn(archiveStore, "getLastOperationError").mockReturnValue(
+      "Archive folder already exists.",
+    );
+    const onArchiveChoiceComplete = vi.fn().mockResolvedValue(undefined);
+    const { container, root } = renderInteractive({ onArchiveChoiceComplete });
+
+    await act(async () => {
+      buttonWithText(container, "Create empty archive").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    const nameInput = container.querySelector("#archive-create-name");
+    if (!(nameInput instanceof HTMLInputElement)) {
+      throw new Error("Archive name input was not rendered.");
+    }
+
+    await act(async () => {
+      setInputValue(nameInput, "Light Novels");
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Browse").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Create").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
+    });
+
+    expect(container.textContent).toContain("Archive folder already exists.");
+    expect(container.textContent).toContain("Create local archive");
+    expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
 
     act(() => root.unmount());
   });

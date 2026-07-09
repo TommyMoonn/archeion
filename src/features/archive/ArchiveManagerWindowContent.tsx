@@ -2,6 +2,7 @@ import {
   DotsThree,
   FolderOpen,
   PencilSimple,
+  Plus,
   Trash,
 } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
@@ -14,9 +15,11 @@ import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import { ArchiveCreateView } from "./ArchiveCreateView";
 import { OpenArchiveButton } from "./OpenArchiveButton";
 
 type ArchiveManagerMode = "launcher" | "manager";
+type ArchiveManagerView = "manager" | "create";
 
 type ArchiveManagerWindowContentProps = {
   mode: ArchiveManagerMode;
@@ -304,6 +307,9 @@ export function ArchiveManagerWindowContent({
   standalone = false,
 }: ArchiveManagerWindowContentProps) {
   const [status, setStatus] = useState<string | null>(null);
+  const [view, setView] = useState<ArchiveManagerView>("manager");
+  const [archiveName, setArchiveName] = useState("");
+  const [locationPath, setLocationPath] = useState("");
   const activeArchiveId = activeArchiveIdForState(state);
   const missingArchiveId =
     state.status === "missing" ? (state.archive?.id ?? null) : null;
@@ -313,6 +319,12 @@ export function ArchiveManagerWindowContent({
   );
   const title = surfaceTitle(mode, state);
   const errorText = state.status === "error" ? state.error : null;
+
+  function resetCreateForm() {
+    setArchiveName("");
+    setLocationPath("");
+    setStatus(null);
+  }
 
   return (
     <main
@@ -344,42 +356,66 @@ export function ArchiveManagerWindowContent({
           </aside>
 
           <section className="archive-manager-window__main">
-            <div className="archive-manager-window__identity">
-              <div className="archive-manager-window__mark" aria-hidden="true">
-                <img
-                  className="archive-manager-window__icon"
-                  src={archeionIcon}
-                  alt=""
-                />
-              </div>
-              <h1 id="archive-manager-title">Archeion</h1>
-              <p>{title}</p>
-              {errorText ? (
-                <p className="archive-manager-window__status" role="alert">
-                  {errorText}
-                </p>
-              ) : null}
-              {status ? (
-                <p className="archive-manager-window__status" role="status">
-                  {status}
-                </p>
-              ) : null}
-            </div>
+            {view === "create" ? (
+              <ArchiveCreateView
+                archiveName={archiveName}
+                locationPath={locationPath}
+                onArchiveChoiceComplete={onArchiveChoiceComplete}
+                onArchiveNameChange={setArchiveName}
+                onBack={() => {
+                  setStatus(null);
+                  setView("manager");
+                }}
+                onCreated={() => {
+                  resetCreateForm();
+                  setView("manager");
+                }}
+                onLocationChange={setLocationPath}
+              />
+            ) : (
+              <>
+                <div className="archive-manager-window__identity">
+                  <div className="archive-manager-window__mark" aria-hidden="true">
+                    <img
+                      className="archive-manager-window__icon"
+                      src={archeionIcon}
+                      alt=""
+                    />
+                  </div>
+                  <h1 id="archive-manager-title">Archeion</h1>
+                  <p>{title}</p>
+                  {errorText ? (
+                    <p className="archive-manager-window__status" role="alert">
+                      {errorText}
+                    </p>
+                  ) : null}
+                  {status ? (
+                    <p className="archive-manager-window__status" role="status">
+                      {status}
+                    </p>
+                  ) : null}
+                </div>
 
-            <div className="archive-manager-window__actions">
-              <OpenArchiveButton
-                action="create"
-                className="archive-action-row"
-                onOpened={onArchiveChoiceComplete}
-                variant="secondary"
-              />
-              <OpenArchiveButton
-                action="open"
-                className="archive-action-row"
-                onOpened={onArchiveChoiceComplete}
-                variant="secondary"
-              />
-            </div>
+                <div className="archive-manager-window__actions">
+                  <Button
+                    className="archive-action-row"
+                    icon={<Plus aria-hidden="true" size={18} />}
+                    onClick={() => {
+                      setStatus(null);
+                      setView("create");
+                    }}
+                    variant="secondary"
+                  >
+                    Create empty archive
+                  </Button>
+                  <OpenArchiveButton
+                    className="archive-action-row"
+                    onOpened={onArchiveChoiceComplete}
+                    variant="secondary"
+                  />
+                </div>
+              </>
+            )}
           </section>
         </div>
       </section>

@@ -421,3 +421,137 @@
     align-content: start;
   }
 }
+
+.archive-create-view {
+  display: grid;
+  width: min(100%, 440px);
+  justify-self: center;
+  align-content: center;
+  gap: 18px;
+}
+
+.archive-create-view__back {
+  display: inline-grid;
+  grid-template-columns: auto minmax(0, max-content);
+  align-items: center;
+  justify-self: start;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.archive-create-view__back:hover {
+  border-color: var(--line);
+  color: var(--text-strong);
+  background: var(--surface);
+}
+
+.archive-create-view__identity {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.archive-create-view__identity img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 22px rgb(0 0 0 / 34%));
+}
+
+.archive-create-view__identity h1 {
+  margin: 0;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: clamp(24px, 4vw, 30px);
+  font-weight: 600;
+  letter-spacing: -0.04em;
+}
+
+.archive-create-form {
+  display: grid;
+  gap: 12px;
+}
+
+.archive-create-form__card {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: rgb(33 33 35 / 74%);
+}
+
+.archive-create-form__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  min-height: 58px;
+  padding: 10px 12px;
+}
+
+.archive-create-form__row + .archive-create-form__row {
+  border-top: 1px solid var(--line);
+}
+
+.archive-create-form__row--input {
+  grid-template-columns: 112px minmax(0, 1fr);
+}
+
+.archive-create-form__row label,
+.archive-create-form__row-copy span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.archive-create-form__row .input-shell {
+  min-height: 36px;
+  border-color: transparent;
+  background: var(--surface);
+}
+
+.archive-create-form__row-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.archive-create-form__row-copy strong {
+  overflow: hidden;
+  color: var(--text-strong);
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.archive-create-form__path {
+  overflow-wrap: anywhere;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.archive-create-form__status {
+  margin: 0;
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.archive-create-form > .button {
+  justify-content: center;
+  width: 100%;
+  min-height: 42px;
+}

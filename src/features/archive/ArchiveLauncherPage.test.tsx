@@ -88,9 +88,7 @@ describe("ArchiveLauncherPage", () => {
     const chooseArchive = vi
       .spyOn(archiveStore, "chooseArchive")
       .mockResolvedValue(true);
-    const createArchive = vi
-      .spyOn(archiveStore, "createArchive")
-      .mockResolvedValue(true);
+    const createEmptyArchive = vi.spyOn(archiveStore, "createEmptyArchive");
     const { container, root } = renderInteractive();
     const button = Array.from(container.querySelectorAll("button")).find(
       (candidate) => candidate.textContent?.includes("Open folder as archive"),
@@ -102,7 +100,7 @@ describe("ArchiveLauncherPage", () => {
     });
 
     expect(chooseArchive).toHaveBeenCalledTimes(1);
-    expect(createArchive).not.toHaveBeenCalled();
+    expect(createEmptyArchive).not.toHaveBeenCalled();
 
     act(() => root.unmount());
   });

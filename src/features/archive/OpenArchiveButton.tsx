@@ -1,28 +1,19 @@
-import { FolderOpen, Plus } from "@phosphor-icons/react";
+import { FolderOpen } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { archiveStore } from "../../stores/archiveStore";
 
-type ArchiveAction = "create" | "open";
-
 type OpenArchiveButtonProps = {
-  action?: ArchiveAction;
   className?: string;
   label?: string;
   onOpened?: () => void | Promise<unknown>;
   variant?: "primary" | "secondary" | "ghost";
 };
 
-const actionLabels: Record<ArchiveAction, string> = {
-  create: "Create empty archive",
-  open: "Open folder as archive",
-};
-
 export function OpenArchiveButton({
-  action = "open",
   className,
-  label = actionLabels[action],
+  label = "Open folder as archive",
   onOpened,
   variant = "primary",
 }: OpenArchiveButtonProps) {
@@ -35,10 +26,7 @@ export function OpenArchiveButton({
 
     setIsOpening(true);
     try {
-      const opened =
-        action === "create"
-          ? await archiveStore.createArchive()
-          : await archiveStore.chooseArchive();
+      const opened = await archiveStore.chooseArchive();
       if (opened) {
         await onOpened?.();
       }
@@ -51,13 +39,7 @@ export function OpenArchiveButton({
     <Button
       className={className}
       disabled={isOpening}
-      icon={
-        action === "create" ? (
-          <Plus aria-hidden="true" size={18} />
-        ) : (
-          <FolderOpen aria-hidden="true" size={18} />
-        )
-      }
+      icon={<FolderOpen aria-hidden="true" size={18} />}
       onClick={handleOpen}
       variant={variant}
     >

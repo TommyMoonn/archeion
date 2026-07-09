@@ -401,12 +401,48 @@ describe("ArchiveStore", () => {
   });
 
 
-  it("creates an empty archive through the native folder picker", async () => {
-    openMock.mockResolvedValue("D:\\Empty");
+  it("chooses an archive parent location without opening or activating it", async () => {
+    openMock.mockResolvedValue("D:\\Books");
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.chooseArchiveParentLocation()).resolves.toBe("D:\\Books");
+
+    expect(openMock).toHaveBeenCalledWith({
+      directory: true,
+      multiple: false,
+      title: "Choose archive location",
+    });
+    expect(invokeMock).not.toHaveBeenCalledWith("open_archive", expect.anything());
+    expect(store.getSnapshot()).toEqual({
+      status: "setup",
+      path: null,
+      error: null,
+      archives: [],
+    });
+  });
+
+  it("keeps archive state unchanged when parent location selection is canceled", async () => {
+    openMock.mockResolvedValue(null);
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.chooseArchiveParentLocation()).resolves.toBe(null);
+
+    expect(store.getSnapshot()).toEqual({
+      status: "setup",
+      path: null,
+      error: null,
+      archives: [],
+    });
+    expect(invokeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates an empty archive from separate name and parent path", async () => {
     const emptyArchive = {
       id: "archive-empty",
-      displayName: "Empty",
-      rootPath: "D:\\Empty",
+      displayName: "Light Novels",
+      rootPath: "D:\\Books\\Light Novels",
       createdAt: "4",
       lastOpenedAt: "4",
     };
@@ -414,7 +450,7 @@ describe("ArchiveStore", () => {
       if (command === "load_archive_registry") {
         return emptyRegistry;
       }
-      if (command === "open_archive") {
+      if (command === "create_empty_archive") {
         return registry(emptyArchive.id, [emptyArchive]);
       }
       if (command === "validate_archive_path") {
@@ -425,25 +461,64 @@ describe("ArchiveStore", () => {
     const store = new ArchiveStore();
     await store.initialize();
 
-    await expect(store.createArchive()).resolves.toBe(true);
+    await expect(
+      store.createEmptyArchive({
+        archiveName: "Light Novels",
+        parentPath: "D:\\Books",
+      }),
+    ).resolves.toBe(true);
 
-    expect(openMock).toHaveBeenCalledWith({
-      directory: true,
-      multiple: false,
-      title: "Create empty archive",
-    });
-    expect(invokeMock).toHaveBeenCalledWith("open_archive", {
-      path: "D:\\Empty",
+    expect(invokeMock).toHaveBeenCalledWith("create_empty_archive", {
+      archiveName: "Light Novels",
+      parentPath: "D:\\Books",
     });
     expect(invokeMock).toHaveBeenCalledWith("initialize_archive_metadata", {
-      rootPath: "D:\\Empty",
+      rootPath: "D:\\Books\\Light Novels",
     });
     expect(store.getSnapshot()).toMatchObject({
       status: "ready",
-      path: "D:\\Empty",
+      path: "D:\\Books\\Light Novels",
       archive: emptyArchive,
       archives: [emptyArchive],
     });
+  });
+
+  it("preserves current archive state when guided creation fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id);
+      }
+      if (command === "validate_archive_path") {
+        return true;
+      }
+      if (command === "create_empty_archive") {
+        throw "Archive folder already exists.";
+      }
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(
+      store.createEmptyArchive({
+        archiveName: "Books",
+        parentPath: "D:\\",
+      }),
+    ).resolves.toBe(false);
+
+    expect(store.getLastOperationError()).toBe("Archive folder already exists.");
+    expect(store.getSnapshot()).toMatchObject({
+      status: "ready",
+      path: "D:\\Books",
+      archive: booksArchive,
+      archives: [booksArchive],
+    });
+    expect(consoleError).toHaveBeenCalledWith(
+      "create_empty_archive failed",
+      "Archive folder already exists.",
+    );
+    consoleError.mockRestore();
   });
 
   it("surfaces the actual open_archive error message", async () => {
