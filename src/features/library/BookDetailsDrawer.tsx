@@ -28,7 +28,6 @@ type BookDetailsDrawerProps = {
   onDelete: (book: Book) => void;
   onRead: (book: Book) => void;
   onReadFromBeginning: (book: Book) => void;
-  onClearProgress: (book: Book) => void;
   onMoveFile: (book: Book) => void;
   onRenameFile: (book: Book) => void;
   onRevealFile: (book: Book) => void;
@@ -46,7 +45,6 @@ export function BookDetailsDrawer({
   onDelete,
   onRead,
   onReadFromBeginning,
-  onClearProgress,
   onMoveFile,
   onRenameFile,
   onRevealFile,
@@ -60,6 +58,7 @@ export function BookDetailsDrawer({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
   const hasProgress = progress > 0;
+  const progressLabel = `${Math.max(1, Math.round(progress))}%`;
   const author = bookAuthor(book);
 
   useEffect(() => {
@@ -95,9 +94,25 @@ export function BookDetailsDrawer({
       <div className="details-drawer__panel">
         <header className="details-drawer__header">
           <p>Book details</p>
-          <IconButton label="Close book details" onClick={onClose} autoFocus>
-            <X aria-hidden="true" size={18} weight="regular" />
-          </IconButton>
+          <div className="details-drawer__header-actions">
+            <IconButton
+              aria-pressed={book.isFavorite}
+              className="details-favorite-button"
+              label={
+                book.isFavorite ? "Remove from favorites" : "Add to favorites"
+              }
+              onClick={() => onToggleFavorite(book)}
+            >
+              <Heart
+                aria-hidden="true"
+                size={18}
+                weight={book.isFavorite ? "fill" : "regular"}
+              />
+            </IconButton>
+            <IconButton label="Close book details" onClick={onClose} autoFocus>
+              <X aria-hidden="true" size={18} weight="regular" />
+            </IconButton>
+          </div>
         </header>
 
         <div className="details-drawer__body">
@@ -105,6 +120,14 @@ export function BookDetailsDrawer({
           <div className="details-drawer__title">
             <h2 id="book-details-title">{bookTitle(book)}</h2>
             {author ? <p>{author}</p> : null}
+            {hasProgress ? (
+              <span
+                className="details-progress-pill"
+                aria-label={`Reading progress ${progressLabel}`}
+              >
+                {progressLabel}
+              </span>
+            ) : null}
           </div>
 
           {book.isFileMissing ? (
@@ -122,10 +145,7 @@ export function BookDetailsDrawer({
                 >
                   Rescan
                 </Button>
-                <Button
-                  onClick={() => onDelete(book)}
-                  variant="ghost"
-                >
+                <Button onClick={() => onDelete(book)} variant="ghost">
                   Remove metadata
                 </Button>
               </div>
@@ -140,12 +160,7 @@ export function BookDetailsDrawer({
               </Button>
               {hasProgress ? (
                 <Button
-                  icon={
-                    <ArrowCounterClockwise
-                      aria-hidden="true"
-                      size={16}
-                    />
-                  }
+                  icon={<ArrowCounterClockwise aria-hidden="true" size={16} />}
                   onClick={() => onReadFromBeginning(book)}
                   variant="secondary"
                 >
@@ -159,19 +174,6 @@ export function BookDetailsDrawer({
                   variant="ghost"
                 >
                   Edit metadata
-                </Button>
-                <Button
-                  icon={
-                    <Heart
-                      aria-hidden="true"
-                      size={17}
-                      weight={book.isFavorite ? "fill" : "regular"}
-                    />
-                  }
-                  onClick={() => onToggleFavorite(book)}
-                  variant="ghost"
-                >
-                  {book.isFavorite ? "Unfavorite" : "Favorite"}
                 </Button>
                 {canManageFile ? (
                   <>
@@ -187,13 +189,15 @@ export function BookDetailsDrawer({
                       onClick={() => onMoveFile(book)}
                       variant="ghost"
                     >
-                      Move
+                      Move file to...
                     </Button>
                   </>
                 ) : null}
                 {canRevealFile ? (
                   <Button
-                    className="details-actions__wide"
+                    className={
+                      canManageFile ? undefined : "details-actions__wide"
+                    }
                     icon={<FolderOpen aria-hidden="true" size={16} />}
                     onClick={() => onRevealFile(book)}
                     variant="ghost"
@@ -205,41 +209,17 @@ export function BookDetailsDrawer({
             </div>
           )}
 
-          {hasProgress && !book.isFileMissing ? (
-            <section className="details-progress">
-              <div>
-                <span>Reading progress</span>
-                <strong>{progress.toFixed(1)}%</strong>
-              </div>
-              <span aria-hidden="true">
-                <i style={{ width: `${progress}%` }} />
-              </span>
-              <Button
-                onClick={() => onClearProgress(book)}
-                variant="ghost"
-              >
-                Clear progress
-              </Button>
-            </section>
-          ) : null}
-
-          <dl className="book-metadata">
+          <dl className="book-metadata book-metadata--compact">
             <div>
               <dt>
                 <File aria-hidden="true" size={16} weight="regular" />
-                Location
+                File
               </dt>
               <dd>
-                <span>{book.relativePath ?? book.fileName}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>File</dt>
-              <dd>
-                <span>{book.fileName}</span>
-                <span>
-                  {formatFileSize(book.size ?? 0)}
+                <span title={book.relativePath ?? book.fileName}>
+                  {book.relativePath ?? book.fileName}
                 </span>
+                <span>{formatFileSize(book.size ?? 0)}</span>
               </dd>
             </div>
             {book.lastOpenedAt ? (
@@ -251,10 +231,6 @@ export function BookDetailsDrawer({
                 <dd>{formatLongDate(book.lastOpenedAt)}</dd>
               </div>
             ) : null}
-            <div>
-              <dt>Discovered</dt>
-              <dd>{formatLongDate(book.addedAt)}</dd>
-            </div>
           </dl>
         </div>
 

@@ -189,9 +189,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     string | null
   >(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
-  const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(
-    null,
-  );
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
@@ -425,11 +422,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setDeleteTarget(book);
   }, []);
 
-  const requestClearProgress = useCallback((book: Book) => {
-    setSelectedBookId(null);
-    setClearProgressTarget(book);
-  }, []);
-
   const openMetadataEditor = useCallback((book: Book) => {
     setSelectedBookId(null);
     setMetadataEditorBookId(book.id);
@@ -493,26 +485,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       await storage.rescan();
     } catch {
       setLibraryError("The archive could not be scanned.");
-    }
-  }
-
-  async function clearProgress() {
-    if (!clearProgressTarget || isDeleting) return;
-
-    setIsDeleting(true);
-    setLibraryError(null);
-    try {
-      await storage.updateBook(clearProgressTarget.id, {
-        progressCfi: undefined,
-        progressPercent: 0,
-        lastOpenedAt: undefined,
-      });
-      setSelectedBookId(clearProgressTarget.id);
-      setClearProgressTarget(null);
-    } catch {
-      setLibraryError("Reading progress could not be cleared.");
-    } finally {
-      setIsDeleting(false);
     }
   }
 
@@ -917,7 +889,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             canManageFile
             canRevealFile
             onClose={closeDetails}
-            onClearProgress={requestClearProgress}
             onDelete={requestDelete}
             onViewMetadata={openMetadataEditor}
             onMoveFile={requestMoveBook}
@@ -1059,40 +1030,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                   : deleteTarget.isFileMissing
                     ? "Remove metadata"
                     : "Delete EPUB"}
-              </Button>
-            </>
-          }
-        />
-      ) : null}
-
-      {clearProgressTarget ? (
-        <Dialog
-          title="Clear reading progress?"
-          description={`The saved reading position for “${bookTitle(clearProgressTarget)}” will be removed. The EPUB file is not changed.`}
-          onClose={() => {
-            if (!isDeleting) {
-              setSelectedBookId(clearProgressTarget.id);
-              setClearProgressTarget(null);
-            }
-          }}
-          footer={
-            <>
-              <Button
-                disabled={isDeleting}
-                onClick={() => {
-                  setSelectedBookId(clearProgressTarget.id);
-                  setClearProgressTarget(null);
-                }}
-                variant="secondary"
-              >
-                Cancel
-              </Button>
-              <Button
-                disabled={isDeleting}
-                onClick={() => void clearProgress()}
-                variant="danger"
-              >
-                {isDeleting ? "Clearing" : "Clear progress"}
               </Button>
             </>
           }
