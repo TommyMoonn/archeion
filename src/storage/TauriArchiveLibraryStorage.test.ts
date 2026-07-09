@@ -1158,6 +1158,10 @@ describe("TauriArchiveLibraryStorage", () => {
 });
 
 describe("TauriArchiveLibraryStorage metadata writeback", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("writes EPUB metadata through the backend and refreshes source metadata", async () => {
     let scanCount = 0;
     invokeMock.mockImplementation(async (command, args) => {
@@ -1190,7 +1194,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
           },
         });
         return {
-          backupPath: ".archeion/backups/Volume_01.epub.bak",
+          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
           sourceMetadata: { title: "Edited Title" },
         };
       }
@@ -1204,13 +1208,22 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     });
     const book = await storage.getBook("book-1");
 
-    expect(result.backupPath).toBe(".archeion/backups/Volume_01.epub.bak");
+    expect(result.backupPath).toBe(".archeion/backups/Volume_01.metadata-writeback-1.epub.bak");
     expect(book?.sourceMetadata?.title).toBe("Edited Title");
     expect(book?.sourceMetadata?.creator).toBe("Edited Author");
     expect(
       invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
     ).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "cleanup_epub_writeback_backup",
+      {
+        input: {
+          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
+        },
+      },
+    );
   });
+
   it("distinguishes successful writeback from failed library refresh", async () => {
     let scanCount = 0;
     invokeMock.mockImplementation(async (command, args) => {
@@ -1232,7 +1245,7 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
           },
         });
         return {
-          backupPath: ".archeion/backups/Volume_01.epub.bak",
+          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
           sourceMetadata: { title: "Edited Title" },
         };
       }
@@ -1244,11 +1257,26 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     await expect(
       storage.writeBookMetadata("book-1", { title: "Edited Title" }),
     ).rejects.toThrow(
-      "Metadata was written to the EPUB, but the library refresh failed.",
+      "Metadata was written, but the library could not refresh. Rescan the library to update the display.",
     );
     expect(
       invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata"),
     ).toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith(
+      "cleanup_epub_writeback_backup",
+      {
+        input: {
+          backupPath: ".archeion/backups/Volume_01.metadata-writeback-1.epub.bak",
+        },
+      },
+    );
+    const cleanupIndex = invokeMock.mock.calls.findIndex(
+      ([command]) => command === "cleanup_epub_writeback_backup",
+    );
+    const scanIndexes = invokeMock.mock.calls.flatMap(([command], index) =>
+      command === "scan_archive" ? [index] : [],
+    );
+    expect(cleanupIndex).toBeLessThan(scanIndexes[scanIndexes.length - 1] ?? -1);
   });
 
 });

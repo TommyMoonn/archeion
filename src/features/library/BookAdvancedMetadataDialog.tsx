@@ -14,7 +14,6 @@ const EDITABLE_FIELDS = [
   ["title", "Title"],
   ["creator", "Author"],
   ["language", "Language"],
-  ["identifier", "Identifier"],
   ["publisher", "Publisher"],
   ["date", "Date"],
   ["description", "Description"],
@@ -23,10 +22,33 @@ const EDITABLE_FIELDS = [
   ["volume", "Volume"],
 ] as const satisfies readonly [keyof EpubMetadataWritebackInput, string][];
 
-const FIELD_LABELS = Object.fromEntries(EDITABLE_FIELDS) as Record<
-  EditableField,
-  string
->;
+type EditableField = (typeof EDITABLE_FIELDS)[number][0];
+type ReferenceField = "identifier";
+type MetadataField = EditableField | ReferenceField;
+
+const FIELD_LABELS: Record<MetadataField, string> = {
+  ...Object.fromEntries(EDITABLE_FIELDS),
+  identifier: "Identifier",
+} as Record<MetadataField, string>;
+
+const FIELD_INPUT_NAMES = {
+  title: "archeion-epub-metadata-title",
+  creator: "archeion-epub-metadata-author",
+  language: "archeion-epub-metadata-language",
+  publisher: "archeion-epub-metadata-publisher",
+  date: "archeion-epub-metadata-date",
+  description: "archeion-epub-metadata-description",
+  subjects: "archeion-epub-metadata-subjects",
+  series: "archeion-epub-metadata-series",
+  volume: "archeion-epub-metadata-volume",
+} as const satisfies Record<EditableField, string>;
+
+const DISABLE_INPUT_ASSISTANCE = {
+  autoComplete: "off",
+  autoCorrect: "off",
+  autoCapitalize: "off",
+  spellCheck: false,
+} as const;
 
 const METADATA_FIELD_GROUPS = [
   {
@@ -47,10 +69,9 @@ const METADATA_FIELD_GROUPS = [
   },
 ] as const satisfies readonly {
   title: string;
-  fields: readonly EditableField[];
+  fields: readonly MetadataField[];
 }[];
 
-type EditableField = (typeof EDITABLE_FIELDS)[number][0];
 
 type MetadataFormState = Record<Exclude<EditableField, "subjects">, string> & {
   subjects: string;
@@ -95,7 +116,6 @@ function formStateFromMetadata(
     title: metadata?.title ?? "",
     creator: metadata?.creator ?? "",
     language: metadata?.language ?? "",
-    identifier: metadata?.identifier ?? "",
     publisher: metadata?.publisher ?? "",
     date: metadata?.date ?? "",
     description: metadata?.description ?? "",
@@ -110,7 +130,6 @@ function metadataFromForm(state: MetadataFormState): EpubMetadataWritebackInput 
     title: cleanValue(state.title),
     creator: cleanValue(state.creator),
     language: cleanValue(state.language),
-    identifier: cleanValue(state.identifier),
     publisher: cleanValue(state.publisher),
     date: cleanValue(state.date),
     description: cleanValue(state.description),
@@ -135,7 +154,10 @@ function normalizedSourceMetadata(
   metadata: EpubSourceMetadata | undefined,
 ): EpubSourceMetadata {
   const form = formStateFromMetadata(metadata);
-  return metadataFromForm(form);
+  return {
+    ...metadataFromForm(form),
+    identifier: cleanValue(metadata?.identifier ?? ""),
+  };
 }
 
 function changedFields(
@@ -222,7 +244,7 @@ export function BookAdvancedMetadataDialog({
       setForm(formStateFromMetadata(updatedMetadata));
       setStatus({
         tone: "success",
-        message: `Metadata written. Backup created at ${result.backupPath}.`,
+        message: "Metadata written to EPUB.",
       });
     } catch (error) {
       setStatus({
@@ -234,9 +256,32 @@ export function BookAdvancedMetadataDialog({
     }
   }
 
-  function renderField(field: EditableField) {
-    const id = textInputId(field);
+  function renderField(field: MetadataField) {
     const label = FIELD_LABELS[field];
+
+    if (field === "identifier") {
+      const identifier = committedMetadata.identifier;
+      const value = identifier ?? "—";
+      const labelId = "metadata-identifier-label";
+
+      return (
+        <div
+          className="metadata-writeback__field metadata-writeback__field--reference"
+          key={field}
+        >
+          <span id={labelId}>{label}</span>
+          <div
+            aria-labelledby={labelId}
+            className="metadata-writeback__reference-value"
+            title={identifier}
+          >
+            {value}
+          </div>
+        </div>
+      );
+    }
+
+    const id = textInputId(field);
     const value = form[field];
     const placeholder = fieldPlaceholder(book, field);
     const className = isTextAreaField(field)
@@ -248,7 +293,9 @@ export function BookAdvancedMetadataDialog({
         <span>{label}</span>
         {isTextAreaField(field) ? (
           <textarea
+            {...DISABLE_INPUT_ASSISTANCE}
             id={id}
+            name={FIELD_INPUT_NAMES[field]}
             rows={field === "description" ? 5 : 3}
             value={value}
             onChange={(event) => updateField(field, event.target.value)}
@@ -256,7 +303,9 @@ export function BookAdvancedMetadataDialog({
           />
         ) : (
           <input
+            {...DISABLE_INPUT_ASSISTANCE}
             id={id}
+            name={FIELD_INPUT_NAMES[field]}
             value={value}
             onChange={(event) => updateField(field, event.target.value)}
             placeholder={placeholder}

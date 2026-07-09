@@ -722,14 +722,30 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     for (const key of this.coverPromises.keys()) {
       if (key.startsWith(`${id}:`)) this.coverPromises.delete(key);
     }
+
+    try {
+      await this.invokeArchiveCommand(
+        "cleanup_epub_writeback_backup",
+        {
+          input: {
+            backupPath: result.backupPath,
+          },
+        },
+        scope.rootPath,
+      );
+    } catch (error) {
+      console.warn("EPUB writeback backup could not be cleaned up.", error);
+    }
+
     try {
       await this.rescan();
     } catch (error) {
       throw new Error(
-        "Metadata was written to the EPUB, but the library refresh failed. Use Rescan archive.",
+        "Metadata was written, but the library could not refresh. Rescan the library to update the display.",
         { cause: error },
       );
     }
+
     return result;
   }
 

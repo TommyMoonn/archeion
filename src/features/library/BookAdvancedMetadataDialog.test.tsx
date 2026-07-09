@@ -5,7 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Book } from "../../types/book";
+import type {
+  Book,
+  EpubMetadataWritebackInput,
+  EpubMetadataWritebackResult,
+} from "../../types/book";
 import { BookAdvancedMetadataDialog } from "./BookAdvancedMetadataDialog";
 
 (
@@ -30,10 +34,15 @@ const book: Book = {
 
 let activeRoot: Root | null = null;
 
+type WriteMetadataHandler = (
+  book: Book,
+  metadata: EpubMetadataWritebackInput,
+) => Promise<EpubMetadataWritebackResult>;
+
 function renderDialog(
   renderedBook: Book,
-  onWriteMetadata = vi.fn(async () => ({
-    backupPath: ".archeion/backups/book.epub.bak",
+  onWriteMetadata: WriteMetadataHandler = vi.fn(async () => ({
+    backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
     sourceMetadata: renderedBook.sourceMetadata ?? {},
   })),
 ) {
@@ -65,6 +74,14 @@ function writeButton(container: Element): HTMLButtonElement {
 function input(container: Element, field: string): HTMLInputElement {
   const element = container.querySelector<HTMLInputElement>(`#metadata-${field}`);
   if (!element) throw new Error(`${field} input was not found`);
+  return element;
+}
+
+function textarea(container: Element, field: string): HTMLTextAreaElement {
+  const element = container.querySelector<HTMLTextAreaElement>(
+    `#metadata-${field}`,
+  );
+  if (!element) throw new Error(`${field} textarea was not found`);
   return element;
 }
 
@@ -125,6 +142,90 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(markup).toContain("Write metadata to EPUB");
   });
 
+  it("displays Identifier as read-only reference metadata", () => {
+    const identifierBook: Book = {
+      ...book,
+      sourceMetadata: {
+        ...book.sourceMetadata,
+        identifier: "urn:isbn:1234567890",
+      },
+    };
+    const { container } = renderDialog(identifierBook);
+
+    expect(container.textContent).toContain("Identifier");
+    expect(container.textContent).toContain("urn:isbn:1234567890");
+    expect(container.querySelector("input#metadata-identifier")).toBeNull();
+    expect(container.querySelector("textarea#metadata-identifier")).toBeNull();
+    expect(writeButton(container).disabled).toBe(true);
+  });
+
+  it("shows an empty reference state when Identifier is not embedded", () => {
+    const { container } = renderDialog(book);
+    const identifierReference = container.querySelector(
+      ".metadata-writeback__field--reference .metadata-writeback__reference-value",
+    );
+
+    expect(identifierReference?.textContent).toBe("—");
+    expect(container.querySelector("input#metadata-identifier")).toBeNull();
+  });
+
+  it("disables WebView autocomplete on metadata editor fields", () => {
+    const { container } = renderDialog(book);
+    const titleInput = input(container, "title");
+    const descriptionTextarea = textarea(container, "description");
+
+    expect(titleInput.name).toBe("archeion-epub-metadata-title");
+    expect(titleInput.getAttribute("autocomplete")).toBe("off");
+    expect(titleInput.getAttribute("autocorrect")).toBe("off");
+    expect(titleInput.getAttribute("autocapitalize")).toBe("off");
+    expect(titleInput.getAttribute("spellcheck")).toBe("false");
+    expect(descriptionTextarea.name).toBe(
+      "archeion-epub-metadata-description",
+    );
+    expect(descriptionTextarea.getAttribute("autocomplete")).toBe("off");
+    expect(descriptionTextarea.getAttribute("spellcheck")).toBe("false");
+  });
+
+  it("does not submit Identifier when another field is edited", async () => {
+    const identifierBook: Book = {
+      ...book,
+      sourceMetadata: {
+        ...book.sourceMetadata,
+        identifier: "urn:isbn:1234567890",
+      },
+    };
+    const onWriteMetadata = vi.fn(
+      async (submittedBook: Book, submittedMetadata: EpubMetadataWritebackInput) => {
+        expect(submittedBook).toBe(identifierBook);
+        expect(submittedMetadata).not.toHaveProperty("identifier");
+        return {
+          backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+          sourceMetadata: {
+            ...identifierBook.sourceMetadata,
+            title: "New Title",
+          },
+        };
+      },
+    );
+    const { container } = renderDialog(identifierBook, onWriteMetadata);
+
+    await changeInput(input(container, "title"), "New Title");
+
+    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+    expect(pendingChanges?.textContent).toContain("Title");
+    expect(pendingChanges?.textContent).not.toContain("Identifier");
+
+    await act(async () => {
+      writeButton(container).click();
+    });
+
+    expect(onWriteMetadata).toHaveBeenCalledTimes(1);
+    expect(onWriteMetadata.mock.calls[0][1]).toEqual(
+      expect.objectContaining({ title: "New Title" }),
+    );
+    expect(onWriteMetadata.mock.calls[0][1]).not.toHaveProperty("identifier");
+  });
+
   it("does not enable writeback from a fallback title when embedded title is missing", () => {
     const bookWithoutPackageTitle: Book = {
       ...book,
@@ -153,7 +254,7 @@ describe("BookAdvancedMetadataDialog", () => {
       },
     };
     const onWriteMetadata = vi.fn(async () => ({
-      backupPath: ".archeion/backups/book.epub.bak",
+      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
       sourceMetadata: { title: "Volume 01" },
     }));
     const { container } = renderDialog(bookWithoutPackageTitle, onWriteMetadata);
@@ -200,6 +301,29 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(writeButton(container).disabled).toBe(false);
   });
 
+
+  it("shows concise in-dialog success and clears pending changes after writeback", async () => {
+    const onWriteMetadata = vi.fn(async () => ({
+      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+      sourceMetadata: {
+        ...book.sourceMetadata,
+        title: "New Title",
+      },
+    }));
+    const { container } = renderDialog(book, onWriteMetadata);
+
+    await changeInput(input(container, "title"), "New Title");
+    await act(async () => {
+      writeButton(container).click();
+    });
+
+    expect(container.textContent).toContain("Metadata written to EPUB.");
+    expect(container.textContent).not.toContain("Backup created");
+    expect(container.textContent).not.toContain(".archeion/backups");
+    expect(container.textContent).toContain("No metadata changes.");
+    expect(writeButton(container).disabled).toBe(true);
+  });
+
   it("does not create pending changes for long embedded metadata until edited", () => {
     const longMetadataBook: Book = {
       ...book,
@@ -213,7 +337,11 @@ describe("BookAdvancedMetadataDialog", () => {
     };
     const { container } = renderDialog(longMetadataBook);
 
-    expect(container.textContent).toContain("No metadata changes.");
+    const pendingChanges = container.querySelector(".metadata-writeback__changes");
+
+    expect(container.querySelector("input#metadata-identifier")).toBeNull();
+    expect(pendingChanges?.textContent).toContain("No metadata changes.");
+    expect(pendingChanges?.textContent).not.toContain("Identifier");
     expect(writeButton(container).disabled).toBe(true);
   });
 

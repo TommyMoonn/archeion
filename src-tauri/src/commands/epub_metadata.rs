@@ -380,8 +380,23 @@ fn controlled_meta_refinement(attributes: &HashMap<String, String>) -> bool {
         .unwrap_or(false)
 }
 
+fn writable_metadata_field(name: &[u8]) -> bool {
+    matches!(
+        metadata_field(name),
+        Some(
+            MetadataField::Title
+                | MetadataField::Creator
+                | MetadataField::Language
+                | MetadataField::Publisher
+                | MetadataField::Date
+                | MetadataField::Description
+                | MetadataField::Subject
+        )
+    )
+}
+
 fn controlled_empty_metadata_element(name: &[u8], attributes: HashMap<String, String>) -> bool {
-    metadata_field(name).is_some() || (name == b"meta" && controlled_meta_refinement(&attributes))
+    writable_metadata_field(name) || (name == b"meta" && controlled_meta_refinement(&attributes))
 }
 
 fn write_text_metadata_element(
@@ -428,9 +443,6 @@ fn write_metadata_values(
     }
     if let Some(value) = &metadata.creator {
         write_text_metadata_element(writer, "dc:creator", value)?;
-    }
-    if let Some(value) = &metadata.identifier {
-        write_text_metadata_element(writer, "dc:identifier", value)?;
     }
     if let Some(value) = &metadata.language {
         write_text_metadata_element(writer, "dc:language", value)?;
@@ -514,7 +526,7 @@ pub(crate) fn update_package_metadata_xml(
                 let is_controlled_meta =
                     name.as_slice() == b"meta" && controlled_meta_refinement(&attributes);
                 if metadata_depth == 1
-                    && (metadata_field(name.as_slice()).is_some() || is_controlled_meta)
+                    && (writable_metadata_field(name.as_slice()) || is_controlled_meta)
                 {
                     skip_depth = 1;
                     continue;

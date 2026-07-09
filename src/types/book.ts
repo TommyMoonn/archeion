@@ -11,7 +11,7 @@ export type EpubSourceMetadata = {
   volume?: string;
 };
 
-export type EpubMetadataWritebackInput = EpubSourceMetadata;
+export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
 export type EpubMetadataWritebackResult = {
   backupPath: string;

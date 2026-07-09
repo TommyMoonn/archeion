@@ -1,7 +1,7 @@
 use std::{
     fs::{self, File},
     io::Write,
-    path::{Path, PathBuf},
+    path::{Component, Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -24,10 +24,29 @@ pub struct EpubMetadataWritebackResult {
     source_metadata: epub_metadata::EpubPackageMetadata,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EpubWritebackBackupCleanupInput {
+    backup_path: String,
+}
+
+const WRITEBACK_BACKUP_MARKER: &str = ".metadata-writeback-";
+const WRITEBACK_BACKUP_EXTENSION: &str = ".epub.bak";
+const BACKUP_DIRECTORY: &str = "backups";
+
 fn clean_optional(value: Option<String>) -> Option<String> {
     value
         .map(|value| value.split_whitespace().collect::<Vec<_>>().join(" "))
         .filter(|value| !value.is_empty())
+}
+
+fn validate_writeback_metadata(
+    metadata: &epub_metadata::EpubPackageMetadata,
+) -> Result<(), String> {
+    if metadata.identifier.is_some() {
+        return Err("EPUB identifier updates are not supported.".to_string());
+    }
+    Ok(())
 }
 
 fn normalize_writeback_metadata(
@@ -45,7 +64,7 @@ fn normalize_writeback_metadata(
     epub_metadata::EpubPackageMetadata {
         title: clean_optional(metadata.title),
         creator: clean_optional(metadata.creator),
-        identifier: clean_optional(metadata.identifier),
+        identifier: None,
         language: clean_optional(metadata.language),
         publisher: clean_optional(metadata.publisher),
         date: clean_optional(metadata.date),
@@ -71,8 +90,11 @@ fn backup_file_name(relative_path: &str) -> String {
         .map(|duration| duration.as_millis())
         .unwrap_or_default();
     format!(
-        "{}-{timestamp}.epub.bak",
-        safe_path.trim_end_matches(".epub")
+        "{}{}{}{}",
+        safe_path.trim_end_matches(".epub"),
+        WRITEBACK_BACKUP_MARKER,
+        timestamp,
+        WRITEBACK_BACKUP_EXTENSION
     )
 }
 
@@ -81,11 +103,69 @@ fn create_epub_backup(
     epub_path: &Path,
     relative_path: &str,
 ) -> Result<PathBuf, String> {
-    let backup_dir = root.join(metadata::METADATA_DIRECTORY).join("backups");
+    let backup_dir = root
+        .join(metadata::METADATA_DIRECTORY)
+        .join(BACKUP_DIRECTORY);
     fs::create_dir_all(&backup_dir).map_err(|error| error.to_string())?;
     let backup_path = backup_dir.join(backup_file_name(relative_path));
     fs::copy(epub_path, &backup_path).map_err(|error| error.to_string())?;
     Ok(backup_path)
+}
+
+fn is_epub_writeback_backup_name(file_name: &str) -> bool {
+    file_name.contains(WRITEBACK_BACKUP_MARKER) && file_name.ends_with(WRITEBACK_BACKUP_EXTENSION)
+}
+
+fn resolve_epub_writeback_backup_path(root: &Path, backup_path: &str) -> Result<PathBuf, String> {
+    let normalized_input = backup_path.replace('\\', "/");
+    let candidate = Path::new(&normalized_input);
+    if candidate.is_absolute() {
+        return Err("Backup paths must be relative to the archive folder.".to_string());
+    }
+
+    let mut parts = Vec::new();
+    for component in candidate.components() {
+        match component {
+            Component::Normal(part) => parts.push(part.to_string_lossy().to_string()),
+            Component::CurDir => {}
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err("Backup paths cannot leave the archive folder.".to_string());
+            }
+        }
+    }
+
+    if parts.len() != 3
+        || parts[0] != metadata::METADATA_DIRECTORY
+        || parts[1] != BACKUP_DIRECTORY
+        || !is_epub_writeback_backup_name(&parts[2])
+    {
+        return Err("Only Archeion EPUB writeback backups can be cleaned up.".to_string());
+    }
+
+    let backup_dir = root
+        .join(metadata::METADATA_DIRECTORY)
+        .join(BACKUP_DIRECTORY);
+    let backup_path = backup_dir.join(&parts[2]);
+    if !backup_path.exists() {
+        return Ok(backup_path);
+    }
+
+    let canonical_backup_dir = fs::canonicalize(&backup_dir).map_err(|error| error.to_string())?;
+    let canonical_backup_path =
+        fs::canonicalize(&backup_path).map_err(|error| error.to_string())?;
+    if !canonical_backup_path.starts_with(&canonical_backup_dir) {
+        return Err("Backup path is outside the EPUB writeback backup folder.".to_string());
+    }
+
+    Ok(canonical_backup_path)
+}
+
+fn cleanup_epub_writeback_backup_at(root: &Path, backup_path: &str) -> Result<(), String> {
+    let backup_path = resolve_epub_writeback_backup_path(root, backup_path)?;
+    if backup_path.exists() {
+        fs::remove_file(&backup_path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }
 
 fn temporary_epub_path(epub_path: &Path) -> Result<PathBuf, String> {
@@ -210,6 +290,7 @@ where
     Rewrite: Fn(&Path, &str, &str) -> Result<(), String>,
     Restore: Fn(&Path, &Path) -> Result<(), String>,
 {
+    validate_writeback_metadata(&metadata_update)?;
     let epub_path = epub::resolve_epub_path(root, relative_path)?;
     let backup_path = create_epub_backup(root, &epub_path, relative_path)?;
     let metadata_update = normalize_writeback_metadata(metadata_update);
@@ -267,13 +348,27 @@ pub async fn write_epub_metadata(
     .map_err(|error| error.to_string())?
 }
 
+#[tauri::command]
+pub async fn cleanup_epub_writeback_backup(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    input: EpubWritebackBackupCleanupInput,
+) -> Result<(), String> {
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        cleanup_epub_writeback_backup_at(&root, &input.backup_path)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use std::{fs, io::Write, path::Path};
 
     use super::{
-        epub_metadata, restore_epub_from_backup, write_epub_metadata_at,
-        write_epub_metadata_at_with_ops,
+        cleanup_epub_writeback_backup_at, epub_metadata, restore_epub_from_backup,
+        write_epub_metadata_at, write_epub_metadata_at_with_ops,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -346,7 +441,93 @@ mod tests {
         assert_eq!(metadata.title.as_deref(), Some("New Title"));
         assert_eq!(metadata.creator.as_deref(), Some("New Author"));
         assert_eq!(metadata.series.as_deref(), Some("Series"));
+        assert!(result.backup_path.contains("metadata-writeback"));
         assert!(root.join(&result.backup_path).is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn preserves_existing_identifier_during_writeback() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_epub(
+            &epub_path,
+            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title><dc:identifier>urn:isbn:123</dc:identifier></metadata></package>"#,
+        );
+
+        write_epub_metadata_at(&root, "book.epub", update_title()).expect("metadata should write");
+
+        let metadata =
+            epub_metadata::read_core_metadata(&epub_path).expect("updated metadata should parse");
+        assert_eq!(metadata.title.as_deref(), Some("New Title"));
+        assert_eq!(metadata.identifier.as_deref(), Some("urn:isbn:123"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn rejects_identifier_updates() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_epub(
+            &epub_path,
+            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title><dc:identifier>urn:isbn:123</dc:identifier></metadata></package>"#,
+        );
+
+        let error = write_epub_metadata_at(
+            &root,
+            "book.epub",
+            epub_metadata::EpubPackageMetadata {
+                identifier: Some("urn:isbn:456".to_string()),
+                ..epub_metadata::EpubPackageMetadata::default()
+            },
+        )
+        .expect_err("identifier updates should be rejected");
+
+        let metadata =
+            epub_metadata::read_core_metadata(&epub_path).expect("metadata should still parse");
+        assert!(error.contains("identifier updates are not supported"));
+        assert_eq!(metadata.identifier.as_deref(), Some("urn:isbn:123"));
+        assert!(!root.join(".archeion").join("backups").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn cleanup_removes_successful_writeback_backup() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let epub_path = root.join("book.epub");
+        write_epub(
+            &epub_path,
+            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title></metadata></package>"#,
+        );
+
+        let result = write_epub_metadata_at(&root, "book.epub", update_title())
+            .expect("metadata should write");
+        let backup_path = root.join(&result.backup_path);
+        assert!(backup_path.is_file());
+
+        cleanup_epub_writeback_backup_at(&root, &result.backup_path)
+            .expect("backup cleanup should succeed");
+
+        assert!(!backup_path.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn cleanup_refuses_non_writeback_backup_paths() {
+        let root = test_root();
+        let backup_dir = root.join(".archeion").join("backups");
+        fs::create_dir_all(&backup_dir).expect("backup directory should be created");
+        let backup_path = backup_dir.join("manual.epub.bak");
+        fs::write(&backup_path, b"manual").expect("manual backup should be written");
+
+        let error = cleanup_epub_writeback_backup_at(&root, ".archeion/backups/manual.epub.bak")
+            .expect_err("manual backup cleanup should be rejected");
+
+        assert!(error.contains("Only Archeion EPUB writeback backups"));
+        assert!(backup_path.is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -376,6 +557,11 @@ mod tests {
         assert!(error.contains("validation failed"));
         assert!(error.contains("backup was restored"));
         assert_eq!(read_bytes(&epub_path), original);
+        let backup_dir = root.join(".archeion").join("backups");
+        assert!(fs::read_dir(backup_dir)
+            .expect("backup directory should be readable")
+            .next()
+            .is_some());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
