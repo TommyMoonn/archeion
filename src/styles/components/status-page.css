@@ -63,3 +63,20 @@
   font-weight: 600;
   text-decoration: none;
 }
+
+.reader-status-page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 24px;
+}
+
+.reader-status-page__actions .text-link {
+  margin-top: 0;
+}
+
+.reader-status-page__error {
+  color: var(--danger);
+}

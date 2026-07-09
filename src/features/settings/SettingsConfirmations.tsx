@@ -6,6 +6,7 @@ export type SettingsConfirmationKey =
   | "clearEpubWritebackBackups"
   | "clearScannerCache"
   | "reextractMetadata"
+  | "repairMetadata"
   | "rescanArchive";
 
 export type SettingsConfirmationState = Record<SettingsConfirmationKey, boolean>;
@@ -17,6 +18,7 @@ type SettingsConfirmationsProps = {
   onClearScannerCache: () => void;
   onClose: (confirmation: SettingsConfirmationKey) => void;
   onReextractMetadata: () => void;
+  onRepairMetadata: () => void;
   onRescanArchive: () => void;
 };
 
@@ -27,6 +29,7 @@ export function SettingsConfirmations({
   onClearScannerCache,
   onClose,
   onReextractMetadata,
+  onRepairMetadata,
   onRescanArchive,
 }: SettingsConfirmationsProps) {
   return (
@@ -94,6 +97,23 @@ export function SettingsConfirmations({
               </Button>
               <Button autoFocus onClick={onReextractMetadata}>
                 Re-extract
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+      {confirmations.repairMetadata ? (
+        <Dialog
+          title="Repair archive metadata?"
+          description="Corrupted metadata files and scanner cache will be rebuilt when possible. EPUB files are not changed."
+          onClose={() => onClose("repairMetadata")}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => onClose("repairMetadata")}>
+                Cancel
+              </Button>
+              <Button autoFocus onClick={onRepairMetadata}>
+                Repair metadata
               </Button>
             </>
           }

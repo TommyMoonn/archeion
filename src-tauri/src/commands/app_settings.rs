@@ -2,6 +2,7 @@ use std::{
     fs,
     io::{ErrorKind, Write},
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
@@ -213,6 +214,18 @@ fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
         .map_err(|error| format!("App settings directory is unavailable: {error}"))
 }
 
+fn app_settings_corrupt_path(path: &Path) -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    path.with_file_name(format!("{file_name}.corrupt-{timestamp}.bak"))
+}
+
 fn read_settings(path: &Path) -> Result<AppPreferences, String> {
     if !path.exists() {
         return Ok(AppPreferences::default());
@@ -220,25 +233,60 @@ fn read_settings(path: &Path) -> Result<AppPreferences, String> {
 
     let contents =
         fs::read(path).map_err(|error| format!("App settings could not be read: {error}"))?;
-    serde_json::from_slice(&contents)
-        .map_err(|error| format!("App settings could not be parsed: {error}"))
+    match serde_json::from_slice(&contents) {
+        Ok(preferences) => Ok(preferences),
+        Err(_) => {
+            fs::rename(path, app_settings_corrupt_path(path)).map_err(|error| {
+                format!("Corrupted app settings could not be preserved: {error}")
+            })?;
+            let preferences = AppPreferences::default();
+            write_settings(path, &preferences)?;
+            Ok(preferences)
+        }
+    }
+}
+
+fn app_settings_write_backup_path(path: &Path) -> PathBuf {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    path.with_file_name(format!("{file_name}.write-backup-{timestamp}"))
 }
 
 fn replace_settings_file(temporary_path: &Path, destination_path: &Path) -> Result<(), String> {
-    match fs::rename(temporary_path, destination_path) {
-        Ok(()) => Ok(()),
-        Err(first_error) if destination_path.exists() => {
-            fs::remove_file(destination_path).map_err(|remove_error| {
-                format!(
-                    "App settings file could not be replaced: {first_error}; existing file could not be removed: {remove_error}"
-                )
-            })?;
-            fs::rename(temporary_path, destination_path).map_err(|replace_error| {
-                format!("App settings file could not be replaced: {replace_error}")
-            })
-        }
-        Err(error) => Err(format!("App settings file could not be replaced: {error}")),
+    if !destination_path.exists() {
+        return fs::rename(temporary_path, destination_path)
+            .map_err(|error| format!("App settings file could not be replaced: {error}"));
     }
+
+    if !destination_path.is_file() {
+        return Err("App settings path is not a file.".to_string());
+    }
+
+    let backup_path = app_settings_write_backup_path(destination_path);
+    fs::rename(destination_path, &backup_path)
+        .map_err(|error| format!("App settings backup could not be created: {error}"))?;
+
+    if let Err(replace_error) = fs::rename(temporary_path, destination_path) {
+        return match fs::rename(&backup_path, destination_path) {
+            Ok(()) => Err(format!(
+                "App settings file could not be replaced and the previous file was restored: {replace_error}"
+            )),
+            Err(restore_error) => Err(format!(
+                "App settings file could not be replaced and the previous file could not be restored: {restore_error}"
+            )),
+        };
+    }
+
+    fs::remove_file(&backup_path).map_err(|error| {
+        format!("App settings transaction backup could not be removed: {error}")
+    })?;
+    Ok(())
 }
 
 fn remove_temporary_settings_file(path: &Path) {
@@ -360,9 +408,42 @@ mod tests {
         write_settings(&path, &first).expect("initial settings should write");
         write_settings(&path, &second).expect("replacement settings should write");
         let loaded = read_settings(&path).expect("settings should read");
+        let write_backup_exists = path
+            .parent()
+            .expect("settings path should have parent")
+            .read_dir()
+            .expect("settings directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains(".write-backup-")
+            });
         let _ = std::fs::remove_file(&path);
 
         assert_eq!(loaded, second);
+        assert!(!write_backup_exists);
+    }
+
+    #[test]
+    fn app_preferences_recover_from_corrupted_settings_file() {
+        let path = temporary_settings_path("corrupt");
+        std::fs::write(&path, b"{not-json").expect("corrupt settings should be written");
+
+        let loaded = read_settings(&path).expect("settings should recover");
+
+        assert_eq!(loaded, AppPreferences::default());
+        assert!(path.is_file());
+        let backup_exists = path
+            .parent()
+            .expect("settings path should have parent")
+            .read_dir()
+            .expect("settings directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-"));
+        assert!(backup_exists);
+        let _ = std::fs::remove_file(&path);
     }
 
     fn temporary_settings_path(label: &str) -> std::path::PathBuf {

@@ -20,6 +20,7 @@ function createController(
       clearEpubWritebackBackups: false,
       clearScannerCache: false,
       reextractMetadata: false,
+      repairMetadata: false,
       rescanArchive: false,
     },
     destinationOptions: [{ label: "Archive root", value: "" }],
@@ -54,6 +55,7 @@ function createController(
     confirmClearEpubWritebackBackups: vi.fn(),
     confirmClearScannerCache: vi.fn(),
     confirmReextractMetadata: vi.fn(),
+    confirmRepairMetadata: vi.fn(),
     confirmRescanArchive: vi.fn(),
     ...overrides,
   } as unknown as SettingsDialogController;

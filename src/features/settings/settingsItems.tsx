@@ -603,6 +603,25 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "storage",
   },
   {
+    description: "Rebuilds corrupted sidecar files without changing EPUB files.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.repair-metadata",
+    label: "Repair archive metadata",
+    render: (context) => (
+      <SettingsRow
+        description="Rebuilds corrupted sidecar files without changing EPUB files."
+        label="Repair archive metadata"
+      >
+        <Button onClick={() => context.openConfirmation("repairMetadata")} variant="secondary">
+          Repair metadata
+        </Button>
+      </SettingsRow>
+    ),
+    searchTerms: ["repair", "metadata", "corrupt", "scanner cache", "archive maintenance"],
+    sectionId: "storage",
+  },
+  {
     description: "Rebuilds parsed EPUB title and author data.",
     groupLabel: "Archive maintenance",
     groupStyle: "actions",

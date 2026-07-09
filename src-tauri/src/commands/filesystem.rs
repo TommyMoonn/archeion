@@ -297,12 +297,20 @@ fn trash_with_platform(path: &Path, _is_directory: bool) -> Result<(), String> {
     Err("The item could not be moved to Trash.".to_string())
 }
 
+type TrashArchiveItem = fn(&Path, bool) -> Result<(), String>;
+
+fn delete_archive_item_with_trash(
+    path: &Path,
+    is_directory: bool,
+    trash_archive_item: TrashArchiveItem,
+) -> Result<(), String> {
+    trash_archive_item(path, is_directory).map_err(|error| {
+        format!("Could not move this item to the trash. No files were deleted. {error}")
+    })
+}
+
 fn delete_archive_item(path: &Path, is_directory: bool) -> Result<(), String> {
-    match trash_with_platform(path, is_directory) {
-        Ok(()) => Ok(()),
-        Err(_) if is_directory => fs::remove_dir_all(path).map_err(|error| error.to_string()),
-        Err(_) => fs::remove_file(path).map_err(|error| error.to_string()),
-    }
+    delete_archive_item_with_trash(path, is_directory, trash_with_platform)
 }
 
 fn open_folder(path: &Path) -> Result<(), String> {
@@ -540,8 +548,8 @@ mod tests {
     };
 
     use super::{
-        is_reserved_archive_path, normalize_archive_relative_path, resolve_existing_epub_path,
-        validate_archive_item_name, validate_epub_file_name,
+        delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
+        resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -550,6 +558,74 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-filesystem-{nonce}"))
+    }
+
+    fn test_trash_success(path: &std::path::Path, is_directory: bool) -> Result<(), String> {
+        if is_directory {
+            fs::remove_dir_all(path).map_err(|error| error.to_string())
+        } else {
+            fs::remove_file(path).map_err(|error| error.to_string())
+        }
+    }
+
+    fn test_trash_failure(_path: &std::path::Path, _is_directory: bool) -> Result<(), String> {
+        Err("trash unavailable".to_string())
+    }
+
+    #[test]
+    fn delete_file_uses_trash_without_permanent_fallback() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("Novel.epub");
+        fs::write(&path, b"epub").expect("test EPUB should exist");
+
+        delete_archive_item_with_trash(&path, false, test_trash_failure)
+            .expect_err("trash failure should fail delete");
+
+        assert!(path.is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn delete_folder_uses_trash_without_permanent_fallback() {
+        let root = test_root();
+        let path = root.join("Series");
+        fs::create_dir_all(&path).expect("test folder should exist");
+        fs::write(path.join("Novel.epub"), b"epub").expect("test EPUB should exist");
+
+        delete_archive_item_with_trash(&path, true, test_trash_failure)
+            .expect_err("trash failure should fail delete");
+
+        assert!(path.is_dir());
+        assert!(path.join("Novel.epub").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn delete_file_succeeds_when_trash_succeeds() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("Novel.epub");
+        fs::write(&path, b"epub").expect("test EPUB should exist");
+
+        delete_archive_item_with_trash(&path, false, test_trash_success)
+            .expect("trash success should delete file");
+
+        assert!(!path.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn delete_folder_succeeds_when_trash_succeeds() {
+        let root = test_root();
+        let path = root.join("Series");
+        fs::create_dir_all(&path).expect("test folder should exist");
+
+        delete_archive_item_with_trash(&path, true, test_trash_success)
+            .expect("trash success should delete folder");
+
+        assert!(!path.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
     #[test]

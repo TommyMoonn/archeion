@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 import { RouterProvider } from "react-router-dom";
 
+import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { WindowFrame } from "../components/WindowFrame";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
@@ -21,9 +22,11 @@ export function App() {
       <div className="window-app">
         <WindowFrame frameStyleOverride="hidden" />
         <div className="window-app__content">
-          <Suspense fallback={null}>
-            <ArchiveManagerWindow />
-          </Suspense>
+          <AppErrorBoundary>
+            <Suspense fallback={null}>
+              <ArchiveManagerWindow />
+            </Suspense>
+          </AppErrorBoundary>
         </div>
       </div>
     );
@@ -33,11 +36,13 @@ export function App() {
     <div className="window-app">
       <WindowFrame />
       <div className="window-app__content">
-        <LibraryStorageProvider>
-          <ArchiveGate>
-            <RouterProvider router={router} />
-          </ArchiveGate>
-        </LibraryStorageProvider>
+        <AppErrorBoundary>
+          <LibraryStorageProvider>
+            <ArchiveGate>
+              <RouterProvider router={router} />
+            </ArchiveGate>
+          </LibraryStorageProvider>
+        </AppErrorBoundary>
       </div>
     </div>
   );

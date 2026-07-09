@@ -146,16 +146,147 @@ fn metadata_path(root: &Path) -> PathBuf {
     root.join(METADATA_DIRECTORY)
 }
 
-fn corruption_backup_path(path: &Path) -> PathBuf {
-    let timestamp = SystemTime::now()
+const MAX_METADATA_BACKUPS: usize = 5;
+
+fn timestamp_suffix() -> u128 {
+    SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_millis())
-        .unwrap_or_default();
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default()
+}
+
+fn timestamped_metadata_path(path: &Path, marker: &str) -> PathBuf {
     let file_name = path
         .file_name()
         .map(|name| name.to_string_lossy())
         .unwrap_or_default();
-    path.with_file_name(format!("{file_name}.corrupt-{timestamp}.bak"))
+    path.with_file_name(format!("{file_name}.{marker}-{}.bak", timestamp_suffix()))
+}
+
+fn corruption_backup_path(path: &Path) -> PathBuf {
+    timestamped_metadata_path(path, "corrupt")
+}
+
+fn stable_backup_path(path: &Path) -> PathBuf {
+    path.with_extension("json.bak")
+}
+
+fn timestamped_backup_path(path: &Path) -> PathBuf {
+    timestamped_metadata_path(path, "backup")
+}
+
+fn timestamped_backup_prefix(path: &Path, marker: &str) -> Option<String> {
+    path.file_name()
+        .map(|name| format!("{}.{marker}-", name.to_string_lossy()))
+}
+
+fn prune_timestamped_backups(path: &Path, marker: &str, max_backups: usize) -> Result<(), String> {
+    let Some(parent) = path.parent() else {
+        return Ok(());
+    };
+    let Some(prefix) = timestamped_backup_prefix(path, marker) else {
+        return Ok(());
+    };
+
+    let mut backups = Vec::new();
+    for entry in fs::read_dir(parent).map_err(|error| error.to_string())? {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let file_name = entry.file_name().to_string_lossy().to_string();
+        if !file_name.starts_with(&prefix) || !file_name.ends_with(".bak") {
+            continue;
+        }
+        if entry
+            .file_type()
+            .map_err(|error| error.to_string())?
+            .is_file()
+        {
+            backups.push((file_name, entry.path()));
+        }
+    }
+
+    backups.sort_by(|left, right| left.0.cmp(&right.0));
+    let stale_count = backups.len().saturating_sub(max_backups);
+    for (_, backup_path) in backups.into_iter().take(stale_count) {
+        fs::remove_file(backup_path).map_err(|error| error.to_string())?;
+    }
+    Ok(())
+}
+
+fn backup_existing_json(path: &Path) -> Result<(), String> {
+    if !path.exists() {
+        return Ok(());
+    }
+
+    let existing_contents = fs::read(path).map_err(|error| error.to_string())?;
+    if serde_json::from_slice::<serde_json::Value>(&existing_contents).is_err() {
+        fs::rename(path, corruption_backup_path(path)).map_err(|error| error.to_string())?;
+        prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
+        return Ok(());
+    }
+
+    fs::copy(path, stable_backup_path(path)).map_err(|error| error.to_string())?;
+    fs::copy(path, timestamped_backup_path(path)).map_err(|error| error.to_string())?;
+    prune_timestamped_backups(path, "backup", MAX_METADATA_BACKUPS)
+}
+
+trait MetadataFileSystem {
+    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String>;
+    fn remove_file(&self, path: &Path) -> Result<(), String>;
+}
+
+struct RealMetadataFileSystem;
+
+impl MetadataFileSystem for RealMetadataFileSystem {
+    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String> {
+        fs::rename(source, destination).map_err(|error| error.to_string())
+    }
+
+    fn remove_file(&self, path: &Path) -> Result<(), String> {
+        fs::remove_file(path).map_err(|error| error.to_string())
+    }
+}
+
+fn metadata_transaction_path(path: &Path, marker: &str) -> PathBuf {
+    let file_name = path
+        .file_name()
+        .map(|name| name.to_string_lossy())
+        .unwrap_or_default();
+    path.with_file_name(format!("{file_name}.{marker}-{}", timestamp_suffix()))
+}
+
+fn replace_json_file_with_fs(
+    temporary_path: &Path,
+    destination_path: &Path,
+    fs_ops: &impl MetadataFileSystem,
+) -> Result<(), String> {
+    if !destination_path.exists() {
+        return fs_ops.rename(temporary_path, destination_path);
+    }
+
+    if !destination_path.is_file() {
+        return Err("Metadata path is not a file.".to_string());
+    }
+
+    let transaction_backup_path = metadata_transaction_path(destination_path, "write-backup");
+    fs_ops.rename(destination_path, &transaction_backup_path)?;
+
+    if let Err(rename_error) = fs_ops.rename(temporary_path, destination_path) {
+        return match fs_ops.rename(&transaction_backup_path, destination_path) {
+            Ok(()) => Err(format!(
+                "Metadata save failed and the previous file was restored: {rename_error}"
+            )),
+            Err(restore_error) => Err(format!(
+                "Metadata save failed and the previous file could not be restored: {restore_error}"
+            )),
+        };
+    }
+
+    fs_ops.remove_file(&transaction_backup_path)?;
+    Ok(())
+}
+
+fn replace_json_file(temporary_path: &Path, destination_path: &Path) -> Result<(), String> {
+    replace_json_file_with_fs(temporary_path, destination_path, &RealMetadataFileSystem)
 }
 
 fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), String> {
@@ -164,7 +295,9 @@ fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), 
         .ok_or_else(|| "Metadata directory is unavailable.".to_string())?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
     let contents = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
-    let temporary_path = path.with_extension("json.tmp");
+    serde_json::from_slice::<serde_json::Value>(&contents)
+        .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
+    let temporary_path = metadata_transaction_path(path, "tmp-write");
 
     let write_result = (|| -> Result<(), String> {
         let mut temporary = File::create(&temporary_path).map_err(|error| error.to_string())?;
@@ -172,14 +305,15 @@ fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), 
             .write_all(&contents)
             .map_err(|error| error.to_string())?;
         temporary.sync_all().map_err(|error| error.to_string())?;
+        drop(temporary);
+        let temporary_contents = fs::read(&temporary_path).map_err(|error| error.to_string())?;
+        serde_json::from_slice::<serde_json::Value>(&temporary_contents)
+            .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
 
-        if backup && path.exists() {
-            fs::copy(path, path.with_extension("json.bak")).map_err(|error| error.to_string())?;
+        if backup {
+            backup_existing_json(path)?;
         }
-        if path.exists() {
-            fs::remove_file(path).map_err(|error| error.to_string())?;
-        }
-        fs::rename(&temporary_path, path).map_err(|error| error.to_string())
+        replace_json_file(&temporary_path, path)
     })();
 
     if write_result.is_err() {
@@ -189,26 +323,91 @@ fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), 
     write_result
 }
 
-fn read_json<T>(path: &Path) -> Result<T, String>
+fn backup_candidates(path: &Path) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    let stable = stable_backup_path(path);
+    if stable.exists() {
+        candidates.push(stable);
+    }
+
+    let Some(parent) = path.parent() else {
+        return candidates;
+    };
+    let Some(prefix) = timestamped_backup_prefix(path, "backup") else {
+        return candidates;
+    };
+
+    let Ok(entries) = fs::read_dir(parent) else {
+        return candidates;
+    };
+
+    let mut timestamped = entries
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let file_name = entry.file_name().to_string_lossy().to_string();
+            (file_name.starts_with(&prefix) && file_name.ends_with(".bak"))
+                .then_some((file_name, entry.path()))
+        })
+        .collect::<Vec<_>>();
+    timestamped.sort_by(|left, right| right.0.cmp(&left.0));
+    candidates.extend(timestamped.into_iter().map(|(_, path)| path));
+    candidates
+}
+
+fn recover_json_from_backup<T>(path: &Path) -> Option<T>
+where
+    T: DeserializeOwned,
+{
+    backup_candidates(path).into_iter().find_map(|backup_path| {
+        fs::read(backup_path)
+            .ok()
+            .and_then(|contents| serde_json::from_slice(&contents).ok())
+    })
+}
+
+struct JsonReadResult<T> {
+    value: T,
+    recovered: bool,
+}
+
+fn read_json_with_recovery<T>(path: &Path) -> Result<JsonReadResult<T>, String>
 where
     T: Default + DeserializeOwned + Serialize,
 {
     if !path.exists() {
         let value = T::default();
         write_json(path, &value, false)?;
-        return Ok(value);
+        return Ok(JsonReadResult {
+            value,
+            recovered: false,
+        });
     }
 
     let contents = fs::read(path).map_err(|error| error.to_string())?;
     match serde_json::from_slice(&contents) {
-        Ok(value) => Ok(value),
+        Ok(value) => Ok(JsonReadResult {
+            value,
+            recovered: false,
+        }),
         Err(_) => {
-            fs::rename(path, corruption_backup_path(path)).map_err(|error| error.to_string())?;
-            let value = T::default();
+            let corrupt_path = corruption_backup_path(path);
+            fs::rename(path, &corrupt_path).map_err(|error| error.to_string())?;
+            prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
+            let value = recover_json_from_backup(path).unwrap_or_default();
             write_json(path, &value, false)?;
-            Ok(value)
+            Ok(JsonReadResult {
+                value,
+                recovered: true,
+            })
         }
     }
+}
+
+fn read_json<T>(path: &Path) -> Result<T, String>
+where
+    T: Default + DeserializeOwned + Serialize,
+{
+    read_json_with_recovery(path).map(|result| result.value)
 }
 
 pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
@@ -236,6 +435,13 @@ pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> 
 
 pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
     read_json(&metadata_path(root).join(SCANNER_CACHE_FILE))
+}
+
+pub(crate) fn load_scanner_cache_with_recovery_at(
+    root: &Path,
+) -> Result<(ScannerCache, bool), String> {
+    let result = read_json_with_recovery(&metadata_path(root).join(SCANNER_CACHE_FILE))?;
+    Ok((result.value, result.recovered))
 }
 
 pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result<(), String> {
@@ -348,8 +554,8 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_settings_at, metadata_path, read_json, write_json, LibraryMetadata,
-        SettingsMetadata,
+        initialize_at, load_settings_at, metadata_path, read_json, replace_json_file_with_fs,
+        write_json, LibraryBookMetadata, LibraryMetadata, MetadataFileSystem, SettingsMetadata,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -358,6 +564,35 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-metadata-{label}-{nonce}"))
+    }
+
+    struct FailingMetadataRenameFileSystem;
+
+    impl MetadataFileSystem for FailingMetadataRenameFileSystem {
+        fn rename(
+            &self,
+            source: &std::path::Path,
+            destination: &std::path::Path,
+        ) -> Result<(), String> {
+            let source_name = source
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default();
+            let destination_name = destination
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default();
+
+            if source_name.contains("tmp-write") && !destination_name.contains("write-backup") {
+                return Err("simulated final rename failure".to_string());
+            }
+
+            fs::rename(source, destination).map_err(|error| error.to_string())
+        }
+
+        fn remove_file(&self, path: &std::path::Path) -> Result<(), String> {
+            fs::remove_file(path).map_err(|error| error.to_string())
+        }
     }
 
     #[test]
@@ -423,12 +658,59 @@ mod tests {
         fs::create_dir_all(&root).expect("test archive should be created");
         let path = root.join("library.json");
         fs::create_dir_all(&path).expect("conflicting directory should be created");
-        let temporary_path = path.with_extension("json.tmp");
 
         let result = write_json(&path, &LibraryMetadata::default(), false);
 
         assert!(result.is_err());
-        assert!(!temporary_path.exists());
+        assert!(!root
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains("tmp-write")));
+        assert!(path.is_dir());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn metadata_replace_restores_active_file_when_final_rename_fails() {
+        let root = test_root("transaction-restore");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+        let temporary_path = root.join("library.json.tmp-write-test");
+        fs::write(&path, br#"{"version":1,"books":{}}"#)
+            .expect("active metadata should be written");
+        fs::write(&temporary_path, br#"{"version":1,"books":{"new":{}}}"#)
+            .expect("temporary metadata should be written");
+
+        let result =
+            replace_json_file_with_fs(&temporary_path, &path, &FailingMetadataRenameFileSystem);
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(&path).expect("active metadata should remain readable"),
+            r#"{"version":1,"books":{}}"#
+        );
+        assert!(!root
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains("write-backup")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn successful_metadata_write_removes_transaction_backup() {
+        let root = test_root("transaction-cleanup");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+        write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
+        write_json(&path, &LibraryMetadata::default(), true).expect("second write should work");
+
+        assert!(!root
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains("write-backup")));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -442,6 +724,109 @@ mod tests {
         let recovered: LibraryMetadata = read_json(&path).expect("metadata should recover");
 
         assert_eq!(recovered.version, 1);
+        assert!(root
+            .read_dir()
+            .expect("directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn recovers_corrupted_json_from_valid_backup() {
+        let root = test_root("backup-recovery");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+        let mut library = LibraryMetadata::default();
+        library.books.insert(
+            "book-1".to_string(),
+            LibraryBookMetadata {
+                relative_path: "Books/Recovered.epub".to_string(),
+                is_favorite: true,
+                cover_path: None,
+                source_metadata: None,
+                file_size: Some(100),
+                file_modified_at: Some(200),
+                added_at: "2026-07-01T00:00:00.000Z".to_string(),
+                updated_at: "2026-07-01T00:00:00.000Z".to_string(),
+            },
+        );
+        write_json(&path, &library, false).expect("initial write should work");
+        write_json(&path, &library, true).expect("backup write should work");
+        fs::write(&path, b"{not-json").expect("corrupt file should be written");
+
+        let recovered: LibraryMetadata = read_json(&path).expect("metadata should recover");
+
+        let book = recovered
+            .books
+            .get("book-1")
+            .expect("book should be restored from backup");
+        assert_eq!(book.relative_path, "Books/Recovered.epub");
+        assert!(book.is_favorite);
+        assert!(root.join("library.json.bak").is_file());
+        assert!(root
+            .read_dir()
+            .expect("directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn keeps_metadata_backup_history_bounded() {
+        let root = test_root("bounded-backups");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+
+        write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
+        for _ in 0..8 {
+            write_json(&path, &LibraryMetadata::default(), true).expect("backup write should work");
+        }
+
+        let timestamped_backups = root
+            .read_dir()
+            .expect("directory should be readable")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                file_name.starts_with("library.json.backup-") && file_name.ends_with(".bak")
+            })
+            .count();
+        assert!(timestamped_backups <= 5);
+        assert!(root.join("library.json.bak").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn write_backup_does_not_replace_valid_backup_with_corrupted_active_file() {
+        let root = test_root("corrupt-active-backup");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let path = root.join("library.json");
+        let mut library = LibraryMetadata::default();
+        library.books.insert(
+            "book-1".to_string(),
+            LibraryBookMetadata {
+                relative_path: "Books/Backup.epub".to_string(),
+                is_favorite: true,
+                cover_path: None,
+                source_metadata: None,
+                file_size: None,
+                file_modified_at: None,
+                added_at: "2026-07-01T00:00:00.000Z".to_string(),
+                updated_at: "2026-07-01T00:00:00.000Z".to_string(),
+            },
+        );
+        write_json(&path, &library, false).expect("initial write should work");
+        write_json(&path, &library, true).expect("valid backup should be created");
+        fs::write(&path, b"{not-json").expect("corrupt active file should be written");
+
+        write_json(&path, &LibraryMetadata::default(), true).expect("write should recover safely");
+
+        let backup_contents = fs::read(root.join("library.json.bak"))
+            .expect("stable backup should still be readable");
+        let backup: LibraryMetadata = serde_json::from_slice(&backup_contents)
+            .expect("stable backup should remain valid JSON");
+        assert!(backup.books.contains_key("book-1"));
         assert!(root
             .read_dir()
             .expect("directory should be readable")

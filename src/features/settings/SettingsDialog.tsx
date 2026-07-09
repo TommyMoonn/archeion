@@ -168,6 +168,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           onClearScannerCache={controller.confirmClearScannerCache}
           onClose={controller.closeConfirmation}
           onReextractMetadata={controller.confirmReextractMetadata}
+          onRepairMetadata={controller.confirmRepairMetadata}
           onRescanArchive={controller.confirmRescanArchive}
         />
       </div>

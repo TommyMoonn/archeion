@@ -1774,4 +1774,39 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     expect(invokeMock).toHaveBeenCalledWith("get_epub_writeback_backup_status");
     expect(invokeMock).toHaveBeenCalledWith("clear_epub_writeback_backups");
   });
+
+  it("repairs archive metadata before rescanning the active archive", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        return firstScan;
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      return undefined;
+    });
+    const rootPath = "C:/ArchiveA";
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset(rootPath);
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.repairArchiveMetadata();
+
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
+      "initialize_archive_metadata",
+      "clear_scanner_cache",
+      "scan_archive",
+      "load_archive_metadata",
+    ]);
+    expect(
+      invokeMock.mock.calls.find(([command]) => command === "initialize_archive_metadata")?.[1],
+    ).toMatchObject({ rootPath });
+    expect(
+      invokeMock.mock.calls.find(([command]) => command === "clear_scanner_cache")?.[1],
+    ).toMatchObject({ rootPath });
+    expect(
+      invokeMock.mock.calls.find(([command]) => command === "scan_archive")?.[1],
+    ).toMatchObject({ rootPath });
+  });
 });

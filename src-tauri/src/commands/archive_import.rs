@@ -1,6 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
@@ -174,29 +175,130 @@ fn destination_for_conflict(
     }
 }
 
+trait ImportFileSystem {
+    fn copy(&self, source: &Path, destination: &Path) -> Result<u64, String>;
+    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String>;
+    fn remove_file(&self, path: &Path) -> Result<(), String>;
+}
+
+struct RealImportFileSystem;
+
+impl ImportFileSystem for RealImportFileSystem {
+    fn copy(&self, source: &Path, destination: &Path) -> Result<u64, String> {
+        fs::copy(source, destination).map_err(|error| error.to_string())
+    }
+
+    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String> {
+        fs::rename(source, destination).map_err(|error| error.to_string())
+    }
+
+    fn remove_file(&self, path: &Path) -> Result<(), String> {
+        fs::remove_file(path).map_err(|error| error.to_string())
+    }
+}
+
+fn import_transaction_nonce() -> String {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    format!("{timestamp}-{}", std::process::id())
+}
+
+fn transaction_path(destination: &Path, marker: &str) -> Result<PathBuf, String> {
+    let parent = destination
+        .parent()
+        .ok_or_else(|| "The destination folder is unavailable.".to_string())?;
+    let file_name = destination
+        .file_name()
+        .ok_or_else(|| "The destination file is unavailable.".to_string())?
+        .to_string_lossy();
+    Ok(parent.join(format!(
+        "{file_name}.{marker}-{}",
+        import_transaction_nonce()
+    )))
+}
+
+fn copy_source_to_temp(
+    fs_ops: &impl ImportFileSystem,
+    source: &Path,
+    temporary: &Path,
+    expected_size: u64,
+) -> Result<(), String> {
+    let copied_size = fs_ops.copy(source, temporary)?;
+    if copied_size != expected_size {
+        let _ = fs_ops.remove_file(temporary);
+        return Err("The copied EPUB size did not match the source EPUB.".to_string());
+    }
+    Ok(())
+}
+
+fn restore_import_backup(
+    fs_ops: &impl ImportFileSystem,
+    backup: &Path,
+    destination: &Path,
+) -> Result<(), String> {
+    fs_ops.rename(backup, destination).map_err(|restore_error| {
+        format!("The import failed and the original EPUB could not be restored: {restore_error}")
+    })
+}
+
+fn copy_or_move_epub_with_fs(
+    source: &Path,
+    destination: &Path,
+    mode: ArchiveImportMode,
+    replace_existing: bool,
+    fs_ops: &impl ImportFileSystem,
+) -> Result<(), String> {
+    let expected_size = fs::metadata(source)
+        .map_err(|error| error.to_string())?
+        .len();
+    let temporary_path = transaction_path(destination, "tmp-import")?;
+    let backup_path = transaction_path(destination, "replace-backup")?;
+
+    let import_result = (|| -> Result<(), String> {
+        copy_source_to_temp(fs_ops, source, &temporary_path, expected_size)?;
+
+        if replace_existing {
+            fs_ops.rename(destination, &backup_path)?;
+            if let Err(rename_error) = fs_ops.rename(&temporary_path, destination) {
+                restore_import_backup(fs_ops, &backup_path, destination)?;
+                return Err(format!(
+                    "The replacement EPUB could not be placed in the archive: {rename_error}"
+                ));
+            }
+            fs_ops.remove_file(&backup_path)?;
+        } else {
+            fs_ops.rename(&temporary_path, destination)?;
+        }
+
+        if mode == ArchiveImportMode::Move {
+            fs_ops.remove_file(source)?;
+        }
+
+        Ok(())
+    })();
+
+    if import_result.is_err() {
+        let _ = fs_ops.remove_file(&temporary_path);
+    }
+
+    import_result
+}
+
 fn copy_or_move_epub(
     source: &Path,
     destination: &Path,
     mode: ArchiveImportMode,
     replace_existing: bool,
 ) -> Result<(), String> {
-    if replace_existing {
-        fs::remove_file(destination).map_err(|error| error.to_string())?;
-    }
-
-    match mode {
-        ArchiveImportMode::Copy => {
-            fs::copy(source, destination).map_err(|error| error.to_string())?;
-            Ok(())
-        }
-        ArchiveImportMode::Move => match fs::rename(source, destination) {
-            Ok(()) => Ok(()),
-            Err(_) => {
-                fs::copy(source, destination).map_err(|error| error.to_string())?;
-                fs::remove_file(source).map_err(|error| error.to_string())
-            }
-        },
-    }
+    copy_or_move_epub_with_fs(
+        source,
+        destination,
+        mode,
+        replace_existing,
+        &RealImportFileSystem,
+    )
 }
 
 fn add_epub_files_to_archive_at(
@@ -321,8 +423,8 @@ mod tests {
     };
 
     use super::{
-        add_epub_files_to_archive_at, ArchiveImportConflictAction, ArchiveImportMode,
-        ArchiveImportStatus,
+        add_epub_files_to_archive_at, copy_or_move_epub_with_fs, ArchiveImportConflictAction,
+        ArchiveImportMode, ArchiveImportStatus, ImportFileSystem,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -331,6 +433,86 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-archive-import-{nonce}"))
+    }
+
+    struct FailingFinalRenameFileSystem {
+        backup_marker: &'static str,
+        temp_marker: &'static str,
+    }
+
+    impl ImportFileSystem for FailingFinalRenameFileSystem {
+        fn copy(
+            &self,
+            source: &std::path::Path,
+            destination: &std::path::Path,
+        ) -> Result<u64, String> {
+            fs::copy(source, destination).map_err(|error| error.to_string())
+        }
+
+        fn rename(
+            &self,
+            source: &std::path::Path,
+            destination: &std::path::Path,
+        ) -> Result<(), String> {
+            let source_name = source
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default();
+            let destination_name = destination
+                .file_name()
+                .and_then(|name| name.to_str())
+                .unwrap_or_default();
+
+            if source_name.contains(self.temp_marker)
+                && !destination_name.contains(self.backup_marker)
+            {
+                return Err("simulated final rename failure".to_string());
+            }
+
+            fs::rename(source, destination).map_err(|error| error.to_string())
+        }
+
+        fn remove_file(&self, path: &std::path::Path) -> Result<(), String> {
+            fs::remove_file(path).map_err(|error| error.to_string())
+        }
+    }
+
+    #[test]
+    fn replace_import_restores_existing_destination_when_final_rename_fails() {
+        let root = test_root();
+        let external = test_root();
+        fs::create_dir_all(&root).expect("archive should be created");
+        fs::create_dir_all(&external).expect("source folder should be created");
+        let destination = root.join("Novel.epub");
+        let source = external.join("Novel.epub");
+        fs::write(&destination, b"existing").expect("existing EPUB should exist");
+        fs::write(&source, b"incoming").expect("incoming EPUB should exist");
+        let fs_ops = FailingFinalRenameFileSystem {
+            backup_marker: "replace-backup",
+            temp_marker: "tmp-import",
+        };
+
+        let result = copy_or_move_epub_with_fs(
+            &source,
+            &destination,
+            ArchiveImportMode::Copy,
+            true,
+            &fs_ops,
+        );
+
+        assert!(result.is_err());
+        assert_eq!(fs::read(&destination).unwrap(), b"existing");
+        assert!(source.is_file());
+        assert!(!root
+            .read_dir()
+            .expect("archive should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("replace-backup")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+        fs::remove_dir_all(external).expect("source folder should be removed");
     }
 
     #[test]
@@ -424,6 +606,14 @@ mod tests {
         .expect("replace import should run");
         assert_eq!(replaced[0].status, ArchiveImportStatus::Imported);
         assert_eq!(fs::read(root.join("Novel.epub")).unwrap(), b"incoming");
+        assert!(!root
+            .read_dir()
+            .expect("archive should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| {
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                file_name.contains("tmp-import") || file_name.contains("replace-backup")
+            }));
         let _ = fs::remove_dir_all(root);
         let _ = fs::remove_dir_all(external);
     }

@@ -45,6 +45,7 @@ function createStorage(rescan: () => Promise<void>): LibraryStorage {
     getEpubWritebackBackupStatus: vi.fn(),
     clearEpubWritebackBackups: vi.fn(),
     clearScannerCache: vi.fn(),
+    repairArchiveMetadata: vi.fn(),
     revealMetadataFolder: vi.fn(),
   } as unknown as LibraryStorage;
 }

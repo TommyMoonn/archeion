@@ -89,6 +89,7 @@ function createStorage({
     getEpubWritebackBackupStatus: vi.fn(),
     clearEpubWritebackBackups: vi.fn(),
     clearScannerCache: vi.fn(),
+    repairArchiveMetadata: vi.fn(),
     revealMetadataFolder: vi.fn(),
   } as unknown as LibraryStorage;
 }

@@ -300,11 +300,36 @@ fn scan_path(root: PathBuf) -> Result<ArchiveScan, String> {
         return Err("The saved archive folder is unavailable.".to_string());
     }
 
-    let cache = metadata::load_scanner_cache_at(&root).unwrap_or_default();
+    let mut warnings = Vec::new();
+    let cache = match metadata::load_scanner_cache_with_recovery_at(&root) {
+        Ok((cache, recovered)) => {
+            if recovered {
+                warnings.push(ArchiveScanWarning {
+                    relative_path: format!(
+                        "{}/{}",
+                        metadata::METADATA_DIRECTORY,
+                        metadata::SCANNER_CACHE_FILE
+                    ),
+                    message: "Scanner cache was rebuilt.".to_string(),
+                });
+            }
+            cache
+        }
+        Err(_) => {
+            warnings.push(ArchiveScanWarning {
+                relative_path: format!(
+                    "{}/{}",
+                    metadata::METADATA_DIRECTORY,
+                    metadata::SCANNER_CACHE_FILE
+                ),
+                message: "Scanner cache could not be read. It will be rebuilt.".to_string(),
+            });
+            metadata::ScannerCache::default()
+        }
+    };
     let mut next_cache = metadata::ScannerCache::default();
     let mut books = Vec::new();
     let mut folders = Vec::new();
-    let mut warnings = Vec::new();
     scan_directory(
         &root,
         &root,
@@ -317,8 +342,19 @@ fn scan_path(root: PathBuf) -> Result<ArchiveScan, String> {
     books.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
     folders.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
 
-    if next_cache != cache {
-        let _ = metadata::save_scanner_cache_at(&root, &next_cache);
+    if next_cache != cache && metadata::save_scanner_cache_at(&root, &next_cache).is_err() {
+        warnings.push(ArchiveScanWarning {
+            relative_path: format!(
+                "{}/{}",
+                metadata::METADATA_DIRECTORY,
+                metadata::SCANNER_CACHE_FILE
+            ),
+            message: concat!(
+                "Scanner cache could not be saved. ",
+                "The library will rescan more work next time."
+            )
+            .to_string(),
+        });
     }
 
     Ok(ArchiveScan {
@@ -734,6 +770,10 @@ mod tests {
         let scan = scan_path(root.clone()).expect("archive scan should recover and succeed");
 
         assert_eq!(scan.books.len(), 1);
+        assert!(scan.warnings.iter().any(|warning| {
+            warning.relative_path == ".archeion/scanner-cache.json"
+                && warning.message == "Scanner cache was rebuilt."
+        }));
         let metadata = scan.books[0]
             .source_metadata
             .as_ref()
@@ -748,6 +788,37 @@ mod tests {
                 .file_name()
                 .to_string_lossy()
                 .contains("scanner-cache.json.corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn returns_scan_results_with_warning_when_scanner_cache_save_fails() {
+        let nonce = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock should be valid")
+            .as_nanos();
+        let root = std::env::temp_dir().join(format!("archeion-scanner-cache-save-fail-{nonce}"));
+        let metadata_dir = root.join(".archeion");
+        fs::create_dir_all(&metadata_dir).expect("metadata directory should be created");
+        fs::create_dir_all(metadata_dir.join("scanner-cache.json"))
+            .expect("conflicting scanner cache directory should be created");
+        write_minimal_epub(
+            &root.join("Novel.epub"),
+            br#"<package><metadata><dc:title>Novel</dc:title></metadata></package>"#,
+        );
+
+        let scan = scan_path(root.clone()).expect("archive scan should still succeed");
+
+        assert_eq!(scan.books.len(), 1);
+        assert!(scan.warnings.iter().any(|warning| {
+            warning.relative_path == ".archeion/scanner-cache.json"
+                && warning.message
+                    == concat!(
+                        "Scanner cache could not be saved. ",
+                        "The library will rescan more work next time."
+                    )
+        }));
+        assert!(metadata_dir.join("scanner-cache.json").is_dir());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

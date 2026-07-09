@@ -26,6 +26,7 @@ const initialConfirmations: SettingsConfirmationState = {
   clearEpubWritebackBackups: false,
   clearScannerCache: false,
   reextractMetadata: false,
+  repairMetadata: false,
   rescanArchive: false,
 };
 
@@ -428,6 +429,17 @@ export function useSettingsDialogController({
     }
   }
 
+  async function repairMetadata() {
+    try {
+      await storage.repairArchiveMetadata();
+      setSuccessStatus("Archive metadata repaired.");
+    } catch {
+      setErrorStatus("Archive metadata could not be repaired.");
+    } finally {
+      closeConfirmation("repairMetadata");
+    }
+  }
+
   async function resetGeneral() {
     await updateAppPreferences(
       {
@@ -542,6 +554,7 @@ export function useSettingsDialogController({
     confirmClearEpubWritebackBackups: () => void clearEpubWritebackBackups(),
     confirmClearScannerCache: () => void clearScannerCache(),
     confirmReextractMetadata: () => void reextractMetadata(),
+    confirmRepairMetadata: () => void repairMetadata(),
     confirmRescanArchive: () => void rescan(),
   };
 }

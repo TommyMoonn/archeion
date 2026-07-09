@@ -2,6 +2,8 @@ import { BookOpenText } from "@phosphor-icons/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
+import { Button } from "../../components/Button";
+
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -54,6 +56,7 @@ export function ReaderPage() {
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
+  const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const settingsOpenRef = useRef(settingsOpen);
   const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
@@ -193,6 +196,22 @@ export function ReaderPage() {
     setError(message);
   }, []);
 
+  const handleRescanAndReturn = useCallback(() => {
+    setRecoveryStatus("rescanning");
+    void storage
+      .rescan()
+      .then(() => {
+        if (!mountedRef.current) return;
+        setRecoveryStatus("idle");
+        void navigate("/");
+      })
+      .catch(() => {
+        if (mountedRef.current) {
+          setRecoveryStatus("failed");
+        }
+      });
+  }, [navigate, storage]);
+
   const handleReaderKeyDown = useCallback(
     (event: KeyboardEvent, preventDefault: boolean) => {
       const intent = getReaderKeyboardIntent(event);
@@ -294,9 +313,23 @@ export function ReaderPage() {
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
-        <Link className="text-link" to="/">
-          Return to library
-        </Link>
+        <div className="reader-status-page__actions">
+          <Button
+            disabled={recoveryStatus === "rescanning"}
+            onClick={handleRescanAndReturn}
+            variant="secondary"
+          >
+            {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
+          </Button>
+          <Link className="text-link" to="/">
+            Return to library
+          </Link>
+        </div>
+        {recoveryStatus === "failed" ? (
+          <p className="reader-status-page__error" role="alert">
+            The archive could not be scanned.
+          </p>
+        ) : null}
       </main>
     );
   }
@@ -322,10 +355,24 @@ export function ReaderPage() {
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Unable to open book</h1>
-        <p>The EPUB file may have been moved or deleted. Rescan the library.</p>
-        <Link className="text-link" to="/">
-          Return to library
-        </Link>
+        <p>The EPUB file may have been moved or deleted.</p>
+        <div className="reader-status-page__actions">
+          <Button
+            disabled={recoveryStatus === "rescanning"}
+            onClick={handleRescanAndReturn}
+            variant="secondary"
+          >
+            {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
+          </Button>
+          <Link className="text-link" to="/">
+            Return to library
+          </Link>
+        </div>
+        {recoveryStatus === "failed" ? (
+          <p className="reader-status-page__error" role="alert">
+            The archive could not be scanned.
+          </p>
+        ) : null}
       </main>
     );
   }

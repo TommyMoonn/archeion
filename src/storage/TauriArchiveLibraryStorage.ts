@@ -1105,6 +1105,17 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.invokeArchiveCommand("clear_scanner_cache", undefined, rootPath);
   }
 
+  async repairArchiveMetadata(): Promise<void> {
+    const scope = this.createArchiveCommandScope();
+    await this.enqueueMetadataIo(async () => {
+      await this.invokeArchiveCommand("initialize_archive_metadata", undefined, scope.rootPath);
+      await this.invokeArchiveCommand("clear_scanner_cache", undefined, scope.rootPath);
+    }, scope.generation);
+
+    this.assertCurrentArchiveScope(scope);
+    await this.rescan();
+  }
+
   revealMetadataFolder(): Promise<void> {
     const { rootPath } = this.createArchiveCommandScope();
     return this.invokeArchiveCommand("reveal_archeion_folder", undefined, rootPath);

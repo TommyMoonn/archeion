@@ -97,5 +97,6 @@ export interface LibraryStorage {
   getEpubWritebackBackupStatus(): Promise<EpubWritebackBackupStatus>;
   clearEpubWritebackBackups(): Promise<EpubWritebackBackupStatus>;
   clearScannerCache(): Promise<void>;
+  repairArchiveMetadata(): Promise<void>;
   revealMetadataFolder(): Promise<void>;
 }

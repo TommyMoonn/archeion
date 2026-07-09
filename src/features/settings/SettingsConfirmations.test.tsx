@@ -8,6 +8,7 @@ const closedConfirmations: SettingsConfirmationState = {
   clearEpubWritebackBackups: false,
   clearScannerCache: false,
   reextractMetadata: false,
+  repairMetadata: false,
   rescanArchive: false,
 };
 
@@ -20,6 +21,7 @@ function renderConfirmations(confirmations: Partial<SettingsConfirmationState>) 
       onClearScannerCache={vi.fn()}
       onClose={vi.fn()}
       onReextractMetadata={vi.fn()}
+      onRepairMetadata={vi.fn()}
       onRescanArchive={vi.fn()}
     />,
   );
@@ -56,6 +58,14 @@ describe("SettingsConfirmations", () => {
 
     expect(markup).toContain("Re-extract source metadata?");
     expect(markup).toContain("Re-extract");
+  });
+
+  it("renders the metadata repair confirmation", () => {
+    const markup = renderConfirmations({ repairMetadata: true });
+
+    expect(markup).toContain("Repair archive metadata?");
+    expect(markup).toContain("EPUB files are not changed.");
+    expect(markup).toContain("Repair metadata");
   });
 
   it("renders the archive rescan confirmation", () => {
