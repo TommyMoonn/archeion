@@ -144,23 +144,25 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             </IconButton>
           ) : null}
         </div>
-        {folders.length > 0 ? (
-          <FolderTree
-            folders={folders}
-            location={location}
-            onDelete={onDeleteFolder}
-            onMove={onMoveFolder}
-            onRename={onRenameFolder}
-            onReveal={onRevealFolder}
-            showActions={canManageFolders}
-            showReveal={canRevealFolders}
-            onSelect={(folder) =>
-              onLocationChange({ type: "folder", folderId: folder.id })
-            }
-          />
-        ) : (
-          <p className="folder-placeholder">No folders found</p>
-        )}
+        <div className="sidebar__folder-scroll">
+          {folders.length > 0 ? (
+            <FolderTree
+              folders={folders}
+              location={location}
+              onDelete={onDeleteFolder}
+              onMove={onMoveFolder}
+              onRename={onRenameFolder}
+              onReveal={onRevealFolder}
+              showActions={canManageFolders}
+              showReveal={canRevealFolders}
+              onSelect={(folder) =>
+                onLocationChange({ type: "folder", folderId: folder.id })
+              }
+            />
+          ) : (
+            <p className="folder-placeholder">No folders found</p>
+          )}
+        </div>
       </div>
 
       <div className="sidebar-footer">

@@ -22,16 +22,16 @@
   display: grid;
   gap: 4px;
   margin-top: 0;
-  padding-right: 16px;
+  padding-right: 4px;
 }
 
 .nav-item {
   display: grid;
-  grid-template-columns: 20px 1fr auto;
+  grid-template-columns: 20px minmax(0, 1fr) 32px;
   align-items: center;
   gap: 10px;
   min-height: 40px;
-  padding: 0 11px;
+  padding: 0 4px 0 11px;
   border: 0;
   border-radius: var(--radius-control);
   color: var(--muted);
@@ -59,27 +59,44 @@
 }
 
 .nav-item__count {
+  justify-self: stretch;
+  padding-right: 6px;
   color: var(--muted-soft);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .sidebar__section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 26px;
+  padding-right: 4px;
+}
+
+.sidebar__section-heading {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 3px 0 8px;
+}
+
+.sidebar__section-heading .icon-button {
+  width: 28px;
+  height: 28px;
+}
+
+.sidebar__folder-scroll {
   flex: 1;
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  margin-top: 26px;
-  padding-right: 4px;
-}
-
-.sidebar__section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px 0 8px;
 }
 
 .section-label {
@@ -248,7 +265,7 @@ html[data-density="compact"] .nav-item {
   }
 
   .nav-item {
-    padding-inline: 9px;
+    padding: 0 0 0 9px;
   }
 
   .page-shell {

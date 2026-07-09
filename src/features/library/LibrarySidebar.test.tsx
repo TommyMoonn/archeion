@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import type { KnownArchive } from "../../types/archive";
+import type { Folder } from "../../types/folder";
 import { LibrarySidebar } from "./LibrarySidebar";
 
 const activeArchive: KnownArchive = {
@@ -20,7 +21,7 @@ const savedArchive: KnownArchive = {
   lastOpenedAt: "1",
 };
 
-function renderSidebar() {
+function renderSidebar(folders: Folder[] = []) {
   return renderToStaticMarkup(
     <LibrarySidebar
       activeArchive={activeArchive}
@@ -28,7 +29,7 @@ function renderSidebar() {
       bookCount={0}
       continueCount={0}
       favoriteCount={0}
-      folders={[]}
+      folders={folders}
       location={{ type: "library" }}
       onCreateFolder={() => undefined}
       onDeleteFolder={() => undefined}
@@ -62,5 +63,25 @@ describe("LibrarySidebar", () => {
     expect(archiveRows).toHaveLength(1);
     expect(archiveRows?.[0]).not.toContain("<svg");
     expect(markup).toContain("archive-switcher__current");
+  });
+
+  it("keeps the folder heading outside the scrollable folder list", () => {
+    const markup = renderSidebar([
+      {
+        id: "folder-black-saint",
+        name: "Black Saint",
+        relativePath: "Black Saint",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ]);
+
+    expect(markup).toContain('class="sidebar__section-heading"');
+    expect(markup).toContain('class="sidebar__folder-scroll"');
+    expect(markup).toMatch(
+      /sidebar__section-heading[\s\S]*?Create folder[\s\S]*?sidebar__folder-scroll/,
+    );
   });
 });
