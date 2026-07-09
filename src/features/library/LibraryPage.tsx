@@ -13,7 +13,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -59,6 +59,13 @@ import {
 } from "./libraryFilters";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
+import {
+  folderBrowserViewFromSearchParams,
+  libraryLocationFromSearchParams,
+  searchParamsForFolderBrowserView,
+  searchParamsForLibraryLocation,
+  type FolderBrowserView,
+} from "./libraryViewState";
 
 const loadAddEpubDialog = () =>
   import("../filesystem/AddEpubDialog").then((module) => ({
@@ -165,6 +172,7 @@ export function LibraryPage() {
 
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const storage = useLibraryStorage();
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
@@ -181,9 +189,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [query, setQuery] = useState("");
   const [archiveImportSettings, setArchiveImportSettings] =
     useState<ArchiveImportSettings>(defaultArchiveImportSettings);
-  const [location, setLocation] = useState<LibraryLocation>({
-    type: "library",
-  });
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [metadataEditorBookId, setMetadataEditorBookId] = useState<
     string | null
@@ -213,6 +218,19 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...globalImportPreferences,
     ...archiveImportSettings,
   };
+  const location = useMemo(
+    () =>
+      libraryLocationFromSearchParams(
+        searchParams,
+        folders ?? [],
+        activeArchive.id,
+      ),
+    [activeArchive.id, folders, searchParams],
+  );
+  const folderBrowserView = useMemo(
+    () => folderBrowserViewFromSearchParams(searchParams),
+    [searchParams],
+  );
 
   useEffect(() => {
     const preloadDialogs = () => {
@@ -407,9 +425,36 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         scrollMainContentToTop();
       }
 
-      setLocation(nextLocation);
+      const nextParams = searchParamsForLibraryLocation(
+        searchParams,
+        nextLocation,
+        folders ?? [],
+        activeArchive.id,
+      );
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams);
+      }
     },
-    [location, scrollMainContentToTop],
+    [
+      activeArchive.id,
+      folders,
+      location,
+      scrollMainContentToTop,
+      searchParams,
+      setSearchParams,
+    ],
+  );
+
+  const changeFolderBrowserView = useCallback(
+    (nextView: FolderBrowserView) => {
+      const nextParams = searchParamsForFolderBrowserView(searchParams, nextView);
+
+      if (nextParams.toString() !== searchParams.toString()) {
+        setSearchParams(nextParams, { replace: true });
+      }
+    },
+    [searchParams, setSearchParams],
   );
 
   const clearLibrarySearch = useCallback(() => {
@@ -489,6 +534,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }
 
   async function switchArchive(archiveId: string) {
+    setSearchParams(
+      searchParamsForLibraryLocation(
+        searchParams,
+        { type: "library" },
+        folders ?? [],
+        archiveId,
+      ),
+      { replace: true },
+    );
     await archiveStore.switchArchive(archiveId);
   }
 
@@ -731,6 +785,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           }
           onRename={setRenameFolderTarget}
           onReveal={(folder) => void revealFolder(folder)}
+          onViewChange={changeFolderBrowserView}
+          view={folderBrowserView}
         />
       ) : (
         <>

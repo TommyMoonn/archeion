@@ -22,7 +22,7 @@ import {
   getFolderDisplayPath,
 } from "./folderTreeUtils";
 
-type FolderBrowserView = "list" | "cards";
+export type FolderBrowserView = "list" | "cards";
 
 type FolderBrowserProps = {
   bookCounts: Map<string, number>;
@@ -35,6 +35,8 @@ type FolderBrowserProps = {
   onOpen: (folder: Folder) => void;
   onRename?: (folder: Folder) => void;
   onReveal?: (folder: Folder) => void;
+  onViewChange?: (view: FolderBrowserView) => void;
+  view?: FolderBrowserView;
 };
 
 const folderViewOptions: Array<{
@@ -65,9 +67,13 @@ export function FolderBrowser({
   onOpen,
   onRename,
   onReveal,
+  onViewChange,
+  view: controlledView,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
-  const [view, setView] = useState<FolderBrowserView>("list");
+  const [localView, setLocalView] = useState<FolderBrowserView>("list");
+  const view = controlledView ?? localView;
+  const changeView = onViewChange ?? setLocalView;
   const visibleFolders = useMemo(
     () => searchFolders(folders, query),
     [folders, query],
@@ -126,7 +132,7 @@ export function FolderBrowser({
           <SegmentedControl
             className="folder-view-toggle"
             label="Folder view"
-            onChange={setView}
+            onChange={changeView}
             options={folderViewOptions}
             value={view}
           />
