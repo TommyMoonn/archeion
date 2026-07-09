@@ -8,13 +8,28 @@
         }
 
         const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        const prefersMobilePerformance = window.matchMedia("(max-width: 720px), (pointer: coarse)").matches;
+        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        const prefersLitePerformance =
+          prefersMobilePerformance ||
+          connection?.saveData === true ||
+          (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+          (navigator.deviceMemory && navigator.deviceMemory <= 4);
+        const nav = document.querySelector(".site-nav");
+        let navHeight = nav?.offsetHeight || 0;
         const navLinks = [...document.querySelectorAll(".nav-links a")];
         const sections = navLinks
           .map((link) => document.querySelector(link.getAttribute("href")))
           .filter(Boolean);
 
         const pageRoot = document.documentElement;
+        pageRoot.classList.toggle("mobile-performance", prefersMobilePerformance);
+        pageRoot.classList.toggle("performance-lite", prefersLitePerformance);
         let anchorScrollTimer = 0;
+
+        window.addEventListener("resize", () => {
+          navHeight = nav?.offsetHeight || 0;
+        }, { passive: true });
 
         const endAnchorScroll = () => {
           pageRoot.classList.remove("is-anchor-scrolling");
@@ -23,7 +38,6 @@
         };
 
         const getAnchorScrollTop = (target) => {
-          const navHeight = document.querySelector(".site-nav")?.offsetHeight || 0;
           const rect = target.getBoundingClientRect();
           const anchorPadding = Math.min(6, Math.max(0, window.innerHeight * 0.006));
           const readerNudge = target.id === "experience" ? 18 : 0;
@@ -93,11 +107,23 @@
 
         sections.forEach((section) => navObserver.observe(section));
 
+        const activeSectionObserver = new IntersectionObserver(
+          (entries) => {
+            entries.forEach((entry) => {
+              entry.target.classList.toggle("is-visible-section", entry.isIntersecting);
+            });
+          },
+          { rootMargin: "18% 0px 18% 0px", threshold: 0.01 },
+        );
+
+        document.querySelectorAll(".hero, .alive-section, .get-started-section")
+          .forEach((section) => activeSectionObserver.observe(section));
+
         const prewarmSections = () => {
           pageRoot.classList.add("sections-prewarmed");
         };
 
-        if (!prefersReducedMotion) {
+        if (!prefersReducedMotion && !prefersLitePerformance) {
           if ("requestIdleCallback" in window) {
             window.requestIdleCallback(prewarmSections, { timeout: 900 });
           } else {
@@ -122,24 +148,31 @@
           });
         }
 
-        if (!prefersReducedMotion && window.matchMedia("(pointer: fine)").matches) {
+        if (
+          !prefersReducedMotion &&
+          !prefersLitePerformance &&
+          window.matchMedia("(hover: hover) and (pointer: fine)").matches
+        ) {
           const root = pageRoot;
           const stage = document.querySelector(".hero-stage");
           const reactiveNodes = [...document.querySelectorAll(".interactive-glow")];
           let frame = 0;
           let pointerX = window.innerWidth / 2;
           let pointerY = window.innerHeight / 2;
+          let glowFrame = 0;
+          let glowNode = null;
+          let glowEvent = null;
 
           const updatePointerFrame = () => {
             const viewportX = pointerX / window.innerWidth;
             const viewportY = pointerY / window.innerHeight;
-            const tiltX = (viewportX - 0.5) * 8;
-            const tiltY = (viewportY - 0.5) * -7;
+            const tiltX = (viewportX - 0.5) * 6;
+            const tiltY = (viewportY - 0.5) * -5;
 
             root.style.setProperty("--cursor-x", (viewportX * 100).toFixed(2) + "%");
             root.style.setProperty("--cursor-y", (viewportY * 100).toFixed(2) + "%");
-            root.style.setProperty("--hero-drift-x", ((viewportX - 0.5) * 18).toFixed(2));
-            root.style.setProperty("--hero-drift-y", ((viewportY - 0.5) * 14).toFixed(2));
+            root.style.setProperty("--hero-drift-x", ((viewportX - 0.5) * 12).toFixed(2));
+            root.style.setProperty("--hero-drift-y", ((viewportY - 0.5) * 9).toFixed(2));
 
             if (stage) {
               stage.style.setProperty("--tilt-x", tiltX.toFixed(2) + "deg");
@@ -147,6 +180,23 @@
             }
 
             frame = 0;
+          };
+
+          const updateGlowFrame = () => {
+            if (!glowNode || !glowEvent) {
+              glowFrame = 0;
+              return;
+            }
+
+            const rect = glowNode.getBoundingClientRect();
+            const localX = Math.min(1, Math.max(0, (glowEvent.clientX - rect.left) / rect.width));
+            const localY = Math.min(1, Math.max(0, (glowEvent.clientY - rect.top) / rect.height));
+
+            glowNode.style.setProperty("--mx", (localX * 100).toFixed(1) + "%");
+            glowNode.style.setProperty("--my", (localY * 100).toFixed(1) + "%");
+            glowNode.style.setProperty("--card-depth-x", ((localX - 0.5) * 3).toFixed(2) + "px");
+            glowNode.style.setProperty("--card-depth-y", ((localY - 0.5) * 3).toFixed(2) + "px");
+            glowFrame = 0;
           };
 
           window.addEventListener("pointermove", (event) => {
@@ -161,19 +211,16 @@
 
           reactiveNodes.forEach((node) => {
             node.addEventListener("pointermove", (event) => {
-              const rect = node.getBoundingClientRect();
-              const localX = (event.clientX - rect.left) / rect.width;
-              const localY = (event.clientY - rect.top) / rect.height;
-
-              node.style.setProperty("--mx", (localX * 100).toFixed(1) + "%");
-              node.style.setProperty("--my", (localY * 100).toFixed(1) + "%");
-              node.style.setProperty("--card-depth-x", ((localX - 0.5) * 5).toFixed(2) + "px");
-              node.style.setProperty("--card-depth-y", ((localY - 0.5) * 5).toFixed(2) + "px");
+              glowNode = node;
+              glowEvent = event;
+              if (!glowFrame) {
+                glowFrame = window.requestAnimationFrame(updateGlowFrame);
+              }
             }, { passive: true });
           });
         }
 
-        if (!prefersReducedMotion) {
+        if (!prefersReducedMotion && !prefersLitePerformance) {
           const root = pageRoot;
           let scrollFrame = 0;
 
