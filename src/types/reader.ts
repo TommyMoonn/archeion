@@ -13,6 +13,7 @@ export type ReaderChapter = {
 };
 
 export type ReaderNavigationState = {
+  chapterProgress?: number;
   chapters: readonly ReaderChapter[];
   currentChapterId?: string;
   status: "loading" | "ready";

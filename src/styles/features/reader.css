@@ -70,6 +70,19 @@
   text-align: center;
 }
 
+.reader-toolbar__chapter-navigation {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 34px;
+  align-items: center;
+  width: min(42vw, 460px);
+  gap: 4px;
+}
+
+.reader-toolbar__chapter-spacer {
+  width: 34px;
+  height: 34px;
+}
+
 .reader-toolbar__back {
   display: inline-flex;
   align-items: center;
@@ -92,7 +105,7 @@
 
 .reader-toolbar__identity p {
   overflow: hidden;
-  max-width: min(48vw, 520px);
+  max-width: 100%;
   margin: 0;
   color: var(--reader-text);
   font-size: 12px;
@@ -103,10 +116,13 @@
 
 .reader-toolbar__identity span {
   display: block;
+  overflow: hidden;
   margin-top: 3px;
   color: var(--reader-muted);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reader-toolbar__identity span[data-error] {
@@ -737,6 +753,10 @@
 
   .reader-toolbar__identity p {
     max-width: 100%;
+  }
+
+  .reader-toolbar__chapter-navigation {
+    width: min(32vw, 180px);
   }
 
   .reader-settings {

@@ -1,4 +1,12 @@
-import { ArrowLeft, CaretLeft, CaretRight, ListBullets, TextAa } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  CaretDoubleLeft,
+  CaretDoubleRight,
+  CaretLeft,
+  CaretRight,
+  ListBullets,
+  TextAa,
+} from "@phosphor-icons/react";
 import type { Ref } from "react";
 import { Link } from "react-router-dom";
 
@@ -7,11 +15,18 @@ import { IconButton } from "../../components/IconButton";
 type ReaderToolbarProps = {
   atEnd: boolean;
   atStart: boolean;
+  chapterProgress?: number;
+  chapterTitle?: string;
+  hasChapterNavigation: boolean;
+  nextChapterDisabled: boolean;
   onNext: () => void;
+  onNextChapter: () => void;
   onPrevious: () => void;
+  onPreviousChapter: () => void;
   onSettings: () => void;
   onToc: () => void;
   percentage: number;
+  previousChapterDisabled: boolean;
   progressSaveFailed: boolean;
   title: string;
   tocButtonRef?: Ref<HTMLButtonElement>;
@@ -21,16 +36,29 @@ type ReaderToolbarProps = {
 export function ReaderToolbar({
   atEnd,
   atStart,
+  chapterProgress,
+  chapterTitle,
+  hasChapterNavigation,
+  nextChapterDisabled,
   onNext,
+  onNextChapter,
   onPrevious,
+  onPreviousChapter,
   onSettings,
   onToc,
   percentage,
+  previousChapterDisabled,
   progressSaveFailed,
   title,
   tocButtonRef,
   tocOpen,
 }: ReaderToolbarProps) {
+  const positionLabel =
+    chapterProgress === undefined
+      ? `Book ${percentage.toFixed(1)}%`
+      : `Chapter ${chapterProgress}% · Book ${percentage.toFixed(1)}%`;
+  const statusLabel = progressSaveFailed ? `Not saved · ${positionLabel}` : positionLabel;
+
   return (
     <header className="reader-toolbar">
       <Link
@@ -42,11 +70,33 @@ export function ReaderToolbar({
         <ArrowLeft aria-hidden="true" size={18} weight="regular" />
         <span>Library</span>
       </Link>
-      <div className="reader-toolbar__identity">
-        <p>{title}</p>
-        <span data-error={progressSaveFailed || undefined}>
-          {progressSaveFailed ? "Progress not saved" : `${percentage.toFixed(1)}%`}
-        </span>
+      <div className="reader-toolbar__chapter-navigation">
+        {hasChapterNavigation ? (
+          <IconButton
+            disabled={previousChapterDisabled}
+            label="Previous chapter"
+            onClick={onPreviousChapter}
+          >
+            <CaretDoubleLeft aria-hidden="true" size={18} weight="bold" />
+          </IconButton>
+        ) : (
+          <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
+        )}
+        <div className="reader-toolbar__identity">
+          <p aria-live="polite" title={chapterTitle ?? title}>
+            {chapterTitle ?? title}
+          </p>
+          <span data-error={progressSaveFailed || undefined} title={statusLabel}>
+            {statusLabel}
+          </span>
+        </div>
+        {hasChapterNavigation ? (
+          <IconButton disabled={nextChapterDisabled} label="Next chapter" onClick={onNextChapter}>
+            <CaretDoubleRight aria-hidden="true" size={18} weight="bold" />
+          </IconButton>
+        ) : (
+          <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
+        )}
       </div>
       <div className="reader-toolbar__navigation">
         <IconButton

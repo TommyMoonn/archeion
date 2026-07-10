@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 
 import type { Location, Rendition } from "epubjs";
-import { act } from "react";
+import { act, createRef } from "react";
+import type { Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
-import { EpubViewer } from "./EpubViewer";
+import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 
 const epubModuleMock = vi.hoisted(() => ({
   openBook: vi.fn(),
@@ -139,7 +140,7 @@ function createBookSession(chapterId: string, chapterHref: string) {
   };
 }
 
-function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)"): Location {
+function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)", page = 1, total = 4): Location {
   return {
     start: {
       href,
@@ -147,7 +148,7 @@ function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)"): Location {
       index: 0,
       location: 0,
       percentage: 0.25,
-      displayed: { page: 1, total: 4 },
+      displayed: { page, total },
     },
     end: {
       href,
@@ -155,7 +156,7 @@ function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)"): Location {
       index: 0,
       location: 0,
       percentage: 0.25,
-      displayed: { page: 1, total: 4 },
+      displayed: { page, total },
     },
     atEnd: false,
     atStart: false,
@@ -175,7 +176,10 @@ function defaultViewerProps(fileBlob: Blob) {
   };
 }
 
-async function renderViewer(props: ReturnType<typeof defaultViewerProps>) {
+async function renderViewer(
+  props: ReturnType<typeof defaultViewerProps>,
+  viewerRef?: Ref<EpubViewerHandle>,
+) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -183,7 +187,7 @@ async function renderViewer(props: ReturnType<typeof defaultViewerProps>) {
   activeContainer = container;
 
   await act(async () => {
-    root.render(<EpubViewer {...props} />);
+    root.render(<EpubViewer {...props} ref={viewerRef} />);
   });
 
   return { container, root };
@@ -311,6 +315,7 @@ describe("EpubViewer navigation lifecycle", () => {
     });
 
     expect(props.onNavigationChange).toHaveBeenLastCalledWith({
+      chapterProgress: 25,
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       currentChapterId: "chapter-1",
       status: "ready",
@@ -318,6 +323,53 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
     expect(session.renderTo).toHaveBeenCalledTimes(1);
     expect(session.rendition.display).toHaveBeenCalledTimes(1);
+  });
+
+  it("publishes meaningful chapter progress changes within the current chapter", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+
+    await renderViewer(props);
+    await waitForActiveRendition(session);
+    await resolveNavigation(session);
+
+    await act(async () => {
+      session.rendition.emitMock("relocated", relocation("Text/chapter-1.xhtml"));
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:20)", 2, 4),
+      );
+    });
+
+    expect(props.onNavigationChange).toHaveBeenLastCalledWith({
+      chapterProgress: 50,
+      chapters: [expect.objectContaining({ id: "chapter-1" })],
+      currentChapterId: "chapter-1",
+      status: "ready",
+    });
+    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
+    expect(session.renderTo).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses the shared chapter target when toolbar navigation requests a chapter", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    await resolveNavigation(session);
+
+    let didNavigate = false;
+    await act(async () => {
+      didNavigate = (await viewerRef.current?.navigateToChapter("chapter-1")) ?? false;
+    });
+
+    expect(didNavigate).toBe(true);
+    expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml");
+    expect(session.rendition.display).toHaveBeenCalledTimes(2);
   });
 
   it("ignores stale navigation results after the book changes", async () => {

@@ -1,5 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Button } from "../../components/Button";
@@ -19,6 +19,7 @@ import {
   type ReaderSettings,
 } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
+import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import type { ReaderLocation } from "./readerLocation";
 import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
@@ -76,6 +77,14 @@ export function ReaderPage() {
   const bookId = book?.id;
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
+  const chapterSequence = useMemo(
+    () => deriveReaderChapterSequence(navigationState.chapters, navigationState.currentChapterId),
+    [navigationState.chapters, navigationState.currentChapterId],
+  );
+  const hasChapterNavigation =
+    navigationState.status === "ready" &&
+    navigationState.chapters.length > 0 &&
+    (chapterSequence.current !== undefined || location.atStart);
 
   useEffect(() => {
     settingsOpenRef.current = settingsOpen;
@@ -143,6 +152,18 @@ export function ReaderPage() {
   const navigateToChapter = useCallback((chapterId: string) => {
     return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
   }, []);
+
+  const movePreviousChapter = useCallback(() => {
+    if (chapterSequence.previousChapterId) {
+      void navigateToChapter(chapterSequence.previousChapterId);
+    }
+  }, [chapterSequence.previousChapterId, navigateToChapter]);
+
+  const moveNextChapter = useCallback(() => {
+    if (chapterSequence.nextChapterId) {
+      void navigateToChapter(chapterSequence.nextChapterId);
+    }
+  }, [chapterSequence.nextChapterId, navigateToChapter]);
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
@@ -425,12 +446,19 @@ export function ReaderPage() {
         <ReaderToolbar
           atEnd={location.atEnd}
           atStart={location.atStart}
+          chapterProgress={navigationState.chapterProgress}
+          chapterTitle={chapterSequence.current?.label}
+          hasChapterNavigation={hasChapterNavigation}
           onNext={moveNext}
+          onNextChapter={moveNextChapter}
           onPrevious={movePrevious}
+          onPreviousChapter={movePreviousChapter}
           onSettings={openSettings}
           onToc={toggleToc}
           percentage={location.percentage}
           progressSaveFailed={progressSaveFailed}
+          nextChapterDisabled={!chapterSequence.nextChapterId}
+          previousChapterDisabled={!chapterSequence.previousChapterId}
           title={title}
           tocButtonRef={tocButtonRef}
           tocOpen={tocOpen}
