@@ -57,7 +57,9 @@ jobs:
 
       - name: Stage installers and checksums
         shell: pwsh
-        run: ./scripts/stage-windows-bundles.ps1
+        run: >-
+          ./scripts/stage-windows-bundles.ps1
+          -BundleRoot ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle
 
       - name: Upload Windows installers
         uses: actions/upload-artifact@v4

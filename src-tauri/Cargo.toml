@@ -3,6 +3,7 @@ name = "archeion"
 version = "0.1.0"
 description = "A local-first desktop EPUB reader and archive manager"
 authors = ["Khoa Luong"]
+license = "GPL-3.0-only"
 homepage = "https://tommymoonn.github.io/archeion/"
 repository = "https://github.com/TommyMoonn/archeion"
 edition = "2021"

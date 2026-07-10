@@ -1,42 +1,46 @@
 # Changelog
 
-## Unreleased
+## [Unreleased]
+
+## [0.1.0] - 2026-07-10
+
+Archeion's first packaged Windows release.
 
 ### Added
 
-- Added the Tauri desktop archive model for local EPUB folders.
-- Added the Archive Manager for opening, switching, creating, renaming, revealing, and forgetting archives.
-- Added recursive EPUB scanning with preserved folder structure.
-- Added library browsing, search, sort, favorites, folder navigation, details drawer, and Continue Reading.
-- Added a paged EPUB reader with reading progress persistence and reader settings.
-- Added EPUB metadata editing with writeback backups and validation.
-- Added app-level and archive-level settings separation.
-- Added an app shell error boundary for recoverable render failures.
-- Added Windows NSIS and MSI packaging with deterministic release artifact names and SHA-256 checksums.
-- Added a manually triggered Windows installer workflow that verifies the project before bundling.
+- Added local-first EPUB archives backed by real folders on disk.
+- Added a standalone Archive Manager for creating, opening, switching, renaming, revealing, and forgetting archives.
+- Added recursive EPUB scanning with preserved folder hierarchy and live filesystem refresh.
+- Added library browsing, search, sorting, favorites, folder navigation, book details, and Continue Reading.
+- Added a paged EPUB reader with persistent reading progress, configurable navigation, and reader appearance settings.
+- Added bundled Literata and Atkinson Hyperlegible reader fonts that do not require system installation.
+- Added EPUB metadata editing with validation, writeback backups, and targeted post-write refresh.
+- Added real file and folder actions for adding, creating, renaming, moving, revealing, and deleting archive items.
+- Added app-level and archive-level settings, including startup behavior, reader-route restoration, window geometry, and destructive-action confirmations.
+- Added recovery states for missing archives, missing or unreadable EPUBs, corrupted sidecar metadata, and render failures.
+- Added Windows x64 installers in NSIS and MSI formats with deterministic artifact names and SHA-256 checksums.
 
 ### Changed
 
-- Moved the product model to real local archive folders with `.archeion/` sidecar metadata.
-- Reworked archive creation into a guided name and location flow.
-- Simplified library derived state and cached search/filter behavior.
-- Hardened reader session mounting so parent progress updates do not reset the active reader.
+- Made the filesystem the source of truth while keeping app metadata in each archive's `.archeion/` sidecar directory.
+- Made the standalone Archive Manager the only archive-selection surface during empty or unusable startup states.
+- Moved Windows deletion to the native Recycle Bin API without a permanent-delete fallback.
+- Reduced unnecessary library renders, cover work, rescans, reader remounting, and dialog churn.
+- Reworked archive creation into a guided name-and-location flow.
 
 ### Fixed
 
-- Prevented delete actions from permanently deleting files when Trash or Recycle Bin fails.
-- Made Add EPUB replacement transaction-safe so an existing archive EPUB is restored if replacement fails.
-- Made archive metadata JSON writes restore the previous active file if replacement fails.
-- Preserved corrupted metadata files as recovery backups.
-- Surfaced scanner-cache save failures as scan warnings while allowing scans to complete.
-- Improved missing archive, missing EPUB, unreadable EPUB, and metadata recovery states.
-
-### Performance
-
-- Improved library render behavior through derived-state extraction and search-index caching.
-- Reduced reader and dialog churn around active sessions, settings application, and metadata editor state.
-- Kept watcher-driven and import-driven rescans quieter to reduce unnecessary UI churn.
+- Prevented Trash or Recycle Bin failures from permanently deleting EPUB files or folders.
+- Made EPUB replacement transaction-safe so the previous file is restored when replacement fails.
+- Made metadata JSON replacement restore the previous active file when final replacement fails.
+- Preserved corrupted metadata files as recovery backups and allowed scanner-cache failures to remain non-fatal.
+- Fixed packaged EPUB loading by allowing the local blob-backed resources required by the reader.
+- Fixed Archive Manager close behavior after forgetting the active archive so Archeion never returns to a blank main window.
+- Improved handling for missing archives, missing books, unreadable EPUBs, and damaged metadata.
 
 ### Testing
 
-- Added regression coverage for archive data safety paths, reader session stability, metadata editor stability, library derived-state caching, settings recovery, and app error-boundary fallback behavior.
+- Added regression coverage for archive safety, startup lifecycle, reader sessions, metadata writeback, settings behavior, recovery states, release configuration, and packaged-reader compatibility.
+
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/TommyMoonn/archeion/releases/tag/v0.1.0

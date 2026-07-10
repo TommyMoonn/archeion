@@ -110,3 +110,7 @@ package-lock.json
 src-tauri/Cargo.toml
 src-tauri/tauri.conf.json
 ```
+
+## License
+
+Archeion is licensed under the [GNU General Public License v3.0 only](LICENSE).

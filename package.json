@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "A local-first desktop EPUB reader and archive manager.",
   "author": "Khoa Luong",
+  "license": "GPL-3.0-only",
   "homepage": "https://tommymoonn.github.io/archeion/",
   "repository": {
     "type": "git",
@@ -13,7 +14,7 @@
     "url": "https://github.com/TommyMoonn/archeion/issues"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.13.0"
   },
   "type": "module",
   "scripts": {
