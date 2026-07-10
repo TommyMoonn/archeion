@@ -11,10 +11,6 @@ import { ArchiveManagerFallback } from "./ArchiveManagerWindow";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
 import { completeArchiveManagerAction } from "./archiveManagerCompletion";
 
-(
-  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
-
 const activeArchive = {
   id: "archive-books",
   displayName: "Books",
@@ -41,7 +37,7 @@ const readyState: ArchiveState = {
 };
 
 function renderManager(state: ArchiveState = readyState) {
-  return renderToStaticMarkup(<ArchiveManagerWindowContent standalone state={state} />);
+  return renderToStaticMarkup(<ArchiveManagerWindowContent state={state} />);
 }
 
 function renderInteractive({
@@ -59,7 +55,6 @@ function renderInteractive({
     root.render(
       <ArchiveManagerWindowContent
         onArchiveChoiceComplete={onArchiveChoiceComplete}
-        standalone
         state={state}
       />,
     );
@@ -98,7 +93,8 @@ describe("ArchiveManagerWindow", () => {
   it("renders the manager surface for the separate window", () => {
     const markup = renderManager();
 
-    expect(markup).toContain("archive-manager-shell--standalone");
+    expect(markup).toContain("archive-manager-shell");
+    expect(markup).not.toContain("archive-manager-shell--standalone");
     expect(markup).toContain("Manage archives");
     expect(markup).toContain('aria-label="Archives"');
     expect(markup).not.toContain("Known archives");

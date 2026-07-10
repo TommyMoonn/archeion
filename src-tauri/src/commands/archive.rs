@@ -434,12 +434,12 @@ fn archive_manager_close_action(
     main_window_visible: bool,
     usable_active_archive: bool,
 ) -> ArchiveManagerCloseAction {
-    if main_window_visible {
-        ArchiveManagerCloseAction::FocusMain
-    } else if usable_active_archive {
-        ArchiveManagerCloseAction::ResumeStartup
-    } else {
+    if !usable_active_archive {
         ArchiveManagerCloseAction::Exit
+    } else if main_window_visible {
+        ArchiveManagerCloseAction::FocusMain
+    } else {
+        ArchiveManagerCloseAction::ResumeStartup
     }
 }
 
@@ -725,14 +725,18 @@ mod tests {
     };
 
     #[test]
-    fn archive_manager_close_lifecycle_matches_main_window_and_archive_state() {
+    fn archive_manager_close_lifecycle_requires_a_usable_archive() {
         assert_eq!(
-            archive_manager_close_action(true, false),
+            archive_manager_close_action(true, true),
             ArchiveManagerCloseAction::FocusMain
         );
         assert_eq!(
             archive_manager_close_action(false, true),
             ArchiveManagerCloseAction::ResumeStartup
+        );
+        assert_eq!(
+            archive_manager_close_action(true, false),
+            ArchiveManagerCloseAction::Exit
         );
         assert_eq!(
             archive_manager_close_action(false, false),
@@ -746,6 +750,22 @@ mod tests {
             .expect("system clock should be valid")
             .as_nanos();
         std::env::temp_dir().join(format!("archeion-archive-{label}-{nonce}"))
+    }
+
+    #[test]
+    fn archive_manager_close_lifecycle_rejects_missing_archive_roots() {
+        let missing_root = test_root("missing-manager-close-root");
+        let usable_active_archive = validated_root_path(&missing_root.to_string_lossy()).is_ok();
+
+        assert!(!usable_active_archive);
+        assert_eq!(
+            archive_manager_close_action(true, usable_active_archive),
+            ArchiveManagerCloseAction::Exit
+        );
+        assert_eq!(
+            archive_manager_close_action(false, usable_active_archive),
+            ArchiveManagerCloseAction::Exit
+        );
     }
 
     #[test]

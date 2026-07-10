@@ -18,7 +18,6 @@ type ArchiveManagerTransitionDirection = "forward" | "back";
 type ArchiveManagerWindowContentProps = {
   state: ArchiveState;
   onArchiveChoiceComplete?: () => void | Promise<unknown>;
-  standalone?: boolean;
 };
 
 type ArchiveRowProps = {
@@ -274,7 +273,6 @@ function ArchiveRow({
 export function ArchiveManagerWindowContent({
   state,
   onArchiveChoiceComplete,
-  standalone = false,
 }: ArchiveManagerWindowContentProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [view, setView] = useState<ArchiveManagerView>("manager");
@@ -294,9 +292,7 @@ export function ArchiveManagerWindowContent({
   }
 
   return (
-    <main
-      className={`archive-manager-shell${standalone ? " archive-manager-shell--standalone" : ""}`}
-    >
+    <main className="archive-manager-shell">
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-title"

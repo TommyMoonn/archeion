@@ -28,7 +28,7 @@ function messageFromError(error: unknown): string {
 
 export function ArchiveManagerFallback({ message }: { message: string }) {
   return (
-    <main className="archive-manager-shell archive-manager-shell--standalone">
+    <main className="archive-manager-shell">
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-fallback-title"
@@ -94,7 +94,6 @@ export function ArchiveManagerWindow() {
     <ArchiveManagerErrorBoundary>
       <ArchiveManagerWindowContent
         onArchiveChoiceComplete={completeArchiveManagerAction}
-        standalone
         state={archive}
       />
     </ArchiveManagerErrorBoundary>
