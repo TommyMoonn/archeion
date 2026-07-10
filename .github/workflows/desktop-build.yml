@@ -62,7 +62,7 @@ jobs:
           -BundleRoot ./src-tauri/target/x86_64-pc-windows-msvc/release/bundle
 
       - name: Upload Windows installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: archeion-${{ env.APP_VERSION }}-windows-x64
           path: |
