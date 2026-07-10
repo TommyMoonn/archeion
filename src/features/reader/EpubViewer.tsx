@@ -120,6 +120,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const navigationModelRef = useRef<ReaderNavigationModel>(emptyReaderNavigationModel);
   const navigationStateRef = useRef<ReaderNavigationState>({
     chapters: emptyReaderNavigationModel.chapters,
+    status: "loading",
   });
   const isTurningPageRef = useRef(false);
   const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
@@ -151,19 +152,24 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   contentThemeRef.current = contentTheme;
 
   const publishNavigationState = useCallback(
-    (model: ReaderNavigationModel, currentChapterId: string | undefined) => {
+    (
+      model: ReaderNavigationModel,
+      currentChapterId: string | undefined,
+      status: ReaderNavigationState["status"],
+    ) => {
       const previousState = navigationStateRef.current;
 
       if (
         previousState.chapters === model.chapters &&
-        previousState.currentChapterId === currentChapterId
+        previousState.currentChapterId === currentChapterId &&
+        previousState.status === status
       ) {
         return;
       }
 
       const nextState: ReaderNavigationState = currentChapterId
-        ? { chapters: model.chapters, currentChapterId }
-        : { chapters: model.chapters };
+        ? { chapters: model.chapters, currentChapterId, status }
+        : { chapters: model.chapters, status };
       navigationStateRef.current = nextState;
       callbacksRef.current.onNavigationChange?.(nextState);
     },
@@ -295,7 +301,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let currentChapterId: string | undefined;
 
     navigationModelRef.current = emptyReaderNavigationModel;
-    publishNavigationState(emptyReaderNavigationModel, undefined);
+    publishNavigationState(emptyReaderNavigationModel, undefined, "loading");
 
     function updateCurrentChapter(location: Location) {
       const model = navigationModelRef.current;
@@ -306,7 +312,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
 
       currentChapterId = nextCurrentChapterId;
-      publishNavigationState(model, currentChapterId);
+      publishNavigationState(model, currentChapterId, "ready");
     }
 
     async function loadNavigation(book: EpubBook) {
@@ -318,7 +324,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
       navigationModelRef.current = model;
       currentChapterId = lastRelocation ? model.findCurrentChapter(lastRelocation)?.id : undefined;
-      publishNavigationState(model, currentChapterId);
+      publishNavigationState(model, currentChapterId, "ready");
     }
 
     function removeContentListeners() {

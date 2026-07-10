@@ -1,4 +1,5 @@
-import { ArrowLeft, CaretLeft, CaretRight, TextAa } from "@phosphor-icons/react";
+import { ArrowLeft, CaretLeft, CaretRight, ListBullets, TextAa } from "@phosphor-icons/react";
+import type { Ref } from "react";
 import { Link } from "react-router-dom";
 
 import { IconButton } from "../../components/IconButton";
@@ -9,9 +10,12 @@ type ReaderToolbarProps = {
   onNext: () => void;
   onPrevious: () => void;
   onSettings: () => void;
+  onToc: () => void;
   percentage: number;
   progressSaveFailed: boolean;
   title: string;
+  tocButtonRef?: Ref<HTMLButtonElement>;
+  tocOpen: boolean;
 };
 
 export function ReaderToolbar({
@@ -20,9 +24,12 @@ export function ReaderToolbar({
   onNext,
   onPrevious,
   onSettings,
+  onToc,
   percentage,
   progressSaveFailed,
   title,
+  tocButtonRef,
+  tocOpen,
 }: ReaderToolbarProps) {
   return (
     <header className="reader-toolbar">
@@ -42,6 +49,16 @@ export function ReaderToolbar({
         </span>
       </div>
       <div className="reader-toolbar__navigation">
+        <IconButton
+          aria-controls="reader-table-of-contents"
+          aria-expanded={tocOpen}
+          label="Table of contents"
+          onClick={onToc}
+          ref={tocButtonRef}
+        >
+          <ListBullets aria-hidden="true" size={19} weight="regular" />
+        </IconButton>
+        <span className="reader-toolbar__divider" />
         <IconButton label="Previous page" disabled={atStart} onClick={onPrevious}>
           <CaretLeft aria-hidden="true" size={19} weight="bold" />
         </IconButton>

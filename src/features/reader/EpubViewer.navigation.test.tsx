@@ -244,6 +244,10 @@ describe("EpubViewer navigation lifecycle", () => {
     await renderViewer(props);
     await waitForActiveRendition(session);
 
+    expect(props.onNavigationChange).toHaveBeenCalledWith({
+      chapters: [],
+      status: "loading",
+    });
     expect(session.navigation.promise).toBeInstanceOf(Promise);
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
     expect(session.open).not.toHaveBeenCalled();
@@ -256,6 +260,7 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.rendition.display).toHaveBeenCalledTimes(1);
     expect(props.onNavigationChange).toHaveBeenLastCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
+      status: "ready",
     });
   });
 
@@ -288,6 +293,7 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.rendition.display).toHaveBeenCalledTimes(1);
     expect(replacementNavigationCallback).toHaveBeenCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
+      status: "ready",
     });
   });
 
@@ -307,6 +313,7 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(props.onNavigationChange).toHaveBeenLastCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       currentChapterId: "chapter-1",
+      status: "ready",
     });
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
     expect(session.renderTo).toHaveBeenCalledTimes(1);
@@ -342,6 +349,7 @@ describe("EpubViewer navigation lifecycle", () => {
     ).toBe(false);
     expect(navigationChanges).toHaveBeenLastCalledWith({
       chapters: [expect.objectContaining({ id: "new-chapter" })],
+      status: "ready",
     });
   });
 

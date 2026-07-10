@@ -15,6 +15,7 @@ export type ReaderChapter = {
 export type ReaderNavigationState = {
   chapters: readonly ReaderChapter[];
   currentChapterId?: string;
+  status: "loading" | "ready";
 };
 
 export type ReaderSettings = {

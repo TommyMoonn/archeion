@@ -13,12 +13,17 @@ import {
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
-import { normalizeReaderSettings, type ReaderSettings } from "../../types/reader";
+import {
+  normalizeReaderSettings,
+  type ReaderNavigationState,
+  type ReaderSettings,
+} from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { ReaderLocation } from "./readerLocation";
 import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
+import { ReaderTocPanel } from "./ReaderTocPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 
@@ -39,6 +44,7 @@ export function ReaderPage() {
   const settings = useReaderPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
+  const tocButtonRef = useRef<HTMLButtonElement>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const progressWriter = useRef<DebouncedTask<{
     bookId: string;
@@ -55,9 +61,15 @@ export function ReaderPage() {
   } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [tocOpen, setTocOpen] = useState(false);
+  const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
+    chapters: [],
+    status: "loading",
+  });
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const settingsOpenRef = useRef(settingsOpen);
+  const tocOpenRef = useRef(tocOpen);
   const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
@@ -68,6 +80,10 @@ export function ReaderPage() {
   useEffect(() => {
     settingsOpenRef.current = settingsOpen;
   }, [settingsOpen]);
+
+  useEffect(() => {
+    tocOpenRef.current = tocOpen;
+  }, [tocOpen]);
 
   useEffect(() => {
     controlsVisibleRef.current = controlsVisible;
@@ -89,9 +105,9 @@ export function ReaderPage() {
 
   const revealControls = useCallback(() => {
     const now = Date.now();
-    const isSettingsOpen = settingsOpenRef.current;
+    const isPanelOpen = settingsOpenRef.current || tocOpenRef.current;
 
-    if (controlsVisibleRef.current && !isSettingsOpen && now - lastControlsRevealAt.current < 250) {
+    if (controlsVisibleRef.current && !isPanelOpen && now - lastControlsRevealAt.current < 250) {
       return;
     }
 
@@ -100,7 +116,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!isSettingsOpen) {
+    if (!isPanelOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -109,7 +125,23 @@ export function ReaderPage() {
 
   const openSettings = useCallback(() => {
     setControlsVisible(true);
+    setTocOpen(false);
     setSettingsOpen(true);
+  }, []);
+
+  const toggleToc = useCallback(() => {
+    setControlsVisible(true);
+    setSettingsOpen(false);
+    setTocOpen((isOpen) => !isOpen);
+  }, []);
+
+  const closeToc = useCallback(() => {
+    setTocOpen(false);
+    window.requestAnimationFrame(() => tocButtonRef.current?.focus());
+  }, []);
+
+  const navigateToChapter = useCallback((chapterId: string) => {
+    return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
   }, []);
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
@@ -225,7 +257,9 @@ export function ReaderPage() {
       }
 
       if (intent === "close") {
-        if (settingsOpenRef.current) {
+        if (tocOpenRef.current) {
+          closeToc();
+        } else if (settingsOpenRef.current) {
           setSettingsOpen(false);
         } else {
           void navigate("/");
@@ -244,7 +278,7 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [moveNext, movePrevious, navigate, openSettings],
+    [closeToc, moveNext, movePrevious, navigate, openSettings],
   );
 
   const handleContentKeyDown = useCallback(
@@ -282,7 +316,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen) {
+    if (!settingsOpen && !tocOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -293,7 +327,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [settingsOpen]);
+  }, [settingsOpen, tocOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -384,16 +418,22 @@ export function ReaderPage() {
       onFocusCapture={revealControls}
       onPointerMove={revealControls}
     >
-      <div className="reader-controls" data-visible={controlsVisible || settingsOpen || undefined}>
+      <div
+        className="reader-controls"
+        data-visible={controlsVisible || settingsOpen || tocOpen || undefined}
+      >
         <ReaderToolbar
           atEnd={location.atEnd}
           atStart={location.atStart}
           onNext={moveNext}
           onPrevious={movePrevious}
           onSettings={openSettings}
+          onToc={toggleToc}
           percentage={location.percentage}
           progressSaveFailed={progressSaveFailed}
           title={title}
+          tocButtonRef={tocButtonRef}
+          tocOpen={tocOpen}
         />
       </div>
       <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
@@ -416,10 +456,19 @@ export function ReaderPage() {
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}
           onLocationChange={handleLocationChange}
+          onNavigationChange={setNavigationState}
           onReady={handleReady}
           settings={settings}
         />
       )}
+
+      {tocOpen ? (
+        <ReaderTocPanel
+          navigation={navigationState}
+          onClose={closeToc}
+          onNavigate={navigateToChapter}
+        />
+      ) : null}
 
       {settingsOpen ? (
         <div className="reader-settings-layer" onClick={() => setSettingsOpen(false)}>
