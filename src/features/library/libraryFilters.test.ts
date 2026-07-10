@@ -6,6 +6,8 @@ import { createDefaultLibraryFilters } from "../../types/library";
 import {
   DEFAULT_LIBRARY_SORT,
   bookAuthor,
+  bookMatchesLibraryFilters,
+  bookNeedsMetadata,
   bookTitle,
   createCachedLibrarySearchIndex,
   createLibrarySearchIndex,
@@ -21,6 +23,7 @@ import {
   getVisibleBooks,
   hasActiveLibraryFilters,
   normalizeLibrarySort,
+  pruneUnavailableLibraryMetadataFilters,
   sortBooks,
 } from "./libraryFilters";
 
@@ -612,6 +615,166 @@ describe("library filters", () => {
       languages: ["en"],
       publishers: ["North Press", "South Press"],
     });
+  });
+
+  it("matches any selected subject while composing separate filter categories with AND semantics", () => {
+    const fantasy = createBook({
+      id: "fantasy",
+      progressPercent: 0,
+      sourceMetadata: {
+        title: "Fantasy",
+        creator: "Author",
+        subjects: ["Fantasy"],
+        publisher: "Example Press",
+      },
+    });
+    const adventure = createBook({
+      id: "adventure",
+      progressPercent: 0,
+      sourceMetadata: {
+        title: "Adventure",
+        creator: "Author",
+        subjects: ["adventure"],
+        publisher: "Example Press",
+      },
+    });
+    const wrongPublisher = createBook({
+      id: "wrong-publisher",
+      progressPercent: 0,
+      sourceMetadata: {
+        title: "Other",
+        creator: "Author",
+        subjects: ["Fantasy"],
+        publisher: "Other Press",
+      },
+    });
+    const neither = createBook({
+      id: "neither",
+      progressPercent: 0,
+      sourceMetadata: {
+        title: "Mystery",
+        creator: "Author",
+        subjects: ["Mystery"],
+        publisher: "Example Press",
+      },
+    });
+    const filters = {
+      ...createDefaultLibraryFilters(),
+      subjects: ["FANTASY", "Adventure"],
+      publishers: ["example press"],
+      readingStatuses: ["unread" as const],
+    };
+
+    expect(
+      [fantasy, adventure, wrongPublisher, neither]
+        .filter((book) => bookMatchesLibraryFilters(book, filters))
+        .map((book) => book.id),
+    ).toEqual(["fantasy", "adventure"]);
+  });
+
+  it("prunes only unavailable archive-specific metadata selections", () => {
+    const filters = {
+      ...createDefaultLibraryFilters(),
+      series: ["Shared Series", "Old Series"],
+      subjects: ["Shared Subject", "Old Subject"],
+      languages: ["EN", "fr"],
+      publishers: ["Shared Press", "Old Press"],
+      readingStatuses: ["in-progress" as const],
+      favoritesOnly: true,
+      missingMetadata: true,
+      missingCover: true,
+    };
+
+    const pruned = pruneUnavailableLibraryMetadataFilters(filters, {
+      series: ["shared series", "New Series"],
+      subjects: ["SHARED SUBJECT"],
+      languages: ["en"],
+      publishers: ["shared press"],
+    });
+
+    expect(pruned).toEqual({
+      ...filters,
+      series: ["Shared Series"],
+      subjects: ["Shared Subject"],
+      languages: ["EN"],
+      publishers: ["Shared Press"],
+    });
+    expect(pruned.readingStatuses).toBe(filters.readingStatuses);
+    expect(pruned.favoritesOnly).toBe(true);
+    expect(pruned.missingMetadata).toBe(true);
+    expect(pruned.missingCover).toBe(true);
+
+    expect(
+      pruneUnavailableLibraryMetadataFilters(pruned, {
+        series: ["Shared Series"],
+        subjects: ["Shared Subject"],
+        languages: ["en"],
+        publishers: ["Shared Press"],
+      }),
+    ).toBe(pruned);
+  });
+
+  it("defines Needs Metadata as missing title or author only", () => {
+    const missingTitle = createBook({
+      id: "missing-title",
+      coverPath: "cover.jpg",
+      sourceMetadata: { creator: "Author" },
+    });
+    const missingCreator = createBook({
+      id: "missing-creator",
+      coverPath: "cover.jpg",
+      sourceMetadata: { title: "Title" },
+    });
+    const missingBoth = createBook({
+      id: "missing-both",
+      coverPath: "cover.jpg",
+      sourceMetadata: {},
+    });
+    const complete = createBook({
+      id: "complete",
+      coverPath: "cover.jpg",
+      sourceMetadata: { title: "Title", creator: "Author" },
+    });
+    const optionalMetadataMissing = createBook({
+      id: "optional-metadata-missing",
+      coverPath: "cover.jpg",
+      sourceMetadata: { title: "Title", creator: "Author" },
+    });
+    const coverOnlyMissing = createBook({
+      id: "cover-only-missing",
+      sourceMetadata: { title: "Title", creator: "Author" },
+    });
+    const candidates = [
+      missingTitle,
+      missingCreator,
+      missingBoth,
+      complete,
+      optionalMetadataMissing,
+      coverOnlyMissing,
+    ];
+
+    expect(candidates.filter(bookNeedsMetadata).map((book) => book.id)).toEqual([
+      "missing-title",
+      "missing-creator",
+      "missing-both",
+    ]);
+    expect(
+      candidates
+        .filter((book) =>
+          bookMatchesLibraryFilters(book, {
+            ...createDefaultLibraryFilters(),
+            missingMetadata: true,
+          }),
+        )
+        .map((book) => book.id),
+    ).toEqual(["missing-title", "missing-creator", "missing-both"]);
+    expect(
+      filterBooksByLocation(candidates, {
+        type: "smart-view",
+        smartView: "needs-metadata",
+      }).map((book) => book.id),
+    ).toEqual(["missing-title", "missing-creator", "missing-both"]);
+    expect(countBooksBySmartView(candidates)["needs-metadata"]).toBe(3);
   });
 
   it("combines metadata, status, favorite, and missing-data filters", () => {

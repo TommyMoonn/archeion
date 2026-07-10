@@ -7,7 +7,7 @@ import { Dialog } from "../../components/Dialog";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
-import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
+import type { AddArchiveEpubInput, ScanStatus } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -40,6 +40,7 @@ import {
   bookTitle,
   createLibrarySearchIndexCache,
   hasActiveLibraryFilters,
+  pruneUnavailableLibraryMetadataFilters,
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
@@ -167,6 +168,11 @@ function isInsideFolder(relativePath: string | undefined, folder: Folder): boole
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
+type ArchiveBooksLoadState =
+  | { status: "loading"; archiveId: string; books: Book[] | undefined }
+  | { status: "ready"; archiveId: string; books: Book[] }
+  | { status: "error"; archiveId: string; books: Book[] | undefined };
+
 export function LibraryPage() {
   const archive = useArchive();
 
@@ -185,7 +191,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const globalImportPreferences = useImportPreferences();
   const { confirmDestructiveFileActions } = useAppPreferences();
   const showContinueReading = useShowContinueReadingPreference();
-  const [books, setBooks] = useState<Book[] | undefined>();
+  const [booksLoadState, setBooksLoadState] = useState<ArchiveBooksLoadState>({
+    status: "loading",
+    archiveId: archive.archive.id,
+    books: undefined,
+  });
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const pageShellRef = useRef<HTMLElement>(null);
   const importLock = useRef(false);
@@ -217,6 +227,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const activeArchive = archive.archive;
+  const books = booksLoadState.books;
   const filters = libraryPreferences.filters;
   const sort = libraryPreferences.sortBy;
   const view = libraryPreferences.viewMode;
@@ -305,12 +316,77 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, []);
 
   useEffect(() => {
+    let active = true;
+    let currentScanStatus: ScanStatus["status"] = "idle";
+    let pendingBooks: Book[] | undefined;
+    let booksLoadFailed = false;
+    const archiveId = activeArchive.id;
+
     const handleStorageError = () => {
       showLibraryError("The active archive could not be loaded.");
     };
+    const publishReadyBooks = () => {
+      if (
+        !active ||
+        currentScanStatus !== "idle" ||
+        booksLoadFailed ||
+        pendingBooks === undefined
+      ) {
+        return;
+      }
+
+      setBooksLoadState({ status: "ready", archiveId, books: pendingBooks });
+    };
+    const stopScanStatus = storage.observeScanStatus({
+      next: (status) => {
+        if (!active) return;
+
+        currentScanStatus = status.status;
+        if (status.status === "scanning") {
+          booksLoadFailed = false;
+          setBooksLoadState((currentState) => ({
+            status: "loading",
+            archiveId,
+            books: currentState.archiveId === archiveId ? currentState.books : undefined,
+          }));
+          return;
+        }
+
+        publishReadyBooks();
+      },
+      error: () => {
+        if (!active) return;
+        booksLoadFailed = true;
+        setBooksLoadState((currentState) => ({
+          status: "error",
+          archiveId,
+          books: currentState.archiveId === archiveId ? currentState.books : undefined,
+        }));
+        handleStorageError();
+      },
+    });
     const stopBooks = storage.observeBooks({
-      next: setBooks,
-      error: handleStorageError,
+      next: (nextBooks) => {
+        if (!active) return;
+
+        pendingBooks = nextBooks;
+        booksLoadFailed = false;
+        if (currentScanStatus === "idle") {
+          setBooksLoadState({ status: "ready", archiveId, books: nextBooks });
+        } else {
+          setBooksLoadState({ status: "loading", archiveId, books: nextBooks });
+        }
+      },
+      error: () => {
+        if (!active) return;
+        booksLoadFailed = true;
+        setBooksLoadState((currentState) => ({
+          status: "error",
+          archiveId,
+          books: currentState.archiveId === archiveId ? currentState.books : pendingBooks,
+        }));
+        handleStorageError();
+      },
     });
     const stopFolders = storage.observeFolders({
       next: setFolders,
@@ -318,10 +394,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     });
 
     return () => {
+      active = false;
+      stopScanStatus();
       stopBooks();
       stopFolders();
     };
-  }, [showLibraryError, storage]);
+  }, [activeArchive.id, showLibraryError, storage]);
 
   useEffect(() => {
     if (archive.watcherError) {
@@ -434,6 +512,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     selectedBookId,
     sort,
   });
+
+  useEffect(() => {
+    if (booksLoadState.status !== "ready" || booksLoadState.archiveId !== activeArchive.id) {
+      return;
+    }
+
+    const nextFilters = pruneUnavailableLibraryMetadataFilters(filters, filterOptions);
+    if (nextFilters !== filters) {
+      changeFilters(nextFilters);
+    }
+  }, [activeArchive.id, booksLoadState, changeFilters, filterOptions, filters]);
+
   const closeDetails = useCallback(() => setSelectedBookId(null), []);
   const scrollMainContentToTop = useCallback(() => {
     scrollElementToTop(pageShellRef.current);

@@ -1,9 +1,17 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { KnownArchive } from "../../types/archive";
 import type { Folder } from "../../types/folder";
 import { LibrarySidebar } from "./LibrarySidebar";
+
+(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const activeArchive: KnownArchive = {
   id: "archive-books",
@@ -21,41 +29,92 @@ const savedArchive: KnownArchive = {
   lastOpenedAt: "1",
 };
 
+const defaultSmartViewCounts: Parameters<typeof LibrarySidebar>[0]["smartViewCounts"] = {
+  unread: 0,
+  "in-progress": 0,
+  completed: 0,
+  "needs-metadata": 0,
+  "needs-cover": 0,
+};
+
+function sidebarProps(
+  folders: Folder[] = [],
+  location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
+  smartViewCounts = defaultSmartViewCounts,
+  onLocationChange: Parameters<typeof LibrarySidebar>[0]["onLocationChange"] = vi.fn(),
+): Parameters<typeof LibrarySidebar>[0] {
+  return {
+    activeArchive,
+    archives: [activeArchive, savedArchive],
+    bookCount: 0,
+    favoriteCount: 0,
+    folders,
+    location,
+    seriesCount: 3,
+    smartViewCounts,
+    onCreateFolder: vi.fn(),
+    onDeleteFolder: vi.fn(),
+    onLocationChange,
+    onManageArchives: vi.fn(),
+    onMoveFolder: vi.fn(),
+    onOpenAbout: vi.fn(),
+    onOpenSettings: vi.fn(),
+    onRenameFolder: vi.fn(),
+    onSwitchArchive: vi.fn(),
+  };
+}
+
 function renderSidebar(
   folders: Folder[] = [],
   location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
-  smartViewCounts: Parameters<typeof LibrarySidebar>[0]["smartViewCounts"] = {
-    unread: 0,
-    "in-progress": 0,
-    completed: 0,
-    "needs-metadata": 0,
-    "needs-cover": 0,
-  },
+  smartViewCounts = defaultSmartViewCounts,
 ) {
   return renderToStaticMarkup(
-    <LibrarySidebar
-      activeArchive={activeArchive}
-      archives={[activeArchive, savedArchive]}
-      bookCount={0}
-      favoriteCount={0}
-      folders={folders}
-      location={location}
-      seriesCount={3}
-      smartViewCounts={smartViewCounts}
-      onCreateFolder={() => undefined}
-      onDeleteFolder={() => undefined}
-      onLocationChange={() => undefined}
-      onManageArchives={() => undefined}
-      onMoveFolder={() => undefined}
-      onOpenAbout={() => undefined}
-      onOpenSettings={() => undefined}
-      onRenameFolder={() => undefined}
-      onSwitchArchive={() => undefined}
-    />,
+    <LibrarySidebar {...sidebarProps(folders, location, smartViewCounts)} />,
   );
 }
 
+function renderInteractiveSidebar(
+  location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
+  smartViewCounts = defaultSmartViewCounts,
+  onLocationChange = vi.fn(),
+) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <LibrarySidebar {...sidebarProps([], location, smartViewCounts, onLocationChange)} />,
+    );
+  });
+
+  return { container, onLocationChange, root };
+}
+
+function smartViewsDisclosure(container: HTMLElement): HTMLButtonElement {
+  const disclosure = container.querySelector<HTMLButtonElement>(
+    "button[aria-controls][aria-expanded]",
+  );
+
+  if (!disclosure) {
+    throw new Error("Smart Views disclosure was not rendered.");
+  }
+
+  return disclosure;
+}
+
+let activeRoot: Root | null = null;
+
 describe("LibrarySidebar", () => {
+  afterEach(() => {
+    if (activeRoot) {
+      act(() => activeRoot?.unmount());
+      activeRoot = null;
+    }
+    document.body.innerHTML = "";
+  });
+
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
     const archiveRows = markup.match(
@@ -103,9 +162,36 @@ describe("LibrarySidebar", () => {
     expect(markup).toMatch(/aria-current="page"[\s\S]*?>Series<[\s\S]*?>3</);
   });
 
-  it("shows the fixed derived smart views with their current counts", () => {
-    const markup = renderSidebar(
-      [],
+  it("collapses Smart Views initially and supports pointer and keyboard-compatible activation", () => {
+    const session = renderInteractiveSidebar();
+    activeRoot = session.root;
+    const disclosure = smartViewsDisclosure(session.container);
+    const contentId = disclosure.getAttribute("aria-controls");
+
+    const content = session.container.querySelector<HTMLElement>(`#${contentId}`);
+
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(disclosure.tagName).toBe("BUTTON");
+    expect(contentId).toBeTruthy();
+    expect(content?.hidden).toBe(true);
+
+    act(() => {
+      disclosure.focus();
+      disclosure.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 }));
+    });
+
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(content?.hidden).toBe(false);
+    expect(content?.textContent).toContain("Unread");
+
+    act(() => disclosure.click());
+
+    expect(disclosure.getAttribute("aria-expanded")).toBe("false");
+    expect(content?.hidden).toBe(true);
+  });
+
+  it("indicates the active smart view compactly while collapsed", () => {
+    const session = renderInteractiveSidebar(
       { type: "smart-view", smartView: "completed" },
       {
         unread: 4,
@@ -115,19 +201,97 @@ describe("LibrarySidebar", () => {
         "needs-cover": 5,
       },
     );
+    activeRoot = session.root;
+    const disclosure = smartViewsDisclosure(session.container);
 
-    expect(markup).toContain("Smart views");
+    expect(disclosure.textContent).toContain("Smart views");
+    expect(disclosure.textContent).toContain("· Completed");
+    const activeRow = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-current="page"]',
+    );
+
+    expect(activeRow?.textContent).toContain("Completed");
+    expect(activeRow?.closest(".sidebar__smart-views-list")?.hasAttribute("hidden")).toBe(true);
+    expect(disclosure.textContent).not.toContain("2");
+  });
+
+  it("shows fixed smart-view rows, counts, and metadata guidance when expanded", () => {
+    const session = renderInteractiveSidebar(
+      { type: "smart-view", smartView: "completed" },
+      {
+        unread: 4,
+        "in-progress": 3,
+        completed: 2,
+        "needs-metadata": 1,
+        "needs-cover": 5,
+      },
+    );
+    activeRoot = session.root;
+
+    act(() => smartViewsDisclosure(session.container).click());
+
+    const markup = session.container.innerHTML;
+    const needsMetadata = Array.from(session.container.querySelectorAll("button")).find((button) =>
+      button.textContent?.includes("Needs Metadata"),
+    );
+
     expect(markup).toMatch(/>Unread<[\s\S]*?>4</);
     expect(markup).toMatch(/>In Progress<[\s\S]*?>3</);
     expect(markup).toMatch(/aria-current="page"[\s\S]*?>Completed<[\s\S]*?>2</);
     expect(markup).toMatch(/>Needs Metadata<[\s\S]*?>1</);
     expect(markup).toMatch(/>Needs Cover<[\s\S]*?>5</);
+    expect(needsMetadata?.getAttribute("title")).toBe("Missing title or author");
+    expect(
+      session.container.querySelector(
+        `#${needsMetadata?.getAttribute("aria-describedby") ?? "missing"}`,
+      )?.textContent,
+    ).toContain("Missing title or author");
+  });
+
+  it("keeps Smart Views expanded after navigation and preserves existing routes", () => {
+    const onLocationChange = vi.fn();
+    const session = renderInteractiveSidebar(
+      { type: "library" },
+      defaultSmartViewCounts,
+      onLocationChange,
+    );
+    activeRoot = session.root;
+    const disclosure = smartViewsDisclosure(session.container);
+
+    act(() => disclosure.click());
+    const completed = Array.from(session.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Completed0",
+    );
+    const inProgress = Array.from(session.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "In Progress0",
+    );
+
+    act(() => completed?.click());
+    expect(onLocationChange).toHaveBeenCalledWith({
+      type: "smart-view",
+      smartView: "completed",
+    });
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
+    expect(session.container.textContent).toContain("Needs Cover");
+
+    act(() => inProgress?.click());
+    expect(onLocationChange).toHaveBeenCalledWith({ type: "continue" });
+    expect(disclosure.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("keeps the existing Continue location active as the In Progress smart view", () => {
-    const markup = renderSidebar([], { type: "continue" });
+    const session = renderInteractiveSidebar({ type: "continue" });
+    activeRoot = session.root;
+    const disclosure = smartViewsDisclosure(session.container);
 
-    expect(markup).toMatch(/aria-current="page"[\s\S]*?>In Progress</);
-    expect(markup).not.toContain(">Continue<");
+    expect(disclosure.textContent).toContain("· In Progress");
+
+    act(() => disclosure.click());
+
+    const activeRow = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-current="page"]',
+    );
+    expect(activeRow?.textContent).toContain("In Progress");
+    expect(session.container.textContent).not.toContain("Continue");
   });
 });

@@ -1,6 +1,7 @@
 import {
   Archive,
   Books,
+  CaretRight,
   CaretUpDown,
   Check,
   ClockCounterClockwise,
@@ -16,7 +17,7 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { memo, useCallback } from "react";
+import { memo, useCallback, useId, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { KnownArchive } from "../../types/archive";
@@ -37,6 +38,11 @@ const smartViews: Array<{ icon: Icon; view: LibrarySmartView }> = [
   { view: "needs-metadata", icon: NotePencil },
   { view: "needs-cover", icon: ImageBroken },
 ];
+
+function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView | null {
+  if (location.type === "continue") return "in-progress";
+  return location.type === "smart-view" ? location.smartView : null;
+}
 
 type LibrarySidebarProps = {
   activeArchive: KnownArchive;
@@ -89,6 +95,9 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
+  const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
+  const smartViewsContentId = useId();
+  const activeSmartView = activeSmartViewForLocation(location);
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher();
@@ -155,33 +164,66 @@ export const LibrarySidebar = memo(function LibrarySidebar({
       </nav>
 
       <div className="sidebar__smart-views">
-        <div className="section-label">Smart views</div>
-        {smartViews.map(({ view, icon: SmartViewIcon }) => {
-          const isActive =
-            view === "in-progress"
-              ? location.type === "continue" ||
-                (location.type === "smart-view" && location.smartView === view)
-              : location.type === "smart-view" && location.smartView === view;
-          return (
-            <button
-              aria-current={isActive ? "page" : undefined}
-              className={`nav-item ${isActive ? "active" : ""}`}
-              key={view}
-              type="button"
-              onClick={() =>
-                onLocationChange(
-                  view === "in-progress"
-                    ? { type: "continue" }
-                    : { type: "smart-view", smartView: view },
-                )
-              }
-            >
-              <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
-              <span>{librarySmartViewLabel(view)}</span>
-              <span className="nav-item__count">{smartViewCounts[view]}</span>
-            </button>
-          );
-        })}
+        <button
+          aria-controls={smartViewsContentId}
+          aria-expanded={smartViewsExpanded}
+          className="sidebar__smart-views-disclosure"
+          type="button"
+          onClick={() => setSmartViewsExpanded((expanded) => !expanded)}
+        >
+          <span className="sidebar__smart-views-title">
+            <span className="section-label">Smart views</span>
+            {!smartViewsExpanded && activeSmartView ? (
+              <span className="sidebar__smart-views-active">
+                · {librarySmartViewLabel(activeSmartView)}
+              </span>
+            ) : null}
+          </span>
+          <CaretRight
+            aria-hidden="true"
+            className="sidebar__smart-views-chevron"
+            data-expanded={smartViewsExpanded ? "true" : "false"}
+            size={13}
+            weight="bold"
+          />
+        </button>
+        <div
+          className="sidebar__smart-views-list"
+          hidden={!smartViewsExpanded}
+          id={smartViewsContentId}
+        >
+          <span className="sr-only" id={`${smartViewsContentId}-needs-metadata-description`}>
+            Missing title or author
+          </span>
+          {smartViews.map(({ view, icon: SmartViewIcon }) => {
+            const isActive = activeSmartView === view;
+            return (
+              <button
+                aria-current={isActive ? "page" : undefined}
+                aria-describedby={
+                  view === "needs-metadata"
+                    ? `${smartViewsContentId}-needs-metadata-description`
+                    : undefined
+                }
+                className={`nav-item ${isActive ? "active" : ""}`}
+                key={view}
+                title={view === "needs-metadata" ? "Missing title or author" : undefined}
+                type="button"
+                onClick={() =>
+                  onLocationChange(
+                    view === "in-progress"
+                      ? { type: "continue" }
+                      : { type: "smart-view", smartView: view },
+                  )
+                }
+              >
+                <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
+                <span>{librarySmartViewLabel(view)}</span>
+                <span className="nav-item__count">{smartViewCounts[view]}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="sidebar__section">

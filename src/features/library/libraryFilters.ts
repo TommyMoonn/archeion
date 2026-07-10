@@ -42,6 +42,14 @@ export type LibraryFilterOptions = {
 
 export type LibrarySmartViewCounts = Record<LibrarySmartView, number>;
 
+const librarySmartViews: readonly LibrarySmartView[] = [
+  "unread",
+  "in-progress",
+  "completed",
+  "needs-metadata",
+  "needs-cover",
+];
+
 export function librarySmartViewLabel(smartView: LibrarySmartView): string {
   switch (smartView) {
     case "unread":
@@ -96,13 +104,12 @@ export function countBooksBySmartView(books: Book[]): LibrarySmartViewCounts {
     "needs-metadata": 0,
     "needs-cover": 0,
   };
-
   for (const book of books) {
-    if (bookMatchesSmartView(book, "unread")) counts.unread += 1;
-    if (bookMatchesSmartView(book, "in-progress")) counts["in-progress"] += 1;
-    if (bookMatchesSmartView(book, "completed")) counts.completed += 1;
-    if (bookNeedsMetadata(book)) counts["needs-metadata"] += 1;
-    if (bookNeedsCover(book)) counts["needs-cover"] += 1;
+    for (const smartView of librarySmartViews) {
+      if (bookMatchesSmartView(book, smartView)) {
+        counts[smartView] += 1;
+      }
+    }
   }
 
   return counts;
@@ -145,7 +152,48 @@ function matchesSelectedSubjects(book: Book, selectedSubjects: string[]): boolea
   const subjects = new Set(
     (book.sourceMetadata?.subjects ?? []).map((subject) => normalizedMetadataValue(subject)),
   );
-  return selectedSubjects.every((subject) => subjects.has(normalizedMetadataValue(subject)));
+  return selectedSubjects.some((subject) => subjects.has(normalizedMetadataValue(subject)));
+}
+
+function pruneUnavailableMetadataSelections(
+  selectedValues: string[],
+  availableValues: string[],
+): string[] {
+  if (selectedValues.length === 0) return selectedValues;
+
+  const availableKeys = new Set(availableValues.map(normalizedMetadataValue));
+  const nextValues = selectedValues.filter((value) =>
+    availableKeys.has(normalizedMetadataValue(value)),
+  );
+
+  return nextValues.length === selectedValues.length ? selectedValues : nextValues;
+}
+
+export function pruneUnavailableLibraryMetadataFilters(
+  filters: LibraryFilterState,
+  options: LibraryFilterOptions,
+): LibraryFilterState {
+  const series = pruneUnavailableMetadataSelections(filters.series, options.series);
+  const subjects = pruneUnavailableMetadataSelections(filters.subjects, options.subjects);
+  const languages = pruneUnavailableMetadataSelections(filters.languages, options.languages);
+  const publishers = pruneUnavailableMetadataSelections(filters.publishers, options.publishers);
+
+  if (
+    series === filters.series &&
+    subjects === filters.subjects &&
+    languages === filters.languages &&
+    publishers === filters.publishers
+  ) {
+    return filters;
+  }
+
+  return {
+    ...filters,
+    series,
+    subjects,
+    languages,
+    publishers,
+  };
 }
 
 export function hasActiveLibraryFilters(filters: LibraryFilterState): boolean {
