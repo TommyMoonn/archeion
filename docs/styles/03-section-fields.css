@@ -457,11 +457,11 @@
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
 }
 
-.cinematic-enabled .alive-section::before {
+.motion-enabled .alive-section::before {
   animation: sectionMeshDrift 20s ease-in-out infinite alternate;
 }
 
-.cinematic-enabled .alive-section::after {
+.motion-enabled .alive-section::after {
   animation: sectionGridDrift 42s linear infinite;
 }
 

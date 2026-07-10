@@ -122,11 +122,11 @@
   outline-offset: 3px;
 }
 
-.cinematic-enabled .reader-progress span {
+.motion-enabled .reader-progress span {
   animation: progressPulse 4s ease-in-out infinite;
 }
 
-.cinematic-enabled .cover-mock::after {
+.motion-enabled .cover-mock::after {
   animation: coverSheen 5.2s ease-in-out infinite;
 }
 

@@ -35,23 +35,34 @@ footer.page-section {
   animation: none;
 }
 
-.performance-lite .neural-core::before,
-.performance-lite .neural-ring,
-.performance-lite .mesh-orb,
-.performance-lite .node,
-.performance-lite .alive-section::before,
+/* Keep the primary motion language on constrained devices, but remove the
+   largest full-section paint loops. Hardware hints are approximate and must
+   not turn the entire site into a static page. */
 .performance-lite .alive-section::after,
 .performance-lite .cover-mock::after,
-.performance-lite .reader-progress span,
-.mobile-performance .neural-core::before,
-.mobile-performance .neural-ring,
-.mobile-performance .mesh-orb,
-.mobile-performance .node,
-.mobile-performance .alive-section::before,
 .mobile-performance .alive-section::after,
-.mobile-performance .cover-mock::after,
-.mobile-performance .reader-progress span {
+.mobile-performance .cover-mock::after {
   animation: none !important;
+}
+
+.motion-enabled.performance-lite .neural-core::before,
+.motion-enabled.mobile-performance .neural-core::before {
+  animation-duration: 64s;
+}
+
+.motion-enabled.performance-lite .neural-ring,
+.motion-enabled.mobile-performance .neural-ring {
+  animation-duration: 58s;
+}
+
+.motion-enabled.performance-lite .mesh-orb,
+.motion-enabled.mobile-performance .mesh-orb {
+  animation-duration: 12s;
+}
+
+.motion-enabled.performance-lite .node,
+.motion-enabled.mobile-performance .node {
+  animation-duration: 4.5s;
 }
 
 .performance-lite .feature-card,
@@ -74,7 +85,10 @@ footer.page-section {
   transform: none !important;
 }
 
-.hero:not(.is-visible-section) .neural-core,
+.hero:not(.is-visible-section) .neural-core::before,
+.hero:not(.is-visible-section) .neural-ring,
+.hero:not(.is-visible-section) .mesh-orb,
+.hero:not(.is-visible-section) .node,
 .page-section:not(.is-visible-section) .cover-mock::after,
 .page-section:not(.is-visible-section) .reader-progress span,
 .page-section:not(.is-visible-section)::before,
@@ -97,15 +111,15 @@ html.is-anchor-scrolling .hero-stage {
   transform: none !important;
 }
 
-html:not(.cinematic-enabled) body::before,
-html:not(.cinematic-enabled) .neural-core::before,
-html:not(.cinematic-enabled) .neural-ring,
-html:not(.cinematic-enabled) .mesh-orb,
-html:not(.cinematic-enabled) .node,
-html:not(.cinematic-enabled) .alive-section::before,
-html:not(.cinematic-enabled) .alive-section::after,
-html:not(.cinematic-enabled) .cover-mock::after,
-html:not(.cinematic-enabled) .reader-progress span {
+html:not(.motion-enabled) body::before,
+html:not(.motion-enabled) .neural-core::before,
+html:not(.motion-enabled) .neural-ring,
+html:not(.motion-enabled) .mesh-orb,
+html:not(.motion-enabled) .node,
+html:not(.motion-enabled) .alive-section::before,
+html:not(.motion-enabled) .alive-section::after,
+html:not(.motion-enabled) .cover-mock::after,
+html:not(.motion-enabled) .reader-progress span {
   animation: none !important;
 }
 

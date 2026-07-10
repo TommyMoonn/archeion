@@ -281,32 +281,32 @@
   box-shadow: 0 0 14px rgb(143 193 227 / 50%);
 }
 
-.cinematic-enabled body::before {
+.motion-enabled body::before {
   animation: meshFloat 16s ease-in-out infinite alternate;
 }
 
-.cinematic-enabled .neural-core::before {
+.motion-enabled .neural-core::before {
   animation: slowSpin 42s linear infinite;
 }
 
-.cinematic-enabled .neural-ring-a {
+.motion-enabled .neural-ring-a {
   animation: slowSpin 48s linear infinite reverse;
 }
 
-.cinematic-enabled .neural-ring-b {
+.motion-enabled .neural-ring-b {
   animation: slowSpin 36s linear infinite;
 }
 
-.cinematic-enabled .mesh-orb-a,
-.cinematic-enabled .mesh-orb-c {
+.motion-enabled .mesh-orb-a,
+.motion-enabled .mesh-orb-c {
   animation: meshPulse 8s ease-in-out infinite alternate;
 }
 
-.cinematic-enabled .mesh-orb-b {
+.motion-enabled .mesh-orb-b {
   animation: meshPulse 9s ease-in-out infinite alternate-reverse;
 }
 
-.cinematic-enabled .node {
+.motion-enabled .node {
   animation: nodePulse 3s ease-in-out infinite alternate;
 }
 
