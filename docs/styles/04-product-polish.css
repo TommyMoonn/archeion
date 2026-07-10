@@ -133,7 +133,12 @@
 .cover-mock::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(110deg, transparent 0 34%, rgb(255 255 255 / 12%) 44%, transparent 56% 100%);
+  background: linear-gradient(
+    110deg,
+    transparent 0 34%,
+    rgb(255 255 255 / 12%) 44%,
+    transparent 56% 100%
+  );
   content: "";
   transform: translateX(-120%);
 }

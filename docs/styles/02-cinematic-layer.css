@@ -61,11 +61,8 @@
   inset: 50% auto auto 50%;
   width: min(450px, 78vw);
   aspect-ratio: 1;
-  transform: translate(-50%, -50%) translate3d(
-      calc(var(--hero-drift-x) * 1px),
-      calc(var(--hero-drift-y) * 1px),
-      0
-    );
+  transform: translate(-50%, -50%)
+    translate3d(calc(var(--hero-drift-x) * 1px), calc(var(--hero-drift-y) * 1px), 0);
 }
 
 .neural-core::before,
@@ -166,8 +163,7 @@
   place-items: center;
   border: 1px solid rgb(255 255 255 / 13%);
   background:
-    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 15%), transparent 42%),
-    rgb(18 18 19 / 86%);
+    radial-gradient(circle at 50% 0%, rgb(255 255 255 / 15%), transparent 42%), rgb(18 18 19 / 86%);
   box-shadow:
     0 0 0 10px rgb(143 193 227 / 4%),
     0 0 38px rgb(143 193 227 / 16%),

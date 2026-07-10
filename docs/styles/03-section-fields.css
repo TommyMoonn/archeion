@@ -53,7 +53,12 @@
   background:
     radial-gradient(ellipse 46% 48% at 20% 34%, rgb(143 193 227 / 8%), transparent 74%),
     radial-gradient(ellipse 42% 48% at 76% 70%, rgb(160 205 176 / 5.5%), transparent 76%),
-    conic-gradient(from 90deg at 52% 50%, transparent 0 12%, rgb(143 193 227 / 3.4%) 20%, transparent 34% 100%);
+    conic-gradient(
+      from 90deg at 52% 50%,
+      transparent 0 12%,
+      rgb(143 193 227 / 3.4%) 20%,
+      transparent 34% 100%
+    );
 }
 
 .reader-section::before {
@@ -196,8 +201,7 @@
   border: 1px solid var(--line);
   border-radius: 15px;
   background:
-    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%)),
-    var(--surface-raised);
+    linear-gradient(180deg, rgb(255 255 255 / 8%), rgb(255 255 255 / 2%)), var(--surface-raised);
 }
 
 .file-orbit span:nth-child(2) {

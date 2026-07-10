@@ -431,8 +431,7 @@ p {
 .archive-core-card {
   border: 1px solid rgb(255 255 255 / 8%);
   background:
-    radial-gradient(circle at 82% 0%, rgb(143 193 227 / 8%), transparent 52%),
-    rgb(29 29 32 / 74%);
+    radial-gradient(circle at 82% 0%, rgb(143 193 227 / 8%), transparent 52%), rgb(29 29 32 / 74%);
   box-shadow: 0 20px 70px rgb(0 0 0 / 18%);
   backdrop-filter: blur(12px) saturate(110%);
 }
