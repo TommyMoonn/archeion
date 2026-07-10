@@ -197,6 +197,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [metadataEditorBookId, setMetadataEditorBookId] = useState<string | null>(null);
+  const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
@@ -206,6 +207,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [deleteFolderTarget, setDeleteFolderTarget] = useState<Folder | null>(null);
   const [renameFileTarget, setRenameFileTarget] = useState<Book | null>(null);
   const [moveBookTarget, setMoveBookTarget] = useState<Book | null>(null);
+  const [isClearingProgress, setIsClearingProgress] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -497,6 +499,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [confirmDestructiveFileActions, deleteBook],
   );
 
+  const requestClearProgress = useCallback((book: Book) => {
+    setSelectedBookId(null);
+    setClearProgressTarget(book);
+  }, []);
+
   const deleteFolder = useCallback(
     async (folder: Folder) => {
       if (deleteLock.current) {
@@ -631,6 +638,44 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
 
     await deleteBook(deleteTarget);
+  }
+
+  async function confirmClearProgress() {
+    if (!clearProgressTarget || isClearingProgress) {
+      return;
+    }
+
+    const targetId = clearProgressTarget.id;
+    setIsClearingProgress(true);
+    dismissFeedback("clear-progress");
+
+    try {
+      const updated = await storage.updateBook(targetId, {
+        progressCfi: undefined,
+        progressPercent: 0,
+      });
+
+      if (!updated) {
+        throw new Error("The active archive changed before progress was cleared.");
+      }
+
+      pushFeedback({
+        id: "clear-progress",
+        tone: "success",
+        title: "Reading progress cleared.",
+        autoDismiss: true,
+      });
+    } catch {
+      pushFeedback({
+        id: "clear-progress",
+        tone: "error",
+        title: "Reading progress could not be cleared.",
+      });
+    } finally {
+      setClearProgressTarget(null);
+      setSelectedBookId(targetId);
+      setIsClearingProgress(false);
+    }
   }
 
   const toggleFavorite = useCallback(
@@ -915,6 +960,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             book={selectedBook}
             canManageFile
             canRevealFile
+            onClearProgress={requestClearProgress}
             onClose={closeDetails}
             onDelete={requestDelete}
             onViewMetadata={openMetadataEditor}
@@ -1035,6 +1081,36 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                   : deleteTarget.isFileMissing
                     ? "Remove metadata"
                     : "Delete EPUB"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {clearProgressTarget ? (
+        <Dialog
+          title="Clear reading progress?"
+          description={`This resets the saved reading position for “${bookTitle(clearProgressTarget)}”. The EPUB file and last-opened date are not changed.`}
+          onClose={() => {
+            if (!isClearingProgress) {
+              setSelectedBookId(clearProgressTarget.id);
+              setClearProgressTarget(null);
+            }
+          }}
+          footer={
+            <>
+              <Button
+                disabled={isClearingProgress}
+                onClick={() => {
+                  setSelectedBookId(clearProgressTarget.id);
+                  setClearProgressTarget(null);
+                }}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button autoFocus disabled={isClearingProgress} onClick={confirmClearProgress}>
+                {isClearingProgress ? "Clearing" : "Clear progress"}
               </Button>
             </>
           }

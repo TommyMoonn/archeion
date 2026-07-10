@@ -8,6 +8,7 @@ import {
   normalizeSeriesKey,
   filterSeriesEntries,
   seriesContinueBook,
+  seriesNextVolumeBook,
   sortSeriesBooks,
 } from "./seriesDerivation";
 
@@ -183,7 +184,7 @@ describe("series derivation", () => {
     expect(entries.map((entry) => entry.displayName)).toEqual(["Series 2", "Series 10"]);
   });
 
-  it("derives progress counts, current volume, next unread, and continuation target", () => {
+  it("derives progress counts, current volume, first unread, and continuation target", () => {
     const entries = deriveSeriesEntries([
       createBook({
         id: "one",
@@ -212,7 +213,7 @@ describe("series derivation", () => {
     expect(entry.startedCount).toBe(2);
     expect(entry.completedCount).toBe(1);
     expect(entry.currentBookId).toBe("two");
-    expect(entry.nextBookId).toBe("three");
+    expect(entry.firstUnreadBookId).toBe("three");
     expect(seriesContinueBook(entry)?.id).toBe("two");
   });
 
@@ -227,8 +228,81 @@ describe("series derivation", () => {
     ])[0]!;
 
     expect(entry.currentBookId).toBeUndefined();
-    expect(entry.nextBookId).toBe("two");
+    expect(entry.firstUnreadBookId).toBe("two");
     expect(seriesContinueBook(entry)?.id).toBe("two");
+  });
+
+  it("does not let cleared progress skip another started volume", () => {
+    const entry = deriveSeriesEntries([
+      createBook({
+        id: "one",
+        lastOpenedAt: "2026-07-09T00:00:00.000Z",
+        progressPercent: 0,
+        sourceMetadata: { series: "Saga", volume: "1" },
+      }),
+      createBook({
+        id: "two",
+        lastOpenedAt: "2026-07-08T00:00:00.000Z",
+        progressPercent: 55,
+        sourceMetadata: { series: "Saga", volume: "2" },
+      }),
+      createBook({
+        id: "three",
+        sourceMetadata: { series: "Saga", volume: "3" },
+      }),
+    ])[0]!;
+
+    expect(entry.currentBookId).toBe("two");
+    expect(entry.firstUnreadBookId).toBe("one");
+    expect(seriesContinueBook(entry)?.id).toBe("two");
+  });
+
+  it("offers the next unique known volume only after the completion threshold", () => {
+    const entry = deriveSeriesEntries([
+      createBook({
+        id: "one",
+        progressPercent: 80,
+        sourceMetadata: { series: "Saga", volume: "1" },
+      }),
+      createBook({ id: "three", sourceMetadata: { series: "Saga", volume: "3" } }),
+    ])[0]!;
+
+    expect(seriesNextVolumeBook(entry, "one")).toBeUndefined();
+    expect(seriesNextVolumeBook(entry, "one", 99.4)).toBeUndefined();
+    expect(seriesNextVolumeBook(entry, "one", 99.5)?.id).toBe("three");
+  });
+
+  it("hides next volume when the current or next known order is ambiguous", () => {
+    const duplicateCurrent = deriveSeriesEntries([
+      createBook({
+        id: "one-a",
+        progressPercent: 100,
+        sourceMetadata: { series: "Saga", volume: "1" },
+      }),
+      createBook({ id: "one-b", sourceMetadata: { series: "Saga", volume: "Vol. 01" } }),
+      createBook({ id: "two", sourceMetadata: { series: "Saga", volume: "2" } }),
+    ])[0]!;
+    const duplicateNext = deriveSeriesEntries([
+      createBook({
+        id: "one",
+        progressPercent: 100,
+        sourceMetadata: { series: "Other", volume: "1" },
+      }),
+      createBook({ id: "two-a", sourceMetadata: { series: "Other", volume: "2" } }),
+      createBook({ id: "two-b", sourceMetadata: { series: "Other", volume: "Vol. 02" } }),
+    ])[0]!;
+    const unknownCurrent = deriveSeriesEntries([
+      createBook({
+        id: "special",
+        progressPercent: 100,
+        sourceMetadata: { series: "Unknown", volume: "Special" },
+      }),
+      createBook({ id: "two", sourceMetadata: { series: "Unknown", volume: "2" } }),
+    ])[0]!;
+
+    expect(seriesNextVolumeBook(duplicateCurrent, "one-a")).toBeUndefined();
+    expect(seriesNextVolumeBook(duplicateNext, "one")).toBeUndefined();
+    expect(seriesNextVolumeBook(unknownCurrent, "special")).toBeUndefined();
   });
 
   it("filters series names with the grouping normalization", () => {

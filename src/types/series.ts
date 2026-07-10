@@ -12,8 +12,8 @@ export type SeriesEntry = {
   currentBookId?: string;
   displayName: string;
   duplicateVolumeHints: string[];
+  firstUnreadBookId?: string;
   key: string;
   missingVolumeHints: string[];
-  nextBookId?: string;
   startedCount: number;
 };

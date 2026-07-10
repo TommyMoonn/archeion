@@ -281,7 +281,7 @@
 }
 
 .series-volume[data-current],
-.series-volume[data-next] {
+.series-volume[data-unread] {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
   background: color-mix(in srgb, var(--accent) 5%, var(--surface));
 }

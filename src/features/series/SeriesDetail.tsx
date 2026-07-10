@@ -1,11 +1,4 @@
-import {
-  ArrowLeft,
-  ArrowRight,
-  CheckCircle,
-  Play,
-  Stack,
-  WarningCircle,
-} from "@phosphor-icons/react";
+import { ArrowLeft, CheckCircle, Play, Stack, WarningCircle } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -46,12 +39,6 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
   }
 
   const continueBook = seriesContinueBook(entry);
-  const nextUnreadBook = entry.nextBookId
-    ? entry.books.find((book) => book.id === entry.nextBookId)
-    : undefined;
-  const showSeparateNextUnread = Boolean(
-    entry.currentBookId && nextUnreadBook && nextUnreadBook.id !== continueBook?.id,
-  );
 
   return (
     <section aria-labelledby="series-detail-title" className="series-detail">
@@ -69,16 +56,6 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
           </p>
         </div>
         <div className="series-detail__actions">
-          {showSeparateNextUnread && nextUnreadBook ? (
-            <Button
-              disabled={Boolean(nextUnreadBook.isFileMissing)}
-              icon={<ArrowRight aria-hidden="true" size={16} />}
-              onClick={() => onRead(nextUnreadBook)}
-              variant="secondary"
-            >
-              Open next unread
-            </Button>
-          ) : null}
           {continueBook ? (
             <Button
               disabled={Boolean(continueBook.isFileMissing)}
@@ -101,14 +78,14 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
       <div aria-label="Series volumes" className="series-volumes" role="list">
         {entry.books.map((book) => {
           const isCurrent = book.id === entry.currentBookId;
-          const isNextUnread = book.id === entry.nextBookId;
+          const isFirstUnread = book.id === entry.firstUnreadBookId;
           const status = bookReadingStatus(book);
 
           return (
             <article
               className="series-volume"
               data-current={isCurrent || undefined}
-              data-next={isNextUnread || undefined}
+              data-unread={isFirstUnread || undefined}
               key={book.id}
               role="listitem"
             >
@@ -117,7 +94,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
                 <div className="series-volume__meta">
                   <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
                   {isCurrent ? <span data-marker="current">Current volume</span> : null}
-                  {isNextUnread ? <span data-marker="next">Next unread</span> : null}
+                  {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
                 </div>
                 <h2>{bookTitle(book)}</h2>
                 {bookAuthor(book) ? <p>{bookAuthor(book)}</p> : null}
@@ -131,7 +108,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               <Button
                 disabled={Boolean(book.isFileMissing)}
                 onClick={() => onRead(book)}
-                variant={isCurrent || isNextUnread ? "secondary" : "ghost"}
+                variant={isCurrent || isFirstUnread ? "secondary" : "ghost"}
               >
                 {bookActionLabel(book)}
               </Button>

@@ -4,6 +4,7 @@ import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "re
 
 import { Button } from "../../components/Button";
 
+import { canonicalReaderRoute } from "../../app/navigationState";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -11,8 +12,10 @@ import {
   useReaderPreferences,
 } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
+import type { SeriesEntry } from "../../types/series";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
+import { deriveSeriesEntries, seriesNextVolumeBook } from "../series/seriesDerivation";
 import {
   normalizeReaderSettings,
   type ReaderNavigationState,
@@ -23,6 +26,7 @@ import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import type { ReaderLocation } from "./readerLocation";
 import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
+import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderTocPanel } from "./ReaderTocPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
@@ -61,6 +65,10 @@ export function ReaderPage() {
     failed: boolean;
   } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const [loadedReaderSeries, setLoadedReaderSeries] = useState<{
+    bookId: string;
+    entry: SeriesEntry | null;
+  } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
@@ -85,6 +93,15 @@ export function ReaderPage() {
     navigationState.status === "ready" &&
     navigationState.chapters.length > 0 &&
     (chapterSequence.current !== undefined || location.atStart);
+  const readerSeries =
+    loadedReaderSeries && loadedReaderSeries.bookId === bookId ? loadedReaderSeries.entry : null;
+  const nextVolume = useMemo(
+    () =>
+      readerSeries && bookId
+        ? seriesNextVolumeBook(readerSeries, bookId, location.percentage)
+        : undefined,
+    [bookId, location.percentage, readerSeries],
+  );
 
   useEffect(() => {
     settingsOpenRef.current = settingsOpen;
@@ -164,6 +181,12 @@ export function ReaderPage() {
       void navigateToChapter(chapterSequence.nextChapterId);
     }
   }, [chapterSequence.nextChapterId, navigateToChapter]);
+
+  const openNextVolume = useCallback(() => {
+    if (nextVolume) {
+      void navigate(canonicalReaderRoute(nextVolume.id));
+    }
+  }, [navigate, nextVolume]);
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
@@ -334,6 +357,36 @@ export function ReaderPage() {
   }, [bookId, isBookFileMissing, storage]);
 
   useEffect(() => {
+    let cancelled = false;
+
+    if (!bookId || isBookFileMissing) {
+      return;
+    }
+
+    void storage
+      .listBooks()
+      .then((books) => {
+        if (cancelled) {
+          return;
+        }
+
+        const entry = deriveSeriesEntries(books).find((candidate) =>
+          candidate.books.some((candidateBook) => candidateBook.id === bookId),
+        );
+        setLoadedReaderSeries({ bookId, entry: entry ?? null });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLoadedReaderSeries({ bookId, entry: null });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookId, isBookFileMissing, storage]);
+
+  useEffect(() => {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
@@ -489,6 +542,10 @@ export function ReaderPage() {
           settings={settings}
         />
       )}
+
+      {!error && nextVolume ? (
+        <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
+      ) : null}
 
       {tocOpen ? (
         <ReaderTocPanel

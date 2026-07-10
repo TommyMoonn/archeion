@@ -3,6 +3,7 @@ import {
   ArrowsClockwise,
   BookOpen,
   Clock,
+  Eraser,
   File,
   FolderOpen,
   Heart,
@@ -24,6 +25,7 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 
 type BookDetailsDrawerProps = {
   book: Book;
+  onClearProgress: (book: Book) => void;
   onClose: () => void;
   onDelete: (book: Book) => void;
   onRead: (book: Book) => void;
@@ -41,6 +43,7 @@ type BookDetailsDrawerProps = {
 
 export function BookDetailsDrawer({
   book,
+  onClearProgress,
   onClose,
   onDelete,
   onRead,
@@ -60,13 +63,13 @@ export function BookDetailsDrawer({
   const author = bookAuthor(book);
   const progressDetails = useMemo(() => {
     const progress = Math.max(0, Math.min(100, book.progressPercent ?? 0));
-    const hasProgress = progress > 0;
 
     return {
-      hasProgress,
+      hasSavedPosition: Boolean(book.progressCfi) || progress > 0,
+      hasVisiblePercentage: progress > 0,
       label: `${Math.max(1, Math.round(progress))}%`,
     };
-  }, [book.progressPercent]);
+  }, [book.progressCfi, book.progressPercent]);
   const fileDetails = useMemo(
     () => ({
       lastOpenedAt: book.lastOpenedAt ? formatLongDate(book.lastOpenedAt) : null,
@@ -129,7 +132,7 @@ export function BookDetailsDrawer({
           <div className="details-drawer__title">
             <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
-            {progressDetails.hasProgress ? (
+            {progressDetails.hasVisiblePercentage ? (
               <span
                 className="details-progress-pill"
                 aria-label={`Reading progress ${progressDetails.label}`}
@@ -162,9 +165,9 @@ export function BookDetailsDrawer({
           ) : (
             <div className="details-actions">
               <Button icon={<BookOpen aria-hidden="true" size={17} />} onClick={() => onRead(book)}>
-                {progressDetails.hasProgress ? "Continue reading" : "Read book"}
+                {progressDetails.hasSavedPosition ? "Continue reading" : "Read book"}
               </Button>
-              {progressDetails.hasProgress ? (
+              {progressDetails.hasSavedPosition ? (
                 <Button
                   icon={<ArrowCounterClockwise aria-hidden="true" size={16} />}
                   onClick={() => onReadFromBeginning(book)}
@@ -181,6 +184,15 @@ export function BookDetailsDrawer({
                 >
                   Edit metadata
                 </Button>
+                {progressDetails.hasSavedPosition ? (
+                  <Button
+                    icon={<Eraser aria-hidden="true" size={16} />}
+                    onClick={() => onClearProgress(book)}
+                    variant="ghost"
+                  >
+                    Clear progress
+                  </Button>
+                ) : null}
                 {canManageFile ? (
                   <>
                     <Button

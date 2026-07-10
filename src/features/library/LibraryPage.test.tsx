@@ -52,10 +52,12 @@ function createStorage({
     updatedAt: "1",
   } satisfies Folder),
   deleteBook = vi.fn(),
+  updateBook = vi.fn(),
 }: {
   books?: Book[];
   createFolder?: LibraryStorage["createFolder"];
   deleteBook?: LibraryStorage["deleteBook"];
+  updateBook?: LibraryStorage["updateBook"];
 } = {}): LibraryStorage {
   return {
     reset: vi.fn(),
@@ -67,7 +69,7 @@ function createStorage({
     loadBookFile: vi.fn(),
     revealBookFile: vi.fn(),
     listBooks: vi.fn(),
-    updateBook: vi.fn(),
+    updateBook,
     writeBookMetadata: vi.fn(),
     renameBookFile: vi.fn(),
     moveBookToFolder: vi.fn(),
@@ -110,6 +112,27 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
   }
 
   return button;
+}
+
+async function waitForButtonWithText(
+  container: HTMLElement,
+  text: string,
+): Promise<HTMLButtonElement> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const button = Array.from(container.querySelectorAll("button")).find(
+      (candidate) => candidate.textContent === text,
+    );
+
+    if (button instanceof HTMLButtonElement) {
+      return button;
+    }
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+  }
+
+  throw new Error(`Button with text ${text} was not rendered.`);
 }
 
 function setInputValue(input: HTMLInputElement, value: string): void {
@@ -260,5 +283,58 @@ describe("LibraryPage", () => {
 
     expect(storage.deleteBook).toHaveBeenCalledWith("book-1");
     expect(session.container.textContent).not.toContain("Delete EPUB file?");
+  });
+
+  it("clears saved progress without changing the last-opened date", async () => {
+    const book: Book = {
+      addedAt: "1",
+      fileName: "Book.epub",
+      id: "book-1",
+      isFavorite: false,
+      lastOpenedAt: "2026-07-09T00:00:00.000Z",
+      originalTitle: "Book",
+      progressCfi: "epubcfi(/6/4)",
+      progressPercent: 0,
+      relativePath: "Book.epub",
+      updatedAt: "1",
+    };
+    const updateBook = vi.fn().mockResolvedValue({
+      ...book,
+      progressCfi: undefined,
+      progressPercent: 0,
+    });
+    const storage = createStorage({ books: [book], updateBook });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+    await import("./BookDetailsDrawer");
+
+    await act(async () => {
+      session.container
+        .querySelector<HTMLButtonElement>('button[aria-label="View details for Book"]')
+        ?.click();
+    });
+
+    const clearProgressButton = await waitForButtonWithText(session.container, "Clear progress");
+    await act(async () => {
+      clearProgressButton.click();
+    });
+
+    expect(session.container.textContent).toContain("Clear reading progress?");
+
+    await act(async () => {
+      buttonWithText(session.container, "Clear progress").click();
+      await Promise.resolve();
+    });
+
+    expect(updateBook).toHaveBeenCalledTimes(1);
+    expect(updateBook.mock.calls[0]).toEqual([
+      "book-1",
+      {
+        progressCfi: undefined,
+        progressPercent: 0,
+      },
+    ]);
+    expect(book.lastOpenedAt).toBe("2026-07-09T00:00:00.000Z");
+    expect(session.container.textContent).toContain("Reading progress cleared.");
   });
 });

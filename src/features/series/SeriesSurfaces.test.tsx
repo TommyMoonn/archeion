@@ -117,7 +117,7 @@ describe("series library surfaces", () => {
     expect(onRead).toHaveBeenCalledWith(expect.objectContaining({ id: "volume-2" }));
   });
 
-  it("renders ordered volumes, conservative hints, and current/next markers", () => {
+  it("renders ordered volumes, conservative hints, and continuation markers", () => {
     const entry = deriveSeriesEntries(seriesBooks())[0]!;
     const onRead = vi.fn();
     const scope = mount(<SeriesDetail entry={entry} onBack={vi.fn()} onRead={onRead} />);
@@ -133,14 +133,14 @@ describe("series library surfaces", () => {
       scope.querySelector('[data-marker="current"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Crossing");
     expect(
-      scope.querySelector('[data-marker="next"]')?.parentElement?.parentElement?.textContent,
+      scope.querySelector('[data-marker="unread"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Return");
     expect(scope.textContent).toContain("Vol. 01");
 
     act(() => buttonWithText(scope, "Continue Series").click());
-    act(() => buttonWithText(scope, "Open next unread").click());
 
-    expect(onRead.mock.calls.map(([book]) => book.id)).toEqual(["volume-2", "volume-4"]);
+    expect(onRead.mock.calls.map(([book]) => book.id)).toEqual(["volume-2"]);
+    expect(scope.textContent).not.toContain("Open next unread");
   });
 
   it("shows a recovery state for a stale series location", () => {

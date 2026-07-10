@@ -1,7 +1,7 @@
 import type { Book } from "../../types/book";
 import type { SeriesEntry, SeriesVolumeToken } from "../../types/series";
 import { bookTitle } from "../../utils/bookDisplay";
-import { bookReadingStatus } from "../reading/readingProgress";
+import { bookReadingStatus, readingStatusForProgress } from "../reading/readingProgress";
 
 const MAX_SIMPLE_GAP_SIZE = 10;
 const numericVolumePattern = /^(?:(?:vol(?:ume)?|book)\.?\s*)?(\d+(?:\.\d+)?)$/i;
@@ -91,9 +91,9 @@ export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
         ...(progress.currentBookId ? { currentBookId: progress.currentBookId } : {}),
         displayName: representative?.sourceMetadata?.series ?? key,
         duplicateVolumeHints: findDuplicateVolumeHints(sortedBooks),
+        ...(progress.firstUnreadBookId ? { firstUnreadBookId: progress.firstUnreadBookId } : {}),
         key,
         missingVolumeHints: findMissingVolumeHints(sortedBooks),
-        ...(progress.nextBookId ? { nextBookId: progress.nextBookId } : {}),
         startedCount: progress.startedCount,
       };
     })
@@ -113,14 +113,70 @@ export function filterSeriesEntries(entries: readonly SeriesEntry[], query: stri
 }
 
 export function seriesContinueBook(entry: SeriesEntry): Book | undefined {
-  const targetId = entry.currentBookId ?? entry.nextBookId;
+  const targetId = entry.currentBookId ?? entry.firstUnreadBookId;
   return targetId ? entry.books.find((book) => book.id === targetId) : undefined;
+}
+
+export function seriesNextVolumeBook(
+  entry: SeriesEntry,
+  currentBookId: string,
+  progressPercent?: number,
+): Book | undefined {
+  const currentBook = entry.books.find((book) => book.id === currentBookId);
+
+  if (!currentBook) {
+    return undefined;
+  }
+
+  const effectiveProgress = progressPercent ?? currentBook.progressPercent;
+  if (readingStatusForProgress(effectiveProgress) !== "completed") {
+    return undefined;
+  }
+
+  const currentVolume = deriveSeriesVolumeToken(currentBook.sourceMetadata?.volume).sortableValue;
+
+  if (currentVolume === undefined) {
+    return undefined;
+  }
+
+  const booksByVolume = new Map<number, Book[]>();
+
+  for (const book of entry.books) {
+    const sortableValue = deriveSeriesVolumeToken(book.sourceMetadata?.volume).sortableValue;
+
+    if (sortableValue === undefined) {
+      continue;
+    }
+
+    const volumeBooks = booksByVolume.get(sortableValue);
+    if (volumeBooks) {
+      volumeBooks.push(book);
+    } else {
+      booksByVolume.set(sortableValue, [book]);
+    }
+  }
+
+  const currentVolumeBooks = booksByVolume.get(currentVolume);
+  if (currentVolumeBooks?.length !== 1 || currentVolumeBooks[0]?.id !== currentBook.id) {
+    return undefined;
+  }
+
+  const nextVolume = [...booksByVolume.keys()]
+    .filter((sortableValue) => sortableValue > currentVolume)
+    .sort((left, right) => left - right)[0];
+
+  if (nextVolume === undefined) {
+    return undefined;
+  }
+
+  const nextVolumeBooks = booksByVolume.get(nextVolume);
+  return nextVolumeBooks?.length === 1 ? nextVolumeBooks[0] : undefined;
 }
 
 function deriveSeriesProgress(books: readonly Book[]): {
   completedCount: number;
   currentBookId?: string;
-  nextBookId?: string;
+  firstUnreadBookId?: string;
   startedCount: number;
 } {
   const inProgress = books.filter((book) => bookReadingStatus(book) === "in-progress");
@@ -130,12 +186,12 @@ function deriveSeriesProgress(books: readonly Book[]): {
       (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? "") ||
       books.indexOf(left) - books.indexOf(right),
   )[0];
-  const nextBook = books.find((book) => bookReadingStatus(book) === "unread");
+  const firstUnreadBook = books.find((book) => bookReadingStatus(book) === "unread");
 
   return {
     completedCount,
     ...(currentBook ? { currentBookId: currentBook.id } : {}),
-    ...(nextBook ? { nextBookId: nextBook.id } : {}),
+    ...(firstUnreadBook ? { firstUnreadBookId: firstUnreadBook.id } : {}),
     startedCount: inProgress.length,
   };
 }

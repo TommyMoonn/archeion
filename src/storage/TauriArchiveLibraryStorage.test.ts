@@ -839,6 +839,37 @@ describe("TauriArchiveLibraryStorage", () => {
     );
   });
 
+  it("clears the saved reading position while preserving last opened", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const updated = await storage.updateBook("book-1", {
+      progressCfi: undefined,
+      progressPercent: 0,
+    });
+
+    expect(updated).toMatchObject({
+      lastOpenedAt: "2023-11-03T00:00:00.000Z",
+      progressPercent: 0,
+    });
+    expect(updated?.progressCfi).toBeUndefined();
+    expect(invokeMock).toHaveBeenCalledWith(
+      "save_progress_metadata",
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          progress: expect.objectContaining({
+            "book-1": {
+              cfi: undefined,
+              lastOpenedAt: "2023-11-03T00:00:00.000Z",
+              percent: 0,
+            },
+          }),
+        }),
+      }),
+    );
+  });
+
   it("loads legacy display overrides without using or saving them", async () => {
     const legacyMetadata = structuredClone(metadata) as typeof metadata & {
       library: {
