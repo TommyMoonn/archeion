@@ -236,57 +236,141 @@ fn path_change(root: &Path, old_path: &Path, new_path: &Path) -> Result<ArchiveP
     })
 }
 
-fn windows_trash_script(is_directory: bool) -> String {
-    let method = if is_directory {
-        "DeleteDirectory"
-    } else {
-        "DeleteFile"
-    };
+#[cfg(any(target_os = "windows", test))]
+const WINDOWS_EXTENDED_PATH_PREFIX: [u16; 4] =
+    [b'\\' as u16, b'\\' as u16, b'?' as u16, b'\\' as u16];
+#[cfg(any(target_os = "windows", test))]
+const WINDOWS_EXTENDED_UNC_PREFIX: [u16; 8] = [
+    b'\\' as u16,
+    b'\\' as u16,
+    b'?' as u16,
+    b'\\' as u16,
+    b'U' as u16,
+    b'N' as u16,
+    b'C' as u16,
+    b'\\' as u16,
+];
 
-    format!(
-        "$ErrorActionPreference = 'Stop'\n\
-         Add-Type -AssemblyName Microsoft.VisualBasic\n\
-         $targetPath = [Environment]::GetEnvironmentVariable('ARCHEION_TRASH_PATH')\n\
-         if ([string]::IsNullOrWhiteSpace($targetPath)) {{\n\
-             throw 'The recycle bin target path is unavailable.'\n\
-         }}\n\
-         [Microsoft.VisualBasic.FileIO.FileSystem]::{method}(\n\
-             $targetPath,\n\
-             [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,\n\
-             [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin\n\
-         )"
-    )
+#[cfg(any(target_os = "windows", test))]
+fn ascii_uppercase_wide(value: u16) -> u16 {
+    if (b'a' as u16..=b'z' as u16).contains(&value) {
+        value - (b'a' - b'A') as u16
+    } else {
+        value
+    }
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn wide_starts_with_ignore_ascii_case(value: &[u16], prefix: &[u16]) -> bool {
+    value.len() >= prefix.len()
+        && value
+            .iter()
+            .zip(prefix)
+            .all(|(left, right)| ascii_uppercase_wide(*left) == ascii_uppercase_wide(*right))
+}
+
+#[cfg(any(target_os = "windows", test))]
+fn normalize_windows_shell_path(mut path: Vec<u16>) -> Vec<u16> {
+    if wide_starts_with_ignore_ascii_case(&path, &WINDOWS_EXTENDED_UNC_PREFIX) {
+        let mut normalized = vec![b'\\' as u16, b'\\' as u16];
+        normalized.extend_from_slice(&path[WINDOWS_EXTENDED_UNC_PREFIX.len()..]);
+        path = normalized;
+    } else if path.starts_with(&WINDOWS_EXTENDED_PATH_PREFIX) {
+        path.drain(..WINDOWS_EXTENDED_PATH_PREFIX.len());
+    }
+
+    path.push(0);
+    path
 }
 
 #[cfg(target_os = "windows")]
-fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
-    let script = windows_trash_script(is_directory);
-    let output = Command::new("powershell.exe")
-        .args([
-            "-NoLogo",
-            "-NoProfile",
-            "-NonInteractive",
-            "-WindowStyle",
-            "Hidden",
-            "-Command",
-            &script,
-        ])
-        .env("ARCHEION_TRASH_PATH", path.as_os_str())
-        .output()
-        .map_err(|error| error.to_string())?;
+fn windows_shell_path(path: &Path) -> Vec<u16> {
+    use std::os::windows::ffi::OsStrExt;
 
-    if output.status.success() {
-        return Ok(());
+    normalize_windows_shell_path(path.as_os_str().encode_wide().collect())
+}
+
+#[cfg(target_os = "windows")]
+struct WindowsComApartment;
+
+#[cfg(target_os = "windows")]
+impl WindowsComApartment {
+    fn initialize() -> Result<Self, String> {
+        use windows::Win32::System::Com::{CoInitializeEx, COINIT_APARTMENTTHREADED};
+
+        unsafe { CoInitializeEx(None, COINIT_APARTMENTTHREADED) }
+            .ok()
+            .map_err(|error| format!("Could not initialize Windows shell services. {error}"))?;
+        Ok(Self)
+    }
+}
+
+#[cfg(target_os = "windows")]
+impl Drop for WindowsComApartment {
+    fn drop(&mut self) {
+        use windows::Win32::System::Com::CoUninitialize;
+
+        unsafe { CoUninitialize() };
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn move_to_windows_recycle_bin(path: &Path) -> Result<(), String> {
+    use windows::{
+        core::PCWSTR,
+        Win32::{
+            System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER},
+            UI::Shell::{
+                FileOperation, IFileOperation, IShellItem, SHCreateItemFromParsingName,
+                FOFX_EARLYFAILURE, FOFX_RECYCLEONDELETE, FOF_NO_UI,
+            },
+        },
+    };
+
+    let _com_apartment = WindowsComApartment::initialize()?;
+    let shell_path = windows_shell_path(path);
+
+    unsafe {
+        let operation: IFileOperation =
+            CoCreateInstance(&FileOperation, None, CLSCTX_INPROC_SERVER).map_err(|error| {
+                format!("Could not create the Windows recycle bin operation. {error}")
+            })?;
+        operation
+            .SetOperationFlags(FOF_NO_UI | FOFX_EARLYFAILURE | FOFX_RECYCLEONDELETE)
+            .map_err(|error| format!("Could not configure the recycle bin operation. {error}"))?;
+
+        let item: IShellItem = SHCreateItemFromParsingName(PCWSTR(shell_path.as_ptr()), None)
+            .map_err(|error| {
+                format!("Could not prepare the selected item for the recycle bin. {error}")
+            })?;
+        operation
+            .DeleteItem(&item, None)
+            .map_err(|error| format!("Could not queue the recycle bin operation. {error}"))?;
+        operation
+            .PerformOperations()
+            .map_err(|error| format!("Could not complete the recycle bin operation. {error}"))?;
+
+        if operation
+            .GetAnyOperationsAborted()
+            .map_err(|error| format!("Could not confirm the recycle bin operation. {error}"))?
+            .as_bool()
+        {
+            return Err("The recycle bin operation was cancelled.".to_string());
+        }
     }
 
-    let details = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if details.is_empty() {
-        Err("The item could not be moved to the recycle bin.".to_string())
-    } else {
-        Err(format!(
-            "The item could not be moved to the recycle bin. {details}"
-        ))
-    }
+    Ok(())
+}
+
+#[cfg(target_os = "windows")]
+fn trash_with_platform(path: &Path, _is_directory: bool) -> Result<(), String> {
+    let path = path.to_path_buf();
+    std::thread::Builder::new()
+        .name("archeion-recycle-bin".to_string())
+        .spawn(move || move_to_windows_recycle_bin(&path))
+        .map_err(|error| format!("Could not start the recycle bin operation. {error}"))?
+        .join()
+        .map_err(|_| "The recycle bin operation stopped unexpectedly.".to_string())?
 }
 
 #[cfg(target_os = "macos")]
@@ -580,8 +664,8 @@ mod tests {
 
     use super::{
         delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
-        resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
-        windows_trash_script,
+        normalize_windows_shell_path, resolve_existing_epub_path, validate_archive_item_name,
+        validate_epub_file_name,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -605,15 +689,35 @@ mod tests {
     }
 
     #[test]
-    fn windows_trash_script_uses_safe_path_transport() {
-        let file_script = windows_trash_script(false);
-        let directory_script = windows_trash_script(true);
+    fn normalizes_extended_windows_paths_for_shell_operations() {
+        let local =
+            normalize_windows_shell_path(r"\\?\C:\Archive\Novel.epub".encode_utf16().collect());
+        let unc =
+            normalize_windows_shell_path(r"\\?\unc\server\library\Series".encode_utf16().collect());
+        let regular =
+            normalize_windows_shell_path(r"C:\Archive\Novel.epub".encode_utf16().collect());
 
-        assert!(file_script.contains("::DeleteFile("));
-        assert!(directory_script.contains("::DeleteDirectory("));
-        assert!(file_script.contains("ARCHEION_TRASH_PATH"));
-        assert!(file_script.contains("SendToRecycleBin"));
-        assert!(!file_script.contains("@'"));
+        assert_eq!(
+            local,
+            r"C:\Archive\Novel.epub"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            unc,
+            r"\\server\library\Series"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            regular,
+            r"C:\Archive\Novel.epub"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
