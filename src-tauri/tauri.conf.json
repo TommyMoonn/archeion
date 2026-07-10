@@ -26,27 +26,28 @@
     "security": {
       "csp": {
         "default-src": "'self'",
-        "connect-src": "ipc: http://ipc.localhost",
+        "connect-src": "ipc: http://ipc.localhost blob: data:",
         "font-src": "'self' blob: data:",
         "frame-src": "'self' blob: data:",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "media-src": "'self' blob: data:",
         "object-src": "'none'",
         "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'"
+        "style-src": "'self' 'unsafe-inline' blob: data:",
+        "worker-src": "'self' blob:"
       },
       "devCsp": {
         "default-src": "'self'",
-        "connect-src": "ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420 blob: data:",
         "font-src": "'self' blob: data:",
         "frame-src": "'self' blob: data:",
         "img-src": "'self' asset: http://asset.localhost blob: data:",
         "media-src": "'self' blob: data:",
         "object-src": "'none'",
         "script-src": "'self'",
-        "style-src": "'self' 'unsafe-inline'"
-      },
-      "freezePrototype": true
+        "style-src": "'self' 'unsafe-inline' blob: data:",
+        "worker-src": "'self' blob:"
+      }
     }
   },
   "bundle": {
@@ -61,7 +62,7 @@
     ],
     "category": "Productivity",
     "publisher": "Khoa Luong",
-    "copyright": "Copyright \u00a9 2026 Khoa Luong",
+    "copyright": "Copyright © 2026 Khoa Luong",
     "homepage": "https://tommymoonn.github.io/archeion/",
     "shortDescription": "A local-first desktop EPUB reader and archive manager.",
     "longDescription": "Archeion is a local-first Windows desktop app for organizing EPUB archives, editing book metadata, and reading with persistent progress.",

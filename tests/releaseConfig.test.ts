@@ -34,8 +34,9 @@ type TauriConfig = {
   version: string;
   app: {
     security: {
-      csp: unknown;
-      devCsp?: unknown;
+      csp: Record<string, string>;
+      devCsp?: Record<string, string>;
+      freezePrototype?: boolean;
     };
   };
   bundle: {
@@ -89,8 +90,19 @@ describe("release configuration", () => {
     );
   });
 
-  it("enables production and development CSPs", () => {
-    expect(tauriConfig.app.security.csp).not.toBeNull();
-    expect(tauriConfig.app.security.devCsp).not.toBeNull();
+  it("keeps the packaged EPUB reader compatible with local blob resources", () => {
+    const productionCsp = tauriConfig.app.security.csp;
+    const developmentCsp = tauriConfig.app.security.devCsp;
+
+    expect(productionCsp).toBeTruthy();
+    expect(developmentCsp).toBeTruthy();
+    expect(productionCsp["script-src"]).toBe("'self'");
+    expect(productionCsp["connect-src"]).toContain("blob:");
+    expect(productionCsp["style-src"]).toContain("blob:");
+    expect(productionCsp["frame-src"]).toContain("blob:");
+    expect(productionCsp["worker-src"]).toContain("blob:");
+    expect(developmentCsp?.["connect-src"]).toContain("blob:");
+    expect(developmentCsp?.["style-src"]).toContain("blob:");
+    expect(tauriConfig.app.security.freezePrototype).not.toBe(true);
   });
 });

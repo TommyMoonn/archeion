@@ -236,26 +236,57 @@ fn path_change(root: &Path, old_path: &Path, new_path: &Path) -> Result<ArchiveP
     })
 }
 
-#[cfg(target_os = "windows")]
-fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
+fn windows_trash_script(is_directory: bool) -> String {
     let method = if is_directory {
         "DeleteDirectory"
     } else {
         "DeleteFile"
     };
-    let path = path.to_string_lossy();
-    let script = format!(
-        "Add-Type -AssemblyName Microsoft.VisualBasic\n[Microsoft.VisualBasic.FileIO.FileSystem]::{method}(@'\n{path}\n'@, 'OnlyErrorDialogs', 'SendToRecycleBin')"
-    );
-    let status = Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
-        .status()
+
+    format!(
+        "$ErrorActionPreference = 'Stop'\n\
+         Add-Type -AssemblyName Microsoft.VisualBasic\n\
+         $targetPath = [Environment]::GetEnvironmentVariable('ARCHEION_TRASH_PATH')\n\
+         if ([string]::IsNullOrWhiteSpace($targetPath)) {{\n\
+             throw 'The recycle bin target path is unavailable.'\n\
+         }}\n\
+         [Microsoft.VisualBasic.FileIO.FileSystem]::{method}(\n\
+             $targetPath,\n\
+             [Microsoft.VisualBasic.FileIO.UIOption]::OnlyErrorDialogs,\n\
+             [Microsoft.VisualBasic.FileIO.RecycleOption]::SendToRecycleBin\n\
+         )"
+    )
+}
+
+#[cfg(target_os = "windows")]
+fn trash_with_platform(path: &Path, is_directory: bool) -> Result<(), String> {
+    let script = windows_trash_script(is_directory);
+    let output = Command::new("powershell.exe")
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            &script,
+        ])
+        .env("ARCHEION_TRASH_PATH", path.as_os_str())
+        .output()
         .map_err(|error| error.to_string())?;
 
-    status
-        .success()
-        .then_some(())
-        .ok_or_else(|| "The item could not be moved to the recycle bin.".to_string())
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let details = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    if details.is_empty() {
+        Err("The item could not be moved to the recycle bin.".to_string())
+    } else {
+        Err(format!(
+            "The item could not be moved to the recycle bin. {details}"
+        ))
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -550,6 +581,7 @@ mod tests {
     use super::{
         delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
         resolve_existing_epub_path, validate_archive_item_name, validate_epub_file_name,
+        windows_trash_script,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -570,6 +602,18 @@ mod tests {
 
     fn test_trash_failure(_path: &std::path::Path, _is_directory: bool) -> Result<(), String> {
         Err("trash unavailable".to_string())
+    }
+
+    #[test]
+    fn windows_trash_script_uses_safe_path_transport() {
+        let file_script = windows_trash_script(false);
+        let directory_script = windows_trash_script(true);
+
+        assert!(file_script.contains("::DeleteFile("));
+        assert!(directory_script.contains("::DeleteDirectory("));
+        assert!(file_script.contains("ARCHEION_TRASH_PATH"));
+        assert!(file_script.contains("SendToRecycleBin"));
+        assert!(!file_script.contains("@'"));
     }
 
     #[test]
