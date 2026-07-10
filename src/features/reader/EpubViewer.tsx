@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
-import type { ReaderSettings } from "../../types/reader";
+import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
 import {
   canRunReaderWheelTurn,
   getReaderWheelDelta,
@@ -20,12 +20,18 @@ import {
 } from "./readerNavigation";
 import { normalizeReaderLocation, type ReaderLocation } from "./readerLocation";
 import {
+  emptyReaderNavigationModel,
+  loadReaderNavigationModel,
+  type ReaderNavigationModel,
+} from "./readerNavigationModel";
+import {
   applyReaderContentTheme,
   createReaderContentTheme,
   readerContentSettingsEqual,
 } from "./readerTheme";
 
 export type EpubViewerHandle = {
+  navigateToChapter: (chapterId: string) => Promise<boolean>;
   next: () => Promise<void>;
   previous: () => Promise<void>;
 };
@@ -37,13 +43,14 @@ type EpubViewerProps = {
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
+  onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
   settings: ReaderSettings;
 };
 
 type EpubViewerCallbacks = Pick<
   EpubViewerProps,
-  "onError" | "onInteraction" | "onKeyDown" | "onLocationChange" | "onReady"
+  "onError" | "onInteraction" | "onKeyDown" | "onLocationChange" | "onNavigationChange" | "onReady"
 >;
 
 type RenderedView = {
@@ -84,7 +91,17 @@ function windowFromContentDocument(document: Document | null) {
 }
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
-  { fileBlob, initialCfi, onError, onInteraction, onKeyDown, onLocationChange, onReady, settings },
+  {
+    fileBlob,
+    initialCfi,
+    onError,
+    onInteraction,
+    onKeyDown,
+    onLocationChange,
+    onNavigationChange,
+    onReady,
+    settings,
+  },
   ref,
 ) {
   const viewerRef = useRef<HTMLDivElement>(null);
@@ -96,9 +113,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onInteraction,
     onKeyDown,
     onLocationChange,
+    onNavigationChange,
     onReady,
   });
   const renditionRef = useRef<Rendition | null>(null);
+  const navigationModelRef = useRef<ReaderNavigationModel>(emptyReaderNavigationModel);
+  const navigationStateRef = useRef<ReaderNavigationState>({
+    chapters: emptyReaderNavigationModel.chapters,
+  });
   const isTurningPageRef = useRef(false);
   const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
   const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
@@ -123,9 +145,30 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onInteraction,
     onKeyDown,
     onLocationChange,
+    onNavigationChange,
     onReady,
   };
   contentThemeRef.current = contentTheme;
+
+  const publishNavigationState = useCallback(
+    (model: ReaderNavigationModel, currentChapterId: string | undefined) => {
+      const previousState = navigationStateRef.current;
+
+      if (
+        previousState.chapters === model.chapters &&
+        previousState.currentChapterId === currentChapterId
+      ) {
+        return;
+      }
+
+      const nextState: ReaderNavigationState = currentChapterId
+        ? { chapters: model.chapters, currentChapterId }
+        : { chapters: model.chapters };
+      navigationStateRef.current = nextState;
+      callbacksRef.current.onNavigationChange?.(nextState);
+    },
+    [],
+  );
 
   const runPageTurn = useCallback(async (intent: ReaderNavigationIntent) => {
     const rendition = renditionRef.current;
@@ -146,6 +189,24 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       window.setTimeout(() => {
         isTurningPageRef.current = false;
       }, 80);
+    }
+  }, []);
+
+  const navigateToChapter = useCallback(async (chapterId: string) => {
+    const rendition = renditionRef.current;
+    const target = navigationModelRef.current.resolveChapterTarget(chapterId);
+
+    if (!rendition || !target) {
+      return false;
+    }
+
+    callbacksRef.current.onInteraction();
+
+    try {
+      await rendition.display(target);
+      return true;
+    } catch {
+      return false;
     }
   }, []);
 
@@ -199,11 +260,16 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useImperativeHandle(
     ref,
     () => ({
+      navigateToChapter,
       next: () => runPageTurn("forward"),
       previous: () => runPageTurn("backward"),
     }),
-    [runPageTurn],
+    [navigateToChapter, runPageTurn],
   );
+
+  useEffect(() => {
+    onNavigationChange?.(navigationStateRef.current);
+  }, [onNavigationChange]);
 
   useEffect(() => {
     const container = viewerRef.current;
@@ -225,6 +291,35 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let epubBook: EpubBook | null = null;
     let rendition: Rendition | null = null;
     let lastContentDocument: Document | null = null;
+    let lastRelocation: Location | null = null;
+    let currentChapterId: string | undefined;
+
+    navigationModelRef.current = emptyReaderNavigationModel;
+    publishNavigationState(emptyReaderNavigationModel, undefined);
+
+    function updateCurrentChapter(location: Location) {
+      const model = navigationModelRef.current;
+      const nextCurrentChapterId = model.findCurrentChapter(location)?.id;
+
+      if (nextCurrentChapterId === currentChapterId) {
+        return;
+      }
+
+      currentChapterId = nextCurrentChapterId;
+      publishNavigationState(model, currentChapterId);
+    }
+
+    async function loadNavigation(book: EpubBook) {
+      const model = await loadReaderNavigationModel(book);
+
+      if (cancelled) {
+        return;
+      }
+
+      navigationModelRef.current = model;
+      currentChapterId = lastRelocation ? model.findCurrentChapter(lastRelocation)?.id : undefined;
+      publishNavigationState(model, currentChapterId);
+    }
 
     function removeContentListeners() {
       for (const cleanup of contentCleanupRef.current) {
@@ -310,6 +405,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
         epubBook = ePub(fileContents);
         await epubBook.opened;
+        void loadNavigation(epubBook);
 
         if (cancelled || !containerRef.current) {
           epubBook.destroy();
@@ -366,6 +462,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
     function onRelocated(location: Location) {
       if (!cancelled) {
+        lastRelocation = location;
+        updateCurrentChapter(location);
         callbacksRef.current.onLocationChange(
           normalizeReaderLocation(location, epubBook?.packaging.spine.length ?? 0),
         );
@@ -384,9 +482,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
 
       renditionRef.current = null;
+      navigationModelRef.current = emptyReaderNavigationModel;
       epubBook?.destroy();
     };
-  }, [fileBlob, handleWheel, initialCfi]);
+  }, [fileBlob, handleWheel, initialCfi, publishNavigationState]);
 
   useEffect(() => {
     const mountedFrame = containerRef.current?.querySelector("iframe");
@@ -434,6 +533,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onInteraction === next.onInteraction &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&
+    previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
     readerContentSettingsEqual(previous.settings, next.settings)
   );

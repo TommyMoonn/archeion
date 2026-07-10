@@ -4,6 +4,19 @@ export type ReaderProgressPlacement = "top" | "side";
 
 export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
 
+export type ReaderChapter = {
+  id: string;
+  label: string;
+  href: string;
+  depth: number;
+  parentId?: string;
+};
+
+export type ReaderNavigationState = {
+  chapters: readonly ReaderChapter[];
+  currentChapterId?: string;
+};
+
 export type ReaderSettings = {
   fontSize: number;
   fontFamily: ReaderFontFamily;
