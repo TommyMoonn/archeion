@@ -53,6 +53,7 @@
 
     <main id="main-content">
       <section class="hero section" id="home" data-section="home">
+        <canvas class="home-orbit-canvas" data-home-orbit-canvas aria-hidden="true"></canvas>
         <div class="hero-copy reveal">
           <p class="eyebrow"><span></span> Local EPUB library</p>
           <h1>Pull every book into orbit.</h1>
@@ -78,189 +79,54 @@
           </div>
         </div>
 
-        <div class="hero-stage reveal" data-delay="1">
-          <div class="orbit-system" aria-hidden="true">
-            <span class="orbit orbit-one"></span>
-            <span class="orbit orbit-two"></span>
-            <span class="orbit orbit-three"></span>
-            <span class="orbit-dot orbit-dot-one"></span>
-            <span class="orbit-dot orbit-dot-two"></span>
-            <span class="orbit-dot orbit-dot-three"></span>
-          </div>
+        <div
+          class="hero-stage home-orbit-stage reveal"
+          data-delay="1"
+          data-home-orbit-stage
+          aria-label="A stylized Archeion library orbit"
+        >
+          <div class="home-orbit-scene" data-home-orbit-scene>
+            <div class="home-orbit-halo" aria-hidden="true"></div>
+            <div class="home-orbit-ring home-orbit-ring--outer" aria-hidden="true"></div>
+            <div class="home-orbit-ring home-orbit-ring--middle" aria-hidden="true"></div>
+            <div class="home-orbit-ring home-orbit-ring--inner" aria-hidden="true"></div>
 
-          <div class="floating-note floating-note-top" aria-hidden="true">
-            <svg><use href="#icon-clock"></use></svg>
-            <span><strong>Continue reading</strong><small>Chapter 8 · 64%</small></span>
-          </div>
-          <div class="floating-note floating-note-bottom" aria-hidden="true">
-            <svg><use href="#icon-heart"></use></svg>
-            <span><strong>Favorites</strong><small>Always close at hand</small></span>
-          </div>
+            <article class="home-floating-book home-floating-book--one" aria-hidden="true">
+              <span class="home-floating-book-spine"></span>
+              <span class="home-floating-book-mark">A</span>
+              <small>The Archive</small>
+            </article>
+            <article class="home-floating-book home-floating-book--two" aria-hidden="true">
+              <span class="home-floating-book-spine"></span>
+              <span class="home-floating-book-mark">V</span>
+              <small>Voyager</small>
+            </article>
+            <article class="home-floating-book home-floating-book--three" aria-hidden="true">
+              <span class="home-floating-book-spine"></span>
+              <span class="home-floating-book-mark">N</span>
+              <small>Night Fields</small>
+            </article>
+            <article class="home-floating-book home-floating-book--four" aria-hidden="true">
+              <span class="home-floating-book-spine"></span>
+              <span class="home-floating-book-mark">S</span>
+              <small>Still Water</small>
+            </article>
 
-          <div class="app-window hero-app" data-tilt>
-            <div class="window-bar">
-              <div class="window-brand">
-                <img src="assets/archeion-icon.png" width="20" height="20" alt="" />
-                <span>Archeion</span>
-              </div>
-              <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="home-archive-core" aria-hidden="true">
+              <span class="home-archive-core-ring"></span>
+              <span class="home-archive-core-ring home-archive-core-ring--two"></span>
+              <span class="home-archive-core-glass">
+                <img src="assets/archeion-icon.png" alt="" width="92" height="92" />
+              </span>
             </div>
 
-            <div class="app-body">
-              <aside class="app-sidebar">
-                <div class="sidebar-nav">
-                  <button class="sidebar-item active" type="button" data-hero-view="library">
-                    <svg><use href="#icon-books"></use></svg><span>Library</span><small>42</small>
-                  </button>
-                  <button class="sidebar-item" type="button" data-hero-view="continue">
-                    <svg><use href="#icon-clock"></use></svg><span>Continue</span><small>3</small>
-                  </button>
-                  <button class="sidebar-item" type="button" data-hero-view="favorites">
-                    <svg><use href="#icon-heart"></use></svg><span>Favorites</span><small>8</small>
-                  </button>
-                </div>
-                <div class="sidebar-folders">
-                  <p>Folders</p>
-                  <button type="button">
-                    <svg><use href="#icon-folder"></use></svg>Fiction
-                  </button>
-                  <button type="button">
-                    <svg><use href="#icon-folder"></use></svg>Essays
-                  </button>
-                  <button type="button">
-                    <svg><use href="#icon-folder"></use></svg>Reference
-                  </button>
-                </div>
-                <div class="sidebar-footer-mini">
-                  <span
-                    ><svg><use href="#icon-archive"></use></svg> Main archive</span
-                  >
-                  <svg><use href="#icon-settings"></use></svg>
-                </div>
-              </aside>
-
-              <div class="app-main hero-library-view" data-hero-panel="library">
-                <div class="app-heading">
-                  <div>
-                    <small>Your collection</small>
-                    <h2>All books</h2>
-                  </div>
-                  <div class="app-actions-mini">
-                    <span class="search-pill"
-                      ><svg><use href="#icon-search"></use></svg>Search books</span
-                    >
-                    <button type="button">
-                      <svg><use href="#icon-plus"></use></svg>Add EPUB
-                    </button>
-                  </div>
-                </div>
-                <div class="continue-row">
-                  <div class="continue-cover cover-a"></div>
-                  <div>
-                    <strong>The Left Hand of Darkness</strong><span>Ursula K. Le Guin</span
-                    ><small>64% complete</small>
-                  </div>
-                  <svg><use href="#icon-arrow-right"></use></svg>
-                </div>
-                <div class="mini-book-grid">
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-a"
-                      ><i>THE LEFT HAND<br />OF DARKNESS</i></span
-                    >
-                    <strong>The Left Hand of Darkness</strong><small>Ursula K. Le Guin</small>
-                  </button>
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-b"
-                      ><i>THE<br />ODYSSEY</i></span
-                    >
-                    <strong>The Odyssey</strong><small>Homer</small>
-                  </button>
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-c"
-                      ><i>THE<br />WAVES</i></span
-                    >
-                    <strong>The Waves</strong><small>Virginia Woolf</small>
-                  </button>
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-d"
-                      ><i>THE<br />DISPOSSESSED</i></span
-                    >
-                    <strong>The Dispossessed</strong><small>Ursula K. Le Guin</small>
-                  </button>
-                </div>
-              </div>
-
-              <div class="app-main hero-filter-view" data-hero-panel="continue" hidden>
-                <div class="app-heading">
-                  <div>
-                    <small>Return without friction</small>
-                    <h2>Continue reading</h2>
-                  </div>
-                </div>
-                <div class="continue-list-large">
-                  <button type="button" data-open-reader>
-                    <span class="mini-cover cover-a"></span><b>The Left Hand of Darkness</b
-                    ><small>64%</small>
-                  </button>
-                  <button type="button" data-open-reader>
-                    <span class="mini-cover cover-c"></span><b>The Waves</b><small>31%</small>
-                  </button>
-                  <button type="button" data-open-reader>
-                    <span class="mini-cover cover-e"></span><b>Invisible Cities</b
-                    ><small>18%</small>
-                  </button>
-                </div>
-              </div>
-
-              <div class="app-main hero-filter-view" data-hero-panel="favorites" hidden>
-                <div class="app-heading">
-                  <div>
-                    <small>Keep favorites visible</small>
-                    <h2>Favorites</h2>
-                  </div>
-                </div>
-                <div class="mini-book-grid favorite-grid">
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-d"></span><strong>The Dispossessed</strong
-                    ><small>Ursula K. Le Guin</small>
-                  </button>
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-b"></span><strong>The Odyssey</strong
-                    ><small>Homer</small>
-                  </button>
-                  <button class="mini-book" type="button" data-open-reader>
-                    <span class="mini-cover cover-e"></span><strong>Invisible Cities</strong
-                    ><small>Italo Calvino</small>
-                  </button>
-                </div>
-              </div>
-
-              <div class="app-main hero-reader-view" data-hero-panel="reader" hidden>
-                <div class="reader-toolbar-mini">
-                  <button type="button" data-close-reader>
-                    <svg><use href="#icon-arrow-left"></use></svg>Library
-                  </button>
-                  <div>
-                    <strong>The Left Hand of Darkness</strong><small>Chapter 8 · 64%</small>
-                  </div>
-                  <span
-                    ><svg><use href="#icon-settings"></use></svg
-                  ></span>
-                </div>
-                <div class="reader-paper-mini">
-                  <small>CHAPTER EIGHT</small>
-                  <h3>Another Way into Orgoreyn</h3>
-                  <p>
-                    The weather grew colder as the road climbed. Beyond the glass, the light had the
-                    pale depth of winter, and the mountains seemed suspended in it.
-                  </p>
-                  <p>
-                    I read until the room around me disappeared, leaving only the measured turn of
-                    pages and the quiet certainty of returning.
-                  </p>
-                </div>
-                <span class="reader-progress-mini"><i></i></span>
-              </div>
+            <div class="home-orbit-status home-orbit-status--top" aria-hidden="true">
+              <span>Archive active</span>
+              <b>48 books</b>
+            </div>
+            <div class="home-orbit-status home-orbit-status--bottom" aria-hidden="true">
+              <span>Reading now</span>
+              <b>Chapter 07</b>
             </div>
           </div>
         </div>

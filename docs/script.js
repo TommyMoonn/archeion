@@ -40,7 +40,7 @@
   const sectionScrollConfig = {
     home: { focus: ".hero-copy", align: 0.5 },
     library: { focus: ".section-heading", align: 0.21 },
-    reader: { focus: ".reader-layout", fallback: ".reader-copy", align: 0.47 },
+    reader: { focus: ".reader-layout", fallback: ".reader-copy", align: 0.45 },
     architecture: { focus: ".architecture-heading", align: 0.46 },
     "get-started": { focus: ".get-started-panel", fallback: ".get-started-copy", align: 0.5 },
   };
@@ -364,6 +364,198 @@
     }
   });
 
+  const initializeHomeOrbitAnimation = () => {
+    const stage = document.querySelector("[data-home-orbit-stage]");
+    const scene = stage?.querySelector("[data-home-orbit-scene]");
+    const canvas = document.querySelector("[data-home-orbit-canvas]");
+    const hero = document.getElementById("home");
+
+    if (stage && scene && !coarsePointerQuery.matches && root.dataset.motion === "on") {
+      let parallaxFrame = 0;
+      let targetX = 0;
+      let targetY = 0;
+
+      const renderParallax = () => {
+        scene.style.setProperty("--home-tilt-x", `${targetX.toFixed(2)}deg`);
+        scene.style.setProperty("--home-tilt-y", `${targetY.toFixed(2)}deg`);
+        parallaxFrame = 0;
+      };
+
+      stage.addEventListener("pointermove", (event) => {
+        const rect = stage.getBoundingClientRect();
+        targetX = ((event.clientX - rect.left) / rect.width - 0.5) * 6;
+        targetY = ((event.clientY - rect.top) / rect.height - 0.5) * -5;
+        if (!parallaxFrame) {
+          parallaxFrame = window.requestAnimationFrame(renderParallax);
+        }
+      });
+
+      stage.addEventListener("pointerleave", () => {
+        targetX = 0;
+        targetY = 0;
+        if (!parallaxFrame) {
+          parallaxFrame = window.requestAnimationFrame(renderParallax);
+        }
+      });
+    }
+
+    if (!(canvas instanceof HTMLCanvasElement) || !hero || root.dataset.motion !== "on") {
+      return;
+    }
+
+    const context = canvas.getContext("2d", {
+      alpha: true,
+      desynchronized: true,
+    });
+    if (!context) return;
+
+    let width = 0;
+    let height = 0;
+    let pixelRatio = 1;
+    let stars = [];
+    let particles = [];
+    let animationFrame = 0;
+    let previousTime = 0;
+    let visible = true;
+    const targetFps = lowPowerDevice ? 24 : 45;
+    const frameInterval = 1000 / targetFps;
+
+    const randomBetween = (min, max) => min + Math.random() * (max - min);
+
+    const createScene = () => {
+      const starCount = Math.min(
+        lowPowerDevice ? 100 : 190,
+        Math.max(70, Math.round((width * height) / 10500)),
+      );
+
+      stars = Array.from({ length: starCount }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        radius: randomBetween(0.35, 1.2),
+        opacity: randomBetween(0.08, 0.48),
+        phase: Math.random() * Math.PI * 2,
+        speed: randomBetween(0.00035, 0.00115),
+      }));
+
+      const stackedLayout = window.innerWidth <= 1040;
+      const centerX = width * (stackedLayout ? 0.5 : 0.73);
+      const centerY = height * (stackedLayout ? 0.73 : 0.5);
+      const radiusX = Math.min(width, height) * (stackedLayout ? 0.27 : 0.33);
+      const radiusY = radiusX * 0.29;
+      const particleCount = lowPowerDevice ? 24 : 38;
+
+      particles = Array.from({ length: particleCount }, (_, index) => ({
+        centerX,
+        centerY,
+        radiusX: radiusX * randomBetween(0.72, 1.15),
+        radiusY: radiusY * randomBetween(0.75, 1.2),
+        angle: (index / particleCount) * Math.PI * 2,
+        speed: randomBetween(0.00005, 0.00016),
+        size: randomBetween(0.6, 1.7),
+        opacity: randomBetween(0.1, 0.42),
+        tilt: randomBetween(-0.12, 0.12),
+      }));
+    };
+
+    const drawScene = (time, elapsed = 16) => {
+      context.clearRect(0, 0, width, height);
+
+      for (const star of stars) {
+        const twinkle = 0.72 + Math.sin(time * star.speed + star.phase) * 0.28;
+        context.globalAlpha = star.opacity * twinkle;
+        context.fillStyle = "#d6d3d9";
+        context.beginPath();
+        context.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+        context.fill();
+      }
+
+      for (const particle of particles) {
+        particle.angle += particle.speed * elapsed;
+        const x = particle.centerX + Math.cos(particle.angle) * particle.radiusX;
+        const y = particle.centerY + Math.sin(particle.angle + particle.tilt) * particle.radiusY;
+
+        context.globalAlpha = particle.opacity;
+        context.fillStyle = particle.angle % 1.8 > 0.9 ? "#b7a8d9" : "#8fc1e3";
+        context.beginPath();
+        context.arc(x, y, particle.size, 0, Math.PI * 2);
+        context.fill();
+      }
+
+      context.globalAlpha = 1;
+    };
+
+    const resize = () => {
+      const rect = hero.getBoundingClientRect();
+      width = Math.max(1, Math.round(rect.width));
+      height = Math.max(1, Math.round(rect.height));
+      pixelRatio = Math.min(window.devicePixelRatio || 1, lowPowerDevice ? 1 : 1.5);
+      canvas.width = Math.round(width * pixelRatio);
+      canvas.height = Math.round(height * pixelRatio);
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+      createScene();
+      drawScene(performance.now());
+    };
+
+    const animate = (time) => {
+      animationFrame = 0;
+      if (!visible || document.hidden) return;
+
+      const elapsed = Math.min(32, Math.max(0, time - previousTime));
+      if (elapsed >= frameInterval) {
+        previousTime = time;
+        drawScene(time, elapsed);
+      }
+      animationFrame = window.requestAnimationFrame(animate);
+    };
+
+    const startAnimation = () => {
+      if (!animationFrame && visible && !document.hidden) {
+        previousTime = performance.now();
+        animationFrame = window.requestAnimationFrame(animate);
+      }
+    };
+
+    const stopAnimation = () => {
+      if (animationFrame) {
+        window.cancelAnimationFrame(animationFrame);
+        animationFrame = 0;
+      }
+    };
+
+    let resizeTimer = 0;
+    const queueResize = () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(resize, 120);
+    };
+
+    resize();
+    startAnimation();
+
+    if ("ResizeObserver" in window) {
+      const resizeObserver = new ResizeObserver(queueResize);
+      resizeObserver.observe(hero);
+    } else {
+      window.addEventListener("resize", queueResize, { passive: true });
+    }
+
+    if ("IntersectionObserver" in window) {
+      const visibilityObserver = new IntersectionObserver(
+        ([entry]) => {
+          visible = entry.isIntersecting;
+          if (visible) startAnimation();
+          else stopAnimation();
+        },
+        { threshold: 0.01 },
+      );
+      visibilityObserver.observe(hero);
+    }
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) stopAnimation();
+      else startAnimation();
+    });
+  };
+
   const initializeStarfield = () => {
     const canvas = document.getElementById("starfield");
     if (!(canvas instanceof HTMLCanvasElement)) return;
@@ -466,5 +658,6 @@
     if (animate) animationFrame = window.requestAnimationFrame(loop);
   };
 
+  initializeHomeOrbitAnimation();
   initializeStarfield();
 })();
