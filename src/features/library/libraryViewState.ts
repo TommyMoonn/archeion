@@ -2,7 +2,7 @@ import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 import type { Folder } from "../../types/folder";
 import type { LibrarySmartView } from "../../types/library";
 import type { FolderBrowserView } from "../folders/FolderBrowser";
-import type { LibraryLocation } from "./libraryFilters";
+import type { LibraryLocation } from "../../types/library";
 export type { FolderBrowserView } from "../folders/FolderBrowser";
 
 const LIBRARY_VIEW_PARAM = "view";

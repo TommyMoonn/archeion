@@ -3,7 +3,7 @@ import { useMemo, useRef } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { LibraryFilterState } from "../../types/library";
+import type { LibraryFilterState, LibraryLocation } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { isBookInProgress } from "../reading/readingProgress";
 import {
@@ -18,7 +18,6 @@ import {
   librarySmartViewLabel,
   sortBooks,
   type LibraryFilterOptions,
-  type LibraryLocation,
   type LibrarySearchIndexCache,
   type LibrarySmartViewCounts,
   type LibrarySort,

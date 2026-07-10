@@ -44,7 +44,7 @@ export function deriveSeriesVolumeToken(rawValue: string | undefined): SeriesVol
   };
 }
 
-export function compareSeriesBooks(left: Book, right: Book): number {
+function compareSeriesBooks(left: Book, right: Book): number {
   const leftToken = deriveSeriesVolumeToken(left.sourceMetadata?.volume);
   const rightToken = deriveSeriesVolumeToken(right.sourceMetadata?.volume);
   const leftKnown = leftToken.sortableValue !== undefined;
@@ -61,7 +61,7 @@ export function compareSeriesBooks(left: Book, right: Book): number {
   return compareBookIdentity(left, right);
 }
 
-export function sortSeriesBooks(books: readonly Book[]): Book[] {
+function sortSeriesBooks(books: readonly Book[]): Book[] {
   return [...books].sort(compareSeriesBooks);
 }
 
@@ -114,24 +114,22 @@ export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
   }
 
   return [...groupedBooks.entries()]
-    .map(([key, groupedSeriesBooks]) => {
-      const sortedBooks = sortSeriesBooks(groupedSeriesBooks);
-      const representative = [...groupedSeriesBooks].sort(compareBookIdentity)[0];
-      const progress = deriveSeriesProgress(sortedBooks);
-
-      return {
-        books: sortedBooks,
-        completedCount: progress.completedCount,
-        ...(progress.currentBookId ? { currentBookId: progress.currentBookId } : {}),
-        displayName: representative?.sourceMetadata?.series ?? key,
-        duplicateVolumeHints: findDuplicateVolumeHints(sortedBooks),
-        ...(progress.firstUnreadBookId ? { firstUnreadBookId: progress.firstUnreadBookId } : {}),
-        key,
-        missingVolumeHints: findMissingVolumeHints(sortedBooks),
-        startedCount: progress.startedCount,
-      };
-    })
+    .map(([key, groupedSeriesBooks]) => deriveSeriesEntry(key, groupedSeriesBooks))
     .sort(compareSeriesEntries);
+}
+
+export function deriveSeriesEntryForBook(
+  books: readonly Book[],
+  bookId: string,
+): SeriesEntry | undefined {
+  const book = books.find((candidate) => candidate.id === bookId);
+  const key = normalizeSeriesKey(book?.sourceMetadata?.series);
+  if (!key) return undefined;
+
+  const seriesBooks = books.filter(
+    (candidate) => normalizeSeriesKey(candidate.sourceMetadata?.series) === key,
+  );
+  return deriveSeriesEntry(key, seriesBooks);
 }
 
 export function filterSeriesEntries(entries: readonly SeriesEntry[], query: string): SeriesEntry[] {
@@ -227,6 +225,24 @@ function deriveSeriesProgress(books: readonly Book[]): {
     ...(currentBook ? { currentBookId: currentBook.id } : {}),
     ...(firstUnreadBook ? { firstUnreadBookId: firstUnreadBook.id } : {}),
     startedCount: inProgress.length,
+  };
+}
+
+function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly Book[]): SeriesEntry {
+  const sortedBooks = sortSeriesBooks(groupedSeriesBooks);
+  const representative = [...groupedSeriesBooks].sort(compareBookIdentity)[0];
+  const progress = deriveSeriesProgress(sortedBooks);
+
+  return {
+    books: sortedBooks,
+    completedCount: progress.completedCount,
+    ...(progress.currentBookId ? { currentBookId: progress.currentBookId } : {}),
+    displayName: representative?.sourceMetadata?.series ?? key,
+    duplicateVolumeHints: findDuplicateVolumeHints(sortedBooks),
+    ...(progress.firstUnreadBookId ? { firstUnreadBookId: progress.firstUnreadBookId } : {}),
+    key,
+    missingVolumeHints: findMissingVolumeHints(sortedBooks),
+    startedCount: progress.startedCount,
   };
 }
 

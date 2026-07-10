@@ -97,12 +97,6 @@ export function getReaderWheelIntentFromDelta(deltaY: number): ReaderNavigationI
   return deltaY > 0 ? "forward" : "backward";
 }
 
-export function getReaderWheelIntent(event: ReaderWheelEvent): ReaderNavigationIntent | null {
-  const deltaY = getReaderWheelDelta(event);
-
-  return deltaY === null ? null : getReaderWheelIntentFromDelta(deltaY);
-}
-
 export function canRunReaderWheelTurn(now: number, lastTurnAt: number) {
   return now - lastTurnAt >= READER_WHEEL_THROTTLE_MS;
 }

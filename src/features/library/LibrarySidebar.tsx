@@ -22,14 +22,10 @@ import { memo, useCallback, useId, useState } from "react";
 import { IconButton } from "../../components/IconButton";
 import type { KnownArchive } from "../../types/archive";
 import type { Folder } from "../../types/folder";
-import type { LibrarySmartView } from "../../types/library";
+import type { LibraryLocation, LibrarySmartView } from "../../types/library";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
-import {
-  librarySmartViewLabel,
-  type LibraryLocation,
-  type LibrarySmartViewCounts,
-} from "./libraryFilters";
+import { librarySmartViewLabel, type LibrarySmartViewCounts } from "./libraryFilters";
 
 const smartViews: Array<{ icon: Icon; view: LibrarySmartView }> = [
   { view: "unread", icon: BookOpenText },

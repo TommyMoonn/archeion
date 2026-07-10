@@ -17,7 +17,6 @@ import {
   deriveLibraryFilterOptions,
   filterBookSearchIndex,
   filterBooks,
-  filterBooksByLocation,
   getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
   getVisibleBooks,
@@ -576,11 +575,11 @@ describe("library filters", () => {
   });
 
   it("filters favorites and direct folder contents", () => {
-    expect(filterBooksByLocation(books, { type: "favorites" }).map((book) => book.id)).toEqual([
-      "first",
-    ]);
     expect(
-      filterBooksByLocation(books, {
+      getVisibleBooks(books, "", "title", { type: "favorites" }).map((book) => book.id),
+    ).toEqual(["first"]);
+    expect(
+      getVisibleBooks(books, "", "title", {
         type: "folder",
         folderId: "folder-one",
       }).map((book) => book.id),
@@ -607,6 +606,10 @@ describe("library filters", () => {
           publisher: "South Press",
         },
       }),
+      createBook({
+        id: "three",
+        sourceMetadata: { series: "Ｓｔａｒ　Ｓａｇａ" },
+      }),
     ];
 
     expect(deriveLibraryFilterOptions(filterBooks)).toEqual({
@@ -615,6 +618,12 @@ describe("library filters", () => {
       languages: ["en"],
       publishers: ["North Press", "South Press"],
     });
+    expect(
+      bookMatchesLibraryFilters(filterBooks[2]!, {
+        ...createDefaultLibraryFilters(),
+        series: ["star saga"],
+      }),
+    ).toBe(true);
   });
 
   it("matches any selected subject while composing separate filter categories with AND semantics", () => {
@@ -769,11 +778,11 @@ describe("library filters", () => {
         .map((book) => book.id),
     ).toEqual(["missing-title", "missing-creator", "missing-both"]);
     expect(
-      filterBooksByLocation(candidates, {
+      getVisibleBooks(candidates, "", "title", {
         type: "smart-view",
         smartView: "needs-metadata",
       }).map((book) => book.id),
-    ).toEqual(["missing-title", "missing-creator", "missing-both"]);
+    ).toEqual(["missing-title", "missing-both", "missing-creator"]);
     expect(countBooksBySmartView(candidates)["needs-metadata"]).toBe(3);
   });
 
@@ -861,9 +870,10 @@ describe("library filters", () => {
       "needs-cover": 1,
     });
     expect(
-      filterBooksByLocation(candidates, { type: "smart-view", smartView: "completed" }).map(
-        (book) => book.id,
-      ),
+      getVisibleBooks(candidates, "", "title", {
+        type: "smart-view",
+        smartView: "completed",
+      }).map((book) => book.id),
     ).toEqual(["completed"]);
   });
 });

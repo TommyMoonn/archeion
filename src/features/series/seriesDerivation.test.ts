@@ -2,17 +2,16 @@ import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
 import {
-  compareSeriesBooks,
   countSeriesGroups,
   createSeriesEntriesCache,
   deriveSeriesEntries,
+  deriveSeriesEntryForBook,
   deriveSeriesVolumeToken,
   normalizeSeriesKey,
   filterSeriesEntries,
   getCachedSeriesEntries,
   seriesContinueBook,
   seriesNextVolumeBook,
-  sortSeriesBooks,
 } from "./seriesDerivation";
 
 function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
@@ -24,6 +23,17 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
     updatedAt: "2026-07-01T00:00:00.000Z",
     ...overrides,
   };
+}
+
+function deriveOrderedBookIds(books: Book[]): string[] {
+  return (
+    deriveSeriesEntries(
+      books.map((book) => ({
+        ...book,
+        sourceMetadata: { ...book.sourceMetadata, series: "Test Series" },
+      })),
+    )[0]?.books.map((book) => book.id) ?? []
+  );
 }
 
 describe("series derivation", () => {
@@ -99,7 +109,7 @@ describe("series derivation", () => {
       createBook({ id: "unknown-a", originalTitle: "Unknown 2", sourceMetadata: {} }),
     ];
 
-    expect(sortSeriesBooks(books).map((book) => book.id)).toEqual([
+    expect(deriveOrderedBookIds(books)).toEqual([
       "one",
       "one-half",
       "two",
@@ -131,8 +141,7 @@ describe("series derivation", () => {
       }),
     ];
 
-    expect(sortSeriesBooks(books).map((book) => book.id)).toEqual(["a-id", "b-id", "z-id"]);
-    expect(compareSeriesBooks(books[0]!, books[1]!)).toBeGreaterThan(0);
+    expect(deriveOrderedBookIds(books)).toEqual(["a-id", "b-id", "z-id"]);
   });
 
   it("groups only books with series metadata and preserves raw metadata", () => {
@@ -163,6 +172,19 @@ describe("series derivation", () => {
     expect(first.sourceMetadata).toEqual({ series: "STAR SAGA", volume: " Vol. 01 " });
     expect(second.sourceMetadata).toEqual({ series: " star   saga ", volume: "2" });
     expect(input.map((book) => book.id)).toEqual(["second", "ungrouped", "first"]);
+  });
+
+  it("derives only the current book's shared series model", () => {
+    const books = [
+      createBook({ id: "target", sourceMetadata: { series: "Star Saga", volume: "2" } }),
+      createBook({ id: "first", sourceMetadata: { series: " star saga ", volume: "1" } }),
+      createBook({ id: "other", sourceMetadata: { series: "Other Saga", volume: "1" } }),
+    ];
+
+    const entry = deriveSeriesEntryForBook(books, "target");
+    expect(entry?.key).toBe("star saga");
+    expect(entry?.books.map((book) => book.id)).toEqual(["first", "target"]);
+    expect(deriveSeriesEntryForBook(books, "missing")).toBeUndefined();
   });
 
   it("detects equivalent numeric and repeated text volume labels", () => {

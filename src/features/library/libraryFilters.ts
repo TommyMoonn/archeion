@@ -4,11 +4,13 @@ import {
   createDefaultLibraryFilters,
   normalizeLibrarySort,
   type LibraryFilterState,
+  type LibraryLocation,
   type LibrarySmartView,
   type LibrarySort,
 } from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { bookReadingStatus, isBookInProgress } from "../reading/readingProgress";
+import { normalizeSeriesKey } from "../series/seriesDerivation";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -22,16 +24,6 @@ export { bookAuthor, bookSourceAuthor, bookSourceTitle, bookTitle } from "../../
 
 export { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../../types/library";
 export type { LibrarySort } from "../../types/library";
-
-export type LibraryLocation =
-  | { type: "library" }
-  | { type: "continue" }
-  | { type: "favorites" }
-  | { type: "smart-view"; smartView: LibrarySmartView }
-  | { type: "series" }
-  | { type: "series-detail"; seriesKey: string }
-  | { type: "folders" }
-  | { type: "folder"; folderId: string };
 
 export type LibraryFilterOptions = {
   series: string[];
@@ -130,9 +122,22 @@ function uniqueMetadataValues(values: Array<string | undefined>): string[] {
   return [...valuesByKey.values()].sort((left, right) => collator.compare(left, right));
 }
 
+function uniqueSeriesValues(values: Array<string | undefined>): string[] {
+  const valuesByKey = new Map<string, string>();
+
+  for (const value of values) {
+    const displayValue = value?.trim();
+    const key = normalizeSeriesKey(displayValue);
+    if (displayValue && key && !valuesByKey.has(key)) valuesByKey.set(key, displayValue);
+  }
+
+  const collator = getLibrarySortCollator();
+  return [...valuesByKey.values()].sort((left, right) => collator.compare(left, right));
+}
+
 export function deriveLibraryFilterOptions(books: Book[]): LibraryFilterOptions {
   return {
-    series: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.series)),
+    series: uniqueSeriesValues(books.map((book) => book.sourceMetadata?.series)),
     subjects: uniqueMetadataValues(books.flatMap((book) => book.sourceMetadata?.subjects ?? [])),
     languages: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.language)),
     publishers: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.publisher)),
@@ -144,6 +149,13 @@ function matchesSelectedValues(value: string | undefined, selectedValues: string
 
   const normalizedValue = normalizedMetadataValue(value);
   return selectedValues.some((selected) => normalizedMetadataValue(selected) === normalizedValue);
+}
+
+function matchesSelectedSeries(value: string | undefined, selectedValues: string[]): boolean {
+  if (selectedValues.length === 0) return true;
+
+  const key = normalizeSeriesKey(value);
+  return selectedValues.some((selected) => normalizeSeriesKey(selected) === key);
 }
 
 function matchesSelectedSubjects(book: Book, selectedSubjects: string[]): boolean {
@@ -158,13 +170,12 @@ function matchesSelectedSubjects(book: Book, selectedSubjects: string[]): boolea
 function pruneUnavailableMetadataSelections(
   selectedValues: string[],
   availableValues: string[],
+  normalize: (value: string | undefined) => string = normalizedMetadataValue,
 ): string[] {
   if (selectedValues.length === 0) return selectedValues;
 
-  const availableKeys = new Set(availableValues.map(normalizedMetadataValue));
-  const nextValues = selectedValues.filter((value) =>
-    availableKeys.has(normalizedMetadataValue(value)),
-  );
+  const availableKeys = new Set(availableValues.map(normalize));
+  const nextValues = selectedValues.filter((value) => availableKeys.has(normalize(value)));
 
   return nextValues.length === selectedValues.length ? selectedValues : nextValues;
 }
@@ -173,7 +184,11 @@ export function pruneUnavailableLibraryMetadataFilters(
   filters: LibraryFilterState,
   options: LibraryFilterOptions,
 ): LibraryFilterState {
-  const series = pruneUnavailableMetadataSelections(filters.series, options.series);
+  const series = pruneUnavailableMetadataSelections(
+    filters.series,
+    options.series,
+    (value) => normalizeSeriesKey(value) ?? "",
+  );
   const subjects = pruneUnavailableMetadataSelections(filters.subjects, options.subjects);
   const languages = pruneUnavailableMetadataSelections(filters.languages, options.languages);
   const publishers = pruneUnavailableMetadataSelections(filters.publishers, options.publishers);
@@ -226,7 +241,7 @@ export function bookMatchesLibraryFilters(book: Book, filters: LibraryFilterStat
   const readingStatus = bookReadingStatus(book);
 
   return (
-    matchesSelectedValues(book.sourceMetadata?.series, filters.series) &&
+    matchesSelectedSeries(book.sourceMetadata?.series, filters.series) &&
     matchesSelectedSubjects(book, filters.subjects) &&
     matchesSelectedValues(book.sourceMetadata?.language, filters.languages) &&
     matchesSelectedValues(book.sourceMetadata?.publisher, filters.publishers) &&
@@ -482,25 +497,6 @@ export function filterBookSearchIndex(index: LibrarySearchIndexEntry[], query: s
 
 export function filterBooks(books: Book[], query: string, folders: Folder[] = []): Book[] {
   return filterBookSearchIndex(createLibrarySearchIndex(books, folders), query);
-}
-
-export function filterBooksByLocation(books: Book[], location: LibraryLocation): Book[] {
-  switch (location.type) {
-    case "library":
-      return books;
-    case "favorites":
-      return books.filter((book) => book.isFavorite);
-    case "continue":
-      return books.filter(isBookInProgress);
-    case "smart-view":
-      return books.filter((book) => bookMatchesSmartView(book, location.smartView));
-    case "folders":
-    case "series":
-    case "series-detail":
-      return [];
-    case "folder":
-      return books.filter((book) => book.folderId === location.folderId);
-  }
 }
 
 function stablePath(book: Book): string {

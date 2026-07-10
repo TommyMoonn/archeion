@@ -3,6 +3,16 @@ export type LibraryReadingStatus = "unread" | "in-progress" | "completed";
 export type LibrarySmartView =
   "unread" | "in-progress" | "completed" | "needs-metadata" | "needs-cover";
 
+export type LibraryLocation =
+  | { type: "library" }
+  | { type: "continue" }
+  | { type: "favorites" }
+  | { type: "smart-view"; smartView: LibrarySmartView }
+  | { type: "series" }
+  | { type: "series-detail"; seriesKey: string }
+  | { type: "folders" }
+  | { type: "folder"; folderId: string };
+
 export type LibraryFilterState = {
   series: string[];
   subjects: string[];

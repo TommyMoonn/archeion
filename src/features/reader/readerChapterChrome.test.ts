@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { ReaderChapter } from "../../types/reader";
-import { deriveReaderChapterSequence, normalizeReaderChapterProgress } from "./readerChapterChrome";
+import { deriveReaderChapterSequence } from "./readerChapterChrome";
+import { normalizeReaderChapterProgress } from "./readerNavigationState";
 
 const chapters: ReaderChapter[] = [
   { id: "part", label: "Part One", href: "part.xhtml", depth: 0 },

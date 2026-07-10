@@ -2,7 +2,7 @@ import { Folder as FolderIcon } from "@phosphor-icons/react";
 import { useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
 import type { Folder } from "../../types/folder";
-import type { LibraryLocation } from "../library/libraryFilters";
+import type { LibraryLocation } from "../../types/library";
 import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 

@@ -4,7 +4,6 @@ import {
   canRunReaderWheelTurn,
   getReaderKeyboardIntent,
   getReaderWheelDelta,
-  getReaderWheelIntent,
   getReaderWheelIntentFromDelta,
   READER_WHEEL_THROTTLE_MS,
   READER_WHEEL_TURN_DELTA,
@@ -50,6 +49,11 @@ function wheelEvent(
   } as WheelEvent;
 }
 
+function wheelIntent(event: WheelEvent) {
+  const delta = getReaderWheelDelta(event);
+  return delta === null ? null : getReaderWheelIntentFromDelta(delta);
+}
+
 describe("reader navigation helpers", () => {
   it("maps paged reader keyboard shortcuts", () => {
     expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight" }))).toBe("forward");
@@ -69,17 +73,17 @@ describe("reader navigation helpers", () => {
   });
 
   it("maps vertical wheel gestures to page direction", () => {
-    expect(getReaderWheelIntent(wheelEvent({ deltaY: 80 }))).toBe("forward");
-    expect(getReaderWheelIntent(wheelEvent({ deltaY: -80 }))).toBe("backward");
-    expect(getReaderWheelIntent(wheelEvent({ deltaX: 80, deltaY: 10 }))).toBeNull();
-    expect(getReaderWheelIntent(wheelEvent({ deltaX: 80, deltaY: 40 }))).toBeNull();
+    expect(wheelIntent(wheelEvent({ deltaY: 80 }))).toBe("forward");
+    expect(wheelIntent(wheelEvent({ deltaY: -80 }))).toBe("backward");
+    expect(wheelIntent(wheelEvent({ deltaX: 80, deltaY: 10 }))).toBeNull();
+    expect(wheelIntent(wheelEvent({ deltaX: 80, deltaY: 40 }))).toBeNull();
   });
 
   it("normalizes line-mode wheel deltas", () => {
     expect(getReaderWheelDelta(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe(
       READER_WHEEL_TURN_DELTA,
     );
-    expect(getReaderWheelIntent(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe("forward");
+    expect(wheelIntent(wheelEvent({ deltaMode: 1, deltaY: 3 }))).toBe("forward");
   });
 
   it("allows small smooth-wheel deltas to accumulate before turning", () => {

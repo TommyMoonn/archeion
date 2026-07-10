@@ -19,18 +19,18 @@ import {
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
+import {
+  createDefaultLibraryFilters,
+  type LibraryFilterState,
+  type LibraryLocation,
+} from "../../types/library";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { useArchive } from "../archive/useArchive";
-import {
-  countSeriesGroups,
-  createSeriesEntriesCache,
-  getCachedSeriesEntries,
-} from "../series/seriesDerivation";
+import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import {
   shouldConfirmBookDeletion,
   shouldConfirmFolderDeletion,
@@ -43,7 +43,6 @@ import {
   createLibrarySearchIndexCache,
   hasActiveLibraryFilters,
   pruneUnavailableLibraryMetadataFilters,
-  type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
@@ -234,7 +233,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
-  const [seriesEntriesCache] = useState(() => createSeriesEntriesCache());
   const activeArchive = archive.archive;
   const books = booksLoadState.books;
   const filters = libraryPreferences.filters;
@@ -285,19 +283,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => libraryLocationFromSearchParams(searchParams, folders ?? [], activeArchive.id),
     [activeArchive.id, folders, searchParams],
   );
-  const seriesCount = useMemo(() => countSeriesGroups(books ?? []), [books]);
-  const needsSeriesEntries = location.type === "series" || location.type === "series-detail";
-  const seriesEntries = useMemo(
-    () =>
-      needsSeriesEntries
-        ? getCachedSeriesEntries(books ?? [], seriesEntriesCache)
-        : seriesEntriesCache.entries,
-    [books, needsSeriesEntries, seriesEntriesCache],
-  );
-  const activeSeries =
-    location.type === "series-detail"
-      ? seriesEntries.find((entry) => entry.key === location.seriesKey)
-      : undefined;
+  const {
+    activeSeries,
+    entries: seriesEntries,
+    seriesCount,
+  } = useLibrarySeriesState(books, location);
   const folderBrowserView = useMemo(
     () => folderBrowserViewFromSearchParams(searchParams),
     [searchParams],
