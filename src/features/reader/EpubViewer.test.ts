@@ -37,7 +37,7 @@ describe("readerThemeForSettings", () => {
     expect(bodyRules.margin).toBeUndefined();
     expect(bodyRules["max-width"]).toBeUndefined();
     expect(bodyRules.overflow).toBeUndefined();
-    expect(theme.body["font-family"]).toContain("Segoe UI");
+    expect(theme["body, body *"]["font-family"]).toContain("Segoe UI");
   });
 
   it("maps bundled Literata into reader theme output", () => {
@@ -46,7 +46,7 @@ describe("readerThemeForSettings", () => {
       fontFamily: "literata",
     });
 
-    expect(theme.body["font-family"]).toContain("Literata");
+    expect(theme["body, body *"]["font-family"]).toContain("Literata");
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
@@ -61,7 +61,7 @@ describe("readerThemeForSettings", () => {
       fontFamily: "atkinson",
     });
 
-    expect(theme.body["font-family"]).toContain("Atkinson Hyperlegible");
+    expect(theme["body, body *"]["font-family"]).toContain("Atkinson Hyperlegible");
     expect(
       readerFontFaceCssForSettings({
         ...defaultReaderSettings,
@@ -97,7 +97,8 @@ describe("readerThemeForSettings", () => {
   });
 
   it("applies reader content themes through one helper", () => {
-    document.head.innerHTML = "";
+    const firstChapter = document.implementation.createHTMLDocument("First chapter");
+    const nextChapter = document.implementation.createHTMLDocument("Next chapter");
     const target = {
       themes: {
         register: vi.fn(),
@@ -109,13 +110,48 @@ describe("readerThemeForSettings", () => {
       fontFamily: "atkinson",
     });
 
-    applyReaderContentTheme(target, contentTheme, [document, document]);
+    applyReaderContentTheme(target, contentTheme, [firstChapter, firstChapter, nextChapter]);
 
     expect(target.themes.register).toHaveBeenCalledWith("archeion-reader", contentTheme.rules);
     expect(target.themes.select).toHaveBeenCalledWith("archeion-reader");
-    expect(document.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+    expect(firstChapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
       'font-family: "Atkinson Hyperlegible"',
     );
+    expect(nextChapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+      'font-family: "Atkinson Hyperlegible"',
+    );
+  });
+
+  it("updates font faces in place when the reader typeface changes", () => {
+    const chapter = document.implementation.createHTMLDocument("Chapter");
+    const literataTheme = createReaderContentTheme({
+      ...defaultReaderSettings,
+      fontFamily: "literata",
+    });
+    const atkinsonTheme = createReaderContentTheme({
+      ...defaultReaderSettings,
+      fontFamily: "atkinson",
+    });
+
+    applyReaderContentTheme(null, literataTheme, [chapter]);
+    const initialStyle = chapter.getElementById("archeion-reader-font-faces");
+    applyReaderContentTheme(null, atkinsonTheme, [chapter]);
+
+    expect(chapter.getElementById("archeion-reader-font-faces")).toBe(initialStyle);
+    expect(initialStyle?.textContent).toContain('font-family: "Atkinson Hyperlegible"');
+    expect(initialStyle?.textContent).not.toContain('font-family: "Literata"');
+  });
+
+  it("forces the selected reader font over EPUB-provided element fonts", () => {
+    const theme = readerThemeForSettings({
+      ...defaultReaderSettings,
+      fontFamily: "literata",
+    });
+
+    expect(theme["body, body *"]["font-family"]).toBe(
+      '"Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif !important',
+    );
+    expect(theme.body["font-family" as keyof typeof theme.body]).toBeUndefined();
   });
 
   it("compares only EPUB-content reader settings for viewer memoization", () => {
@@ -143,6 +179,6 @@ describe("readerThemeForSettings", () => {
       fontFamily: "removed-font" as never,
     });
 
-    expect(theme.body["font-family"]).toContain("Iowan Old Style");
+    expect(theme["body, body *"]["font-family"]).toContain("Iowan Old Style");
   });
 });

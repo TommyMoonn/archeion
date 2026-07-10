@@ -61,7 +61,6 @@ export function readerThemeForSettings(settings: ReaderContentSettings) {
     body: {
       color: `${colors.text} !important`,
       background: `${colors.background} !important`,
-      "font-family": `${fontFamily} !important`,
       "font-size": `${settings.fontSize}px !important`,
       "line-height": `${settings.lineHeight} !important`,
       padding: `0 ${settings.margin}px !important`,
@@ -69,6 +68,9 @@ export function readerThemeForSettings(settings: ReaderContentSettings) {
       "overflow-x": "hidden !important",
       "overscroll-behavior": "contain !important",
       "scrollbar-width": "none !important",
+    },
+    "body, body *": {
+      "font-family": `${fontFamily} !important`,
     },
     "body::-webkit-scrollbar": {
       display: "none !important",

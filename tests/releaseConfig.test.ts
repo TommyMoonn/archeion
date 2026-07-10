@@ -105,4 +105,26 @@ describe("release configuration", () => {
     expect(developmentCsp?.["style-src"]).toContain("blob:");
     expect(tauriConfig.app.security.freezePrototype).not.toBe(true);
   });
+
+  it("packages reader font notices and permits local iframe font assets", () => {
+    const licensePaths = [
+      "public/licenses/fonts/Literata-OFL-1.1.txt",
+      "public/licenses/fonts/Atkinson-Hyperlegible-OFL-1.1.txt",
+    ];
+    const productionCsp = tauriConfig.app.security.csp;
+    const developmentCsp = tauriConfig.app.security.devCsp;
+
+    for (const licensePath of licensePaths) {
+      const license = fs.readFileSync(path.join(projectRoot, licensePath), "utf8");
+
+      expect(license).toContain("SIL OPEN FONT LICENSE Version 1.1");
+    }
+
+    expect(productionCsp["font-src"]).toContain("'self'");
+    expect(productionCsp["font-src"]).toContain("blob:");
+    expect(productionCsp["style-src"]).toContain("'unsafe-inline'");
+    expect(developmentCsp?.["font-src"]).toContain("'self'");
+    expect(developmentCsp?.["font-src"]).toContain("blob:");
+    expect(developmentCsp?.["style-src"]).toContain("'unsafe-inline'");
+  });
 });

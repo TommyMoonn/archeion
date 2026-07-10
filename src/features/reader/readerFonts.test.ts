@@ -32,8 +32,27 @@ describe("reader fonts", () => {
     expect(readerFontFaceCssForId("removed-font")).toBe("");
   });
 
-  it("emits iframe font-face CSS for bundled fonts", () => {
-    expect(readerFontFaceCssForId("literata")).toContain('font-family: "Literata"');
-    expect(readerFontFaceCssForId("atkinson")).toContain('font-family: "Atkinson Hyperlegible"');
+  it("references packaged Literata WOFF2 assets for normal and italic text", () => {
+    const fontFaceCss = readerFontFaceCssForId("literata");
+
+    expect(fontFaceCss.match(/@font-face/g)).toHaveLength(6);
+    expect(fontFaceCss).toContain('font-family: "Literata"');
+    expect(fontFaceCss).toContain("literata-latin-standard-normal");
+    expect(fontFaceCss).toContain("literata-latin-standard-italic");
+    expect(fontFaceCss).toContain("literata-vietnamese-standard-normal");
+    expect(fontFaceCss).toContain('format("woff2")');
+    expect(fontFaceCss).not.toContain("local(");
+  });
+
+  it("references packaged Atkinson assets for regular, bold, and italic text", () => {
+    const fontFaceCss = readerFontFaceCssForId("atkinson");
+
+    expect(fontFaceCss.match(/@font-face/g)).toHaveLength(8);
+    expect(fontFaceCss).toContain('font-family: "Atkinson Hyperlegible"');
+    expect(fontFaceCss).toContain("atkinson-hyperlegible-latin-400-normal");
+    expect(fontFaceCss).toContain("atkinson-hyperlegible-latin-700-normal");
+    expect(fontFaceCss).toContain("atkinson-hyperlegible-latin-400-italic");
+    expect(fontFaceCss).toContain("atkinson-hyperlegible-latin-700-italic");
+    expect(fontFaceCss).not.toContain("local(");
   });
 });
