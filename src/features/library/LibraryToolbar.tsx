@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { GridFour, List, Plus, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { CheckSquare, GridFour, List, Plus, MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -28,9 +28,11 @@ type LibraryToolbarProps = {
   onRescanError: () => void;
   onRescanSuccess: () => void;
   onSortChange: (sort: LibrarySort) => void;
+  onToggleSelectionMode: () => void;
   onViewChange: (view: LibraryView) => void;
   query: string;
   resultCount: number;
+  selectionMode: boolean;
   sort: LibrarySort;
   title: string;
   view: LibraryView;
@@ -65,9 +67,11 @@ export function LibraryToolbar({
   onRescanError,
   onRescanSuccess,
   onSortChange,
+  onToggleSelectionMode,
   onViewChange,
   query,
   resultCount,
+  selectionMode,
   sort,
   title,
   view,
@@ -104,14 +108,23 @@ export function LibraryToolbar({
             </IconButton>
           ) : null}
         </div>
+        <IconButton
+          aria-pressed={selectionMode}
+          className="library-select-button"
+          label={selectionMode ? "Finish selecting books" : "Select books"}
+          onClick={onToggleSelectionMode}
+        >
+          <CheckSquare aria-hidden="true" size={17} weight={selectionMode ? "fill" : "regular"} />
+        </IconButton>
+        <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
         <Button
+          className="library-add-button"
           disabled={isImporting}
           icon={<Plus aria-hidden="true" size={17} weight="bold" />}
           onClick={onOpenAddEpub}
         >
           {isImporting ? "Adding" : "Add EPUB"}
         </Button>
-        <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
       </div>
 
       <div className="library-controls">

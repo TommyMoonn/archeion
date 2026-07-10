@@ -47,6 +47,8 @@ import {
 } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
+import { LibrarySelectionBar } from "./LibrarySelectionBar";
+import type { LibrarySelectionIntent } from "./librarySelection";
 import {
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
@@ -58,6 +60,7 @@ import {
 } from "./libraryFeedback";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
+import { useLibrarySelection } from "./useLibrarySelection";
 import {
   folderBrowserViewFromSearchParams,
   libraryLocationFromSearchParams,
@@ -235,6 +238,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const activeArchive = archive.archive;
   const books = booksLoadState.books;
+  const {
+    clear: clearSelection,
+    deselectVisible,
+    enterMode: enterSelectionMode,
+    exitMode: exitSelectionMode,
+    selectVisible,
+    selectedBookIds,
+    selectionMode,
+    toggleBook: toggleBookSelection,
+  } = useLibrarySelection(books);
   const filters = libraryPreferences.filters;
   const sort = libraryPreferences.sortBy;
   const view = libraryPreferences.viewMode;
@@ -519,6 +532,23 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     selectedBookId,
     sort,
   });
+  const visibleSelectedCount = useMemo(
+    () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
+    [selectedBookIds, visibleBooks],
+  );
+  const toggleSelectionMode = useCallback(() => {
+    if (selectionMode) {
+      exitSelectionMode();
+    } else {
+      enterSelectionMode();
+    }
+  }, [enterSelectionMode, exitSelectionMode, selectionMode]);
+  const changeBookSelection = useCallback(
+    (book: Book, intent: LibrarySelectionIntent) => {
+      toggleBookSelection(book, intent, visibleBooks);
+    },
+    [toggleBookSelection, visibleBooks],
+  );
 
   useEffect(() => {
     if (booksLoadState.status !== "ready" || booksLoadState.archiveId !== activeArchive.id) {
@@ -731,6 +761,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }
 
   async function switchArchive(archiveId: string) {
+    exitSelectionMode();
     setSearchParams(
       searchParamsForLibraryLocation(searchParams, { type: "library" }, folders ?? [], archiveId),
       { replace: true },
@@ -958,6 +989,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         />
       }
     >
+      {selectionMode ? (
+        <LibrarySelectionBar
+          onClear={clearSelection}
+          onDeselectVisible={() => deselectVisible(visibleBooks)}
+          onExit={exitSelectionMode}
+          onSelectVisible={() => selectVisible(visibleBooks)}
+          selectedCount={selectedBookIds.size}
+          visibleCount={visibleBooks.length}
+          visibleSelectedCount={visibleSelectedCount}
+        />
+      ) : null}
       {location.type === "folders" ? (
         <FolderBrowser
           bookCounts={bookCountsByFolder}
@@ -1019,9 +1061,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onRescanError={showRescanError}
             onRescanSuccess={showRescanSuccess}
             onSortChange={changeSort}
+            onToggleSelectionMode={toggleSelectionMode}
             onViewChange={changeView}
             query={query}
             resultCount={visibleBooks.length}
+            selectionMode={selectionMode}
             sort={effectiveSort}
             title={libraryTitle}
             view={view}
@@ -1078,7 +1122,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onRenameFile={requestRenameFile}
                 onRevealFile={revealBookFile}
                 onSelect={selectBook}
+                onSelectionChange={changeBookSelection}
                 onToggleFavorite={toggleFavorite}
+                selectedBookIds={selectedBookIds}
+                selectionMode={selectionMode}
               />
             ) : (
               <BookList
@@ -1090,7 +1137,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 onRenameFile={requestRenameFile}
                 onRevealFile={revealBookFile}
                 onSelect={selectBook}
+                onSelectionChange={changeBookSelection}
                 onToggleFavorite={toggleFavorite}
+                selectedBookIds={selectedBookIds}
+                selectionMode={selectionMode}
               />
             )}
           </div>

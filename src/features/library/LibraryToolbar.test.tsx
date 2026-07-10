@@ -13,7 +13,7 @@ import { LibraryToolbar } from "./LibraryToolbar";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock("../archive/RescanArchiveButton", () => ({
-  RescanArchiveButton: () => null,
+  RescanArchiveButton: () => <button aria-label="Rescan archive" type="button" />,
 }));
 
 function renderToolbar() {
@@ -30,9 +30,11 @@ function renderToolbar() {
       onRescanError={vi.fn()}
       onRescanSuccess={vi.fn()}
       onSortChange={vi.fn()}
+      onToggleSelectionMode={vi.fn()}
       onViewChange={vi.fn()}
       query=""
       resultCount={0}
+      selectionMode={false}
       sort="title"
       title="Library"
       view="grid"
@@ -46,12 +48,14 @@ function renderInteractiveToolbar({
   onClearSearch = vi.fn(),
   onFilterChange = vi.fn(),
   onQueryChange = vi.fn(),
+  onToggleSelectionMode = vi.fn(),
 }: {
   filters?: LibraryFilterState;
   onClearFilters?: () => void;
   onClearSearch?: () => void;
   onFilterChange?: (filters: LibraryFilterState) => void;
   onQueryChange?: (query: string) => void;
+  onToggleSelectionMode?: () => void;
 } = {}) {
   const container = document.createElement("div");
   const root = createRoot(container);
@@ -75,9 +79,11 @@ function renderInteractiveToolbar({
         onRescanError={vi.fn()}
         onRescanSuccess={vi.fn()}
         onSortChange={vi.fn()}
+        onToggleSelectionMode={onToggleSelectionMode}
         onViewChange={vi.fn()}
         query="Dune"
         resultCount={1}
+        selectionMode={false}
         sort="title"
         title="Library"
         view="grid"
@@ -188,5 +194,31 @@ describe("LibraryToolbar", () => {
     expect(session.container.querySelector('[aria-label="Active filters"]')).toBeNull();
     expect(session.container.querySelector(".library-filter__count")).toBeNull();
     expect(session.container.querySelector('[aria-label="1 book shown"]')?.textContent).toBe("1");
+  });
+
+  it("enters explicit selection mode without changing the search query", () => {
+    const onQueryChange = vi.fn();
+    const onToggleSelectionMode = vi.fn();
+    const session = renderInteractiveToolbar({ onQueryChange, onToggleSelectionMode });
+    activeRoot = session.root;
+
+    const selectButton = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Select books"]',
+    );
+    act(() => selectButton?.click());
+
+    expect(onToggleSelectionMode).toHaveBeenCalledTimes(1);
+    expect(onQueryChange).not.toHaveBeenCalled();
+  });
+
+  it("orders compact library actions after the expanding search field", () => {
+    const session = renderInteractiveToolbar();
+    activeRoot = session.root;
+    const actions = session.container.querySelector(".library-header__actions");
+    const actionLabels = [...(actions?.querySelectorAll<HTMLButtonElement>("button") ?? [])].map(
+      (button) => button.getAttribute("aria-label") ?? button.textContent,
+    );
+
+    expect(actionLabels).toEqual(["Clear search", "Select books", "Rescan archive", "Add EPUB"]);
   });
 });

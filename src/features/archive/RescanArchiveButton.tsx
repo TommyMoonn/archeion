@@ -3,6 +3,7 @@ import { useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { IconButton } from "../../components/IconButton";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 
 type RescanArchiveButtonProps = {
@@ -34,14 +35,14 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
 
   return (
     <>
-      <Button
+      <IconButton
+        className="library-rescan-button"
         disabled={isScanning}
-        icon={<ArrowsClockwise aria-hidden="true" size={18} />}
+        label={isScanning ? "Scanning archive" : "Rescan archive"}
         onClick={() => setConfirmationOpen(true)}
-        variant="secondary"
       >
-        {isScanning ? "Scanning" : "Rescan"}
-      </Button>
+        <ArrowsClockwise aria-hidden="true" size={17} />
+      </IconButton>
       {confirmationOpen ? (
         <Dialog
           title="Rescan archive?"

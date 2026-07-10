@@ -1,5 +1,5 @@
-import { Heart } from "@phosphor-icons/react";
-import { memo } from "react";
+import { Check, Heart } from "@phosphor-icons/react";
+import { memo, type MouseEvent } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
@@ -7,6 +7,7 @@ import { BookContextMenu } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
+import type { LibrarySelectionIntent } from "./librarySelection";
 
 type BookCardProps = {
   book: Book;
@@ -16,9 +17,12 @@ type BookCardProps = {
   onRenameFile?: (book: Book) => void;
   onRevealFile?: (book: Book) => void;
   onSelect: (book: Book) => void;
+  onSelectionChange: (book: Book, intent: LibrarySelectionIntent) => void;
   onToggleFavorite: (book: Book) => void;
   canDelete?: boolean;
   canManageFile?: boolean;
+  selected: boolean;
+  selectionMode: boolean;
 };
 
 function BookCardComponent({
@@ -29,26 +33,57 @@ function BookCardComponent({
   onRenameFile,
   onRevealFile,
   onSelect,
+  onSelectionChange,
   onToggleFavorite,
   canDelete = true,
   canManageFile = false,
+  selected,
+  selectionMode,
 }: BookCardProps) {
   const author = bookAuthor(book);
+  const title = bookTitle(book);
+
+  function activateBook(event: MouseEvent<HTMLButtonElement>) {
+    if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
+      onSelectionChange(book, { range: event.shiftKey });
+      return;
+    }
+
+    onSelect(book);
+  }
 
   return (
-    <article className="book-card">
+    <article
+      className="book-card"
+      data-selected={selected || undefined}
+      data-selection-mode={selectionMode || undefined}
+    >
       <button
+        aria-label={
+          selectionMode
+            ? `${selected ? "Deselect" : "Select"} ${title}`
+            : `View details for ${title}`
+        }
+        aria-pressed={selectionMode ? selected : undefined}
         className="book-card__select"
         type="button"
-        aria-label={`View details for ${bookTitle(book)}`}
-        onClick={() => onSelect(book)}
+        onClick={activateBook}
       >
         <BookCover book={book} />
         <span className="book-card__copy">
-          <strong>{bookTitle(book)}</strong>
+          <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
         </span>
       </button>
+      {selectionMode || selected ? (
+        <span
+          aria-hidden="true"
+          className="book-selection-control book-selection-control--card"
+          data-selected={selected || undefined}
+        >
+          {selected ? <Check aria-hidden="true" size={15} weight="bold" /> : null}
+        </span>
+      ) : null}
       <IconButton
         className="book-favorite"
         data-active={book.isFavorite || undefined}
@@ -84,11 +119,14 @@ export const BookCard = memo(
     isBookRenderEquivalent(previous.book, next.book) &&
     previous.canDelete === next.canDelete &&
     previous.canManageFile === next.canManageFile &&
+    previous.selected === next.selected &&
+    previous.selectionMode === next.selectionMode &&
     previous.onDelete === next.onDelete &&
     previous.onMove === next.onMove &&
     previous.onRead === next.onRead &&
     previous.onRenameFile === next.onRenameFile &&
     previous.onRevealFile === next.onRevealFile &&
     previous.onSelect === next.onSelect &&
+    previous.onSelectionChange === next.onSelectionChange &&
     previous.onToggleFavorite === next.onToggleFavorite,
 );
