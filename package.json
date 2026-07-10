@@ -2,6 +2,19 @@
   "name": "archeion",
   "private": true,
   "version": "0.1.0",
+  "description": "A local-first desktop EPUB reader and archive manager.",
+  "author": "Khoa Luong",
+  "homepage": "https://tommymoonn.github.io/archeion/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TommyMoonn/archeion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/TommyMoonn/archeion/issues"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,6 +33,9 @@
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "tauri:build:windows": "tauri build --bundles nsis,msi",
+    "tauri:build:nsis": "tauri build --bundles nsis",
+    "tauri:build:msi": "tauri build --bundles msi",
     "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml --check",
     "rust:fmt:fix": "cargo fmt --manifest-path src-tauri/Cargo.toml",
     "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
