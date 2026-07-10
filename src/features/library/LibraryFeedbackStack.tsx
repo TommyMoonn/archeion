@@ -57,14 +57,19 @@ export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStack
             <p>{token.title}</p>
             {token.detail ? <span>{token.detail}</span> : null}
             {token.details?.length ? (
-              <ul>
-                {token.details.map((detail, index) => (
-                  <li key={`${detail.label}-${index}`}>
-                    <strong>{detail.label}</strong>
-                    <span>{detail.message}</span>
-                  </li>
-                ))}
-              </ul>
+              <details>
+                <summary>
+                  {token.details.length} {token.details.length === 1 ? "detail" : "details"}
+                </summary>
+                <ul>
+                  {token.details.map((detail, index) => (
+                    <li key={`${detail.label}-${index}`}>
+                      <strong>{detail.label}</strong>
+                      <span>{detail.message}</span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             ) : null}
           </div>
           <IconButton

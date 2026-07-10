@@ -56,6 +56,13 @@ export type EpubWritebackBackupStatus = {
   totalBytes: number;
 };
 
+export type BulkActionResult = {
+  requested: number;
+  succeeded: Array<{ bookId: string }>;
+  failed: Array<{ bookId: string; message: string }>;
+  skipped: Array<{ bookId: string; reason: string }>;
+};
+
 export interface LibraryStorage {
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
@@ -75,6 +82,12 @@ export interface LibraryStorage {
   renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
   moveBookToFolder(id: string, folderId: string | null): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;
+  bulkMoveBooksToFolder(ids: readonly string[], folderId: string | null): Promise<BulkActionResult>;
+  bulkSetFavorite(ids: readonly string[], isFavorite: boolean): Promise<BulkActionResult>;
+  bulkDeleteBooks(ids: readonly string[]): Promise<BulkActionResult>;
+  bulkReextractMetadata(ids: readonly string[]): Promise<BulkActionResult>;
+  bulkRegenerateCovers(ids: readonly string[]): Promise<BulkActionResult>;
+  bulkExportBooks(ids: readonly string[], destinationPath: string): Promise<BulkActionResult>;
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
   createFolder(input: CreateFolderInput): Promise<Folder>;

@@ -864,7 +864,7 @@ describe("LibraryPage", () => {
       "3 selected outside this view.",
     );
     await act(async () => {
-      buttonWithText(session.container, "Deselect visible").click();
+      buttonWithText(session.container, "Deselect all").click();
     });
     expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
       "3 selected",

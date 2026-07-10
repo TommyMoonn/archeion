@@ -7,7 +7,11 @@ import { Dialog } from "../../components/Dialog";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
-import type { AddArchiveEpubInput, ScanStatus } from "../../storage/LibraryStorage";
+import type {
+  AddArchiveEpubInput,
+  BulkActionResult,
+  ScanStatus,
+} from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -52,6 +56,7 @@ import type { LibrarySelectionIntent } from "./librarySelection";
 import {
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
+  createBulkActionFeedbackToken,
   createFolderSuccessFeedbackToken,
   createImportFeedbackToken,
   type LibraryFeedbackDraft,
@@ -232,6 +237,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [moveBookTarget, setMoveBookTarget] = useState<Book | null>(null);
   const [isClearingProgress, setIsClearingProgress] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
@@ -843,6 +851,67 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [dismissFeedback, showLibraryError, storage],
   );
 
+  const runBulkAction = useCallback(
+    async (label: string, action: (ids: readonly string[]) => Promise<BulkActionResult>) => {
+      if (isBulkRunning) return;
+      const ids = [...selectedBookIds];
+      const labels = new Map((books ?? []).map((book) => [book.id, bookTitle(book)]));
+      setIsBulkRunning(true);
+      dismissFeedback("bulk-action");
+      try {
+        const result = await action(ids);
+        pushFeedback(createBulkActionFeedbackToken(label, result, labels));
+      } catch (error) {
+        pushFeedback({
+          id: "bulk-action",
+          tone: "error",
+          title: `${label} could not start.`,
+          detail: error instanceof Error ? error.message : undefined,
+        });
+      } finally {
+        setIsBulkRunning(false);
+      }
+    },
+    [books, dismissFeedback, isBulkRunning, pushFeedback, selectedBookIds],
+  );
+
+  const handleBulkAction = useCallback(
+    (action: "favorite" | "unfavorite" | "move" | "delete" | "metadata" | "covers" | "export") => {
+      if (action === "move") return setBulkMoveOpen(true);
+      if (action === "delete") return setBulkDeleteOpen(true);
+      if (action === "favorite")
+        void runBulkAction("Add to favorites", (ids) => storage.bulkSetFavorite(ids, true));
+      if (action === "unfavorite")
+        void runBulkAction("Remove from favorites", (ids) => storage.bulkSetFavorite(ids, false));
+      if (action === "metadata")
+        void runBulkAction("Metadata re-extraction", (ids) => storage.bulkReextractMetadata(ids));
+      if (action === "covers")
+        void runBulkAction("Cover regeneration", (ids) => storage.bulkRegenerateCovers(ids));
+      if (action === "export") {
+        void import("@tauri-apps/plugin-dialog").then(async ({ open }) => {
+          const destination = await open({
+            directory: true,
+            multiple: false,
+            title: "Export selected EPUBs",
+          });
+          if (typeof destination === "string") {
+            await runBulkAction("Export", (ids) => storage.bulkExportBooks(ids, destination));
+          }
+        });
+      }
+    },
+    [runBulkAction, storage],
+  );
+
+  async function moveSelectedBooks(folderId: string | null) {
+    await runBulkAction("Move", (ids) => storage.bulkMoveBooksToFolder(ids, folderId));
+  }
+
+  async function deleteSelectedBooks() {
+    await runBulkAction("Delete", (ids) => storage.bulkDeleteBooks(ids));
+    setBulkDeleteOpen(false);
+  }
+
   async function renameBookFile(fileName: string) {
     if (!renameFileTarget) {
       return;
@@ -991,6 +1060,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     >
       {selectionMode ? (
         <LibrarySelectionBar
+          busy={isBulkRunning}
+          onAction={handleBulkAction}
           onClear={clearSelection}
           onDeselectVisible={() => deselectVisible(visibleBooks)}
           onExit={exitSelectionMode}
@@ -1290,6 +1361,46 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                   : deleteTarget.isFileMissing
                     ? "Remove metadata"
                     : "Delete EPUB"}
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+
+      {bulkMoveOpen ? (
+        <Suspense fallback={<DialogLoadingFallback label="Opening move dialog" />}>
+          <MoveToFolderDialog
+            disableUnchanged={false}
+            folders={folders ?? []}
+            onClose={() => setBulkMoveOpen(false)}
+            onMove={moveSelectedBooks}
+            title={`Move ${selectedBookIds.size} selected books`}
+          />
+        </Suspense>
+      ) : null}
+
+      {bulkDeleteOpen ? (
+        <Dialog
+          title={`Delete ${selectedBookIds.size} selected books?`}
+          description="Available EPUB files will be moved to the Recycle Bin or platform Trash. Saved library data for successful items will also be removed."
+          onClose={() => {
+            if (!isBulkRunning) setBulkDeleteOpen(false);
+          }}
+          footer={
+            <>
+              <Button
+                disabled={isBulkRunning}
+                onClick={() => setBulkDeleteOpen(false)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                disabled={isBulkRunning}
+                onClick={() => void deleteSelectedBooks()}
+                variant="danger"
+              >
+                {isBulkRunning ? "Deleting" : "Delete selected"}
               </Button>
             </>
           }

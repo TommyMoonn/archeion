@@ -14,6 +14,7 @@ type MoveToFolderDialogProps = {
   onClose: () => void;
   onMove: (folderId: string | null) => Promise<void>;
   title: string;
+  disableUnchanged?: boolean;
 };
 
 type DestinationValue = typeof ARCHIVE_ROOT_DESTINATION | string;
@@ -25,6 +26,7 @@ export function MoveToFolderDialog({
   onClose,
   onMove,
   title,
+  disableUnchanged = true,
 }: MoveToFolderDialogProps) {
   const excluded = useMemo(() => new Set(excludedFolderIds), [excludedFolderIds]);
   const options = useMemo(
@@ -45,7 +47,7 @@ export function MoveToFolderDialog({
   const [destination, setDestination] = useState<DestinationValue>(currentValue);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const isUnchanged = destination === currentValue;
+  const isUnchanged = disableUnchanged && destination === currentValue;
 
   async function submit() {
     if (isSaving || isUnchanged) {

@@ -1,4 +1,4 @@
-import type { ArchiveImportResult } from "../../storage/LibraryStorage";
+import type { ArchiveImportResult, BulkActionResult } from "../../storage/LibraryStorage";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
 
 export type LibraryFeedbackTone = "neutral" | "success" | "error";
@@ -152,5 +152,31 @@ export function createImportFeedbackToken(
     title: summary.imported === 1 ? "EPUB added." : "EPUBs added.",
     detail: summary.message,
     autoDismiss: true,
+  };
+}
+
+export function createBulkActionFeedbackToken(
+  action: string,
+  result: BulkActionResult,
+  bookLabels: ReadonlyMap<string, string>,
+): LibraryFeedbackToken {
+  const detail = `${result.succeeded.length} succeeded, ${result.failed.length} failed, ${result.skipped.length} skipped.`;
+  const details = [
+    ...result.failed.map(({ bookId, message }) => ({
+      label: bookLabels.get(bookId) ?? bookId,
+      message,
+    })),
+    ...result.skipped.map(({ bookId, reason }) => ({
+      label: bookLabels.get(bookId) ?? bookId,
+      message: `Skipped: ${reason}`,
+    })),
+  ];
+  return {
+    id: "bulk-action",
+    tone: result.failed.length ? "error" : result.skipped.length ? "neutral" : "success",
+    title: result.failed.length ? `${action} completed with errors.` : `${action} complete.`,
+    detail,
+    details,
+    autoDismiss: details.length === 0,
   };
 }

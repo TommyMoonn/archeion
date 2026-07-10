@@ -9,6 +9,20 @@ use serde::Serialize;
 
 use super::{archive_root, epub_metadata, filesystem, metadata};
 
+#[tauri::command]
+pub fn invalidate_scanner_cache_entries(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_paths: Vec<String>,
+) -> Result<(), String> {
+    let root = archive_root::resolve_archive_root(&app, root_path)?;
+    let normalized = relative_paths
+        .iter()
+        .map(|path| filesystem::normalize_archive_relative_path(path))
+        .collect::<Result<Vec<_>, _>>()?;
+    metadata::invalidate_scanner_cache_entries_at(&root, &normalized)
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ScannedBook {

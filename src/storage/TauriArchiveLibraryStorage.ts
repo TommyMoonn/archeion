@@ -30,6 +30,7 @@ import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
   ArchivePathChange,
+  BulkActionResult,
   CoverCacheStatus,
   EpubWritebackBackupStatus,
   LibraryStorage,
@@ -894,6 +895,312 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
 
     return true;
+  }
+
+  async bulkMoveBooksToFolder(
+    ids: readonly string[],
+    folderId: string | null,
+  ): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    const destinationFolderPath = folderId ? this.requireFolder(folderId).relativePath : undefined;
+    const changes: Array<{ id: string; change: ArchivePathChange }> = [];
+    const suppressions = [];
+
+    try {
+      for (const id of ids) {
+        const book = this.books.find((candidate) => candidate.id === id);
+        if (!book) {
+          result.skipped.push({ bookId: id, reason: "The book is no longer in the library." });
+          continue;
+        }
+        if (!book.relativePath || book.isFileMissing) {
+          result.skipped.push({ bookId: id, reason: "The EPUB file is unavailable." });
+          continue;
+        }
+        const currentFolderPath = book.folderPath || undefined;
+        if (currentFolderPath === destinationFolderPath) {
+          result.skipped.push({ bookId: id, reason: "The book is already in this folder." });
+          continue;
+        }
+        const suppression = beginWritebackWatcherSuppression(scope.rootPath, book.relativePath);
+        suppressions.push(suppression);
+        try {
+          const change = await this.invokeArchiveCommand<ArchivePathChange>(
+            "move_archive_epub_file",
+            { relativePath: book.relativePath, destinationFolderPath },
+            scope.rootPath,
+          );
+          suppressWritebackWatcherPath(scope.rootPath, change.newRelativePath);
+          changes.push({ id, change });
+          result.succeeded.push({ bookId: id });
+        } catch (error) {
+          result.failed.push({ bookId: id, message: this.bulkErrorMessage(error) });
+        }
+      }
+
+      if (changes.length) {
+        const timestamp = new Date().toISOString();
+        for (const { id, change } of changes)
+          this.updateBookMetadataPath(id, change.newRelativePath, timestamp);
+        try {
+          await this.saveLibraryMetadata(scope);
+          await this.rescan({ quiet: true });
+        } catch (error) {
+          const message = `The EPUB was moved, but the library could not reconcile it. ${this.bulkErrorMessage(error)}`;
+          const movedIds = new Set(result.succeeded.map(({ bookId }) => bookId));
+          result.succeeded = result.succeeded.filter(({ bookId }) => !movedIds.has(bookId));
+          result.failed.push(...[...movedIds].map((bookId) => ({ bookId, message })));
+        }
+      }
+      return result;
+    } finally {
+      suppressions.forEach(finishWritebackWatcherSuppression);
+    }
+  }
+
+  async bulkSetFavorite(ids: readonly string[], isFavorite: boolean): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    const metadataBefore = structuredClone(this.libraryMetadata);
+    const timestamp = new Date().toISOString();
+    const changedIds: string[] = [];
+    for (const id of ids) {
+      const book = this.books.find((candidate) => candidate.id === id);
+      const entry = this.libraryMetadata.books[id];
+      if (!book || !entry) {
+        result.skipped.push({ bookId: id, reason: "The book is no longer in the library." });
+      } else if (book.isFavorite === isFavorite) {
+        result.skipped.push({
+          bookId: id,
+          reason: isFavorite ? "Already a favorite." : "Not a favorite.",
+        });
+      } else {
+        this.libraryMetadata.books[id] = { ...entry, isFavorite, updatedAt: timestamp };
+        changedIds.push(id);
+      }
+    }
+    if (changedIds.length) {
+      try {
+        await this.saveLibraryMetadata(scope);
+        const changed = new Set(changedIds);
+        this.books = this.books.map((book) =>
+          changed.has(book.id) ? { ...book, isFavorite, updatedAt: timestamp } : book,
+        );
+        this.emitBooks();
+        result.succeeded.push(...changedIds.map((bookId) => ({ bookId })));
+      } catch (error) {
+        this.libraryMetadata = metadataBefore;
+        result.failed.push(
+          ...changedIds.map((bookId) => ({ bookId, message: this.bulkErrorMessage(error) })),
+        );
+      }
+    }
+    return result;
+  }
+
+  async bulkDeleteBooks(ids: readonly string[]): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    const libraryMetadataBefore = structuredClone(this.libraryMetadata);
+    const progressMetadataBefore = structuredClone(this.progressMetadata);
+    const deletedIds: string[] = [];
+    const suppressions = [];
+    try {
+      for (const id of ids) {
+        const book =
+          this.books.find((candidate) => candidate.id === id) ?? this.missingBooks.get(id);
+        if (!book) {
+          result.skipped.push({ bookId: id, reason: "The book is no longer in the library." });
+          continue;
+        }
+        try {
+          if (!book.isFileMissing) {
+            if (!book.relativePath) throw new Error("The EPUB file is unavailable.");
+            suppressions.push(beginWritebackWatcherSuppression(scope.rootPath, book.relativePath));
+            await this.invokeArchiveCommand(
+              "delete_archive_epub_file",
+              { relativePath: book.relativePath },
+              scope.rootPath,
+            );
+          }
+          delete this.libraryMetadata.books[id];
+          delete this.progressMetadata.progress[id];
+          deletedIds.push(id);
+          result.succeeded.push({ bookId: id });
+        } catch (error) {
+          result.failed.push({ bookId: id, message: this.bulkErrorMessage(error) });
+        }
+      }
+      if (deletedIds.length) {
+        try {
+          await this.saveLibraryAndProgressMetadata(scope);
+        } catch (error) {
+          this.libraryMetadata = libraryMetadataBefore;
+          this.progressMetadata = progressMetadataBefore;
+          const message = `The file operation completed, but library cleanup failed. ${this.bulkErrorMessage(error)}`;
+          result.succeeded = result.succeeded.filter(({ bookId }) => !deletedIds.includes(bookId));
+          result.failed.push(...deletedIds.map((bookId) => ({ bookId, message })));
+          return result;
+        }
+        try {
+          await this.rescan({ quiet: true });
+        } catch (error) {
+          const message = `The files were removed, but the library could not reconcile them. ${this.bulkErrorMessage(error)}`;
+          result.succeeded = result.succeeded.filter(({ bookId }) => !deletedIds.includes(bookId));
+          result.failed.push(...deletedIds.map((bookId) => ({ bookId, message })));
+        }
+      }
+      return result;
+    } finally {
+      suppressions.forEach(finishWritebackWatcherSuppression);
+    }
+  }
+
+  async bulkReextractMetadata(ids: readonly string[]): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    const books = ids.map((id) => this.books.find((book) => book.id === id));
+    const eligible = books.filter((book): book is Book =>
+      Boolean(book?.relativePath && !book.isFileMissing),
+    );
+    books.forEach((book, index) => {
+      if (!book?.relativePath || book.isFileMissing)
+        result.skipped.push({ bookId: ids[index], reason: "The EPUB file is unavailable." });
+    });
+    if (!eligible.length) return result;
+    try {
+      await this.invokeArchiveCommand(
+        "invalidate_scanner_cache_entries",
+        { relativePaths: eligible.map((book) => book.relativePath) },
+        scope.rootPath,
+      );
+      await this.rescan({ quiet: true });
+      result.succeeded.push(...eligible.map((book) => ({ bookId: book.id })));
+    } catch (error) {
+      result.failed.push(
+        ...eligible.map((book) => ({ bookId: book.id, message: this.bulkErrorMessage(error) })),
+      );
+    }
+    return result;
+  }
+
+  async bulkRegenerateCovers(ids: readonly string[]): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    const eligible = ids.filter((id) => {
+      const book = this.books.find((candidate) => candidate.id === id);
+      if (!book?.relativePath || book.isFileMissing) {
+        result.skipped.push({ bookId: id, reason: "The EPUB file is unavailable." });
+        return false;
+      }
+      return true;
+    });
+    if (!eligible.length) return result;
+    const regenerated: string[] = [];
+    for (const bookId of eligible) {
+      try {
+        await this.invokeArchiveCommand(
+          "invalidate_cover_cache_entries",
+          { bookIds: [bookId] },
+          scope.rootPath,
+        );
+        const book = this.requireBook(bookId);
+        await this.invokeArchiveCommand<ArrayBuffer>(
+          "load_epub_cover",
+          { relativePath: book.relativePath, bookId },
+          scope.rootPath,
+        );
+        for (const key of this.coverPromises.keys())
+          if (key.startsWith(`${bookId}:`)) this.coverPromises.delete(key);
+        regenerated.push(bookId);
+        result.succeeded.push({ bookId });
+      } catch (error) {
+        result.failed.push({ bookId, message: this.bulkErrorMessage(error) });
+      }
+    }
+    if (regenerated.length) {
+      const coverRevision = new Date().toISOString();
+      this.books = this.books.map((book) =>
+        regenerated.includes(book.id) ? { ...book, coverRevision } : book,
+      );
+      this.emitBooks();
+    }
+    return result;
+  }
+
+  async bulkExportBooks(
+    ids: readonly string[],
+    destinationPath: string,
+  ): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+    for (const id of ids) {
+      const book = this.books.find((candidate) => candidate.id === id);
+      if (!book?.relativePath || book.isFileMissing) {
+        result.skipped.push({ bookId: id, reason: "The EPUB file is unavailable." });
+        continue;
+      }
+      try {
+        await this.invokeArchiveCommand(
+          "export_archive_epub_file",
+          { relativePath: book.relativePath, destinationPath },
+          scope.rootPath,
+        );
+        result.succeeded.push({ bookId: id });
+      } catch (error) {
+        result.failed.push({ bookId: id, message: this.bulkErrorMessage(error) });
+      }
+    }
+    return result;
+  }
+
+  private bulkErrorMessage(error: unknown): string {
+    return error instanceof Error && error.message
+      ? error.message
+      : String(error || "The operation failed.");
   }
 
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription {

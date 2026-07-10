@@ -470,6 +470,21 @@ pub(crate) fn clear_scanner_cache_at(root: &Path) -> Result<(), String> {
     Ok(())
 }
 
+pub(crate) fn invalidate_scanner_cache_entries_at(
+    root: &Path,
+    relative_paths: &[String],
+) -> Result<(), String> {
+    let mut cache = load_scanner_cache_at(root)?;
+    let mut changed = false;
+    for relative_path in relative_paths {
+        changed |= cache.entries.remove(relative_path).is_some();
+    }
+    if changed {
+        save_scanner_cache_at(root, &cache)?;
+    }
+    Ok(())
+}
+
 fn resolve_command_archive_root(
     app: &tauri::AppHandle,
     root_path: Option<String>,

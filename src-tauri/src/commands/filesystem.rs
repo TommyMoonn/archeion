@@ -168,6 +168,31 @@ fn resolve_command_archive_root(
     archive_root::resolve_archive_root(app, root_path)
 }
 
+#[tauri::command]
+pub fn export_archive_epub_file(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    relative_path: String,
+    destination_path: String,
+) -> Result<(), String> {
+    let root = resolve_command_archive_root(&app, root_path)?;
+    let source = resolve_existing_epub_path(&root, &relative_path)?;
+    let destination_folder = PathBuf::from(destination_path);
+    if !destination_folder.is_dir() {
+        return Err("The export folder is unavailable.".to_string());
+    }
+    let file_name = source
+        .file_name()
+        .ok_or_else(|| "The EPUB file name is unavailable.".to_string())?;
+    let destination = destination_folder.join(file_name);
+    if destination.exists() {
+        return Err("A file with this name already exists in the export folder.".to_string());
+    }
+    fs::copy(source, destination)
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
 fn canonical_root(root: &Path) -> Result<PathBuf, String> {
     fs::canonicalize(root).map_err(|_| "The saved archive folder is unavailable.".to_string())
 }

@@ -129,6 +129,39 @@ pub fn clear_cover_cache(
 }
 
 #[tauri::command]
+pub fn invalidate_cover_cache_entries(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    book_ids: Vec<String>,
+) -> Result<(), String> {
+    if book_ids.iter().any(|id| {
+        id.is_empty()
+            || !id
+                .chars()
+                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+    }) {
+        return Err("A selected book identifier is invalid.".to_string());
+    }
+    let path = archeion_path(&app, root_path)?.join("covers");
+    let entries = match fs::read_dir(path) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.to_string()),
+    };
+    for entry in entries {
+        let entry = entry.map_err(|error| error.to_string())?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        if book_ids
+            .iter()
+            .any(|id| name == format!("{id}.cover") || name.starts_with(&format!("{id}-")))
+        {
+            fs::remove_file(entry.path()).map_err(|error| error.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub fn reveal_archeion_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,

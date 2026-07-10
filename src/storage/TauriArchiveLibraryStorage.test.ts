@@ -1841,3 +1841,125 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     ).toMatchObject({ rootPath });
   });
 });
+
+describe("TauriArchiveLibraryStorage bulk actions", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "move_archive_epub_file") {
+        return {
+          oldRelativePath: "Author/Series/Volume_01.epub",
+          newRelativePath: "Author/Volume_01.epub",
+        };
+      }
+      return undefined;
+    });
+  });
+
+  async function scopedBulkStorage() {
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+    return storage;
+  }
+
+  it("updates favorites in one metadata write and reports unavailable books as skipped", async () => {
+    const storage = await scopedBulkStorage();
+
+    const result = await storage.bulkSetFavorite(["book-1", "missing-book"], false);
+
+    expect(result).toMatchObject({
+      requested: 2,
+      succeeded: [{ bookId: "book-1" }],
+      failed: [],
+      skipped: [{ bookId: "missing-book" }],
+    });
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ isFavorite: false });
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "save_library_metadata"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+  });
+
+  it("moves eligible books with one final reconciliation", async () => {
+    const storage = await scopedBulkStorage();
+
+    const result = await storage.bulkMoveBooksToFolder(["book-1", "missing-book"], "folder:Author");
+
+    expect(result.succeeded).toEqual([{ bookId: "book-1" }]);
+    expect(result.skipped).toHaveLength(1);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "move_archive_epub_file"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+  });
+
+  it("exports independently and preserves a per-item outcome", async () => {
+    const storage = await scopedBulkStorage();
+
+    const result = await storage.bulkExportBooks(["book-1", "missing-book"], "C:/Exports");
+
+    expect(result).toMatchObject({
+      requested: 2,
+      succeeded: [{ bookId: "book-1" }],
+      failed: [],
+      skipped: [{ bookId: "missing-book" }],
+    });
+    expect(invokeMock).toHaveBeenCalledWith(
+      "export_archive_epub_file",
+      expect.objectContaining({ destinationPath: "C:/Exports", rootPath: "C:/ArchiveA" }),
+    );
+  });
+
+  it("preserves successful delete cleanup when a later item fails", async () => {
+    const secondBook = {
+      discoveryId: "book-2",
+      relativePath: "Author/Series/Volume_02.epub",
+      fileName: "Volume_02.epub",
+      folderPath: "Author/Series",
+      size: 3072,
+      modifiedAt: 1_700_000_002_000,
+    };
+    const twoBookScan = { ...firstScan, books: [...firstScan.books, secondBook] };
+    const twoBookLibrary = structuredClone(metadata.library) as LibraryMetadata;
+    twoBookLibrary.books["book-2"] = {
+      ...twoBookLibrary.books["book-1"],
+      relativePath: secondBook.relativePath,
+      isFavorite: false,
+    };
+    let scanCount = 0;
+    let savedLibrary: LibraryMetadata | undefined;
+    invokeMock.mockImplementation(async (command, args) => {
+      const commandArgs = args as Record<string, unknown> | undefined;
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return scanCount === 1 ? twoBookScan : { ...firstScan, books: [secondBook] };
+      }
+      if (command === "load_archive_metadata") {
+        return { ...structuredClone(metadata), library: savedLibrary ?? twoBookLibrary };
+      }
+      if (
+        command === "delete_archive_epub_file" &&
+        commandArgs?.relativePath === secondBook.relativePath
+      ) {
+        throw new Error("Trash is unavailable.");
+      }
+      if (command === "save_library_metadata") {
+        savedLibrary = structuredClone(commandArgs?.metadata as LibraryMetadata);
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+
+    const result = await storage.bulkDeleteBooks(["book-1", "book-2"]);
+
+    expect(result.succeeded).toEqual([{ bookId: "book-1" }]);
+    expect(result.failed).toEqual([{ bookId: "book-2", message: "Trash is unavailable." }]);
+    expect(savedLibrary?.books["book-1"]).toBeUndefined();
+    expect(savedLibrary?.books["book-2"]).toBeDefined();
+  });
+});
