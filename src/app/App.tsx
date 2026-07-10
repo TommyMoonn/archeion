@@ -1,16 +1,26 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
+import { Button } from "../components/Button";
 import { WindowFrame } from "../components/WindowFrame";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
-import { ArchiveManagerWindowContent } from "../features/archive/ArchiveManagerWindowContent";
+import {
+  hideMainWindowForStartup,
+  listenForArchiveManagerClosed,
+  quitFromStartup,
+} from "../features/archive/archiveManagerLifecycle";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
-import { useArchive } from "../features/archive/useArchive";
+import { archiveStore } from "../stores/archiveStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
-import { initializeMainStartup, restoreRememberedReaderRoute } from "./startupController";
+import {
+  initializeMainStartup,
+  resumeMainStartupAfterArchiveManagerClose,
+  restoreRememberedReaderRoute,
+  StartupArchiveManagerOpenError,
+} from "./startupController";
 import { MainWindowStateController } from "./windowState";
 import { resolveWindowMode } from "./windowMode";
 
@@ -61,7 +71,8 @@ export function App() {
   return <MainWindowApp />;
 }
 
-type MainWindowStartupState = "loading" | "manager" | "app" | "error";
+type MainWindowStartupState =
+  { status: "loading" | "manager" | "app" } | { message: string; status: "error" };
 
 function StartupLoading() {
   return (
@@ -76,39 +87,96 @@ function StartupLoading() {
 }
 
 function MainWindowApp() {
-  const archive = useArchive();
-  const [startupState, setStartupState] = useState<MainWindowStartupState>("loading");
+  const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
+  const startupAttemptRef = useRef(0);
+
+  const runStartup = useCallback(async () => {
+    const attempt = startupAttemptRef.current + 1;
+    startupAttemptRef.current = attempt;
+    setStartupState({ status: "loading" });
+
+    try {
+      const result = await initializeMainStartup({
+        restoreReaderRoute: (preferences) =>
+          restoreRememberedReaderRoute(preferences, {
+            navigate: (path) => router.navigate(path, { replace: true }),
+          }),
+      });
+
+      if (startupAttemptRef.current === attempt) {
+        setStartupState({ status: result.showArchiveManager ? "manager" : "app" });
+      }
+    } catch (error) {
+      console.error("Archeion startup failed", error);
+      if (startupAttemptRef.current !== attempt) return;
+
+      setStartupState({
+        message:
+          error instanceof StartupArchiveManagerOpenError
+            ? error.message
+            : "Archeion could not finish startup.",
+        status: "error",
+      });
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    let unlisten: () => void = () => undefined;
 
-    void initializeMainStartup({
-      restoreReaderRoute: (preferences) =>
-        restoreRememberedReaderRoute(preferences, {
-          navigate: (path) => router.navigate(path, { replace: true }),
-        }),
-    })
-      .then((result) => {
-        if (!cancelled) {
-          setStartupState(result.showArchiveManager ? "manager" : "app");
-        }
+    void listenForArchiveManagerClosed(() => {
+      startupAttemptRef.current += 1;
+      void resumeMainStartupAfterArchiveManagerClose({
+        navigateToLibrary: () => router.navigate("/", { replace: true }),
+        refreshActiveArchive: () => archiveStore.refreshActiveArchive(),
       })
-      .catch(() => {
+        .then((resumed) => {
+          if (cancelled) return;
+
+          setStartupState(
+            resumed
+              ? { status: "app" }
+              : { message: "Archeion could not open the selected archive.", status: "error" },
+          );
+        })
+        .catch((error) => {
+          console.error("Archive Manager startup completion failed", error);
+          if (!cancelled) {
+            setStartupState({
+              message: "Archeion could not open the selected archive.",
+              status: "error",
+            });
+          }
+        });
+    })
+      .then((stopListening) => {
+        if (cancelled) {
+          stopListening();
+          return;
+        }
+        unlisten = stopListening;
+        return runStartup();
+      })
+      .catch((error) => {
+        console.error("Archive Manager lifecycle listener failed", error);
         if (!cancelled) {
-          setStartupState("error");
+          setStartupState({ message: "Archeion could not finish startup.", status: "error" });
         }
       });
 
     return () => {
       cancelled = true;
+      startupAttemptRef.current += 1;
+      unlisten();
     };
-  }, []);
+  }, [runStartup]);
 
   useEffect(() => {
-    if (startupState !== "app") {
+    if (startupState.status !== "app") {
       return;
     }
 
+    void archiveStore.focusMainWindow();
     const windowStateController = new MainWindowStateController();
     void windowStateController.start();
     const stopNavigationTracking = startNavigationStateTracking(router);
@@ -117,41 +185,49 @@ function MainWindowApp() {
       windowStateController.stop();
       stopNavigationTracking();
     };
-  }, [startupState]);
+  }, [startupState.status]);
 
-  if (startupState === "loading") {
+  useEffect(() => {
+    if (startupState.status === "error") {
+      void archiveStore.focusMainWindow();
+    }
+  }, [startupState.status]);
+
+  if (startupState.status === "loading" || startupState.status === "manager") {
     return <StartupLoading />;
   }
 
-  if (startupState === "error") {
-    return (
-      <div className="window-app">
-        <div className="window-app__content">
-          <main className="archive-setup">
-            <p className="archive-loading" role="alert">
-              Archeion could not finish startup.
-            </p>
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  if (startupState === "manager") {
+  if (startupState.status === "error") {
     return (
       <div className="window-app">
         <WindowFrame />
         <div className="window-app__content">
-          <AppErrorBoundary>
-            <ArchiveManagerWindowContent
-              mode="launcher"
-              onArchiveChoiceComplete={async () => {
-                await router.navigate("/", { replace: true });
-                setStartupState("app");
-              }}
-              state={archive}
-            />
-          </AppErrorBoundary>
+          <main className="reader-status-page">
+            <h1>{startupState.message}</h1>
+            <p role="alert">Retry the startup window or quit Archeion.</p>
+            <div className="reader-status-page__actions">
+              <Button
+                onClick={() => {
+                  void hideMainWindowForStartup().then((hidden) => {
+                    if (hidden) {
+                      return runStartup();
+                    }
+
+                    setStartupState({
+                      message: "Archive Manager window failed to open.",
+                      status: "error",
+                    });
+                  });
+                }}
+                variant="secondary"
+              >
+                Retry
+              </Button>
+              <Button onClick={() => void quitFromStartup()} variant="secondary">
+                Quit
+              </Button>
+            </div>
+          </main>
         </div>
       </div>
     );

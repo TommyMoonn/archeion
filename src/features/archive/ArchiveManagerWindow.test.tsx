@@ -41,9 +41,7 @@ const readyState: ArchiveState = {
 };
 
 function renderManager(state: ArchiveState = readyState) {
-  return renderToStaticMarkup(
-    <ArchiveManagerWindowContent mode="manager" standalone state={state} />,
-  );
+  return renderToStaticMarkup(<ArchiveManagerWindowContent standalone state={state} />);
 }
 
 function renderInteractive({
@@ -60,7 +58,6 @@ function renderInteractive({
   act(() => {
     root.render(
       <ArchiveManagerWindowContent
-        mode="manager"
         onArchiveChoiceComplete={onArchiveChoiceComplete}
         standalone
         state={state}
@@ -472,43 +469,26 @@ describe("ArchiveManagerWindow", () => {
 });
 
 describe("completeArchiveManagerAction", () => {
-  it("focuses the main window before closing the manager window", async () => {
-    const calls: string[] = [];
-
+  it("closes the manager so the window lifecycle can resume startup", async () => {
+    const closeCurrentWindow = vi.fn().mockResolvedValue(undefined);
     await expect(
       completeArchiveManagerAction({
-        closeCurrentWindow: async () => {
-          calls.push("close");
-        },
+        closeCurrentWindow,
         currentWindowLabel: "archive-manager",
-        focusMainWindow: async () => {
-          calls.push("focus");
-          return true;
-        },
         isDesktop: true,
       }),
     ).resolves.toBe(true);
 
-    expect(calls).toEqual(["focus", "close"]);
+    expect(closeCurrentWindow).toHaveBeenCalledTimes(1);
   });
 
-  it("does not close another window or close after focus failure", async () => {
+  it("does not close another window", async () => {
     const closeCurrentWindow = vi.fn().mockResolvedValue(undefined);
 
     await expect(
       completeArchiveManagerAction({
         closeCurrentWindow,
         currentWindowLabel: "main",
-        focusMainWindow: vi.fn().mockResolvedValue(true),
-        isDesktop: true,
-      }),
-    ).resolves.toBe(false);
-
-    await expect(
-      completeArchiveManagerAction({
-        closeCurrentWindow,
-        currentWindowLabel: "archive-manager",
-        focusMainWindow: vi.fn().mockResolvedValue(false),
         isDesktop: true,
       }),
     ).resolves.toBe(false);

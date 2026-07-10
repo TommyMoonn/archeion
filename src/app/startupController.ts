@@ -12,16 +12,30 @@ export type MainStartupResult = {
   showArchiveManager: boolean;
 };
 
+export class StartupArchiveManagerOpenError extends Error {
+  constructor() {
+    super("Archive Manager window failed to open.");
+    this.name = "StartupArchiveManagerOpenError";
+  }
+}
+
 type MainStartupDependencies = {
   getPreferences: () => AppPreferences;
+  getArchiveState: () => ArchiveState;
   initializeArchiveRegistry: () => Promise<void>;
   initializePreferences: () => Promise<void>;
+  openArchiveManagerWindow: () => Promise<boolean>;
   restoreReaderRoute: (preferences: AppPreferences) => Promise<boolean>;
   restoreWindowState: (preferences: AppPreferences) => Promise<boolean>;
 };
 
 type MainStartupOptions = Pick<MainStartupDependencies, "restoreReaderRoute"> &
   Partial<Omit<MainStartupDependencies, "restoreReaderRoute">>;
+
+type ResumeMainStartupDependencies = {
+  navigateToLibrary: () => Promise<unknown>;
+  refreshActiveArchive: () => Promise<boolean>;
+};
 
 type ReaderRestoreStorage = {
   getBook: (bookId: string) => Promise<Book | undefined>;
@@ -90,9 +104,11 @@ export async function restoreRememberedReaderRoute(
 }
 
 const defaultDependencies: Omit<MainStartupDependencies, "restoreReaderRoute"> = {
+  getArchiveState: archiveStore.getSnapshot,
   getPreferences: appPreferencesStore.getSnapshot,
   initializeArchiveRegistry: () => archiveStore.initialize(),
   initializePreferences: () => appPreferencesStore.initialize(),
+  openArchiveManagerWindow: () => archiveStore.openArchiveManagerWindow(),
   restoreWindowState: restoreMainWindowState,
 };
 
@@ -104,13 +120,30 @@ export async function initializeMainStartup(
   const preferences = dependencies.getPreferences();
   await dependencies.initializeArchiveRegistry();
 
-  const showArchiveManager = preferences.startupBehavior === "show-archive-manager";
+  const showArchiveManager =
+    preferences.startupBehavior === "show-archive-manager" ||
+    dependencies.getArchiveState().status !== "ready";
   await dependencies.restoreWindowState(preferences);
 
   if (showArchiveManager) {
+    if (!(await dependencies.openArchiveManagerWindow())) {
+      throw new StartupArchiveManagerOpenError();
+    }
     return { restoredReader: false, showArchiveManager: true };
   }
 
   const restoredReader = await dependencies.restoreReaderRoute(preferences);
   return { restoredReader, showArchiveManager: false };
+}
+
+export async function resumeMainStartupAfterArchiveManagerClose({
+  navigateToLibrary,
+  refreshActiveArchive,
+}: ResumeMainStartupDependencies): Promise<boolean> {
+  if (!(await refreshActiveArchive())) {
+    return false;
+  }
+
+  await navigateToLibrary();
+  return true;
 }

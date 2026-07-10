@@ -14,6 +14,7 @@ const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
 const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
 const ARCHIVE_MANAGER_WINDOW_LABEL: &str = "archive-manager";
 const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
+const ARCHIVE_MANAGER_CLOSED_EVENT: &str = "archive-manager-closed";
 const MAIN_WINDOW_LABEL: &str = "main";
 const ARCHIVE_MANAGER_QUERY: &str = "window=archive-manager";
 const ARCHIVE_MANAGER_APP_URL: &str = "index.html?window=archive-manager";
@@ -422,6 +423,56 @@ fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ArchiveManagerCloseAction {
+    Exit,
+    FocusMain,
+    ResumeStartup,
+}
+
+fn archive_manager_close_action(
+    main_window_visible: bool,
+    usable_active_archive: bool,
+) -> ArchiveManagerCloseAction {
+    if main_window_visible {
+        ArchiveManagerCloseAction::FocusMain
+    } else if usable_active_archive {
+        ArchiveManagerCloseAction::ResumeStartup
+    } else {
+        ArchiveManagerCloseAction::Exit
+    }
+}
+
+fn has_usable_active_archive(app: &tauri::AppHandle) -> bool {
+    read_registry(app)
+        .ok()
+        .and_then(|registry| active_archive(&registry))
+        .is_some_and(|archive| validated_root_path(&archive.root_path).is_ok())
+}
+
+pub(crate) fn handle_archive_manager_window_destroyed(app: &tauri::AppHandle) {
+    let Some(main_window) = app.get_webview_window(MAIN_WINDOW_LABEL) else {
+        app.exit(0);
+        return;
+    };
+
+    match archive_manager_close_action(
+        main_window.is_visible().unwrap_or(false),
+        has_usable_active_archive(app),
+    ) {
+        ArchiveManagerCloseAction::FocusMain => {
+            let _ = main_window.set_focus();
+        }
+        ArchiveManagerCloseAction::ResumeStartup => {
+            if let Err(error) = main_window.emit(ARCHIVE_MANAGER_CLOSED_EVENT, ()) {
+                eprintln!("archive manager close event failed: {error}");
+                app.exit(1);
+            }
+        }
+        ArchiveManagerCloseAction::Exit => app.exit(0),
+    }
+}
+
 fn existing_archive_manager_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
     if !cfg!(debug_assertions) {
         return false;
@@ -665,12 +716,29 @@ mod tests {
     };
 
     use super::{
-        archive_id_for_path, archive_manager_url_parts, archive_paths_match, archive_root,
-        create_empty_archive_at, create_empty_archive_at_with_initializer, metadata,
-        normalize_registry_paths, upsert_archive_at_path, validate_archive_name,
-        validated_display_root_path, validated_parent_path, validated_root_path,
+        archive_id_for_path, archive_manager_close_action, archive_manager_url_parts,
+        archive_paths_match, archive_root, create_empty_archive_at,
+        create_empty_archive_at_with_initializer, metadata, normalize_registry_paths,
+        upsert_archive_at_path, validate_archive_name, validated_display_root_path,
+        validated_parent_path, validated_root_path, ArchiveManagerCloseAction,
         ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
     };
+
+    #[test]
+    fn archive_manager_close_lifecycle_matches_main_window_and_archive_state() {
+        assert_eq!(
+            archive_manager_close_action(true, false),
+            ArchiveManagerCloseAction::FocusMain
+        );
+        assert_eq!(
+            archive_manager_close_action(false, true),
+            ArchiveManagerCloseAction::ResumeStartup
+        );
+        assert_eq!(
+            archive_manager_close_action(false, false),
+            ArchiveManagerCloseAction::Exit
+        );
+    }
 
     fn test_root(label: &str) -> std::path::PathBuf {
         let nonce = SystemTime::now()

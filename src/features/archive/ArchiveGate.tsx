@@ -5,7 +5,6 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
 import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
-import { ArchiveLauncherPage } from "./ArchiveLauncherPage";
 import { useArchive } from "./useArchive";
 
 type ArchiveGateProps = {
@@ -64,9 +63,7 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
     );
   }
 
-  if (state.status !== "ready") {
-    return <ArchiveLauncherPage state={state} />;
-  }
+  if (state.status !== "ready") return null;
 
   return children;
 }

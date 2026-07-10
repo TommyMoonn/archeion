@@ -322,6 +322,28 @@ describe("ArchiveStore", () => {
     expect(invokeMock).toHaveBeenCalledWith("focus_main_window");
   });
 
+  it("refreshes the active archive after the startup manager closes", async () => {
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id);
+      }
+      if (command === "validate_archive_path") {
+        return true;
+      }
+      return undefined;
+    });
+
+    await expect(store.refreshActiveArchive()).resolves.toBe(true);
+    expect(store.getSnapshot()).toMatchObject({
+      status: "ready",
+      archive: booksArchive,
+      path: booksArchive.rootPath,
+    });
+  });
+
   it("applies archive registry events from another window", async () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "load_archive_registry") {

@@ -270,6 +270,11 @@ export class ArchiveStore {
     }
   }
 
+  async refreshActiveArchive(): Promise<boolean> {
+    await this.loadSavedArchive();
+    return this.state.status === "ready";
+  }
+
   async retry(): Promise<void> {
     if (this.state.status === "missing" && this.state.archive) {
       await this.switchArchive(this.state.archive.id);

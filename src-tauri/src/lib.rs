@@ -1,10 +1,18 @@
 mod commands;
 
+use tauri::Manager;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .manage(commands::watcher::ArchiveWatcherState::default())
         .plugin(tauri_plugin_dialog::init())
+        .on_window_event(|window, event| {
+            if window.label() == "archive-manager" && matches!(event, tauri::WindowEvent::Destroyed)
+            {
+                commands::archive::handle_archive_manager_window_destroyed(window.app_handle());
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             commands::app_settings::load_app_settings,
             commands::app_settings::save_app_settings,

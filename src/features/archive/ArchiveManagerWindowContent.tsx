@@ -12,12 +12,10 @@ import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { ArchiveCreateView } from "./ArchiveCreateView";
 import { OpenArchiveButton } from "./OpenArchiveButton";
 
-type ArchiveManagerMode = "launcher" | "manager";
 type ArchiveManagerView = "manager" | "create";
 type ArchiveManagerTransitionDirection = "forward" | "back";
 
 type ArchiveManagerWindowContentProps = {
-  mode: ArchiveManagerMode;
   state: ArchiveState;
   onArchiveChoiceComplete?: () => void | Promise<unknown>;
   standalone?: boolean;
@@ -49,30 +47,6 @@ function activeArchiveIdForState(state: ArchiveState): string | null {
   }
 
   return null;
-}
-
-function surfaceTitle(mode: ArchiveManagerMode, state: ArchiveState): string {
-  if (mode === "manager") {
-    return "Manage archives";
-  }
-
-  if (state.status === "missing") {
-    return "Archive folder not found";
-  }
-
-  if (state.status === "error") {
-    return "Archive could not open";
-  }
-
-  if (state.status === "loading") {
-    return "Opening archive";
-  }
-
-  if (state.status === "ready") {
-    return "Choose an archive";
-  }
-
-  return "No archive open";
 }
 
 function sortArchives(archives: KnownArchive[]): KnownArchive[] {
@@ -298,7 +272,6 @@ function ArchiveRow({
 }
 
 export function ArchiveManagerWindowContent({
-  mode,
   state,
   onArchiveChoiceComplete,
   standalone = false,
@@ -312,7 +285,6 @@ export function ArchiveManagerWindowContent({
   const activeArchiveId = activeArchiveIdForState(state);
   const missingArchiveId = state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(() => sortArchives(state.archives), [state.archives]);
-  const title = surfaceTitle(mode, state);
   const errorText = state.status === "error" ? state.error : null;
 
   function resetCreateForm() {
@@ -326,7 +298,7 @@ export function ArchiveManagerWindowContent({
       className={`archive-manager-shell${standalone ? " archive-manager-shell--standalone" : ""}`}
     >
       <section
-        className={`archive-manager-window archive-manager-window--${mode}`}
+        className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-title"
       >
         <div className="archive-manager-window__body">
@@ -353,7 +325,7 @@ export function ArchiveManagerWindowContent({
                 <img className="archive-manager-window__icon" src={archeionIcon} alt="" />
               </div>
               <h1 id="archive-manager-title">Archeion</h1>
-              <p>{title}</p>
+              <p>Manage archives</p>
               {errorText ? (
                 <p className="archive-manager-window__status" role="alert">
                   {errorText}

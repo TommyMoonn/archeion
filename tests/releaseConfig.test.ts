@@ -33,6 +33,7 @@ type TauriConfig = {
   productName: string;
   version: string;
   app: {
+    windows: Array<{ label?: string; visible?: boolean }>;
     security: {
       csp: Record<string, string>;
       devCsp?: Record<string, string>;
@@ -88,6 +89,14 @@ describe("release configuration", () => {
     expect(tauriConfig.bundle.windows?.wix?.upgradeCode).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
     );
+  });
+
+  it("keeps the main window hidden until startup archive resolution", () => {
+    const mainWindow = tauriConfig.app.windows.find(
+      (window) => window.label === undefined || window.label === "main",
+    );
+
+    expect(mainWindow?.visible).toBe(false);
   });
 
   it("keeps the packaged EPUB reader compatible with local blob resources", () => {

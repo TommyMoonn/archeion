@@ -2,7 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences, type AppPreferences } from "../types/appSettings";
 import type { Book } from "../types/book";
-import { initializeMainStartup, restoreRememberedReaderRoute } from "./startupController";
+import {
+  initializeMainStartup,
+  resumeMainStartupAfterArchiveManagerClose,
+  restoreRememberedReaderRoute,
+  StartupArchiveManagerOpenError,
+} from "./startupController";
 
 function preferences(changes: Partial<AppPreferences> = {}): AppPreferences {
   return { ...defaultAppPreferences, ...changes };
@@ -17,11 +22,29 @@ const rememberedBook: Book = {
   updatedAt: "1",
 };
 
+const activeArchive = {
+  createdAt: "1",
+  displayName: "Books",
+  id: "archive-1",
+  lastOpenedAt: "1",
+  rootPath: "D:\\Books",
+};
+
+const readyArchiveState = {
+  archive: activeArchive,
+  archives: [activeArchive],
+  error: null,
+  path: activeArchive.rootPath,
+  status: "ready" as const,
+  watcherError: null,
+};
+
 describe("main startup coordinator", () => {
   it("runs startup initialization in the required order", async () => {
     const order: string[] = [];
     const result = await initializeMainStartup({
       getPreferences: () => preferences(),
+      getArchiveState: () => readyArchiveState,
       initializeArchiveRegistry: async () => {
         order.push("archive");
       },
@@ -36,6 +59,10 @@ describe("main startup coordinator", () => {
         order.push("window");
         return false;
       },
+      openArchiveManagerWindow: async () => {
+        order.push("manager");
+        return true;
+      },
     });
 
     expect(order).toEqual(["preferences", "archive", "window", "reader"]);
@@ -44,16 +71,73 @@ describe("main startup coordinator", () => {
 
   it("gives the startup archive manager precedence over reader restoration", async () => {
     const restoreReaderRoute = vi.fn(async () => true);
+    const openArchiveManagerWindow = vi.fn(async () => true);
     const result = await initializeMainStartup({
+      getArchiveState: () => readyArchiveState,
       getPreferences: () => preferences({ startupBehavior: "show-archive-manager" }),
       initializeArchiveRegistry: async () => undefined,
       initializePreferences: async () => undefined,
+      openArchiveManagerWindow,
       restoreReaderRoute,
       restoreWindowState: async () => false,
     });
 
     expect(result).toEqual({ restoredReader: false, showArchiveManager: true });
     expect(restoreReaderRoute).not.toHaveBeenCalled();
+    expect(openArchiveManagerWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      label: "an empty registry",
+      state: { status: "setup" as const, path: null, error: null, archives: [] },
+    },
+    {
+      label: "a missing active archive",
+      state: {
+        status: "missing" as const,
+        path: activeArchive.rootPath,
+        archive: activeArchive,
+        error: null,
+        archives: [activeArchive],
+      },
+    },
+  ])("opens the standalone manager for $label", async ({ state }) => {
+    const openArchiveManagerWindow = vi.fn(async () => true);
+    const restoreReaderRoute = vi.fn(async () => false);
+
+    const result = await initializeMainStartup({
+      getArchiveState: () => state,
+      getPreferences: () => preferences(),
+      initializeArchiveRegistry: async () => undefined,
+      initializePreferences: async () => undefined,
+      openArchiveManagerWindow,
+      restoreReaderRoute,
+      restoreWindowState: async () => false,
+    });
+
+    expect(result.showArchiveManager).toBe(true);
+    expect(openArchiveManagerWindow).toHaveBeenCalledTimes(1);
+    expect(restoreReaderRoute).not.toHaveBeenCalled();
+  });
+
+  it("fails specifically when the startup manager cannot open", async () => {
+    await expect(
+      initializeMainStartup({
+        getArchiveState: () => ({
+          status: "setup",
+          path: null,
+          error: null,
+          archives: [],
+        }),
+        getPreferences: () => preferences(),
+        initializeArchiveRegistry: async () => undefined,
+        initializePreferences: async () => undefined,
+        openArchiveManagerWindow: async () => false,
+        restoreReaderRoute: async () => false,
+        restoreWindowState: async () => false,
+      }),
+    ).rejects.toBeInstanceOf(StartupArchiveManagerOpenError);
   });
 });
 
@@ -142,5 +226,38 @@ describe("reader route restoration", () => {
     expect(restored).toBe(false);
     expect(clearNavigation).toHaveBeenCalledTimes(1);
     expect(navigate).toHaveBeenCalledWith("/");
+  });
+});
+
+describe("startup Archive Manager completion", () => {
+  it("refreshes the selected archive before entering the library", async () => {
+    const order: string[] = [];
+
+    await expect(
+      resumeMainStartupAfterArchiveManagerClose({
+        refreshActiveArchive: async () => {
+          order.push("archive");
+          return true;
+        },
+        navigateToLibrary: async () => {
+          order.push("library");
+        },
+      }),
+    ).resolves.toBe(true);
+
+    expect(order).toEqual(["archive", "library"]);
+  });
+
+  it("does not enter the library when the selected archive cannot be refreshed", async () => {
+    const navigateToLibrary = vi.fn(async () => undefined);
+
+    await expect(
+      resumeMainStartupAfterArchiveManagerClose({
+        refreshActiveArchive: async () => false,
+        navigateToLibrary,
+      }),
+    ).resolves.toBe(false);
+
+    expect(navigateToLibrary).not.toHaveBeenCalled();
   });
 });

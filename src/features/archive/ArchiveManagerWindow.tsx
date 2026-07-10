@@ -93,7 +93,6 @@ export function ArchiveManagerWindow() {
   return (
     <ArchiveManagerErrorBoundary>
       <ArchiveManagerWindowContent
-        mode="manager"
         onArchiveChoiceComplete={completeArchiveManagerAction}
         standalone
         state={archive}
