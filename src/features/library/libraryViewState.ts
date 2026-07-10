@@ -7,6 +7,7 @@ export type { FolderBrowserView } from "../folders/FolderBrowser";
 const LIBRARY_VIEW_PARAM = "view";
 const FOLDER_PATH_PARAM = "folderPath";
 const FOLDER_BROWSER_VIEW_PARAM = "folderView";
+const SERIES_KEY_PARAM = "seriesKey";
 const ARCHIVE_ID_PARAM = "archiveId";
 const DEFAULT_LIBRARY_LOCATION: LibraryLocation = { type: "library" };
 export const DEFAULT_FOLDER_BROWSER_VIEW: FolderBrowserView = "list";
@@ -59,6 +60,10 @@ export function libraryLocationFromSearchParams(
       return { type: "continue" };
     case "folders":
       return { type: "folders" };
+    case "series": {
+      const seriesKey = searchParams.get(SERIES_KEY_PARAM)?.trim();
+      return seriesKey ? { type: "series-detail", seriesKey } : { type: "series" };
+    }
     case "folder": {
       const folderPath = normalizedFolderPathKey(searchParams.get(FOLDER_PATH_PARAM) ?? undefined);
       const folder = folderByRelativePath(folders, folderPath);
@@ -91,6 +96,7 @@ export function searchParamsForLibraryLocation(
     nextParams.set(ARCHIVE_ID_PARAM, activeArchiveId);
   }
   nextParams.delete(FOLDER_PATH_PARAM);
+  nextParams.delete(SERIES_KEY_PARAM);
 
   if (location.type === "folder") {
     const folderPath = folderPathForLocation(location, folders);
@@ -102,6 +108,13 @@ export function searchParamsForLibraryLocation(
 
     nextParams.set(LIBRARY_VIEW_PARAM, "folder");
     nextParams.set(FOLDER_PATH_PARAM, folderPath);
+    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
+    return nextParams;
+  }
+
+  if (location.type === "series-detail") {
+    nextParams.set(LIBRARY_VIEW_PARAM, "series");
+    nextParams.set(SERIES_KEY_PARAM, location.seriesKey);
     nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }

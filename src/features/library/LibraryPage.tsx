@@ -25,6 +25,9 @@ import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { useArchive } from "../archive/useArchive";
+import { deriveSeriesEntries } from "../series/seriesDerivation";
+import { SeriesDetail } from "../series/SeriesDetail";
+import { SeriesOverview } from "../series/SeriesOverview";
 import {
   shouldConfirmBookDeletion,
   shouldConfirmFolderDeletion,
@@ -128,7 +131,11 @@ function preloadSettingsDialog() {
 }
 
 function getLocationKey(location: LibraryLocation): string {
-  return location.type === "folder" ? `folder:${location.folderId}` : location.type;
+  if (location.type === "folder") {
+    return `folder:${location.folderId}`;
+  }
+
+  return location.type === "series-detail" ? `series:${location.seriesKey}` : location.type;
 }
 
 function getLibrarySurfaceState(
@@ -184,6 +191,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [isImporting, setIsImporting] = useState(false);
   const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
   const [query, setQuery] = useState("");
+  const [seriesQuery, setSeriesQuery] = useState("");
   const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
     defaultArchiveImportSettings,
   );
@@ -210,6 +218,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...globalImportPreferences,
     ...archiveImportSettings,
   };
+  const seriesEntries = useMemo(() => deriveSeriesEntries(books ?? []), [books]);
 
   const dismissFeedback = useCallback((id: string) => {
     setFeedbackTokens((currentTokens) => currentTokens.filter((token) => token.id !== id));
@@ -250,6 +259,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => libraryLocationFromSearchParams(searchParams, folders ?? [], activeArchive.id),
     [activeArchive.id, folders, searchParams],
   );
+  const activeSeries =
+    location.type === "series-detail"
+      ? seriesEntries.find((entry) => entry.key === location.seriesKey)
+      : undefined;
   const folderBrowserView = useMemo(
     () => folderBrowserViewFromSearchParams(searchParams),
     [searchParams],
@@ -755,6 +768,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           continueCount={continueBooks.length}
           folders={folders ?? []}
           location={location}
+          seriesCount={seriesEntries.length}
           canManageFolders
           canRevealFolders
           onCreateFolder={openCreateFolder}
@@ -786,6 +800,22 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onReveal={(folder) => void revealFolder(folder)}
           onViewChange={changeFolderBrowserView}
           view={folderBrowserView}
+        />
+      ) : location.type === "series" ? (
+        <SeriesOverview
+          entries={seriesEntries}
+          isLoading={books === undefined}
+          onClearSearch={() => setSeriesQuery("")}
+          onOpen={(entry) => changeLocation({ type: "series-detail", seriesKey: entry.key })}
+          onQueryChange={setSeriesQuery}
+          onRead={readBook}
+          query={seriesQuery}
+        />
+      ) : location.type === "series-detail" ? (
+        <SeriesDetail
+          entry={activeSeries}
+          onBack={() => changeLocation({ type: "series" })}
+          onRead={readBook}
         />
       ) : (
         <>

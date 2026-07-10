@@ -6,6 +6,8 @@ import {
   deriveSeriesEntries,
   deriveSeriesVolumeToken,
   normalizeSeriesKey,
+  filterSeriesEntries,
+  seriesContinueBook,
   sortSeriesBooks,
 } from "./seriesDerivation";
 
@@ -179,5 +181,65 @@ describe("series derivation", () => {
     ]);
 
     expect(entries.map((entry) => entry.displayName)).toEqual(["Series 2", "Series 10"]);
+  });
+
+  it("derives progress counts, current volume, next unread, and continuation target", () => {
+    const entries = deriveSeriesEntries([
+      createBook({
+        id: "one",
+        lastOpenedAt: "2026-07-03T00:00:00.000Z",
+        progressPercent: 35,
+        sourceMetadata: { series: "Saga", volume: "1" },
+      }),
+      createBook({
+        id: "two",
+        lastOpenedAt: "2026-07-05T00:00:00.000Z",
+        progressPercent: 60,
+        sourceMetadata: { series: "Saga", volume: "2" },
+      }),
+      createBook({
+        id: "three",
+        sourceMetadata: { series: "Saga", volume: "3" },
+      }),
+      createBook({
+        id: "four",
+        progressPercent: 100,
+        sourceMetadata: { series: "Saga", volume: "4" },
+      }),
+    ]);
+    const entry = entries[0]!;
+
+    expect(entry.startedCount).toBe(2);
+    expect(entry.completedCount).toBe(1);
+    expect(entry.currentBookId).toBe("two");
+    expect(entry.nextBookId).toBe("three");
+    expect(seriesContinueBook(entry)?.id).toBe("two");
+  });
+
+  it("continues with the first unread volume when none are in progress", () => {
+    const entry = deriveSeriesEntries([
+      createBook({
+        id: "one",
+        progressPercent: 100,
+        sourceMetadata: { series: "Saga", volume: "1" },
+      }),
+      createBook({ id: "two", sourceMetadata: { series: "Saga", volume: "2" } }),
+    ])[0]!;
+
+    expect(entry.currentBookId).toBeUndefined();
+    expect(entry.nextBookId).toBe("two");
+    expect(seriesContinueBook(entry)?.id).toBe("two");
+  });
+
+  it("filters series names with the grouping normalization", () => {
+    const entries = deriveSeriesEntries([
+      createBook({ id: "star", sourceMetadata: { series: "Star Saga", volume: "1" } }),
+      createBook({ id: "moon", sourceMetadata: { series: "Moon Tales", volume: "1" } }),
+    ]);
+
+    expect(filterSeriesEntries(entries, "  STAR   ").map((entry) => entry.key)).toEqual([
+      "star saga",
+    ]);
+    expect(filterSeriesEntries(entries, "")).toEqual(entries);
   });
 });

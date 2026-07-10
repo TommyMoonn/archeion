@@ -21,7 +21,10 @@ const savedArchive: KnownArchive = {
   lastOpenedAt: "1",
 };
 
-function renderSidebar(folders: Folder[] = []) {
+function renderSidebar(
+  folders: Folder[] = [],
+  location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
+) {
   return renderToStaticMarkup(
     <LibrarySidebar
       activeArchive={activeArchive}
@@ -30,7 +33,8 @@ function renderSidebar(folders: Folder[] = []) {
       continueCount={0}
       favoriteCount={0}
       folders={folders}
-      location={{ type: "library" }}
+      location={location}
+      seriesCount={3}
       onCreateFolder={() => undefined}
       onDeleteFolder={() => undefined}
       onLocationChange={() => undefined}
@@ -83,5 +87,12 @@ describe("LibrarySidebar", () => {
     expect(markup).toMatch(
       /sidebar__section-heading[\s\S]*?Create folder[\s\S]*?sidebar__folder-scroll/,
     );
+  });
+
+  it("shows Series as a first-class navigation location", () => {
+    const markup = renderSidebar([], { type: "series-detail", seriesKey: "star saga" });
+
+    expect(markup).toContain("Series");
+    expect(markup).toMatch(/aria-current="page"[\s\S]*?>Series<[\s\S]*?>3</);
   });
 });

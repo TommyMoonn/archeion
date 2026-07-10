@@ -4,6 +4,7 @@ import { useMemo, useRef } from "react";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { measurePerformance } from "../../utils/measurePerformance";
+import { isBookInProgress } from "../reading/readingProgress";
 import {
   bookAuthor,
   bookTitle,
@@ -120,10 +121,7 @@ export function countFavoriteBooks(books: Book[]): number {
 }
 
 export function getContinueReadingBooks(books: Book[]): Book[] {
-  return sortBooks(
-    books.filter((book) => (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5),
-    "recently-opened",
-  );
+  return sortBooks(books.filter(isBookInProgress), "recently-opened");
 }
 
 export function useLibraryDerivedState({

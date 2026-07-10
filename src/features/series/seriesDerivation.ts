@@ -1,6 +1,7 @@
 import type { Book } from "../../types/book";
 import type { SeriesEntry, SeriesVolumeToken } from "../../types/series";
 import { bookTitle } from "../../utils/bookDisplay";
+import { bookReadingStatus } from "../reading/readingProgress";
 
 const MAX_SIMPLE_GAP_SIZE = 10;
 const numericVolumePattern = /^(?:(?:vol(?:ume)?|book)\.?\s*)?(\d+(?:\.\d+)?)$/i;
@@ -82,16 +83,61 @@ export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
     .map(([key, groupedSeriesBooks]) => {
       const sortedBooks = sortSeriesBooks(groupedSeriesBooks);
       const representative = [...groupedSeriesBooks].sort(compareBookIdentity)[0];
+      const progress = deriveSeriesProgress(sortedBooks);
 
       return {
         books: sortedBooks,
+        completedCount: progress.completedCount,
+        ...(progress.currentBookId ? { currentBookId: progress.currentBookId } : {}),
         displayName: representative?.sourceMetadata?.series ?? key,
         duplicateVolumeHints: findDuplicateVolumeHints(sortedBooks),
         key,
         missingVolumeHints: findMissingVolumeHints(sortedBooks),
+        ...(progress.nextBookId ? { nextBookId: progress.nextBookId } : {}),
+        startedCount: progress.startedCount,
       };
     })
     .sort(compareSeriesEntries);
+}
+
+export function filterSeriesEntries(entries: readonly SeriesEntry[], query: string): SeriesEntry[] {
+  const normalizedQuery = normalizeSeriesKey(query);
+
+  if (!normalizedQuery) {
+    return [...entries];
+  }
+
+  return entries.filter((entry) =>
+    normalizeSeriesKey(entry.displayName)?.includes(normalizedQuery),
+  );
+}
+
+export function seriesContinueBook(entry: SeriesEntry): Book | undefined {
+  const targetId = entry.currentBookId ?? entry.nextBookId;
+  return targetId ? entry.books.find((book) => book.id === targetId) : undefined;
+}
+
+function deriveSeriesProgress(books: readonly Book[]): {
+  completedCount: number;
+  currentBookId?: string;
+  nextBookId?: string;
+  startedCount: number;
+} {
+  const inProgress = books.filter((book) => bookReadingStatus(book) === "in-progress");
+  const completedCount = books.filter((book) => bookReadingStatus(book) === "completed").length;
+  const currentBook = [...inProgress].sort(
+    (left, right) =>
+      (right.lastOpenedAt ?? "").localeCompare(left.lastOpenedAt ?? "") ||
+      books.indexOf(left) - books.indexOf(right),
+  )[0];
+  const nextBook = books.find((book) => bookReadingStatus(book) === "unread");
+
+  return {
+    completedCount,
+    ...(currentBook ? { currentBookId: currentBook.id } : {}),
+    ...(nextBook ? { nextBookId: nextBook.id } : {}),
+    startedCount: inProgress.length,
+  };
 }
 
 function findDuplicateVolumeHints(books: readonly Book[]): string[] {

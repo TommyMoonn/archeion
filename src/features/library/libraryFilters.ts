@@ -2,6 +2,7 @@ import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { normalizeLibrarySort, type LibrarySort } from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+import { isBookInProgress } from "../reading/readingProgress";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -20,6 +21,8 @@ export type LibraryLocation =
   | { type: "library" }
   | { type: "continue" }
   | { type: "favorites" }
+  | { type: "series" }
+  | { type: "series-detail"; seriesKey: string }
   | { type: "folders" }
   | { type: "folder"; folderId: string };
 
@@ -277,10 +280,10 @@ export function filterBooksByLocation(books: Book[], location: LibraryLocation):
     case "favorites":
       return books.filter((book) => book.isFavorite);
     case "continue":
-      return books.filter(
-        (book) => (book.progressPercent ?? 0) > 0 && (book.progressPercent ?? 0) < 99.5,
-      );
+      return books.filter(isBookInProgress);
     case "folders":
+    case "series":
+    case "series-detail":
       return [];
     case "folder":
       return books.filter((book) => book.folderId === location.folderId);
@@ -448,11 +451,10 @@ function filterSearchIndexByLocation(
     case "favorites":
       return index.filter((entry) => entry.book.isFavorite);
     case "continue":
-      return index.filter(
-        (entry) =>
-          (entry.book.progressPercent ?? 0) > 0 && (entry.book.progressPercent ?? 0) < 99.5,
-      );
+      return index.filter((entry) => isBookInProgress(entry.book));
     case "folders":
+    case "series":
+    case "series-detail":
       return [];
     case "folder":
       return index.filter((entry) => entry.book.folderId === location.folderId);

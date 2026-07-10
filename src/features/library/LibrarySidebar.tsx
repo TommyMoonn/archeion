@@ -9,6 +9,7 @@ import {
   Heart,
   Plus,
   Question,
+  Stack,
 } from "@phosphor-icons/react";
 import { memo, useCallback } from "react";
 
@@ -27,6 +28,7 @@ type LibrarySidebarProps = {
   continueCount: number;
   folders: Folder[];
   location: LibraryLocation;
+  seriesCount: number;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
@@ -51,6 +53,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   continueCount,
   folders,
   location,
+  seriesCount,
   canManageFolders = true,
   onCreateFolder,
   onDeleteFolder,
@@ -104,6 +107,18 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <ClockCounterClockwise aria-hidden="true" size={19} weight="regular" />
           <span>Continue</span>
           <span className="nav-item__count">{continueCount}</span>
+        </button>
+        <button
+          aria-current={
+            location.type === "series" || location.type === "series-detail" ? "page" : undefined
+          }
+          className={`nav-item ${location.type === "series" || location.type === "series-detail" ? "active" : ""}`}
+          type="button"
+          onClick={() => onLocationChange({ type: "series" })}
+        >
+          <Stack aria-hidden="true" size={19} weight="regular" />
+          <span>Series</span>
+          <span className="nav-item__count">{seriesCount}</span>
         </button>
         <button
           aria-current={location.type === "favorites" ? "page" : undefined}

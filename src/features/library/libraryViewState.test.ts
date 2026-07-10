@@ -47,6 +47,12 @@ describe("library view URL state", () => {
     expect(libraryLocationFromSearchParams(params("view=folders"), folders)).toEqual({
       type: "folders",
     });
+    expect(libraryLocationFromSearchParams(params("view=series"), folders)).toEqual({
+      type: "series",
+    });
+    expect(
+      libraryLocationFromSearchParams(params("view=series&seriesKey=star%20saga"), folders),
+    ).toEqual({ type: "series-detail", seriesKey: "star saga" });
   });
 
   it("restores folder locations by normalized folder path", () => {
@@ -102,6 +108,26 @@ describe("library view URL state", () => {
     expect(next.get("view")).toBe("favorites");
     expect(next.get("folderPath")).toBeNull();
     expect(next.get("folderView")).toBeNull();
+  });
+
+  it("writes series detail keys and clears them when leaving Series", () => {
+    const detail = searchParamsForLibraryLocation(
+      params("view=library"),
+      { type: "series-detail", seriesKey: "star saga" },
+      folders,
+      "archive-books",
+    );
+    const library = searchParamsForLibraryLocation(
+      detail,
+      { type: "library" },
+      folders,
+      "archive-books",
+    );
+
+    expect(detail.get("view")).toBe("series");
+    expect(detail.get("seriesKey")).toBe("star saga");
+    expect(detail.get("archiveId")).toBe("archive-books");
+    expect(library.get("seriesKey")).toBeNull();
   });
 
   it("persists the selected Folders page view mode", () => {

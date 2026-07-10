@@ -8,8 +8,12 @@ export type SeriesVolumeToken = {
 
 export type SeriesEntry = {
   books: Book[];
+  completedCount: number;
+  currentBookId?: string;
   displayName: string;
   duplicateVolumeHints: string[];
   key: string;
   missingVolumeHints: string[];
+  nextBookId?: string;
+  startedCount: number;
 };
