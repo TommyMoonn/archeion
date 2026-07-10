@@ -65,6 +65,25 @@ pub struct GlobalImportSettings {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct RememberedNavigationState {
+    pub archive_id: String,
+    pub book_id: String,
+    pub last_route: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedWindowState {
+    pub height: f64,
+    #[serde(default)]
+    pub maximized: bool,
+    pub width: f64,
+    pub x: f64,
+    pub y: f64,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct AppPreferences {
     #[serde(default = "default_app_theme_preset")]
     pub app_theme_preset: String,
@@ -83,6 +102,8 @@ pub struct AppPreferences {
     #[serde(default)]
     pub library: LibraryDisplaySettings,
     #[serde(default)]
+    pub navigation: Option<RememberedNavigationState>,
+    #[serde(default)]
     pub reader: ReaderSettings,
     #[serde(default)]
     pub remember_window_state: bool,
@@ -92,6 +113,8 @@ pub struct AppPreferences {
     pub show_continue_reading: bool,
     #[serde(default = "default_startup_behavior")]
     pub startup_behavior: String,
+    #[serde(default)]
+    pub window: Option<PersistedWindowState>,
     #[serde(default = "default_window_frame_style")]
     pub window_frame_style: String,
 }
@@ -197,11 +220,13 @@ impl Default for AppPreferences {
             files_and_metadata: FilesAndMetadataSettings::default(),
             import: GlobalImportSettings::default(),
             library: LibraryDisplaySettings::default(),
+            navigation: None,
             reader: ReaderSettings::default(),
             remember_window_state: false,
             restore_last_reader: false,
             show_continue_reading: true,
             startup_behavior: default_startup_behavior(),
+            window: None,
             window_frame_style: default_window_frame_style(),
         }
     }
@@ -366,9 +391,11 @@ mod tests {
         assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
         assert_eq!(parsed.library.sort_by, "title");
+        assert!(parsed.navigation.is_none());
         assert_eq!(parsed.reader.progress_placement, "top");
         assert_eq!(parsed.import.default_mode, "copy");
         assert!(!parsed.files_and_metadata.keep_epub_writeback_backup);
+        assert!(parsed.window.is_none());
     }
 
     #[test]

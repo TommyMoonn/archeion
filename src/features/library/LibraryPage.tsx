@@ -11,6 +11,7 @@ import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
+  useAppPreferences,
   useImportPreferences,
   useLibraryPreferences,
   useShowContinueReadingPreference,
@@ -24,6 +25,10 @@ import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { useArchive } from "../archive/useArchive";
+import {
+  shouldConfirmBookDeletion,
+  shouldConfirmFolderDeletion,
+} from "../filesystem/destructiveActionPolicy";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
@@ -168,11 +173,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const storage = useLibraryStorage();
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
+  const { confirmDestructiveFileActions } = useAppPreferences();
   const showContinueReading = useShowContinueReadingPreference();
   const [books, setBooks] = useState<Book[] | undefined>();
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const pageShellRef = useRef<HTMLElement>(null);
   const importLock = useRef(false);
+  const deleteLock = useRef(false);
   const feedbackSequenceRef = useRef(0);
   const [isImporting, setIsImporting] = useState(false);
   const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
@@ -435,10 +442,90 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     scrollMainContentToTop();
   }, [scrollMainContentToTop]);
 
-  const requestDelete = useCallback((book: Book) => {
-    setSelectedBookId(null);
-    setDeleteTarget(book);
-  }, []);
+  const deleteBook = useCallback(
+    async (book: Book) => {
+      if (deleteLock.current) {
+        return;
+      }
+
+      deleteLock.current = true;
+      setIsDeleting(true);
+      dismissFeedback("library-error");
+
+      try {
+        await storage.deleteBook(book.id);
+        pushFeedback(
+          createDeleteSuccessFeedbackToken(book.isFileMissing ? "metadataRemoved" : "bookDeleted"),
+        );
+      } catch {
+        pushFeedback(
+          createDeleteErrorFeedbackToken(
+            book.isFileMissing ? "metadataRemoveFailed" : "bookDeleteFailed",
+          ),
+        );
+      } finally {
+        setDeleteTarget(null);
+        deleteLock.current = false;
+        setIsDeleting(false);
+      }
+    },
+    [dismissFeedback, pushFeedback, storage],
+  );
+
+  const requestDelete = useCallback(
+    (book: Book) => {
+      setSelectedBookId(null);
+      if (shouldConfirmBookDeletion(confirmDestructiveFileActions, Boolean(book.isFileMissing))) {
+        setDeleteTarget(book);
+      } else {
+        void deleteBook(book);
+      }
+    },
+    [confirmDestructiveFileActions, deleteBook],
+  );
+
+  const deleteFolder = useCallback(
+    async (folder: Folder) => {
+      if (deleteLock.current) {
+        return;
+      }
+
+      deleteLock.current = true;
+      setIsDeleting(true);
+      dismissFeedback("library-error");
+
+      try {
+        await storage.deleteFolder(folder.id);
+
+        if (
+          location.type === "folder" &&
+          (location.folderId === folder.id || isInsideFolder(currentFolder?.relativePath, folder))
+        ) {
+          changeLocation({ type: "library" });
+        }
+
+        pushFeedback(createDeleteSuccessFeedbackToken("folderDeleted"));
+      } catch {
+        pushFeedback(createDeleteErrorFeedbackToken("folderDeleteFailed"));
+      } finally {
+        setDeleteFolderTarget(null);
+        deleteLock.current = false;
+        setIsDeleting(false);
+      }
+    },
+    [changeLocation, currentFolder, dismissFeedback, location, pushFeedback, storage],
+  );
+
+  const requestDeleteFolder = useCallback(
+    (folder: Folder) => {
+      if (shouldConfirmFolderDeletion(confirmDestructiveFileActions)) {
+        setDeleteFolderTarget(folder);
+      } else {
+        void deleteFolder(folder);
+      }
+    },
+    [confirmDestructiveFileActions, deleteFolder],
+  );
 
   const openMetadataEditor = useCallback((book: Book) => {
     setSelectedBookId(null);
@@ -530,27 +617,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       return;
     }
 
-    setIsDeleting(true);
-    dismissFeedback("library-error");
-
-    try {
-      await storage.deleteBook(deleteTarget.id);
-      pushFeedback(
-        createDeleteSuccessFeedbackToken(
-          deleteTarget.isFileMissing ? "metadataRemoved" : "bookDeleted",
-        ),
-      );
-      setDeleteTarget(null);
-    } catch {
-      pushFeedback(
-        createDeleteErrorFeedbackToken(
-          deleteTarget.isFileMissing ? "metadataRemoveFailed" : "bookDeleteFailed",
-        ),
-      );
-      setDeleteTarget(null);
-    } finally {
-      setIsDeleting(false);
-    }
+    await deleteBook(deleteTarget);
   }
 
   const toggleFavorite = useCallback(
@@ -624,28 +691,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       return;
     }
 
-    setIsDeleting(true);
-    dismissFeedback("library-error");
-
-    try {
-      await storage.deleteFolder(deleteFolderTarget.id);
-
-      if (
-        location.type === "folder" &&
-        (location.folderId === deleteFolderTarget.id ||
-          isInsideFolder(currentFolder?.relativePath, deleteFolderTarget))
-      ) {
-        changeLocation({ type: "library" });
-      }
-
-      pushFeedback(createDeleteSuccessFeedbackToken("folderDeleted"));
-      setDeleteFolderTarget(null);
-    } catch {
-      pushFeedback(createDeleteErrorFeedbackToken("folderDeleteFailed"));
-      setDeleteFolderTarget(null);
-    } finally {
-      setIsDeleting(false);
-    }
+    await deleteFolder(deleteFolderTarget);
   }
 
   function locationEmptyState() {
@@ -712,7 +758,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           canManageFolders
           canRevealFolders
           onCreateFolder={openCreateFolder}
-          onDeleteFolder={setDeleteFolderTarget}
+          onDeleteFolder={requestDeleteFolder}
           onManageArchives={openArchiveManager}
           onMoveFolder={setMoveFolderTarget}
           onLocationChange={changeLocation}
@@ -733,7 +779,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           canRevealFolders
           folders={folders ?? []}
           onCreate={openCreateFolder}
-          onDelete={setDeleteFolderTarget}
+          onDelete={requestDeleteFolder}
           onMove={setMoveFolderTarget}
           onOpen={(folder) => changeLocation({ type: "folder", folderId: folder.id })}
           onRename={setRenameFolderTarget}
@@ -822,6 +868,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       {isAddEpubOpen ? (
         <Suspense fallback={<DialogLoadingFallback label="Opening import dialog" />}>
           <AddEpubDialog
+            confirmDestructiveFileActions={confirmDestructiveFileActions}
             folders={folders ?? []}
             importDefaults={importSettings}
             initialFolderPath={currentFolder?.relativePath}

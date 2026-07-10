@@ -11,6 +11,20 @@ export type WindowFrameStyle = "hidden" | "archeion" | "native";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
 export type AppThemePreset = "system" | "dark" | "light";
 
+export type RememberedNavigationState = {
+  archiveId: string;
+  bookId: string;
+  lastRoute: string;
+};
+
+export type PersistedWindowState = {
+  height: number;
+  maximized: boolean;
+  width: number;
+  x: number;
+  y: number;
+};
+
 export type AppearanceSettings = {
   animationsEnabled: boolean;
 };
@@ -24,11 +38,13 @@ export type AppPreferences = {
   filesAndMetadata: FilesAndMetadataSettings;
   import: GlobalImportSettings;
   library: LibraryDisplaySettings;
+  navigation: RememberedNavigationState | null;
   reader: ReaderSettings;
   rememberWindowState: boolean;
   restoreLastReader: boolean;
   showContinueReading: boolean;
   startupBehavior: StartupBehavior;
+  window: PersistedWindowState | null;
   windowFrameStyle: WindowFrameStyle;
 };
 
@@ -53,6 +69,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     sortBy: "title",
     viewMode: "grid",
   }),
+  navigation: null,
   reader: Object.freeze({
     fontSize: 18,
     fontFamily: "serif",
@@ -65,5 +82,6 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   restoreLastReader: false,
   showContinueReading: true,
   startupBehavior: "open-last-archive",
+  window: null,
   windowFrameStyle: "hidden",
 });

@@ -5,6 +5,8 @@ import {
   defaultAppPreferences,
   type AppearanceSettings,
   type AppPreferences,
+  type PersistedWindowState,
+  type RememberedNavigationState,
 } from "../types/appSettings";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 import { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../types/library";
@@ -146,6 +148,65 @@ function normalizeAppearanceSettings(value: unknown): AppearanceSettings {
   };
 }
 
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+export function normalizeRememberedNavigation(value: unknown): RememberedNavigationState | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const archiveId = typeof value.archiveId === "string" ? value.archiveId.trim() : "";
+  const bookId = typeof value.bookId === "string" ? value.bookId.trim() : "";
+  const lastRoute = typeof value.lastRoute === "string" ? value.lastRoute.trim() : "";
+
+  if (
+    !archiveId ||
+    !bookId ||
+    !lastRoute.startsWith("/reader/") ||
+    /[?&]start=beginning(?:&|$)/.test(lastRoute)
+  ) {
+    return null;
+  }
+
+  return { archiveId, bookId, lastRoute };
+}
+
+export function normalizePersistedWindowState(value: unknown): PersistedWindowState | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const width = finiteNumber(value.width);
+  const height = finiteNumber(value.height);
+  const x = finiteNumber(value.x);
+  const y = finiteNumber(value.y);
+
+  if (
+    width === null ||
+    height === null ||
+    x === null ||
+    y === null ||
+    width <= 0 ||
+    height <= 0 ||
+    width > 100_000 ||
+    height > 100_000 ||
+    Math.abs(x) > 1_000_000 ||
+    Math.abs(y) > 1_000_000
+  ) {
+    return null;
+  }
+
+  return {
+    height: Math.round(height),
+    maximized: value.maximized === true,
+    width: Math.round(width),
+    x: Math.round(x),
+    y: Math.round(y),
+  };
+}
+
 function getEffectiveMotionState(preferences: AppPreferences): "off" | "on" {
   if (!preferences.appearance.animationsEnabled) {
     return "off";
@@ -180,6 +241,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
     filesAndMetadata: normalizeFilesAndMetadataSettings(value.filesAndMetadata),
     import: normalizeGlobalImportSettings(value.import),
     library: normalizeLibrarySettings(value.library),
+    navigation: normalizeRememberedNavigation(value.navigation),
     reader: normalizeReader(value.reader),
     rememberWindowState: value.rememberWindowState === true,
     restoreLastReader: value.restoreLastReader === true,
@@ -188,6 +250,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
       value.startupBehavior === "show-archive-manager"
         ? "show-archive-manager"
         : defaultAppPreferences.startupBehavior,
+    window: normalizePersistedWindowState(value.window),
     windowFrameStyle:
       value.windowFrameStyle === "archeion" || value.windowFrameStyle === "native"
         ? value.windowFrameStyle
@@ -253,6 +316,10 @@ function mergeAppPreferences(
   }
   if (changes.reader === undefined) {
     next.reader = base.reader;
+  }
+
+  if (changes.rememberWindowState === false) {
+    next.window = null;
   }
 
   return next;

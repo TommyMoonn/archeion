@@ -1,0 +1,92 @@
+// @vitest-environment happy-dom
+
+import { open } from "@tauri-apps/plugin-dialog";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { AddEpubDialog } from "./AddEpubDialog";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
+
+let activeRoot: Root | null = null;
+const openMock = vi.mocked(open);
+
+function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement {
+  const button = Array.from(container.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent === text,
+  );
+  if (!(button instanceof HTMLButtonElement)) {
+    throw new Error(`Button with text ${text} was not rendered.`);
+  }
+  return button;
+}
+
+async function renderDialog(confirmDestructiveFileActions: boolean) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  activeRoot = root;
+  const onClose = vi.fn();
+  const onImport = vi.fn(async () => undefined);
+
+  await act(async () => {
+    root.render(
+      <AddEpubDialog
+        confirmDestructiveFileActions={confirmDestructiveFileActions}
+        folders={[]}
+        importDefaults={{ defaultConflictAction: "replace", defaultMode: "copy" }}
+        onClose={onClose}
+        onImport={onImport}
+      />,
+    );
+  });
+
+  await act(async () => {
+    buttonWithText(container, "No files selected").click();
+  });
+
+  return { container, onClose, onImport };
+}
+
+describe("AddEpubDialog replacement confirmation", () => {
+  beforeEach(() => {
+    openMock.mockResolvedValue("D:\\Incoming\\Book.epub");
+  });
+
+  afterEach(() => {
+    if (activeRoot) {
+      act(() => activeRoot?.unmount());
+      activeRoot = null;
+    }
+    document.body.innerHTML = "";
+    vi.clearAllMocks();
+  });
+
+  it("requires an explicit confirmation before replacement when enabled", async () => {
+    const { container, onImport } = await renderDialog(true);
+
+    await act(async () => {
+      buttonWithText(container, "Add EPUB").click();
+    });
+
+    expect(onImport).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Replace existing EPUB files?");
+
+    await act(async () => {
+      buttonWithText(container, "Replace and add").click();
+    });
+    expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
+  });
+
+  it("uses the selected Replace action directly when confirmations are disabled", async () => {
+    const { container, onImport } = await renderDialog(false);
+
+    await act(async () => {
+      buttonWithText(container, "Add EPUB").click();
+    });
+
+    expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
+    expect(container.textContent).not.toContain("Replace existing EPUB files?");
+  });
+});

@@ -19,10 +19,6 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
   const archivePath = state.status === "ready" ? state.path : null;
 
   useEffect(() => {
-    void archiveStore.initialize();
-  }, []);
-
-  useEffect(() => {
     storage.reset(archivePath);
   }, [archivePath, storage]);
 

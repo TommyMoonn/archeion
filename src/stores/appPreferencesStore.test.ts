@@ -164,6 +164,7 @@ describe("app preferences", () => {
         viewMode: "list",
         sortBy: "author",
       },
+      navigation: null,
       reader: {
         fontSize: 22,
         fontFamily: "sans",
@@ -176,6 +177,7 @@ describe("app preferences", () => {
       restoreLastReader: true,
       showContinueReading: false,
       startupBehavior: "show-archive-manager",
+      window: null,
       windowFrameStyle: "native",
     });
   });
@@ -195,6 +197,49 @@ describe("app preferences", () => {
         },
       }).reader.fontFamily,
     ).toBe("atkinson");
+  });
+
+  it("normalizes remembered navigation and window geometry", () => {
+    expect(
+      normalizeAppPreferences({
+        navigation: {
+          archiveId: " archive-1 ",
+          bookId: "book-1",
+          lastRoute: "/reader/book-1",
+        },
+        window: {
+          height: 700.4,
+          maximized: true,
+          width: 1000.6,
+          x: -120.2,
+          y: 40.7,
+        },
+      }),
+    ).toMatchObject({
+      navigation: {
+        archiveId: "archive-1",
+        bookId: "book-1",
+        lastRoute: "/reader/book-1",
+      },
+      window: {
+        height: 700,
+        maximized: true,
+        width: 1001,
+        x: -120,
+        y: 41,
+      },
+    });
+
+    expect(
+      normalizeAppPreferences({
+        navigation: {
+          archiveId: "archive-1",
+          bookId: "book-1",
+          lastRoute: "/reader/book-1?start=beginning",
+        },
+        window: { height: -1, width: 1000, x: 0, y: 0 },
+      }),
+    ).toMatchObject({ navigation: null, window: null });
   });
 
   it("normalizes unknown reader fonts to book serif", () => {
@@ -313,6 +358,19 @@ describe("app preferences", () => {
     expect(after.filesAndMetadata).toBe(before.filesAndMetadata);
     expect(after.import).toBe(before.import);
     expect(after.library).toBe(before.library);
+  });
+
+  it("clears saved geometry when window state memory is disabled", async () => {
+    const store = new AppPreferencesStore(createPersistence());
+    await store.initialize();
+    await store.update({
+      rememberWindowState: true,
+      window: { height: 700, maximized: false, width: 1000, x: 10, y: 20 },
+    });
+
+    await store.update({ rememberWindowState: false });
+
+    expect(store.getSnapshot().window).toBeNull();
   });
 
   it("persists reader, library, import, and file preferences at app level", async () => {

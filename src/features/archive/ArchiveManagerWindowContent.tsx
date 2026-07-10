@@ -68,6 +68,10 @@ function surfaceTitle(mode: ArchiveManagerMode, state: ArchiveState): string {
     return "Opening archive";
   }
 
+  if (state.status === "ready") {
+    return "Choose an archive";
+  }
+
   return "No archive open";
 }
 

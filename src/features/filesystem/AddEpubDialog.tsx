@@ -24,9 +24,11 @@ import {
   getFileNameFromPath,
   isEpubSourcePath,
 } from "./archiveImport";
+import { shouldConfirmImportReplace } from "./destructiveActionPolicy";
 
 type AddEpubDialogProps = {
   folders: Folder[];
+  confirmDestructiveFileActions?: boolean;
   importDefaults?: ImportSettings;
   initialFolderPath?: string;
   isImporting?: boolean;
@@ -43,6 +45,7 @@ function normalizeSelectedPaths(selected: string | string[] | null): string[] {
 
 export function AddEpubDialog({
   folders,
+  confirmDestructiveFileActions = true,
   importDefaults = defaultAppPreferences.import,
   initialFolderPath,
   isImporting = false,
@@ -67,6 +70,7 @@ export function AddEpubDialog({
   );
   const [mode, setMode] = useState<ArchiveImportMode>(importDefaults.defaultMode);
   const [error, setError] = useState<string | null>(null);
+  const [replaceConfirmationOpen, setReplaceConfirmationOpen] = useState(false);
 
   async function chooseFiles() {
     setError(null);
@@ -84,7 +88,7 @@ export function AddEpubDialog({
     setSourcePaths(epubPaths);
   }
 
-  async function submit() {
+  async function runImport() {
     if (sourcePaths.length === 0 || isImporting) {
       return;
     }
@@ -107,12 +111,53 @@ export function AddEpubDialog({
     }
   }
 
+  function submit() {
+    if (sourcePaths.length === 0 || isImporting) {
+      return;
+    }
+
+    if (shouldConfirmImportReplace(confirmDestructiveFileActions, conflictAction)) {
+      setReplaceConfirmationOpen(true);
+      return;
+    }
+
+    void runImport();
+  }
+
   const selectedLabel =
     sourcePaths.length === 0
       ? "No files selected"
       : sourcePaths.length === 1
         ? getFileNameFromPath(sourcePaths[0])
         : `${sourcePaths.length} selected`;
+
+  if (replaceConfirmationOpen) {
+    return (
+      <Dialog
+        title="Replace existing EPUB files?"
+        description="Files with matching names will be replaced. Existing files are preserved until each replacement succeeds."
+        onClose={() => {
+          if (!isImporting) {
+            setReplaceConfirmationOpen(false);
+          }
+        }}
+        footer={
+          <>
+            <Button
+              disabled={isImporting}
+              onClick={() => setReplaceConfirmationOpen(false)}
+              variant="secondary"
+            >
+              Cancel
+            </Button>
+            <Button disabled={isImporting} onClick={() => void runImport()} variant="danger">
+              {isImporting ? "Replacing" : "Replace and add"}
+            </Button>
+          </>
+        }
+      />
+    );
+  }
 
   return (
     <Dialog
@@ -130,7 +175,7 @@ export function AddEpubDialog({
           <Button
             disabled={isImporting || sourcePaths.length === 0}
             icon={<FilePlus aria-hidden="true" size={17} weight="bold" />}
-            onClick={() => void submit()}
+            onClick={submit}
           >
             {isImporting ? "Adding" : "Add EPUB"}
           </Button>

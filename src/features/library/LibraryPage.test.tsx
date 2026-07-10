@@ -9,6 +9,8 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { LibraryPage } from "./LibraryPage";
 
@@ -40,6 +42,7 @@ const readyState: ArchiveState = {
 };
 
 function createStorage({
+  books = [],
   createFolder = vi.fn().mockResolvedValue({
     id: "folder-light-novels",
     name: "Light Novels",
@@ -48,8 +51,11 @@ function createStorage({
     createdAt: "1",
     updatedAt: "1",
   } satisfies Folder),
+  deleteBook = vi.fn(),
 }: {
+  books?: Book[];
   createFolder?: LibraryStorage["createFolder"];
+  deleteBook?: LibraryStorage["deleteBook"];
 } = {}): LibraryStorage {
   return {
     reset: vi.fn(),
@@ -65,9 +71,9 @@ function createStorage({
     writeBookMetadata: vi.fn(),
     renameBookFile: vi.fn(),
     moveBookToFolder: vi.fn(),
-    deleteBook: vi.fn(),
+    deleteBook,
     observeBooks: vi.fn((observer) => {
-      observer.next([]);
+      observer.next(books);
       return () => undefined;
     }),
     createFolder,
@@ -160,9 +166,10 @@ async function createFolderThroughDialog(container: HTMLElement, name: string) {
 let activeRoot: Root | null = null;
 
 describe("LibraryPage", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyState);
     vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
+    await appPreferencesStore.update({ confirmDestructiveFileActions: true });
   });
 
   afterEach(() => {
@@ -202,5 +209,56 @@ describe("LibraryPage", () => {
       "The folder could not be saved. Please try again.",
     );
     expect(session.container.textContent).not.toContain("Folder created.");
+  });
+
+  it("shows the EPUB delete dialog when destructive confirmations are enabled", async () => {
+    const book: Book = {
+      addedAt: "1",
+      fileName: "Book.epub",
+      id: "book-1",
+      isFavorite: false,
+      originalTitle: "Book",
+      relativePath: "Book.epub",
+      updatedAt: "1",
+    };
+    const storage = createStorage({ books: [book] });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+
+    await act(async () => {
+      session.container
+        .querySelector<HTMLElement>('summary[aria-label="Actions for Book"]')
+        ?.click();
+      buttonWithText(session.container, "Delete EPUB").click();
+    });
+
+    expect(session.container.textContent).toContain("Delete EPUB file?");
+    expect(storage.deleteBook).not.toHaveBeenCalled();
+  });
+
+  it("deletes an EPUB directly when destructive confirmations are disabled", async () => {
+    await appPreferencesStore.update({ confirmDestructiveFileActions: false });
+    const book: Book = {
+      addedAt: "1",
+      fileName: "Book.epub",
+      id: "book-1",
+      isFavorite: false,
+      originalTitle: "Book",
+      relativePath: "Book.epub",
+      updatedAt: "1",
+    };
+    const storage = createStorage({ books: [book] });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+
+    await act(async () => {
+      session.container
+        .querySelector<HTMLElement>('summary[aria-label="Actions for Book"]')
+        ?.click();
+      buttonWithText(session.container, "Delete EPUB").click();
+    });
+
+    expect(storage.deleteBook).toHaveBeenCalledWith("book-1");
+    expect(session.container.textContent).not.toContain("Delete EPUB file?");
   });
 });
