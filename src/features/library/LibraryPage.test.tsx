@@ -44,6 +44,12 @@ const readyState: ArchiveState = {
 
 function createStorage({
   books = [],
+  bulkSetFavorite = vi.fn().mockImplementation(async (ids: readonly string[]) => ({
+    requested: ids.length,
+    succeeded: ids.map((bookId) => ({ bookId })),
+    failed: [],
+    skipped: [],
+  })),
   folders = [],
   createFolder = vi.fn().mockResolvedValue({
     id: "folder-light-novels",
@@ -60,6 +66,7 @@ function createStorage({
   updateBook = vi.fn(),
 }: {
   books?: Book[];
+  bulkSetFavorite?: LibraryStorage["bulkSetFavorite"];
   folders?: Folder[];
   createFolder?: LibraryStorage["createFolder"];
   deleteBook?: LibraryStorage["deleteBook"];
@@ -88,6 +95,12 @@ function createStorage({
     renameBookFile: vi.fn(),
     moveBookToFolder: vi.fn(),
     deleteBook,
+    bulkMoveBooksToFolder: vi.fn(),
+    bulkSetFavorite,
+    bulkDeleteBooks: vi.fn(),
+    bulkReextractMetadata: vi.fn(),
+    bulkRegenerateCovers: vi.fn(),
+    bulkExportBooks: vi.fn(),
     observeBooks:
       observeBooks ??
       vi.fn((observer) => {
@@ -902,6 +915,34 @@ describe("LibraryPage", () => {
       "1 selected",
     );
     expect(session.container.querySelector(".details-drawer")).toBeNull();
+  });
+
+  it("exits selection mode after a bulk action completes", async () => {
+    const bulkSetFavorite = vi.fn().mockResolvedValue({
+      requested: 1,
+      succeeded: [{ bookId: "alpha" }],
+      failed: [],
+      skipped: [],
+    });
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha")],
+      bulkSetFavorite,
+    });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+    });
+    await act(async () => {
+      session.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Add selected books to favorites"]')
+        ?.click();
+      await Promise.resolve();
+    });
+
+    expect(bulkSetFavorite).toHaveBeenCalledWith(["alpha"], true);
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
   });
 
   it("uses the same selection model in list view", async () => {

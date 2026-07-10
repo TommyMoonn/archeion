@@ -861,6 +861,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       try {
         const result = await action(ids);
         pushFeedback(createBulkActionFeedbackToken(label, result, labels));
+        exitSelectionMode();
       } catch (error) {
         pushFeedback({
           id: "bulk-action",
@@ -872,7 +873,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         setIsBulkRunning(false);
       }
     },
-    [books, dismissFeedback, isBulkRunning, pushFeedback, selectedBookIds],
+    [books, dismissFeedback, exitSelectionMode, isBulkRunning, pushFeedback, selectedBookIds],
   );
 
   const handleBulkAction = useCallback(
