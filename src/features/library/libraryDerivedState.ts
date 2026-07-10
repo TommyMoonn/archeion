@@ -156,19 +156,31 @@ export function useLibraryDerivedState({
   const bookCountsByFolderCacheRef = useRef<DerivedValueCache<Map<string, number>>>({
     current: null,
   });
+  const favoriteCountSignature = useMemo(
+    () => createFavoriteCountSignature(currentBooks),
+    [currentBooks],
+  );
+  const continueBooksSignature = useMemo(
+    () => createContinueBooksSignature(currentBooks),
+    [currentBooks],
+  );
+  const folderCountSignature = useMemo(
+    () => createFolderCountSignature(currentBooks),
+    [currentBooks],
+  );
   const favoriteCount = getCachedDerivedValue(
     favoriteCountCacheRef.current,
-    createFavoriteCountSignature(currentBooks),
+    favoriteCountSignature,
     () => countFavoriteBooks(currentBooks),
   );
   const continueBooks = getCachedDerivedValue(
     continueBooksCacheRef.current,
-    createContinueBooksSignature(currentBooks),
+    continueBooksSignature,
     () => getContinueReadingBooks(currentBooks),
   );
   const bookCountsByFolder = getCachedDerivedValue(
     bookCountsByFolderCacheRef.current,
-    createFolderCountSignature(currentBooks),
+    folderCountSignature,
     () => countBooksByFolder(currentBooks),
   );
   const searchIndex = useMemo(

@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "../../types/book";
 import {
   compareSeriesBooks,
+  countSeriesGroups,
+  createSeriesEntriesCache,
   deriveSeriesEntries,
   deriveSeriesVolumeToken,
   normalizeSeriesKey,
   filterSeriesEntries,
+  getCachedSeriesEntries,
   seriesContinueBook,
   seriesNextVolumeBook,
   sortSeriesBooks,
@@ -24,6 +27,35 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
 }
 
 describe("series derivation", () => {
+  it("counts normalized groups without deriving full series entries", () => {
+    expect(
+      countSeriesGroups([
+        createBook({ id: "one", sourceMetadata: { series: " Star Saga " } }),
+        createBook({ id: "two", sourceMetadata: { series: "star saga" } }),
+        createBook({ id: "standalone" }),
+      ]),
+    ).toBe(1);
+  });
+
+  it("reuses cached entries when a stable source is emitted as a new array", () => {
+    const books = [
+      createBook({
+        id: "one",
+        progressPercent: 10,
+        sourceMetadata: { series: "Star Saga", volume: "1" },
+      }),
+    ];
+    const cache = createSeriesEntriesCache();
+    const first = getCachedSeriesEntries(books, cache);
+    const second = getCachedSeriesEntries([...books], cache);
+
+    expect(second).toBe(first);
+
+    const changed = getCachedSeriesEntries([{ ...books[0]!, progressPercent: 99.5 }], cache);
+    expect(changed).not.toBe(first);
+    expect(changed[0]?.completedCount).toBe(1);
+  });
+
   it("normalizes series keys conservatively for grouping only", () => {
     expect(normalizeSeriesKey("  Saga\tOF   Stars ")).toBe("saga of stars");
     expect(normalizeSeriesKey("Ｓａｇａ")).toBe("saga");

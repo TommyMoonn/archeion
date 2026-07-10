@@ -11,6 +11,7 @@ import type { Book } from "../../types/book";
 import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
+  sessionsStarted: 0,
   location: {
     atEnd: false,
     atStart: false,
@@ -24,7 +25,13 @@ vi.mock("./EpubViewer", async () => {
 
   return {
     EpubViewer: React.forwardRef(function MockEpubViewer(
-      { onLocationChange }: { onLocationChange: (location: typeof viewerMock.location) => void },
+      {
+        onLocationChange,
+        onReady,
+      }: {
+        onLocationChange: (location: typeof viewerMock.location) => void;
+        onReady: () => void;
+      },
       ref: React.ForwardedRef<unknown>,
     ) {
       React.useImperativeHandle(ref, () => ({
@@ -33,8 +40,10 @@ vi.mock("./EpubViewer", async () => {
         previous: vi.fn().mockResolvedValue(undefined),
       }));
       React.useEffect(() => {
+        viewerMock.sessionsStarted += 1;
         onLocationChange(viewerMock.location);
-      }, [onLocationChange]);
+        onReady();
+      }, [onLocationChange, onReady]);
 
       return <div data-testid="epub-viewer" />;
     }),
@@ -113,6 +122,36 @@ afterEach(() => {
 });
 
 describe("ReaderPage series continuation", () => {
+  it("does not remount the EPUB viewer when the TOC opens or closes", async () => {
+    viewerMock.sessionsStarted = 0;
+    viewerMock.location = {
+      atEnd: false,
+      atStart: false,
+      cfi: "epubcfi(/6/10)",
+      percentage: 20,
+    };
+    const rendered = await renderReader([createBook({ id: "book" })], "book");
+    const tocButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Table of contents"]',
+    );
+
+    expect(tocButton).toBeInstanceOf(HTMLButtonElement);
+    expect(viewerMock.sessionsStarted).toBe(1);
+
+    await act(async () => {
+      tocButton?.click();
+      await Promise.resolve();
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(viewerMock.sessionsStarted).toBe(1);
+
+    await act(async () => {
+      tocButton?.click();
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    expect(viewerMock.sessionsStarted).toBe(1);
+  });
+
   it("offers the next volume only after completion and opens it on user action", async () => {
     viewerMock.location = {
       atEnd: true,
@@ -187,6 +226,7 @@ describe("ReaderPage series continuation", () => {
     });
 
     expect(rendered.container.textContent).not.toContain("Open next volume");
+    expect(rendered.storage.listBooks).not.toHaveBeenCalled();
     expect(rendered.router.state.location.pathname).toBe("/reader/volume-1");
   });
 });

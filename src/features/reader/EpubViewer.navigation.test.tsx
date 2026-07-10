@@ -215,6 +215,7 @@ async function resolveNavigation(session: MockBookSession): Promise<void> {
   await act(async () => {
     session.navigation.resolve({ toc: [session.chapter] });
     await session.navigation.promise;
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
   });
 }
 

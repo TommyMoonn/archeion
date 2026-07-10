@@ -26,9 +26,11 @@ import { scrollElementToTop } from "../../utils/motion";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { useArchive } from "../archive/useArchive";
-import { deriveSeriesEntries } from "../series/seriesDerivation";
-import { SeriesDetail } from "../series/SeriesDetail";
-import { SeriesOverview } from "../series/SeriesOverview";
+import {
+  countSeriesGroups,
+  createSeriesEntriesCache,
+  getCachedSeriesEntries,
+} from "../series/seriesDerivation";
 import {
   shouldConfirmBookDeletion,
   shouldConfirmFolderDeletion,
@@ -102,6 +104,10 @@ const loadSettingsDialog = () =>
     default: module.SettingsDialog,
   }));
 const loadReaderPage = () => import("../reader/ReaderPage");
+const loadSeriesDetail = () =>
+  import("../series/SeriesDetail").then((module) => ({ default: module.SeriesDetail }));
+const loadSeriesOverview = () =>
+  import("../series/SeriesOverview").then((module) => ({ default: module.SeriesOverview }));
 
 const AddEpubDialog = lazy(loadAddEpubDialog);
 const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
@@ -112,6 +118,8 @@ const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
 const FolderCreateDialog = lazy(loadFolderCreateDialog);
 const FolderRenameDialog = lazy(loadFolderRenameDialog);
 const SettingsDialog = lazy(loadSettingsDialog);
+const SeriesDetail = lazy(loadSeriesDetail);
+const SeriesOverview = lazy(loadSeriesOverview);
 
 function preloadAboutDialog() {
   void loadAboutDialog();
@@ -226,6 +234,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
+  const [seriesEntriesCache] = useState(() => createSeriesEntriesCache());
   const activeArchive = archive.archive;
   const books = booksLoadState.books;
   const filters = libraryPreferences.filters;
@@ -236,7 +245,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...globalImportPreferences,
     ...archiveImportSettings,
   };
-  const seriesEntries = useMemo(() => deriveSeriesEntries(books ?? []), [books]);
 
   const dismissFeedback = useCallback((id: string) => {
     setFeedbackTokens((currentTokens) => currentTokens.filter((token) => token.id !== id));
@@ -276,6 +284,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const location = useMemo(
     () => libraryLocationFromSearchParams(searchParams, folders ?? [], activeArchive.id),
     [activeArchive.id, folders, searchParams],
+  );
+  const seriesCount = useMemo(() => countSeriesGroups(books ?? []), [books]);
+  const needsSeriesEntries = location.type === "series" || location.type === "series-detail";
+  const seriesEntries = useMemo(
+    () =>
+      needsSeriesEntries
+        ? getCachedSeriesEntries(books ?? [], seriesEntriesCache)
+        : seriesEntriesCache.entries,
+    [books, needsSeriesEntries, seriesEntriesCache],
   );
   const activeSeries =
     location.type === "series-detail"
@@ -932,7 +949,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           favoriteCount={favoriteCount}
           folders={folders ?? []}
           location={location}
-          seriesCount={seriesEntries.length}
+          seriesCount={seriesCount}
           smartViewCounts={smartViewCounts}
           canManageFolders
           canRevealFolders
@@ -967,21 +984,37 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           view={folderBrowserView}
         />
       ) : location.type === "series" ? (
-        <SeriesOverview
-          entries={seriesEntries}
-          isLoading={books === undefined}
-          onClearSearch={() => setSeriesQuery("")}
-          onOpen={(entry) => changeLocation({ type: "series-detail", seriesKey: entry.key })}
-          onQueryChange={setSeriesQuery}
-          onRead={readBook}
-          query={seriesQuery}
-        />
+        <Suspense
+          fallback={
+            <div className="library-loading" role="status">
+              Loading series
+            </div>
+          }
+        >
+          <SeriesOverview
+            entries={seriesEntries}
+            isLoading={books === undefined}
+            onClearSearch={() => setSeriesQuery("")}
+            onOpen={(entry) => changeLocation({ type: "series-detail", seriesKey: entry.key })}
+            onQueryChange={setSeriesQuery}
+            onRead={readBook}
+            query={seriesQuery}
+          />
+        </Suspense>
       ) : location.type === "series-detail" ? (
-        <SeriesDetail
-          entry={activeSeries}
-          onBack={() => changeLocation({ type: "series" })}
-          onRead={readBook}
-        />
+        <Suspense
+          fallback={
+            <div className="library-loading" role="status">
+              Loading series
+            </div>
+          }
+        >
+          <SeriesDetail
+            entry={activeSeries}
+            onBack={() => changeLocation({ type: "series" })}
+            onRead={readBook}
+          />
+        </Suspense>
       ) : (
         <>
           <LibraryToolbar

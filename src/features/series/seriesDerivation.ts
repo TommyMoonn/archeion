@@ -8,6 +8,11 @@ const numericVolumePattern = /^(?:(?:vol(?:ume)?|book)\.?\s*)?(\d+(?:\.\d+)?)$/i
 
 let seriesCollator: Intl.Collator | null = null;
 
+export type SeriesEntriesCache = {
+  entries: SeriesEntry[];
+  signature: string | null;
+};
+
 function getSeriesCollator(): Intl.Collator {
   seriesCollator ??= new Intl.Collator(undefined, {
     numeric: true,
@@ -58,6 +63,35 @@ export function compareSeriesBooks(left: Book, right: Book): number {
 
 export function sortSeriesBooks(books: readonly Book[]): Book[] {
   return [...books].sort(compareSeriesBooks);
+}
+
+export function countSeriesGroups(books: readonly Book[]): number {
+  const keys = new Set<string>();
+
+  for (const book of books) {
+    const key = normalizeSeriesKey(book.sourceMetadata?.series);
+    if (key) keys.add(key);
+  }
+
+  return keys.size;
+}
+
+export function createSeriesEntriesCache(): SeriesEntriesCache {
+  return { entries: [], signature: null };
+}
+
+export function getCachedSeriesEntries(
+  books: readonly Book[],
+  cache: SeriesEntriesCache,
+): SeriesEntry[] {
+  const signature = createSeriesEntriesSignature(books);
+
+  if (cache.signature !== signature) {
+    cache.signature = signature;
+    cache.entries = deriveSeriesEntries(books);
+  }
+
+  return cache.entries;
 }
 
 export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
@@ -301,4 +335,25 @@ function formatVolumeNumber(value: number): string {
 
 function compareCodePoints(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function createSeriesEntriesSignature(books: readonly Book[]): string {
+  return JSON.stringify(
+    books.map((book) => [
+      book.id,
+      book.fileName,
+      book.relativePath,
+      book.originalTitle,
+      book.originalAuthor,
+      book.sourceMetadata?.title,
+      book.sourceMetadata?.creator,
+      book.sourceMetadata?.series,
+      book.sourceMetadata?.volume,
+      book.coverPath,
+      book.coverRevision,
+      book.progressPercent,
+      book.lastOpenedAt,
+      book.updatedAt,
+    ]),
+  );
 }

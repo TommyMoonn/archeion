@@ -310,6 +310,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let lastRelocation: Location | null = null;
     let currentChapterId: string | undefined;
     let navigationReady = false;
+    let cancelDeferredNavigation: () => void = () => undefined;
 
     isNavigatingToChapterRef.current = false;
     navigationModelRef.current = emptyReaderNavigationModel;
@@ -349,6 +350,24 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           ? normalizeReaderChapterProgress(lastRelocation)
           : undefined,
       );
+    }
+
+    function deferNavigationLoad(book: EpubBook) {
+      const idleWindow = window as Window & {
+        cancelIdleCallback?: (handle: number) => void;
+        requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
+      };
+
+      if (idleWindow.requestIdleCallback && idleWindow.cancelIdleCallback) {
+        const idleId = idleWindow.requestIdleCallback(() => void loadNavigation(book), {
+          timeout: 1000,
+        });
+        cancelDeferredNavigation = () => idleWindow.cancelIdleCallback?.(idleId);
+        return;
+      }
+
+      const timeoutId = window.setTimeout(() => void loadNavigation(book), 0);
+      cancelDeferredNavigation = () => window.clearTimeout(timeoutId);
     }
 
     function removeContentListeners() {
@@ -435,7 +454,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
         epubBook = ePub(fileContents);
         await epubBook.opened;
-        void loadNavigation(epubBook);
 
         if (cancelled || !containerRef.current) {
           epubBook.destroy();
@@ -470,6 +488,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         if (!cancelled) {
           setIsLoading(false);
           callbacksRef.current.onReady();
+          deferNavigationLoad(epubBook);
         }
       } catch {
         epubBook?.destroy();
@@ -504,6 +523,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
     return () => {
       cancelled = true;
+      cancelDeferredNavigation();
       removeContentListeners();
 
       if (rendition) {

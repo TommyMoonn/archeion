@@ -1,5 +1,5 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { Button } from "../../components/Button";
@@ -16,6 +16,7 @@ import type { SeriesEntry } from "../../types/series";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import { deriveSeriesEntries, seriesNextVolumeBook } from "../series/seriesDerivation";
+import { readingStatusForProgress } from "../reading/readingProgress";
 import {
   normalizeReaderSettings,
   type ReaderNavigationState,
@@ -28,9 +29,12 @@ import { createReaderSessionInitialState, createReaderSessionKey } from "./reade
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
-import { ReaderTocPanel } from "./ReaderTocPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
 import { getReaderKeyboardIntent } from "./readerNavigation";
+
+const ReaderTocPanel = lazy(() =>
+  import("./ReaderTocPanel").then((module) => ({ default: module.ReaderTocPanel })),
+);
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -65,6 +69,7 @@ export function ReaderPage() {
     failed: boolean;
   } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const [readerReady, setReaderReady] = useState(false);
   const [loadedReaderSeries, setLoadedReaderSeries] = useState<{
     bookId: string;
     entry: SeriesEntry | null;
@@ -198,6 +203,7 @@ export function ReaderPage() {
       return;
     }
 
+    setReaderReady(true);
     void storage
       .updateBook(bookId, {
         lastOpenedAt: new Date().toISOString(),
@@ -359,7 +365,14 @@ export function ReaderPage() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!bookId || isBookFileMissing) {
+    if (
+      !bookId ||
+      isBookFileMissing ||
+      !readerReady ||
+      loadedReaderSeries?.bookId === bookId ||
+      !book?.sourceMetadata?.series?.trim() ||
+      readingStatusForProgress(location.percentage) !== "completed"
+    ) {
       return;
     }
 
@@ -384,7 +397,15 @@ export function ReaderPage() {
     return () => {
       cancelled = true;
     };
-  }, [bookId, isBookFileMissing, storage]);
+  }, [
+    book?.sourceMetadata?.series,
+    bookId,
+    isBookFileMissing,
+    loadedReaderSeries?.bookId,
+    location.percentage,
+    readerReady,
+    storage,
+  ]);
 
   useEffect(() => {
     if (controlsTimer.current !== null) {
@@ -548,11 +569,34 @@ export function ReaderPage() {
       ) : null}
 
       {tocOpen ? (
-        <ReaderTocPanel
-          navigation={navigationState}
-          onClose={closeToc}
-          onNavigate={navigateToChapter}
-        />
+        <Suspense
+          fallback={
+            <aside
+              aria-busy="true"
+              aria-label="Table of contents"
+              className="reader-toc"
+              data-reader-ignore-shortcuts
+              onClick={(event) => event.stopPropagation()}
+              onPointerDown={(event) => event.stopPropagation()}
+            >
+              <div
+                aria-label="Loading table of contents"
+                className="reader-toc__loading"
+                role="status"
+              >
+                <span />
+                <span />
+                <span />
+              </div>
+            </aside>
+          }
+        >
+          <ReaderTocPanel
+            navigation={navigationState}
+            onClose={closeToc}
+            onNavigate={navigateToChapter}
+          />
+        </Suspense>
       ) : null}
 
       {settingsOpen ? (
