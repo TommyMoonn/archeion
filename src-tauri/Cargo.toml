@@ -1,8 +1,10 @@
 [package]
 name = "archeion"
 version = "0.1.0"
-description = "A local-first EPUB library and reader"
-authors = ["Archeion contributors"]
+description = "A local-first desktop EPUB reader and archive manager"
+authors = ["Khoa Luong"]
+homepage = "https://tommymoonn.github.io/archeion/"
+repository = "https://github.com/TommyMoonn/archeion"
 edition = "2021"
 rust-version = "1.77.2"
 

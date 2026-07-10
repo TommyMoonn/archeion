@@ -1,4 +1,4 @@
-name: Desktop build
+name: Windows installers
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: desktop-build-${{ github.ref }}
+  group: windows-installers-${{ github.ref }}
   cancel-in-progress: true
 
 env:
@@ -15,7 +15,7 @@ env:
 
 jobs:
   windows:
-    name: Windows desktop build
+    name: Windows x64 installers
     runs-on: windows-latest
 
     steps:
@@ -32,6 +32,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
@@ -42,12 +43,28 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build desktop app
-        run: npm run tauri:build
+      - name: Run release checks
+        run: npm run verify
 
-      - name: Upload desktop bundles
+      - name: Build NSIS and MSI installers
+        run: npm run tauri:build:windows -- --ci --target x86_64-pc-windows-msvc
+
+      - name: Read app version
+        shell: pwsh
+        run: |
+          $version = (Get-Content -Raw package.json | ConvertFrom-Json).version
+          "APP_VERSION=$version" >> $env:GITHUB_ENV
+
+      - name: Stage installers and checksums
+        shell: pwsh
+        run: ./scripts/stage-windows-bundles.ps1
+
+      - name: Upload Windows installers
         uses: actions/upload-artifact@v4
         with:
-          name: archeion-windows-bundle
-          path: src-tauri/target/release/bundle/**
+          name: archeion-${{ env.APP_VERSION }}-windows-x64
+          path: |
+            artifacts/windows/*.exe
+            artifacts/windows/*.msi
+            artifacts/windows/SHA256SUMS.txt
           if-no-files-found: error

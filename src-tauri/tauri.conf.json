@@ -24,12 +24,34 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": {
+        "default-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost",
+        "font-src": "'self' blob: data:",
+        "frame-src": "'self' blob: data:",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src": "'self' blob: data:",
+        "object-src": "'none'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'"
+      },
+      "devCsp": {
+        "default-src": "'self'",
+        "connect-src": "ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420",
+        "font-src": "'self' blob: data:",
+        "frame-src": "'self' blob: data:",
+        "img-src": "'self' asset: http://asset.localhost blob: data:",
+        "media-src": "'self' blob: data:",
+        "object-src": "'none'",
+        "script-src": "'self'",
+        "style-src": "'self' 'unsafe-inline'"
+      },
+      "freezePrototype": true
     }
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,8 +59,28 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "android": {
-      "debugApplicationIdSuffix": ".debug"
+    "category": "Productivity",
+    "publisher": "Khoa Luong",
+    "copyright": "Copyright \u00a9 2026 Khoa Luong",
+    "homepage": "https://tommymoonn.github.io/archeion/",
+    "shortDescription": "A local-first desktop EPUB reader and archive manager.",
+    "longDescription": "Archeion is a local-first Windows desktop app for organizing EPUB archives, editing book metadata, and reading with persistent progress.",
+    "useLocalToolsDir": true,
+    "windows": {
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico"
+      },
+      "wix": {
+        "language": "en-US",
+        "upgradeCode": "dd33f41c-13de-58f4-a67c-28ffd4482b07"
+      }
     }
-  }
+  },
+  "mainBinaryName": "Archeion"
 }
