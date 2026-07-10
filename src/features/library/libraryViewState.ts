@@ -1,5 +1,6 @@
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 import type { Folder } from "../../types/folder";
+import type { LibrarySmartView } from "../../types/library";
 import type { FolderBrowserView } from "../folders/FolderBrowser";
 import type { LibraryLocation } from "./libraryFilters";
 export type { FolderBrowserView } from "../folders/FolderBrowser";
@@ -8,9 +9,24 @@ const LIBRARY_VIEW_PARAM = "view";
 const FOLDER_PATH_PARAM = "folderPath";
 const FOLDER_BROWSER_VIEW_PARAM = "folderView";
 const SERIES_KEY_PARAM = "seriesKey";
+const SMART_VIEW_PARAM = "smartView";
 const ARCHIVE_ID_PARAM = "archiveId";
 const DEFAULT_LIBRARY_LOCATION: LibraryLocation = { type: "library" };
 export const DEFAULT_FOLDER_BROWSER_VIEW: FolderBrowserView = "list";
+
+const supportedSmartViews = new Set<LibrarySmartView>([
+  "unread",
+  "in-progress",
+  "completed",
+  "needs-metadata",
+  "needs-cover",
+]);
+
+function normalizeSmartView(value: string | null): LibrarySmartView | null {
+  return value && supportedSmartViews.has(value as LibrarySmartView)
+    ? (value as LibrarySmartView)
+    : null;
+}
 
 function normalizedFolderPathKey(path: string | undefined): string | null {
   if (!path?.trim()) {
@@ -56,6 +72,10 @@ export function libraryLocationFromSearchParams(
   switch (view) {
     case "favorites":
       return { type: "favorites" };
+    case "smart": {
+      const smartView = normalizeSmartView(searchParams.get(SMART_VIEW_PARAM));
+      return smartView ? { type: "smart-view", smartView } : DEFAULT_LIBRARY_LOCATION;
+    }
     case "continue":
       return { type: "continue" };
     case "folders":
@@ -97,6 +117,7 @@ export function searchParamsForLibraryLocation(
   }
   nextParams.delete(FOLDER_PATH_PARAM);
   nextParams.delete(SERIES_KEY_PARAM);
+  nextParams.delete(SMART_VIEW_PARAM);
 
   if (location.type === "folder") {
     const folderPath = folderPathForLocation(location, folders);
@@ -115,6 +136,13 @@ export function searchParamsForLibraryLocation(
   if (location.type === "series-detail") {
     nextParams.set(LIBRARY_VIEW_PARAM, "series");
     nextParams.set(SERIES_KEY_PARAM, location.seriesKey);
+    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
+    return nextParams;
+  }
+
+  if (location.type === "smart-view") {
+    nextParams.set(LIBRARY_VIEW_PARAM, "smart");
+    nextParams.set(SMART_VIEW_PARAM, location.smartView);
     nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }

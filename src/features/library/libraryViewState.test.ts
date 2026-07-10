@@ -139,4 +139,28 @@ describe("library view URL state", () => {
     expect(list.get("folderView")).toBeNull();
     expect(folderBrowserViewFromSearchParams(list)).toBe("list");
   });
+
+  it("restores and writes derived smart views", () => {
+    expect(
+      libraryLocationFromSearchParams(params("view=smart&smartView=needs-metadata"), folders),
+    ).toEqual({ type: "smart-view", smartView: "needs-metadata" });
+    expect(
+      libraryLocationFromSearchParams(params("view=smart&smartView=unknown"), folders),
+    ).toEqual({
+      type: "library",
+    });
+
+    const next = searchParamsForLibraryLocation(
+      params("view=folder&folderPath=Root%2FSeries&folderView=cards"),
+      { type: "smart-view", smartView: "completed" },
+      folders,
+      "archive-books",
+    );
+
+    expect(next.get("view")).toBe("smart");
+    expect(next.get("smartView")).toBe("completed");
+    expect(next.get("folderPath")).toBeNull();
+    expect(next.get("folderView")).toBeNull();
+    expect(next.get("archiveId")).toBe("archive-books");
+  });
 });

@@ -3,18 +3,24 @@ import { useMemo, useRef } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import type { LibraryFilterState } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { isBookInProgress } from "../reading/readingProgress";
 import {
   bookAuthor,
   bookTitle,
+  countBooksBySmartView,
   createCachedLibrarySearchIndex,
   createLibraryVisibleBooksCache,
+  deriveLibraryFilterOptions,
   getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
+  librarySmartViewLabel,
   sortBooks,
+  type LibraryFilterOptions,
   type LibraryLocation,
   type LibrarySearchIndexCache,
+  type LibrarySmartViewCounts,
   type LibrarySort,
 } from "./libraryFilters";
 
@@ -32,6 +38,7 @@ const CONTINUE_PREVIEW_LIMIT = 5;
 type LibraryDerivedStateInput = {
   books: Book[] | undefined;
   debouncedQuery: string;
+  filters: LibraryFilterState;
   folders: Folder[] | undefined;
   location: LibraryLocation;
   metadataEditorBookId: string | null;
@@ -48,9 +55,11 @@ type LibraryDerivedState = {
   currentFolder: Folder | undefined;
   effectiveSort: LibrarySort;
   favoriteCount: number;
+  filterOptions: LibraryFilterOptions;
   libraryTitle: string;
   metadataEditorBook: Book | null;
   selectedBook: Book | null;
+  smartViewCounts: LibrarySmartViewCounts;
   visibleBooks: Book[];
 };
 
@@ -127,6 +136,7 @@ export function getContinueReadingBooks(books: Book[]): Book[] {
 export function useLibraryDerivedState({
   books,
   debouncedQuery,
+  filters,
   folders,
   location,
   metadataEditorBookId,
@@ -178,10 +188,13 @@ export function useLibraryDerivedState({
           effectiveSort,
           location,
           visibleBooksCacheRef.current,
+          filters,
         ),
       ),
-    [debouncedQuery, effectiveSort, location, searchIndex],
+    [debouncedQuery, effectiveSort, filters, location, searchIndex],
   );
+  const filterOptions = useMemo(() => deriveLibraryFilterOptions(currentBooks), [currentBooks]);
+  const smartViewCounts = useMemo(() => countBooksBySmartView(currentBooks), [currentBooks]);
   const continuePreview = useMemo(
     () => continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
     [continueBooks],
@@ -202,8 +215,10 @@ export function useLibraryDerivedState({
     location.type === "favorites"
       ? "Favorites"
       : location.type === "continue"
-        ? "Continue reading"
-        : (currentFolder?.name ?? "Library");
+        ? "In Progress"
+        : location.type === "smart-view"
+          ? librarySmartViewLabel(location.smartView)
+          : (currentFolder?.name ?? "Library");
 
   return {
     bookCount: currentBooks.length,
@@ -213,9 +228,11 @@ export function useLibraryDerivedState({
     currentFolder,
     effectiveSort,
     favoriteCount,
+    filterOptions,
     libraryTitle,
     metadataEditorBook,
     selectedBook,
+    smartViewCounts,
     visibleBooks,
   };
 }

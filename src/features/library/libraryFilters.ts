@@ -1,8 +1,14 @@
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import { normalizeLibrarySort, type LibrarySort } from "../../types/library";
+import {
+  createDefaultLibraryFilters,
+  normalizeLibrarySort,
+  type LibraryFilterState,
+  type LibrarySmartView,
+  type LibrarySort,
+} from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
-import { isBookInProgress } from "../reading/readingProgress";
+import { bookReadingStatus, isBookInProgress } from "../reading/readingProgress";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -21,10 +27,167 @@ export type LibraryLocation =
   | { type: "library" }
   | { type: "continue" }
   | { type: "favorites" }
+  | { type: "smart-view"; smartView: LibrarySmartView }
   | { type: "series" }
   | { type: "series-detail"; seriesKey: string }
   | { type: "folders" }
   | { type: "folder"; folderId: string };
+
+export type LibraryFilterOptions = {
+  series: string[];
+  subjects: string[];
+  languages: string[];
+  publishers: string[];
+};
+
+export type LibrarySmartViewCounts = Record<LibrarySmartView, number>;
+
+export function librarySmartViewLabel(smartView: LibrarySmartView): string {
+  switch (smartView) {
+    case "unread":
+      return "Unread";
+    case "in-progress":
+      return "In Progress";
+    case "completed":
+      return "Completed";
+    case "needs-metadata":
+      return "Needs Metadata";
+    case "needs-cover":
+      return "Needs Cover";
+  }
+}
+
+function normalizedMetadataValue(value: string | undefined): string {
+  return value?.trim().toLocaleLowerCase() ?? "";
+}
+
+function hasText(value: string | undefined): boolean {
+  return Boolean(value?.trim());
+}
+
+export function bookNeedsMetadata(book: Book): boolean {
+  return !hasText(book.sourceMetadata?.title) || !hasText(book.sourceMetadata?.creator);
+}
+
+export function bookNeedsCover(book: Book): boolean {
+  return !hasText(book.coverPath);
+}
+
+export function bookMatchesSmartView(book: Book, smartView: LibrarySmartView): boolean {
+  switch (smartView) {
+    case "unread":
+      return bookReadingStatus(book) === "unread";
+    case "in-progress":
+      return bookReadingStatus(book) === "in-progress";
+    case "completed":
+      return bookReadingStatus(book) === "completed";
+    case "needs-metadata":
+      return bookNeedsMetadata(book);
+    case "needs-cover":
+      return bookNeedsCover(book);
+  }
+}
+
+export function countBooksBySmartView(books: Book[]): LibrarySmartViewCounts {
+  const counts: LibrarySmartViewCounts = {
+    unread: 0,
+    "in-progress": 0,
+    completed: 0,
+    "needs-metadata": 0,
+    "needs-cover": 0,
+  };
+
+  for (const book of books) {
+    if (bookMatchesSmartView(book, "unread")) counts.unread += 1;
+    if (bookMatchesSmartView(book, "in-progress")) counts["in-progress"] += 1;
+    if (bookMatchesSmartView(book, "completed")) counts.completed += 1;
+    if (bookNeedsMetadata(book)) counts["needs-metadata"] += 1;
+    if (bookNeedsCover(book)) counts["needs-cover"] += 1;
+  }
+
+  return counts;
+}
+
+function uniqueMetadataValues(values: Array<string | undefined>): string[] {
+  const valuesByKey = new Map<string, string>();
+
+  for (const value of values) {
+    const displayValue = value?.trim();
+    if (!displayValue) continue;
+
+    const key = displayValue.toLocaleLowerCase();
+    if (!valuesByKey.has(key)) valuesByKey.set(key, displayValue);
+  }
+
+  const collator = getLibrarySortCollator();
+  return [...valuesByKey.values()].sort((left, right) => collator.compare(left, right));
+}
+
+export function deriveLibraryFilterOptions(books: Book[]): LibraryFilterOptions {
+  return {
+    series: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.series)),
+    subjects: uniqueMetadataValues(books.flatMap((book) => book.sourceMetadata?.subjects ?? [])),
+    languages: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.language)),
+    publishers: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.publisher)),
+  };
+}
+
+function matchesSelectedValues(value: string | undefined, selectedValues: string[]): boolean {
+  if (selectedValues.length === 0) return true;
+
+  const normalizedValue = normalizedMetadataValue(value);
+  return selectedValues.some((selected) => normalizedMetadataValue(selected) === normalizedValue);
+}
+
+function matchesSelectedSubjects(book: Book, selectedSubjects: string[]): boolean {
+  if (selectedSubjects.length === 0) return true;
+
+  const subjects = new Set(
+    (book.sourceMetadata?.subjects ?? []).map((subject) => normalizedMetadataValue(subject)),
+  );
+  return selectedSubjects.every((subject) => subjects.has(normalizedMetadataValue(subject)));
+}
+
+export function hasActiveLibraryFilters(filters: LibraryFilterState): boolean {
+  return (
+    filters.series.length > 0 ||
+    filters.subjects.length > 0 ||
+    filters.languages.length > 0 ||
+    filters.publishers.length > 0 ||
+    filters.readingStatuses.length > 0 ||
+    filters.favoritesOnly ||
+    filters.missingMetadata ||
+    filters.missingCover
+  );
+}
+
+export function countActiveLibraryFilters(filters: LibraryFilterState): number {
+  return (
+    filters.series.length +
+    filters.subjects.length +
+    filters.languages.length +
+    filters.publishers.length +
+    filters.readingStatuses.length +
+    Number(filters.favoritesOnly) +
+    Number(filters.missingMetadata) +
+    Number(filters.missingCover)
+  );
+}
+
+export function bookMatchesLibraryFilters(book: Book, filters: LibraryFilterState): boolean {
+  const readingStatus = bookReadingStatus(book);
+
+  return (
+    matchesSelectedValues(book.sourceMetadata?.series, filters.series) &&
+    matchesSelectedSubjects(book, filters.subjects) &&
+    matchesSelectedValues(book.sourceMetadata?.language, filters.languages) &&
+    matchesSelectedValues(book.sourceMetadata?.publisher, filters.publishers) &&
+    (filters.readingStatuses.length === 0 || filters.readingStatuses.includes(readingStatus)) &&
+    (!filters.favoritesOnly || book.isFavorite) &&
+    (!filters.missingMetadata || bookNeedsMetadata(book)) &&
+    (!filters.missingCover || bookNeedsCover(book))
+  );
+}
 
 let librarySortCollator: Intl.Collator | null = null;
 
@@ -281,6 +444,8 @@ export function filterBooksByLocation(books: Book[], location: LibraryLocation):
       return books.filter((book) => book.isFavorite);
     case "continue":
       return books.filter(isBookInProgress);
+    case "smart-view":
+      return books.filter((book) => bookMatchesSmartView(book, location.smartView));
     case "folders":
     case "series":
     case "series-detail":
@@ -358,7 +523,10 @@ export function getEffectiveLibrarySort(
   location: LibraryLocation,
   selectedSort: LibrarySort,
 ): LibrarySort {
-  if (location.type === "continue") {
+  if (
+    location.type === "continue" ||
+    (location.type === "smart-view" && location.smartView === "in-progress")
+  ) {
     return "recently-opened";
   }
 
@@ -375,7 +543,10 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
 }
 
 function libraryLocationCacheKey(location: LibraryLocation): string {
-  return location.type === "folder" ? `${location.type}:${location.folderId}` : location.type;
+  if (location.type === "folder") return `${location.type}:${location.folderId}`;
+  if (location.type === "series-detail") return `${location.type}:${location.seriesKey}`;
+  if (location.type === "smart-view") return `${location.type}:${location.smartView}`;
+  return location.type;
 }
 
 function searchFieldsCacheKey(entry: LibrarySearchIndexEntry): string {
@@ -412,6 +583,10 @@ function visibleBookCacheKey(
     book.originalAuthor,
     book.sourceMetadata?.title,
     book.sourceMetadata?.creator,
+    book.sourceMetadata?.series,
+    book.sourceMetadata?.subjects?.join("\u0002"),
+    book.sourceMetadata?.language,
+    book.sourceMetadata?.publisher,
     book.coverPath,
     book.coverRevision,
     bookTitle(book),
@@ -424,11 +599,16 @@ function visibleBookCacheKey(
     .join("\u0001");
 }
 
+function libraryFiltersCacheKey(filters: LibraryFilterState): string {
+  return JSON.stringify(filters);
+}
+
 function visibleBooksCacheKey(
   index: LibrarySearchIndexEntry[],
   query: string,
   sort: LibrarySort,
   location: LibraryLocation,
+  filters: LibraryFilterState,
 ): string {
   const searchQuery = createSearchQuery(query);
   const includeSearchFields = !isEmptySearchQuery(searchQuery);
@@ -437,6 +617,7 @@ function visibleBooksCacheKey(
     query,
     normalizeLibrarySort(sort),
     libraryLocationCacheKey(location),
+    libraryFiltersCacheKey(filters),
     ...index.map((entry) => visibleBookCacheKey(entry, sort, includeSearchFields)),
   ].join("\u0003");
 }
@@ -452,6 +633,8 @@ function filterSearchIndexByLocation(
       return index.filter((entry) => entry.book.isFavorite);
     case "continue":
       return index.filter((entry) => isBookInProgress(entry.book));
+    case "smart-view":
+      return index.filter((entry) => bookMatchesSmartView(entry.book, location.smartView));
     case "folders":
     case "series":
     case "series-detail":
@@ -466,8 +649,11 @@ export function getVisibleBooksFromSearchIndex(
   query: string,
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
+  filters: LibraryFilterState = createDefaultLibraryFilters(),
 ): Book[] {
-  const filteredIndex = filterSearchIndexByLocation(index, location);
+  const filteredIndex = filterSearchIndexByLocation(index, location).filter((entry) =>
+    bookMatchesLibraryFilters(entry.book, filters),
+  );
   const effectiveSort = getEffectiveLibrarySort(location, sort);
   const searchQuery = createSearchQuery(query);
 
@@ -505,14 +691,15 @@ export function getCachedVisibleBooksFromSearchIndex(
   sort: LibrarySort,
   location: LibraryLocation,
   cache: LibraryVisibleBooksCache,
+  filters: LibraryFilterState = createDefaultLibraryFilters(),
 ): Book[] {
-  const cacheKey = visibleBooksCacheKey(index, query, sort, location);
+  const cacheKey = visibleBooksCacheKey(index, query, sort, location, filters);
 
   if (cache.key === cacheKey) {
     return cache.books;
   }
 
-  const books = getVisibleBooksFromSearchIndex(index, query, sort, location);
+  const books = getVisibleBooksFromSearchIndex(index, query, sort, location, filters);
   cache.key = cacheKey;
   cache.books = books;
   return books;
@@ -524,11 +711,13 @@ export function getVisibleBooks(
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
   folders: Folder[] = [],
+  filters: LibraryFilterState = createDefaultLibraryFilters(),
 ): Book[] {
   return getVisibleBooksFromSearchIndex(
     createLibrarySearchIndex(books, folders),
     query,
     sort,
     location,
+    filters,
   );
 }

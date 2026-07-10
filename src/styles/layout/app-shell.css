@@ -329,3 +329,14 @@ html[data-density="compact"] .nav-item {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.sidebar__smart-views {
+  display: grid;
+  gap: 4px;
+  margin-top: 22px;
+  padding-right: 4px;
+}
+
+.sidebar__smart-views .section-label {
+  padding: 0 8px 5px;
+}

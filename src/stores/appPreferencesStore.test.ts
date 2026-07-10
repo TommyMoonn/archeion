@@ -2,6 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
+import { createDefaultLibraryFilters } from "../types/library";
 import { AppPreferencesStore, normalizeAppPreferences } from "./appPreferencesStore";
 
 function createPersistence(
@@ -126,6 +127,16 @@ describe("app preferences", () => {
           defaultMode: "move",
         },
         library: {
+          filters: {
+            series: [" Star Saga ", "star saga"],
+            subjects: ["Space Opera"],
+            languages: ["en"],
+            publishers: ["North Press"],
+            readingStatuses: ["UNREAD", "completed", "invalid"],
+            favoritesOnly: true,
+            missingMetadata: true,
+            missingCover: false,
+          },
           viewMode: "list",
           sortBy: "author",
         },
@@ -161,6 +172,16 @@ describe("app preferences", () => {
         defaultMode: "move",
       },
       library: {
+        filters: {
+          series: ["Star Saga"],
+          subjects: ["Space Opera"],
+          languages: ["en"],
+          publishers: ["North Press"],
+          readingStatuses: ["unread", "completed"],
+          favoritesOnly: true,
+          missingMetadata: true,
+          missingCover: false,
+        },
         viewMode: "list",
         sortBy: "author",
       },
@@ -386,7 +407,11 @@ describe("app preferences", () => {
         scanOnStartup: false,
       },
       import: { defaultConflictAction: "skip", defaultMode: "move" },
-      library: { sortBy: "recently-opened", viewMode: "list" },
+      library: {
+        filters: createDefaultLibraryFilters(),
+        sortBy: "recently-opened",
+        viewMode: "list",
+      },
       reader: {
         ...normalizeAppPreferences(null).reader,
         fontSize: 24,
@@ -409,6 +434,7 @@ describe("app preferences", () => {
           defaultMode: "move",
         },
         library: {
+          filters: createDefaultLibraryFilters(),
           sortBy: "recently-opened",
           viewMode: "list",
         },

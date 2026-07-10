@@ -19,6 +19,7 @@ import {
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import { scrollElementToTop } from "../../utils/motion";
@@ -38,6 +39,7 @@ import { ContinueReading } from "./ContinueReading";
 import {
   bookTitle,
   createLibrarySearchIndexCache,
+  hasActiveLibraryFilters,
   type LibraryLocation,
   type LibrarySort,
 } from "./libraryFilters";
@@ -131,19 +133,19 @@ function preloadSettingsDialog() {
 }
 
 function getLocationKey(location: LibraryLocation): string {
-  if (location.type === "folder") {
-    return `folder:${location.folderId}`;
-  }
-
-  return location.type === "series-detail" ? `series:${location.seriesKey}` : location.type;
+  if (location.type === "folder") return `folder:${location.folderId}`;
+  if (location.type === "series-detail") return `series:${location.seriesKey}`;
+  if (location.type === "smart-view") return `smart:${location.smartView}`;
+  return location.type;
 }
 
 function getLibrarySurfaceState(
   books: Book[] | undefined,
   debouncedQuery: string,
+  hasFilters: boolean,
   isImporting: boolean,
   visibleBooks: Book[],
-): "empty" | "loading" | "results" | "search-empty" {
+): "empty" | "filter-empty" | "loading" | "results" | "search-empty" {
   if (books === undefined || (isImporting && books.length === 0)) {
     return "loading";
   }
@@ -152,7 +154,8 @@ function getLibrarySurfaceState(
     return "results";
   }
 
-  return debouncedQuery ? "search-empty" : "empty";
+  if (debouncedQuery) return "search-empty";
+  return hasFilters ? "filter-empty" : "empty";
 }
 
 function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
@@ -214,8 +217,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const activeArchive = archive.archive;
+  const filters = libraryPreferences.filters;
   const sort = libraryPreferences.sortBy;
   const view = libraryPreferences.viewMode;
+  const hasFilters = hasActiveLibraryFilters(filters);
   const importSettings: ImportSettings = {
     ...globalImportPreferences,
     ...archiveImportSettings,
@@ -365,6 +370,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [libraryPreferences, showLibraryError],
   );
 
+  const changeFilters = useCallback(
+    (nextFilters: LibraryFilterState) => {
+      void appPreferencesStore
+        .update({
+          library: { ...libraryPreferences, filters: nextFilters },
+        })
+        .catch(() => showLibraryError("Library filters could not be saved."));
+    },
+    [libraryPreferences, showLibraryError],
+  );
+
   async function handleArchiveImport(input: AddArchiveEpubInput) {
     if (importLock.current) {
       return;
@@ -397,18 +413,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const {
     bookCount,
     bookCountsByFolder,
-    continueBooks,
     continuePreview,
     currentFolder,
     effectiveSort,
     favoriteCount,
+    filterOptions,
     libraryTitle,
     metadataEditorBook,
     selectedBook,
+    smartViewCounts,
     visibleBooks,
   } = useLibraryDerivedState({
     books,
     debouncedQuery,
+    filters,
     folders,
     location,
     metadataEditorBookId,
@@ -420,6 +438,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const scrollMainContentToTop = useCallback(() => {
     scrollElementToTop(pageShellRef.current);
   }, []);
+  const clearFilters = useCallback(() => {
+    changeFilters(createDefaultLibraryFilters());
+    scrollMainContentToTop();
+  }, [changeFilters, scrollMainContentToTop]);
 
   const changeLocation = useCallback(
     (nextLocation: LibraryLocation) => {
@@ -767,6 +789,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       };
     }
 
+    if (location.type === "smart-view") {
+      return {
+        title: `No books in ${libraryTitle.toLocaleLowerCase()}`,
+        description: "Books matching this smart view will appear here.",
+      };
+    }
+
     if (location.type === "folder") {
       return {
         title: "No books in this folder",
@@ -796,6 +825,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const librarySurfaceState = getLibrarySurfaceState(
     books,
     debouncedQuery,
+    hasFilters,
     isImporting,
     visibleBooks,
   );
@@ -810,10 +840,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           archives={archive.archives}
           bookCount={bookCount}
           favoriteCount={favoriteCount}
-          continueCount={continueBooks.length}
           folders={folders ?? []}
           location={location}
           seriesCount={seriesEntries.length}
+          smartViewCounts={smartViewCounts}
           canManageFolders
           canRevealFolders
           onCreateFolder={openCreateFolder}
@@ -865,15 +895,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       ) : (
         <>
           <LibraryToolbar
+            filters={filters}
+            filterOptions={filterOptions}
             isImporting={isImporting}
+            onClearFilters={clearFilters}
             onOpenAddEpub={openAddEpub}
             onClearSearch={clearLibrarySearch}
+            onFilterChange={changeFilters}
             onQueryChange={setQuery}
             onRescanError={showRescanError}
             onRescanSuccess={showRescanSuccess}
             onSortChange={changeSort}
             onViewChange={changeView}
             query={query}
+            resultCount={visibleBooks.length}
             sort={effectiveSort}
             title={libraryTitle}
             view={view}
@@ -884,7 +919,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             data-surface-state={librarySurfaceState}
             key={librarySurfaceKey}
           >
-            {location.type === "library" && !query && showContinueReading ? (
+            {location.type === "library" && !query && !hasFilters && showContinueReading ? (
               <ContinueReading books={continuePreview} onContinue={readBook} />
             ) : null}
             {books === undefined || (isImporting && books.length === 0) ? (
@@ -892,6 +927,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
                 <span className="library-loading__cover" />
                 <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
               </div>
+            ) : visibleBooks.length === 0 && hasFilters && !debouncedQuery ? (
+              <EmptyState
+                action={
+                  <Button variant="secondary" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                }
+                description="Remove one or more filters to broaden this view."
+                icon={<BookOpenText size={42} weight="thin" />}
+                title="No matching books"
+              />
             ) : visibleBooks.length === 0 && !debouncedQuery ? (
               <EmptyState
                 description={emptyState.description}

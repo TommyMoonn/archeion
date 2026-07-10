@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { createDefaultLibraryFilters } from "../../types/library";
 import {
   DEFAULT_LIBRARY_SORT,
   bookAuthor,
@@ -10,12 +11,15 @@ import {
   createLibrarySearchIndex,
   createLibrarySearchIndexCache,
   createLibraryVisibleBooksCache,
+  countBooksBySmartView,
+  deriveLibraryFilterOptions,
   filterBookSearchIndex,
   filterBooks,
   filterBooksByLocation,
   getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
   getVisibleBooks,
+  hasActiveLibraryFilters,
   normalizeLibrarySort,
   sortBooks,
 } from "./libraryFilters";
@@ -578,5 +582,125 @@ describe("library filters", () => {
         folderId: "folder-one",
       }).map((book) => book.id),
     ).toEqual(["first"]);
+  });
+
+  it("derives normalized metadata filter options", () => {
+    const filterBooks = [
+      createBook({
+        id: "one",
+        sourceMetadata: {
+          series: "Star Saga",
+          subjects: ["Space Opera", "Adventure"],
+          language: "en",
+          publisher: "North Press",
+        },
+      }),
+      createBook({
+        id: "two",
+        sourceMetadata: {
+          series: " star saga ",
+          subjects: ["space opera", "Mystery"],
+          language: "EN",
+          publisher: "South Press",
+        },
+      }),
+    ];
+
+    expect(deriveLibraryFilterOptions(filterBooks)).toEqual({
+      series: ["Star Saga"],
+      subjects: ["Adventure", "Mystery", "Space Opera"],
+      languages: ["en"],
+      publishers: ["North Press", "South Press"],
+    });
+  });
+
+  it("combines metadata, status, favorite, and missing-data filters", () => {
+    const candidates = [
+      createBook({
+        id: "match",
+        isFavorite: true,
+        progressPercent: 45,
+        coverPath: undefined,
+        sourceMetadata: {
+          title: "Match",
+          creator: "Author",
+          series: "Star Saga",
+          subjects: ["Space Opera", "Adventure"],
+          language: "en",
+          publisher: "North Press",
+        },
+      }),
+      createBook({
+        id: "wrong-status",
+        isFavorite: true,
+        progressPercent: 100,
+        sourceMetadata: {
+          title: "Finished",
+          creator: "Author",
+          series: "Star Saga",
+          subjects: ["Space Opera", "Adventure"],
+          language: "en",
+          publisher: "North Press",
+        },
+      }),
+      createBook({ id: "missing-metadata", sourceMetadata: { title: "Only title" } }),
+    ];
+    const filters = {
+      ...createDefaultLibraryFilters(),
+      series: ["star saga"],
+      subjects: ["Space Opera", "Adventure"],
+      languages: ["EN"],
+      publishers: ["north press"],
+      readingStatuses: ["in-progress" as const],
+      favoritesOnly: true,
+      missingCover: true,
+    };
+
+    expect(getVisibleBooks(candidates, "", "title", { type: "library" }, [], filters)).toEqual([
+      candidates[0],
+    ]);
+    expect(
+      getVisibleBooks(candidates, "", "title", { type: "library" }, [], {
+        ...createDefaultLibraryFilters(),
+        missingMetadata: true,
+      }).map((book) => book.id),
+    ).toEqual(["missing-metadata"]);
+    expect(hasActiveLibraryFilters(filters)).toBe(true);
+    expect(hasActiveLibraryFilters(createDefaultLibraryFilters())).toBe(false);
+  });
+
+  it("derives smart views from current book metadata without persistent lists", () => {
+    const candidates = [
+      createBook({
+        id: "unread",
+        progressPercent: 0,
+        coverPath: "cover.jpg",
+        sourceMetadata: { title: "Unread", creator: "Author" },
+      }),
+      createBook({
+        id: "started",
+        progressPercent: 50,
+        sourceMetadata: { title: "Started", creator: "Author" },
+      }),
+      createBook({
+        id: "completed",
+        progressPercent: 99.5,
+        coverPath: "cover.jpg",
+        sourceMetadata: { title: "Completed" },
+      }),
+    ];
+
+    expect(countBooksBySmartView(candidates)).toEqual({
+      unread: 1,
+      "in-progress": 1,
+      completed: 1,
+      "needs-metadata": 1,
+      "needs-cover": 1,
+    });
+    expect(
+      filterBooksByLocation(candidates, { type: "smart-view", smartView: "completed" }).map(
+        (book) => book.id,
+      ),
+    ).toEqual(["completed"]);
   });
 });

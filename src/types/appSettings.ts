@@ -4,6 +4,7 @@ import type {
   LibraryDisplaySettings,
 } from "./settings";
 import type { ReaderSettings } from "./reader";
+import { createDefaultLibraryFilters } from "./library";
 
 export type InterfaceDensity = "comfortable" | "compact";
 export type BookCardSize = "small" | "medium" | "large";
@@ -66,6 +67,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     defaultMode: "copy",
   }),
   library: Object.freeze({
+    filters: Object.freeze(createDefaultLibraryFilters()),
     sortBy: "title",
     viewMode: "grid",
   }),

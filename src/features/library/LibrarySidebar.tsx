@@ -4,6 +4,10 @@ import {
   CaretUpDown,
   Check,
   ClockCounterClockwise,
+  BookOpenText,
+  CheckCircle,
+  ImageBroken,
+  NotePencil,
   Folders,
   GearSix,
   Heart,
@@ -11,24 +15,38 @@ import {
   Question,
   Stack,
 } from "@phosphor-icons/react";
+import type { Icon } from "@phosphor-icons/react";
 import { memo, useCallback } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { KnownArchive } from "../../types/archive";
 import type { Folder } from "../../types/folder";
+import type { LibrarySmartView } from "../../types/library";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
-import type { LibraryLocation } from "./libraryFilters";
+import {
+  librarySmartViewLabel,
+  type LibraryLocation,
+  type LibrarySmartViewCounts,
+} from "./libraryFilters";
+
+const smartViews: Array<{ icon: Icon; view: LibrarySmartView }> = [
+  { view: "unread", icon: BookOpenText },
+  { view: "in-progress", icon: ClockCounterClockwise },
+  { view: "completed", icon: CheckCircle },
+  { view: "needs-metadata", icon: NotePencil },
+  { view: "needs-cover", icon: ImageBroken },
+];
 
 type LibrarySidebarProps = {
   activeArchive: KnownArchive;
   archives: KnownArchive[];
   bookCount: number;
   favoriteCount: number;
-  continueCount: number;
   folders: Folder[];
   location: LibraryLocation;
   seriesCount: number;
+  smartViewCounts: LibrarySmartViewCounts;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
   onDeleteFolder: (folder: Folder) => void;
@@ -50,10 +68,10 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   archives,
   bookCount,
   favoriteCount,
-  continueCount,
   folders,
   location,
   seriesCount,
+  smartViewCounts,
   canManageFolders = true,
   onCreateFolder,
   onDeleteFolder,
@@ -99,16 +117,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <span className="nav-item__count">{bookCount}</span>
         </button>
         <button
-          aria-current={location.type === "continue" ? "page" : undefined}
-          className={`nav-item ${location.type === "continue" ? "active" : ""}`}
-          type="button"
-          onClick={() => onLocationChange({ type: "continue" })}
-        >
-          <ClockCounterClockwise aria-hidden="true" size={19} weight="regular" />
-          <span>Continue</span>
-          <span className="nav-item__count">{continueCount}</span>
-        </button>
-        <button
           aria-current={
             location.type === "series" || location.type === "series-detail" ? "page" : undefined
           }
@@ -145,6 +153,36 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <span className="nav-item__count">{folders.length}</span>
         </button>
       </nav>
+
+      <div className="sidebar__smart-views">
+        <div className="section-label">Smart views</div>
+        {smartViews.map(({ view, icon: SmartViewIcon }) => {
+          const isActive =
+            view === "in-progress"
+              ? location.type === "continue" ||
+                (location.type === "smart-view" && location.smartView === view)
+              : location.type === "smart-view" && location.smartView === view;
+          return (
+            <button
+              aria-current={isActive ? "page" : undefined}
+              className={`nav-item ${isActive ? "active" : ""}`}
+              key={view}
+              type="button"
+              onClick={() =>
+                onLocationChange(
+                  view === "in-progress"
+                    ? { type: "continue" }
+                    : { type: "smart-view", smartView: view },
+                )
+              }
+            >
+              <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
+              <span>{librarySmartViewLabel(view)}</span>
+              <span className="nav-item__count">{smartViewCounts[view]}</span>
+            </button>
+          );
+        })}
+      </div>
 
       <div className="sidebar__section">
         <div className="sidebar__section-heading">

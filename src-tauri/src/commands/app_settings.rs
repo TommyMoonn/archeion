@@ -17,9 +17,32 @@ pub struct AppearanceSettings {
     pub animations_enabled: bool,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryFilterSettings {
+    #[serde(default)]
+    pub series: Vec<String>,
+    #[serde(default)]
+    pub subjects: Vec<String>,
+    #[serde(default)]
+    pub languages: Vec<String>,
+    #[serde(default)]
+    pub publishers: Vec<String>,
+    #[serde(default)]
+    pub reading_statuses: Vec<String>,
+    #[serde(default)]
+    pub favorites_only: bool,
+    #[serde(default)]
+    pub missing_metadata: bool,
+    #[serde(default)]
+    pub missing_cover: bool,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryDisplaySettings {
+    #[serde(default)]
+    pub filters: LibraryFilterSettings,
     #[serde(default = "default_library_sort")]
     pub sort_by: String,
     #[serde(default = "default_library_view")]
@@ -171,6 +194,7 @@ fn default_window_frame_style() -> String {
 impl Default for LibraryDisplaySettings {
     fn default() -> Self {
         Self {
+            filters: LibraryFilterSettings::default(),
             sort_by: default_library_sort(),
             view_mode: default_library_view(),
         }
@@ -391,6 +415,9 @@ mod tests {
         assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
         assert_eq!(parsed.library.sort_by, "title");
+        assert!(parsed.library.filters.series.is_empty());
+        assert!(parsed.library.filters.reading_statuses.is_empty());
+        assert!(!parsed.library.filters.favorites_only);
         assert!(parsed.navigation.is_none());
         assert_eq!(parsed.reader.progress_placement, "top");
         assert_eq!(parsed.import.default_mode, "copy");
@@ -407,6 +434,11 @@ mod tests {
                 animations_enabled: true,
             },
             library: super::LibraryDisplaySettings {
+                filters: super::LibraryFilterSettings {
+                    languages: vec!["en".to_string()],
+                    missing_cover: true,
+                    ..super::LibraryFilterSettings::default()
+                },
                 sort_by: "author".to_string(),
                 view_mode: "list".to_string(),
             },

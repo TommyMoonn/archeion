@@ -9,7 +9,11 @@ import {
   type RememberedNavigationState,
 } from "../types/appSettings";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
-import { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../types/library";
+import {
+  DEFAULT_LIBRARY_SORT,
+  normalizeLibraryFilters,
+  normalizeLibrarySort,
+} from "../types/library";
 import type {
   FilesAndMetadataSettings,
   GlobalImportSettings,
@@ -103,6 +107,7 @@ function normalizeLibraryViewMode(value: unknown): LibraryDisplaySettings["viewM
 function normalizeLibrarySettings(value: unknown): LibraryDisplaySettings {
   const settings = isRecord(value) ? value : {};
   return {
+    filters: normalizeLibraryFilters(settings.filters),
     sortBy: normalizeLibrarySort(settings.sortBy),
     viewMode: normalizeLibraryViewMode(settings.viewMode),
   };

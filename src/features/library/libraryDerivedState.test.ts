@@ -6,6 +6,7 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
+import { createDefaultLibraryFilters } from "../../types/library";
 import {
   countBooksByFolder,
   countFavoriteBooks,
@@ -100,6 +101,7 @@ describe("library derived state helpers", () => {
     const input: Parameters<typeof useLibraryDerivedState>[0] = {
       books,
       debouncedQuery: "",
+      filters: createDefaultLibraryFilters(),
       folders: [],
       location: { type: "library" },
       metadataEditorBookId: null,

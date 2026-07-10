@@ -12,6 +12,7 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { createDefaultLibraryFilters } from "../../types/library";
 import { LibraryPage } from "./LibraryPage";
 
 (
@@ -43,6 +44,7 @@ const readyState: ArchiveState = {
 
 function createStorage({
   books = [],
+  folders = [],
   createFolder = vi.fn().mockResolvedValue({
     id: "folder-light-novels",
     name: "Light Novels",
@@ -55,6 +57,7 @@ function createStorage({
   updateBook = vi.fn(),
 }: {
   books?: Book[];
+  folders?: Folder[];
   createFolder?: LibraryStorage["createFolder"];
   deleteBook?: LibraryStorage["deleteBook"];
   updateBook?: LibraryStorage["updateBook"];
@@ -85,7 +88,7 @@ function createStorage({
     revealFolder: vi.fn(),
     deleteFolder: vi.fn(),
     observeFolders: vi.fn((observer) => {
-      observer.next([]);
+      observer.next(folders);
       return () => undefined;
     }),
     getArchiveImportSettings: vi.fn().mockResolvedValue(defaultArchiveImportSettings),
@@ -141,14 +144,14 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function renderLibraryPage(storage: LibraryStorage) {
+async function renderLibraryPage(storage: LibraryStorage, initialEntry = "/") {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
 
   await act(async () => {
     root.render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <LibraryStorageContext.Provider value={storage}>
           <LibraryPage />
         </LibraryStorageContext.Provider>
@@ -192,7 +195,14 @@ describe("LibraryPage", () => {
   beforeEach(async () => {
     vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyState);
     vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
-    await appPreferencesStore.update({ confirmDestructiveFileActions: true });
+    const currentPreferences = appPreferencesStore.getSnapshot();
+    await appPreferencesStore.update({
+      confirmDestructiveFileActions: true,
+      library: {
+        ...currentPreferences.library,
+        filters: createDefaultLibraryFilters(),
+      },
+    });
   });
 
   afterEach(() => {
@@ -202,6 +212,65 @@ describe("LibraryPage", () => {
     }
     vi.restoreAllMocks();
     document.body.innerHTML = "";
+  });
+
+  it("preserves the selected folder and search query when filters change", async () => {
+    const folder: Folder = {
+      id: "folder-fiction",
+      name: "Fiction",
+      parentId: null,
+      relativePath: "Fiction",
+      parentPath: null,
+      createdAt: "1",
+      updatedAt: "1",
+    };
+    const book: Book = {
+      addedAt: "1",
+      fileName: "Dune.epub",
+      folderId: folder.id,
+      id: "book-dune",
+      isFavorite: false,
+      originalTitle: "Dune",
+      relativePath: "Fiction/Dune.epub",
+      sourceMetadata: {
+        title: "Dune",
+        creator: "Frank Herbert",
+        series: "Dune",
+      },
+      updatedAt: "1",
+    };
+    const storage = createStorage({ books: [book], folders: [folder] });
+    const session = await renderLibraryPage(
+      storage,
+      "/?view=folder&folderPath=Fiction&archiveId=archive-books",
+    );
+    activeRoot = session.root;
+
+    const search = session.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    );
+    expect(search).not.toBeNull();
+
+    await act(async () => {
+      if (search) setInputValue(search, "Dune");
+    });
+
+    const seriesSelect = session.container.querySelector<HTMLSelectElement>(
+      'select[aria-label="Add series filter"]',
+    );
+    expect(seriesSelect).not.toBeNull();
+
+    await act(async () => {
+      if (seriesSelect) {
+        seriesSelect.value = "Dune";
+        seriesSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      await Promise.resolve();
+    });
+
+    expect(session.container.querySelector(".library-header h1")?.textContent).toBe("Fiction");
+    expect(search?.value).toBe("Dune");
+    expect(appPreferencesStore.getSnapshot().library.filters.series).toEqual(["Dune"]);
   });
 
   it("shows library feedback after successful folder creation", async () => {
