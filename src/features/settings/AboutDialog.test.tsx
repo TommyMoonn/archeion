@@ -16,7 +16,7 @@ describe("AboutDialog", () => {
     const markup = renderToStaticMarkup(<AboutDialog onClose={vi.fn()} />);
 
     expect(markup).toContain("Archeion");
-    expect(markup).toContain("Version 0.1.0");
+    expect(markup).toContain("Version 0.2.0");
     expect(markup).not.toContain("Your books and reading data stay on this device.");
     expect(markup).toContain("GitHub");
     expect(markup).toContain("https://github.com/TommyMoonn/archeion");

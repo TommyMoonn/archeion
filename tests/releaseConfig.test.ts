@@ -65,7 +65,7 @@ describe("release configuration", () => {
       tauriConfig.version,
     ];
 
-    expect(new Set(versions)).toEqual(new Set(["0.1.0"]));
+    expect(new Set(versions)).toEqual(new Set(["0.2.0"]));
   });
 
   it("uses finalized package identity and metadata", () => {

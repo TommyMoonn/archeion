@@ -14,7 +14,7 @@ type AboutDialogProps = {
 
 export function AboutDialog({ onClose }: AboutDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [version, setVersion] = useState("0.1.0");
+  const [version, setVersion] = useState("0.2.0");
 
   useEffect(() => {
     const dialog = dialogRef.current;
