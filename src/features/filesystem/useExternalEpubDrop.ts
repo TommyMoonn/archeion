@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   importDropDestinationAtPoint,
+  importDragAutoScrollDelta,
   validateExternalEpubDrop,
   type ImportDropTarget,
 } from "./externalEpubDrop";
@@ -19,6 +20,8 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
   const activeTargetRef = useRef<ImportDropTarget | null>(null);
   const validDragRef = useRef(false);
   const callbacksRef = useRef({ onDrop, onInvalidDrop });
+  const autoScrollFrameRef = useRef<number | null>(null);
+  const autoScrollPointRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     callbacksRef.current = { onDrop, onInvalidDrop };
@@ -38,6 +41,35 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
     function clearDrag() {
       validDragRef.current = false;
       publishTarget(null);
+      autoScrollPointRef.current = null;
+      if (autoScrollFrameRef.current !== null) {
+        window.cancelAnimationFrame(autoScrollFrameRef.current);
+        autoScrollFrameRef.current = null;
+      }
+    }
+
+    function scheduleAutoScroll(x: number, y: number) {
+      autoScrollPointRef.current = { x, y };
+      if (autoScrollFrameRef.current !== null) return;
+
+      autoScrollFrameRef.current = window.requestAnimationFrame(() => {
+        autoScrollFrameRef.current = null;
+        const point = autoScrollPointRef.current;
+        if (!point || !validDragRef.current) return;
+
+        const scrollers = document.querySelectorAll<HTMLElement>(
+          ".sidebar__folder-scroll, .page-shell",
+        );
+        for (const scroller of scrollers) {
+          const bounds = scroller.getBoundingClientRect();
+          if (point.x < bounds.left || point.x > bounds.right) continue;
+          const delta = importDragAutoScrollDelta(point.y, bounds.top, bounds.bottom);
+          if (delta !== 0) {
+            scroller.scrollTop += delta;
+            break;
+          }
+        }
+      });
     }
 
     void Promise.all([getCurrentWindow().scaleFactor(), Promise.resolve(getCurrentWebview())])
@@ -54,6 +86,9 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
           }
 
           if (payload.type === "over" || payload.type === "enter") {
+            if (validDragRef.current) {
+              scheduleAutoScroll(logicalPosition.x, logicalPosition.y);
+            }
             publishTarget(
               validDragRef.current
                 ? importDropDestinationAtPoint(logicalPosition.x, logicalPosition.y)
@@ -82,6 +117,7 @@ export function useExternalEpubDrop({ onDrop, onInvalidDrop }: ExternalEpubDropI
 
     return () => {
       disposed = true;
+      clearDrag();
       unlisten?.();
     };
   }, []);

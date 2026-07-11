@@ -149,6 +149,7 @@ describe("BookCoverWritebackDialog", () => {
     expect(
       container?.querySelector<HTMLImageElement>('img[alt="Final replacement cover preview"]'),
     ).toHaveProperty("src", "blob:preview");
+    expect(container?.textContent).toContain("Preview — not yet saved");
     expect(buttonByText("Write cover to EPUB")?.disabled).toBe(true);
 
     act(() => {
@@ -173,6 +174,23 @@ describe("BookCoverWritebackDialog", () => {
       expectedEpubModifiedAt: 200,
     });
     expect(container?.textContent).toContain("Cover written to EPUB.");
+    expect(container?.textContent).toContain("Saved embedded cover");
+  });
+
+  it("focuses a preparation error so recovery feedback is announced in context", async () => {
+    vi.mocked(open).mockResolvedValue("C:/covers/broken.png");
+    renderDialog({ onPrepareCover: vi.fn().mockRejectedValue(new Error("Unsupported image.")) });
+
+    await act(async () => {
+      buttonByText("Choose image")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    const alert = container?.querySelector<HTMLElement>('[role="alert"]');
+    expect(alert?.textContent).toContain("Unsupported image.");
+    expect(document.activeElement).toBe(buttonByText("Choose another image"));
   });
 
   it("regenerates the exact preview when framing changes", async () => {

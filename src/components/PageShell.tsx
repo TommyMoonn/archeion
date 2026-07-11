@@ -6,6 +6,7 @@ type PageShellProps = {
     active: boolean;
     destination: string;
     id: string;
+    label: string;
   };
   mainRef?: Ref<HTMLElement>;
   sidebar: ReactNode;
@@ -20,6 +21,7 @@ export function PageShell({ children, importDropTarget, mainRef, sidebar }: Page
         data-import-drop-active={importDropTarget?.active || undefined}
         data-import-drop-destination={importDropTarget?.destination}
         data-import-drop-id={importDropTarget?.id}
+        data-import-drop-label={importDropTarget?.label}
         data-import-drop-target={importDropTarget ? "true" : undefined}
         ref={mainRef}
         tabIndex={-1}

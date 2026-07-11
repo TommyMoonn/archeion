@@ -7,6 +7,7 @@ import {
   enterLibrarySelectionMode,
   exitLibrarySelectionMode,
   reconcileLibrarySelection,
+  retainLibraryBookSelection,
   selectVisibleLibraryBooks,
   toggleLibraryBookSelection,
 } from "./librarySelection";
@@ -70,5 +71,14 @@ describe("library selection model", () => {
 
     expect([...reconciled.selectedBookIds]).toEqual(["one", "three"]);
     expect(clearLibrarySelection(reconciled).selectedBookIds.size).toBe(0);
+  });
+
+  it("retains only failed or skipped books for a practical bulk retry", () => {
+    const selected = selectVisibleLibraryBooks(createLibrarySelectionState(), order);
+    const retrySelection = retainLibraryBookSelection(selected, new Set(["two", "four"]));
+
+    expect(retrySelection.mode).toBe(true);
+    expect([...retrySelection.selectedBookIds]).toEqual(["two", "four"]);
+    expect(retainLibraryBookSelection(selected, new Set()).mode).toBe(false);
   });
 });

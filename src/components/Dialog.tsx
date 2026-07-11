@@ -21,11 +21,14 @@ export function Dialog({
 }: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const pointerStartedOnBackdropRef = useRef(false);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const descriptionId = useId();
   const titleId = useId();
 
   useEffect(() => {
     const dialog = dialogRef.current;
+    const activeElement = document.activeElement;
+    returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
 
     if (dialog && !dialog.open) {
       dialog.showModal();
@@ -35,6 +38,12 @@ export function Dialog({
       if (dialog?.open) {
         dialog.close();
       }
+      const returnFocus = returnFocusRef.current;
+      window.requestAnimationFrame(() => {
+        if (returnFocus?.isConnected) {
+          returnFocus.focus({ preventScroll: true });
+        }
+      });
     };
   }, []);
 

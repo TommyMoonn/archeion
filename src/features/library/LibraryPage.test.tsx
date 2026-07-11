@@ -984,6 +984,60 @@ describe("LibraryPage", () => {
     expect(session.container.querySelector(".library-selection-bar")).toBeNull();
   });
 
+  it("keeps failed and skipped books selected for bulk retry", async () => {
+    const bulkSetFavorite = vi.fn().mockResolvedValue({
+      requested: 2,
+      succeeded: [{ bookId: "alpha" }],
+      failed: [{ bookId: "beta", message: "File is locked." }],
+      skipped: [],
+    });
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+      bulkSetFavorite,
+    });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+      clickBook(session.container, "Beta", { ctrlKey: true });
+    });
+    await act(async () => {
+      session.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Add selected books to favorites"]')
+        ?.click();
+      await Promise.resolve();
+    });
+
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "1 selected",
+    );
+    expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(1);
+    expect(
+      session.container.querySelector('.book-card[data-selected="true"]')?.textContent,
+    ).toContain("Beta");
+    expect(session.container.textContent).toContain("File is locked.");
+  });
+
+  it("exits selection with Escape and restores the entry control", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+    const selectButton = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Select books"]',
+    )!;
+    selectButton.focus();
+
+    await act(async () => selectButton.click());
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+    expect(document.activeElement).toBe(selectButton);
+  });
+
   it("uses the same selection model in list view", async () => {
     const currentPreferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({

@@ -1,7 +1,7 @@
 import type { ArchiveImportResult, BulkActionResult } from "../../storage/LibraryStorage";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
 
-export type LibraryFeedbackTone = "neutral" | "success" | "error";
+export type LibraryFeedbackTone = "success" | "warning" | "error";
 
 export type LibraryFeedbackDetail = {
   label: string;
@@ -139,7 +139,7 @@ export function createImportFeedbackToken(
   if (summary.skipped > 0) {
     return {
       id,
-      tone: "neutral",
+      tone: "warning",
       title: "Some EPUBs were skipped.",
       detail: summary.message,
       details,
@@ -173,7 +173,7 @@ export function createBulkActionFeedbackToken(
   ];
   return {
     id: "bulk-action",
-    tone: result.failed.length ? "error" : result.skipped.length ? "neutral" : "success",
+    tone: result.failed.length ? "error" : result.skipped.length ? "warning" : "success",
     title: result.failed.length ? `${action} completed with errors.` : `${action} complete.`,
     detail,
     details,

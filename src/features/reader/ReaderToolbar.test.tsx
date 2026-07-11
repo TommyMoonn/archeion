@@ -49,6 +49,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           previousChapterDisabled
           progressSaveFailed={false}
           title="Book Title"
+          mode="paged"
           tocOpen={false}
           {...callbacks}
           {...overrides}
@@ -116,5 +117,13 @@ describe("ReaderToolbar", () => {
     expect(container.querySelector('button[aria-label="Next chapter"]')).toBeNull();
     expect(container.querySelector(".reader-toolbar__identity p")?.textContent).toBe("Book Title");
     expect(container.textContent).toContain("Book 45.7%");
+  });
+
+  it("names viewport controls for continuous scrolling", () => {
+    const { container } = renderToolbar({ mode: "continuous" });
+
+    expect(button(container, "Scroll up")).toBeInstanceOf(HTMLButtonElement);
+    expect(button(container, "Scroll down")).toBeInstanceOf(HTMLButtonElement);
+    expect(container.querySelector('button[aria-label="Previous page"]')).toBeNull();
   });
 });

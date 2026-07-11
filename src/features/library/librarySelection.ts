@@ -89,6 +89,23 @@ export function deselectVisibleLibraryBooks(
   };
 }
 
+export function retainLibraryBookSelection(
+  state: LibrarySelectionState,
+  retainedBookIds: ReadonlySet<string>,
+): LibrarySelectionState {
+  const selectedBookIds = new Set(
+    [...state.selectedBookIds].filter((bookId) => retainedBookIds.has(bookId)),
+  );
+
+  return {
+    ...(state.anchorBookId && selectedBookIds.has(state.anchorBookId)
+      ? { anchorBookId: state.anchorBookId }
+      : {}),
+    mode: selectedBookIds.size > 0,
+    selectedBookIds,
+  };
+}
+
 export function reconcileLibrarySelection(
   state: LibrarySelectionState,
   availableBookIds: ReadonlySet<string>,

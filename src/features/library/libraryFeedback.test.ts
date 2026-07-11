@@ -140,7 +140,7 @@ describe("libraryFeedback", () => {
     ];
 
     expect(createImportFeedbackToken("archive-import", results)).toMatchObject({
-      tone: "neutral",
+      tone: "warning",
       title: "Some EPUBs were skipped.",
       detail: "1 added. 1 skipped.",
       details: [{ label: "B.epub", message: "Already exists." }],

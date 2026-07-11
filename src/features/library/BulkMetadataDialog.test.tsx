@@ -124,4 +124,36 @@ describe("BulkMetadataDialog", () => {
     ].map((element) => element.textContent);
     expect(previewValues).toEqual(["“Science, Technology”", "“Science”\n“Technology”"]);
   });
+
+  it("confirms before discarding actual field intent", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onClose = vi.fn();
+    act(() => {
+      root?.render(
+        <BulkMetadataDialog
+          books={[createBook("One", "Series")]}
+          onApply={vi.fn(async () => undefined)}
+          onClose={onClose}
+        />,
+      );
+    });
+
+    act(() => button(container, "Cancel").click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    onClose.mockClear();
+    act(() => {
+      container
+        .querySelector<HTMLInputElement>('.bulk-metadata-field input[type="checkbox"]')
+        ?.click();
+      button(container, "Cancel").click();
+    });
+    expect(container.textContent).toContain("Discard metadata changes?");
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => button(container, "Discard changes").click());
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

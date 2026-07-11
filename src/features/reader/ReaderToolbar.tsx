@@ -10,6 +10,7 @@ import {
 import type { Ref } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import type { ReaderMode } from "../../types/reader";
 
 type ReaderToolbarProps = {
   atEnd: boolean;
@@ -30,6 +31,7 @@ type ReaderToolbarProps = {
   previousChapterDisabled: boolean;
   progressSaveFailed: boolean;
   title: string;
+  mode: ReaderMode;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
 };
@@ -53,6 +55,7 @@ export function ReaderToolbar({
   previousChapterDisabled,
   progressSaveFailed,
   title,
+  mode,
   tocButtonRef,
   tocOpen,
 }: ReaderToolbarProps) {
@@ -113,10 +116,18 @@ export function ReaderToolbar({
           <ListBullets aria-hidden="true" size={19} weight="regular" />
         </IconButton>
         <span className="reader-toolbar__divider" />
-        <IconButton label="Previous page" disabled={atStart} onClick={onPrevious}>
+        <IconButton
+          label={mode === "continuous" ? "Scroll up" : "Previous page"}
+          disabled={atStart}
+          onClick={onPrevious}
+        >
           <CaretLeft aria-hidden="true" size={19} weight="bold" />
         </IconButton>
-        <IconButton label="Next page" disabled={atEnd} onClick={onNext}>
+        <IconButton
+          label={mode === "continuous" ? "Scroll down" : "Next page"}
+          disabled={atEnd}
+          onClick={onNext}
+        >
           <CaretRight aria-hidden="true" size={19} weight="bold" />
         </IconButton>
         <span className="reader-toolbar__divider" />

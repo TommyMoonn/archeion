@@ -200,7 +200,7 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
               );
             })
           ) : (
-            <div className="quick-actions__empty">
+            <div aria-live="polite" className="quick-actions__empty" role="status">
               <p>No matching commands</p>
               <span>Try a shorter action or destination.</span>
             </div>

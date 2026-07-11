@@ -71,7 +71,7 @@ describe("Quick Actions search", () => {
       order: 2,
     }),
     command({
-      disabledReason: "Open a book to use its table of contents.",
+      disabledReason: "Select a book first.",
       group: "Reader",
       id: "toc",
       keywords: ["chapters"],

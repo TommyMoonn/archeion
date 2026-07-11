@@ -248,6 +248,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const importLock = useRef(false);
   const deleteLock = useRef(false);
   const feedbackSequenceRef = useRef(0);
+  const selectionReturnFocusRef = useRef<HTMLElement | null>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
   const [query, setQuery] = useState(() => restoreContext?.query ?? "");
@@ -290,6 +291,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     deselectVisible,
     enterMode: enterSelectionMode,
     exitMode: exitSelectionMode,
+    retain: retainSelection,
     selectVisible,
     selectedBookIds,
     selectionMode,
@@ -619,19 +621,61 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       });
     },
   });
+  const leaveSelectionMode = useCallback(() => {
+    exitSelectionMode();
+    const returnFocus = selectionReturnFocusRef.current;
+    selectionReturnFocusRef.current = null;
+    window.requestAnimationFrame(() => {
+      if (returnFocus?.isConnected) {
+        returnFocus.focus({ preventScroll: true });
+      } else {
+        searchInputRef.current?.focus({ preventScroll: true });
+      }
+    });
+  }, [exitSelectionMode]);
   const toggleSelectionMode = useCallback(() => {
     if (selectionMode) {
-      exitSelectionMode();
+      leaveSelectionMode();
     } else {
+      const activeElement = document.activeElement;
+      selectionReturnFocusRef.current =
+        activeElement instanceof HTMLElement ? activeElement : searchInputRef.current;
       enterSelectionMode();
     }
-  }, [enterSelectionMode, exitSelectionMode, selectionMode]);
+  }, [enterSelectionMode, leaveSelectionMode, selectionMode]);
   const changeBookSelection = useCallback(
     (book: Book, intent: LibrarySelectionIntent) => {
+      if (!selectionMode) {
+        const activeElement = document.activeElement;
+        selectionReturnFocusRef.current =
+          activeElement instanceof HTMLElement ? activeElement : searchInputRef.current;
+      }
       toggleBookSelection(book, intent, visibleBooks);
     },
-    [toggleBookSelection, visibleBooks],
+    [selectionMode, toggleBookSelection, visibleBooks],
   );
+
+  useEffect(() => {
+    if (!selectionMode) {
+      return;
+    }
+
+    function handleSelectionEscape(event: KeyboardEvent) {
+      if (
+        event.key !== "Escape" ||
+        event.defaultPrevented ||
+        document.querySelector("dialog[open], details[open]")
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      leaveSelectionMode();
+    }
+
+    document.addEventListener("keydown", handleSelectionEscape);
+    return () => document.removeEventListener("keydown", handleSelectionEscape);
+  }, [leaveSelectionMode, selectionMode]);
 
   useEffect(() => {
     if (booksLoadState.status !== "ready" || booksLoadState.archiveId !== activeArchive.id) {
@@ -1011,15 +1055,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         label: "Rescan archive",
         order: 62,
       },
-      {
-        disabledReason: "Open a book to use its table of contents.",
-        execute: () => undefined,
-        group: "Reader",
-        id: "reader.open-toc-unavailable",
-        keywords: ["reader toc", "chapters", "contents"],
-        label: "Open reader TOC",
-        order: 80,
-      },
     ],
     [changeLocation, isImporting, openAddEpub, openBookSearch, openCreateFolder],
   );
@@ -1129,7 +1164,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       try {
         const result = await action(ids);
         pushFeedback(createBulkActionFeedbackToken(label, result, labels));
-        exitSelectionMode();
+        const retryBookIds = new Set([
+          ...result.failed.map(({ bookId }) => bookId),
+          ...result.skipped.map(({ bookId }) => bookId),
+        ]);
+        if (retryBookIds.size > 0) {
+          retainSelection(retryBookIds);
+        } else {
+          leaveSelectionMode();
+        }
       } catch (error) {
         pushFeedback({
           id: "bulk-action",
@@ -1141,7 +1184,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         setIsBulkRunning(false);
       }
     },
-    [books, dismissFeedback, exitSelectionMode, isBulkRunning, pushFeedback, selectedBookIds],
+    [
+      books,
+      dismissFeedback,
+      isBulkRunning,
+      leaveSelectionMode,
+      pushFeedback,
+      retainSelection,
+      selectedBookIds,
+    ],
   );
 
   const handleBulkAction = useCallback(
@@ -1318,6 +1369,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         active: activeImportDropTarget?.id === "current-library-surface",
         destination: currentImportDropDestination,
         id: "current-library-surface",
+        label: currentFolder?.name ?? "Archive root",
       }}
       mainRef={pageShellRef}
       sidebar={
@@ -1354,7 +1406,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onAction={handleBulkAction}
           onClear={clearSelection}
           onDeselectVisible={() => deselectVisible(visibleBooks)}
-          onExit={exitSelectionMode}
+          onExit={leaveSelectionMode}
           onSelectVisible={() => selectVisible(visibleBooks)}
           selectedCount={selectedBookIds.size}
           visibleCount={visibleBooks.length}

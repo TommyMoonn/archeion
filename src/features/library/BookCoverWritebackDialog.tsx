@@ -60,6 +60,7 @@ export function BookCoverWritebackDialog({
   const [warning, setWarning] = useState<string | null>(null);
   const preparationRequest = useRef(0);
   const previewUrlRef = useRef<string | null>(null);
+  const recoveryControlsRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     return () => {
@@ -67,6 +68,14 @@ export function BookCoverWritebackDialog({
       if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
     };
   }, []);
+
+  useEffect(() => {
+    if (!error || isPreparing || isWriting) return;
+    const frame = window.requestAnimationFrame(() => {
+      recoveryControlsRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [error, isPreparing, isWriting]);
 
   function replacePreviewUrl(nextPreviewUrl: string | null) {
     if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
@@ -163,6 +172,17 @@ export function BookCoverWritebackDialog({
   const canWrite = Boolean(
     imagePath && preparation && confirmed && !isPreparing && !isWriting && !book.isFileMissing,
   );
+  const writeDisabledReason = book.isFileMissing
+    ? "The EPUB file is missing."
+    : !imagePath
+      ? "Choose a cover image first."
+      : isPreparing
+        ? "Wait for the preview to finish."
+        : !preparation
+          ? "Prepare a valid cover image first."
+          : !confirmed
+            ? "Confirm the EPUB modification first."
+            : undefined;
 
   return (
     <Dialog
@@ -178,7 +198,11 @@ export function BookCoverWritebackDialog({
           <Button disabled={isWriting} onClick={onClose} variant="secondary">
             Close
           </Button>
-          <Button disabled={!canWrite} onClick={() => void writeCover()}>
+          <Button
+            disabled={!canWrite}
+            onClick={() => void writeCover()}
+            title={writeDisabledReason}
+          >
             {isWriting ? "Writing cover" : "Write cover to EPUB"}
           </Button>
         </>
@@ -207,10 +231,10 @@ export function BookCoverWritebackDialog({
                 </div>
               ) : null}
             </div>
-            <span>Final embedded cover</span>
+            <span>{success ? "Saved embedded cover" : "Preview — not yet saved"}</span>
           </div>
 
-          <div className="cover-writeback__controls">
+          <div className="cover-writeback__controls" ref={recoveryControlsRef}>
             <Button
               disabled={isPreparing || isWriting || book.isFileMissing}
               icon={<UploadSimple aria-hidden="true" size={17} />}

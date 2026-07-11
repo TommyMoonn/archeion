@@ -26,6 +26,20 @@ function renderDialog(closeOnBackdropClick = true) {
 }
 
 describe("Dialog backdrop dismissal", () => {
+  it("restores focus to the control that opened it", () => {
+    vi.useFakeTimers();
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const { root } = renderDialog();
+
+    act(() => root.unmount());
+    act(() => vi.runAllTimers());
+
+    expect(document.activeElement).toBe(opener);
+    vi.useRealTimers();
+  });
+
   it("does not close when a pointer starts in the panel and is released on the backdrop", () => {
     const { container, onClose, root } = renderDialog();
     const dialog = container.querySelector("dialog")!;

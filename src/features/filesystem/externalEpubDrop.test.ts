@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { ARCHIVE_ROOT_DESTINATION } from "./archiveImport";
-import { importDropTargetAttributes, validateExternalEpubDrop } from "./externalEpubDrop";
+import {
+  importDragAutoScrollDelta,
+  importDropTargetAttributes,
+  validateExternalEpubDrop,
+} from "./externalEpubDrop";
 
 describe("external EPUB drop validation", () => {
   it("accepts one or more EPUB paths case-insensitively", () => {
@@ -24,5 +28,12 @@ describe("external EPUB drop validation", () => {
       "data-import-drop-destination": ARCHIVE_ROOT_DESTINATION,
       "data-import-drop-id": "archive-root",
     });
+  });
+
+  it("auto-scrolls only near a valid scroll surface edge", () => {
+    expect(importDragAutoScrollDelta(110, 100, 500)).toBe(-18);
+    expect(importDragAutoScrollDelta(490, 100, 500)).toBe(18);
+    expect(importDragAutoScrollDelta(300, 100, 500)).toBe(0);
+    expect(importDragAutoScrollDelta(80, 100, 500)).toBe(0);
   });
 });

@@ -82,12 +82,12 @@ describe("QuickActionsPalette", () => {
 
   it("keeps disabled commands visible with a reason and does not execute them", async () => {
     const disabled = createCommand("disabled", "Open reader TOC", {
-      disabledReason: "Open a book to use its table of contents.",
+      disabledReason: "Select a book first.",
     });
     const rendered = await renderPalette([disabled]);
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
 
-    expect(rendered.container.textContent).toContain("Open a book to use its table of contents.");
+    expect(rendered.container.textContent).toContain("Select a book first.");
 
     await act(async () => {
       input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));

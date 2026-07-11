@@ -9,6 +9,19 @@ export type ImportDropTarget = { destination: string; id: string };
 export type ExternalEpubDropValidation =
   { valid: true; sourcePaths: string[] } | { valid: false; message: string };
 
+export function importDragAutoScrollDelta(
+  pointerY: number,
+  top: number,
+  bottom: number,
+  edgeSize = 48,
+  step = 18,
+): number {
+  if (pointerY < top || pointerY > bottom) return 0;
+  if (pointerY <= top + edgeSize) return -step;
+  if (pointerY >= bottom - edgeSize) return step;
+  return 0;
+}
+
 export function validateExternalEpubDrop(paths: readonly string[]): ExternalEpubDropValidation {
   if (paths.length === 0) {
     return { valid: false, message: "No files were dropped." };

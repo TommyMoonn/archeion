@@ -1,4 +1,4 @@
-import { CheckCircle, Info, WarningCircle, X } from "@phosphor-icons/react";
+import { CheckCircle, WarningCircle, X } from "@phosphor-icons/react";
 import { useEffect } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -18,7 +18,7 @@ function feedbackIcon(tone: LibraryFeedbackToken["tone"]) {
     return <WarningCircle aria-hidden="true" size={19} weight="regular" />;
   }
 
-  return <Info aria-hidden="true" size={19} weight="regular" />;
+  return <WarningCircle aria-hidden="true" size={19} weight="regular" />;
 }
 
 export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStackProps) {

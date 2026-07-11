@@ -264,33 +264,6 @@ export function ReaderPage() {
         order: 54,
       },
       {
-        disabledReason: "Return to the Library to add EPUB files.",
-        execute: () => undefined,
-        group: "Library",
-        id: "reader.add-epubs-unavailable",
-        keywords: ["import books", "add files"],
-        label: "Add EPUBs",
-        order: 60,
-      },
-      {
-        disabledReason: "Return to the Library to create a folder.",
-        execute: () => undefined,
-        group: "Library",
-        id: "reader.create-folder-unavailable",
-        keywords: ["new folder", "organize books"],
-        label: "Create folder",
-        order: 61,
-      },
-      {
-        disabledReason: "Return to the Library to rescan the archive.",
-        execute: () => undefined,
-        group: "Library",
-        id: "reader.rescan-unavailable",
-        keywords: ["refresh archive", "scan files"],
-        label: "Rescan archive",
-        order: 62,
-      },
-      {
         disabledReason: tocDisabledReason,
         execute: openToc,
         group: "Reader",
@@ -650,6 +623,7 @@ export function ReaderPage() {
           nextChapterDisabled={!chapterSequence.nextChapterId}
           previousChapterDisabled={!chapterSequence.previousChapterId}
           title={title}
+          mode={settings.mode}
           tocButtonRef={tocButtonRef}
           tocOpen={tocOpen}
         />

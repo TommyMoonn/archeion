@@ -1,12 +1,14 @@
 .dialog {
   width: min(430px, calc(100% - 32px));
   max-width: none;
+  max-height: calc(100dvh - 32px);
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   color: var(--text);
   background: var(--surface);
   box-shadow: 0 30px 90px rgb(4 6 10 / 48%);
+  overflow: hidden;
 }
 
 html[data-motion="on"] .dialog[open] {
@@ -24,7 +26,10 @@ html[data-motion="on"] .dialog[open] {
 }
 
 .dialog__panel {
+  box-sizing: border-box;
+  max-height: calc(100dvh - 34px);
   padding: 26px;
+  overflow-y: auto;
 }
 
 .dialog__copy h2 {
@@ -48,6 +53,19 @@ html[data-motion="on"] .dialog[open] {
   justify-content: flex-end;
   gap: 9px;
   margin-top: 25px;
+  flex-wrap: wrap;
+}
+
+@media (max-height: 520px), (max-width: 480px) {
+  .dialog {
+    width: min(100% - 20px, 430px);
+    max-height: calc(100dvh - 20px);
+  }
+
+  .dialog__panel {
+    max-height: calc(100dvh - 22px);
+    padding: 20px;
+  }
 }
 
 .dialog-form {

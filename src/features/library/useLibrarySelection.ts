@@ -8,6 +8,7 @@ import {
   enterLibrarySelectionMode,
   exitLibrarySelectionMode,
   reconcileLibrarySelection,
+  retainLibraryBookSelection,
   selectVisibleLibraryBooks,
   toggleLibraryBookSelection,
   type LibrarySelectionIntent,
@@ -66,6 +67,9 @@ export function useLibrarySelection(books: Book[] | undefined) {
     },
     [availableBookIds],
   );
+  const retain = useCallback((bookIds: ReadonlySet<string>) => {
+    setState((current) => retainLibraryBookSelection(current, bookIds));
+  }, []);
 
   return {
     clear,
@@ -73,6 +77,7 @@ export function useLibrarySelection(books: Book[] | undefined) {
     enterMode,
     exitMode,
     selectVisible,
+    retain,
     selectionMode: reconciledState.mode,
     selectedBookIds: reconciledState.selectedBookIds,
     toggleBook,
