@@ -32,6 +32,7 @@ type MockNavigation = {
 };
 
 type MockRendition = Rendition & {
+  emitContentMock: (content: { document?: Document; window?: Window }) => void;
   emitMock: (event: string, ...args: unknown[]) => void;
 };
 
@@ -53,6 +54,7 @@ function deferred<T>(): Deferred<T> {
 
 function createMockRendition(): MockRendition {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
+  const contentListeners: Array<(content: { document?: Document; window?: Window }) => void> = [];
   const rendition = {
     display: vi.fn(async () => undefined),
     next: vi.fn(async () => undefined),
@@ -63,7 +65,9 @@ function createMockRendition(): MockRendition {
     },
     hooks: {
       content: {
-        register: vi.fn(),
+        register: vi.fn((listener: (content: { document?: Document; window?: Window }) => void) => {
+          contentListeners.push(listener);
+        }),
       },
     },
     on: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
@@ -74,6 +78,11 @@ function createMockRendition(): MockRendition {
     off: vi.fn((event: string, listener: (...args: unknown[]) => void) => {
       listeners.get(event)?.delete(listener);
     }),
+    emitContentMock(content: { document?: Document; window?: Window }) {
+      for (const listener of contentListeners) {
+        listener(content);
+      }
+    },
     emitMock(event: string, ...args: unknown[]) {
       for (const listener of listeners.get(event) ?? []) {
         listener(...args);
@@ -300,6 +309,67 @@ describe("EpubViewer navigation lifecycle", () => {
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       status: "ready",
     });
+  });
+
+  it("uses continuous scrolling and restores the canonical CFI when modes change", async () => {
+    const pagedSession = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const continuousSession = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook
+      .mockReturnValueOnce(pagedSession.book)
+      .mockReturnValueOnce(continuousSession.book);
+    const fileBlob = new Blob(["book-one"]);
+    const props = defaultViewerProps(fileBlob);
+    const { root, container } = await renderViewer(props);
+    await waitForActiveRendition(pagedSession);
+
+    const canonicalCfi = "epubcfi(/6/2!/4/2:42)";
+    await act(async () => {
+      pagedSession.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", canonicalCfi),
+      );
+    });
+
+    await rerenderViewer(root, {
+      ...props,
+      settings: { ...defaultReaderSettings, mode: "continuous" },
+    });
+    await waitForActiveRendition(continuousSession);
+
+    expect(pagedSession.renderTo).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ flow: "paginated", manager: "default" }),
+    );
+    expect(continuousSession.renderTo).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ flow: "scrolled-continuous", manager: "continuous" }),
+    );
+    expect(continuousSession.rendition.display).toHaveBeenCalledWith(canonicalCfi);
+    expect(container.querySelector(".epub-viewer")?.getAttribute("data-reader-mode")).toBe(
+      "continuous",
+    );
+    expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(0);
+  });
+
+  it("retains wheel listeners on earlier chapter documents as new chapters mount", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+    };
+    await renderViewer(props);
+    await waitForActiveRendition(session);
+
+    const firstChapter = document.implementation.createHTMLDocument("Chapter one");
+    const secondChapter = document.implementation.createHTMLDocument("Chapter two");
+    session.rendition.emitContentMock({ document: firstChapter });
+    session.rendition.emitContentMock({ document: secondChapter });
+    props.onInteraction.mockClear();
+
+    firstChapter.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 80 }));
+
+    expect(props.onInteraction).toHaveBeenCalledTimes(1);
   });
 
   it("publishes current chapter changes without recreating the reader session", async () => {

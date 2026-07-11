@@ -282,11 +282,20 @@
   display: block !important;
   width: 100% !important;
   max-width: 100% !important;
-  height: 100% !important;
   min-height: 0 !important;
-  overflow: hidden !important;
   border: 0 !important;
   background: var(--reader-bg) !important;
+}
+
+.epub-viewer[data-reader-mode="paged"] .epub-viewer__stage iframe {
+  height: 100% !important;
+  overflow: hidden !important;
+}
+
+.epub-viewer[data-reader-mode="continuous"],
+.epub-viewer[data-reader-mode="continuous"] .epub-viewer__stage,
+.epub-viewer[data-reader-mode="continuous"] .epub-viewer__stage > div {
+  overscroll-behavior-y: contain;
 }
 
 .epub-viewer__click-zone {

@@ -318,6 +318,10 @@ export function ReaderPage() {
         return;
       }
 
+      if (settings.mode === "continuous" && (intent === "backward" || intent === "forward")) {
+        return;
+      }
+
       if (preventDefault) {
         event.preventDefault();
       }
@@ -344,7 +348,7 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [closeToc, moveNext, movePrevious, openSettings, returnToOrigin],
+    [closeToc, moveNext, movePrevious, openSettings, returnToOrigin, settings.mode],
   );
 
   const handleContentKeyDown = useCallback(

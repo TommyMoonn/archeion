@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
+import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
 import { readerTypefaceOptions } from "./readerFonts";
 import {
   applyReaderContentTheme,
@@ -11,6 +12,45 @@ import {
   readerFontFaceCssForSettings,
   readerThemeForSettings,
 } from "./readerTheme";
+
+describe("continuous reader scrolling", () => {
+  it("forwards iframe wheel input to the parent rendition scroller", () => {
+    const scroller = document.createElement("div");
+    scroller.scrollTop = 40;
+    const event = new WheelEvent("wheel", { cancelable: true, deltaY: 120 });
+
+    expect(forwardContinuousWheel(event, scroller)).toBe(true);
+    expect(scroller.scrollTop).toBe(160);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("keeps loaded continuous views mounted during reverse scrolling", async () => {
+    const originalUpdate = vi.fn(async () => undefined);
+    const display = vi.fn(async () => undefined);
+    const show = vi.fn();
+    const originalCounter = vi.fn();
+    const manager = {
+      check: vi.fn(async () => manager.counter({ heightDelta: 400 })),
+      counter: originalCounter,
+      request: vi.fn(),
+      update: originalUpdate,
+      views: {
+        all: () => [{ display, displayed: false, show }],
+      },
+    };
+    const rendition = { manager } as unknown as Parameters<typeof stabilizeContinuousRendition>[0];
+
+    stabilizeContinuousRendition(rendition);
+    await manager.update();
+    await manager.check();
+    manager.counter({ heightDelta: 20 });
+
+    expect(originalUpdate).not.toHaveBeenCalled();
+    expect(display).toHaveBeenCalledWith(manager.request);
+    expect(show).toHaveBeenCalledTimes(1);
+    expect(originalCounter).toHaveBeenCalledTimes(1);
+  });
+});
 
 describe("readerThemeForSettings", () => {
   it("maps typography and spacing settings into EPUB theme rules", () => {

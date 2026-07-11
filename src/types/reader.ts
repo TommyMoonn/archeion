@@ -1,6 +1,7 @@
 export type ReaderTheme = "light" | "dark" | "sepia";
 
 export type ReaderProgressPlacement = "top" | "side";
+export type ReaderMode = "paged" | "continuous";
 
 export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
 
@@ -26,6 +27,7 @@ export type ReaderSettings = {
   margin: number;
   theme: ReaderTheme;
   progressPlacement: ReaderProgressPlacement;
+  mode: ReaderMode;
 };
 
 export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
@@ -35,6 +37,7 @@ export const defaultReaderSettings: Readonly<ReaderSettings> = Object.freeze({
   margin: 48,
   theme: "dark",
   progressPlacement: "top",
+  mode: "paged",
 });
 
 type ReaderSettingsInput = Partial<Record<keyof ReaderSettings, unknown>>;
@@ -49,7 +52,12 @@ export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderS
     progressPlacement: isReaderProgressPlacement(settings?.progressPlacement)
       ? settings.progressPlacement
       : defaultReaderSettings.progressPlacement,
+    mode: isReaderMode(settings?.mode) ? settings.mode : defaultReaderSettings.mode,
   };
+}
+
+function isReaderMode(value: unknown): value is ReaderMode {
+  return value === "paged" || value === "continuous";
 }
 
 function numberOrDefault(value: unknown, fallback: number): number {

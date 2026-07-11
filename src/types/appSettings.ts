@@ -79,6 +79,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     margin: 48,
     theme: "dark",
     progressPlacement: "top",
+    mode: "paged",
   }),
   rememberWindowState: false,
   restoreLastReader: false,

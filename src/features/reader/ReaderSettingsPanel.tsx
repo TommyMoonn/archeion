@@ -40,6 +40,11 @@ const progressPlacements: Array<{
   { label: "Side", value: "side" },
 ];
 
+const readerModes = [
+  { label: "Paged", value: "paged" },
+  { label: "Continuous", value: "continuous" },
+] as const;
+
 export function ReaderSettingsPanel({
   onChange,
   onClose,
@@ -65,6 +70,17 @@ export function ReaderSettingsPanel({
           <X aria-hidden="true" size={18} />
         </IconButton>
       </header>
+
+      <div className="reader-setting">
+        <span className="reader-setting__label">Reading mode</span>
+        <SegmentedControl
+          className="reader-control"
+          label="Reader mode"
+          onChange={(mode) => update({ mode })}
+          options={[...readerModes]}
+          value={settings.mode}
+        />
+      </div>
 
       <div className="reader-setting">
         <span className="reader-setting__label">Theme</span>

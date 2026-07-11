@@ -19,6 +19,11 @@ import {
   type ReaderNavigationIntent,
 } from "./readerNavigation";
 import { normalizeReaderLocation, type ReaderLocation } from "./readerLocation";
+import {
+  forwardContinuousWheel,
+  stabilizeContinuousRendition,
+  type RenditionWithManager,
+} from "./readerContinuousScroll";
 import { loadReaderNavigationModel } from "./readerNavigationModel";
 import { createReaderNavigationStateController } from "./readerNavigationState";
 import {
@@ -103,8 +108,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 ) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentCleanupRef = useRef<Array<() => void>>([]);
-  const activeContentDocumentRef = useRef<Document | null>(null);
+  const contentCleanupRef = useRef(new Map<Document, () => void>());
   const callbacksRef = useRef<EpubViewerCallbacks>({
     onError,
     onInteraction,
@@ -124,7 +128,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
   const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
   const wheelDeltaRef = useRef(0);
-  const { fontFamily, fontSize, lineHeight, margin, theme } = settings;
+  const canonicalCfiRef = useRef(initialCfi);
+  const canonicalCfiFileRef = useRef<Blob | null>(null);
+  const { fontFamily, fontSize, lineHeight, margin, mode, theme } = settings;
   const contentTheme = useMemo(
     () =>
       createReaderContentTheme({
@@ -197,6 +203,15 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
+      if (mode === "continuous") {
+        callbacksRef.current.onInteraction();
+        forwardContinuousWheel(
+          event,
+          containerRef.current?.querySelector<HTMLElement>(".epub-container") ?? null,
+        );
+        return;
+      }
+
       const deltaY = getReaderWheelDelta(event);
 
       if (deltaY === null) {
@@ -231,7 +246,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       lastWheelTurnAtRef.current = now;
       void runPageTurn(intent);
     },
-    [runPageTurn],
+    [mode, runPageTurn],
   );
 
   const handleClickZone = useCallback(
@@ -275,8 +290,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let cancelled = false;
     let epubBook: EpubBook | null = null;
     let rendition: Rendition | null = null;
-    let lastContentDocument: Document | null = null;
     let cancelDeferredNavigation: () => void = () => undefined;
+    const displayCfi =
+      canonicalCfiFileRef.current === fileBlob ? canonicalCfiRef.current : initialCfi;
+    canonicalCfiFileRef.current = fileBlob;
+    canonicalCfiRef.current = displayCfi;
 
     isNavigatingToChapterRef.current = false;
     navigationController.reset();
@@ -310,24 +328,19 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     }
 
     function removeContentListeners() {
-      for (const cleanup of contentCleanupRef.current) {
+      for (const cleanup of contentCleanupRef.current.values()) {
         cleanup();
       }
-      contentCleanupRef.current = [];
-      activeContentDocumentRef.current = null;
-      lastContentDocument = null;
+      contentCleanupRef.current.clear();
     }
 
     function bindContent(content: EpubContent | null) {
       const document = content?.document ?? null;
 
-      if (!document || document === lastContentDocument) {
+      if (!document || contentCleanupRef.current.has(document)) {
         return;
       }
 
-      removeContentListeners();
-      lastContentDocument = document;
-      activeContentDocumentRef.current = document;
       applyReaderContentTheme(null, contentThemeRef.current, [document]);
       const contentWindow = content?.window ?? windowFromContentDocument(document);
 
@@ -359,7 +372,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       document.addEventListener("touchstart", onContentInteraction);
       document.addEventListener("click", onContentInteraction);
 
-      contentCleanupRef.current = [
+      const cleanupFunctions = [
         ...wheelTargets.map(
           (target) => () => target.removeEventListener("wheel", onContentWheel, wheelOptions),
         ),
@@ -368,6 +381,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         () => document.removeEventListener("touchstart", onContentInteraction),
         () => document.removeEventListener("click", onContentInteraction),
       ];
+      contentCleanupRef.current.set(document, () => {
+        for (const cleanup of cleanupFunctions) {
+          cleanup();
+        }
+      });
     }
 
     function bindMountedIframeDocument() {
@@ -403,7 +421,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         rendition = epubBook.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
-          flow: "paginated",
+          flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
+          manager: mode === "continuous" ? "continuous" : "default",
           spread: "none",
           allowScriptedContent: false,
         });
@@ -413,8 +432,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         rendition.on("rendered", onRendered);
         rendition.on("relocated", onRelocated);
 
+        await (rendition as RenditionWithManager).started;
+        if (mode === "continuous") {
+          stabilizeContinuousRendition(rendition as RenditionWithManager);
+        }
+
         try {
-          await rendition.display(initialCfi);
+          await rendition.display(displayCfi);
         } catch {
           await rendition.display();
         }
@@ -450,6 +474,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
     function onRelocated(location: Location) {
       if (!cancelled) {
+        canonicalCfiRef.current = location.start.cfi;
         navigationController.relocate(location);
         callbacksRef.current.onLocationChange(
           normalizeReaderLocation(location, epubBook?.packaging.spine.length ?? 0),
@@ -473,35 +498,39 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       isNavigatingToChapterRef.current = false;
       epubBook?.destroy();
     };
-  }, [fileBlob, handleWheel, initialCfi, navigationController]);
+  }, [fileBlob, handleWheel, initialCfi, mode, navigationController]);
 
   useEffect(() => {
     const mountedFrame = containerRef.current?.querySelector("iframe");
     applyReaderContentTheme(renditionRef.current, contentTheme, [
-      activeContentDocumentRef.current,
+      ...contentCleanupRef.current.keys(),
       mountedFrame?.contentDocument ?? null,
     ]);
   }, [contentTheme]);
 
   return (
-    <div ref={viewerRef} className="epub-viewer" data-reader-theme={theme}>
+    <div ref={viewerRef} className="epub-viewer" data-reader-mode={mode} data-reader-theme={theme}>
       <div ref={containerRef} className="epub-viewer__stage" />
-      <button
-        aria-label="Previous page"
-        className="epub-viewer__click-zone epub-viewer__click-zone--previous"
-        onClick={() => handleClickZone("backward")}
-        onMouseMove={onInteraction}
-        tabIndex={-1}
-        type="button"
-      />
-      <button
-        aria-label="Next page"
-        className="epub-viewer__click-zone epub-viewer__click-zone--next"
-        onClick={() => handleClickZone("forward")}
-        onMouseMove={onInteraction}
-        tabIndex={-1}
-        type="button"
-      />
+      {mode === "paged" ? (
+        <button
+          aria-label="Previous page"
+          className="epub-viewer__click-zone epub-viewer__click-zone--previous"
+          onClick={() => handleClickZone("backward")}
+          onMouseMove={onInteraction}
+          tabIndex={-1}
+          type="button"
+        />
+      ) : null}
+      {mode === "paged" ? (
+        <button
+          aria-label="Next page"
+          className="epub-viewer__click-zone epub-viewer__click-zone--next"
+          onClick={() => handleClickZone("forward")}
+          onMouseMove={onInteraction}
+          tabIndex={-1}
+          type="button"
+        />
+      ) : null}
       {isLoading ? (
         <div className="reader-loading" role="status">
           <span className="reader-loading__line" />
@@ -523,6 +552,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onLocationChange === next.onLocationChange &&
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
+    previous.settings.mode === next.settings.mode &&
     readerContentSettingsEqual(previous.settings, next.settings)
   );
 }
