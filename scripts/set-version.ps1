@@ -69,6 +69,9 @@ foreach ($entry in $paths.GetEnumerator()) {
 
 $utf8WithoutBom = [System.Text.UTF8Encoding]::new($false)
 $cargoVersionPattern = [regex]::new('(?ms)(^\[package\]\s*.*?^version\s*=\s*")[^"]+("\s*$)')
+$cargoLockVersionPattern = [regex]::new(
+    '(?ms)(^\[\[package\]\]\s*\r?\nname\s*=\s*"archeion"\s*\r?\nversion\s*=\s*")[^"]+("\s*$)'
+)
 $tauriVersionPattern = [regex]::new('(?m)(^\s*"version"\s*:\s*")[^"]+("\s*,?\s*$)')
 
 Push-Location $ProjectRoot
@@ -86,6 +89,14 @@ try {
         -Description "src-tauri/Cargo.toml package.version"
     [System.IO.File]::WriteAllText($paths.CargoToml, $updatedCargoToml, $utf8WithoutBom)
 
+    $cargoLock = Get-Content -Raw -LiteralPath $paths.CargoLock
+    $updatedCargoLock = Set-FirstRegexValue `
+        -Source $cargoLock `
+        -Pattern $cargoLockVersionPattern `
+        -Value $Version `
+        -Description "src-tauri/Cargo.lock Archeion package.version"
+    [System.IO.File]::WriteAllText($paths.CargoLock, $updatedCargoLock, $utf8WithoutBom)
+
     $tauriConfig = Get-Content -Raw -LiteralPath $paths.TauriConfig
     $updatedTauriConfig = Set-FirstRegexValue `
         -Source $tauriConfig `
@@ -94,9 +105,13 @@ try {
         -Description "src-tauri/tauri.conf.json version"
     [System.IO.File]::WriteAllText($paths.TauriConfig, $updatedTauriConfig, $utf8WithoutBom)
 
-    & cargo metadata --manifest-path $paths.CargoToml --format-version 1 --no-deps | Out-Null
+    & cargo metadata `
+        --locked `
+        --manifest-path $paths.CargoToml `
+        --format-version 1 `
+        --no-deps | Out-Null
     if ($LASTEXITCODE -ne 0) {
-        throw "Cargo failed to refresh src-tauri/Cargo.lock."
+        throw "Cargo rejected the updated manifest and lockfile."
     }
 
     & (Join-Path $PSScriptRoot "check-release.ps1") -ProjectRoot $ProjectRoot
