@@ -970,9 +970,51 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .book-cover--details {
+  width: 100%;
+  margin: 0;
+  border-radius: 11px;
+}
+
+.details-cover {
+  position: relative;
   width: 164px;
   margin: 0 auto;
-  border-radius: 11px;
+}
+
+.details-cover__replace {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  color: rgb(255 255 255 / 86%);
+  background: rgb(10 11 13 / 78%);
+  border-color: rgb(255 255 255 / 18%);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 34%);
+  backdrop-filter: blur(8px);
+  transition:
+    opacity var(--motion-duration-fast) var(--motion-ease-standard),
+    transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.details-cover__replace:hover:not(:disabled),
+.details-cover__replace:focus-visible {
+  color: #fff;
+  background: rgb(10 11 13 / 94%);
+  border-color: rgb(255 255 255 / 34%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .details-cover__replace {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(3px);
+  }
+
+  .details-cover:hover .details-cover__replace,
+  .details-cover:focus-within .details-cover__replace {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
 }
 
 .details-drawer__title {

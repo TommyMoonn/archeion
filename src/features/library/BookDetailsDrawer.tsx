@@ -131,7 +131,18 @@ export function BookDetailsDrawer({
         </header>
 
         <div className="details-drawer__body">
-          <BookCover book={book} className="book-cover--details" />
+          <div className="details-cover">
+            <BookCover book={book} className="book-cover--details" />
+            {!book.isFileMissing ? (
+              <IconButton
+                className="details-cover__replace"
+                label="Replace cover"
+                onClick={() => onReplaceCover(book)}
+              >
+                <ImageSquare aria-hidden="true" size={17} />
+              </IconButton>
+            ) : null}
+          </div>
           <div className="details-drawer__title">
             <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
@@ -197,13 +208,6 @@ export function BookDetailsDrawer({
                   variant="ghost"
                 >
                   Edit metadata
-                </Button>
-                <Button
-                  icon={<ImageSquare aria-hidden="true" size={16} />}
-                  onClick={() => onReplaceCover(book)}
-                  variant="ghost"
-                >
-                  Replace cover
                 </Button>
                 {canManageFile ? (
                   <>

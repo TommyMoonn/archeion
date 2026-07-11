@@ -193,6 +193,7 @@ describe("BookDetailsDrawer", () => {
 
     expect(markup).toContain("Edit metadata");
     expect(markup).toContain("Replace cover");
+    expect(markup).toContain("details-cover__replace");
     expect(markup).toContain("details-favorite-button");
     expect(markup).toContain("Add to favorites");
     expect(markup).not.toContain(">Favorite</span>");
@@ -200,12 +201,17 @@ describe("BookDetailsDrawer", () => {
 
   it("uses a balanced two-column secondary action grid when file management is available", () => {
     const withFileManagement = renderDetails();
+    const secondaryActions = withFileManagement.match(
+      /<div class="details-actions__secondary">[\s\S]*?<\/div>/,
+    )?.[0];
     const revealButtonMarkup = withFileManagement.match(
       /<button[^>]*>[^<]*<svg[\s\S]*?Reveal in folder[\s\S]*?<\/button>/,
     )?.[0];
 
     expect(revealButtonMarkup).toBeDefined();
     expect(revealButtonMarkup).not.toContain("details-actions__wide");
+    expect(secondaryActions).not.toContain("Replace cover");
+    expect(secondaryActions?.match(/<button/g)).toHaveLength(4);
     expect(withFileManagement).toContain("Choose destination");
     expect(withFileManagement).not.toContain("Move file to...");
 

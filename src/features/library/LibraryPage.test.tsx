@@ -228,6 +228,22 @@ async function waitForButtonWithText(
   throw new Error(`Button with text ${text} was not rendered.`);
 }
 
+async function waitForButtonWithLabel(
+  container: HTMLElement,
+  label: string,
+): Promise<HTMLButtonElement> {
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const button = container.querySelector(`button[aria-label="${label}"]`);
+    if (button instanceof HTMLButtonElement) return button;
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+  }
+
+  throw new Error(`Button with label ${label} was not rendered.`);
+}
+
 function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   setter?.call(input, value);
@@ -852,7 +868,7 @@ describe("LibraryPage", () => {
       clickBook(session.container, "Alpha");
       await Promise.resolve();
     });
-    const replaceCover = await waitForButtonWithText(session.container, "Replace cover");
+    const replaceCover = await waitForButtonWithLabel(session.container, "Replace cover");
     await act(async () => {
       replaceCover.click();
       await Promise.resolve();
