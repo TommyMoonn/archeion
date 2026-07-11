@@ -1,665 +1,62 @@
 <!doctype html>
-<html lang="en" data-motion="on">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#171717" />
     <meta
       name="description"
       content="Archeion is a cinematic local EPUB library for browsing books, keeping progress, and reading from a calm local archive."
     />
-    <meta property="og:title" content="Archeion – Local EPUB Library" />
-    <meta
-      property="og:description"
-      content="Open a folder and turn an existing EPUB archive into a focused local library."
-    />
-    <meta property="og:type" content="website" />
-    <link rel="icon" href="assets/archeion-icon.png" />
-    <link rel="preload" href="assets/archeion-icon.png" as="image" type="image/png" />
-    <link rel="stylesheet" href="styles.css" />
-    <script src="script.js" defer></script>
+    <meta name="theme-color" content="#171717" />
     <title>Archeion – Local EPUB Library</title>
+    <link rel="icon" href="assets/images/archeion-icon.png" />
+    <link
+      rel="preload"
+      href="assets/fonts/atkinson-regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="assets/fonts/literata-regular.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <script src="js/main.js" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
 
-    <canvas class="starfield" id="starfield" aria-hidden="true"></canvas>
-    <div class="ambient-light" aria-hidden="true"></div>
-    <div class="scroll-progress" aria-hidden="true"><span id="scroll-progress"></span></div>
-
-    <header class="site-header" id="site-header">
-      <a class="brand" href="#home" aria-label="Archeion home">
-        <img src="assets/archeion-icon.png" width="36" height="36" alt="" />
-        <span>Archeion</span>
-      </a>
-
-      <nav class="site-nav" aria-label="Primary navigation">
-        <a href="#library">Library</a>
-        <a href="#reader">Reader</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#get-started">Get Started</a>
-      </nav>
-
-      <a
-        class="header-action"
-        href="https://github.com/TommyMoonn/archeion"
-        target="_blank"
-        rel="noreferrer"
-      >
-        <svg aria-hidden="true"><use href="#icon-github"></use></svg>
-        <span>GitHub</span>
-      </a>
-    </header>
-
-    <main id="main-content">
-      <section class="hero section" id="home" data-section="home">
-        <canvas class="home-orbit-canvas" data-home-orbit-canvas aria-hidden="true"></canvas>
-        <div class="hero-copy reveal">
-          <p class="eyebrow"><span></span> Local EPUB library</p>
-          <h1>Pull every book into orbit.</h1>
-          <p class="hero-lede">
-            Open a folder. See your books become a focused library with covers, folders, progress,
-            favorites, and a reader that stays out of the way.
-          </p>
-          <div class="hero-actions">
-            <a class="button button-primary" href="#get-started">
-              <span>Get Started</span>
-              <svg aria-hidden="true"><use href="#icon-arrow-down-right"></use></svg>
-            </a>
-            <a class="button button-secondary" href="#library">
-              <svg aria-hidden="true"><use href="#icon-play"></use></svg>
-              <span>See the experience</span>
-            </a>
-          </div>
-          <div class="hero-signals" aria-label="Product highlights">
-            <span>Continue reading</span>
-            <span>Favorites</span>
-            <span>Folders</span>
-            <span>Library state at a glance</span>
-          </div>
-        </div>
-
-        <div
-          class="hero-stage home-orbit-stage reveal"
-          data-delay="1"
-          data-home-orbit-stage
-          aria-label="A stylized Archeion library orbit"
-        >
-          <div class="home-orbit-scene" data-home-orbit-scene>
-            <div class="home-orbit-halo" aria-hidden="true"></div>
-            <div class="home-orbit-ring home-orbit-ring--outer" aria-hidden="true"></div>
-            <div class="home-orbit-ring home-orbit-ring--middle" aria-hidden="true"></div>
-            <div class="home-orbit-ring home-orbit-ring--inner" aria-hidden="true"></div>
-
-            <article class="home-floating-book home-floating-book--one" aria-hidden="true">
-              <span class="home-floating-book-spine"></span>
-              <span class="home-floating-book-mark">A</span>
-              <small>The Archive</small>
-            </article>
-            <article class="home-floating-book home-floating-book--two" aria-hidden="true">
-              <span class="home-floating-book-spine"></span>
-              <span class="home-floating-book-mark">V</span>
-              <small>Voyager</small>
-            </article>
-            <article class="home-floating-book home-floating-book--three" aria-hidden="true">
-              <span class="home-floating-book-spine"></span>
-              <span class="home-floating-book-mark">N</span>
-              <small>Night Fields</small>
-            </article>
-            <article class="home-floating-book home-floating-book--four" aria-hidden="true">
-              <span class="home-floating-book-spine"></span>
-              <span class="home-floating-book-mark">S</span>
-              <small>Still Water</small>
-            </article>
-
-            <div class="home-archive-core" aria-hidden="true">
-              <span class="home-archive-core-ring"></span>
-              <span class="home-archive-core-ring home-archive-core-ring--two"></span>
-              <span class="home-archive-core-glass">
-                <img src="assets/archeion-icon.png" alt="" width="92" height="92" />
-              </span>
-            </div>
-
-            <div class="home-orbit-status home-orbit-status--top" aria-hidden="true">
-              <span>Archive active</span>
-              <b>48 books</b>
-            </div>
-            <div class="home-orbit-status home-orbit-status--bottom" aria-hidden="true">
-              <span>Reading now</span>
-              <b>Chapter 07</b>
-            </div>
-          </div>
-        </div>
-
-        <a class="scroll-cue" href="#library" aria-label="Scroll to the library section">
-          <span>Explore the archive</span><i></i>
-        </a>
-      </section>
-
-      <section class="section library-section" id="library" data-section="library">
-        <div class="section-heading reveal">
-          <p class="section-label">Library</p>
-          <h2>Your folder becomes a living library.</h2>
-          <div class="promise-row" aria-label="Library core promises">
-            <span
-              ><svg><use href="#icon-folder-check"></use></svg>Real folders stay real</span
-            >
-            <span
-              ><svg><use href="#icon-spark"></use></svg>Covers and progress surface fast</span
-            >
-            <span
-              ><svg><use href="#icon-portable"></use></svg>Files remain portable</span
-            >
-          </div>
-        </div>
-
-        <div class="library-showcase reveal" data-delay="1">
-          <div class="showcase-glow" aria-hidden="true"></div>
-          <div class="app-window library-app" data-spotlight>
-            <div class="window-bar">
-              <div class="window-brand">
-                <img src="assets/archeion-icon.png" width="20" height="20" alt="" /><span
-                  >Archeion</span
-                >
-              </div>
-              <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
-            </div>
-            <div class="app-body">
-              <aside class="app-sidebar wide-sidebar">
-                <div class="sidebar-nav">
-                  <button class="sidebar-item active" type="button">
-                    <svg><use href="#icon-books"></use></svg><span>Library</span><small>42</small>
-                  </button>
-                  <button class="sidebar-item" type="button">
-                    <svg><use href="#icon-clock"></use></svg><span>Continue</span><small>3</small>
-                  </button>
-                  <button class="sidebar-item" type="button">
-                    <svg><use href="#icon-heart"></use></svg><span>Favorites</span><small>8</small>
-                  </button>
-                </div>
-                <div class="sidebar-folders interactive-folder-tree">
-                  <p>
-                    Folders
-                    <button type="button" aria-label="Add folder">
-                      <svg><use href="#icon-plus"></use></svg>
-                    </button>
-                  </p>
-                  <button type="button" class="folder-active">
-                    <svg><use href="#icon-folder-open"></use></svg>Fiction<small>21</small>
-                  </button>
-                  <button type="button" class="folder-child active">
-                    <svg><use href="#icon-folder"></use></svg>Science fiction<small>12</small>
-                  </button>
-                  <button type="button" class="folder-child">
-                    <svg><use href="#icon-folder"></use></svg>Classics<small>9</small>
-                  </button>
-                  <button type="button">
-                    <svg><use href="#icon-folder"></use></svg>Essays<small>11</small>
-                  </button>
-                  <button type="button">
-                    <svg><use href="#icon-folder"></use></svg>Reference<small>10</small>
-                  </button>
-                </div>
-                <div class="sidebar-footer-mini">
-                  <span
-                    ><svg><use href="#icon-archive"></use></svg>Main archive</span
-                  ><svg><use href="#icon-settings"></use></svg>
-                </div>
-              </aside>
-
-              <div class="app-main detailed-library">
-                <div class="app-heading detailed-heading">
-                  <div>
-                    <small>Your collection</small>
-                    <h2>Science fiction</h2>
-                  </div>
-                  <div class="app-actions-mini">
-                    <span class="search-pill"
-                      ><svg><use href="#icon-search"></use></svg>Search books</span
-                    >
-                    <button type="button">
-                      <svg><use href="#icon-plus"></use></svg>Add EPUB
-                    </button>
-                    <button class="square-control" type="button" aria-label="Rescan">
-                      <svg><use href="#icon-refresh"></use></svg>
-                    </button>
-                  </div>
-                </div>
-                <div class="library-control-row">
-                  <span
-                    >Title A–Z <svg><use href="#icon-chevron-down"></use></svg
-                  ></span>
-                  <div>
-                    <button class="active" type="button">
-                      <svg><use href="#icon-grid"></use></svg></button
-                    ><button type="button">
-                      <svg><use href="#icon-list"></use></svg>
-                    </button>
-                  </div>
-                </div>
-                <div class="detailed-continue">
-                  <p><strong>Continue reading</strong><span>3 books</span></p>
-                  <div class="continue-cards">
-                    <button type="button">
-                      <span class="continue-cover cover-a"></span
-                      ><span
-                        ><b>The Left Hand of Darkness</b><small>Ursula K. Le Guin</small
-                        ><em>64% complete</em></span
-                      ><svg><use href="#icon-arrow-right"></use></svg></button
-                    ><button type="button">
-                      <span class="continue-cover cover-c"></span
-                      ><span
-                        ><b>The Waves</b><small>Virginia Woolf</small><em>31% complete</em></span
-                      ><svg><use href="#icon-arrow-right"></use></svg>
-                    </button>
-                  </div>
-                </div>
-                <div class="detailed-book-grid">
-                  <article>
-                    <div class="large-cover cover-a">
-                      <span>THE LEFT HAND<br />OF DARKNESS</span
-                      ><button type="button" aria-label="Favorite">
-                        <svg><use href="#icon-heart"></use></svg>
-                      </button>
-                    </div>
-                    <strong>The Left Hand of Darkness</strong><small>Ursula K. Le Guin</small>
-                  </article>
-                  <article>
-                    <div class="large-cover cover-d">
-                      <span>THE<br />DISPOSSESSED</span>
-                    </div>
-                    <strong>The Dispossessed</strong><small>Ursula K. Le Guin</small>
-                  </article>
-                  <article>
-                    <div class="large-cover cover-f">
-                      <span>DO ANDROIDS<br />DREAM OF<br />ELECTRIC SHEEP?</span>
-                    </div>
-                    <strong>Do Androids Dream of Electric Sheep?</strong
-                    ><small>Philip K. Dick</small>
-                  </article>
-                  <article>
-                    <div class="large-cover cover-e">
-                      <span>INVISIBLE<br />CITIES</span>
-                    </div>
-                    <strong>Invisible Cities</strong><small>Italo Calvino</small>
-                  </article>
-                  <article>
-                    <div class="large-cover cover-g"><span>DUNE</span></div>
-                    <strong>Dune</strong><small>Frank Herbert</small>
-                  </article>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="feature-grid">
-          <article class="feature-card reveal">
-            <span class="feature-index">01</span>
-            <div class="feature-icon">
-              <svg><use href="#icon-folder-open"></use></svg>
-            </div>
-            <h3>Keep the shape you already use</h3>
-            <ul>
-              <li>Open an existing EPUB archive folder</li>
-              <li>Browse nested collections as they are</li>
-              <li>Reveal the original book in your file manager</li>
-            </ul>
-          </article>
-          <article class="feature-card reveal" data-delay="1">
-            <span class="feature-index">02</span>
-            <div class="feature-icon">
-              <svg><use href="#icon-eye"></use></svg>
-            </div>
-            <h3>See the collection faster</h3>
-            <ul>
-              <li>Readable titles and authors</li>
-              <li>Cover thumbnails when available</li>
-              <li>Clean fallbacks when metadata is missing</li>
-            </ul>
-          </article>
-          <article class="feature-card reveal" data-delay="2">
-            <span class="feature-index">03</span>
-            <div class="feature-icon">
-              <svg><use href="#icon-clock"></use></svg>
-            </div>
-            <h3>Return without friction</h3>
-            <ul>
-              <li>Continue active books</li>
-              <li>Keep favorites visible</li>
-              <li>Track reading progress quietly</li>
-            </ul>
-          </article>
-          <article class="feature-card reveal" data-delay="3">
-            <span class="feature-index">04</span>
-            <div class="feature-icon">
-              <svg><use href="#icon-command"></use></svg>
-            </div>
-            <h3>Manage the archive like a desktop library</h3>
-            <ul>
-              <li>Add EPUBs into the active archive</li>
-              <li>Create, rename, move, and delete real books and folders</li>
-              <li>Pick up outside changes through rescan or file watching</li>
-            </ul>
-          </article>
-        </div>
-      </section>
-
-      <section class="section reader-section" id="reader" data-section="reader">
-        <div class="reader-layout">
-          <div class="reader-copy reveal">
-            <p class="section-label">Reader</p>
-            <h2>Open, read, resume.</h2>
-            <div class="promise-column" aria-label="Reader core promises">
-              <span><i>01</i>Focused reader view</span>
-              <span><i>02</i>Readable controls</span>
-              <span><i>03</i>Progress follows the book</span>
-            </div>
-            <article class="reader-control-copy">
-              <h3>Reader controls stay practical</h3>
-              <ul>
-                <li>Theme, spacing, and type controls</li>
-                <li>Last-read location stored beside the archive</li>
-                <li>Local progress follows the book</li>
-                <li>Settings designed for reading, not decoration</li>
-              </ul>
-            </article>
-          </div>
-
-          <div class="reader-demo reveal" data-delay="1">
-            <div class="reader-halo" aria-hidden="true"></div>
-            <div class="app-window reader-app" data-reader-theme="dark">
-              <div class="reader-demo-toolbar">
-                <button type="button">
-                  <svg><use href="#icon-arrow-left"></use></svg><span>Library</span>
-                </button>
-                <div><strong>The Left Hand of Darkness</strong><small>Chapter 8 · 64%</small></div>
-                <div class="reader-demo-actions">
-                  <button type="button" aria-label="Previous page">
-                    <svg><use href="#icon-chevron-left"></use></svg>
-                  </button>
-                  <button type="button" aria-label="Next page">
-                    <svg><use href="#icon-chevron-right"></use></svg>
-                  </button>
-                  <button type="button" aria-label="Reading settings" id="reader-settings-toggle">
-                    <svg><use href="#icon-settings"></use></svg>
-                  </button>
-                </div>
-              </div>
-              <div class="reader-demo-progress"><span></span></div>
-              <div class="reader-demo-page">
-                <div class="page-inner" id="reader-page-inner">
-                  <p class="chapter-label">CHAPTER EIGHT</p>
-                  <h3>Another Way into Orgoreyn</h3>
-                  <p>
-                    The weather grew colder as the road climbed. Beyond the glass, the light had the
-                    pale depth of winter, and the mountains seemed suspended in it.
-                  </p>
-                  <p>
-                    Estraven had spoken of the border as though it were only a line. Here, under the
-                    long white sky, every mile carried the weight of another country.
-                  </p>
-                  <p>
-                    I read until the room around me disappeared, leaving only the measured turn of
-                    pages and the quiet certainty of returning.
-                  </p>
-                </div>
-                <button class="page-zone page-zone-left" type="button" aria-label="Previous page">
-                  <span></span>
-                </button>
-                <button class="page-zone page-zone-right" type="button" aria-label="Next page">
-                  <span></span>
-                </button>
-              </div>
-
-              <aside
-                class="reader-settings-panel"
-                id="reader-settings-panel"
-                aria-label="Reading settings"
-              >
-                <div class="settings-heading">
-                  <div><small>Reader</small><strong>Reading settings</strong></div>
-                  <button id="reader-settings-close" type="button" aria-label="Close settings">
-                    <svg><use href="#icon-close"></use></svg>
-                  </button>
-                </div>
-                <div class="settings-group">
-                  <span>Theme</span>
-                  <div class="theme-options">
-                    <button class="active" type="button" data-theme="dark">Dark</button
-                    ><button type="button" data-theme="light">Light</button
-                    ><button type="button" data-theme="sepia">Sepia</button>
-                  </div>
-                </div>
-                <div class="settings-group">
-                  <span>Type size</span>
-                  <div class="size-options">
-                    <button type="button" data-size="small">A</button
-                    ><button class="active" type="button" data-size="medium">A</button
-                    ><button type="button" data-size="large">A</button>
-                  </div>
-                </div>
-                <div class="settings-group">
-                  <span>Spacing</span>
-                  <div class="spacing-control"><i></i><span></span><i></i></div>
-                </div>
-                <div class="settings-note">
-                  <svg><use href="#icon-archive"></use></svg
-                  ><span>Progress stays with this book in the local archive.</span>
-                </div>
-              </aside>
-            </div>
-            <div class="reader-demo-caption">
-              <span><i></i>Progress saved locally</span
-              ><small>No account. No sync dependency.</small>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section class="section architecture-section" id="architecture" data-section="architecture">
-        <div class="architecture-heading reveal">
-          <p class="section-label">Architecture</p>
-          <h2>Institutional-grade posture without institutional bloat.</h2>
-          <div class="promise-row architecture-promises" aria-label="Architecture core principles">
-            <span
-              ><svg><use href="#icon-cloud-off"></use></svg>No backend dependency</span
-            >
-            <span
-              ><svg><use href="#icon-layers"></use></svg>Sidecar metadata</span
-            >
-            <span
-              ><svg><use href="#icon-eye"></use></svg>Inspectable storage</span
-            >
-          </div>
-        </div>
-
-        <div class="architecture-visual reveal" data-delay="1">
-          <div class="architecture-gridlines" aria-hidden="true"></div>
-          <svg
-            class="architecture-paths"
-            viewBox="0 0 1200 620"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path d="M600 310 C450 310 430 155 270 155" />
-            <path d="M600 310 C750 310 770 155 930 155" />
-            <path d="M600 310 C600 420 600 445 600 525" />
-          </svg>
-
-          <div class="architecture-core">
-            <div class="core-rings" aria-hidden="true"><i></i><i></i><i></i></div>
-            <img src="assets/archeion-icon.png" width="88" height="88" alt="" />
-            <span>Local archive</span>
-            <small>Source of truth</small>
-          </div>
-
-          <article class="architecture-node node-filesystem">
-            <span class="node-number">01</span>
-            <div class="node-icon">
-              <svg><use href="#icon-folder-open"></use></svg>
-            </div>
-            <h3>Filesystem truth</h3>
-            <p>The archive folder remains understandable outside Archeion. EPUBs stay as files.</p>
-            <div class="node-detail">
-              <svg><use href="#icon-file"></use></svg><span>books/<br /><b>novel.epub</b></span>
-            </div>
-          </article>
-
-          <article class="architecture-node node-sidecar">
-            <span class="node-number">02</span>
-            <div class="node-icon">
-              <svg><use href="#icon-layers"></use></svg>
-            </div>
-            <h3>Sidecar memory</h3>
-            <p>
-              Progress, favorites, covers, and cache files live in <code>.archeion/</code> beside
-              the books.
-            </p>
-            <div class="node-detail">
-              <svg><use href="#icon-brackets"></use></svg
-              ><span>.archeion/<br /><b>library.json</b></span>
-            </div>
-          </article>
-
-          <article class="architecture-node node-desktop">
-            <span class="node-number">03</span>
-            <div class="node-icon">
-              <svg><use href="#icon-shield"></use></svg>
-            </div>
-            <h3>Desktop operations</h3>
-            <p>File actions go through Tauri commands with archive-root path safety checks.</p>
-            <div class="node-detail">
-              <svg><use href="#icon-command"></use></svg
-              ><span>Tauri command<br /><b>path checked</b></span>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="section get-started-section" id="get-started" data-section="get-started">
-        <div class="get-started-panel reveal">
-          <div class="get-started-copy">
-            <p class="section-label">Get started</p>
-            <h2>Pull Archeion from GitHub.</h2>
-            <div class="entry-points">
-              <span><i>01</i>Clone the source</span>
-              <span><i>02</i>Run the desktop app</span>
-              <span><i>03</i>Build releases when ready</span>
-            </div>
-            <a
-              class="button button-primary github-main"
-              href="https://github.com/TommyMoonn/archeion"
-              target="_blank"
-              rel="noreferrer"
-            >
-              <svg aria-hidden="true"><use href="#icon-github"></use></svg><span>GitHub</span
-              ><svg aria-hidden="true"><use href="#icon-arrow-up-right"></use></svg>
-            </a>
-          </div>
-
-          <div class="terminal-card">
-            <div class="terminal-titlebar">
-              <span><i></i><i></i><i></i></span><strong>Terminal</strong
-              ><button type="button" id="copy-command" aria-label="Copy commands">
-                <svg><use href="#icon-copy"></use></svg><span>Copy</span>
-              </button>
-            </div>
-            <pre
-              id="command-block"
-            ><code><span class="prompt">❯</span> git clone https://github.com/TommyMoonn/archeion.git
-<span class="prompt">❯</span> cd archeion
-<span class="prompt">❯</span> npm install
-<span class="prompt">❯</span> npm run tauri dev</code></pre>
-            <div class="terminal-status">
-              <span><i></i>Local-first desktop application</span><small>Ready when you are</small>
-            </div>
-          </div>
-        </div>
-      </section>
-    </main>
-
-    <footer class="site-footer">
-      <a class="footer-brand" href="#home"
-        ><img src="assets/archeion-icon.png" width="30" height="30" alt="" /><span
-          >Archeion by Khoa Luong</span
-        ></a
-      >
-      <p>A local EPUB library for books that already belong to you.</p>
-      <a href="https://github.com/TommyMoonn/archeion" target="_blank" rel="noreferrer"
-        ><svg><use href="#icon-github"></use></svg><span>TommyMoonn/archeion</span
-        ><svg><use href="#icon-arrow-up-right"></use></svg
-      ></a>
-    </footer>
-
-    <svg class="icon-sprite" aria-hidden="true">
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M5 12h14M13 6l6 6-6 6" />
+      </symbol>
       <symbol id="icon-github" viewBox="0 0 24 24">
         <path
-          d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3.3-.4 6.8-1.6 6.8-7A5.4 5.4 0 0 0 19.4 4 5 5 0 0 0 19.3.5S18.2.1 15 2a13.4 13.4 0 0 0-6 0C5.8.1 4.7.5 4.7.5A5 5 0 0 0 4.6 4a5.4 5.4 0 0 0-1.4 3.7c0 5.3 3.5 6.5 6.8 6.9A4.8 4.8 0 0 0 9 18v4"
+          d="M12 2.6a9.6 9.6 0 0 0-3 18.72c.48.09.66-.21.66-.47v-1.68c-2.69.58-3.26-1.14-3.26-1.14-.44-1.12-1.08-1.42-1.08-1.42-.88-.61.07-.6.07-.6.97.07 1.49 1 1.49 1 .87 1.48 2.27 1.06 2.82.81.09-.63.34-1.06.61-1.3-2.15-.24-4.4-1.07-4.4-4.78 0-1.06.38-1.92 1-2.6-.1-.25-.43-1.23.1-2.57 0 0 .81-.26 2.64.99A9.2 9.2 0 0 1 12 7.22a9.2 9.2 0 0 1 2.4.32c1.83-1.25 2.64-.99 2.64-.99.53 1.34.2 2.32.1 2.57.62.68 1 1.54 1 2.6 0 3.72-2.26 4.53-4.42 4.77.35.3.66.89.66 1.8v2.56c0 .26.18.56.67.47A9.6 9.6 0 0 0 12 2.6Z"
         />
-        <path d="M9 19c-3 .9-3-1.5-4-2" />
       </symbol>
-      <symbol id="icon-arrow-down-right" viewBox="0 0 24 24">
-        <path d="M7 7h10v10" />
-        <path d="M7 17 17 7" />
+      <symbol id="icon-library" viewBox="0 0 24 24">
+        <path d="M4 4h5v16H4zM10 4h5v16h-5zM16 6h4v14h-4z" />
       </symbol>
-      <symbol id="icon-arrow-up-right" viewBox="0 0 24 24">
-        <path d="M7 17 17 7" />
-        <path d="M7 7h10v10" />
-      </symbol>
-      <symbol id="icon-arrow-right" viewBox="0 0 24 24">
-        <path d="M5 12h14" />
-        <path d="m13 6 6 6-6 6" />
-      </symbol>
-      <symbol id="icon-arrow-left" viewBox="0 0 24 24">
-        <path d="M19 12H5" />
-        <path d="m11 18-6-6 6-6" />
-      </symbol>
-      <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z" /></symbol>
-      <symbol id="icon-books" viewBox="0 0 24 24">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
-        <path d="M8 7h8M8 11h6" />
+      <symbol id="icon-heart" viewBox="0 0 24 24">
+        <path
+          d="M20.8 5.8a5.3 5.3 0 0 0-7.5 0L12 7.1l-1.3-1.3a5.3 5.3 0 0 0-7.5 7.5L12 22l8.8-8.7a5.3 5.3 0 0 0 0-7.5Z"
+        />
       </symbol>
       <symbol id="icon-clock" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="9" />
         <path d="M12 7v5l3 2" />
       </symbol>
-      <symbol id="icon-heart" viewBox="0 0 24 24">
-        <path
-          d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8Z"
-        />
-      </symbol>
       <symbol id="icon-folder" viewBox="0 0 24 24">
-        <path d="M3 6h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-      </symbol>
-      <symbol id="icon-folder-open" viewBox="0 0 24 24">
-        <path d="M3 7h6l2 2h9a2 2 0 0 1 2 2l-2 7a2 2 0 0 1-2 1H5a2 2 0 0 1-2-2Z" />
-        <path d="M3 12h19" />
-      </symbol>
-      <symbol id="icon-folder-check" viewBox="0 0 24 24">
-        <path d="M3 6h6l2 2h10v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
-        <path d="m9 14 2 2 4-4" />
-      </symbol>
-      <symbol id="icon-archive" viewBox="0 0 24 24">
-        <path d="M4 5h16v4H4z" />
-        <path d="M6 9v10h12V9M10 13h4" />
-      </symbol>
-      <symbol id="icon-settings" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="3" />
-        <path
-          d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z"
-        />
+        <path d="M3 6.5h6l2 2h10v10H3z" />
       </symbol>
       <symbol id="icon-search" viewBox="0 0 24 24">
-        <circle cx="11" cy="11" r="7" />
-        <path d="m20 20-4-4" />
-      </symbol>
-      <symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
-      <symbol id="icon-refresh" viewBox="0 0 24 24">
-        <path d="M20 6v5h-5" />
-        <path d="M4 18v-5h5" />
-        <path d="M18.5 9A7 7 0 0 0 6.2 6.2L4 8M5.5 15A7 7 0 0 0 17.8 17.8L20 16" />
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
       </symbol>
       <symbol id="icon-grid" viewBox="0 0 24 24">
         <rect x="4" y="4" width="6" height="6" rx="1" />
@@ -667,54 +64,591 @@
         <rect x="4" y="14" width="6" height="6" rx="1" />
         <rect x="14" y="14" width="6" height="6" rx="1" />
       </symbol>
-      <symbol id="icon-list" viewBox="0 0 24 24">
-        <path d="M8 6h12M8 12h12M8 18h12" />
-        <circle cx="4" cy="6" r="1" />
-        <circle cx="4" cy="12" r="1" />
-        <circle cx="4" cy="18" r="1" />
+      <symbol id="icon-moon" viewBox="0 0 24 24">
+        <path d="M20 15.2A8.7 8.7 0 0 1 8.8 4a8.7 8.7 0 1 0 11.2 11.2Z" />
       </symbol>
-      <symbol id="icon-chevron-down" viewBox="0 0 24 24"><path d="m7 10 5 5 5-5" /></symbol>
-      <symbol id="icon-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
-      <symbol id="icon-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
-      <symbol id="icon-spark" viewBox="0 0 24 24">
-        <path d="m12 3 1.4 4.6L18 9l-4.6 1.4L12 15l-1.4-4.6L6 9l4.6-1.4Z" />
-        <path d="m19 15 .8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z" />
-      </symbol>
-      <symbol id="icon-portable" viewBox="0 0 24 24">
-        <rect x="6" y="3" width="12" height="18" rx="2" />
-        <path d="M10 17h4" />
-      </symbol>
-      <symbol id="icon-eye" viewBox="0 0 24 24">
-        <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Z" />
-        <circle cx="12" cy="12" r="3" />
-      </symbol>
-      <symbol id="icon-command" viewBox="0 0 24 24">
-        <path d="M9 6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3Z" />
-      </symbol>
-      <symbol id="icon-cloud-off" viewBox="0 0 24 24">
-        <path d="m3 3 18 18" />
+      <symbol id="icon-sun" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
         <path
-          d="M5.5 5.5A7 7 0 0 0 5 19h13.5M16.5 7.5A5 5 0 0 1 21 12c0 1.4-.6 2.7-1.6 3.6M8 4.6A7 7 0 0 1 16 8"
+          d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
         />
       </symbol>
-      <symbol id="icon-layers" viewBox="0 0 24 24">
-        <path d="m12 3 9 5-9 5-9-5Z" />
-        <path d="m3 12 9 5 9-5M3 16l9 5 9-5" />
-      </symbol>
-      <symbol id="icon-file" viewBox="0 0 24 24">
-        <path d="M6 3h8l4 4v14H6Z" />
-        <path d="M14 3v5h5" />
-      </symbol>
-      <symbol id="icon-brackets" viewBox="0 0 24 24"><path d="M8 3H5v18h3M16 3h3v18h-3" /></symbol>
-      <symbol id="icon-shield" viewBox="0 0 24 24">
-        <path d="M12 3 4 6v5c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V6Z" />
-        <path d="m9 12 2 2 4-4" />
+      <symbol id="icon-type" viewBox="0 0 24 24">
+        <path d="M4 6V4h16v2M12 4v16M8 20h8" />
       </symbol>
       <symbol id="icon-copy" viewBox="0 0 24 24">
-        <rect x="9" y="9" width="11" height="11" rx="2" />
-        <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+        <rect x="8" y="8" width="11" height="11" rx="2" />
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
       </symbol>
-      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="icon-check" viewBox="0 0 24 24">
+        <path d="m5 12 4 4L19 6" />
+      </symbol>
+      <symbol id="icon-menu" viewBox="0 0 24 24">
+        <path d="M4 7h16M4 12h16M4 17h16" />
+      </symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24">
+        <path d="m6 6 12 12M18 6 6 18" />
+      </symbol>
     </svg>
+
+    <header class="site-header" data-header>
+      <div class="site-header__inner shell">
+        <a class="brand" href="#top" aria-label="Archeion home">
+          <img src="assets/images/archeion-icon.png" width="34" height="34" alt="" />
+          <span>Archeion</span>
+        </a>
+
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="Open navigation"
+        >
+          <svg aria-hidden="true"><use href="#icon-menu" /></svg>
+        </button>
+
+        <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
+          <a href="#library">Library</a>
+          <a href="#reader">Reader</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#get-started">Get started</a>
+        </nav>
+
+        <a
+          class="header-github"
+          href="https://github.com/TommyMoonn/archeion"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <svg aria-hidden="true"><use href="#icon-github" /></svg>
+          <span>GitHub</span>
+        </a>
+      </div>
+    </header>
+
+    <main id="main-content">
+      <section class="hero" id="top" aria-labelledby="hero-title">
+        <div class="hero__noise" aria-hidden="true"></div>
+        <canvas class="home-orbit-canvas" data-home-orbit-canvas aria-hidden="true"></canvas>
+        <div class="hero__inner shell">
+          <div class="hero__copy" data-reveal>
+            <p class="eyebrow">Local EPUB library</p>
+            <h1 id="hero-title">Pull every book <span>into orbit.</span></h1>
+            <p class="hero__lede">
+              Open a folder. See your books become a focused library with covers, folders, progress,
+              favorites, and a reader that stays out of the way.
+            </p>
+            <div class="hero__actions">
+              <a class="button button--primary" href="#get-started">
+                Get Started
+                <svg aria-hidden="true"><use href="#icon-arrow" /></svg>
+              </a>
+              <a class="button button--quiet" href="#library">See the experience</a>
+            </div>
+            <div class="hero__signals" aria-label="Product highlights">
+              <span><i></i>Continue reading</span>
+              <span><i></i>Favorites</span>
+              <span><i></i>Folders</span>
+              <span><i></i>Library state at a glance</span>
+            </div>
+          </div>
+
+          <div
+            class="home-orbit-stage"
+            data-home-orbit-stage
+            aria-label="Illustration of EPUB books orbiting a local Archeion archive"
+          >
+            <div class="home-orbit-scene" data-home-orbit-scene>
+              <div class="home-orbit-halo" aria-hidden="true"></div>
+              <div class="home-orbit-ring home-orbit-ring--outer" aria-hidden="true"></div>
+              <div class="home-orbit-ring home-orbit-ring--middle" aria-hidden="true"></div>
+              <div class="home-orbit-ring home-orbit-ring--inner" aria-hidden="true"></div>
+
+              <div class="home-floating-book home-floating-book--one" aria-hidden="true">
+                <span></span>
+                <img src="assets/images/cover-orbit.svg" alt="" />
+              </div>
+              <div class="home-floating-book home-floating-book--two" aria-hidden="true">
+                <span></span>
+                <img src="assets/images/cover-quiet.svg" alt="" />
+              </div>
+              <div class="home-floating-book home-floating-book--three" aria-hidden="true">
+                <span></span>
+                <img src="assets/images/cover-signal.svg" alt="" />
+              </div>
+              <div class="home-floating-book home-floating-book--four" aria-hidden="true">
+                <span></span>
+                <img src="assets/images/cover-tide.svg" alt="" />
+              </div>
+
+              <div class="home-archive-core" aria-hidden="true">
+                <span class="home-archive-core-ring"></span>
+                <span class="home-archive-core-ring home-archive-core-ring--two"></span>
+                <span class="home-archive-core-glass">
+                  <img src="assets/images/archeion-icon.png" alt="" width="92" height="92" />
+                </span>
+              </div>
+
+              <div class="home-orbit-status home-orbit-status--top" aria-hidden="true">
+                <span>Archive structure</span>
+                <b>.epub</b>
+              </div>
+              <div class="home-orbit-status home-orbit-status--bottom" aria-hidden="true">
+                <span>Local state</span>
+                <b>progress.json</b>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="hero__scroll" aria-hidden="true"><span></span>Scroll to enter archive</div>
+      </section>
+
+      <section class="library-scene section" id="library" aria-labelledby="library-title">
+        <div class="shell">
+          <header class="section-heading section-heading--split" data-reveal>
+            <div>
+              <p class="section-label">Library</p>
+              <h2 id="library-title">Your folder becomes a living library.</h2>
+            </div>
+            <div class="promise-row" aria-label="Library promises">
+              <span>Real folders stay real</span>
+              <span>Covers and progress surface fast</span>
+              <span>Files remain portable</span>
+            </div>
+          </header>
+
+          <div class="library-stage" data-reveal>
+            <div class="library-stage__rail">
+              <div class="stage-index" aria-hidden="true">01</div>
+              <div class="library-mode-tabs" role="tablist" aria-label="Library preview modes">
+                <button type="button" role="tab" aria-selected="true" data-library-mode="library">
+                  Library
+                </button>
+                <button type="button" role="tab" aria-selected="false" data-library-mode="folders">
+                  Folders
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected="false"
+                  data-library-mode="favorites"
+                >
+                  Favorites
+                </button>
+              </div>
+              <p data-library-caption>Browse the collection as a calm, cover-first surface.</p>
+            </div>
+
+            <div class="app-preview" data-library-preview aria-hidden="true" inert>
+              <div class="app-preview__bar">
+                <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
+                <span>Archeion</span>
+                <div class="app-preview__bar-actions" aria-hidden="true">
+                  <b>−</b><b>□</b><b>×</b>
+                </div>
+              </div>
+              <div class="app-preview__body">
+                <aside class="app-sidebar">
+                  <div class="app-sidebar__nav">
+                    <button class="active" type="button">
+                      <svg aria-hidden="true"><use href="#icon-library" /></svg><span>Library</span
+                      ><small>24</small>
+                    </button>
+                    <button type="button">
+                      <svg aria-hidden="true"><use href="#icon-clock" /></svg><span>Continue</span
+                      ><small>3</small>
+                    </button>
+                    <button type="button">
+                      <svg aria-hidden="true"><use href="#icon-heart" /></svg><span>Favorites</span
+                      ><small>5</small>
+                    </button>
+                  </div>
+                  <div class="app-sidebar__folders">
+                    <p>Folders</p>
+                    <button type="button">
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg
+                      ><span>Light novels</span>
+                    </button>
+                    <button type="button">
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Research</span>
+                    </button>
+                    <button type="button">
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Unsorted</span>
+                    </button>
+                  </div>
+                  <div class="app-sidebar__footer">
+                    <img src="assets/images/archeion-icon.png" alt="" /><span>Moonn Archive</span
+                    ><b>⌄</b>
+                  </div>
+                </aside>
+                <div class="app-library">
+                  <div class="app-library__header">
+                    <div>
+                      <p data-preview-kicker>Archive overview</p>
+                      <h3 data-preview-title>Library</h3>
+                    </div>
+                    <div class="app-library__tools">
+                      <label
+                        ><svg aria-hidden="true"><use href="#icon-search" /></svg
+                        ><span>Search books</span></label
+                      >
+                      <button type="button">
+                        <svg aria-hidden="true"><use href="#icon-grid" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="continue-strip" data-continue-strip>
+                    <div class="continue-strip__copy">
+                      <span>Continue reading</span><strong>Signal and Dust</strong
+                      ><small>Chapter 12 · 68%</small>
+                    </div>
+                    <div class="continue-strip__progress"><i style="--progress: 68%"></i></div>
+                    <button type="button">Resume</button>
+                  </div>
+                  <div class="book-grid" data-book-grid>
+                    <article class="book-card" data-folder="Light novels" data-favorite="true">
+                      <div>
+                        <img
+                          src="assets/images/cover-orbit.svg"
+                          alt="Orbital Mechanics cover"
+                        /><span>42%</span>
+                      </div>
+                      <strong>Orbital Mechanics</strong><small>M. Kato</small>
+                    </article>
+                    <article class="book-card" data-folder="Research" data-favorite="true">
+                      <div>
+                        <img
+                          src="assets/images/cover-quiet.svg"
+                          alt="The Quiet Archive cover"
+                        /><span>15%</span>
+                      </div>
+                      <strong>The Quiet Archive</strong><small>Elena Voss</small>
+                    </article>
+                    <article class="book-card" data-folder="Light novels" data-favorite="false">
+                      <div>
+                        <img
+                          src="assets/images/cover-signal.svg"
+                          alt="Signal and Dust cover"
+                        /><span>68%</span>
+                      </div>
+                      <strong>Signal and Dust</strong><small>H. Sato</small>
+                    </article>
+                    <article class="book-card" data-folder="Research" data-favorite="false">
+                      <div>
+                        <img src="assets/images/cover-tide.svg" alt="A Theory of Tides cover" />
+                      </div>
+                      <strong>A Theory of Tides</strong><small>Iris Wren</small>
+                    </article>
+                    <article class="book-card" data-folder="Unsorted" data-favorite="true">
+                      <div>
+                        <img src="assets/images/cover-machine.svg" alt="Small Machines cover" />
+                      </div>
+                      <strong>Small Machines</strong><small>Noah Reed</small>
+                    </article>
+                    <article class="book-card" data-folder="Unsorted" data-favorite="false">
+                      <div>
+                        <img src="assets/images/cover-after.svg" alt="After the Index cover" />
+                      </div>
+                      <strong>After the Index</strong><small>Mara Li</small>
+                    </article>
+                  </div>
+                  <div class="folder-view" data-folder-view hidden>
+                    <article>
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
+                      <div><strong>Light novels</strong><small>2 books</small></div>
+                      <span>›</span>
+                    </article>
+                    <article>
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
+                      <div><strong>Research</strong><small>2 books</small></div>
+                      <span>›</span>
+                    </article>
+                    <article>
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
+                      <div><strong>Unsorted</strong><small>2 books</small></div>
+                      <span>›</span>
+                    </article>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="feature-ledger">
+            <article data-reveal>
+              <span>01</span>
+              <h3>Keep the shape you already use</h3>
+              <ul>
+                <li>Open an existing EPUB archive folder</li>
+                <li>Browse nested collections as they are</li>
+                <li>Reveal the original book in your file manager</li>
+              </ul>
+            </article>
+            <article data-reveal>
+              <span>02</span>
+              <h3>See the collection faster</h3>
+              <ul>
+                <li>Readable titles and authors</li>
+                <li>Cover thumbnails when available</li>
+                <li>Clean fallbacks when metadata is missing</li>
+              </ul>
+            </article>
+            <article data-reveal>
+              <span>03</span>
+              <h3>Return without friction</h3>
+              <ul>
+                <li>Continue active books</li>
+                <li>Keep favorites visible</li>
+                <li>Track reading progress quietly</li>
+              </ul>
+            </article>
+            <article data-reveal>
+              <span>04</span>
+              <h3>Manage the archive like a desktop library</h3>
+              <ul>
+                <li>Add EPUBs into the active archive</li>
+                <li>Create, rename, move, and delete real books and folders</li>
+                <li>Pick up outside changes through rescan or file watching</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="reader-scene section section--dark"
+        id="reader"
+        aria-labelledby="reader-title"
+      >
+        <div class="reader-scene__glow" aria-hidden="true"></div>
+        <div class="shell">
+          <header class="section-heading section-heading--reader" data-reveal>
+            <div>
+              <p class="section-label">Reader</p>
+              <h2 id="reader-title">Open, read, resume.</h2>
+            </div>
+            <div class="promise-row promise-row--dark" aria-label="Reader promises">
+              <span>Focused reader view</span>
+              <span>Readable controls</span>
+              <span>Progress follows the book</span>
+            </div>
+          </header>
+
+          <div class="reader-demo" data-reader-demo data-theme="dark" data-reveal>
+            <div class="reader-demo__frame">
+              <div class="reader-demo__toolbar">
+                <button type="button" aria-label="Back to library">← <span>Library</span></button>
+                <div><strong>Signal and Dust</strong><small>Chapter 12 · The Relay</small></div>
+                <div class="reader-demo__toolbar-actions">
+                  <button type="button" aria-label="Previous chapter">‹</button>
+                  <button type="button" aria-label="Next chapter">›</button>
+                  <button type="button" aria-label="Reader settings">
+                    <svg aria-hidden="true"><use href="#icon-type" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="reader-demo__progress"><span></span></div>
+              <article class="reader-page-copy">
+                <p class="chapter-number">Chapter Twelve</p>
+                <h3>The Relay</h3>
+                <p class="reader-dropcap">
+                  By the time the signal crossed the inner ring, Mara had already stopped listening
+                  for a reply. The station had taught her that silence was not the absence of
+                  information. It was a shape, a pressure, a thing with weight.
+                </p>
+                <p>
+                  Outside the glass, the archive lights moved in strict intervals. Each pulse marked
+                  a volume returned to its place, a record made legible again.
+                </p>
+                <blockquote>Nothing was lost. It had only been waiting for an index.</blockquote>
+                <p>The console warmed beneath her hands. One more book entered orbit.</p>
+              </article>
+              <div class="reader-demo__page-count">68% · 214 / 315</div>
+            </div>
+
+            <aside class="reader-console" aria-label="Interactive reader controls">
+              <p>Reading controls</p>
+              <div class="reader-console__group">
+                <span>Theme</span>
+                <div class="reader-theme-switch" role="group" aria-label="Reader theme">
+                  <button
+                    type="button"
+                    class="active"
+                    data-reader-theme="dark"
+                    aria-label="Dark theme"
+                  >
+                    <svg aria-hidden="true"><use href="#icon-moon" /></svg>
+                  </button>
+                  <button type="button" data-reader-theme="sepia" aria-label="Sepia theme">
+                    S
+                  </button>
+                  <button type="button" data-reader-theme="light" aria-label="Light theme">
+                    <svg aria-hidden="true"><use href="#icon-sun" /></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="reader-console__group">
+                <label for="reader-size"
+                  >Type size <output id="reader-size-output">18</output></label
+                >
+                <input
+                  id="reader-size"
+                  type="range"
+                  min="16"
+                  max="22"
+                  value="18"
+                  step="1"
+                  aria-label="Reader type size"
+                />
+              </div>
+              <div class="reader-console__memory">
+                <span>Stored locally</span>
+                <strong>Last-read location</strong>
+                <small>.archeion/progress.json</small>
+              </div>
+            </aside>
+          </div>
+
+          <div class="reader-notes" data-reveal>
+            <div>
+              <span class="stage-index">02</span>
+              <h3>Reader controls stay practical</h3>
+            </div>
+            <ul>
+              <li>Theme, spacing, and type controls</li>
+              <li>Last-read location stored beside the archive</li>
+              <li>Local progress follows the book</li>
+              <li>Settings designed for reading, not decoration</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="architecture-scene section"
+        id="architecture"
+        aria-labelledby="architecture-title"
+      >
+        <div class="shell">
+          <header class="section-heading architecture-heading" data-reveal>
+            <p class="section-label">Architecture</p>
+            <h2 id="architecture-title">
+              Institutional-grade posture without institutional bloat.
+            </h2>
+            <div class="promise-row" aria-label="Architecture principles">
+              <span>No backend dependency</span>
+              <span>Sidecar metadata</span>
+              <span>Inspectable storage</span>
+            </div>
+          </header>
+
+          <div class="architecture-map" data-reveal>
+            <div class="architecture-map__line" aria-hidden="true"></div>
+            <article class="architecture-node architecture-node--files">
+              <span>01</span>
+              <div class="node-icon">
+                <svg aria-hidden="true"><use href="#icon-folder" /></svg>
+              </div>
+              <h3>Filesystem truth</h3>
+              <p>
+                The archive folder remains understandable outside Archeion. EPUBs stay as files.
+              </p>
+            </article>
+
+            <div class="architecture-tree" aria-label="Example archive folder structure">
+              <div class="tree-head"><i></i><i></i><i></i><span>Moonn Archive</span></div>
+              <pre><code>Moonn Archive/
+├── Light novels/
+│   ├── orbital-mechanics.epub
+│   └── signal-and-dust.epub
+├── Research/
+│   └── the-quiet-archive.epub
+└── <b>.archeion/</b>
+    ├── library.json
+    ├── progress.json
+    ├── settings.json
+    └── scanner-cache.json</code></pre>
+            </div>
+
+            <article class="architecture-node architecture-node--sidecar">
+              <span>02</span>
+              <div class="node-icon node-icon--accent">.a</div>
+              <h3>Sidecar memory</h3>
+              <p>
+                Progress, favorites, covers, and cache files live in <code>.archeion/</code> beside
+                the books.
+              </p>
+            </article>
+
+            <article class="architecture-node architecture-node--tauri">
+              <span>03</span>
+              <div class="node-icon node-icon--tauri">T</div>
+              <h3>Desktop operations</h3>
+              <p>File actions go through Tauri commands with archive-root path safety checks.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="get-started section section--ink"
+        id="get-started"
+        aria-labelledby="get-started-title"
+      >
+        <div class="get-started__rings" aria-hidden="true"></div>
+        <div class="shell get-started__inner">
+          <div class="get-started__copy" data-reveal>
+            <p class="section-label">Get started</p>
+            <h2 id="get-started-title">Pull Archeion from GitHub.</h2>
+            <div class="entry-points">
+              <span>Clone the source</span>
+              <span>Run the desktop app</span>
+              <span>Build releases when ready</span>
+            </div>
+            <a
+              class="button button--light"
+              href="https://github.com/TommyMoonn/archeion"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <svg aria-hidden="true"><use href="#icon-github" /></svg>
+              GitHub
+            </a>
+          </div>
+
+          <div class="terminal-card" data-reveal>
+            <div class="terminal-card__top">
+              <div><i></i><i></i><i></i></div>
+              <span>PowerShell</span>
+              <button type="button" data-copy-command aria-label="Copy setup commands">
+                <svg aria-hidden="true"><use href="#icon-copy" /></svg>
+                <span>Copy</span>
+              </button>
+            </div>
+            <pre><code id="setup-command"><span class="prompt">❯</span> git clone https://github.com/TommyMoonn/archeion.git
+<span class="prompt">❯</span> cd archeion
+<span class="prompt">❯</span> npm install
+<span class="prompt">❯</span> npm run tauri dev</code></pre>
+            <div class="terminal-card__status">
+              <span></span>Local source. Local archive. Local reading state.
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="shell site-footer__inner">
+        <div class="brand brand--footer">
+          <img src="assets/images/archeion-icon.png" width="30" height="30" alt="" /><span
+            >Archeion by Khoa Luong</span
+          >
+        </div>
+        <a href="https://github.com/TommyMoonn/archeion" target="_blank" rel="noreferrer"
+          >github.com/TommyMoonn/archeion</a
+        >
+      </div>
+    </footer>
   </body>
 </html>
