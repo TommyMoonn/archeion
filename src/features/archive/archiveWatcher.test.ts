@@ -321,6 +321,89 @@ describe("ArchiveWatcherController", () => {
     expect(rescan).not.toHaveBeenCalled();
   });
 
+  it("does not start a native watcher after being stopped while listeners attach", async () => {
+    let finishChangeListener!: () => void;
+    let finishErrorListener!: () => void;
+    const stopChangeListener = vi.fn();
+    const stopErrorListener = vi.fn();
+    listenMock
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishChangeListener = () => resolve(stopChangeListener);
+        }),
+      )
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          finishErrorListener = () => resolve(stopErrorListener);
+        }),
+      );
+    const watcher = new ArchiveWatcherController({
+      storage: { rescan: vi.fn() },
+    });
+
+    const pendingStart = watcher.start();
+    await watcher.stop();
+    finishChangeListener();
+    finishErrorListener();
+    await pendingStart;
+
+    expect(invokeMock).not.toHaveBeenCalledWith("start_archive_watcher");
+    expect(stopChangeListener).toHaveBeenCalledTimes(1);
+    expect(stopErrorListener).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops a cancelled native watcher before starting its replacement", async () => {
+    let finishFirstStart!: (watcherId: string) => void;
+    let markFirstStartInvoked!: () => void;
+    const firstStartResult = new Promise<string>((resolve) => {
+      finishFirstStart = resolve;
+    });
+    const firstStartInvoked = new Promise<void>((resolve) => {
+      markFirstStartInvoked = resolve;
+    });
+    const operations: string[] = [];
+    let startCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "start_archive_watcher") {
+        startCount += 1;
+        operations.push(`start-${startCount}`);
+        if (startCount === 1) {
+          markFirstStartInvoked();
+          return firstStartResult;
+        }
+        return "watcher-2";
+      }
+
+      if (command === "stop_archive_watcher") {
+        operations.push(`stop-${String((args as { watcherId?: string })?.watcherId)}`);
+      }
+      return undefined;
+    });
+    const firstWatcher = new ArchiveWatcherController({
+      storage: { rescan: vi.fn() },
+    });
+    const replacementWatcher = new ArchiveWatcherController({
+      storage: { rescan: vi.fn() },
+    });
+
+    const firstPendingStart = firstWatcher.start();
+    await firstStartInvoked;
+    await firstWatcher.stop();
+    const replacementPendingStart = replacementWatcher.start();
+    await Promise.resolve();
+
+    try {
+      expect(operations).toEqual(["start-1"]);
+    } finally {
+      finishFirstStart("watcher-1");
+    }
+    await firstPendingStart;
+    await replacementPendingStart;
+
+    expect(operations).toEqual(["start-1", "stop-watcher-1", "start-2"]);
+    await replacementWatcher.stop();
+  });
+
   it("stops the active native watcher by id", async () => {
     const watcher = new ArchiveWatcherController({
       storage: { rescan: vi.fn() },
@@ -336,11 +419,16 @@ describe("ArchiveWatcherController", () => {
 
   it("stops a native watcher if the controller is stopped while start is pending", async () => {
     let finishStart!: (watcherId: string) => void;
+    let markStartInvoked!: () => void;
     const startResult = new Promise<string>((resolve) => {
       finishStart = resolve;
     });
+    const startInvoked = new Promise<void>((resolve) => {
+      markStartInvoked = resolve;
+    });
     invokeMock.mockImplementation(async (command) => {
       if (command === "start_archive_watcher") {
+        markStartInvoked();
         return startResult;
       }
       return undefined;
@@ -350,6 +438,7 @@ describe("ArchiveWatcherController", () => {
     });
 
     const pendingStart = watcher.start();
+    await startInvoked;
     await watcher.stop();
     finishStart("watcher-pending");
     await pendingStart;

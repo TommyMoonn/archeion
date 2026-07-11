@@ -24,6 +24,17 @@ export type ArchiveWatcherOptions = {
 
 type Timer = ReturnType<typeof setTimeout>;
 
+let nativeWatcherLifecycle: Promise<void> = Promise.resolve();
+
+function runNativeWatcherLifecycle<T>(operation: () => Promise<T>): Promise<T> {
+  const result = nativeWatcherLifecycle.catch(() => undefined).then(operation);
+  nativeWatcherLifecycle = result.then(
+    () => undefined,
+    () => undefined,
+  );
+  return result;
+}
+
 function clearTimer(timer: Timer | null): null {
   if (timer) {
     clearTimeout(timer);
@@ -75,15 +86,28 @@ export class ArchiveWatcherController {
         }),
       ]);
       this.unlistenCallbacks = [stopChangeListener, stopErrorListener];
-      const watcherId = await invoke<string>("start_archive_watcher");
-
       if (this.stopped) {
-        await this.stopStartedWatcher(watcherId);
+        this.unlisten();
         return;
       }
 
-      this.watcherId = watcherId;
-      this.onRecovered?.();
+      await runNativeWatcherLifecycle(async () => {
+        if (this.stopped) {
+          return;
+        }
+
+        const watcherId = await invoke<string>("start_archive_watcher");
+        if (this.stopped) {
+          await this.stopStartedWatcherNow(watcherId);
+          return;
+        }
+
+        this.watcherId = watcherId;
+      });
+
+      if (!this.stopped && this.watcherId) {
+        this.onRecovered?.();
+      }
     } catch (error) {
       this.reportError(error);
       this.unlisten();
@@ -101,7 +125,7 @@ export class ArchiveWatcherController {
     this.watcherId = null;
 
     if (watcherId) {
-      await this.stopStartedWatcher(watcherId);
+      await runNativeWatcherLifecycle(() => this.stopStartedWatcherNow(watcherId));
     }
   }
 
@@ -154,7 +178,7 @@ export class ArchiveWatcherController {
     }
   }
 
-  private async stopStartedWatcher(watcherId: string): Promise<void> {
+  private async stopStartedWatcherNow(watcherId: string): Promise<void> {
     if (!isTauri()) {
       return;
     }
