@@ -102,13 +102,17 @@ npm run check:rust
 npm run tauri:build
 ```
 
-Before packaging, keep the version aligned in:
+Prepare a release version with:
 
-```txt
-package.json
-package-lock.json
-src-tauri/Cargo.toml
-src-tauri/tauri.conf.json
+```sh
+npm run version:set -- 0.3.0
+```
+
+This updates the npm, Cargo, and Tauri version sources together. After adding
+the dated entry and comparison link to `CHANGELOG.md`, validate the release:
+
+```sh
+npm run release:check
 ```
 
 ## License

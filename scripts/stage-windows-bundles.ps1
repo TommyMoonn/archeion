@@ -9,6 +9,8 @@ Set-StrictMode -Version Latest
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 
+& (Join-Path $PSScriptRoot "check-release.ps1") -ProjectRoot $projectRoot
+
 if ([string]::IsNullOrWhiteSpace($BundleRoot)) {
     $BundleRoot = Join-Path $projectRoot "src-tauri/target/release/bundle"
 }
@@ -36,6 +38,12 @@ if ($nsisInstallers.Count -ne 1) {
 
 if ($msiInstallers.Count -ne 1) {
     throw "Expected exactly one MSI installer in '$msiDirectory', found $($msiInstallers.Count)."
+}
+
+foreach ($installer in @($nsisInstallers[0], $msiInstallers[0])) {
+    if ($installer.Name -notmatch [regex]::Escape($version)) {
+        throw "Installer '$($installer.Name)' does not match release version '$version'."
+    }
 }
 
 if (Test-Path $OutputDirectory) {

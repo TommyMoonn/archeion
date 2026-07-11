@@ -27,6 +27,17 @@ type PackageLock = {
   packages: Record<string, { name?: string; version?: string }>;
 };
 
+function cargoLockPackageVersion(source: string, packageName: string): string | undefined {
+  const packageBlock = source.match(
+    new RegExp(
+      `^\\[\\[package\\]\\]\\s*\\r?\\nname\\s*=\\s*"${packageName}"\\s*\\r?\\nversion\\s*=\\s*"([^"]+)"`,
+      "m",
+    ),
+  );
+
+  return packageBlock?.[1];
+}
+
 type TauriConfig = {
   identifier: string;
   mainBinaryName?: string;
@@ -56,16 +67,15 @@ describe("release configuration", () => {
   const packageLock = readJson<PackageLock>("package-lock.json");
   const tauriConfig = readJson<TauriConfig>("src-tauri/tauri.conf.json");
   const cargoToml = fs.readFileSync(path.join(projectRoot, "src-tauri/Cargo.toml"), "utf8");
+  const cargoLock = fs.readFileSync(path.join(projectRoot, "src-tauri/Cargo.lock"), "utf8");
 
   it("keeps release versions aligned", () => {
-    const versions = [
-      packageJson.version,
-      packageLock.packages[""].version,
-      cargoPackageField(cargoToml, "version"),
-      tauriConfig.version,
-    ];
+    const expectedVersion = packageJson.version;
 
-    expect(new Set(versions)).toEqual(new Set(["0.2.0"]));
+    expect(packageLock.packages[""].version).toBe(expectedVersion);
+    expect(cargoPackageField(cargoToml, "version")).toBe(expectedVersion);
+    expect(cargoLockPackageVersion(cargoLock, "archeion")).toBe(expectedVersion);
+    expect(tauriConfig.version).toBe(expectedVersion);
   });
 
   it("uses finalized package identity and metadata", () => {

@@ -10,7 +10,50 @@ Run these commands from the project root using PowerShell.
 | `restore-chatgpt-import.ps1` | Restores files from the latest ChatGPT import backup.                 | `.\scripts\restore-chatgpt-import.ps1 -DryRun`              |
 | `clean-generated.ps1`        | Removes generated output and caches.                                  | `.\scripts\clean-generated.ps1 -DryRun`                     |
 | `zip-project.ps1`            | Creates a full project ZIP using `.zipignore`.                        | `.\scripts\zip-project.ps1`                                 |
-| `stage-windows-bundles.ps1`  | Collects or stages generated Windows release bundles.                 | `.\scripts\stage-windows-bundles.ps1`                       |
+| `check-release.ps1`          | Validates release versions, tags, and optional changelog metadata.    | `.\scripts\check-release.ps1 -RequireChangelogEntry`        |
+| `set-version.ps1`            | Updates every application version source as one transaction.          | `.\scripts\set-version.ps1 0.3.0`                           |
+| `stage-windows-bundles.ps1`  | Collects validated Windows release bundles and checksums.             | `.\scripts\stage-windows-bundles.ps1`                       |
+
+## npm command aliases
+
+The commonly used scripts are also available through `npm run`:
+
+```powershell
+npm run version:check
+npm run version:set -- 0.3.0
+npm run release:check
+npm run release:stage
+npm run changes:review
+npm run changes:package -- -Name "phase-0.3.0"
+npm run changes:apply -- -DryRun
+npm run changes:restore -- -DryRun
+npm run clean
+npm run clean:all -- -DryRun
+npm run zip
+```
+
+Arguments after `--` are forwarded to the underlying PowerShell script.
+
+## Release preparation
+
+Use `set-version.ps1` to update `package.json`, `package-lock.json`,
+`src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and
+`src-tauri/tauri.conf.json` together. The script restores all five files if an
+update or validation step fails.
+
+```powershell
+npm run version:set -- 0.3.0
+```
+
+After adding the dated release section and comparison link to `CHANGELOG.md`,
+run the stricter release validation:
+
+```powershell
+npm run release:check
+```
+
+`check-release.ps1` also accepts `-Tag v0.3.0`. GitHub Actions supplies this
+value when validating a tag-triggered release.
 
 ## Script flags
 
