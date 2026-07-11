@@ -11,6 +11,7 @@ use super::{
         is_non_local_reference, manifest_item_has_property, require_unique_archive_entry,
         resolve_local_document_path, CoverPageRelationship, ManifestItem, PackageManifest,
     },
+    types::CoverImageFormat,
     xml::{
         apply_namespace_declarations, epub_type_contains, strict_attributes_map,
         token_list_contains, unique_local_attribute,
