@@ -8,7 +8,7 @@ import type {
 import type { LibrarySort } from "../../types/library";
 import type { ReaderProgressPlacement, ReaderTheme } from "../../types/reader";
 import { readerTypefaceOptions } from "../reader/readerFonts";
-import type { LibraryView } from "../library/LibraryToolbar";
+import type { LibraryView } from "../../types/library";
 import { librarySortOptions } from "../library/librarySortOptions";
 
 type SettingsOption<TValue extends string> = {

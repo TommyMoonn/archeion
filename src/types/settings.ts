@@ -1,6 +1,5 @@
-import type { ArchiveImportConflictAction, ArchiveImportMode } from "../storage/LibraryStorage";
-import type { LibraryView } from "../features/library/LibraryToolbar";
-import type { LibraryFilterState, LibrarySort } from "./library";
+import type { ArchiveImportConflictAction, ArchiveImportMode } from "./archiveImport";
+import type { LibraryFilterState, LibrarySort, LibraryView } from "./library";
 
 export type LibraryDisplaySettings = {
   filters: LibraryFilterState;

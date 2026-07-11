@@ -5,7 +5,7 @@ import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
 import type { Book } from "../../types/book";
-import type { LibraryLocation } from "../../types/library";
+import type { LibraryLocation, LibraryView } from "../../types/library";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -13,7 +13,7 @@ import { ContinueReading } from "./ContinueReading";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import { LibrarySelectionBar } from "./LibrarySelectionBar";
 import { LibrarySidebar } from "./LibrarySidebar";
-import { LibraryToolbar, type LibraryView } from "./LibraryToolbar";
+import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
 

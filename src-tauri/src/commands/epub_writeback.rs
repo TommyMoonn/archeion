@@ -1,8 +1,8 @@
 use std::{
     fs::{self, File},
     io::Write,
-    path::{Component, Path, PathBuf},
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    path::{Path, PathBuf},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
@@ -35,12 +35,6 @@ pub struct EpubMetadataWritebackResult {
     backup_path: Option<String>,
     source_metadata: epub_metadata::EpubPackageMetadata,
     file_stat: EpubMetadataWritebackFileStat,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EpubWritebackBackupCleanupInput {
-    backup_path: String,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -173,63 +167,6 @@ fn is_legacy_epub_writeback_backup_name(file_name: &str) -> bool {
         && !file_name.contains(TRANSACTION_WRITEBACK_BACKUP_MARKER)
         && !file_name.contains(RETAINED_WRITEBACK_BACKUP_MARKER)
         && file_name.ends_with(WRITEBACK_BACKUP_EXTENSION)
-}
-
-fn is_epub_writeback_backup_name(file_name: &str) -> bool {
-    is_transaction_epub_writeback_backup_name(file_name)
-        || is_retained_epub_writeback_backup_name(file_name)
-}
-
-fn resolve_epub_writeback_backup_path(root: &Path, backup_path: &str) -> Result<PathBuf, String> {
-    let normalized_input = backup_path.replace('\\', "/");
-    let candidate = Path::new(&normalized_input);
-    if candidate.is_absolute() {
-        return Err("Backup paths must be relative to the archive folder.".to_string());
-    }
-
-    let mut parts = Vec::new();
-    for component in candidate.components() {
-        match component {
-            Component::Normal(part) => parts.push(part.to_string_lossy().to_string()),
-            Component::CurDir => {}
-            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
-                return Err("Backup paths cannot leave the archive folder.".to_string());
-            }
-        }
-    }
-
-    if parts.len() != 3
-        || parts[0] != metadata::METADATA_DIRECTORY
-        || parts[1] != BACKUP_DIRECTORY
-        || !is_epub_writeback_backup_name(&parts[2])
-    {
-        return Err("Only Archeion EPUB writeback backups can be cleaned up.".to_string());
-    }
-
-    let backup_dir = root
-        .join(metadata::METADATA_DIRECTORY)
-        .join(BACKUP_DIRECTORY);
-    let backup_path = backup_dir.join(&parts[2]);
-    if !backup_path.exists() {
-        return Ok(backup_path);
-    }
-
-    let canonical_backup_dir = fs::canonicalize(&backup_dir).map_err(|error| error.to_string())?;
-    let canonical_backup_path =
-        fs::canonicalize(&backup_path).map_err(|error| error.to_string())?;
-    if !canonical_backup_path.starts_with(&canonical_backup_dir) {
-        return Err("Backup path is outside the EPUB writeback backup folder.".to_string());
-    }
-
-    Ok(canonical_backup_path)
-}
-
-fn cleanup_epub_writeback_backup_at(root: &Path, backup_path: &str) -> Result<(), String> {
-    let backup_path = resolve_epub_writeback_backup_path(root, backup_path)?;
-    if backup_path.exists() {
-        fs::remove_file(&backup_path).map_err(|error| error.to_string())?;
-    }
-    Ok(())
 }
 
 fn retained_backup_name(transaction_backup_name: &str) -> Result<String, String> {
@@ -529,14 +466,6 @@ fn failed_write_restore_error(
     )
 }
 
-fn debug_writeback_timing(stage: &str, started_at: Instant) {
-    #[cfg(debug_assertions)]
-    eprintln!("write_epub_metadata {stage}: {:?}", started_at.elapsed());
-
-    #[cfg(not(debug_assertions))]
-    let _ = (stage, started_at);
-}
-
 fn rewrite_epub_package_document(
     epub_path: &Path,
     package_path: &str,
@@ -758,14 +687,11 @@ fn commit_epub_rewrite_at_with_ops(
     } = maintenance_ops;
     let backup_path = create_epub_transaction_backup_path(root, normalized_relative_path)?;
 
-    let stage_started_at = Instant::now();
     if let Err(error) = move_original_to_backup(epub_path, &backup_path) {
         let _ = fs::remove_file(temporary_path);
         return Err(write_error_without_swap(writeback_kind, &error));
     }
-    debug_writeback_timing("original-to-backup rename", stage_started_at);
 
-    let stage_started_at = Instant::now();
     if let Err(error) = replace_original_with_temp(temporary_path, epub_path) {
         let _ = fs::remove_file(temporary_path);
         return match restore_backup(&backup_path, epub_path) {
@@ -778,11 +704,9 @@ fn commit_epub_rewrite_at_with_ops(
             )),
         };
     }
-    debug_writeback_timing("temp-to-original rename", stage_started_at);
 
     let file_stat = writeback_file_stat(normalized_relative_path, epub_path)?;
 
-    let stage_started_at = Instant::now();
     let backup_path = finalize_successful_backup_at(
         root,
         &backup_path,
@@ -790,9 +714,7 @@ fn commit_epub_rewrite_at_with_ops(
         retain_backup,
         remove_backup,
     );
-    debug_writeback_timing("backup cleanup or retention", stage_started_at);
 
-    let stage_started_at = Instant::now();
     if let Err(error) =
         update_scanner_cache(root, normalized_relative_path, &file_stat, &source_metadata)
     {
@@ -800,7 +722,6 @@ fn commit_epub_rewrite_at_with_ops(
             "EPUB writeback scanner cache could not be updated after successful write: {error}"
         );
     }
-    debug_writeback_timing("scanner cache update", stage_started_at);
 
     Ok(EpubMetadataWritebackResult {
         backup_path,
@@ -817,41 +738,32 @@ fn write_epub_metadata_at_with_backup_ops(
     transaction_ops: WritebackTransactionOps,
     maintenance_ops: WritebackMaintenanceOps,
 ) -> Result<EpubMetadataWritebackResult, String> {
-    let total_started_at = Instant::now();
     let rewrite_package_document = transaction_ops.rewrite_package_document;
     validate_writeback_metadata(&metadata_update)?;
     let normalized_relative_path = filesystem::normalize_archive_relative_path(relative_path)?;
     let epub_path = epub::resolve_epub_path(root, &normalized_relative_path)?;
     let metadata_update = normalize_writeback_metadata(metadata_update);
 
-    let stage_started_at = Instant::now();
     let package = {
         let file = File::open(&epub_path).map_err(|error| error.to_string())?;
         let mut archive = ZipArchive::new(file).map_err(|error| error.to_string())?;
         epub_metadata::read_package_document(&mut archive)?
     };
-    debug_writeback_timing("package document read", stage_started_at);
 
-    let stage_started_at = Instant::now();
     let updated_package_xml =
         epub_metadata::update_package_metadata_xml(&package.xml, &metadata_update)?;
     let source_metadata = epub_metadata::parse_core_metadata(&updated_package_xml)?;
-    debug_writeback_timing("package XML update", stage_started_at);
 
-    let stage_started_at = Instant::now();
     let temporary_path =
         match rewrite_package_document(&epub_path, &package.path, &updated_package_xml) {
             Ok(path) => path,
             Err(error) => return Err(write_error_without_swap("metadata", &error)),
         };
-    debug_writeback_timing("temp EPUB rewrite", stage_started_at);
 
-    let stage_started_at = Instant::now();
     if let Err(error) = epub_metadata::read_core_metadata(&temporary_path) {
         let _ = fs::remove_file(&temporary_path);
         return Err(temp_validation_error("metadata", &error));
     }
-    debug_writeback_timing("temp validation", stage_started_at);
 
     let result = commit_epub_rewrite_at_with_ops(
         root,
@@ -864,7 +776,6 @@ fn write_epub_metadata_at_with_backup_ops(
         transaction_ops,
         maintenance_ops,
     )?;
-    debug_writeback_timing("total", total_started_at);
 
     Ok(result)
 }
@@ -883,20 +794,6 @@ pub async fn write_epub_metadata(
             input.metadata,
             input.keep_successful_backup,
         )
-    })
-    .await
-    .map_err(|error| error.to_string())?
-}
-
-#[tauri::command]
-pub async fn cleanup_epub_writeback_backup(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    input: EpubWritebackBackupCleanupInput,
-) -> Result<(), String> {
-    let root = archive_root::resolve_archive_root(&app, root_path)?;
-    tauri::async_runtime::spawn_blocking(move || {
-        cleanup_epub_writeback_backup_at(&root, &input.backup_path)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -933,9 +830,8 @@ mod tests {
     };
 
     use super::{
-        cleanup_epub_writeback_backup_at, clear_epub_writeback_backups_at, epub_metadata,
-        epub_writeback_backup_status_at, metadata, restore_epub_from_backup,
-        write_epub_metadata_at, write_epub_metadata_at_with_backup_ops,
+        clear_epub_writeback_backups_at, epub_metadata, epub_writeback_backup_status_at, metadata,
+        restore_epub_from_backup, write_epub_metadata_at, write_epub_metadata_at_with_backup_ops,
         write_epub_metadata_at_with_ops, WritebackMaintenanceOps, WritebackTransactionOps,
     };
 
@@ -1281,47 +1177,6 @@ mod tests {
         assert!(error.contains("identifier updates are not supported"));
         assert_eq!(metadata.identifier.as_deref(), Some("urn:isbn:123"));
         assert!(!root.join(".archeion").join("backups").exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn cleanup_removes_retained_writeback_backup() {
-        let root = test_root();
-        fs::create_dir_all(&root).expect("test archive should be created");
-        let epub_path = root.join("book.epub");
-        write_epub(
-            &epub_path,
-            br#"<package><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:title>Old</dc:title></metadata></package>"#,
-        );
-
-        let result = write_epub_metadata_at(&root, "book.epub", update_title(), true)
-            .expect("metadata should write");
-        let backup_path = result
-            .backup_path
-            .expect("retained backup path should be returned");
-        let absolute_backup_path = root.join(&backup_path);
-        assert!(absolute_backup_path.is_file());
-
-        cleanup_epub_writeback_backup_at(&root, &backup_path)
-            .expect("backup cleanup should succeed");
-
-        assert!(!absolute_backup_path.exists());
-        fs::remove_dir_all(root).expect("test archive should be removed");
-    }
-
-    #[test]
-    fn cleanup_refuses_non_writeback_backup_paths() {
-        let root = test_root();
-        let backup_dir = root.join(".archeion").join("backups");
-        fs::create_dir_all(&backup_dir).expect("backup directory should be created");
-        let backup_path = backup_dir.join("manual.epub.bak");
-        fs::write(&backup_path, b"manual").expect("manual backup should be written");
-
-        let error = cleanup_epub_writeback_backup_at(&root, ".archeion/backups/manual.epub.bak")
-            .expect_err("manual backup cleanup should be rejected");
-
-        assert!(error.contains("Only Archeion EPUB writeback backups"));
-        assert!(backup_path.is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

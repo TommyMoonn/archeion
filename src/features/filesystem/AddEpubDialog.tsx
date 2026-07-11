@@ -6,11 +6,8 @@ import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type {
-  AddArchiveEpubInput,
-  ArchiveImportConflictAction,
-  ArchiveImportMode,
-} from "../../storage/LibraryStorage";
+import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
+import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
 import type { Folder } from "../../types/folder";
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { ImportSettings } from "../../types/settings";

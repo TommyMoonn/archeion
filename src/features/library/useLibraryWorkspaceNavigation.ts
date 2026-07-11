@@ -9,7 +9,7 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { LibraryLocation } from "../../types/library";
+import type { FolderBrowserView, LibraryLocation } from "../../types/library";
 import { scrollElementToTop } from "../../utils/motion";
 import { requestsBookSearch } from "../quick-actions/quickActions";
 import {
@@ -17,7 +17,6 @@ import {
   libraryLocationFromSearchParams,
   searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
-  type FolderBrowserView,
 } from "./libraryViewState";
 
 export function libraryLocationKey(location: LibraryLocation): string {

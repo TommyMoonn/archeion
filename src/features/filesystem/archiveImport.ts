@@ -1,8 +1,5 @@
-import type {
-  ArchiveImportConflictAction,
-  ArchiveImportMode,
-  ArchiveImportResult,
-} from "../../storage/LibraryStorage";
+import type { ArchiveImportResult } from "../../storage/LibraryStorage";
+import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
 import type { Folder } from "../../types/folder";
 
 export const ARCHIVE_ROOT_DESTINATION = "__archive-root__";

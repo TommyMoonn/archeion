@@ -143,8 +143,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...globalImportPreferences,
     ...archiveImportSettings,
   };
-  const selectedBookId = dialog.type === "book-details" ? dialog.bookId : null;
-  const metadataEditorBookId = dialog.type === "book-metadata" ? dialog.bookId : null;
   const {
     bookCount,
     bookCountsByFolder,
@@ -162,9 +160,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     filters,
     folders,
     location: navigation.location,
-    metadataEditorBookId,
     searchIndexCache,
-    selectedBookId,
     sort,
   });
   const {

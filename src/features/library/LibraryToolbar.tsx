@@ -8,13 +8,10 @@ import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { RescanArchiveButton } from "../archive/RescanArchiveButton";
-import type { LibraryFilterState } from "../../types/library";
+import type { LibraryFilterState, LibrarySort, LibraryView } from "../../types/library";
 import { LibraryFilterPopover, LibraryFilterTokens } from "./LibraryFilterPopover";
 import type { LibraryFilterOptions } from "./libraryFilters";
-import type { LibrarySort } from "./libraryFilters";
 import { librarySortOptions } from "./librarySortOptions";
-
-export type LibraryView = "grid" | "list";
 
 type LibraryToolbarProps = {
   filters: LibraryFilterState;

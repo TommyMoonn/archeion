@@ -48,7 +48,7 @@ function requireDerivedState(
 }
 
 describe("library derived state helpers", () => {
-  it("derives aggregate counts, continue ordering, and book lookup in one summary", () => {
+  it("derives aggregate counts and continue ordering in one pass", () => {
     const favorite = createBook({
       id: "favorite",
       folderId: "folder-a",
@@ -65,7 +65,6 @@ describe("library derived state helpers", () => {
 
     const summary = deriveLibrarySummary([older, favorite, createBook({ id: "root" })]);
 
-    expect(summary.bookById.get("favorite")).toBe(favorite);
     expect(Object.fromEntries(summary.bookCountsByFolder)).toEqual({ "folder-a": 2 });
     expect(summary.favoriteCount).toBe(1);
     expect(summary.continueBooks.map((book) => book.id)).toEqual(["favorite", "older"]);
@@ -86,9 +85,7 @@ describe("library derived state helpers", () => {
       filters: createDefaultLibraryFilters(),
       folders: [],
       location: { type: "library" },
-      metadataEditorBookId: null,
       searchIndexCache: createLibrarySearchIndexCache(),
-      selectedBookId: null,
       sort: "title",
     };
     const container = document.createElement("div");

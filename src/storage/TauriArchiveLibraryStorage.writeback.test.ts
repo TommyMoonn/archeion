@@ -66,9 +66,6 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
     expect(book).not.toBe(initialBook);
     expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
     expect(invokeMock.mock.calls.some(([command]) => command === "write_epub_metadata")).toBe(true);
-    expect(
-      invokeMock.mock.calls.some(([command]) => command === "cleanup_epub_writeback_backup"),
-    ).toBe(false);
   });
 
   it("begins watcher suppression before invoking backend writeback", async () => {
@@ -531,9 +528,6 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
     });
 
     expect(result.backupPath ?? "").toContain("metadata-writeback-retained");
-    expect(
-      invokeMock.mock.calls.some(([command]) => command === "cleanup_epub_writeback_backup"),
-    ).toBe(false);
     getSnapshot.mockRestore();
   });
 

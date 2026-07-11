@@ -1,9 +1,8 @@
 import { useCallback } from "react";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
-import type { LibraryFilterState, LibrarySort } from "../../types/library";
+import type { LibraryFilterState, LibrarySort, LibraryView } from "../../types/library";
 import type { LibraryDisplaySettings } from "../../types/settings";
-import type { LibraryView } from "./LibraryToolbar";
 
 type UseLibraryViewPreferencesInput = {
   preferences: LibraryDisplaySettings;

@@ -1,8 +1,6 @@
 export type FileOperationStatus =
   "success" | "skipped" | "conflict" | "denied" | "missingSource" | "failed";
 
-export type ArchiveImportConflictAction = "keepBoth" | "skip" | "replace";
-
 export type FileOperationResult = {
   status: FileOperationStatus;
   relativePath?: string;

@@ -1,3 +1,5 @@
+export type LibraryView = "grid" | "list";
+export type FolderBrowserView = "list" | "cards";
 export type LibrarySort = "title" | "author" | "recently-opened";
 export type LibraryReadingStatus = "unread" | "in-progress" | "completed";
 export type LibrarySmartView =

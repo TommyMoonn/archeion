@@ -1,4 +1,4 @@
-import type { ArchiveImportConflictAction } from "../../storage/LibraryStorage";
+import type { ArchiveImportConflictAction } from "../../types/archiveImport";
 
 export function shouldConfirmBookDeletion(
   confirmationsEnabled: boolean,

@@ -3,7 +3,7 @@ import { useMemo, useRef } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { LibraryFilterState, LibraryLocation } from "../../types/library";
+import type { LibraryFilterState, LibraryLocation, LibrarySort } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { isBookInProgress } from "../reading/readingProgress";
 import {
@@ -18,7 +18,6 @@ import {
   type LibraryFilterOptions,
   type LibrarySearchIndexCache,
   type LibrarySmartViewCounts,
-  type LibrarySort,
 } from "./libraryFilters";
 
 const CONTINUE_PREVIEW_LIMIT = 5;
@@ -29,9 +28,7 @@ type LibraryDerivedStateInput = {
   filters: LibraryFilterState;
   folders: Folder[] | undefined;
   location: LibraryLocation;
-  metadataEditorBookId: string | null;
   searchIndexCache: LibrarySearchIndexCache;
-  selectedBookId: string | null;
   sort: LibrarySort;
 };
 
@@ -45,35 +42,22 @@ type LibraryDerivedState = {
   favoriteCount: number;
   filterOptions: LibraryFilterOptions;
   libraryTitle: string;
-  metadataEditorBook: Book | null;
-  selectedBook: Book | null;
   smartViewCounts: LibrarySmartViewCounts;
   visibleBooks: Book[];
 };
 
 type LibrarySummary = {
-  bookById: Map<string, Book>;
   bookCountsByFolder: Map<string, number>;
   continueBooks: Book[];
   favoriteCount: number;
 };
 
-function getBookById(bookById: ReadonlyMap<string, Book>, id: string | null): Book | null {
-  if (!id) {
-    return null;
-  }
-
-  return bookById.get(id) ?? null;
-}
-
 export function deriveLibrarySummary(books: readonly Book[]): LibrarySummary {
-  const bookById = new Map<string, Book>();
   const bookCountsByFolder = new Map<string, number>();
   const continueCandidates: Book[] = [];
   let favoriteCount = 0;
 
   for (const book of books) {
-    bookById.set(book.id, book);
     if (book.folderId) {
       bookCountsByFolder.set(book.folderId, (bookCountsByFolder.get(book.folderId) ?? 0) + 1);
     }
@@ -86,7 +70,6 @@ export function deriveLibrarySummary(books: readonly Book[]): LibrarySummary {
   }
 
   return {
-    bookById,
     bookCountsByFolder,
     continueBooks: sortBooks(continueCandidates, "recently-opened"),
     favoriteCount,
@@ -99,9 +82,7 @@ export function useLibraryDerivedState({
   filters,
   folders,
   location,
-  metadataEditorBookId,
   searchIndexCache,
-  selectedBookId,
   sort,
 }: LibraryDerivedStateInput): LibraryDerivedState {
   const currentBooks = useMemo(() => books ?? [], [books]);
@@ -142,14 +123,6 @@ export function useLibraryDerivedState({
     () => summary.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
     [summary.continueBooks],
   );
-  const selectedBook = useMemo(
-    () => getBookById(summary.bookById, selectedBookId),
-    [selectedBookId, summary.bookById],
-  );
-  const metadataEditorBook = useMemo(
-    () => getBookById(summary.bookById, metadataEditorBookId),
-    [metadataEditorBookId, summary.bookById],
-  );
   const currentFolder =
     location.type === "folder"
       ? currentFolders.find((folder) => folder.id === location.folderId)
@@ -173,8 +146,6 @@ export function useLibraryDerivedState({
     favoriteCount: summary.favoriteCount,
     filterOptions,
     libraryTitle,
-    metadataEditorBook,
-    selectedBook,
     smartViewCounts,
     visibleBooks,
   };

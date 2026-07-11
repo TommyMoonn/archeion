@@ -10,10 +10,8 @@ import type {
   UpdateBookInput,
 } from "../types/book";
 import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
+import type { ArchiveImportConflictAction, ArchiveImportMode } from "../types/archiveImport";
 import type { ArchiveImportSettings } from "../types/settings";
-import type { ArchiveImportConflictAction } from "./pathSafety";
-
-export type { ArchiveImportConflictAction } from "./pathSafety";
 
 export type StorageObserver<T> = {
   next: (value: T) => void;
@@ -28,8 +26,6 @@ export type RescanOptions = {
 };
 
 export type ScanStatus = { status: "idle" } | { status: "scanning"; startedAt: string };
-
-export type ArchiveImportMode = "copy" | "move";
 
 export type ArchivePathChange = {
   oldRelativePath: string;

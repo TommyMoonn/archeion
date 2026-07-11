@@ -3,7 +3,7 @@ use std::{
     fs::{self, File},
     io::Write,
     path::{Path, PathBuf},
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -132,14 +132,6 @@ pub struct MetadataBundle {
     library: LibraryMetadata,
     progress: ProgressMetadata,
     settings: SettingsMetadata,
-}
-
-fn log_metadata_command_timing(command: &str, started_at: Instant) {
-    #[cfg(debug_assertions)]
-    eprintln!("{command} completed in {:?}", started_at.elapsed());
-
-    #[cfg(not(debug_assertions))]
-    let _ = (command, started_at);
 }
 
 fn metadata_path(root: &Path) -> PathBuf {
@@ -505,7 +497,6 @@ pub fn load_archive_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<MetadataBundle, String> {
-    let started_at = Instant::now();
     let root = resolve_command_archive_root(&app, root_path)?;
     initialize_at(&root)?;
     let directory = metadata_path(&root);
@@ -515,7 +506,6 @@ pub fn load_archive_metadata(
         progress: read_json(&directory.join(PROGRESS_FILE))?,
         settings: read_json(&directory.join(SETTINGS_FILE))?,
     };
-    log_metadata_command_timing("load_archive_metadata", started_at);
     Ok(metadata)
 }
 
@@ -524,10 +514,8 @@ pub fn load_settings_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
 ) -> Result<SettingsMetadata, String> {
-    let started_at = Instant::now();
     let root = resolve_command_archive_root(&app, root_path)?;
     let metadata = load_settings_at(&root)?;
-    log_metadata_command_timing("load_settings_metadata", started_at);
     Ok(metadata)
 }
 

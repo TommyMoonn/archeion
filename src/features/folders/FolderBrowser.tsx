@@ -15,11 +15,10 @@ import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Folder } from "../../types/folder";
+import type { FolderBrowserView } from "../../types/library";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 import { searchFolders } from "./folderSearch";
 import { formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
-
-export type FolderBrowserView = "list" | "cards";
 
 type FolderBrowserProps = {
   bookCounts: Map<string, number>;
