@@ -46,6 +46,7 @@ type ReaderRestoreStorage = {
 type ReaderRestoreDependencies = {
   clearNavigation: () => Promise<void>;
   getArchiveState: () => ArchiveState;
+  getCurrentPathname: () => string;
   getStorage: () => Promise<ReaderRestoreStorage>;
   navigate: (path: string) => Promise<unknown>;
 };
@@ -59,6 +60,14 @@ async function clearRememberedNavigation(): Promise<void> {
   }
 }
 
+async function navigateToLibraryIfNeeded(
+  dependencies: Pick<ReaderRestoreDependencies, "getCurrentPathname" | "navigate">,
+): Promise<void> {
+  if (dependencies.getCurrentPathname() !== "/") {
+    await dependencies.navigate("/");
+  }
+}
+
 export async function restoreRememberedReaderRoute(
   preferences: AppPreferences,
   options: ReaderRestoreOptions,
@@ -66,6 +75,7 @@ export async function restoreRememberedReaderRoute(
   const dependencies: ReaderRestoreDependencies = {
     clearNavigation: clearRememberedNavigation,
     getArchiveState: archiveStore.getSnapshot,
+    getCurrentPathname: () => window.location.pathname,
     getStorage: getLibraryStorage,
     ...options,
   };
@@ -81,7 +91,7 @@ export async function restoreRememberedReaderRoute(
     if (remembered && archive.status === "ready" && archive.archive.id !== remembered.archiveId) {
       await dependencies.clearNavigation().catch(() => undefined);
     }
-    await dependencies.navigate("/");
+    await navigateToLibraryIfNeeded(dependencies);
     return false;
   }
 
@@ -98,7 +108,7 @@ export async function restoreRememberedReaderRoute(
     return true;
   } catch {
     await dependencies.clearNavigation().catch(() => undefined);
-    await dependencies.navigate("/");
+    await navigateToLibraryIfNeeded(dependencies);
     return false;
   }
 }

@@ -142,6 +142,28 @@ describe("main startup coordinator", () => {
 });
 
 describe("reader route restoration", () => {
+  it("preserves the current library URL when no reader route is restored", async () => {
+    const navigate = vi.fn(async () => undefined);
+    const restored = await restoreRememberedReaderRoute(preferences(), {
+      getCurrentPathname: () => "/",
+      navigate,
+    });
+
+    expect(restored).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("returns a current reader route to the library when restoration is disabled", async () => {
+    const navigate = vi.fn(async () => undefined);
+    const restored = await restoreRememberedReaderRoute(preferences({ restoreLastReader: false }), {
+      getCurrentPathname: () => "/reader/book-1",
+      navigate,
+    });
+
+    expect(restored).toBe(false);
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
   it("restores a readable book only in the remembered archive", async () => {
     const navigate = vi.fn(async () => undefined);
     const reset = vi.fn();
@@ -214,6 +236,7 @@ describe("reader route restoration", () => {
           status: "ready",
           watcherError: null,
         }),
+        getCurrentPathname: () => "/reader/missing",
         getStorage: async () => ({
           getBook: async () => undefined,
           loadBookFile: async () => new Blob(),

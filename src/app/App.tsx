@@ -99,6 +99,7 @@ function MainWindowApp() {
       const result = await initializeMainStartup({
         restoreReaderRoute: (preferences) =>
           restoreRememberedReaderRoute(preferences, {
+            getCurrentPathname: () => router.state.location.pathname,
             navigate: (path) => router.navigate(path, { replace: true }),
           }),
       });
