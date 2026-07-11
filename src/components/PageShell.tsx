@@ -22,6 +22,7 @@ export function PageShell({ children, importDropTarget, mainRef, sidebar }: Page
         data-import-drop-id={importDropTarget?.id}
         data-import-drop-target={importDropTarget ? "true" : undefined}
         ref={mainRef}
+        tabIndex={-1}
       >
         {children}
       </main>

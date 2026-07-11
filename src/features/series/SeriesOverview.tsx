@@ -119,6 +119,7 @@ export function SeriesOverview({
                 {continueBook ? (
                   <button
                     className="series-card__continue"
+                    data-reader-book-id={continueBook.id}
                     disabled={Boolean(continueBook.isFileMissing)}
                     onClick={() => onRead(continueBook)}
                     type="button"

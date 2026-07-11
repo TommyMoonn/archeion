@@ -50,6 +50,10 @@ vi.mock("./EpubViewer", async () => {
   };
 });
 
+vi.mock("../archive/useArchive", () => ({
+  useArchive: () => ({ status: "ready", archive: { id: "archive-1" } }),
+}));
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
@@ -75,7 +79,11 @@ function createStorage(books: Book[]): LibraryStorage {
   } as unknown as LibraryStorage;
 }
 
-async function renderReader(books: Book[], initialBookId: string) {
+async function renderReader(
+  books: Book[],
+  initialBookId: string,
+  readerReturnContext?: Record<string, unknown>,
+) {
   const storage = createStorage(books);
   const router = createMemoryRouter(
     [
@@ -85,8 +93,16 @@ async function renderReader(books: Book[], initialBookId: string) {
         element: <ReaderRoute />,
         loader: ({ params }) => books.find((book) => book.id === params.bookId),
       },
+      { path: "/", element: <div data-testid="library-origin" /> },
     ],
-    { initialEntries: [`/reader/${initialBookId}`] },
+    {
+      initialEntries: [
+        {
+          pathname: `/reader/${initialBookId}`,
+          state: readerReturnContext ? { readerReturnContext } : undefined,
+        },
+      ],
+    },
   );
   container = document.createElement("div");
   document.body.appendChild(container);
@@ -122,6 +138,41 @@ afterEach(() => {
 });
 
 describe("ReaderPage series continuation", () => {
+  it("uses the library root when Escape has no valid return context", async () => {
+    const rendered = await renderReader([createBook({ id: "book" })], "book");
+
+    await act(async () => {
+      document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    });
+
+    expect(rendered.router.state.location.pathname).toBe("/");
+    expect(rendered.router.state.location.state).toBeNull();
+  });
+
+  it("returns to the explicit origin from the toolbar", async () => {
+    const returnContext = {
+      archiveId: "archive-1",
+      focusBookId: "book",
+      href: "/?view=favorites",
+      label: "Favorites",
+      query: "favorite query",
+      scrollTop: 240,
+    };
+    const rendered = await renderReader([createBook({ id: "book" })], "book", returnContext);
+    const back = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Back to Favorites"]',
+    );
+
+    expect(back?.textContent).toContain("Back");
+    await act(async () => back?.click());
+
+    expect(rendered.router.state.location.pathname).toBe("/");
+    expect(rendered.router.state.location.search).toBe("?view=favorites");
+    expect(rendered.router.state.location.state).toEqual({
+      libraryRestoreContext: returnContext,
+    });
+  });
+
   it("does not remount the EPUB viewer when the TOC opens or closes", async () => {
     viewerMock.sessionsStarted = 0;
     viewerMock.location = {
@@ -173,7 +224,12 @@ describe("ReaderPage series continuation", () => {
         sourceMetadata: { series: "Star Saga", volume: "2" },
       }),
     ];
-    const rendered = await renderReader(books, "volume-1");
+    const returnContext = {
+      archiveId: "archive-1",
+      href: "/?view=series&series=Star+Saga",
+      label: "Star Saga",
+    };
+    const rendered = await renderReader(books, "volume-1", returnContext);
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
       if (rendered.container.textContent?.includes("Open next volume")) {
@@ -198,6 +254,7 @@ describe("ReaderPage series continuation", () => {
     });
 
     expect(rendered.router.state.location.pathname).toBe("/reader/volume-2");
+    expect(rendered.router.state.location.state).toEqual({ readerReturnContext: returnContext });
   });
 
   it("does not offer the next volume before the completion threshold", async () => {

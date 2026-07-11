@@ -25,6 +25,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
   document.body.appendChild(container);
   root = createRoot(container);
   const callbacks = {
+    onBack: vi.fn(),
     onNext: vi.fn(),
     onNextChapter: vi.fn(),
     onPrevious: vi.fn(),
@@ -39,6 +40,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
         <ReaderToolbar
           atEnd={false}
           atStart={false}
+          backLabel="Back to Library"
           chapterProgress={38}
           chapterTitle="A Very Long Current Chapter Title"
           hasChapterNavigation
@@ -69,6 +71,15 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
+  it("uses the contextual Back action without changing its visible label", () => {
+    const { callbacks, container } = renderToolbar({ backLabel: "Back to Favorites" });
+    const back = button(container, "Back to Favorites");
+
+    expect(back.textContent).toContain("Back");
+    act(() => back.click());
+    expect(callbacks.onBack).toHaveBeenCalledTimes(1);
+  });
+
   it("shows chapter title and both chapter-relative and whole-book progress", () => {
     const { container } = renderToolbar();
     const title = container.querySelector(".reader-toolbar__identity p");

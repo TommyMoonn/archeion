@@ -28,6 +28,7 @@ export const ContinueReading = memo(function ContinueReading({
         {books.map((book) => (
           <button
             className="continue-book"
+            data-reader-book-id={book.id}
             key={book.id}
             onClick={() => onContinue(book)}
             type="button"

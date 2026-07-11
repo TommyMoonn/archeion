@@ -1,10 +1,22 @@
 import { BookOpenText } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLoaderData, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  useLoaderData,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router-dom";
 
 import { Button } from "../../components/Button";
 
 import { canonicalReaderRoute } from "../../app/navigationState";
+import {
+  readerReturnAccessibleLabel,
+  readerReturnContextFromState,
+  readerReturnNavigation,
+} from "../../app/readerReturnContext";
+import { useArchive } from "../archive/useArchive";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -42,6 +54,8 @@ export function ReaderRoute() {
 export function ReaderPage() {
   const book = useLoaderData() as Book | undefined;
   const navigate = useNavigate();
+  const routerLocation = useLocation();
+  const archive = useArchive();
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
@@ -79,6 +93,10 @@ export function ReaderPage() {
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
   const bookId = book?.id;
+  const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
+  const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
+  const returnDestination = readerReturnNavigation(returnContext);
+  const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error";
   const chapterSequence = useMemo(
@@ -177,9 +195,19 @@ export function ReaderPage() {
 
   const openNextVolume = useCallback(() => {
     if (nextVolume) {
-      void navigate(canonicalReaderRoute(nextVolume.id));
+      void navigate(canonicalReaderRoute(nextVolume.id), {
+        replace: true,
+        state: returnContext ? { readerReturnContext: returnContext } : undefined,
+      });
     }
-  }, [navigate, nextVolume]);
+  }, [navigate, nextVolume, returnContext]);
+
+  const returnToOrigin = useCallback(() => {
+    void navigate(returnDestination.href, {
+      replace: true,
+      state: returnDestination.state,
+    });
+  }, [navigate, returnDestination.href, returnDestination.state]);
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
@@ -273,14 +301,14 @@ export function ReaderPage() {
       .then(() => {
         if (!mountedRef.current) return;
         setRecoveryStatus("idle");
-        void navigate("/");
+        returnToOrigin();
       })
       .catch(() => {
         if (mountedRef.current) {
           setRecoveryStatus("failed");
         }
       });
-  }, [navigate, storage]);
+  }, [returnToOrigin, storage]);
 
   const handleReaderKeyDown = useCallback(
     (event: KeyboardEvent, preventDefault: boolean) => {
@@ -300,7 +328,7 @@ export function ReaderPage() {
         } else if (settingsOpenRef.current) {
           setSettingsOpen(false);
         } else {
-          void navigate("/");
+          returnToOrigin();
         }
         return;
       }
@@ -316,7 +344,7 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [closeToc, moveNext, movePrevious, navigate, openSettings],
+    [closeToc, moveNext, movePrevious, openSettings, returnToOrigin],
   );
 
   const handleContentKeyDown = useCallback(
@@ -393,9 +421,9 @@ export function ReaderPage() {
           >
             {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
           </Button>
-          <Link className="text-link" to="/">
-            Return to library
-          </Link>
+          <button className="text-link" onClick={returnToOrigin} type="button">
+            Back
+          </button>
         </div>
         {recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" role="alert">
@@ -436,9 +464,9 @@ export function ReaderPage() {
           >
             {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
           </Button>
-          <Link className="text-link" to="/">
-            Return to library
-          </Link>
+          <button className="text-link" onClick={returnToOrigin} type="button">
+            Back
+          </button>
         </div>
         {recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" role="alert">
@@ -463,10 +491,12 @@ export function ReaderPage() {
         <ReaderToolbar
           atEnd={location.atEnd}
           atStart={location.atStart}
+          backLabel={backLabel}
           chapterProgress={navigationState.chapterProgress}
           chapterTitle={chapterSequence.current?.label}
           hasChapterNavigation={hasChapterNavigation}
           onNext={moveNext}
+          onBack={returnToOrigin}
           onNextChapter={moveNextChapter}
           onPrevious={movePrevious}
           onPreviousChapter={movePreviousChapter}
@@ -488,9 +518,9 @@ export function ReaderPage() {
           <BookOpenText aria-hidden="true" size={38} weight="thin" />
           <h1>Unable to open book</h1>
           <p>{error}</p>
-          <Link className="text-link" to="/">
-            Return to library
-          </Link>
+          <button className="text-link" onClick={returnToOrigin} type="button">
+            Back
+          </button>
         </section>
       ) : (
         <EpubViewer

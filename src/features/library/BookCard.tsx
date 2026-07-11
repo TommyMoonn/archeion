@@ -55,6 +55,7 @@ function BookCardComponent({
   return (
     <article
       className="book-card"
+      data-reader-book-id={book.id}
       data-selected={selected || undefined}
       data-selection-mode={selectionMode || undefined}
     >

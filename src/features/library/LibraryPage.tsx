@@ -1,7 +1,12 @@
 import { BookOpenText } from "@phosphor-icons/react";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
+import { canonicalReaderRoute } from "../../app/navigationState";
+import {
+  createReaderReturnContext,
+  libraryRestoreContextFromState,
+} from "../../app/readerReturnContext";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
@@ -225,7 +230,13 @@ export function LibraryPage() {
 
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const navigate = useNavigate();
+  const routerLocation = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const activeArchive = archive.archive;
+  const restoreContext = useMemo(
+    () => libraryRestoreContextFromState(routerLocation.state, activeArchive.id),
+    [activeArchive.id, routerLocation.state],
+  );
   const storage = useLibraryStorage();
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
@@ -238,13 +249,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const pageShellRef = useRef<HTMLElement>(null);
+  const returnContextRestoredRef = useRef(false);
   const importLock = useRef(false);
   const deleteLock = useRef(false);
   const feedbackSequenceRef = useRef(0);
   const [isImporting, setIsImporting] = useState(false);
   const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
-  const [query, setQuery] = useState("");
-  const [seriesQuery, setSeriesQuery] = useState("");
+  const [query, setQuery] = useState(() => restoreContext?.query ?? "");
+  const [seriesQuery, setSeriesQuery] = useState(() => restoreContext?.seriesQuery ?? "");
   const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
     defaultArchiveImportSettings,
   );
@@ -275,7 +287,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
-  const activeArchive = archive.archive;
   const books = booksLoadState.books;
   const {
     clear: clearSelection,
@@ -572,6 +583,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     selectedBookId,
     sort,
   });
+  const readerReturnLabel = query.trim()
+    ? "Search results"
+    : location.type === "folders"
+      ? "Folders"
+      : location.type === "series"
+        ? "Series"
+        : location.type === "series-detail"
+          ? (activeSeries?.displayName ?? "Series")
+          : libraryTitle;
   const visibleSelectedCount = useMemo(
     () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
     [selectedBookIds, visibleBooks],
@@ -655,6 +675,43 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [activeArchive.id, folders, location, scrollMainContentToTop, searchParams, setSearchParams],
   );
+
+  useEffect(() => {
+    if (booksLoadState.status === "ready" && location.type === "series-detail" && !activeSeries) {
+      changeLocation({ type: "series" });
+    }
+  }, [activeSeries, booksLoadState.status, changeLocation, location.type]);
+
+  useEffect(() => {
+    if (
+      returnContextRestoredRef.current ||
+      !restoreContext ||
+      booksLoadState.status !== "ready" ||
+      (location.type === "series-detail" && !activeSeries)
+    ) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const main = pageShellRef.current;
+      if (!main) return;
+      returnContextRestoredRef.current = true;
+      main.scrollTop = restoreContext.scrollTop ?? 0;
+
+      const target = restoreContext.focusBookId
+        ? [...main.querySelectorAll<HTMLElement>("[data-reader-book-id]")].find(
+            (element) => element.dataset.readerBookId === restoreContext.focusBookId,
+          )
+        : undefined;
+      const focusTarget =
+        target instanceof HTMLButtonElement
+          ? target
+          : target?.querySelector<HTMLElement>("button, [tabindex]");
+      (focusTarget ?? main).focus({ preventScroll: true });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeSeries, booksLoadState.status, location.type, restoreContext]);
 
   const changeFolderBrowserView = useCallback(
     (nextView: FolderBrowserView) => {
@@ -819,16 +876,36 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const readBook = useCallback(
     (book: Book) => {
-      void navigate(`/reader/${book.id}`);
+      const readerReturnContext = createReaderReturnContext({
+        archiveId: activeArchive.id,
+        focusBookId: book.id,
+        href: `${routerLocation.pathname}${routerLocation.search}`,
+        label: readerReturnLabel,
+        query,
+        scrollTop: pageShellRef.current?.scrollTop ?? 0,
+        seriesQuery,
+      });
+      void navigate(canonicalReaderRoute(book.id), { state: { readerReturnContext } });
     },
-    [navigate],
+    [activeArchive.id, navigate, query, readerReturnLabel, routerLocation, seriesQuery],
   );
 
   const readBookFromBeginning = useCallback(
     (book: Book) => {
-      void navigate(`/reader/${book.id}?start=beginning`);
+      const readerReturnContext = createReaderReturnContext({
+        archiveId: activeArchive.id,
+        focusBookId: book.id,
+        href: `${routerLocation.pathname}${routerLocation.search}`,
+        label: readerReturnLabel,
+        query,
+        scrollTop: pageShellRef.current?.scrollTop ?? 0,
+        seriesQuery,
+      });
+      void navigate(`${canonicalReaderRoute(book.id)}?start=beginning`, {
+        state: { readerReturnContext },
+      });
     },
-    [navigate],
+    [activeArchive.id, navigate, query, readerReturnLabel, routerLocation, seriesQuery],
   );
 
   const selectBook = useCallback((book: Book) => {

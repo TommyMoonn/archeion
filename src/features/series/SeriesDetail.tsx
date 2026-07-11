@@ -58,6 +58,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
         <div className="series-detail__actions">
           {continueBook ? (
             <Button
+              data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
               icon={<Play aria-hidden="true" size={15} weight="fill" />}
               onClick={() => onRead(continueBook)}
@@ -84,6 +85,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
           return (
             <article
               className="series-volume"
+              data-reader-book-id={book.id}
               data-current={isCurrent || undefined}
               data-unread={isFirstUnread || undefined}
               key={book.id}

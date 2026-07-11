@@ -8,7 +8,6 @@ import {
   TextAa,
 } from "@phosphor-icons/react";
 import type { Ref } from "react";
-import { Link } from "react-router-dom";
 
 import { IconButton } from "../../components/IconButton";
 
@@ -19,6 +18,8 @@ type ReaderToolbarProps = {
   chapterTitle?: string;
   hasChapterNavigation: boolean;
   nextChapterDisabled: boolean;
+  backLabel: string;
+  onBack: () => void;
   onNext: () => void;
   onNextChapter: () => void;
   onPrevious: () => void;
@@ -40,6 +41,8 @@ export function ReaderToolbar({
   chapterTitle,
   hasChapterNavigation,
   nextChapterDisabled,
+  backLabel,
+  onBack,
   onNext,
   onNextChapter,
   onPrevious,
@@ -61,15 +64,16 @@ export function ReaderToolbar({
 
   return (
     <header className="reader-toolbar">
-      <Link
-        aria-label="Return to library"
+      <button
+        aria-label={backLabel}
         className="reader-toolbar__back"
-        title="Return to library"
-        to="/"
+        onClick={onBack}
+        title={backLabel}
+        type="button"
       >
         <ArrowLeft aria-hidden="true" size={18} weight="regular" />
-        <span>Library</span>
-      </Link>
+        <span>Back</span>
+      </button>
       <div className="reader-toolbar__chapter-navigation">
         {hasChapterNavigation ? (
           <IconButton
