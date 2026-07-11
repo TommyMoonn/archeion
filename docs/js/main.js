@@ -66,23 +66,37 @@
   }
 
   const sections = Array.from(document.querySelectorAll("main section[id]"));
-  if ("IntersectionObserver" in window) {
-    const sectionObserver = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-        if (!visible) return;
-        navLinks.forEach((link) => {
-          const isCurrent = link.getAttribute("href") === `#${visible.target.id}`;
-          if (isCurrent) link.setAttribute("aria-current", "true");
-          else link.removeAttribute("aria-current");
-        });
-      },
-      { threshold: [0.28, 0.5, 0.72], rootMargin: "-15% 0px -55%" },
-    );
-    sections.forEach((section) => sectionObserver.observe(section));
-  }
+  const linkedSectionIds = new Set(
+    navLinks.map((link) => link.getAttribute("href")?.slice(1)).filter(Boolean),
+  );
+  let navigationFrame = 0;
+
+  const updateActiveNavigation = () => {
+    navigationFrame = 0;
+    const headerHeight = header?.getBoundingClientRect().height ?? 0;
+    const activationLine = headerHeight + 16;
+    const activeSection = sections.find((section) => {
+      const rect = section.getBoundingClientRect();
+      return rect.top <= activationLine && rect.bottom > activationLine;
+    });
+    const activeId =
+      activeSection && linkedSectionIds.has(activeSection.id) ? activeSection.id : null;
+
+    navLinks.forEach((link) => {
+      const isCurrent = activeId !== null && link.getAttribute("href") === `#${activeId}`;
+      if (isCurrent) link.setAttribute("aria-current", "true");
+      else link.removeAttribute("aria-current");
+    });
+  };
+
+  const requestNavigationUpdate = () => {
+    if (navigationFrame) return;
+    navigationFrame = window.requestAnimationFrame(updateActiveNavigation);
+  };
+
+  window.addEventListener("scroll", requestNavigationUpdate, { passive: true });
+  window.addEventListener("resize", requestNavigationUpdate);
+  updateActiveNavigation();
 
   const initializeHomeOrbitAnimation = () => {
     const hero = document.getElementById("top");
@@ -359,6 +373,128 @@
     readerDemo?.style.setProperty("--reader-size", `${readerSize.value}px`);
     if (readerSizeOutput) readerSizeOutput.textContent = readerSize.value;
   });
+
+  const readerPages = [
+    {
+      variant: "opener",
+      chapterLabel: "Chapter 12 · The Relay",
+      progress: 67,
+      pageNumber: 211,
+      content: `
+        <p class="chapter-number">Chapter Twelve</p>
+        <h3>The Relay</h3>
+        <p class="reader-deck">The oldest receiver on Meridian Station had been silent for nineteen years.</p>
+        <div class="reader-transmission-card">
+          <span>Unidentified transmission</span>
+          <strong>11 second interval</strong>
+          <small>Origin unresolved · Signal stable</small>
+        </div>
+        <p>Mara isolated the pattern and watched its fragments align across the console. It was not a warning. It was a route.</p>
+      `,
+    },
+    {
+      variant: "prose",
+      chapterLabel: "Chapter 12 · The Relay",
+      progress: 68,
+      pageNumber: 214,
+      content: `
+        <p class="reader-running-head">Signal and Dust · Chapter Twelve</p>
+        <p class="reader-dropcap">By the time the signal crossed the inner ring, Mara had already stopped listening for a reply. The station had taught her that silence was not the absence of information. It was a shape, a pressure, a thing with weight.</p>
+        <p>Outside the glass, the archive lights moved in strict intervals. Each pulse marked a volume returned to its place, a record made legible again.</p>
+        <blockquote>Nothing was lost. It had only been waiting for an index.</blockquote>
+        <p>The console warmed beneath her hands. One more book entered orbit.</p>
+      `,
+    },
+    {
+      variant: "transcript",
+      chapterLabel: "Chapter 12 · The Relay",
+      progress: 69,
+      pageNumber: 217,
+      content: `
+        <p class="chapter-number">Recovered record</p>
+        <h3>Outer Stack 04</h3>
+        <div class="reader-transcript" aria-label="Recovered transmission transcript">
+          <p><time>00:00:11</time><span>STACK FOUR ONLINE</span></p>
+          <p><time>00:00:22</time><span>CATALOGUE PATH RESTORED</span></p>
+          <p><time>00:00:33</time><span>ONE VOLUME UNACCOUNTED FOR</span></p>
+          <p class="reader-transcript__final"><time>00:00:44</time><span>AWAITING READER</span></p>
+        </div>
+        <p>Mara followed the sequence past damaged manifests until a single shelf remained illuminated. The relay was not calling the station. It was calling her.</p>
+      `,
+    },
+    {
+      variant: "index",
+      chapterLabel: "Chapter 13 · The Index",
+      progress: 70,
+      pageNumber: 221,
+      content: `
+        <p class="chapter-number">Chapter Thirteen</p>
+        <h3>The Index</h3>
+        <p>The book opened to a page absent from its table of contents. Four entries had been typed in ink that still looked wet.</p>
+        <ol class="reader-index-list">
+          <li><span>Ilyan Vale</span><time>Meridian · 2174</time></li>
+          <li><span>Sera Noll</span><time>Outer Ring · 2191</time></li>
+          <li><span>Orin Cass</span><time>Relay Nine · 2206</time></li>
+          <li class="reader-index-list__current"><span>Mara Vey</span><time>Meridian · Tomorrow</time></li>
+        </ol>
+        <blockquote>An archive does not predict the future. It remembers what has not happened yet.</blockquote>
+      `,
+    },
+  ];
+
+  const readerPageCopy = document.querySelector("[data-reader-page-copy]");
+  const readerChapterLabel = document.querySelector("[data-reader-chapter-label]");
+  const readerProgress = document.querySelector("[data-reader-progress]");
+  const readerPageCount = document.querySelector("[data-reader-page-count]");
+  const readerMemory = document.querySelector("[data-reader-memory]");
+  const previousPageButton = document.querySelector('[data-reader-page="previous"]');
+  const nextPageButton = document.querySelector('[data-reader-page="next"]');
+  let readerPageIndex = 1;
+  let readerPageTransitioning = false;
+
+  const renderReaderPage = (pageIndex) => {
+    if (!(readerPageCopy instanceof HTMLElement)) return;
+    const page = readerPages[pageIndex];
+    readerPageCopy.dataset.readerPageVariant = page.variant;
+    readerPageCopy.innerHTML = page.content;
+    if (readerChapterLabel) readerChapterLabel.textContent = page.chapterLabel;
+    if (readerProgress instanceof HTMLElement) readerProgress.style.width = `${page.progress}%`;
+    if (readerPageCount)
+      readerPageCount.textContent = `${page.progress}% · ${page.pageNumber} / 315`;
+    if (readerMemory)
+      readerMemory.textContent = `${page.chapterLabel.split(" · ")[0]} · ${page.progress}%`;
+    readerPageIndex = pageIndex;
+    if (previousPageButton instanceof HTMLButtonElement)
+      previousPageButton.disabled = readerPageIndex === 0;
+    if (nextPageButton instanceof HTMLButtonElement)
+      nextPageButton.disabled = readerPageIndex === readerPages.length - 1;
+  };
+
+  const updateReaderPage = (nextIndex, direction) => {
+    if (!(readerPageCopy instanceof HTMLElement) || readerPageTransitioning) return;
+    if (nextIndex < 0 || nextIndex >= readerPages.length || nextIndex === readerPageIndex) return;
+
+    if (reducedMotion.matches) {
+      renderReaderPage(nextIndex);
+      return;
+    }
+
+    readerPageTransitioning = true;
+    readerPageCopy.classList.add(
+      direction === "backward" ? "is-turning-backward" : "is-turning-forward",
+    );
+    window.setTimeout(() => {
+      renderReaderPage(nextIndex);
+      readerPageCopy.classList.remove("is-turning-forward", "is-turning-backward");
+      readerPageTransitioning = false;
+    }, 140);
+  };
+
+  previousPageButton?.addEventListener("click", () =>
+    updateReaderPage(readerPageIndex - 1, "backward"),
+  );
+  nextPageButton?.addEventListener("click", () => updateReaderPage(readerPageIndex + 1, "forward"));
+  renderReaderPage(readerPageIndex);
 
   const copyButton = document.querySelector("[data-copy-command]");
   const setupCommand = [

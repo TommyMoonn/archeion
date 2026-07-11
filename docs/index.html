@@ -450,19 +450,42 @@
             <div class="reader-demo__frame">
               <div class="reader-demo__toolbar">
                 <button type="button" aria-label="Back to library">← <span>Library</span></button>
-                <div><strong>Signal and Dust</strong><small>Chapter 12 · The Relay</small></div>
+                <div>
+                  <strong>Signal and Dust</strong
+                  ><small data-reader-chapter-label>Chapter 12 · The Relay</small>
+                </div>
                 <div class="reader-demo__toolbar-actions">
-                  <button type="button" aria-label="Previous chapter">‹</button>
-                  <button type="button" aria-label="Next chapter">›</button>
+                  <button
+                    type="button"
+                    data-reader-page="previous"
+                    aria-label="Previous page"
+                    aria-controls="reader-preview-page"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    type="button"
+                    data-reader-page="next"
+                    aria-label="Next page"
+                    aria-controls="reader-preview-page"
+                  >
+                    ›
+                  </button>
                   <button type="button" aria-label="Reader settings">
                     <svg aria-hidden="true"><use href="#icon-type" /></svg>
                   </button>
                 </div>
               </div>
-              <div class="reader-demo__progress"><span></span></div>
-              <article class="reader-page-copy">
-                <p class="chapter-number">Chapter Twelve</p>
-                <h3>The Relay</h3>
+              <div class="reader-demo__progress"><span data-reader-progress></span></div>
+              <article
+                class="reader-page-copy"
+                id="reader-preview-page"
+                data-reader-page-copy
+                data-reader-page-variant="prose"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <p class="reader-running-head">Signal and Dust · Chapter Twelve</p>
                 <p class="reader-dropcap">
                   By the time the signal crossed the inner ring, Mara had already stopped listening
                   for a reply. The station had taught her that silence was not the absence of
@@ -475,7 +498,7 @@
                 <blockquote>Nothing was lost. It had only been waiting for an index.</blockquote>
                 <p>The console warmed beneath her hands. One more book entered orbit.</p>
               </article>
-              <div class="reader-demo__page-count">68% · 214 / 315</div>
+              <div class="reader-demo__page-count" data-reader-page-count>68% · 214 / 315</div>
             </div>
 
             <aside class="reader-console" aria-label="Interactive reader controls">
@@ -515,7 +538,7 @@
               </div>
               <div class="reader-console__memory">
                 <span>Ready when you return</span>
-                <strong>Chapter 12 · 68%</strong>
+                <strong data-reader-memory>Chapter 12 · 68%</strong>
                 <small>Resume from your last position</small>
               </div>
             </aside>
