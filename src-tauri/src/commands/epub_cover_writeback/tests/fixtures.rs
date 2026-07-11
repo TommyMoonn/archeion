@@ -9,7 +9,7 @@ use std::{
 
 use ::image::{DynamicImage, Rgb, RgbImage, Rgba, RgbaImage};
 
-use super::super::{plan_cover_package, CoverImageFormat, CoverPackagePlan};
+use super::super::{archive::analyze_package, package::CoverPackagePlan, types::CoverImageFormat};
 
 pub(super) static SCANNER_CACHE_PUBLISHED: AtomicBool = AtomicBool::new(false);
 
@@ -92,12 +92,12 @@ pub(super) fn plan_package(
         .map(|(name, _)| (*name).to_string())
         .collect::<Vec<_>>();
     let resources = entries.iter().copied().collect::<HashMap<_, _>>();
-    plan_cover_package(
+    analyze_package(
         "OEBPS/content.opf",
         package_xml,
         &names,
         source_format,
-        |path, max_bytes| {
+        &mut |path, max_bytes| {
             let bytes = resources
                 .get(path)
                 .ok_or_else(|| format!("missing test resource {path}"))?;
@@ -109,8 +109,8 @@ pub(super) fn plan_package(
     )
 }
 
-pub(super) fn metadata_fixture() -> super::super::epub_metadata::EpubPackageMetadata {
-    super::super::epub_metadata::EpubPackageMetadata {
+pub(super) fn metadata_fixture() -> super::super::super::epub_metadata::EpubPackageMetadata {
+    super::super::super::epub_metadata::EpubPackageMetadata {
         title: Some("Title".to_string()),
         creator: None,
         identifier: None,
@@ -142,8 +142,8 @@ pub(super) fn failing_restore(_backup_path: &Path, _epub_path: &Path) -> Result<
 pub(super) fn record_scanner_cache_publish(
     _root: &Path,
     _relative_path: &str,
-    _file_stat: &super::super::epub_writeback::EpubMetadataWritebackFileStat,
-    _metadata: &super::super::epub_metadata::EpubPackageMetadata,
+    _file_stat: &super::super::super::epub_writeback::EpubMetadataWritebackFileStat,
+    _metadata: &super::super::super::epub_metadata::EpubPackageMetadata,
 ) -> Result<(), String> {
     SCANNER_CACHE_PUBLISHED.store(true, Ordering::SeqCst);
     Ok(())

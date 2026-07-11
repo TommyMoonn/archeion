@@ -4,9 +4,10 @@ use ::image::{DynamicImage, Rgba, RgbaImage};
 
 use super::{
     super::{
-        decode_cover_image, prepare_cover_writeback_at, process_cover_image,
-        types::EpubCoverFraming, update_package_cover_xml, CoverImageFormat,
-        EpubCoverPreparationInput,
+        image::{decode_cover_image, process_cover_image},
+        package::update_package_cover_xml,
+        service::prepare_cover_writeback_at,
+        types::{CoverImageFormat, EpubCoverFraming, EpubCoverPreparationInput},
     },
     fixtures::{plan_package, test_root, write_epub, write_image, write_image_with_format},
 };
