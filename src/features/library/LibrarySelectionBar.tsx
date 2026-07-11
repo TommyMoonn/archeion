@@ -6,6 +6,7 @@ import {
   FolderOpen,
   Heart,
   ImageBroken,
+  NotePencil,
   Trash,
 } from "@phosphor-icons/react";
 
@@ -18,7 +19,15 @@ type LibrarySelectionBarProps = {
   onDeselectVisible: () => void;
   onExit: () => void;
   onAction: (
-    action: "favorite" | "unfavorite" | "move" | "delete" | "metadata" | "covers" | "export",
+    action:
+      | "favorite"
+      | "unfavorite"
+      | "move"
+      | "delete"
+      | "edit-metadata"
+      | "metadata"
+      | "covers"
+      | "export",
   ) => void;
   onSelectVisible: () => void;
   selectedCount: number;
@@ -42,7 +51,9 @@ export function LibrarySelectionBar({
   const hiddenSelectedCount = selectedCount - visibleSelectedCount;
   const allVisibleSelected = visibleCount > 0 && visibleSelectedCount === visibleCount;
 
-  function runOverflowAction(action: "unfavorite" | "delete" | "metadata" | "covers" | "export") {
+  function runOverflowAction(
+    action: "unfavorite" | "delete" | "edit-metadata" | "metadata" | "covers" | "export",
+  ) {
     closeDetails();
     onAction(action);
   }
@@ -88,6 +99,15 @@ export function LibrarySelectionBar({
               <DotsThree aria-hidden="true" size={19} weight="bold" />
             </summary>
             <div role="menu">
+              <button
+                disabled={busy || selectedCount === 0}
+                onClick={() => runOverflowAction("edit-metadata")}
+                role="menuitem"
+                type="button"
+              >
+                <NotePencil aria-hidden="true" size={17} />
+                Edit metadata
+              </button>
               <button
                 disabled={busy || selectedCount === 0}
                 onClick={() => runOverflowAction("unfavorite")}

@@ -101,6 +101,7 @@ function createStorage({
     bulkReextractMetadata: vi.fn(),
     bulkRegenerateCovers: vi.fn(),
     bulkExportBooks: vi.fn(),
+    bulkWriteBookMetadata: vi.fn(),
     observeBooks:
       observeBooks ??
       vi.fn((observer) => {

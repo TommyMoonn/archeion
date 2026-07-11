@@ -21,7 +21,7 @@ import {
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
-import type { Book, EpubMetadataWritebackInput } from "../../types/book";
+import type { Book, BulkMetadataEditInput, EpubMetadataWritebackInput } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import {
   createDefaultLibraryFilters,
@@ -103,6 +103,8 @@ const loadBookAdvancedMetadataDialog = () =>
   import("./BookAdvancedMetadataDialog").then((module) => ({
     default: module.BookAdvancedMetadataDialog,
   }));
+const loadBulkMetadataDialog = () =>
+  import("./BulkMetadataDialog").then((module) => ({ default: module.BulkMetadataDialog }));
 const loadFolderCreateDialog = () =>
   import("../folders/FolderCreateDialog").then((module) => ({
     default: module.FolderCreateDialog,
@@ -127,6 +129,7 @@ const RenameFileDialog = lazy(loadRenameFileDialog);
 const AboutDialog = lazy(loadAboutDialog);
 const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
 const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
+const BulkMetadataDialog = lazy(loadBulkMetadataDialog);
 const FolderCreateDialog = lazy(loadFolderCreateDialog);
 const FolderRenameDialog = lazy(loadFolderRenameDialog);
 const SettingsDialog = lazy(loadSettingsDialog);
@@ -248,6 +251,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkMetadataOpen, setBulkMetadataOpen] = useState(false);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -552,6 +556,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const visibleSelectedCount = useMemo(
     () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
     [selectedBookIds, visibleBooks],
+  );
+  const selectedBooks = useMemo(
+    () => (books ?? []).filter((book) => selectedBookIds.has(book.id)),
+    [books, selectedBookIds],
   );
   const currentImportDropDestination = currentFolder?.relativePath ?? ARCHIVE_ROOT_DESTINATION;
   const { activeTarget: activeImportDropTarget } = useExternalEpubDrop({
@@ -907,9 +915,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
 
   const handleBulkAction = useCallback(
-    (action: "favorite" | "unfavorite" | "move" | "delete" | "metadata" | "covers" | "export") => {
+    (
+      action:
+        | "favorite"
+        | "unfavorite"
+        | "move"
+        | "delete"
+        | "edit-metadata"
+        | "metadata"
+        | "covers"
+        | "export",
+    ) => {
       if (action === "move") return setBulkMoveOpen(true);
       if (action === "delete") return setBulkDeleteOpen(true);
+      if (action === "edit-metadata") return setBulkMetadataOpen(true);
       if (action === "favorite")
         void runBulkAction("Add to favorites", (ids) => storage.bulkSetFavorite(ids, true));
       if (action === "unfavorite")
@@ -941,6 +960,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   async function deleteSelectedBooks() {
     await runBulkAction("Delete", (ids) => storage.bulkDeleteBooks(ids));
     setBulkDeleteOpen(false);
+  }
+
+  async function writeSelectedBookMetadata(edits: BulkMetadataEditInput) {
+    await runBulkAction("Metadata update", (ids) => storage.bulkWriteBookMetadata(ids, edits));
   }
 
   async function renameBookFile(fileName: string) {
@@ -1419,6 +1442,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onClose={() => setBulkMoveOpen(false)}
             onMove={moveSelectedBooks}
             title={`Move ${selectedBookIds.size} selected books`}
+          />
+        </Suspense>
+      ) : null}
+
+      {bulkMetadataOpen ? (
+        <Suspense fallback={<DialogLoadingFallback label="Opening metadata editor" />}>
+          <BulkMetadataDialog
+            books={selectedBooks}
+            isWriting={isBulkRunning}
+            onApply={writeSelectedBookMetadata}
+            onClose={() => setBulkMetadataOpen(false)}
           />
         </Suspense>
       ) : null}

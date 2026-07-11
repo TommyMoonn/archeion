@@ -2,10 +2,12 @@ import { invoke } from "@tauri-apps/api/core";
 
 import type {
   Book,
+  BulkMetadataEditInput,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
   UpdateBookInput,
 } from "../types/book";
+import { metadataAfterBulkEdit, previewBulkMetadataEdit } from "./bulkMetadata";
 import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
 import type { ArchiveImportSettings } from "../types/settings";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
@@ -83,6 +85,21 @@ type ArchiveCommandScope = {
   generation: number;
   rootPath: string | null;
 };
+
+const ARCHIVE_CHANGED_ERROR_MESSAGE = "The active archive changed before the operation completed.";
+
+type BulkMetadataWorkItem =
+  | {
+      book: Book;
+      bookId: string;
+      kind: "write";
+      metadata: EpubMetadataWritebackInput;
+    }
+  | {
+      bookId: string;
+      kind: "skip";
+      reason: string;
+    };
 
 export class TauriArchiveLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
@@ -261,9 +278,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return { generation: this.generation, rootPath: this.archiveRootPath };
   }
 
+  private isCurrentArchiveScope(scope: ArchiveCommandScope): boolean {
+    return this.generation === scope.generation;
+  }
+
   private assertCurrentArchiveScope(scope: ArchiveCommandScope) {
-    if (this.generation !== scope.generation) {
-      throw new Error("The active archive changed before the operation completed.");
+    if (!this.isCurrentArchiveScope(scope)) {
+      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
     }
   }
 
@@ -401,7 +422,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     );
     this.assertCurrentArchiveScope(scope);
     if (!metadata) {
-      throw new Error("The active archive changed before the operation completed.");
+      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
     }
     this.settingsMetadata = normalizeSettingsMetadata(metadata);
     return this.settingsMetadata;
@@ -757,20 +778,17 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
   }
 
-  async writeBookMetadata(
-    id: string,
+  private async writeBookMetadataInScope(
+    scope: ArchiveCommandScope,
+    book: Book,
     metadata: EpubMetadataWritebackInput,
   ): Promise<EpubMetadataWritebackResult> {
-    const scope = this.createArchiveCommandScope();
-    const loading = this.ensureLoadedOrPromise(scope);
-    if (loading) await loading;
-    const book = this.requireBook(id);
+    this.assertCurrentArchiveScope(scope);
     if (!book.relativePath || book.isFileMissing) {
       throw new Error("The selected EPUB file is unavailable.");
     }
     const keepSuccessfulBackup =
       appPreferencesStore.getSnapshot().filesAndMetadata.keepEpubWritebackBackup;
-
     const suppression = beginWritebackWatcherSuppression(scope.rootPath, book.relativePath);
 
     try {
@@ -786,7 +804,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         scope.rootPath,
       );
 
-      if (this.generation !== scope.generation) {
+      if (!this.isCurrentArchiveScope(scope)) {
         return result;
       }
 
@@ -795,8 +813,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       }
 
       try {
-        await this.applyMetadataWritebackResult(id, result, scope);
+        await this.applyMetadataWritebackResult(book.id, result, scope);
       } catch (error) {
+        if (!this.isCurrentArchiveScope(scope)) {
+          return result;
+        }
         throw new Error(
           "Metadata was written, but the library could not refresh this book. Rescan to update the display.",
           { cause: error },
@@ -807,6 +828,16 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     } finally {
       finishWritebackWatcherSuppression(suppression);
     }
+  }
+
+  async writeBookMetadata(
+    id: string,
+    metadata: EpubMetadataWritebackInput,
+  ): Promise<EpubMetadataWritebackResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    return this.writeBookMetadataInScope(scope, this.requireBook(id), metadata);
   }
 
   async renameBookFile(id: string, fileName: string): Promise<Book | undefined> {
@@ -1078,6 +1109,83 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
   }
 
+  async bulkWriteBookMetadata(
+    ids: readonly string[],
+    edits: BulkMetadataEditInput,
+  ): Promise<BulkActionResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const workItems: BulkMetadataWorkItem[] = ids.map((bookId) => {
+      const currentBook = this.books.find((candidate) => candidate.id === bookId);
+      if (!currentBook) {
+        return { bookId, kind: "skip", reason: "The book is no longer in the library." };
+      }
+      const book = structuredClone(currentBook);
+      if (!book.relativePath || book.isFileMissing) {
+        return { bookId, kind: "skip", reason: "The EPUB file is unavailable." };
+      }
+      if (previewBulkMetadataEdit([book], edits)[0]?.changes.length === 0) {
+        return {
+          bookId,
+          kind: "skip",
+          reason: "The selected metadata is already applied.",
+        };
+      }
+      return {
+        book,
+        bookId,
+        kind: "write",
+        metadata: metadataAfterBulkEdit(book.sourceMetadata, edits),
+      };
+    });
+    const result: BulkActionResult = {
+      requested: ids.length,
+      succeeded: [],
+      failed: [],
+      skipped: [],
+    };
+
+    for (let index = 0; index < workItems.length; index += 1) {
+      const item = workItems[index];
+      if (!this.isCurrentArchiveScope(scope)) {
+        result.failed.push(
+          ...workItems.slice(index).map(({ bookId }) => ({
+            bookId,
+            message: ARCHIVE_CHANGED_ERROR_MESSAGE,
+          })),
+        );
+        break;
+      }
+      if (item.kind === "skip") {
+        result.skipped.push({ bookId: item.bookId, reason: item.reason });
+        continue;
+      }
+
+      try {
+        await this.writeBookMetadataInScope(scope, item.book, item.metadata);
+        result.succeeded.push({ bookId: item.bookId });
+      } catch (error) {
+        if (!this.isCurrentArchiveScope(scope)) {
+          result.failed.push({
+            bookId: item.bookId,
+            message: ARCHIVE_CHANGED_ERROR_MESSAGE,
+          });
+          result.failed.push(
+            ...workItems.slice(index + 1).map(({ bookId }) => ({
+              bookId,
+              message: ARCHIVE_CHANGED_ERROR_MESSAGE,
+            })),
+          );
+          break;
+        }
+        result.failed.push({ bookId: item.bookId, message: this.bulkErrorMessage(error) });
+      }
+    }
+
+    return result;
+  }
+
   async bulkReextractMetadata(ids: readonly string[]): Promise<BulkActionResult> {
     const scope = this.createArchiveCommandScope();
     const loading = this.ensureLoadedOrPromise(scope);
@@ -1230,7 +1338,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     );
 
     if (this.generation !== scope.generation) {
-      throw new Error("The active archive changed before the operation completed.");
+      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
     }
     await this.rescan();
     const folder = this.folders.find((candidate) => candidate.relativePath === relativePath);

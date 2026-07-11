@@ -1,5 +1,6 @@
 import type {
   Book,
+  BulkMetadataEditInput,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
   UpdateBookInput,
@@ -88,6 +89,10 @@ export interface LibraryStorage {
   bulkReextractMetadata(ids: readonly string[]): Promise<BulkActionResult>;
   bulkRegenerateCovers(ids: readonly string[]): Promise<BulkActionResult>;
   bulkExportBooks(ids: readonly string[], destinationPath: string): Promise<BulkActionResult>;
+  bulkWriteBookMetadata(
+    ids: readonly string[],
+    edits: BulkMetadataEditInput,
+  ): Promise<BulkActionResult>;
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
   createFolder(input: CreateFolderInput): Promise<Folder>;

@@ -13,6 +13,18 @@ export type EpubSourceMetadata = {
 
 export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
+export type BulkMetadataTagMode = "replace" | "add" | "remove";
+
+export type BulkMetadataEditInput = {
+  series?: string | null;
+  publisher?: string | null;
+  language?: string | null;
+  subjects?: {
+    mode: BulkMetadataTagMode;
+    values: string[];
+  };
+};
+
 export type EpubMetadataWritebackFileStat = {
   relativePath: string;
   fileName: string;

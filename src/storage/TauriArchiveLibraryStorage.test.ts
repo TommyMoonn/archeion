@@ -53,6 +53,16 @@ const editedFileStat = {
   modifiedAt: 1_700_000_001_000,
 };
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 const metadata = {
   library: {
     version: 1,
@@ -95,6 +105,75 @@ const metadata = {
     },
   },
 };
+
+function twoBookArchive(folderPath: string) {
+  const firstRelativePath = `${folderPath}/Volume_01.epub`;
+  const secondRelativePath = `${folderPath}/Volume_02.epub`;
+  const archiveMetadata = structuredClone(metadata);
+  const library = archiveMetadata.library as LibraryMetadata;
+  library.books = {
+    "book-1": {
+      ...library.books["book-1"],
+      relativePath: firstRelativePath,
+      fileSize: 2048,
+      fileModifiedAt: 1_700_000_000_000,
+      sourceMetadata: { publisher: "Original Press" },
+    },
+    "book-2": {
+      ...library.books["book-1"],
+      relativePath: secondRelativePath,
+      fileSize: 3072,
+      fileModifiedAt: 1_700_000_002_000,
+      isFavorite: false,
+      sourceMetadata: { publisher: "Original Press" },
+    },
+  };
+  return {
+    metadata: archiveMetadata,
+    scan: {
+      folders: [],
+      books: [
+        {
+          discoveryId: "book-1",
+          relativePath: firstRelativePath,
+          fileName: "Volume_01.epub",
+          folderPath,
+          size: 2048,
+          modifiedAt: 1_700_000_000_000,
+          sourceMetadata: { publisher: "Original Press" },
+        },
+        {
+          discoveryId: "book-2",
+          relativePath: secondRelativePath,
+          fileName: "Volume_02.epub",
+          folderPath,
+          size: 3072,
+          modifiedAt: 1_700_000_002_000,
+          sourceMetadata: { publisher: "Original Press" },
+        },
+      ],
+    },
+  };
+}
+
+function metadataWritebackResult(input: {
+  metadata: Record<string, unknown>;
+  relativePath: string;
+}) {
+  const fileName = input.relativePath.split("/").at(-1) ?? input.relativePath;
+  const folderPath = input.relativePath.split("/").slice(0, -1).join("/");
+  return {
+    backupPath: null,
+    sourceMetadata: input.metadata,
+    fileStat: {
+      relativePath: input.relativePath,
+      fileName,
+      folderPath,
+      size: 4096,
+      modifiedAt: 1_700_000_003_000,
+    },
+  };
+}
 
 describe("TauriArchiveLibraryStorage", () => {
   beforeEach(() => {
@@ -1961,5 +2040,161 @@ describe("TauriArchiveLibraryStorage bulk actions", () => {
     expect(result.failed).toEqual([{ bookId: "book-2", message: "Trash is unavailable." }]);
     expect(savedLibrary?.books["book-1"]).toBeUndefined();
     expect(savedLibrary?.books["book-2"]).toBeDefined();
+  });
+
+  it("keeps a bulk metadata operation bound to its original archive", async () => {
+    const archiveA = twoBookArchive("ArchiveA");
+    const archiveB = twoBookArchive("ArchiveB");
+    const firstWrite = deferred<ReturnType<typeof metadataWritebackResult>>();
+    const firstWriteStarted = deferred<void>();
+    let firstInput:
+      | {
+          metadata: Record<string, unknown>;
+          relativePath: string;
+        }
+      | undefined;
+    let writeCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      const commandArgs = args as Record<string, unknown> | undefined;
+      const rootPath = commandArgs?.rootPath;
+      if (command === "scan_archive") {
+        return structuredClone(rootPath === "C:/ArchiveB" ? archiveB.scan : archiveA.scan);
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(rootPath === "C:/ArchiveB" ? archiveB.metadata : archiveA.metadata);
+      }
+      if (command === "write_epub_metadata") {
+        writeCount += 1;
+        const input = commandArgs?.input as {
+          metadata: Record<string, unknown>;
+          relativePath: string;
+        };
+        if (writeCount === 1) {
+          firstInput = input;
+          firstWriteStarted.resolve();
+          return firstWrite.promise;
+        }
+        return metadataWritebackResult(input);
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const operation = storage.bulkWriteBookMetadata(["book-1", "book-2"], {
+      publisher: "Shared Press",
+    });
+    await firstWriteStarted.promise;
+    storage.reset("C:/ArchiveB");
+    await storage.listBooks();
+    firstWrite.resolve(metadataWritebackResult(firstInput!));
+
+    const result = await operation;
+    const writeCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "write_epub_metadata",
+    );
+    expect(writeCalls).toHaveLength(1);
+    expect(writeCalls[0]?.[1]).toMatchObject({ rootPath: "C:/ArchiveA" });
+    expect(result).toEqual({
+      requested: 2,
+      succeeded: [{ bookId: "book-1" }],
+      failed: [
+        {
+          bookId: "book-2",
+          message: "The active archive changed before the operation completed.",
+        },
+      ],
+      skipped: [],
+    });
+  });
+
+  it("continues independent bulk metadata writes after a per-book failure", async () => {
+    const archive = twoBookArchive("ArchiveA");
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(archive.scan);
+      if (command === "load_archive_metadata") return structuredClone(archive.metadata);
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+    let writeCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      const commandArgs = args as Record<string, unknown> | undefined;
+      if (command === "write_epub_metadata") {
+        writeCount += 1;
+        if (writeCount === 1) throw new Error("First EPUB failed.");
+        return metadataWritebackResult(
+          commandArgs?.input as {
+            metadata: Record<string, unknown>;
+            relativePath: string;
+          },
+        );
+      }
+      return undefined;
+    });
+
+    const result = await storage.bulkWriteBookMetadata(["book-1", "book-2"], {
+      publisher: "Shared Press",
+    });
+
+    expect(result).toEqual({
+      requested: 2,
+      succeeded: [{ bookId: "book-2" }],
+      failed: [{ bookId: "book-1", message: "First EPUB failed." }],
+      skipped: [],
+    });
+    const writeCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "write_epub_metadata",
+    );
+    expect(writeCalls).toHaveLength(2);
+    expect(writeCalls.map(([, args]) => (args as { rootPath?: string }).rootPath)).toEqual([
+      "C:/ArchiveA",
+      "C:/ArchiveA",
+    ]);
+    await expect(storage.getBook("book-2")).resolves.toMatchObject({
+      sourceMetadata: { publisher: "Shared Press" },
+    });
+  });
+
+  it("writes bulk metadata through the existing per-EPUB transaction and reports skips", async () => {
+    const storage = await scopedBulkStorage();
+    invokeMock.mockImplementation(async (command, args) => {
+      const commandArgs = args as Record<string, unknown> | undefined;
+      if (command === "write_epub_metadata") {
+        const input = commandArgs?.input as {
+          metadata: Record<string, unknown>;
+          relativePath: string;
+        };
+        return {
+          backupPath: null,
+          sourceMetadata: input.metadata,
+          fileStat: {
+            relativePath: input.relativePath,
+            fileName: "Volume_01.epub",
+            folderPath: "Author/Series",
+            size: 2048,
+            modifiedAt: 1_700_000_003_000,
+          },
+        };
+      }
+      return undefined;
+    });
+
+    const result = await storage.bulkWriteBookMetadata(["book-1", "missing-book"], {
+      publisher: "Shared Press",
+    });
+
+    expect(result.succeeded).toEqual([{ bookId: "book-1" }]);
+    expect(result.skipped).toEqual([
+      { bookId: "missing-book", reason: "The book is no longer in the library." },
+    ]);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "write_epub_metadata"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
   });
 });
