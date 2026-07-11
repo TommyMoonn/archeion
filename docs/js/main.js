@@ -291,18 +291,18 @@
   const libraryModes = {
     library: {
       title: "Library",
-      kicker: "Archive overview",
-      caption: "Browse the collection as a calm, cover-first surface.",
+      kicker: "All books",
+      caption: "See covers, progress, and current reads in one place.",
     },
     folders: {
       title: "Folders",
-      kicker: "Filesystem structure",
-      caption: "The folder tree remains real, legible, and portable.",
+      kicker: "Folder browsing",
+      caption: "Browse the same nested folders you already use.",
     },
     favorites: {
       title: "Favorites",
-      kicker: "Pinned books",
-      caption: "Keep a small reading shortlist visible without moving files.",
+      kicker: "Saved shelf",
+      caption: "Keep a focused shelf of books you want close by.",
     },
   };
 

@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Archeion is a cinematic local EPUB library for browsing books, keeping progress, and reading from a calm local archive."
+      content="Archeion is a desktop EPUB library for organizing folders, browsing series, filtering collections, and reading with saved progress."
     />
     <meta name="theme-color" content="#171717" />
-    <title>Archeion – Local EPUB Library</title>
+    <title>Archeion – EPUB Library and Reader</title>
     <link rel="icon" href="assets/images/archeion-icon.png" />
     <link
       rel="preload"
@@ -111,7 +111,7 @@
         <nav class="site-nav" id="site-nav" aria-label="Primary navigation">
           <a href="#library">Library</a>
           <a href="#reader">Reader</a>
-          <a href="#architecture">Architecture</a>
+          <a href="#architecture">Features</a>
           <a href="#get-started">Get started</a>
         </nav>
 
@@ -133,11 +133,11 @@
         <canvas class="home-orbit-canvas" data-home-orbit-canvas aria-hidden="true"></canvas>
         <div class="hero__inner shell">
           <div class="hero__copy" data-reveal>
-            <p class="eyebrow">Local EPUB library</p>
+            <p class="eyebrow">EPUB library and reader</p>
             <h1 id="hero-title">Pull every book <span>into orbit.</span></h1>
             <p class="hero__lede">
-              Open a folder. See your books become a focused library with covers, folders, progress,
-              favorites, and a reader that stays out of the way.
+              Open an existing folder or create a new archive. Browse covers, folders, series, smart
+              views, and saved progress, then read in paged or continuous mode.
             </p>
             <div class="hero__actions">
               <a class="button button--primary" href="#get-started">
@@ -147,10 +147,10 @@
               <a class="button button--quiet" href="#library">See the experience</a>
             </div>
             <div class="hero__signals" aria-label="Product highlights">
-              <span><i></i>Continue reading</span>
-              <span><i></i>Favorites</span>
-              <span><i></i>Folders</span>
-              <span><i></i>Library state at a glance</span>
+              <span><i></i>Series and volumes</span>
+              <span><i></i>Smart Views</span>
+              <span><i></i>Search and filters</span>
+              <span><i></i>Progress that resumes</span>
             </div>
           </div>
 
@@ -191,17 +191,17 @@
               </div>
 
               <div class="home-orbit-status home-orbit-status--top" aria-hidden="true">
-                <span>Archive structure</span>
-                <b>.epub</b>
+                <span>Series in order</span>
+                <b>Volume 01 → 12</b>
               </div>
               <div class="home-orbit-status home-orbit-status--bottom" aria-hidden="true">
-                <span>Local state</span>
-                <b>progress.json</b>
+                <span>Continue reading</span>
+                <b>Chapter 12 · 68%</b>
               </div>
             </div>
           </div>
         </div>
-        <div class="hero__scroll" aria-hidden="true"><span></span>Scroll to enter archive</div>
+        <div class="hero__scroll" aria-hidden="true"><span></span>Scroll to explore Archeion</div>
       </section>
 
       <section class="library-scene section" id="library" aria-labelledby="library-title">
@@ -209,12 +209,12 @@
           <header class="section-heading section-heading--split" data-reveal>
             <div>
               <p class="section-label">Library</p>
-              <h2 id="library-title">Your folder becomes a living library.</h2>
+              <h2 id="library-title">Your collection, organized around how you read.</h2>
             </div>
-            <div class="promise-row" aria-label="Library promises">
-              <span>Real folders stay real</span>
-              <span>Covers and progress surface fast</span>
-              <span>Files remain portable</span>
+            <div class="promise-row" aria-label="Library features">
+              <span>Search across the archive</span>
+              <span>Browse folders and series</span>
+              <span>Filter by reading status</span>
             </div>
           </header>
 
@@ -237,7 +237,7 @@
                   Favorites
                 </button>
               </div>
-              <p data-library-caption>Browse the collection as a calm, cover-first surface.</p>
+              <p data-library-caption>See covers, progress, and current reads in one place.</p>
             </div>
 
             <div class="app-preview" data-library-preview aria-hidden="true" inert>
@@ -285,7 +285,7 @@
                 <div class="app-library">
                   <div class="app-library__header">
                     <div>
-                      <p data-preview-kicker>Archive overview</p>
+                      <p data-preview-kicker>All books</p>
                       <h3 data-preview-title>Library</h3>
                     </div>
                     <div class="app-library__tools">
@@ -378,38 +378,38 @@
           <div class="feature-ledger">
             <article data-reveal>
               <span>01</span>
-              <h3>Keep the shape you already use</h3>
+              <h3>Find any book quickly</h3>
               <ul>
-                <li>Open an existing EPUB archive folder</li>
-                <li>Browse nested collections as they are</li>
-                <li>Reveal the original book in your file manager</li>
+                <li>Search by title, author, and book metadata</li>
+                <li>Switch between cover grid and compact list views</li>
+                <li>Sort and filter without leaving the current folder</li>
               </ul>
             </article>
             <article data-reveal>
               <span>02</span>
-              <h3>See the collection faster</h3>
+              <h3>See what needs attention</h3>
               <ul>
-                <li>Readable titles and authors</li>
-                <li>Cover thumbnails when available</li>
-                <li>Clean fallbacks when metadata is missing</li>
+                <li>Open Smart Views for Unread, In Progress, and Completed</li>
+                <li>Find books missing metadata or covers</li>
+                <li>Filter by series, subject, language, and publisher</li>
               </ul>
             </article>
             <article data-reveal>
               <span>03</span>
-              <h3>Return without friction</h3>
+              <h3>Read series in order</h3>
               <ul>
-                <li>Continue active books</li>
-                <li>Keep favorites visible</li>
-                <li>Track reading progress quietly</li>
+                <li>Browse series with naturally ordered volumes</li>
+                <li>See reading progress across the whole series</li>
+                <li>Continue the latest volume or open the first unread one</li>
               </ul>
             </article>
             <article data-reveal>
               <span>04</span>
-              <h3>Manage the archive like a desktop library</h3>
+              <h3>Manage the collection directly</h3>
               <ul>
-                <li>Add EPUBs into the active archive</li>
-                <li>Create, rename, move, and delete real books and folders</li>
-                <li>Pick up outside changes through rescan or file watching</li>
+                <li>Add EPUBs or drop them into the active archive</li>
+                <li>Create, rename, move, and delete books and folders</li>
+                <li>Edit metadata, replace covers, and update books in bulk</li>
               </ul>
             </article>
           </div>
@@ -426,12 +426,12 @@
           <header class="section-heading section-heading--reader" data-reveal>
             <div>
               <p class="section-label">Reader</p>
-              <h2 id="reader-title">Open, read, resume.</h2>
+              <h2 id="reader-title">Read your way, then return to the exact place.</h2>
             </div>
-            <div class="promise-row promise-row--dark" aria-label="Reader promises">
-              <span>Focused reader view</span>
-              <span>Readable controls</span>
-              <span>Progress follows the book</span>
+            <div class="promise-row promise-row--dark" aria-label="Reader features">
+              <span>Paged or continuous reading</span>
+              <span>Searchable chapter list</span>
+              <span>Progress restored automatically</span>
             </div>
           </header>
 
@@ -503,9 +503,9 @@
                 />
               </div>
               <div class="reader-console__memory">
-                <span>Stored locally</span>
-                <strong>Last-read location</strong>
-                <small>.archeion/progress.json</small>
+                <span>Ready when you return</span>
+                <strong>Chapter 12 · 68%</strong>
+                <small>Resume from your last position</small>
               </div>
             </aside>
           </div>
@@ -513,13 +513,13 @@
           <div class="reader-notes" data-reveal>
             <div>
               <span class="stage-index">02</span>
-              <h3>Reader controls stay practical</h3>
+              <h3>Reading controls that follow the book</h3>
             </div>
             <ul>
-              <li>Theme, spacing, and type controls</li>
-              <li>Last-read location stored beside the archive</li>
-              <li>Local progress follows the book</li>
-              <li>Settings designed for reading, not decoration</li>
+              <li>Switch between paged and continuous reading</li>
+              <li>Search the table of contents and jump to any chapter</li>
+              <li>Move by page or chapter, then continue into the next volume</li>
+              <li>Adjust theme, typeface, size, spacing, and page width</li>
             </ul>
           </div>
         </div>
@@ -532,14 +532,12 @@
       >
         <div class="shell">
           <header class="section-heading architecture-heading" data-reveal>
-            <p class="section-label">Architecture</p>
-            <h2 id="architecture-title">
-              Institutional-grade posture without institutional bloat.
-            </h2>
-            <div class="promise-row" aria-label="Architecture principles">
-              <span>No backend dependency</span>
-              <span>Sidecar metadata</span>
-              <span>Inspectable storage</span>
+            <p class="section-label">Discover</p>
+            <h2 id="architecture-title">Move from a full archive to the right next book.</h2>
+            <div class="promise-row" aria-label="Library discovery features">
+              <span>Smart Views</span>
+              <span>Series overview</span>
+              <span>Focused filters</span>
             </div>
           </header>
 
@@ -550,42 +548,46 @@
               <div class="node-icon">
                 <svg aria-hidden="true"><use href="#icon-folder" /></svg>
               </div>
-              <h3>Filesystem truth</h3>
+              <h3>Smart Views that stay useful</h3>
               <p>
-                The archive folder remains understandable outside Archeion. EPUBs stay as files.
+                Jump straight to Unread, In Progress, Completed, Needs Metadata, or Needs Cover.
               </p>
             </article>
 
-            <div class="architecture-tree" aria-label="Example archive folder structure">
-              <div class="tree-head"><i></i><i></i><i></i><span>Moonn Archive</span></div>
-              <pre><code>Moonn Archive/
-├── Light novels/
-│   ├── orbital-mechanics.epub
-│   └── signal-and-dust.epub
-├── Research/
-│   └── the-quiet-archive.epub
-└── <b>.archeion/</b>
-    ├── library.json
-    ├── progress.json
-    ├── settings.json
-    └── scanner-cache.json</code></pre>
+            <div class="architecture-tree" aria-label="Example library views">
+              <div class="tree-head"><i></i><i></i><i></i><span>Your Library</span></div>
+              <pre><code>Your Library/
+├── Continue reading
+├── Series/
+│   ├── Orbital Mechanics
+│   └── Signal and Dust
+├── Smart Views/
+│   ├── Unread
+│   ├── In Progress
+│   └── Completed
+└── <b>Needs attention/</b>
+    ├── Metadata
+    └── Cover</code></pre>
             </div>
 
             <article class="architecture-node architecture-node--sidecar">
               <span>02</span>
-              <div class="node-icon node-icon--accent">.a</div>
-              <h3>Sidecar memory</h3>
+              <div class="node-icon node-icon--accent">S</div>
+              <h3>Series stay in reading order</h3>
               <p>
-                Progress, favorites, covers, and cache files live in <code>.archeion/</code> beside
-                the books.
+                See volumes together, spot likely gaps or duplicates, and continue from the right
+                book.
               </p>
             </article>
 
             <article class="architecture-node architecture-node--tauri">
               <span>03</span>
-              <div class="node-icon node-icon--tauri">T</div>
-              <h3>Desktop operations</h3>
-              <p>File actions go through Tauri commands with archive-root path safety checks.</p>
+              <div class="node-icon node-icon--tauri">F</div>
+              <h3>Filters work together</h3>
+              <p>
+                Combine series, subject, language, publisher, reading status, favorites, and
+                missing-info filters.
+              </p>
             </article>
           </div>
         </div>
@@ -600,11 +602,11 @@
         <div class="shell get-started__inner">
           <div class="get-started__copy" data-reveal>
             <p class="section-label">Get started</p>
-            <h2 id="get-started-title">Pull Archeion from GitHub.</h2>
+            <h2 id="get-started-title">Start with the EPUBs you already have.</h2>
             <div class="entry-points">
-              <span>Clone the source</span>
-              <span>Run the desktop app</span>
-              <span>Build releases when ready</span>
+              <span>Open an existing EPUB folder</span>
+              <span>Create a new empty archive</span>
+              <span>Choose a book and keep reading</span>
             </div>
             <a
               class="button button--light"
@@ -629,9 +631,9 @@
             <pre><code id="setup-command"><span class="prompt">❯</span> git clone https://github.com/TommyMoonn/archeion.git
 <span class="prompt">❯</span> cd archeion
 <span class="prompt">❯</span> npm install
-<span class="prompt">❯</span> npm run tauri dev</code></pre>
+<span class="prompt">❯</span> npm run tauri:dev</code></pre>
             <div class="terminal-card__status">
-              <span></span>Local source. Local archive. Local reading state.
+              <span></span>Open a folder. Choose a book. Keep reading.
             </div>
           </div>
         </div>
