@@ -165,6 +165,23 @@ describe("BookAdvancedMetadataDialog", () => {
     expect(container.querySelector("input#metadata-identifier")).toBeNull();
     expect(container.querySelector("textarea#metadata-identifier")).toBeNull();
     expect(writeButton(container).disabled).toBe(true);
+    expect(
+      container.querySelector(
+        ".metadata-writeback__field--reference.metadata-writeback__field--wide",
+      ),
+    ).not.toBeNull();
+    expect(
+      container
+        .querySelector('input[name="archeion-epub-metadata-title"]')
+        ?.closest("label")
+        ?.classList.contains("metadata-writeback__field--wide"),
+    ).toBe(true);
+    expect(
+      container
+        .querySelector('input[name="archeion-epub-metadata-language"]')
+        ?.closest("label")
+        ?.classList.contains("metadata-writeback__field--compact"),
+    ).toBe(true);
   });
 
   it("shows an empty reference state when Identifier is not embedded", () => {

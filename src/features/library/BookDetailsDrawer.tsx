@@ -132,13 +132,24 @@ export function BookDetailsDrawer({
           <div className="details-drawer__title">
             <h2 id="book-details-title">{title}</h2>
             {author ? <p>{author}</p> : null}
-            {progressDetails.hasVisiblePercentage ? (
-              <span
-                className="details-progress-pill"
-                aria-label={`Reading progress ${progressDetails.label}`}
-              >
-                {progressDetails.label}
-              </span>
+            {progressDetails.hasSavedPosition ? (
+              <div className="details-progress-controls">
+                {progressDetails.hasVisiblePercentage ? (
+                  <span
+                    className="details-progress-pill"
+                    aria-label={`Reading progress ${progressDetails.label}`}
+                  >
+                    {progressDetails.label}
+                  </span>
+                ) : null}
+                <IconButton
+                  className="details-clear-progress"
+                  label="Clear reading progress"
+                  onClick={() => onClearProgress(book)}
+                >
+                  <Eraser aria-hidden="true" size={15} />
+                </IconButton>
+              </div>
             ) : null}
           </div>
 
@@ -184,15 +195,6 @@ export function BookDetailsDrawer({
                 >
                   Edit metadata
                 </Button>
-                {progressDetails.hasSavedPosition ? (
-                  <Button
-                    icon={<Eraser aria-hidden="true" size={16} />}
-                    onClick={() => onClearProgress(book)}
-                    variant="ghost"
-                  >
-                    Clear progress
-                  </Button>
-                ) : null}
                 {canManageFile ? (
                   <>
                     <Button
@@ -207,7 +209,7 @@ export function BookDetailsDrawer({
                       onClick={() => onMoveFile(book)}
                       variant="ghost"
                     >
-                      Move file to...
+                      Choose destination
                     </Button>
                   </>
                 ) : null}

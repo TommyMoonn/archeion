@@ -90,18 +90,6 @@ function renderInteractiveDetails(renderedBook: Book, onClearProgress: (book: Bo
   return activeContainer;
 }
 
-function buttonWithText(container: HTMLElement, label: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
-    (candidate) => candidate.textContent?.trim() === label,
-  );
-
-  if (!button) {
-    throw new Error(`Button not found: ${label}`);
-  }
-
-  return button;
-}
-
 afterEach(() => {
   if (activeRoot) {
     act(() => activeRoot?.unmount());
@@ -131,7 +119,7 @@ describe("BookDetailsDrawer", () => {
 
     expect(markup).toContain("Continue reading");
     expect(markup).toContain("Start from beginning");
-    expect(markup).toContain("Clear progress");
+    expect(markup).toContain("Clear reading progress");
     expect(markup).not.toContain("details-progress-pill");
     expect(markup).not.toContain("Reading progress 0%");
   });
@@ -146,7 +134,9 @@ describe("BookDetailsDrawer", () => {
     const container = renderInteractiveDetails(savedAtStart, onClearProgress);
 
     act(() => {
-      buttonWithText(container, "Clear progress").click();
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Clear reading progress"]')
+        ?.click();
     });
 
     expect(onClearProgress).toHaveBeenCalledTimes(1);
@@ -163,7 +153,7 @@ describe("BookDetailsDrawer", () => {
     expect(markup).toContain("Read book");
     expect(markup).not.toContain("Continue reading");
     expect(markup).not.toContain("Start from beginning");
-    expect(markup).not.toContain("Clear progress");
+    expect(markup).not.toContain("Clear reading progress");
     expect(markup).not.toContain("details-progress-pill");
   });
 
@@ -171,7 +161,8 @@ describe("BookDetailsDrawer", () => {
     const withProgress = renderDetails();
 
     expect(withProgress).toContain("Start from beginning");
-    expect(withProgress).toContain("Clear progress");
+    expect(withProgress).toContain("Clear reading progress");
+    expect(withProgress).not.toContain(">Clear progress<");
     expect(withProgress).toContain("details-actions__secondary");
   });
 
@@ -213,6 +204,8 @@ describe("BookDetailsDrawer", () => {
 
     expect(revealButtonMarkup).toBeDefined();
     expect(revealButtonMarkup).not.toContain("details-actions__wide");
+    expect(withFileManagement).toContain("Choose destination");
+    expect(withFileManagement).not.toContain("Move file to...");
 
     const revealOnly = renderDetails(book, { canManageFile: false });
 

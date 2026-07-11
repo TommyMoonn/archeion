@@ -1003,7 +1003,7 @@ html[data-motion="on"] .details-drawer[open] {
   max-width: 100%;
   min-height: 24px;
   padding: 0 9px;
-  margin-top: 13px;
+  margin: 0;
   color: var(--text);
   font-size: 11px;
   font-weight: 650;
@@ -1012,6 +1012,26 @@ html[data-motion="on"] .details-drawer[open] {
   background: color-mix(in srgb, var(--accent) 9%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
   border-radius: 999px;
+}
+
+.details-progress-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 13px;
+}
+
+.details-clear-progress {
+  width: 24px;
+  height: 24px;
+  color: var(--muted-soft);
+  border-radius: 999px;
+}
+
+.details-clear-progress:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--surface-raised);
 }
 
 .details-actions {
@@ -1463,6 +1483,10 @@ html[data-motion="on"] .details-drawer[open] {
   min-width: 0;
 }
 
+.metadata-writeback__group--core .metadata-writeback__grid {
+  grid-template-columns: minmax(0, 1fr) minmax(112px, 0.34fr);
+}
+
 .metadata-writeback__field {
   display: grid;
   gap: 6px;
@@ -1521,6 +1545,35 @@ html[data-motion="on"] .details-drawer[open] {
 
 .metadata-writeback__field--wide {
   grid-column: 1 / -1;
+}
+
+.metadata-writeback__field--compact {
+  max-width: 180px;
+}
+
+.metadata-writeback__field--reference {
+  grid-template-columns: 92px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0 2px;
+  border-top: 1px solid var(--line);
+}
+
+.metadata-writeback__field--reference .metadata-writeback__reference-value {
+  display: block;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--muted);
+  background: transparent;
+  font-family: ui-monospace, "Cascadia Mono", "Segoe UI Mono", monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: right;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .metadata-writeback__changes ul {
@@ -1584,6 +1637,14 @@ html[data-motion="on"] .details-drawer[open] {
 
   .metadata-writeback__grid {
     grid-template-columns: 1fr;
+  }
+
+  .metadata-writeback__group--core .metadata-writeback__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .metadata-writeback__field--compact {
+    max-width: none;
   }
 }
 

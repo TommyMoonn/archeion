@@ -1129,7 +1129,14 @@ describe("LibraryPage", () => {
         ?.click();
     });
 
-    const clearProgressButton = await waitForButtonWithText(session.container, "Clear progress");
+    let clearProgressButton: HTMLButtonElement | null = null;
+    for (let attempt = 0; attempt < 10 && !clearProgressButton; attempt += 1) {
+      clearProgressButton = session.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Clear reading progress"]',
+      );
+      if (!clearProgressButton) await act(async () => Promise.resolve());
+    }
+    if (!clearProgressButton) throw new Error("Clear reading progress button was not rendered.");
     await act(async () => {
       clearProgressButton.click();
     });

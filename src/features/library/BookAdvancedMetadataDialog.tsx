@@ -214,7 +214,9 @@ function MetadataFieldGroup({
   onFieldChange: MetadataFieldUpdate;
 }) {
   return (
-    <section className="metadata-writeback__group">
+    <section
+      className={`metadata-writeback__group ${group.title === "Core metadata" ? "metadata-writeback__group--core" : ""}`.trim()}
+    >
       <h3>{group.title}</h3>
       <div className="metadata-writeback__grid">
         {group.fields.map((field) => (
@@ -253,7 +255,7 @@ function MetadataFieldControl({
     const labelId = "metadata-identifier-label";
 
     return (
-      <div className="metadata-writeback__field metadata-writeback__field--reference">
+      <div className="metadata-writeback__field metadata-writeback__field--reference metadata-writeback__field--wide">
         <span id={labelId}>{label}</span>
         <div
           aria-labelledby={labelId}
@@ -269,9 +271,13 @@ function MetadataFieldControl({
   const id = textInputId(field);
   const value = form[field];
   const placeholder = fieldPlaceholder(book, field);
-  const className = isTextAreaField(field)
-    ? "metadata-writeback__field metadata-writeback__field--wide"
-    : "metadata-writeback__field";
+  const className = [
+    "metadata-writeback__field",
+    isTextAreaField(field) || field === "title" ? "metadata-writeback__field--wide" : "",
+    field === "language" ? "metadata-writeback__field--compact" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <label className={className}>
@@ -404,6 +410,7 @@ export function BookAdvancedMetadataDialog({
   return (
     <Dialog
       className="dialog--metadata-writeback"
+      closeOnBackdropClick={false}
       title="Edit EPUB metadata"
       onClose={onClose}
       footer={

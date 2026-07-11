@@ -5,12 +5,22 @@ type DialogProps = {
   className?: string;
   description?: string;
   footer?: ReactNode;
+  closeOnBackdropClick?: boolean;
   onClose: () => void;
   title: string;
 };
 
-export function Dialog({ children, className, description, footer, onClose, title }: DialogProps) {
+export function Dialog({
+  children,
+  className,
+  closeOnBackdropClick = true,
+  description,
+  footer,
+  onClose,
+  title,
+}: DialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const pointerStartedOnBackdropRef = useRef(false);
   const descriptionId = useId();
   const titleId = useId();
 
@@ -40,9 +50,17 @@ export function Dialog({ children, className, description, footer, onClose, titl
         onClose();
       }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) {
+        if (
+          closeOnBackdropClick &&
+          pointerStartedOnBackdropRef.current &&
+          event.target === event.currentTarget
+        ) {
           onClose();
         }
+        pointerStartedOnBackdropRef.current = false;
+      }}
+      onPointerDown={(event) => {
+        pointerStartedOnBackdropRef.current = event.target === event.currentTarget;
       }}
     >
       <div className="dialog__panel">

@@ -138,6 +138,7 @@ export function AddEpubDialog({
   if (replaceConfirmationOpen) {
     return (
       <Dialog
+        closeOnBackdropClick={initialSourcePaths.length === 0}
         title="Replace existing EPUB files?"
         description="Files with matching names will be replaced. Existing files are preserved until each replacement succeeds."
         onClose={() => {
@@ -165,6 +166,7 @@ export function AddEpubDialog({
 
   return (
     <Dialog
+      closeOnBackdropClick={initialSourcePaths.length === 0}
       title="Add EPUB files"
       onClose={() => {
         if (!isImporting) {
