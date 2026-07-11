@@ -21,14 +21,23 @@ $semVerPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\
 function Read-JsonFile {
     param(
         [Parameter(Mandatory)]
-        [string]$Path
+        [string]$Path,
+
+        [Parameter()]
+        [switch]$AsHashtable
     )
 
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
         throw "Required release file does not exist: $Path"
     }
 
-    return Get-Content -Raw -LiteralPath $Path | ConvertFrom-Json
+    $source = Get-Content -Raw -LiteralPath $Path
+
+    if ($AsHashtable) {
+        return $source | ConvertFrom-Json -AsHashtable
+    }
+
+    return $source | ConvertFrom-Json
 }
 
 function Get-CargoPackageVersion {
@@ -76,19 +85,24 @@ $tauriConfigPath = Join-Path $ProjectRoot "src-tauri/tauri.conf.json"
 $changelogPath = Join-Path $ProjectRoot "CHANGELOG.md"
 
 $packageJson = Read-JsonFile -Path $packagePath
-$packageLock = Read-JsonFile -Path $packageLockPath
+$packageLock = Read-JsonFile -Path $packageLockPath -AsHashtable
 $tauriConfig = Read-JsonFile -Path $tauriConfigPath
 $cargoToml = Get-Content -Raw -LiteralPath $cargoTomlPath
 $cargoLock = Get-Content -Raw -LiteralPath $cargoLockPath
-$packageLockRoot = $packageLock.packages.PSObject.Properties[""].Value
 
+$packageLockPackages = $packageLock["packages"]
+if ($null -eq $packageLockPackages) {
+    throw "package-lock.json does not contain the packages map."
+}
+
+$packageLockRoot = $packageLockPackages[""]
 if ($null -eq $packageLockRoot) {
     throw "package-lock.json does not contain the root package entry."
 }
 
 $versions = [ordered]@{
     "package.json" = [string]$packageJson.version
-    "package-lock.json" = [string]$packageLockRoot.version
+    "package-lock.json" = [string]$packageLockRoot["version"]
     "src-tauri/Cargo.toml" = Get-CargoPackageVersion -Source $cargoToml
     "src-tauri/Cargo.lock" = Get-CargoLockPackageVersion -Source $cargoLock
     "src-tauri/tauri.conf.json" = [string]$tauriConfig.version
