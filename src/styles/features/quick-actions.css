@@ -49,12 +49,11 @@ html[data-motion="on"] .quick-actions[open] {
 
 .quick-actions__search input {
   height: 38px;
-  padding-left: 40px;
+  padding: 0;
   color: var(--text-strong);
   font-size: 15px;
 }
 
-.quick-actions__search > kbd,
 .quick-actions__command > kbd,
 .quick-actions__footer kbd {
   border: 1px solid var(--line);
@@ -107,8 +106,7 @@ html[data-motion="on"] .quick-actions[open] {
 
 .quick-actions__command-copy {
   min-width: 0;
-  display: grid;
-  gap: 3px;
+  display: block;
 }
 
 .quick-actions__command-copy strong {
@@ -210,7 +208,6 @@ html[data-motion="on"] .quick-actions[open] {
 }
 
 @media (max-width: 520px) {
-  .quick-actions__search > kbd,
   .quick-actions__footer {
     display: none;
   }

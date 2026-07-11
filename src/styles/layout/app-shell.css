@@ -18,11 +18,15 @@
   background: var(--surface-sidebar);
 }
 
+.sidebar :where(button, a, summary):focus-visible {
+  outline-offset: -2px;
+}
+
 .sidebar__nav {
   display: grid;
   gap: 4px;
   margin-top: 0;
-  padding-right: 4px;
+  padding-right: 8px;
 }
 
 .nav-item {
@@ -82,7 +86,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 3px 0 8px;
+  padding: 0 7px 0 8px;
 }
 
 .sidebar__section-heading .icon-button {
@@ -97,6 +101,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+  padding-right: 4px;
 }
 
 .section-label {
@@ -119,7 +124,7 @@
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 2px;
-  padding: 10px 16px 0 0;
+  padding: 10px 20px 0 0;
   margin-top: auto;
   border-top: 1px solid var(--surface-border);
 }

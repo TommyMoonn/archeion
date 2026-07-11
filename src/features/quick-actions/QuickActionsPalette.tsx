@@ -1,4 +1,3 @@
-import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSyncExternalStore } from "react";
 
@@ -110,7 +109,6 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
-            icon={<MagnifyingGlass aria-hidden="true" size={19} />}
             label="Search Quick Actions"
             onChange={(event) => {
               setQuery(event.currentTarget.value);
@@ -160,7 +158,6 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
             type="search"
             value={query}
           />
-          <kbd>Ctrl Shift P</kbd>
         </div>
 
         <div
@@ -191,12 +188,12 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
                   type="button"
                 >
                   <span className="quick-actions__command-copy">
-                    <strong>{command.label}</strong>
+                    <strong>
+                      {command.group}: {command.label}
+                    </strong>
                     {command.disabledReason ? (
                       <span id={reasonId}>{command.disabledReason}</span>
-                    ) : (
-                      <span>{command.group}</span>
-                    )}
+                    ) : null}
                   </span>
                   {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
                 </button>

@@ -65,6 +65,10 @@ describe("QuickActionsPalette", () => {
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
 
     expect(document.activeElement).toBe(input);
+    expect(rendered.container.querySelector(".quick-actions__search > kbd")).toBeNull();
+    expect(rendered.container.querySelector(".quick-actions__command strong")?.textContent).toBe(
+      "Library: First action",
+    );
 
     await act(async () => {
       input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
