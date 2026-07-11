@@ -42,6 +42,13 @@ import { ReaderToolbar } from "./ReaderToolbar";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
+import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import {
+  isQuickActionsShortcut,
+  isTextEntryTarget,
+  QUICK_ACTION_SEARCH_BOOKS_REQUEST,
+  type QuickActionCommand,
+} from "../quick-actions/quickActions";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -59,6 +66,7 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
+  const { openPalette } = useQuickActions();
   const settings = useReaderPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
@@ -166,6 +174,12 @@ export function ReaderPage() {
     setSettingsOpen(true);
   }, []);
 
+  const openToc = useCallback(() => {
+    setControlsVisible(true);
+    setSettingsOpen(false);
+    setTocOpen(true);
+  }, []);
+
   const toggleToc = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
@@ -176,6 +190,118 @@ export function ReaderPage() {
     setTocOpen(false);
     window.requestAnimationFrame(() => tocButtonRef.current?.focus());
   }, []);
+
+  const navigateToLibraryView = useCallback(
+    (view: "continue" | "favorites" | "folders" | "library" | "series", focusSearch = false) => {
+      const params = new URLSearchParams();
+      params.set("view", view);
+      if (activeArchiveId) {
+        params.set("archiveId", activeArchiveId);
+      }
+
+      void navigate(`/?${params.toString()}`, {
+        state: focusSearch ? { quickAction: QUICK_ACTION_SEARCH_BOOKS_REQUEST } : undefined,
+      });
+    },
+    [activeArchiveId, navigate],
+  );
+
+  const quickActionCommands = useMemo<QuickActionCommand[]>(() => {
+    const tocDisabledReason =
+      navigationState.status === "loading"
+        ? "The table of contents is still loading."
+        : navigationState.chapters.length === 0
+          ? "This book has no usable table of contents."
+          : undefined;
+
+    return [
+      {
+        execute: () => navigateToLibraryView("library", true),
+        group: "Library",
+        id: "reader.search-books",
+        keywords: ["find books", "search library"],
+        label: "Search books",
+        order: 40,
+      },
+      {
+        execute: () => navigateToLibraryView("library"),
+        group: "Navigate",
+        id: "reader.navigate.library",
+        keywords: ["go to collection", "home"],
+        label: "Go to Library",
+        order: 50,
+      },
+      {
+        execute: () => navigateToLibraryView("continue"),
+        group: "Navigate",
+        id: "reader.navigate.continue",
+        keywords: ["in progress", "continue reading"],
+        label: "Go to Continue",
+        order: 51,
+      },
+      {
+        execute: () => navigateToLibraryView("favorites"),
+        group: "Navigate",
+        id: "reader.navigate.favorites",
+        keywords: ["favorite books", "starred"],
+        label: "Go to Favorites",
+        order: 52,
+      },
+      {
+        execute: () => navigateToLibraryView("folders"),
+        group: "Navigate",
+        id: "reader.navigate.folders",
+        keywords: ["browse folders", "organization"],
+        label: "Go to Folders",
+        order: 53,
+      },
+      {
+        execute: () => navigateToLibraryView("series"),
+        group: "Navigate",
+        id: "reader.navigate.series",
+        keywords: ["browse series", "collections"],
+        label: "Go to Series",
+        order: 54,
+      },
+      {
+        disabledReason: "Return to the Library to add EPUB files.",
+        execute: () => undefined,
+        group: "Library",
+        id: "reader.add-epubs-unavailable",
+        keywords: ["import books", "add files"],
+        label: "Add EPUBs",
+        order: 60,
+      },
+      {
+        disabledReason: "Return to the Library to create a folder.",
+        execute: () => undefined,
+        group: "Library",
+        id: "reader.create-folder-unavailable",
+        keywords: ["new folder", "organize books"],
+        label: "Create folder",
+        order: 61,
+      },
+      {
+        disabledReason: "Return to the Library to rescan the archive.",
+        execute: () => undefined,
+        group: "Library",
+        id: "reader.rescan-unavailable",
+        keywords: ["refresh archive", "scan files"],
+        label: "Rescan archive",
+        order: 62,
+      },
+      {
+        disabledReason: tocDisabledReason,
+        execute: openToc,
+        group: "Reader",
+        id: "reader.open-toc",
+        keywords: ["reader toc", "chapters", "contents"],
+        label: "Open reader TOC",
+        order: 80,
+      },
+    ];
+  }, [navigateToLibraryView, navigationState.chapters.length, navigationState.status, openToc]);
+  useRegisterQuickActions("reader", quickActionCommands);
 
   const navigateToChapter = useCallback((chapterId: string) => {
     return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
@@ -353,9 +479,15 @@ export function ReaderPage() {
 
   const handleContentKeyDown = useCallback(
     (event: KeyboardEvent) => {
+      if (isQuickActionsShortcut(event) && !isTextEntryTarget(event.target)) {
+        event.preventDefault();
+        openPalette();
+        return;
+      }
+
       handleReaderKeyDown(event, true);
     },
-    [handleReaderKeyDown],
+    [handleReaderKeyDown, openPalette],
   );
 
   useEffect(() => {
@@ -401,6 +533,13 @@ export function ReaderPage() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.target instanceof Element &&
+        event.target.closest("[data-reader-ignore-shortcuts]")
+      ) {
+        return;
+      }
+
       handleReaderKeyDown(event, true);
     }
 

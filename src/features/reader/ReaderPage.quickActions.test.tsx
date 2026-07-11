@@ -1,0 +1,380 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { createMemoryRouter, RouterProvider } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import type { LibraryStorage } from "../../storage/LibraryStorage";
+import { LibraryStorageContext } from "../../storage/useLibraryStorage";
+import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import type { Book } from "../../types/book";
+import { ReaderRoute } from "./ReaderPage";
+
+const viewerMock = vi.hoisted(() => ({
+  onKeyDown: null as ((event: KeyboardEvent) => void) | null,
+}));
+
+const navigationState = {
+  chapters: [{ id: "chapter-1", label: "Chapter 1", depth: 0 }],
+  currentChapterId: "chapter-1",
+  status: "ready" as const,
+};
+
+vi.mock("./EpubViewer", async () => {
+  const React = await import("react");
+
+  return {
+    EpubViewer: React.forwardRef(function MockEpubViewer(
+      {
+        onKeyDown,
+        onLocationChange,
+        onNavigationChange,
+        onReady,
+      }: {
+        onKeyDown: (event: KeyboardEvent) => void;
+        onLocationChange: (location: {
+          atEnd: boolean;
+          atStart: boolean;
+          cfi: string;
+          percentage: number;
+        }) => void;
+        onNavigationChange: (navigation: typeof navigationState) => void;
+        onReady: () => void;
+      },
+      ref: React.ForwardedRef<unknown>,
+    ) {
+      React.useImperativeHandle(ref, () => ({
+        navigateToChapter: vi.fn().mockResolvedValue(true),
+        next: vi.fn().mockResolvedValue(undefined),
+        previous: vi.fn().mockResolvedValue(undefined),
+      }));
+      const initialCallbacks = React.useRef({
+        onLocationChange,
+        onNavigationChange,
+        onReady,
+      });
+
+      React.useEffect(() => {
+        viewerMock.onKeyDown = onKeyDown;
+        return () => {
+          if (viewerMock.onKeyDown === onKeyDown) {
+            viewerMock.onKeyDown = null;
+          }
+        };
+      }, [onKeyDown]);
+
+      React.useEffect(() => {
+        const callbacks = initialCallbacks.current;
+        callbacks.onNavigationChange(navigationState);
+        callbacks.onLocationChange({
+          atEnd: false,
+          atStart: false,
+          cfi: "epubcfi(/6/4)",
+          percentage: 20,
+        });
+        callbacks.onReady();
+      }, []);
+
+      return <iframe data-testid="epub-viewer" title="EPUB rendition" />;
+    }),
+  };
+});
+
+vi.mock("../archive/useArchive", () => ({
+  useArchive: () => ({ status: "ready", archive: { id: "archive-books" } }),
+}));
+
+const readyArchive: ArchiveState = {
+  status: "ready",
+  path: "D:\\Books",
+  archive: {
+    id: "archive-books",
+    displayName: "Books",
+    rootPath: "D:\\Books",
+    createdAt: "1",
+    lastOpenedAt: "2",
+  },
+  archives: [
+    {
+      id: "archive-books",
+      displayName: "Books",
+      rootPath: "D:\\Books",
+      createdAt: "1",
+      lastOpenedAt: "2",
+    },
+  ],
+  error: null,
+  watcherError: null,
+};
+
+const book: Book = {
+  addedAt: "2026-07-01T00:00:00.000Z",
+  fileName: "book.epub",
+  id: "book",
+  isFavorite: false,
+  originalTitle: "Book",
+  updatedAt: "2026-07-01T00:00:00.000Z",
+};
+
+let root: Root | null = null;
+let container: HTMLDivElement | null = null;
+
+function createStorage(): LibraryStorage {
+  return {
+    loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
+    listBooks: vi.fn().mockResolvedValue([book]),
+    updateBook: vi.fn().mockImplementation(async (_id, changes) => ({ ...book, ...changes })),
+  } as unknown as LibraryStorage;
+}
+
+function setInputValue(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+async function renderReader() {
+  const returnContext = {
+    archiveId: "archive-books",
+    focusBookId: "book",
+    href: "/?view=favorites&archiveId=archive-books",
+    label: "Favorites",
+    query: "favorite",
+    scrollTop: 180,
+  };
+  const router = createMemoryRouter(
+    [
+      {
+        HydrateFallback: () => null,
+        path: "/reader/:bookId",
+        element: <ReaderRoute />,
+        loader: () => book,
+      },
+      { path: "/", element: <div data-testid="library" /> },
+    ],
+    {
+      initialEntries: [
+        {
+          pathname: "/reader/book",
+          state: { readerReturnContext: returnContext },
+        },
+      ],
+    },
+  );
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+
+  await act(async () => {
+    root?.render(
+      <LibraryStorageContext.Provider value={createStorage()}>
+        <QuickActionsProvider>
+          <RouterProvider router={router} />
+        </QuickActionsProvider>
+      </LibraryStorageContext.Provider>,
+    );
+  });
+
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    if (container.querySelector(".reader-page")) {
+      break;
+    }
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+  }
+
+  return { container, returnContext, router };
+}
+
+async function openPalette(): Promise<HTMLInputElement> {
+  const target = container?.querySelector<HTMLElement>(".reader-page");
+  if (!target) {
+    throw new Error("Reader page was not rendered.");
+  }
+
+  await act(async () => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        key: "p",
+        shiftKey: true,
+      }),
+    );
+  });
+
+  return openPaletteSearch();
+}
+
+async function openPaletteSearch(): Promise<HTMLInputElement> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    const input = document.querySelector<HTMLInputElement>(
+      '.quick-actions input[placeholder="Type a command"]',
+    );
+    if (input) {
+      return input;
+    }
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+    });
+  }
+
+  throw new Error("Quick Actions search was not rendered.");
+}
+
+function getRenditionFrame(): HTMLIFrameElement {
+  const frame = container?.querySelector<HTMLIFrameElement>('iframe[data-testid="epub-viewer"]');
+  if (!frame?.contentDocument?.body || !frame.contentWindow) {
+    throw new Error("EPUB rendition document was not rendered.");
+  }
+  return frame;
+}
+
+function createRenditionTarget<K extends keyof HTMLElementTagNameMap>(
+  tagName: K,
+): HTMLElementTagNameMap[K] {
+  const frame = getRenditionFrame();
+  const target = frame.contentDocument!.createElement(tagName);
+  frame.contentDocument!.body.append(target);
+  return target;
+}
+
+function dispatchRenditionShortcut(target: HTMLElement): KeyboardEvent {
+  const view = target.ownerDocument.defaultView;
+  if (!view) {
+    throw new Error("EPUB rendition window was not available.");
+  }
+
+  const event = new view.KeyboardEvent("keydown", {
+    bubbles: true,
+    cancelable: true,
+    ctrlKey: true,
+    key: "p",
+    shiftKey: true,
+  });
+  target.addEventListener(
+    "keydown",
+    (forwardedEvent) => viewerMock.onKeyDown?.(forwardedEvent as KeyboardEvent),
+    { once: true },
+  );
+  target.dispatchEvent(event);
+  return event;
+}
+
+beforeEach(() => {
+  vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
+  vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
+  vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+    callback(0);
+    return 1;
+  });
+});
+
+afterEach(() => {
+  if (root) {
+    act(() => root?.unmount());
+  }
+  container?.remove();
+  root = null;
+  container = null;
+  vi.restoreAllMocks();
+  document.body.innerHTML = "";
+});
+
+describe("ReaderPage Quick Actions", () => {
+  it("opens the existing TOC action without changing the reader route or return context", async () => {
+    const rendered = await renderReader();
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Open reader TOC"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      if (rendered.container.querySelector(".reader-toc")) {
+        break;
+      }
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    }
+
+    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+  });
+
+  it("ignores a rendition-forwarded shortcut from an iframe text input", async () => {
+    const rendered = await renderReader();
+    const input = createRenditionTarget("input");
+    input.type = "text";
+    await act(async () => input.focus());
+
+    let shortcutEvent!: KeyboardEvent;
+    await act(async () => {
+      shortcutEvent = dispatchRenditionShortcut(input);
+      await Promise.resolve();
+    });
+
+    expect(shortcutEvent.defaultPrevented).toBe(false);
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+  });
+
+  it("opens from ordinary iframe content and restores focus without changing reader context", async () => {
+    const rendered = await renderReader();
+    const frame = getRenditionFrame();
+    const paragraph = createRenditionTarget("p");
+    await act(async () => frame.focus());
+    expect(document.activeElement).toBe(frame);
+
+    let shortcutEvent!: KeyboardEvent;
+    await act(async () => {
+      shortcutEvent = dispatchRenditionShortcut(paragraph);
+    });
+
+    const search = await openPaletteSearch();
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(search);
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    });
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(document.activeElement).toBe(frame);
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+  });
+
+  it("closes the palette on Escape before the reader handles its own Back action", async () => {
+    const rendered = await renderReader();
+    const search = await openPalette();
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    });
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+  });
+});

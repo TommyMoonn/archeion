@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 
 import { CheckSquare, GridFour, List, Plus, MagnifyingGlass, X } from "@phosphor-icons/react";
 
@@ -32,6 +32,7 @@ type LibraryToolbarProps = {
   onViewChange: (view: LibraryView) => void;
   query: string;
   resultCount: number;
+  searchInputRef?: Ref<HTMLInputElement>;
   selectionMode: boolean;
   sort: LibrarySort;
   title: string;
@@ -71,6 +72,7 @@ export function LibraryToolbar({
   onViewChange,
   query,
   resultCount,
+  searchInputRef,
   selectionMode,
   sort,
   title,
@@ -93,6 +95,7 @@ export function LibraryToolbar({
             label="Search library"
             name="archeion-library-search"
             placeholder="Search books"
+            ref={searchInputRef}
             spellCheck={false}
             value={query}
             onChange={(event) => onQueryChange(event.currentTarget.value)}

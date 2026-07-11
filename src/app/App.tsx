@@ -11,6 +11,7 @@ import {
   quitFromStartup,
 } from "../features/archive/archiveManagerLifecycle";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
+import { QuickActionsProvider } from "../features/quick-actions/QuickActionsProvider";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
 import { archiveStore } from "../stores/archiveStore";
 import { startNavigationStateTracking } from "./navigationState";
@@ -240,9 +241,11 @@ function MainWindowApp() {
       <div className="window-app__content">
         <AppErrorBoundary>
           <LibraryStorageProvider>
-            <ArchiveGate>
-              <RouterProvider router={router} />
-            </ArchiveGate>
+            <QuickActionsProvider>
+              <ArchiveGate>
+                <RouterProvider router={router} />
+              </ArchiveGate>
+            </QuickActionsProvider>
           </LibraryStorageProvider>
         </AppErrorBoundary>
       </div>

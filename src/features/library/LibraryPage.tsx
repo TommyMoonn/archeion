@@ -48,6 +48,8 @@ import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { useArchive } from "../archive/useArchive";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
+import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import { requestsBookSearch, type QuickActionCommand } from "../quick-actions/quickActions";
 import {
   shouldConfirmBookDeletion,
   shouldConfirmFolderDeletion,
@@ -130,10 +132,6 @@ const loadFolderRenameDialog = () =>
   import("../folders/FolderRenameDialog").then((module) => ({
     default: module.FolderRenameDialog,
   }));
-const loadSettingsDialog = () =>
-  import("../settings/SettingsDialog").then((module) => ({
-    default: module.SettingsDialog,
-  }));
 const loadReaderPage = () => import("../reader/ReaderPage");
 const loadSeriesDetail = () =>
   import("../series/SeriesDetail").then((module) => ({ default: module.SeriesDetail }));
@@ -150,7 +148,6 @@ const BookCoverWritebackDialog = lazy(loadBookCoverWritebackDialog);
 const BulkMetadataDialog = lazy(loadBulkMetadataDialog);
 const FolderCreateDialog = lazy(loadFolderCreateDialog);
 const FolderRenameDialog = lazy(loadFolderRenameDialog);
-const SettingsDialog = lazy(loadSettingsDialog);
 const SeriesDetail = lazy(loadSeriesDetail);
 const SeriesOverview = lazy(loadSeriesOverview);
 
@@ -172,10 +169,6 @@ function preloadBookCoverWritebackDialog() {
 
 function preloadReaderPage() {
   void loadReaderPage();
-}
-
-function preloadSettingsDialog() {
-  void loadSettingsDialog();
 }
 
 function getLocationKey(location: LibraryLocation): string {
@@ -238,6 +231,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [activeArchive.id, routerLocation.state],
   );
   const storage = useLibraryStorage();
+  const { openSettings, preloadSettings } = useQuickActions();
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
   const { confirmDestructiveFileActions } = useAppPreferences();
@@ -249,6 +243,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
   const [folders, setFolders] = useState<Folder[] | undefined>();
   const pageShellRef = useRef<HTMLElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const returnContextRestoredRef = useRef(false);
   const importLock = useRef(false);
   const deleteLock = useRef(false);
@@ -256,6 +251,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [isImporting, setIsImporting] = useState(false);
   const [feedbackTokens, setFeedbackTokens] = useState<LibraryFeedbackToken[]>([]);
   const [query, setQuery] = useState(() => restoreContext?.query ?? "");
+  const [searchFocusRequest, setSearchFocusRequest] = useState(() =>
+    requestsBookSearch(routerLocation.state) ? 1 : 0,
+  );
   const [seriesQuery, setSeriesQuery] = useState(() => restoreContext?.seriesQuery ?? "");
   const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
     defaultArchiveImportSettings,
@@ -283,7 +281,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const [bulkMetadataOpen, setBulkMetadataOpen] = useState(false);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const debouncedQuery = useDebouncedValue(query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
@@ -362,7 +359,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       preloadBookDetailsDrawer();
       preloadBookAdvancedMetadataDialog();
       preloadBookCoverWritebackDialog();
-      preloadSettingsDialog();
+      preloadSettings();
       preloadAboutDialog();
     };
     const idleWindow = window as Window & {
@@ -384,7 +381,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     const timeoutId = window.setTimeout(preloadPrimarySurfaces, 1200);
 
     return () => window.clearTimeout(timeoutId);
-  }, []);
+  }, [preloadSettings]);
 
   useEffect(() => {
     let active = true;
@@ -729,6 +726,24 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     scrollMainContentToTop();
   }, [scrollMainContentToTop]);
 
+  const openBookSearch = useCallback(() => {
+    changeLocation({ type: "library" });
+    setSearchFocusRequest((request) => request + 1);
+  }, [changeLocation]);
+
+  useEffect(() => {
+    if (searchFocusRequest === 0 || location.type !== "library") {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      searchInputRef.current?.focus({ preventScroll: true });
+      searchInputRef.current?.select();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.type, searchFocusRequest]);
+
   const deleteBook = useCallback(
     async (book: Book) => {
       if (deleteLock.current) {
@@ -919,7 +934,96 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, []);
   const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);
-  const openSettings = useCallback(() => setSettingsOpen(true), []);
+
+  const quickActionCommands = useMemo<QuickActionCommand[]>(
+    () => [
+      {
+        execute: openBookSearch,
+        group: "Library",
+        id: "library.search",
+        keywords: ["find books", "search library"],
+        label: "Search books",
+        order: 40,
+      },
+      {
+        execute: () => changeLocation({ type: "library" }),
+        group: "Navigate",
+        id: "navigate.library",
+        keywords: ["go to collection", "home"],
+        label: "Go to Library",
+        order: 50,
+      },
+      {
+        execute: () => changeLocation({ type: "continue" }),
+        group: "Navigate",
+        id: "navigate.continue",
+        keywords: ["in progress", "continue reading"],
+        label: "Go to Continue",
+        order: 51,
+      },
+      {
+        execute: () => changeLocation({ type: "favorites" }),
+        group: "Navigate",
+        id: "navigate.favorites",
+        keywords: ["favorite books", "starred"],
+        label: "Go to Favorites",
+        order: 52,
+      },
+      {
+        execute: () => changeLocation({ type: "folders" }),
+        group: "Navigate",
+        id: "navigate.folders",
+        keywords: ["browse folders", "organization"],
+        label: "Go to Folders",
+        order: 53,
+      },
+      {
+        execute: () => changeLocation({ type: "series" }),
+        group: "Navigate",
+        id: "navigate.series",
+        keywords: ["browse series", "collections"],
+        label: "Go to Series",
+        order: 54,
+      },
+      {
+        disabledReason: isImporting ? "Wait for the current EPUB import to finish." : undefined,
+        execute: openAddEpub,
+        group: "Library",
+        id: "library.add-epubs",
+        keywords: ["import books", "add files"],
+        label: "Add EPUBs",
+        order: 60,
+      },
+      {
+        execute: openCreateFolder,
+        group: "Library",
+        id: "library.create-folder",
+        keywords: ["new folder", "organize books"],
+        label: "Create folder",
+        order: 61,
+      },
+      {
+        disabledReason: isImporting ? "Wait for the current EPUB import to finish." : undefined,
+        execute: () => setRescanConfirmationOpen(true),
+        group: "Library",
+        id: "library.rescan",
+        keywords: ["refresh archive", "scan files"],
+        label: "Rescan archive",
+        order: 62,
+      },
+      {
+        disabledReason: "Open a book to use its table of contents.",
+        execute: () => undefined,
+        group: "Reader",
+        id: "reader.open-toc-unavailable",
+        keywords: ["reader toc", "chapters", "contents"],
+        label: "Open reader TOC",
+        order: 80,
+      },
+    ],
+    [changeLocation, isImporting, openAddEpub, openBookSearch, openCreateFolder],
+  );
+  useRegisterQuickActions("library", quickActionCommands);
 
   async function rescanLibrary() {
     dismissFeedback("library-error");
@@ -1237,7 +1341,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpenAbout={openAbout}
           onOpenSettings={openSettings}
           onPreloadAbout={preloadAboutDialog}
-          onPreloadSettings={preloadSettingsDialog}
+          onPreloadSettings={preloadSettings}
           onRenameFolder={setRenameFolderTarget}
           onRevealFolder={(folder) => void revealFolder(folder)}
           onSwitchArchive={(archive) => void switchArchive(archive.id)}
@@ -1322,6 +1426,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onToggleSelectionMode={toggleSelectionMode}
             onViewChange={changeView}
             query={query}
+            searchInputRef={searchInputRef}
             resultCount={visibleBooks.length}
             selectionMode={selectionMode}
             sort={effectiveSort}
@@ -1495,11 +1600,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         </Suspense>
       ) : null}
 
-      {settingsOpen ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
-          <SettingsDialog onClose={() => setSettingsOpen(false)} />
-        </Suspense>
-      ) : null}
       {aboutOpen ? (
         <Suspense fallback={<DialogLoadingFallback label="Opening About" />}>
           <AboutDialog onClose={() => setAboutOpen(false)} />
