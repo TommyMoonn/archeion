@@ -33,6 +33,7 @@ type FolderBrowserProps = {
   onRename?: (folder: Folder) => void;
   onReveal?: (folder: Folder) => void;
   onViewChange?: (view: FolderBrowserView) => void;
+  activeImportDropTargetId?: string | null;
   view?: FolderBrowserView;
 };
 
@@ -65,6 +66,7 @@ export function FolderBrowser({
   onRename,
   onReveal,
   onViewChange,
+  activeImportDropTargetId,
   view: controlledView,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
@@ -164,7 +166,16 @@ export function FolderBrowser({
             const bookCount = bookCounts.get(folder.id) ?? 0;
 
             return (
-              <article className="folder-browser__item" key={folder.id}>
+              <article
+                className="folder-browser__item"
+                data-import-drop-active={
+                  activeImportDropTargetId === `folder-browser:${folder.id}` || undefined
+                }
+                data-import-drop-destination={folder.relativePath}
+                data-import-drop-id={`folder-browser:${folder.id}`}
+                data-import-drop-target={folder.relativePath ? "true" : undefined}
+                key={folder.id}
+              >
                 <button
                   className="folder-browser__open"
                   onClick={() => onOpen(folder)}

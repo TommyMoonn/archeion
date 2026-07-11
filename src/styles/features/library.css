@@ -374,6 +374,16 @@ html[data-motion="on"] .library-content {
   min-height: calc(100dvh - 94px);
 }
 
+.page-shell[data-import-drop-active="true"] {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--accent) 52%, transparent);
+}
+
+.nav-item[data-import-drop-active="true"] {
+  color: var(--text-strong);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 42%, transparent);
+}
+
 .drop-overlay {
   position: fixed;
   z-index: 10;

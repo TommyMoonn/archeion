@@ -39,6 +39,11 @@ import {
   shouldConfirmBookDeletion,
   shouldConfirmFolderDeletion,
 } from "../filesystem/destructiveActionPolicy";
+import {
+  ARCHIVE_ROOT_DESTINATION,
+  destinationValueToFolderPath,
+} from "../filesystem/archiveImport";
+import { useExternalEpubDrop } from "../filesystem/useExternalEpubDrop";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
@@ -229,6 +234,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
   const [isAddEpubOpen, setIsAddEpubOpen] = useState(false);
+  const [droppedImport, setDroppedImport] = useState<{
+    destinationFolderPath?: string;
+    sourcePaths: string[];
+  } | null>(null);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [renameFolderTarget, setRenameFolderTarget] = useState<Folder | null>(null);
   const [moveFolderTarget, setMoveFolderTarget] = useState<Folder | null>(null);
@@ -544,6 +553,24 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
     [selectedBookIds, visibleBooks],
   );
+  const currentImportDropDestination = currentFolder?.relativePath ?? ARCHIVE_ROOT_DESTINATION;
+  const { activeTarget: activeImportDropTarget } = useExternalEpubDrop({
+    onDrop: (sourcePaths, destinationValue) => {
+      setDroppedImport({
+        destinationFolderPath: destinationValueToFolderPath(destinationValue),
+        sourcePaths,
+      });
+      setIsAddEpubOpen(true);
+    },
+    onInvalidDrop: (message) => {
+      pushFeedback({
+        id: "external-import-drop",
+        tone: "error",
+        title: "These items cannot be added.",
+        detail: message,
+      });
+    },
+  });
   const toggleSelectionMode = useCallback(() => {
     if (selectionMode) {
       exitSelectionMode();
@@ -752,7 +779,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, []);
 
   const openArchiveManager = useCallback(() => void archiveStore.openArchiveManagerWindow(), []);
-  const openAddEpub = useCallback(() => setIsAddEpubOpen(true), []);
+  const openAddEpub = useCallback(() => {
+    setDroppedImport(null);
+    setIsAddEpubOpen(true);
+  }, []);
   const openCreateFolder = useCallback(() => setIsCreateFolderOpen(true), []);
   const openAbout = useCallback(() => setAboutOpen(true), []);
   const openSettings = useCallback(() => setSettingsOpen(true), []);
@@ -1031,6 +1061,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   return (
     <PageShell
+      importDropTarget={{
+        active: activeImportDropTarget?.id === "current-library-surface",
+        destination: currentImportDropDestination,
+        id: "current-library-surface",
+      }}
       mainRef={pageShellRef}
       sidebar={
         <LibrarySidebar
@@ -1039,6 +1074,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           bookCount={bookCount}
           favoriteCount={favoriteCount}
           folders={folders ?? []}
+          activeImportDropTargetId={activeImportDropTarget?.id}
           location={location}
           seriesCount={seriesCount}
           smartViewCounts={smartViewCounts}
@@ -1078,6 +1114,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           canManageFolders
           canRevealFolders
           folders={folders ?? []}
+          activeImportDropTargetId={activeImportDropTarget?.id}
           onCreate={openCreateFolder}
           onDelete={requestDeleteFolder}
           onMove={setMoveFolderTarget}
@@ -1227,9 +1264,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             confirmDestructiveFileActions={confirmDestructiveFileActions}
             folders={folders ?? []}
             importDefaults={importSettings}
-            initialFolderPath={currentFolder?.relativePath}
+            initialFolderPath={
+              droppedImport ? droppedImport.destinationFolderPath : currentFolder?.relativePath
+            }
+            initialSourcePaths={droppedImport?.sourcePaths}
             isImporting={isImporting}
-            onClose={() => setIsAddEpubOpen(false)}
+            onClose={() => {
+              setDroppedImport(null);
+              setIsAddEpubOpen(false);
+            }}
             onImport={handleArchiveImport}
           />
         </Suspense>

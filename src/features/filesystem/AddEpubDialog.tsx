@@ -31,6 +31,7 @@ type AddEpubDialogProps = {
   confirmDestructiveFileActions?: boolean;
   importDefaults?: ImportSettings;
   initialFolderPath?: string;
+  initialSourcePaths?: string[];
   isImporting?: boolean;
   onClose: () => void;
   onImport: (input: AddArchiveEpubInput) => Promise<void>;
@@ -48,6 +49,7 @@ export function AddEpubDialog({
   confirmDestructiveFileActions = true,
   importDefaults = defaultAppPreferences.import,
   initialFolderPath,
+  initialSourcePaths = [],
   isImporting = false,
   onClose,
   onImport,
@@ -59,7 +61,9 @@ export function AddEpubDialog({
   const hasInitialDestination = destinations.some(
     (destination) => destination.value === initialDestination,
   );
-  const [sourcePaths, setSourcePaths] = useState<string[]>([]);
+  const [sourcePaths, setSourcePaths] = useState<string[]>(() =>
+    initialSourcePaths.filter(isEpubSourcePath),
+  );
   const [destinationValue, setDestinationValue] = useState(
     hasInitialDestination
       ? initialDestination

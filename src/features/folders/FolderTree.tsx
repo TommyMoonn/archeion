@@ -14,6 +14,7 @@ type FolderTreeProps = {
   onRename: (folder: Folder) => void;
   onReveal?: (folder: Folder) => void;
   onSelect: (folder: Folder) => void;
+  activeImportDropTargetId?: string | null;
   showActions?: boolean;
   showReveal?: boolean;
 };
@@ -30,6 +31,7 @@ function FolderNode({
   onRename,
   onReveal,
   onSelect,
+  activeImportDropTargetId,
   showActions = true,
   showReveal = false,
 }: FolderNodeProps) {
@@ -37,7 +39,16 @@ function FolderNode({
 
   return (
     <li>
-      <div className="folder-tree__row" data-has-actions={showActions ? "true" : undefined}>
+      <div
+        className="folder-tree__row"
+        data-has-actions={showActions ? "true" : undefined}
+        data-import-drop-active={
+          activeImportDropTargetId === `sidebar-folder:${folder.id}` || undefined
+        }
+        data-import-drop-destination={folder.relativePath}
+        data-import-drop-id={`sidebar-folder:${folder.id}`}
+        data-import-drop-target={folder.relativePath ? "true" : undefined}
+      >
         <button
           aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
@@ -71,6 +82,7 @@ function FolderNode({
               onRename={onRename}
               onReveal={onReveal}
               onSelect={onSelect}
+              activeImportDropTargetId={activeImportDropTargetId}
               showActions={showActions}
               showReveal={showReveal}
             />
@@ -89,6 +101,7 @@ export function FolderTree({
   onRename,
   onReveal,
   onSelect,
+  activeImportDropTargetId,
   showActions = true,
   showReveal = false,
 }: FolderTreeProps) {
@@ -157,6 +170,7 @@ export function FolderTree({
           onRename={onRename}
           onReveal={onReveal}
           onSelect={onSelect}
+          activeImportDropTargetId={activeImportDropTargetId}
           showActions={showActions}
           showReveal={showReveal}
         />

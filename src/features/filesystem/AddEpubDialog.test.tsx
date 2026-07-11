@@ -89,4 +89,46 @@ describe("AddEpubDialog replacement confirmation", () => {
     expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
     expect(container.textContent).not.toContain("Replace existing EPUB files?");
   });
+
+  it("prefills dropped EPUB paths and their target folder before confirmation", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    const onImport = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root.render(
+        <AddEpubDialog
+          confirmDestructiveFileActions={false}
+          folders={[
+            {
+              id: "folder-fiction",
+              name: "Fiction",
+              relativePath: "Fiction",
+              parentId: null,
+              parentPath: null,
+              createdAt: "1",
+              updatedAt: "1",
+            },
+          ]}
+          importDefaults={{ defaultConflictAction: "skip", defaultMode: "copy" }}
+          initialFolderPath="Fiction"
+          initialSourcePaths={["D:\\Incoming\\One.epub", "D:\\Incoming\\Two.epub"]}
+          onClose={vi.fn()}
+          onImport={onImport}
+        />,
+      );
+    });
+
+    expect(container.textContent).toContain("2 selected");
+    expect(container.textContent).toContain("Fiction");
+    await act(async () => buttonWithText(container, "Add EPUB").click());
+    expect(onImport).toHaveBeenCalledWith({
+      conflictAction: "skip",
+      destinationFolderPath: "Fiction",
+      mode: "copy",
+      sourcePaths: ["D:\\Incoming\\One.epub", "D:\\Incoming\\Two.epub"],
+    });
+  });
 });

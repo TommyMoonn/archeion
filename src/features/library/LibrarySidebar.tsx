@@ -25,6 +25,7 @@ import type { Folder } from "../../types/folder";
 import type { LibraryLocation, LibrarySmartView } from "../../types/library";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
+import { ARCHIVE_ROOT_DESTINATION } from "../filesystem/archiveImport";
 import { librarySmartViewLabel, type LibrarySmartViewCounts } from "./libraryFilters";
 
 const smartViews: Array<{ icon: Icon; view: LibrarySmartView }> = [
@@ -63,6 +64,7 @@ type LibrarySidebarProps = {
   onRevealFolder?: (folder: Folder) => void;
   onSwitchArchive: (archive: KnownArchive) => void;
   canRevealFolders?: boolean;
+  activeImportDropTargetId?: string | null;
 };
 
 export const LibrarySidebar = memo(function LibrarySidebar({
@@ -88,6 +90,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onRevealFolder,
   onSwitchArchive,
   canRevealFolders = false,
+  activeImportDropTargetId,
 }: LibrarySidebarProps) {
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
@@ -114,6 +117,10 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         <button
           aria-current={location.type === "library" ? "page" : undefined}
           className={`nav-item ${location.type === "library" ? "active" : ""}`}
+          data-import-drop-active={activeImportDropTargetId === "sidebar-library-root" || undefined}
+          data-import-drop-destination={ARCHIVE_ROOT_DESTINATION}
+          data-import-drop-id="sidebar-library-root"
+          data-import-drop-target="true"
           type="button"
           onClick={() => onLocationChange({ type: "library" })}
         >
@@ -236,6 +243,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             <FolderTree
               folders={folders}
               location={location}
+              activeImportDropTargetId={activeImportDropTargetId}
               onDelete={onDeleteFolder}
               onMove={onMoveFolder}
               onRename={onRenameFolder}
