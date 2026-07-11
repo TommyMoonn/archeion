@@ -87,11 +87,13 @@ function createStorage({
     addEpubFilesToArchive: vi.fn(),
     getBook: vi.fn(),
     loadBookCover: vi.fn(),
+    prepareBookCover: vi.fn(),
     loadBookFile: vi.fn(),
     revealBookFile: vi.fn(),
     listBooks: vi.fn(),
     updateBook,
     writeBookMetadata: vi.fn(),
+    writeBookCover: vi.fn(),
     renameBookFile: vi.fn(),
     moveBookToFolder: vi.fn(),
     deleteBook,
@@ -838,6 +840,26 @@ describe("LibraryPage", () => {
       HTMLButtonElement,
     );
     expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+  });
+
+  it("opens embedded cover writeback from the book details drawer", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    activeRoot = session.root;
+    await Promise.all([import("./BookDetailsDrawer"), import("./BookCoverWritebackDialog")]);
+
+    await act(async () => {
+      clickBook(session.container, "Alpha");
+      await Promise.resolve();
+    });
+    const replaceCover = await waitForButtonWithText(session.container, "Replace cover");
+    await act(async () => {
+      replaceCover.click();
+      await Promise.resolve();
+    });
+
+    expect(session.container.textContent).toContain("Replace embedded cover");
+    expect(session.container.textContent).toContain("Write cover to EPUB");
   });
 
   it("supports Ctrl toggles, rendered-order Shift ranges, and visible-only selection", async () => {

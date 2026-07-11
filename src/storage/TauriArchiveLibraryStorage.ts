@@ -3,6 +3,10 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   Book,
   BulkMetadataEditInput,
+  EpubCoverFraming,
+  EpubCoverPreparation,
+  EpubCoverWritebackInput,
+  EpubCoverWritebackResult,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
   UpdateBookInput,
@@ -719,10 +723,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.books[index];
   }
 
-  private async applyMetadataWritebackResult(
+  private async applyWritebackResult(
     id: string,
     result: EpubMetadataWritebackResult,
     scope: ArchiveCommandScope,
+    options: { refreshCover?: boolean } = {},
   ): Promise<void> {
     this.assertCurrentArchiveScope(scope);
     const index = this.books.findIndex((book) => book.id === id);
@@ -769,6 +774,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       modifiedAt: new Date(fileModifiedAt).toISOString(),
       originalAuthor: sourceMetadata?.creator,
       sourceMetadata,
+      coverRevision: options.refreshCover ? timestamp : currentBook.coverRevision,
       updatedAt: metadataChanged ? timestamp : currentBook.updatedAt,
     };
 
@@ -813,7 +819,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       }
 
       try {
-        await this.applyMetadataWritebackResult(book.id, result, scope);
+        await this.applyWritebackResult(book.id, result, scope);
       } catch (error) {
         if (!this.isCurrentArchiveScope(scope)) {
           return result;
@@ -838,6 +844,91 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     const loading = this.ensureLoadedOrPromise(scope);
     if (loading) await loading;
     return this.writeBookMetadataInScope(scope, this.requireBook(id), metadata);
+  }
+
+  async prepareBookCover(
+    id: string,
+    imagePath: string,
+    framing: EpubCoverFraming,
+  ): Promise<EpubCoverPreparation> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const book = this.requireBook(id);
+    if (!book.relativePath || book.isFileMissing) {
+      throw new Error("The selected EPUB file is unavailable.");
+    }
+    return this.invokeArchiveCommand<EpubCoverPreparation>(
+      "prepare_epub_cover_writeback",
+      {
+        input: {
+          relativePath: book.relativePath,
+          imagePath,
+          framing,
+        },
+      },
+      scope.rootPath,
+    );
+  }
+
+  async writeBookCover(
+    id: string,
+    input: EpubCoverWritebackInput,
+  ): Promise<EpubCoverWritebackResult> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+    const book = this.requireBook(id);
+    if (!book.relativePath || book.isFileMissing) {
+      throw new Error("The selected EPUB file is unavailable.");
+    }
+    const keepSuccessfulBackup =
+      appPreferencesStore.getSnapshot().filesAndMetadata.keepEpubWritebackBackup;
+    const suppression = beginWritebackWatcherSuppression(scope.rootPath, book.relativePath);
+
+    try {
+      const result = await this.invokeArchiveCommand<EpubCoverWritebackResult>(
+        "write_epub_cover",
+        {
+          input: {
+            relativePath: book.relativePath,
+            bookId: book.id,
+            imagePath: input.imagePath,
+            framing: input.framing,
+            expectedImageSize: input.expectedImageSize,
+            expectedImageModifiedAt: input.expectedImageModifiedAt,
+            expectedEpubSize: input.expectedEpubSize,
+            expectedEpubModifiedAt: input.expectedEpubModifiedAt,
+            keepSuccessfulBackup,
+          },
+        },
+        scope.rootPath,
+      );
+
+      if (!this.isCurrentArchiveScope(scope)) {
+        return result;
+      }
+
+      for (const key of this.coverPromises.keys()) {
+        if (key.startsWith(`${book.id}:`)) this.coverPromises.delete(key);
+      }
+
+      try {
+        await this.applyWritebackResult(book.id, result, scope, { refreshCover: true });
+      } catch (error) {
+        if (!this.isCurrentArchiveScope(scope)) {
+          return result;
+        }
+        throw new Error(
+          "The cover was written, but the library could not refresh this book. Rescan to update the display.",
+          { cause: error },
+        );
+      }
+
+      return result;
+    } finally {
+      finishWritebackWatcherSuppression(suppression);
+    }
   }
 
   async renameBookFile(id: string, fileName: string): Promise<Book | undefined> {

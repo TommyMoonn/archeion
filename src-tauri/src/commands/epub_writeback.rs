@@ -503,27 +503,28 @@ fn restore_epub_from_backup(backup_path: &Path, epub_path: &Path) -> Result<(), 
     fs::rename(backup_path, epub_path).map_err(|error| error.to_string())
 }
 
-fn write_error_without_swap(write_error: &str) -> String {
-    format!("EPUB metadata write failed before replacing the active file. {write_error}")
+fn write_error_without_swap(kind: &str, write_error: &str) -> String {
+    format!("EPUB {kind} write failed before replacing the active file. {write_error}")
 }
 
-fn temp_validation_error(validation_error: &str) -> String {
+fn temp_validation_error(kind: &str, validation_error: &str) -> String {
     format!(
-        "EPUB metadata validation failed before replacing the active file. The original EPUB was not modified. {validation_error}"
+        "EPUB {kind} validation failed before replacing the active file. The original EPUB was not modified. {validation_error}"
     )
 }
 
-fn restored_write_error(write_error: &str) -> String {
-    format!("EPUB metadata write failed. The backup was restored. {write_error}")
+fn restored_write_error(kind: &str, write_error: &str) -> String {
+    format!("EPUB {kind} write failed. The backup was restored. {write_error}")
 }
 
 fn failed_write_restore_error(
+    kind: &str,
     write_error: &str,
     restore_error: &str,
     backup_path: &Path,
 ) -> String {
     format!(
-        "EPUB metadata write failed, and automatic restore failed. Backup is available at {}. Write error: {write_error}. Restore error: {restore_error}",
+        "EPUB {kind} write failed, and automatic restore failed. Backup is available at {}. Write error: {write_error}. Restore error: {restore_error}",
         backup_path.display()
     )
 }
@@ -661,6 +662,153 @@ struct WritebackMaintenanceOps {
     update_scanner_cache: UpdateWritebackScannerCache,
 }
 
+pub(crate) fn commit_epub_rewrite_at(
+    root: &Path,
+    normalized_relative_path: &str,
+    epub_path: &Path,
+    temporary_path: &Path,
+    source_metadata: epub_metadata::EpubPackageMetadata,
+    keep_successful_backup: bool,
+    writeback_kind: &str,
+) -> Result<EpubMetadataWritebackResult, String> {
+    commit_epub_rewrite_at_with_ops(
+        root,
+        normalized_relative_path,
+        epub_path,
+        temporary_path,
+        source_metadata,
+        keep_successful_backup,
+        writeback_kind,
+        WritebackTransactionOps {
+            rewrite_package_document: rewrite_epub_package_document,
+            move_original_to_backup: move_original_to_transaction_backup,
+            replace_original_with_temp,
+            restore_backup: restore_epub_from_backup,
+        },
+        WritebackMaintenanceOps {
+            retain_backup: retain_epub_writeback_backup_at,
+            remove_backup: remove_epub_writeback_backup_file,
+            update_scanner_cache: update_writeback_scanner_cache_entry,
+        },
+    )
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(super) fn commit_epub_rewrite_at_with_test_ops(
+    root: &Path,
+    normalized_relative_path: &str,
+    epub_path: &Path,
+    temporary_path: &Path,
+    source_metadata: epub_metadata::EpubPackageMetadata,
+    writeback_kind: &str,
+    replace_original_with_temp: for<'a, 'b> fn(&'a Path, &'b Path) -> Result<(), String>,
+    restore_backup: for<'a, 'b> fn(&'a Path, &'b Path) -> Result<(), String>,
+    update_scanner_cache: for<'a, 'b, 'c, 'd> fn(
+        &'a Path,
+        &'b str,
+        &'c EpubMetadataWritebackFileStat,
+        &'d epub_metadata::EpubPackageMetadata,
+    ) -> Result<(), String>,
+) -> Result<EpubMetadataWritebackResult, String> {
+    commit_epub_rewrite_at_with_ops(
+        root,
+        normalized_relative_path,
+        epub_path,
+        temporary_path,
+        source_metadata,
+        false,
+        writeback_kind,
+        WritebackTransactionOps {
+            rewrite_package_document: rewrite_epub_package_document,
+            move_original_to_backup: move_original_to_transaction_backup,
+            replace_original_with_temp,
+            restore_backup,
+        },
+        WritebackMaintenanceOps {
+            retain_backup: retain_epub_writeback_backup_at,
+            remove_backup: remove_epub_writeback_backup_file,
+            update_scanner_cache,
+        },
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn commit_epub_rewrite_at_with_ops(
+    root: &Path,
+    normalized_relative_path: &str,
+    epub_path: &Path,
+    temporary_path: &Path,
+    source_metadata: epub_metadata::EpubPackageMetadata,
+    keep_successful_backup: bool,
+    writeback_kind: &str,
+    transaction_ops: WritebackTransactionOps,
+    maintenance_ops: WritebackMaintenanceOps,
+) -> Result<EpubMetadataWritebackResult, String> {
+    let WritebackTransactionOps {
+        move_original_to_backup,
+        replace_original_with_temp,
+        restore_backup,
+        ..
+    } = transaction_ops;
+    let WritebackMaintenanceOps {
+        retain_backup,
+        remove_backup,
+        update_scanner_cache,
+    } = maintenance_ops;
+    let backup_path = create_epub_transaction_backup_path(root, normalized_relative_path)?;
+
+    let stage_started_at = Instant::now();
+    if let Err(error) = move_original_to_backup(epub_path, &backup_path) {
+        let _ = fs::remove_file(temporary_path);
+        return Err(write_error_without_swap(writeback_kind, &error));
+    }
+    debug_writeback_timing("original-to-backup rename", stage_started_at);
+
+    let stage_started_at = Instant::now();
+    if let Err(error) = replace_original_with_temp(temporary_path, epub_path) {
+        let _ = fs::remove_file(temporary_path);
+        return match restore_backup(&backup_path, epub_path) {
+            Ok(()) => Err(restored_write_error(writeback_kind, &error)),
+            Err(restore_error) => Err(failed_write_restore_error(
+                writeback_kind,
+                &error,
+                &restore_error,
+                &backup_path,
+            )),
+        };
+    }
+    debug_writeback_timing("temp-to-original rename", stage_started_at);
+
+    let file_stat = writeback_file_stat(normalized_relative_path, epub_path)?;
+
+    let stage_started_at = Instant::now();
+    let backup_path = finalize_successful_backup_at(
+        root,
+        &backup_path,
+        keep_successful_backup,
+        retain_backup,
+        remove_backup,
+    );
+    debug_writeback_timing("backup cleanup or retention", stage_started_at);
+
+    let stage_started_at = Instant::now();
+    if let Err(error) =
+        update_scanner_cache(root, normalized_relative_path, &file_stat, &source_metadata)
+    {
+        eprintln!(
+            "EPUB writeback scanner cache could not be updated after successful write: {error}"
+        );
+    }
+    debug_writeback_timing("scanner cache update", stage_started_at);
+
+    Ok(EpubMetadataWritebackResult {
+        backup_path,
+        source_metadata,
+        file_stat,
+    })
+}
+
 fn write_epub_metadata_at_with_backup_ops(
     root: &Path,
     relative_path: &str,
@@ -670,17 +818,7 @@ fn write_epub_metadata_at_with_backup_ops(
     maintenance_ops: WritebackMaintenanceOps,
 ) -> Result<EpubMetadataWritebackResult, String> {
     let total_started_at = Instant::now();
-    let WritebackTransactionOps {
-        rewrite_package_document,
-        move_original_to_backup,
-        replace_original_with_temp,
-        restore_backup,
-    } = transaction_ops;
-    let WritebackMaintenanceOps {
-        retain_backup,
-        remove_backup,
-        update_scanner_cache,
-    } = maintenance_ops;
+    let rewrite_package_document = transaction_ops.rewrite_package_document;
     validate_writeback_metadata(&metadata_update)?;
     let normalized_relative_path = filesystem::normalize_archive_relative_path(relative_path)?;
     let epub_path = epub::resolve_epub_path(root, &normalized_relative_path)?;
@@ -704,71 +842,31 @@ fn write_epub_metadata_at_with_backup_ops(
     let temporary_path =
         match rewrite_package_document(&epub_path, &package.path, &updated_package_xml) {
             Ok(path) => path,
-            Err(error) => return Err(write_error_without_swap(&error)),
+            Err(error) => return Err(write_error_without_swap("metadata", &error)),
         };
     debug_writeback_timing("temp EPUB rewrite", stage_started_at);
 
     let stage_started_at = Instant::now();
     if let Err(error) = epub_metadata::read_core_metadata(&temporary_path) {
         let _ = fs::remove_file(&temporary_path);
-        return Err(temp_validation_error(&error));
+        return Err(temp_validation_error("metadata", &error));
     }
     debug_writeback_timing("temp validation", stage_started_at);
 
-    let backup_path = create_epub_transaction_backup_path(root, &normalized_relative_path)?;
-
-    let stage_started_at = Instant::now();
-    if let Err(error) = move_original_to_backup(&epub_path, &backup_path) {
-        let _ = fs::remove_file(&temporary_path);
-        return Err(write_error_without_swap(&error));
-    }
-    debug_writeback_timing("original-to-backup rename", stage_started_at);
-
-    let stage_started_at = Instant::now();
-    if let Err(error) = replace_original_with_temp(&temporary_path, &epub_path) {
-        let _ = fs::remove_file(&temporary_path);
-        return match restore_backup(&backup_path, &epub_path) {
-            Ok(()) => Err(restored_write_error(&error)),
-            Err(restore_error) => Err(failed_write_restore_error(
-                &error,
-                &restore_error,
-                &backup_path,
-            )),
-        };
-    }
-    debug_writeback_timing("temp-to-original rename", stage_started_at);
-
-    let file_stat = writeback_file_stat(&normalized_relative_path, &epub_path)?;
-
-    let stage_started_at = Instant::now();
-    let backup_path = finalize_successful_backup_at(
-        root,
-        &backup_path,
-        keep_successful_backup,
-        retain_backup,
-        remove_backup,
-    );
-    debug_writeback_timing("backup cleanup or retention", stage_started_at);
-
-    let stage_started_at = Instant::now();
-    if let Err(error) = update_scanner_cache(
+    let result = commit_epub_rewrite_at_with_ops(
         root,
         &normalized_relative_path,
-        &file_stat,
-        &source_metadata,
-    ) {
-        eprintln!(
-            "EPUB writeback scanner cache could not be updated after successful write: {error}"
-        );
-    }
-    debug_writeback_timing("scanner cache update", stage_started_at);
+        &epub_path,
+        &temporary_path,
+        source_metadata,
+        keep_successful_backup,
+        "metadata",
+        transaction_ops,
+        maintenance_ops,
+    )?;
     debug_writeback_timing("total", total_started_at);
 
-    Ok(EpubMetadataWritebackResult {
-        backup_path,
-        source_metadata,
-        file_stat,
-    })
+    Ok(result)
 }
 
 #[tauri::command]

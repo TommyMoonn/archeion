@@ -134,15 +134,23 @@ pub fn invalidate_cover_cache_entries(
     root_path: Option<String>,
     book_ids: Vec<String>,
 ) -> Result<(), String> {
+    let root = resolve_archive_root(&app, root_path)?;
+    invalidate_cover_cache_entries_at(&root, &book_ids)
+}
+
+pub(crate) fn invalidate_cover_cache_entries_at(
+    root: &Path,
+    book_ids: &[String],
+) -> Result<(), String> {
     if book_ids.iter().any(|id| {
         id.is_empty()
             || !id
                 .chars()
-                .all(|character| character.is_ascii_alphanumeric() || character == '-')
+                .all(|character| character.is_ascii_alphanumeric() || "-_".contains(character))
     }) {
         return Err("A selected book identifier is invalid.".to_string());
     }
-    let path = archeion_path(&app, root_path)?.join("covers");
+    let path = root.join(".archeion").join("covers");
     let entries = match fs::read_dir(path) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),

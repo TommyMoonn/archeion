@@ -1,6 +1,10 @@
 import type {
   Book,
   BulkMetadataEditInput,
+  EpubCoverFraming,
+  EpubCoverPreparation,
+  EpubCoverWritebackInput,
+  EpubCoverWritebackResult,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
   UpdateBookInput,
@@ -72,6 +76,11 @@ export interface LibraryStorage {
 
   getBook(id: string): Promise<Book | undefined>;
   loadBookCover(id: string): Promise<Blob | undefined>;
+  prepareBookCover(
+    id: string,
+    imagePath: string,
+    framing: EpubCoverFraming,
+  ): Promise<EpubCoverPreparation>;
   loadBookFile(id: string): Promise<Blob>;
   revealBookFile(id: string): Promise<void>;
   listBooks(): Promise<Book[]>;
@@ -80,6 +89,7 @@ export interface LibraryStorage {
     id: string,
     metadata: EpubMetadataWritebackInput,
   ): Promise<EpubMetadataWritebackResult>;
+  writeBookCover(id: string, input: EpubCoverWritebackInput): Promise<EpubCoverWritebackResult>;
   renameBookFile(id: string, fileName: string): Promise<Book | undefined>;
   moveBookToFolder(id: string, folderId: string | null): Promise<Book | undefined>;
   deleteBook(id: string): Promise<boolean>;

@@ -54,6 +54,7 @@ function drawerProps(renderedBook: Book, onClearProgress: (book: Book) => void =
     onMoveFile: vi.fn(),
     onRead: vi.fn(),
     onReadFromBeginning: vi.fn(),
+    onReplaceCover: vi.fn(),
     onRenameFile: vi.fn(),
     onRescan: vi.fn(),
     onRevealFile: vi.fn(),
@@ -191,6 +192,7 @@ describe("BookDetailsDrawer", () => {
     const markup = renderDetails();
 
     expect(markup).toContain("Edit metadata");
+    expect(markup).toContain("Replace cover");
     expect(markup).toContain("details-favorite-button");
     expect(markup).toContain("Add to favorites");
     expect(markup).not.toContain(">Favorite</span>");

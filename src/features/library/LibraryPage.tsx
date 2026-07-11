@@ -21,7 +21,15 @@ import {
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
-import type { Book, BulkMetadataEditInput, EpubMetadataWritebackInput } from "../../types/book";
+import type {
+  Book,
+  BulkMetadataEditInput,
+  EpubCoverFraming,
+  EpubCoverPreparation,
+  EpubCoverWritebackInput,
+  EpubCoverWritebackResult,
+  EpubMetadataWritebackInput,
+} from "../../types/book";
 import type { Folder } from "../../types/folder";
 import {
   createDefaultLibraryFilters,
@@ -103,6 +111,10 @@ const loadBookAdvancedMetadataDialog = () =>
   import("./BookAdvancedMetadataDialog").then((module) => ({
     default: module.BookAdvancedMetadataDialog,
   }));
+const loadBookCoverWritebackDialog = () =>
+  import("./BookCoverWritebackDialog").then((module) => ({
+    default: module.BookCoverWritebackDialog,
+  }));
 const loadBulkMetadataDialog = () =>
   import("./BulkMetadataDialog").then((module) => ({ default: module.BulkMetadataDialog }));
 const loadFolderCreateDialog = () =>
@@ -129,6 +141,7 @@ const RenameFileDialog = lazy(loadRenameFileDialog);
 const AboutDialog = lazy(loadAboutDialog);
 const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
 const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
+const BookCoverWritebackDialog = lazy(loadBookCoverWritebackDialog);
 const BulkMetadataDialog = lazy(loadBulkMetadataDialog);
 const FolderCreateDialog = lazy(loadFolderCreateDialog);
 const FolderRenameDialog = lazy(loadFolderRenameDialog);
@@ -146,6 +159,10 @@ function preloadBookAdvancedMetadataDialog() {
 
 function preloadBookDetailsDrawer() {
   void loadBookDetailsDrawer();
+}
+
+function preloadBookCoverWritebackDialog() {
+  void loadBookCoverWritebackDialog();
 }
 
 function preloadReaderPage() {
@@ -233,6 +250,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null);
   const [metadataEditorBookId, setMetadataEditorBookId] = useState<string | null>(null);
+  const [coverEditorBookId, setCoverEditorBookId] = useState<string | null>(null);
   const [clearProgressTarget, setClearProgressTarget] = useState<Book | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Book | null>(null);
   const [rescanConfirmationOpen, setRescanConfirmationOpen] = useState(false);
@@ -332,6 +350,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       preloadReaderPage();
       preloadBookDetailsDrawer();
       preloadBookAdvancedMetadataDialog();
+      preloadBookCoverWritebackDialog();
       preloadSettingsDialog();
       preloadAboutDialog();
     };
@@ -561,6 +580,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     () => (books ?? []).filter((book) => selectedBookIds.has(book.id)),
     [books, selectedBookIds],
   );
+  const coverEditorBook = useMemo(
+    () => (books ?? []).find((book) => book.id === coverEditorBookId) ?? null,
+    [books, coverEditorBookId],
+  );
   const currentImportDropDestination = currentFolder?.relativePath ?? ARCHIVE_ROOT_DESTINATION;
   const { activeTarget: activeImportDropTarget } = useExternalEpubDrop({
     onDrop: (sourcePaths, destinationValue) => {
@@ -744,6 +767,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setMetadataEditorBookId(book.id);
   }, []);
 
+  const openCoverEditor = useCallback((book: Book) => {
+    setSelectedBookId(null);
+    setCoverEditorBookId(book.id);
+  }, []);
+
   const requestRenameFile = useCallback((book: Book) => {
     setSelectedBookId(null);
     setRenameFileTarget(book);
@@ -760,11 +788,32 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     setSelectedBookId(bookId);
   }
 
+  function closeCoverEditor() {
+    const bookId = coverEditorBookId;
+    setCoverEditorBookId(null);
+    setSelectedBookId(bookId);
+  }
+
   const writeBookMetadata = useCallback(
     async (book: Book, metadata: EpubMetadataWritebackInput) => {
       const result = await storage.writeBookMetadata(book.id, metadata);
       return result;
     },
+    [storage],
+  );
+
+  const prepareBookCover = useCallback(
+    async (
+      book: Book,
+      imagePath: string,
+      framing: EpubCoverFraming,
+    ): Promise<EpubCoverPreparation> => storage.prepareBookCover(book.id, imagePath, framing),
+    [storage],
+  );
+
+  const writeBookCover = useCallback(
+    async (book: Book, input: EpubCoverWritebackInput): Promise<EpubCoverWritebackResult> =>
+      storage.writeBookCover(book.id, input),
     [storage],
   );
 
@@ -1314,6 +1363,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             onMoveFile={requestMoveBook}
             onRead={readBook}
             onReadFromBeginning={readBookFromBeginning}
+            onReplaceCover={openCoverEditor}
             onRenameFile={requestRenameFile}
             onRevealFile={revealBookFile}
             onRescan={() => {
@@ -1331,6 +1381,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             book={metadataEditorBook}
             onClose={closeMetadataEditor}
             onWriteMetadata={writeBookMetadata}
+          />
+        </Suspense>
+      ) : null}
+
+      {coverEditorBook ? (
+        <Suspense fallback={<DialogLoadingFallback label="Opening cover editor" />}>
+          <BookCoverWritebackDialog
+            book={coverEditorBook}
+            onClose={closeCoverEditor}
+            onPrepareCover={prepareBookCover}
+            onWriteCover={writeBookCover}
           />
         </Suspense>
       ) : null}

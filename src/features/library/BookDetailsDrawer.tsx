@@ -8,6 +8,7 @@ import {
   FolderOpen,
   Heart,
   Info,
+  ImageSquare,
   PencilSimple,
   ArrowRight,
   Trash,
@@ -30,6 +31,7 @@ type BookDetailsDrawerProps = {
   onDelete: (book: Book) => void;
   onRead: (book: Book) => void;
   onReadFromBeginning: (book: Book) => void;
+  onReplaceCover: (book: Book) => void;
   onMoveFile: (book: Book) => void;
   onRenameFile: (book: Book) => void;
   onRevealFile: (book: Book) => void;
@@ -48,6 +50,7 @@ export function BookDetailsDrawer({
   onDelete,
   onRead,
   onReadFromBeginning,
+  onReplaceCover,
   onMoveFile,
   onRenameFile,
   onRevealFile,
@@ -194,6 +197,13 @@ export function BookDetailsDrawer({
                   variant="ghost"
                 >
                   Edit metadata
+                </Button>
+                <Button
+                  icon={<ImageSquare aria-hidden="true" size={16} />}
+                  onClick={() => onReplaceCover(book)}
+                  variant="ghost"
+                >
+                  Replace cover
                 </Button>
                 {canManageFile ? (
                   <>

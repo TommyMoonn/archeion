@@ -13,6 +13,34 @@ export type EpubSourceMetadata = {
 
 export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
+export type EpubCoverFraming = "crop" | "fit";
+
+export type EpubCoverPreparation = {
+  fileName: string;
+  sourceFormat: string;
+  outputFormat: string;
+  sourceWidth: number;
+  sourceHeight: number;
+  outputWidth: number;
+  outputHeight: number;
+  imageSize: number;
+  imageModifiedAt: number;
+  epubSize: number;
+  epubModifiedAt: number;
+  replacingExistingCover: boolean;
+  previewMimeType: string;
+  previewBytes: number[];
+};
+
+export type EpubCoverWritebackInput = {
+  imagePath: string;
+  framing: EpubCoverFraming;
+  expectedImageSize: number;
+  expectedImageModifiedAt: number;
+  expectedEpubSize: number;
+  expectedEpubModifiedAt: number;
+};
+
 export type BulkMetadataTagMode = "replace" | "add" | "remove";
 
 export type BulkMetadataEditInput = {
@@ -37,6 +65,10 @@ export type EpubMetadataWritebackResult = {
   backupPath?: string | null;
   sourceMetadata: EpubSourceMetadata;
   fileStat: EpubMetadataWritebackFileStat;
+};
+
+export type EpubCoverWritebackResult = EpubMetadataWritebackResult & {
+  coverCacheWarning?: string | null;
 };
 
 export type Book = {

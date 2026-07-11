@@ -38,6 +38,8 @@ pub fn run() {
             commands::epub::read_epub_file,
             commands::epub::reveal_epub_file,
             commands::epub::load_epub_cover,
+            commands::epub_cover_writeback::prepare_epub_cover_writeback,
+            commands::epub_cover_writeback::write_epub_cover,
             commands::epub_writeback::clear_epub_writeback_backups,
             commands::epub_writeback::cleanup_epub_writeback_backup,
             commands::epub_writeback::get_epub_writeback_backup_status,

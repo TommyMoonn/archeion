@@ -1861,6 +1861,112 @@ describe("TauriArchiveLibraryStorage metadata writeback", () => {
     getSnapshot.mockRestore();
   });
 
+  it("prepares a replacement cover through the scoped backend command", async () => {
+    const preparation = {
+      fileName: "replacement.png",
+      sourceFormat: "PNG",
+      outputFormat: "JPEG",
+      sourceWidth: 900,
+      sourceHeight: 1200,
+      outputWidth: 800,
+      outputHeight: 1200,
+      imageSize: 2048,
+      imageModifiedAt: 1_700_000_004_000,
+      epubSize: 4096,
+      epubModifiedAt: 1_700_000_001_000,
+      replacingExistingCover: true,
+      previewMimeType: "image/png",
+      previewBytes: [1, 2, 3],
+    };
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "prepare_epub_cover_writeback") {
+        expect(args).toEqual({
+          input: {
+            relativePath: "Author/Series/Volume_01.epub",
+            imagePath: "C:/Covers/replacement.png",
+            framing: "fit",
+          },
+          rootPath: "C:/ArchiveA",
+        });
+        return preparation;
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+
+    await expect(
+      storage.prepareBookCover("book-1", "C:/Covers/replacement.png", "fit"),
+    ).resolves.toEqual(preparation);
+  });
+
+  it("writes a replacement cover and refreshes only the affected book and cover cache key", async () => {
+    const rootPath = "C:/ArchiveA";
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "save_library_metadata") return undefined;
+      if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;
+      if (command === "write_epub_cover") {
+        expect(shouldSuppressWritebackWatcherEvent(rootPath, "Author/Series/Volume_01.epub")).toBe(
+          true,
+        );
+        expect(args).toEqual({
+          input: {
+            relativePath: "Author/Series/Volume_01.epub",
+            bookId: "book-1",
+            imagePath: "C:/Covers/replacement.png",
+            framing: "crop",
+            expectedImageSize: 2048,
+            expectedImageModifiedAt: 1_700_000_004_000,
+            expectedEpubSize: 2048,
+            expectedEpubModifiedAt: 1_700_000_000_000,
+            keepSuccessfulBackup: false,
+          },
+          rootPath,
+        });
+        return {
+          backupPath: null,
+          sourceMetadata: { title: "Volume 01", creator: "Author" },
+          fileStat: editedFileStat,
+          coverCacheWarning: null,
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset(rootPath);
+    const before = await storage.listBooks();
+    await storage.loadBookCover("book-1");
+
+    const result = await storage.writeBookCover("book-1", {
+      imagePath: "C:/Covers/replacement.png",
+      framing: "crop",
+      expectedImageSize: 2048,
+      expectedImageModifiedAt: 1_700_000_004_000,
+      expectedEpubSize: 2048,
+      expectedEpubModifiedAt: 1_700_000_000_000,
+    });
+    const after = await storage.listBooks();
+    await storage.loadBookCover("book-1");
+
+    expect(result.coverCacheWarning).toBeNull();
+    expect(after[0]?.coverRevision).toBeTruthy();
+    expect(after[0]?.coverRevision).not.toBe(before[0]?.coverRevision);
+    expect(after[0]).toMatchObject({
+      originalAuthor: "Author",
+      size: 4096,
+      sourceMetadata: { title: "Volume 01", creator: "Author" },
+    });
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "load_epub_cover")).toHaveLength(
+      2,
+    );
+  });
+
   it("loads and clears retained EPUB writeback backup status", async () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "get_epub_writeback_backup_status") {

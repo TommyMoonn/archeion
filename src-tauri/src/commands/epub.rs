@@ -189,7 +189,11 @@ fn load_epub_cover_uncached(
     Ok(bytes)
 }
 
-fn load_epub_cover_at(root: &Path, relative_path: &str, book_id: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn load_epub_cover_at(
+    root: &Path,
+    relative_path: &str,
+    book_id: &str,
+) -> Result<Vec<u8>, String> {
     let epub_path = resolve_epub_path(root, relative_path)?;
     let cache_dir = root.join(".archeion").join("covers");
     let cache_path = cover_cache_path(&cache_dir, &epub_path, book_id)?;
