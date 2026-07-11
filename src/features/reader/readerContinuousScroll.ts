@@ -2,28 +2,26 @@ import type { Rendition } from "epubjs";
 
 import { getReaderWheelDelta } from "./readerNavigation";
 
-const CONTINUOUS_RETENTION_VIEWPORTS = 2;
-
 type ContinuousRenditionManager = {
   check?: (...args: unknown[]) => Promise<unknown>;
-  container?: HTMLElement;
   counter?: (bounds: unknown) => void;
-  settings?: {
-    offset?: number;
-  };
+  request?: unknown;
   update?: (offset?: number) => Promise<unknown>;
+  views?: {
+    all: () => ContinuousRenditionView[];
+  };
+};
+
+type ContinuousRenditionView = {
+  display: (request: unknown) => Promise<unknown>;
+  displayed: boolean;
+  show: () => void;
 };
 
 export type RenditionWithManager = Rendition & {
   manager?: ContinuousRenditionManager;
   started?: Promise<void>;
 };
-
-function retentionOffset(manager: ContinuousRenditionManager, requestedOffset?: number): number {
-  const configuredOffset = requestedOffset ?? manager.settings?.offset ?? 0;
-  const viewportRetention = (manager.container?.clientHeight ?? 0) * CONTINUOUS_RETENTION_VIEWPORTS;
-  return Math.max(configuredOffset, viewportRetention);
-}
 
 export function stabilizeContinuousRendition(rendition: RenditionWithManager): void {
   const manager = rendition.manager;
@@ -32,10 +30,21 @@ export function stabilizeContinuousRendition(rendition: RenditionWithManager): v
     return;
   }
 
-  const originalUpdate = manager.update?.bind(manager);
-  if (originalUpdate) {
-    manager.update = (offset) => originalUpdate(retentionOffset(manager, offset));
-  }
+  // Keep loaded views visible and mounted. epub.js's stock update destroys
+  // offscreen iframes, which loses their input listeners and can leave an empty
+  // placeholder while the iframe is recreated during reverse scrolling.
+  manager.update = async () => {
+    const views = manager.views?.all() ?? [];
+
+    await Promise.all(
+      views.map(async (view) => {
+        if (!view.displayed) {
+          await view.display(manager.request);
+        }
+        view.show();
+      }),
+    );
+  };
 
   const originalCheck = manager.check?.bind(manager);
   const originalCounter = manager.counter?.bind(manager);
