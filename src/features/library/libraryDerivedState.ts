@@ -7,8 +7,6 @@ import type { LibraryFilterState, LibraryLocation } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { isBookInProgress } from "../reading/readingProgress";
 import {
-  bookAuthor,
-  bookTitle,
   countBooksBySmartView,
   createCachedLibrarySearchIndex,
   createLibraryVisibleBooksCache,
@@ -22,15 +20,6 @@ import {
   type LibrarySmartViewCounts,
   type LibrarySort,
 } from "./libraryFilters";
-
-type CachedValue<T> = {
-  signature: string;
-  value: T;
-};
-
-type DerivedValueCache<T> = {
-  current: CachedValue<T> | null;
-};
 
 const CONTINUE_PREVIEW_LIMIT = 5;
 
@@ -62,74 +51,46 @@ type LibraryDerivedState = {
   visibleBooks: Book[];
 };
 
-function cachePart(value: string | number | boolean | null | undefined): string {
-  return String(value ?? "");
-}
+type LibrarySummary = {
+  bookById: Map<string, Book>;
+  bookCountsByFolder: Map<string, number>;
+  continueBooks: Book[];
+  favoriteCount: number;
+};
 
-function getCachedDerivedValue<T>(
-  cache: DerivedValueCache<T>,
-  signature: string,
-  calculateValue: () => T,
-): T {
-  if (cache.current?.signature !== signature) {
-    cache.current = { signature, value: calculateValue() };
-  }
-
-  return cache.current.value;
-}
-
-function createFolderCountSignature(books: Book[]): string {
-  return books.map((book) => [book.id, book.folderId].map(cachePart).join(":")).join("\u0001");
-}
-
-function createFavoriteCountSignature(books: Book[]): string {
-  return books.map((book) => [book.id, book.isFavorite].map(cachePart).join(":")).join("\u0001");
-}
-
-function createContinueBooksSignature(books: Book[]): string {
-  return books
-    .map((book) =>
-      [
-        book.id,
-        book.progressPercent,
-        book.lastOpenedAt,
-        bookTitle(book),
-        bookAuthor(book),
-        book.relativePath,
-        book.fileName,
-      ]
-        .map(cachePart)
-        .join("\u0002"),
-    )
-    .join("\u0001");
-}
-
-function getBookById(books: Book[], id: string | null): Book | null {
+function getBookById(bookById: ReadonlyMap<string, Book>, id: string | null): Book | null {
   if (!id) {
     return null;
   }
 
-  return books.find((book) => book.id === id) ?? null;
+  return bookById.get(id) ?? null;
 }
 
-export function countBooksByFolder(books: Book[]): Map<string, number> {
-  const counts = new Map<string, number>();
+export function deriveLibrarySummary(books: readonly Book[]): LibrarySummary {
+  const bookById = new Map<string, Book>();
+  const bookCountsByFolder = new Map<string, number>();
+  const continueCandidates: Book[] = [];
+  let favoriteCount = 0;
 
   for (const book of books) {
+    bookById.set(book.id, book);
     if (book.folderId) {
-      counts.set(book.folderId, (counts.get(book.folderId) ?? 0) + 1);
+      bookCountsByFolder.set(book.folderId, (bookCountsByFolder.get(book.folderId) ?? 0) + 1);
+    }
+    if (book.isFavorite) {
+      favoriteCount += 1;
+    }
+    if (isBookInProgress(book)) {
+      continueCandidates.push(book);
     }
   }
 
-  return counts;
-}
-
-export function countFavoriteBooks(books: Book[]): number {
-  return books.reduce((count, book) => count + (book.isFavorite ? 1 : 0), 0);
-}
-
-export function getContinueReadingBooks(books: Book[]): Book[] {
-  return sortBooks(books.filter(isBookInProgress), "recently-opened");
+  return {
+    bookById,
+    bookCountsByFolder,
+    continueBooks: sortBooks(continueCandidates, "recently-opened"),
+    favoriteCount,
+  };
 }
 
 export function useLibraryDerivedState({
@@ -146,41 +107,12 @@ export function useLibraryDerivedState({
   const currentBooks = useMemo(() => books ?? [], [books]);
   const currentFolders = useMemo(() => folders ?? [], [folders]);
   const visibleBooksCacheRef = useRef(createLibraryVisibleBooksCache());
-  const favoriteCountCacheRef = useRef<DerivedValueCache<number>>({
-    current: null,
-  });
-  const continueBooksCacheRef = useRef<DerivedValueCache<Book[]>>({
-    current: null,
-  });
-  const bookCountsByFolderCacheRef = useRef<DerivedValueCache<Map<string, number>>>({
-    current: null,
-  });
-  const favoriteCountSignature = useMemo(
-    () => createFavoriteCountSignature(currentBooks),
+  const summary = useMemo(
+    () =>
+      measurePerformance("archeion:derive-library-summary", () =>
+        deriveLibrarySummary(currentBooks),
+      ),
     [currentBooks],
-  );
-  const continueBooksSignature = useMemo(
-    () => createContinueBooksSignature(currentBooks),
-    [currentBooks],
-  );
-  const folderCountSignature = useMemo(
-    () => createFolderCountSignature(currentBooks),
-    [currentBooks],
-  );
-  const favoriteCount = getCachedDerivedValue(
-    favoriteCountCacheRef.current,
-    favoriteCountSignature,
-    () => countFavoriteBooks(currentBooks),
-  );
-  const continueBooks = getCachedDerivedValue(
-    continueBooksCacheRef.current,
-    continueBooksSignature,
-    () => getContinueReadingBooks(currentBooks),
-  );
-  const bookCountsByFolder = getCachedDerivedValue(
-    bookCountsByFolderCacheRef.current,
-    folderCountSignature,
-    () => countBooksByFolder(currentBooks),
   );
   const searchIndex = useMemo(
     () =>
@@ -207,16 +139,16 @@ export function useLibraryDerivedState({
   const filterOptions = useMemo(() => deriveLibraryFilterOptions(currentBooks), [currentBooks]);
   const smartViewCounts = useMemo(() => countBooksBySmartView(currentBooks), [currentBooks]);
   const continuePreview = useMemo(
-    () => continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
-    [continueBooks],
+    () => summary.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
+    [summary.continueBooks],
   );
   const selectedBook = useMemo(
-    () => getBookById(currentBooks, selectedBookId),
-    [currentBooks, selectedBookId],
+    () => getBookById(summary.bookById, selectedBookId),
+    [selectedBookId, summary.bookById],
   );
   const metadataEditorBook = useMemo(
-    () => getBookById(currentBooks, metadataEditorBookId),
-    [currentBooks, metadataEditorBookId],
+    () => getBookById(summary.bookById, metadataEditorBookId),
+    [metadataEditorBookId, summary.bookById],
   );
   const currentFolder =
     location.type === "folder"
@@ -233,12 +165,12 @@ export function useLibraryDerivedState({
 
   return {
     bookCount: currentBooks.length,
-    bookCountsByFolder,
-    continueBooks,
+    bookCountsByFolder: summary.bookCountsByFolder,
+    continueBooks: summary.continueBooks,
     continuePreview,
     currentFolder,
     effectiveSort,
-    favoriteCount,
+    favoriteCount: summary.favoriteCount,
     filterOptions,
     libraryTitle,
     metadataEditorBook,

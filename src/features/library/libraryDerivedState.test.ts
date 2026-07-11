@@ -7,12 +7,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Book } from "../../types/book";
 import { createDefaultLibraryFilters } from "../../types/library";
-import {
-  countBooksByFolder,
-  countFavoriteBooks,
-  getContinueReadingBooks,
-  useLibraryDerivedState,
-} from "./libraryDerivedState";
+import { deriveLibrarySummary, useLibraryDerivedState } from "./libraryDerivedState";
 import { createLibrarySearchIndexCache } from "./libraryFilters";
 
 (
@@ -53,40 +48,27 @@ function requireDerivedState(
 }
 
 describe("library derived state helpers", () => {
-  it("counts favorite and folder membership state", () => {
-    const books = [
-      createBook({ id: "favorite", folderId: "folder-a", isFavorite: true }),
-      createBook({ id: "plain", folderId: "folder-a" }),
-      createBook({ id: "nested", folderId: "folder-b", isFavorite: true }),
-      createBook({ id: "root" }),
-    ];
-
-    expect(countFavoriteBooks(books)).toBe(2);
-    expect(Object.fromEntries(countBooksByFolder(books))).toEqual({
-      "folder-a": 2,
-      "folder-b": 1,
+  it("derives aggregate counts, continue ordering, and book lookup in one summary", () => {
+    const favorite = createBook({
+      id: "favorite",
+      folderId: "folder-a",
+      isFavorite: true,
+      progressPercent: 15,
+      lastOpenedAt: "2026-07-02T00:00:00.000Z",
     });
-  });
+    const older = createBook({
+      id: "older",
+      folderId: "folder-a",
+      progressPercent: 45,
+      lastOpenedAt: "2026-07-01T00:00:00.000Z",
+    });
 
-  it("sorts continue books by recently opened", () => {
-    const books = [
-      createBook({ id: "unread", progressPercent: 0 }),
-      createBook({
-        id: "older",
-        originalTitle: "B",
-        progressPercent: 55,
-        lastOpenedAt: "2026-07-01T00:00:00.000Z",
-      }),
-      createBook({
-        id: "recent",
-        originalTitle: "A",
-        progressPercent: 12,
-        lastOpenedAt: "2026-07-02T00:00:00.000Z",
-      }),
-      createBook({ id: "finished", progressPercent: 100 }),
-    ];
+    const summary = deriveLibrarySummary([older, favorite, createBook({ id: "root" })]);
 
-    expect(getContinueReadingBooks(books).map((book) => book.id)).toEqual(["recent", "older"]);
+    expect(summary.bookById.get("favorite")).toBe(favorite);
+    expect(Object.fromEntries(summary.bookCountsByFolder)).toEqual({ "folder-a": 2 });
+    expect(summary.favoriteCount).toBe(1);
+    expect(summary.continueBooks.map((book) => book.id)).toEqual(["favorite", "older"]);
   });
 
   it("limits and memoizes the continue preview", async () => {

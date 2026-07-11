@@ -6,6 +6,7 @@ import {
   commonMetadataValue,
   metadataAfterBulkEdit,
   parseBulkMetadataSubjects,
+  previewBulkMetadataBookEdit,
   previewBulkMetadataEdit,
 } from "./bulkMetadata";
 
@@ -117,6 +118,15 @@ describe("bulk metadata edits", () => {
         subjects: { mode: "replace", values: ["Science, Technology"] },
       })[0]?.changes,
     ).toEqual([]);
+  });
+
+  it("previews one book without allocating a one-item collection", () => {
+    const target = book("one", { publisher: "Old Press" });
+
+    expect(previewBulkMetadataBookEdit(target, { publisher: "New Press" })).toMatchObject({
+      book: target,
+      changes: [{ field: "publisher", from: "Old Press", to: "New Press" }],
+    });
   });
 
   it("derives mixed values and previews changes per book", () => {

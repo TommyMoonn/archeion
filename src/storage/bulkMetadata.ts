@@ -87,38 +87,43 @@ function displaySubjects(values: readonly string[] | undefined) {
   return normalized.length ? normalized.map((value) => `“${value}”`).join("\n") : "No tags";
 }
 
+export function previewBulkMetadataBookEdit(
+  book: Book,
+  edits: BulkMetadataEditInput,
+): BulkMetadataBookPreview {
+  const current = book.sourceMetadata ?? {};
+  const next = metadataAfterBulkEdit(current, edits);
+  const changes: BulkMetadataPreviewChange[] = [];
+  for (const [field, label] of [
+    ["series", "Series"],
+    ["publisher", "Publisher"],
+    ["language", "Language"],
+  ] as const) {
+    if (Object.hasOwn(edits, field) && cleanScalar(current[field] ?? null) !== next[field]) {
+      changes.push({
+        field,
+        label,
+        from: displayScalar(current[field]),
+        to: displayScalar(next[field]),
+      });
+    }
+  }
+  if (edits.subjects && !bulkMetadataSubjectsEqual(current.subjects, next.subjects)) {
+    changes.push({
+      field: "subjects",
+      label: "Tags",
+      from: displaySubjects(current.subjects),
+      to: displaySubjects(next.subjects),
+    });
+  }
+  return { book, changes };
+}
+
 export function previewBulkMetadataEdit(
   books: readonly Book[],
   edits: BulkMetadataEditInput,
 ): BulkMetadataBookPreview[] {
-  return books.map((book) => {
-    const current = book.sourceMetadata ?? {};
-    const next = metadataAfterBulkEdit(current, edits);
-    const changes: BulkMetadataPreviewChange[] = [];
-    for (const [field, label] of [
-      ["series", "Series"],
-      ["publisher", "Publisher"],
-      ["language", "Language"],
-    ] as const) {
-      if (Object.hasOwn(edits, field) && cleanScalar(current[field] ?? null) !== next[field]) {
-        changes.push({
-          field,
-          label,
-          from: displayScalar(current[field]),
-          to: displayScalar(next[field]),
-        });
-      }
-    }
-    if (edits.subjects && !bulkMetadataSubjectsEqual(current.subjects, next.subjects)) {
-      changes.push({
-        field: "subjects",
-        label: "Tags",
-        from: displaySubjects(current.subjects),
-        to: displaySubjects(next.subjects),
-      });
-    }
-    return { book, changes };
-  });
+  return books.map((book) => previewBulkMetadataBookEdit(book, edits));
 }
 
 export function commonMetadataValue(
@@ -126,7 +131,8 @@ export function commonMetadataValue(
   field: "series" | "publisher" | "language",
 ): { mixed: boolean; value: string } {
   const values = books.map((book) => book.sourceMetadata?.[field]?.trim() ?? "");
-  return { mixed: new Set(values).size > 1, value: new Set(values).size === 1 ? values[0] : "" };
+  const uniqueValues = new Set(values);
+  return { mixed: uniqueValues.size > 1, value: uniqueValues.size === 1 ? values[0] : "" };
 }
 
 export function commonTagsValue(books: readonly Book[]) {

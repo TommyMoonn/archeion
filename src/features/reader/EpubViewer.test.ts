@@ -24,19 +24,17 @@ describe("continuous reader scrolling", () => {
     expect(event.defaultPrevented).toBe(true);
   });
 
-  it("keeps loaded continuous views mounted during reverse scrolling", async () => {
+  it("retains nearby continuous views while allowing distant views to be released", async () => {
     const originalUpdate = vi.fn(async () => undefined);
-    const display = vi.fn(async () => undefined);
-    const show = vi.fn();
     const originalCounter = vi.fn();
+    const container = document.createElement("div");
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 600 });
     const manager = {
       check: vi.fn(async () => manager.counter({ heightDelta: 400 })),
+      container,
       counter: originalCounter,
-      request: vi.fn(),
+      settings: { offset: 500 },
       update: originalUpdate,
-      views: {
-        all: () => [{ display, displayed: false, show }],
-      },
     };
     const rendition = { manager } as unknown as Parameters<typeof stabilizeContinuousRendition>[0];
 
@@ -45,9 +43,7 @@ describe("continuous reader scrolling", () => {
     await manager.check();
     manager.counter({ heightDelta: 20 });
 
-    expect(originalUpdate).not.toHaveBeenCalled();
-    expect(display).toHaveBeenCalledWith(manager.request);
-    expect(show).toHaveBeenCalledTimes(1);
+    expect(originalUpdate).toHaveBeenCalledWith(1200);
     expect(originalCounter).toHaveBeenCalledTimes(1);
   });
 });

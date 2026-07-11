@@ -2099,6 +2099,40 @@ describe("TauriArchiveLibraryStorage bulk actions", () => {
     );
   });
 
+  it("batches cover-cache invalidation before regenerating eligible covers", async () => {
+    const archive = twoBookArchive("Author/Series");
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(archive.scan);
+      if (command === "load_archive_metadata") return structuredClone(archive.metadata);
+      if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const result = await storage.bulkRegenerateCovers(["book-1", "book-2", "missing-book"]);
+
+    expect(result).toMatchObject({
+      requested: 3,
+      succeeded: [{ bookId: "book-1" }, { bookId: "book-2" }],
+      failed: [],
+      skipped: [{ bookId: "missing-book" }],
+    });
+    const invalidationCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "invalidate_cover_cache_entries",
+    );
+    expect(invalidationCalls).toHaveLength(1);
+    expect(invalidationCalls[0]?.[1]).toMatchObject({
+      bookIds: ["book-1", "book-2"],
+      rootPath: "C:/ArchiveA",
+    });
+    expect(invokeMock.mock.calls.filter(([command]) => command === "load_epub_cover")).toHaveLength(
+      2,
+    );
+  });
+
   it("preserves successful delete cleanup when a later item fails", async () => {
     const secondBook = {
       discoveryId: "book-2",

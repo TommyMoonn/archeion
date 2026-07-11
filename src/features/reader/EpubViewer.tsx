@@ -69,6 +69,11 @@ type EpubContent = {
   window?: Window;
 };
 
+type EpubContentBinding = {
+  cleanup: () => void;
+  frame: Element | null;
+};
+
 type RenditionWithContentHook = Rendition & {
   hooks?: {
     content?: {
@@ -108,7 +113,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 ) {
   const viewerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const contentCleanupRef = useRef(new Map<Document, () => void>());
+  const contentBindingsRef = useRef(new Map<Document, EpubContentBinding>());
   const callbacksRef = useRef<EpubViewerCallbacks>({
     onError,
     onInteraction,
@@ -290,6 +295,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let cancelled = false;
     let epubBook: EpubBook | null = null;
     let rendition: Rendition | null = null;
+    let contentObserver: MutationObserver | null = null;
     let cancelDeferredNavigation: () => void = () => undefined;
     const displayCfi =
       canonicalCfiFileRef.current === fileBlob ? canonicalCfiRef.current : initialCfi;
@@ -328,21 +334,46 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     }
 
     function removeContentListeners() {
-      for (const cleanup of contentCleanupRef.current.values()) {
-        cleanup();
+      for (const binding of contentBindingsRef.current.values()) {
+        binding.cleanup();
       }
-      contentCleanupRef.current.clear();
+      contentBindingsRef.current.clear();
+    }
+
+    function pruneDetachedContentListeners() {
+      for (const [document, binding] of contentBindingsRef.current) {
+        if (binding.frame && !binding.frame.isConnected) {
+          binding.cleanup();
+          contentBindingsRef.current.delete(document);
+        }
+      }
     }
 
     function bindContent(content: EpubContent | null) {
       const document = content?.document ?? null;
+      const contentWindow = content?.window ?? windowFromContentDocument(document);
+      const frame = contentWindow?.frameElement ?? null;
 
-      if (!document || contentCleanupRef.current.has(document)) {
+      if (!document) {
+        return;
+      }
+
+      if (frame) {
+        for (const [boundDocument, binding] of contentBindingsRef.current) {
+          if (boundDocument !== document && binding.frame === frame) {
+            binding.cleanup();
+            contentBindingsRef.current.delete(boundDocument);
+          }
+        }
+      }
+
+      const existingBinding = contentBindingsRef.current.get(document);
+      if (existingBinding) {
+        existingBinding.frame ??= frame;
         return;
       }
 
       applyReaderContentTheme(null, contentThemeRef.current, [document]);
-      const contentWindow = content?.window ?? windowFromContentDocument(document);
 
       const wheelOptions: AddEventListenerOptions = {
         capture: true,
@@ -381,10 +412,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         () => document.removeEventListener("touchstart", onContentInteraction),
         () => document.removeEventListener("click", onContentInteraction),
       ];
-      contentCleanupRef.current.set(document, () => {
-        for (const cleanup of cleanupFunctions) {
-          cleanup();
-        }
+      contentBindingsRef.current.set(document, {
+        cleanup: () => {
+          for (const cleanup of cleanupFunctions) {
+            cleanup();
+          }
+        },
+        frame,
       });
     }
 
@@ -482,11 +516,17 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
     }
 
+    if (containerRef.current && typeof MutationObserver !== "undefined") {
+      contentObserver = new MutationObserver(pruneDetachedContentListeners);
+      contentObserver.observe(containerRef.current, { childList: true, subtree: true });
+    }
+
     void openBook();
 
     return () => {
       cancelled = true;
       cancelDeferredNavigation();
+      contentObserver?.disconnect();
       removeContentListeners();
 
       if (rendition) {
@@ -503,7 +543,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useEffect(() => {
     const mountedFrame = containerRef.current?.querySelector("iframe");
     applyReaderContentTheme(renditionRef.current, contentTheme, [
-      ...contentCleanupRef.current.keys(),
+      ...contentBindingsRef.current.keys(),
       mountedFrame?.contentDocument ?? null,
     ]);
   }, [contentTheme]);

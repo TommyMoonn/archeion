@@ -372,6 +372,39 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(props.onInteraction).toHaveBeenCalledTimes(1);
   });
 
+  it("releases rendition listeners when a continuous chapter iframe is removed", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+
+    const stage = container.querySelector<HTMLElement>(".epub-viewer__stage");
+    const frame = document.createElement("iframe");
+    stage?.append(frame);
+    const chapterDocument = frame.contentDocument;
+    const chapterWindow = frame.contentWindow;
+    expect(chapterDocument).not.toBeNull();
+    expect(chapterWindow).not.toBeNull();
+    session.rendition.emitContentMock({
+      document: chapterDocument ?? undefined,
+      window: chapterWindow ?? undefined,
+    });
+    props.onKeyDown.mockClear();
+
+    chapterDocument?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+    expect(props.onKeyDown).toHaveBeenCalledTimes(1);
+
+    frame.remove();
+    await flushAsyncWork();
+    chapterDocument?.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown" }));
+
+    expect(props.onKeyDown).toHaveBeenCalledTimes(1);
+  });
+
   it("publishes current chapter changes without recreating the reader session", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);

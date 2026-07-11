@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, WarningCircle } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useDeferredValue, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -75,7 +75,13 @@ export function BulkMetadataDialog({
       next.subjects = { mode: tagMode, values: parseBulkMetadataSubjects(values.subjects) };
     return next;
   }, [enabled, tagMode, values]);
-  const preview = useMemo(() => previewBulkMetadataEdit(books, edits), [books, edits]);
+  const deferredBooks = useDeferredValue(books);
+  const deferredEdits = useDeferredValue(edits);
+  const previewPending = deferredBooks !== books || deferredEdits !== edits;
+  const preview = useMemo(
+    () => previewBulkMetadataEdit(deferredBooks, deferredEdits),
+    [deferredBooks, deferredEdits],
+  );
   const changedBooks = preview.filter((entry) => entry.changes.length > 0);
   const writableChangedBooks = changedBooks.filter((entry) => !entry.book.isFileMissing);
   const hasEnabledField = Object.values(enabled).some(Boolean);
@@ -83,15 +89,21 @@ export function BulkMetadataDialog({
     enabled.subjects &&
     tagMode !== "replace" &&
     parseBulkMetadataSubjects(values.subjects).length === 0;
-  const canReview = hasEnabledField && writableChangedBooks.length > 0 && !invalidEmptyTagOperation;
+  const canReview =
+    !previewPending &&
+    hasEnabledField &&
+    writableChangedBooks.length > 0 &&
+    !invalidEmptyTagOperation;
   const hasUnsavedChanges = hasEnabledField;
   const reviewDisabledReason = !hasEnabledField
     ? "Choose at least one metadata field."
-    : invalidEmptyTagOperation
-      ? `Enter at least one tag to ${tagMode}.`
-      : writableChangedBooks.length === 0
-        ? "No available EPUB needs these changes."
-        : undefined;
+    : previewPending
+      ? "Preparing metadata preview."
+      : invalidEmptyTagOperation
+        ? `Enter at least one tag to ${tagMode}.`
+        : writableChangedBooks.length === 0
+          ? "No available EPUB needs these changes."
+          : undefined;
 
   function requestClose() {
     if (isWriting) return;
