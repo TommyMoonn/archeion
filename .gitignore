@@ -41,5 +41,7 @@ Desktop.ini
 *.tmp
 *.swp
 
-# Local agent planning files
+# Local planning and project work files
 /.agent-work/
+/.planning/
+/.project/
