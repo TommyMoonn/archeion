@@ -7,7 +7,7 @@ license = "GPL-3.0-only"
 homepage = "https://tommymoonn.github.io/archeion/"
 repository = "https://github.com/TommyMoonn/archeion"
 edition = "2021"
-rust-version = "1.77.2"
+rust-version = "1.88"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
