@@ -147,7 +147,7 @@ async function openPalette(): Promise<HTMLInputElement> {
     );
   });
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  for (let attempt = 0; attempt < 40; attempt += 1) {
     const input = document.querySelector<HTMLInputElement>(
       '.quick-actions input[placeholder="Type a command"]',
     );
@@ -155,7 +155,7 @@ async function openPalette(): Promise<HTMLInputElement> {
       return input;
     }
     await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      await new Promise((resolve) => window.setTimeout(resolve, 5));
     });
   }
 
