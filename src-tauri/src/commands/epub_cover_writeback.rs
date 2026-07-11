@@ -11,7 +11,7 @@ use image::{
     DynamicImage, GenericImageView, ImageFormat, ImageReader, Limits, Rgba, RgbaImage,
 };
 use quick_xml::{
-    events::{BytesStart, Event},
+    events::{BytesEnd, BytesStart, Event},
     Reader, Writer,
 };
 use serde::{Deserialize, Serialize};
@@ -464,7 +464,7 @@ fn preview_bytes(image: &DynamicImage) -> Result<Vec<u8>, String> {
     Ok(output.into_inner())
 }
 
-fn attributes_map(reader: &Reader<&[u8]>, event: &BytesStart<'_>) -> HashMap<String, String> {
+fn ordered_attributes(reader: &Reader<&[u8]>, event: &BytesStart<'_>) -> Vec<(String, String)> {
     event
         .attributes()
         .filter_map(Result::ok)
@@ -477,6 +477,10 @@ fn attributes_map(reader: &Reader<&[u8]>, event: &BytesStart<'_>) -> HashMap<Str
             Some((key, value))
         })
         .collect()
+}
+
+fn attributes_map(reader: &Reader<&[u8]>, event: &BytesStart<'_>) -> HashMap<String, String> {
+    ordered_attributes(reader, event).into_iter().collect()
 }
 
 fn strict_attributes_map(
@@ -1394,7 +1398,7 @@ where
     }
     if manifest_item_has_property(cover_page_item, "remote-resources") {
         return Err(
-            "The EPUB cover page is marked as using remote resources and cannot be resolved safely. The file was not modified."
+            "The EPUB cover page is marked with the remote-resources property and cannot be resolved safely. The file was not modified."
                 .to_string(),
         );
     }
@@ -1884,20 +1888,28 @@ fn rewritten_item_event(
     plan: &CoverPackagePlan,
     output_format: CoverImageFormat,
 ) -> Result<BytesStart<'static>, String> {
-    let attributes = attributes_map(reader, event);
-    let item_id = local_attribute(&attributes, "id")
-        .map(String::as_str)
+    let attributes = ordered_attributes(reader, event);
+    let item_id = attributes
+        .iter()
+        .find_map(|(key, value)| {
+            key.rsplit(':')
+                .next()
+                .is_some_and(|local| local == "id")
+                .then_some(value.as_str())
+        })
         .unwrap_or_default();
     let event_name = String::from_utf8_lossy(event.name().as_ref()).into_owned();
     let mut rewritten = BytesStart::new(event_name);
     let selected = item_id == plan.cover_item_id;
-    let mut properties_written = false;
     let mark_cover = plan.package_version.is_epub_three() || plan.had_cover_property;
+    let mut media_type_written = false;
+    let mut properties_written = false;
 
-    for (key, value) in attributes {
+    for (key, value) in &attributes {
         let local = key.rsplit(':').next().unwrap_or(key.as_str());
         if selected && local == "media-type" {
             rewritten.push_attribute((key.as_str(), output_format.media_type()));
+            media_type_written = true;
             continue;
         }
         if local == "properties" {
@@ -1910,7 +1922,8 @@ fn rewritten_item_event(
                 properties.push("cover-image".to_string());
             }
             if !properties.is_empty() {
-                rewritten.push_attribute((key.as_str(), properties.join(" ").as_str()));
+                let properties = properties.join(" ");
+                rewritten.push_attribute((key.as_str(), properties.as_str()));
             }
             properties_written = true;
             continue;
@@ -1918,11 +1931,7 @@ fn rewritten_item_event(
         rewritten.push_attribute((key.as_str(), value.as_str()));
     }
 
-    if selected
-        && !attributes_map(reader, event)
-            .keys()
-            .any(|key| key.rsplit(':').next() == Some("media-type"))
-    {
+    if selected && !media_type_written {
         rewritten.push_attribute(("media-type", output_format.media_type()));
     }
     if selected && mark_cover && !properties_written {
@@ -2032,6 +2041,45 @@ fn update_package_cover_xml(
                     .map_err(|error| error.to_string())?,
             },
             Event::Empty(event) => match event.local_name().as_ref() {
+                b"metadata" => {
+                    metadata_found = true;
+                    if write_epub2_meta {
+                        let element_name =
+                            String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                        let meta_element_name = child_element_name(event.name().as_ref(), "meta");
+                        writer
+                            .write_event(Event::Start(event.into_owned()))
+                            .map_err(|error| error.to_string())?;
+                        write_cover_meta(&mut writer, &meta_element_name, &plan.cover_item_id)?;
+                        writer
+                            .write_event(Event::End(BytesEnd::new(element_name)))
+                            .map_err(|error| error.to_string())?;
+                    } else {
+                        writer
+                            .write_event(Event::Empty(event.into_owned()))
+                            .map_err(|error| error.to_string())?;
+                    }
+                }
+                b"manifest" => {
+                    manifest_found = true;
+                    if !plan.existing_cover {
+                        let element_name =
+                            String::from_utf8_lossy(event.name().as_ref()).into_owned();
+                        let item_element_name = child_element_name(event.name().as_ref(), "item");
+                        writer
+                            .write_event(Event::Start(event.into_owned()))
+                            .map_err(|error| error.to_string())?;
+                        write_new_cover_item(&mut writer, &item_element_name, plan, output_format)?;
+                        writer
+                            .write_event(Event::End(BytesEnd::new(element_name)))
+                            .map_err(|error| error.to_string())?;
+                        selected_item_found = true;
+                    } else {
+                        writer
+                            .write_event(Event::Empty(event.into_owned()))
+                            .map_err(|error| error.to_string())?;
+                    }
+                }
                 b"meta" if in_metadata && is_cover_meta(&reader, &event) => {}
                 b"item" if in_manifest => {
                     let attributes = attributes_map(&reader, &event);
