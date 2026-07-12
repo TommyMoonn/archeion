@@ -1,4 +1,5 @@
 import { Minus, Plus, X } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { readerTypefaceOptions } from "./readerFonts";
@@ -51,6 +52,12 @@ export function ReaderSettingsPanel({
   persistenceFailed,
   settings,
 }: ReaderSettingsPanelProps) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    closeButtonRef.current?.focus();
+  }, []);
+
   function update(changes: Partial<ReaderSettings>) {
     onChange({ ...settings, ...changes });
   }
@@ -61,13 +68,18 @@ export function ReaderSettingsPanel({
       className="reader-settings"
       onClick={(event) => event.stopPropagation()}
     >
-      <header className="reader-settings__header">
+      <header className="reader-settings__header reader-panel-header">
         <div>
           <p>Reading</p>
           <h2>Appearance</h2>
         </div>
-        <IconButton label="Close reader settings" onClick={onClose}>
-          <X aria-hidden="true" size={18} />
+        <IconButton
+          label="Close reader settings"
+          onClick={onClose}
+          ref={closeButtonRef}
+          size="compact"
+        >
+          <X aria-hidden="true" />
         </IconButton>
       </header>
 
@@ -78,6 +90,7 @@ export function ReaderSettingsPanel({
           label="Reader mode"
           onChange={(mode) => update({ mode })}
           options={[...readerModes]}
+          size="standard"
           value={settings.mode}
         />
       </div>
@@ -98,6 +111,7 @@ export function ReaderSettingsPanel({
               />
             ),
           }))}
+          size="standard"
           value={settings.theme}
         />
       </div>
@@ -109,6 +123,7 @@ export function ReaderSettingsPanel({
           id="reader-font-family"
           onChange={(fontFamily) => update({ fontFamily })}
           options={readerTypefaceOptions}
+          size="standard"
           value={settings.fontFamily}
         />
       </div>
@@ -120,6 +135,7 @@ export function ReaderSettingsPanel({
             disabled={settings.fontSize <= 14}
             label="Decrease text size"
             onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
+            size="compact"
           >
             <Minus aria-hidden="true" size={16} />
           </IconButton>
@@ -128,6 +144,7 @@ export function ReaderSettingsPanel({
             disabled={settings.fontSize >= 28}
             label="Increase text size"
             onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
+            size="compact"
           >
             <Plus aria-hidden="true" size={16} />
           </IconButton>
@@ -141,6 +158,7 @@ export function ReaderSettingsPanel({
           label="Reader line spacing"
           onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
           options={lineHeights}
+          size="standard"
           value={String(settings.lineHeight)}
         />
       </div>
@@ -152,6 +170,7 @@ export function ReaderSettingsPanel({
           label="Reader page width"
           onChange={(margin) => update({ margin: Number(margin) })}
           options={margins}
+          size="standard"
           value={String(settings.margin)}
         />
       </div>
@@ -163,11 +182,17 @@ export function ReaderSettingsPanel({
           label="Reader progress bar placement"
           onChange={(progressPlacement) => update({ progressPlacement })}
           options={progressPlacements}
+          size="standard"
           value={settings.progressPlacement}
         />
       </div>
 
-      <p className="reader-settings__status" data-error={persistenceFailed || undefined}>
+      <p
+        aria-live="polite"
+        className="reader-settings__status"
+        data-error={persistenceFailed || undefined}
+        role={persistenceFailed ? "alert" : "status"}
+      >
         {persistenceFailed ? "Settings could not be saved" : "Saved automatically"}
       </p>
     </aside>

@@ -70,6 +70,7 @@ export function ReaderPage() {
   const settings = useReaderPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const tocButtonRef = useRef<HTMLButtonElement>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const progressWriter = useRef<DebouncedTask<{
@@ -189,6 +190,11 @@ export function ReaderPage() {
   const closeToc = useCallback(() => {
     setTocOpen(false);
     window.requestAnimationFrame(() => tocButtonRef.current?.focus());
+  }, []);
+
+  const closeSettings = useCallback(() => {
+    setSettingsOpen(false);
+    window.requestAnimationFrame(() => settingsButtonRef.current?.focus());
   }, []);
 
   const navigateToLibraryView = useCallback(
@@ -429,7 +435,7 @@ export function ReaderPage() {
         if (tocOpenRef.current) {
           closeToc();
         } else if (settingsOpenRef.current) {
-          setSettingsOpen(false);
+          closeSettings();
         } else {
           returnToOrigin();
         }
@@ -447,7 +453,7 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [closeToc, moveNext, movePrevious, openSettings, returnToOrigin, settings.mode],
+    [closeSettings, closeToc, moveNext, movePrevious, openSettings, returnToOrigin, settings.mode],
   );
 
   const handleContentKeyDown = useCallback(
@@ -531,11 +537,13 @@ export function ReaderPage() {
         <p>This EPUB is no longer in the archive folder.</p>
         <div className="reader-status-page__actions">
           <Button
+            busy={recoveryStatus === "rescanning"}
             disabled={recoveryStatus === "rescanning"}
             onClick={handleRescanAndReturn}
+            size="standard"
             variant="secondary"
           >
-            {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
+            Rescan library
           </Button>
           <button className="text-link" onClick={returnToOrigin} type="button">
             Back
@@ -574,11 +582,13 @@ export function ReaderPage() {
         <p>The EPUB file may have been moved or deleted.</p>
         <div className="reader-status-page__actions">
           <Button
+            busy={recoveryStatus === "rescanning"}
             disabled={recoveryStatus === "rescanning"}
             onClick={handleRescanAndReturn}
+            size="standard"
             variant="secondary"
           >
-            {recoveryStatus === "rescanning" ? "Rescanning" : "Rescan library"}
+            Rescan library
           </Button>
           <button className="text-link" onClick={returnToOrigin} type="button">
             Back
@@ -624,6 +634,7 @@ export function ReaderPage() {
           previousChapterDisabled={!chapterSequence.previousChapterId}
           title={title}
           mode={settings.mode}
+          settingsButtonRef={settingsButtonRef}
           tocButtonRef={tocButtonRef}
           tocOpen={tocOpen}
         />
@@ -667,10 +678,10 @@ export function ReaderPage() {
       ) : null}
 
       {settingsOpen ? (
-        <div className="reader-settings-layer" onClick={() => setSettingsOpen(false)}>
+        <div className="reader-settings-layer" onClick={closeSettings}>
           <ReaderSettingsPanel
             onChange={changeSettings}
-            onClose={() => setSettingsOpen(false)}
+            onClose={closeSettings}
             persistenceFailed={settingsPersistenceFailed}
             settings={settings}
           />

@@ -73,10 +73,6 @@ html[data-motion="on"] .folder-tree__children {
   background: var(--surface);
 }
 
-.folder-tree__select[data-active] {
-  box-shadow: inset 2px 0 var(--accent);
-}
-
 .folder-tree__row[data-import-drop-active="true"] > .folder-tree__select {
   color: var(--text-strong);
   background: var(--accent-soft);

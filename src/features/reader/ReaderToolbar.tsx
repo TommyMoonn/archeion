@@ -32,6 +32,7 @@ type ReaderToolbarProps = {
   progressSaveFailed: boolean;
   title: string;
   mode: ReaderMode;
+  settingsButtonRef?: Ref<HTMLButtonElement>;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
 };
@@ -56,6 +57,7 @@ export function ReaderToolbar({
   progressSaveFailed,
   title,
   mode,
+  settingsButtonRef,
   tocButtonRef,
   tocOpen,
 }: ReaderToolbarProps) {
@@ -74,17 +76,21 @@ export function ReaderToolbar({
         title={backLabel}
         type="button"
       >
-        <ArrowLeft aria-hidden="true" size={18} weight="regular" />
+        <span aria-hidden="true" className="icon-slot">
+          <ArrowLeft weight="regular" />
+        </span>
         <span>Back</span>
       </button>
       <div className="reader-toolbar__chapter-navigation">
         {hasChapterNavigation ? (
           <IconButton
             disabled={previousChapterDisabled}
+            disabledReason="You are at the first chapter"
             label="Previous chapter"
             onClick={onPreviousChapter}
+            size="compact"
           >
-            <CaretDoubleLeft aria-hidden="true" size={18} weight="bold" />
+            <CaretDoubleLeft aria-hidden="true" weight="bold" />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -98,8 +104,14 @@ export function ReaderToolbar({
           </span>
         </div>
         {hasChapterNavigation ? (
-          <IconButton disabled={nextChapterDisabled} label="Next chapter" onClick={onNextChapter}>
-            <CaretDoubleRight aria-hidden="true" size={18} weight="bold" />
+          <IconButton
+            disabled={nextChapterDisabled}
+            disabledReason="You are at the final chapter"
+            label="Next chapter"
+            onClick={onNextChapter}
+            size="compact"
+          >
+            <CaretDoubleRight aria-hidden="true" weight="bold" />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -112,27 +124,41 @@ export function ReaderToolbar({
           label="Table of contents"
           onClick={onToc}
           ref={tocButtonRef}
+          size="compact"
         >
-          <ListBullets aria-hidden="true" size={19} weight="regular" />
+          <ListBullets aria-hidden="true" weight="regular" />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton
           label={mode === "continuous" ? "Scroll up" : "Previous page"}
           disabled={atStart}
+          disabledReason={
+            mode === "continuous" ? "You are at the top" : "You are on the first page"
+          }
           onClick={onPrevious}
+          size="compact"
         >
-          <CaretLeft aria-hidden="true" size={19} weight="bold" />
+          <CaretLeft aria-hidden="true" weight="bold" />
         </IconButton>
         <IconButton
           label={mode === "continuous" ? "Scroll down" : "Next page"}
           disabled={atEnd}
+          disabledReason={
+            mode === "continuous" ? "You are at the end" : "You are on the final page"
+          }
           onClick={onNext}
+          size="compact"
         >
-          <CaretRight aria-hidden="true" size={19} weight="bold" />
+          <CaretRight aria-hidden="true" weight="bold" />
         </IconButton>
         <span className="reader-toolbar__divider" />
-        <IconButton label="Reader settings" onClick={onSettings}>
-          <TextAa aria-hidden="true" size={19} weight="regular" />
+        <IconButton
+          label="Reader settings"
+          onClick={onSettings}
+          ref={settingsButtonRef}
+          size="compact"
+        >
+          <TextAa aria-hidden="true" weight="regular" />
         </IconButton>
       </div>
     </header>

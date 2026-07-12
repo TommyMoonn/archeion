@@ -76,13 +76,13 @@ export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPan
       ref={panelRef}
       tabIndex={-1}
     >
-      <header className="reader-toc__header">
+      <header className="reader-toc__header reader-panel-header">
         <div>
           <p>Navigate</p>
           <h2>Contents</h2>
         </div>
-        <IconButton label="Close table of contents" onClick={onClose}>
-          <X aria-hidden="true" size={18} />
+        <IconButton label="Close table of contents" onClick={onClose} size="compact">
+          <X aria-hidden="true" />
         </IconButton>
       </header>
 
@@ -94,6 +94,7 @@ export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPan
           onChange={(event) => setQuery(event.currentTarget.value)}
           placeholder="Search chapters"
           ref={searchRef}
+          size="standard"
           type="search"
           value={query}
         />

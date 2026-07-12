@@ -96,6 +96,7 @@ describe("ReaderToolbar", () => {
     const nextChapter = button(container, "Next chapter");
 
     expect(previousChapter.disabled).toBe(true);
+    expect(previousChapter.title).toBe("You are at the first chapter");
     expect(nextChapter.disabled).toBe(false);
     expect(button(container, "Previous page").disabled).toBe(false);
     expect(button(container, "Next page").disabled).toBe(false);

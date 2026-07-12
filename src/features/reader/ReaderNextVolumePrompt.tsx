@@ -23,6 +23,7 @@ export function ReaderNextVolumePrompt({ book, onOpen }: ReaderNextVolumePromptP
         disabled={Boolean(book.isFileMissing)}
         icon={<ArrowRight aria-hidden="true" size={15} weight="bold" />}
         onClick={onOpen}
+        size="standard"
         variant="secondary"
       >
         Open next volume
