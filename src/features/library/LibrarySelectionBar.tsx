@@ -75,6 +75,7 @@ export function LibrarySelectionBar({
           <Button
             disabled={visibleCount === 0 || busy}
             onClick={allVisibleSelected ? onDeselectVisible : onSelectVisible}
+            size="compact"
             variant="secondary"
           >
             {allVisibleSelected ? "Deselect all" : "Select all"}
@@ -157,10 +158,15 @@ export function LibrarySelectionBar({
         </div>
       </div>
       <div className="library-selection-bar__actions">
-        <Button disabled={selectedCount === 0 || busy} onClick={onClear} variant="secondary">
+        <Button
+          disabled={selectedCount === 0 || busy}
+          onClick={onClear}
+          size="compact"
+          variant="secondary"
+        >
           Clear
         </Button>
-        <Button disabled={busy} onClick={onExit}>
+        <Button disabled={busy} onClick={onExit} size="compact">
           Done
         </Button>
       </div>

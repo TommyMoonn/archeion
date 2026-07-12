@@ -25,6 +25,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
             <Button
               icon={<ArrowLeft aria-hidden="true" size={16} />}
               onClick={onBack}
+              size="standard"
               variant="secondary"
             >
               Back to Series
@@ -62,6 +63,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               disabled={Boolean(continueBook.isFileMissing)}
               icon={<Play aria-hidden="true" size={15} weight="fill" />}
               onClick={() => onRead(continueBook)}
+              size="standard"
             >
               Continue Series
             </Button>
@@ -110,6 +112,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               <Button
                 disabled={Boolean(book.isFileMissing)}
                 onClick={() => onRead(book)}
+                size="standard"
                 variant={isCurrent || isFirstUnread ? "secondary" : "ghost"}
               >
                 {bookActionLabel(book)}

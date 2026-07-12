@@ -193,7 +193,9 @@ describe("LibraryToolbar", () => {
 
     expect(session.container.querySelector('[aria-label="Active filters"]')).toBeNull();
     expect(session.container.querySelector(".library-filter__count")).toBeNull();
-    expect(session.container.querySelector('[aria-label="1 book shown"]')?.textContent).toBe("1");
+    expect(session.container.querySelector('[aria-label="1 book shown"]')?.textContent).toBe(
+      "1 book",
+    );
   });
 
   it("enters explicit selection mode without changing the search query", () => {

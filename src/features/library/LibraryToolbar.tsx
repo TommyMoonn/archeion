@@ -93,6 +93,7 @@ export function LibraryToolbar({
             name="archeion-library-search"
             placeholder="Search books"
             ref={searchInputRef}
+            size="standard"
             spellCheck={false}
             value={query}
             onChange={(event) => onQueryChange(event.currentTarget.value)}
@@ -114,16 +115,18 @@ export function LibraryToolbar({
           label={selectionMode ? "Finish selecting books" : "Select books"}
           onClick={onToggleSelectionMode}
         >
-          <CheckSquare aria-hidden="true" size={17} weight={selectionMode ? "fill" : "regular"} />
+          <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
         </IconButton>
         <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
         <Button
+          busy={isImporting}
           className="library-add-button"
           disabled={isImporting}
           icon={<Plus aria-hidden="true" size={17} weight="bold" />}
           onClick={onOpenAddEpub}
+          size="standard"
         >
-          {isImporting ? "Adding" : "Add EPUB"}
+          Add EPUB
         </Button>
       </div>
 
@@ -138,8 +141,9 @@ export function LibraryToolbar({
           <span
             className="library-result-count"
             aria-label={`${resultCount} ${resultCount === 1 ? "book" : "books"} shown`}
+            aria-live="polite"
           >
-            {resultCount}
+            {resultCount} {resultCount === 1 ? "book" : "books"}
           </span>
         </div>
         <div className="library-controls__display">
@@ -155,6 +159,7 @@ export function LibraryToolbar({
             label="Library view"
             onChange={onViewChange}
             options={viewOptions}
+            size="standard"
             value={view}
           />
         </div>

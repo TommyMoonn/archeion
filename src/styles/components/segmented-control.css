@@ -43,15 +43,6 @@
   border-color: var(--line-strong);
 }
 
-.segmented-control__option[aria-checked="true"]::after {
-  width: 4px;
-  height: 4px;
-  margin-left: 1px;
-  border-radius: 50%;
-  background: currentColor;
-  content: "";
-}
-
 .segmented-control__icon {
   color: inherit;
 }

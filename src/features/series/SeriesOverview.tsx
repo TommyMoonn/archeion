@@ -48,6 +48,7 @@ export function SeriesOverview({
             name="archeion-series-search"
             onChange={(event) => onQueryChange(event.currentTarget.value)}
             placeholder="Search series"
+            size="standard"
             spellCheck={false}
             type="search"
             value={query}
@@ -82,7 +83,7 @@ export function SeriesOverview({
       ) : visibleEntries.length === 0 ? (
         <EmptyState
           action={
-            <Button onClick={onClearSearch} variant="secondary">
+            <Button onClick={onClearSearch} size="standard" variant="secondary">
               Clear search
             </Button>
           }

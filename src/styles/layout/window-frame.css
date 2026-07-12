@@ -41,7 +41,7 @@
   align-items: center;
   justify-content: space-between;
   height: var(--window-titlebar-archeion-height);
-  padding-left: 12px;
+  padding-left: 14px;
   color: var(--muted);
   background: var(--surface-sidebar);
   border-bottom: 1px solid var(--surface-border);
@@ -63,9 +63,10 @@
 }
 
 .window-titlebar__identity {
-  display: flex;
+  display: grid;
+  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   min-width: 0;
   color: var(--text-strong);
   font-size: var(--type-meta);
@@ -76,8 +77,8 @@
 
 .window-titlebar__icon {
   display: block;
-  width: 18px;
-  height: 18px;
+  width: var(--icon-glyph-standard);
+  height: var(--icon-glyph-standard);
   object-fit: contain;
 }
 

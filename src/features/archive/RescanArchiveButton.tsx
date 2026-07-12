@@ -38,6 +38,7 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
       <IconButton
         className="library-rescan-button"
         disabled={isScanning}
+        disabledReason="Wait for the archive scan to finish"
         label={isScanning ? "Scanning archive" : "Rescan archive"}
         onClick={() => setConfirmationOpen(true)}
       >
@@ -59,8 +60,13 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
               >
                 Cancel
               </Button>
-              <Button autoFocus disabled={isScanning} onClick={() => void handleRescan()}>
-                {isScanning ? "Scanning" : "Rescan archive"}
+              <Button
+                autoFocus
+                busy={isScanning}
+                disabled={isScanning}
+                onClick={() => void handleRescan()}
+              >
+                Rescan archive
               </Button>
             </>
           }
