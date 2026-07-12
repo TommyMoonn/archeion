@@ -81,7 +81,9 @@ export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
           onClick={() => void appWindow.minimize()}
           type="button"
         >
-          <Minus aria-hidden="true" size={14} />
+          <span aria-hidden="true" className="icon-slot icon-slot--compact">
+            <Minus />
+          </span>
         </button>
         <button
           aria-label="Maximize window"
@@ -89,7 +91,9 @@ export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
           onClick={() => void appWindow.toggleMaximize()}
           type="button"
         >
-          <Square aria-hidden="true" size={11} />
+          <span aria-hidden="true" className="icon-slot icon-slot--compact">
+            <Square />
+          </span>
         </button>
         <button
           aria-label="Close window"
@@ -98,7 +102,9 @@ export function WindowFrame({ frameStyleOverride }: WindowFrameProps = {}) {
           onClick={() => void appWindow.close()}
           type="button"
         >
-          <X aria-hidden="true" size={14} />
+          <span aria-hidden="true" className="icon-slot icon-slot--compact">
+            <X />
+          </span>
         </button>
       </div>
     </header>

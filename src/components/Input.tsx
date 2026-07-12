@@ -15,7 +15,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   return (
     <label className={`input-shell ${className}`.trim()} htmlFor={inputId}>
       <span className="sr-only">{label}</span>
-      {icon}
+      {icon ? (
+        <span aria-hidden="true" className="input-shell__icon icon-slot">
+          {icon}
+        </span>
+      ) : null}
       <input id={inputId} ref={ref} {...props} />
     </label>
   );

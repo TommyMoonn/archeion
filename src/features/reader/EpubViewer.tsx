@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
+import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
 import {
@@ -519,7 +520,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           onMouseMove={onInteraction}
           tabIndex={-1}
           type="button"
-        />
+        >
+          <span
+            aria-hidden="true"
+            className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+          >
+            <CaretLeft weight="bold" />
+          </span>
+        </button>
       ) : null}
       {mode === "paged" ? (
         <button
@@ -529,7 +537,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           onMouseMove={onInteraction}
           tabIndex={-1}
           type="button"
-        />
+        >
+          <span
+            aria-hidden="true"
+            className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
+          >
+            <CaretRight weight="bold" />
+          </span>
+        </button>
       ) : null}
       {isLoading ? (
         <div className="reader-loading" role="status">

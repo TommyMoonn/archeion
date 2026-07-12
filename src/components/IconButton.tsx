@@ -19,7 +19,9 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
       type={type}
       {...props}
     >
-      {children}
+      <span aria-hidden="true" className="icon-slot">
+        {children}
+      </span>
     </button>
   );
 });

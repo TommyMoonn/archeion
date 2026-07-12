@@ -26,8 +26,8 @@
   margin: 17px 0 0;
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: clamp(34px, 5vw, 48px);
-  font-weight: 400;
+  font-size: var(--type-display-medium);
+  font-weight: var(--font-weight-regular);
   letter-spacing: -0.03em;
 }
 
@@ -37,7 +37,7 @@
   max-width: 460px;
   margin: 12px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: var(--type-body-large);
   line-height: 1.6;
 }
 
@@ -48,8 +48,8 @@
 .status-page__code {
   margin: 0;
   color: var(--accent);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.1em;
 }
 
@@ -59,8 +59,8 @@
   gap: 8px;
   margin-top: 25px;
   color: var(--accent-strong);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 

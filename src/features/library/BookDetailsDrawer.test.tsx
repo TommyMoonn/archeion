@@ -205,7 +205,7 @@ describe("BookDetailsDrawer", () => {
       /<div class="details-actions__secondary">[\s\S]*?<\/div>/,
     )?.[0];
     const revealButtonMarkup = withFileManagement.match(
-      /<button[^>]*>[^<]*<svg[\s\S]*?Reveal in folder[\s\S]*?<\/button>/,
+      /<button[^>]*>[\s\S]*?Reveal in folder[\s\S]*?<\/button>/,
     )?.[0];
 
     expect(revealButtonMarkup).toBeDefined();

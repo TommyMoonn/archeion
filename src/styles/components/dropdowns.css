@@ -13,8 +13,8 @@
 .app-select__label {
   margin-bottom: 6px;
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
 }
 
 .app-select__trigger {
@@ -23,13 +23,13 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  min-height: 36px;
+  min-height: var(--control-height-standard);
   padding: 0 11px;
-  border: 1px solid var(--line);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--canvas-deep);
-  font-size: 12px;
+  font-size: var(--type-meta);
   text-align: left;
   cursor: pointer;
 }
@@ -40,15 +40,14 @@
   background: var(--surface);
 }
 
-.app-select__trigger span {
+.app-select__value {
   overflow: hidden;
   min-width: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.app-select__trigger svg {
-  flex: none;
+.app-select__trigger .icon-slot {
   color: var(--muted);
 }
 
@@ -61,25 +60,25 @@
   min-width: max(100%, 188px);
   overflow: hidden;
   padding: 5px;
-  border: 1px solid var(--line-strong);
-  border-radius: 10px;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-menu);
   background: var(--surface-raised);
-  box-shadow: 0 18px 50px rgb(0 0 0 / 38%);
+  box-shadow: var(--shadow-popover);
 }
 
 .app-select__option {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 16px;
+  grid-template-columns: minmax(0, 1fr) var(--icon-slot-compact);
   align-items: center;
   gap: 8px;
   width: 100%;
-  min-height: 32px;
+  min-height: var(--control-height-compact);
   padding: 0 8px;
   border: 0;
   border-radius: 7px;
   color: var(--muted);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--type-meta);
   text-align: left;
   cursor: pointer;
 }

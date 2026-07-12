@@ -3,11 +3,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: var(--control-height-prominent);
   padding: 0 17px;
   border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
   line-height: 1;
   white-space: nowrap;
   transition:
@@ -22,7 +22,7 @@
 }
 
 .button--primary {
-  border: 1px solid var(--accent);
+  border: var(--border-width) solid var(--accent);
   color: var(--canvas-deep);
   background: var(--accent);
 }
@@ -33,36 +33,36 @@
 }
 
 .button--secondary {
-  border: 1px solid var(--line-strong);
+  border: var(--border-width) solid var(--line-strong);
   color: var(--text);
   background: transparent;
 }
 
 .button--ghost {
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
   color: var(--text);
   background: transparent;
 }
 
 .button--danger {
-  border: 1px solid var(--error);
+  border: var(--border-width) solid var(--danger);
   color: var(--canvas-deep);
-  background: var(--error);
+  background: var(--danger);
 }
 
 .button--danger:hover:not(:disabled) {
-  border-color: #e58a96;
-  background: #e58a96;
+  border-color: var(--danger-strong);
+  background: var(--danger-strong);
 }
 
 .icon-button {
   display: inline-grid;
   flex: none;
-  width: 34px;
-  height: 34px;
+  width: var(--control-height-standard);
+  height: var(--control-height-standard);
   place-items: center;
   padding: 0;
-  border: 1px solid transparent;
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-control);
   color: var(--muted);
   background: transparent;

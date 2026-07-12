@@ -4,7 +4,7 @@
   grid-auto-flow: column;
   gap: 3px;
   padding: 3px;
-  border: 1px solid var(--line);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-control);
   background: var(--canvas-deep);
 }
@@ -14,14 +14,14 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 30px;
+  min-height: var(--control-height-compact);
   min-width: 0;
   padding: 0 11px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-small);
   color: var(--muted);
   background: transparent;
-  font-size: 11px;
+  font-size: var(--type-caption);
   cursor: pointer;
 }
 
@@ -36,6 +36,5 @@
 }
 
 .segmented-control__icon {
-  display: inline-flex;
   color: inherit;
 }

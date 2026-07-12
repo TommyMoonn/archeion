@@ -7,7 +7,7 @@
   border-radius: 14px;
   color: var(--text);
   background: var(--surface);
-  box-shadow: 0 28px 90px rgb(0 0 0 / 52%);
+  box-shadow: var(--shadow-dialog);
   overflow: hidden;
 }
 
@@ -51,7 +51,7 @@ html[data-motion="on"] .quick-actions[open] {
   height: 38px;
   padding: 0;
   color: var(--text-strong);
-  font-size: 15px;
+  font-size: var(--type-title-small);
 }
 
 .quick-actions__command > kbd,
@@ -63,7 +63,7 @@ html[data-motion="on"] .quick-actions[open] {
   background: var(--surface-raised);
   box-shadow: 0 1px 0 var(--line-strong);
   font-family: inherit;
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1;
   white-space: nowrap;
 }
@@ -112,8 +112,8 @@ html[data-motion="on"] .quick-actions[open] {
 .quick-actions__command-copy strong {
   overflow: hidden;
   color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 550;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -121,7 +121,7 @@ html[data-motion="on"] .quick-actions[open] {
 .quick-actions__command-copy span {
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -149,11 +149,11 @@ html[data-motion="on"] .quick-actions[open] {
 .quick-actions__empty p {
   margin: 0;
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--type-body);
 }
 
 .quick-actions__empty span {
-  font-size: 11px;
+  font-size: var(--type-caption);
 }
 
 .quick-actions__footer {
@@ -165,7 +165,7 @@ html[data-motion="on"] .quick-actions[open] {
   padding: 7px 12px;
   border-top: 1px solid var(--line);
   color: var(--muted-soft);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 
 .quick-actions__footer span {
@@ -194,7 +194,7 @@ html[data-motion="on"] .quick-actions[open] {
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: var(--surface-raised);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 @media (max-height: 560px) {

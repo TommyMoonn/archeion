@@ -26,7 +26,7 @@
   border: 1px solid var(--line-strong);
   border-radius: 12px;
   background: var(--canvas);
-  box-shadow: 0 28px 90px rgb(0 0 0 / 52%);
+  box-shadow: var(--shadow-dialog);
 }
 
 html[data-motion="on"] .settings-dialog[open] .settings-window {
@@ -50,7 +50,7 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
 
 .settings-sidebar__header p {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -59,8 +59,8 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
   margin-top: 4px;
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 400;
+  font-size: var(--type-page-title);
+  font-weight: var(--font-weight-regular);
 }
 
 .settings-sidebar nav {
@@ -78,7 +78,7 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
 
 .settings-search input {
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .settings-sidebar nav button {
@@ -92,7 +92,7 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
   border-radius: var(--radius-control);
   color: var(--muted);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--type-body);
   text-align: left;
   text-decoration: none;
   transition:
@@ -146,8 +146,8 @@ html[data-motion="on"] .settings-section {
 .settings-section h2 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 15px;
-  font-weight: 650;
+  font-size: var(--type-title-small);
+  font-weight: var(--font-weight-semibold);
 }
 
 .settings-section__group {
@@ -162,8 +162,8 @@ html[data-motion="on"] .settings-section {
   padding: 16px 0 2px;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -192,15 +192,15 @@ html[data-motion="on"] .settings-section {
 .settings-row strong,
 .settings-row legend {
   color: var(--text);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
 }
 
 .settings-row span,
 .settings-row small,
 .settings-row code {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.45;
   font-style: normal;
 }
@@ -233,7 +233,7 @@ html[data-motion="on"] .settings-section {
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--surface);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .settings-row input[type="range"] {
@@ -259,7 +259,7 @@ html[data-motion="on"] .settings-section {
   color: var(--muted);
   background: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.35;
 }
 
@@ -350,15 +350,15 @@ html[data-motion="on"] .about-dialog[open] .about-window {
 .about-window h1 {
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 400;
+  font-size: var(--type-page-title);
+  font-weight: var(--font-weight-regular);
   letter-spacing: -0.02em;
 }
 
 .about-window__version {
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
 }
 
 .about-window__github {
@@ -387,14 +387,14 @@ html[data-motion="on"] .about-dialog[open] .about-window {
 }
 
 .about-window__github-copy span {
-  font-size: 13px;
-  font-weight: 650;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
 }
 
 .about-window__github-copy small {
   overflow: hidden;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -409,8 +409,8 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   border-radius: var(--radius-control);
   color: var(--text-strong);
   background: var(--surface-raised);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -516,7 +516,7 @@ html[data-motion="on"] .about-dialog[open] .about-window {
 .settings-search-results__header p {
   margin-top: 5px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.45;
 }
 
@@ -533,8 +533,8 @@ html[data-motion="on"] .about-dialog[open] .about-window {
 .settings-search-results__section > h3 {
   margin: 0;
   color: var(--text-strong);
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--type-body-large);
+  font-weight: var(--font-weight-semibold);
 }
 
 .settings-search-results__group {
@@ -549,8 +549,8 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   padding: 10px 0 2px;
   margin: 0;
   color: var(--muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -564,6 +564,6 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   max-width: 54ch;
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 1.55;
 }

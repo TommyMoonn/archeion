@@ -156,8 +156,10 @@ export function AppSelect<TValue extends string>({
         ref={buttonRef}
         type="button"
       >
-        <span>{selectedOption?.label ?? "Select"}</span>
-        <CaretDown aria-hidden="true" size={13} weight="bold" />
+        <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
+        <span aria-hidden="true" className="icon-slot icon-slot--compact">
+          <CaretDown weight="bold" />
+        </span>
       </button>
       {open ? (
         <div
@@ -180,7 +182,11 @@ export function AppSelect<TValue extends string>({
               type="button"
             >
               <span>{option.label}</span>
-              {option.value === value ? <Check aria-hidden="true" size={14} weight="bold" /> : null}
+              {option.value === value ? (
+                <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                  <Check weight="bold" />
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

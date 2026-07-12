@@ -3,9 +3,9 @@
   align-items: center;
   gap: 9px;
   width: min(260px, 28vw);
-  min-height: 40px;
+  min-height: var(--control-height-prominent);
   padding: 0 13px;
-  border: 1px solid var(--line);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: var(--surface);
@@ -31,7 +31,7 @@
   outline: 0;
   color: var(--text);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--type-body);
 }
 
 .input-shell input::placeholder {
@@ -49,22 +49,22 @@ select {
 
 .form-field > span {
   color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;
 }
 
 .form-field input,
 .form-field select {
   width: 100%;
-  min-height: 40px;
+  min-height: var(--control-height-prominent);
   padding: 0 11px;
-  border: 1px solid var(--line-strong);
+  border: var(--border-width) solid var(--line-strong);
   border-radius: var(--radius-control);
   outline: 0;
   color: var(--text);
   background: var(--canvas-deep);
-  font-size: 13px;
+  font-size: var(--type-body);
 }
 
 .form-field input::placeholder {
@@ -79,7 +79,7 @@ select {
 
 .form-error {
   margin: 0;
-  color: #e58a96;
-  font-size: 12px;
+  color: var(--error-strong);
+  font-size: var(--type-meta);
   line-height: 1.45;
 }

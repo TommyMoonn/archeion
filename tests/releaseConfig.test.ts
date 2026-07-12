@@ -127,6 +127,7 @@ describe("release configuration", () => {
 
   it("packages reader font notices and permits local iframe font assets", () => {
     const licensePaths = [
+      "public/licenses/fonts/Inter-OFL-1.1.txt",
       "public/licenses/fonts/Literata-OFL-1.1.txt",
       "public/licenses/fonts/Atkinson-Hyperlegible-OFL-1.1.txt",
     ];

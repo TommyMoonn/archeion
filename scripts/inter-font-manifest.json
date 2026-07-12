@@ -1,0 +1,25 @@
+{
+  "packageName": "inter-ui",
+  "packageVersion": "4.1.1",
+  "packageResolvedUrl": "https://registry.npmjs.org/inter-ui/-/inter-ui-4.1.1.tgz",
+  "packageIntegrity": "sha512-451h0J29HyOmA+JXgSi/6M12tL7ZCZ8arYKZUXiOXTJpJbAKqJvFh3k5SiV3x7tKe0C0KyrKUUiQIvvZ2PQDcA==",
+  "sourceDirectory": "web",
+  "fontDisplay": "swap",
+  "assets": [
+    {
+      "fileName": "Inter-Regular.woff2",
+      "weight": 400,
+      "sha256": "e06f6b1bc553aaea4e4668023ed0ab0a147129c3107f511bc7d03d361b0ae085"
+    },
+    {
+      "fileName": "Inter-SemiBold.woff2",
+      "weight": 600,
+      "sha256": "5cb7103e4e605989afebc03d989c79201e54b21b5183db33981f70db9178a301"
+    },
+    {
+      "fileName": "Inter-Bold.woff2",
+      "weight": 700,
+      "sha256": "fa888127b6da015b65569f0351f3b5c391ad928904951f1c20e9f8462a8d95ea"
+    }
+  ]
+}

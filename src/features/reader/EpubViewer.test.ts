@@ -162,6 +162,44 @@ describe("readerThemeForSettings", () => {
     );
   });
 
+  it("keeps app chrome typography independent when the reader typeface changes", () => {
+    const previousUiStack = document.documentElement.style.getPropertyValue("--font-ui");
+    const previousBodyFont = document.body.style.fontFamily;
+    const chapter = document.implementation.createHTMLDocument("Chapter");
+    const literataTheme = createReaderContentTheme({
+      ...defaultReaderSettings,
+      fontFamily: "literata",
+    });
+    const atkinsonTheme = createReaderContentTheme({
+      ...defaultReaderSettings,
+      fontFamily: "atkinson",
+    });
+
+    document.documentElement.style.setProperty(
+      "--font-ui",
+      '"Inter", "Segoe UI", system-ui, sans-serif',
+    );
+    document.body.style.fontFamily = "var(--font-ui)";
+    const appChromeFont = document.body.style.fontFamily;
+
+    try {
+      applyReaderContentTheme(null, literataTheme, [chapter]);
+      expect(chapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+        'font-family: "Literata"',
+      );
+
+      applyReaderContentTheme(null, atkinsonTheme, [chapter]);
+      expect(chapter.getElementById("archeion-reader-font-faces")?.textContent).toContain(
+        'font-family: "Atkinson Hyperlegible"',
+      );
+      expect(document.body.style.fontFamily).toBe(appChromeFont);
+      expect(document.documentElement.style.getPropertyValue("--font-ui")).toContain('"Inter"');
+    } finally {
+      document.documentElement.style.setProperty("--font-ui", previousUiStack);
+      document.body.style.fontFamily = previousBodyFont;
+    }
+  });
+
   it("updates font faces in place when the reader typeface changes", () => {
     const chapter = document.implementation.createHTMLDocument("Chapter");
     const literataTheme = createReaderContentTheme({

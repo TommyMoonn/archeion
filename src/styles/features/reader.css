@@ -96,8 +96,8 @@
   color: var(--reader-muted);
   cursor: pointer;
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
   text-decoration: none;
 }
 
@@ -112,8 +112,8 @@
   max-width: 100%;
   margin: 0;
   color: var(--reader-text);
-  font-size: 12px;
-  font-weight: 600;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -123,14 +123,14 @@
   overflow: hidden;
   margin-top: 3px;
   color: var(--reader-muted);
-  font-size: 10px;
+  font-size: var(--type-caption);
   font-variant-numeric: tabular-nums;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .reader-toolbar__identity span[data-error] {
-  color: #e58a96;
+  color: var(--error-strong);
 }
 
 .reader-toolbar__navigation {
@@ -227,16 +227,16 @@
 
 .reader-next-volume__copy span {
   color: var(--reader-muted);
-  font-size: 10px;
-  font-weight: 650;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
 .reader-next-volume__copy strong {
   color: var(--reader-strong);
-  font-size: 12px;
-  font-weight: 650;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
 }
 
 .reader-next-volume .button {
@@ -313,20 +313,16 @@
   cursor: pointer;
 }
 
-.epub-viewer__click-zone::before {
-  content: "";
-  width: 18px;
-  height: 18px;
+.epub-viewer__click-zone-icon {
   opacity: 0;
-  border-top: 1.5px solid currentcolor;
   color: color-mix(in srgb, var(--reader-strong) 58%, transparent);
   transition:
     opacity 140ms ease,
     transform 140ms ease;
 }
 
-.epub-viewer__click-zone:hover::before,
-.epub-viewer__click-zone:focus-visible::before {
+.epub-viewer__click-zone:hover .epub-viewer__click-zone-icon,
+.epub-viewer__click-zone:focus-visible .epub-viewer__click-zone-icon {
   opacity: 0.65;
   transform: translateX(0);
 }
@@ -337,14 +333,13 @@
   padding-left: 22px;
 }
 
-.epub-viewer__click-zone--previous::before {
-  border-left: 1.5px solid currentcolor;
-  transform: translateX(6px) rotate(-45deg);
+.epub-viewer__click-zone--previous .epub-viewer__click-zone-icon {
+  transform: translateX(6px);
 }
 
-.epub-viewer__click-zone--previous:hover::before,
-.epub-viewer__click-zone--previous:focus-visible::before {
-  transform: translateX(0) rotate(-45deg);
+.epub-viewer__click-zone--previous:hover .epub-viewer__click-zone-icon,
+.epub-viewer__click-zone--previous:focus-visible .epub-viewer__click-zone-icon {
+  transform: translateX(0);
 }
 
 .epub-viewer__click-zone--next {
@@ -353,14 +348,13 @@
   padding-right: 22px;
 }
 
-.epub-viewer__click-zone--next::before {
-  border-right: 1.5px solid currentcolor;
-  transform: translateX(-6px) rotate(45deg);
+.epub-viewer__click-zone--next .epub-viewer__click-zone-icon {
+  transform: translateX(-6px);
 }
 
-.epub-viewer__click-zone--next:hover::before,
-.epub-viewer__click-zone--next:focus-visible::before {
-  transform: translateX(0) rotate(45deg);
+.epub-viewer__click-zone--next:hover .epub-viewer__click-zone-icon,
+.epub-viewer__click-zone--next:focus-visible .epub-viewer__click-zone-icon {
+  transform: translateX(0);
 }
 
 .reader-loading {
@@ -374,7 +368,7 @@
   z-index: 3;
   color: var(--reader-muted);
   background: var(--reader-bg);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .reader-loading__line {
@@ -434,8 +428,8 @@
 
 .reader-toc__header p {
   color: var(--reader-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -444,8 +438,8 @@
   margin-top: 3px;
   color: var(--reader-strong);
   font-family: var(--font-display);
-  font-size: 25px;
-  font-weight: 400;
+  font-size: var(--type-dialog-title);
+  font-weight: var(--font-weight-regular);
 }
 
 .reader-toc .icon-button {
@@ -507,7 +501,7 @@
   border-radius: 8px;
   color: var(--reader-muted);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--type-meta);
   line-height: 1.4;
   text-align: left;
   transition:
@@ -564,12 +558,12 @@
   margin: 4px 0 0;
   color: var(--reader-strong);
   font-family: var(--font-display);
-  font-size: 17px;
+  font-size: var(--type-title);
 }
 
 .reader-toc__empty span {
   max-width: 240px;
-  font-size: 11px;
+  font-size: var(--type-caption);
   line-height: 1.5;
 }
 
@@ -580,7 +574,7 @@
   border-radius: 7px;
   color: var(--reader-muted);
   background: transparent;
-  font-size: 11px;
+  font-size: var(--type-caption);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -613,9 +607,9 @@
   margin: 0;
   padding: 10px 18px;
   border-top: 1px solid color-mix(in srgb, #b95b67 38%, transparent);
-  color: #e58a96;
+  color: var(--error-strong);
   background: color-mix(in srgb, #b95b67 9%, var(--reader-bg));
-  font-size: 11px;
+  font-size: var(--type-caption);
   text-align: center;
 }
 
@@ -660,8 +654,8 @@
 
 .reader-settings__header p {
   color: var(--reader-muted);
-  font-size: 10px;
-  font-weight: 700;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-bold);
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
@@ -670,8 +664,8 @@
   margin-top: 4px;
   color: var(--reader-strong);
   font-family: var(--font-display);
-  font-size: 25px;
-  font-weight: 400;
+  font-size: var(--type-dialog-title);
+  font-weight: var(--font-weight-regular);
 }
 
 .reader-setting {
@@ -688,8 +682,8 @@
 
 .reader-setting__label {
   color: var(--reader-muted);
-  font-size: 11px;
-  font-weight: 650;
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
   letter-spacing: 0.04em;
 }
 
@@ -709,7 +703,7 @@
 
 .reader-stepper output {
   color: var(--reader-strong);
-  font-size: 12px;
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
@@ -727,7 +721,7 @@
   border-radius: var(--radius-pill);
   color: var(--reader-muted);
   background: color-mix(in srgb, var(--reader-surface) 72%, transparent);
-  font-size: 10px;
+  font-size: var(--type-caption);
   line-height: 1.35;
   text-align: center;
 }

@@ -18,8 +18,12 @@ export function Button({
 }: ButtonProps) {
   return (
     <button className={`button button--${variant} ${className}`.trim()} type={type} {...props}>
-      {icon}
-      <span>{children}</span>
+      {icon ? (
+        <span aria-hidden="true" className="button__icon icon-slot">
+          {icon}
+        </span>
+      ) : null}
+      <span className="button__label">{children}</span>
     </button>
   );
 }

@@ -2,7 +2,7 @@
   margin-top: 9px;
   padding: 0 11px;
   color: var(--muted-soft);
-  font-size: 13px;
+  font-size: var(--type-body);
 }
 
 .folder-tree,
@@ -46,7 +46,7 @@ html[data-motion="on"] .folder-tree__children {
   border-radius: 7px;
   color: var(--muted);
   background: transparent;
-  font-size: 13px;
+  font-size: var(--type-body);
   text-align: left;
   cursor: pointer;
   transition:
@@ -132,7 +132,7 @@ html[data-motion="on"] .folder-tree__children {
   border-radius: 5px;
   color: var(--text);
   background: transparent;
-  font-size: 12px;
+  font-size: var(--type-meta);
   cursor: pointer;
 }
 
@@ -141,7 +141,7 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-menu__popover .folder-menu__danger {
-  color: #e58a96;
+  color: var(--error-strong);
 }
 
 .folder-browser {
@@ -160,8 +160,8 @@ html[data-motion="on"] .folder-tree__children {
   margin: 2px 0 0;
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: clamp(38px, 5vw, 56px);
-  font-weight: 400;
+  font-size: var(--type-display-large);
+  font-weight: var(--font-weight-regular);
   line-height: 1;
   letter-spacing: -0.035em;
 }
@@ -296,18 +296,18 @@ html[data-motion="on"] .folder-browser > .empty-state {
 
 .folder-browser__copy strong {
   color: var(--text-strong);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-body);
+  font-weight: var(--font-weight-semibold);
 }
 
 .folder-browser__copy small {
   color: var(--muted-soft);
-  font-size: 10px;
+  font-size: var(--type-caption);
 }
 
 .folder-browser__count {
   color: var(--muted-soft);
-  font-size: 12px;
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }

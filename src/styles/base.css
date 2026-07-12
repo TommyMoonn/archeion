@@ -38,6 +38,36 @@ a {
   color: inherit;
 }
 
+.icon-slot {
+  --icon-slot-size: var(--icon-slot-standard);
+  --icon-glyph-size: var(--icon-glyph-standard);
+
+  display: inline-grid;
+  flex: none;
+  width: var(--icon-slot-size);
+  height: var(--icon-slot-size);
+  place-items: center;
+  font-size: var(--icon-glyph-size);
+  line-height: 0;
+}
+
+.icon-slot > svg {
+  display: block;
+  flex: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.icon-slot--compact {
+  --icon-slot-size: var(--icon-slot-compact);
+  --icon-glyph-size: var(--icon-glyph-compact);
+}
+
+.icon-slot--prominent {
+  --icon-slot-size: var(--icon-slot-prominent);
+  --icon-glyph-size: var(--icon-glyph-prominent);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

@@ -104,7 +104,11 @@ export function SegmentedControl<TValue extends string>({
             tabIndex={selected ? 0 : -1}
             type="button"
           >
-            {option.icon ? <span className="segmented-control__icon">{option.icon}</span> : null}
+            {option.icon ? (
+              <span aria-hidden="true" className="segmented-control__icon icon-slot">
+                {option.icon}
+              </span>
+            ) : null}
             <span>{option.label}</span>
           </button>
         );

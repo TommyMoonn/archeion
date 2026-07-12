@@ -36,15 +36,15 @@ html[data-motion="on"] .dialog[open] {
   margin: 0;
   color: var(--text-strong);
   font-family: var(--font-display);
-  font-size: 25px;
-  font-weight: 400;
+  font-size: var(--type-dialog-title);
+  font-weight: var(--font-weight-regular);
   letter-spacing: -0.02em;
 }
 
 .dialog__copy p {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 13px;
+  font-size: var(--type-body);
   line-height: 1.6;
 }
 
@@ -99,7 +99,7 @@ html[data-motion="on"] .dialog[open] {
   color: var(--muted);
   background: var(--surface-raised);
   box-shadow: 0 18px 60px rgb(0 0 0 / 36%);
-  font-size: 12px;
+  font-size: var(--type-meta);
 }
 
 .dialog-loading-fallback__indicator {

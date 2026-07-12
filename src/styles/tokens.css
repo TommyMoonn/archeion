@@ -1,12 +1,53 @@
 :root {
   color-scheme: dark;
-  font-family:
-    Inter,
-    ui-sans-serif,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
+
+  /*
+   * Visual foundation contract
+   *
+   * UI type uses bundled Inter first with defensive system fallbacks and only 400, 600, and 700.
+   * Text roles progress from caption through display without selector-specific tuning.
+   * Icon roles separate the visible glyph from its stable layout slot.
+   * Control, radius, border, and elevation scales are shared by recurring surfaces.
+   */
+  --font-ui: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --font-mono: "Cascadia Mono", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+  --font-weight-regular: 400;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --type-caption: 11px;
+  --type-meta: 12px;
+  --type-body: 13px;
+  --type-body-large: 14px;
+  --type-title-small: 15px;
+  --type-title: 17px;
+  --type-heading: 20px;
+  --type-dialog-title: 25px;
+  --type-section-title: 28px;
+  --type-page-title: 30px;
+  --type-display-compact: clamp(30px, 5vw, 38px);
+  --type-display-medium: clamp(34px, 5vw, 48px);
+  --type-display-large: clamp(38px, 5vw, 56px);
+
+  --icon-glyph-compact: 14px;
+  --icon-glyph-standard: 16px;
+  --icon-glyph-prominent: 20px;
+  --icon-slot-compact: 16px;
+  --icon-slot-standard: 20px;
+  --icon-slot-prominent: 24px;
+
+  --control-height-compact: 32px;
+  --control-height-standard: 36px;
+  --control-height-prominent: 40px;
+  --border-width: 1px;
+  --radius-small: 6px;
+  --radius-control: 8px;
+  --radius-menu: 10px;
+  --radius-card: 16px;
+  --radius-pill: 999px;
+
+  font-family: var(--font-ui);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 
@@ -16,6 +57,7 @@
   --surface-raised: #242427;
   --surface-hover: #29292d;
   --line: #303034;
+  --line-subtle: rgb(255 255 255 / 6%);
   --line-strong: #414147;
   --text: #d6d3d9;
   --text-strong: #ebe8ef;
@@ -30,8 +72,13 @@
   --success-soft: rgb(160 205 176 / 8%);
   --success-border: rgb(160 205 176 / 24%);
   --error: #d9707e;
+  --error-strong: #e58a96;
   --error-soft: rgb(217 112 126 / 7%);
   --error-border: rgb(217 112 126 / 28%);
+  --danger: var(--error);
+  --danger-strong: var(--error-strong);
+  --danger-soft: var(--error-soft);
+  --danger-border: var(--error-border);
 
   --surface-base: #202023;
   --surface-app-frame: var(--surface-base);
@@ -43,10 +90,11 @@
   --surface-shell-hover: rgb(255 255 255 / 5.5%);
   --surface-shell-active: rgb(255 255 255 / 8%);
 
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --radius-control: 8px;
-  --radius-card: 16px;
-  --radius-pill: 999px;
+  --shadow-card: 0 8px 24px rgb(5 8 12 / 11%);
+  --shadow-popover: 0 18px 50px rgb(0 0 0 / 38%);
+  --shadow-dialog: 0 28px 90px rgb(0 0 0 / 52%);
+  --shadow-drawer: -24px 0 70px rgb(5 8 12 / 32%);
+
   --sidebar-width: 248px;
 
   --motion-duration-fast: 0ms;
@@ -79,6 +127,7 @@ html[data-app-theme="light"] {
   --surface-raised: #fbf8f2;
   --surface-hover: #f2ece2;
   --line: #ddd4c8;
+  --line-subtle: rgb(30 26 23 / 7%);
   --line-strong: #cabeae;
   --text: #403b34;
   --text-strong: #1e1a17;
@@ -93,8 +142,13 @@ html[data-app-theme="light"] {
   --success-soft: rgb(70 122 85 / 9%);
   --success-border: rgb(70 122 85 / 24%);
   --error: #aa4350;
+  --error-strong: #8e3440;
   --error-soft: rgb(170 67 80 / 8%);
   --error-border: rgb(170 67 80 / 24%);
+  --danger: var(--error);
+  --danger-strong: var(--error-strong);
+  --danger-soft: var(--error-soft);
+  --danger-border: var(--error-border);
 
   --surface-base: #eee8de;
   --surface-app-frame: var(--surface-base);
@@ -105,6 +159,11 @@ html[data-app-theme="light"] {
   --surface-border-strong: var(--line-strong);
   --surface-shell-hover: rgb(30 26 23 / 5.5%);
   --surface-shell-active: rgb(30 26 23 / 8%);
+
+  --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+  --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
+  --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
+  --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
 }
 
 @media (prefers-color-scheme: light) {
@@ -117,6 +176,7 @@ html[data-app-theme="light"] {
     --surface-raised: #fbf8f2;
     --surface-hover: #f2ece2;
     --line: #ddd4c8;
+    --line-subtle: rgb(30 26 23 / 7%);
     --line-strong: #cabeae;
     --text: #403b34;
     --text-strong: #1e1a17;
@@ -127,6 +187,18 @@ html[data-app-theme="light"] {
     --accent-soft: rgb(56 111 153 / 10%);
     --accent-border: rgb(56 111 153 / 22%);
     --focus: #386f99;
+    --success: #467a55;
+    --success-soft: rgb(70 122 85 / 9%);
+    --success-border: rgb(70 122 85 / 24%);
+    --error: #aa4350;
+    --error-strong: #8e3440;
+    --error-soft: rgb(170 67 80 / 8%);
+    --error-border: rgb(170 67 80 / 24%);
+    --danger: var(--error);
+    --danger-strong: var(--error-strong);
+    --danger-soft: var(--error-soft);
+    --danger-border: var(--error-border);
+
     --surface-base: #eee8de;
     --surface-app-frame: var(--surface-base);
     --surface-sidebar: var(--surface-base);
@@ -136,5 +208,10 @@ html[data-app-theme="light"] {
     --surface-border-strong: var(--line-strong);
     --surface-shell-hover: rgb(30 26 23 / 5.5%);
     --surface-shell-active: rgb(30 26 23 / 8%);
+
+    --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+    --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
+    --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
+    --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
   }
 }
