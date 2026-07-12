@@ -28,7 +28,7 @@ html[data-motion="on"] .dialog[open] {
 .dialog__panel {
   box-sizing: border-box;
   max-height: calc(100dvh - 34px);
-  padding: 26px;
+  padding: 24px;
   overflow-y: auto;
 }
 
@@ -49,14 +49,14 @@ html[data-motion="on"] .dialog[open] {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: var(--type-body);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .dialog__footer {
   display: flex;
   justify-content: flex-end;
   gap: 9px;
-  margin-top: 25px;
+  margin-top: 24px;
   flex-wrap: wrap;
 }
 
@@ -106,7 +106,7 @@ html[data-motion="on"] .dialog[open] {
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: var(--surface-raised);
-  box-shadow: 0 18px 60px rgb(0 0 0 / 36%);
+  box-shadow: var(--shadow-popover);
   font-size: var(--type-meta);
 }
 

@@ -4,9 +4,7 @@
   min-height: 0;
   place-items: center;
   padding: clamp(18px, 3vw, 34px);
-  background:
-    radial-gradient(circle at 50% 16%, rgb(141 101 255 / 12%), transparent 34%),
-    linear-gradient(135deg, rgb(19 20 23 / 96%), rgb(12 13 15 / 98%));
+  background: var(--canvas-deep);
 }
 
 .archive-loading {
@@ -20,9 +18,7 @@
   min-height: 100dvh;
   padding: 0;
   place-items: stretch;
-  background:
-    radial-gradient(circle at 60% 12%, rgb(141 101 255 / 10%), transparent 34%),
-    linear-gradient(135deg, rgb(23 23 25 / 98%), rgb(16 16 18 / 99%));
+  background: var(--canvas-deep);
 }
 
 .archive-manager-window {
@@ -34,7 +30,7 @@
   overflow: hidden;
   border: 0;
   border-radius: 0;
-  background: rgb(27 27 29 / 98%);
+  background: var(--canvas);
   box-shadow: none;
 }
 
@@ -65,8 +61,8 @@
   min-width: 0;
   min-height: 0;
   align-content: start;
-  gap: 28px;
-  padding: clamp(30px, 5vw, 44px) clamp(34px, 6vw, 52px) clamp(30px, 5vw, 46px);
+  gap: 24px;
+  padding: clamp(26px, 5vw, 40px) clamp(30px, 6vw, 48px);
 }
 
 .archive-manager-window__fallback {
@@ -177,7 +173,8 @@ html[data-motion="on"]
   gap: 3px;
   padding: 8px 10px;
   border-radius: 13px;
-  background: rgb(33 33 35 / 74%);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .archive-action-row.button {
@@ -198,8 +195,8 @@ html[data-motion="on"]
 }
 
 .archive-action-row.button:hover:not(:disabled) {
-  border-color: var(--accent-border);
-  background: rgb(57 57 61 / 88%);
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
 }
 
 .archive-action-row__copy {
@@ -290,7 +287,7 @@ html[data-motion="on"]
 }
 
 .archive-row--missing {
-  border-color: color-mix(in srgb, var(--error) 36%, transparent);
+  background: color-mix(in srgb, var(--error) 7%, transparent);
 }
 
 .archive-row__main {
@@ -339,7 +336,7 @@ html[data-motion="on"]
   color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.18;
-  opacity: 0.52;
+  opacity: 0.78;
 }
 
 .archive-row__meta {
@@ -493,7 +490,7 @@ html[data-motion="on"]
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 13px;
-  background: rgb(33 33 35 / 74%);
+  background: var(--surface);
 }
 
 .archive-create-form__row {
@@ -529,7 +526,7 @@ html[data-motion="on"]
 .archive-create-form__label-block span,
 .archive-create-form__row-description {
   overflow: hidden;
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.35;
   text-overflow: ellipsis;

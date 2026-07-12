@@ -62,7 +62,7 @@ html[data-motion="on"] .quick-actions[open] {
   color: var(--muted);
   background: var(--surface-raised);
   box-shadow: 0 1px 0 var(--line-strong);
-  font-family: inherit;
+  font-family: var(--font-mono);
   font-size: var(--type-caption);
   line-height: 1;
   white-space: nowrap;
@@ -81,7 +81,7 @@ html[data-motion="on"] .quick-actions[open] {
 
 .quick-actions__command {
   width: 100%;
-  min-height: 54px;
+  min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -102,11 +102,13 @@ html[data-motion="on"] .quick-actions[open] {
 
 .quick-actions__command[aria-disabled="true"] {
   cursor: default;
+  opacity: 0.68;
 }
 
 .quick-actions__command-copy {
   min-width: 0;
-  display: block;
+  display: grid;
+  gap: 2px;
 }
 
 .quick-actions__command-copy strong {
@@ -164,7 +166,7 @@ html[data-motion="on"] .quick-actions[open] {
   min-height: 38px;
   padding: 7px 12px;
   border-top: 1px solid var(--line);
-  color: var(--muted-soft);
+  color: var(--muted);
   font-size: var(--type-caption);
 }
 

@@ -1,6 +1,6 @@
 .settings-dialog {
   width: min(1040px, calc(100% - 48px));
-  height: min(760px, calc(100% - 48px));
+  height: min(720px, calc(100% - 48px));
   max-width: none;
   max-height: none;
   padding: 0;
@@ -24,7 +24,7 @@
   min-height: 0;
   overflow: hidden;
   border: 1px solid var(--line-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   background: var(--canvas);
   box-shadow: var(--shadow-dialog);
 }
@@ -86,7 +86,7 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   gap: 8px;
-  min-height: 34px;
+  min-height: 36px;
   padding: 8px 10px;
   border: 0;
   border-radius: var(--radius-control);
@@ -116,7 +116,7 @@ html[data-motion="on"] .settings-dialog[open] .settings-window {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 44px clamp(30px, 6vw, 84px) 88px;
+  padding: 42px clamp(30px, 6vw, 72px) 76px;
 }
 
 .settings-close {
@@ -259,7 +259,7 @@ html[data-motion="on"] .settings-section {
   color: var(--muted);
   background: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
   box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
-  font-size: var(--type-caption);
+  font-size: var(--type-meta);
   line-height: 1.35;
 }
 
@@ -284,19 +284,13 @@ html[data-motion="on"] .settings-status {
   position: relative;
   display: grid;
   justify-items: center;
-  min-height: 390px;
-  gap: 26px;
-  padding: 46px 34px 34px;
+  min-height: 374px;
+  gap: 24px;
+  padding: 44px 32px 32px;
   border: 1px solid var(--line-strong);
-  border-radius: 16px;
-  background:
-    radial-gradient(
-      circle at 50% 0%,
-      color-mix(in srgb, var(--accent-soft) 48%, transparent) 0,
-      transparent 132px
-    ),
-    var(--canvas);
-  box-shadow: 0 24px 74px rgb(0 0 0 / 48%);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+  box-shadow: var(--shadow-dialog);
   text-align: center;
 }
 
@@ -360,7 +354,7 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   color: var(--text);
-  background: color-mix(in srgb, var(--surface) 84%, transparent);
+  background: var(--surface);
   text-align: left;
 }
 
@@ -479,6 +473,17 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   .settings-row__control .segmented-control,
   .settings-row__control input[type="range"] {
     width: 100%;
+  }
+}
+
+@media (max-height: 640px) {
+  .settings-dialog {
+    height: calc(100% - 24px);
+  }
+
+  .settings-content {
+    padding-top: 34px;
+    padding-bottom: 56px;
   }
 }
 
