@@ -12,6 +12,7 @@ import type { Book as EpubBook, Location, Rendition } from "epubjs";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
+import type { Annotation } from "../../types/annotation";
 import {
   canRunReaderWheelTurn,
   getReaderWheelDelta,
@@ -32,6 +33,13 @@ import {
   createReaderContentTheme,
   readerContentSettingsEqual,
 } from "./readerTheme";
+import {
+  DEFAULT_READER_HIGHLIGHT_COLOR,
+  READER_HIGHLIGHT_COLORS,
+  normalizeReaderHighlightColor,
+  readerHighlightStyles,
+  type ReaderHighlightColor,
+} from "./readerHighlights";
 
 export type EpubViewerHandle = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
@@ -40,13 +48,26 @@ export type EpubViewerHandle = {
   previous: () => Promise<void>;
 };
 
+export type ReaderTextSelection = {
+  cfiRange: string;
+  chapterHref?: string;
+  selectedText: string;
+};
+
 type EpubViewerProps = {
   fileBlob: Blob;
+  highlights?: readonly Annotation[];
   initialCfi?: string;
   onError: (message: string) => void;
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
+  onCreateHighlight?: (
+    selection: ReaderTextSelection,
+    color: ReaderHighlightColor,
+  ) => Promise<boolean>;
+  onRecolorHighlight?: (id: string, color: ReaderHighlightColor) => Promise<boolean>;
+  onRemoveHighlight?: (id: string) => Promise<boolean>;
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
   settings: ReaderSettings;
@@ -68,8 +89,13 @@ type RenderedView = {
 
 type EpubContent = {
   document?: Document;
+  section?: { href?: string };
   window?: Window;
 };
+
+type HighlightMenu =
+  | { kind: "selection"; selection: ReaderTextSelection; x: number; y: number }
+  | { kind: "saved"; highlight: Annotation; x: number; y: number };
 
 type RenditionWithContentHook = Rendition & {
   hooks?: {
@@ -97,11 +123,15 @@ function windowFromContentDocument(document: Document | null) {
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
     fileBlob,
+    highlights = [],
     initialCfi,
     onError,
     onInteraction,
     onKeyDown,
     onLocationChange,
+    onCreateHighlight,
+    onRecolorHighlight,
+    onRemoveHighlight,
     onNavigationChange,
     onReady,
     settings,
@@ -109,6 +139,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   ref,
 ) {
   const viewerRef = useRef<HTMLDivElement>(null);
+  const highlightMenuRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentCleanupRef = useRef(new Map<Document, () => void>());
   const callbacksRef = useRef<EpubViewerCallbacks>({
@@ -120,6 +151,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onReady,
   });
   const renditionRef = useRef<Rendition | null>(null);
+  const highlightsRef = useRef(highlights);
+  const renderedHighlightRangesRef = useRef<string[]>([]);
   const [navigationController] = useState(() =>
     createReaderNavigationStateController((state) =>
       callbacksRef.current.onNavigationChange?.(state),
@@ -146,6 +179,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   );
   const contentThemeRef = useRef(contentTheme);
   const [isLoading, setIsLoading] = useState(true);
+  const [highlightMenu, setHighlightMenu] = useState<HighlightMenu | null>(null);
+  const [highlightBusy, setHighlightBusy] = useState(false);
 
   callbacksRef.current = {
     onError,
@@ -156,6 +191,60 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onReady,
   };
   contentThemeRef.current = contentTheme;
+  highlightsRef.current = highlights;
+
+  useEffect(() => {
+    if (highlightMenu) {
+      window.requestAnimationFrame(() =>
+        highlightMenuRef.current?.querySelector("button")?.focus(),
+      );
+    }
+  }, [highlightMenu]);
+
+  useEffect(() => {
+    if (!highlightMenu) return;
+
+    const dismissOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node) || !highlightMenuRef.current?.contains(event.target)) {
+        setHighlightMenu(null);
+      }
+    };
+
+    document.addEventListener("pointerdown", dismissOutside, true);
+    return () => document.removeEventListener("pointerdown", dismissOutside, true);
+  }, [highlightMenu]);
+
+  const reconcileHighlights = useCallback(() => {
+    const rendition = renditionRef.current;
+    if (!rendition) return;
+    for (const range of renderedHighlightRangesRef.current)
+      rendition.annotations.remove(range, "highlight");
+    renderedHighlightRangesRef.current = [];
+    const seen = new Set<string>();
+    for (const highlight of highlightsRef.current) {
+      const range = highlight.cfiRange?.trim();
+      if (!range || seen.has(range)) continue;
+      seen.add(range);
+      rendition.annotations.highlight(
+        range,
+        { annotationId: highlight.id },
+        (event: MouseEvent) => {
+          event.preventDefault();
+          event.stopPropagation();
+          const frame = containerRef.current?.querySelector("iframe")?.getBoundingClientRect();
+          setHighlightMenu({
+            kind: "saved",
+            highlight,
+            x: (frame?.left ?? 0) + event.clientX,
+            y: (frame?.top ?? 0) + event.clientY,
+          });
+        },
+        "archeion-highlight",
+        readerHighlightStyles(highlight.color),
+      );
+      renderedHighlightRangesRef.current.push(range);
+    }
+  }, []);
 
   const runPageTurn = useCallback(async (intent: ReaderNavigationIntent) => {
     const rendition = renditionRef.current;
@@ -377,6 +466,12 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       const onContentInteraction = () => {
         callbacksRef.current.onInteraction();
       };
+      const onContentPointerDown = () => {
+        setHighlightMenu(null);
+      };
+      const onSelectionChange = () => {
+        if (document.getSelection()?.isCollapsed) setHighlightMenu(null);
+      };
       const onContentWheel: EventListener = (event) => {
         handleWheel(event as WheelEvent);
       };
@@ -390,6 +485,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
 
       document.addEventListener("keydown", onContentKeyDown, keyOptions);
+      document.addEventListener("pointerdown", onContentPointerDown, true);
+      document.addEventListener("selectionchange", onSelectionChange);
       document.addEventListener("mousemove", onContentInteraction);
       document.addEventListener("touchstart", onContentInteraction);
       document.addEventListener("click", onContentInteraction);
@@ -399,6 +496,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           (target) => () => target.removeEventListener("wheel", onContentWheel, wheelOptions),
         ),
         () => document.removeEventListener("keydown", onContentKeyDown, keyOptions),
+        () => document.removeEventListener("pointerdown", onContentPointerDown, true),
+        () => document.removeEventListener("selectionchange", onSelectionChange),
         () => document.removeEventListener("mousemove", onContentInteraction),
         () => document.removeEventListener("touchstart", onContentInteraction),
         () => document.removeEventListener("click", onContentInteraction),
@@ -453,6 +552,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         applyReaderContentTheme(rendition, contentThemeRef.current);
         rendition.on("rendered", onRendered);
         rendition.on("relocated", onRelocated);
+        rendition.on("selected", onSelected);
 
         await (rendition as RenditionWithManager).started;
         if (mode === "continuous") {
@@ -466,6 +566,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         }
 
         bindMountedIframeDocument();
+        reconcileHighlights();
         void epubBook.locations.generate(1600).catch(() => {
           // Reading can continue without a calculated percentage.
         });
@@ -492,6 +593,22 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         document: document ?? undefined,
         window: windowFromContentDocument(document) ?? undefined,
       });
+      reconcileHighlights();
+    }
+
+    function onSelected(cfiRange: string, contents: EpubContent) {
+      const selection = contents.window?.getSelection();
+      const selectedText = selection?.toString().trim() ?? "";
+      if (!selection || !selectedText || selection.rangeCount === 0) return;
+      const rect = selection.getRangeAt(0).getBoundingClientRect();
+      const frame = containerRef.current?.querySelector("iframe")?.getBoundingClientRect();
+      setHighlightMenu({
+        kind: "selection",
+        selection: { cfiRange, chapterHref: contents.section?.href, selectedText },
+        x: (frame?.left ?? 0) + rect.left + rect.width / 2,
+        y: (frame?.top ?? 0) + rect.top,
+      });
+      callbacksRef.current.onInteraction();
     }
 
     function onRelocated(location: Location) {
@@ -514,13 +631,46 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       if (rendition) {
         rendition.off("rendered", onRendered);
         rendition.off("relocated", onRelocated);
+        rendition.off("selected", onSelected);
       }
 
       renditionRef.current = null;
       isNavigatingToChapterRef.current = false;
       epubBook?.destroy();
     };
-  }, [fileBlob, handleWheel, initialCfi, mode, navigationController]);
+  }, [fileBlob, handleWheel, initialCfi, mode, navigationController, reconcileHighlights]);
+
+  useEffect(() => {
+    reconcileHighlights();
+  }, [highlights, reconcileHighlights]);
+
+  const chooseHighlightColor = useCallback(
+    async (color: ReaderHighlightColor) => {
+      if (!highlightMenu || highlightBusy) return;
+      setHighlightBusy(true);
+      const succeeded =
+        highlightMenu.kind === "selection"
+          ? await onCreateHighlight?.(highlightMenu.selection, color)
+          : await onRecolorHighlight?.(highlightMenu.highlight.id, color);
+      setHighlightBusy(false);
+      if (succeeded) setHighlightMenu(null);
+      if (succeeded) {
+        containerRef.current
+          ?.querySelector("iframe")
+          ?.contentWindow?.getSelection()
+          ?.removeAllRanges();
+      }
+    },
+    [highlightBusy, highlightMenu, onCreateHighlight, onRecolorHighlight],
+  );
+
+  const removeHighlight = useCallback(async () => {
+    if (highlightMenu?.kind !== "saved" || highlightBusy) return;
+    setHighlightBusy(true);
+    const removed = await onRemoveHighlight?.(highlightMenu.highlight.id);
+    setHighlightBusy(false);
+    if (removed) setHighlightMenu(null);
+  }, [highlightBusy, highlightMenu, onRemoveHighlight]);
 
   useEffect(() => {
     const mountedFrame = containerRef.current?.querySelector("iframe");
@@ -574,6 +724,63 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           <span>Opening book</span>
         </div>
       ) : null}
+      {highlightMenu ? (
+        <div
+          ref={highlightMenuRef}
+          aria-label={highlightMenu.kind === "selection" ? "Highlight selection" : "Edit highlight"}
+          className="reader-highlight-menu menu-popover"
+          data-reader-ignore-shortcuts
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              event.stopPropagation();
+              setHighlightMenu(null);
+            }
+          }}
+          role="menu"
+          style={{ left: highlightMenu.x, top: highlightMenu.y }}
+        >
+          {READER_HIGHLIGHT_COLORS.map((color) => (
+            <button
+              aria-label={`${color} highlight`}
+              aria-checked={
+                highlightMenu.kind === "saved"
+                  ? normalizeReaderHighlightColor(highlightMenu.highlight.color) === color
+                  : DEFAULT_READER_HIGHLIGHT_COLOR === color
+              }
+              className="reader-highlight-menu__color"
+              data-color={color}
+              disabled={highlightBusy}
+              key={color}
+              onClick={() => void chooseHighlightColor(color)}
+              role="menuitemradio"
+              type="button"
+            />
+          ))}
+          {highlightMenu.kind === "saved" ? (
+            <button
+              className="reader-highlight-menu__remove"
+              disabled={highlightBusy}
+              onClick={() => void removeHighlight()}
+              role="menuitem"
+              type="button"
+            >
+              Remove
+            </button>
+          ) : null}
+          <button
+            aria-label="Close highlight menu"
+            className="reader-highlight-menu__close"
+            disabled={highlightBusy}
+            onClick={() => setHighlightMenu(null)}
+            role="menuitem"
+            type="button"
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 });
@@ -581,11 +788,15 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProps): boolean {
   return (
     previous.fileBlob === next.fileBlob &&
+    previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.onError === next.onError &&
     previous.onInteraction === next.onInteraction &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&
+    previous.onCreateHighlight === next.onCreateHighlight &&
+    previous.onRecolorHighlight === next.onRecolorHighlight &&
+    previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
     previous.settings.mode === next.settings.mode &&

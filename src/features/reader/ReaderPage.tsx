@@ -42,6 +42,7 @@ import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
 import { ReaderBookmarksPanel } from "./ReaderBookmarksPanel";
 import { useReaderBookmarks } from "./useReaderBookmarks";
+import { useReaderHighlights } from "./useReaderHighlights";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
@@ -131,6 +132,7 @@ export function ReaderPage() {
     readerReady,
     storage,
   });
+  const highlights = useReaderHighlights({ bookId, storage });
   const nextVolume = useReaderSeriesContinuation({
     book,
     isReaderReady: readerReady,
@@ -714,11 +716,15 @@ export function ReaderPage() {
         <EpubViewer
           ref={viewerRef}
           fileBlob={fileBlob}
+          highlights={highlights.highlights}
           initialCfi={readerSession.initialCfi}
           onError={handleViewerError}
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}
           onLocationChange={handleLocationChange}
+          onCreateHighlight={highlights.create}
+          onRecolorHighlight={highlights.recolor}
+          onRemoveHighlight={highlights.remove}
           onNavigationChange={setNavigationState}
           onReady={handleReady}
           settings={settings}
@@ -736,6 +742,19 @@ export function ReaderPage() {
           <IconButton
             label="Dismiss bookmark message"
             onClick={bookmarks.clearFeedback}
+            size="compact"
+          >
+            <X aria-hidden="true" />
+          </IconButton>
+        </div>
+      ) : null}
+
+      {highlights.error ? (
+        <div className="reader-highlight-feedback" role="alert">
+          <span>{highlights.error}</span>
+          <IconButton
+            label="Dismiss highlight message"
+            onClick={highlights.clearError}
             size="compact"
           >
             <X aria-hidden="true" />

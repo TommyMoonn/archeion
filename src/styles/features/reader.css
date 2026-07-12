@@ -309,7 +309,7 @@
   bottom: 0;
   display: flex;
   align-items: center;
-  width: min(22%, 220px);
+  width: clamp(48px, 8vw, 88px);
   padding: 0;
   border: 0;
   background: transparent;
@@ -1025,4 +1025,97 @@
 
 .reader-bookmark-feedback .icon-button:focus-visible {
   color: var(--reader-strong);
+}
+
+.reader-highlight-menu {
+  position: fixed;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: max-content;
+  min-width: 0;
+  padding: 7px;
+  transform: translate(-50%, calc(-100% - 10px));
+  color: var(--reader-text);
+  background: var(--reader-surface);
+}
+
+.reader-highlight-menu__color {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--highlight-color);
+  cursor: pointer;
+}
+
+.reader-highlight-menu__color[data-color="yellow"] {
+  --highlight-color: #f2c94c;
+}
+
+.reader-highlight-menu__color[data-color="green"] {
+  --highlight-color: #6fcf97;
+}
+
+.reader-highlight-menu__color[data-color="blue"] {
+  --highlight-color: #56ccf2;
+}
+
+.reader-highlight-menu__color[data-color="rose"] {
+  --highlight-color: #eb8fa3;
+}
+
+.reader-highlight-menu__color:hover:not(:disabled),
+.reader-highlight-menu__color[aria-pressed="true"] {
+  border-color: var(--reader-strong);
+}
+
+.reader-highlight-menu__color:focus-visible,
+.reader-highlight-menu__remove:focus-visible,
+.reader-highlight-menu__close:focus-visible {
+  outline: 2px solid var(--reader-focus);
+  outline-offset: 2px;
+}
+
+.reader-highlight-menu__remove,
+.reader-highlight-menu__close {
+  min-height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--reader-muted);
+  background: transparent;
+  font-size: var(--type-caption);
+  cursor: pointer;
+}
+
+.reader-highlight-menu__remove:hover:not(:disabled),
+.reader-highlight-menu__close:hover:not(:disabled) {
+  color: var(--reader-strong);
+  background: var(--reader-surface);
+}
+
+.reader-highlight-menu__remove {
+  color: var(--danger);
+}
+
+.reader-highlight-feedback {
+  position: absolute;
+  z-index: 9;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(380px, calc(100% - 32px));
+  min-height: 40px;
+  padding: 6px 7px 6px 12px;
+  border: 1px solid var(--error-border);
+  border-radius: var(--radius-control);
+  color: var(--error);
+  background: var(--reader-surface);
+  box-shadow: var(--shadow-popover);
+  font-size: var(--type-meta);
 }
