@@ -25,6 +25,7 @@ export function readerHighlightStyles(color: unknown): Record<string, string> {
   return {
     fill: highlightPaint[normalizeReaderHighlightColor(color)],
     "fill-opacity": "0.32",
+    "pointer-events": "none",
   };
 }
 

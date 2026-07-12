@@ -32,6 +32,7 @@ describe("readerHighlights", () => {
     expect(readerHighlightStyles("blue")).toMatchObject({
       fill: "#56ccf2",
       "fill-opacity": "0.32",
+      "pointer-events": "none",
     });
   });
 });
