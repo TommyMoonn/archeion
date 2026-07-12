@@ -118,7 +118,7 @@ describe("LibrarySidebar", () => {
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
     const archiveRows = markup.match(
-      /<button class="archive-switcher__archive"[\s\S]*?<\/button>/g,
+      /<button class="menu-item menu-item--no-icon archive-switcher__archive"[\s\S]*?<\/button>/g,
     );
 
     expect(markup).toContain("Books");
@@ -132,7 +132,9 @@ describe("LibrarySidebar", () => {
     expect(markup.match(/role="separator"/g)).toHaveLength(1);
     expect(archiveRows).toHaveLength(1);
     expect(archiveRows?.[0]).not.toContain("<svg");
-    expect(markup).toContain("archive-switcher__current");
+    expect(markup).toContain("archive-switcher__current menu-item menu-item--trailing-icon");
+    expect(markup).toContain("archive-switcher__menu menu-popover");
+    expect(markup).toContain("menu-trigger menu-trigger--disclosure");
   });
 
   it("keeps the folder heading outside the scrollable folder list", () => {

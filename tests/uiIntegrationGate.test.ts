@@ -1,0 +1,111 @@
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+import { describe, expect, it } from "vitest";
+
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const stylesRoot = path.join(projectRoot, "src/styles");
+
+function collectFiles(directory: string, extension: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      return collectFiles(entryPath, extension);
+    }
+
+    return entry.isFile() && entry.name.endsWith(extension) ? [entryPath] : [];
+  });
+}
+
+function read(relativePath: string): string {
+  return fs.readFileSync(path.join(projectRoot, relativePath), "utf8");
+}
+
+const cssSource = collectFiles(stylesRoot, ".css")
+  .map((filePath) => fs.readFileSync(filePath, "utf8"))
+  .join("\n");
+const appShellSource = read("src/styles/layout/app-shell.css");
+const menuSource = read("src/styles/components/menus.css");
+const archiveSource = read("src/styles/features/archive.css");
+const folderSource = read("src/styles/features/folders.css");
+const readerSource = read("src/styles/features/reader.css");
+const sidebarSource = read("src/features/library/LibrarySidebar.tsx");
+const packageJson = JSON.parse(read("package.json")) as {
+  dependencies: Record<string, string>;
+};
+const tauriConfig = JSON.parse(read("src-tauri/tauri.conf.json")) as {
+  app: { windows: Array<{ minHeight?: number; minWidth?: number }> };
+};
+
+function cssBlock(selector: string, source: string): string | undefined {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return source.match(new RegExp(`${escaped}\\s*{([\\s\\S]*?)}`))?.[1];
+}
+
+describe("Phase 0.4.0.6 UI integration gate", () => {
+  it("keeps semantic variables, typography, weights, and static geometry coherent", () => {
+    const definitions = new Set(
+      [...cssSource.matchAll(/(--[\w-]+)\s*:/g)].map((match) => match[1] ?? ""),
+    );
+    const unresolvedWithoutFallback = [...cssSource.matchAll(/var\(\s*(--[\w-]+)([^)]*)\)/g)]
+      .filter((match) => !definitions.has(match[1] ?? ""))
+      .filter((match) => !(match[2] ?? "").includes(","))
+      .map((match) => match[1]);
+
+    expect(unresolvedWithoutFallback).toEqual([]);
+    expect(cssSource).not.toMatch(/font-size:\s*10px/);
+    expect(cssSource).not.toMatch(/font-weight:\s*(?:500|550|650|800)\b/);
+    expect(cssSource).not.toMatch(/\b\d+\.\d+px\b/);
+  });
+
+  it("uses the shared menu contract for the archive switcher and recurring action menus", () => {
+    expect(sidebarSource).toContain('className="menu-trigger menu-trigger--disclosure"');
+    expect(sidebarSource).toContain('className="archive-switcher__menu menu-popover"');
+    expect(sidebarSource).toContain("<MenuItem");
+    expect(sidebarSource).not.toContain('<button className="archive-switcher__archive"');
+    expect(sidebarSource).not.toContain('<button className="archive-switcher__manage"');
+
+    const disclosureTrigger = cssBlock(".menu-trigger--disclosure", menuSource);
+
+    expect(disclosureTrigger).toContain("font-size: var(--type-meta)");
+    expect(disclosureTrigger).toContain("font-weight: var(--font-weight-regular)");
+    expect(appShellSource).not.toContain(".archive-switcher__menu button");
+    expect(archiveSource).not.toMatch(/\.archive-row-menu summary\s*{[^}]*\b(?:width|height):/s);
+    expect(folderSource).not.toMatch(/\.folder-menu summary\s*{[^}]*\b(?:width|height):/s);
+  });
+
+  it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {
+    const previousFocus = cssBlock(
+      ".epub-viewer__click-zone--previous:focus-visible",
+      readerSource,
+    );
+    const nextFocus = cssBlock(".epub-viewer__click-zone--next:focus-visible", readerSource);
+
+    expect(cssSource).toMatch(
+      /:where\(button, a, input, select, textarea, summary, \[tabindex\]:not\(\[tabindex="-1"\]\)\):focus-visible/,
+    );
+    expect(previousFocus).toContain("box-shadow: inset 3px 0");
+    expect(nextFocus).toContain("box-shadow: inset -3px 0");
+    expect(previousFocus).toContain("var(--reader-focus)");
+    expect(nextFocus).toContain("var(--reader-focus)");
+  });
+
+  it("preserves supported window contracts and adds no UI framework dependency", () => {
+    const mainWindow = tauriConfig.app.windows[0];
+    const dependencyNames = Object.keys(packageJson.dependencies);
+    const disallowedUiFrameworks = [
+      "@emotion/react",
+      "@floating-ui/react",
+      "@headlessui/react",
+      "@radix-ui/react-dialog",
+      "styled-components",
+      "tailwindcss",
+    ];
+
+    expect(mainWindow?.minWidth).toBe(900);
+    expect(mainWindow?.minHeight).toBe(600);
+    expect(dependencyNames).not.toEqual(expect.arrayContaining(disallowedUiFrameworks));
+  });
+});

@@ -93,11 +93,6 @@ html[data-motion="on"] .folder-tree__children {
   right: 0;
 }
 
-.folder-menu summary {
-  width: 32px;
-  height: 32px;
-}
-
 .folder-menu[open] summary,
 .folder-menu summary:focus-visible,
 .folder-menu summary:hover {

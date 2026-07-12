@@ -67,6 +67,14 @@ describe("shared control geometry", () => {
     expect(markup).toContain("menu-item__icon icon-slot");
     expect(markup).toContain("menu-item__label");
   });
+
+  it("keeps text-only menu rows on the same shared contract without reserving an empty icon slot", () => {
+    const markup = renderToStaticMarkup(<MenuItem>Open archive</MenuItem>);
+
+    expect(markup).toContain("menu-item--no-icon");
+    expect(markup).toContain("menu-item__label");
+    expect(markup).not.toContain("menu-item__icon");
+  });
 });
 
 describe("AppSelect dismissal", () => {

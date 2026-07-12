@@ -144,21 +144,8 @@
 }
 
 .archive-switcher summary {
-  display: flex;
-  align-items: center;
-  gap: 7px;
   min-width: 0;
-  min-height: var(--control-height-standard);
-  padding: 0 8px;
-  border-radius: var(--radius-control);
   color: var(--text);
-  font-size: var(--type-meta);
-  cursor: pointer;
-  list-style: none;
-}
-
-.archive-switcher summary::-webkit-details-marker {
-  display: none;
 }
 
 .archive-switcher summary:hover,
@@ -166,7 +153,8 @@
   background: var(--surface-shell-hover);
 }
 
-.archive-switcher summary > span {
+.archive-switcher__trigger-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -177,67 +165,26 @@
   z-index: 5;
   bottom: calc(100% + 7px);
   left: 0;
-  display: grid;
   width: 214px;
-  padding: 5px;
-  border: 1px solid var(--surface-border-strong);
-  border-radius: var(--radius-menu);
-  background: var(--surface-main-raised);
-  box-shadow: var(--shadow-popover);
-}
-
-.archive-switcher__current,
-.archive-switcher__menu button {
-  display: grid;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 0 9px;
-  color: var(--text);
-  font-size: var(--type-caption);
 }
 
 .archive-switcher__current {
-  grid-template-columns: minmax(0, 1fr) auto;
+  cursor: default;
 }
 
-.archive-switcher__current span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.archive-switcher__current[aria-current="true"] {
+  color: var(--text-strong);
+  background: var(--surface-hover);
 }
 
-.archive-switcher__current svg {
+.archive-switcher__current .icon-slot {
   color: var(--accent);
 }
 
-.archive-switcher__menu button {
-  width: 100%;
-  border: 0;
-  border-radius: 6px;
-  color: var(--muted);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-
-.archive-switcher__archive {
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.archive-switcher__manage {
-  grid-template-columns: auto minmax(0, 1fr);
-}
-
 .archive-switcher__divider {
-  height: 1px;
+  height: var(--border-width);
   margin: 5px 3px;
   background: var(--surface-border);
-}
-
-.archive-switcher__menu button:hover {
-  color: var(--text-strong);
-  background: var(--surface);
 }
 
 .page-shell {
@@ -352,12 +299,6 @@ html[data-density="compact"] .nav-item {
   .page-shell {
     padding: 34px 18px 28px;
   }
-}
-
-.archive-switcher__menu button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sidebar__smart-views {

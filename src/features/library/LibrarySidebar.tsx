@@ -20,6 +20,7 @@ import type { Icon } from "@phosphor-icons/react";
 import { memo, useCallback, useId, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import { MenuItem } from "../../components/MenuItem";
 import type { KnownArchive } from "../../types/archive";
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation, LibrarySmartView } from "../../types/library";
@@ -260,33 +261,47 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 
       <div className="sidebar-footer">
         <details className="archive-switcher" ref={archiveSwitcherRef}>
-          <summary aria-label={`Current archive: ${activeArchive.displayName}`}>
-            <CaretUpDown aria-hidden="true" size={14} weight="bold" />
-            <span>{activeArchive.displayName}</span>
+          <summary
+            aria-label={`Current archive: ${activeArchive.displayName}`}
+            className="menu-trigger menu-trigger--disclosure"
+          >
+            <span aria-hidden="true" className="icon-slot icon-slot--compact">
+              <CaretUpDown size={14} weight="bold" />
+            </span>
+            <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
           </summary>
-          <div className="archive-switcher__menu">
-            <div className="archive-switcher__current">
-              <span>{activeArchive.displayName}</span>
-              <Check aria-hidden="true" size={15} weight="bold" />
+          <div className="archive-switcher__menu menu-popover" role="menu">
+            <div
+              aria-current="true"
+              aria-disabled="true"
+              className="archive-switcher__current menu-item menu-item--trailing-icon"
+              role="menuitem"
+            >
+              <span className="menu-item__label">{activeArchive.displayName}</span>
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <Check size={15} weight="bold" />
+              </span>
             </div>
             {archives
               .filter((archive) => archive.id !== activeArchive.id)
               .slice(0, 5)
               .map((archive) => (
-                <button
+                <MenuItem
                   className="archive-switcher__archive"
                   key={archive.id}
                   onClick={() => switchArchive(archive)}
-                  type="button"
                 >
-                  <span>{archive.displayName}</span>
-                </button>
+                  {archive.displayName}
+                </MenuItem>
               ))}
             <div className="archive-switcher__divider" role="separator" />
-            <button className="archive-switcher__manage" onClick={manageArchives} type="button">
-              <Archive aria-hidden="true" size={16} weight="regular" />
-              <span>Manage archives</span>
-            </button>
+            <MenuItem
+              className="archive-switcher__manage"
+              icon={<Archive aria-hidden="true" size={16} weight="regular" />}
+              onClick={manageArchives}
+            >
+              Manage archives
+            </MenuItem>
           </div>
         </details>
         <IconButton

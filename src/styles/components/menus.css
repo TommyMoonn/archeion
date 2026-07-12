@@ -20,6 +20,18 @@
   display: none;
 }
 
+.menu-trigger--disclosure {
+  display: flex;
+  width: 100%;
+  height: auto;
+  min-height: var(--control-height-standard);
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 0 8px;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-regular);
+}
+
 details[open] > .menu-trigger,
 .menu-trigger:hover {
   border-color: var(--line-strong);
@@ -65,6 +77,14 @@ details[open] > .menu-trigger,
 
 .menu-item:focus-visible {
   outline-offset: -2px;
+}
+
+.menu-item--no-icon {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.menu-item--trailing-icon {
+  grid-template-columns: minmax(0, 1fr) var(--icon-slot-compact);
 }
 
 .menu-item--danger {

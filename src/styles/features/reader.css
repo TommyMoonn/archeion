@@ -312,7 +312,6 @@
   width: min(22%, 220px);
   padding: 0;
   border: 0;
-  outline: 0;
   background: transparent;
   cursor: pointer;
 }
@@ -331,6 +330,10 @@
   transform: translateX(0);
 }
 
+.epub-viewer__click-zone:focus-visible {
+  outline: 0;
+}
+
 .epub-viewer__click-zone--previous {
   left: 0;
   justify-content: flex-start;
@@ -346,6 +349,10 @@
   transform: translateX(0);
 }
 
+.epub-viewer__click-zone--previous:focus-visible {
+  box-shadow: inset 3px 0 color-mix(in srgb, var(--reader-focus) 72%, transparent);
+}
+
 .epub-viewer__click-zone--next {
   right: 0;
   justify-content: flex-end;
@@ -359,6 +366,10 @@
 .epub-viewer__click-zone--next:hover .epub-viewer__click-zone-icon,
 .epub-viewer__click-zone--next:focus-visible .epub-viewer__click-zone-icon {
   transform: translateX(0);
+}
+
+.epub-viewer__click-zone--next:focus-visible {
+  box-shadow: inset -3px 0 color-mix(in srgb, var(--reader-focus) 72%, transparent);
 }
 
 .reader-loading {

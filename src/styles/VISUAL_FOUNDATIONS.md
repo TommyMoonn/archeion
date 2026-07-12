@@ -40,3 +40,7 @@ Review these representative surfaces at 100, 125, and 150 percent display scalin
 - Archive Manager at 860 by 620
 
 Repeat the review in dark and light appearance, normal and compact density, and the 1280 by 800, 900 by 600, and maximized main-window sizes. Check pointer and keyboard focus-visible states separately.
+
+## UI Integration Gate
+
+Phase 0.4.0.6 keeps recurring menu rows and disclosure triggers on the shared menu contract, requires explicit focus-visible treatment when a surface suppresses the global outline, and preserves the 900 by 600 main-window minimum. `tests/uiIntegrationGate.test.ts` protects these cross-surface invariants without replacing the owner-run Windows matrix.

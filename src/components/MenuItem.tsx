@@ -3,7 +3,7 @@ import type { ButtonHTMLAttributes, ReactNode } from "react";
 type MenuItemProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   children: ReactNode;
   danger?: boolean;
-  icon: ReactNode;
+  icon?: ReactNode;
 };
 
 export function MenuItem({
@@ -16,14 +16,16 @@ export function MenuItem({
 }: MenuItemProps) {
   return (
     <button
-      className={`menu-item${danger ? " menu-item--danger" : ""} ${className}`.trim()}
+      className={`menu-item${danger ? " menu-item--danger" : ""}${icon ? "" : " menu-item--no-icon"} ${className}`.trim()}
       role="menuitem"
       type={type}
       {...props}
     >
-      <span aria-hidden="true" className="menu-item__icon icon-slot">
-        {icon}
-      </span>
+      {icon ? (
+        <span aria-hidden="true" className="menu-item__icon icon-slot">
+          {icon}
+        </span>
+      ) : null}
       <span className="menu-item__label">{children}</span>
     </button>
   );

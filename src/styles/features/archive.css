@@ -395,11 +395,6 @@ html[data-motion="on"]
   position: relative;
 }
 
-.archive-row-menu summary {
-  width: 32px;
-  height: 32px;
-}
-
 .archive-row-menu summary:hover,
 .archive-row-menu[open] summary {
   color: var(--text-strong);
