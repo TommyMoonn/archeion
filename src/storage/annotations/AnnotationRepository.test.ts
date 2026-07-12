@@ -110,6 +110,52 @@ describe("AnnotationRepository", () => {
     });
   });
 
+  it("preserves note text exactly through create, update, reload, and restore", async () => {
+    const originalNote = [
+      "  opening indentation",
+      "",
+      "- Markdown item",
+      "> Markdown quote",
+      "    code-style indentation",
+      "",
+    ].join("\r\n");
+    const updatedNote = `${originalNote}trailing line\n`;
+    const harness = createHarness();
+    const annotations = repository(harness);
+
+    const created = await annotations.create("book-1", {
+      type: "note",
+      cfiRange: "epubcfi(/6/2)",
+      note: originalNote,
+    });
+    expect(created.note).toBe(originalNote);
+
+    const updated = await annotations.update("book-1", created.id, { note: updatedNote });
+    expect(updated?.note).toBe(updatedNote);
+    expect((await annotations.list("book-1"))[0]?.note).toBe(updatedNote);
+
+    annotations.reset();
+    expect((await annotations.get("book-1", created.id))?.note).toBe(updatedNote);
+
+    await annotations.delete("book-1", created.id);
+    const restored = await annotations.restore("book-1", {
+      ...created,
+      note: originalNote,
+    });
+    expect(restored.note).toBe(originalNote);
+    expect((await annotations.list("book-1"))[0]?.note).toBe(originalNote);
+  });
+
+  it("rejects non-string note input instead of silently discarding it", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+
+    await expect(
+      annotations.create("book-1", { type: "note", note: null } as never),
+    ).rejects.toThrow("note for annotation 1");
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
   it("returns undefined for missing records without treating it as a stale queue result", async () => {
     const harness = createHarness();
     const annotations = repository(harness);

@@ -61,6 +61,7 @@ type EpubViewerProps = {
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
+  onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: Annotation) => void;
   onCreateHighlight?: (
     selection: ReaderTextSelection,
     color: ReaderHighlightColor,
@@ -131,6 +132,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onInteraction,
     onKeyDown,
     onLocationChange,
+    onOpenNote,
     onCreateHighlight,
     onRecolorHighlight,
     onRemoveHighlight,
@@ -694,6 +696,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [chooseHighlightColor, clearContentSelection, highlightMenu, removeHighlight],
   );
 
+  const openSelectionNote = useCallback(() => {
+    if (!highlightMenu) return;
+    onOpenNote?.(highlightMenu.selection, highlightMenu.existingHighlight);
+    clearContentSelection();
+    setHighlightMenu(null);
+  }, [clearContentSelection, highlightMenu, onOpenNote]);
+
   useEffect(() => {
     const mountedFrame = containerRef.current?.querySelector("iframe");
     applyReaderContentTheme(renditionRef.current, contentTheme, [
@@ -752,6 +761,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           busy={highlightBusy}
           onChoose={chooseHighlightPaletteOption}
           onDismiss={() => setHighlightMenu(null)}
+          onNote={openSelectionNote}
           selectedColor={
             highlightMenu.existingHighlight
               ? normalizeReaderHighlightColor(highlightMenu.existingHighlight.color)
@@ -774,6 +784,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onInteraction === next.onInteraction &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&
+    previous.onOpenNote === next.onOpenNote &&
     previous.onCreateHighlight === next.onCreateHighlight &&
     previous.onRecolorHighlight === next.onRecolorHighlight &&
     previous.onRemoveHighlight === next.onRemoveHighlight &&

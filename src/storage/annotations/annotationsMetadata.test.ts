@@ -81,6 +81,25 @@ describe("annotationsMetadata", () => {
     });
   });
 
+  it("preserves non-empty note text exactly while omitting whitespace-only notes", () => {
+    const note = [
+      "  indented opening",
+      "",
+      "- list item",
+      "> quoted line",
+      "    code-style indentation",
+      "",
+    ].join("\r\n");
+
+    expect(normalizeAnnotationsMetadata(metadataWithAnnotation({ note }))).toMatchObject({
+      books: { "book-1": { annotations: [{ note }] } },
+    });
+    expect(
+      normalizeAnnotationsMetadata(metadataWithAnnotation({ note: "  \n\t" })).books["book-1"]
+        .annotations[0],
+    ).not.toHaveProperty("note");
+  });
+
   it("migrates an unversioned repository to version one", () => {
     expect(normalizeAnnotationsMetadata({ books: {} })).toEqual({ version: 1, books: {} });
     expect(normalizeAnnotationsMetadata({ version: 0, books: {} })).toEqual({

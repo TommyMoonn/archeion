@@ -32,6 +32,7 @@ const archiveSource = read("src/styles/features/archive.css");
 const folderSource = read("src/styles/features/folders.css");
 const readerSource = read("src/styles/features/reader.css");
 const readerPageSource = read("src/features/reader/ReaderPage.tsx");
+const readerNoteSource = read("src/features/reader/ReaderNoteEditor.tsx");
 const sidebarSource = read("src/features/library/LibrarySidebar.tsx");
 const packageJson = JSON.parse(read("package.json")) as {
   dependencies: Record<string, string>;
@@ -103,6 +104,19 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(readerPageSource).toContain('label="Dismiss bookmark message"');
     expect(readerPageSource).toContain("<IconButton");
     expect(readerPageSource).not.toContain(">×</button>");
+  });
+
+  it("keeps note autosave states geometrically stable and keyboard reachable", () => {
+    const statusRow = cssBlock(".reader-note-editor__status", readerSource);
+    const textareaFocus = cssBlock(".reader-note-editor__field:focus-within", readerSource);
+
+    expect(statusRow).toContain("min-height: 28px");
+    expect(textareaFocus).toContain("box-shadow:");
+    expect(textareaFocus).toContain("var(--reader-focus)");
+    expect(readerNoteSource).toContain('status === "empty"');
+    expect(readerNoteSource).toMatch(/>\s*Retry\s*</);
+    expect(readerNoteSource).toContain("Delete note");
+    expect(readerNoteSource).toContain('event.key !== "Escape"');
   });
 
   it("preserves supported window contracts and adds no UI framework dependency", () => {

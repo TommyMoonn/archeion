@@ -91,6 +91,39 @@ export function useReaderHighlights({
     [bookId, storage, visibleAnnotations],
   );
 
+  const ensure = useCallback(
+    async (selection: HighlightSelection) => {
+      if (!bookId) return undefined;
+      const existing = visibleAnnotations.find((item) => item.cfiRange === selection.cfiRange);
+      if (existing) return existing;
+      const selectedText = selection.selectedText.trim();
+      if (!selectedText || selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH) {
+        setError("Select fewer than 5,000 characters to add a note.");
+        return undefined;
+      }
+      try {
+        const created = await storage.createAnnotation(bookId, {
+          type: "highlight",
+          cfiRange: selection.cfiRange,
+          chapterHref: selection.chapterHref,
+          selectedText,
+          color: "yellow",
+        });
+        setAnnotations((items) => readerHighlights([...items, created]));
+        setError(null);
+        return created;
+      } catch {
+        setError("The highlight for this note could not be saved.");
+        return undefined;
+      }
+    },
+    [bookId, storage, visibleAnnotations],
+  );
+
+  const sync = useCallback((annotation: Annotation) => {
+    setAnnotations((items) => items.map((item) => (item.id === annotation.id ? annotation : item)));
+  }, []);
+
   const recolor = useCallback(
     async (id: string, color: ReaderHighlightColor) => {
       if (!bookId) return false;
@@ -130,11 +163,13 @@ export function useReaderHighlights({
     () => ({
       highlights: visibleAnnotations,
       create,
+      ensure,
       recolor,
       remove,
+      sync,
       error,
       clearError: () => setError(null),
     }),
-    [create, error, recolor, remove, visibleAnnotations],
+    [create, ensure, error, recolor, remove, sync, visibleAnnotations],
   );
 }

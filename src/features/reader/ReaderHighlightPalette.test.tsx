@@ -22,7 +22,14 @@ describe("ReaderHighlightPalette", () => {
 
     act(() => {
       root.render(
-        <ReaderHighlightPalette busy={false} onChoose={vi.fn()} onDismiss={vi.fn()} x={4} y={20} />,
+        <ReaderHighlightPalette
+          busy={false}
+          onChoose={vi.fn()}
+          onDismiss={vi.fn()}
+          onNote={vi.fn()}
+          x={4}
+          y={20}
+        />,
       );
     });
 
@@ -36,6 +43,7 @@ describe("ReaderHighlightPalette", () => {
       "blue highlight",
       "rose highlight",
       "No highlight",
+      "Add or edit note",
     ]);
     expect(container.querySelector(".reader-highlight-menu")?.getAttribute("data-placement")).toBe(
       "below",

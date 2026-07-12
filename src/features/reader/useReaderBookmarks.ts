@@ -151,6 +151,12 @@ export function useReaderBookmarks({
     [bookId, busy, storage],
   );
 
+  const sync = useCallback((bookmark: Annotation) => {
+    setBookmarks((current) =>
+      current.map((candidate) => (candidate.id === bookmark.id ? bookmark : candidate)),
+    );
+  }, []);
+
   const undoRemove = useCallback(async () => {
     if (!bookId || feedback?.kind !== "removed" || busy) return;
     const removed = feedback.bookmark;
@@ -184,6 +190,7 @@ export function useReaderBookmarks({
     feedback,
     clearFeedback: () => setFeedback(undefined),
     remove,
+    sync,
     toggleCurrent,
     toggleDisabledReason,
     undoRemove,

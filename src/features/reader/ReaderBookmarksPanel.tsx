@@ -1,4 +1,4 @@
-import { BookmarkSimple, Check, PencilSimple, Trash, X } from "@phosphor-icons/react";
+import { BookmarkSimple, Check, NotePencil, PencilSimple, Trash, X } from "@phosphor-icons/react";
 import { useEffect, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -10,6 +10,7 @@ type ReaderBookmarksPanelProps = {
   currentCfi: string;
   onClose: () => void;
   onNavigate: (bookmark: Annotation) => Promise<boolean>;
+  onNote: (bookmark: Annotation) => void;
   onRemove: (bookmark: Annotation) => Promise<boolean>;
   onUpdateLabel: (bookmark: Annotation, label: string) => Promise<boolean>;
 };
@@ -20,6 +21,7 @@ export function ReaderBookmarksPanel({
   currentCfi,
   onClose,
   onNavigate,
+  onNote,
   onRemove,
   onUpdateLabel,
 }: ReaderBookmarksPanelProps) {
@@ -136,6 +138,14 @@ export function ReaderBookmarksPanel({
                     </button>
                   )}
                   <div className="reader-bookmarks__actions">
+                    <IconButton
+                      disabled={busy}
+                      label={`Note for ${label}`}
+                      onClick={() => onNote(bookmark)}
+                      size="compact"
+                    >
+                      <NotePencil aria-hidden="true" />
+                    </IconButton>
                     <IconButton
                       disabled={busy}
                       label={`Edit ${label}`}

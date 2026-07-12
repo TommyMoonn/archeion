@@ -7,6 +7,7 @@ import {
 } from "../../types/annotation";
 import {
   createAnnotationsMetadata,
+  normalizeAnnotationNote,
   normalizeAnnotationRecord,
   normalizeAnnotationsMetadata,
 } from "./annotationsMetadata";
@@ -91,20 +92,19 @@ function hasUnknownBookFields(book: AnnotationsMetadata["books"][string]): boole
   return Object.keys(book).some((key) => key !== "annotations");
 }
 
-const OPTIONAL_TEXT_FIELDS = [
+const OPTIONAL_TRIMMED_TEXT_FIELDS = [
   "cfiRange",
   "chapterHref",
   "selectedText",
   "contextBefore",
   "contextAfter",
   "color",
-  "note",
   "label",
 ] as const;
 
 function normalizeOptionalTextFields<T extends Record<string, unknown>>(value: T): T {
   const next: Record<string, unknown> = { ...value };
-  for (const key of OPTIONAL_TEXT_FIELDS) {
+  for (const key of OPTIONAL_TRIMMED_TEXT_FIELDS) {
     const candidate = next[key];
     if (typeof candidate !== "string") {
       delete next[key];
@@ -117,6 +117,20 @@ function normalizeOptionalTextFields<T extends Record<string, unknown>>(value: T
       delete next[key];
     }
   }
+
+  if (Object.prototype.hasOwnProperty.call(next, "note")) {
+    if (next.note === undefined) {
+      delete next.note;
+    } else if (typeof next.note === "string") {
+      const note = normalizeAnnotationNote(next.note);
+      if (note === undefined) {
+        delete next.note;
+      } else {
+        next.note = note;
+      }
+    }
+  }
+
   return next as T;
 }
 

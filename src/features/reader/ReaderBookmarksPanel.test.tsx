@@ -37,6 +37,7 @@ function renderPanel(overrides: Partial<React.ComponentProps<typeof ReaderBookma
     currentCfi: bookmark.cfiRange ?? "",
     onClose: vi.fn(),
     onNavigate: vi.fn(async () => true),
+    onNote: vi.fn(),
     onRemove: vi.fn(async () => true),
     onUpdateLabel: vi.fn(async () => true),
     ...overrides,
@@ -88,6 +89,16 @@ describe("ReaderBookmarksPanel", () => {
         ?.click(),
     );
     expect(props.onRemove).toHaveBeenCalledWith(bookmark);
+  });
+
+  it("opens a note for a bookmark", () => {
+    const { container, props } = renderPanel();
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Note for Chapter start"]')
+        ?.click(),
+    );
+    expect(props.onNote).toHaveBeenCalledWith(bookmark);
   });
 
   it("closes on Escape while preserving the current-location marker", () => {

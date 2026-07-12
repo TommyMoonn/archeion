@@ -1,3 +1,4 @@
+import { NotePencil } from "@phosphor-icons/react";
 import { forwardRef } from "react";
 
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
@@ -8,6 +9,7 @@ type ReaderHighlightPaletteProps = {
   busy: boolean;
   onChoose: (choice: HighlightPaletteChoice) => void;
   onDismiss: () => void;
+  onNote: () => void;
   selectedColor?: ReaderHighlightColor;
   x: number;
   y: number;
@@ -16,7 +18,7 @@ type ReaderHighlightPaletteProps = {
 const PALETTE_OPTIONS: readonly HighlightPaletteChoice[] = [...READER_HIGHLIGHT_COLORS, "none"];
 
 export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlightPaletteProps>(
-  function ReaderHighlightPalette({ busy, onChoose, onDismiss, selectedColor, x, y }, ref) {
+  function ReaderHighlightPalette({ busy, onChoose, onDismiss, onNote, selectedColor, x, y }, ref) {
     const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
     const clampedX = Math.max(100, Math.min(viewportWidth - 100, x));
     const placeBelow = y < 64;
@@ -54,6 +56,19 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
             type="button"
           />
         ))}
+        <span aria-hidden="true" className="reader-highlight-menu__divider" />
+        <button
+          aria-label="Add or edit note"
+          className="reader-highlight-menu__note"
+          disabled={busy}
+          onClick={onNote}
+          role="menuitem"
+          type="button"
+        >
+          <span aria-hidden="true" className="icon-slot">
+            <NotePencil />
+          </span>
+        </button>
       </div>
     );
   },

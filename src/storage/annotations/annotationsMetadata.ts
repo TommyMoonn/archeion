@@ -37,6 +37,10 @@ const OPTIONAL_ANNOTATION_TEXT_FIELDS = [
   "label",
 ] as const;
 
+export function normalizeAnnotationNote(note: string): string | undefined {
+  return note.trim() ? note : undefined;
+}
+
 export class AnnotationMetadataValidationError extends Error {
   constructor(reason: string) {
     super(`Annotation metadata is invalid: ${reason}`);
@@ -188,6 +192,9 @@ function optionalString(
   }
   if (typeof value[key] !== "string") {
     invalid(`${key} for ${context} must be a string when present.`);
+  }
+  if (key === "note") {
+    return normalizeAnnotationNote(value[key]);
   }
   const normalized = value[key].trim();
   return normalized || undefined;
