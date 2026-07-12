@@ -492,4 +492,21 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.destroy).toHaveBeenCalledTimes(1);
     expect(props.onNavigationChange).toHaveBeenCalledTimes(callCountBeforeUnmount);
   });
+
+  it("navigates directly to a saved bookmark CFI through the viewer handle", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToLocation("epubcfi(/6/2!/4/2:10)")).resolves.toBe(
+        true,
+      );
+    });
+
+    expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/2:10)");
+  });
 });

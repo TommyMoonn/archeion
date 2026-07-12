@@ -313,6 +313,10 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.annotationRepository.create(bookId, input);
   }
 
+  restoreAnnotation(bookId: string, annotation: Annotation): Promise<Annotation> {
+    return this.annotationRepository.restore(bookId, annotation);
+  }
+
   updateAnnotation(
     bookId: string,
     annotationId: string,

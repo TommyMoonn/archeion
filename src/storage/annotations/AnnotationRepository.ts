@@ -5,7 +5,11 @@ import {
   type CreateAnnotationInput,
   type UpdateAnnotationInput,
 } from "../../types/annotation";
-import { createAnnotationsMetadata, normalizeAnnotationsMetadata } from "./annotationsMetadata";
+import {
+  createAnnotationsMetadata,
+  normalizeAnnotationRecord,
+  normalizeAnnotationsMetadata,
+} from "./annotationsMetadata";
 
 export type AnnotationArchiveScope = {
   generation: number;
@@ -42,6 +46,37 @@ function cloneAnnotation(annotation: Annotation): Annotation {
 
 function cloneAnnotations(annotations: readonly Annotation[]): Annotation[] {
   return annotations.map(cloneAnnotation);
+}
+
+function jsonValuesEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) && Array.isArray(right)) {
+    return (
+      left.length === right.length &&
+      left.every((entry, index) => jsonValuesEqual(entry, right[index]))
+    );
+  }
+  if (
+    typeof left === "object" &&
+    left !== null &&
+    !Array.isArray(left) &&
+    typeof right === "object" &&
+    right !== null &&
+    !Array.isArray(right)
+  ) {
+    const leftRecord = left as Record<string, unknown>;
+    const rightRecord = right as Record<string, unknown>;
+    const leftKeys = Object.keys(leftRecord).sort();
+    const rightKeys = Object.keys(rightRecord).sort();
+    return (
+      leftKeys.length === rightKeys.length &&
+      leftKeys.every(
+        (key, index) =>
+          key === rightKeys[index] && jsonValuesEqual(leftRecord[key], rightRecord[key]),
+      )
+    );
+  }
+  return false;
 }
 
 function normalizeBookId(bookId: string): string {
@@ -136,6 +171,17 @@ export class AnnotationRepository {
         createdAt: timestamp,
         updatedAt: timestamp,
       }) as Annotation;
+      const existingBook = metadata.books[normalizedBookId];
+      if (annotation.type === "bookmark" && annotation.cfiRange) {
+        const existingBookmark = existingBook?.annotations.find(
+          (candidate) =>
+            candidate.type === "bookmark" && candidate.cfiRange === annotation.cfiRange,
+        );
+        if (existingBookmark) {
+          return cloneAnnotation(existingBookmark);
+        }
+      }
+
       const next = structuredClone(metadata);
       const book = next.books[normalizedBookId] ?? { annotations: [] };
       if (book.annotations.some((candidate) => candidate.id === annotation.id)) {
@@ -147,6 +193,45 @@ export class AnnotationRepository {
       };
       await this.persist(scope, next);
       return cloneAnnotation(annotation);
+    });
+  }
+
+  async restore(bookId: string, annotation: Annotation): Promise<Annotation> {
+    const normalizedBookId = normalizeBookId(bookId);
+    const restored = normalizeAnnotationRecord(structuredClone(annotation), normalizedBookId);
+
+    return this.run(async (scope) => {
+      const metadata = await this.ensureLoaded(scope);
+      const existingBook = metadata.books[normalizedBookId];
+      const sameId = existingBook?.annotations.find((candidate) => candidate.id === restored.id);
+      if (sameId) {
+        if (jsonValuesEqual(sameId, restored)) {
+          return cloneAnnotation(sameId);
+        }
+        throw new Error(
+          `Annotation restore collision: id ${JSON.stringify(restored.id)} already exists in book ${JSON.stringify(normalizedBookId)}.`,
+        );
+      }
+
+      if (restored.type === "bookmark" && restored.cfiRange) {
+        const sameLocation = existingBook?.annotations.find(
+          (candidate) => candidate.type === "bookmark" && candidate.cfiRange === restored.cfiRange,
+        );
+        if (sameLocation) {
+          throw new Error(
+            `Annotation restore collision: bookmark location already exists in book ${JSON.stringify(normalizedBookId)}.`,
+          );
+        }
+      }
+
+      const next = structuredClone(metadata);
+      const book = next.books[normalizedBookId] ?? { annotations: [] };
+      next.books[normalizedBookId] = {
+        ...book,
+        annotations: [...book.annotations, restored],
+      };
+      await this.persist(scope, next);
+      return cloneAnnotation(restored);
     });
   }
 

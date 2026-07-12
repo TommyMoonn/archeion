@@ -420,6 +420,149 @@ describe("AnnotationRepository", () => {
     expect(harness.saveMetadata).not.toHaveBeenCalled();
   });
 
+  it("restores the complete annotation without changing identity or unknown fields", async () => {
+    const harness = createHarness({
+      version: 1,
+      futureTopLevel: { preserve: true },
+      books: {
+        "book-1": {
+          annotations: [],
+          futureBookField: { preserve: true },
+        },
+      },
+    });
+    const annotations = repository(harness);
+    const original = {
+      id: "bookmark-1",
+      type: "bookmark" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      chapterHref: "Text/chapter-1.xhtml",
+      label: "Chapter start",
+      note: "Remember this",
+      color: "yellow",
+      selectedText: "Quoted passage",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      futureField: { nested: ["preserve-me"] },
+    };
+
+    const restored = await annotations.restore("book-1", original);
+    expect(restored).toEqual(original);
+
+    original.futureField.nested.push("mutated-input");
+    restored.futureField = { mutated: true };
+    await expect(annotations.list("book-1")).resolves.toMatchObject([
+      { futureField: { nested: ["preserve-me"] } },
+    ]);
+
+    expect(harness.persisted).toEqual({
+      version: 1,
+      futureTopLevel: { preserve: true },
+      books: {
+        "book-1": {
+          annotations: [
+            {
+              id: "bookmark-1",
+              type: "bookmark",
+              cfiRange: "epubcfi(/6/2!/4/2:10)",
+              chapterHref: "Text/chapter-1.xhtml",
+              label: "Chapter start",
+              note: "Remember this",
+              color: "yellow",
+              selectedText: "Quoted passage",
+              createdAt: "2026-07-10T00:00:00.000Z",
+              updatedAt: "2026-07-11T00:00:00.000Z",
+              futureField: { nested: ["preserve-me"] },
+            },
+          ],
+          futureBookField: { preserve: true },
+        },
+      },
+    });
+    expect(harness.saveMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats an equivalent same-id restore as idempotent without saving", async () => {
+    const original = {
+      id: "bookmark-1",
+      type: "bookmark" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      futureField: { nested: true },
+    };
+    const harness = createHarness({
+      version: 1,
+      books: { "book-1": { annotations: [original] } },
+    });
+    const annotations = repository(harness);
+
+    await expect(annotations.restore("book-1", structuredClone(original))).resolves.toEqual(
+      original,
+    );
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("rejects conflicting same-id restoration without changing cached metadata", async () => {
+    const stored = {
+      id: "bookmark-1",
+      type: "bookmark" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const harness = createHarness({
+      version: 1,
+      books: { "book-1": { annotations: [stored] } },
+    });
+    const annotations = repository(harness);
+
+    await expect(
+      annotations.restore("book-1", { ...stored, label: "Conflicting content" }),
+    ).rejects.toThrow('Annotation restore collision: id "bookmark-1" already exists');
+
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+    await expect(annotations.list("book-1")).resolves.toEqual([stored]);
+  });
+
+  it("rejects a different-id bookmark at the same CFI", async () => {
+    const stored = {
+      id: "bookmark-existing",
+      type: "bookmark" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const harness = createHarness({
+      version: 1,
+      books: { "book-1": { annotations: [stored] } },
+    });
+    const annotations = repository(harness);
+
+    await expect(
+      annotations.restore("book-1", { ...stored, id: "bookmark-restored" }),
+    ).rejects.toThrow("bookmark location already exists");
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("keeps the previous repository state when restore persistence fails", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+    harness.saveMetadata.mockRejectedValueOnce(new Error("disk full"));
+
+    await expect(
+      annotations.restore("book-1", {
+        id: "bookmark-1",
+        type: "bookmark",
+        cfiRange: "epubcfi(/6/2!/4/2:10)",
+        createdAt: "2026-07-10T00:00:00.000Z",
+        updatedAt: "2026-07-11T00:00:00.000Z",
+      }),
+    ).rejects.toThrow("disk full");
+
+    await expect(annotations.list("book-1")).resolves.toEqual([]);
+  });
+
   it("serializes concurrent mutations through the metadata queue", async () => {
     const harness = createHarness();
     const annotations = repository(harness);
@@ -462,5 +605,24 @@ describe("AnnotationRepository", () => {
     await annotations.list("book-2");
 
     expect(harness.loadMetadata).toHaveBeenCalledTimes(2);
+  });
+  it("does not create duplicate bookmarks for the same resolved CFI", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+
+    const first = await annotations.create("book-1", {
+      type: "bookmark",
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      label: "First",
+    });
+    const duplicate = await annotations.create("book-1", {
+      type: "bookmark",
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      label: "Duplicate",
+    });
+
+    expect(duplicate).toEqual(first);
+    await expect(annotations.list("book-1")).resolves.toEqual([first]);
+    expect(harness.saveMetadata).toHaveBeenCalledTimes(1);
   });
 });

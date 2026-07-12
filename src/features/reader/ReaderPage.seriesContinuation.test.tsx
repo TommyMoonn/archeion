@@ -36,6 +36,7 @@ vi.mock("./EpubViewer", async () => {
     ) {
       React.useImperativeHandle(ref, () => ({
         navigateToChapter: vi.fn().mockResolvedValue(false),
+        navigateToLocation: vi.fn().mockResolvedValue(true),
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
       }));
@@ -71,6 +72,10 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
 function createStorage(books: Book[]): LibraryStorage {
   return {
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
+    listAnnotations: vi.fn().mockResolvedValue([]),
+    createAnnotation: vi.fn(),
+    updateAnnotation: vi.fn(),
+    deleteAnnotation: vi.fn(),
     listBooks: vi.fn().mockResolvedValue(books),
     updateBook: vi.fn().mockImplementation(async (id, changes) => {
       const book = books.find((candidate) => candidate.id === id);

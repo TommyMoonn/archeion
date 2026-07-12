@@ -31,6 +31,7 @@ const menuSource = read("src/styles/components/menus.css");
 const archiveSource = read("src/styles/features/archive.css");
 const folderSource = read("src/styles/features/folders.css");
 const readerSource = read("src/styles/features/reader.css");
+const readerPageSource = read("src/features/reader/ReaderPage.tsx");
 const sidebarSource = read("src/features/library/LibrarySidebar.tsx");
 const packageJson = JSON.parse(read("package.json")) as {
   dependencies: Record<string, string>;
@@ -90,6 +91,18 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(nextFocus).toContain("box-shadow: inset -3px 0");
     expect(previousFocus).toContain("var(--reader-focus)");
     expect(nextFocus).toContain("var(--reader-focus)");
+  });
+
+  it("keeps bookmark targets and feedback controls keyboard-visible", () => {
+    const bookmarkTargetFocus = cssBlock(".reader-bookmarks__target:focus-visible", readerSource);
+    const currentBookmark = cssBlock(".reader-bookmarks__item[data-current]", readerSource);
+
+    expect(bookmarkTargetFocus).toContain("box-shadow: inset 0 0 0 2px var(--reader-focus)");
+    expect(bookmarkTargetFocus).toContain("background:");
+    expect(currentBookmark).toContain("border-color:");
+    expect(readerPageSource).toContain('label="Dismiss bookmark message"');
+    expect(readerPageSource).toContain("<IconButton");
+    expect(readerPageSource).not.toContain(">×</button>");
   });
 
   it("preserves supported window contracts and adds no UI framework dependency", () => {

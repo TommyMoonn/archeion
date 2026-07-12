@@ -1,4 +1,4 @@
-import { BookOpenText } from "@phosphor-icons/react";
+import { BookOpenText, X } from "@phosphor-icons/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useLoaderData,
@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 import { Button } from "../../components/Button";
+import { IconButton } from "../../components/IconButton";
 
 import { canonicalReaderRoute } from "../../app/navigationState";
 import {
@@ -39,6 +40,8 @@ import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
+import { ReaderBookmarksPanel } from "./ReaderBookmarksPanel";
+import { useReaderBookmarks } from "./useReaderBookmarks";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
@@ -72,6 +75,7 @@ export function ReaderPage() {
   const viewerRef = useRef<EpubViewerHandle>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const tocButtonRef = useRef<HTMLButtonElement>(null);
+  const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const progressWriter = useRef<DebouncedTask<{
     bookId: string;
@@ -90,6 +94,7 @@ export function ReaderPage() {
   const [readerReady, setReaderReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
     chapters: [],
     status: "loading",
@@ -98,6 +103,7 @@ export function ReaderPage() {
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const settingsOpenRef = useRef(settingsOpen);
   const tocOpenRef = useRef(tocOpen);
+  const bookmarksOpenRef = useRef(bookmarksOpen);
   const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
@@ -116,6 +122,15 @@ export function ReaderPage() {
     navigationState.status === "ready" &&
     navigationState.chapters.length > 0 &&
     (chapterSequence.current !== undefined || location.atStart);
+  const bookmarks = useReaderBookmarks({
+    bookId,
+    chapterHref: chapterSequence.current?.href,
+    chapterLabel: chapterSequence.current?.label,
+    location,
+    openingError: Boolean(error),
+    readerReady,
+    storage,
+  });
   const nextVolume = useReaderSeriesContinuation({
     book,
     isReaderReady: readerReady,
@@ -130,6 +145,10 @@ export function ReaderPage() {
   useEffect(() => {
     tocOpenRef.current = tocOpen;
   }, [tocOpen]);
+
+  useEffect(() => {
+    bookmarksOpenRef.current = bookmarksOpen;
+  }, [bookmarksOpen]);
 
   useEffect(() => {
     controlsVisibleRef.current = controlsVisible;
@@ -151,7 +170,7 @@ export function ReaderPage() {
 
   const revealControls = useCallback(() => {
     const now = Date.now();
-    const isPanelOpen = settingsOpenRef.current || tocOpenRef.current;
+    const isPanelOpen = settingsOpenRef.current || tocOpenRef.current || bookmarksOpenRef.current;
 
     if (controlsVisibleRef.current && !isPanelOpen && now - lastControlsRevealAt.current < 250) {
       return;
@@ -172,24 +191,39 @@ export function ReaderPage() {
   const openSettings = useCallback(() => {
     setControlsVisible(true);
     setTocOpen(false);
+    setBookmarksOpen(false);
     setSettingsOpen(true);
   }, []);
 
   const openToc = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
+    setBookmarksOpen(false);
     setTocOpen(true);
   }, []);
 
   const toggleToc = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
+    setBookmarksOpen(false);
     setTocOpen((isOpen) => !isOpen);
   }, []);
 
   const closeToc = useCallback(() => {
     setTocOpen(false);
     window.requestAnimationFrame(() => tocButtonRef.current?.focus());
+  }, []);
+
+  const toggleBookmarks = useCallback(() => {
+    setControlsVisible(true);
+    setSettingsOpen(false);
+    setTocOpen(false);
+    setBookmarksOpen((isOpen) => !isOpen);
+  }, []);
+
+  const closeBookmarks = useCallback(() => {
+    setBookmarksOpen(false);
+    window.requestAnimationFrame(() => bookmarkButtonRef.current?.focus());
   }, []);
 
   const closeSettings = useCallback(() => {
@@ -284,6 +318,13 @@ export function ReaderPage() {
 
   const navigateToChapter = useCallback((chapterId: string) => {
     return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
+  }, []);
+
+  const navigateToBookmark = useCallback((bookmark: { cfiRange?: string }) => {
+    const cfi = bookmark.cfiRange?.trim();
+    return cfi
+      ? (viewerRef.current?.navigateToLocation(cfi) ?? Promise.resolve(false))
+      : Promise.resolve(false);
   }, []);
 
   const movePreviousChapter = useCallback(() => {
@@ -432,7 +473,9 @@ export function ReaderPage() {
       }
 
       if (intent === "close") {
-        if (tocOpenRef.current) {
+        if (bookmarksOpenRef.current) {
+          closeBookmarks();
+        } else if (tocOpenRef.current) {
           closeToc();
         } else if (settingsOpenRef.current) {
           closeSettings();
@@ -453,7 +496,16 @@ export function ReaderPage() {
         moveNext();
       }
     },
-    [closeSettings, closeToc, moveNext, movePrevious, openSettings, returnToOrigin, settings.mode],
+    [
+      closeBookmarks,
+      closeSettings,
+      closeToc,
+      moveNext,
+      movePrevious,
+      openSettings,
+      returnToOrigin,
+      settings.mode,
+    ],
   );
 
   const handleContentKeyDown = useCallback(
@@ -497,7 +549,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !tocOpen) {
+    if (!settingsOpen && !tocOpen && !bookmarksOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -508,7 +560,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [settingsOpen, tocOpen]);
+  }, [bookmarksOpen, settingsOpen, tocOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -612,7 +664,7 @@ export function ReaderPage() {
     >
       <div
         className="reader-controls"
-        data-visible={controlsVisible || settingsOpen || tocOpen || undefined}
+        data-visible={controlsVisible || settingsOpen || tocOpen || bookmarksOpen || undefined}
       >
         <ReaderToolbar
           atEnd={location.atEnd}
@@ -621,8 +673,15 @@ export function ReaderPage() {
           chapterProgress={navigationState.chapterProgress}
           chapterTitle={chapterSequence.current?.label}
           hasChapterNavigation={hasChapterNavigation}
+          bookmarkActive={Boolean(bookmarks.currentBookmark)}
+          bookmarkBusy={bookmarks.busy}
+          bookmarkToggleDisabled={!bookmarks.canToggleCurrent}
+          bookmarkToggleDisabledReason={bookmarks.toggleDisabledReason}
+          bookmarksOpen={bookmarksOpen}
           onNext={moveNext}
           onBack={returnToOrigin}
+          onBookmarks={toggleBookmarks}
+          onToggleBookmark={() => void bookmarks.toggleCurrent()}
           onNextChapter={moveNextChapter}
           onPrevious={movePrevious}
           onPreviousChapter={movePreviousChapter}
@@ -637,6 +696,7 @@ export function ReaderPage() {
           settingsButtonRef={settingsButtonRef}
           tocButtonRef={tocButtonRef}
           tocOpen={tocOpen}
+          bookmarkButtonRef={bookmarkButtonRef}
         />
       </div>
       <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
@@ -665,8 +725,38 @@ export function ReaderPage() {
         />
       )}
 
+      {bookmarks.feedback ? (
+        <div className="reader-bookmark-feedback" role="status">
+          <span>{bookmarks.feedback.message}</span>
+          {bookmarks.feedback.kind === "removed" ? (
+            <button onClick={() => void bookmarks.undoRemove()} type="button">
+              Undo
+            </button>
+          ) : null}
+          <IconButton
+            label="Dismiss bookmark message"
+            onClick={bookmarks.clearFeedback}
+            size="compact"
+          >
+            <X aria-hidden="true" />
+          </IconButton>
+        </div>
+      ) : null}
+
       {!error && nextVolume ? (
         <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
+      ) : null}
+
+      {bookmarksOpen ? (
+        <ReaderBookmarksPanel
+          bookmarks={bookmarks.bookmarks}
+          busy={bookmarks.busy}
+          currentCfi={location.cfi}
+          onClose={closeBookmarks}
+          onNavigate={navigateToBookmark}
+          onRemove={bookmarks.remove}
+          onUpdateLabel={bookmarks.updateLabel}
+        />
       ) : null}
 
       {tocOpen ? (

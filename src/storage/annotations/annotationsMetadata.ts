@@ -230,6 +230,14 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
   };
 }
 
+export function normalizeAnnotationRecord(value: unknown, bookId: string): Annotation {
+  const normalizedBookId = bookId.trim();
+  if (!normalizedBookId) {
+    invalid("book id must not be empty.");
+  }
+  return normalizeAnnotation(value, normalizedBookId, 0);
+}
+
 function normalizeBookAnnotations(value: unknown, bookId: string): BookAnnotations {
   const context = `book ${quoted(bookId)}`;
   if (!isRecord(value)) {

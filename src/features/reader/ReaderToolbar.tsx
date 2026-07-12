@@ -1,5 +1,7 @@
 import {
   ArrowLeft,
+  BookmarkSimple,
+  BookmarksSimple,
   CaretDoubleLeft,
   CaretDoubleRight,
   CaretLeft,
@@ -18,9 +20,16 @@ type ReaderToolbarProps = {
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
+  bookmarkActive: boolean;
+  bookmarkBusy: boolean;
+  bookmarkToggleDisabled: boolean;
+  bookmarkToggleDisabledReason?: string;
+  bookmarksOpen: boolean;
   nextChapterDisabled: boolean;
   backLabel: string;
   onBack: () => void;
+  onBookmarks: () => void;
+  onToggleBookmark: () => void;
   onNext: () => void;
   onNextChapter: () => void;
   onPrevious: () => void;
@@ -35,6 +44,7 @@ type ReaderToolbarProps = {
   settingsButtonRef?: Ref<HTMLButtonElement>;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
+  bookmarkButtonRef?: Ref<HTMLButtonElement>;
 };
 
 export function ReaderToolbar({
@@ -43,9 +53,16 @@ export function ReaderToolbar({
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
+  bookmarkActive,
+  bookmarkBusy,
+  bookmarkToggleDisabled,
+  bookmarkToggleDisabledReason,
+  bookmarksOpen,
   nextChapterDisabled,
   backLabel,
   onBack,
+  onBookmarks,
+  onToggleBookmark,
   onNext,
   onNextChapter,
   onPrevious,
@@ -60,6 +77,7 @@ export function ReaderToolbar({
   settingsButtonRef,
   tocButtonRef,
   tocOpen,
+  bookmarkButtonRef,
 }: ReaderToolbarProps) {
   const positionLabel =
     chapterProgress === undefined
@@ -127,6 +145,27 @@ export function ReaderToolbar({
           size="compact"
         >
           <ListBullets aria-hidden="true" weight="regular" />
+        </IconButton>
+        <IconButton
+          aria-controls="reader-bookmarks"
+          aria-expanded={bookmarksOpen}
+          label="Bookmarks"
+          onClick={onBookmarks}
+          ref={bookmarkButtonRef}
+          size="compact"
+        >
+          <BookmarksSimple aria-hidden="true" weight="regular" />
+        </IconButton>
+        <IconButton
+          aria-pressed={bookmarkActive}
+          aria-busy={bookmarkBusy || undefined}
+          disabled={bookmarkToggleDisabled}
+          disabledReason={bookmarkToggleDisabledReason}
+          label={bookmarkActive ? "Remove bookmark" : "Add bookmark"}
+          onClick={onToggleBookmark}
+          size="compact"
+        >
+          <BookmarkSimple aria-hidden="true" weight={bookmarkActive ? "fill" : "regular"} />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton

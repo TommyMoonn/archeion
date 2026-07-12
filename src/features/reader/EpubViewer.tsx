@@ -35,6 +35,7 @@ import {
 
 export type EpubViewerHandle = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
+  navigateToLocation: (cfi: string) => Promise<boolean>;
   next: () => Promise<void>;
   previous: () => Promise<void>;
 };
@@ -258,14 +259,34 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [runPageTurn],
   );
 
+  const navigateToLocation = useCallback(async (cfi: string) => {
+    const rendition = renditionRef.current;
+    const target = cfi.trim();
+    if (!rendition || !target || isNavigatingToChapterRef.current) {
+      return false;
+    }
+
+    isNavigatingToChapterRef.current = true;
+    callbacksRef.current.onInteraction();
+    try {
+      await rendition.display(target);
+      return true;
+    } catch {
+      return false;
+    } finally {
+      isNavigatingToChapterRef.current = false;
+    }
+  }, []);
+
   useImperativeHandle(
     ref,
     () => ({
       navigateToChapter,
+      navigateToLocation,
       next: () => runPageTurn("forward"),
       previous: () => runPageTurn("backward"),
     }),
-    [navigateToChapter, runPageTurn],
+    [navigateToChapter, navigateToLocation, runPageTurn],
   );
 
   useEffect(() => {

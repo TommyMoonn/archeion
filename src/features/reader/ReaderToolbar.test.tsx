@@ -44,6 +44,10 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           chapterProgress={38}
           chapterTitle="A Very Long Current Chapter Title"
           hasChapterNavigation
+          bookmarkActive={false}
+          bookmarkBusy={false}
+          bookmarkToggleDisabled={false}
+          bookmarksOpen={false}
           nextChapterDisabled={false}
           percentage={45.7}
           previousChapterDisabled
@@ -51,6 +55,8 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           title="Book Title"
           mode="paged"
           tocOpen={false}
+          onBookmarks={vi.fn()}
+          onToggleBookmark={vi.fn()}
           {...callbacks}
           {...overrides}
         />
@@ -126,5 +132,37 @@ describe("ReaderToolbar", () => {
     expect(button(container, "Scroll up")).toBeInstanceOf(HTMLButtonElement);
     expect(button(container, "Scroll down")).toBeInstanceOf(HTMLButtonElement);
     expect(container.querySelector('button[aria-label="Previous page"]')).toBeNull();
+  });
+
+  it("disables bookmark creation until the current reading location is available", () => {
+    const { container } = renderToolbar({
+      bookmarkToggleDisabled: true,
+      bookmarkToggleDisabledReason: "Current reading location is still loading.",
+    });
+
+    const toggle = button(container, "Add bookmark");
+    expect(toggle.disabled).toBe(true);
+    expect(toggle.title).toBe("Current reading location is still loading.");
+  });
+
+  it("exposes bookmark state and bookmark-list controls", () => {
+    const onBookmarks = vi.fn();
+    const onToggleBookmark = vi.fn();
+    const { container } = renderToolbar({
+      bookmarkActive: true,
+      bookmarksOpen: true,
+      onBookmarks,
+      onToggleBookmark,
+    });
+
+    const list = button(container, "Bookmarks");
+    const toggle = button(container, "Remove bookmark");
+    expect(list.getAttribute("aria-expanded")).toBe("true");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+
+    act(() => list.click());
+    act(() => toggle.click());
+    expect(onBookmarks).toHaveBeenCalledTimes(1);
+    expect(onToggleBookmark).toHaveBeenCalledTimes(1);
   });
 });

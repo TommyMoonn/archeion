@@ -62,6 +62,50 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     });
   });
 
+  it("restores exact annotation data through the existing metadata save boundary", async () => {
+    const { rootPath, storage } = await scopedStorage();
+    const original = {
+      id: "bookmark-1",
+      type: "bookmark" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10)",
+      note: "Remember this",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      futureField: { nested: true },
+    };
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_annotations_metadata") {
+        return {
+          version: 1,
+          futureTopLevel: { preserve: true },
+          books: {
+            "book-1": { annotations: [], futureBookField: { preserve: true } },
+          },
+        };
+      }
+      return undefined;
+    });
+
+    await expect(storage.restoreAnnotation("book-1", original)).resolves.toEqual(original);
+
+    const saveCall = invokeMock.mock.calls.find(
+      ([command]) => command === "save_annotations_metadata",
+    );
+    expect(saveCall?.[1]).toEqual({
+      rootPath,
+      metadata: {
+        version: 1,
+        futureTopLevel: { preserve: true },
+        books: {
+          "book-1": {
+            annotations: [original],
+            futureBookField: { preserve: true },
+          },
+        },
+      },
+    });
+  });
+
   it("does not apply a pending annotation load after archive reset", async () => {
     const { storage } = await scopedStorage();
     const pending = deferred<unknown>();

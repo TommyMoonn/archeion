@@ -105,6 +105,7 @@ export interface LibraryStorage {
   listAnnotations(bookId: string): Promise<Annotation[]>;
   getAnnotation(bookId: string, annotationId: string): Promise<Annotation | undefined>;
   createAnnotation(bookId: string, input: CreateAnnotationInput): Promise<Annotation>;
+  restoreAnnotation(bookId: string, annotation: Annotation): Promise<Annotation>;
   updateAnnotation(
     bookId: string,
     annotationId: string,
