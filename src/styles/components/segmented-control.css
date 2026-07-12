@@ -14,7 +14,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: var(--control-height-compact);
+  min-height: var(--segmented-option-height, var(--control-height-compact));
   min-width: 0;
   padding: 0 11px;
   border: var(--border-width) solid transparent;
@@ -25,6 +25,14 @@
   cursor: pointer;
 }
 
+.segmented-control--compact {
+  --segmented-option-height: var(--control-height-compact);
+}
+
+.segmented-control--standard {
+  --segmented-option-height: var(--control-height-standard);
+}
+
 .segmented-control__option:hover:not(:disabled),
 .segmented-control__option[aria-checked="true"] {
   color: var(--text-strong);
@@ -33,6 +41,15 @@
 
 .segmented-control__option[aria-checked="true"] {
   border-color: var(--line-strong);
+}
+
+.segmented-control__option[aria-checked="true"]::after {
+  width: 4px;
+  height: 4px;
+  margin-left: 1px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
 }
 
 .segmented-control__icon {

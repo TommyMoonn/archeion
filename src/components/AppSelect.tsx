@@ -1,5 +1,6 @@
 import { CaretDown, Check } from "@phosphor-icons/react";
 import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import type { ControlSize } from "./Button";
 
 export type AppSelectOption<TValue extends string> = {
   disabled?: boolean;
@@ -14,6 +15,7 @@ type AppSelectProps<TValue extends string> = {
   label?: ReactNode;
   onChange: (value: TValue) => void;
   options: Array<AppSelectOption<TValue>>;
+  size?: Exclude<ControlSize, "prominent">;
   value: TValue;
 };
 
@@ -44,6 +46,7 @@ export function AppSelect<TValue extends string>({
   label,
   onChange,
   options,
+  size = "standard",
   value,
 }: AppSelectProps<TValue>) {
   const [open, setOpen] = useState(false);
@@ -134,7 +137,7 @@ export function AppSelect<TValue extends string>({
   }
 
   return (
-    <div className={`app-select ${className}`.trim()} ref={rootRef}>
+    <div className={`app-select app-select--${size} ${className}`.trim()} ref={rootRef}>
       {label ? (
         <span className="app-select__label" id={id ? `${id}-label` : undefined}>
           {label}

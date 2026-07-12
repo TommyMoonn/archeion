@@ -83,8 +83,8 @@ export function MoveToFolderDialog({
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={isSaving || isUnchanged} onClick={() => void submit()}>
-            {isSaving ? "Moving" : "Move"}
+          <Button busy={isSaving} disabled={isSaving || isUnchanged} onClick={() => void submit()}>
+            Move
           </Button>
         </>
       }

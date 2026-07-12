@@ -1,0 +1,27 @@
+.status-token {
+  --status-border: var(--line-strong);
+  --status-color: var(--muted);
+  --status-background: var(--surface-raised);
+
+  border-color: var(--status-border);
+  color: var(--status-color);
+  background: var(--status-background);
+}
+
+.status-token[data-tone="success"] {
+  --status-border: var(--success-border);
+  --status-color: var(--success);
+  --status-background: color-mix(in srgb, var(--success-soft) 72%, var(--surface-raised));
+}
+
+.status-token[data-tone="warning"] {
+  --status-border: var(--accent-border);
+  --status-color: var(--accent-strong);
+  --status-background: color-mix(in srgb, var(--accent-soft) 72%, var(--surface-raised));
+}
+
+.status-token[data-tone="error"] {
+  --status-border: var(--error-border);
+  --status-color: var(--error);
+  --status-background: color-mix(in srgb, var(--error-soft) 72%, var(--surface-raised));
+}

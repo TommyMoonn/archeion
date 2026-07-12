@@ -3,7 +3,7 @@
   align-items: center;
   gap: 9px;
   width: min(260px, 28vw);
-  min-height: var(--control-height-prominent);
+  min-height: var(--input-height, var(--control-height-prominent));
   padding: 0 13px;
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-pill);
@@ -12,6 +12,14 @@
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.input-shell--standard {
+  --input-height: var(--control-height-standard);
+}
+
+.input-shell--prominent {
+  --input-height: var(--control-height-prominent);
 }
 
 .input-shell:focus-within {

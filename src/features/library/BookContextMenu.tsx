@@ -11,6 +11,7 @@ import {
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import { MenuItem } from "../../components/MenuItem";
 import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
 
 type BookContextMenuProps = {
@@ -58,51 +59,53 @@ export function BookContextMenu({
     >
       <summary
         aria-label={`Actions for ${bookTitle(book)}`}
+        className="menu-trigger"
         title={`Actions for ${bookTitle(book)}`}
       >
-        <DotsThree aria-hidden="true" size={20} weight="bold" />
+        <span aria-hidden="true" className="icon-slot">
+          <DotsThree weight="bold" />
+        </span>
       </summary>
-      <div className="book-menu__popover" role="menu">
-        <button type="button" role="menuitem" onClick={() => runAction(onRead)}>
-          <BookOpen aria-hidden="true" size={17} weight="regular" />
+      <div className="book-menu__popover menu-popover" role="menu">
+        <MenuItem icon={<BookOpen weight="regular" />} onClick={() => runAction(onRead)}>
           Read
-        </button>
-        <button type="button" role="menuitem" onClick={() => runAction(onToggleFavorite)}>
-          <Heart aria-hidden="true" size={17} weight={book.isFavorite ? "fill" : "regular"} />
+        </MenuItem>
+        <MenuItem
+          icon={<Heart weight={book.isFavorite ? "fill" : "regular"} />}
+          onClick={() => runAction(onToggleFavorite)}
+        >
           {book.isFavorite ? "Remove favorite" : "Add favorite"}
-        </button>
-        <button type="button" role="menuitem" onClick={() => runAction(onDetails)}>
-          <Info aria-hidden="true" size={17} weight="regular" />
+        </MenuItem>
+        <MenuItem icon={<Info weight="regular" />} onClick={() => runAction(onDetails)}>
           Details
-        </button>
+        </MenuItem>
         {showRenameFileAction && showFileActions && onRenameFile ? (
-          <button type="button" role="menuitem" onClick={() => runAction(onRenameFile)}>
-            <PencilSimple aria-hidden="true" size={17} weight="regular" />
+          <MenuItem
+            icon={<PencilSimple weight="regular" />}
+            onClick={() => runAction(onRenameFile)}
+          >
             Rename file
-          </button>
+          </MenuItem>
         ) : null}
         {showFileActions && onMove ? (
-          <button type="button" role="menuitem" onClick={() => runAction(onMove)}>
-            <ArrowRight aria-hidden="true" size={17} weight="regular" />
+          <MenuItem icon={<ArrowRight weight="regular" />} onClick={() => runAction(onMove)}>
             Move to folder
-          </button>
+          </MenuItem>
         ) : null}
         {showFileActions && onRevealFile ? (
-          <button type="button" role="menuitem" onClick={() => runAction(onRevealFile)}>
-            <FolderOpen aria-hidden="true" size={17} weight="regular" />
+          <MenuItem icon={<FolderOpen weight="regular" />} onClick={() => runAction(onRevealFile)}>
             Reveal in folder
-          </button>
+          </MenuItem>
         ) : null}
         {canDelete ? (
-          <button
+          <MenuItem
             className="book-menu__danger"
-            type="button"
-            role="menuitem"
+            danger
+            icon={<Trash weight="regular" />}
             onClick={() => runAction(onDelete)}
           >
-            <Trash aria-hidden="true" size={17} weight="regular" />
             {book.isFileMissing ? "Remove metadata" : "Delete EPUB"}
-          </button>
+          </MenuItem>
         ) : null}
       </div>
     </details>

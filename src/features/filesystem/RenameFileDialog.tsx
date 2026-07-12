@@ -77,8 +77,8 @@ export function RenameFileDialog({ book, onClose, onRename }: RenameFileDialogPr
           <Button variant="secondary" disabled={isSaving} onClick={onClose}>
             Cancel
           </Button>
-          <Button disabled={isSaving} form={formId} type="submit">
-            {isSaving ? "Renaming" : "Rename file"}
+          <Button busy={isSaving} disabled={isSaving} form={formId} type="submit">
+            Rename file
           </Button>
         </>
       }

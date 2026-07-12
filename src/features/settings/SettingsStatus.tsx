@@ -23,7 +23,11 @@ type StatusMessageProps = {
 
 function StatusMessage({ message, tone }: StatusMessageProps) {
   return (
-    <p className="settings-status" data-tone={tone} role={tone === "error" ? "alert" : "status"}>
+    <p
+      className="settings-status status-token"
+      data-tone={tone}
+      role={tone === "error" ? "alert" : "status"}
+    >
       {message}
     </p>
   );

@@ -87,18 +87,8 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-menu summary {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  border-radius: 6px;
-  color: var(--muted);
-  cursor: pointer;
-  list-style: none;
-}
-
-.folder-menu summary::-webkit-details-marker {
-  display: none;
+  width: 32px;
+  height: 32px;
 }
 
 .folder-menu[open] summary,
@@ -111,37 +101,9 @@ html[data-motion="on"] .folder-tree__children {
 .folder-menu__popover {
   position: absolute;
   z-index: 5;
-  top: 30px;
+  top: 36px;
   right: 0;
-  display: grid;
   width: 140px;
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--surface-raised);
-  box-shadow: 0 16px 40px rgb(5 8 12 / 38%);
-}
-
-.folder-menu__popover button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 32px;
-  padding: 0 8px;
-  border: 0;
-  border-radius: 5px;
-  color: var(--text);
-  background: transparent;
-  font-size: var(--type-meta);
-  cursor: pointer;
-}
-
-.folder-menu__popover button:hover {
-  background: var(--surface-hover);
-}
-
-.folder-menu__popover .folder-menu__danger {
-  color: var(--error-strong);
 }
 
 .folder-browser {

@@ -12,6 +12,7 @@ import {
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { MenuItem } from "../../components/MenuItem";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
 type LibrarySelectionBarProps = {
@@ -81,6 +82,7 @@ export function LibrarySelectionBar({
           <IconButton
             className="library-selection-bar__icon-action"
             disabled={selectedCount === 0 || busy}
+            disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Add selected books to favorites"
             onClick={() => onAction("favorite")}
           >
@@ -89,71 +91,67 @@ export function LibrarySelectionBar({
           <IconButton
             className="library-selection-bar__icon-action"
             disabled={selectedCount === 0 || busy}
+            disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Move selected books"
             onClick={() => onAction("move")}
           >
             <ArrowRight aria-hidden="true" size={18} />
           </IconButton>
           <details className="library-selection-actions-menu" ref={detailsRef}>
-            <summary aria-label="More bulk actions" title="More bulk actions">
-              <DotsThree aria-hidden="true" size={19} weight="bold" />
+            <summary
+              className="menu-trigger"
+              aria-label="More bulk actions"
+              title="More bulk actions"
+            >
+              <span aria-hidden="true" className="icon-slot">
+                <DotsThree weight="bold" />
+              </span>
             </summary>
-            <div role="menu">
-              <button
+            <div className="menu-popover" role="menu">
+              <MenuItem
                 disabled={busy || selectedCount === 0}
+                icon={<NotePencil />}
                 onClick={() => runOverflowAction("edit-metadata")}
-                role="menuitem"
-                type="button"
               >
-                <NotePencil aria-hidden="true" size={17} />
                 Edit metadata
-              </button>
-              <button
+              </MenuItem>
+              <MenuItem
                 disabled={busy || selectedCount === 0}
+                icon={<Heart />}
                 onClick={() => runOverflowAction("unfavorite")}
-                role="menuitem"
-                type="button"
               >
-                <Heart aria-hidden="true" size={17} />
                 Remove favorites
-              </button>
-              <button
+              </MenuItem>
+              <MenuItem
                 disabled={busy || selectedCount === 0}
+                icon={<ArrowsClockwise />}
                 onClick={() => runOverflowAction("metadata")}
-                role="menuitem"
-                type="button"
               >
-                <ArrowsClockwise aria-hidden="true" size={17} />
                 Re-extract metadata
-              </button>
-              <button
+              </MenuItem>
+              <MenuItem
                 disabled={busy || selectedCount === 0}
+                icon={<ImageBroken />}
                 onClick={() => runOverflowAction("covers")}
-                role="menuitem"
-                type="button"
               >
-                <ImageBroken aria-hidden="true" size={17} />
                 Regenerate covers
-              </button>
-              <button
+              </MenuItem>
+              <MenuItem
                 disabled={busy || selectedCount === 0}
+                icon={<FolderOpen />}
                 onClick={() => runOverflowAction("export")}
-                role="menuitem"
-                type="button"
               >
-                <FolderOpen aria-hidden="true" size={17} />
                 Export EPUBs
-              </button>
-              <button
+              </MenuItem>
+              <MenuItem
                 className="danger"
+                danger
                 disabled={busy || selectedCount === 0}
+                icon={<Trash />}
                 onClick={() => runOverflowAction("delete")}
-                role="menuitem"
-                type="button"
               >
-                <Trash aria-hidden="true" size={17} />
                 Delete to Recycle Bin
-              </button>
+              </MenuItem>
             </div>
           </details>
         </div>

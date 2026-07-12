@@ -46,7 +46,7 @@ export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStack
       {tokens.map((token) => (
         <section
           aria-live={token.tone === "error" ? "assertive" : "polite"}
-          className="library-feedback__token"
+          className="library-feedback__token status-token"
           data-has-detail={Boolean(token.detail || token.details?.length)}
           data-tone={token.tone}
           key={token.id}

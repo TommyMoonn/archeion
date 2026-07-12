@@ -7,7 +7,7 @@
   border-radius: var(--radius-card);
   color: var(--text);
   background: var(--surface);
-  box-shadow: 0 30px 90px rgb(4 6 10 / 48%);
+  box-shadow: var(--shadow-dialog);
   overflow: hidden;
 }
 
@@ -41,6 +41,10 @@ html[data-motion="on"] .dialog[open] {
   letter-spacing: -0.02em;
 }
 
+.dialog__copy {
+  min-width: 0;
+}
+
 .dialog__copy p {
   margin: 10px 0 0;
   color: var(--muted);
@@ -54,6 +58,10 @@ html[data-motion="on"] .dialog[open] {
   gap: 9px;
   margin-top: 25px;
   flex-wrap: wrap;
+}
+
+.dialog__copy + :not(.dialog__footer) {
+  margin-top: 20px;
 }
 
 @media (max-height: 520px), (max-width: 480px) {
@@ -71,7 +79,7 @@ html[data-motion="on"] .dialog[open] {
 .dialog-form {
   display: grid;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .dialog__footer > .button--ghost:first-child {

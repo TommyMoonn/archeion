@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
+import { MenuItem } from "../../components/MenuItem";
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
@@ -74,39 +75,37 @@ function ArchiveRowActions({
     >
       <summary
         aria-label={`Actions for ${archive.displayName}`}
+        className="menu-trigger"
         title={`Actions for ${archive.displayName}`}
       >
-        <DotsThree aria-hidden="true" size={18} weight="bold" />
+        <span aria-hidden="true" className="icon-slot">
+          <DotsThree weight="bold" />
+        </span>
       </summary>
-      <div className="archive-row-menu__popover" role="menu">
-        <button
+      <div className="archive-row-menu__popover menu-popover" role="menu">
+        <MenuItem
           disabled={disabled}
+          icon={<PencilSimple weight="regular" />}
           onClick={() => runAction(onRename)}
-          role="menuitem"
-          type="button"
         >
-          <PencilSimple aria-hidden="true" size={16} weight="regular" />
-          <span>Rename</span>
-        </button>
-        <button
+          Rename
+        </MenuItem>
+        <MenuItem
           disabled={disabled}
+          icon={<FolderOpen weight="regular" />}
           onClick={() => runAction(onReveal)}
-          role="menuitem"
-          type="button"
         >
-          <FolderOpen aria-hidden="true" size={16} weight="regular" />
-          <span>Reveal in folder</span>
-        </button>
-        <button
+          Reveal in folder
+        </MenuItem>
+        <MenuItem
           className="archive-row-menu__danger"
+          danger
           disabled={disabled}
+          icon={<Trash weight="regular" />}
           onClick={() => runAction(onForget)}
-          role="menuitem"
-          type="button"
         >
-          <Trash aria-hidden="true" size={16} weight="regular" />
-          <span>Forget</span>
-        </button>
+          Forget
+        </MenuItem>
       </div>
     </details>
   );

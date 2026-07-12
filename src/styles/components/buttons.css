@@ -3,8 +3,8 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: var(--control-height-prominent);
-  padding: 0 17px;
+  min-height: var(--button-height, var(--control-height-prominent));
+  padding: 0 var(--button-padding-inline, 17px);
   border-radius: var(--radius-pill);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
@@ -14,6 +14,28 @@
     transform var(--motion-duration-fast) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard),
     border-color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.button--compact {
+  --button-height: var(--control-height-compact);
+  --button-padding-inline: 11px;
+
+  gap: 6px;
+  font-size: var(--type-meta);
+}
+
+.button--standard {
+  --button-height: var(--control-height-standard);
+  --button-padding-inline: 14px;
+}
+
+.button--prominent {
+  --button-height: var(--control-height-prominent);
+  --button-padding-inline: 17px;
+}
+
+.button[aria-busy="true"] {
+  cursor: progress;
 }
 
 .button:active:not(:disabled),
@@ -38,6 +60,13 @@
   background: transparent;
 }
 
+.button--secondary:hover:not(:disabled),
+.button--ghost:hover:not(:disabled) {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: var(--surface-hover);
+}
+
 .button--ghost {
   border: var(--border-width) solid transparent;
   color: var(--text);
@@ -58,8 +87,8 @@
 .icon-button {
   display: inline-grid;
   flex: none;
-  width: var(--control-height-standard);
-  height: var(--control-height-standard);
+  width: var(--icon-button-size, var(--control-height-standard));
+  height: var(--icon-button-size, var(--control-height-standard));
   place-items: center;
   padding: 0;
   border: var(--border-width) solid transparent;
@@ -71,6 +100,18 @@
     color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard),
     transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.icon-button--compact {
+  --icon-button-size: var(--control-height-compact);
+}
+
+.icon-button--standard {
+  --icon-button-size: var(--control-height-standard);
+}
+
+.icon-button--prominent {
+  --icon-button-size: var(--control-height-prominent);
 }
 
 .icon-button:hover:not(:disabled) {

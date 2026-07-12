@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useRef } from "react";
+import type { ControlSize } from "./Button";
 
 export type SegmentedControlOption<TValue extends string> = {
   disabled?: boolean;
@@ -12,6 +13,7 @@ type SegmentedControlProps<TValue extends string> = {
   label: string;
   onChange: (value: TValue) => void;
   options: Array<SegmentedControlOption<TValue>>;
+  size?: Exclude<ControlSize, "prominent">;
   value: TValue;
 };
 
@@ -40,6 +42,7 @@ export function SegmentedControl<TValue extends string>({
   label,
   onChange,
   options,
+  size = "compact",
   value,
 }: SegmentedControlProps<TValue>) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -83,7 +86,7 @@ export function SegmentedControl<TValue extends string>({
   return (
     <div
       aria-label={label}
-      className={`segmented-control ${className}`.trim()}
+      className={`segmented-control segmented-control--${size} ${className}`.trim()}
       onKeyDown={handleKeyDown}
       role="radiogroup"
     >

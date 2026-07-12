@@ -1,6 +1,7 @@
 import { ArrowRight, DotsThree, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
 import type { Folder } from "../../types/folder";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import { MenuItem } from "../../components/MenuItem";
 
 type FolderActionsMenuProps = {
   folder: Folder;
@@ -30,35 +31,37 @@ export function FolderActionsMenu({
 
   return (
     <details ref={detailsRef} className="folder-menu" onClick={(event) => event.stopPropagation()}>
-      <summary aria-label={`Actions for ${folder.name}`} title={`Actions for ${folder.name}`}>
-        <DotsThree aria-hidden="true" size={18} weight="bold" />
+      <summary
+        aria-label={`Actions for ${folder.name}`}
+        className="menu-trigger"
+        title={`Actions for ${folder.name}`}
+      >
+        <span aria-hidden="true" className="icon-slot">
+          <DotsThree weight="bold" />
+        </span>
       </summary>
-      <div className="folder-menu__popover" role="menu">
+      <div className="folder-menu__popover menu-popover" role="menu">
         {showRename && onRename ? (
-          <button type="button" role="menuitem" onClick={() => runAction(onRename)}>
-            <PencilSimple aria-hidden="true" size={16} weight="regular" />
+          <MenuItem icon={<PencilSimple weight="regular" />} onClick={() => runAction(onRename)}>
             Rename
-          </button>
+          </MenuItem>
         ) : null}
-        <button type="button" role="menuitem" onClick={() => runAction(onMove)}>
-          <ArrowRight aria-hidden="true" size={16} weight="regular" />
+        <MenuItem icon={<ArrowRight weight="regular" />} onClick={() => runAction(onMove)}>
           Move
-        </button>
+        </MenuItem>
         {showReveal && onReveal ? (
-          <button type="button" role="menuitem" onClick={() => runAction(onReveal)}>
-            <FolderOpen aria-hidden="true" size={16} weight="regular" />
+          <MenuItem icon={<FolderOpen weight="regular" />} onClick={() => runAction(onReveal)}>
             Reveal
-          </button>
+          </MenuItem>
         ) : null}
-        <button
+        <MenuItem
           className="folder-menu__danger"
-          type="button"
-          role="menuitem"
+          danger
+          icon={<Trash weight="regular" />}
           onClick={() => runAction(onDelete)}
         >
-          <Trash aria-hidden="true" size={16} weight="regular" />
           Delete
-        </button>
+        </MenuItem>
       </div>
     </details>
   );

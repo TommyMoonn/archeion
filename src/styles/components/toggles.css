@@ -2,8 +2,8 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  width: 38px;
-  height: 22px;
+  width: var(--toggle-width, 38px);
+  height: var(--toggle-height, 22px);
   padding: 2px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
@@ -11,9 +11,23 @@
   cursor: pointer;
 }
 
+.toggle-control--compact {
+  --toggle-width: 34px;
+  --toggle-height: 20px;
+  --toggle-thumb-size: 14px;
+  --toggle-travel: 14px;
+}
+
+.toggle-control--standard {
+  --toggle-width: 38px;
+  --toggle-height: 22px;
+  --toggle-thumb-size: 16px;
+  --toggle-travel: 16px;
+}
+
 .toggle-control span {
-  width: 16px;
-  height: 16px;
+  width: var(--toggle-thumb-size, 16px);
+  height: var(--toggle-thumb-size, 16px);
   border-radius: 50%;
   background: var(--muted);
   transition:
@@ -28,5 +42,5 @@
 
 .toggle-control[aria-checked="true"] span {
   background: var(--accent-strong);
-  transform: translateX(16px);
+  transform: translateX(var(--toggle-travel, 16px));
 }
