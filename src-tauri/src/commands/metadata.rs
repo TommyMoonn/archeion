@@ -14,6 +14,7 @@ pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const LIBRARY_FILE: &str = "library.json";
 const PROGRESS_FILE: &str = "progress.json";
 const SETTINGS_FILE: &str = "settings.json";
+const ANNOTATIONS_FILE: &str = "annotations.json";
 pub(crate) const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -402,6 +403,51 @@ where
     read_json_with_recovery(path).map(|result| result.value)
 }
 
+fn read_optional_json_with_recovery<T>(path: &Path, default_value: T) -> Result<T, String>
+where
+    T: Clone + DeserializeOwned + Serialize,
+{
+    if !path.exists() {
+        return Ok(default_value);
+    }
+
+    let contents = fs::read(path).map_err(|error| error.to_string())?;
+    match serde_json::from_slice(&contents) {
+        Ok(value) => Ok(value),
+        Err(_) => {
+            let corrupt_path = corruption_backup_path(path);
+            fs::rename(path, &corrupt_path).map_err(|error| error.to_string())?;
+            prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
+            let value = recover_json_from_backup(path).unwrap_or(default_value);
+            write_json(path, &value, false)?;
+            Ok(value)
+        }
+    }
+}
+
+fn default_annotations_metadata() -> serde_json::Value {
+    serde_json::json!({
+        "version": 1,
+        "books": {}
+    })
+}
+
+pub(crate) fn load_annotations_at(root: &Path) -> Result<serde_json::Value, String> {
+    if !root.is_dir() {
+        return Err("The selected archive folder is unavailable.".to_string());
+    }
+
+    read_optional_json_with_recovery(
+        &metadata_path(root).join(ANNOTATIONS_FILE),
+        default_annotations_metadata(),
+    )
+}
+
+pub(crate) fn save_annotations_at(root: &Path, metadata: &serde_json::Value) -> Result<(), String> {
+    let path = metadata_path(root).join(ANNOTATIONS_FILE);
+    write_json(&path, metadata, true)
+}
+
 pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
     if !root.is_dir() {
         return Err("The selected archive folder is unavailable.".to_string());
@@ -549,6 +595,23 @@ pub fn save_settings_metadata(
     write_json(&path, &metadata, true)
 }
 
+#[tauri::command]
+pub fn load_annotations_metadata(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<serde_json::Value, String> {
+    load_annotations_at(&resolve_command_archive_root(&app, root_path)?)
+}
+
+#[tauri::command]
+pub fn save_annotations_metadata(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+    metadata: serde_json::Value,
+) -> Result<(), String> {
+    save_annotations_at(&resolve_command_archive_root(&app, root_path)?, &metadata)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -557,8 +620,9 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_settings_at, metadata_path, read_json, replace_json_file_with_fs,
-        write_json, LibraryBookMetadata, LibraryMetadata, MetadataFileSystem, SettingsMetadata,
+        initialize_at, load_annotations_at, load_settings_at, metadata_path, read_json,
+        replace_json_file_with_fs, save_annotations_at, write_json, LibraryBookMetadata,
+        LibraryMetadata, MetadataFileSystem, SettingsMetadata,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -611,6 +675,78 @@ mod tests {
         assert!(metadata.join("settings.json").is_file());
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn missing_annotations_load_as_empty_without_creating_a_file() {
+        let root = test_root("annotations-missing");
+        fs::create_dir_all(&root).expect("test archive should be created");
+
+        let annotations = load_annotations_at(&root).expect("annotations should load");
+
+        assert_eq!(
+            annotations,
+            serde_json::json!({ "version": 1, "books": {} })
+        );
+        assert!(!metadata_path(&root).join("annotations.json").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn annotations_preserve_unknown_fields_and_create_recovery_backups() {
+        let root = test_root("annotations-save");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let first = serde_json::json!({
+            "version": 1,
+            "books": {},
+            "futureField": { "preserved": true }
+        });
+        let second = serde_json::json!({
+            "version": 1,
+            "books": {
+                "book-1": {
+                    "annotations": [],
+                    "futureBookField": "kept"
+                }
+            },
+            "futureField": { "preserved": true }
+        });
+
+        save_annotations_at(&root, &first).expect("initial annotations should save");
+        save_annotations_at(&root, &second).expect("updated annotations should save");
+
+        assert_eq!(
+            load_annotations_at(&root).expect("annotations should reload"),
+            second
+        );
+        assert!(metadata_path(&root).join("annotations.json.bak").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn corrupted_annotations_are_preserved_and_recovered_from_backup() {
+        let root = test_root("annotations-recovery");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let annotations = serde_json::json!({
+            "version": 1,
+            "books": { "book-1": { "annotations": [] } }
+        });
+        save_annotations_at(&root, &annotations).expect("annotations should save");
+        save_annotations_at(&root, &annotations).expect("annotations backup should save");
+        let path = metadata_path(&root).join("annotations.json");
+        fs::write(&path, b"{invalid").expect("annotations should be corrupted");
+
+        let recovered = load_annotations_at(&root).expect("annotations should recover");
+
+        assert_eq!(recovered, annotations);
+        assert!(fs::read_dir(metadata_path(&root))
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .contains("annotations.json.corrupt-")));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

@@ -67,6 +67,7 @@ Your Archive/
   Series/
     Volume 01.epub
   .archeion/
+    annotations.json
     library.json
     progress.json
     scanner-cache.json
@@ -75,7 +76,7 @@ Your Archive/
     backups/
 ```
 
-`.archeion/` stores app metadata, reading progress, cover cache, scanner hints, and writeback backups.
+`.archeion/` stores app metadata, annotations, reading progress, cover cache, scanner hints, and writeback backups. `annotations.json` is created only after the first annotation is saved.
 
 ## Development
 

@@ -7,6 +7,7 @@ import type {
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
 } from "../../types/book";
+import type { AnnotationsMetadata } from "../../types/annotation";
 import type {
   LibraryMetadata,
   MetadataBundle,
@@ -31,9 +32,11 @@ type ArchiveCommandMap = {
   scan_archive: CommandDefinition<undefined, ArchiveScan>;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
   load_settings_metadata: CommandDefinition<undefined, SettingsMetadata>;
+  load_annotations_metadata: CommandDefinition<undefined, unknown>;
   save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
   save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
   save_settings_metadata: CommandDefinition<{ metadata: SettingsMetadata }, void>;
+  save_annotations_metadata: CommandDefinition<{ metadata: AnnotationsMetadata }, void>;
   add_epub_files_to_archive: CommandDefinition<AddArchiveEpubInput, ArchiveImportResult[]>;
   read_epub_file: CommandDefinition<{ relativePath: string }, ArrayBuffer>;
   load_epub_cover: CommandDefinition<{ relativePath: string; bookId: string }, ArrayBuffer>;

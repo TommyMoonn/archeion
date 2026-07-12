@@ -10,6 +10,7 @@ import type {
   UpdateBookInput,
 } from "../types/book";
 import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
+import type { Annotation, CreateAnnotationInput, UpdateAnnotationInput } from "../types/annotation";
 import type { ArchiveImportSettings } from "../types/settings";
 import {
   createLibraryMetadata,
@@ -20,6 +21,7 @@ import {
   normalizeSettingsMetadata,
   type SettingsMetadata,
 } from "./metadataFiles";
+import { AnnotationRepository } from "./annotations/AnnotationRepository";
 import { reconcileLibraryState } from "./reconcileLibraryState";
 import type {
   AddArchiveEpubInput,
@@ -73,6 +75,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly bulkBookOperations: BulkBookOperations;
   private readonly folderOperations: FolderOperations;
   private readonly maintenanceOperations: MaintenanceOperations;
+  private readonly annotationRepository: AnnotationRepository;
 
   constructor() {
     const host: StorageOperationHost = {
@@ -119,6 +122,15 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.bulkBookOperations = new BulkBookOperations(host, this.writebackOperations);
     this.folderOperations = new FolderOperations(host);
     this.maintenanceOperations = new MaintenanceOperations(host);
+    this.annotationRepository = new AnnotationRepository({
+      createScope: () => this.createArchiveCommandScope(),
+      assertCurrentScope: (scope) => this.assertCurrentArchiveScope(scope),
+      runMetadataIo: (scope, operation) => this.enqueueMetadataIo(operation, scope.generation),
+      loadMetadata: (scope) =>
+        this.commands.invoke("load_annotations_metadata", undefined, scope.rootPath),
+      saveMetadata: (scope, metadata) =>
+        this.commands.invoke("save_annotations_metadata", { metadata }, scope.rootPath),
+    });
   }
 
   reset(archiveRootPath?: string | null): void {
@@ -138,6 +150,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.libraryMetadata = createLibraryMetadata();
     this.progressMetadata = createProgressMetadata();
     this.settingsMetadata = createSettingsMetadata();
+    this.annotationRepository.reset();
     this.setScanStatus({ status: "idle" });
     this.emitBooks();
     this.emitFolders();
@@ -286,6 +299,30 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   bulkExportBooks(ids: readonly string[], destinationPath: string): Promise<BulkActionResult> {
     return this.bulkBookOperations.exportBooks(ids, destinationPath);
+  }
+
+  listAnnotations(bookId: string): Promise<Annotation[]> {
+    return this.annotationRepository.list(bookId);
+  }
+
+  getAnnotation(bookId: string, annotationId: string): Promise<Annotation | undefined> {
+    return this.annotationRepository.get(bookId, annotationId);
+  }
+
+  createAnnotation(bookId: string, input: CreateAnnotationInput): Promise<Annotation> {
+    return this.annotationRepository.create(bookId, input);
+  }
+
+  updateAnnotation(
+    bookId: string,
+    annotationId: string,
+    changes: UpdateAnnotationInput,
+  ): Promise<Annotation | undefined> {
+    return this.annotationRepository.update(bookId, annotationId, changes);
+  }
+
+  deleteAnnotation(bookId: string, annotationId: string): Promise<boolean> {
+    return this.annotationRepository.delete(bookId, annotationId);
   }
 
   observeBooks(observer: StorageObserver<Book[]>): StorageSubscription {

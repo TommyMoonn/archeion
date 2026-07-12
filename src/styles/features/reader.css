@@ -539,8 +539,7 @@
 
 .reader-toc__chapter[data-current] {
   color: var(--reader-strong);
-  background: color-mix(in srgb, var(--accent) 10%, var(--reader-surface));
-  box-shadow: inset 2px 0 var(--accent);
+  background: color-mix(in srgb, var(--reader-strong) 6%, transparent);
 }
 
 .reader-toc__chapter:disabled {
