@@ -3,63 +3,52 @@
 </p>
 
 <p align="center">
-  A local-first desktop EPUB reader and archive manager.
+  A local-first Windows desktop app for organizing and reading EPUB libraries.
 </p>
 
 <p align="center">
-  <a href="https://tommymoonn.github.io/archeion/">Landing Site</a>
+  <a href="https://tommymoonn.github.io/archeion/">Website</a>
   ·
-  <a href="#quick-start">Quick Start</a>
+  <a href="https://github.com/TommyMoonn/archeion/releases/latest">Download</a>
   ·
   <a href="#features">Features</a>
   ·
-  <a href="#development">Development</a>
+  <a href="#local-first-by-design">Design</a>
   ·
-  <a href="#packaging">Packaging</a>
+  <a href="CHANGELOG.md">Changelog</a>
 </p>
 
 <p align="center">
-  <img src="docs/assets/archeion-preview.png" alt="Archeion preview" width="900" />
+  <img src="docs/assets/archeion-preview.png" alt="Archeion library and reader preview" width="900" />
 </p>
 
 ---
 
-## Landing Site
+## About Archeion
 
-Visit the landing page: [tommymoonn.github.io/archeion](https://tommymoonn.github.io/archeion/)
-
-## Quick Start
-
-Clone the repository and install dependencies:
-
-```sh
-git clone https://github.com/TommyMoonn/archeion.git
-cd archeion
-npm ci
-```
-
-Run the desktop app in development:
-
-```sh
-npm run tauri:dev
-```
-
-Open an existing EPUB folder as an archive, or create a new empty archive from the Archive Manager.
+Archeion turns a normal folder of EPUB files into a fast personal archive. It keeps
+books on your computer, preserves your existing folder structure, and stores its
+own reading data beside the archive instead of requiring an account or cloud
+service.
 
 ## Features
 
-- **Local archives** - use real folders on your machine.
-- **EPUB library** - scan nested folders while preserving structure.
-- **Reader** - paged EPUB reading with progress restore.
-- **Archive Manager** - create, open, switch, and manage archives.
-- **File actions** - add, rename, move, and delete EPUBs and folders safely.
-- **Metadata editing** - write title and author changes back into EPUB files.
-- **Library feedback** - compact tokens for imports, rescans, folders, and deletes.
-- **Settings** - reader, library, appearance, and archive preferences.
+- **Real folder archives** - open an existing EPUB folder or create a new archive.
+- **Library organization** - browse folders and series, search, sort, filter, select, and manage books in bulk.
+- **Paged and continuous reading** - choose a page-turning or scrolling reading experience with persistent progress.
+- **Bookmarks and highlights** - save important locations and highlighted passages locally.
+- **Attached notes** - add notes to highlights and manage annotations from one reader panel.
+- **EPUB metadata editing** - update book metadata and embedded covers with transactional writeback and rollback protection.
+- **File management** - add, rename, move, export, reveal, and delete EPUBs and folders.
+- **Quick Actions** - reach common library and reader commands from the keyboard.
+- **Customizable appearance** - configure application appearance, library density, and reader typography.
 
-## Local-first Model
+## Local-first by design
 
-Archeion keeps EPUB files as normal files on disk.
+Archeion has no account system, cloud sync, or telemetry. Your EPUB files remain
+normal files that can be opened, copied, backed up, and organized outside the app.
+
+Each archive may contain a hidden `.archeion` folder for local application data:
 
 ```txt
 Your Archive/
@@ -76,34 +65,19 @@ Your Archive/
     backups/
 ```
 
-`.archeion/` stores app metadata, annotations, reading progress, cover cache, scanner hints, and writeback backups. `annotations.json` is created only after the first annotation is saved.
+## Get Archeion
 
-## Development
+Download the latest Windows installers from the
+[GitHub Releases page](https://github.com/TommyMoonn/archeion/releases/latest).
 
-Requires Node.js, Rust, Cargo, and the platform prerequisites for Tauri.
+Archeion currently targets Windows 11. Other desktop platforms are not packaged
+or supported yet.
 
-```sh
-npm run verify
-```
+## Project documentation
 
-Useful commands:
-
-```sh
-npm run fmt
-npm run lint
-npm run typecheck
-npm run test
-npm run build
-npm run check:rust
-```
-
-## Packaging
-
-Build the desktop application locally:
-
-```sh
-npm run tauri:build
-```
+- [Development guide](docs/DEVELOPMENT.md)
+- [Project scripts](scripts/README.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

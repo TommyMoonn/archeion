@@ -21,7 +21,7 @@ The commonly used scripts are also available through `npm run`:
 ```powershell
 npm run version:check
 npm run version:set -- 0.3.0
-npm run release:check
+npm run release:check -- -Tag v0.4.0
 npm run release:stage
 npm run changes:review
 npm run changes:package -- -Name "phase-0.3.0"
@@ -42,18 +42,9 @@ Use `set-version.ps1` to update `package.json`, `package-lock.json`,
 update or validation step fails.
 
 ```powershell
-npm run version:set -- 0.3.0
+npm run version:set -- 0.4.0
+npm run release:check -- -Tag v0.4.0
 ```
-
-After adding the dated release section and comparison link to `CHANGELOG.md`,
-run the stricter release validation:
-
-```powershell
-npm run release:check
-```
-
-`check-release.ps1` also accepts `-Tag v0.3.0`. GitHub Actions supplies this
-value when validating a tag-triggered release.
 
 ## Script flags
 
