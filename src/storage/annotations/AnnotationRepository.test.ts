@@ -88,8 +88,9 @@ describe("AnnotationRepository", () => {
     await expect(
       annotations.create("book-1", {
         type: "highlight",
+        cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
         selectedText: " Passage ",
-        futureAnnotationField: { preserved: true },
+        color: "yellow",
       }),
     ).resolves.toMatchObject({
       id: "annotation-1",
@@ -97,7 +98,6 @@ describe("AnnotationRepository", () => {
       selectedText: "Passage",
       createdAt: "2026-07-12T00:00:00.000Z",
       updatedAt: "2026-07-12T00:00:00.000Z",
-      futureAnnotationField: { preserved: true },
     });
 
     expect(harness.persisted).toMatchObject({
@@ -124,10 +124,13 @@ describe("AnnotationRepository", () => {
     const annotations = repository(harness);
 
     const created = await annotations.create("book-1", {
-      type: "note",
-      cfiRange: "epubcfi(/6/2)",
+      type: "highlight",
+      cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+      selectedText: "Passage",
+      color: "yellow",
       note: originalNote,
     });
+    if (created.type !== "highlight") throw new Error("Expected a highlight.");
     expect(created.note).toBe(originalNote);
 
     const updated = await annotations.update("book-1", created.id, { note: updatedNote });
@@ -151,8 +154,65 @@ describe("AnnotationRepository", () => {
     const annotations = repository(harness);
 
     await expect(
-      annotations.create("book-1", { type: "note", note: null } as never),
+      annotations.create("book-1", {
+        type: "highlight",
+        cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+        selectedText: "Passage",
+        color: "yellow",
+        note: null,
+      } as never),
     ).rejects.toThrow("note for annotation 1");
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("rejects standalone notes and note fields on bookmarks", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+
+    await expect(
+      annotations.create("book-1", { type: "note", note: "Standalone" } as never),
+    ).rejects.toThrow("type");
+    await expect(
+      annotations.create("book-1", { type: "bookmark", note: "Not allowed" } as never),
+    ).rejects.toThrow("not allowed");
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ type: "highlight", selectedText: "Passage", color: "yellow" }, "cfiRange"],
+    [
+      {
+        type: "highlight",
+        cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+        selectedText: "   ",
+        color: "yellow",
+      },
+      "selectedText",
+    ],
+    [
+      {
+        type: "highlight",
+        cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+        selectedText: "Passage",
+      },
+      "color",
+    ],
+  ])("rejects incomplete highlight creation %#", async (input, field) => {
+    const harness = createHarness();
+
+    await expect(repository(harness).create("book-1", input as never)).rejects.toThrow(field);
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("rejects adding a note to an existing bookmark", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+    const bookmark = await annotations.create("book-1", { type: "bookmark" });
+    harness.saveMetadata.mockClear();
+
+    await expect(
+      annotations.update("book-1", bookmark.id, { note: "Not allowed" } as never),
+    ).rejects.toThrow("not allowed");
     expect(harness.saveMetadata).not.toHaveBeenCalled();
   });
 
@@ -175,15 +235,11 @@ describe("AnnotationRepository", () => {
     await expect(
       annotations.update("book-1", "annotation-1", {
         label: "Updated label",
-        note: "Remember this",
-        id: "replacement-id",
-        type: "highlight",
       }),
     ).resolves.toMatchObject({
       id: "annotation-1",
       type: "bookmark",
       label: "Updated label",
-      note: "Remember this",
     });
     await expect(annotations.delete("book-1", "annotation-1")).resolves.toBe(true);
     await expect(annotations.list("book-1")).resolves.toEqual([]);
@@ -323,7 +379,10 @@ describe("AnnotationRepository", () => {
             },
             {
               id: "annotation-2",
-              type: "note",
+              type: "highlight",
+              cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:1,/4/2:4)",
+              selectedText: "Keep this",
+              color: "yellow",
               note: "Keep this",
               createdAt: "2026-07-12T00:00:00.000Z",
               updatedAt: "2026-07-12T00:00:00.000Z",
@@ -384,7 +443,7 @@ describe("AnnotationRepository", () => {
               },
               {
                 id: "duplicate",
-                type: "note",
+                type: "bookmark",
                 createdAt: "2026-07-12T00:00:00.000Z",
                 updatedAt: "2026-07-12T00:00:00.000Z",
               },
@@ -420,7 +479,7 @@ describe("AnnotationRepository", () => {
             },
             {
               id: "duplicate",
-              type: "note",
+              type: "bookmark",
               createdAt: "2026-07-12T00:00:00.000Z",
               updatedAt: "2026-07-12T00:00:00.000Z",
             },
@@ -453,7 +512,10 @@ describe("AnnotationRepository", () => {
           annotations: [
             {
               id: "annotation-1",
-              type: "bookmark",
+              type: "highlight",
+              cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+              selectedText: "Passage",
+              color: "yellow",
               createdAt: "2026-07-12T00:00:00.000Z",
               updatedAt: "2026-07-12T00:00:00.000Z",
             },
@@ -479,11 +541,10 @@ describe("AnnotationRepository", () => {
     });
     const annotations = repository(harness);
     const original = {
-      id: "bookmark-1",
-      type: "bookmark" as const,
+      id: "highlight-1",
+      type: "highlight" as const,
       cfiRange: "epubcfi(/6/2!/4/2:10)",
       chapterHref: "Text/chapter-1.xhtml",
-      label: "Chapter start",
       note: "Remember this",
       color: "yellow",
       selectedText: "Quoted passage",
@@ -496,7 +557,7 @@ describe("AnnotationRepository", () => {
     expect(restored).toEqual(original);
 
     original.futureField.nested.push("mutated-input");
-    restored.futureField = { mutated: true };
+    (restored as unknown as Record<string, unknown>).futureField = { mutated: true };
     await expect(annotations.list("book-1")).resolves.toMatchObject([
       { futureField: { nested: ["preserve-me"] } },
     ]);
@@ -508,11 +569,10 @@ describe("AnnotationRepository", () => {
         "book-1": {
           annotations: [
             {
-              id: "bookmark-1",
-              type: "bookmark",
+              id: "highlight-1",
+              type: "highlight",
               cfiRange: "epubcfi(/6/2!/4/2:10)",
               chapterHref: "Text/chapter-1.xhtml",
-              label: "Chapter start",
               note: "Remember this",
               color: "yellow",
               selectedText: "Quoted passage",

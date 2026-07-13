@@ -5,9 +5,15 @@ import { createAnnotationsMetadata, normalizeAnnotationsMetadata } from "./annot
 const timestamp = "2026-07-12T00:00:00.000Z";
 
 function annotation(overrides: Record<string, unknown> = {}) {
+  const type = overrides.type ?? "bookmark";
+  const required =
+    type === "highlight"
+      ? { cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)", selectedText: "Passage", color: "yellow" }
+      : { cfiRange: "epubcfi(/6/2!/4/2:1)" };
   return {
     id: "annotation-1",
-    type: "bookmark",
+    type,
+    ...required,
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides,
@@ -70,7 +76,9 @@ describe("annotationsMetadata", () => {
             {
               id: "annotation-1",
               type: "highlight",
+              cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
               selectedText: "Passage",
+              color: "yellow",
               createdAt: timestamp,
               updatedAt: timestamp,
               futureAnnotationField: { revision: 2 },
@@ -91,12 +99,14 @@ describe("annotationsMetadata", () => {
       "",
     ].join("\r\n");
 
-    expect(normalizeAnnotationsMetadata(metadataWithAnnotation({ note }))).toMatchObject({
+    expect(
+      normalizeAnnotationsMetadata(metadataWithAnnotation({ type: "highlight", note })),
+    ).toMatchObject({
       books: { "book-1": { annotations: [{ note }] } },
     });
     expect(
-      normalizeAnnotationsMetadata(metadataWithAnnotation({ note: "  \n\t" })).books["book-1"]
-        .annotations[0],
+      normalizeAnnotationsMetadata(metadataWithAnnotation({ type: "highlight", note: "  \n\t" }))
+        .books["book-1"].annotations[0],
     ).not.toHaveProperty("note");
   });
 
@@ -199,7 +209,7 @@ describe("annotationsMetadata", () => {
     }
   });
 
-  it.each(["bookmark", "highlight", "note"])(
+  it.each(["bookmark", "highlight"])(
     "rejects invalid location field types for %s annotations",
     (type) => {
       expect(() =>
@@ -210,6 +220,26 @@ describe("annotationsMetadata", () => {
     },
   );
 
+  it("rejects the discarded standalone note type", () => {
+    expect(() => normalizeAnnotationsMetadata(metadataWithAnnotation({ type: "note" }))).toThrow(
+      "type for annotation 1",
+    );
+  });
+
+  it("rejects note fields on bookmarks", () => {
+    expect(() => normalizeAnnotationsMetadata(metadataWithAnnotation({ note: "Invalid" }))).toThrow(
+      "note is not allowed",
+    );
+  });
+
+  it.each([
+    ["missing range", { type: "highlight", cfiRange: "" }, "cfiRange"],
+    ["missing selected text", { type: "highlight", selectedText: "" }, "selectedText"],
+    ["missing color", { type: "highlight", color: "" }, "color"],
+  ])("rejects a highlight with %s", (_label, overrides, field) => {
+    expect(() => normalizeAnnotationsMetadata(metadataWithAnnotation(overrides))).toThrow(field);
+  });
+
   it.each([
     ["chapterHref", 42],
     ["selectedText", ["passage"]],
@@ -219,9 +249,10 @@ describe("annotationsMetadata", () => {
     ["note", null],
     ["label", { value: "label" }],
   ])("rejects invalid optional %s values", (field, value) => {
-    expect(() => normalizeAnnotationsMetadata(metadataWithAnnotation({ [field]: value }))).toThrow(
-      `${field} for annotation 1`,
-    );
+    const type = field === "label" ? "bookmark" : "highlight";
+    expect(() =>
+      normalizeAnnotationsMetadata(metadataWithAnnotation({ type, [field]: value })),
+    ).toThrow(`${field} for annotation 1`);
   });
 
   it("rejects unknown nested values that cannot be preserved as JSON", () => {

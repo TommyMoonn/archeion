@@ -12,7 +12,7 @@ import type { Book as EpubBook, Location, Rendition } from "epubjs";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
-import type { Annotation } from "../../types/annotation";
+import type { HighlightAnnotation } from "../../types/annotation";
 import {
   canRunReaderWheelTurn,
   getReaderWheelDelta,
@@ -55,13 +55,13 @@ export type ReaderTextSelection = {
 
 type EpubViewerProps = {
   fileBlob: Blob;
-  highlights?: readonly Annotation[];
+  highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
   onError: (message: string) => void;
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
-  onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: Annotation) => void;
+  onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => void;
   onCreateHighlight?: (
     selection: ReaderTextSelection,
     color: ReaderHighlightColor,
@@ -94,7 +94,7 @@ type EpubContent = {
 };
 
 type HighlightMenu = {
-  existingHighlight?: Annotation;
+  existingHighlight?: HighlightAnnotation;
   selection: ReaderTextSelection;
   x: number;
   y: number;
@@ -221,7 +221,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const reconcileHighlights = useCallback(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
-    const desired = new Map<string, { annotation: Annotation; color: ReaderHighlightColor }>();
+    const desired = new Map<
+      string,
+      { annotation: HighlightAnnotation; color: ReaderHighlightColor }
+    >();
     for (const highlight of highlightsRef.current) {
       const range = highlight.cfiRange?.trim();
       if (!range || desired.has(range)) continue;

@@ -4,16 +4,18 @@ import { act, createRef, type ComponentProps, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Annotation } from "../../types/annotation";
+import type { HighlightAnnotation } from "../../types/annotation";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-const annotation: Annotation = {
+const annotation: HighlightAnnotation = {
   id: "highlight-1",
   type: "highlight",
   cfiRange: "epubcfi(/6/2!/4/2:1)",
+  selectedText: "Passage",
+  color: "yellow",
   note: "Original",
   createdAt: "2026-01-01T00:00:00.000Z",
   updatedAt: "2026-01-01T00:00:00.000Z",
@@ -201,7 +203,7 @@ describe("ReaderNoteEditor", () => {
 
   it("serializes saves and persists the newest draft after an active save", async () => {
     vi.useFakeTimers();
-    const firstSave = deferred<Annotation | undefined>();
+    const firstSave = deferred<HighlightAnnotation | undefined>();
     const onSave = vi
       .fn()
       .mockImplementationOnce(() => firstSave.promise)
@@ -222,8 +224,8 @@ describe("ReaderNoteEditor", () => {
 
   it("does not let an older completion mark a newer draft as saved", async () => {
     vi.useFakeTimers();
-    const firstSave = deferred<Annotation | undefined>();
-    const secondSave = deferred<Annotation | undefined>();
+    const firstSave = deferred<HighlightAnnotation | undefined>();
+    const secondSave = deferred<HighlightAnnotation | undefined>();
     const onSave = vi
       .fn()
       .mockImplementationOnce(() => firstSave.promise)
@@ -260,7 +262,7 @@ describe("ReaderNoteEditor", () => {
 
   it("does not publish completion callbacks after unmount", async () => {
     vi.useFakeTimers();
-    const pending = deferred<Annotation | undefined>();
+    const pending = deferred<HighlightAnnotation | undefined>();
     const onBusyChange = vi.fn();
     const { container: target } = renderEditor({
       onBusyChange,
@@ -280,17 +282,6 @@ describe("ReaderNoteEditor", () => {
     expect(onBusyChange).toHaveBeenCalledTimes(callsBeforeCompletion);
   });
 
-  it("does not write a new empty or whitespace-only draft", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor({ annotation: undefined });
-    enterText(target, "   \n\t");
-    await act(async () => vi.runAllTimersAsync());
-    await click(target, "Close note");
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onClose).toHaveBeenCalledTimes(1);
-  });
-
   it("requires explicit deletion when an existing note is cleared", async () => {
     vi.useFakeTimers();
     const { container: target, props } = renderEditor();
@@ -308,49 +299,9 @@ describe("ReaderNoteEditor", () => {
     expect(props.onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps deletion available for a legacy empty standalone annotation", () => {
-    const legacy: Annotation = { ...annotation, type: "note" };
-    delete legacy.note;
-    const { container: target } = renderEditor({ annotation: legacy });
-
-    expect(button(target, "Delete note").disabled).toBe(false);
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Use Delete note to remove it.",
-    );
-  });
-
-  it("waits for a pending standalone creation before deleting the exact record", async () => {
-    vi.useFakeTimers();
-    const creation = deferred<Annotation | undefined>();
-    const created: Annotation = {
-      ...annotation,
-      id: "note-created",
-      type: "note",
-      note: "Create then delete",
-    };
-    const onSave = vi.fn(() => creation.promise);
-    const onDelete = vi.fn(async () => true);
-    const { container: target } = renderEditor({ annotation: undefined, onDelete, onSave });
-
-    enterText(target, "Create then delete");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    await click(target, "Delete note");
-    await act(async () => {
-      button(target, "Delete").click();
-      await Promise.resolve();
-    });
-
-    expect(onDelete).not.toHaveBeenCalled();
-    await act(async () => creation.resolve(created));
-
-    expect(onSave).toHaveBeenCalledTimes(1);
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(onDelete).toHaveBeenCalledWith(created);
-  });
-
   it("waits for a pending existing-note update before deleting the updated record", async () => {
     vi.useFakeTimers();
-    const update = deferred<Annotation | undefined>();
+    const update = deferred<HighlightAnnotation | undefined>();
     const updated = { ...annotation, note: "Updated before delete" };
     const onSave = vi.fn(() => update.promise);
     const onDelete = vi.fn(async () => true);

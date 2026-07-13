@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Annotation } from "../../types/annotation";
+import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderChapter } from "../../types/reader";
 import {
   groupReaderAnnotations,
@@ -11,8 +11,25 @@ import {
 
 const timestamp = "2026-07-12T00:00:00.000Z";
 
-function annotation(overrides: Partial<Annotation> & Pick<Annotation, "id" | "type">): Annotation {
+function bookmark(
+  overrides: Partial<BookmarkAnnotation> & Pick<BookmarkAnnotation, "id">,
+): BookmarkAnnotation {
   return {
+    type: "bookmark",
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    ...overrides,
+  };
+}
+
+function highlight(
+  overrides: Partial<HighlightAnnotation> & Pick<HighlightAnnotation, "id">,
+): HighlightAnnotation {
+  return {
+    type: "highlight",
+    cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+    selectedText: "Quoted passage",
+    color: "yellow",
     createdAt: timestamp,
     updatedAt: timestamp,
     ...overrides,
@@ -27,14 +44,12 @@ const chapters: ReaderChapter[] = [
 describe("reader annotations", () => {
   it("filters note-bearing annotations and searches only quotes and note text", () => {
     const annotations = [
-      annotation({ id: "bookmark", label: "Searchable label", type: "bookmark" }),
-      annotation({
+      bookmark({ id: "bookmark", label: "Searchable label" }),
+      highlight({
         id: "highlight",
         note: "Private thought",
         selectedText: "Quoted passage",
-        type: "highlight",
       }),
-      annotation({ id: "note", note: "Standalone thought", type: "note" }),
     ];
 
     expect(
@@ -45,7 +60,7 @@ describe("reader annotations", () => {
         sort: "book-order",
         view: "notes",
       }).map(({ id }) => id),
-    ).toEqual(["highlight", "note"]);
+    ).toEqual(["highlight"]);
     expect(
       visibleReaderAnnotations({
         annotations,
@@ -68,23 +83,20 @@ describe("reader annotations", () => {
 
   it("sorts by chapter and CFI while matching normalized chapter hrefs", () => {
     const annotations = [
-      annotation({
+      bookmark({
         chapterHref: "./Text/chapter-2.xhtml#section",
         cfiRange: "epubcfi(/6/20)",
         id: "second",
-        type: "bookmark",
       }),
-      annotation({
+      highlight({
         chapterHref: "Text/chapter-1.xhtml",
         cfiRange: "epubcfi(/6/10)",
         id: "first-late",
-        type: "highlight",
       }),
-      annotation({
+      highlight({
         chapterHref: "Text/chapter-1.xhtml",
         cfiRange: "epubcfi(/6/2)",
         id: "first-early",
-        type: "note",
       }),
     ];
 
@@ -104,8 +116,8 @@ describe("reader annotations", () => {
 
   it("sorts recent updates newest first", () => {
     const annotations = [
-      annotation({ id: "older", type: "note", updatedAt: "2026-07-10T00:00:00.000Z" }),
-      annotation({ id: "newer", type: "note", updatedAt: "2026-07-12T00:00:00.000Z" }),
+      highlight({ id: "older", updatedAt: "2026-07-10T00:00:00.000Z" }),
+      highlight({ id: "newer", updatedAt: "2026-07-12T00:00:00.000Z" }),
     ];
 
     expect(
@@ -121,8 +133,6 @@ describe("reader annotations", () => {
 
   it("provides concise view and removal labels", () => {
     expect(readerAnnotationEmptyLabel("highlights")).toBe("No highlights");
-    expect(readerAnnotationRemoveLabel(annotation({ id: "note", type: "note" }))).toBe(
-      "Delete note",
-    );
+    expect(readerAnnotationRemoveLabel(highlight({ id: "highlight" }))).toBe("Remove highlight");
   });
 });

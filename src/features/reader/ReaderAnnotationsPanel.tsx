@@ -593,7 +593,7 @@ export function ReaderAnnotationsPanel({
                                 size="compact"
                                 variant="danger"
                               >
-                                {annotation.type === "note" ? "Delete" : "Remove"}
+                                Remove
                               </Button>
                               <Button
                                 disabled={isBusy}
@@ -700,7 +700,6 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
   const label = readerAnnotationLabel(annotation);
   const selectedText = annotation.selectedText?.trim();
   const note = annotation.note?.trim();
-  const isStandaloneNote = annotation.type === "note";
   const highlightColor = normalizeReaderHighlightColor(annotation.color);
 
   return (
@@ -709,10 +708,8 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
         <span aria-hidden="true" className="icon-slot icon-slot--compact">
           {annotation.type === "bookmark" ? (
             <BookmarkSimple weight="fill" />
-          ) : annotation.type === "highlight" ? (
-            <Highlighter weight="regular" />
           ) : (
-            <NotePencil weight="regular" />
+            <Highlighter weight="regular" />
           )}
         </span>
         <span>{label}</span>
@@ -726,13 +723,7 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
         ) : null}
       </span>
       {selectedText ? <span className="reader-annotations__quote">{selectedText}</span> : null}
-      {note ? (
-        <span
-          className={`reader-annotations__note${isStandaloneNote ? " reader-annotations__note--primary" : ""}`}
-        >
-          {note}
-        </span>
-      ) : null}
+      {note ? <span className="reader-annotations__note">{note}</span> : null}
       {!selectedText && !note && annotation.type !== "bookmark" ? (
         <span className="reader-annotations__missing-text">No saved text</span>
       ) : null}

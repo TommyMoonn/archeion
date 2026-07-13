@@ -3,14 +3,17 @@ import { NotePencil, Trash, X } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import type { Annotation } from "../../types/annotation";
+import type { HighlightAnnotation } from "../../types/annotation";
 
 type ReaderNoteEditorProps = {
-  annotation?: Annotation;
+  annotation?: HighlightAnnotation;
   onBusyChange?: (busy: boolean) => void;
   onClose: () => void;
-  onDelete: (persistedAnnotation?: Annotation) => Promise<boolean>;
-  onSave: (note: string, persistedAnnotation?: Annotation) => Promise<Annotation | undefined>;
+  onDelete: (persistedAnnotation?: HighlightAnnotation) => Promise<boolean>;
+  onSave: (
+    note: string,
+    persistedAnnotation?: HighlightAnnotation,
+  ) => Promise<HighlightAnnotation | undefined>;
 };
 
 export type ReaderNoteEditorHandle = {
@@ -21,11 +24,8 @@ type SaveStatus = "idle" | "saving" | "saved" | "empty" | "error";
 type ErrorKind = "save" | "delete" | null;
 const NOTE_SAVE_DELAY_MS = 650;
 
-function annotationRepresentsNote(annotation: Annotation | undefined): boolean {
-  return Boolean(
-    annotation &&
-    (annotation.type === "note" || Object.prototype.hasOwnProperty.call(annotation, "note")),
-  );
+function annotationRepresentsNote(annotation: HighlightAnnotation | undefined): boolean {
+  return Boolean(annotation && Object.prototype.hasOwnProperty.call(annotation, "note"));
 }
 
 export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEditorProps>(
@@ -135,7 +135,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
             updateStatus("saving");
           }
 
-          let saved: Annotation | undefined;
+          let saved: HighlightAnnotation | undefined;
           try {
             saved = await onSaveRef.current(nextText, latestAnnotationRef.current);
           } catch {

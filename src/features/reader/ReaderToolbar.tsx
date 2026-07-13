@@ -7,7 +7,6 @@ import {
   CaretLeft,
   CaretRight,
   ListBullets,
-  NotePencil,
   TextAa,
 } from "@phosphor-icons/react";
 import type { Ref } from "react";
@@ -33,14 +32,11 @@ type ReaderToolbarProps = {
   onToggleBookmark: () => void;
   onNext: () => void;
   onNextChapter: () => void;
-  onNote: () => void;
   onPrevious: () => void;
   onPreviousChapter: () => void;
   onSettings: () => void;
   onToc: () => void;
   percentage: number;
-  noteDisabled: boolean;
-  noteDisabledReason?: string;
   previousChapterDisabled: boolean;
   progressSaveFailed: boolean;
   title: string;
@@ -69,14 +65,11 @@ export function ReaderToolbar({
   onToggleBookmark,
   onNext,
   onNextChapter,
-  onNote,
   onPrevious,
   onPreviousChapter,
   onSettings,
   onToc,
   percentage,
-  noteDisabled,
-  noteDisabledReason,
   previousChapterDisabled,
   progressSaveFailed,
   title,
@@ -173,15 +166,6 @@ export function ReaderToolbar({
           size="compact"
         >
           <BookmarkSimple aria-hidden="true" weight={bookmarkActive ? "fill" : "regular"} />
-        </IconButton>
-        <IconButton
-          disabled={noteDisabled}
-          disabledReason={noteDisabledReason}
-          label="Add note at current location"
-          onClick={onNote}
-          size="compact"
-        >
-          <NotePencil aria-hidden="true" weight="regular" />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton

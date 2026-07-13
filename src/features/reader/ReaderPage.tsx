@@ -25,7 +25,7 @@ import {
   useReaderPreferences,
 } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
@@ -57,12 +57,11 @@ import {
 } from "../quick-actions/quickActions";
 
 type ReaderNoteTarget = {
-  annotation?: Annotation;
+  annotation: HighlightAnnotation;
   bookId: string;
   cfiRange: string;
   chapterHref?: string;
   editorKey: number;
-  label?: string;
   targetIdentity: string;
 };
 
@@ -85,8 +84,8 @@ function sameReaderAnnotationSession(
   return left.bookId === right.bookId && left.token === right.token;
 }
 
-function noteTargetIdentity(annotation: Annotation | undefined, cfiRange: string): string {
-  return annotation ? `annotation:${annotation.id}` : `standalone:${cfiRange}`;
+function noteTargetIdentity(annotation: Annotation): string {
+  return `annotation:${annotation.id}`;
 }
 
 export function ReaderRoute() {
@@ -134,8 +133,6 @@ export function ReaderPage() {
   const [tocOpen, setTocOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [noteTarget, setNoteTarget] = useState<ReaderNoteTarget | null>(null);
-  const [noteLoadPending, setNoteLoadPending] = useState(false);
-  const [noteMutationBusy, setNoteMutationBusy] = useState(false);
   const [noteError, setNoteError] = useState<string | null>(null);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
     chapters: [],
@@ -149,8 +146,6 @@ export function ReaderPage() {
   const controlsVisibleRef = useRef(controlsVisible);
   const noteTargetRef = useRef<ReaderNoteTarget | null>(null);
   const noteOpenRequestRef = useRef(0);
-  const noteLoadRequestRef = useRef(0);
-  const noteLoadOwnerRef = useRef<number | null>(null);
   const controlledNavigationInFlightRef = useRef<Promise<boolean> | null>(null);
   const currentBookIdRef = useRef<string | undefined>(book?.id);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
@@ -198,8 +193,6 @@ export function ReaderPage() {
     () => deriveReaderChapterSequence(navigationState.chapters, navigationState.currentChapterId),
     [navigationState.chapters, navigationState.currentChapterId],
   );
-  const currentChapterHref = chapterSequence.current?.href;
-  const currentChapterLabel = chapterSequence.current?.label;
   const hasChapterNavigation =
     navigationState.status === "ready" &&
     navigationState.chapters.length > 0 &&
@@ -227,40 +220,10 @@ export function ReaderPage() {
     storage,
   });
 
-  const invalidatePendingNoteLoad = useCallback(() => {
-    noteLoadRequestRef.current += 1;
-    noteLoadOwnerRef.current = null;
-    if (mountedRef.current) {
-      setNoteLoadPending(false);
-    }
-  }, []);
-
   const beginNoteOpenRequest = useCallback(() => {
     const requestId = ++noteOpenRequestRef.current;
-    invalidatePendingNoteLoad();
     setNoteError(null);
     return requestId;
-  }, [invalidatePendingNoteLoad]);
-
-  const beginPendingNoteLoad = useCallback(() => {
-    const requestId = ++noteLoadRequestRef.current;
-    noteLoadOwnerRef.current = requestId;
-    if (mountedRef.current) {
-      setNoteLoadPending(true);
-    }
-    return requestId;
-  }, []);
-
-  const ownsPendingNoteLoad = useCallback((requestId: number) => {
-    return noteLoadOwnerRef.current === requestId;
-  }, []);
-
-  const finishPendingNoteLoad = useCallback((requestId: number) => {
-    if (noteLoadOwnerRef.current !== requestId) return;
-    noteLoadOwnerRef.current = null;
-    if (mountedRef.current) {
-      setNoteLoadPending(false);
-    }
   }, []);
 
   useEffect(() => {
@@ -398,7 +361,6 @@ export function ReaderPage() {
       }
 
       noteOpenRequestRef.current += 1;
-      invalidatePendingNoteLoad();
       const navigation = runAfterActiveNoteSettles(action).catch(() => false);
       controlledNavigationInFlightRef.current = navigation;
       void navigation.finally(() => {
@@ -408,7 +370,7 @@ export function ReaderPage() {
       });
       return navigation;
     },
-    [invalidatePendingNoteLoad, runAfterActiveNoteSettles],
+    [runAfterActiveNoteSettles],
   );
 
   const navigateToLibraryView = useCallback(
@@ -557,7 +519,6 @@ export function ReaderPage() {
   const publishNoteTarget = useCallback((target: ReaderNoteTarget) => {
     if (!mountedRef.current) return;
     noteTargetRef.current = target;
-    setNoteMutationBusy(false);
     setNoteError(null);
     setNoteTarget(target);
   }, []);
@@ -595,13 +556,11 @@ export function ReaderPage() {
     (target: ReaderNoteTarget) => {
       if (!isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) return;
       noteOpenRequestRef.current += 1;
-      invalidatePendingNoteLoad();
       noteTargetRef.current = null;
-      setNoteMutationBusy(false);
       setNoteError(null);
       setNoteTarget(null);
     },
-    [invalidatePendingNoteLoad, isCurrentNoteSession],
+    [isCurrentNoteSession],
   );
 
   const syncSavedNote = useCallback(
@@ -613,7 +572,7 @@ export function ReaderPage() {
   );
 
   const openSelectionNote = useCallback(
-    (selection: ReaderTextSelection, existingHighlight?: Annotation) => {
+    (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => {
       const sessionBookId = bookId;
       if (!sessionBookId) return;
 
@@ -632,7 +591,7 @@ export function ReaderPage() {
           cfiRange: capturedSelection.cfiRange,
           chapterHref: capturedSelection.chapterHref,
           editorKey: ++noteEditorKeyRef.current,
-          targetIdentity: noteTargetIdentity(annotation, capturedSelection.cfiRange),
+          targetIdentity: noteTargetIdentity(annotation),
         });
       })().catch(() => undefined);
     },
@@ -646,99 +605,18 @@ export function ReaderPage() {
     ],
   );
 
-  const noteActionBusy = noteLoadPending || noteMutationBusy;
-  const canCreateStandaloneNote = Boolean(
-    bookId && readerReady && location.cfi.trim() && !error && !noteActionBusy,
-  );
-  const standaloneNoteDisabledReason =
-    !bookId || error
-      ? "Current reading location is unavailable."
-      : noteActionBusy
-        ? "Wait for the current note action to finish."
-        : !readerReady || !location.cfi.trim()
-          ? "Current reading location is still loading."
-          : undefined;
-
-  const openStandaloneNote = useCallback(() => {
-    const cfiRange = location.cfi.trim();
-    if (!canCreateStandaloneNote || !bookId || !cfiRange) return;
-
-    const requestId = beginNoteOpenRequest();
-    const sessionBookId = bookId;
-
-    void (async () => {
-      if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return;
-
-      const loadRequestId = beginPendingNoteLoad();
-      try {
-        const annotations = await storage.listAnnotations(sessionBookId);
-        if (
-          !ownsPendingNoteLoad(loadRequestId) ||
-          !isCurrentNoteOpenRequest(requestId, sessionBookId)
-        ) {
-          return;
-        }
-
-        const existing = annotations.find(
-          (annotation) => annotation.type === "note" && annotation.cfiRange === cfiRange,
-        );
-        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return;
-        finishPendingNoteLoad(loadRequestId);
-        publishNoteTarget({
-          annotation: existing,
-          bookId: sessionBookId,
-          cfiRange,
-          chapterHref: currentChapterHref,
-          editorKey: ++noteEditorKeyRef.current,
-          label: currentChapterLabel,
-          targetIdentity: noteTargetIdentity(existing, cfiRange),
-        });
-      } catch {
-        if (
-          ownsPendingNoteLoad(loadRequestId) &&
-          isCurrentNoteOpenRequest(requestId, sessionBookId)
-        ) {
-          setNoteError("Notes could not be loaded.");
-        }
-      } finally {
-        finishPendingNoteLoad(loadRequestId);
-      }
-    })().catch(() => undefined);
-  }, [
-    beginNoteOpenRequest,
-    beginPendingNoteLoad,
-    bookId,
-    canCreateStandaloneNote,
-    currentChapterHref,
-    currentChapterLabel,
-    finishPendingNoteLoad,
-    settleCurrentNoteForRequest,
-    isCurrentNoteOpenRequest,
-    location.cfi,
-    ownsPendingNoteLoad,
-    publishNoteTarget,
-    storage,
-  ]);
-
   const saveNoteSession = useCallback(
     async (
       target: ReaderNoteTarget,
       note: string,
-      persistedAnnotation?: Annotation,
-    ): Promise<Annotation | undefined> => {
+      persistedAnnotation?: HighlightAnnotation,
+    ): Promise<HighlightAnnotation | undefined> => {
       if (!note.trim()) return undefined;
       try {
         const sourceAnnotation = persistedAnnotation ?? target.annotation;
-        const saved = sourceAnnotation
-          ? await storage.updateAnnotation(target.bookId, sourceAnnotation.id, { note })
-          : await storage.createAnnotation(target.bookId, {
-              type: "note",
-              cfiRange: target.cfiRange,
-              chapterHref: target.chapterHref,
-              label: target.label,
-              note,
-            });
-        if (!saved) return undefined;
+        if (!sourceAnnotation || sourceAnnotation.type !== "highlight") return undefined;
+        const saved = await storage.updateAnnotation(target.bookId, sourceAnnotation.id, { note });
+        if (!saved || saved.type !== "highlight") return undefined;
 
         if (isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) {
           const nextTarget = { ...target, annotation: saved };
@@ -755,15 +633,11 @@ export function ReaderPage() {
   );
 
   const deleteNoteSession = useCallback(
-    async (target: ReaderNoteTarget, persistedAnnotation?: Annotation) => {
+    async (target: ReaderNoteTarget, persistedAnnotation?: HighlightAnnotation) => {
       const annotation = persistedAnnotation ?? target.annotation;
       if (!annotation) return false;
       try {
-        if (annotation.type === "note") {
-          const deleted = await storage.deleteAnnotation(target.bookId, annotation.id);
-          if (deleted) annotations.forget(annotation.id);
-          return deleted;
-        }
+        if (annotation.type !== "highlight") return false;
         const updated = await storage.updateAnnotation(target.bookId, annotation.id, {
           note: undefined,
         });
@@ -774,13 +648,13 @@ export function ReaderPage() {
         return false;
       }
     },
-    [annotations, storage, syncSavedNote],
+    [storage, syncSavedNote],
   );
 
   const openAnnotationNote = useCallback(
     async (annotation: Annotation) => {
       const sessionBookId = bookId;
-      if (!sessionBookId) return false;
+      if (!sessionBookId || annotation.type !== "highlight") return false;
 
       const requestId = beginNoteOpenRequest();
       try {
@@ -788,11 +662,10 @@ export function ReaderPage() {
         publishNoteTarget({
           annotation,
           bookId: sessionBookId,
-          cfiRange: annotation.cfiRange ?? "",
+          cfiRange: annotation.cfiRange,
           chapterHref: annotation.chapterHref,
           editorKey: ++noteEditorKeyRef.current,
-          label: annotation.label,
-          targetIdentity: noteTargetIdentity(annotation, annotation.cfiRange ?? ""),
+          targetIdentity: noteTargetIdentity(annotation),
         });
         closeAnnotationsForNoteEditor();
         return true;
@@ -814,20 +687,9 @@ export function ReaderPage() {
       if (annotation.type === "bookmark") {
         return annotations.remove(annotation);
       }
-      if (annotation.type === "highlight") {
-        return highlights.remove(annotation.id);
-      }
-      if (!bookId) return false;
-
-      try {
-        const deleted = await storage.deleteAnnotation(bookId, annotation.id);
-        if (deleted) annotations.forget(annotation.id);
-        return deleted;
-      } catch {
-        return false;
-      }
+      return highlights.remove(annotation.id);
     },
-    [annotations, bookId, highlights, storage],
+    [annotations, highlights],
   );
 
   const movePreviousChapter = useCallback(() => {
@@ -926,8 +788,6 @@ export function ReaderPage() {
       annotationNavigationRequestRef.current += 1;
       currentAnnotationRef.current = undefined;
       noteOpenRequestRef.current += 1;
-      noteLoadRequestRef.current += 1;
-      noteLoadOwnerRef.current = null;
       mountedRef.current = false;
     };
   }, []);
@@ -1233,7 +1093,6 @@ export function ReaderPage() {
           onAnnotations={toggleAnnotations}
           onToggleBookmark={() => void annotations.toggleCurrent()}
           onNextChapter={moveNextChapter}
-          onNote={openStandaloneNote}
           onPrevious={movePrevious}
           onPreviousChapter={movePreviousChapter}
           onSettings={openSettings}
@@ -1241,8 +1100,6 @@ export function ReaderPage() {
           percentage={location.percentage}
           progressSaveFailed={progressSaveFailed}
           nextChapterDisabled={!chapterSequence.nextChapterId}
-          noteDisabled={!canCreateStandaloneNote}
-          noteDisabledReason={standaloneNoteDisabledReason}
           previousChapterDisabled={!chapterSequence.previousChapterId}
           title={title}
           mode={settings.mode}
@@ -1331,17 +1188,6 @@ export function ReaderPage() {
         <ReaderNoteEditor
           annotation={noteTarget.annotation}
           key={noteTarget.editorKey}
-          onBusyChange={(busy) => {
-            if (
-              isCurrentNoteSession(
-                noteTarget.editorKey,
-                noteTarget.bookId,
-                noteTarget.targetIdentity,
-              )
-            ) {
-              setNoteMutationBusy(busy);
-            }
-          }}
           onClose={() => closeNoteSession(noteTarget)}
           onDelete={(persistedAnnotation) => deleteNoteSession(noteTarget, persistedAnnotation)}
           onSave={(note, persistedAnnotation) =>

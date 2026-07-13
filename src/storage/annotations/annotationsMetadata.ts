@@ -3,7 +3,9 @@ import {
   type Annotation,
   type AnnotationsMetadata,
   type AnnotationType,
+  type BookmarkAnnotation,
   type BookAnnotations,
+  type HighlightAnnotation,
 } from "../../types/annotation";
 
 const CURRENT_ANNOTATIONS_VERSION = 1;
@@ -26,16 +28,15 @@ const ANNOTATION_KNOWN_FIELDS = new Set([
   "createdAt",
   "updatedAt",
 ]);
-const OPTIONAL_ANNOTATION_TEXT_FIELDS = [
-  "cfiRange",
-  "chapterHref",
-  "selectedText",
-  "contextBefore",
-  "contextAfter",
-  "color",
-  "note",
-  "label",
-] as const;
+type OptionalAnnotationTextField =
+  | "cfiRange"
+  | "chapterHref"
+  | "selectedText"
+  | "contextBefore"
+  | "contextAfter"
+  | "color"
+  | "note"
+  | "label";
 
 export function normalizeAnnotationNote(note: string): string | undefined {
   return note.trim() ? note : undefined;
@@ -184,7 +185,7 @@ function requiredTimestamp(
 
 function optionalString(
   value: Record<string, unknown>,
-  key: (typeof OPTIONAL_ANNOTATION_TEXT_FIELDS)[number],
+  key: OptionalAnnotationTextField,
   context: string,
 ): string | undefined {
   if (!hasOwn(value, key)) {
@@ -220,21 +221,55 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
   const createdAt = requiredTimestamp(value, "createdAt", context);
   const updatedAt = requiredTimestamp(value, "updatedAt", context);
   const unknownFields = collectUnknownFields(value, ANNOTATION_KNOWN_FIELDS, context);
-  const optionalFields = Object.fromEntries(
-    OPTIONAL_ANNOTATION_TEXT_FIELDS.flatMap((key) => {
-      const normalized = optionalString(value, key, context);
-      return normalized ? [[key, normalized] as const] : [];
-    }),
-  );
+  const chapterHref = optionalString(value, "chapterHref", context);
 
+  if (value.type === "bookmark") {
+    for (const field of [
+      "selectedText",
+      "contextBefore",
+      "contextAfter",
+      "color",
+      "note",
+    ] as const) {
+      if (hasOwn(value, field)) invalid(`${field} is not allowed for ${context} of type bookmark.`);
+    }
+    const label = optionalString(value, "label", context);
+    const cfiRange = optionalString(value, "cfiRange", context);
+    return {
+      ...unknownFields,
+      id,
+      type: "bookmark",
+      ...(cfiRange ? { cfiRange } : {}),
+      ...(chapterHref ? { chapterHref } : {}),
+      ...(label ? { label } : {}),
+      createdAt,
+      updatedAt,
+    } as BookmarkAnnotation;
+  }
+
+  if (hasOwn(value, "label")) {
+    invalid(`label is not allowed for ${context} of type highlight.`);
+  }
+  const selectedText = requiredString(value, "selectedText", context);
+  const cfiRange = requiredString(value, "cfiRange", context);
+  const color = requiredString(value, "color", context);
+  const contextBefore = optionalString(value, "contextBefore", context);
+  const contextAfter = optionalString(value, "contextAfter", context);
+  const note = optionalString(value, "note", context);
   return {
     ...unknownFields,
     id,
-    type: value.type,
-    ...optionalFields,
+    type: "highlight",
+    cfiRange,
+    ...(chapterHref ? { chapterHref } : {}),
+    selectedText,
+    ...(contextBefore ? { contextBefore } : {}),
+    ...(contextAfter ? { contextAfter } : {}),
+    color,
+    ...(note ? { note } : {}),
     createdAt,
     updatedAt,
-  };
+  } as HighlightAnnotation;
 }
 
 export function normalizeAnnotationRecord(value: unknown, bookId: string): Annotation {

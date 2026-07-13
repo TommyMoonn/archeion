@@ -1,21 +1,37 @@
-export const ANNOTATION_TYPES = ["bookmark", "highlight", "note"] as const;
+export const ANNOTATION_TYPES = ["bookmark", "highlight"] as const;
 
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
 
-export type Annotation = Record<string, unknown> & {
+type AnnotationBase = {
   id: string;
-  type: AnnotationType;
-  cfiRange?: string;
   chapterHref?: string;
-  selectedText?: string;
-  contextBefore?: string;
-  contextAfter?: string;
-  color?: string;
-  note?: string;
-  label?: string;
   createdAt: string;
   updatedAt: string;
 };
+
+export type BookmarkAnnotation = AnnotationBase & {
+  type: "bookmark";
+  cfiRange?: string;
+  label?: string;
+  selectedText?: never;
+  contextBefore?: never;
+  contextAfter?: never;
+  color?: never;
+  note?: never;
+};
+
+export type HighlightAnnotation = AnnotationBase & {
+  type: "highlight";
+  cfiRange: string;
+  selectedText: string;
+  contextBefore?: string;
+  contextAfter?: string;
+  color: string;
+  note?: string;
+  label?: never;
+};
+
+export type Annotation = BookmarkAnnotation | HighlightAnnotation;
 
 export type BookAnnotations = Record<string, unknown> & {
   annotations: Annotation[];
@@ -26,19 +42,33 @@ export type AnnotationsMetadata = Record<string, unknown> & {
   books: Record<string, BookAnnotations>;
 };
 
-export type CreateAnnotationInput = Record<string, unknown> & {
-  type: AnnotationType;
+export type CreateBookmarkAnnotationInput = {
+  type: "bookmark";
   cfiRange?: string;
   chapterHref?: string;
-  selectedText?: string;
-  contextBefore?: string;
-  contextAfter?: string;
-  color?: string;
-  note?: string;
   label?: string;
 };
 
-export type UpdateAnnotationInput = Record<string, unknown> & {
+export type CreateHighlightAnnotationInput = {
+  type: "highlight";
+  cfiRange: string;
+  chapterHref?: string;
+  selectedText: string;
+  contextBefore?: string;
+  contextAfter?: string;
+  color: string;
+  note?: string;
+};
+
+export type CreateAnnotationInput = CreateBookmarkAnnotationInput | CreateHighlightAnnotationInput;
+
+export type UpdateBookmarkAnnotationInput = {
+  cfiRange?: string;
+  chapterHref?: string;
+  label?: string;
+};
+
+export type UpdateHighlightAnnotationInput = {
   cfiRange?: string;
   chapterHref?: string;
   selectedText?: string;
@@ -46,5 +76,6 @@ export type UpdateAnnotationInput = Record<string, unknown> & {
   contextAfter?: string;
   color?: string;
   note?: string;
-  label?: string;
 };
+
+export type UpdateAnnotationInput = UpdateBookmarkAnnotationInput | UpdateHighlightAnnotationInput;

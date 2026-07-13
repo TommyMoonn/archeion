@@ -50,7 +50,7 @@ export function useReaderHighlights({
       try {
         if (existing) {
           const updated = await storage.updateAnnotation(bookId, existing.id, { color });
-          if (updated) onAnnotationChange(updated);
+          if (updated?.type === "highlight") onAnnotationChange(updated);
         } else {
           const created = await storage.createAnnotation(bookId, {
             type: "highlight",
@@ -59,6 +59,7 @@ export function useReaderHighlights({
             selectedText,
             color,
           });
+          if (created.type !== "highlight") return false;
           onAnnotationChange(created);
         }
         setError(null);
@@ -89,6 +90,7 @@ export function useReaderHighlights({
           selectedText,
           color: "yellow",
         });
+        if (created.type !== "highlight") return undefined;
         onAnnotationChange(created);
         setError(null);
         return created;
@@ -107,7 +109,7 @@ export function useReaderHighlights({
         const updated = await storage.updateAnnotation(bookId, id, {
           color: normalizeReaderHighlightColor(color),
         });
-        if (!updated) return false;
+        if (!updated || updated.type !== "highlight") return false;
         onAnnotationChange(updated);
         setError(null);
         return true;

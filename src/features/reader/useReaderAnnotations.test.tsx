@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 
 let root: Root | null = null;
@@ -30,7 +30,7 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-function bookmark(id = "bookmark-1", label?: string): Annotation {
+function bookmark(id = "bookmark-1", label?: string): BookmarkAnnotation {
   return {
     id,
     type: "bookmark",
@@ -206,11 +206,8 @@ describe("useReaderAnnotations", () => {
   it("preserves the complete removed bookmark when undoing", async () => {
     const original = {
       ...bookmark(),
-      note: "Remember this",
-      color: "yellow",
-      selectedText: "Quoted passage",
       futureField: { nested: ["preserve-me"] },
-    };
+    } as unknown as Annotation;
     const storage = createStorage([original]);
     const rendered = await renderHarness(storage);
 

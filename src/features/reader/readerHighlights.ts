@@ -1,4 +1,4 @@
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 
 export const READER_HIGHLIGHT_COLORS = ["yellow", "green", "blue", "rose"] as const;
 export type ReaderHighlightColor = (typeof READER_HIGHLIGHT_COLORS)[number];
@@ -29,10 +29,10 @@ export function readerHighlightStyles(color: unknown): Record<string, string> {
   };
 }
 
-export function readerHighlights(annotations: readonly Annotation[]): Annotation[] {
+export function readerHighlights(annotations: readonly Annotation[]): HighlightAnnotation[] {
   const ranges = new Set<string>();
   return annotations
-    .filter((annotation) => annotation.type === "highlight" && annotation.cfiRange?.trim())
+    .filter((annotation): annotation is HighlightAnnotation => annotation.type === "highlight")
     .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
     .filter((annotation) => {
       const range = annotation.cfiRange!.trim();

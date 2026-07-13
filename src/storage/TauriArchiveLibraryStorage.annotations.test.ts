@@ -65,9 +65,11 @@ describe("TauriArchiveLibraryStorage annotations", () => {
   it("restores exact annotation data through the existing metadata save boundary", async () => {
     const { rootPath, storage } = await scopedStorage();
     const original = {
-      id: "bookmark-1",
-      type: "bookmark" as const,
+      id: "highlight-1",
+      type: "highlight" as const,
       cfiRange: "epubcfi(/6/2!/4/2:10)",
+      selectedText: "Quoted passage",
+      color: "yellow",
       note: "Remember this",
       createdAt: "2026-07-10T00:00:00.000Z",
       updatedAt: "2026-07-11T00:00:00.000Z",
@@ -154,7 +156,7 @@ describe("TauriArchiveLibraryStorage annotations", () => {
                 },
                 {
                   id: "duplicate",
-                  type: "note",
+                  type: "bookmark",
                   createdAt: "2026-07-12T00:00:00.000Z",
                   updatedAt: "2026-07-12T00:00:00.000Z",
                 },

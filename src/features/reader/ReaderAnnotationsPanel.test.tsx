@@ -436,14 +436,13 @@ describe("ReaderAnnotationsPanel", () => {
   });
 
   it("uses valid phrasing content inside navigation buttons and disables missing locations", () => {
-    const locationlessNote: Annotation = {
+    const locationlessBookmark: Annotation = {
       createdAt: timestamp,
-      id: "note-without-location",
-      note: "Detached note text",
-      type: "note",
+      id: "bookmark-without-location",
+      type: "bookmark",
       updatedAt: timestamp,
     };
-    const rendered = renderPanel({ annotations: [bookmark, highlight, locationlessNote] });
+    const rendered = renderPanel({ annotations: [bookmark, highlight, locationlessBookmark] });
     const targets = rendered.container.querySelectorAll<HTMLButtonElement>(
       ".reader-annotations__target",
     );
@@ -451,7 +450,7 @@ describe("ReaderAnnotationsPanel", () => {
     for (const target of targets) {
       expect(target.querySelector("p, blockquote")).toBeNull();
     }
-    expect(button(rendered.container, "Go to Note").disabled).toBe(true);
+    expect(button(rendered.container, "Go to Bookmark").disabled).toBe(true);
   });
 
   it("caps initial rendering for large annotation collections", () => {

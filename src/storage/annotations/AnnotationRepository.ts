@@ -178,13 +178,16 @@ export class AnnotationRepository {
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
       const timestamp = this.host.now?.() ?? new Date().toISOString();
-      const annotation = normalizeOptionalTextFields({
-        ...input,
-        id: this.host.createId?.() ?? createAnnotationId(),
-        type: input.type,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      }) as Annotation;
+      const annotation = normalizeAnnotationRecord(
+        normalizeOptionalTextFields({
+          ...input,
+          id: this.host.createId?.() ?? createAnnotationId(),
+          type: input.type,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        }),
+        normalizedBookId,
+      );
       const existingBook = metadata.books[normalizedBookId];
       if (annotation.type === "bookmark" && annotation.cfiRange) {
         const existingBookmark = existingBook?.annotations.find(
@@ -271,14 +274,17 @@ export class AnnotationRepository {
       }
 
       const current = annotations[index];
-      const updated = normalizeOptionalTextFields({
-        ...current,
-        ...changes,
-        id: current.id,
-        type: current.type,
-        createdAt: current.createdAt,
-        updatedAt: this.host.now?.() ?? new Date().toISOString(),
-      }) as Annotation;
+      const updated = normalizeAnnotationRecord(
+        normalizeOptionalTextFields({
+          ...current,
+          ...changes,
+          id: current.id,
+          type: current.type,
+          createdAt: current.createdAt,
+          updatedAt: this.host.now?.() ?? new Date().toISOString(),
+        }),
+        normalizedBookId,
+      );
       const next = structuredClone(metadata);
       next.books[normalizedBookId].annotations[index] = updated;
       await this.persist(scope, next);

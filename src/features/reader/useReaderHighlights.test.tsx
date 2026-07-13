@@ -5,14 +5,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import { useReaderHighlights } from "./useReaderHighlights";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 const timestamp = "2026-07-12T00:00:00.000Z";
-const existingHighlight: Annotation = {
+const existingHighlight: HighlightAnnotation = {
   cfiRange: "epubcfi(/6/2)",
   color: "yellow",
   createdAt: timestamp,
@@ -63,14 +63,14 @@ function Harness({
 }
 
 function createStorage() {
-  const created: Annotation = {
+  const created: HighlightAnnotation = {
     ...existingHighlight,
     cfiRange: "epubcfi(/6/4)",
     color: "green",
     id: "highlight-2",
     selectedText: "New quote",
   };
-  const recolored: Annotation = { ...existingHighlight, color: "blue" };
+  const recolored: HighlightAnnotation = { ...existingHighlight, color: "blue" };
 
   return {
     createAnnotation: vi.fn(async () => created),

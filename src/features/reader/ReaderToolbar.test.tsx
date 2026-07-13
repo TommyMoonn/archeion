@@ -49,7 +49,6 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           bookmarkToggleDisabled={false}
           annotationsOpen={false}
           nextChapterDisabled={false}
-          noteDisabled={false}
           percentage={45.7}
           previousChapterDisabled
           progressSaveFailed={false}
@@ -57,7 +56,6 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           mode="paged"
           tocOpen={false}
           onAnnotations={vi.fn()}
-          onNote={vi.fn()}
           onToggleBookmark={vi.fn()}
           {...callbacks}
           {...overrides}
@@ -166,23 +164,5 @@ describe("ReaderToolbar", () => {
     act(() => toggle.click());
     expect(onAnnotations).toHaveBeenCalledTimes(1);
     expect(onToggleBookmark).toHaveBeenCalledTimes(1);
-  });
-
-  it("exposes the standalone-note disabled reason while location resolution is pending", () => {
-    const { container } = renderToolbar({
-      noteDisabled: true,
-      noteDisabledReason: "Current reading location is still loading.",
-    });
-
-    const note = button(container, "Add note at current location");
-    expect(note.disabled).toBe(true);
-    expect(note.title).toBe("Current reading location is still loading.");
-  });
-
-  it("offers a standalone note at the current location", () => {
-    const onNote = vi.fn();
-    const { container } = renderToolbar({ onNote });
-    act(() => button(container, "Add note at current location").click());
-    expect(onNote).toHaveBeenCalledTimes(1);
   });
 });

@@ -88,17 +88,17 @@ function annotationChapter(
 
     return {
       key: `href:${documentHref || exactHref}`,
-      label:
-        annotation.type === "note" && nonEmptyText(annotation.label)
-          ? nonEmptyText(annotation.label)!
-          : chapterFallbackLabel(href),
+      label: chapterFallbackLabel(href),
       order: Number.MAX_SAFE_INTEGER - 1,
     };
   }
 
   return {
     key: "other-locations",
-    label: nonEmptyText(annotation.label) ?? "Other locations",
+    label:
+      annotation.type === "bookmark"
+        ? (nonEmptyText(annotation.label) ?? "Other locations")
+        : "Other locations",
     order: Number.MAX_SAFE_INTEGER,
   };
 }
@@ -107,7 +107,7 @@ function matchesView(annotation: Annotation, view: ReaderAnnotationView): boolea
   if (view === "all") return true;
   if (view === "bookmarks") return annotation.type === "bookmark";
   if (view === "highlights") return annotation.type === "highlight";
-  return annotation.type === "note" || Boolean(nonEmptyText(annotation.note));
+  return annotation.type === "highlight" && Boolean(nonEmptyText(annotation.note));
 }
 
 function matchesQuery(annotation: Annotation, query: SearchQuery): boolean {
@@ -190,13 +190,13 @@ export function groupReaderAnnotations(
 export function readerAnnotationLabel(annotation: Annotation): string {
   if (annotation.type === "bookmark") return nonEmptyText(annotation.label) ?? "Bookmark";
   if (annotation.type === "highlight") return "Highlight";
-  return "Note";
+  return "Highlight";
 }
 
 export function readerAnnotationRemoveLabel(annotation: Annotation): string {
   if (annotation.type === "bookmark") return "Remove bookmark";
   if (annotation.type === "highlight") return "Remove highlight";
-  return "Delete note";
+  return "Remove highlight";
 }
 
 export function readerAnnotationEmptyLabel(view: ReaderAnnotationView): string {
