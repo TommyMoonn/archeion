@@ -11,6 +11,7 @@ import type { Book } from "../../types/book";
 import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
+  onError: undefined as ((message: string) => void) | undefined,
   sessionsStarted: 0,
   location: {
     atEnd: false,
@@ -26,9 +27,11 @@ vi.mock("./EpubViewer", async () => {
   return {
     EpubViewer: React.forwardRef(function MockEpubViewer(
       {
+        onError,
         onLocationChange,
         onReady,
       }: {
+        onError: (message: string) => void;
         onLocationChange: (location: typeof viewerMock.location) => void;
         onReady: () => void;
       },
@@ -42,9 +45,13 @@ vi.mock("./EpubViewer", async () => {
       }));
       React.useEffect(() => {
         viewerMock.sessionsStarted += 1;
+        viewerMock.onError = onError;
         onLocationChange(viewerMock.location);
         onReady();
-      }, [onLocationChange, onReady]);
+        return () => {
+          if (viewerMock.onError === onError) viewerMock.onError = undefined;
+        };
+      }, [onError, onLocationChange, onReady]);
 
       return <div data-testid="epub-viewer" />;
     }),
@@ -69,7 +76,7 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
   };
 }
 
-function createStorage(books: Book[]): LibraryStorage {
+function createStorage(books: Book[], overrides: Partial<LibraryStorage> = {}): LibraryStorage {
   return {
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),
@@ -81,6 +88,7 @@ function createStorage(books: Book[]): LibraryStorage {
       const book = books.find((candidate) => candidate.id === id);
       return book ? { ...book, ...changes } : undefined;
     }),
+    ...overrides,
   } as unknown as LibraryStorage;
 }
 
@@ -88,8 +96,9 @@ async function renderReader(
   books: Book[],
   initialBookId: string,
   readerReturnContext?: Record<string, unknown>,
+  storageOverrides?: Partial<LibraryStorage>,
 ) {
-  const storage = createStorage(books);
+  const storage = createStorage(books, storageOverrides);
   const router = createMemoryRouter(
     [
       {
@@ -122,7 +131,7 @@ async function renderReader(
   });
 
   for (let attempt = 0; attempt < 10; attempt += 1) {
-    if (container.querySelector(".reader-page")) {
+    if (container.querySelector(".reader-page, .reader-status-page")) {
       break;
     }
     await act(async () => {
@@ -143,6 +152,46 @@ afterEach(() => {
 });
 
 describe("ReaderPage series continuation", () => {
+  it("keeps a missing EPUB out of the viewer and offers library recovery", async () => {
+    const rendered = await renderReader(
+      [createBook({ id: "missing-book", isFileMissing: true })],
+      "missing-book",
+    );
+
+    expect(rendered.container.textContent).toContain("Book file missing");
+    expect(rendered.container.textContent).toContain("Rescan library");
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+    expect(rendered.storage.loadBookFile).not.toHaveBeenCalled();
+  });
+
+  it("reports an unreadable EPUB before mounting the viewer", async () => {
+    const loadBookFile = vi.fn().mockRejectedValue(new Error("Unreadable EPUB"));
+    const rendered = await renderReader(
+      [createBook({ id: "unreadable-book" })],
+      "unreadable-book",
+      undefined,
+      { loadBookFile },
+    );
+
+    expect(loadBookFile).toHaveBeenCalledWith("unreadable-book");
+    expect(rendered.container.textContent).toContain("Unable to open book");
+    expect(rendered.container.textContent).toContain("may have been moved or deleted");
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+  });
+
+  it("replaces the active viewer with a concise EPUB parsing failure", async () => {
+    const rendered = await renderReader([createBook({ id: "invalid-book" })], "invalid-book");
+    const reportError = viewerMock.onError;
+    expect(reportError).toBeTypeOf("function");
+
+    act(() => reportError?.("The EPUB package is invalid."));
+
+    const alert = rendered.container.querySelector<HTMLElement>('[role="alert"]');
+    expect(alert?.textContent).toContain("Unable to open book");
+    expect(alert?.textContent).toContain("The EPUB package is invalid.");
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+  });
+
   it("uses the library root when Escape has no valid return context", async () => {
     const rendered = await renderReader([createBook({ id: "book" })], "book");
 
