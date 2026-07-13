@@ -1162,7 +1162,9 @@ describe("EpubViewer navigation lifecycle", () => {
       );
     });
     await act(async () =>
-      container.querySelector<HTMLButtonElement>('[aria-label="No color"]')?.click(),
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="No color — remove highlight"]')
+        ?.click(),
     );
     expect(props.onRemoveHighlight).toHaveBeenCalledWith(renderedHighlight.id);
     expect(session.rendition.annotations.highlight.mock.calls[1]?.[1]).toEqual({

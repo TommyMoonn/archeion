@@ -159,6 +159,7 @@ describe("ReaderNoteEditor", () => {
     expect(flushed).toBe(false);
     expect(props.onBack).not.toHaveBeenCalled();
     expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved");
+    expect(target.querySelector("[role=status]")?.getAttribute("aria-live")).toBe("assertive");
     expect(button(target, "Retry")).toBeInstanceOf(HTMLButtonElement);
 
     await click(target, "Retry");
@@ -428,6 +429,7 @@ describe("ReaderNoteEditor", () => {
 
     expect(target.textContent).not.toContain("Delete this note?");
     expect(props.onBack).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(button(target, "Delete note"));
 
     await act(async () => {
       editor.dispatchEvent(

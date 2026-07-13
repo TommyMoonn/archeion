@@ -70,6 +70,13 @@ function annotationKind(annotation: Annotation): "Bookmark" | "Highlight" {
   return annotation.type === "bookmark" ? "Bookmark" : "Highlight";
 }
 
+function annotationRemovedMessage(annotation: Annotation): string {
+  if (annotation.type === "highlight" && annotation.note?.trim()) {
+    return "Highlight and attached note removed.";
+  }
+  return `${annotationKind(annotation)} removed.`;
+}
+
 function sortedBookmarks(annotations: readonly Annotation[]): Annotation[] {
   return annotations
     .filter(isBookmark)
@@ -466,7 +473,7 @@ export function useReaderAnnotations({
         publishFeedback(session, {
           annotation,
           kind: "removed",
-          message: `${annotationKind(annotation)} removed.`,
+          message: annotationRemovedMessage(annotation),
         });
         return true;
       } catch {

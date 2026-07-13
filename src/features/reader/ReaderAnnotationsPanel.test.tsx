@@ -262,6 +262,31 @@ describe("ReaderAnnotationsPanel", () => {
     expect(onExport).toHaveBeenCalledWith("json");
   });
 
+  it("supports wrapped keyboard navigation inside the export menu", () => {
+    const rendered = renderPanel();
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const markdown = textButton(rendered.container, "Export Markdown");
+    const json = textButton(rendered.container, "Export JSON");
+
+    pointerClick(exportTrigger);
+    markdown.focus();
+    act(() =>
+      markdown.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
+      ),
+    );
+    expect(document.activeElement).toBe(json);
+
+    act(() =>
+      json.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Home" }),
+      ),
+    );
+    expect(document.activeElement).toBe(markdown);
+  });
+
   it("keeps export failure visible and retries the same format", async () => {
     const onExport = vi
       .fn()
@@ -303,6 +328,81 @@ describe("ReaderAnnotationsPanel", () => {
     );
     expect(rendered.container.textContent).toContain("A quoted passage");
     expect(rendered.container.textContent).toContain("Remember this connection");
+  });
+
+  it("supports directional keyboard navigation between annotation rows and their actions", () => {
+    const rendered = renderPanel();
+    const bookmarkTarget = button(rendered.container, "Go to Chapter start");
+    const highlightTarget = button(rendered.container, "Go to Highlight");
+    const bookmarkActions = button(rendered.container, "Actions for Chapter start");
+    const highlightActions = button(rendered.container, "Actions for Highlight");
+
+    bookmarkTarget.focus();
+    act(() =>
+      bookmarkTarget.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      ),
+    );
+    expect(document.activeElement).toBe(highlightTarget);
+
+    act(() =>
+      highlightTarget.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowRight" }),
+      ),
+    );
+    expect(document.activeElement).toBe(highlightActions);
+
+    act(() =>
+      highlightActions.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Home" }),
+      ),
+    );
+    expect(document.activeElement).toBe(bookmarkActions);
+
+    act(() =>
+      bookmarkActions.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowLeft" }),
+      ),
+    );
+    expect(document.activeElement).toBe(bookmarkTarget);
+
+    act(() =>
+      bookmarkTarget.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "End" }),
+      ),
+    );
+    expect(document.activeElement).toBe(highlightTarget);
+  });
+
+  it("supports arrow, Home, and End navigation inside annotation action menus", () => {
+    const rendered = renderPanel();
+
+    act(() => button(rendered.container, "Actions for Chapter start").click());
+    const goTo = textButton(rendered.container, "Go to location");
+    const rename = textButton(rendered.container, "Rename bookmark");
+    const remove = textButton(rendered.container, "Remove bookmark");
+    expect(document.activeElement).toBe(goTo);
+
+    act(() =>
+      goTo.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      ),
+    );
+    expect(document.activeElement).toBe(rename);
+
+    act(() =>
+      rename.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "End" }),
+      ),
+    );
+    expect(document.activeElement).toBe(remove);
+
+    act(() =>
+      remove.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      ),
+    );
+    expect(document.activeElement).toBe(goTo);
   });
 
   it("navigates and closes only after the location opens", async () => {

@@ -1,5 +1,12 @@
 import { NotePencil } from "@phosphor-icons/react";
-import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
 import {
@@ -24,9 +31,15 @@ type ReaderHighlightPaletteProps = {
 
 const PALETTE_OPTIONS: readonly HighlightPaletteChoice[] = [...READER_HIGHLIGHT_COLORS, "none"];
 
-function paletteChoiceLabel(choice: HighlightPaletteChoice, hasAttachedNote: boolean): string {
+function paletteChoiceLabel(
+  choice: HighlightPaletteChoice,
+  hasAttachedNote: boolean,
+  existingHighlight: boolean,
+): string {
   if (choice !== "none") return `${choice} highlight`;
-  return hasAttachedNote ? "No color — remove highlight and attached note" : "No color";
+  if (hasAttachedNote) return "No color — remove highlight and attached note";
+  if (existingHighlight) return "No color — remove highlight";
+  return "No color";
 }
 
 export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlightPaletteProps>(
@@ -71,16 +84,44 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
 
     const position = placeHighlightPalette(anchorRect, viewportRect, size);
     if (!position) return null;
+    const existingHighlight = selectedColor !== undefined;
+
+    function moveMenuFocus(event: ReactKeyboardEvent<HTMLDivElement>) {
+      if (!["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home"].includes(event.key)) {
+        return false;
+      }
+      const items = Array.from(
+        event.currentTarget.querySelectorAll<HTMLButtonElement>(
+          '[role="menuitem"], [role="menuitemradio"]',
+        ),
+      ).filter((item) => !item.disabled);
+      if (items.length === 0) return false;
+      const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+      const nextIndex =
+        event.key === "Home"
+          ? 0
+          : event.key === "End"
+            ? items.length - 1
+            : event.key === "ArrowRight" || event.key === "ArrowDown"
+              ? (Math.max(currentIndex, -1) + 1) % items.length
+              : (currentIndex <= 0 ? items.length : currentIndex) - 1;
+      event.preventDefault();
+      event.stopPropagation();
+      items[nextIndex]?.focus();
+      return true;
+    }
 
     return (
       <div
         ref={assignRef}
+        aria-busy={busy || undefined}
         aria-label="Highlight color"
         className="reader-highlight-menu menu-popover"
         data-placement={position.placement}
         data-reader-ignore-shortcuts
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
+          if (moveMenuFocus(event)) return;
           if (event.key === "Escape") {
             event.preventDefault();
             event.stopPropagation();
@@ -93,7 +134,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         {PALETTE_OPTIONS.map((choice) => (
           <button
             aria-checked={choice === selectedColor}
-            aria-label={paletteChoiceLabel(choice, hasAttachedNote)}
+            aria-label={paletteChoiceLabel(choice, hasAttachedNote, existingHighlight)}
             className={`reader-highlight-menu__color${
               choice === "none" ? " reader-highlight-menu__color--none" : ""
             }`}
@@ -102,7 +143,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
             key={choice}
             onClick={() => onChoose(choice)}
             role="menuitemradio"
-            title={paletteChoiceLabel(choice, hasAttachedNote)}
+            title={paletteChoiceLabel(choice, hasAttachedNote, existingHighlight)}
             type="button"
           />
         ))}

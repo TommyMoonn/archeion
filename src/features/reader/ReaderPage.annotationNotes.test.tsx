@@ -1139,7 +1139,7 @@ describe("ReaderPage annotation notes", () => {
     expect(harness.deleteAnnotation).toHaveBeenCalledWith("book-1", existing.id);
     expect(viewerControl.props?.highlights).toEqual([]);
     expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
-      "Highlight removed.",
+      "Highlight and attached note removed.",
     );
 
     await act(async () => button("Undo").click());

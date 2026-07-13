@@ -257,7 +257,7 @@ describe("useReaderAnnotations", () => {
 
     await act(async () => actionButton(rendered, "Remove first").click());
     expect(text(rendered, "count")).toBe("0");
-    expect(text(rendered, "feedback")).toBe("Highlight removed.");
+    expect(text(rendered, "feedback")).toBe("Highlight and attached note removed.");
 
     await act(async () => actionButton(rendered, "Undo").click());
     expect(text(rendered, "count")).toBe("1");

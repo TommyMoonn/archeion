@@ -20,6 +20,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
@@ -98,6 +99,30 @@ const HIGHLIGHT_COLOR_LABELS: Record<ReaderHighlightColor, string> = {
   blue: "Blue",
   rose: "Rose",
 };
+
+function moveMenuItemFocus(event: ReactKeyboardEvent<HTMLElement>): boolean {
+  if (!["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home"].includes(event.key)) {
+    return false;
+  }
+  const menu = event.currentTarget.closest<HTMLElement>('[role="menu"]') ?? event.currentTarget;
+  const items = Array.from(
+    menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"], [role="menuitemradio"]'),
+  ).filter((item) => !item.disabled);
+  if (items.length === 0) return false;
+  const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+  const nextIndex =
+    event.key === "Home"
+      ? 0
+      : event.key === "End"
+        ? items.length - 1
+        : event.key === "ArrowDown" || event.key === "ArrowRight"
+          ? (Math.max(currentIndex, -1) + 1) % items.length
+          : (currentIndex <= 0 ? items.length : currentIndex) - 1;
+  event.preventDefault();
+  event.stopPropagation();
+  items[nextIndex]?.focus();
+  return true;
+}
 
 type ReaderAnnotationsPanelProps = {
   active?: boolean;
@@ -551,6 +576,47 @@ export function ReaderAnnotationsPanel({
     }
   }
 
+  function handleRowKeyboardNavigation(event: ReactKeyboardEvent<HTMLElement>): boolean {
+    if (event.altKey || event.ctrlKey || event.metaKey) return false;
+    if (!["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "End", "Home"].includes(event.key)) {
+      return false;
+    }
+    const eventTarget = event.target instanceof Element ? event.target : null;
+    const control = eventTarget?.closest<HTMLButtonElement>(
+      "[data-annotation-row-target], [data-annotation-menu-trigger]",
+    );
+    if (!control || !panelRef.current?.contains(control)) return false;
+    const row = control.closest<HTMLElement>(".reader-annotations__item");
+    if (!row) return false;
+
+    let destination: HTMLButtonElement | null | undefined;
+    if (event.key === "ArrowRight" && control.hasAttribute("data-annotation-row-target")) {
+      destination = row.querySelector<HTMLButtonElement>("[data-annotation-menu-trigger]");
+    } else if (event.key === "ArrowLeft" && control.hasAttribute("data-annotation-menu-trigger")) {
+      destination = row.querySelector<HTMLButtonElement>(
+        "[data-annotation-row-target]:not(:disabled)",
+      );
+    } else if (["ArrowDown", "ArrowUp", "End", "Home"].includes(event.key)) {
+      const selector = control.hasAttribute("data-annotation-menu-trigger")
+        ? "[data-annotation-menu-trigger]"
+        : "[data-annotation-row-target]:not(:disabled)";
+      const controls = Array.from(
+        panelRef.current.querySelectorAll<HTMLButtonElement>(selector),
+      ).filter((candidate) => !candidate.disabled);
+      const currentIndex = controls.indexOf(control);
+      if (event.key === "Home") destination = controls[0];
+      else if (event.key === "End") destination = controls.at(-1);
+      else if (event.key === "ArrowDown") destination = controls[currentIndex + 1];
+      else destination = controls[currentIndex - 1];
+    }
+
+    if (!destination || destination === control) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    destination.focus();
+    return true;
+  }
+
   async function exportAnnotations(format: ReaderAnnotationExportFormat) {
     if (exportState?.status === "exporting") return;
     closeExportMenu({ restoreFocus: true });
@@ -590,6 +656,7 @@ export function ReaderAnnotationsPanel({
       id={active ? "reader-annotations" : undefined}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
+        if (handleRowKeyboardNavigation(event)) return;
         if (event.key !== "Escape") return;
         event.preventDefault();
         event.stopPropagation();
@@ -629,7 +696,11 @@ export function ReaderAnnotationsPanel({
                 <DownloadSimple />
               </span>
             </summary>
-            <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
+            <div
+              className="menu-popover"
+              onKeyDown={(event) => void moveMenuItemFocus(event)}
+              role={exportMenuOpen ? "menu" : undefined}
+            >
               <MenuItem
                 disabled={exportState?.status === "exporting"}
                 onClick={() => void exportAnnotations("markdown")}
@@ -813,6 +884,7 @@ export function ReaderAnnotationsPanel({
                                 aria-current={isCurrent ? "location" : undefined}
                                 aria-label={`Go to ${label}`}
                                 className="reader-annotations__target"
+                                data-annotation-row-target
                                 disabled={!canNavigate || isBusy || isNavigationPending}
                                 onClick={() => void navigate(annotation)}
                                 title={
@@ -918,6 +990,7 @@ export function ReaderAnnotationsPanel({
           className="menu-popover reader-annotations__menu-popover"
           data-placement={menu.placement}
           onKeyDown={(event) => {
+            if (moveMenuItemFocus(event)) return;
             if (event.key === "Escape") {
               event.preventDefault();
               event.stopPropagation();

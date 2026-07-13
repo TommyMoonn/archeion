@@ -1,4 +1,12 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { ArrowLeft, Trash } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
@@ -45,6 +53,8 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     const [deleting, setDeleting] = useState(false);
     const [hasPersistedNote, setHasPersistedNote] = useState(initialHasPersistedNote);
 
+    const editorRef = useRef<HTMLElement>(null);
+    const restoreDeleteFocusRef = useRef(false);
     const mountedRef = useRef(true);
     const textRef = useRef(initialText);
     const savedTextRef = useRef(initialText);
@@ -78,6 +88,12 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
         setHasPersistedNote(true);
       }
     }, [annotation]);
+
+    useLayoutEffect(() => {
+      if (confirmingDelete || !restoreDeleteFocusRef.current) return;
+      restoreDeleteFocusRef.current = false;
+      editorRef.current?.querySelector<HTMLButtonElement>("[data-delete-note-trigger]")?.focus();
+    }, [confirmingDelete]);
 
     const clearTimer = useCallback(() => {
       if (timerRef.current !== null) {
@@ -327,8 +343,15 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
                 : "Changes save automatically";
     const canDelete = hasPersistedNote || Boolean(text.trim());
 
+    function cancelDeleteConfirmation() {
+      restoreDeleteFocusRef.current = true;
+      setConfirmingDelete(false);
+    }
+
     return (
       <section
+        ref={editorRef}
+        aria-busy={deleting || undefined}
         aria-labelledby="reader-note-title"
         aria-label="Annotation note"
         className="reader-toc reader-annotations reader-note-editor"
@@ -339,7 +362,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           event.preventDefault();
           event.stopPropagation();
           if (confirmingDelete) {
-            setConfirmingDelete(false);
+            cancelDeleteConfirmation();
             return;
           }
           void requestBack();
@@ -360,13 +383,21 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           <span className="sr-only">Note text</span>
           <textarea
             autoFocus
+            aria-describedby="reader-note-status"
             disabled={deleting}
             onChange={(event) => handleTextChange(event.target.value)}
             placeholder="Write a note…"
             value={text}
           />
         </label>
-        <div className="reader-note-editor__status" data-status={status} role="status">
+        <div
+          aria-atomic="true"
+          aria-live={status === "error" ? "assertive" : "polite"}
+          className="reader-note-editor__status"
+          data-status={status}
+          id="reader-note-status"
+          role="status"
+        >
           <span>{statusMessage}</span>
           {status === "error" && errorKind === "save" ? (
             <button onClick={() => void saveNow()} type="button">
@@ -376,7 +407,11 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
         </div>
         <footer className="reader-note-editor__footer">
           {confirmingDelete ? (
-            <div className="reader-note-editor__confirmation">
+            <div
+              aria-label="Delete note confirmation"
+              className="reader-note-editor__confirmation"
+              role="group"
+            >
               <span>Delete this note?</span>
               <Button
                 autoFocus
@@ -390,7 +425,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
               </Button>
               <Button
                 disabled={deleting}
-                onClick={() => setConfirmingDelete(false)}
+                onClick={cancelDeleteConfirmation}
                 size="compact"
                 variant="ghost"
               >
@@ -399,6 +434,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
             </div>
           ) : (
             <Button
+              data-delete-note-trigger
               disabled={!canDelete || deleting}
               icon={<Trash aria-hidden="true" />}
               onClick={() => setConfirmingDelete(true)}

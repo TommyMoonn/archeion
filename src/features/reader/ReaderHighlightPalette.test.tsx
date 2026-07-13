@@ -140,4 +140,75 @@ describe("ReaderHighlightPalette", () => {
       container.querySelector('[aria-label="No color — remove highlight and attached note"]'),
     ).toBeInstanceOf(HTMLButtonElement);
   });
+
+  it("announces No color as removal for an existing highlight without a note", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy={false}
+          noteActionLabel="Add note"
+          onChoose={vi.fn()}
+          onDismiss={vi.fn()}
+          onNote={vi.fn()}
+          selectedColor="blue"
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    expect(container.querySelector('[aria-label="No color — remove highlight"]')).toBeInstanceOf(
+      HTMLButtonElement,
+    );
+  });
+
+  it("supports wrapped arrow, Home, and End navigation across enabled palette actions", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy={false}
+          noteActionLabel="Add note"
+          onChoose={vi.fn()}
+          onDismiss={vi.fn()}
+          onNote={vi.fn()}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    const palette = container.querySelector<HTMLElement>('[aria-label="Highlight color"]')!;
+    const actions = Array.from(palette.querySelectorAll<HTMLButtonElement>("button"));
+    actions[0]?.focus();
+    act(() =>
+      actions[0]?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowLeft" }),
+      ),
+    );
+    expect(document.activeElement).toBe(actions.at(-1));
+
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Home" }),
+      ),
+    );
+    expect(document.activeElement).toBe(actions[0]);
+
+    act(() =>
+      document.activeElement?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "End" }),
+      ),
+    );
+    expect(document.activeElement).toBe(actions.at(-1));
+  });
 });

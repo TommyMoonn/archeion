@@ -1328,7 +1328,11 @@ export function ReaderPage() {
       )}
 
       {annotations.feedback ? (
-        <div className="reader-annotation-feedback" role="status">
+        <div
+          aria-atomic="true"
+          className="reader-annotation-feedback"
+          role={annotations.feedback.kind === "error" ? "alert" : "status"}
+        >
           <span>{annotations.feedback.message}</span>
           {annotations.feedback.kind === "removed" ? (
             <button onClick={() => void annotations.undoRemove()} type="button">
