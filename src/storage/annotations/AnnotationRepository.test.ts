@@ -173,6 +173,47 @@ describe("AnnotationRepository", () => {
     expect(await annotations.list("book-1")).toEqual([updated]);
   });
 
+  it("marks and reanchors the same annotation while preserving authored and unknown fields", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+    const created = await annotations.create("book-1", {
+      type: "highlight",
+      cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+      chapterHref: "Text/old.xhtml",
+      selectedText: "Passage",
+      contextBefore: "Before",
+      contextAfter: "After",
+      color: "rose",
+      note: "Attached note",
+    });
+    const persisted = harness.persisted as AnnotationsMetadata;
+    persisted.books["book-1"].annotations[0] = {
+      ...created,
+      futureAnchorMetadata: { preserved: true },
+    } as never;
+    harness.setPersisted(persisted);
+    annotations.reset();
+
+    const detached = await annotations.update("book-1", created.id, {
+      anchorStatus: "detached",
+    });
+    const recovered = await annotations.update("book-1", created.id, {
+      anchorStatus: undefined,
+      cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:2,/4/2:9)",
+      chapterHref: "Text/new.xhtml",
+    });
+
+    expect(detached).toMatchObject({ anchorStatus: "detached", id: created.id });
+    expect(recovered).toEqual({
+      ...created,
+      cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:2,/4/2:9)",
+      chapterHref: "Text/new.xhtml",
+      futureAnchorMetadata: { preserved: true },
+    });
+    expect(recovered).not.toHaveProperty("anchorStatus");
+    expect(await annotations.list("book-1")).toEqual([recovered]);
+  });
+
   it("rejects non-string note input instead of silently discarding it", async () => {
     const harness = createHarness();
     const annotations = repository(harness);

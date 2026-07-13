@@ -2,6 +2,7 @@ import {
   ArrowSquareOut,
   BookmarkSimple,
   Check,
+  Copy,
   DotsThree,
   Highlighter,
   MagnifyingGlass,
@@ -35,6 +36,7 @@ import {
   normalizeReaderHighlightColor,
   type ReaderHighlightColor,
 } from "./readerHighlights";
+import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import {
   groupReaderAnnotations,
   readerAnnotationEmptyLabel,
@@ -72,7 +74,13 @@ type MenuState = {
 
 type PendingPanelAction = {
   annotationId: string;
-  kind: "edit-note" | "navigate";
+  kind: "copy" | "edit-note" | "navigate" | "recover";
+};
+
+type RecoveryFeedback = {
+  annotationId: string;
+  message: string;
+  status: "failed" | "recovering" | "resolved" | "warning";
 };
 
 type MenuAction =
@@ -98,6 +106,7 @@ type ReaderAnnotationsPanelProps = {
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
   onRecolorHighlight: (annotationId: string, color: ReaderHighlightColor) => Promise<boolean>;
+  onRecover: (annotation: Annotation) => Promise<ReaderAnnotationRecoveryResult>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
@@ -115,6 +124,7 @@ export function ReaderAnnotationsPanel({
   onEditNote,
   onNavigate,
   onRecolorHighlight,
+  onRecover,
   onReload,
   onRemove,
   onUpdateBookmarkLabel,
@@ -140,6 +150,7 @@ export function ReaderAnnotationsPanel({
   const [busyId, setBusyId] = useState<string>();
   const [pendingPanelAction, setPendingPanelAction] = useState<PendingPanelAction>();
   const [actionError, setActionError] = useState<string>();
+  const [recoveryFeedback, setRecoveryFeedback] = useState<RecoveryFeedback>();
 
   const visible = useMemo(
     () =>
@@ -234,6 +245,7 @@ export function ReaderAnnotationsPanel({
     setEditingId(undefined);
     setPendingRemovalId(undefined);
     setActionError(undefined);
+    setRecoveryFeedback(undefined);
   }
 
   function changeView(nextView: ReaderAnnotationView) {
@@ -401,6 +413,77 @@ export function ReaderAnnotationsPanel({
     }
   }
 
+  async function recoverAnnotation(annotation: Annotation) {
+    if (busyId || pendingPanelAction) return;
+    setPendingPanelAction({ annotationId: annotation.id, kind: "recover" });
+    setActionError(undefined);
+    setRecoveryFeedback({
+      annotationId: annotation.id,
+      message: "Trying saved location and text context…",
+      status: "recovering",
+    });
+    try {
+      const result = await onRecover(annotation);
+      if (result.kind === "resolved") {
+        setRecoveryFeedback({
+          annotationId: annotation.id,
+          message: "Location recovered.",
+          status: "resolved",
+        });
+      } else if (result.kind === "detached") {
+        setRecoveryFeedback({
+          annotationId: annotation.id,
+          message:
+            result.reason === "conflict"
+              ? "That location overlaps another annotation. This annotation remains detached."
+              : "No safe location was found. The annotation remains detached.",
+          status: "warning",
+        });
+      } else if (result.kind === "failed") {
+        setRecoveryFeedback({
+          annotationId: annotation.id,
+          message: "Recovery failed. Try again.",
+          status: "failed",
+        });
+      } else {
+        setRecoveryFeedback(undefined);
+      }
+    } catch {
+      setRecoveryFeedback({
+        annotationId: annotation.id,
+        message: "Recovery failed. Try again.",
+        status: "failed",
+      });
+    } finally {
+      requestRowFocus(annotation.id);
+      setPendingPanelAction(undefined);
+    }
+  }
+
+  async function copyDetachedAnnotation(annotation: Annotation) {
+    if (busyId || pendingPanelAction) return;
+    setPendingPanelAction({ annotationId: annotation.id, kind: "copy" });
+    setActionError(undefined);
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+      await navigator.clipboard.writeText(detachedAnnotationCopyText(annotation));
+      setRecoveryFeedback({
+        annotationId: annotation.id,
+        message: "Annotation copied.",
+        status: "resolved",
+      });
+    } catch {
+      setRecoveryFeedback({
+        annotationId: annotation.id,
+        message: "The annotation could not be copied.",
+        status: "failed",
+      });
+    } finally {
+      requestRowFocus(annotation.id);
+      setPendingPanelAction(undefined);
+    }
+  }
+
   function beginBookmarkRename(annotation: Annotation) {
     setPendingRemovalId(undefined);
     setDraftLabel(annotation.label ?? "");
@@ -559,16 +642,20 @@ export function ReaderAnnotationsPanel({
                       isPanelActionPending && pendingPanelAction.kind === "navigate";
                     const isEditing = editingId === annotation.id;
                     const isPendingRemoval = pendingRemovalId === annotation.id;
-                    const canNavigate = Boolean(annotation.cfiRange?.trim());
+                    const canNavigate = Boolean(
+                      annotation.anchorStatus !== "detached" && annotation.cfiRange?.trim(),
+                    );
                     const isCurrent = Boolean(
-                      currentAnnotationId === annotation.id ||
-                      (currentCfi?.trim() && annotation.cfiRange?.trim() === currentCfi.trim()),
+                      annotation.anchorStatus !== "detached" &&
+                      (currentAnnotationId === annotation.id ||
+                        (currentCfi?.trim() && annotation.cfiRange?.trim() === currentCfi.trim())),
                     );
 
                     return (
                       <li
                         className="reader-annotations__item"
                         data-current={isCurrent || undefined}
+                        data-detached={annotation.anchorStatus === "detached" || undefined}
                         key={annotation.id}
                       >
                         <article>
@@ -681,6 +768,21 @@ export function ReaderAnnotationsPanel({
                               </Button>
                             </div>
                           ) : null}
+
+                          {recoveryFeedback?.annotationId === annotation.id ? (
+                            <span
+                              className="reader-annotations__recovery-status"
+                              data-status={recoveryFeedback.status}
+                              role={
+                                recoveryFeedback.status === "failed" ||
+                                recoveryFeedback.status === "warning"
+                                  ? "alert"
+                                  : "status"
+                              }
+                            >
+                              {recoveryFeedback.message}
+                            </span>
+                          ) : null}
                         </article>
                       </li>
                     );
@@ -759,7 +861,9 @@ export function ReaderAnnotationsPanel({
           ) : (
             <>
               <MenuItem
-                disabled={!menu.annotation.cfiRange?.trim()}
+                disabled={
+                  menu.annotation.anchorStatus === "detached" || !menu.annotation.cfiRange?.trim()
+                }
                 icon={<ArrowSquareOut weight="regular" />}
                 onClick={() =>
                   chooseMenuAction({
@@ -770,6 +874,32 @@ export function ReaderAnnotationsPanel({
               >
                 Go to location
               </MenuItem>
+              {menu.annotation.anchorStatus === "detached" ? (
+                <>
+                  <MenuItem
+                    icon={<MagnifyingGlass weight="regular" />}
+                    onClick={() =>
+                      chooseMenuAction({
+                        focus: "row-trigger",
+                        run: (annotation) => void recoverAnnotation(annotation),
+                      })
+                    }
+                  >
+                    Attempt to locate
+                  </MenuItem>
+                  <MenuItem
+                    icon={<Copy weight="regular" />}
+                    onClick={() =>
+                      chooseMenuAction({
+                        focus: "row-trigger",
+                        run: (annotation) => void copyDetachedAnnotation(annotation),
+                      })
+                    }
+                  >
+                    Copy annotation
+                  </MenuItem>
+                </>
+              ) : null}
               {menu.annotation.type === "highlight" ? (
                 <>
                   <MenuItem
@@ -848,6 +978,9 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
             role="img"
           />
         ) : null}
+        {annotation.anchorStatus === "detached" ? (
+          <span className="reader-annotations__anchor-status">Detached</span>
+        ) : null}
       </span>
       {selectedText ? <span className="reader-annotations__quote">{selectedText}</span> : null}
       {note ? <span className="reader-annotations__note">{note}</span> : null}
@@ -878,4 +1011,18 @@ function AnnotationLoadingState() {
       <span />
     </div>
   );
+}
+
+function detachedAnnotationCopyText(annotation: Annotation): string {
+  const lines = [annotation.type === "bookmark" ? "Bookmark" : "Highlight", "Status: Detached"];
+  if (annotation.chapterHref?.trim()) lines.push(`Chapter: ${annotation.chapterHref.trim()}`);
+  if (annotation.type === "bookmark" && annotation.label?.trim()) {
+    lines.push(`Label: ${annotation.label.trim()}`);
+  }
+  if (annotation.type === "highlight") {
+    lines.push(`Quote: ${annotation.selectedText.trim()}`);
+    if (annotation.note?.trim()) lines.push(`Note: ${annotation.note.trim()}`);
+  }
+  if (annotation.cfiRange?.trim()) lines.push(`Last location: ${annotation.cfiRange.trim()}`);
+  return lines.join("\n");
 }

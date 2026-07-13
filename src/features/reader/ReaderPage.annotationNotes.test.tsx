@@ -26,6 +26,7 @@ type MockViewerProps = {
     currentChapterId: string;
     status: "ready";
   }) => void;
+  onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
   onOpenNote?: (selection: TextSelection, existingHighlight?: HighlightAnnotation) => void;
   onReady: () => void;
   onRemoveHighlight?: (annotationId: string) => Promise<boolean>;
@@ -34,6 +35,7 @@ type MockViewerProps = {
 const viewerControl = vi.hoisted(() => ({
   paletteOpen: false,
   props: null as MockViewerProps | null,
+  resolveAnnotationAnchor: vi.fn(),
 }));
 
 vi.mock("./EpubViewer", async () => {
@@ -50,6 +52,7 @@ vi.mock("./EpubViewer", async () => {
         navigateToLocation: vi.fn(async () => true),
         next: vi.fn(async () => undefined),
         previous: vi.fn(async () => undefined),
+        resolveAnnotationAnchor: viewerControl.resolveAnnotationAnchor,
       }));
       React.useEffect(() => {
         onNavigationChange?.({
@@ -77,6 +80,11 @@ vi.mock("./EpubViewer", async () => {
       );
     }),
   };
+});
+
+vi.mock("./LazyReaderAnnotationsPanel", async () => {
+  const { ReaderAnnotationsPanel } = await import("./ReaderAnnotationsPanel");
+  return { LazyReaderAnnotationsPanel: ReaderAnnotationsPanel };
 });
 
 vi.mock("../archive/useArchive", () => ({
@@ -259,7 +267,13 @@ async function renderReader(
       </LibraryStorageContext.Provider>,
     );
   });
-  await waitForHighlights((harness.records.get(initialBookId) ?? []).map(({ id }) => id));
+  await waitForHighlights(
+    (harness.records.get(initialBookId) ?? [])
+      .filter(
+        (annotation) => annotation.type === "highlight" && annotation.anchorStatus !== "detached",
+      )
+      .map(({ id }) => id),
+  );
   return router;
 }
 
@@ -396,6 +410,12 @@ async function waitForRoute(
 beforeEach(() => {
   viewerControl.paletteOpen = false;
   viewerControl.props = null;
+  viewerControl.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
+    chapterHref: annotation.chapterHref,
+    cfiRange: annotation.cfiRange,
+    kind: "resolved",
+    strategy: "exact-cfi",
+  }));
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
     return 1;
@@ -412,6 +432,287 @@ afterEach(() => {
 });
 
 describe("ReaderPage annotation notes", () => {
+  it("recolors a detached panel highlight while keeping it detached and unrendered", async () => {
+    const detached = highlight("detached-recolor", {
+      anchorStatus: "detached",
+      color: "blue",
+      note: "Keep the note",
+    });
+    const harness = createStorageHarness({ "book-1": [detached] });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => trigger.click());
+    act(() => button("Recolor highlight").click());
+    await act(async () => button("Green").click());
+
+    expect(harness.records.get("book-1")?.[0]).toMatchObject({
+      anchorStatus: "detached",
+      color: "green",
+      id: detached.id,
+      note: detached.note,
+    });
+    expect(viewerControl.props?.highlights).toEqual([]);
+  });
+
+  it("recovers a detached highlight in place without duplicating authored data", async () => {
+    const existing = {
+      ...highlight("detached-recovery", {
+        anchorStatus: "detached",
+        contextAfter: "After context",
+        contextBefore: "Before context",
+        note: "Keep this note",
+      }),
+      futureMetadata: { source: "preserved" },
+    } as HighlightAnnotation;
+    const harness = createStorageHarness({ "book-1": [existing] });
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({
+      chapterHref: "Text/renamed.xhtml",
+      cfiRange: "epubcfi(/6/8!/4/2,/1:4,/1:22)",
+      kind: "resolved",
+      strategy: "context-text",
+    });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'button[aria-label="Actions for Highlight"]',
+    );
+    act(() => trigger.click());
+    await act(async () => button("Attempt to locate").click());
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (viewerControl.props?.highlights[0]?.anchorStatus !== "detached") break;
+      await flush();
+    }
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      anchorStatus: undefined,
+      cfiRange: "epubcfi(/6/8!/4/2,/1:4,/1:22)",
+      chapterHref: "Text/renamed.xhtml",
+    });
+    expect(harness.records.get("book-1")).toHaveLength(1);
+    expect(viewerControl.props?.highlights[0]).toMatchObject({
+      color: existing.color,
+      contextAfter: existing.contextAfter,
+      contextBefore: existing.contextBefore,
+      futureMetadata: { source: "preserved" },
+      id: existing.id,
+      note: existing.note,
+      selectedText: existing.selectedText,
+    });
+  });
+
+  it("marks a viewer-rejected highlight detached without deleting or duplicating it", async () => {
+    const existing = highlight("invalid-rendered-anchor", { note: "Authored note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+
+    await act(async () => {
+      await viewerControl.props?.onHighlightAnchorInvalid?.(existing.id, "invalid-signature");
+    });
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (viewerControl.props?.highlights[0]?.anchorStatus === "detached") break;
+      await flush();
+    }
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      anchorStatus: "detached",
+    });
+    expect(harness.records.get("book-1")).toHaveLength(1);
+    expect(viewerControl.props?.highlights).toEqual([]);
+    expect(harness.records.get("book-1")?.[0]).toMatchObject({
+      anchorStatus: "detached",
+      id: existing.id,
+      note: "Authored note",
+    });
+  });
+
+  it("persists two invalid rendered highlights discovered in one reconciliation", async () => {
+    const first = highlight("invalid-first");
+    const second = highlight("invalid-second");
+    const harness = createStorageHarness({ "book-1": [first, second] });
+    await renderReader(harness);
+
+    await act(async () => {
+      await Promise.all([
+        viewerControl.props?.onHighlightAnchorInvalid?.(first.id, "first-signature"),
+        viewerControl.props?.onHighlightAnchorInvalid?.(second.id, "second-signature"),
+      ]);
+    });
+    await waitForHighlights([]);
+
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(harness.records.get("book-1")).toEqual([
+      expect.objectContaining({ anchorStatus: "detached", id: first.id }),
+      expect.objectContaining({ anchorStatus: "detached", id: second.id }),
+    ]);
+  });
+
+  it("clears current-annotation state when its highlight becomes detached", async () => {
+    const existing = highlight("current-then-detached");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const target = await waitForElement<HTMLButtonElement>(
+      '.reader-annotations__target[aria-label^="Go to"]',
+    );
+    await act(async () => target.click());
+    if (!container?.querySelector('aside[aria-label="Annotations"]')) {
+      act(() => button("Annotations").click());
+      await waitForElement('aside[aria-label="Annotations"]');
+    }
+    expect(
+      container?.querySelector(".reader-annotations__item")?.hasAttribute("data-current"),
+    ).toBe(true);
+
+    await act(async () => {
+      await viewerControl.props?.onHighlightAnchorInvalid?.(existing.id, "current-invalid");
+    });
+    await waitForHighlights([]);
+
+    expect(
+      container?.querySelector(".reader-annotations__item")?.hasAttribute("data-current"),
+    ).toBe(false);
+  });
+
+  it("keeps a detached highlight intact when recovery reaches an occupied active range", async () => {
+    const occupied = highlight("occupied", {
+      cfiRange: "epubcfi(/6/2!/4/2,/1:4,/1:20)",
+    });
+    const detached = highlight("detached-conflict", {
+      anchorStatus: "detached",
+      cfiRange: "epubcfi(/6/4!/4/2,/1:2,/1:12)",
+      note: "Preserve this detached note",
+    });
+    const harness = createStorageHarness({ "book-1": [occupied, detached] });
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({
+      chapterHref: occupied.chapterHref,
+      cfiRange: occupied.cfiRange,
+      kind: "resolved",
+      strategy: "context-text",
+    });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => trigger.click());
+    await act(async () => button("Attempt to locate").click());
+
+    expect(container?.textContent).toContain("overlaps another annotation");
+    expect(harness.updateAnnotation).not.toHaveBeenCalled();
+    expect(harness.createAnnotation).not.toHaveBeenCalled();
+    expect(harness.deleteAnnotation).not.toHaveBeenCalled();
+    expect(harness.records.get("book-1")).toEqual([occupied, detached]);
+  });
+
+  it("keeps a partially overlapping recovered highlight detached", async () => {
+    const occupied = highlight("partial-owner", {
+      cfiRange: "epubcfi(/6/2!/4/2,/1:4,/1:20)",
+    });
+    const detached = highlight("partial-detached", {
+      anchorStatus: "detached",
+      cfiRange: "epubcfi(/6/4!/4/2,/1:2,/1:12)",
+    });
+    const harness = createStorageHarness({ "book-1": [occupied, detached] });
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({
+      chapterHref: occupied.chapterHref,
+      cfiRange: "epubcfi(/6/2!/4/2,/1:15,/1:28)",
+      kind: "resolved",
+      strategy: "context-text",
+    });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => trigger.click());
+    await act(async () => button("Attempt to locate").click());
+
+    expect(container?.textContent).toContain("overlaps another annotation");
+    expect(harness.updateAnnotation).not.toHaveBeenCalled();
+    expect(harness.records.get("book-1")).toEqual([occupied, detached]);
+  });
+
+  it("keeps both bookmarks when recovered location is already occupied", async () => {
+    const occupied: Annotation = {
+      chapterHref: "Text/chapter.xhtml",
+      cfiRange: "epubcfi(/6/2!/4/2:8)",
+      createdAt: timestamp,
+      id: "occupied-bookmark",
+      type: "bookmark",
+      updatedAt: timestamp,
+    };
+    const detached: Annotation = {
+      anchorStatus: "detached",
+      chapterHref: "Text/old.xhtml",
+      cfiRange: "epubcfi(/6/4!/4/2:3)",
+      createdAt: timestamp,
+      id: "detached-bookmark",
+      label: "Keep this bookmark",
+      type: "bookmark",
+      updatedAt: timestamp,
+    };
+    const harness = createStorageHarness({ "book-1": [occupied, detached] });
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({
+      chapterHref: occupied.chapterHref,
+      cfiRange: occupied.cfiRange!,
+      kind: "resolved",
+      strategy: "chapter-start",
+    });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => trigger.click());
+    await act(async () => button("Attempt to locate").click());
+
+    expect(container?.textContent).toContain("overlaps another annotation");
+    expect(harness.updateAnnotation).not.toHaveBeenCalled();
+    expect(harness.createAnnotation).not.toHaveBeenCalled();
+    expect(harness.deleteAnnotation).not.toHaveBeenCalled();
+    expect(harness.records.get("book-1")).toEqual([occupied, detached]);
+  });
+
+  it("leaves a detached record unchanged when recovery fails", async () => {
+    const detached = highlight("failed-recovery", {
+      anchorStatus: "detached",
+      note: "Retry this later",
+    });
+    const harness = createStorageHarness({ "book-1": [detached] });
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({ kind: "failed" });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => trigger.click());
+    await act(async () => button("Attempt to locate").click());
+
+    expect(container?.textContent).toContain("Recovery failed. Try again.");
+    expect(harness.updateAnnotation).not.toHaveBeenCalled();
+    expect(harness.records.get("book-1")).toEqual([detached]);
+
+    viewerControl.resolveAnnotationAnchor.mockResolvedValueOnce({ kind: "cancelled" });
+    const retryTrigger = await waitForElement<HTMLButtonElement>(
+      'li[data-detached] button[aria-label^="Actions for"]',
+    );
+    act(() => retryTrigger.click());
+    await act(async () => button("Attempt to locate").click());
+    expect(harness.updateAnnotation).not.toHaveBeenCalled();
+    expect(harness.records.get("book-1")).toEqual([detached]);
+  });
+
   it("recolors a panel highlight through shared annotation state without losing its note", async () => {
     const existing = {
       ...highlight("panel-recolor", {

@@ -7,7 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
-import type { HighlightAnnotation } from "../../types/annotation";
+import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 
 const epubModuleMock = vi.hoisted(() => ({
@@ -105,9 +105,24 @@ function createMockRendition(): MockRendition {
 function createBookSession(chapterId: string, chapterHref: string) {
   const navigation = deferred<MockNavigation>();
   const rendition = createMockRendition();
+  const chapterDocument = document.implementation.createHTMLDocument(chapterId);
+  chapterDocument.body.innerHTML = "<p id='chapter-text'>Highlighted text</p>";
   const section = {
+    cfiFromElement: vi.fn(() => `epubcfi(${chapterHref}#start)`),
+    cfiFromRange: vi.fn(() => `epubcfi(${chapterHref}#recovered-range)`),
+    contents: chapterDocument.documentElement as Element | undefined,
+    document: chapterDocument as Document | undefined,
     href: chapterHref,
     index: 0,
+    load: vi.fn(async () => {
+      section.document = chapterDocument;
+      section.contents = chapterDocument.documentElement;
+      return chapterDocument.documentElement;
+    }),
+    unload: vi.fn(() => {
+      section.document = undefined;
+      section.contents = undefined;
+    }),
   };
   const open = vi.fn();
   const renderTo = vi.fn(() => rendition);
@@ -119,6 +134,11 @@ function createBookSession(chapterId: string, chapterHref: string) {
       navigation: navigation.promise,
     },
     load: vi.fn(async () => undefined),
+    getRange: vi.fn(async () => {
+      const range = chapterDocument.createRange();
+      range.selectNodeContents(chapterDocument.querySelector("p")!);
+      return range;
+    }),
     open,
     packaging: {
       navPath: "nav.xhtml",
@@ -131,7 +151,11 @@ function createBookSession(chapterId: string, chapterHref: string) {
         compare: vi.fn(() => 0),
       },
       get: vi.fn((target: string | number | undefined) => {
-        if (target === 0 || target === chapterHref) {
+        if (
+          target === 0 ||
+          target === chapterHref ||
+          (typeof target === "string" && target.startsWith("epubcfi("))
+        ) {
           return section;
         }
         return null;
@@ -149,13 +173,38 @@ function createBookSession(chapterId: string, chapterHref: string) {
       href: chapterHref,
       label: chapterId,
     },
+    chapterDocument,
     destroy,
     generate,
     navigation,
     open,
     renderTo,
     rendition,
+    section,
   };
+}
+
+function createSpineSection(href: string, text: string, index: number) {
+  const chapter = document.implementation.createHTMLDocument(href);
+  chapter.body.textContent = text;
+  const value = {
+    cfiFromElement: vi.fn(() => `epubcfi(${href}#start)`),
+    cfiFromRange: vi.fn(() => `epubcfi(${href}#range)`),
+    contents: undefined as Element | undefined,
+    document: undefined as Document | undefined,
+    href,
+    index,
+    load: vi.fn(async () => {
+      value.document = chapter;
+      value.contents = chapter.documentElement;
+      return chapter.documentElement;
+    }),
+    unload: vi.fn(() => {
+      value.document = undefined;
+      value.contents = undefined;
+    }),
+  };
+  return value;
 }
 
 function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)", page = 1, total = 4): Location {
@@ -498,6 +547,376 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(didNavigate).toBe(true);
     expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml");
     expect(session.rendition.display).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates an exact saved highlight range before navigation", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(renderedHighlight, false);
+    });
+
+    expect(result).toEqual({
+      chapterHref: renderedHighlight.chapterHref,
+      cfiRange: renderedHighlight.cfiRange,
+      kind: "resolved",
+      strategy: "exact-cfi",
+    });
+    expect(session.section.unload).not.toHaveBeenCalled();
+  });
+
+  it("unloads a section loaded temporarily for exact CFI validation", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    session.section.document = undefined;
+    session.section.contents = undefined;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(renderedHighlight, false);
+    });
+
+    expect(result?.kind).toBe("resolved");
+    expect(session.section.load).toHaveBeenCalledOnce();
+    expect(session.section.unload).toHaveBeenCalledOnce();
+  });
+
+  it("recovers changed highlight text in its last known chapter", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    session.chapterDocument.body.innerHTML =
+      "<p id='chapter-text'>Before Highlighted text after.</p>";
+    vi.mocked(session.book.getRange).mockImplementationOnce(async () => {
+      const wrongDocument = document.implementation.createHTMLDocument("stale location");
+      wrongDocument.body.textContent = "Wrong location";
+      const wrong = wrongDocument.createRange();
+      wrong.selectNodeContents(wrongDocument.body);
+      return wrong;
+    });
+    session.section.load.mockImplementation(async () => {
+      session.chapterDocument.body.innerHTML =
+        "<p id='chapter-text'>Before Highlighted text after.</p>";
+      session.section.document = session.chapterDocument;
+      session.section.contents = session.chapterDocument.documentElement;
+      return session.chapterDocument.documentElement;
+    });
+    session.section.document = undefined;
+    session.section.contents = undefined;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(
+        { ...renderedHighlight, chapterHref: "Text/chapter-1.xhtml" },
+        true,
+      );
+    });
+
+    expect(result).toMatchObject({
+      chapterHref: "Text/chapter-1.xhtml",
+      kind: "resolved",
+      strategy: "chapter-text",
+    });
+    expect(result?.kind === "resolved" ? result.cfiRange : "").toContain("recovered-range");
+    expect(session.section.load).toHaveBeenCalledTimes(2);
+    expect(session.section.unload).toHaveBeenCalledTimes(2);
+  });
+
+  it("evaluates a saved chapter beyond the fallback limit before loading fallback chapters", async () => {
+    const session = createBookSession("exact", "Text/exact.xhtml");
+    const wrongDocument = document.implementation.createHTMLDocument("wrong");
+    wrongDocument.body.textContent = "Wrong location";
+    const wrongRange = wrongDocument.createRange();
+    wrongRange.selectNodeContents(wrongDocument.body);
+    vi.mocked(session.book.getRange).mockResolvedValue(wrongRange);
+    const fallback = Array.from({ length: 240 }, (_, index) =>
+      createSpineSection(`Text/fallback-${index}.xhtml`, "No match", index),
+    );
+    const preferred = createSpineSection(
+      "Text/preferred.xhtml",
+      "Before Highlighted text after",
+      240,
+    );
+    session.book.spine.each = (callback: (entry: unknown) => void) => {
+      for (const section of [...fallback, preferred]) callback(section);
+    };
+    session.book.spine.get.mockImplementation((target: string | number | undefined) => {
+      if (typeof target === "string" && target.startsWith("epubcfi(")) return session.section;
+      return [...fallback, preferred].find(({ href }) => href === target) ?? null;
+    });
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(
+        { ...renderedHighlight, chapterHref: preferred.href },
+        true,
+      );
+    });
+
+    expect(result).toMatchObject({
+      chapterHref: preferred.href,
+      kind: "resolved",
+      strategy: "chapter-text",
+    });
+    expect(preferred.load).toHaveBeenCalledOnce();
+    expect(preferred.unload).toHaveBeenCalledOnce();
+    expect(fallback.every(({ load }) => load.mock.calls.length === 0)).toBe(true);
+  });
+
+  it("returns failed when a required fallback section cannot be examined", async () => {
+    const session = createBookSession("preferred", "Text/preferred.xhtml");
+    const wrongDocument = document.implementation.createHTMLDocument("wrong");
+    wrongDocument.body.textContent = "Wrong location";
+    const wrongRange = wrongDocument.createRange();
+    wrongRange.selectNodeContents(wrongDocument.body);
+    vi.mocked(session.book.getRange).mockResolvedValue(wrongRange);
+    session.chapterDocument.body.textContent = "No saved passage in the preferred chapter.";
+    session.section.document = undefined;
+    session.section.contents = undefined;
+    const examined = createSpineSection("Text/examined.xhtml", "Still no saved passage", 1);
+    const failed = createSpineSection("Text/failed.xhtml", "Unavailable", 2);
+    failed.load.mockRejectedValueOnce(new Error("temporary I/O failure"));
+    session.book.spine.each = (callback: (entry: unknown) => void) => {
+      for (const section of [session.section, examined, failed]) callback(section);
+    };
+    session.book.spine.get.mockImplementation((target: string | number | undefined) => {
+      if (
+        target === session.section.href ||
+        (typeof target === "string" && target.startsWith("epubcfi("))
+      ) {
+        return session.section;
+      }
+      return [examined, failed].find(({ href }) => href === target) ?? null;
+    });
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(
+        {
+          ...renderedHighlight,
+          chapterHref: session.section.href,
+          contextAfter: "after context",
+          contextBefore: "before context",
+        },
+        true,
+      );
+    });
+
+    expect(result).toEqual({ kind: "failed" });
+    expect(examined.load).toHaveBeenCalledOnce();
+    expect(examined.unload).toHaveBeenCalledOnce();
+    expect(failed.unload).toHaveBeenCalledOnce();
+  });
+
+  it("returns failed when the saved chapter cannot be loaded", async () => {
+    const session = createBookSession("old", "Text/old.xhtml");
+    const wrongDocument = document.implementation.createHTMLDocument("wrong");
+    wrongDocument.body.textContent = "Wrong location";
+    const wrongRange = wrongDocument.createRange();
+    wrongRange.selectNodeContents(wrongDocument.body);
+    vi.mocked(session.book.getRange).mockResolvedValue(wrongRange);
+    const preferred = createSpineSection("Text/preferred.xhtml", "Highlighted text", 1);
+    preferred.load.mockRejectedValueOnce(new Error("saved chapter unavailable"));
+    session.book.spine.each = (callback: (entry: unknown) => void) => {
+      for (const section of [session.section, preferred]) callback(section);
+    };
+    session.book.spine.get.mockImplementation((target: string | number | undefined) => {
+      if (typeof target === "string" && target.startsWith("epubcfi(")) return session.section;
+      if (target === preferred.href) return preferred;
+      return target === session.section.href ? session.section : null;
+    });
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(
+        { ...renderedHighlight, chapterHref: preferred.href },
+        true,
+      );
+    });
+
+    expect(result).toEqual({ kind: "failed" });
+    expect(preferred.unload).toHaveBeenCalledOnce();
+  });
+
+  it("unloads temporary preferred-section work after detached and failed results", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const wrongDocument = document.implementation.createHTMLDocument("wrong");
+    wrongDocument.body.textContent = "Wrong location";
+    const wrongRange = wrongDocument.createRange();
+    wrongRange.selectNodeContents(wrongDocument.body);
+    vi.mocked(session.book.getRange).mockResolvedValue(wrongRange);
+    session.chapterDocument.body.textContent = "No matching passage remains.";
+    session.section.document = undefined;
+    session.section.contents = undefined;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    const annotation = { ...renderedHighlight, chapterHref: session.section.href };
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let detached: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      detached = await viewerRef.current?.resolveAnnotationAnchor(annotation, true);
+    });
+    expect(detached).toEqual({ kind: "detached", reason: "not-found" });
+    expect(session.section.unload).toHaveBeenCalledTimes(2);
+
+    session.section.document = undefined;
+    session.section.contents = undefined;
+    session.section.load.mockRejectedValueOnce(new Error("temporary parse failure"));
+    let failed: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      failed = await viewerRef.current?.resolveAnnotationAnchor(annotation, true);
+    });
+    expect(failed).toEqual({ kind: "failed" });
+    expect(session.section.unload).toHaveBeenCalledTimes(3);
+
+    session.chapterDocument.body.textContent = "Highlighted text";
+    let retried: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      retried = await viewerRef.current?.resolveAnnotationAnchor(annotation, true);
+    });
+    expect(retried?.kind).toBe("resolved");
+  });
+
+  it("recovers a detached bookmark to its last known chapter start", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    vi.mocked(session.book.getRange).mockRejectedValueOnce(new Error("stale CFI"));
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    const bookmark: BookmarkAnnotation = {
+      anchorStatus: "detached",
+      chapterHref: "Text/chapter-1.xhtml",
+      cfiRange: "epubcfi(/stale)",
+      createdAt: renderedHighlight.createdAt,
+      id: "bookmark",
+      type: "bookmark",
+      updatedAt: renderedHighlight.updatedAt,
+    };
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await viewerRef.current?.resolveAnnotationAnchor(bookmark, true);
+    });
+
+    expect(result).toEqual({
+      chapterHref: "Text/chapter-1.xhtml",
+      cfiRange: "epubcfi(Text/chapter-1.xhtml#start)",
+      kind: "resolved",
+      strategy: "chapter-start",
+    });
+  });
+
+  it("cancels pending recovery when the book changes", async () => {
+    const firstSession = createBookSession("old", "Text/old.xhtml");
+    const secondSession = createBookSession("new", "Text/new.xhtml");
+    const pendingRange = deferred<Range>();
+    vi.mocked(firstSession.book.getRange).mockReturnValueOnce(pendingRange.promise);
+    firstSession.section.document = undefined;
+    firstSession.section.contents = undefined;
+    epubModuleMock.openBook
+      .mockReturnValueOnce(firstSession.book)
+      .mockReturnValueOnce(secondSession.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    const firstProps = defaultViewerProps(new Blob(["book-one"]));
+    const { root } = await renderViewer(firstProps, viewerRef);
+    await waitForActiveRendition(firstSession);
+
+    let recovery: Promise<
+      Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined
+    >;
+    act(() => {
+      recovery = viewerRef.current!.resolveAnnotationAnchor(renderedHighlight, true);
+    });
+    await rerenderViewer(root, {
+      ...firstProps,
+      fileBlob: new Blob(["book-two"]),
+    });
+    const staleRange = firstSession.chapterDocument.createRange();
+    staleRange.selectNodeContents(firstSession.chapterDocument.body);
+    await act(async () => pendingRange.resolve(staleRange));
+
+    let result: Awaited<ReturnType<EpubViewerHandle["resolveAnnotationAnchor"]>> | undefined;
+    await act(async () => {
+      result = await recovery!;
+    });
+    expect(result).toEqual({ kind: "cancelled" });
+    expect(firstSession.section.unload).toHaveBeenCalledOnce();
+  });
+
+  it("detaches malformed highlights instead of registering a crashing mark", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const malformed = { ...renderedHighlight, cfiRange: "not-a-cfi" };
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [malformed],
+      onHighlightAnchorInvalid: vi.fn(),
+    };
+
+    await renderViewer(props);
+    await waitForActiveRendition(session);
+
+    expect(props.onHighlightAnchorInvalid).toHaveBeenCalledOnce();
+    expect(props.onHighlightAnchorInvalid).toHaveBeenCalledWith(
+      malformed.id,
+      expect.stringContaining("invalid-cfi"),
+    );
+    expect(session.rendition.annotations.highlight).not.toHaveBeenCalled();
+  });
+
+  it("does not render a saved CFI when it now resolves to unrelated text", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const changedDocument = document.implementation.createHTMLDocument("changed chapter");
+    changedDocument.body.textContent = "Unrelated replacement text";
+    const changedRange = changedDocument.createRange();
+    changedRange.selectNodeContents(changedDocument.body);
+    vi.mocked(session.book.getRange).mockResolvedValue(changedRange);
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+      onHighlightAnchorInvalid: vi.fn(),
+    };
+
+    await renderViewer(props);
+    await waitForActiveRendition(session);
+    await flushAsyncWork();
+
+    expect(props.onHighlightAnchorInvalid).toHaveBeenCalledOnce();
+    expect(props.onHighlightAnchorInvalid).toHaveBeenCalledWith(
+      renderedHighlight.id,
+      expect.stringContaining(renderedHighlight.cfiRange),
+    );
+    expect(session.rendition.annotations.highlight).not.toHaveBeenCalled();
   });
 
   it("ignores stale navigation results after the book changes", async () => {

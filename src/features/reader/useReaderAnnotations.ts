@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, UpdateAnnotationInput } from "../../types/annotation";
 import type { ReaderLocation } from "./readerLocation";
 
 export type ReaderAnnotationFeedback =
@@ -51,6 +51,15 @@ type AnnotationMutation = {
 type AnnotationLoadRequest = {
   id: number;
   session: AnnotationSession;
+};
+
+type AnchorMaintenanceRequest = {
+  annotationId: string;
+  changes: UpdateAnnotationInput;
+  promise: Promise<boolean>;
+  resolve: (persisted: boolean) => void;
+  session: AnnotationSession;
+  signature: string;
 };
 
 function isBookmark(annotation: Annotation): boolean {
@@ -103,6 +112,9 @@ export function useReaderAnnotations({
   const activeLoadRef = useRef<AnnotationLoadRequest | undefined>(undefined);
   const mutationSequenceRef = useRef(0);
   const busyOwnerRef = useRef<AnnotationMutation | undefined>(undefined);
+  const anchorMaintenanceQueueRef = useRef(new Map<string, AnchorMaintenanceRequest>());
+  const anchorMaintenanceRunningRef = useRef<AnchorMaintenanceRequest | undefined>(undefined);
+  const drainAnchorMaintenanceRef = useRef<() => void>(() => undefined);
   const [annotationCollection, setAnnotationCollection] = useState<AnnotationCollection>({
     items: [],
     session,
@@ -118,6 +130,17 @@ export function useReaderAnnotations({
 
   useLayoutEffect(() => {
     sessionRef.current = session;
+    for (const [annotationId, request] of anchorMaintenanceQueueRef.current) {
+      if (sameAnnotationSession(request.session, session)) continue;
+      anchorMaintenanceQueueRef.current.delete(annotationId);
+      request.resolve(false);
+    }
+    const running = anchorMaintenanceRunningRef.current;
+    if (running && !sameAnnotationSession(running.session, session)) {
+      anchorMaintenanceRunningRef.current = undefined;
+      running.resolve(false);
+    }
+    drainAnchorMaintenanceRef.current();
   }, [session]);
 
   const annotations = sameAnnotationSession(annotationCollection.session, session)
@@ -134,7 +157,17 @@ export function useReaderAnnotations({
   const bookmarks = useMemo(() => sortedBookmarks(annotations), [annotations]);
 
   const currentBookmark = useMemo(
-    () => bookmarks.find((bookmark) => bookmark.cfiRange === location.cfi),
+    () =>
+      bookmarks.find(
+        (bookmark) => bookmark.anchorStatus !== "detached" && bookmark.cfiRange === location.cfi,
+      ),
+    [bookmarks, location.cfi],
+  );
+  const detachedBookmarkAtCurrent = useMemo(
+    () =>
+      bookmarks.find(
+        (bookmark) => bookmark.anchorStatus === "detached" && bookmark.cfiRange === location.cfi,
+      ),
     [bookmarks, location.cfi],
   );
 
@@ -189,6 +222,7 @@ export function useReaderAnnotations({
       busyOwnerRef.current = undefined;
       if (!isCurrentSession(mutation.session)) return;
       setBusyState((current) => (current?.id === mutation.id ? undefined : current));
+      queueMicrotask(() => drainAnchorMaintenanceRef.current());
     },
     [isCurrentSession],
   );
@@ -236,10 +270,13 @@ export function useReaderAnnotations({
 
   useEffect(() => {
     mountedRef.current = true;
+    const anchorMaintenanceQueue = anchorMaintenanceQueueRef.current;
     return () => {
       mountedRef.current = false;
       activeLoadRef.current = undefined;
       busyOwnerRef.current = undefined;
+      for (const request of anchorMaintenanceQueue.values()) request.resolve(false);
+      anchorMaintenanceQueue.clear();
     };
   }, []);
 
@@ -277,6 +314,108 @@ export function useReaderAnnotations({
     },
     [isCurrentSession, session],
   );
+
+  const drainAnchorMaintenance = useCallback(() => {
+    if (anchorMaintenanceRunningRef.current) return;
+    if (busyOwnerRef.current && isCurrentSession(busyOwnerRef.current.session)) return;
+
+    const next = anchorMaintenanceQueueRef.current.values().next().value as
+      AnchorMaintenanceRequest | undefined;
+    if (!next) return;
+    anchorMaintenanceQueueRef.current.delete(next.annotationId);
+    if (!next.session.bookId || !isCurrentSession(next.session)) {
+      next.resolve(false);
+      queueMicrotask(() => drainAnchorMaintenanceRef.current());
+      return;
+    }
+
+    anchorMaintenanceRunningRef.current = next;
+    void storage
+      .updateAnnotation(next.session.bookId, next.annotationId, next.changes)
+      .then((updated) => {
+        if (
+          anchorMaintenanceRunningRef.current !== next ||
+          !isCurrentSession(next.session) ||
+          !updated
+        ) {
+          next.resolve(false);
+          return;
+        }
+        sync(updated);
+        next.resolve(true);
+      })
+      .catch(() => {
+        if (isCurrentSession(next.session)) {
+          publishFeedback(next.session, {
+            kind: "error",
+            message: "The annotation location could not be updated.",
+          });
+        }
+        next.resolve(false);
+      })
+      .finally(() => {
+        if (anchorMaintenanceRunningRef.current === next) {
+          anchorMaintenanceRunningRef.current = undefined;
+        }
+        queueMicrotask(() => drainAnchorMaintenanceRef.current());
+      });
+  }, [isCurrentSession, publishFeedback, storage, sync]);
+  useLayoutEffect(() => {
+    drainAnchorMaintenanceRef.current = drainAnchorMaintenance;
+  }, [drainAnchorMaintenance]);
+
+  const queueAnchorUpdate = useCallback(
+    (
+      annotation: Annotation,
+      changes: UpdateAnnotationInput,
+      signature: string,
+    ): Promise<boolean> => {
+      if (!session.bookId || !isCurrentSession(session)) return Promise.resolve(false);
+      if (annotation.anchorStatus === "detached" && changes.anchorStatus === "detached") {
+        return Promise.resolve(true);
+      }
+      const running = anchorMaintenanceRunningRef.current;
+      if (
+        running?.annotationId === annotation.id &&
+        running.signature === signature &&
+        sameAnnotationSession(running.session, session)
+      ) {
+        return running.promise;
+      }
+      const queued = anchorMaintenanceQueueRef.current.get(annotation.id);
+      if (
+        queued &&
+        queued.signature === signature &&
+        sameAnnotationSession(queued.session, session)
+      ) {
+        return queued.promise;
+      }
+      if (queued) queued.resolve(false);
+
+      let resolve!: (persisted: boolean) => void;
+      const promise = new Promise<boolean>((settle) => {
+        resolve = settle;
+      });
+      anchorMaintenanceQueueRef.current.set(annotation.id, {
+        annotationId: annotation.id,
+        changes,
+        promise,
+        resolve,
+        session,
+        signature,
+      });
+      drainAnchorMaintenance();
+      return promise;
+    },
+    [drainAnchorMaintenance, isCurrentSession, session],
+  );
+
+  const cancelQueuedAnchorUpdate = useCallback((annotationId: string) => {
+    const queued = anchorMaintenanceQueueRef.current.get(annotationId);
+    if (!queued) return;
+    anchorMaintenanceQueueRef.current.delete(annotationId);
+    queued.resolve(false);
+  }, []);
 
   const addCurrent = useCallback(async () => {
     if (!location.cfi || !readerReady || openingError) return;
@@ -348,10 +487,45 @@ export function useReaderAnnotations({
   const toggleCurrent = useCallback(async () => {
     if (currentBookmark) {
       await remove(currentBookmark);
+    } else if (detachedBookmarkAtCurrent && session.bookId) {
+      const mutation = beginMutation(session);
+      if (!mutation) return;
+      try {
+        const updated = await storage.updateAnnotation(
+          session.bookId,
+          detachedBookmarkAtCurrent.id,
+          {
+            anchorStatus: undefined,
+            chapterHref,
+          },
+        );
+        if (!ownsMutation(mutation) || !updated) return;
+        sync(updated);
+        publishFeedback(session, { kind: "added", message: "Bookmark restored." });
+      } catch {
+        if (ownsMutation(mutation)) {
+          publishFeedback(session, { kind: "error", message: "Bookmark could not be restored." });
+        }
+      } finally {
+        finishMutation(mutation);
+      }
     } else {
       await addCurrent();
     }
-  }, [addCurrent, currentBookmark, remove]);
+  }, [
+    addCurrent,
+    beginMutation,
+    chapterHref,
+    currentBookmark,
+    detachedBookmarkAtCurrent,
+    finishMutation,
+    ownsMutation,
+    publishFeedback,
+    remove,
+    session,
+    storage,
+    sync,
+  ]);
 
   const updateLabel = useCallback(
     async (bookmark: Annotation, label: string) => {
@@ -376,6 +550,44 @@ export function useReaderAnnotations({
       }
     },
     [beginMutation, finishMutation, ownsMutation, publishFeedback, session, storage, sync],
+  );
+
+  const updateAnchor = useCallback(
+    async (
+      annotation: Annotation,
+      changes: UpdateAnnotationInput,
+    ): Promise<Annotation | undefined> => {
+      const mutation = beginMutation(session);
+      if (!mutation || !session.bookId) return undefined;
+      cancelQueuedAnchorUpdate(annotation.id);
+
+      try {
+        const updated = await storage.updateAnnotation(session.bookId, annotation.id, changes);
+        if (!ownsMutation(mutation) || !updated) return undefined;
+        sync(updated);
+        return updated;
+      } catch {
+        if (ownsMutation(mutation)) {
+          publishFeedback(session, {
+            kind: "error",
+            message: "The annotation location could not be updated.",
+          });
+        }
+        return undefined;
+      } finally {
+        finishMutation(mutation);
+      }
+    },
+    [
+      beginMutation,
+      cancelQueuedAnchorUpdate,
+      finishMutation,
+      ownsMutation,
+      publishFeedback,
+      session,
+      storage,
+      sync,
+    ],
   );
 
   const undoRemove = useCallback(async () => {
@@ -425,10 +637,12 @@ export function useReaderAnnotations({
       busy,
       canToggleCurrent,
       currentBookmark,
+      detachedBookmarkAtCurrent,
       feedback,
       forget,
       loadStatus,
       reload,
+      queueAnchorUpdate,
       clearFeedback,
       remove,
       sync,
@@ -436,6 +650,7 @@ export function useReaderAnnotations({
       toggleDisabledReason,
       undoRemove,
       updateLabel,
+      updateAnchor,
     }),
     [
       annotations,
@@ -444,16 +659,19 @@ export function useReaderAnnotations({
       canToggleCurrent,
       clearFeedback,
       currentBookmark,
+      detachedBookmarkAtCurrent,
       feedback,
       forget,
       loadStatus,
       reload,
+      queueAnchorUpdate,
       remove,
       sync,
       toggleCurrent,
       toggleDisabledReason,
       undoRemove,
       updateLabel,
+      updateAnchor,
     ],
   );
 }

@@ -15,6 +15,7 @@ import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
   navigateToLocation: vi.fn().mockResolvedValue(true),
+  resolveAnnotationAnchor: vi.fn(),
   onKeyDown: null as ((event: KeyboardEvent) => void) | null,
 }));
 
@@ -52,6 +53,7 @@ vi.mock("./EpubViewer", async () => {
         navigateToLocation: viewerMock.navigateToLocation,
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
+        resolveAnnotationAnchor: viewerMock.resolveAnnotationAnchor,
       }));
       const initialCallbacks = React.useRef({
         onLocationChange,
@@ -282,6 +284,12 @@ function dispatchRenditionShortcut(target: HTMLElement): KeyboardEvent {
 
 beforeEach(() => {
   viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
+  viewerMock.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
+    chapterHref: annotation.chapterHref,
+    cfiRange: annotation.cfiRange,
+    kind: "resolved",
+    strategy: "exact-cfi",
+  }));
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {

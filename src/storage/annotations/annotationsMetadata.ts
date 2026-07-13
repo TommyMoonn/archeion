@@ -17,6 +17,7 @@ const BOOK_KNOWN_FIELDS = new Set(["annotations"]);
 const ANNOTATION_KNOWN_FIELDS = new Set([
   "id",
   "type",
+  "anchorStatus",
   "cfiRange",
   "chapterHref",
   "selectedText",
@@ -201,6 +202,17 @@ function optionalString(
   return normalized || undefined;
 }
 
+function optionalAnchorStatus(
+  value: Record<string, unknown>,
+  context: string,
+): "detached" | undefined {
+  if (!hasOwn(value, "anchorStatus")) return undefined;
+  if (value.anchorStatus !== "detached") {
+    invalid(`anchorStatus for ${context} must be detached when present.`);
+  }
+  return "detached";
+}
+
 function isAnnotationType(value: unknown): value is AnnotationType {
   return typeof value === "string" && ANNOTATION_TYPES.includes(value as AnnotationType);
 }
@@ -221,6 +233,7 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
   const createdAt = requiredTimestamp(value, "createdAt", context);
   const updatedAt = requiredTimestamp(value, "updatedAt", context);
   const unknownFields = collectUnknownFields(value, ANNOTATION_KNOWN_FIELDS, context);
+  const anchorStatus = optionalAnchorStatus(value, context);
   const chapterHref = optionalString(value, "chapterHref", context);
 
   if (value.type === "bookmark") {
@@ -237,6 +250,7 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
     const cfiRange = optionalString(value, "cfiRange", context);
     return {
       ...unknownFields,
+      ...(anchorStatus ? { anchorStatus } : {}),
       id,
       type: "bookmark",
       ...(cfiRange ? { cfiRange } : {}),
@@ -258,6 +272,7 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
   const note = optionalString(value, "note", context);
   return {
     ...unknownFields,
+    ...(anchorStatus ? { anchorStatus } : {}),
     id,
     type: "highlight",
     cfiRange,

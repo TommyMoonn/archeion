@@ -48,6 +48,8 @@ import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 import { highlightNavigationTarget } from "./readerAnnotationNavigation";
+import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
+import { resolveHighlightSelection } from "./readerHighlightInteraction";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -216,6 +218,16 @@ export function ReaderPage() {
     onAnnotationChange: annotations.sync,
     storage,
   });
+  useEffect(() => {
+    const current = currentAnnotationRef.current;
+    if (!current || annotations.loadStatus !== "ready") return;
+    const annotation = annotations.annotations.find(
+      (candidate) => candidate.id === current.annotationId,
+    );
+    if (annotation && annotation.anchorStatus !== "detached") return;
+    currentAnnotationRef.current = undefined;
+    setCurrentAnnotationState(undefined);
+  }, [annotations.annotations, annotations.loadStatus]);
   const nextVolume = useReaderSeriesContinuation({
     book,
     isReaderReady: readerReady,
@@ -538,15 +550,84 @@ export function ReaderPage() {
     return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
   }, []);
 
+  const persistAnnotationAnchor = useCallback(
+    async (
+      annotation: Annotation,
+      result: Extract<ReaderAnnotationRecoveryResult, { kind: "detached" | "resolved" }>,
+    ): Promise<Annotation | undefined> => {
+      if (result.kind === "detached") {
+        if (annotation.anchorStatus === "detached") return annotation;
+        return annotations.updateAnchor(annotation, { anchorStatus: "detached" });
+      }
+
+      const nextChapterHref = result.chapterHref ?? annotation.chapterHref;
+      if (
+        annotation.anchorStatus !== "detached" &&
+        annotation.cfiRange === result.cfiRange &&
+        annotation.chapterHref === nextChapterHref
+      ) {
+        return annotation;
+      }
+      return annotations.updateAnchor(annotation, {
+        anchorStatus: undefined,
+        cfiRange: result.cfiRange,
+        ...(nextChapterHref ? { chapterHref: nextChapterHref } : {}),
+      });
+    },
+    [annotations],
+  );
+
+  const recoveredAnchorConflicts = useCallback(
+    (
+      annotation: Annotation,
+      result: Extract<ReaderAnnotationRecoveryResult, { kind: "resolved" }>,
+    ) => {
+      const activeOthers = annotations.annotations.filter(
+        (candidate) => candidate.id !== annotation.id && candidate.anchorStatus !== "detached",
+      );
+      if (annotation.type === "bookmark") {
+        return activeOthers.some(
+          (candidate) =>
+            candidate.type === "bookmark" && candidate.cfiRange?.trim() === result.cfiRange.trim(),
+        );
+      }
+      const activeHighlights = activeOthers.filter(
+        (candidate): candidate is HighlightAnnotation => candidate.type === "highlight",
+      );
+      return resolveHighlightSelection(result.cfiRange, activeHighlights).kind !== "new";
+    },
+    [annotations.annotations],
+  );
+
   const navigateToAnnotation = useCallback(
     async (annotation: Annotation) => {
-      const savedCfi = annotation.cfiRange?.trim();
-      const cfi =
-        annotation.type === "highlight" && savedCfi
-          ? highlightNavigationTarget(savedCfi)
-          : savedCfi;
       const session = annotationNavigationSession;
-      if (!cfi || !session.bookId) return false;
+      if (!session.bookId) return false;
+
+      const validation = await (viewerRef.current?.resolveAnnotationAnchor(annotation, false) ??
+        Promise.resolve<ReaderAnnotationRecoveryResult>({ kind: "failed" }));
+      if (
+        !mountedRef.current ||
+        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session) ||
+        validation.kind === "cancelled" ||
+        validation.kind === "failed"
+      ) {
+        return false;
+      }
+      if (validation.kind === "detached") {
+        await annotations.queueAnchorUpdate(
+          annotation,
+          { anchorStatus: "detached" },
+          `${annotation.cfiRange}\u0000navigation-validation`,
+        );
+        return false;
+      }
+
+      const persisted = await persistAnnotationAnchor(annotation, validation);
+      if (!persisted) return false;
+      const savedCfi = validation.cfiRange.trim();
+      const cfi = annotation.type === "highlight" ? highlightNavigationTarget(savedCfi) : savedCfi;
+      if (!cfi) return false;
 
       const requestId = ++annotationNavigationRequestRef.current;
       const startingLocationVersion = readerLocationVersionRef.current;
@@ -570,7 +651,47 @@ export function ReaderPage() {
       setCurrentAnnotationState(currentAnnotation);
       return true;
     },
-    [annotationNavigationSession],
+    [annotationNavigationSession, annotations, persistAnnotationAnchor],
+  );
+
+  const recoverAnnotationAnchor = useCallback(
+    async (annotation: Annotation): Promise<ReaderAnnotationRecoveryResult> => {
+      const session = annotationNavigationSession;
+      if (!session.bookId) return { kind: "failed" };
+      const result = await (viewerRef.current?.resolveAnnotationAnchor(annotation, true) ??
+        Promise.resolve<ReaderAnnotationRecoveryResult>({ kind: "failed" }));
+      if (
+        !mountedRef.current ||
+        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session)
+      ) {
+        return { kind: "cancelled" };
+      }
+      if (result.kind === "resolved" && recoveredAnchorConflicts(annotation, result)) {
+        return { kind: "detached", reason: "conflict" };
+      }
+      if (result.kind === "detached" || result.kind === "resolved") {
+        const persisted = await persistAnnotationAnchor(annotation, result);
+        return persisted ? result : { kind: "failed" };
+      }
+      return result;
+    },
+    [annotationNavigationSession, persistAnnotationAnchor, recoveredAnchorConflicts],
+  );
+
+  const handleInvalidHighlightAnchor = useCallback(
+    (annotationId: string, anchorSignature = annotationId) => {
+      const annotation = annotations.annotations.find(
+        (candidate) => candidate.id === annotationId && candidate.type === "highlight",
+      );
+      if (!annotation) return Promise.resolve(false);
+      if (annotation.anchorStatus === "detached") return Promise.resolve(true);
+      return annotations.queueAnchorUpdate(
+        annotation,
+        { anchorStatus: "detached" },
+        anchorSignature,
+      );
+    },
+    [annotations],
   );
 
   const publishNoteTarget = useCallback((target: ReaderNoteTarget) => {
@@ -1169,6 +1290,7 @@ export function ReaderPage() {
           highlights={highlights.highlights}
           initialCfi={readerSession.initialCfi}
           onError={handleViewerError}
+          onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
           onHighlightInteractionClear={highlights.clearInteractionFeedback}
           onHighlightInteractionError={highlights.reportInteractionFeedback}
           onInteraction={revealControls}
@@ -1231,6 +1353,7 @@ export function ReaderPage() {
             onClose={closeAnnotations}
             onEditNote={openAnnotationNote}
             onNavigate={navigateToAnnotation}
+            onRecover={recoverAnnotationAnchor}
             onRecolorHighlight={highlights.recolor}
             onReload={annotations.reload}
             onRemove={removeAnnotation}

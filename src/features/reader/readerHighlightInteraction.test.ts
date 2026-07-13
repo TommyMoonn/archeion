@@ -63,6 +63,18 @@ describe("resolveHighlightSelection", () => {
       kind: "blocked",
     });
   });
+
+  it("ignores detached highlights for exact, contained, and overlapping selections", () => {
+    const detached = { ...first, anchorStatus: "detached" } as const;
+
+    expect(resolveHighlightSelection(first.cfiRange, [detached])).toEqual({ kind: "new" });
+    expect(resolveHighlightSelection("epubcfi(/6/2!/4/2,/1:14,/1:20)", [detached])).toEqual({
+      kind: "new",
+    });
+    expect(resolveHighlightSelection("epubcfi(/6/2!/4/2,/1:25,/1:40)", [detached])).toEqual({
+      kind: "new",
+    });
+  });
 });
 
 function touchEvent(type: string, x: number, y: number): TouchEvent {

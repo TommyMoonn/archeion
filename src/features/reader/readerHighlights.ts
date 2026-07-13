@@ -32,7 +32,10 @@ export function readerHighlightStyles(color: unknown): Record<string, string> {
 export function readerHighlights(annotations: readonly Annotation[]): HighlightAnnotation[] {
   const ranges = new Set<string>();
   return annotations
-    .filter((annotation): annotation is HighlightAnnotation => annotation.type === "highlight")
+    .filter(
+      (annotation): annotation is HighlightAnnotation =>
+        annotation.type === "highlight" && annotation.anchorStatus !== "detached",
+    )
     .sort((left, right) => left.createdAt.localeCompare(right.createdAt))
     .filter((annotation) => {
       const range = annotation.cfiRange!.trim();

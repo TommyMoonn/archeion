@@ -217,6 +217,25 @@ describe("useReaderAnnotations", () => {
     expect(storage.restoreAnnotation).toHaveBeenCalledTimes(1);
   });
 
+  it("reattaches a detached bookmark at the current location instead of reporting a new record", async () => {
+    const detached = { ...bookmark("detached-bookmark"), anchorStatus: "detached" } as const;
+    const storage = createStorage([detached]);
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    const rendered = await renderHarness(storage, "book-1", apiRef);
+
+    expect(apiRef.current?.currentBookmark).toBeUndefined();
+    expect(apiRef.current?.detachedBookmarkAtCurrent?.id).toBe(detached.id);
+    await act(async () => actionButton(rendered, "Toggle").click());
+
+    expect(storage.createAnnotation).not.toHaveBeenCalled();
+    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", detached.id, {
+      anchorStatus: undefined,
+      chapterHref: undefined,
+    });
+    expect(text(rendered, "feedback")).toBe("Bookmark restored.");
+    expect(apiRef.current?.currentBookmark?.id).toBe(detached.id);
+  });
+
   it("preserves the complete removed bookmark when undoing", async () => {
     const original = {
       ...bookmark(),
@@ -376,6 +395,160 @@ describe("useReaderAnnotations", () => {
 
     expect(text(rendered, "ids")).toBe(bookB.id);
     expect(text(rendered, "labels")).toBe("Book B");
+    expect(text(rendered, "feedback")).toBe("");
+  });
+
+  it("prevents stale anchor recovery from modifying a different book session", async () => {
+    const update = deferred<Annotation | undefined>();
+    const bookA = highlightWithNote();
+    const bookB = bookmark("book-b-bookmark", "Book B");
+    const storage = {
+      listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
+      updateAnnotation: vi.fn(() => update.promise),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    const rendered = await renderHarness(storage, "book-a", apiRef);
+
+    let recovery: Promise<Annotation | undefined> | undefined;
+    act(() => {
+      recovery = apiRef.current?.updateAnchor(bookA, { anchorStatus: "detached" });
+    });
+    await rerenderHarness(storage, "book-b", apiRef);
+    await act(async () => update.resolve({ ...bookA, anchorStatus: "detached" }));
+
+    await expect(recovery).resolves.toBeUndefined();
+    expect(text(rendered, "ids")).toBe(bookB.id);
+    expect(text(rendered, "feedback")).toBe("");
+  });
+
+  it("persists every invalid highlight through the serialized background queue", async () => {
+    const first = highlightWithNote();
+    const second = { ...highlightWithNote(), id: "highlight-2" };
+    const storage = createStorage([first, second]);
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    await renderHarness(storage, "book-1", apiRef);
+
+    let results: boolean[] = [];
+    await act(async () => {
+      results = await Promise.all([
+        apiRef.current!.queueAnchorUpdate(first, { anchorStatus: "detached" }, "first-signature"),
+        apiRef.current!.queueAnchorUpdate(second, { anchorStatus: "detached" }, "second-signature"),
+      ]);
+    });
+
+    expect(results).toEqual([true, true]);
+    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(apiRef.current?.annotations).toEqual([
+      expect.objectContaining({ anchorStatus: "detached", id: first.id }),
+      expect.objectContaining({ anchorStatus: "detached", id: second.id }),
+    ]);
+    expect(apiRef.current?.busy).toBe(false);
+  });
+
+  it("waits for an interactive mutation before persisting a queued invalid anchor", async () => {
+    const labelSave = deferred<Annotation | undefined>();
+    const savedBookmark = bookmark("bookmark", "Original");
+    const invalid = highlightWithNote();
+    const storage = createStorage([savedBookmark, invalid]);
+    vi.mocked(storage.updateAnnotation)
+      .mockImplementationOnce(() => labelSave.promise)
+      .mockResolvedValueOnce({ ...invalid, anchorStatus: "detached" });
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    const rendered = await renderHarness(storage, "book-1", apiRef);
+
+    act(() => actionButton(rendered, "Update first").click());
+    let queued!: Promise<boolean>;
+    act(() => {
+      queued = apiRef.current!.queueAnchorUpdate(
+        invalid,
+        { anchorStatus: "detached" },
+        "invalid-during-label-save",
+      );
+    });
+    expect(storage.updateAnnotation).toHaveBeenCalledTimes(1);
+
+    await act(async () => labelSave.resolve({ ...savedBookmark, label: "Updated label" }));
+    await act(async () => {
+      await expect(queued).resolves.toBe(true);
+    });
+    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(apiRef.current?.annotations).toContainEqual(
+      expect.objectContaining({ anchorStatus: "detached", id: invalid.id }),
+    );
+  });
+
+  it("coalesces duplicate invalid signatures into one effective write", async () => {
+    const invalid = highlightWithNote();
+    const update = deferred<Annotation | undefined>();
+    const storage = createStorage([invalid]);
+    vi.mocked(storage.updateAnnotation).mockReturnValueOnce(update.promise);
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    await renderHarness(storage, "book-1", apiRef);
+
+    const first = apiRef.current!.queueAnchorUpdate(
+      invalid,
+      { anchorStatus: "detached" },
+      "same-signature",
+    );
+    const duplicate = apiRef.current!.queueAnchorUpdate(
+      invalid,
+      { anchorStatus: "detached" },
+      "same-signature",
+    );
+    expect(duplicate).toBe(first);
+    await act(async () => update.resolve({ ...invalid, anchorStatus: "detached" }));
+
+    await expect(first).resolves.toBe(true);
+    expect(storage.updateAnnotation).toHaveBeenCalledOnce();
+  });
+
+  it("keeps failed detached persistence visible and retryable", async () => {
+    const invalid = highlightWithNote();
+    const storage = createStorage([invalid]);
+    vi.mocked(storage.updateAnnotation)
+      .mockRejectedValueOnce(new Error("temporary write failure"))
+      .mockResolvedValueOnce({ ...invalid, anchorStatus: "detached" });
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    const rendered = await renderHarness(storage, "book-1", apiRef);
+
+    await act(async () => {
+      await expect(
+        apiRef.current!.queueAnchorUpdate(invalid, { anchorStatus: "detached" }, "retry-signature"),
+      ).resolves.toBe(false);
+    });
+    expect(text(rendered, "feedback")).toBe("The annotation location could not be updated.");
+
+    await act(async () => {
+      await expect(
+        apiRef.current!.queueAnchorUpdate(invalid, { anchorStatus: "detached" }, "retry-signature"),
+      ).resolves.toBe(true);
+    });
+    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(apiRef.current?.annotations[0]).toMatchObject({ anchorStatus: "detached" });
+  });
+
+  it("ignores a stale background detach completion after switching books", async () => {
+    const update = deferred<Annotation | undefined>();
+    const bookA = highlightWithNote();
+    const bookB = bookmark("book-b", "Book B");
+    const storage = {
+      listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
+      updateAnnotation: vi.fn(() => update.promise),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    const rendered = await renderHarness(storage, "book-a", apiRef);
+
+    const maintenance = apiRef.current!.queueAnchorUpdate(
+      bookA,
+      { anchorStatus: "detached" },
+      "stale-background-detach",
+    );
+    await rerenderHarness(storage, "book-b", apiRef);
+    await expect(maintenance).resolves.toBe(false);
+    await act(async () => update.resolve({ ...bookA, anchorStatus: "detached" }));
+
+    expect(text(rendered, "ids")).toBe(bookB.id);
+    expect(apiRef.current?.annotations).toEqual([bookB]);
     expect(text(rendered, "feedback")).toBe("");
   });
 

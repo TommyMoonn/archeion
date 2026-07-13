@@ -1,8 +1,10 @@
 export const ANNOTATION_TYPES = ["bookmark", "highlight"] as const;
 
 export type AnnotationType = (typeof ANNOTATION_TYPES)[number];
+export type AnnotationAnchorStatus = "detached";
 
 type AnnotationBase = {
+  anchorStatus?: AnnotationAnchorStatus;
   id: string;
   chapterHref?: string;
   createdAt: string;
@@ -63,12 +65,14 @@ export type CreateHighlightAnnotationInput = {
 export type CreateAnnotationInput = CreateBookmarkAnnotationInput | CreateHighlightAnnotationInput;
 
 export type UpdateBookmarkAnnotationInput = {
+  anchorStatus?: AnnotationAnchorStatus;
   cfiRange?: string;
   chapterHref?: string;
   label?: string;
 };
 
 export type UpdateHighlightAnnotationInput = {
+  anchorStatus?: AnnotationAnchorStatus;
   cfiRange?: string;
   chapterHref?: string;
   selectedText?: string;

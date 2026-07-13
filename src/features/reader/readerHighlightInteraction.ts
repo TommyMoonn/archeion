@@ -246,12 +246,13 @@ export function resolveHighlightSelection(
   highlights: readonly HighlightAnnotation[],
 ): HighlightSelectionResolution {
   const normalizedRange = cfiRange.trim();
-  const exact = highlights.find((highlight) => highlight.cfiRange.trim() === normalizedRange);
+  const activeHighlights = highlights.filter((highlight) => highlight.anchorStatus !== "detached");
+  const exact = activeHighlights.find((highlight) => highlight.cfiRange.trim() === normalizedRange);
   if (exact) return { highlight: exact, kind: "existing" };
 
   try {
     const selection = cfiInterval(normalizedRange);
-    const overlapping = highlights.filter((highlight) =>
+    const overlapping = activeHighlights.filter((highlight) =>
       overlaps(selection, cfiInterval(highlight.cfiRange)),
     );
     if (overlapping.length === 0) return { kind: "new" };

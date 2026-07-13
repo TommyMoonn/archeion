@@ -42,4 +42,14 @@ describe("readerHighlights", () => {
       "pointer-events": "none",
     });
   });
+
+  it("excludes detached ranges before deduplicating active rendered highlights", () => {
+    const stale = {
+      ...highlight("stale", "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)", "2025-01-01T00:00:00Z"),
+      anchorStatus: "detached",
+    } as const;
+    const active = highlight("active", stale.cfiRange, "2026-01-01T00:00:00Z");
+
+    expect(readerHighlights([stale, active])).toEqual([active]);
+  });
 });

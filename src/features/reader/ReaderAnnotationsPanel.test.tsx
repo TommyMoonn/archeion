@@ -47,6 +47,10 @@ const unrelatedHighlight: Annotation = {
   note: undefined,
   selectedText: "A different passage",
 };
+const detachedHighlight: Annotation = {
+  ...highlight,
+  anchorStatus: "detached",
+};
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -117,6 +121,7 @@ function defaultProps(
     onEditNote: vi.fn(async () => true),
     onNavigate: vi.fn(async () => true),
     onRecolorHighlight: vi.fn(async () => true),
+    onRecover: vi.fn(async () => ({ kind: "detached", reason: "not-found" }) as const),
     onReload: vi.fn(async () => true),
     onRemove: vi.fn(async () => true),
     onUpdateBookmarkLabel: vi.fn(async () => true),
@@ -528,6 +533,124 @@ describe("ReaderAnnotationsPanel", () => {
     expect(outsideAction).toHaveBeenCalledTimes(1);
     expect(document.activeElement).toBe(trigger);
     expect(props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("keeps detached highlight content visible and exposes recovery, copy, and removal", () => {
+    const rendered = renderPanel({
+      annotations: [detachedHighlight],
+      currentAnnotationId: detachedHighlight.id,
+      currentCfi: detachedHighlight.cfiRange,
+    });
+
+    expect(rendered.container.textContent).toContain("Detached");
+    expect(rendered.container.textContent).toContain(detachedHighlight.selectedText);
+    expect(rendered.container.textContent).toContain(detachedHighlight.note);
+    expect(rendered.container.textContent).toContain("Chapter Two");
+    expect(
+      rendered.container.querySelector(".reader-annotations__item")?.hasAttribute("data-current"),
+    ).toBe(false);
+    expect(
+      rendered.container.querySelector(".reader-annotations__target")?.hasAttribute("aria-current"),
+    ).toBe(false);
+
+    act(() => button(rendered.container, "Actions for Highlight").click());
+
+    expect(textButton(rendered.container, "Go to location").disabled).toBe(true);
+    expect(textButton(rendered.container, "Attempt to locate")).toBeInstanceOf(HTMLButtonElement);
+    expect(textButton(rendered.container, "Copy annotation")).toBeInstanceOf(HTMLButtonElement);
+    expect(textButton(rendered.container, "Remove highlight")).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it("recovers the same detached row and restores focus after bounded async work", async () => {
+    const recovery =
+      deferred<Awaited<ReturnType<ComponentProps<typeof ReaderAnnotationsPanel>["onRecover"]>>>();
+
+    function RecoverablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([detachedHighlight]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRecover={async (annotation) => {
+            const result = await recovery.promise;
+            if (result.kind === "resolved") {
+              setAnnotations((current) =>
+                current.map((candidate) =>
+                  candidate.id === annotation.id
+                    ? {
+                        ...candidate,
+                        anchorStatus: undefined,
+                        cfiRange: result.cfiRange,
+                        chapterHref: result.chapterHref ?? candidate.chapterHref,
+                      }
+                    : candidate,
+                ),
+              );
+            }
+            return result;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RecoverablePanel />);
+    const trigger = button(target, "Actions for Highlight");
+    act(() => trigger.click());
+    act(() => textButton(target, "Attempt to locate").click());
+    expect(target.textContent).toContain("Trying saved location and text context");
+
+    await act(async () =>
+      recovery.resolve({
+        chapterHref: "Text/chapter-2.xhtml",
+        cfiRange: "epubcfi(/6/8!/4/2,/1:2,/1:20)",
+        kind: "resolved",
+        strategy: "context-text",
+      }),
+    );
+
+    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(1);
+    expect(target.textContent).not.toContain("Detached");
+    expect(target.textContent).toContain("Location recovered.");
+    expect(document.activeElement).toBe(button(target, "Actions for Highlight"));
+  });
+
+  it("keeps low-confidence recovery detached and retryable", async () => {
+    const onRecover = vi.fn(async () => ({ kind: "detached", reason: "ambiguous" }) as const);
+    const rendered = renderPanel({ annotations: [detachedHighlight], onRecover });
+
+    act(() => button(rendered.container, "Actions for Highlight").click());
+    await act(async () => textButton(rendered.container, "Attempt to locate").click());
+
+    expect(rendered.container.textContent).toContain("No safe location was found");
+    expect(rendered.container.textContent).toContain("Detached");
+    act(() => button(rendered.container, "Actions for Highlight").click());
+    expect(textButton(rendered.container, "Attempt to locate")).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it("copies a detached annotation without removing its authored content", async () => {
+    const originalClipboard = navigator.clipboard;
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    const rendered = renderPanel({ annotations: [detachedHighlight] });
+
+    act(() => button(rendered.container, "Actions for Highlight").click());
+    await act(async () => textButton(rendered.container, "Copy annotation").click());
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Status: Detached"));
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining(`Quote: ${detachedHighlight.selectedText}`),
+    );
+    expect(writeText).toHaveBeenCalledWith(
+      expect.stringContaining(`Note: ${detachedHighlight.note}`),
+    );
+    expect(rendered.container.textContent).toContain("Annotation copied.");
+    expect(rendered.container.textContent).toContain(detachedHighlight.selectedText);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: originalClipboard,
+    });
   });
 
   it("restores focus to a surviving annotation row after removal", async () => {

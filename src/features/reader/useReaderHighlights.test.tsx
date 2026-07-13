@@ -56,7 +56,12 @@ function Harness({
       <button
         onClick={() =>
           void highlights.create(
-            { cfiRange: "epubcfi(/6/4!/4/2,/1:1,/1:8)", selectedText: "New quote" },
+            {
+              cfiRange: "epubcfi(/6/4!/4/2,/1:1,/1:8)",
+              contextAfter: "After the quote",
+              contextBefore: "Before the quote",
+              selectedText: "New quote",
+            },
             "green",
           )
         }
@@ -175,6 +180,15 @@ describe("useReaderHighlights", () => {
       1,
       expect.objectContaining({ id: "highlight-2", color: "green" }),
     );
+    expect(storage.createAnnotation).toHaveBeenCalledWith("book-1", {
+      cfiRange: "epubcfi(/6/4!/4/2,/1:1,/1:8)",
+      chapterHref: undefined,
+      color: "green",
+      contextAfter: "After the quote",
+      contextBefore: "Before the quote",
+      selectedText: "New quote",
+      type: "highlight",
+    });
     expect(rendered.onChange).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({ id: "highlight-1", color: "blue" }),

@@ -13,6 +13,8 @@ import { resolveHighlightSelection } from "./readerHighlightInteraction";
 type HighlightSelection = {
   cfiRange: string;
   chapterHref?: string;
+  contextAfter?: string;
+  contextBefore?: string;
   selectedText: string;
 };
 
@@ -91,6 +93,8 @@ export function useReaderHighlights({
             type: "highlight",
             cfiRange: selection.cfiRange,
             chapterHref: selection.chapterHref,
+            ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
+            ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
             selectedText,
             color,
           });
@@ -136,6 +140,8 @@ export function useReaderHighlights({
           type: "highlight",
           cfiRange: selection.cfiRange,
           chapterHref: selection.chapterHref,
+          ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
+          ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
           selectedText,
           color: "yellow",
         });

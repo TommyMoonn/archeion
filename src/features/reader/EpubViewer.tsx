@@ -11,10 +11,11 @@ import {
   type CSSProperties,
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
+import type EpubSection from "epubjs/types/section";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
 
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
-import type { HighlightAnnotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import {
   canRunReaderWheelTurn,
   getReaderWheelDelta,
@@ -52,17 +53,39 @@ import {
   type ClientRect,
   type HighlightPaletteAnchor,
 } from "./readerHighlightPaletteAnchor";
+import {
+  READER_ANNOTATION_RECOVERY_CHAPTER_LIMIT,
+  highlightHasRecoveryContext,
+  highlightRecoveryCandidates,
+  normalizeRecoveryText,
+  readerSelectionContext,
+  recoverBookmarkChapterAnchor,
+  recoveryRangeMatches,
+  resolveContextHighlightCandidates,
+  resolvePreferredHighlightCandidates,
+  type ReaderAnnotationRecoveryResult,
+  type ReaderHighlightRecoveryCandidate,
+} from "./readerAnnotationRecovery";
+import { ReaderAnnotationSectionLifecycle } from "./readerAnnotationSectionLifecycle";
+import { highlightNavigationTarget } from "./readerAnnotationNavigation";
+import { normalizeReaderChapterHref } from "./readerAnnotations";
 
 export type EpubViewerHandle = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   next: () => Promise<void>;
   previous: () => Promise<void>;
+  resolveAnnotationAnchor: (
+    annotation: Annotation,
+    attemptRecovery: boolean,
+  ) => Promise<ReaderAnnotationRecoveryResult>;
 };
 
 export type ReaderTextSelection = {
   cfiRange: string;
   chapterHref?: string;
+  contextAfter?: string;
+  contextBefore?: string;
   selectedText: string;
 };
 
@@ -73,6 +96,7 @@ type EpubViewerProps = {
   onError: (message: string) => void;
   onHighlightInteractionClear?: () => void;
   onHighlightInteractionError?: (message: string) => void;
+  onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
@@ -93,6 +117,7 @@ type EpubViewerCallbacks = Pick<
   | "onError"
   | "onHighlightInteractionClear"
   | "onHighlightInteractionError"
+  | "onHighlightAnchorInvalid"
   | "onInteraction"
   | "onKeyDown"
   | "onLocationChange"
@@ -161,12 +186,71 @@ function renditionTargetIsUsable(
   }
 }
 
+function bookSpineSections(book: EpubBook): EpubSection[] {
+  const sections: EpubSection[] = [];
+  book.spine.each((section: EpubSection) => {
+    sections.push(section);
+  });
+  return sections;
+}
+
+function sectionForHref(book: EpubBook, href: string | undefined): EpubSection | undefined {
+  if (!href?.trim()) return undefined;
+  const target = normalizeReaderChapterHref(href, false);
+  return bookSpineSections(book).find(
+    (section) => normalizeReaderChapterHref(section.href, false) === target,
+  );
+}
+
+async function validateExactAnnotationAnchor(
+  lifecycle: ReaderAnnotationSectionLifecycle,
+  book: EpubBook,
+  rendition: Rendition | null,
+  annotation: Annotation,
+  signal?: AbortSignal,
+): Promise<ReaderAnnotationRecoveryResult> {
+  const savedCfi = annotation.cfiRange?.trim();
+  if (!savedCfi) return { kind: "detached", reason: "not-found" };
+  let section: EpubSection | null;
+  try {
+    section = book.spine.get(savedCfi);
+  } catch {
+    return { kind: "detached", reason: "not-found" };
+  }
+  if (!section) return { kind: "detached", reason: "not-found" };
+
+  try {
+    const validation = await lifecycle.run(book, rendition, section, signal, async () => {
+      try {
+        const range = await book.getRange(savedCfi);
+        return (
+          annotation.type === "bookmark" || recoveryRangeMatches(range, annotation.selectedText)
+        );
+      } catch {
+        return false;
+      }
+    });
+    if (validation.kind === "cancelled") return validation;
+    return validation.value
+      ? {
+          chapterHref: annotation.chapterHref,
+          cfiRange: savedCfi,
+          kind: "resolved",
+          strategy: "exact-cfi",
+        }
+      : { kind: "detached", reason: "not-found" };
+  } catch {
+    return signal?.aborted ? { kind: "cancelled" } : { kind: "failed" };
+  }
+}
+
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
     fileBlob,
     highlights = [],
     initialCfi,
     onError,
+    onHighlightAnchorInvalid,
     onHighlightInteractionClear,
     onHighlightInteractionError,
     onInteraction,
@@ -188,6 +272,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const contentCleanupRef = useRef(new Map<Document, () => void>());
   const callbacksRef = useRef<EpubViewerCallbacks>({
     onError,
+    onHighlightAnchorInvalid,
     onHighlightInteractionClear,
     onHighlightInteractionError,
     onInteraction,
@@ -197,6 +282,15 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onReady,
   });
   const renditionRef = useRef<Rendition | null>(null);
+  const bookRef = useRef<EpubBook | null>(null);
+  const sectionLifecycleRef = useRef(new ReaderAnnotationSectionLifecycle());
+  const recoveryControllerRef = useRef<AbortController | null>(null);
+  const reportedInvalidHighlightsRef = useRef(new Map<string, string>());
+  const pendingInvalidHighlightReportsRef = useRef(new Map<string, string>());
+  const validatedHighlightAnchorsRef = useRef(new Map<string, string>());
+  const pendingHighlightValidationsRef = useRef(new Map<string, string>());
+  const highlightValidationGenerationRef = useRef(0);
+  const reconcileHighlightsRef = useRef<() => void>(() => undefined);
   const highlightsRef = useRef(highlights);
   const interactionFeedbackDocumentRef = useRef<Document | null>(null);
   const renderedHighlightsRef = useRef(
@@ -237,6 +331,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   callbacksRef.current = {
     onError,
+    onHighlightAnchorInvalid,
     onHighlightInteractionClear,
     onHighlightInteractionError,
     onInteraction,
@@ -302,6 +397,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           selection: {
             cfiRange: highlight.cfiRange,
             chapterHref: highlight.chapterHref,
+            contextAfter: highlight.contextAfter,
+            contextBefore: highlight.contextBefore,
             selectedText: highlight.selectedText,
           },
         });
@@ -399,16 +496,129 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     };
   }, [dismissHighlightMenu, highlightMenuAnchor, pruneDisconnectedContent]);
 
+  const reportInvalidHighlight = useCallback((annotationId: string, anchorSignature: string) => {
+    if (
+      reportedInvalidHighlightsRef.current.get(annotationId) === anchorSignature ||
+      pendingInvalidHighlightReportsRef.current.get(annotationId) === anchorSignature
+    ) {
+      return;
+    }
+    const acknowledge = callbacksRef.current.onHighlightAnchorInvalid;
+    if (!acknowledge) return;
+
+    pendingInvalidHighlightReportsRef.current.set(annotationId, anchorSignature);
+    let acknowledgement: Promise<boolean>;
+    try {
+      acknowledgement = acknowledge(annotationId, anchorSignature);
+    } catch {
+      pendingInvalidHighlightReportsRef.current.delete(annotationId);
+      return;
+    }
+    void Promise.resolve(acknowledgement)
+      .then((persisted) => {
+        if (
+          persisted &&
+          pendingInvalidHighlightReportsRef.current.get(annotationId) === anchorSignature
+        ) {
+          reportedInvalidHighlightsRef.current.set(annotationId, anchorSignature);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (pendingInvalidHighlightReportsRef.current.get(annotationId) === anchorSignature) {
+          pendingInvalidHighlightReportsRef.current.delete(annotationId);
+        }
+      });
+  }, []);
+
   const reconcileHighlights = useCallback(() => {
     const rendition = renditionRef.current;
-    if (!rendition) return;
+    const book = bookRef.current;
+    if (!rendition || !book) return;
     const desired = new Map<
       string,
       { annotation: HighlightAnnotation; color: ReaderHighlightColor }
     >();
+    const currentIds = new Set(highlightsRef.current.map(({ id }) => id));
+    for (const annotationId of validatedHighlightAnchorsRef.current.keys()) {
+      if (!currentIds.has(annotationId)) validatedHighlightAnchorsRef.current.delete(annotationId);
+    }
+    for (const annotationId of pendingHighlightValidationsRef.current.keys()) {
+      if (!currentIds.has(annotationId))
+        pendingHighlightValidationsRef.current.delete(annotationId);
+    }
+    for (const annotationId of reportedInvalidHighlightsRef.current.keys()) {
+      if (!currentIds.has(annotationId)) reportedInvalidHighlightsRef.current.delete(annotationId);
+    }
+    for (const annotationId of pendingInvalidHighlightReportsRef.current.keys()) {
+      if (!currentIds.has(annotationId))
+        pendingInvalidHighlightReportsRef.current.delete(annotationId);
+    }
     for (const highlight of highlightsRef.current) {
+      if (highlight.anchorStatus === "detached") {
+        validatedHighlightAnchorsRef.current.delete(highlight.id);
+        pendingHighlightValidationsRef.current.delete(highlight.id);
+        reportedInvalidHighlightsRef.current.delete(highlight.id);
+        pendingInvalidHighlightReportsRef.current.delete(highlight.id);
+        continue;
+      }
       const range = highlight.cfiRange?.trim();
       if (!range || desired.has(range)) continue;
+      if (!highlightNavigationTarget(range)) {
+        reportInvalidHighlight(highlight.id, `${range}\u0000invalid-cfi`);
+        continue;
+      }
+      const anchorSignature = `${range}\u0000${normalizeRecoveryText(highlight.selectedText)}`;
+      if (validatedHighlightAnchorsRef.current.get(highlight.id) !== anchorSignature) {
+        if (pendingHighlightValidationsRef.current.get(highlight.id) !== anchorSignature) {
+          pendingHighlightValidationsRef.current.set(highlight.id, anchorSignature);
+          const generation = highlightValidationGenerationRef.current;
+          void validateExactAnnotationAnchor(
+            sectionLifecycleRef.current,
+            book,
+            rendition,
+            highlight,
+          )
+            .then((result) => {
+              if (
+                generation !== highlightValidationGenerationRef.current ||
+                bookRef.current !== book ||
+                renditionRef.current !== rendition
+              ) {
+                return;
+              }
+              const current = highlightsRef.current.find(
+                (candidate) =>
+                  candidate.id === highlight.id &&
+                  candidate.anchorStatus !== "detached" &&
+                  `${candidate.cfiRange.trim()}\u0000${normalizeRecoveryText(candidate.selectedText)}` ===
+                    anchorSignature,
+              );
+              if (!current) return;
+              if (result.kind === "resolved") {
+                validatedHighlightAnchorsRef.current.set(current.id, anchorSignature);
+                reportedInvalidHighlightsRef.current.delete(current.id);
+              } else if (result.kind === "detached") {
+                reportInvalidHighlight(current.id, anchorSignature);
+              }
+            })
+            .finally(() => {
+              if (pendingHighlightValidationsRef.current.get(highlight.id) === anchorSignature) {
+                pendingHighlightValidationsRef.current.delete(highlight.id);
+              }
+              if (
+                generation === highlightValidationGenerationRef.current &&
+                bookRef.current === book &&
+                renditionRef.current === rendition &&
+                validatedHighlightAnchorsRef.current.get(highlight.id) === anchorSignature
+              ) {
+                reconcileHighlightsRef.current();
+              }
+            });
+        }
+        continue;
+      }
+      reportedInvalidHighlightsRef.current.delete(highlight.id);
       desired.set(range, {
         annotation: highlight,
         color: normalizeReaderHighlightColor(highlight.color),
@@ -435,21 +645,27 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         continue;
       }
       const token = { active: true };
-      rendition.annotations.highlight(
-        range,
-        { annotationId: highlight.id },
-        (event: Event) => {
-          const current = renderedHighlightsRef.current.get(range);
-          if (!token.active || current?.token !== token) return;
-          highlightGestures.handle(highlight.id, event);
-        },
-        "archeion-highlight",
-        readerHighlightStyles(color),
-      );
-      nextRendered.set(range, { annotationId: highlight.id, color, token });
+      try {
+        rendition.annotations.highlight(
+          range,
+          { annotationId: highlight.id },
+          (event: Event) => {
+            const current = renderedHighlightsRef.current.get(range);
+            if (!token.active || current?.token !== token) return;
+            highlightGestures.handle(highlight.id, event);
+          },
+          "archeion-highlight",
+          readerHighlightStyles(color),
+        );
+        nextRendered.set(range, { annotationId: highlight.id, color, token });
+      } catch {
+        token.active = false;
+        reportInvalidHighlight(highlight.id, `${range}\u0000render-failed`);
+      }
     }
     renderedHighlightsRef.current = nextRendered;
-  }, [highlightGestures]);
+  }, [highlightGestures, reportInvalidHighlight]);
+  reconcileHighlightsRef.current = reconcileHighlights;
 
   const runPageTurn = useCallback(async (intent: ReaderNavigationIntent) => {
     const rendition = renditionRef.current;
@@ -585,6 +801,115 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [clearHighlightInteractionFeedback, reconcileHighlights],
   );
 
+  const resolveAnnotationAnchor = useCallback(
+    async (
+      annotation: Annotation,
+      attemptRecovery: boolean,
+    ): Promise<ReaderAnnotationRecoveryResult> => {
+      const book = bookRef.current;
+      if (!book) return { kind: "failed" };
+
+      recoveryControllerRef.current?.abort();
+      const controller = new AbortController();
+      recoveryControllerRef.current = controller;
+      const { signal } = controller;
+      const ownsRecovery = () => !signal.aborted && bookRef.current === book;
+
+      try {
+        const exact = await validateExactAnnotationAnchor(
+          sectionLifecycleRef.current,
+          book,
+          renditionRef.current,
+          annotation,
+          signal,
+        );
+        if (!ownsRecovery() || exact.kind === "cancelled") return { kind: "cancelled" };
+        if (exact.kind === "resolved" || exact.kind === "failed") return exact;
+
+        if (!attemptRecovery) return { kind: "detached", reason: "not-found" };
+
+        const preferred = sectionForHref(book, annotation.chapterHref);
+        if (annotation.type === "bookmark") {
+          if (!preferred) return { kind: "detached", reason: "chapter-missing" };
+          try {
+            const recovered = await sectionLifecycleRef.current.run(
+              book,
+              renditionRef.current,
+              preferred,
+              signal,
+              (loaded) => recoverBookmarkChapterAnchor(annotation, loaded),
+            );
+            return recovered.kind === "cancelled" ? recovered : recovered.value;
+          } catch {
+            return ownsRecovery() ? { kind: "failed" } : { kind: "cancelled" };
+          }
+        }
+
+        const sections = bookSpineSections(book);
+        const candidates: ReaderHighlightRecoveryCandidate[] = [];
+        if (preferred) {
+          try {
+            const evaluated = await sectionLifecycleRef.current.run(
+              book,
+              renditionRef.current,
+              preferred,
+              signal,
+              (loaded) => highlightRecoveryCandidates(annotation, loaded, signal),
+            );
+            if (evaluated.kind === "cancelled") return evaluated;
+            candidates.push(...evaluated.value);
+            const preferredResult = resolvePreferredHighlightCandidates(evaluated.value);
+            if (preferredResult) return preferredResult;
+          } catch {
+            return ownsRecovery() ? { kind: "failed" } : { kind: "cancelled" };
+          }
+        }
+
+        if (!ownsRecovery()) return { kind: "cancelled" };
+        if (!highlightHasRecoveryContext(annotation)) {
+          return {
+            kind: "detached",
+            reason: candidates.length > 1 ? "ambiguous" : "not-found",
+          };
+        }
+
+        const fallback = sections
+          .filter((section) => section !== preferred)
+          .slice(0, READER_ANNOTATION_RECOVERY_CHAPTER_LIMIT);
+        for (const section of fallback) {
+          if (!ownsRecovery()) return { kind: "cancelled" };
+          try {
+            const evaluated = await sectionLifecycleRef.current.run(
+              book,
+              renditionRef.current,
+              section,
+              signal,
+              (loaded) => highlightRecoveryCandidates(annotation, loaded, signal),
+            );
+            if (evaluated.kind === "cancelled") return evaluated;
+            candidates.push(...evaluated.value);
+          } catch {
+            return ownsRecovery() ? { kind: "failed" } : { kind: "cancelled" };
+          }
+        }
+        if (!ownsRecovery()) return { kind: "cancelled" };
+        const contextResult = resolveContextHighlightCandidates(candidates);
+        if (contextResult) return contextResult;
+        return {
+          kind: "detached",
+          reason: candidates.length > 0 ? "ambiguous" : "not-found",
+        };
+      } catch {
+        return ownsRecovery() ? { kind: "failed" } : { kind: "cancelled" };
+      } finally {
+        if (recoveryControllerRef.current === controller) {
+          recoveryControllerRef.current = null;
+        }
+      }
+    },
+    [],
+  );
+
   useImperativeHandle(
     ref,
     () => ({
@@ -592,8 +917,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateToLocation,
       next: () => runPageTurn("forward"),
       previous: () => runPageTurn("backward"),
+      resolveAnnotationAnchor,
     }),
-    [navigateToChapter, navigateToLocation, runPageTurn],
+    [navigateToChapter, navigateToLocation, resolveAnnotationAnchor, runPageTurn],
   );
 
   useEffect(() => {
@@ -620,6 +946,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     let epubBook: EpubBook | null = null;
     let rendition: Rendition | null = null;
     let cancelDeferredNavigation: () => void = () => undefined;
+    const sectionLifecycle = sectionLifecycleRef.current;
+    const reportedInvalidHighlights = reportedInvalidHighlightsRef.current;
+    const pendingInvalidHighlightReports = pendingInvalidHighlightReportsRef.current;
+    const validatedHighlightAnchors = validatedHighlightAnchorsRef.current;
+    const pendingHighlightValidations = pendingHighlightValidationsRef.current;
     const displayCfi =
       canonicalCfiFileRef.current === fileBlob ? canonicalCfiRef.current : initialCfi;
     canonicalCfiFileRef.current = fileBlob;
@@ -774,6 +1105,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           return;
         }
 
+        bookRef.current = epubBook;
+
         rendition = epubBook.renderTo(containerRef.current, {
           width: "100%",
           height: "100%",
@@ -812,6 +1145,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           deferNavigationLoad(epubBook);
         }
       } catch {
+        if (bookRef.current === epubBook) bookRef.current = null;
         epubBook?.destroy();
         epubBook = null;
 
@@ -858,11 +1192,17 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         return;
       }
       clearHighlightInteractionFeedback(sourceDocument);
+      const context = readerSelectionContext(range);
       setHighlightMenu({
         anchor,
         anchorRect,
         existingHighlight: resolution.kind === "existing" ? resolution.highlight : undefined,
-        selection: { cfiRange, chapterHref: contents.section?.href, selectedText },
+        selection: {
+          cfiRange,
+          chapterHref: contents.section?.href,
+          ...context,
+          selectedText,
+        },
       });
       callbacksRef.current.onInteraction();
     }
@@ -883,6 +1223,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
     return () => {
       cancelled = true;
+      highlightValidationGenerationRef.current += 1;
+      sectionLifecycle.invalidate();
+      if (sectionLifecycleRef.current === sectionLifecycle) {
+        sectionLifecycleRef.current = new ReaderAnnotationSectionLifecycle();
+      }
+      recoveryControllerRef.current?.abort();
+      recoveryControllerRef.current = null;
       cancelDeferredNavigation();
       dismissHighlightMenu(false);
       clearHighlightInteractionFeedback();
@@ -895,11 +1242,16 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
 
       renditionRef.current = null;
+      if (bookRef.current === epubBook) bookRef.current = null;
       for (const rendered of renderedHighlightsRef.current.values()) {
         rendered.token.active = false;
       }
       highlightGestures.cancelAll();
       renderedHighlightsRef.current.clear();
+      reportedInvalidHighlights.clear();
+      pendingInvalidHighlightReports.clear();
+      validatedHighlightAnchors.clear();
+      pendingHighlightValidations.clear();
       isNavigatingToChapterRef.current = false;
       epubBook?.destroy();
     };
@@ -1092,6 +1444,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.onError === next.onError &&
+    previous.onHighlightAnchorInvalid === next.onHighlightAnchorInvalid &&
     previous.onHighlightInteractionClear === next.onHighlightInteractionClear &&
     previous.onHighlightInteractionError === next.onHighlightInteractionError &&
     previous.onInteraction === next.onInteraction &&

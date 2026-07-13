@@ -104,6 +104,12 @@ const OPTIONAL_TRIMMED_TEXT_FIELDS = [
 
 function normalizeOptionalTextFields<T extends Record<string, unknown>>(value: T): T {
   const next: Record<string, unknown> = { ...value };
+  if (
+    Object.prototype.hasOwnProperty.call(next, "anchorStatus") &&
+    next.anchorStatus === undefined
+  ) {
+    delete next.anchorStatus;
+  }
   for (const key of OPTIONAL_TRIMMED_TEXT_FIELDS) {
     const candidate = next[key];
     if (typeof candidate !== "string") {

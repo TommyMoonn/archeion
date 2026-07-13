@@ -110,6 +110,21 @@ describe("annotationsMetadata", () => {
     ).not.toHaveProperty("note");
   });
 
+  it("normalizes the durable detached anchor marker and rejects unknown states", () => {
+    expect(
+      normalizeAnnotationsMetadata(
+        metadataWithAnnotation({ anchorStatus: "detached", type: "highlight" }),
+      ),
+    ).toMatchObject({
+      books: { "book-1": { annotations: [{ anchorStatus: "detached" }] } },
+    });
+    expect(() =>
+      normalizeAnnotationsMetadata(
+        metadataWithAnnotation({ anchorStatus: "recovering", type: "highlight" }),
+      ),
+    ).toThrow("anchorStatus for annotation 1");
+  });
+
   it("migrates an unversioned repository to version one", () => {
     expect(normalizeAnnotationsMetadata({ books: {} })).toEqual({ version: 1, books: {} });
     expect(normalizeAnnotationsMetadata({ version: 0, books: {} })).toEqual({
