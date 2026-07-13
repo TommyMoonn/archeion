@@ -135,11 +135,13 @@ function MainWindowApp() {
         .then((resumed) => {
           if (cancelled) return;
 
-          setStartupState(
-            resumed
-              ? { status: "app" }
-              : { message: "Archeion could not open the selected archive.", status: "error" },
-          );
+          setStartupState((current) => {
+            if (resumed) return { status: "app" };
+            if (current.status === "app" && archiveStore.getSnapshot().status === "ready") {
+              return current;
+            }
+            return { message: "Archeion could not open the selected archive.", status: "error" };
+          });
         })
         .catch((error) => {
           console.error("Archive Manager startup completion failed", error);

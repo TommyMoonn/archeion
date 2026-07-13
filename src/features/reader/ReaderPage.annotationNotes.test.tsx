@@ -9,6 +9,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { Book } from "../../types/book";
+import { archiveStore, type ArchiveTransitionGuard } from "../../stores/archiveStore";
 import { ReaderRoute } from "./ReaderPage";
 
 type TextSelection = {
@@ -227,9 +228,17 @@ async function flush(): Promise<void> {
   });
 }
 
-async function renderReader(harness: StorageHarness, initialBookId = "book-1") {
+async function renderReader(
+  harness: StorageHarness,
+  initialBookId = "book-1",
+  historyEntries: string[] = [`/reader/${initialBookId}`],
+) {
   const router = createMemoryRouter(
     [
+      {
+        path: "/",
+        element: <div data-testid="library-route" />,
+      },
       {
         HydrateFallback: () => null,
         path: "/reader/:bookId",
@@ -237,7 +246,7 @@ async function renderReader(harness: StorageHarness, initialBookId = "book-1") {
         loader: ({ params }) => books[params.bookId ?? ""],
       },
     ],
-    { initialEntries: [`/reader/${initialBookId}`] },
+    { initialEntries: historyEntries, initialIndex: historyEntries.length - 1 },
   );
   container = document.createElement("div");
   document.body.append(container);
@@ -278,6 +287,15 @@ async function waitForEditorToClose(): Promise<void> {
     await flush();
   }
   throw new Error("The note editor did not close.");
+}
+
+async function waitForElement<T extends Element>(selector: string): Promise<T> {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const match = container?.querySelector<T>(selector);
+    if (match) return match;
+    await flush();
+  }
+  throw new Error(`Element ${selector} was not rendered.`);
 }
 
 function invokeNoteAction(selection: TextSelection, existingHighlight?: HighlightAnnotation): void {
@@ -323,7 +341,7 @@ function button(label: string): HTMLButtonElement {
 
 async function closeEditor(): Promise<void> {
   await act(async () => {
-    button("Close note").click();
+    button("Back to annotations").click();
     await Promise.resolve();
   });
   await waitForEditorToClose();
@@ -353,6 +371,28 @@ async function switchBook(
   throw new Error(`Reader did not switch to ${bookId}.`);
 }
 
+function requestNavigation(
+  router: ReturnType<typeof createMemoryRouter>,
+  to: string | number,
+): Promise<void> {
+  let navigation: Promise<void> | undefined;
+  act(() => {
+    navigation = typeof to === "number" ? router.navigate(to) : router.navigate(to);
+  });
+  return navigation!;
+}
+
+async function waitForRoute(
+  router: ReturnType<typeof createMemoryRouter>,
+  pathname: string,
+): Promise<void> {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    if (router.state.location.pathname === pathname) return;
+    await flush();
+  }
+  throw new Error(`Expected reader route ${pathname}.`);
+}
+
 beforeEach(() => {
   viewerControl.paletteOpen = false;
   viewerControl.props = null;
@@ -372,6 +412,240 @@ afterEach(() => {
 });
 
 describe("ReaderPage annotation notes", () => {
+  it("replaces the annotation browser with its note subview and restores panel state and row focus", async () => {
+    const existing = highlight("surface-state", { note: "Existing note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const search = await waitForElement<HTMLInputElement>(
+      'aside[aria-label="Annotations"] input[type="search"]',
+    );
+    const panel = search.closest<HTMLElement>('aside[aria-label="Annotations"]')!;
+    const panelBody = panel.querySelector<HTMLElement>(".reader-annotations__body")!;
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(search, "Passage");
+      search.dispatchEvent(new Event("input", { bubbles: true }));
+      panelBody.scrollTop = 72;
+      button("Actions for Highlight").click();
+    });
+    act(() => button("Edit note").click());
+
+    const editor = await waitForEditor();
+    expect(panel.hidden).toBe(true);
+    expect(editor.classList.contains("reader-annotations")).toBe(true);
+    expect(container?.querySelectorAll("#reader-annotations")).toHaveLength(1);
+
+    setTextareaValue(editor, "Updated while preserving state");
+    act(() => {
+      button("Table of contents").click();
+      button("Back to annotations").click();
+    });
+    await flush();
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    await act(async () =>
+      pendingSave.resolve({ ...existing, note: "Updated while preserving state" }),
+    );
+    await waitForEditorToClose();
+
+    expect(panel.hidden).toBe(false);
+    expect(search.value).toBe("Passage");
+    expect(panelBody.scrollTop).toBe(72);
+    expect(document.activeElement).toBe(button("Actions for Highlight"));
+    expect(container?.querySelector('aside[aria-label="Table of contents"]')).toBeNull();
+  });
+
+  it("settles the note before switching to another reader side surface", async () => {
+    const existing = highlight("surface-settle");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Settled before TOC");
+
+    act(() => button("Table of contents").click());
+    await waitForEditorToClose();
+    const toc = await waitForElement<HTMLElement>('aside[aria-label="Table of contents"]');
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      note: "Settled before TOC",
+    });
+    expect(toc).toBeInstanceOf(HTMLElement);
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+  });
+
+  it("lets editor Escape supersede a pending settings transition", async () => {
+    const existing = highlight("surface-escape-latest", { note: "Original" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Escape wins");
+
+    act(() => {
+      button("Reader settings").click();
+      textarea(editor).dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    await act(async () => pendingSave.resolve({ ...existing, note: "Escape wins" }));
+    await waitForEditorToClose();
+    await waitForElement('aside[aria-label="Annotations"]');
+
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+  });
+
+  it("keeps a failed note settlement active instead of destroying it for another surface", async () => {
+    const existing = highlight("surface-failure");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable"));
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Cannot settle yet");
+
+    act(() => button("Reader settings").click());
+    await flush();
+
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved");
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+
+    act(() => button("Back to annotations").click());
+    await waitForEditorToClose();
+    await waitForElement('aside[aria-label="Annotations"]');
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+  });
+
+  it("applies only the latest side-surface request while note settlement is pending", async () => {
+    const existing = highlight("surface-latest");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Settle once");
+
+    act(() => {
+      button("Table of contents").click();
+      button("Reader settings").click();
+    });
+    await act(async () => pendingSave.resolve({ ...existing, note: "Settle once" }));
+    await waitForEditorToClose();
+    await waitForElement('aside[aria-label="Reader settings"]');
+
+    expect(container?.querySelector('aside[aria-label="Table of contents"]')).toBeNull();
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("settles the active note before leaving the reader", async () => {
+    const existing = highlight("reader-exit");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Saved before reader exit");
+
+    act(() => button("Back to Library").click());
+    for (let attempt = 0; attempt < 30 && router.state.location.pathname !== "/"; attempt += 1) {
+      await flush();
+    }
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      note: "Saved before reader exit",
+    });
+    expect(router.state.location.pathname).toBe("/");
+    expect(container?.querySelector('[data-testid="library-route"]')).toBeInstanceOf(HTMLElement);
+  });
+
+  it("keeps TOC, settings, and annotation surfaces mutually exclusive", async () => {
+    const harness = createStorageHarness();
+    await renderReader(harness);
+
+    act(() => button("Reader settings").click());
+    await waitForElement('aside[aria-label="Reader settings"]');
+    expect(container?.querySelectorAll(".reader-toc, .reader-settings")).toHaveLength(1);
+
+    act(() => button("Annotations").click());
+    await waitForElement('aside[aria-label="Annotations"]');
+    expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+
+    act(() => button("Table of contents").click());
+    await waitForElement('aside[aria-label="Table of contents"]');
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
+    expect(container?.querySelectorAll(".reader-toc, .reader-settings")).toHaveLength(1);
+  });
+
+  it("backs out of the note subview before closing the annotation surface on Escape", async () => {
+    const existing = highlight("escape-order", { note: "Keep this" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+
+    const hostControl = button("Annotations");
+    act(() => {
+      hostControl.focus();
+      hostControl.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    await waitForEditorToClose();
+    const panel = await waitForElement<HTMLElement>('aside[aria-label="Annotations"]');
+    expect(panel.hidden).toBe(false);
+
+    act(() => {
+      panel.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    await flush();
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
+  });
+
   it("creates a default highlight before opening a fresh empty note and keeps it on close", async () => {
     const harness = createStorageHarness();
     await renderReader(harness);
@@ -555,7 +829,7 @@ describe("ReaderPage annotation notes", () => {
     expect(harness.createAnnotation).not.toHaveBeenCalled();
   });
 
-  it("does not synchronize a late note save into a newly opened book", async () => {
+  it("blocks direct book navigation until the active note settles without duplicate writes", async () => {
     const first = highlight("book-1-save");
     const second = highlight("book-2-save", { note: "Second book note" });
     const harness = createStorageHarness({ "book-1": [first], "book-2": [second] });
@@ -571,19 +845,57 @@ describe("ReaderPage annotation notes", () => {
       first,
     );
     setTextareaValue(editor, "Late note");
-    act(() => button("Close note").click());
+
+    const firstNavigation = requestNavigation(router, "/reader/book-2");
+    const repeatedNavigation = requestNavigation(router, "/reader/book-2");
     await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    expect(viewerControl.props?.highlights).toEqual([first]);
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
 
-    await switchBook(router, "book-2", [second.id]);
     await act(async () => pendingSave.resolve({ ...first, note: "Late note" }));
-    await flush();
+    await act(async () => Promise.all([firstNavigation, repeatedNavigation]));
+    await waitForRoute(router, "/reader/book-2");
+    await waitForHighlights([second.id]);
 
     expect(viewerControl.props?.highlights).toEqual([second]);
-    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
   });
 
-  it("does not let a late deletion close or alter the new book's note editor", async () => {
+  it("cancels a failed book switch and succeeds once after a retry", async () => {
+    const first = highlight("book-1-retry");
+    const second = highlight("book-2-retry");
+    const harness = createStorageHarness({ "book-1": [first], "book-2": [second] });
+    harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable"));
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: first.cfiRange,
+        chapterHref: first.chapterHref,
+        selectedText: first.selectedText,
+      },
+      first,
+    );
+    setTextareaValue(editor, "Retry this draft");
+
+    await act(async () => requestNavigation(router, "/reader/book-2"));
+    await flush();
+
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    expect(textarea(editor).value).toBe("Retry this draft");
+    expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved");
+
+    await act(async () => requestNavigation(router, "/reader/book-2"));
+    await waitForRoute(router, "/reader/book-2");
+    await waitForHighlights([second.id]);
+
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(harness.storage.loadBookFile).toHaveBeenCalledWith("book-2");
+  });
+
+  it("awaits a pending confirmed note deletion before book navigation", async () => {
     const first = highlight("book-1-delete", { note: "Delete later" });
     const second = highlight("book-2-delete", { note: "Keep open" });
     const harness = createStorageHarness({ "book-1": [first], "book-2": [second] });
@@ -602,21 +914,91 @@ describe("ReaderPage annotation notes", () => {
     act(() => button("Delete").click());
     await flush();
 
-    await switchBook(router, "book-2", [second.id]);
-    const secondEditor = await openNote(
-      {
-        cfiRange: second.cfiRange,
-        chapterHref: second.chapterHref,
-        selectedText: second.selectedText,
-      },
-      second,
-    );
-    await act(async () => pendingDelete.resolve({ ...first, note: undefined }));
+    const navigation = requestNavigation(router, "/reader/book-2");
     await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(container?.querySelector(".reader-note-editor")).toBeInstanceOf(HTMLElement);
 
-    expect(container?.querySelector(".reader-note-editor")).toBe(secondEditor);
-    expect(textarea(secondEditor).value).toBe("Keep open");
+    await act(async () => pendingDelete.resolve({ ...first, note: undefined }));
+    await act(async () => navigation);
+    await waitForRoute(router, "/reader/book-2");
+    await waitForHighlights([second.id]);
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", first.id, {
+      note: undefined,
+    });
     expect(viewerControl.props?.highlights).toEqual([second]);
+  });
+
+  it("guards browser-history navigation while an active note is unsettled", async () => {
+    const first = highlight("history-save");
+    const harness = createStorageHarness({ "book-1": [first] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    const router = await renderReader(harness, "book-1", ["/", "/reader/book-1"]);
+    const editor = await openNote(
+      {
+        cfiRange: first.cfiRange,
+        chapterHref: first.chapterHref,
+        selectedText: first.selectedText,
+      },
+      first,
+    );
+    setTextareaValue(editor, "Save before history Back");
+
+    const navigation = requestNavigation(router, -1);
+    await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+
+    await act(async () => pendingSave.resolve({ ...first, note: "Save before history Back" }));
+    await act(async () => navigation);
+    await waitForRoute(router, "/");
+
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+    expect(container?.querySelector('[data-testid="library-route"]')).toBeInstanceOf(HTMLElement);
+  });
+
+  it("registers an archive guard that settles against the current book and unregisters on unmount", async () => {
+    const first = highlight("archive-guard");
+    const harness = createStorageHarness({ "book-1": [first] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    let registeredGuard: ArchiveTransitionGuard | undefined;
+    const unregister = vi.fn();
+    vi.spyOn(archiveStore, "registerTransitionGuard").mockImplementation((guard) => {
+      registeredGuard = guard;
+      return unregister;
+    });
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: first.cfiRange,
+        chapterHref: first.chapterHref,
+        selectedText: first.selectedText,
+      },
+      first,
+    );
+    setTextareaValue(editor, "Old archive save");
+
+    let settlement: Promise<boolean>;
+    act(() => {
+      settlement = Promise.resolve(registeredGuard?.() ?? false);
+    });
+    await flush();
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", first.id, {
+      note: "Old archive save",
+    });
+
+    let settled = false;
+    await act(async () => {
+      pendingSave.resolve({ ...first, note: "Old archive save" });
+      settled = await settlement;
+    });
+    expect(settled).toBe(true);
+    act(() => root?.unmount());
+    root = null;
+
+    expect(unregister).toHaveBeenCalledTimes(1);
   });
 
   it("suppresses stale removal feedback after an annotation-session switch", async () => {

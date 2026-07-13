@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
-import { NotePencil, Trash, X } from "@phosphor-icons/react";
+import { ArrowLeft, Trash } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -9,7 +9,7 @@ type ReaderNoteEditorProps = {
   annotation: HighlightAnnotation;
   keepsHighlightOnEmptyClose?: boolean;
   onBusyChange?: (busy: boolean) => void;
-  onClose: () => void;
+  onBack: () => void;
   onDelete: (persistedAnnotation: HighlightAnnotation) => Promise<boolean>;
   onSave: (
     note: string,
@@ -31,7 +31,7 @@ function annotationRepresentsNote(annotation: HighlightAnnotation): boolean {
 
 export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEditorProps>(
   function ReaderNoteEditor(
-    { annotation, keepsHighlightOnEmptyClose = false, onBusyChange, onClose, onDelete, onSave },
+    { annotation, keepsHighlightOnEmptyClose = false, onBack, onBusyChange, onDelete, onSave },
     ref,
   ) {
     const initialText = annotation?.note ?? "";
@@ -59,18 +59,17 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     const deleteRequestedRef = useRef(false);
     const savesBlockedRef = useRef(false);
     const activeOperationsRef = useRef(0);
-    const externalSettlementWaitersRef = useRef(0);
     const onBusyChangeRef = useRef(onBusyChange);
-    const onCloseRef = useRef(onClose);
+    const onBackRef = useRef(onBack);
     const onDeleteRef = useRef(onDelete);
     const onSaveRef = useRef(onSave);
 
     useEffect(() => {
       onBusyChangeRef.current = onBusyChange;
-      onCloseRef.current = onClose;
+      onBackRef.current = onBack;
       onDeleteRef.current = onDelete;
       onSaveRef.current = onSave;
-    }, [onBusyChange, onClose, onDelete, onSave]);
+    }, [onBack, onBusyChange, onDelete, onSave]);
 
     useEffect(() => {
       latestAnnotationRef.current = annotation;
@@ -231,35 +230,27 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
       [clearTimer, scheduleSave, updateStatus],
     );
 
-    const requestClose = useCallback(async () => {
+    const requestBack = useCallback(() => {
       if (deleteInFlightRef.current) return;
-      if (await saveNow()) onCloseRef.current();
-    }, [saveNow]);
+      onBackRef.current();
+    }, []);
 
     const settle = useCallback(async (): Promise<boolean> => {
       clearTimer();
-      externalSettlementWaitersRef.current += 1;
-      try {
-        while (true) {
-          const activeDelete = deleteInFlightRef.current;
-          if (activeDelete) {
-            return await activeDelete;
-          }
-
-          const saved = await saveNow();
-          if (!saved) return false;
-
-          const deletionStartedDuringSave = deleteInFlightRef.current;
-          if (deletionStartedDuringSave) {
-            return await deletionStartedDuringSave;
-          }
-          return true;
+      while (true) {
+        const activeDelete = deleteInFlightRef.current;
+        if (activeDelete) {
+          return await activeDelete;
         }
-      } finally {
-        externalSettlementWaitersRef.current = Math.max(
-          0,
-          externalSettlementWaitersRef.current - 1,
-        );
+
+        const saved = await saveNow();
+        if (!saved) return false;
+
+        const deletionStartedDuringSave = deleteInFlightRef.current;
+        if (deletionStartedDuringSave) {
+          return await deletionStartedDuringSave;
+        }
+        return true;
       }
     }, [clearTimer, saveNow]);
 
@@ -294,13 +285,11 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           return false;
         }
 
-        if (mountedRef.current && externalSettlementWaitersRef.current === 0) {
-          onCloseRef.current();
-        }
         return true;
       })();
 
       deleteInFlightRef.current = deletion;
+      onBackRef.current();
       try {
         await deletion;
       } finally {
@@ -341,28 +330,31 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     return (
       <section
         aria-labelledby="reader-note-title"
-        className="reader-note-editor"
+        aria-label="Annotation note"
+        className="reader-toc reader-annotations reader-note-editor"
         data-reader-ignore-shortcuts
+        id="reader-annotations"
         onKeyDown={(event) => {
           if (event.key !== "Escape" || deleting) return;
           event.preventDefault();
           event.stopPropagation();
-          void requestClose();
+          if (confirmingDelete) {
+            setConfirmingDelete(false);
+            return;
+          }
+          void requestBack();
         }}
       >
         <header className="reader-note-editor__header">
-          <span aria-hidden="true" className="icon-slot">
-            <NotePencil />
-          </span>
-          <h2 id="reader-note-title">Note</h2>
           <IconButton
             disabled={deleting}
-            label="Close note"
-            onClick={() => void requestClose()}
+            label="Back to annotations"
+            onClick={() => void requestBack()}
             size="compact"
           >
-            <X aria-hidden="true" />
+            <ArrowLeft aria-hidden="true" />
           </IconButton>
+          <h2 id="reader-note-title">Note</h2>
         </header>
         <label className="reader-note-editor__field">
           <span className="sr-only">Note text</span>
@@ -387,6 +379,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
             <div className="reader-note-editor__confirmation">
               <span>Delete this note?</span>
               <Button
+                autoFocus
                 busy={deleting}
                 disabled={deleting}
                 onClick={() => void confirmDelete()}

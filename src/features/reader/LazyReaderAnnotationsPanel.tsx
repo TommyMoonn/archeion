@@ -11,6 +11,7 @@ const ReaderAnnotationsPanel = lazy(() =>
 );
 
 type LazyReaderAnnotationsPanelProps = {
+  active?: boolean;
   annotations: readonly Annotation[];
   currentAnnotationId?: string;
   currentCfi?: string;
@@ -22,23 +23,25 @@ type LazyReaderAnnotationsPanelProps = {
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
+  restoreFocusAnnotationId?: string;
 };
 
 export function LazyReaderAnnotationsPanel(props: LazyReaderAnnotationsPanelProps) {
   return (
-    <Suspense fallback={<ReaderAnnotationsLoadingShell />}>
+    <Suspense fallback={<ReaderAnnotationsLoadingShell active={props.active} />}>
       <ReaderAnnotationsPanel {...props} />
     </Suspense>
   );
 }
 
-function ReaderAnnotationsLoadingShell() {
+function ReaderAnnotationsLoadingShell({ active = true }: { active?: boolean }) {
   return (
     <aside
       aria-busy="true"
       aria-label="Annotations"
       className="reader-toc reader-annotations"
       data-reader-ignore-shortcuts
+      hidden={!active}
       onClick={(event) => event.stopPropagation()}
       onPointerDown={(event) => event.stopPropagation()}
     >

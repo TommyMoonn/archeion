@@ -76,6 +76,7 @@ type MenuAction =
   | { focus: "row-trigger"; run: (annotation: Annotation) => void };
 
 type ReaderAnnotationsPanelProps = {
+  active?: boolean;
   annotations: readonly Annotation[];
   currentAnnotationId?: string;
   currentCfi?: string;
@@ -87,9 +88,11 @@ type ReaderAnnotationsPanelProps = {
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
+  restoreFocusAnnotationId?: string;
 };
 
 export function ReaderAnnotationsPanel({
+  active = true,
   annotations,
   currentAnnotationId,
   currentCfi,
@@ -101,6 +104,7 @@ export function ReaderAnnotationsPanel({
   onReload,
   onRemove,
   onUpdateBookmarkLabel,
+  restoreFocusAnnotationId,
 }: ReaderAnnotationsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -140,9 +144,13 @@ export function ReaderAnnotationsPanel({
   );
   const hasMore = renderLimit < visible.length;
 
-  useEffect(() => {
-    searchRef.current?.focus();
-  }, []);
+  useLayoutEffect(() => {
+    if (!active) return;
+    const requestedTrigger = restoreFocusAnnotationId
+      ? actionTriggerRefs.current.get(restoreFocusAnnotationId)
+      : undefined;
+    (requestedTrigger ?? searchRef.current ?? panelRef.current)?.focus();
+  }, [active, restoreFocusAnnotationId]);
 
   useLayoutEffect(() => {
     if (menu) {
@@ -380,7 +388,8 @@ export function ReaderAnnotationsPanel({
       aria-label="Annotations"
       className="reader-toc reader-annotations"
       data-reader-ignore-shortcuts
-      id="reader-annotations"
+      hidden={!active}
+      id={active ? "reader-annotations" : undefined}
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;

@@ -57,6 +57,14 @@ function registry(activeId: string | null, archives = [booksArchive]): ArchiveRe
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("ArchiveStore", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -217,6 +225,163 @@ describe("ArchiveStore", () => {
       watcherError: null,
       archives: [booksArchive, comicsArchive],
     });
+  });
+
+  it("waits for transition guards before changing archive state or activating a target", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "activate_archive") {
+        return registry(comicsArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") {
+        return true;
+      }
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const settlement = deferred<boolean>();
+    const guard = vi.fn(() => settlement.promise);
+    store.registerTransitionGuard(guard);
+
+    const switching = store.switchArchive(comicsArchive.id);
+    await Promise.resolve();
+
+    expect(guard).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+    expect(invokeMock).not.toHaveBeenCalledWith("activate_archive", expect.anything());
+
+    settlement.resolve(true);
+    await expect(switching).resolves.toBe(true);
+    expect(invokeMock).toHaveBeenCalledWith("activate_archive", { archiveId: comicsArchive.id });
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+  });
+
+  it("aborts an archive switch when a transition guard cannot settle", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    store.registerTransitionGuard(async () => false);
+
+    await expect(store.switchArchive(comicsArchive.id)).resolves.toBe(false);
+
+    expect(invokeMock).not.toHaveBeenCalledWith("activate_archive", expect.anything());
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+  });
+
+  it("guards archive-registry activation before publishing the new archive", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const settlement = deferred<boolean>();
+    store.registerTransitionGuard(() => settlement.promise);
+
+    registryEventHandler?.({
+      payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+    });
+    await Promise.resolve();
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+
+    settlement.resolve(true);
+    await vi.waitFor(() => {
+      expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+    });
+  });
+
+  it("keeps the current archive when a registry transition guard fails", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    store.registerTransitionGuard(async () => false);
+
+    registryEventHandler?.({
+      payload: registry(comicsArchive.id, [booksArchive, comicsArchive]),
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: booksArchive });
+    expect(invokeMock).not.toHaveBeenCalledWith("initialize_archive_metadata", {
+      rootPath: comicsArchive.rootPath,
+    });
+  });
+
+  it("removes transition guards without affecting later archive changes", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "activate_archive") {
+        return registry(comicsArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const staleGuard = vi.fn(async () => false);
+    const unregister = store.registerTransitionGuard(staleGuard);
+    unregister();
+
+    await expect(store.switchArchive(comicsArchive.id)).resolves.toBe(true);
+
+    expect(staleGuard).not.toHaveBeenCalled();
+    expect(store.getSnapshot()).toMatchObject({ status: "ready", archive: comicsArchive });
+  });
+
+  it("settles multiple transition guards in registration order", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(booksArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "activate_archive") {
+        return registry(comicsArchive.id, [booksArchive, comicsArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    const firstSettlement = deferred<boolean>();
+    const order: string[] = [];
+    store.registerTransitionGuard(async () => {
+      order.push("first:start");
+      const settled = await firstSettlement.promise;
+      order.push("first:end");
+      return settled;
+    });
+    store.registerTransitionGuard(async () => {
+      order.push("second");
+      return true;
+    });
+
+    const switching = store.switchArchive(comicsArchive.id);
+    await Promise.resolve();
+    expect(order).toEqual(["first:start"]);
+
+    firstSettlement.resolve(true);
+    await expect(switching).resolves.toBe(true);
+    expect(order).toEqual(["first:start", "first:end", "second"]);
   });
 
   it("renames an archive display name without changing its root path", async () => {

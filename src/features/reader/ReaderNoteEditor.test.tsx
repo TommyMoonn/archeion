@@ -50,7 +50,7 @@ function defaultProps(): ComponentProps<typeof ReaderNoteEditor> {
   return {
     annotation,
     onBusyChange: vi.fn(),
-    onClose: vi.fn(),
+    onBack: vi.fn(),
     onDelete: vi.fn(async () => true),
     onSave: vi.fn(async (note: string) => ({ ...annotation, note })),
   };
@@ -105,11 +105,11 @@ describe("ReaderNoteEditor", () => {
     });
 
     expect(target.textContent).toContain("Closing without a note keeps the highlight.");
-    await click(target, "Close note");
+    await click(target, "Back to annotations");
 
     expect(props.onSave).not.toHaveBeenCalled();
     expect(props.onDelete).not.toHaveBeenCalled();
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 
   it("autosaves only after the debounce while preserving editor geometry", async () => {
@@ -133,12 +133,12 @@ describe("ReaderNoteEditor", () => {
     const { container: target, props } = renderEditor();
     enterText(target, "Close-safe note");
 
-    await click(target, "Close note");
+    await click(target, "Back to annotations");
     await act(async () => vi.runAllTimersAsync());
 
     expect(props.onSave).toHaveBeenCalledTimes(1);
     expect(props.onSave).toHaveBeenCalledWith("Close-safe note", annotation);
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 
   it("exposes an awaited flush that keeps a failed draft visible and retryable", async () => {
@@ -157,7 +157,7 @@ describe("ReaderNoteEditor", () => {
     });
 
     expect(flushed).toBe(false);
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onBack).not.toHaveBeenCalled();
     expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved");
     expect(button(target, "Retry")).toBeInstanceOf(HTMLButtonElement);
 
@@ -309,9 +309,9 @@ describe("ReaderNoteEditor", () => {
     );
     expect(button(target, "Delete note").disabled).toBe(false);
 
-    await click(target, "Close note");
+    await click(target, "Back to annotations");
     expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 
   it("waits for a pending existing-note update before deleting the updated record", async () => {
@@ -354,7 +354,7 @@ describe("ReaderNoteEditor", () => {
     await act(async () => vi.runAllTimersAsync());
 
     expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the editor open with visible feedback when deletion fails", async () => {
@@ -362,7 +362,7 @@ describe("ReaderNoteEditor", () => {
 
     await confirmDelete(target);
 
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onBack).toHaveBeenCalledTimes(1);
     expect(target.querySelector("[role=status]")?.textContent).toContain(
       "Note could not be deleted.",
     );
@@ -392,7 +392,7 @@ describe("ReaderNoteEditor", () => {
     await act(async () => settlement);
 
     expect(settled).toBe(false);
-    expect(props.onClose).not.toHaveBeenCalled();
+    expect(props.onBack).toHaveBeenCalledTimes(1);
     expect(target.querySelector("[role=status]")?.textContent).toContain(
       "Note could not be deleted.",
     );
@@ -409,7 +409,32 @@ describe("ReaderNoteEditor", () => {
         ?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
     });
 
-    expect(props.onSave).toHaveBeenCalledTimes(1);
-    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(props.onSave).not.toHaveBeenCalled();
+    expect(props.onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismisses delete confirmation before using Escape as Back", async () => {
+    const { container: target, props } = renderEditor();
+    await click(target, "Delete note");
+    const editor = target.querySelector(".reader-note-editor")!;
+    const confirmDeleteButton = button(target, "Delete");
+    expect(document.activeElement).toBe(confirmDeleteButton);
+
+    act(() => {
+      confirmDeleteButton.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+
+    expect(target.textContent).not.toContain("Delete this note?");
+    expect(props.onBack).not.toHaveBeenCalled();
+
+    await act(async () => {
+      editor.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+
+    expect(props.onBack).toHaveBeenCalledTimes(1);
   });
 });

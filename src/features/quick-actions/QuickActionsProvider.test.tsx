@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import { router } from "../../app/router";
 import { useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionCommand, QuickActionsRegistry } from "./quickActions";
@@ -38,9 +39,12 @@ vi.mock("./QuickActionsPalette", async () => {
               }
 
               if (event.key === "Enter") {
+                const requestedCommandId = inputRef.current?.value.startsWith("Switch")
+                  ? "archive.switch.archive-comics"
+                  : "test.run";
                 const command = registry
                   .getSnapshot()
-                  .commands.find((candidate) => candidate.id === "test.run");
+                  .commands.find((candidate) => candidate.id === requestedCommandId);
                 if (command) {
                   onExecute(command);
                 }
@@ -72,6 +76,13 @@ const readyArchive: ArchiveState = {
       rootPath: "D:\\Books",
       createdAt: "1",
       lastOpenedAt: "2",
+    },
+    {
+      id: "archive-comics",
+      displayName: "Comics",
+      rootPath: "E:\\Comics",
+      createdAt: "3",
+      lastOpenedAt: "4",
     },
   ],
   error: null,
@@ -240,4 +251,49 @@ describe("QuickActionsProvider", () => {
     expect(onRun).toHaveBeenCalledTimes(1);
     expect(document.querySelector(".quick-actions")).toBeNull();
   }, 15_000);
+
+  it("waits for an archive switch to settle before navigating once", async () => {
+    const switching = deferred<boolean>();
+    const switchArchive = vi
+      .spyOn(archiveStore, "switchArchive")
+      .mockReturnValue(switching.promise);
+    const navigate = vi.spyOn(router, "navigate").mockResolvedValue(undefined);
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    await act(async () => {
+      opener.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "p",
+          shiftKey: true,
+        }),
+      );
+    });
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    act(() => setInputValue(search, "Switch to Comics"));
+    act(() => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    });
+
+    expect(switchArchive).toHaveBeenCalledWith("archive-comics");
+    expect(navigate).not.toHaveBeenCalled();
+
+    await act(async () => switching.resolve(true));
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledTimes(1);
+    });
+    expect(navigate).toHaveBeenCalledWith("/", { replace: true });
+  });
 });
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}

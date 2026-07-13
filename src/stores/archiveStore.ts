@@ -31,6 +31,7 @@ export type ArchiveState =
     };
 
 type Listener = () => void;
+export type ArchiveTransitionGuard = () => boolean | Promise<boolean>;
 
 const ARCHIVE_REGISTRY_CHANGED_EVENT = "archive-registry-changed";
 
@@ -70,6 +71,9 @@ export class ArchiveStore {
   private initialization: Promise<void> | null = null;
   private registryListenerStarted = false;
   private lastOperationError: string | null = null;
+  private transitionGuardSequence = 0;
+  private transitionGuards = new Map<number, ArchiveTransitionGuard>();
+  private transitionRequestId = 0;
 
   getSnapshot = (): ArchiveState => this.state;
 
@@ -77,6 +81,14 @@ export class ArchiveStore {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   };
+
+  registerTransitionGuard(guard: ArchiveTransitionGuard): () => void {
+    const id = ++this.transitionGuardSequence;
+    this.transitionGuards.set(id, guard);
+    return () => {
+      this.transitionGuards.delete(id);
+    };
+  }
 
   initialize(): Promise<void> {
     this.startRegistryListener();
@@ -126,6 +138,7 @@ export class ArchiveStore {
   }
 
   async createEmptyArchive(input: CreateEmptyArchiveInput): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
     const previousState = this.state;
     this.lastOperationError = null;
 
@@ -145,6 +158,7 @@ export class ArchiveStore {
   }
 
   async openArchivePath(path: string): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
     this.setState({
       status: "loading",
       path: null,
@@ -169,6 +183,7 @@ export class ArchiveStore {
   }
 
   async switchArchive(archiveId: string): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
     const archives = this.state.archives;
     this.setState({
       status: "loading",
@@ -220,6 +235,7 @@ export class ArchiveStore {
   }
 
   async forgetArchive(archiveId: string): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
     try {
       const registry = await invoke<ArchiveRegistry>("forget_archive", {
         archiveId,
@@ -271,6 +287,7 @@ export class ArchiveStore {
   }
 
   async refreshActiveArchive(): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
     await this.loadSavedArchive();
     return this.state.status === "ready";
   }
@@ -303,7 +320,7 @@ export class ArchiveStore {
 
     this.registryListenerStarted = true;
     void listen<ArchiveRegistry>(ARCHIVE_REGISTRY_CHANGED_EVENT, (event) => {
-      void this.useRegistryActiveArchive(event.payload);
+      void this.applyRegistryArchiveTransition(event.payload);
     }).catch((error) => {
       this.registryListenerStarted = false;
       console.error("archive registry event listener failed", error);
@@ -389,6 +406,28 @@ export class ArchiveStore {
     }
 
     await this.useRegistryActiveArchive(registry);
+  }
+
+  private async applyRegistryArchiveTransition(registry: ArchiveRegistry): Promise<boolean> {
+    if (!(await this.prepareArchiveTransition())) return false;
+    return this.useRegistryActiveArchive(registry);
+  }
+
+  private async prepareArchiveTransition(): Promise<boolean> {
+    const requestId = ++this.transitionRequestId;
+    const guards = [...this.transitionGuards.values()];
+
+    for (const guard of guards) {
+      let settled: boolean;
+      try {
+        settled = await guard();
+      } catch {
+        return false;
+      }
+      if (!settled || this.transitionRequestId !== requestId) return false;
+    }
+
+    return this.transitionRequestId === requestId;
   }
 
   private async useRegistryActiveArchive(registry: ArchiveRegistry): Promise<boolean> {
