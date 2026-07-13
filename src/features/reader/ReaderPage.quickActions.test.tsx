@@ -85,6 +85,14 @@ vi.mock("./EpubViewer", async () => {
   };
 });
 
+// These tests exercise ReaderPage actions and annotation navigation, not the
+// Suspense boundary. Render the real panel synchronously so its module promise
+// cannot settle after the interaction's act() scope.
+vi.mock("./LazyReaderAnnotationsPanel", async () => {
+  const { ReaderAnnotationsPanel } = await import("./ReaderAnnotationsPanel");
+  return { LazyReaderAnnotationsPanel: ReaderAnnotationsPanel };
+});
+
 vi.mock("../archive/useArchive", () => ({
   useArchive: () => ({ status: "ready", archive: { id: "archive-books" } }),
 }));
