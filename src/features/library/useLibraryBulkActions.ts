@@ -2,6 +2,9 @@ import { useCallback, useMemo, useState } from "react";
 
 import type { BulkActionResult, LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book, BulkMetadataEditInput } from "../../types/book";
+import { bookAuthor } from "../../utils/bookDisplay";
+import { exportReaderAnnotationsToFile } from "../reader/readerAnnotationExportFile";
+import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
 import { bookTitle } from "./libraryFilters";
 import { createBulkActionFeedbackToken, type LibraryFeedbackDraft } from "./libraryFeedback";
 import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
@@ -25,6 +28,8 @@ export type LibraryBulkAction =
   | "edit-metadata"
   | "metadata"
   | "covers"
+  | "annotations-markdown"
+  | "annotations-json"
   | "export";
 
 export function useLibraryBulkActions({
@@ -85,6 +90,51 @@ export function useLibraryBulkActions({
     ],
   );
 
+  const runAnnotationExport = useCallback(
+    async (format: ReaderAnnotationExportFormat) => {
+      if (isBulkRunning) return;
+      setIsBulkRunning(true);
+      dismissFeedback("annotation-export");
+      try {
+        const exportBooks = await Promise.all(
+          selectedBooks.map(async (book) => ({
+            annotations: await storage.listAnnotations(book.id),
+            author: bookAuthor(book),
+            id: book.id,
+            title: bookTitle(book),
+          })),
+        );
+        const result = await exportReaderAnnotationsToFile({ books: exportBooks, format });
+        if (result.status === "cancelled") return;
+        if (result.status === "empty") {
+          pushFeedback({
+            id: "annotation-export",
+            tone: "warning",
+            title: "No annotations to export.",
+          });
+          return;
+        }
+        pushFeedback({
+          autoDismiss: true,
+          detail: `${result.annotationCount} ${result.annotationCount === 1 ? "annotation" : "annotations"} from ${result.bookCount} ${result.bookCount === 1 ? "book" : "books"}.`,
+          id: "annotation-export",
+          tone: "success",
+          title: "Annotations exported.",
+        });
+      } catch (error) {
+        pushFeedback({
+          detail: error instanceof Error ? error.message : undefined,
+          id: "annotation-export",
+          tone: "error",
+          title: "Annotations could not be exported.",
+        });
+      } finally {
+        setIsBulkRunning(false);
+      }
+    },
+    [dismissFeedback, isBulkRunning, pushFeedback, selectedBooks, storage],
+  );
+
   const handleBulkAction = useCallback(
     (action: LibraryBulkAction) => {
       if (action === "move") return dialogs.openBulkMove();
@@ -102,6 +152,8 @@ export function useLibraryBulkActions({
       if (action === "covers") {
         void runBulkAction("Cover regeneration", (ids) => storage.bulkRegenerateCovers(ids));
       }
+      if (action === "annotations-markdown") void runAnnotationExport("markdown");
+      if (action === "annotations-json") void runAnnotationExport("json");
       if (action === "export") {
         void import("@tauri-apps/plugin-dialog").then(async ({ open }) => {
           const destination = await open({
@@ -115,7 +167,7 @@ export function useLibraryBulkActions({
         });
       }
     },
-    [dialogs, runBulkAction, storage],
+    [dialogs, runAnnotationExport, runBulkAction, storage],
   );
 
   const moveSelectedBooks = useCallback(

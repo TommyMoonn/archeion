@@ -3,6 +3,7 @@ import {
   ArrowsClockwise,
   CheckSquare,
   DotsThree,
+  DownloadSimple,
   FolderOpen,
   Heart,
   ImageBroken,
@@ -28,6 +29,8 @@ type LibrarySelectionBarProps = {
       | "edit-metadata"
       | "metadata"
       | "covers"
+      | "annotations-markdown"
+      | "annotations-json"
       | "export",
   ) => void;
   onSelectVisible: () => void;
@@ -53,7 +56,15 @@ export function LibrarySelectionBar({
   const allVisibleSelected = visibleCount > 0 && visibleSelectedCount === visibleCount;
 
   function runOverflowAction(
-    action: "unfavorite" | "delete" | "edit-metadata" | "metadata" | "covers" | "export",
+    action:
+      | "unfavorite"
+      | "delete"
+      | "edit-metadata"
+      | "metadata"
+      | "covers"
+      | "annotations-markdown"
+      | "annotations-json"
+      | "export",
   ) {
     closeDetails();
     onAction(action);
@@ -143,6 +154,20 @@ export function LibrarySelectionBar({
                 onClick={() => runOverflowAction("export")}
               >
                 Export EPUBs
+              </MenuItem>
+              <MenuItem
+                disabled={busy || selectedCount === 0}
+                icon={<DownloadSimple />}
+                onClick={() => runOverflowAction("annotations-markdown")}
+              >
+                Export annotations as Markdown
+              </MenuItem>
+              <MenuItem
+                disabled={busy || selectedCount === 0}
+                icon={<DownloadSimple />}
+                onClick={() => runOverflowAction("annotations-json")}
+              >
+                Export annotations as JSON
               </MenuItem>
               <MenuItem
                 className="danger"

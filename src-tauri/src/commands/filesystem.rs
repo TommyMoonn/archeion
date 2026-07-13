@@ -1,10 +1,12 @@
 use std::{
-    fs,
+    fs::{self, OpenOptions},
+    io::Write,
     path::{Component, Path, PathBuf},
     process::Command,
+    time::{SystemTime, UNIX_EPOCH},
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::archive_root;
 
@@ -191,6 +193,125 @@ pub fn export_archive_epub_file(
     fs::copy(source, destination)
         .map(|_| ())
         .map_err(|error| error.to_string())
+}
+
+const MAX_ANNOTATION_EXPORT_BYTES: usize = 64 * 1024 * 1024;
+
+#[derive(Clone, Copy, Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum AnnotationExportFormat {
+    Json,
+    Markdown,
+}
+
+impl AnnotationExportFormat {
+    fn extension(self) -> &'static str {
+        match self {
+            Self::Json => "json",
+            Self::Markdown => "md",
+        }
+    }
+}
+
+fn annotation_export_destination_is_regular_file(destination: &Path) -> Result<bool, String> {
+    match fs::symlink_metadata(destination) {
+        Ok(metadata) if metadata.file_type().is_file() => Ok(true),
+        Ok(_) => Err("The annotation export destination must be a regular file.".to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error.to_string()),
+    }
+}
+
+#[tauri::command]
+pub fn write_annotation_export_file(
+    path: String,
+    contents: String,
+    format: AnnotationExportFormat,
+) -> Result<(), String> {
+    if contents.len() > MAX_ANNOTATION_EXPORT_BYTES {
+        return Err("The annotation export is too large to write safely.".to_string());
+    }
+
+    let destination = PathBuf::from(path);
+    if !destination.is_absolute() {
+        return Err("The annotation export destination must be an absolute path.".to_string());
+    }
+    let extension = destination
+        .extension()
+        .and_then(|value| value.to_str())
+        .unwrap_or_default();
+    if !extension.eq_ignore_ascii_case(format.extension()) {
+        return Err(format!(
+            "This annotation export requires a .{} file name.",
+            format.extension()
+        ));
+    }
+
+    write_annotation_export_to_destination(&destination, &contents, |from, to| fs::rename(from, to))
+}
+
+fn write_annotation_export_to_destination<R>(
+    destination: &Path,
+    contents: &str,
+    mut rename: R,
+) -> Result<(), String>
+where
+    R: FnMut(&Path, &Path) -> std::io::Result<()>,
+{
+    let parent = destination
+        .parent()
+        .filter(|value| value.is_dir())
+        .ok_or_else(|| "The annotation export folder is unavailable.".to_string())?;
+    let file_name = destination
+        .file_name()
+        .and_then(|value| value.to_str())
+        .ok_or_else(|| "The annotation export file name is unavailable.".to_string())?;
+    let replacing = annotation_export_destination_is_regular_file(destination)?;
+    let nonce = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|error| error.to_string())?
+        .as_nanos();
+    let temporary = parent.join(format!(".{file_name}.{nonce}.tmp"));
+    let backup = parent.join(format!(".{file_name}.{nonce}.bak"));
+
+    let write_result = (|| -> Result<(), String> {
+        let mut file = OpenOptions::new()
+            .create_new(true)
+            .write(true)
+            .open(&temporary)
+            .map_err(|error| error.to_string())?;
+        file.write_all(contents.as_bytes())
+            .map_err(|error| error.to_string())?;
+        file.sync_all().map_err(|error| error.to_string())?;
+        drop(file);
+
+        if annotation_export_destination_is_regular_file(destination)? != replacing {
+            return Err(
+                "The annotation export destination changed before it was written.".to_string(),
+            );
+        }
+        if replacing {
+            rename(destination, &backup).map_err(|error| error.to_string())?;
+        }
+        if let Err(error) = rename(&temporary, destination) {
+            if replacing {
+                let _ = rename(&backup, destination);
+            }
+            return Err(error.to_string());
+        }
+        if replacing {
+            let _ = fs::remove_file(&backup);
+        }
+        Ok(())
+    })();
+
+    if write_result.is_err() {
+        let _ = fs::remove_file(&temporary);
+        if backup.exists() && destination.exists() {
+            let _ = fs::remove_file(backup);
+        }
+    }
+    write_result
 }
 
 fn canonical_root(root: &Path) -> Result<PathBuf, String> {
@@ -690,7 +811,8 @@ mod tests {
     use super::{
         delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
         normalize_windows_shell_path, resolve_existing_epub_path, validate_archive_item_name,
-        validate_epub_file_name,
+        validate_epub_file_name, write_annotation_export_file,
+        write_annotation_export_to_destination, AnnotationExportFormat,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -848,5 +970,126 @@ mod tests {
         assert!(resolve_existing_epub_path(&root, "../outside.epub").is_err());
         assert!(resolve_existing_epub_path(&root, "missing.epub").is_err());
         fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn writes_annotation_exports_only_after_the_complete_temporary_file_is_ready() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("export folder should be created");
+        let destination = root.join("annotations.md");
+        fs::write(&destination, "old export").expect("existing export should be created");
+
+        write_annotation_export_file(
+            destination.to_string_lossy().to_string(),
+            "# Complete export\n".to_string(),
+            AnnotationExportFormat::Markdown,
+        )
+        .expect("annotation export should be written");
+
+        assert_eq!(
+            fs::read_to_string(&destination).expect("export should be readable"),
+            "# Complete export\n"
+        );
+        assert_eq!(
+            fs::read_dir(&root)
+                .expect("export folder should be readable")
+                .count(),
+            1
+        );
+        fs::remove_dir_all(root).expect("test export folder should be removed");
+    }
+
+    #[test]
+    fn rejects_annotation_export_paths_without_a_supported_extension() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("export folder should be created");
+        let destination = root.join("annotations.txt");
+
+        assert!(write_annotation_export_file(
+            destination.to_string_lossy().to_string(),
+            "not written".to_string(),
+            AnnotationExportFormat::Markdown,
+        )
+        .is_err());
+        assert!(!destination.exists());
+        fs::remove_dir_all(root).expect("test export folder should be removed");
+    }
+
+    #[test]
+    fn rejects_annotation_export_format_extension_mismatches_before_writing() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("export folder should be created");
+        let destination = root.join("annotations.json");
+
+        assert!(write_annotation_export_file(
+            destination.to_string_lossy().to_string(),
+            "# Markdown".to_string(),
+            AnnotationExportFormat::Markdown,
+        )
+        .is_err());
+        assert!(fs::read_dir(&root)
+            .expect("export folder should be readable")
+            .next()
+            .is_none());
+        fs::remove_dir_all(root).expect("test export folder should be removed");
+    }
+
+    #[test]
+    fn rejects_existing_non_file_annotation_export_destinations() {
+        let root = test_root();
+        let destination = root.join("annotations.md");
+        fs::create_dir_all(&destination).expect("directory destination should be created");
+
+        assert!(write_annotation_export_file(
+            destination.to_string_lossy().to_string(),
+            "# Markdown".to_string(),
+            AnnotationExportFormat::Markdown,
+        )
+        .is_err());
+        assert!(destination.is_dir());
+        assert_eq!(
+            fs::read_dir(&root)
+                .expect("export folder should be readable")
+                .count(),
+            1
+        );
+        fs::remove_dir_all(root).expect("test export folder should be removed");
+    }
+
+    #[test]
+    fn failed_annotation_export_replacement_restores_the_original_without_temporary_files() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("export folder should be created");
+        let destination = root.join("annotations.md");
+        fs::write(&destination, "original export").expect("original export should be created");
+        let mut rename_count = 0;
+
+        let result = write_annotation_export_to_destination(
+            &destination,
+            "replacement export",
+            |from, to| {
+                rename_count += 1;
+                if rename_count == 2 {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        "replacement blocked",
+                    ));
+                }
+                fs::rename(from, to)
+            },
+        );
+
+        assert!(result.is_err());
+        assert_eq!(
+            fs::read_to_string(&destination).expect("original export should be restored"),
+            "original export"
+        );
+        assert_eq!(
+            fs::read_dir(&root)
+                .expect("export folder should be readable")
+                .count(),
+            1
+        );
+        fs::remove_dir_all(root).expect("test export folder should be removed");
     }
 }

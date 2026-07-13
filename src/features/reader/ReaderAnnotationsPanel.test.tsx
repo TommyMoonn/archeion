@@ -119,6 +119,12 @@ function defaultProps(
     navigation,
     onClose: vi.fn(),
     onEditNote: vi.fn(async () => true),
+    onExport: vi.fn(async () => ({
+      annotationCount: 2,
+      bookCount: 1,
+      path: "C:\\Exports\\annotations.md",
+      status: "saved" as const,
+    })),
     onNavigate: vi.fn(async () => true),
     onRecolorHighlight: vi.fn(async () => true),
     onRecover: vi.fn(async () => ({ kind: "detached", reason: "not-found" }) as const),
@@ -143,6 +149,150 @@ afterEach(() => {
 });
 
 describe("ReaderAnnotationsPanel", () => {
+  it("exports the current book in either format and reports completion", async () => {
+    const onExport = vi.fn(async () => ({
+      annotationCount: 2,
+      bookCount: 1,
+      path: "C:\\Exports\\annotations.md",
+      status: "saved" as const,
+    }));
+    const { container } = renderPanel({ onExport });
+
+    const exportTrigger = container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    pointerClick(exportTrigger);
+    await act(async () => {
+      pointerClick(textButton(container, "Export Markdown"));
+      await Promise.resolve();
+    });
+
+    expect(onExport).toHaveBeenCalledWith("markdown");
+    expect(onExport).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("2 annotations exported.");
+  });
+
+  it("dismisses export on capture-phase pointers while preserving the outside action and focus", () => {
+    const rendered = renderPanel({ onNavigate: vi.fn(async () => false) });
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const exportDetails = exportTrigger.closest("details")!;
+    const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.addEventListener("pointerdown", () => search.focus());
+
+    pointerClick(exportTrigger);
+    expect(exportDetails.open).toBe(true);
+    pointerClick(search);
+
+    expect(exportDetails.open).toBe(false);
+    expect(document.activeElement).toBe(search);
+    expect(rendered.props.onClose).not.toHaveBeenCalled();
+
+    pointerClick(exportTrigger);
+    pointerClick(textButton(rendered.container, "Bookmarks"));
+    expect(exportDetails.open).toBe(false);
+    expect(rendered.container.textContent).not.toContain(highlight.selectedText);
+
+    pointerClick(exportTrigger);
+    pointerClick(button(rendered.container, "Sort annotations"));
+    expect(exportDetails.open).toBe(false);
+    expect(button(rendered.container, "Sort annotations").getAttribute("aria-expanded")).toBe(
+      "true",
+    );
+  });
+
+  it("dismisses export before an annotation row action without consuming the action", async () => {
+    const onNavigate = vi.fn(async () => false);
+    const rendered = renderPanel({ onNavigate });
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const exportDetails = exportTrigger.closest("details")!;
+
+    pointerClick(exportTrigger);
+    await act(async () => {
+      pointerClick(button(rendered.container, "Go to Chapter start"));
+      await Promise.resolve();
+    });
+
+    expect(exportDetails.open).toBe(false);
+    expect(onNavigate).toHaveBeenCalledWith(bookmark);
+  });
+
+  it("closes export with Escape before the panel and restores the export trigger", () => {
+    const rendered = renderPanel();
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const exportDetails = exportTrigger.closest("details")!;
+
+    pointerClick(exportTrigger);
+    pressEscape(exportTrigger);
+
+    expect(exportDetails.open).toBe(false);
+    expect(document.activeElement).toBe(exportTrigger);
+    expect(rendered.props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("supports repeated export menu cycles without duplicate action invocation", async () => {
+    const onExport = vi.fn(async () => ({
+      annotationCount: 2,
+      bookCount: 1,
+      path: "C:\\Exports\\annotations.json",
+      status: "saved" as const,
+    }));
+    const rendered = renderPanel({ onExport });
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    pointerClick(exportTrigger);
+    pointerClick(search);
+    pointerClick(exportTrigger);
+    pointerClick(search);
+    pointerClick(exportTrigger);
+    await act(async () => {
+      pointerClick(textButton(rendered.container, "Export JSON"));
+      await Promise.resolve();
+    });
+
+    expect(onExport).toHaveBeenCalledTimes(1);
+    expect(onExport).toHaveBeenCalledWith("json");
+  });
+
+  it("keeps export failure visible and retries the same format", async () => {
+    const onExport = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("The export drive is unavailable."))
+      .mockResolvedValueOnce({
+        annotationCount: 2,
+        bookCount: 1,
+        path: "C:\\Exports\\annotations.json",
+        status: "saved" as const,
+      });
+    const { container } = renderPanel({ onExport });
+
+    act(() => {
+      container.querySelector<HTMLElement>('summary[aria-label="Export annotations"]')?.click();
+    });
+    await act(async () => {
+      textButton(container, "Export JSON").click();
+      await Promise.resolve();
+    });
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "The export drive is unavailable.",
+    );
+
+    await act(async () => {
+      textButton(container, "Retry").click();
+      await Promise.resolve();
+    });
+    expect(onExport).toHaveBeenNthCalledWith(2, "json");
+    expect(container.textContent).toContain("2 annotations exported.");
+  });
+
   it("groups annotations by chapter and marks point annotations at the current location", () => {
     const rendered = renderPanel();
     expect(

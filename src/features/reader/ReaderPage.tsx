@@ -27,7 +27,7 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
-import { bookTitle } from "../../utils/bookDisplay";
+import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   normalizeReaderSettings,
@@ -60,6 +60,8 @@ import {
   type QuickActionCommand,
 } from "../quick-actions/quickActions";
 import { useAsyncRouteLeaveGuard } from "../../app/useAsyncRouteLeaveGuard";
+import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
+import { exportReaderAnnotationsToFile } from "./readerAnnotationExportFile";
 
 type ReaderNoteTarget = {
   annotation: HighlightAnnotation;
@@ -676,6 +678,25 @@ export function ReaderPage() {
       return result;
     },
     [annotationNavigationSession, persistAnnotationAnchor, recoveredAnchorConflicts],
+  );
+
+  const exportCurrentAnnotations = useCallback(
+    (format: ReaderAnnotationExportFormat) => {
+      if (!book) return Promise.resolve({ status: "empty" } as const);
+      return exportReaderAnnotationsToFile({
+        books: [
+          {
+            annotations: annotations.annotations,
+            author: bookAuthor(book),
+            chapters: navigationState.chapters,
+            id: book.id,
+            title: bookTitle(book),
+          },
+        ],
+        format,
+      });
+    },
+    [annotations.annotations, book, navigationState.chapters],
   );
 
   const handleInvalidHighlightAnchor = useCallback(
@@ -1352,6 +1373,7 @@ export function ReaderPage() {
             navigation={navigationState}
             onClose={closeAnnotations}
             onEditNote={openAnnotationNote}
+            onExport={exportCurrentAnnotations}
             onNavigate={navigateToAnnotation}
             onRecover={recoverAnnotationAnchor}
             onRecolorHighlight={highlights.recolor}

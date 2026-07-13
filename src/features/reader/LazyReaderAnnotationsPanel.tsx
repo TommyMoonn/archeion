@@ -3,6 +3,8 @@ import { lazy, Suspense } from "react";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import type { ReaderHighlightColor } from "./readerHighlights";
+import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
+import type { ReaderAnnotationExportResult } from "./readerAnnotationExportFile";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderAnnotationLoadStatus } from "./useReaderAnnotations";
 
@@ -21,6 +23,7 @@ type LazyReaderAnnotationsPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
+  onExport: (format: ReaderAnnotationExportFormat) => Promise<ReaderAnnotationExportResult>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
   onRecolorHighlight: (annotationId: string, color: ReaderHighlightColor) => Promise<boolean>;
   onRecover: (annotation: Annotation) => Promise<ReaderAnnotationRecoveryResult>;

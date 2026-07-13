@@ -3,6 +3,7 @@ import {
   BookmarkSimple,
   Check,
   Copy,
+  DownloadSimple,
   DotsThree,
   Highlighter,
   MagnifyingGlass,
@@ -31,6 +32,9 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { formatMediumDate } from "../../utils/formatters";
+import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
+import type { ReaderAnnotationExportResult } from "./readerAnnotationExportFile";
 import {
   READER_HIGHLIGHT_COLORS,
   normalizeReaderHighlightColor,
@@ -104,6 +108,7 @@ type ReaderAnnotationsPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
+  onExport: (format: ReaderAnnotationExportFormat) => Promise<ReaderAnnotationExportResult>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
   onRecolorHighlight: (annotationId: string, color: ReaderHighlightColor) => Promise<boolean>;
   onRecover: (annotation: Annotation) => Promise<ReaderAnnotationRecoveryResult>;
@@ -122,6 +127,7 @@ export function ReaderAnnotationsPanel({
   navigation,
   onClose,
   onEditNote,
+  onExport,
   onNavigate,
   onRecolorHighlight,
   onRecover,
@@ -137,6 +143,7 @@ export function ReaderAnnotationsPanel({
   const removalConfirmationRef = useRef<HTMLDivElement>(null);
   const menuFocusRequestRef = useRef<"first" | "recolor" | "selected-color">("first");
   const actionTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
+  const { closeDetails: dismissExportMenu, detailsRef: exportMenuRef } = useDismissibleDetails();
   const focusRestoreRequestRef = useRef<{ annotationId?: string } | undefined>(undefined);
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
@@ -151,6 +158,17 @@ export function ReaderAnnotationsPanel({
   const [pendingPanelAction, setPendingPanelAction] = useState<PendingPanelAction>();
   const [actionError, setActionError] = useState<string>();
   const [recoveryFeedback, setRecoveryFeedback] = useState<RecoveryFeedback>();
+  const [exportState, setExportState] = useState<{
+    format: ReaderAnnotationExportFormat;
+    message: string;
+    status: "error" | "exporting" | "success" | "warning";
+  }>();
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
+    dismissExportMenu(options);
+    setExportMenuOpen(false);
+  }
 
   const visible = useMemo(
     () =>
@@ -533,6 +551,36 @@ export function ReaderAnnotationsPanel({
     }
   }
 
+  async function exportAnnotations(format: ReaderAnnotationExportFormat) {
+    if (exportState?.status === "exporting") return;
+    closeExportMenu({ restoreFocus: true });
+    setExportState({ format, message: "Exporting annotations…", status: "exporting" });
+    try {
+      const result = await onExport(format);
+      if (result.status === "cancelled") {
+        setExportState(undefined);
+      } else if (result.status === "empty") {
+        setExportState({
+          format,
+          message: "There are no annotations to export.",
+          status: "warning",
+        });
+      } else {
+        setExportState({
+          format,
+          message: `${result.annotationCount} ${result.annotationCount === 1 ? "annotation" : "annotations"} exported.`,
+          status: "success",
+        });
+      }
+    } catch (error) {
+      setExportState({
+        format,
+        message: error instanceof Error ? error.message : "Annotations could not be exported.",
+        status: "error",
+      });
+    }
+  }
+
   return (
     <aside
       aria-label="Annotations"
@@ -547,6 +595,8 @@ export function ReaderAnnotationsPanel({
         event.stopPropagation();
         if (menu) {
           handleMenuEscape();
+        } else if (exportMenuRef.current?.open) {
+          closeExportMenu({ restoreFocus: true });
         } else if (editingId) {
           cancelBookmarkRename(editingId);
         } else if (pendingRemovalId) {
@@ -564,10 +614,69 @@ export function ReaderAnnotationsPanel({
           <p>Reading</p>
           <h2>Annotations</h2>
         </div>
-        <IconButton label="Close annotations" onClick={onClose} size="compact">
-          <X aria-hidden="true" />
-        </IconButton>
+        <div className="reader-panel-header__actions">
+          <details
+            className="reader-annotations__export-menu"
+            onToggle={(event) => setExportMenuOpen(event.currentTarget.open)}
+            ref={exportMenuRef}
+          >
+            <summary
+              aria-label="Export annotations"
+              className="menu-trigger"
+              title="Export annotations"
+            >
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <DownloadSimple />
+              </span>
+            </summary>
+            <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
+              <MenuItem
+                disabled={exportState?.status === "exporting"}
+                onClick={() => void exportAnnotations("markdown")}
+              >
+                Export Markdown
+              </MenuItem>
+              <MenuItem
+                disabled={exportState?.status === "exporting"}
+                onClick={() => void exportAnnotations("json")}
+              >
+                Export JSON
+              </MenuItem>
+            </div>
+          </details>
+          <IconButton label="Close annotations" onClick={onClose} size="compact">
+            <X aria-hidden="true" />
+          </IconButton>
+        </div>
       </header>
+
+      {exportState ? (
+        <div
+          className="reader-annotations__export-status"
+          data-status={exportState.status}
+          role={exportState.status === "error" ? "alert" : "status"}
+        >
+          <span>{exportState.message}</span>
+          {exportState.status === "error" ? (
+            <Button
+              onClick={() => void exportAnnotations(exportState.format)}
+              size="compact"
+              variant="ghost"
+            >
+              Retry
+            </Button>
+          ) : null}
+          {exportState.status !== "exporting" ? (
+            <IconButton
+              label="Dismiss export message"
+              onClick={() => setExportState(undefined)}
+              size="compact"
+            >
+              <X aria-hidden="true" />
+            </IconButton>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="reader-annotations__controls">
         <SegmentedControl

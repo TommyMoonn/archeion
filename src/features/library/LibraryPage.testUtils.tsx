@@ -60,6 +60,7 @@ export function createStorage({
     updatedAt: "1",
   } satisfies Folder),
   deleteBook = vi.fn(),
+  listAnnotations = vi.fn().mockResolvedValue([]),
   observeBooks,
   observeFolders,
   observeScanStatus,
@@ -70,6 +71,7 @@ export function createStorage({
   folders?: Folder[];
   createFolder?: LibraryStorage["createFolder"];
   deleteBook?: LibraryStorage["deleteBook"];
+  listAnnotations?: LibraryStorage["listAnnotations"];
   observeBooks?: LibraryStorage["observeBooks"];
   observeFolders?: LibraryStorage["observeFolders"];
   observeScanStatus?: LibraryStorage["observeScanStatus"];
@@ -110,6 +112,7 @@ export function createStorage({
         observer.next(books);
         return () => undefined;
       }),
+    listAnnotations,
     createFolder,
     getFolder: vi.fn(),
     listFolders: vi.fn(),

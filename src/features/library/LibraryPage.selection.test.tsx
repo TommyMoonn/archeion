@@ -1,5 +1,7 @@
 // @vitest-environment happy-dom
 
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -16,6 +18,9 @@ import {
   setInputValue,
   setupLibraryPageTestSuite,
 } from "./LibraryPage.testUtils";
+
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(), isTauri: vi.fn(() => false) }));
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 describe("LibraryPage selection and bulk workflows", () => {
   const suite = setupLibraryPageTestSuite();
@@ -95,6 +100,96 @@ describe("LibraryPage selection and bulk workflows", () => {
       "1 selected",
     );
     expect(session.container.querySelector(".details-drawer")).toBeNull();
+  });
+
+  it("exports annotations for every selected book as one versioned document", async () => {
+    vi.mocked(save).mockClear();
+    vi.mocked(invoke).mockClear();
+    vi.mocked(save).mockResolvedValueOnce("C:\\Exports\\archeion-annotations.json");
+    vi.mocked(invoke).mockResolvedValueOnce(undefined);
+    const listAnnotations = vi.fn(async (bookId: string) => [
+      {
+        cfiRange: `epubcfi(/6/${bookId === "alpha" ? "2" : "4"})`,
+        createdAt: "2026-07-01T00:00:00.000Z",
+        id: `${bookId}-bookmark`,
+        label: `${bookId} bookmark`,
+        type: "bookmark" as const,
+        updatedAt: "2026-07-01T00:00:00.000Z",
+      },
+    ]);
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+      listAnnotations,
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+      clickBook(session.container, "Beta", { ctrlKey: true });
+    });
+    act(() => {
+      session.container
+        .querySelector<HTMLElement>('summary[aria-label="More bulk actions"]')
+        ?.click();
+    });
+    await act(async () => {
+      buttonWithText(session.container, "Export annotations as JSON").click();
+      await Promise.resolve();
+    });
+
+    expect(listAnnotations).toHaveBeenCalledTimes(2);
+    expect(invoke).toHaveBeenCalledWith(
+      "write_annotation_export_file",
+      expect.objectContaining({
+        contents: expect.stringContaining('"schema": "archeion.annotation-export"'),
+        path: "C:\\Exports\\archeion-annotations.json",
+      }),
+    );
+    expect(session.container.textContent).toContain("Annotations exported.");
+  });
+
+  it("does not write a partial annotation export when one selected book fails to load", async () => {
+    vi.mocked(save).mockClear();
+    vi.mocked(invoke).mockClear();
+    const listAnnotations = vi.fn(async (bookId: string) => {
+      if (bookId === "beta") throw new Error("Beta annotations are unavailable.");
+      return [
+        {
+          cfiRange: "epubcfi(/6/2)",
+          createdAt: "2026-07-01T00:00:00.000Z",
+          id: "alpha-bookmark",
+          type: "bookmark" as const,
+          updatedAt: "2026-07-01T00:00:00.000Z",
+        },
+      ];
+    });
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+      listAnnotations,
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+      clickBook(session.container, "Beta", { ctrlKey: true });
+    });
+    act(() => {
+      session.container
+        .querySelector<HTMLElement>('summary[aria-label="More bulk actions"]')
+        ?.click();
+    });
+    await act(async () => {
+      buttonWithText(session.container, "Export annotations as Markdown").click();
+      await Promise.resolve();
+    });
+
+    expect(save).not.toHaveBeenCalled();
+    expect(invoke).not.toHaveBeenCalled();
+    expect(session.container.textContent).toContain("Annotations could not be exported.");
+    expect(session.container.textContent).toContain("Beta annotations are unavailable.");
+    expect(session.container.querySelector(".library-selection-bar")).not.toBeNull();
   });
 
   it("exits selection mode after a bulk action completes", async () => {

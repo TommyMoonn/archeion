@@ -108,6 +108,13 @@ function annotationChapter(
   };
 }
 
+export function readerAnnotationChapterLabel(
+  annotation: Annotation,
+  chapters: readonly ReaderChapter[],
+): string {
+  return annotationChapter(annotation, buildChapterLookup(chapters)).label;
+}
+
 function matchesView(annotation: Annotation, view: ReaderAnnotationView): boolean {
   if (view === "all") return true;
   if (view === "bookmarks") return annotation.type === "bookmark";
