@@ -356,6 +356,7 @@
   });
 
   const readerDemo = document.querySelector("[data-reader-demo]");
+  const readerFrame = readerDemo?.querySelector(".reader-demo__frame");
   const themeButtons = Array.from(document.querySelectorAll("[data-reader-theme]"));
   const readerSize = document.querySelector("#reader-size");
   const readerSizeOutput = document.querySelector("#reader-size-output");
@@ -383,7 +384,7 @@
       content: `
         <p class="chapter-number">Chapter Twelve</p>
         <h3>The Relay</h3>
-        <p class="reader-deck">The oldest receiver on Meridian Station had been silent for nineteen years.</p>
+        <p class="reader-deck"><span class="reader-annotatable" data-reader-annotatable data-annotation-key="relay-silence" role="button" tabindex="0">The oldest receiver on Meridian Station had been silent for nineteen years.</span></p>
         <div class="reader-transmission-card">
           <span>Unidentified transmission</span>
           <strong>11 second interval</strong>
@@ -401,7 +402,7 @@
         <p class="reader-running-head">Signal and Dust · Chapter Twelve</p>
         <p class="reader-dropcap">By the time the signal crossed the inner ring, Mara had already stopped listening for a reply. The station had taught her that silence was not the absence of information. It was a shape, a pressure, a thing with weight.</p>
         <p>Outside the glass, the archive lights moved in strict intervals. Each pulse marked a volume returned to its place, a record made legible again.</p>
-        <blockquote>Nothing was lost. It had only been waiting for an index.</blockquote>
+        <blockquote><span class="reader-annotatable" data-reader-annotatable data-annotation-key="nothing-lost" role="button" tabindex="0">Nothing was lost. It had only been waiting for an index.</span></blockquote>
         <p>The console warmed beneath her hands. One more book entered orbit.</p>
       `,
     },
@@ -417,7 +418,7 @@
           <p><time>00:00:11</time><span>STACK FOUR ONLINE</span></p>
           <p><time>00:00:22</time><span>CATALOGUE PATH RESTORED</span></p>
           <p><time>00:00:33</time><span>ONE VOLUME UNACCOUNTED FOR</span></p>
-          <p class="reader-transcript__final"><time>00:00:44</time><span>AWAITING READER</span></p>
+          <p class="reader-transcript__final"><time>00:00:44</time><span class="reader-annotatable" data-reader-annotatable data-annotation-key="awaiting-reader" role="button" tabindex="0">AWAITING READER</span></p>
         </div>
         <p>Mara followed the sequence past damaged manifests until a single shelf remained illuminated. The relay was not calling the station. It was calling her.</p>
       `,
@@ -437,7 +438,7 @@
           <li><span>Orin Cass</span><time>Relay Nine · 2206</time></li>
           <li class="reader-index-list__current"><span>Mara Vey</span><time>Meridian · Tomorrow</time></li>
         </ol>
-        <blockquote>An archive does not predict the future. It remembers what has not happened yet.</blockquote>
+        <blockquote><span class="reader-annotatable" data-reader-annotatable data-annotation-key="future-memory" role="button" tabindex="0">An archive does not predict the future. It remembers what has not happened yet.</span></blockquote>
       `,
     },
   ];
@@ -449,12 +450,262 @@
   const readerMemory = document.querySelector("[data-reader-memory]");
   const previousPageButton = document.querySelector('[data-reader-page="previous"]');
   const nextPageButton = document.querySelector('[data-reader-page="next"]');
+  const bookmarkButton = document.querySelector("[data-reader-bookmark-toggle]");
+  const annotationsButton = document.querySelector("[data-reader-annotations-toggle]");
+  const annotationsPanel = document.querySelector("[data-reader-annotations-panel]");
+  const annotationsCloseButton = document.querySelector("[data-reader-annotations-close]");
+  const annotationsList = document.querySelector("[data-reader-annotations-list]");
+  const annotationFilterButtons = Array.from(
+    document.querySelectorAll("[data-reader-annotation-filter]"),
+  );
+  const highlightPalette = document.querySelector("[data-reader-highlight-palette]");
+  const highlightColorButtons = Array.from(document.querySelectorAll("[data-highlight-color]"));
+  const noteActionButton = document.querySelector("[data-reader-note-action]");
+  const notePanel = document.querySelector("[data-reader-note-panel]");
+  const noteBackButton = document.querySelector("[data-reader-note-back]");
+  const noteInput = document.querySelector("[data-reader-note-input]");
+  const noteStatus = document.querySelector("[data-reader-note-status]");
+  const noteDeleteButton = document.querySelector("[data-reader-note-delete]");
+  const annotationStatus = document.querySelector("[data-reader-annotation-status]");
+  const annotationHint = document.querySelector("[data-reader-annotation-hint]");
+
+  const highlightColors = {
+    yellow: "#f2c94c",
+    green: "#6fcf97",
+    blue: "#56ccf2",
+    rose: "#eb8fa3",
+  };
+  const highlights = new Map();
+  const bookmarks = new Set([0]);
   let readerPageIndex = 1;
   let readerPageTransitioning = false;
+  let activeAnnotationKey = null;
+  let annotationFilter = "all";
+  let noteSaveTimer = 0;
+
+  const announceAnnotation = (message) => {
+    if (annotationStatus) annotationStatus.textContent = message;
+  };
+
+  const pageAnnotationTarget = (pageIndex) => {
+    const match = readerPages[pageIndex].content.match(
+      /data-annotation-key="([^"]+)"[^>]*>([^<]+)</,
+    );
+    return match ? { key: match[1], quote: match[2].trim() } : null;
+  };
+
+  const closeHighlightPalette = () => {
+    if (!(highlightPalette instanceof HTMLElement)) return;
+    highlightPalette.hidden = true;
+    readerPageCopy?.querySelectorAll(".is-palette-target").forEach((target) => {
+      target.classList.remove("is-palette-target");
+      target.removeAttribute("aria-expanded");
+    });
+  };
+
+  const closeReaderPanels = ({ restoreFocus = false } = {}) => {
+    if (annotationsPanel instanceof HTMLElement) annotationsPanel.hidden = true;
+    if (notePanel instanceof HTMLElement) notePanel.hidden = true;
+    readerFrame?.classList.remove("has-reader-panel", "has-annotations");
+    annotationsButton?.setAttribute("aria-expanded", "false");
+    if (restoreFocus && annotationsButton instanceof HTMLElement) annotationsButton.focus();
+  };
+
+  const updateBookmarkButton = () => {
+    if (!(bookmarkButton instanceof HTMLButtonElement)) return;
+    const active = bookmarks.has(readerPageIndex);
+    bookmarkButton.setAttribute("aria-pressed", String(active));
+    bookmarkButton.setAttribute("aria-label", active ? "Remove bookmark" : "Add bookmark");
+    bookmarkButton.title = active ? "Remove bookmark" : "Add bookmark";
+  };
+
+  const hydrateReaderAnnotations = () => {
+    readerPageCopy?.querySelectorAll("[data-reader-annotatable]").forEach((target) => {
+      if (!(target instanceof HTMLElement)) return;
+      const key = target.dataset.annotationKey;
+      const annotation = key ? highlights.get(key) : undefined;
+      if (annotation) {
+        target.dataset.highlight = annotation.color;
+        target.dataset.hasNote = annotation.note ? "true" : "false";
+        target.setAttribute(
+          "aria-label",
+          annotation.note ? "Highlighted passage with note" : "Highlighted passage",
+        );
+      } else {
+        delete target.dataset.highlight;
+        delete target.dataset.hasNote;
+        target.setAttribute("aria-label", "Highlight this passage");
+      }
+    });
+  };
+
+  const collectAnnotations = () => {
+    const items = [];
+    bookmarks.forEach((pageIndex) => {
+      const target = pageAnnotationTarget(pageIndex);
+      items.push({
+        type: "bookmark",
+        pageIndex,
+        key: null,
+        chapter: readerPages[pageIndex].chapterLabel,
+        quote: target?.quote || "Saved reading position",
+        note: "",
+        color: "blue",
+      });
+    });
+    highlights.forEach((annotation, key) => {
+      items.push({ ...annotation, type: "highlight", key });
+    });
+    return items.sort((a, b) => a.pageIndex - b.pageIndex || a.type.localeCompare(b.type));
+  };
+
+  const escapeMarkup = (value) =>
+    value.replace(
+      /[&<>'"]/g,
+      (character) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "'": "&#39;",
+          '"': "&quot;",
+        })[character],
+    );
+
+  const renderAnnotationsPanel = () => {
+    if (!(annotationsList instanceof HTMLElement)) return;
+    const visible = collectAnnotations().filter((item) => {
+      if (annotationFilter === "bookmarks") return item.type === "bookmark";
+      if (annotationFilter === "highlights") return item.type === "highlight";
+      return true;
+    });
+
+    if (visible.length === 0) {
+      annotationsList.innerHTML = `
+        <div class="reader-annotations-empty">
+          <strong>No ${annotationFilter === "all" ? "annotations" : annotationFilter}</strong>
+          <span>Bookmarks and highlighted passages appear here.</span>
+        </div>`;
+      return;
+    }
+
+    const groups = new Map();
+    visible.forEach((item) => {
+      if (!groups.has(item.chapter)) groups.set(item.chapter, []);
+      groups.get(item.chapter).push(item);
+    });
+
+    annotationsList.innerHTML = Array.from(groups.entries())
+      .map(
+        ([chapter, items]) => `
+      <section class="reader-annotation-group">
+        <h4>${escapeMarkup(chapter)}</h4>
+        ${items
+          .map(
+            (item) => `
+          <button
+            type="button"
+            class="reader-annotation-card"
+            data-reader-annotation-jump
+            data-page-index="${item.pageIndex}"
+            ${item.key ? `data-annotation-key="${escapeMarkup(item.key)}"` : ""}
+          >
+            <span class="reader-annotation-card__type">
+              <i class="reader-annotation-card__dot" style="--annotation-color: ${item.type === "highlight" ? highlightColors[item.color] : "var(--blue)"}"></i>
+              ${item.type === "highlight" ? `${item.color[0].toUpperCase()}${item.color.slice(1)} highlight` : "Bookmark"}
+            </span>
+            <span class="reader-annotation-card__quote">${escapeMarkup(item.quote)}</span>
+            ${item.note ? `<span class="reader-annotation-card__note">${escapeMarkup(item.note)}</span>` : ""}
+          </button>`,
+          )
+          .join("")}
+      </section>`,
+      )
+      .join("");
+  };
+
+  const openAnnotationsPanel = () => {
+    closeHighlightPalette();
+    if (notePanel instanceof HTMLElement) notePanel.hidden = true;
+    if (annotationsPanel instanceof HTMLElement) annotationsPanel.hidden = false;
+    readerFrame?.classList.add("has-reader-panel", "has-annotations");
+    annotationsButton?.setAttribute("aria-expanded", "true");
+    renderAnnotationsPanel();
+    annotationsCloseButton?.focus();
+  };
+
+  const openNotePanel = () => {
+    if (!activeAnnotationKey) return;
+    const target = readerPageCopy?.querySelector(
+      `[data-annotation-key="${CSS.escape(activeAnnotationKey)}"]`,
+    );
+    if (!(target instanceof HTMLElement)) return;
+    const existing = highlights.get(activeAnnotationKey) || {
+      pageIndex: readerPageIndex,
+      chapter: readerPages[readerPageIndex].chapterLabel,
+      quote: target.textContent?.trim() || "Highlighted passage",
+      color: "yellow",
+      note: "",
+    };
+    highlights.set(activeAnnotationKey, existing);
+    hydrateReaderAnnotations();
+    closeHighlightPalette();
+    if (annotationsPanel instanceof HTMLElement) annotationsPanel.hidden = true;
+    if (notePanel instanceof HTMLElement) notePanel.hidden = false;
+    readerFrame?.classList.add("has-reader-panel", "has-annotations");
+    annotationsButton?.setAttribute("aria-expanded", "true");
+    if (noteInput instanceof HTMLTextAreaElement) {
+      noteInput.value = existing.note || "";
+      noteInput.focus();
+    }
+    if (noteStatus) noteStatus.textContent = existing.note ? "Saved" : "Changes save automatically";
+    if (noteDeleteButton instanceof HTMLButtonElement) noteDeleteButton.disabled = !existing.note;
+  };
+
+  const positionHighlightPalette = (target) => {
+    if (!(highlightPalette instanceof HTMLElement) || !(readerFrame instanceof HTMLElement)) return;
+    highlightPalette.hidden = false;
+    const frameRect = readerFrame.getBoundingClientRect();
+    const targetRect = target.getBoundingClientRect();
+    const paletteRect = highlightPalette.getBoundingClientRect();
+    const desiredLeft =
+      targetRect.left - frameRect.left + targetRect.width / 2 - paletteRect.width / 2;
+    const left = Math.min(Math.max(10, desiredLeft), frameRect.width - paletteRect.width - 10);
+    const above = targetRect.top - frameRect.top - paletteRect.height - 10;
+    const top = above > 66 ? above : targetRect.bottom - frameRect.top + 10;
+    highlightPalette.style.left = `${left}px`;
+    highlightPalette.style.top = `${Math.min(top, frameRect.height - paletteRect.height - 12)}px`;
+  };
+
+  const openHighlightPalette = (target) => {
+    closeReaderPanels();
+    activeAnnotationKey = target.dataset.annotationKey || null;
+    if (!activeAnnotationKey) return;
+    target.classList.add("is-palette-target");
+    target.setAttribute("aria-expanded", "true");
+    const annotation = highlights.get(activeAnnotationKey);
+    highlightColorButtons.forEach((button) => {
+      const checked = button.dataset.highlightColor === (annotation?.color || "none");
+      button.setAttribute("aria-checked", String(checked));
+    });
+    if (noteActionButton instanceof HTMLButtonElement) {
+      const label = annotation?.note
+        ? "Edit note"
+        : annotation
+          ? "Add note"
+          : "Highlight and add note";
+      noteActionButton.setAttribute("aria-label", label);
+      noteActionButton.title = label;
+    }
+    positionHighlightPalette(target);
+    annotationHint?.setAttribute("hidden", "");
+    announceAnnotation("Choose a highlight color or add a note.");
+  };
 
   const renderReaderPage = (pageIndex) => {
     if (!(readerPageCopy instanceof HTMLElement)) return;
     const page = readerPages[pageIndex];
+    closeHighlightPalette();
     readerPageCopy.dataset.readerPageVariant = page.variant;
     readerPageCopy.innerHTML = page.content;
     if (readerChapterLabel) readerChapterLabel.textContent = page.chapterLabel;
@@ -464,6 +715,8 @@
     if (readerMemory)
       readerMemory.textContent = `${page.chapterLabel.split(" · ")[0]} · ${page.progress}%`;
     readerPageIndex = pageIndex;
+    hydrateReaderAnnotations();
+    updateBookmarkButton();
     if (previousPageButton instanceof HTMLButtonElement)
       previousPageButton.disabled = readerPageIndex === 0;
     if (nextPageButton instanceof HTMLButtonElement)
@@ -473,6 +726,8 @@
   const updateReaderPage = (nextIndex, direction) => {
     if (!(readerPageCopy instanceof HTMLElement) || readerPageTransitioning) return;
     if (nextIndex < 0 || nextIndex >= readerPages.length || nextIndex === readerPageIndex) return;
+    closeReaderPanels();
+    closeHighlightPalette();
 
     if (reducedMotion.matches) {
       renderReaderPage(nextIndex);
@@ -490,10 +745,168 @@
     }, 140);
   };
 
+  readerPageCopy?.addEventListener("click", (event) => {
+    const target =
+      event.target instanceof Element ? event.target.closest("[data-reader-annotatable]") : null;
+    if (target instanceof HTMLElement) openHighlightPalette(target);
+  });
+
+  readerPageCopy?.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target =
+      event.target instanceof Element ? event.target.closest("[data-reader-annotatable]") : null;
+    if (!(target instanceof HTMLElement)) return;
+    event.preventDefault();
+    openHighlightPalette(target);
+  });
+
+  highlightColorButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!activeAnnotationKey) return;
+      const color = button.dataset.highlightColor;
+      const target = readerPageCopy?.querySelector(
+        `[data-annotation-key="${CSS.escape(activeAnnotationKey)}"]`,
+      );
+      if (!(target instanceof HTMLElement)) return;
+      if (color === "none") {
+        highlights.delete(activeAnnotationKey);
+        announceAnnotation("Highlight removed.");
+      } else if (color && Object.hasOwn(highlightColors, color)) {
+        const previous = highlights.get(activeAnnotationKey);
+        highlights.set(activeAnnotationKey, {
+          pageIndex: readerPageIndex,
+          chapter: readerPages[readerPageIndex].chapterLabel,
+          quote: target.textContent?.trim() || "Highlighted passage",
+          color,
+          note: previous?.note || "",
+        });
+        announceAnnotation(`${color[0].toUpperCase()}${color.slice(1)} highlight added.`);
+      }
+      hydrateReaderAnnotations();
+      renderAnnotationsPanel();
+      closeHighlightPalette();
+    });
+  });
+
+  noteActionButton?.addEventListener("click", openNotePanel);
+
+  bookmarkButton?.addEventListener("click", () => {
+    const active = bookmarks.has(readerPageIndex);
+    if (active) bookmarks.delete(readerPageIndex);
+    else bookmarks.add(readerPageIndex);
+    updateBookmarkButton();
+    renderAnnotationsPanel();
+    announceAnnotation(active ? "Bookmark removed." : "Page bookmarked.");
+  });
+
+  annotationsButton?.addEventListener("click", () => {
+    const isOpen = annotationsPanel instanceof HTMLElement && !annotationsPanel.hidden;
+    if (isOpen) closeReaderPanels({ restoreFocus: true });
+    else openAnnotationsPanel();
+  });
+
+  annotationsCloseButton?.addEventListener("click", () =>
+    closeReaderPanels({ restoreFocus: true }),
+  );
+
+  annotationFilterButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      annotationFilter = button.dataset.readerAnnotationFilter || "all";
+      annotationFilterButtons.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      renderAnnotationsPanel();
+    });
+  });
+
+  annotationsList?.addEventListener("click", (event) => {
+    const button =
+      event.target instanceof Element
+        ? event.target.closest("[data-reader-annotation-jump]")
+        : null;
+    if (!(button instanceof HTMLElement)) return;
+    const pageIndex = Number(button.dataset.pageIndex);
+    const annotationKey = button.dataset.annotationKey;
+    closeReaderPanels();
+    renderReaderPage(pageIndex);
+    window.requestAnimationFrame(() => {
+      const target = annotationKey
+        ? readerPageCopy?.querySelector(`[data-annotation-key="${CSS.escape(annotationKey)}"]`)
+        : readerPageCopy;
+      if (!(target instanceof HTMLElement)) return;
+      target.classList.add("is-annotation-target");
+      target.focus({ preventScroll: true });
+      window.setTimeout(() => target.classList.remove("is-annotation-target"), 800);
+    });
+  });
+
+  noteInput?.addEventListener("input", () => {
+    if (!(noteInput instanceof HTMLTextAreaElement) || !activeAnnotationKey) return;
+    const annotation = highlights.get(activeAnnotationKey);
+    if (!annotation) return;
+    annotation.note = noteInput.value.trim();
+    highlights.set(activeAnnotationKey, annotation);
+    hydrateReaderAnnotations();
+    if (noteDeleteButton instanceof HTMLButtonElement) noteDeleteButton.disabled = !annotation.note;
+    if (noteStatus) noteStatus.textContent = "Saving…";
+    window.clearTimeout(noteSaveTimer);
+    noteSaveTimer = window.setTimeout(() => {
+      if (noteStatus)
+        noteStatus.textContent = annotation.note ? "Saved" : "Changes save automatically";
+      renderAnnotationsPanel();
+    }, 420);
+  });
+
+  noteBackButton?.addEventListener("click", openAnnotationsPanel);
+
+  noteDeleteButton?.addEventListener("click", () => {
+    if (!activeAnnotationKey) return;
+    const annotation = highlights.get(activeAnnotationKey);
+    if (!annotation) return;
+    annotation.note = "";
+    highlights.set(activeAnnotationKey, annotation);
+    if (noteInput instanceof HTMLTextAreaElement) noteInput.value = "";
+    if (noteStatus) noteStatus.textContent = "Note deleted. Highlight kept.";
+    if (noteDeleteButton instanceof HTMLButtonElement) noteDeleteButton.disabled = true;
+    hydrateReaderAnnotations();
+    renderAnnotationsPanel();
+  });
+
   previousPageButton?.addEventListener("click", () =>
     updateReaderPage(readerPageIndex - 1, "backward"),
   );
   nextPageButton?.addEventListener("click", () => updateReaderPage(readerPageIndex + 1, "forward"));
+
+  document.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (!(highlightPalette instanceof HTMLElement) || highlightPalette.hidden) return;
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (highlightPalette.contains(target)) return;
+      if (target instanceof Element && target.closest("[data-reader-annotatable]")) return;
+      closeHighlightPalette();
+    },
+    true,
+  );
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (highlightPalette instanceof HTMLElement && !highlightPalette.hidden) {
+      closeHighlightPalette();
+      return;
+    }
+    if (notePanel instanceof HTMLElement && !notePanel.hidden) {
+      openAnnotationsPanel();
+      return;
+    }
+    if (annotationsPanel instanceof HTMLElement && !annotationsPanel.hidden) {
+      closeReaderPanels({ restoreFocus: true });
+    }
+  });
+
   renderReaderPage(readerPageIndex);
 
   const copyButton = document.querySelector("[data-copy-command]");
