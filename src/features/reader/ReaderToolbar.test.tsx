@@ -47,7 +47,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           bookmarkActive={false}
           bookmarkBusy={false}
           bookmarkToggleDisabled={false}
-          bookmarksOpen={false}
+          annotationsOpen={false}
           nextChapterDisabled={false}
           noteDisabled={false}
           percentage={45.7}
@@ -56,7 +56,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
           title="Book Title"
           mode="paged"
           tocOpen={false}
-          onBookmarks={vi.fn()}
+          onAnnotations={vi.fn()}
           onNote={vi.fn()}
           onToggleBookmark={vi.fn()}
           {...callbacks}
@@ -147,24 +147,24 @@ describe("ReaderToolbar", () => {
     expect(toggle.title).toBe("Current reading location is still loading.");
   });
 
-  it("exposes bookmark state and bookmark-list controls", () => {
-    const onBookmarks = vi.fn();
+  it("exposes bookmark state and annotation controls", () => {
+    const onAnnotations = vi.fn();
     const onToggleBookmark = vi.fn();
     const { container } = renderToolbar({
       bookmarkActive: true,
-      bookmarksOpen: true,
-      onBookmarks,
+      annotationsOpen: true,
+      onAnnotations,
       onToggleBookmark,
     });
 
-    const list = button(container, "Bookmarks");
+    const list = button(container, "Annotations");
     const toggle = button(container, "Remove bookmark");
     expect(list.getAttribute("aria-expanded")).toBe("true");
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
 
     act(() => list.click());
     act(() => toggle.click());
-    expect(onBookmarks).toHaveBeenCalledTimes(1);
+    expect(onAnnotations).toHaveBeenCalledTimes(1);
     expect(onToggleBookmark).toHaveBeenCalledTimes(1);
   });
 

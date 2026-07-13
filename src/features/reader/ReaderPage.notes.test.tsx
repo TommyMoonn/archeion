@@ -41,6 +41,7 @@ const viewerMock = vi.hoisted(() => ({
     cfi: "epubcfi(/6/4)",
     percentage: 20,
   },
+  navigateToLocation: vi.fn().mockResolvedValue(true),
 }));
 
 const navigationState = {
@@ -67,7 +68,7 @@ vi.mock("./EpubViewer", async () => {
       viewerMock.callbacks = props;
       React.useImperativeHandle(ref, () => ({
         navigateToChapter: vi.fn().mockResolvedValue(true),
-        navigateToLocation: vi.fn().mockResolvedValue(true),
+        navigateToLocation: viewerMock.navigateToLocation,
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
       }));
@@ -264,9 +265,13 @@ async function deleteOpenNote(target: HTMLElement) {
 }
 
 async function openBookmarkNote(target: HTMLElement, label: string) {
-  await act(async () => button(target, "Bookmarks").click());
-  await waitFor(() => expect(button(target, `Note for ${label}`)).toBeDefined());
-  await act(async () => button(target, `Note for ${label}`).click());
+  if (!target.querySelector("#reader-annotations")) {
+    await act(async () => button(target, "Annotations").click());
+  }
+  await waitFor(() => expect(button(target, `Actions for ${label}`)).toBeDefined());
+  await act(async () => button(target, `Actions for ${label}`).click());
+  await waitFor(() => expect(textButton(target, "Edit note")).toBeDefined());
+  await act(async () => textButton(target, "Edit note").click());
   await waitFor(() => {
     expect(target.querySelector(".reader-note-editor")).toBeInstanceOf(HTMLElement);
   });
@@ -297,6 +302,7 @@ beforeEach(() => {
     cfi: "epubcfi(/6/4)",
     percentage: 20,
   };
+  viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
   Object.defineProperty(window, "requestAnimationFrame", {
     configurable: true,
     value: (callback: FrameRequestCallback) => {
@@ -319,6 +325,207 @@ afterEach(() => {
 });
 
 describe("ReaderPage note integration", () => {
+  it("keeps action-trigger focus while annotation navigation is pending and after failure", async () => {
+    const bookmark: Annotation = {
+      id: "bookmark-navigation-focus",
+      type: "bookmark",
+      cfiRange: "epubcfi(/6/8)",
+      label: "Navigation focus",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const navigation = deferred<boolean>();
+    viewerMock.navigateToLocation.mockImplementationOnce(() => navigation.promise);
+    const rendered = await renderReader(createStorage([bookmark]).storage);
+
+    await act(async () => button(rendered.container, "Annotations").click());
+    await waitFor(() => {
+      expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    });
+
+    const trigger = button(rendered.container, "Actions for Navigation focus");
+    act(() => trigger.click());
+    act(() => textButton(rendered.container, "Go to location").click());
+
+    expect(document.activeElement).toBe(trigger);
+    expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+
+    await act(async () => navigation.resolve(false));
+    await waitFor(() => {
+      expect(rendered.container.textContent).toContain("could not be opened");
+    });
+
+    expect(document.activeElement).toBe(trigger);
+    expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("keeps action-trigger focus while note settlement is pending until the editor takes ownership", async () => {
+    const scheduledFrames: FrameRequestCallback[] = [];
+    Object.defineProperty(window, "requestAnimationFrame", {
+      configurable: true,
+      value: (callback: FrameRequestCallback) => {
+        scheduledFrames.push(callback);
+        return scheduledFrames.length;
+      },
+      writable: true,
+    });
+
+    const current: Annotation = {
+      id: "highlight-note-focus-current",
+      type: "highlight",
+      cfiRange: "epubcfi(/6/10)",
+      selectedText: "Current note target",
+      color: "yellow",
+      note: "Original current note",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const bookmark: Annotation = {
+      id: "bookmark-note-focus-next",
+      type: "bookmark",
+      cfiRange: "epubcfi(/6/12)",
+      label: "Next note target",
+      note: "Next note",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const harness = createStorage([current, bookmark]);
+    const save = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => save.promise);
+    const rendered = await renderReader(harness.storage);
+    await openHighlightNote(rendered.container, current);
+    enterNote(rendered.container, "Settled current note");
+
+    await act(async () => button(rendered.container, "Annotations").click());
+    await waitFor(() => {
+      expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    });
+    const trigger = button(rendered.container, "Actions for Next note target");
+    act(() => trigger.click());
+    act(() => textButton(rendered.container, "Edit note").click());
+    await waitFor(() => expect(harness.updateAnnotation).toHaveBeenCalledTimes(1));
+
+    expect(document.activeElement).toBe(trigger);
+    expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+
+    await act(async () =>
+      save.resolve({
+        ...current,
+        note: "Settled current note",
+        updatedAt: timestamp,
+      }),
+    );
+    await waitFor(() => expect(rendered.container.querySelector("#reader-annotations")).toBeNull());
+
+    const textarea = rendered.container.querySelector<HTMLTextAreaElement>(
+      ".reader-note-editor textarea",
+    );
+    expect(textarea?.value).toBe("Next note");
+    expect(document.activeElement).toBe(textarea);
+
+    act(() => {
+      scheduledFrames.splice(0).forEach((callback) => callback(0));
+    });
+    expect(document.activeElement).toBe(textarea);
+  });
+
+  it("keeps the panel and originating focus when note settlement fails", async () => {
+    const current: Annotation = {
+      id: "highlight-note-focus-failure",
+      type: "highlight",
+      cfiRange: "epubcfi(/6/14)",
+      selectedText: "Current failing target",
+      color: "yellow",
+      note: "Original failing note",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const bookmark: Annotation = {
+      id: "bookmark-note-focus-failure-next",
+      type: "bookmark",
+      cfiRange: "epubcfi(/6/16)",
+      label: "Failed next target",
+      note: "Next note",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const harness = createStorage([current, bookmark]);
+    const save = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => save.promise);
+    const rendered = await renderReader(harness.storage);
+    await openHighlightNote(rendered.container, current);
+    enterNote(rendered.container, "Unsaved current note");
+
+    await act(async () => button(rendered.container, "Annotations").click());
+    await waitFor(() => {
+      expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    });
+    const trigger = button(rendered.container, "Actions for Failed next target");
+    act(() => trigger.click());
+    act(() => textButton(rendered.container, "Edit note").click());
+    await waitFor(() => expect(harness.updateAnnotation).toHaveBeenCalledTimes(1));
+
+    expect(document.activeElement).toBe(trigger);
+
+    await act(async () => save.reject(new Error("save failed")));
+    await waitFor(() => {
+      expect(rendered.container.querySelector("[role=status]")?.textContent).toContain("Not saved");
+    });
+
+    expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    expect(document.activeElement).toBe(trigger);
+    expect(rendered.container.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+      "Unsaved current note",
+    );
+  });
+
+  it("marks a successfully navigated range highlight current without marking unrelated highlights", async () => {
+    const selected: Annotation = {
+      id: "highlight-current-range",
+      type: "highlight",
+      cfiRange: "epubcfi(/6/8!/4/2,/1:0,/1:12)",
+      selectedText: "Selected range",
+      color: "yellow",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const unrelated: Annotation = {
+      id: "highlight-unrelated-range",
+      type: "highlight",
+      cfiRange: "epubcfi(/6/10!/4/2,/1:0,/1:12)",
+      selectedText: "Unrelated range",
+      color: "blue",
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    const rendered = await renderReader(createStorage([selected, unrelated]).storage);
+
+    await act(async () => button(rendered.container, "Annotations").click());
+    await waitFor(() => {
+      expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    });
+
+    const findTarget = (text: string) => {
+      const target = Array.from(
+        rendered.container.querySelectorAll<HTMLButtonElement>(".reader-annotations__target"),
+      ).find((candidate) => candidate.textContent?.includes(text));
+      if (!target) throw new Error(`Annotation target ${text} was not rendered.`);
+      return target;
+    };
+
+    await act(async () => findTarget("Selected range").click());
+    expect(viewerMock.navigateToLocation).toHaveBeenCalledWith(selected.cfiRange);
+    await waitFor(() => expect(rendered.container.querySelector("#reader-annotations")).toBeNull());
+
+    await act(async () => button(rendered.container, "Annotations").click());
+    await waitFor(() => {
+      expect(rendered.container.querySelector("#reader-annotations")).toBeInstanceOf(HTMLElement);
+    });
+
+    expect(findTarget("Selected range").getAttribute("aria-current")).toBe("location");
+    expect(findTarget("Unrelated range").hasAttribute("aria-current")).toBe(false);
+  });
+
   it("gates standalone notes until the live reader location is ready", async () => {
     viewerMock.autoReady = false;
     const harness = createStorage();
@@ -328,7 +535,7 @@ describe("ReaderPage note integration", () => {
     expect(note.disabled).toBe(true);
     expect(note.title).toBe("Current reading location is still loading.");
     act(() => note.click());
-    expect(harness.listAnnotations).toHaveBeenCalledTimes(2);
+    expect(harness.listAnnotations).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       viewerMock.callbacks?.onNavigationChange(navigationState);
@@ -364,7 +571,7 @@ describe("ReaderPage note integration", () => {
     };
     const harness = createStorage([bookmark]);
     const rendered = await renderReader(harness.storage);
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(1));
     harness.listAnnotations.mockRejectedValueOnce(new Error("read failed"));
 
     await act(async () => button(rendered.container, "Add note at current location").click());
@@ -478,9 +685,7 @@ describe("ReaderPage note integration", () => {
     await deleteOpenNote(rendered.container);
     expect(harness.deleteAnnotation).toHaveBeenCalledWith(book.id, standalone.id);
 
-    await act(async () => button(rendered.container, "Bookmarks").click());
-    await waitFor(() => expect(button(rendered.container, "Note for Bookmark")).toBeDefined());
-    await act(async () => button(rendered.container, "Note for Bookmark").click());
+    await openBookmarkNote(rendered.container, "Bookmark");
     await deleteOpenNote(rendered.container);
     expect(harness.updateAnnotation).toHaveBeenCalledWith(book.id, bookmark.id, {
       note: undefined,
@@ -573,11 +778,7 @@ describe("ReaderPage note integration", () => {
 
     await openStandaloneNote(rendered.container);
     enterNote(rendered.container, "Standalone pending");
-    await act(async () => button(rendered.container, "Bookmarks").click());
-    await waitFor(() =>
-      expect(button(rendered.container, "Note for Switch bookmark")).toBeDefined(),
-    );
-    await act(async () => button(rendered.container, "Note for Switch bookmark").click());
+    await openBookmarkNote(rendered.container, "Switch bookmark");
 
     await waitFor(() =>
       expect(rendered.container.querySelector("[role=status]")?.textContent).toContain("Not saved"),
@@ -590,7 +791,7 @@ describe("ReaderPage note integration", () => {
     await waitFor(() =>
       expect(rendered.container.querySelector("[role=status]")?.textContent).toContain("Saved"),
     );
-    await act(async () => button(rendered.container, "Note for Switch bookmark").click());
+    await openBookmarkNote(rendered.container, "Switch bookmark");
     await waitFor(() =>
       expect(rendered.container.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
         "Bookmark note",
@@ -699,13 +900,13 @@ describe("ReaderPage note integration", () => {
     const firstLoad = deferred<Annotation[]>();
     const secondLoad = deferred<Annotation[]>();
     const rendered = await renderReader(harness.storage);
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(1));
     harness.listAnnotations
       .mockImplementationOnce(() => firstLoad.promise)
       .mockImplementationOnce(() => secondLoad.promise);
 
     await act(async () => button(rendered.container, "Add note at current location").click());
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
     expect(button(rendered.container, "Add note at current location").disabled).toBe(true);
 
     await openBookmarkNote(rendered.container, "Load owner bookmark");
@@ -715,7 +916,7 @@ describe("ReaderPage note integration", () => {
     await act(async () => button(rendered.container, "Close note").click());
 
     await act(async () => button(rendered.container, "Add note at current location").click());
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(4));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(3));
     expect(button(rendered.container, "Add note at current location").disabled).toBe(true);
 
     await act(async () => firstLoad.resolve([]));
@@ -741,11 +942,11 @@ describe("ReaderPage note integration", () => {
     const harness = createStorage([bookmark]);
     const staleLoad = deferred<Annotation[]>();
     const rendered = await renderReader(harness.storage);
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(1));
     harness.listAnnotations.mockImplementationOnce(() => staleLoad.promise);
 
     await act(async () => button(rendered.container, "Add note at current location").click());
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
     await openBookmarkNote(rendered.container, "Stale error bookmark");
     await act(async () => staleLoad.reject(new Error("stale read failed")));
 
@@ -773,7 +974,7 @@ describe("ReaderPage note integration", () => {
     await openHighlightNote(rendered.container, current);
 
     enterNote(rendered.container, "First settled draft");
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(1));
     harness.listAnnotations.mockImplementationOnce(() => pendingLoad.promise);
     await act(async () => button(rendered.container, "Add note at current location").click());
     await waitFor(() => expect(harness.updateAnnotation).toHaveBeenCalledTimes(1));
@@ -811,7 +1012,7 @@ describe("ReaderPage note integration", () => {
     await openHighlightNote(rendered.container, current);
 
     enterNote(rendered.container, "First settled draft");
-    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(harness.listAnnotations).toHaveBeenCalledTimes(1));
     harness.listAnnotations.mockImplementationOnce(() => pendingLoad.promise);
     await act(async () => button(rendered.container, "Add note at current location").click());
     await waitFor(() => expect(harness.updateAnnotation).toHaveBeenCalledTimes(1));

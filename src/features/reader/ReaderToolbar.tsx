@@ -25,11 +25,11 @@ type ReaderToolbarProps = {
   bookmarkBusy: boolean;
   bookmarkToggleDisabled: boolean;
   bookmarkToggleDisabledReason?: string;
-  bookmarksOpen: boolean;
+  annotationsOpen: boolean;
   nextChapterDisabled: boolean;
   backLabel: string;
   onBack: () => void;
-  onBookmarks: () => void;
+  onAnnotations: () => void;
   onToggleBookmark: () => void;
   onNext: () => void;
   onNextChapter: () => void;
@@ -48,7 +48,7 @@ type ReaderToolbarProps = {
   settingsButtonRef?: Ref<HTMLButtonElement>;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
-  bookmarkButtonRef?: Ref<HTMLButtonElement>;
+  annotationButtonRef?: Ref<HTMLButtonElement>;
 };
 
 export function ReaderToolbar({
@@ -61,11 +61,11 @@ export function ReaderToolbar({
   bookmarkBusy,
   bookmarkToggleDisabled,
   bookmarkToggleDisabledReason,
-  bookmarksOpen,
+  annotationsOpen,
   nextChapterDisabled,
   backLabel,
   onBack,
-  onBookmarks,
+  onAnnotations,
   onToggleBookmark,
   onNext,
   onNextChapter,
@@ -84,7 +84,7 @@ export function ReaderToolbar({
   settingsButtonRef,
   tocButtonRef,
   tocOpen,
-  bookmarkButtonRef,
+  annotationButtonRef,
 }: ReaderToolbarProps) {
   const positionLabel =
     chapterProgress === undefined
@@ -154,11 +154,11 @@ export function ReaderToolbar({
           <ListBullets aria-hidden="true" weight="regular" />
         </IconButton>
         <IconButton
-          aria-controls="reader-bookmarks"
-          aria-expanded={bookmarksOpen}
-          label="Bookmarks"
-          onClick={onBookmarks}
-          ref={bookmarkButtonRef}
+          aria-controls="reader-annotations"
+          aria-expanded={annotationsOpen}
+          label="Annotations"
+          onClick={onAnnotations}
+          ref={annotationButtonRef}
           size="compact"
         >
           <BookmarksSimple aria-hidden="true" weight="regular" />

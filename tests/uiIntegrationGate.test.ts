@@ -94,14 +94,23 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(nextFocus).toContain("var(--reader-focus)");
   });
 
-  it("keeps bookmark targets and feedback controls keyboard-visible", () => {
-    const bookmarkTargetFocus = cssBlock(".reader-bookmarks__target:focus-visible", readerSource);
-    const currentBookmark = cssBlock(".reader-bookmarks__item[data-current]", readerSource);
+  it("keeps annotation targets and annotation feedback controls keyboard-visible", () => {
+    const annotationTargetFocus = cssBlock(
+      ".reader-annotations__target:focus-visible",
+      readerSource,
+    );
+    const currentAnnotation = cssBlock(
+      ".reader-annotations__item[data-current] article",
+      readerSource,
+    );
 
-    expect(bookmarkTargetFocus).toContain("box-shadow: inset 0 0 0 2px var(--reader-focus)");
-    expect(bookmarkTargetFocus).toContain("background:");
-    expect(currentBookmark).toContain("border-color:");
-    expect(readerPageSource).toContain('label="Dismiss bookmark message"');
+    expect(annotationTargetFocus).toContain("box-shadow: inset 0 0 0 2px var(--reader-focus)");
+    expect(annotationTargetFocus).toContain("background:");
+    expect(currentAnnotation).toContain("border-color:");
+    expect(readerPageSource).toContain('className="reader-annotation-feedback"');
+    expect(readerPageSource).toContain('label="Dismiss annotation message"');
+    expect(readerPageSource).not.toContain("reader-bookmark-feedback");
+    expect(readerPageSource).not.toContain('label="Dismiss bookmark message"');
     expect(readerPageSource).toContain("<IconButton");
     expect(readerPageSource).not.toContain(">×</button>");
   });

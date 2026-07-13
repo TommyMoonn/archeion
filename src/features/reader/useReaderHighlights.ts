@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation } from "../../types/annotation";
@@ -15,39 +15,23 @@ type HighlightSelection = {
   selectedText: string;
 };
 
-export function useReaderHighlights({
-  bookId,
-  storage,
-}: {
+type UseReaderHighlightsOptions = {
+  annotations: readonly Annotation[];
   bookId?: string;
+  onAnnotationChange: (annotation: Annotation) => void;
+  onAnnotationRemove: (annotationId: string) => void;
   storage: LibraryStorage;
-}) {
-  const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  const [loadedBookId, setLoadedBookId] = useState<string | undefined>();
-  const [error, setError] = useState<string | null>(null);
-  const visibleAnnotations = useMemo(
-    () => (loadedBookId === bookId ? annotations : []),
-    [annotations, bookId, loadedBookId],
-  );
+};
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!bookId) return;
-    void storage
-      .listAnnotations(bookId)
-      .then((items) => {
-        if (!cancelled) {
-          setAnnotations(readerHighlights(items));
-          setLoadedBookId(bookId);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setError("Highlights could not be loaded.");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId, storage]);
+export function useReaderHighlights({
+  annotations,
+  bookId,
+  onAnnotationChange,
+  onAnnotationRemove,
+  storage,
+}: UseReaderHighlightsOptions) {
+  const [error, setError] = useState<string | null>(null);
+  const visibleAnnotations = useMemo(() => readerHighlights(annotations), [annotations]);
 
   const create = useCallback(
     async (selection: HighlightSelection, color: ReaderHighlightColor) => {
@@ -66,11 +50,7 @@ export function useReaderHighlights({
       try {
         if (existing) {
           const updated = await storage.updateAnnotation(bookId, existing.id, { color });
-          if (updated) {
-            setAnnotations((items) =>
-              items.map((item) => (item.id === updated.id ? updated : item)),
-            );
-          }
+          if (updated) onAnnotationChange(updated);
         } else {
           const created = await storage.createAnnotation(bookId, {
             type: "highlight",
@@ -79,7 +59,7 @@ export function useReaderHighlights({
             selectedText,
             color,
           });
-          setAnnotations((items) => readerHighlights([...items, created]));
+          onAnnotationChange(created);
         }
         setError(null);
         return true;
@@ -88,7 +68,7 @@ export function useReaderHighlights({
         return false;
       }
     },
-    [bookId, storage, visibleAnnotations],
+    [bookId, onAnnotationChange, storage, visibleAnnotations],
   );
 
   const ensure = useCallback(
@@ -109,7 +89,7 @@ export function useReaderHighlights({
           selectedText,
           color: "yellow",
         });
-        setAnnotations((items) => readerHighlights([...items, created]));
+        onAnnotationChange(created);
         setError(null);
         return created;
       } catch {
@@ -117,12 +97,8 @@ export function useReaderHighlights({
         return undefined;
       }
     },
-    [bookId, storage, visibleAnnotations],
+    [bookId, onAnnotationChange, storage, visibleAnnotations],
   );
-
-  const sync = useCallback((annotation: Annotation) => {
-    setAnnotations((items) => items.map((item) => (item.id === annotation.id ? annotation : item)));
-  }, []);
 
   const recolor = useCallback(
     async (id: string, color: ReaderHighlightColor) => {
@@ -132,7 +108,7 @@ export function useReaderHighlights({
           color: normalizeReaderHighlightColor(color),
         });
         if (!updated) return false;
-        setAnnotations((items) => items.map((item) => (item.id === id ? updated : item)));
+        onAnnotationChange(updated);
         setError(null);
         return true;
       } catch {
@@ -140,7 +116,7 @@ export function useReaderHighlights({
         return false;
       }
     },
-    [bookId, storage],
+    [bookId, onAnnotationChange, storage],
   );
 
   const remove = useCallback(
@@ -148,7 +124,7 @@ export function useReaderHighlights({
       if (!bookId) return false;
       try {
         const removed = await storage.deleteAnnotation(bookId, id);
-        if (removed) setAnnotations((items) => items.filter((item) => item.id !== id));
+        if (removed) onAnnotationRemove(id);
         setError(null);
         return removed;
       } catch {
@@ -156,8 +132,10 @@ export function useReaderHighlights({
         return false;
       }
     },
-    [bookId, storage],
+    [bookId, onAnnotationRemove, storage],
   );
+
+  const clearError = useCallback(() => setError(null), []);
 
   return useMemo(
     () => ({
@@ -166,10 +144,9 @@ export function useReaderHighlights({
       ensure,
       recolor,
       remove,
-      sync,
       error,
-      clearError: () => setError(null),
+      clearError,
     }),
-    [create, ensure, error, recolor, remove, sync, visibleAnnotations],
+    [clearError, create, ensure, error, recolor, remove, visibleAnnotations],
   );
 }

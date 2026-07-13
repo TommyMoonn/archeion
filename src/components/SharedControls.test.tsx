@@ -15,6 +15,13 @@ import { Toggle } from "./Toggle";
 
 let activeRoot: Root | null = null;
 
+function pointerClick(target: HTMLElement) {
+  act(() => {
+    target.dispatchEvent(new Event("pointerdown", { bubbles: true, cancelable: true }));
+    target.click();
+  });
+}
+
 afterEach(() => {
   if (activeRoot) {
     act(() => activeRoot?.unmount());
@@ -78,6 +85,79 @@ describe("shared control geometry", () => {
 });
 
 describe("AppSelect dismissal", () => {
+  it("observes outside pointer presses before stopped propagation without blocking the target", () => {
+    const onOutsideClick = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <div onPointerDown={(event) => event.stopPropagation()}>
+          <AppSelect
+            ariaLabel="Sort books"
+            onChange={vi.fn()}
+            options={[
+              { label: "Title", value: "title" },
+              { label: "Author", value: "author" },
+            ]}
+            value="title"
+          />
+          <button onClick={onOutsideClick} type="button">
+            Outside target
+          </button>
+        </div>,
+      );
+    });
+
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+    pointerClick(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    pointerClick(
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+        (candidate) => candidate.textContent === "Outside target",
+      )!,
+    );
+
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(onOutsideClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps option selection working with capture-phase outside observation", () => {
+    const onChange = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <AppSelect
+          ariaLabel="Sort books"
+          onChange={onChange}
+          options={[
+            { label: "Title", value: "title" },
+            { label: "Author", value: "author" },
+          ]}
+          value="title"
+        />,
+      );
+    });
+
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+    pointerClick(trigger);
+    const author = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (candidate) => candidate.textContent?.trim() === "Author",
+    )!;
+    pointerClick(author);
+
+    expect(onChange).toHaveBeenCalledWith("author");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("closes on Escape and returns focus to its trigger", () => {
     const container = document.createElement("div");
     document.body.append(container);

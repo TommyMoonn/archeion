@@ -1,5 +1,5 @@
 import { BookOpenText, X } from "@phosphor-icons/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useLoaderData,
   useLocation,
@@ -41,8 +41,8 @@ import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 import { ReaderToolbar } from "./ReaderToolbar";
-import { ReaderBookmarksPanel } from "./ReaderBookmarksPanel";
-import { useReaderBookmarks } from "./useReaderBookmarks";
+import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
+import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
 import { getReaderKeyboardIntent } from "./readerNavigation";
@@ -65,6 +65,25 @@ type ReaderNoteTarget = {
   label?: string;
   targetIdentity: string;
 };
+
+type ReaderAnnotationNavigationSession = {
+  bookId?: string;
+  token: symbol;
+};
+
+type CurrentReaderAnnotation = {
+  annotationId: string;
+  awaitingLocation: boolean;
+  locationCfi: string;
+  session: ReaderAnnotationNavigationSession;
+};
+
+function sameReaderAnnotationSession(
+  left: ReaderAnnotationNavigationSession,
+  right: ReaderAnnotationNavigationSession,
+): boolean {
+  return left.bookId === right.bookId && left.token === right.token;
+}
 
 function noteTargetIdentity(annotation: Annotation | undefined, cfiRange: string): string {
   return annotation ? `annotation:${annotation.id}` : `standalone:${cfiRange}`;
@@ -92,7 +111,7 @@ export function ReaderPage() {
   const viewerRef = useRef<EpubViewerHandle>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const tocButtonRef = useRef<HTMLButtonElement>(null);
-  const bookmarkButtonRef = useRef<HTMLButtonElement>(null);
+  const annotationButtonRef = useRef<HTMLButtonElement>(null);
   const noteEditorRef = useRef<ReaderNoteEditorHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const noteEditorKeyRef = useRef(0);
@@ -113,7 +132,7 @@ export function ReaderPage() {
   const [readerReady, setReaderReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tocOpen, setTocOpen] = useState(false);
-  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [noteTarget, setNoteTarget] = useState<ReaderNoteTarget | null>(null);
   const [noteLoadPending, setNoteLoadPending] = useState(false);
   const [noteMutationBusy, setNoteMutationBusy] = useState(false);
@@ -126,7 +145,7 @@ export function ReaderPage() {
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const settingsOpenRef = useRef(settingsOpen);
   const tocOpenRef = useRef(tocOpen);
-  const bookmarksOpenRef = useRef(bookmarksOpen);
+  const annotationsOpenRef = useRef(annotationsOpen);
   const controlsVisibleRef = useRef(controlsVisible);
   const noteTargetRef = useRef<ReaderNoteTarget | null>(null);
   const noteOpenRequestRef = useRef(0);
@@ -137,6 +156,38 @@ export function ReaderPage() {
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
   const bookId = book?.id;
+  const annotationNavigationSession = useMemo<ReaderAnnotationNavigationSession>(
+    () => ({ bookId, token: Symbol("reader-annotation-navigation-session") }),
+    [bookId],
+  );
+  const annotationNavigationSessionRef = useRef(annotationNavigationSession);
+  const currentReaderLocationRef = useRef(readerSession.initialLocation);
+  const readerLocationVersionRef = useRef(0);
+  const currentAnnotationRef = useRef<CurrentReaderAnnotation | undefined>(undefined);
+  const annotationNavigationRequestRef = useRef(0);
+  const [currentAnnotationState, setCurrentAnnotationState] = useState<
+    CurrentReaderAnnotation | undefined
+  >(undefined);
+  const currentAnnotationId =
+    currentAnnotationState &&
+    sameReaderAnnotationSession(currentAnnotationState.session, annotationNavigationSession)
+      ? currentAnnotationState.annotationId
+      : undefined;
+
+  useLayoutEffect(() => {
+    if (
+      sameReaderAnnotationSession(
+        annotationNavigationSessionRef.current,
+        annotationNavigationSession,
+      )
+    ) {
+      return;
+    }
+    annotationNavigationSessionRef.current = annotationNavigationSession;
+    annotationNavigationRequestRef.current += 1;
+    currentAnnotationRef.current = undefined;
+  }, [annotationNavigationSession]);
+
   const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
   const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
   const returnDestination = readerReturnNavigation(returnContext);
@@ -153,7 +204,7 @@ export function ReaderPage() {
     navigationState.status === "ready" &&
     navigationState.chapters.length > 0 &&
     (chapterSequence.current !== undefined || location.atStart);
-  const bookmarks = useReaderBookmarks({
+  const annotations = useReaderAnnotations({
     bookId,
     chapterHref: chapterSequence.current?.href,
     chapterLabel: chapterSequence.current?.label,
@@ -162,7 +213,13 @@ export function ReaderPage() {
     readerReady,
     storage,
   });
-  const highlights = useReaderHighlights({ bookId, storage });
+  const highlights = useReaderHighlights({
+    annotations: annotations.annotations,
+    bookId,
+    onAnnotationChange: annotations.sync,
+    onAnnotationRemove: annotations.forget,
+    storage,
+  });
   const nextVolume = useReaderSeriesContinuation({
     book,
     isReaderReady: readerReady,
@@ -215,8 +272,8 @@ export function ReaderPage() {
   }, [tocOpen]);
 
   useEffect(() => {
-    bookmarksOpenRef.current = bookmarksOpen;
-  }, [bookmarksOpen]);
+    annotationsOpenRef.current = annotationsOpen;
+  }, [annotationsOpen]);
 
   useEffect(() => {
     controlsVisibleRef.current = controlsVisible;
@@ -242,7 +299,7 @@ export function ReaderPage() {
 
   const revealControls = useCallback(() => {
     const now = Date.now();
-    const isPanelOpen = settingsOpenRef.current || tocOpenRef.current || bookmarksOpenRef.current;
+    const isPanelOpen = settingsOpenRef.current || tocOpenRef.current || annotationsOpenRef.current;
 
     if (controlsVisibleRef.current && !isPanelOpen && now - lastControlsRevealAt.current < 250) {
       return;
@@ -263,21 +320,21 @@ export function ReaderPage() {
   const openSettings = useCallback(() => {
     setControlsVisible(true);
     setTocOpen(false);
-    setBookmarksOpen(false);
+    setAnnotationsOpen(false);
     setSettingsOpen(true);
   }, []);
 
   const openToc = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
-    setBookmarksOpen(false);
+    setAnnotationsOpen(false);
     setTocOpen(true);
   }, []);
 
   const toggleToc = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
-    setBookmarksOpen(false);
+    setAnnotationsOpen(false);
     setTocOpen((isOpen) => !isOpen);
   }, []);
 
@@ -286,16 +343,20 @@ export function ReaderPage() {
     window.requestAnimationFrame(() => tocButtonRef.current?.focus());
   }, []);
 
-  const toggleBookmarks = useCallback(() => {
+  const toggleAnnotations = useCallback(() => {
     setControlsVisible(true);
     setSettingsOpen(false);
     setTocOpen(false);
-    setBookmarksOpen((isOpen) => !isOpen);
+    setAnnotationsOpen((isOpen) => !isOpen);
   }, []);
 
-  const closeBookmarks = useCallback(() => {
-    setBookmarksOpen(false);
-    window.requestAnimationFrame(() => bookmarkButtonRef.current?.focus());
+  const closeAnnotations = useCallback(() => {
+    setAnnotationsOpen(false);
+    window.requestAnimationFrame(() => annotationButtonRef.current?.focus());
+  }, []);
+
+  const closeAnnotationsForNoteEditor = useCallback(() => {
+    setAnnotationsOpen(false);
   }, []);
 
   const closeSettings = useCallback(() => {
@@ -367,6 +428,13 @@ export function ReaderPage() {
     [activeArchiveId, navigate, runControlledReaderExit],
   );
 
+  const openAnnotations = useCallback(() => {
+    setControlsVisible(true);
+    setSettingsOpen(false);
+    setTocOpen(false);
+    setAnnotationsOpen(true);
+  }, []);
+
   const quickActionCommands = useMemo<QuickActionCommand[]>(() => {
     const tocDisabledReason =
       navigationState.status === "loading"
@@ -433,20 +501,58 @@ export function ReaderPage() {
         label: "Open reader TOC",
         order: 80,
       },
+      {
+        execute: openAnnotations,
+        group: "Reader",
+        id: "reader.open-annotations",
+        keywords: ["bookmarks", "highlights", "notes"],
+        label: "Open annotations",
+        order: 81,
+      },
     ];
-  }, [navigateToLibraryView, navigationState.chapters.length, navigationState.status, openToc]);
+  }, [
+    navigateToLibraryView,
+    navigationState.chapters.length,
+    navigationState.status,
+    openAnnotations,
+    openToc,
+  ]);
   useRegisterQuickActions("reader", quickActionCommands);
 
   const navigateToChapter = useCallback((chapterId: string) => {
     return viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false);
   }, []);
 
-  const navigateToBookmark = useCallback((bookmark: { cfiRange?: string }) => {
-    const cfi = bookmark.cfiRange?.trim();
-    return cfi
-      ? (viewerRef.current?.navigateToLocation(cfi) ?? Promise.resolve(false))
-      : Promise.resolve(false);
-  }, []);
+  const navigateToAnnotation = useCallback(
+    async (annotation: Annotation) => {
+      const cfi = annotation.cfiRange?.trim();
+      const session = annotationNavigationSession;
+      if (!cfi || !session.bookId) return false;
+
+      const requestId = ++annotationNavigationRequestRef.current;
+      const startingLocationVersion = readerLocationVersionRef.current;
+      const opened = await (viewerRef.current?.navigateToLocation(cfi) ?? Promise.resolve(false));
+      if (
+        !opened ||
+        !mountedRef.current ||
+        annotationNavigationRequestRef.current !== requestId ||
+        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session)
+      ) {
+        return false;
+      }
+
+      const currentAnnotation = {
+        annotationId: annotation.id,
+        awaitingLocation: readerLocationVersionRef.current === startingLocationVersion,
+        locationCfi: currentReaderLocationRef.current.cfi.trim(),
+        session,
+      };
+      currentAnnotationRef.current = currentAnnotation;
+      setCurrentAnnotationState(currentAnnotation);
+      return true;
+    },
+    [annotationNavigationSession],
+  );
 
   const publishNoteTarget = useCallback((target: ReaderNoteTarget) => {
     if (!mountedRef.current) return;
@@ -501,10 +607,9 @@ export function ReaderPage() {
   const syncSavedNote = useCallback(
     (sessionBookId: string, saved: Annotation) => {
       if (!mountedRef.current || currentBookIdRef.current !== sessionBookId) return;
-      if (saved.type === "highlight") highlights.sync(saved);
-      if (saved.type === "bookmark") bookmarks.sync(saved);
+      annotations.sync(saved);
     },
-    [bookmarks, highlights],
+    [annotations],
   );
 
   const openSelectionNote = useCallback(
@@ -655,7 +760,9 @@ export function ReaderPage() {
       if (!annotation) return false;
       try {
         if (annotation.type === "note") {
-          return await storage.deleteAnnotation(target.bookId, annotation.id);
+          const deleted = await storage.deleteAnnotation(target.bookId, annotation.id);
+          if (deleted) annotations.forget(annotation.id);
+          return deleted;
         }
         const updated = await storage.updateAnnotation(target.bookId, annotation.id, {
           note: undefined,
@@ -667,30 +774,60 @@ export function ReaderPage() {
         return false;
       }
     },
-    [storage, syncSavedNote],
+    [annotations, storage, syncSavedNote],
   );
 
-  const openBookmarkNote = useCallback(
-    (bookmark: Annotation) => {
+  const openAnnotationNote = useCallback(
+    async (annotation: Annotation) => {
       const sessionBookId = bookId;
-      if (!sessionBookId) return;
+      if (!sessionBookId) return false;
 
       const requestId = beginNoteOpenRequest();
-      void (async () => {
-        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return;
+      try {
+        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return false;
         publishNoteTarget({
-          annotation: bookmark,
+          annotation,
           bookId: sessionBookId,
-          cfiRange: bookmark.cfiRange ?? "",
-          chapterHref: bookmark.chapterHref,
+          cfiRange: annotation.cfiRange ?? "",
+          chapterHref: annotation.chapterHref,
           editorKey: ++noteEditorKeyRef.current,
-          label: bookmark.label,
-          targetIdentity: noteTargetIdentity(bookmark, bookmark.cfiRange ?? ""),
+          label: annotation.label,
+          targetIdentity: noteTargetIdentity(annotation, annotation.cfiRange ?? ""),
         });
-        closeBookmarks();
-      })().catch(() => undefined);
+        closeAnnotationsForNoteEditor();
+        return true;
+      } catch {
+        return false;
+      }
     },
-    [beginNoteOpenRequest, bookId, closeBookmarks, settleCurrentNoteForRequest, publishNoteTarget],
+    [
+      beginNoteOpenRequest,
+      bookId,
+      closeAnnotationsForNoteEditor,
+      settleCurrentNoteForRequest,
+      publishNoteTarget,
+    ],
+  );
+
+  const removeAnnotation = useCallback(
+    async (annotation: Annotation) => {
+      if (annotation.type === "bookmark") {
+        return annotations.remove(annotation);
+      }
+      if (annotation.type === "highlight") {
+        return highlights.remove(annotation.id);
+      }
+      if (!bookId) return false;
+
+      try {
+        const deleted = await storage.deleteAnnotation(bookId, annotation.id);
+        if (deleted) annotations.forget(annotation.id);
+        return deleted;
+      } catch {
+        return false;
+      }
+    },
+    [annotations, bookId, highlights, storage],
   );
 
   const movePreviousChapter = useCallback(() => {
@@ -786,6 +923,8 @@ export function ReaderPage() {
     mountedRef.current = true;
     return () => {
       progressWriter.current?.flush();
+      annotationNavigationRequestRef.current += 1;
+      currentAnnotationRef.current = undefined;
       noteOpenRequestRef.current += 1;
       noteLoadRequestRef.current += 1;
       noteLoadOwnerRef.current = null;
@@ -797,6 +936,45 @@ export function ReaderPage() {
     (nextLocation: ReaderLocation) => {
       if (!bookId) {
         return;
+      }
+
+      currentReaderLocationRef.current = nextLocation;
+      readerLocationVersionRef.current += 1;
+      const currentAnnotation = currentAnnotationRef.current;
+      const currentLocationCfi = currentAnnotation?.locationCfi.trim();
+      const nextLocationCfi = nextLocation.cfi.trim();
+      if (
+        currentAnnotation?.awaitingLocation &&
+        sameReaderAnnotationSession(
+          currentAnnotation.session,
+          annotationNavigationSessionRef.current,
+        )
+      ) {
+        const resolvedCurrentAnnotation = {
+          ...currentAnnotation,
+          awaitingLocation: false,
+          locationCfi: nextLocationCfi,
+        };
+        currentAnnotationRef.current = resolvedCurrentAnnotation;
+        setCurrentAnnotationState(resolvedCurrentAnnotation);
+      } else if (
+        currentAnnotation &&
+        sameReaderAnnotationSession(
+          currentAnnotation.session,
+          annotationNavigationSessionRef.current,
+        ) &&
+        currentLocationCfi &&
+        nextLocationCfi &&
+        currentLocationCfi !== nextLocationCfi
+      ) {
+        currentAnnotationRef.current = undefined;
+        setCurrentAnnotationState((current) =>
+          current &&
+          current.annotationId === currentAnnotation.annotationId &&
+          sameReaderAnnotationSession(current.session, currentAnnotation.session)
+            ? undefined
+            : current,
+        );
       }
 
       setLocation(nextLocation);
@@ -845,8 +1023,8 @@ export function ReaderPage() {
       }
 
       if (intent === "close") {
-        if (bookmarksOpenRef.current) {
-          closeBookmarks();
+        if (annotationsOpenRef.current) {
+          closeAnnotations();
         } else if (tocOpenRef.current) {
           closeToc();
         } else if (settingsOpenRef.current) {
@@ -869,7 +1047,7 @@ export function ReaderPage() {
       }
     },
     [
-      closeBookmarks,
+      closeAnnotations,
       closeSettings,
       closeToc,
       moveNext,
@@ -921,7 +1099,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !tocOpen && !bookmarksOpen) {
+    if (!settingsOpen && !tocOpen && !annotationsOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -932,7 +1110,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [bookmarksOpen, settingsOpen, tocOpen]);
+  }, [annotationsOpen, settingsOpen, tocOpen]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -1036,7 +1214,7 @@ export function ReaderPage() {
     >
       <div
         className="reader-controls"
-        data-visible={controlsVisible || settingsOpen || tocOpen || bookmarksOpen || undefined}
+        data-visible={controlsVisible || settingsOpen || tocOpen || annotationsOpen || undefined}
       >
         <ReaderToolbar
           atEnd={location.atEnd}
@@ -1045,15 +1223,15 @@ export function ReaderPage() {
           chapterProgress={navigationState.chapterProgress}
           chapterTitle={chapterSequence.current?.label}
           hasChapterNavigation={hasChapterNavigation}
-          bookmarkActive={Boolean(bookmarks.currentBookmark)}
-          bookmarkBusy={bookmarks.busy}
-          bookmarkToggleDisabled={!bookmarks.canToggleCurrent}
-          bookmarkToggleDisabledReason={bookmarks.toggleDisabledReason}
-          bookmarksOpen={bookmarksOpen}
+          bookmarkActive={Boolean(annotations.currentBookmark)}
+          bookmarkBusy={annotations.busy}
+          bookmarkToggleDisabled={!annotations.canToggleCurrent}
+          bookmarkToggleDisabledReason={annotations.toggleDisabledReason}
+          annotationsOpen={annotationsOpen}
           onNext={moveNext}
           onBack={returnToOrigin}
-          onBookmarks={toggleBookmarks}
-          onToggleBookmark={() => void bookmarks.toggleCurrent()}
+          onAnnotations={toggleAnnotations}
+          onToggleBookmark={() => void annotations.toggleCurrent()}
           onNextChapter={moveNextChapter}
           onNote={openStandaloneNote}
           onPrevious={movePrevious}
@@ -1071,7 +1249,7 @@ export function ReaderPage() {
           settingsButtonRef={settingsButtonRef}
           tocButtonRef={tocButtonRef}
           tocOpen={tocOpen}
-          bookmarkButtonRef={bookmarkButtonRef}
+          annotationButtonRef={annotationButtonRef}
         />
       </div>
       <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
@@ -1105,17 +1283,17 @@ export function ReaderPage() {
         />
       )}
 
-      {bookmarks.feedback ? (
-        <div className="reader-bookmark-feedback" role="status">
-          <span>{bookmarks.feedback.message}</span>
-          {bookmarks.feedback.kind === "removed" ? (
-            <button onClick={() => void bookmarks.undoRemove()} type="button">
+      {annotations.feedback ? (
+        <div className="reader-annotation-feedback" role="status">
+          <span>{annotations.feedback.message}</span>
+          {annotations.feedback.kind === "removed" ? (
+            <button onClick={() => void annotations.undoRemove()} type="button">
               Undo
             </button>
           ) : null}
           <IconButton
-            label="Dismiss bookmark message"
-            onClick={bookmarks.clearFeedback}
+            label="Dismiss annotation message"
+            onClick={annotations.clearFeedback}
             size="compact"
           >
             <X aria-hidden="true" />
@@ -1177,16 +1355,19 @@ export function ReaderPage() {
         <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
       ) : null}
 
-      {bookmarksOpen ? (
-        <ReaderBookmarksPanel
-          bookmarks={bookmarks.bookmarks}
-          busy={bookmarks.busy}
+      {annotationsOpen ? (
+        <LazyReaderAnnotationsPanel
+          annotations={annotations.annotations}
+          currentAnnotationId={currentAnnotationId}
           currentCfi={location.cfi}
-          onClose={closeBookmarks}
-          onNavigate={navigateToBookmark}
-          onNote={openBookmarkNote}
-          onRemove={bookmarks.remove}
-          onUpdateLabel={bookmarks.updateLabel}
+          loadStatus={annotations.loadStatus}
+          navigation={navigationState}
+          onClose={closeAnnotations}
+          onEditNote={openAnnotationNote}
+          onNavigate={navigateToAnnotation}
+          onReload={annotations.reload}
+          onRemove={removeAnnotation}
+          onUpdateBookmarkLabel={annotations.updateLabel}
         />
       ) : null}
 
