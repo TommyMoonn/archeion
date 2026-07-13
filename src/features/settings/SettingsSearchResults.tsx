@@ -67,11 +67,7 @@ export function SettingsSearchResults({
               : "No settings found"}
           </p>
         </div>
-        <Button
-          icon={<X aria-hidden="true" size={15} />}
-          onClick={onClearSearch}
-          variant="secondary"
-        >
+        <Button icon={<X aria-hidden="true" />} onClick={onClearSearch} variant="secondary">
           Clear search
         </Button>
       </header>

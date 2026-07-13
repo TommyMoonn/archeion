@@ -95,7 +95,7 @@ function BookCardComponent({
         }
         onClick={() => onToggleFavorite(book)}
       >
-        <Heart aria-hidden="true" size={17} weight={book.isFavorite ? "fill" : "regular"} />
+        <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
       </IconButton>
       <BookContextMenu
         book={book}

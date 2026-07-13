@@ -171,6 +171,7 @@ describe("BookDetailsDrawer", () => {
     const markup = renderDetails();
 
     expect(markup).toContain("Series/Arc/Volume_01.epub");
+    expect(markup).toContain('class="book-metadata__path"');
     expect(markup).toContain("2.0 MB");
     expect(markup).toContain("Reveal in folder");
     expect(markup).not.toContain(">Location<");
@@ -204,15 +205,27 @@ describe("BookDetailsDrawer", () => {
     const secondaryActions = withFileManagement.match(
       /<div class="details-actions__secondary">[\s\S]*?<\/div>/,
     )?.[0];
+    const secondaryActionMarkup = secondaryActions ?? "";
     const revealButtonMarkup = withFileManagement.match(
       /<button[^>]*>[\s\S]*?Reveal in folder[\s\S]*?<\/button>/,
     )?.[0];
 
     expect(revealButtonMarkup).toBeDefined();
     expect(revealButtonMarkup).not.toContain("details-actions__wide");
-    expect(secondaryActions).not.toContain("Replace cover");
-    expect(secondaryActions?.match(/<button/g)).toHaveLength(4);
-    expect(withFileManagement).toContain("Choose destination");
+    expect(secondaryActionMarkup).not.toContain("Replace cover");
+    expect(secondaryActionMarkup.match(/<button/g)).toHaveLength(4);
+    expect(secondaryActionMarkup.match(/button--compact/g)).toHaveLength(4);
+    expect(withFileManagement).toContain("Move file");
+    expect(secondaryActionMarkup.indexOf("Edit metadata")).toBeLessThan(
+      secondaryActionMarkup.indexOf("Reveal in folder"),
+    );
+    expect(secondaryActionMarkup.indexOf("Reveal in folder")).toBeLessThan(
+      secondaryActionMarkup.indexOf("Move file"),
+    );
+    expect(secondaryActionMarkup.indexOf("Move file")).toBeLessThan(
+      secondaryActionMarkup.indexOf("Rename file"),
+    );
+    expect(withFileManagement).not.toContain("Choose destination");
     expect(withFileManagement).not.toContain("Move file to...");
 
     const revealOnly = renderDetails(book, { canManageFile: false });

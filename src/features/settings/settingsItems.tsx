@@ -477,7 +477,7 @@ export const settingsItems: readonly SettingsItem[] = [
       >
         <Button
           disabled={!context.selectedArchivePath}
-          icon={<FolderOpen aria-hidden="true" size={17} />}
+          icon={<FolderOpen aria-hidden="true" />}
           onClick={() => void context.revealArchiveFolder()}
           variant="secondary"
         >
@@ -575,7 +575,7 @@ export const settingsItems: readonly SettingsItem[] = [
         label="Rescan archive"
       >
         <Button
-          icon={<ArrowsClockwise aria-hidden="true" size={17} />}
+          icon={<ArrowsClockwise aria-hidden="true" />}
           onClick={() => context.openConfirmation("rescanArchive")}
           variant="secondary"
         >
@@ -692,7 +692,7 @@ export const settingsItems: readonly SettingsItem[] = [
         }
       >
         <Button
-          icon={<Broom aria-hidden="true" size={17} />}
+          icon={<Broom aria-hidden="true" />}
           onClick={() => context.openConfirmation("clearCoverCache")}
           variant="secondary"
         >

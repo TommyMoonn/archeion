@@ -42,7 +42,7 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
         label={isScanning ? "Scanning archive" : "Rescan archive"}
         onClick={() => setConfirmationOpen(true)}
       >
-        <ArrowsClockwise aria-hidden="true" size={17} />
+        <ArrowsClockwise aria-hidden="true" />
       </IconButton>
       {confirmationOpen ? (
         <Dialog

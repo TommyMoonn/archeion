@@ -98,7 +98,7 @@ export function LibrarySelectionBar({
             label="Add selected books to favorites"
             onClick={() => onAction("favorite")}
           >
-            <Heart aria-hidden="true" size={18} />
+            <Heart aria-hidden="true" />
           </IconButton>
           <IconButton
             className="library-selection-bar__icon-action"
@@ -107,7 +107,7 @@ export function LibrarySelectionBar({
             label="Move selected books"
             onClick={() => onAction("move")}
           >
-            <ArrowRight aria-hidden="true" size={18} />
+            <ArrowRight aria-hidden="true" />
           </IconButton>
           <details className="library-selection-actions-menu" ref={detailsRef}>
             <summary

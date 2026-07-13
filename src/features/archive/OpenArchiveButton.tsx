@@ -43,7 +43,7 @@ export function OpenArchiveButton({
     <Button
       className={className}
       disabled={isOpening}
-      icon={<FolderOpen aria-hidden="true" size={18} />}
+      icon={<FolderOpen aria-hidden="true" />}
       onClick={handleOpen}
       variant={variant}
     >

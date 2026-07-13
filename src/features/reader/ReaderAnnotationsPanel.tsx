@@ -761,7 +761,7 @@ export function ReaderAnnotationsPanel({
         <div className="reader-annotations__tools">
           <Input
             className="reader-annotations__search"
-            icon={<MagnifyingGlass aria-hidden="true" size={16} />}
+            icon={<MagnifyingGlass aria-hidden="true" />}
             label="Search annotations"
             onChange={(event) => changeQuery(event.currentTarget.value)}
             placeholder="Search annotations"

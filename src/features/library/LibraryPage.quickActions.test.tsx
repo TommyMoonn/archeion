@@ -207,18 +207,10 @@ describe("LibraryPage Quick Actions", () => {
   });
 
   it("opens the existing Add EPUB dialog instead of duplicating import behavior", async () => {
+    await import("../filesystem/AddEpubDialog");
     const rendered = await renderLibrary();
 
     await executeCommand("Add EPUBs");
-
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      if (rendered.container.textContent?.includes("Add EPUB files")) {
-        break;
-      }
-      await act(async () => {
-        await new Promise((resolve) => window.setTimeout(resolve, 0));
-      });
-    }
 
     expect(rendered.container.textContent).toContain("Add EPUB files");
     expect(rendered.storage.addEpubFilesToArchive).not.toHaveBeenCalled();

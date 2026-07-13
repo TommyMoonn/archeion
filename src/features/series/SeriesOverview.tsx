@@ -43,7 +43,7 @@ export function SeriesOverview({
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
-            icon={<MagnifyingGlass aria-hidden="true" size={18} />}
+            icon={<MagnifyingGlass aria-hidden="true" />}
             label="Search series"
             name="archeion-series-search"
             onChange={(event) => onQueryChange(event.currentTarget.value)}
@@ -59,7 +59,7 @@ export function SeriesOverview({
               label="Clear series search"
               onClick={onClearSearch}
             >
-              <X aria-hidden="true" size={14} weight="bold" />
+              <X aria-hidden="true" weight="bold" />
             </IconButton>
           ) : null}
         </div>

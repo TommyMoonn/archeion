@@ -140,7 +140,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         />
 
         <IconButton autoFocus className="settings-close" label="Close settings" onClick={onClose}>
-          <X aria-hidden="true" size={18} />
+          <X aria-hidden="true" />
         </IconButton>
 
         <main className="settings-content" ref={contentRef}>

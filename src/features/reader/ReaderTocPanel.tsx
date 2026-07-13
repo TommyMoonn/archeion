@@ -89,7 +89,7 @@ export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPan
       {showSearch ? (
         <Input
           className="reader-toc__search"
-          icon={<MagnifyingGlass aria-hidden="true" size={16} />}
+          icon={<MagnifyingGlass aria-hidden="true" />}
           label="Search chapters"
           onChange={(event) => setQuery(event.currentTarget.value)}
           placeholder="Search chapters"

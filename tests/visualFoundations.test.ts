@@ -215,6 +215,8 @@ describe("visual foundations", () => {
     expect(baseSource).toMatch(/\.icon-slot\s*{[\s\S]*width:\s*var\(--icon-slot-size\);/);
     expect(baseSource).toMatch(/\.icon-slot\s*{[\s\S]*font-size:\s*var\(--icon-glyph-size\);/);
     expect(baseSource).toMatch(/\.icon-slot > svg\s*{[\s\S]*display:\s*block;/);
+    expect(baseSource).toMatch(/\.icon-slot > svg\s*{[\s\S]*width:\s*var\(--icon-glyph-size\);/);
+    expect(baseSource).toMatch(/\.icon-slot > svg\s*{[\s\S]*height:\s*var\(--icon-glyph-size\);/);
     expect(baseSource).toMatch(/\.icon-slot > svg\s*{[\s\S]*max-width:\s*100%;/);
     expect(baseSource).toContain(".icon-slot--compact");
     expect(baseSource).toContain(".icon-slot--prominent");

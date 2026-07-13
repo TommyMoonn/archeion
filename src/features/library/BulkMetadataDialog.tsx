@@ -162,7 +162,7 @@ export function BulkMetadataDialog({
             <>
               <Button
                 disabled={isWriting}
-                icon={<ArrowLeft aria-hidden="true" size={16} />}
+                icon={<ArrowLeft aria-hidden="true" />}
                 onClick={() => setShowPreview(false)}
                 variant="secondary"
               >

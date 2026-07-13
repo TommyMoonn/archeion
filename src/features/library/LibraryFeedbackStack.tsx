@@ -77,7 +77,7 @@ export function LibraryFeedbackStack({ onDismiss, tokens }: LibraryFeedbackStack
             label="Dismiss feedback"
             onClick={() => onDismiss(token.id)}
           >
-            <X aria-hidden="true" size={15} weight="bold" />
+            <X aria-hidden="true" weight="bold" />
           </IconButton>
         </section>
       ))}

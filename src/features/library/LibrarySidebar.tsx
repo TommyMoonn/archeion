@@ -235,7 +235,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <div className="section-label">Folders</div>
           {canManageFolders ? (
             <IconButton label="Create folder" onClick={onCreateFolder}>
-              <Plus aria-hidden="true" size={17} weight="regular" />
+              <Plus aria-hidden="true" weight="regular" />
             </IconButton>
           ) : null}
         </div>
@@ -266,7 +266,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             className="menu-trigger menu-trigger--disclosure"
           >
             <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <CaretUpDown size={14} weight="bold" />
+              <CaretUpDown weight="bold" />
             </span>
             <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
           </summary>
@@ -279,7 +279,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             >
               <span className="menu-item__label">{activeArchive.displayName}</span>
               <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                <Check size={15} weight="bold" />
+                <Check weight="bold" />
               </span>
             </div>
             {archives
@@ -297,7 +297,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             <div className="archive-switcher__divider" role="separator" />
             <MenuItem
               className="archive-switcher__manage"
-              icon={<Archive aria-hidden="true" size={16} weight="regular" />}
+              icon={<Archive aria-hidden="true" weight="regular" />}
               onClick={manageArchives}
             >
               Manage archives
@@ -310,7 +310,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           onFocus={onPreloadAbout}
           onPointerEnter={onPreloadAbout}
         >
-          <Question aria-hidden="true" size={17} weight="bold" />
+          <Question aria-hidden="true" weight="bold" />
         </IconButton>
         <IconButton
           label="Settings"
@@ -318,7 +318,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           onFocus={onPreloadSettings}
           onPointerEnter={onPreloadSettings}
         >
-          <GearSix aria-hidden="true" size={18} />
+          <GearSix aria-hidden="true" />
         </IconButton>
       </div>
     </aside>

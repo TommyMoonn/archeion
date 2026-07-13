@@ -23,7 +23,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
         <EmptyState
           action={
             <Button
-              icon={<ArrowLeft aria-hidden="true" size={16} />}
+              icon={<ArrowLeft aria-hidden="true" />}
               onClick={onBack}
               size="standard"
               variant="secondary"
@@ -61,7 +61,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
             <Button
               data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
-              icon={<Play aria-hidden="true" size={15} weight="fill" />}
+              icon={<Play aria-hidden="true" weight="fill" />}
               onClick={() => onRead(continueBook)}
               size="standard"
             >

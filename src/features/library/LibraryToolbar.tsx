@@ -42,12 +42,12 @@ const viewOptions: Array<{
   value: LibraryView;
 }> = [
   {
-    icon: <GridFour aria-hidden="true" size={17} weight="regular" />,
+    icon: <GridFour aria-hidden="true" weight="regular" />,
     label: "Grid",
     value: "grid",
   },
   {
-    icon: <List aria-hidden="true" size={18} weight="regular" />,
+    icon: <List aria-hidden="true" weight="regular" />,
     label: "List",
     value: "list",
   },
@@ -85,7 +85,7 @@ export function LibraryToolbar({
       <div className="library-header__actions">
         <div className="library-search">
           <Input
-            icon={<MagnifyingGlass aria-hidden="true" size={18} weight="regular" />}
+            icon={<MagnifyingGlass aria-hidden="true" weight="regular" />}
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
@@ -105,7 +105,7 @@ export function LibraryToolbar({
               label="Clear search"
               onClick={onClearSearch}
             >
-              <X aria-hidden="true" size={14} weight="bold" />
+              <X aria-hidden="true" weight="bold" />
             </IconButton>
           ) : null}
         </div>
@@ -122,7 +122,7 @@ export function LibraryToolbar({
           busy={isImporting}
           className="library-add-button"
           disabled={isImporting}
-          icon={<Plus aria-hidden="true" size={17} weight="bold" />}
+          icon={<Plus aria-hidden="true" weight="bold" />}
           onClick={onOpenAddEpub}
           size="standard"
         >

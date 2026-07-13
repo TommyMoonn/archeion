@@ -122,10 +122,10 @@ export function BookDetailsDrawer({
               label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
               onClick={() => onToggleFavorite(book)}
             >
-              <Heart aria-hidden="true" size={18} weight={book.isFavorite ? "fill" : "regular"} />
+              <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
             </IconButton>
             <IconButton label="Close book details" onClick={onClose} autoFocus>
-              <X aria-hidden="true" size={18} weight="regular" />
+              <X aria-hidden="true" weight="regular" />
             </IconButton>
           </div>
         </header>
@@ -139,7 +139,7 @@ export function BookDetailsDrawer({
                 label="Replace cover"
                 onClick={() => onReplaceCover(book)}
               >
-                <ImageSquare aria-hidden="true" size={17} />
+                <ImageSquare aria-hidden="true" />
               </IconButton>
             ) : null}
           </div>
@@ -161,7 +161,7 @@ export function BookDetailsDrawer({
                   label="Clear reading progress"
                   onClick={() => onClearProgress(book)}
                 >
-                  <Eraser aria-hidden="true" size={15} />
+                  <Eraser aria-hidden="true" />
                 </IconButton>
               </div>
             ) : null}
@@ -176,7 +176,7 @@ export function BookDetailsDrawer({
               </div>
               <div>
                 <Button
-                  icon={<ArrowsClockwise aria-hidden="true" size={16} />}
+                  icon={<ArrowsClockwise aria-hidden="true" />}
                   onClick={onRescan}
                   variant="secondary"
                 >
@@ -189,12 +189,12 @@ export function BookDetailsDrawer({
             </section>
           ) : (
             <div className="details-actions">
-              <Button icon={<BookOpen aria-hidden="true" size={17} />} onClick={() => onRead(book)}>
+              <Button icon={<BookOpen aria-hidden="true" />} onClick={() => onRead(book)}>
                 {progressDetails.hasSavedPosition ? "Continue reading" : "Read book"}
               </Button>
               {progressDetails.hasSavedPosition ? (
                 <Button
-                  icon={<ArrowCounterClockwise aria-hidden="true" size={16} />}
+                  icon={<ArrowCounterClockwise aria-hidden="true" />}
                   onClick={() => onReadFromBeginning(book)}
                   variant="secondary"
                 >
@@ -203,39 +203,43 @@ export function BookDetailsDrawer({
               ) : null}
               <div className="details-actions__secondary">
                 <Button
-                  icon={<Info aria-hidden="true" size={16} />}
+                  icon={<Info aria-hidden="true" />}
                   onClick={() => onViewMetadata(book)}
+                  size="compact"
                   variant="ghost"
                 >
                   Edit metadata
                 </Button>
-                {canManageFile ? (
-                  <>
-                    <Button
-                      icon={<PencilSimple aria-hidden="true" size={16} />}
-                      onClick={() => onRenameFile(book)}
-                      variant="ghost"
-                    >
-                      Rename file
-                    </Button>
-                    <Button
-                      icon={<ArrowRight aria-hidden="true" size={16} />}
-                      onClick={() => onMoveFile(book)}
-                      variant="ghost"
-                    >
-                      Choose destination
-                    </Button>
-                  </>
-                ) : null}
                 {canRevealFile ? (
                   <Button
                     className={canManageFile ? undefined : "details-actions__wide"}
-                    icon={<FolderOpen aria-hidden="true" size={16} />}
+                    icon={<FolderOpen aria-hidden="true" />}
                     onClick={() => onRevealFile(book)}
+                    size="compact"
                     variant="ghost"
                   >
                     Reveal in folder
                   </Button>
+                ) : null}
+                {canManageFile ? (
+                  <>
+                    <Button
+                      icon={<ArrowRight aria-hidden="true" />}
+                      onClick={() => onMoveFile(book)}
+                      size="compact"
+                      variant="ghost"
+                    >
+                      Move file
+                    </Button>
+                    <Button
+                      icon={<PencilSimple aria-hidden="true" />}
+                      onClick={() => onRenameFile(book)}
+                      size="compact"
+                      variant="ghost"
+                    >
+                      Rename file
+                    </Button>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -248,7 +252,9 @@ export function BookDetailsDrawer({
                 File
               </dt>
               <dd>
-                <span title={fileDetails.path}>{fileDetails.path}</span>
+                <span className="book-metadata__path" title={fileDetails.path}>
+                  {fileDetails.path}
+                </span>
                 <span>{fileDetails.size}</span>
               </dd>
             </div>
@@ -268,7 +274,7 @@ export function BookDetailsDrawer({
           <footer className="details-drawer__footer">
             <Button
               variant="danger"
-              icon={<Trash aria-hidden="true" size={17} weight="regular" />}
+              icon={<Trash aria-hidden="true" weight="regular" />}
               onClick={() => onDelete(book)}
             >
               Delete EPUB

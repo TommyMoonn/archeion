@@ -137,7 +137,7 @@ export function ReaderSettingsPanel({
             onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
             size="compact"
           >
-            <Minus aria-hidden="true" size={16} />
+            <Minus aria-hidden="true" />
           </IconButton>
           <output aria-live="polite">{settings.fontSize}px</output>
           <IconButton
@@ -146,7 +146,7 @@ export function ReaderSettingsPanel({
             onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
             size="compact"
           >
-            <Plus aria-hidden="true" size={16} />
+            <Plus aria-hidden="true" />
           </IconButton>
         </div>
       </div>

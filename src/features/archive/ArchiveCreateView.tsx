@@ -151,7 +151,7 @@ export function ArchiveCreateView({
             <Button
               className="archive-create-form__browse"
               disabled={isBrowsing || isCreating}
-              icon={<FolderOpen aria-hidden="true" size={16} />}
+              icon={<FolderOpen aria-hidden="true" />}
               onClick={() => void browseLocation()}
               variant="secondary"
             >

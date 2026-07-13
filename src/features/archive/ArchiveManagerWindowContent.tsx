@@ -361,7 +361,7 @@ export function ArchiveManagerWindowContent({
                   <div className="archive-manager-window__actions">
                     <Button
                       className="archive-action-row"
-                      icon={<Plus aria-hidden="true" size={18} />}
+                      icon={<Plus aria-hidden="true" />}
                       onClick={() => {
                         setStatus(null);
                         setTransitionDirection("forward");

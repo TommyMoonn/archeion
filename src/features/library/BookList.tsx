@@ -95,7 +95,7 @@ function BookRowComponent({
           label={`Rename file for ${bookTitle(book)}`}
           onClick={() => onRenameFile(book)}
         >
-          <PencilSimple aria-hidden="true" size={17} weight="regular" />
+          <PencilSimple aria-hidden="true" weight="regular" />
         </IconButton>
       ) : null}
       <IconButton
@@ -108,7 +108,7 @@ function BookRowComponent({
         }
         onClick={() => onToggleFavorite(book)}
       >
-        <Heart aria-hidden="true" size={17} weight={book.isFavorite ? "fill" : "regular"} />
+        <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
       </IconButton>
       <BookContextMenu
         book={book}

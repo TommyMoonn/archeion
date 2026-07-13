@@ -237,7 +237,7 @@ export function BookCoverWritebackDialog({
           <div className="cover-writeback__controls" ref={recoveryControlsRef}>
             <Button
               disabled={isPreparing || isWriting || book.isFileMissing}
-              icon={<UploadSimple aria-hidden="true" size={17} />}
+              icon={<UploadSimple aria-hidden="true" />}
               onClick={() => void chooseImage()}
               variant="secondary"
             >

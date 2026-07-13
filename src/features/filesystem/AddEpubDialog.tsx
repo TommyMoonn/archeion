@@ -177,7 +177,7 @@ export function AddEpubDialog({
           </Button>
           <Button
             disabled={isImporting || sourcePaths.length === 0}
-            icon={<FilePlus aria-hidden="true" size={17} weight="bold" />}
+            icon={<FilePlus aria-hidden="true" weight="bold" />}
             onClick={submit}
           >
             {isImporting ? "Adding" : "Add EPUB"}

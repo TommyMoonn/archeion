@@ -59,7 +59,7 @@ export function SettingsSidebar({
       </div>
       <Input
         className="settings-search"
-        icon={<MagnifyingGlass aria-hidden="true" size={16} />}
+        icon={<MagnifyingGlass aria-hidden="true" />}
         autoCapitalize="none"
         autoComplete="off"
         autoCorrect="off"

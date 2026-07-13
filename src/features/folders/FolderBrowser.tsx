@@ -42,12 +42,12 @@ const folderViewOptions: Array<{
   value: FolderBrowserView;
 }> = [
   {
-    icon: <List aria-hidden="true" size={18} weight="regular" />,
+    icon: <List aria-hidden="true" weight="regular" />,
     label: "List",
     value: "list",
   },
   {
-    icon: <GridFour aria-hidden="true" size={17} weight="regular" />,
+    icon: <GridFour aria-hidden="true" weight="regular" />,
     label: "Cards",
     value: "cards",
   },
@@ -88,7 +88,7 @@ export function FolderBrowser({
         <div className="folder-browser__actions">
           <div className="library-search folder-browser__search">
             <Input
-              icon={<MagnifyingGlass aria-hidden="true" size={17} />}
+              icon={<MagnifyingGlass aria-hidden="true" />}
               autoCapitalize="none"
               autoComplete="off"
               autoCorrect="off"
@@ -106,15 +106,12 @@ export function FolderBrowser({
                 label="Clear folder search"
                 onClick={() => setQuery("")}
               >
-                <X aria-hidden="true" size={14} weight="bold" />
+                <X aria-hidden="true" weight="bold" />
               </IconButton>
             ) : null}
           </div>
           {canManageFolders && onCreate ? (
-            <Button
-              icon={<FolderPlus aria-hidden="true" size={17} weight="bold" />}
-              onClick={onCreate}
-            >
+            <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
               New folder
             </Button>
           ) : null}
@@ -140,10 +137,7 @@ export function FolderBrowser({
                 Clear search
               </Button>
             ) : canManageFolders && onCreate ? (
-              <Button
-                icon={<FolderPlus aria-hidden="true" size={17} weight="bold" />}
-                onClick={onCreate}
-              >
+              <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
                 New folder
               </Button>
             ) : undefined
@@ -196,7 +190,7 @@ export function FolderBrowser({
                       label={`Rename ${folder.name}`}
                       onClick={() => onRename(folder)}
                     >
-                      <PencilSimple aria-hidden="true" size={16} />
+                      <PencilSimple aria-hidden="true" />
                     </IconButton>
                     <FolderActionsMenu
                       folder={folder}
