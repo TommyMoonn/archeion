@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added persistent reader bookmarks, text highlights, and optional notes attached to highlights.
+- Added a unified annotation panel for browsing, navigating, editing, and deleting saved annotations.
+- Bundled Inter locally for application UI typography with pinned asset hashes and packaged license notices.
+
+### Changed
+
+- Unified recurring controls, menus, focus states, status tokens, typography, and layout geometry across library, reader, settings, dialogs, and Archive Manager surfaces.
+- Made saved highlights directly editable and kept note creation within the highlight workflow instead of exposing separate note-only actions.
+
+### Fixed
+
+- Corrected highlight-palette anchoring, dismissal behavior, and overlapping reader transient surfaces.
+- Prevented notes from existing independently of highlights and tightened annotation persistence around the supported bookmark and highlight model.
+
+### Testing
+
+- Expanded regression coverage for annotation persistence, bookmark and highlight interaction, note editing, panel navigation, reader lifecycle behavior, shared controls, and bundled UI font assets.
+
 ## [0.3.0] - 2026-07-12
 
 Archeion's organize-at-speed release for large archive maintenance, safe EPUB changes, and context-preserving reading.
