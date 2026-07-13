@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import type { ReaderAnnotationLoadStatus } from "./useReaderAnnotations";
 
@@ -17,7 +17,7 @@ type LazyReaderAnnotationsPanelProps = {
   loadStatus: ReaderAnnotationLoadStatus;
   navigation: ReaderNavigationState;
   onClose: () => void;
-  onEditNote: (annotation: Annotation) => Promise<boolean>;
+  onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;

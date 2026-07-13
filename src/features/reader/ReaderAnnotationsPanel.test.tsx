@@ -245,7 +245,7 @@ describe("ReaderAnnotationsPanel", () => {
   it("keeps focus on the originating trigger while note settlement is pending and after failure", async () => {
     const noteResult = deferred<boolean>();
     const rendered = renderPanel({ onEditNote: vi.fn(() => noteResult.promise) });
-    const menuTrigger = button(rendered.container, "Actions for Chapter start");
+    const menuTrigger = button(rendered.container, "Actions for Highlight");
 
     act(() => menuTrigger.click());
     act(() => textButton(rendered.container, "Edit note").click());
@@ -335,11 +335,14 @@ describe("ReaderAnnotationsPanel", () => {
     expect(document.activeElement).toBe(textButton(rendered.container, "Remove"));
   });
 
-  it("uses the shared action menu for note editing, renaming, and confirmed removal", async () => {
+  it("offers note editing only for highlights while retaining bookmark actions", async () => {
     const rendered = renderPanel();
     act(() => button(rendered.container, "Actions for Chapter start").click());
+    expect(rendered.container.textContent).not.toContain("Edit note");
+
+    act(() => button(rendered.container, "Actions for Highlight").click());
     await act(async () => textButton(rendered.container, "Edit note").click());
-    expect(rendered.props.onEditNote).toHaveBeenCalledWith(bookmark);
+    expect(rendered.props.onEditNote).toHaveBeenCalledWith(highlight);
 
     act(() => button(rendered.container, "Actions for Chapter start").click());
     act(() => textButton(rendered.container, "Rename bookmark").click());
@@ -387,16 +390,21 @@ describe("ReaderAnnotationsPanel", () => {
     expect(document.activeElement).toBe(button(target, "Actions for Highlight"));
   });
 
-  it("filters notes by note text and keeps existing search behavior", async () => {
+  it("has no Notes tab and still searches attached note text", async () => {
     const rendered = renderPanel();
-    const notesView = rendered.container.querySelector<HTMLButtonElement>(
-      'button[role="radio"]:last-child',
-    );
-    act(() => notesView?.click());
+    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(3);
+    expect(rendered.container.textContent).not.toContain("Notes");
+
+    const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]');
+    act(() => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+      setter?.call(search, "remember this connection");
+      search?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => Promise.resolve());
     expect(rendered.container.textContent).not.toContain("Chapter start");
     expect(rendered.container.textContent).toContain("Remember this connection");
 
-    const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]');
     act(() => {
       const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
       setter?.call(search, "missing phrase");

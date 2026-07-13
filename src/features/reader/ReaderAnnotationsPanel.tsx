@@ -27,7 +27,7 @@ import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { MenuItem } from "../../components/MenuItem";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type { Annotation } from "../../types/annotation";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { formatMediumDate } from "../../utils/formatters";
 import { normalizeReaderHighlightColor } from "./readerHighlights";
@@ -49,7 +49,6 @@ const VIEW_OPTIONS = [
   { label: "All", value: "all" },
   { label: "Bookmarks", value: "bookmarks" },
   { label: "Highlights", value: "highlights" },
-  { label: "Notes", value: "notes" },
 ] satisfies Array<{ label: string; value: ReaderAnnotationView }>;
 
 const SORT_OPTIONS = [
@@ -82,7 +81,7 @@ type ReaderAnnotationsPanelProps = {
   loadStatus: "loading" | "ready" | "error";
   navigation: ReaderNavigationState;
   onClose: () => void;
-  onEditNote: (annotation: Annotation) => Promise<boolean>;
+  onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
@@ -292,7 +291,7 @@ export function ReaderAnnotationsPanel({
     }
   }
 
-  async function editNote(annotation: Annotation) {
+  async function editNote(annotation: HighlightAnnotation) {
     if (busyId || pendingPanelAction) return;
     setPendingPanelAction({ annotationId: annotation.id, kind: "edit-note" });
     setActionError(undefined);
@@ -425,7 +424,7 @@ export function ReaderAnnotationsPanel({
             icon={<MagnifyingGlass aria-hidden="true" size={16} />}
             label="Search annotations"
             onChange={(event) => changeQuery(event.currentTarget.value)}
-            placeholder="Search quotes and notes"
+            placeholder="Search highlights"
             ref={searchRef}
             size="standard"
             type="search"
@@ -457,7 +456,7 @@ export function ReaderAnnotationsPanel({
 
         {loadStatus === "ready" && annotations.length === 0 ? (
           <AnnotationEmptyState label="No annotations">
-            Bookmarks, highlights, and notes appear here.
+            Bookmarks and highlights appear here.
           </AnnotationEmptyState>
         ) : null}
 
@@ -465,7 +464,7 @@ export function ReaderAnnotationsPanel({
           <AnnotationEmptyState
             label={query.trim() ? "No matches" : readerAnnotationEmptyLabel(view)}
           >
-            {query.trim() ? "Try a different quote or note search." : "Nothing in this view yet."}
+            {query.trim() ? "Try a different highlight search." : "Nothing in this view yet."}
           </AnnotationEmptyState>
         ) : null}
 
@@ -658,17 +657,21 @@ export function ReaderAnnotationsPanel({
           >
             Go to location
           </MenuItem>
-          <MenuItem
-            icon={<NotePencil weight="regular" />}
-            onClick={() =>
-              chooseMenuAction({
-                focus: "row-trigger",
-                run: (annotation) => void editNote(annotation),
-              })
-            }
-          >
-            Edit note
-          </MenuItem>
+          {menu.annotation.type === "highlight" ? (
+            <MenuItem
+              icon={<NotePencil weight="regular" />}
+              onClick={() =>
+                chooseMenuAction({
+                  focus: "row-trigger",
+                  run: (annotation) => {
+                    if (annotation.type === "highlight") void editNote(annotation);
+                  },
+                })
+              }
+            >
+              Edit note
+            </MenuItem>
+          ) : null}
           {menu.annotation.type === "bookmark" ? (
             <MenuItem
               icon={<PencilSimple weight="regular" />}

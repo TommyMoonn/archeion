@@ -7,7 +7,7 @@ import {
   type SearchQuery,
 } from "../../utils/searchText";
 
-export const READER_ANNOTATION_VIEWS = ["all", "bookmarks", "highlights", "notes"] as const;
+export const READER_ANNOTATION_VIEWS = ["all", "bookmarks", "highlights"] as const;
 export const READER_ANNOTATION_SORTS = ["book-order", "recent"] as const;
 
 export type ReaderAnnotationView = (typeof READER_ANNOTATION_VIEWS)[number];
@@ -106,8 +106,7 @@ function annotationChapter(
 function matchesView(annotation: Annotation, view: ReaderAnnotationView): boolean {
   if (view === "all") return true;
   if (view === "bookmarks") return annotation.type === "bookmark";
-  if (view === "highlights") return annotation.type === "highlight";
-  return annotation.type === "highlight" && Boolean(nonEmptyText(annotation.note));
+  return annotation.type === "highlight";
 }
 
 function matchesQuery(annotation: Annotation, query: SearchQuery): boolean {
@@ -189,19 +188,16 @@ export function groupReaderAnnotations(
 
 export function readerAnnotationLabel(annotation: Annotation): string {
   if (annotation.type === "bookmark") return nonEmptyText(annotation.label) ?? "Bookmark";
-  if (annotation.type === "highlight") return "Highlight";
   return "Highlight";
 }
 
 export function readerAnnotationRemoveLabel(annotation: Annotation): string {
   if (annotation.type === "bookmark") return "Remove bookmark";
-  if (annotation.type === "highlight") return "Remove highlight";
   return "Remove highlight";
 }
 
 export function readerAnnotationEmptyLabel(view: ReaderAnnotationView): string {
   if (view === "bookmarks") return "No bookmarks";
   if (view === "highlights") return "No highlights";
-  if (view === "notes") return "No notes";
   return "No annotations";
 }

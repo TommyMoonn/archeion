@@ -42,7 +42,7 @@ const chapters: ReaderChapter[] = [
 ];
 
 describe("reader annotations", () => {
-  it("filters note-bearing annotations and searches only quotes and note text", () => {
+  it("searches highlight quotes and attached note text without matching bookmark labels", () => {
     const annotations = [
       bookmark({ id: "bookmark", label: "Searchable label" }),
       highlight({
@@ -58,7 +58,7 @@ describe("reader annotations", () => {
         chapters,
         query: "thought",
         sort: "book-order",
-        view: "notes",
+        view: "highlights",
       }).map(({ id }) => id),
     ).toEqual(["highlight"]);
     expect(
