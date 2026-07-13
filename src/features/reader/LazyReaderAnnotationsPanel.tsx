@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
+import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ReaderAnnotationLoadStatus } from "./useReaderAnnotations";
 
 const ReaderAnnotationsPanel = lazy(() =>
@@ -20,6 +21,7 @@ type LazyReaderAnnotationsPanelProps = {
   onClose: () => void;
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
+  onRecolorHighlight: (annotationId: string, color: ReaderHighlightColor) => Promise<boolean>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;

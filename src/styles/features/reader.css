@@ -1134,11 +1134,6 @@
   -webkit-line-clamp: 3;
 }
 
-.reader-annotations__note--primary {
-  color: var(--reader-strong);
-  font-size: var(--type-meta);
-}
-
 .reader-annotations__missing-text {
   font-style: italic;
 }
@@ -1187,6 +1182,15 @@
 
 .reader-annotations__menu-popover .menu-item--danger {
   color: var(--reader-danger);
+}
+
+.reader-annotations__color-option {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.reader-annotations__color-choice {
+  width: 12px;
+  height: 12px;
 }
 
 .reader-annotations__rename,

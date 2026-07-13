@@ -30,7 +30,11 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { formatMediumDate } from "../../utils/formatters";
-import { normalizeReaderHighlightColor } from "./readerHighlights";
+import {
+  READER_HIGHLIGHT_COLORS,
+  normalizeReaderHighlightColor,
+  type ReaderHighlightColor,
+} from "./readerHighlights";
 import {
   groupReaderAnnotations,
   readerAnnotationEmptyLabel,
@@ -59,6 +63,7 @@ const SORT_OPTIONS = [
 
 type MenuState = {
   annotation: Annotation;
+  mode: "actions" | "colors";
   trigger: HTMLButtonElement;
   placement: "above" | "below";
   right: number;
@@ -75,6 +80,13 @@ type MenuAction =
   | { focus: "rename-input" }
   | { focus: "row-trigger"; run: (annotation: Annotation) => void };
 
+const HIGHLIGHT_COLOR_LABELS: Record<ReaderHighlightColor, string> = {
+  yellow: "Yellow",
+  green: "Green",
+  blue: "Blue",
+  rose: "Rose",
+};
+
 type ReaderAnnotationsPanelProps = {
   active?: boolean;
   annotations: readonly Annotation[];
@@ -85,6 +97,7 @@ type ReaderAnnotationsPanelProps = {
   onClose: () => void;
   onEditNote: (annotation: HighlightAnnotation) => Promise<boolean>;
   onNavigate: (annotation: Annotation) => Promise<boolean>;
+  onRecolorHighlight: (annotationId: string, color: ReaderHighlightColor) => Promise<boolean>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
@@ -101,6 +114,7 @@ export function ReaderAnnotationsPanel({
   onClose,
   onEditNote,
   onNavigate,
+  onRecolorHighlight,
   onReload,
   onRemove,
   onUpdateBookmarkLabel,
@@ -111,6 +125,7 @@ export function ReaderAnnotationsPanel({
   const menuRef = useRef<HTMLDivElement>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
   const removalConfirmationRef = useRef<HTMLDivElement>(null);
+  const menuFocusRequestRef = useRef<"first" | "recolor" | "selected-color">("first");
   const actionTriggerRefs = useRef(new Map<string, HTMLButtonElement>());
   const focusRestoreRequestRef = useRef<{ annotationId?: string } | undefined>(undefined);
   const [query, setQuery] = useState("");
@@ -154,7 +169,17 @@ export function ReaderAnnotationsPanel({
 
   useLayoutEffect(() => {
     if (menu) {
-      menuRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      const focusRequest = menuFocusRequestRef.current;
+      menuFocusRequestRef.current = "first";
+      const requestedItem =
+        focusRequest === "recolor"
+          ? menuRef.current?.querySelector<HTMLButtonElement>("[data-recolor-highlight]")
+          : focusRequest === "selected-color"
+            ? menuRef.current?.querySelector<HTMLButtonElement>(
+                '[role="menuitemradio"][aria-checked="true"]',
+              )
+            : undefined;
+      (requestedItem ?? menuRef.current?.querySelector<HTMLButtonElement>("button"))?.focus();
       return;
     }
 
@@ -182,6 +207,7 @@ export function ReaderAnnotationsPanel({
 
   useEffect(() => {
     if (!menu) return;
+    const trigger = menu.trigger;
 
     function dismissMenu(event: PointerEvent) {
       if (!(event.target instanceof Node)) return;
@@ -193,6 +219,7 @@ export function ReaderAnnotationsPanel({
         return;
       }
       setMenu(undefined);
+      trigger.focus();
     }
 
     document.addEventListener("pointerdown", dismissMenu, true);
@@ -272,6 +299,7 @@ export function ReaderAnnotationsPanel({
 
     setMenu({
       annotation,
+      mode: "actions",
       trigger: event.currentTarget,
       placement,
       right,
@@ -354,6 +382,25 @@ export function ReaderAnnotationsPanel({
     }
   }
 
+  async function recolorHighlight(annotation: HighlightAnnotation, color: ReaderHighlightColor) {
+    if (busyId || pendingPanelAction) return;
+    setBusyId(annotation.id);
+    setActionError(undefined);
+    try {
+      const recolored = await onRecolorHighlight(annotation.id, color);
+      if (recolored) {
+        requestRowFocus(annotation.id);
+        setMenu(undefined);
+      } else {
+        setActionError("The highlight color could not be changed. Try again.");
+      }
+    } catch {
+      setActionError("The highlight color could not be changed. Try again.");
+    } finally {
+      setBusyId(undefined);
+    }
+  }
+
   function beginBookmarkRename(annotation: Annotation) {
     setPendingRemovalId(undefined);
     setDraftLabel(annotation.label ?? "");
@@ -383,6 +430,26 @@ export function ReaderAnnotationsPanel({
     }
   }
 
+  function openColorMenu() {
+    if (!menu || menu.annotation.type !== "highlight") return;
+    menuFocusRequestRef.current = "selected-color";
+    setMenu({ ...menu, mode: "colors" });
+  }
+
+  function returnToActionMenu() {
+    if (!menu) return;
+    menuFocusRequestRef.current = "recolor";
+    setMenu({ ...menu, mode: "actions" });
+  }
+
+  function handleMenuEscape() {
+    if (menu?.mode === "colors") {
+      returnToActionMenu();
+    } else {
+      closeMenuAndRestoreFocus();
+    }
+  }
+
   return (
     <aside
       aria-label="Annotations"
@@ -396,7 +463,7 @@ export function ReaderAnnotationsPanel({
         event.preventDefault();
         event.stopPropagation();
         if (menu) {
-          closeMenuAndRestoreFocus();
+          handleMenuEscape();
         } else if (editingId) {
           cancelBookmarkRename(editingId);
         } else if (pendingRemovalId) {
@@ -434,7 +501,7 @@ export function ReaderAnnotationsPanel({
             icon={<MagnifyingGlass aria-hidden="true" size={16} />}
             label="Search annotations"
             onChange={(event) => changeQuery(event.currentTarget.value)}
-            placeholder="Search highlights"
+            placeholder="Search annotations"
             ref={searchRef}
             size="standard"
             type="search"
@@ -466,7 +533,7 @@ export function ReaderAnnotationsPanel({
 
         {loadStatus === "ready" && annotations.length === 0 ? (
           <AnnotationEmptyState label="No annotations">
-            Bookmarks and highlights appear here.
+            Bookmarks and highlights appear here. Highlights can include notes.
           </AnnotationEmptyState>
         ) : null}
 
@@ -474,7 +541,7 @@ export function ReaderAnnotationsPanel({
           <AnnotationEmptyState
             label={query.trim() ? "No matches" : readerAnnotationEmptyLabel(view)}
           >
-            {query.trim() ? "Try a different highlight search." : "Nothing in this view yet."}
+            {query.trim() ? "Try a different search." : "Nothing in this view yet."}
           </AnnotationEmptyState>
         ) : null}
 
@@ -643,7 +710,7 @@ export function ReaderAnnotationsPanel({
             if (event.key === "Escape") {
               event.preventDefault();
               event.stopPropagation();
-              closeMenuAndRestoreFocus();
+              handleMenuEscape();
             }
           }}
           ref={menuRef}
@@ -655,48 +722,95 @@ export function ReaderAnnotationsPanel({
             } as CSSProperties
           }
         >
-          <MenuItem
-            disabled={!menu.annotation.cfiRange?.trim()}
-            icon={<ArrowSquareOut weight="regular" />}
-            onClick={() =>
-              chooseMenuAction({
-                focus: "row-trigger",
-                run: (annotation) => void navigate(annotation),
-              })
-            }
-          >
-            Go to location
-          </MenuItem>
-          {menu.annotation.type === "highlight" ? (
-            <MenuItem
-              icon={<NotePencil weight="regular" />}
-              onClick={() =>
-                chooseMenuAction({
-                  focus: "row-trigger",
-                  run: (annotation) => {
-                    if (annotation.type === "highlight") void editNote(annotation);
-                  },
-                })
-              }
-            >
-              {menu.annotation.note?.trim() ? "Edit note" : "Add note"}
-            </MenuItem>
-          ) : null}
-          {menu.annotation.type === "bookmark" ? (
-            <MenuItem
-              icon={<PencilSimple weight="regular" />}
-              onClick={() => chooseMenuAction({ focus: "rename-input" })}
-            >
-              Rename bookmark
-            </MenuItem>
-          ) : null}
-          <MenuItem
-            danger
-            icon={<Trash weight="regular" />}
-            onClick={() => chooseMenuAction({ focus: "removal-confirmation" })}
-          >
-            {readerAnnotationRemoveLabel(menu.annotation)}
-          </MenuItem>
+          {menu.mode === "colors" && menu.annotation.type === "highlight" ? (
+            <div aria-label="Highlight color" role="group">
+              {READER_HIGHLIGHT_COLORS.map((color) => {
+                const selected = normalizeReaderHighlightColor(menu.annotation.color) === color;
+                return (
+                  <button
+                    aria-checked={selected}
+                    className="menu-item reader-annotations__color-option"
+                    data-color={color}
+                    disabled={busyId === menu.annotation.id}
+                    key={color}
+                    onClick={() => {
+                      if (menu.annotation.type === "highlight") {
+                        void recolorHighlight(menu.annotation, color);
+                      }
+                    }}
+                    role="menuitemradio"
+                    type="button"
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="reader-annotations__color reader-annotations__color-choice"
+                      data-color={color}
+                    />
+                    <span className="menu-item__label">{HIGHLIGHT_COLOR_LABELS[color]}</span>
+                    {selected ? (
+                      <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                        <Check />
+                      </span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              <MenuItem
+                disabled={!menu.annotation.cfiRange?.trim()}
+                icon={<ArrowSquareOut weight="regular" />}
+                onClick={() =>
+                  chooseMenuAction({
+                    focus: "row-trigger",
+                    run: (annotation) => void navigate(annotation),
+                  })
+                }
+              >
+                Go to location
+              </MenuItem>
+              {menu.annotation.type === "highlight" ? (
+                <>
+                  <MenuItem
+                    data-recolor-highlight
+                    icon={<Highlighter weight="regular" />}
+                    onClick={openColorMenu}
+                  >
+                    Recolor highlight
+                  </MenuItem>
+                  <MenuItem
+                    icon={<NotePencil weight="regular" />}
+                    onClick={() =>
+                      chooseMenuAction({
+                        focus: "row-trigger",
+                        run: (annotation) => {
+                          if (annotation.type === "highlight") void editNote(annotation);
+                        },
+                      })
+                    }
+                  >
+                    {menu.annotation.note?.trim() ? "Edit note" : "Add note"}
+                  </MenuItem>
+                </>
+              ) : null}
+              {menu.annotation.type === "bookmark" ? (
+                <MenuItem
+                  icon={<PencilSimple weight="regular" />}
+                  onClick={() => chooseMenuAction({ focus: "rename-input" })}
+                >
+                  Rename bookmark
+                </MenuItem>
+              ) : null}
+              <MenuItem
+                danger
+                icon={<Trash weight="regular" />}
+                onClick={() => chooseMenuAction({ focus: "removal-confirmation" })}
+              >
+                {readerAnnotationRemoveLabel(menu.annotation)}
+              </MenuItem>
+            </>
+          )}
         </div>
       ) : null}
 

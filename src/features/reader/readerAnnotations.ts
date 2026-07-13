@@ -3,6 +3,7 @@ import type { ReaderChapter } from "../../types/reader";
 import {
   createSearchQuery,
   createSearchTextVariants,
+  isEmptySearchQuery,
   searchFieldsMatchQuery,
   type SearchQuery,
 } from "../../utils/searchText";
@@ -65,7 +66,11 @@ function buildChapterLookup(chapters: readonly ReaderChapter[]) {
   const byDocument = new Map<string, ChapterDescriptor>();
 
   chapters.forEach((chapter, order) => {
-    const descriptor = { key: chapter.id, label: chapter.label, order };
+    const descriptor = {
+      key: chapter.id,
+      label: nonEmptyText(chapter.label) ?? chapterFallbackLabel(chapter.href),
+      order,
+    };
     const exactHref = normalizeReaderChapterHref(chapter.href);
     const documentHref = normalizeReaderChapterHref(chapter.href, false);
     if (exactHref && !exact.has(exactHref)) exact.set(exactHref, descriptor);
@@ -109,11 +114,24 @@ function matchesView(annotation: Annotation, view: ReaderAnnotationView): boolea
   return annotation.type === "highlight";
 }
 
-function matchesQuery(annotation: Annotation, query: SearchQuery): boolean {
-  return searchFieldsMatchQuery(
-    [createSearchTextVariants(annotation.selectedText), createSearchTextVariants(annotation.note)],
-    query,
-  );
+function matchesQuery(
+  annotation: Annotation,
+  chapter: ChapterDescriptor,
+  query: SearchQuery,
+): boolean {
+  if (isEmptySearchQuery(query)) return true;
+
+  const fields = [createSearchTextVariants(chapter.label)];
+  if (annotation.type === "bookmark") {
+    fields.push(createSearchTextVariants(annotation.label));
+  } else {
+    fields.push(
+      createSearchTextVariants(annotation.selectedText),
+      createSearchTextVariants(annotation.note),
+    );
+  }
+
+  return searchFieldsMatchQuery(fields, query);
 }
 
 function compareBookOrder(
@@ -156,7 +174,11 @@ export function visibleReaderAnnotations({
   const chapterLookup = buildChapterLookup(chapters);
   const searchQuery = createSearchQuery(query);
   return annotations
-    .filter((annotation) => matchesView(annotation, view) && matchesQuery(annotation, searchQuery))
+    .filter(
+      (annotation) =>
+        matchesView(annotation, view) &&
+        matchesQuery(annotation, annotationChapter(annotation, chapterLookup), searchQuery),
+    )
     .sort((left, right) =>
       sort === "recent" ? compareRecent(left, right) : compareBookOrder(left, right, chapterLookup),
     );

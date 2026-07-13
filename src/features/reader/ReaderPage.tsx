@@ -1231,6 +1231,7 @@ export function ReaderPage() {
             onClose={closeAnnotations}
             onEditNote={openAnnotationNote}
             onNavigate={navigateToAnnotation}
+            onRecolorHighlight={highlights.recolor}
             onReload={annotations.reload}
             onRemove={removeAnnotation}
             onUpdateBookmarkLabel={annotations.updateLabel}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation } from "../../types/annotation";
@@ -42,7 +42,16 @@ export function useReaderHighlights({
   storage,
 }: UseReaderHighlightsOptions) {
   const [feedback, setFeedback] = useState<ReaderHighlightFeedback | null>(null);
+  const session = useMemo(() => ({ bookId, token: Symbol("reader-highlight-session") }), [bookId]);
+  const activeSessionRef = useRef<typeof session | undefined>(undefined);
   const visibleAnnotations = useMemo(() => readerHighlights(annotations), [annotations]);
+
+  useLayoutEffect(() => {
+    activeSessionRef.current = session;
+    return () => {
+      if (activeSessionRef.current === session) activeSessionRef.current = undefined;
+    };
+  }, [session]);
 
   const create = useCallback(
     async (selection: HighlightSelection, color: ReaderHighlightColor) => {
@@ -147,16 +156,18 @@ export function useReaderHighlights({
 
   const recolor = useCallback(
     async (id: string, color: ReaderHighlightColor) => {
-      if (!bookId) return false;
+      if (!session.bookId) return false;
       try {
-        const updated = await storage.updateAnnotation(bookId, id, {
+        const updated = await storage.updateAnnotation(session.bookId, id, {
           color: normalizeReaderHighlightColor(color),
         });
+        if (activeSessionRef.current !== session) return false;
         if (!updated || updated.type !== "highlight") return false;
         onAnnotationChange(updated);
         setFeedback(null);
         return true;
       } catch {
+        if (activeSessionRef.current !== session) return false;
         setFeedback({
           kind: "persistence",
           message: "The highlight color could not be changed.",
@@ -164,7 +175,7 @@ export function useReaderHighlights({
         return false;
       }
     },
-    [bookId, onAnnotationChange, storage],
+    [onAnnotationChange, session, storage],
   );
 
   const clearFeedback = useCallback(() => setFeedback(null), []);

@@ -22,18 +22,30 @@ const existingHighlight: HighlightAnnotation = {
   updatedAt: timestamp,
 };
 
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
 function Harness({
   annotations,
+  bookId = "book-1",
   onChange,
   storage,
 }: {
   annotations: readonly Annotation[];
+  bookId?: string;
   onChange: (annotation: Annotation) => void;
   storage: LibraryStorage;
 }) {
   const highlights = useReaderHighlights({
     annotations,
-    bookId: "book-1",
+    bookId,
     onAnnotationChange: onChange,
     storage,
   });
@@ -167,6 +179,31 @@ describe("useReaderHighlights", () => {
       2,
       expect.objectContaining({ id: "highlight-1", color: "blue" }),
     );
+  });
+
+  it("does not publish a stale recolor completion into another book session", async () => {
+    const pendingRecolor = deferred<HighlightAnnotation>();
+    const storage = createStorage();
+    vi.mocked(storage.updateAnnotation).mockImplementationOnce(() => pendingRecolor.promise);
+    const onChange = vi.fn();
+    const rendered = await renderHarness(storage, onChange);
+
+    act(() => rendered.container.querySelectorAll<HTMLButtonElement>("button")[1]?.click());
+    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", existingHighlight.id, {
+      color: "blue",
+    });
+
+    await act(async () => {
+      root?.render(
+        <Harness annotations={[]} bookId="book-2" onChange={onChange} storage={storage} />,
+      );
+    });
+    await act(async () =>
+      pendingRecolor.resolve({ ...existingHighlight, color: "blue", updatedAt: timestamp }),
+    );
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(rendered.container.querySelector('[data-testid="count"]')?.textContent).toBe("0");
   });
 
   it("creates the highlight for a fresh note selection with the default color", async () => {

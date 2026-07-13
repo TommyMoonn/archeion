@@ -43,43 +43,81 @@ const chapters: ReaderChapter[] = [
 ];
 
 describe("reader annotations", () => {
-  it("searches highlight quotes and attached note text without matching bookmark labels", () => {
+  it("searches annotation content and resolved chapter labels within the active view", () => {
     const annotations = [
-      bookmark({ id: "bookmark", label: "Searchable label" }),
+      bookmark({
+        chapterHref: "Text/chapter-1.xhtml",
+        id: "bookmark",
+        label: "Return to the map",
+      }),
       highlight({
+        chapterHref: "Text/chapter-1.xhtml",
         id: "highlight",
         note: "Private thought",
         selectedText: "Quoted passage",
       }),
+      highlight({
+        chapterHref: "Text/chapter-2.xhtml",
+        id: "other-highlight",
+        selectedText: "Another passage",
+      }),
     ];
 
-    expect(
+    const search = (query: string, view: "all" | "bookmarks" | "highlights" = "all") =>
       visibleReaderAnnotations({
         annotations,
         chapters,
-        query: "thought",
+        query,
         sort: "book-order",
-        view: "highlights",
-      }).map(({ id }) => id),
-    ).toEqual(["highlight"]);
-    expect(
-      visibleReaderAnnotations({
-        annotations,
-        chapters,
-        query: "quoted",
-        sort: "book-order",
-        view: "all",
-      }).map(({ id }) => id),
-    ).toEqual(["highlight"]);
-    expect(
-      visibleReaderAnnotations({
-        annotations,
-        chapters,
-        query: "searchable",
-        sort: "book-order",
-        view: "all",
+        view,
+      }).map(({ id }) => id);
+
+    expect(search("RETURN TO THE MAP")).toEqual(["bookmark"]);
+    expect(search("return to", "bookmarks")).toEqual(["bookmark"]);
+    expect(search("return to", "highlights")).toEqual([]);
+    expect(search("quoted")).toEqual(["highlight"]);
+    expect(search("private thought")).toEqual(["highlight"]);
+    expect(search("chapter one")).toEqual(["bookmark", "highlight"]);
+    expect(search("chapter one", "bookmarks")).toEqual(["bookmark"]);
+    expect(search("chapter one", "highlights")).toEqual(["highlight"]);
+    expect(search("   \t ")).toEqual(["bookmark", "highlight", "other-highlight"]);
+  });
+
+  it("uses useful chapter fallbacks without indexing internal annotation data", () => {
+    const privateAnnotation = {
+      ...highlight({
+        chapterHref: "Text/forgotten-harbor.xhtml",
+        cfiRange: "epubcfi(/private-location-token)",
+        createdAt: "2044-08-09T10:11:12.000Z",
+        id: "internal-only-id",
+        selectedText: "Visible quotation",
       }),
-    ).toEqual([]);
+      secretExtension: "hidden-extension-token",
+    } as HighlightAnnotation;
+
+    const chaptersWithoutAnExplicitLabel: ReaderChapter[] = [
+      ...chapters,
+      {
+        depth: 0,
+        href: "Text/forgotten-harbor.xhtml",
+        id: "chapter-without-label",
+        label: "   ",
+      },
+    ];
+    const search = (query: string) =>
+      visibleReaderAnnotations({
+        annotations: [privateAnnotation],
+        chapters: chaptersWithoutAnExplicitLabel,
+        query,
+        sort: "book-order",
+        view: "all",
+      });
+
+    expect(search("forgotten harbor")).toEqual([privateAnnotation]);
+    expect(search("internal only id")).toEqual([]);
+    expect(search("private location token")).toEqual([]);
+    expect(search("2044")).toEqual([]);
+    expect(search("hidden extension token")).toEqual([]);
   });
 
   it("sorts by chapter and CFI while matching normalized chapter hrefs", () => {
@@ -108,6 +146,43 @@ describe("reader annotations", () => {
       sort: "book-order",
       view: "all",
     });
+    expect(visible.map(({ id }) => id)).toEqual(["first-early", "first-late", "second"]);
+    expect(groupReaderAnnotations(visible, chapters).map(({ label }) => label)).toEqual([
+      "Chapter One",
+      "Chapter Two",
+    ]);
+  });
+
+  it("preserves book ordering and chapter grouping after search", () => {
+    const annotations = [
+      highlight({
+        chapterHref: "Text/chapter-2.xhtml",
+        cfiRange: "epubcfi(/6/20)",
+        id: "second",
+        note: "Shared theme",
+      }),
+      bookmark({
+        chapterHref: "Text/chapter-1.xhtml",
+        cfiRange: "epubcfi(/6/10)",
+        id: "first-late",
+        label: "Shared theme late",
+      }),
+      bookmark({
+        chapterHref: "Text/chapter-1.xhtml",
+        cfiRange: "epubcfi(/6/2)",
+        id: "first-early",
+        label: "Shared theme early",
+      }),
+    ];
+
+    const visible = visibleReaderAnnotations({
+      annotations,
+      chapters,
+      query: "shared theme",
+      sort: "book-order",
+      view: "all",
+    });
+
     expect(visible.map(({ id }) => id)).toEqual(["first-early", "first-late", "second"]);
     expect(groupReaderAnnotations(visible, chapters).map(({ label }) => label)).toEqual([
       "Chapter One",

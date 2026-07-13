@@ -87,6 +87,14 @@ function pointerClick(target: HTMLElement) {
   });
 }
 
+function setInputValue(input: HTMLInputElement, value: string) {
+  act(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 function mount(node: ReactNode) {
   if (root) act(() => root?.unmount());
   container?.remove();
@@ -108,6 +116,7 @@ function defaultProps(
     onClose: vi.fn(),
     onEditNote: vi.fn(async () => true),
     onNavigate: vi.fn(async () => true),
+    onRecolorHighlight: vi.fn(async () => true),
     onReload: vi.fn(async () => true),
     onRemove: vi.fn(async () => true),
     onUpdateBookmarkLabel: vi.fn(async () => true),
@@ -340,6 +349,8 @@ describe("ReaderAnnotationsPanel", () => {
     const rendered = renderPanel();
     act(() => button(rendered.container, "Actions for Chapter start").click());
     expect(rendered.container.textContent).not.toContain("Edit note");
+    expect(rendered.container.textContent).not.toContain("Add note");
+    expect(rendered.container.textContent).not.toContain("Recolor highlight");
 
     act(() => button(rendered.container, "Actions for Highlight").click());
     await act(async () => textButton(rendered.container, "Edit note").click());
@@ -376,6 +387,149 @@ describe("ReaderAnnotationsPanel", () => {
     expect(withoutNote.props.onRemove).toHaveBeenCalledWith(bookmark);
   });
 
+  it("offers canonical recoloring only for highlights and updates the existing row", async () => {
+    const recolorResult = deferred<boolean>();
+    const onRecolorHighlight = vi.fn<(annotationId: string, color: string) => Promise<boolean>>(
+      () => recolorResult.promise,
+    );
+
+    function RecolorablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([bookmark, highlight]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRecolorHighlight={async (annotationId, color) => {
+            const recolored = await onRecolorHighlight(annotationId, color);
+            if (recolored) {
+              setAnnotations((current) =>
+                current.map((annotation) =>
+                  annotation.id === annotationId && annotation.type === "highlight"
+                    ? { ...annotation, color }
+                    : annotation,
+                ),
+              );
+            }
+            return recolored;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RecolorablePanel />);
+    act(() => button(target, "Actions for Chapter start").click());
+    expect(target.textContent).not.toContain("Recolor highlight");
+
+    act(() => button(target, "Actions for Highlight").click());
+    act(() => textButton(target, "Recolor highlight").click());
+
+    const choices = target.querySelectorAll<HTMLButtonElement>('[role="menuitemradio"]');
+    expect(choices).toHaveLength(4);
+    expect(textButton(target, "Blue").getAttribute("aria-checked")).toBe("true");
+    expect(textButton(target, "Rose").getAttribute("aria-checked")).toBe("false");
+
+    const trigger = button(target, "Actions for Highlight");
+    act(() => textButton(target, "Rose").click());
+    expect(textButton(target, "Rose").disabled).toBe(true);
+    await act(async () => recolorResult.resolve(true));
+
+    expect(onRecolorHighlight).toHaveBeenCalledWith(highlight.id, "rose");
+    expect(target.querySelector('.reader-annotations__color[data-color="rose"]')).toBeInstanceOf(
+      HTMLElement,
+    );
+    expect(target.textContent).toContain(highlight.selectedText);
+    expect(target.textContent).toContain(highlight.note);
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("keeps the previous color visible after failure and lets the same choice retry", async () => {
+    const onRecolorHighlight = vi
+      .fn<(annotationId: string, color: "yellow" | "green" | "blue" | "rose") => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+
+    function RetryablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([highlight]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRecolorHighlight={async (annotationId, color) => {
+            const recolored = await onRecolorHighlight(annotationId, color);
+            if (recolored) {
+              setAnnotations((current) =>
+                current.map((annotation) =>
+                  annotation.id === annotationId && annotation.type === "highlight"
+                    ? { ...annotation, color }
+                    : annotation,
+                ),
+              );
+            }
+            return recolored;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RetryablePanel />);
+    act(() => button(target, "Actions for Highlight").click());
+    act(() => textButton(target, "Recolor highlight").click());
+    await act(async () => textButton(target, "Rose").click());
+
+    expect(target.querySelector('[role="alert"]')?.textContent).toContain("Try again");
+    expect(textButton(target, "Blue").getAttribute("aria-checked")).toBe("true");
+    expect(textButton(target, "Rose").disabled).toBe(false);
+
+    await act(async () => textButton(target, "Rose").click());
+
+    expect(onRecolorHighlight).toHaveBeenCalledTimes(2);
+    expect(target.querySelector('[role="alert"]')).toBeNull();
+    expect(target.querySelector('.reader-annotations__color[data-color="rose"]')).toBeInstanceOf(
+      HTMLElement,
+    );
+  });
+
+  it("closes the color chooser before the action menu and restores row focus", () => {
+    const rendered = renderPanel();
+    const trigger = button(rendered.container, "Actions for Highlight");
+    act(() => trigger.click());
+    act(() => textButton(rendered.container, "Recolor highlight").click());
+
+    pressEscape(textButton(rendered.container, "Blue"));
+
+    expect(rendered.container.querySelector('[role="menu"]')).toBeInstanceOf(HTMLElement);
+    expect(document.activeElement).toBe(textButton(rendered.container, "Recolor highlight"));
+    expect(rendered.props.onClose).not.toHaveBeenCalled();
+
+    pressEscape(document.activeElement!);
+
+    expect(rendered.container.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(rendered.props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("dismisses recoloring on outside pointerdown without consuming the outside action", () => {
+    const outsideAction = vi.fn();
+    const props = defaultProps();
+    const target = mount(
+      <>
+        <button onClick={outsideAction} type="button">
+          Outside action
+        </button>
+        <ReaderAnnotationsPanel {...props} />
+      </>,
+    );
+    const trigger = button(target, "Actions for Highlight");
+    act(() => trigger.click());
+    act(() => textButton(target, "Recolor highlight").click());
+
+    pointerClick(textButton(target, "Outside action"));
+
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+    expect(outsideAction).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(trigger);
+    expect(props.onClose).not.toHaveBeenCalled();
+  });
+
   it("restores focus to a surviving annotation row after removal", async () => {
     function RemovablePanel() {
       const [annotations, setAnnotations] = useState<Annotation[]>([bookmark, highlight]);
@@ -399,28 +553,61 @@ describe("ReaderAnnotationsPanel", () => {
     expect(document.activeElement).toBe(button(target, "Actions for Highlight"));
   });
 
-  it("has no Notes tab and still searches attached note text", async () => {
+  it("uses annotation-wide search copy and searches labels, chapters, quotes, and notes", async () => {
     const rendered = renderPanel();
     expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(3);
     expect(rendered.container.textContent).not.toContain("Notes");
 
     const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]');
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(search, "remember this connection");
-      search?.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    expect(search?.labels?.[0]?.textContent).toContain("Search annotations");
+    expect(search?.placeholder).toBe("Search annotations");
+
+    setInputValue(search!, "chapter start");
+    await act(async () => Promise.resolve());
+    expect(rendered.container.textContent).toContain("Chapter start");
+    expect(rendered.container.textContent).not.toContain("A quoted passage");
+
+    setInputValue(search!, "chapter two");
+    await act(async () => Promise.resolve());
+    expect(rendered.container.textContent).toContain("A quoted passage");
+
+    setInputValue(search!, "a quoted passage");
+    await act(async () => Promise.resolve());
+    expect(rendered.container.textContent).toContain("A quoted passage");
+
+    setInputValue(search!, "remember this connection");
     await act(async () => Promise.resolve());
     expect(rendered.container.textContent).not.toContain("Chapter start");
     expect(rendered.container.textContent).toContain("Remember this connection");
 
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(search, "missing phrase");
-      search?.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    setInputValue(search!, "missing phrase");
     await act(async () => Promise.resolve());
     expect(rendered.container.textContent).toContain("No matches");
+    expect(rendered.container.textContent).toContain("Try a different search.");
+    expect(rendered.container.textContent).not.toContain("highlight search");
+  });
+
+  it("describes the empty annotation collection without a Notes view or standalone note row", () => {
+    const rendered = renderPanel({ annotations: [] });
+
+    expect(rendered.container.textContent).toContain("Bookmarks and highlights appear here.");
+    expect(rendered.container.textContent).toContain("Highlights can include notes.");
+    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(3);
+    expect(rendered.container.textContent).not.toContain("Notes");
+    expect(rendered.container.querySelector('[aria-label^="Actions for Note"]')).toBeNull();
+  });
+
+  it("uses accurate no-results copy in every annotation view", async () => {
+    const rendered = renderPanel();
+    const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    for (const view of ["All", "Bookmarks", "Highlights"]) {
+      act(() => textButton(rendered.container, view).click());
+      setInputValue(search, "not present anywhere");
+      await act(async () => Promise.resolve());
+      expect(rendered.container.textContent).toContain("No matches");
+      expect(rendered.container.textContent).toContain("Try a different search.");
+    }
   });
 
   it("marks a successfully navigated range highlight current without marking unrelated highlights", async () => {

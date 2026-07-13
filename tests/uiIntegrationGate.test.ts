@@ -113,6 +113,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(readerPageSource).not.toContain('label="Dismiss bookmark message"');
     expect(readerPageSource).toContain("<IconButton");
     expect(readerPageSource).not.toContain(">×</button>");
+    expect(readerSource).not.toContain(".reader-annotations__note--primary");
   });
 
   it("keeps note autosave states geometrically stable and keyboard reachable", () => {

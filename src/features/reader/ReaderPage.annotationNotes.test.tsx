@@ -412,6 +412,46 @@ afterEach(() => {
 });
 
 describe("ReaderPage annotation notes", () => {
+  it("recolors a panel highlight through shared annotation state without losing its note", async () => {
+    const existing = {
+      ...highlight("panel-recolor", {
+        color: "blue",
+        note: "Keep this attached note",
+      }),
+      futureMetadata: { source: "preserved" },
+    } as HighlightAnnotation;
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'button[aria-label="Actions for Highlight"]',
+    );
+    act(() => trigger.click());
+    act(() => button("Recolor highlight").click());
+    await act(async () => button("Green").click());
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (viewerControl.props?.highlights[0]?.color === "green") break;
+      await flush();
+    }
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      color: "green",
+    });
+    const updated = viewerControl.props?.highlights[0];
+    expect(updated).toEqual({
+      ...existing,
+      color: "green",
+      updatedAt: nextTimestamp,
+    });
+    expect(harness.listAnnotations).toHaveBeenCalledTimes(1);
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeInstanceOf(HTMLElement);
+    expect(container?.querySelector('[aria-label="green highlight"]')).toBeInstanceOf(HTMLElement);
+    expect(container?.textContent).toContain("Keep this attached note");
+    expect(document.activeElement).toBe(trigger);
+  });
+
   it("replaces the annotation browser with its note subview and restores panel state and row focus", async () => {
     const existing = highlight("surface-state", { note: "Existing note" });
     const harness = createStorageHarness({ "book-1": [existing] });
