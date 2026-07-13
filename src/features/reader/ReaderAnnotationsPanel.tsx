@@ -36,6 +36,7 @@ import {
   readerAnnotationEmptyLabel,
   readerAnnotationLabel,
   readerAnnotationRemoveLabel,
+  readerAnnotationRemovalPrompt,
   visibleReaderAnnotations,
   type ReaderAnnotationSort,
   type ReaderAnnotationView,
@@ -583,7 +584,7 @@ export function ReaderAnnotationsPanel({
                               className="reader-annotations__confirmation"
                               ref={removalConfirmationRef}
                             >
-                              <span>{readerAnnotationRemoveLabel(annotation)}?</span>
+                              <span>{readerAnnotationRemovalPrompt(annotation)}</span>
                               <Button
                                 busy={isBusy}
                                 data-confirm-annotation-removal
@@ -669,7 +670,7 @@ export function ReaderAnnotationsPanel({
                 })
               }
             >
-              Edit note
+              {menu.annotation.note?.trim() ? "Edit note" : "Add note"}
             </MenuItem>
           ) : null}
           {menu.annotation.type === "bookmark" ? (

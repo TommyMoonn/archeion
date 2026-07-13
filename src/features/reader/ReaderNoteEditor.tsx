@@ -6,13 +6,14 @@ import { IconButton } from "../../components/IconButton";
 import type { HighlightAnnotation } from "../../types/annotation";
 
 type ReaderNoteEditorProps = {
-  annotation?: HighlightAnnotation;
+  annotation: HighlightAnnotation;
+  keepsHighlightOnEmptyClose?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onClose: () => void;
-  onDelete: (persistedAnnotation?: HighlightAnnotation) => Promise<boolean>;
+  onDelete: (persistedAnnotation: HighlightAnnotation) => Promise<boolean>;
   onSave: (
     note: string,
-    persistedAnnotation?: HighlightAnnotation,
+    persistedAnnotation: HighlightAnnotation,
   ) => Promise<HighlightAnnotation | undefined>;
 };
 
@@ -24,12 +25,15 @@ type SaveStatus = "idle" | "saving" | "saved" | "empty" | "error";
 type ErrorKind = "save" | "delete" | null;
 const NOTE_SAVE_DELAY_MS = 650;
 
-function annotationRepresentsNote(annotation: HighlightAnnotation | undefined): boolean {
-  return Boolean(annotation && Object.prototype.hasOwnProperty.call(annotation, "note"));
+function annotationRepresentsNote(annotation: HighlightAnnotation): boolean {
+  return Boolean(annotation?.note?.trim());
 }
 
 export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEditorProps>(
-  function ReaderNoteEditor({ annotation, onBusyChange, onClose, onDelete, onSave }, ref) {
+  function ReaderNoteEditor(
+    { annotation, keepsHighlightOnEmptyClose = false, onBusyChange, onClose, onDelete, onSave },
+    ref,
+  ) {
     const initialText = annotation?.note ?? "";
     const initialHasPersistedNote = annotationRepresentsNote(annotation);
     const [text, setText] = useState(initialText);
@@ -69,7 +73,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     }, [onBusyChange, onClose, onDelete, onSave]);
 
     useEffect(() => {
-      latestAnnotationRef.current = annotation ?? latestAnnotationRef.current;
+      latestAnnotationRef.current = annotation;
       if (annotationRepresentsNote(annotation) && !hasPersistedNoteRef.current) {
         hasPersistedNoteRef.current = true;
         setHasPersistedNote(true);
@@ -329,7 +333,9 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
               ? errorKind === "delete"
                 ? "Note could not be deleted."
                 : "Not saved"
-              : "Changes save automatically";
+              : keepsHighlightOnEmptyClose && !hasPersistedNote && !text.trim()
+                ? "Closing without a note keeps the highlight."
+                : "Changes save automatically";
     const canDelete = hasPersistedNote || Boolean(text.trim());
 
     return (

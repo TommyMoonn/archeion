@@ -25,19 +25,16 @@ const existingHighlight: HighlightAnnotation = {
 function Harness({
   annotations,
   onChange,
-  onRemove,
   storage,
 }: {
   annotations: readonly Annotation[];
   onChange: (annotation: Annotation) => void;
-  onRemove: (annotationId: string) => void;
   storage: LibraryStorage;
 }) {
   const highlights = useReaderHighlights({
     annotations,
     bookId: "book-1",
     onAnnotationChange: onChange,
-    onAnnotationRemove: onRemove,
     storage,
   });
 
@@ -57,9 +54,6 @@ function Harness({
       </button>
       <button onClick={() => void highlights.recolor(existingHighlight.id, "blue")} type="button">
         Recolor
-      </button>
-      <button onClick={() => void highlights.remove(existingHighlight.id)} type="button">
-        Remove
       </button>
       <button
         onClick={() =>
@@ -92,6 +86,17 @@ function Harness({
       <button onClick={highlights.clearInteractionFeedback} type="button">
         Clear interaction
       </button>
+      <button
+        onClick={() =>
+          void highlights.ensure({
+            cfiRange: "epubcfi(/6/8!/4/2,/1:1,/1:8)",
+            selectedText: "Note passage",
+          })
+        }
+        type="button"
+      >
+        Highlight and add note
+      </button>
       <span data-testid="error">{highlights.error}</span>
       <span data-testid="feedback-kind">{highlights.feedback?.kind}</span>
     </div>
@@ -110,7 +115,6 @@ function createStorage() {
 
   return {
     createAnnotation: vi.fn(async () => created),
-    deleteAnnotation: vi.fn(async () => true),
     listAnnotations: vi.fn(async () => {
       throw new Error("highlight state must come from the shared annotation collection");
     }),
@@ -118,21 +122,16 @@ function createStorage() {
   } as unknown as LibraryStorage;
 }
 
-async function renderHarness(storage: LibraryStorage, onChange = vi.fn(), onRemove = vi.fn()) {
+async function renderHarness(storage: LibraryStorage, onChange = vi.fn()) {
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
   await act(async () => {
     root?.render(
-      <Harness
-        annotations={[existingHighlight]}
-        onChange={onChange}
-        onRemove={onRemove}
-        storage={storage}
-      />,
+      <Harness annotations={[existingHighlight]} onChange={onChange} storage={storage} />,
     );
   });
-  return { container, onChange, onRemove };
+  return { container, onChange };
 }
 
 afterEach(() => {
@@ -151,14 +150,13 @@ describe("useReaderHighlights", () => {
     expect(storage.listAnnotations).not.toHaveBeenCalled();
   });
 
-  it("publishes create, recolor, and removal mutations to the shared collection", async () => {
+  it("publishes create and recolor mutations to the shared collection", async () => {
     const storage = createStorage();
     const rendered = await renderHarness(storage);
     const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
 
     await act(async () => buttons[0]?.click());
     await act(async () => buttons[1]?.click());
-    await act(async () => buttons[2]?.click());
 
     expect(rendered.onChange).toHaveBeenCalledTimes(2);
     expect(rendered.onChange).toHaveBeenNthCalledWith(
@@ -169,7 +167,22 @@ describe("useReaderHighlights", () => {
       2,
       expect.objectContaining({ id: "highlight-1", color: "blue" }),
     );
-    expect(rendered.onRemove).toHaveBeenCalledWith("highlight-1");
+  });
+
+  it("creates the highlight for a fresh note selection with the default color", async () => {
+    const storage = createStorage();
+    const rendered = await renderHarness(storage);
+    const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
+
+    await act(async () => buttons[6]?.click());
+
+    expect(storage.createAnnotation).toHaveBeenCalledWith("book-1", {
+      cfiRange: "epubcfi(/6/8!/4/2,/1:1,/1:8)",
+      chapterHref: undefined,
+      color: "yellow",
+      selectedText: "Note passage",
+      type: "highlight",
+    });
   });
 
   it("updates a containing highlight by stable ID instead of creating a duplicate", async () => {
@@ -177,7 +190,7 @@ describe("useReaderHighlights", () => {
     const rendered = await renderHarness(storage);
     const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
 
-    await act(async () => buttons[3]?.click());
+    await act(async () => buttons[2]?.click());
 
     expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", "highlight-1", {
       color: "green",
@@ -190,7 +203,7 @@ describe("useReaderHighlights", () => {
     const rendered = await renderHarness(storage);
     const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
 
-    await act(async () => buttons[4]?.click());
+    await act(async () => buttons[3]?.click());
 
     expect(storage.updateAnnotation).not.toHaveBeenCalled();
     expect(storage.createAnnotation).not.toHaveBeenCalled();
@@ -204,21 +217,21 @@ describe("useReaderHighlights", () => {
     const rendered = await renderHarness(storage);
     const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
 
-    await act(async () => buttons[4]?.click());
+    await act(async () => buttons[3]?.click());
     expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
       "interaction",
     );
-    await act(async () => buttons[6]?.click());
+    await act(async () => buttons[5]?.click());
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe("");
 
-    await act(async () => buttons[5]?.click());
+    await act(async () => buttons[4]?.click());
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
       "The highlight could not be saved.",
     );
     expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
       "interaction",
     );
-    await act(async () => buttons[6]?.click());
+    await act(async () => buttons[5]?.click());
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe("");
   });
 
@@ -232,7 +245,7 @@ describe("useReaderHighlights", () => {
     expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
       "persistence",
     );
-    await act(async () => buttons[6]?.click());
+    await act(async () => buttons[5]?.click());
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
       "The highlight could not be saved.",
     );

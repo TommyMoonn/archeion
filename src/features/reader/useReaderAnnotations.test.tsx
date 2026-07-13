@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 
 let root: Root | null = null;
@@ -38,6 +38,20 @@ function bookmark(id = "bookmark-1", label?: string): BookmarkAnnotation {
     createdAt: "2026-07-12T00:00:00.000Z",
     updatedAt: "2026-07-12T00:00:00.000Z",
     label,
+  };
+}
+
+function highlightWithNote(): HighlightAnnotation {
+  return {
+    chapterHref: "Text/chapter-1.xhtml",
+    cfiRange: "epubcfi(/6/2!/4/2,/1:2,/1:12)",
+    color: "rose",
+    createdAt: "2026-07-12T00:00:00.000Z",
+    id: "highlight-1",
+    note: "Keep the complete annotation",
+    selectedText: "A saved passage",
+    type: "highlight",
+    updatedAt: "2026-07-12T00:00:00.000Z",
   };
 }
 
@@ -215,6 +229,35 @@ describe("useReaderAnnotations", () => {
     await act(async () => actionButton(rendered, "Undo").click());
 
     expect(storage.restoreAnnotation).toHaveBeenCalledWith("book-1", original);
+  });
+
+  it("removes and exactly restores a highlight together with its attached note", async () => {
+    const original = highlightWithNote();
+    const storage = createStorage([original]);
+    const rendered = await renderHarness(storage);
+
+    await act(async () => actionButton(rendered, "Remove first").click());
+    expect(text(rendered, "count")).toBe("0");
+    expect(text(rendered, "feedback")).toBe("Highlight removed.");
+
+    await act(async () => actionButton(rendered, "Undo").click());
+    expect(text(rendered, "count")).toBe("1");
+    expect(text(rendered, "feedback")).toBe("Highlight restored.");
+    expect(storage.restoreAnnotation).toHaveBeenCalledWith("book-1", original);
+  });
+
+  it("keeps the complete highlight unchanged when removal fails", async () => {
+    const original = highlightWithNote();
+    const storage = createStorage([original]);
+    vi.mocked(storage.deleteAnnotation).mockRejectedValueOnce(new Error("disk unavailable"));
+    const rendered = await renderHarness(storage);
+
+    await act(async () => actionButton(rendered, "Remove first").click());
+
+    expect(text(rendered, "count")).toBe("1");
+    expect(text(rendered, "ids")).toBe(original.id);
+    expect(text(rendered, "feedback")).toBe("Highlight could not be removed.");
+    expect(storage.restoreAnnotation).not.toHaveBeenCalled();
   });
 
   it("keeps bookmark creation unavailable until a current CFI is resolved", async () => {

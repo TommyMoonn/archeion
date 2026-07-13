@@ -57,6 +57,10 @@ function isBookmark(annotation: Annotation): boolean {
   return annotation.type === "bookmark" && typeof annotation.cfiRange === "string";
 }
 
+function annotationKind(annotation: Annotation): "Bookmark" | "Highlight" {
+  return annotation.type === "bookmark" ? "Bookmark" : "Highlight";
+}
+
 function sortedBookmarks(annotations: readonly Annotation[]): Annotation[] {
   return annotations
     .filter(isBookmark)
@@ -312,25 +316,25 @@ export function useReaderAnnotations({
   ]);
 
   const remove = useCallback(
-    async (bookmark: Annotation) => {
+    async (annotation: Annotation) => {
       const mutation = beginMutation(session);
       if (!mutation || !session.bookId) return false;
 
       try {
-        const deleted = await storage.deleteAnnotation(session.bookId, bookmark.id);
+        const deleted = await storage.deleteAnnotation(session.bookId, annotation.id);
         if (!ownsMutation(mutation) || !deleted) return false;
-        forget(bookmark.id);
+        forget(annotation.id);
         publishFeedback(session, {
-          annotation: bookmark,
+          annotation,
           kind: "removed",
-          message: "Bookmark removed.",
+          message: `${annotationKind(annotation)} removed.`,
         });
         return true;
       } catch {
         if (ownsMutation(mutation)) {
           publishFeedback(session, {
             kind: "error",
-            message: "Bookmark could not be removed.",
+            message: `${annotationKind(annotation)} could not be removed.`,
           });
         }
         return false;
@@ -384,12 +388,15 @@ export function useReaderAnnotations({
       const restored = await storage.restoreAnnotation(session.bookId, removed);
       if (!ownsMutation(mutation)) return;
       sync(restored);
-      publishFeedback(session, { kind: "added", message: "Bookmark restored." });
+      publishFeedback(session, {
+        kind: "added",
+        message: `${annotationKind(removed)} restored.`,
+      });
     } catch {
       if (ownsMutation(mutation)) {
         publishFeedback(session, {
           kind: "error",
-          message: "Bookmark could not be restored.",
+          message: `${annotationKind(removed)} could not be restored.`,
         });
       }
     } finally {

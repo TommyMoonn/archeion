@@ -149,6 +149,30 @@ describe("AnnotationRepository", () => {
     expect((await annotations.list("book-1"))[0]?.note).toBe(originalNote);
   });
 
+  it("deletes only a highlight note while preserving the highlight", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+    const created = await annotations.create("book-1", {
+      type: "highlight",
+      cfiRange: "epubcfi(/6/2!/4/2:1,/4/2:1,/4/2:4)",
+      selectedText: "Passage",
+      color: "rose",
+      note: "Attached note",
+    });
+
+    const updated = await annotations.update("book-1", created.id, { note: undefined });
+
+    expect(updated).toMatchObject({
+      id: created.id,
+      type: "highlight",
+      cfiRange: created.cfiRange,
+      selectedText: "Passage",
+      color: "rose",
+    });
+    expect(updated).not.toHaveProperty("note");
+    expect(await annotations.list("book-1")).toEqual([updated]);
+  });
+
   it("rejects non-string note input instead of silently discarding it", async () => {
     const harness = createHarness();
     const annotations = repository(harness);

@@ -1063,6 +1063,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           ref={highlightMenuRef}
           anchorRect={highlightMenu.anchorRect}
           busy={highlightBusy}
+          hasAttachedNote={Boolean(highlightMenu.existingHighlight?.note?.trim())}
+          noteActionLabel={
+            highlightMenu.existingHighlight
+              ? highlightMenu.existingHighlight.note?.trim()
+                ? "Edit note"
+                : "Add note"
+              : "Highlight and add note"
+          }
           onChoose={chooseHighlightPaletteOption}
           onDismiss={() => dismissHighlightMenu()}
           onNote={openSelectionNote}

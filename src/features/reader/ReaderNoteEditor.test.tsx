@@ -97,6 +97,21 @@ async function confirmDelete(target: HTMLElement) {
 }
 
 describe("ReaderNoteEditor", () => {
+  it("explains that closing an empty fresh note keeps its new highlight", async () => {
+    const freshHighlight = { ...annotation, note: undefined };
+    const { container: target, props } = renderEditor({
+      annotation: freshHighlight,
+      keepsHighlightOnEmptyClose: true,
+    });
+
+    expect(target.textContent).toContain("Closing without a note keeps the highlight.");
+    await click(target, "Close note");
+
+    expect(props.onSave).not.toHaveBeenCalled();
+    expect(props.onDelete).not.toHaveBeenCalled();
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it("autosaves only after the debounce while preserving editor geometry", async () => {
     vi.useFakeTimers();
     const { container: target, props } = renderEditor();

@@ -60,8 +60,7 @@ import {
 type ReaderNoteTarget = {
   annotation: HighlightAnnotation;
   bookId: string;
-  cfiRange: string;
-  chapterHref?: string;
+  keepsHighlightOnEmptyClose: boolean;
   editorKey: number;
   targetIdentity: string;
 };
@@ -134,7 +133,6 @@ export function ReaderPage() {
   const [tocOpen, setTocOpen] = useState(false);
   const [annotationsOpen, setAnnotationsOpen] = useState(false);
   const [noteTarget, setNoteTarget] = useState<ReaderNoteTarget | null>(null);
-  const [noteError, setNoteError] = useState<string | null>(null);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
     chapters: [],
     status: "loading",
@@ -211,7 +209,6 @@ export function ReaderPage() {
     annotations: annotations.annotations,
     bookId,
     onAnnotationChange: annotations.sync,
-    onAnnotationRemove: annotations.forget,
     storage,
   });
   const nextVolume = useReaderSeriesContinuation({
@@ -223,7 +220,6 @@ export function ReaderPage() {
 
   const beginNoteOpenRequest = useCallback(() => {
     const requestId = ++noteOpenRequestRef.current;
-    setNoteError(null);
     return requestId;
   }, []);
 
@@ -524,7 +520,6 @@ export function ReaderPage() {
   const publishNoteTarget = useCallback((target: ReaderNoteTarget) => {
     if (!mountedRef.current) return;
     noteTargetRef.current = target;
-    setNoteError(null);
     setNoteTarget(target);
   }, []);
 
@@ -562,7 +557,6 @@ export function ReaderPage() {
       if (!isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) return;
       noteOpenRequestRef.current += 1;
       noteTargetRef.current = null;
-      setNoteError(null);
       setNoteTarget(null);
     },
     [isCurrentNoteSession],
@@ -593,8 +587,7 @@ export function ReaderPage() {
         publishNoteTarget({
           annotation,
           bookId: sessionBookId,
-          cfiRange: capturedSelection.cfiRange,
-          chapterHref: capturedSelection.chapterHref,
+          keepsHighlightOnEmptyClose: existingHighlight === undefined,
           editorKey: ++noteEditorKeyRef.current,
           targetIdentity: noteTargetIdentity(annotation),
         });
@@ -614,13 +607,13 @@ export function ReaderPage() {
     async (
       target: ReaderNoteTarget,
       note: string,
-      persistedAnnotation?: HighlightAnnotation,
+      persistedAnnotation: HighlightAnnotation,
     ): Promise<HighlightAnnotation | undefined> => {
       if (!note.trim()) return undefined;
       try {
-        const sourceAnnotation = persistedAnnotation ?? target.annotation;
-        if (!sourceAnnotation || sourceAnnotation.type !== "highlight") return undefined;
-        const saved = await storage.updateAnnotation(target.bookId, sourceAnnotation.id, { note });
+        const saved = await storage.updateAnnotation(target.bookId, persistedAnnotation.id, {
+          note,
+        });
         if (!saved || saved.type !== "highlight") return undefined;
 
         if (isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) {
@@ -638,12 +631,9 @@ export function ReaderPage() {
   );
 
   const deleteNoteSession = useCallback(
-    async (target: ReaderNoteTarget, persistedAnnotation?: HighlightAnnotation) => {
-      const annotation = persistedAnnotation ?? target.annotation;
-      if (!annotation) return false;
+    async (target: ReaderNoteTarget, persistedAnnotation: HighlightAnnotation) => {
       try {
-        if (annotation.type !== "highlight") return false;
-        const updated = await storage.updateAnnotation(target.bookId, annotation.id, {
+        const updated = await storage.updateAnnotation(target.bookId, persistedAnnotation.id, {
           note: undefined,
         });
         if (!updated) return false;
@@ -667,8 +657,7 @@ export function ReaderPage() {
         publishNoteTarget({
           annotation,
           bookId: sessionBookId,
-          cfiRange: annotation.cfiRange,
-          chapterHref: annotation.chapterHref,
+          keepsHighlightOnEmptyClose: false,
           editorKey: ++noteEditorKeyRef.current,
           targetIdentity: noteTargetIdentity(annotation),
         });
@@ -688,13 +677,16 @@ export function ReaderPage() {
   );
 
   const removeAnnotation = useCallback(
-    async (annotation: Annotation) => {
-      if (annotation.type === "bookmark") {
-        return annotations.remove(annotation);
-      }
-      return highlights.remove(annotation.id);
+    (annotation: Annotation) => annotations.remove(annotation),
+    [annotations],
+  );
+
+  const removeHighlight = useCallback(
+    (annotationId: string) => {
+      const annotation = highlights.highlights.find((candidate) => candidate.id === annotationId);
+      return annotation ? annotations.remove(annotation) : Promise.resolve(false);
     },
-    [annotations, highlights],
+    [annotations, highlights.highlights],
   );
 
   const movePreviousChapter = useCallback(() => {
@@ -1140,7 +1132,7 @@ export function ReaderPage() {
           onOpenNote={openSelectionNote}
           onCreateHighlight={highlights.create}
           onRecolorHighlight={highlights.recolor}
-          onRemoveHighlight={highlights.remove}
+          onRemoveHighlight={removeHighlight}
           onNavigationChange={setNavigationState}
           onReady={handleReady}
           settings={settings}
@@ -1178,22 +1170,10 @@ export function ReaderPage() {
         </div>
       ) : null}
 
-      {noteError ? (
-        <div className="reader-note-feedback" role="alert">
-          <span>{noteError}</span>
-          <IconButton
-            label="Dismiss note message"
-            onClick={() => setNoteError(null)}
-            size="compact"
-          >
-            <X aria-hidden="true" />
-          </IconButton>
-        </div>
-      ) : null}
-
       {noteTarget ? (
         <ReaderNoteEditor
           annotation={noteTarget.annotation}
+          keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
           key={noteTarget.editorKey}
           onClose={() => closeNoteSession(noteTarget)}
           onDelete={(persistedAnnotation) => deleteNoteSession(noteTarget, persistedAnnotation)}

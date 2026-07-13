@@ -196,6 +196,13 @@ export function readerAnnotationRemoveLabel(annotation: Annotation): string {
   return "Remove highlight";
 }
 
+export function readerAnnotationRemovalPrompt(annotation: Annotation): string {
+  if (annotation.type === "highlight" && annotation.note?.trim()) {
+    return "Remove highlight and its attached note?";
+  }
+  return `${readerAnnotationRemoveLabel(annotation)}?`;
+}
+
 export function readerAnnotationEmptyLabel(view: ReaderAnnotationView): string {
   if (view === "bookmarks") return "No bookmarks";
   if (view === "highlights") return "No highlights";

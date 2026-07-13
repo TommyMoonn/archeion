@@ -332,6 +332,7 @@ describe("ReaderAnnotationsPanel", () => {
     act(() => textButton(rendered.container, "Remove highlight").click());
 
     expect(rendered.container.querySelector("#annotation-label-bookmark-1")).toBeNull();
+    expect(rendered.container.textContent).toContain("Remove highlight and its attached note?");
     expect(document.activeElement).toBe(textButton(rendered.container, "Remove"));
   });
 
@@ -344,9 +345,14 @@ describe("ReaderAnnotationsPanel", () => {
     await act(async () => textButton(rendered.container, "Edit note").click());
     expect(rendered.props.onEditNote).toHaveBeenCalledWith(highlight);
 
-    act(() => button(rendered.container, "Actions for Chapter start").click());
-    act(() => textButton(rendered.container, "Rename bookmark").click());
-    const input = rendered.container.querySelector<HTMLInputElement>(
+    const withoutNote = renderPanel({ annotations: [bookmark, unrelatedHighlight] });
+    act(() => button(withoutNote.container, "Actions for Highlight").click());
+    await act(async () => textButton(withoutNote.container, "Add note").click());
+    expect(withoutNote.props.onEditNote).toHaveBeenCalledWith(unrelatedHighlight);
+
+    act(() => button(withoutNote.container, "Actions for Chapter start").click());
+    act(() => textButton(withoutNote.container, "Rename bookmark").click());
+    const input = withoutNote.container.querySelector<HTMLInputElement>(
       "#annotation-label-bookmark-1",
     );
     expect(input?.value).toBe("Chapter start");
@@ -356,15 +362,18 @@ describe("ReaderAnnotationsPanel", () => {
       input?.dispatchEvent(new Event("input", { bubbles: true }));
     });
     await act(async () =>
-      rendered.container.querySelector<HTMLFormElement>("form")?.requestSubmit(),
+      withoutNote.container.querySelector<HTMLFormElement>("form")?.requestSubmit(),
     );
-    expect(rendered.props.onUpdateBookmarkLabel).toHaveBeenCalledWith(bookmark, "Important scene");
+    expect(withoutNote.props.onUpdateBookmarkLabel).toHaveBeenCalledWith(
+      bookmark,
+      "Important scene",
+    );
 
-    act(() => button(rendered.container, "Actions for Chapter start").click());
-    act(() => textButton(rendered.container, "Remove bookmark").click());
-    expect(rendered.props.onRemove).not.toHaveBeenCalled();
-    await act(async () => textButton(rendered.container, "Remove").click());
-    expect(rendered.props.onRemove).toHaveBeenCalledWith(bookmark);
+    act(() => button(withoutNote.container, "Actions for Chapter start").click());
+    act(() => textButton(withoutNote.container, "Remove bookmark").click());
+    expect(withoutNote.props.onRemove).not.toHaveBeenCalled();
+    await act(async () => textButton(withoutNote.container, "Remove").click());
+    expect(withoutNote.props.onRemove).toHaveBeenCalledWith(bookmark);
   });
 
   it("restores focus to a surviving annotation row after removal", async () => {

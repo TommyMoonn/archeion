@@ -13,6 +13,8 @@ export type HighlightPaletteChoice = ReaderHighlightColor | "none";
 type ReaderHighlightPaletteProps = {
   anchorRect: ClientRect;
   busy: boolean;
+  hasAttachedNote?: boolean;
+  noteActionLabel: "Add note" | "Edit note" | "Highlight and add note";
   onChoose: (choice: HighlightPaletteChoice) => void;
   onDismiss: () => void;
   onNote: () => void;
@@ -22,9 +24,24 @@ type ReaderHighlightPaletteProps = {
 
 const PALETTE_OPTIONS: readonly HighlightPaletteChoice[] = [...READER_HIGHLIGHT_COLORS, "none"];
 
+function paletteChoiceLabel(choice: HighlightPaletteChoice, hasAttachedNote: boolean): string {
+  if (choice !== "none") return `${choice} highlight`;
+  return hasAttachedNote ? "No color — remove highlight and attached note" : "No color";
+}
+
 export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlightPaletteProps>(
   function ReaderHighlightPalette(
-    { anchorRect, busy, onChoose, onDismiss, onNote, selectedColor, viewportRect },
+    {
+      anchorRect,
+      busy,
+      hasAttachedNote = false,
+      noteActionLabel,
+      onChoose,
+      onDismiss,
+      onNote,
+      selectedColor,
+      viewportRect,
+    },
     forwardedRef,
   ) {
     const elementRef = useRef<HTMLDivElement | null>(null);
@@ -76,7 +93,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         {PALETTE_OPTIONS.map((choice) => (
           <button
             aria-checked={choice === selectedColor}
-            aria-label={choice === "none" ? "No color" : `${choice} highlight`}
+            aria-label={paletteChoiceLabel(choice, hasAttachedNote)}
             className={`reader-highlight-menu__color${
               choice === "none" ? " reader-highlight-menu__color--none" : ""
             }`}
@@ -85,16 +102,18 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
             key={choice}
             onClick={() => onChoose(choice)}
             role="menuitemradio"
+            title={paletteChoiceLabel(choice, hasAttachedNote)}
             type="button"
           />
         ))}
         <span aria-hidden="true" className="reader-highlight-menu__divider" />
         <button
-          aria-label="Add or edit note"
+          aria-label={noteActionLabel}
           className="reader-highlight-menu__note"
           disabled={busy}
           onClick={onNote}
           role="menuitem"
+          title={noteActionLabel}
           type="button"
         >
           <span aria-hidden="true" className="icon-slot">

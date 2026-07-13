@@ -20,7 +20,6 @@ type UseReaderHighlightsOptions = {
   annotations: readonly Annotation[];
   bookId?: string;
   onAnnotationChange: (annotation: Annotation) => void;
-  onAnnotationRemove: (annotationId: string) => void;
   storage: LibraryStorage;
 };
 
@@ -40,7 +39,6 @@ export function useReaderHighlights({
   annotations,
   bookId,
   onAnnotationChange,
-  onAnnotationRemove,
   storage,
 }: UseReaderHighlightsOptions) {
   const [feedback, setFeedback] = useState<ReaderHighlightFeedback | null>(null);
@@ -169,22 +167,6 @@ export function useReaderHighlights({
     [bookId, onAnnotationChange, storage],
   );
 
-  const remove = useCallback(
-    async (id: string) => {
-      if (!bookId) return false;
-      try {
-        const removed = await storage.deleteAnnotation(bookId, id);
-        if (removed) onAnnotationRemove(id);
-        setFeedback(null);
-        return removed;
-      } catch {
-        setFeedback({ kind: "persistence", message: "The highlight could not be removed." });
-        return false;
-      }
-    },
-    [bookId, onAnnotationRemove, storage],
-  );
-
   const clearFeedback = useCallback(() => setFeedback(null), []);
   const clearInteractionFeedback = useCallback(
     () => setFeedback((current) => (current?.kind === "interaction" ? null : current)),
@@ -202,7 +184,6 @@ export function useReaderHighlights({
       create,
       ensure,
       recolor,
-      remove,
       error: feedback?.message ?? null,
       feedback,
       clearFeedback,
@@ -216,7 +197,6 @@ export function useReaderHighlights({
       ensure,
       feedback,
       recolor,
-      remove,
       reportInteractionFeedback,
       visibleAnnotations,
     ],

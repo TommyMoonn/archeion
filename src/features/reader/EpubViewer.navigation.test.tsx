@@ -665,6 +665,8 @@ describe("EpubViewer navigation lifecycle", () => {
     const props = {
       ...defaultViewerProps(new Blob(["book-one"])),
       highlights: [renderedHighlight],
+      onOpenNote: vi.fn(),
+      onRemoveHighlight: vi.fn(async () => true),
     };
     const { container, root } = await renderViewer(props);
     await waitForActiveRendition(session);
@@ -687,11 +689,12 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(
       container.querySelector('[aria-label="yellow highlight"]')?.getAttribute("aria-checked"),
     ).toBe("true");
+    expect(container.querySelector('[aria-label="Add note"]')).toBeInstanceOf(HTMLButtonElement);
     expect(session.rendition.next).not.toHaveBeenCalled();
     expect(session.rendition.prev).not.toHaveBeenCalled();
 
     await rerenderViewer(root, props);
-    session.rendition.emitMock("rendered", {}, {});
+    await act(async () => session.rendition.emitMock("rendered", {}, {}));
     expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1);
 
     act(() => {
@@ -727,6 +730,22 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(
       container.querySelector('[aria-label="blue highlight"]')?.getAttribute("aria-checked"),
     ).toBe("true");
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="Add note"]')?.click(),
+    );
+    expect(props.onOpenNote).toHaveBeenCalledWith(
+      expect.objectContaining({ cfiRange: renderedHighlight.cfiRange }),
+      expect.objectContaining({ id: renderedHighlight.id }),
+    );
+    await act(async () => {
+      replacementMark.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }),
+      );
+    });
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="No color"]')?.click(),
+    );
+    expect(props.onRemoveHighlight).toHaveBeenCalledWith(renderedHighlight.id);
     expect(session.rendition.annotations.highlight.mock.calls[1]?.[1]).toEqual({
       annotationId: renderedHighlight.id,
     });
@@ -820,7 +839,11 @@ describe("EpubViewer navigation lifecycle", () => {
   it("anchors a fresh selection to the exact second content frame and tracks its lifecycle", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
-    const props = defaultViewerProps(new Blob(["book-one"]));
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      onCreateHighlight: vi.fn(async () => true),
+      onRemoveHighlight: vi.fn(async () => true),
+    };
     const { container } = await renderViewer(props);
     await waitForActiveRendition(session);
     const viewer = container.querySelector<HTMLElement>(".epub-viewer")!;
@@ -873,10 +896,28 @@ describe("EpubViewer navigation lifecycle", () => {
     });
     const palette = container.querySelector<HTMLElement>('[aria-label="Highlight color"]')!;
     expect(Number.parseFloat(palette.style.left)).toBeGreaterThan(420);
+    expect(container.querySelector('[aria-label="Highlight and add note"]')).toBeInstanceOf(
+      HTMLButtonElement,
+    );
+    await act(async () =>
+      container.querySelector<HTMLButtonElement>('[aria-label="No color"]')?.click(),
+    );
+    expect(props.onCreateHighlight).not.toHaveBeenCalled();
+    expect(props.onRemoveHighlight).not.toHaveBeenCalled();
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+
+    await act(async () => {
+      session.rendition.emitMock("selected", "epubcfi(/6/4!/4/2,/1:1,/1:20)", {
+        document: second.contentDocument,
+        section: { href: "Text/chapter-2.xhtml" },
+        window: { getSelection: () => selection },
+      });
+    });
 
     secondLeft = 500;
     await act(async () => window.dispatchEvent(new Event("resize")));
-    expect(Number.parseFloat(palette.style.left)).toBeGreaterThan(500);
+    const reopenedPalette = container.querySelector<HTMLElement>('[aria-label="Highlight color"]')!;
+    expect(Number.parseFloat(reopenedPalette.style.left)).toBeGreaterThan(500);
 
     second.remove();
     await act(async () => window.dispatchEvent(new Event("resize")));
@@ -898,6 +939,12 @@ describe("EpubViewer navigation lifecycle", () => {
     const first = document.createElement("iframe");
     const second = document.createElement("iframe");
     document.body.append(first, second);
+    for (const frame of [first, second]) {
+      const paragraph = frame.contentDocument!.createElement("p");
+      paragraph.textContent =
+        "A realistic highlighted passage with enough text for the saved range.";
+      frame.contentDocument!.body.replaceChildren(paragraph);
+    }
     Object.defineProperty(first.contentWindow, "frameElement", {
       configurable: true,
       value: first,

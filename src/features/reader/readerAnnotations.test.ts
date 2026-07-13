@@ -6,6 +6,7 @@ import {
   groupReaderAnnotations,
   readerAnnotationEmptyLabel,
   readerAnnotationRemoveLabel,
+  readerAnnotationRemovalPrompt,
   visibleReaderAnnotations,
 } from "./readerAnnotations";
 
@@ -134,5 +135,9 @@ describe("reader annotations", () => {
   it("provides concise view and removal labels", () => {
     expect(readerAnnotationEmptyLabel("highlights")).toBe("No highlights");
     expect(readerAnnotationRemoveLabel(highlight({ id: "highlight" }))).toBe("Remove highlight");
+    expect(readerAnnotationRemovalPrompt(highlight({ id: "plain" }))).toBe("Remove highlight?");
+    expect(readerAnnotationRemovalPrompt(highlight({ id: "noted", note: "Attached" }))).toBe(
+      "Remove highlight and its attached note?",
+    );
   });
 });
