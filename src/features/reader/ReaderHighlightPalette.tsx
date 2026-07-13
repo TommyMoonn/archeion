@@ -44,7 +44,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         {PALETTE_OPTIONS.map((choice) => (
           <button
             aria-checked={choice === selectedColor}
-            aria-label={choice === "none" ? "No highlight" : `${choice} highlight`}
+            aria-label={choice === "none" ? "No color" : `${choice} highlight`}
             className={`reader-highlight-menu__color${
               choice === "none" ? " reader-highlight-menu__color--none" : ""
             }`}

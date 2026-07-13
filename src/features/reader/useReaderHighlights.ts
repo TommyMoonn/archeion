@@ -8,6 +8,7 @@ import {
   readerHighlights,
   type ReaderHighlightColor,
 } from "./readerHighlights";
+import { resolveHighlightSelection } from "./readerHighlightInteraction";
 
 type HighlightSelection = {
   cfiRange: string;
@@ -46,10 +47,16 @@ export function useReaderHighlights({
         return false;
       }
 
-      const existing = visibleAnnotations.find((item) => item.cfiRange === selection.cfiRange);
+      const resolution = resolveHighlightSelection(selection.cfiRange, visibleAnnotations);
+      if (resolution.kind === "blocked") {
+        setError("Overlapping highlights cannot be edited together.");
+        return false;
+      }
       try {
-        if (existing) {
-          const updated = await storage.updateAnnotation(bookId, existing.id, { color });
+        if (resolution.kind === "existing") {
+          const updated = await storage.updateAnnotation(bookId, resolution.highlight.id, {
+            color,
+          });
           if (updated?.type === "highlight") onAnnotationChange(updated);
         } else {
           const created = await storage.createAnnotation(bookId, {
@@ -75,8 +82,12 @@ export function useReaderHighlights({
   const ensure = useCallback(
     async (selection: HighlightSelection) => {
       if (!bookId) return undefined;
-      const existing = visibleAnnotations.find((item) => item.cfiRange === selection.cfiRange);
-      if (existing) return existing;
+      const resolution = resolveHighlightSelection(selection.cfiRange, visibleAnnotations);
+      if (resolution.kind === "existing") return resolution.highlight;
+      if (resolution.kind === "blocked") {
+        setError("Overlapping highlights cannot be edited together.");
+        return undefined;
+      }
       const selectedText = selection.selectedText.trim();
       if (!selectedText || selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH) {
         setError("Select fewer than 5,000 characters to add a note.");
@@ -138,6 +149,7 @@ export function useReaderHighlights({
   );
 
   const clearError = useCallback(() => setError(null), []);
+  const reportError = useCallback((message: string) => setError(message), []);
 
   return useMemo(
     () => ({
@@ -148,7 +160,8 @@ export function useReaderHighlights({
       remove,
       error,
       clearError,
+      reportError,
     }),
-    [clearError, create, ensure, error, recolor, remove, visibleAnnotations],
+    [clearError, create, ensure, error, recolor, remove, reportError, visibleAnnotations],
   );
 }

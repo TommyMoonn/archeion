@@ -7,6 +7,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
+import type { HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 
 const epubModuleMock = vi.hoisted(() => ({
@@ -32,6 +33,10 @@ type MockNavigation = {
 };
 
 type MockRendition = Rendition & {
+  annotations: {
+    highlight: ReturnType<typeof vi.fn>;
+    remove: ReturnType<typeof vi.fn>;
+  };
   emitContentMock: (content: { document?: Document; window?: Window }) => void;
   emitMock: (event: string, ...args: unknown[]) => void;
 };
@@ -56,6 +61,10 @@ function createMockRendition(): MockRendition {
   const listeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const contentListeners: Array<(content: { document?: Document; window?: Window }) => void> = [];
   const rendition = {
+    annotations: {
+      highlight: vi.fn(),
+      remove: vi.fn(),
+    },
     display: vi.fn(async () => undefined),
     next: vi.fn(async () => undefined),
     prev: vi.fn(async () => undefined),
@@ -172,10 +181,38 @@ function relocation(href: string, cfi = "epubcfi(/6/2!/4/2:10)", page = 1, total
   };
 }
 
+const renderedHighlight: HighlightAnnotation = {
+  cfiRange: "epubcfi(/6/2!/4/2,/1:10,/1:30)",
+  color: "yellow",
+  createdAt: "2026-07-13T00:00:00.000Z",
+  id: "highlight-stable-id",
+  selectedText: "Highlighted text",
+  type: "highlight",
+  updatedAt: "2026-07-13T00:00:00.000Z",
+};
+
+function markCallback(session: MockBookSession, index = 0): (event: Event) => void {
+  const callback = session.rendition.annotations.highlight.mock.calls[index]?.[2];
+  if (typeof callback !== "function") throw new Error("Highlight callback was not registered.");
+  return callback as (event: Event) => void;
+}
+
+function touchEvent(type: string, x: number, y: number): TouchEvent {
+  const touch = { clientX: x, clientY: y } as Touch;
+  return new TouchEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    changedTouches: [touch],
+    touches: type === "touchend" ? [] : [touch],
+  });
+}
+
 function defaultViewerProps(fileBlob: Blob) {
   return {
     fileBlob,
+    highlights: [] as readonly HighlightAnnotation[],
     onError: vi.fn(),
+    onHighlightError: vi.fn(),
     onInteraction: vi.fn(),
     onKeyDown: vi.fn(),
     onLocationChange: vi.fn(),
@@ -238,6 +275,7 @@ async function flushAsyncWork(): Promise<void> {
 describe("EpubViewer navigation lifecycle", () => {
   beforeEach(() => {
     epubModuleMock.openBook.mockReset();
+    document.getSelection()?.removeAllRanges();
   });
 
   afterEach(() => {
@@ -508,5 +546,214 @@ describe("EpubViewer navigation lifecycle", () => {
     });
 
     expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/2:10)");
+  });
+
+  it("registers, activates, replaces, and removes rendered marks by stable annotation ID", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { container, root } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+
+    expect(session.rendition.annotations.highlight.mock.calls[0]?.[1]).toEqual({
+      annotationId: renderedHighlight.id,
+    });
+    const firstCallback = markCallback(session);
+    const mark = document.createElement("button");
+    mark.addEventListener("click", firstCallback);
+    document.body.append(mark);
+    await act(async () => {
+      mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }));
+    });
+
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    expect(
+      container.querySelector('[aria-label="yellow highlight"]')?.getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(session.rendition.next).not.toHaveBeenCalled();
+    expect(session.rendition.prev).not.toHaveBeenCalled();
+
+    await rerenderViewer(root, props);
+    session.rendition.emitMock("rendered", {}, {});
+    expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1);
+
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    const blueHighlight = { ...renderedHighlight, color: "blue" } as const;
+    await rerenderViewer(root, { ...props, highlights: [blueHighlight] });
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(2),
+    );
+    expect(session.rendition.annotations.remove).toHaveBeenCalledWith(
+      renderedHighlight.cfiRange,
+      "highlight",
+    );
+    expect(session.rendition.annotations.remove.mock.invocationCallOrder[0]).toBeLessThan(
+      session.rendition.annotations.highlight.mock.invocationCallOrder[1]!,
+    );
+
+    await act(async () => {
+      mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }));
+    });
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+
+    const replacementCallback = markCallback(session, 1);
+    const replacementMark = document.createElement("button");
+    replacementMark.addEventListener("click", replacementCallback);
+    document.body.append(replacementMark);
+    await act(async () => {
+      replacementMark.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }),
+      );
+    });
+    expect(
+      container.querySelector('[aria-label="blue highlight"]')?.getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(session.rendition.annotations.highlight.mock.calls[1]?.[1]).toEqual({
+      annotationId: renderedHighlight.id,
+    });
+
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    await rerenderViewer(root, { ...props, highlights: [] });
+    expect(session.rendition.annotations.remove).toHaveBeenCalledTimes(2);
+    expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      replacementMark.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }),
+      );
+    });
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+  });
+
+  it("handles touch taps once, ignores selection drags, and keeps page zones outside content", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+      settings: { ...defaultReaderSettings, margin: 24 },
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const callback = markCallback(session);
+    const mark = document.createElement("button");
+    mark.addEventListener("touchstart", callback);
+    mark.addEventListener("click", callback);
+    document.body.append(mark);
+
+    await act(async () => {
+      mark.dispatchEvent(touchEvent("touchstart", 20, 20));
+      document.dispatchEvent(touchEvent("touchend", 22, 21));
+      mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 22, clientY: 21 }));
+    });
+    expect(props.onInteraction).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+
+    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    const text = document.createTextNode("selected text");
+    document.body.append(text);
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    document.getSelection()?.addRange(range);
+    await act(async () => {
+      mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 22, clientY: 21 }));
+    });
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+    expect(session.rendition.next).not.toHaveBeenCalled();
+    expect(session.rendition.prev).not.toHaveBeenCalled();
+
+    const zones = container.querySelectorAll<HTMLElement>(".epub-viewer__click-zone");
+    expect(zones).toHaveLength(2);
+    expect(zones[0]?.style.getPropertyValue("--reader-page-turn-zone-width")).toBe("24px");
+  });
+
+  it("activates rendered highlights in continuous mode without page-turn zones", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const mark = document.createElement("button");
+    mark.addEventListener("click", markCallback(session));
+    document.body.append(mark);
+
+    await act(async () => {
+      mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 40, clientY: 50 }));
+    });
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(0);
+  });
+
+  it("reports overlap as nonfatal feedback and keeps the rendition mounted", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    const selection = {
+      getRangeAt: () => ({
+        getBoundingClientRect: () => ({ height: 10, left: 10, top: 10, width: 30 }),
+      }),
+      rangeCount: 1,
+      toString: () => "partially overlapping text",
+    } as unknown as Selection;
+
+    await act(async () => {
+      session.rendition.emitMock("selected", "epubcfi(/6/2!/4/2,/1:25,/1:40)", {
+        section: { href: "Text/chapter-1.xhtml" },
+        window: { getSelection: () => selection },
+      });
+    });
+
+    expect(props.onHighlightError).toHaveBeenCalledWith(
+      "Overlapping highlights cannot be edited together.",
+    );
+    expect(props.onError).not.toHaveBeenCalled();
+    expect(container.querySelector(".epub-viewer")).toBeInstanceOf(HTMLElement);
+    expect(session.destroy).not.toHaveBeenCalled();
+  });
+
+  it("clears pending mark gesture listeners during teardown", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { root } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const mark = document.createElement("button");
+    mark.addEventListener("touchstart", markCallback(session));
+    document.body.append(mark);
+    const removeListener = vi.spyOn(document, "removeEventListener");
+
+    mark.dispatchEvent(touchEvent("touchstart", 10, 10));
+    act(() => root.unmount());
+    activeRoot = null;
+
+    expect(removeListener).toHaveBeenCalledWith("touchend", expect.any(Function), true);
+    expect(removeListener).toHaveBeenCalledWith("touchmove", expect.any(Function), true);
+    expect(removeListener).toHaveBeenCalledWith("touchcancel", expect.any(Function), true);
   });
 });

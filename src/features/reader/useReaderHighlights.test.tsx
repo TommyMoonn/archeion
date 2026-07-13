@@ -13,7 +13,7 @@ let container: HTMLDivElement | null = null;
 
 const timestamp = "2026-07-12T00:00:00.000Z";
 const existingHighlight: HighlightAnnotation = {
-  cfiRange: "epubcfi(/6/2)",
+  cfiRange: "epubcfi(/6/2!/4/2,/1:1,/1:8)",
   color: "yellow",
   createdAt: timestamp,
   id: "highlight-1",
@@ -46,7 +46,10 @@ function Harness({
       <span data-testid="count">{highlights.highlights.length}</span>
       <button
         onClick={() =>
-          void highlights.create({ cfiRange: "epubcfi(/6/4)", selectedText: "New quote" }, "green")
+          void highlights.create(
+            { cfiRange: "epubcfi(/6/4!/4/2,/1:1,/1:8)", selectedText: "New quote" },
+            "green",
+          )
         }
         type="button"
       >
@@ -58,6 +61,29 @@ function Harness({
       <button onClick={() => void highlights.remove(existingHighlight.id)} type="button">
         Remove
       </button>
+      <button
+        onClick={() =>
+          void highlights.create(
+            { cfiRange: "epubcfi(/6/2!/4/2,/1:2,/1:5)", selectedText: "Contained" },
+            "green",
+          )
+        }
+        type="button"
+      >
+        Contained
+      </button>
+      <button
+        onClick={() =>
+          void highlights.create(
+            { cfiRange: "epubcfi(/6/2!/4/2,/1:5,/1:12)", selectedText: "Partial" },
+            "green",
+          )
+        }
+        type="button"
+      >
+        Partial overlap
+      </button>
+      <span data-testid="error">{highlights.error}</span>
     </div>
   );
 }
@@ -65,7 +91,7 @@ function Harness({
 function createStorage() {
   const created: HighlightAnnotation = {
     ...existingHighlight,
-    cfiRange: "epubcfi(/6/4)",
+    cfiRange: "epubcfi(/6/4!/4/2,/1:1,/1:8)",
     color: "green",
     id: "highlight-2",
     selectedText: "New quote",
@@ -134,5 +160,32 @@ describe("useReaderHighlights", () => {
       expect.objectContaining({ id: "highlight-1", color: "blue" }),
     );
     expect(rendered.onRemove).toHaveBeenCalledWith("highlight-1");
+  });
+
+  it("updates a containing highlight by stable ID instead of creating a duplicate", async () => {
+    const storage = createStorage();
+    const rendered = await renderHarness(storage);
+    const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
+
+    await act(async () => buttons[3]?.click());
+
+    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", "highlight-1", {
+      color: "green",
+    });
+    expect(storage.createAnnotation).not.toHaveBeenCalled();
+  });
+
+  it("blocks partial overlap before storage mutation", async () => {
+    const storage = createStorage();
+    const rendered = await renderHarness(storage);
+    const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
+
+    await act(async () => buttons[4]?.click());
+
+    expect(storage.updateAnnotation).not.toHaveBeenCalled();
+    expect(storage.createAnnotation).not.toHaveBeenCalled();
+    expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
+      "Overlapping highlights cannot be edited together.",
+    );
   });
 });

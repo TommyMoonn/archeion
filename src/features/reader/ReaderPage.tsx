@@ -1127,6 +1127,7 @@ export function ReaderPage() {
           highlights={highlights.highlights}
           initialCfi={readerSession.initialCfi}
           onError={handleViewerError}
+          onHighlightError={highlights.reportError}
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}
           onLocationChange={handleLocationChange}

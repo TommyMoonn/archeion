@@ -42,7 +42,7 @@ describe("ReaderHighlightPalette", () => {
       "green highlight",
       "blue highlight",
       "rose highlight",
-      "No highlight",
+      "No color",
       "Add or edit note",
     ]);
     expect(container.querySelector(".reader-highlight-menu")?.getAttribute("data-placement")).toBe(

@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 import { CaretLeft, CaretRight } from "@phosphor-icons/react";
@@ -39,6 +40,10 @@ import {
   type ReaderHighlightColor,
 } from "./readerHighlights";
 import { ReaderHighlightPalette, type HighlightPaletteChoice } from "./ReaderHighlightPalette";
+import {
+  createHighlightActivationGestureController,
+  resolveHighlightSelection,
+} from "./readerHighlightInteraction";
 
 export type EpubViewerHandle = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
@@ -58,6 +63,7 @@ type EpubViewerProps = {
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
   onError: (message: string) => void;
+  onHighlightError?: (message: string) => void;
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (location: ReaderLocation) => void;
@@ -75,7 +81,13 @@ type EpubViewerProps = {
 
 type EpubViewerCallbacks = Pick<
   EpubViewerProps,
-  "onError" | "onInteraction" | "onKeyDown" | "onLocationChange" | "onNavigationChange" | "onReady"
+  | "onError"
+  | "onHighlightError"
+  | "onInteraction"
+  | "onKeyDown"
+  | "onLocationChange"
+  | "onNavigationChange"
+  | "onReady"
 >;
 
 type RenderedView = {
@@ -129,6 +141,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     highlights = [],
     initialCfi,
     onError,
+    onHighlightError,
     onInteraction,
     onKeyDown,
     onLocationChange,
@@ -148,6 +161,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const contentCleanupRef = useRef(new Map<Document, () => void>());
   const callbacksRef = useRef<EpubViewerCallbacks>({
     onError,
+    onHighlightError,
     onInteraction,
     onKeyDown,
     onLocationChange,
@@ -156,7 +170,12 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   });
   const renditionRef = useRef<Rendition | null>(null);
   const highlightsRef = useRef(highlights);
-  const renderedHighlightsRef = useRef(new Map<string, ReaderHighlightColor>());
+  const renderedHighlightsRef = useRef(
+    new Map<
+      string,
+      { annotationId: string; color: ReaderHighlightColor; token: { active: boolean } }
+    >(),
+  );
   const [navigationController] = useState(() =>
     createReaderNavigationStateController((state) =>
       callbacksRef.current.onNavigationChange?.(state),
@@ -188,6 +207,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   callbacksRef.current = {
     onError,
+    onHighlightError,
     onInteraction,
     onKeyDown,
     onLocationChange,
@@ -218,6 +238,27 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     return () => document.removeEventListener("pointerdown", dismissOutside, true);
   }, [highlightMenu]);
 
+  const highlightGestures = useMemo(
+    () =>
+      createHighlightActivationGestureController(({ annotationId, clientX, clientY, document }) => {
+        const highlight = highlightsRef.current.find((candidate) => candidate.id === annotationId);
+        if (!highlight) return;
+        const frame = document.defaultView?.frameElement?.getBoundingClientRect();
+        setHighlightMenu({
+          existingHighlight: highlight,
+          selection: {
+            cfiRange: highlight.cfiRange,
+            chapterHref: highlight.chapterHref,
+            selectedText: highlight.selectedText,
+          },
+          x: (frame?.left ?? 0) + clientX,
+          y: (frame?.top ?? 0) + clientY,
+        });
+        callbacksRef.current.onInteraction();
+      }),
+    [],
+  );
+
   const reconcileHighlights = useCallback(() => {
     const rendition = renditionRef.current;
     if (!rendition) return;
@@ -234,25 +275,41 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       });
     }
 
-    for (const [range, renderedColor] of renderedHighlightsRef.current) {
+    for (const [range, rendered] of renderedHighlightsRef.current) {
       const next = desired.get(range);
-      if (!next || next.color !== renderedColor) rendition.annotations.remove(range, "highlight");
+      if (!next || next.color !== rendered.color || next.annotation.id !== rendered.annotationId) {
+        rendered.token.active = false;
+        highlightGestures.cancel(rendered.annotationId);
+        rendition.annotations.remove(range, "highlight");
+      }
     }
 
+    const nextRendered = new Map<
+      string,
+      { annotationId: string; color: ReaderHighlightColor; token: { active: boolean } }
+    >();
     for (const [range, { annotation: highlight, color }] of desired) {
-      if (renderedHighlightsRef.current.get(range) === color) continue;
+      const rendered = renderedHighlightsRef.current.get(range);
+      if (rendered?.color === color && rendered.annotationId === highlight.id) {
+        nextRendered.set(range, rendered);
+        continue;
+      }
+      const token = { active: true };
       rendition.annotations.highlight(
         range,
         { annotationId: highlight.id },
-        undefined,
+        (event: Event) => {
+          const current = renderedHighlightsRef.current.get(range);
+          if (!token.active || current?.token !== token) return;
+          highlightGestures.handle(highlight.id, event);
+        },
         "archeion-highlight",
         readerHighlightStyles(color),
       );
+      nextRendered.set(range, { annotationId: highlight.id, color, token });
     }
-    renderedHighlightsRef.current = new Map(
-      [...desired].map(([range, value]) => [range, value.color]),
-    );
-  }, []);
+    renderedHighlightsRef.current = nextRendered;
+  }, [highlightGestures]);
 
   const runPageTurn = useCallback(async (intent: ReaderNavigationIntent) => {
     const rendition = renditionRef.current;
@@ -447,6 +504,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     }
 
     function removeContentListeners() {
+      highlightGestures.cancelAll();
       for (const cleanup of contentCleanupRef.current.values()) {
         cleanup();
       }
@@ -477,6 +535,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       const onContentPointerDown = () => {
         setHighlightMenu(null);
       };
+      const onContentTeardown = () => {
+        highlightGestures.cancelAll();
+      };
       const onSelectionChange = () => {
         if (document.getSelection()?.isCollapsed) setHighlightMenu(null);
       };
@@ -498,6 +559,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       document.addEventListener("mousemove", onContentInteraction);
       document.addEventListener("touchstart", onContentInteraction);
       document.addEventListener("click", onContentInteraction);
+      contentWindow?.addEventListener("pagehide", onContentTeardown);
 
       const cleanupFunctions = [
         ...wheelTargets.map(
@@ -509,6 +571,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         () => document.removeEventListener("mousemove", onContentInteraction),
         () => document.removeEventListener("touchstart", onContentInteraction),
         () => document.removeEventListener("click", onContentInteraction),
+        () => contentWindow?.removeEventListener("pagehide", onContentTeardown),
       ];
       contentCleanupRef.current.set(document, () => {
         for (const cleanup of cleanupFunctions) {
@@ -609,10 +672,17 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       if (!selection || !selectedText || selection.rangeCount === 0) return;
       const rect = selection.getRangeAt(0).getBoundingClientRect();
       const frame = containerRef.current?.querySelector("iframe")?.getBoundingClientRect();
+      const resolution = resolveHighlightSelection(cfiRange, highlightsRef.current);
+      if (resolution.kind === "blocked") {
+        setHighlightMenu(null);
+        callbacksRef.current.onHighlightError?.(
+          "Overlapping highlights cannot be edited together.",
+        );
+        callbacksRef.current.onInteraction();
+        return;
+      }
       setHighlightMenu({
-        existingHighlight: highlightsRef.current.find(
-          (highlight) => highlight.cfiRange?.trim() === cfiRange.trim(),
-        ),
+        existingHighlight: resolution.kind === "existing" ? resolution.highlight : undefined,
         selection: { cfiRange, chapterHref: contents.section?.href, selectedText },
         x: (frame?.left ?? 0) + rect.left + rect.width / 2,
         y: (frame?.top ?? 0) + rect.top,
@@ -644,11 +714,23 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       }
 
       renditionRef.current = null;
+      for (const rendered of renderedHighlightsRef.current.values()) {
+        rendered.token.active = false;
+      }
+      highlightGestures.cancelAll();
       renderedHighlightsRef.current.clear();
       isNavigatingToChapterRef.current = false;
       epubBook?.destroy();
     };
-  }, [fileBlob, handleWheel, initialCfi, mode, navigationController, reconcileHighlights]);
+  }, [
+    fileBlob,
+    handleWheel,
+    highlightGestures,
+    initialCfi,
+    mode,
+    navigationController,
+    reconcileHighlights,
+  ]);
 
   useEffect(() => {
     reconcileHighlights();
@@ -723,6 +805,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           className="epub-viewer__click-zone epub-viewer__click-zone--previous"
           onClick={() => handleClickZone("backward")}
           onMouseMove={onInteraction}
+          style={
+            {
+              "--reader-page-turn-zone-width": `${Math.max(0, Math.min(margin, 88))}px`,
+            } as CSSProperties
+          }
           tabIndex={-1}
           type="button"
         >
@@ -740,6 +827,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           className="epub-viewer__click-zone epub-viewer__click-zone--next"
           onClick={() => handleClickZone("forward")}
           onMouseMove={onInteraction}
+          style={
+            {
+              "--reader-page-turn-zone-width": `${Math.max(0, Math.min(margin, 88))}px`,
+            } as CSSProperties
+          }
           tabIndex={-1}
           type="button"
         >
@@ -784,6 +876,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.onError === next.onError &&
+    previous.onHighlightError === next.onHighlightError &&
     previous.onInteraction === next.onInteraction &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&

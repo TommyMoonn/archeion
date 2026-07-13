@@ -309,7 +309,7 @@
   bottom: 0;
   display: flex;
   align-items: center;
-  width: clamp(48px, 8vw, 88px);
+  width: var(--reader-page-turn-zone-width, 48px);
   padding: 0;
   border: 0;
   background: transparent;
@@ -337,7 +337,7 @@
 .epub-viewer__click-zone--previous {
   left: 0;
   justify-content: flex-start;
-  padding-left: 22px;
+  padding-left: min(22px, calc(var(--reader-page-turn-zone-width, 48px) / 4));
 }
 
 .epub-viewer__click-zone--previous .epub-viewer__click-zone-icon {
@@ -356,7 +356,7 @@
 .epub-viewer__click-zone--next {
   right: 0;
   justify-content: flex-end;
-  padding-right: 22px;
+  padding-right: min(22px, calc(var(--reader-page-turn-zone-width, 48px) / 4));
 }
 
 .epub-viewer__click-zone--next .epub-viewer__click-zone-icon {
