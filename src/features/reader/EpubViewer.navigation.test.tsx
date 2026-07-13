@@ -583,7 +583,9 @@ describe("EpubViewer navigation lifecycle", () => {
     session.rendition.emitMock("rendered", {}, {});
     expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1);
 
-    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
     const blueHighlight = { ...renderedHighlight, color: "blue" } as const;
     await rerenderViewer(root, { ...props, highlights: [blueHighlight] });
     await vi.waitFor(() =>
@@ -618,7 +620,9 @@ describe("EpubViewer navigation lifecycle", () => {
       annotationId: renderedHighlight.id,
     });
 
-    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
     await rerenderViewer(root, { ...props, highlights: [] });
     expect(session.rendition.annotations.remove).toHaveBeenCalledTimes(2);
     expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(2);
@@ -657,7 +661,9 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(props.onInteraction).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
 
-    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    act(() => {
+      document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    });
     const text = document.createTextNode("selected text");
     document.body.append(text);
     const range = document.createRange();
