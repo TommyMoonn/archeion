@@ -10,14 +10,16 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
+import type { HighlightAnnotation } from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
+  navigateToLocation: vi.fn().mockResolvedValue(true),
   onKeyDown: null as ((event: KeyboardEvent) => void) | null,
 }));
 
 const navigationState = {
-  chapters: [{ id: "chapter-1", label: "Chapter 1", depth: 0 }],
+  chapters: [{ id: "chapter-1", href: "chapter-1", label: "Chapter 1", depth: 0 }],
   currentChapterId: "chapter-1",
   status: "ready" as const,
 };
@@ -47,7 +49,7 @@ vi.mock("./EpubViewer", async () => {
     ) {
       React.useImperativeHandle(ref, () => ({
         navigateToChapter: vi.fn().mockResolvedValue(true),
-        navigateToLocation: vi.fn().mockResolvedValue(true),
+        navigateToLocation: viewerMock.navigateToLocation,
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
       }));
@@ -140,7 +142,7 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function renderReader() {
+async function renderReader(storage: LibraryStorage = createStorage()) {
   const returnContext = {
     archiveId: "archive-books",
     focusBookId: "book",
@@ -174,7 +176,7 @@ async function renderReader() {
 
   await act(async () => {
     root?.render(
-      <LibraryStorageContext.Provider value={createStorage()}>
+      <LibraryStorageContext.Provider value={storage}>
         <QuickActionsProvider>
           <RouterProvider router={router} />
         </QuickActionsProvider>
@@ -271,6 +273,7 @@ function dispatchRenditionShortcut(target: HTMLElement): KeyboardEvent {
 }
 
 beforeEach(() => {
+  viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
@@ -381,5 +384,66 @@ describe("ReaderPage Quick Actions", () => {
     expect(rendered.router.state.location.state).toEqual({
       readerReturnContext: rendered.returnContext,
     });
+  });
+
+  it("marks an annotation current only after start-CFI navigation succeeds", async () => {
+    const highlight: HighlightAnnotation = {
+      cfiRange: "epubcfi(/6/2!/4/2,/1:10,/1:30)",
+      chapterHref: "chapter-1",
+      color: "yellow",
+      createdAt: "2026-07-13T00:00:00.000Z",
+      id: "highlight-navigation",
+      selectedText: "Boundary passage",
+      type: "highlight",
+      updatedAt: "2026-07-13T00:00:00.000Z",
+    };
+    const storage = createStorage();
+    vi.mocked(storage.listAnnotations).mockResolvedValue([highlight]);
+    let settleNavigation!: (opened: boolean) => void;
+    const pendingNavigation = new Promise<boolean>((resolve) => {
+      settleNavigation = resolve;
+    });
+    viewerMock.navigateToLocation
+      .mockResolvedValueOnce(false)
+      .mockReturnValueOnce(pendingNavigation);
+    const rendered = await renderReader(storage);
+    const openAnnotations = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Annotations"]',
+    )!;
+
+    await act(async () => openAnnotations.click());
+    await vi.waitFor(() =>
+      expect(rendered.container.querySelector('[aria-label="Go to Highlight"]')).toBeInstanceOf(
+        HTMLElement,
+      ),
+    );
+    const firstTarget = rendered.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Go to Highlight"]',
+    )!;
+    await act(async () => firstTarget.click());
+    expect(rendered.container.querySelector(".reader-annotations")).toBeInstanceOf(HTMLElement);
+    expect(firstTarget.getAttribute("aria-current")).toBeNull();
+
+    act(() => firstTarget.click());
+    expect(firstTarget.getAttribute("aria-current")).toBeNull();
+    expect(rendered.container.querySelector(".reader-annotations")).toBeInstanceOf(HTMLElement);
+    await act(async () => {
+      settleNavigation(true);
+      await pendingNavigation;
+    });
+    expect(rendered.container.querySelector(".reader-annotations")).toBeNull();
+    const navigationTarget = viewerMock.navigateToLocation.mock.calls[1]?.[0] as string;
+    expect(navigationTarget).not.toBe(highlight.cfiRange);
+    expect(navigationTarget).toContain(":10");
+    expect(navigationTarget).not.toContain(",");
+
+    await act(async () => openAnnotations.click());
+    await vi.waitFor(() =>
+      expect(
+        rendered.container
+          .querySelector('[aria-label="Go to Highlight"]')
+          ?.getAttribute("aria-current"),
+      ).toBe("location"),
+    );
   });
 });

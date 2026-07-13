@@ -24,6 +24,18 @@ type UseReaderHighlightsOptions = {
   storage: LibraryStorage;
 };
 
+export type ReaderHighlightFeedback = {
+  kind: "interaction" | "persistence";
+  message: string;
+};
+
+function sameFeedback(
+  current: ReaderHighlightFeedback | null,
+  next: ReaderHighlightFeedback,
+): ReaderHighlightFeedback {
+  return current?.kind === next.kind && current.message === next.message ? current : next;
+}
+
 export function useReaderHighlights({
   annotations,
   bookId,
@@ -31,7 +43,7 @@ export function useReaderHighlights({
   onAnnotationRemove,
   storage,
 }: UseReaderHighlightsOptions) {
-  const [error, setError] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<ReaderHighlightFeedback | null>(null);
   const visibleAnnotations = useMemo(() => readerHighlights(annotations), [annotations]);
 
   const create = useCallback(
@@ -39,17 +51,26 @@ export function useReaderHighlights({
       if (!bookId) return false;
       const selectedText = selection.selectedText.trim();
       if (!selectedText || selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH) {
-        setError(
-          selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH
-            ? "Select fewer than 5,000 characters to highlight."
-            : "Select text before adding a highlight.",
+        setFeedback((current) =>
+          sameFeedback(current, {
+            kind: "interaction",
+            message:
+              selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH
+                ? "Select fewer than 5,000 characters to highlight."
+                : "Select text before adding a highlight.",
+          }),
         );
         return false;
       }
 
       const resolution = resolveHighlightSelection(selection.cfiRange, visibleAnnotations);
       if (resolution.kind === "blocked") {
-        setError("Overlapping highlights cannot be edited together.");
+        setFeedback((current) =>
+          sameFeedback(current, {
+            kind: "interaction",
+            message: "Overlapping highlights cannot be edited together.",
+          }),
+        );
         return false;
       }
       try {
@@ -69,10 +90,10 @@ export function useReaderHighlights({
           if (created.type !== "highlight") return false;
           onAnnotationChange(created);
         }
-        setError(null);
+        setFeedback(null);
         return true;
       } catch {
-        setError("The highlight could not be saved.");
+        setFeedback({ kind: "persistence", message: "The highlight could not be saved." });
         return false;
       }
     },
@@ -85,12 +106,22 @@ export function useReaderHighlights({
       const resolution = resolveHighlightSelection(selection.cfiRange, visibleAnnotations);
       if (resolution.kind === "existing") return resolution.highlight;
       if (resolution.kind === "blocked") {
-        setError("Overlapping highlights cannot be edited together.");
+        setFeedback((current) =>
+          sameFeedback(current, {
+            kind: "interaction",
+            message: "Overlapping highlights cannot be edited together.",
+          }),
+        );
         return undefined;
       }
       const selectedText = selection.selectedText.trim();
       if (!selectedText || selectedText.length > MAX_HIGHLIGHT_TEXT_LENGTH) {
-        setError("Select fewer than 5,000 characters to add a note.");
+        setFeedback((current) =>
+          sameFeedback(current, {
+            kind: "interaction",
+            message: "Select fewer than 5,000 characters to add a note.",
+          }),
+        );
         return undefined;
       }
       try {
@@ -103,10 +134,13 @@ export function useReaderHighlights({
         });
         if (created.type !== "highlight") return undefined;
         onAnnotationChange(created);
-        setError(null);
+        setFeedback(null);
         return created;
       } catch {
-        setError("The highlight for this note could not be saved.");
+        setFeedback({
+          kind: "persistence",
+          message: "The highlight for this note could not be saved.",
+        });
         return undefined;
       }
     },
@@ -122,10 +156,13 @@ export function useReaderHighlights({
         });
         if (!updated || updated.type !== "highlight") return false;
         onAnnotationChange(updated);
-        setError(null);
+        setFeedback(null);
         return true;
       } catch {
-        setError("The highlight color could not be changed.");
+        setFeedback({
+          kind: "persistence",
+          message: "The highlight color could not be changed.",
+        });
         return false;
       }
     },
@@ -138,18 +175,26 @@ export function useReaderHighlights({
       try {
         const removed = await storage.deleteAnnotation(bookId, id);
         if (removed) onAnnotationRemove(id);
-        setError(null);
+        setFeedback(null);
         return removed;
       } catch {
-        setError("The highlight could not be removed.");
+        setFeedback({ kind: "persistence", message: "The highlight could not be removed." });
         return false;
       }
     },
     [bookId, onAnnotationRemove, storage],
   );
 
-  const clearError = useCallback(() => setError(null), []);
-  const reportError = useCallback((message: string) => setError(message), []);
+  const clearFeedback = useCallback(() => setFeedback(null), []);
+  const clearInteractionFeedback = useCallback(
+    () => setFeedback((current) => (current?.kind === "interaction" ? null : current)),
+    [],
+  );
+  const reportInteractionFeedback = useCallback(
+    (message: string) =>
+      setFeedback((current) => sameFeedback(current, { kind: "interaction", message })),
+    [],
+  );
 
   return useMemo(
     () => ({
@@ -158,10 +203,22 @@ export function useReaderHighlights({
       ensure,
       recolor,
       remove,
-      error,
-      clearError,
-      reportError,
+      error: feedback?.message ?? null,
+      feedback,
+      clearFeedback,
+      clearInteractionFeedback,
+      reportInteractionFeedback,
     }),
-    [clearError, create, ensure, error, recolor, remove, reportError, visibleAnnotations],
+    [
+      clearFeedback,
+      clearInteractionFeedback,
+      create,
+      ensure,
+      feedback,
+      recolor,
+      remove,
+      reportInteractionFeedback,
+      visibleAnnotations,
+    ],
   );
 }

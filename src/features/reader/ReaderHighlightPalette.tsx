@@ -1,34 +1,66 @@
 import { NotePencil } from "@phosphor-icons/react";
-import { forwardRef } from "react";
+import { forwardRef, useCallback, useLayoutEffect, useRef, useState } from "react";
 
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
+import {
+  normalizeClientRect,
+  placeHighlightPalette,
+  type ClientRect,
+} from "./readerHighlightPaletteAnchor";
 
 export type HighlightPaletteChoice = ReaderHighlightColor | "none";
 
 type ReaderHighlightPaletteProps = {
+  anchorRect: ClientRect;
   busy: boolean;
   onChoose: (choice: HighlightPaletteChoice) => void;
   onDismiss: () => void;
   onNote: () => void;
   selectedColor?: ReaderHighlightColor;
-  x: number;
-  y: number;
+  viewportRect: ClientRect;
 };
 
 const PALETTE_OPTIONS: readonly HighlightPaletteChoice[] = [...READER_HIGHLIGHT_COLORS, "none"];
 
 export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlightPaletteProps>(
-  function ReaderHighlightPalette({ busy, onChoose, onDismiss, onNote, selectedColor, x, y }, ref) {
-    const viewportWidth = typeof window === "undefined" ? 1024 : window.innerWidth;
-    const clampedX = Math.max(100, Math.min(viewportWidth - 100, x));
-    const placeBelow = y < 64;
+  function ReaderHighlightPalette(
+    { anchorRect, busy, onChoose, onDismiss, onNote, selectedColor, viewportRect },
+    forwardedRef,
+  ) {
+    const elementRef = useRef<HTMLDivElement | null>(null);
+    const [size, setSize] = useState({ height: 0, width: 0 });
+    const assignRef = useCallback(
+      (node: HTMLDivElement | null) => {
+        elementRef.current = node;
+        if (typeof forwardedRef === "function") forwardedRef(node);
+        else if (forwardedRef) forwardedRef.current = node;
+      },
+      [forwardedRef],
+    );
+
+    useLayoutEffect(() => {
+      const element = elementRef.current;
+      if (!element) return;
+      const measure = () => {
+        const bounds = normalizeClientRect(element.getBoundingClientRect());
+        if (bounds) setSize({ height: bounds.height, width: bounds.width });
+      };
+      measure();
+      if (typeof ResizeObserver === "undefined") return;
+      const observer = new ResizeObserver(measure);
+      observer.observe(element);
+      return () => observer.disconnect();
+    }, []);
+
+    const position = placeHighlightPalette(anchorRect, viewportRect, size);
+    if (!position) return null;
 
     return (
       <div
-        ref={ref}
+        ref={assignRef}
         aria-label="Highlight color"
         className="reader-highlight-menu menu-popover"
-        data-placement={placeBelow ? "below" : "above"}
+        data-placement={position.placement}
         data-reader-ignore-shortcuts
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
@@ -39,7 +71,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
           }
         }}
         role="menu"
-        style={{ left: clampedX, top: placeBelow ? y + 10 : y }}
+        style={{ left: position.left, top: position.top }}
       >
         {PALETTE_OPTIONS.map((choice) => (
           <button

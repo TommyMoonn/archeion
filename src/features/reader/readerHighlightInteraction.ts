@@ -13,6 +13,7 @@ export type HighlightActivation = {
   clientY: number;
   document: Document;
   event: Event;
+  target: EventTarget | null;
 };
 type PendingGesture = {
   annotationId: string;
@@ -26,6 +27,7 @@ type PendingGesture = {
 export type HighlightActivationGestureController = {
   cancel: (annotationId: string) => void;
   cancelAll: () => void;
+  cancelDocument: (document: Document) => void;
   handle: (annotationId: string, event: Event) => void;
 };
 
@@ -58,6 +60,7 @@ export function createHighlightActivationGestureController(
 ): HighlightActivationGestureController {
   let pending: PendingGesture | undefined;
   let suppressedClickTarget: EventTarget | null = null;
+  let suppressedClickDocument: Document | null = null;
   let clearSuppression: (() => void) | undefined;
 
   function cancelPending() {
@@ -69,11 +72,13 @@ export function createHighlightActivationGestureController(
     clearSuppression?.();
     clearSuppression = undefined;
     suppressedClickTarget = null;
+    suppressedClickDocument = null;
   }
 
   function suppressSyntheticClick(document: Document, target: EventTarget | null) {
     clearSuppressedClick();
     suppressedClickTarget = target;
+    suppressedClickDocument = document;
     const clearOnPhysicalPress = () => clearSuppressedClick();
     document.addEventListener("pointerdown", clearOnPhysicalPress, true);
     clearSuppression = () => {
@@ -98,6 +103,7 @@ export function createHighlightActivationGestureController(
       clientY: point.y,
       document: current.document,
       event,
+      target: current.target,
     });
   }
 
@@ -171,6 +177,10 @@ export function createHighlightActivationGestureController(
       cancelPending();
       clearSuppressedClick();
     },
+    cancelDocument(document) {
+      if (pending?.document === document) cancelPending();
+      if (suppressedClickDocument === document) clearSuppressedClick();
+    },
     handle(annotationId, event) {
       if (event.type === "click") {
         if (suppressedClickTarget === event.currentTarget) {
@@ -191,6 +201,7 @@ export function createHighlightActivationGestureController(
           clientY: point.y,
           document,
           event,
+          target: event.currentTarget,
         });
       } else if (event instanceof TouchEvent) {
         beginTouchGesture(annotationId, event);

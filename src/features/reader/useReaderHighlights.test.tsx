@@ -83,7 +83,17 @@ function Harness({
       >
         Partial overlap
       </button>
+      <button
+        onClick={() => highlights.reportInteractionFeedback("The highlight could not be saved.")}
+        type="button"
+      >
+        Report interaction
+      </button>
+      <button onClick={highlights.clearInteractionFeedback} type="button">
+        Clear interaction
+      </button>
       <span data-testid="error">{highlights.error}</span>
+      <span data-testid="feedback-kind">{highlights.feedback?.kind}</span>
     </div>
   );
 }
@@ -186,6 +196,45 @@ describe("useReaderHighlights", () => {
     expect(storage.createAnnotation).not.toHaveBeenCalled();
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
       "Overlapping highlights cannot be edited together.",
+    );
+  });
+
+  it("clears transient overlap feedback without inferring its category from copy", async () => {
+    const storage = createStorage();
+    const rendered = await renderHarness(storage);
+    const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
+
+    await act(async () => buttons[4]?.click());
+    expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
+      "interaction",
+    );
+    await act(async () => buttons[6]?.click());
+    expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe("");
+
+    await act(async () => buttons[5]?.click());
+    expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
+      "The highlight could not be saved.",
+    );
+    expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
+      "interaction",
+    );
+    await act(async () => buttons[6]?.click());
+    expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe("");
+  });
+
+  it("keeps persistence failures visible when transient feedback is cleared", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.createAnnotation).mockRejectedValueOnce(new Error("disk unavailable"));
+    const rendered = await renderHarness(storage);
+    const buttons = rendered.container.querySelectorAll<HTMLButtonElement>("button");
+
+    await act(async () => buttons[0]?.click());
+    expect(rendered.container.querySelector('[data-testid="feedback-kind"]')?.textContent).toBe(
+      "persistence",
+    );
+    await act(async () => buttons[6]?.click());
+    expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
+      "The highlight could not be saved.",
     );
   });
 });

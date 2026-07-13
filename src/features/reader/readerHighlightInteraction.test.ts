@@ -187,4 +187,24 @@ describe("highlight activation gestures", () => {
 
     expect(activations).toEqual([]);
   });
+
+  it("cancels gesture work only for its owning document", () => {
+    const activations: string[] = [];
+    const controller = createHighlightActivationGestureController(({ annotationId }) =>
+      activations.push(annotationId),
+    );
+    const mark = document.createElement("button");
+    mark.addEventListener("touchstart", (event) => controller.handle("highlight-1", event));
+    document.body.append(mark);
+    const siblingDocument = document.implementation.createHTMLDocument("Sibling");
+
+    mark.dispatchEvent(touchEvent("touchstart", 10, 10));
+    controller.cancelDocument(siblingDocument);
+    document.dispatchEvent(touchEvent("touchend", 10, 10));
+    mark.dispatchEvent(touchEvent("touchstart", 10, 10));
+    controller.cancelDocument(document);
+    document.dispatchEvent(touchEvent("touchend", 10, 10));
+
+    expect(activations).toEqual(["highlight-1"]);
+  });
 });

@@ -207,12 +207,31 @@ function touchEvent(type: string, x: number, y: number): TouchEvent {
   });
 }
 
+function clientRect(left: number, top: number, width: number, height: number): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left,
+    right: left + width,
+    top,
+    width,
+    x: left,
+    y: top,
+    toJSON: () => undefined,
+  } as DOMRect;
+}
+
+function realClientRect(left: number, top: number, width: number, height: number): DOMRect {
+  return new DOMRect(left, top, width, height);
+}
+
 function defaultViewerProps(fileBlob: Blob) {
   return {
     fileBlob,
     highlights: [] as readonly HighlightAnnotation[],
     onError: vi.fn(),
-    onHighlightError: vi.fn(),
+    onHighlightInteractionClear: vi.fn(),
+    onHighlightInteractionError: vi.fn(),
     onInteraction: vi.fn(),
     onKeyDown: vi.fn(),
     onLocationChange: vi.fn(),
@@ -548,6 +567,98 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/2:10)");
   });
 
+  it.each(["paged", "continuous"] as const)(
+    "waits for a usable target view before settling %s annotation navigation",
+    async (mode) => {
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const viewerRef = createRef<EpubViewerHandle>();
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        highlights: [renderedHighlight],
+        settings: {
+          ...defaultReaderSettings,
+          mode: mode === "continuous" ? ("continuous" as const) : ("paged" as const),
+        },
+      };
+      const { container } = await renderViewer(props, viewerRef);
+      await waitForActiveRendition(session);
+      await vi.waitFor(() =>
+        expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+      );
+      const display = deferred<void>();
+      (session.rendition.display as ReturnType<typeof vi.fn>).mockImplementationOnce(
+        () => display.promise,
+      );
+      const target = "epubcfi(/6/4!/4/2/1:10)";
+      let settled = false;
+      let navigation!: Promise<boolean>;
+      act(() => {
+        navigation = viewerRef.current!.navigateToLocation(target).then((result) => {
+          settled = true;
+          return result;
+        });
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      const frame = document.createElement("iframe");
+      container.querySelector(".epub-viewer__stage")!.append(frame);
+      Object.defineProperty(frame.contentWindow, "frameElement", {
+        configurable: true,
+        value: frame,
+      });
+      session.rendition.emitContentMock({
+        document: frame.contentDocument!,
+        window: frame.contentWindow!,
+      });
+      const text = frame.contentDocument!.createTextNode("target text");
+      frame.contentDocument!.body.append(text);
+      const range = frame.contentDocument!.createRange();
+      range.selectNodeContents(text);
+      session.rendition.getRange = vi.fn(() => range);
+      await act(async () => {
+        session.rendition.emitMock("rendered", {}, { document: frame.contentDocument });
+        display.resolve(undefined);
+        await expect(navigation).resolves.toBe(true);
+      });
+
+      expect(session.rendition.display).toHaveBeenLastCalledWith(target);
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1);
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledWith(
+        renderedHighlight.cfiRange,
+        { annotationId: renderedHighlight.id },
+        expect.any(Function),
+        "archeion-highlight",
+        expect.any(Object),
+      );
+
+      await act(async () => {
+        await expect(viewerRef.current!.navigateToLocation("epubcfi(/6/2!/4/8/1:4)")).resolves.toBe(
+          true,
+        );
+      });
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("returns false when the displayed annotation target cannot resolve to a usable view", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+    session.rendition.getRange = vi.fn(() => {
+      throw new Error("target view missing");
+    });
+
+    await act(async () => {
+      await expect(viewerRef.current!.navigateToLocation("epubcfi(/6/8!/4/2/1:2)")).resolves.toBe(
+        false,
+      );
+    });
+  });
+
   it("registers, activates, replaces, and removes rendered marks by stable annotation ID", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
@@ -668,6 +779,7 @@ describe("EpubViewer navigation lifecycle", () => {
     document.body.append(text);
     const range = document.createRange();
     range.selectNodeContents(text);
+    Object.defineProperty(range, "cloneRange", { value: () => range });
     document.getSelection()?.addRange(range);
     await act(async () => {
       mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 22, clientY: 21 }));
@@ -705,6 +817,307 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(0);
   });
 
+  it("anchors a fresh selection to the exact second content frame and tracks its lifecycle", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    const viewer = container.querySelector<HTMLElement>(".epub-viewer")!;
+    vi.spyOn(viewer, "getBoundingClientRect").mockReturnValue(clientRect(0, 0, 900, 700));
+    const contentHost = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+    const first = document.createElement("iframe");
+    const second = document.createElement("iframe");
+    contentHost.append(first, second);
+    Object.defineProperty(first.contentWindow, "frameElement", {
+      configurable: true,
+      value: first,
+    });
+    Object.defineProperty(second.contentWindow, "frameElement", {
+      configurable: true,
+      value: second,
+    });
+    vi.spyOn(first, "getBoundingClientRect").mockReturnValue(clientRect(20, 40, 300, 500));
+    let secondLeft = 420;
+    vi.spyOn(second, "getBoundingClientRect").mockImplementation(() =>
+      clientRect(secondLeft, 100, 360, 500),
+    );
+    session.rendition.emitContentMock({
+      document: first.contentDocument!,
+      window: first.contentWindow!,
+    });
+    session.rendition.emitContentMock({
+      document: second.contentDocument!,
+      window: second.contentWindow!,
+    });
+    const range = {
+      cloneRange() {
+        return this;
+      },
+      getBoundingClientRect: () => clientRect(20, 30, 120, 50),
+      getClientRects: () => [clientRect(20, 30, 90, 18), clientRect(20, 62, 120, 18)],
+      startContainer: second.contentDocument!.body,
+    } as unknown as Range;
+    const selection = {
+      getRangeAt: () => range,
+      rangeCount: 1,
+      toString: () => "a multi-line selection",
+    } as unknown as Selection;
+
+    await act(async () => {
+      session.rendition.emitMock("selected", "epubcfi(/6/4!/4/2,/1:1,/1:20)", {
+        document: second.contentDocument,
+        section: { href: "Text/chapter-2.xhtml" },
+        window: { getSelection: () => selection },
+      });
+    });
+    const palette = container.querySelector<HTMLElement>('[aria-label="Highlight color"]')!;
+    expect(Number.parseFloat(palette.style.left)).toBeGreaterThan(420);
+
+    secondLeft = 500;
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    expect(Number.parseFloat(palette.style.left)).toBeGreaterThan(500);
+
+    second.remove();
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+  });
+
+  it("resolves a host mark overlay to its owning view and dismisses in capture phase", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const first = document.createElement("iframe");
+    const second = document.createElement("iframe");
+    document.body.append(first, second);
+    Object.defineProperty(first.contentWindow, "frameElement", {
+      configurable: true,
+      value: first,
+    });
+    Object.defineProperty(second.contentWindow, "frameElement", {
+      configurable: true,
+      value: second,
+    });
+    vi.spyOn(first, "getBoundingClientRect").mockReturnValue(clientRect(20, 40, 300, 500));
+    vi.spyOn(second, "getBoundingClientRect").mockReturnValue(clientRect(420, 100, 360, 500));
+    session.rendition.emitContentMock({
+      document: first.contentDocument!,
+      window: first.contentWindow!,
+    });
+    session.rendition.emitContentMock({
+      document: second.contentDocument!,
+      window: second.contentWindow!,
+    });
+    const mark = document.createElement("button");
+    document.body.append(mark);
+    vi.spyOn(mark, "getBoundingClientRect").mockReturnValue(realClientRect(470, 180, 80, 20));
+    mark.addEventListener("click", markCallback(session));
+
+    await act(async () => mark.click());
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    await act(async () => first.contentWindow!.dispatchEvent(new Event("pagehide")));
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    await act(async () => second.contentWindow!.dispatchEvent(new Event("pagehide")));
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+
+    const stoppedSurface = document.createElement("button");
+    stoppedSurface.addEventListener("pointerdown", (event) => event.stopPropagation());
+    document.body.append(stoppedSurface);
+    session.rendition.emitContentMock({
+      document: second.contentDocument!,
+      window: second.contentWindow!,
+    });
+    await act(async () => mark.click());
+    await act(async () =>
+      stoppedSurface.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+    );
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+
+    await act(async () => mark.click());
+    await act(async () =>
+      second.contentDocument!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "Escape",
+        }),
+      ),
+    );
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+    expect(props.onKeyDown).not.toHaveBeenCalled();
+  });
+
+  it("gives host-document Escape priority without leaking or duplicating listeners", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const mark = document.createElement("button");
+    mark.addEventListener("click", markCallback(session));
+    document.body.append(mark);
+    vi.spyOn(mark, "getBoundingClientRect").mockReturnValue(realClientRect(200, 160, 90, 20));
+    const hostControl = document.createElement("button");
+    container.append(hostControl);
+    const readerEscape = vi.fn();
+    hostControl.addEventListener("keydown", readerEscape);
+    const addListener = vi.spyOn(document, "addEventListener");
+    const removeListener = vi.spyOn(document, "removeEventListener");
+
+    await act(async () => mark.click());
+    const firstEscape = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+    await act(async () => hostControl.dispatchEvent(firstEscape));
+    expect(firstEscape.defaultPrevented).toBe(true);
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+    expect(readerEscape).not.toHaveBeenCalled();
+
+    const secondEscape = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+    hostControl.dispatchEvent(secondEscape);
+    expect(secondEscape.defaultPrevented).toBe(false);
+    expect(readerEscape).toHaveBeenCalledTimes(1);
+
+    await act(async () => mark.click());
+    await act(async () =>
+      hostControl.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      ),
+    );
+    expect(
+      addListener.mock.calls.filter(([type, , options]) => type === "keydown" && options === true),
+    ).toHaveLength(2);
+    expect(
+      removeListener.mock.calls.filter(
+        ([type, , options]) => type === "keydown" && options === true,
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("prunes disconnected documents without disturbing a connected sibling palette", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+    const first = document.createElement("iframe");
+    const second = document.createElement("iframe");
+    stage.append(first, second);
+    Object.defineProperty(first.contentWindow, "frameElement", {
+      configurable: true,
+      value: first,
+    });
+    Object.defineProperty(second.contentWindow, "frameElement", {
+      configurable: true,
+      value: second,
+    });
+    vi.spyOn(first, "getBoundingClientRect").mockReturnValue(realClientRect(20, 40, 300, 500));
+    vi.spyOn(second, "getBoundingClientRect").mockReturnValue(realClientRect(420, 100, 360, 500));
+    session.rendition.emitContentMock({
+      document: first.contentDocument!,
+      window: first.contentWindow!,
+    });
+    session.rendition.emitContentMock({
+      document: second.contentDocument!,
+      window: second.contentWindow!,
+    });
+    const firstRemove = vi.spyOn(first.contentDocument!, "removeEventListener");
+    const secondRemove = vi.spyOn(second.contentDocument!, "removeEventListener");
+    const range = {
+      cloneRange() {
+        return this;
+      },
+      getBoundingClientRect: () => realClientRect(20, 30, 100, 20),
+      getClientRects: () => [realClientRect(20, 30, 100, 20)],
+      startContainer: second.contentDocument!.body,
+    } as unknown as Range;
+    const selection = {
+      getRangeAt: () => range,
+      rangeCount: 1,
+      toString: () => "selection in sibling",
+    } as unknown as Selection;
+    await act(async () =>
+      session.rendition.emitMock("selected", "epubcfi(/6/4!/4/2,/1:1,/1:10)", {
+        document: second.contentDocument,
+        section: { href: "Text/chapter-2.xhtml" },
+        window: { getSelection: () => selection },
+      }),
+    );
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+
+    first.remove();
+    await act(async () =>
+      session.rendition.emitMock("rendered", {}, { document: second.contentDocument }),
+    );
+    expect(firstRemove).toHaveBeenCalledWith("keydown", expect.any(Function), {
+      capture: true,
+    });
+    expect(secondRemove.mock.calls.some(([type]) => type === "keydown")).toBe(false);
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+
+    second.remove();
+    await act(async () => session.rendition.emitMock("rendered", {}, {}));
+    expect(secondRemove).toHaveBeenCalledWith("keydown", expect.any(Function), {
+      capture: true,
+    });
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+  });
+
+  it("prunes missing frame ownership and keeps repeated bind/unload cycles singular", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])));
+    await waitForActiveRendition(session);
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    Object.defineProperty(frame.contentWindow, "frameElement", {
+      configurable: true,
+      value: frame,
+    });
+    const addListener = vi.spyOn(frame.contentDocument!, "addEventListener");
+    const removeListener = vi.spyOn(frame.contentDocument!, "removeEventListener");
+    const content = { document: frame.contentDocument!, window: frame.contentWindow! };
+
+    session.rendition.emitContentMock(content);
+    session.rendition.emitContentMock(content);
+    expect(addListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
+    await act(async () => frame.contentWindow!.dispatchEvent(new Event("pagehide")));
+    session.rendition.emitContentMock(content);
+    session.rendition.emitMock("rendered", {}, { document: frame.contentDocument });
+    expect(addListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(2);
+
+    Object.defineProperty(frame.contentWindow, "frameElement", {
+      configurable: true,
+      value: null,
+    });
+    await act(async () => session.rendition.emitMock("rendered", {}, {}));
+    expect(removeListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(2);
+  });
+
   it("reports overlap as nonfatal feedback and keeps the rendition mounted", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
@@ -714,10 +1127,17 @@ describe("EpubViewer navigation lifecycle", () => {
     };
     const { container } = await renderViewer(props);
     await waitForActiveRendition(session);
+    session.rendition.emitContentMock({ document, window });
+    const text = document.createTextNode("partially overlapping text");
+    document.body.append(text);
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    Object.defineProperty(range, "cloneRange", { value: () => range });
+    Object.defineProperty(range, "getClientRects", {
+      value: () => [{ bottom: 20, height: 10, left: 10, right: 40, top: 10, width: 30 }],
+    });
     const selection = {
-      getRangeAt: () => ({
-        getBoundingClientRect: () => ({ height: 10, left: 10, top: 10, width: 30 }),
-      }),
+      getRangeAt: () => range,
       rangeCount: 1,
       toString: () => "partially overlapping text",
     } as unknown as Selection;
@@ -725,16 +1145,71 @@ describe("EpubViewer navigation lifecycle", () => {
     await act(async () => {
       session.rendition.emitMock("selected", "epubcfi(/6/2!/4/2,/1:25,/1:40)", {
         section: { href: "Text/chapter-1.xhtml" },
+        document,
         window: { getSelection: () => selection },
       });
     });
 
-    expect(props.onHighlightError).toHaveBeenCalledWith(
+    expect(props.onHighlightInteractionError).toHaveBeenCalledWith(
       "Overlapping highlights cannot be edited together.",
     );
     expect(props.onError).not.toHaveBeenCalled();
     expect(container.querySelector(".epub-viewer")).toBeInstanceOf(HTMLElement);
     expect(session.destroy).not.toHaveBeenCalled();
+
+    const getSelection = vi.spyOn(document, "getSelection").mockReturnValue({
+      isCollapsed: true,
+    } as Selection);
+    await act(async () => document.dispatchEvent(new Event("selectionchange")));
+    expect(props.onHighlightInteractionClear).toHaveBeenCalledTimes(1);
+    getSelection.mockRestore();
+  });
+
+  it("clears stale overlap feedback for a valid selection and direct activation", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(1),
+    );
+    const text = document.createTextNode("selection");
+    document.body.append(text);
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    Object.defineProperty(range, "cloneRange", { value: () => range });
+    Object.defineProperty(range, "getClientRects", {
+      value: () => [clientRect(10, 10, 80, 20)],
+    });
+    const selection = {
+      getRangeAt: () => range,
+      rangeCount: 1,
+      toString: () => "selection",
+    } as unknown as Selection;
+    const contents = {
+      document,
+      section: { href: "Text/chapter-1.xhtml" },
+      window: { getSelection: () => selection },
+    };
+
+    await act(async () =>
+      session.rendition.emitMock("selected", "epubcfi(/6/2!/4/2,/1:25,/1:40)", contents),
+    );
+    expect(props.onHighlightInteractionError).toHaveBeenCalledTimes(1);
+    await act(async () =>
+      session.rendition.emitMock("selected", "epubcfi(/6/4!/4/2,/1:1,/1:8)", contents),
+    );
+    expect(props.onHighlightInteractionClear).toHaveBeenCalledTimes(1);
+
+    const mark = document.createElement("button");
+    mark.addEventListener("click", markCallback(session));
+    document.body.append(mark);
+    await act(async () => mark.click());
+    expect(props.onHighlightInteractionClear).toHaveBeenCalledTimes(2);
   });
 
   it("clears pending mark gesture listeners during teardown", async () => {

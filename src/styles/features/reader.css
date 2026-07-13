@@ -1337,13 +1337,8 @@
   width: max-content;
   min-width: 0;
   padding: 7px;
-  transform: translate(-50%, calc(-100% - 10px));
   color: var(--reader-text);
   background: var(--reader-surface);
-}
-
-.reader-highlight-menu[data-placement="below"] {
-  transform: translate(-50%, 0);
 }
 
 .reader-highlight-menu__color {

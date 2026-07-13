@@ -46,6 +46,7 @@ import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
 import { getReaderKeyboardIntent } from "./readerNavigation";
+import { highlightNavigationTarget } from "./readerAnnotationNavigation";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -487,7 +488,11 @@ export function ReaderPage() {
 
   const navigateToAnnotation = useCallback(
     async (annotation: Annotation) => {
-      const cfi = annotation.cfiRange?.trim();
+      const savedCfi = annotation.cfiRange?.trim();
+      const cfi =
+        annotation.type === "highlight" && savedCfi
+          ? highlightNavigationTarget(savedCfi)
+          : savedCfi;
       const session = annotationNavigationSession;
       if (!cfi || !session.bookId) return false;
 
@@ -1127,7 +1132,8 @@ export function ReaderPage() {
           highlights={highlights.highlights}
           initialCfi={readerSession.initialCfi}
           onError={handleViewerError}
-          onHighlightError={highlights.reportError}
+          onHighlightInteractionClear={highlights.clearInteractionFeedback}
+          onHighlightInteractionError={highlights.reportInteractionFeedback}
           onInteraction={revealControls}
           onKeyDown={handleContentKeyDown}
           onLocationChange={handleLocationChange}
@@ -1159,12 +1165,12 @@ export function ReaderPage() {
         </div>
       ) : null}
 
-      {highlights.error ? (
+      {highlights.feedback ? (
         <div className="reader-highlight-feedback" role="alert">
-          <span>{highlights.error}</span>
+          <span>{highlights.feedback.message}</span>
           <IconButton
             label="Dismiss highlight message"
-            onClick={highlights.clearError}
+            onClick={highlights.clearFeedback}
             size="compact"
           >
             <X aria-hidden="true" />
