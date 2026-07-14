@@ -31,7 +31,7 @@ import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { MenuItem } from "../../components/MenuItem";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type { Annotation, HighlightAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { formatMediumDate } from "../../utils/formatters";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
@@ -140,7 +140,7 @@ type ReaderAnnotationsPanelProps = {
   onRecover: (annotation: Annotation) => Promise<ReaderAnnotationRecoveryResult>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
-  onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
+  onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
 };
 
@@ -401,7 +401,7 @@ export function ReaderAnnotationsPanel({
     }
   }
 
-  async function saveBookmarkLabel(annotation: Annotation) {
+  async function saveBookmarkLabel(annotation: BookmarkAnnotation) {
     if (busyId) return;
     setBusyId(annotation.id);
     setActionError(undefined);
@@ -850,7 +850,9 @@ export function ReaderAnnotationsPanel({
                               className="reader-annotations__rename"
                               onSubmit={(event) => {
                                 event.preventDefault();
-                                void saveBookmarkLabel(annotation);
+                                if (annotation.type === "bookmark") {
+                                  void saveBookmarkLabel(annotation);
+                                }
                               }}
                             >
                               <label htmlFor={`annotation-label-${annotation.id}`}>

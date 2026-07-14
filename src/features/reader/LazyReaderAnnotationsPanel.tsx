@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 
-import type { Annotation, HighlightAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
@@ -29,7 +29,7 @@ type LazyReaderAnnotationsPanelProps = {
   onRecover: (annotation: Annotation) => Promise<ReaderAnnotationRecoveryResult>;
   onReload: () => Promise<boolean>;
   onRemove: (annotation: Annotation) => Promise<boolean>;
-  onUpdateBookmarkLabel: (annotation: Annotation, label: string) => Promise<boolean>;
+  onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
 };
 

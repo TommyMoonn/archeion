@@ -802,10 +802,14 @@ export function ReaderPage() {
     ): Promise<HighlightAnnotation | undefined> => {
       if (!note.trim()) return undefined;
       try {
-        const saved = await storage.updateAnnotation(target.bookId, persistedAnnotation.id, {
-          note,
-        });
-        if (!saved || saved.type !== "highlight") return undefined;
+        const saved = await storage.updateHighlightAnnotation(
+          target.bookId,
+          persistedAnnotation.id,
+          {
+            note,
+          },
+        );
+        if (!saved) return undefined;
 
         if (isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) {
           const nextTarget = { ...target, annotation: saved };
@@ -824,9 +828,11 @@ export function ReaderPage() {
   const deleteNoteSession = useCallback(
     async (target: ReaderNoteTarget, persistedAnnotation: HighlightAnnotation) => {
       try {
-        const updated = await storage.updateAnnotation(target.bookId, persistedAnnotation.id, {
-          note: undefined,
-        });
+        const updated = await storage.updateHighlightAnnotation(
+          target.bookId,
+          persistedAnnotation.id,
+          { note: undefined },
+        );
         if (!updated) return false;
         syncSavedNote(target.bookId, updated);
         return true;

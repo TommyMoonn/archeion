@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, UpdateAnnotationInput } from "../../types/annotation";
+import type {
+  Annotation,
+  AnnotationAnchorStatus,
+  AnnotationType,
+  BookmarkAnnotation,
+} from "../../types/annotation";
 import type { ReaderLocation } from "./readerLocation";
 
 export type ReaderAnnotationFeedback =
@@ -55,11 +60,18 @@ type AnnotationLoadRequest = {
 
 type AnchorMaintenanceRequest = {
   annotationId: string;
-  changes: UpdateAnnotationInput;
+  annotationType: AnnotationType;
+  changes: AnnotationAnchorChanges;
   promise: Promise<boolean>;
   resolve: (persisted: boolean) => void;
   session: AnnotationSession;
   signature: string;
+};
+
+type AnnotationAnchorChanges = {
+  anchorStatus?: AnnotationAnchorStatus;
+  cfiRange?: string;
+  chapterHref?: string;
 };
 
 function isBookmark(annotation: Annotation): boolean {
@@ -337,8 +349,11 @@ export function useReaderAnnotations({
     }
 
     anchorMaintenanceRunningRef.current = next;
-    void storage
-      .updateAnnotation(next.session.bookId, next.annotationId, next.changes)
+    const update =
+      next.annotationType === "bookmark"
+        ? storage.updateBookmarkAnnotation(next.session.bookId, next.annotationId, next.changes)
+        : storage.updateHighlightAnnotation(next.session.bookId, next.annotationId, next.changes);
+    void update
       .then((updated) => {
         if (
           anchorMaintenanceRunningRef.current !== next ||
@@ -374,7 +389,7 @@ export function useReaderAnnotations({
   const queueAnchorUpdate = useCallback(
     (
       annotation: Annotation,
-      changes: UpdateAnnotationInput,
+      changes: AnnotationAnchorChanges,
       signature: string,
     ): Promise<boolean> => {
       if (!session.bookId || !isCurrentSession(session)) return Promise.resolve(false);
@@ -405,6 +420,7 @@ export function useReaderAnnotations({
       });
       anchorMaintenanceQueueRef.current.set(annotation.id, {
         annotationId: annotation.id,
+        annotationType: annotation.type,
         changes,
         promise,
         resolve,
@@ -498,7 +514,7 @@ export function useReaderAnnotations({
       const mutation = beginMutation(session);
       if (!mutation) return;
       try {
-        const updated = await storage.updateAnnotation(
+        const updated = await storage.updateBookmarkAnnotation(
           session.bookId,
           detachedBookmarkAtCurrent.id,
           {
@@ -535,12 +551,14 @@ export function useReaderAnnotations({
   ]);
 
   const updateLabel = useCallback(
-    async (bookmark: Annotation, label: string) => {
+    async (bookmark: BookmarkAnnotation, label: string) => {
       const mutation = beginMutation(session);
       if (!mutation || !session.bookId) return false;
 
       try {
-        const updated = await storage.updateAnnotation(session.bookId, bookmark.id, { label });
+        const updated = await storage.updateBookmarkAnnotation(session.bookId, bookmark.id, {
+          label,
+        });
         if (!ownsMutation(mutation) || !updated) return false;
         sync(updated);
         return true;
@@ -562,14 +580,17 @@ export function useReaderAnnotations({
   const updateAnchor = useCallback(
     async (
       annotation: Annotation,
-      changes: UpdateAnnotationInput,
+      changes: AnnotationAnchorChanges,
     ): Promise<Annotation | undefined> => {
       const mutation = beginMutation(session);
       if (!mutation || !session.bookId) return undefined;
       cancelQueuedAnchorUpdate(annotation.id);
 
       try {
-        const updated = await storage.updateAnnotation(session.bookId, annotation.id, changes);
+        const updated =
+          annotation.type === "bookmark"
+            ? await storage.updateBookmarkAnnotation(session.bookId, annotation.id, changes)
+            : await storage.updateHighlightAnnotation(session.bookId, annotation.id, changes);
         if (!ownsMutation(mutation) || !updated) return undefined;
         sync(updated);
         return updated;

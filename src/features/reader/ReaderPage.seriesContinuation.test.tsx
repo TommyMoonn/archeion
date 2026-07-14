@@ -81,7 +81,8 @@ function createStorage(books: Book[], overrides: Partial<LibraryStorage> = {}): 
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),
     createAnnotation: vi.fn(),
-    updateAnnotation: vi.fn(),
+    updateBookmarkAnnotation: vi.fn(),
+    updateHighlightAnnotation: vi.fn(),
     deleteAnnotation: vi.fn(),
     listBooks: vi.fn().mockResolvedValue(books),
     updateBook: vi.fn().mockImplementation(async (id, changes) => {

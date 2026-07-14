@@ -10,7 +10,16 @@ import type {
   UpdateBookInput,
 } from "../types/book";
 import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
-import type { Annotation, CreateAnnotationInput, UpdateAnnotationInput } from "../types/annotation";
+import type {
+  Annotation,
+  BookmarkAnnotation,
+  CreateAnnotationInput,
+  CreateBookmarkAnnotationInput,
+  CreateHighlightAnnotationInput,
+  HighlightAnnotation,
+  UpdateBookmarkAnnotationInput,
+  UpdateHighlightAnnotationInput,
+} from "../types/annotation";
 import type { ArchiveImportSettings } from "../types/settings";
 import {
   createLibraryMetadata,
@@ -309,20 +318,40 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.annotationRepository.get(bookId, annotationId);
   }
 
+  createAnnotation(
+    bookId: string,
+    input: CreateBookmarkAnnotationInput,
+  ): Promise<BookmarkAnnotation>;
+  createAnnotation(
+    bookId: string,
+    input: CreateHighlightAnnotationInput,
+  ): Promise<HighlightAnnotation>;
+  createAnnotation(bookId: string, input: CreateAnnotationInput): Promise<Annotation>;
   createAnnotation(bookId: string, input: CreateAnnotationInput): Promise<Annotation> {
     return this.annotationRepository.create(bookId, input);
   }
 
+  restoreAnnotation(bookId: string, annotation: BookmarkAnnotation): Promise<BookmarkAnnotation>;
+  restoreAnnotation(bookId: string, annotation: HighlightAnnotation): Promise<HighlightAnnotation>;
+  restoreAnnotation(bookId: string, annotation: Annotation): Promise<Annotation>;
   restoreAnnotation(bookId: string, annotation: Annotation): Promise<Annotation> {
     return this.annotationRepository.restore(bookId, annotation);
   }
 
-  updateAnnotation(
+  updateBookmarkAnnotation(
     bookId: string,
     annotationId: string,
-    changes: UpdateAnnotationInput,
-  ): Promise<Annotation | undefined> {
-    return this.annotationRepository.update(bookId, annotationId, changes);
+    changes: UpdateBookmarkAnnotationInput,
+  ): Promise<BookmarkAnnotation | undefined> {
+    return this.annotationRepository.updateBookmark(bookId, annotationId, changes);
+  }
+
+  updateHighlightAnnotation(
+    bookId: string,
+    annotationId: string,
+    changes: UpdateHighlightAnnotationInput,
+  ): Promise<HighlightAnnotation | undefined> {
+    return this.annotationRepository.updateHighlight(bookId, annotationId, changes);
   }
 
   deleteAnnotation(bookId: string, annotationId: string): Promise<boolean> {

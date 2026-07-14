@@ -125,12 +125,17 @@ describe("annotationsMetadata", () => {
     ).toThrow("anchorStatus for annotation 1");
   });
 
-  it("migrates an unversioned repository to version one", () => {
-    expect(normalizeAnnotationsMetadata({ books: {} })).toEqual({ version: 1, books: {} });
-    expect(normalizeAnnotationsMetadata({ version: 0, books: {} })).toEqual({
+  it("requires schema version one without migration", () => {
+    expect(normalizeAnnotationsMetadata({ version: 1, books: {} })).toEqual({
       version: 1,
       books: {},
     });
+    expect(() => normalizeAnnotationsMetadata({ books: {} })).toThrow(
+      "Annotation metadata is invalid: version is required.",
+    );
+    expect(() => normalizeAnnotationsMetadata({ version: 0, books: {} })).toThrow(
+      "Annotation metadata is invalid: version 0 is not supported.",
+    );
   });
 
   it.each([

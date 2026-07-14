@@ -1,12 +1,22 @@
 import {
   ANNOTATION_TYPES,
-  type Annotation,
-  type AnnotationsMetadata,
   type AnnotationType,
   type BookmarkAnnotation,
-  type BookAnnotations,
   type HighlightAnnotation,
 } from "../../types/annotation";
+
+export type StoredBookmarkAnnotation = BookmarkAnnotation & Record<string, unknown>;
+export type StoredHighlightAnnotation = HighlightAnnotation & Record<string, unknown>;
+export type StoredAnnotationRecord = StoredBookmarkAnnotation | StoredHighlightAnnotation;
+
+export type StoredBookAnnotations = Record<string, unknown> & {
+  annotations: StoredAnnotationRecord[];
+};
+
+export type StoredAnnotationsMetadata = Record<string, unknown> & {
+  version: 1;
+  books: Record<string, StoredBookAnnotations>;
+};
 
 const CURRENT_ANNOTATIONS_VERSION = 1;
 const ISO_TIMESTAMP_PATTERN =
@@ -217,7 +227,11 @@ function isAnnotationType(value: unknown): value is AnnotationType {
   return typeof value === "string" && ANNOTATION_TYPES.includes(value as AnnotationType);
 }
 
-function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: number): Annotation {
+function normalizeAnnotation(
+  value: unknown,
+  bookId: string,
+  annotationIndex: number,
+): StoredAnnotationRecord {
   const context = `annotation ${annotationIndex + 1} in book ${quoted(bookId)}`;
   if (!isRecord(value)) {
     invalid(`${context} must be an object.`);
@@ -258,7 +272,7 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
       ...(label ? { label } : {}),
       createdAt,
       updatedAt,
-    } as BookmarkAnnotation;
+    } as StoredAnnotationRecord & BookmarkAnnotation;
   }
 
   if (hasOwn(value, "label")) {
@@ -284,10 +298,10 @@ function normalizeAnnotation(value: unknown, bookId: string, annotationIndex: nu
     ...(note ? { note } : {}),
     createdAt,
     updatedAt,
-  } as HighlightAnnotation;
+  } as StoredAnnotationRecord & HighlightAnnotation;
 }
 
-export function normalizeAnnotationRecord(value: unknown, bookId: string): Annotation {
+export function normalizeAnnotationRecord(value: unknown, bookId: string): StoredAnnotationRecord {
   const normalizedBookId = bookId.trim();
   if (!normalizedBookId) {
     invalid("book id must not be empty.");
@@ -295,7 +309,7 @@ export function normalizeAnnotationRecord(value: unknown, bookId: string): Annot
   return normalizeAnnotation(value, normalizedBookId, 0);
 }
 
-function normalizeBookAnnotations(value: unknown, bookId: string): BookAnnotations {
+function normalizeBookAnnotations(value: unknown, bookId: string): StoredBookAnnotations {
   const context = `book ${quoted(bookId)}`;
   if (!isRecord(value)) {
     invalid(`${context} must be an object.`);
@@ -323,24 +337,24 @@ function normalizeBookAnnotations(value: unknown, bookId: string): BookAnnotatio
   };
 }
 
-function readVersion(value: Record<string, unknown>): 0 | 1 {
+function readVersion(value: Record<string, unknown>): 1 {
   if (!hasOwn(value, "version")) {
-    return 0;
+    invalid("version is required.");
   }
   if (!Number.isInteger(value.version)) {
     invalid("version must be an integer.");
   }
-  if (value.version === 0 || value.version === CURRENT_ANNOTATIONS_VERSION) {
-    return value.version;
+  if (value.version === CURRENT_ANNOTATIONS_VERSION) {
+    return CURRENT_ANNOTATIONS_VERSION;
   }
   invalid(`version ${String(value.version)} is not supported.`);
 }
 
-export function createAnnotationsMetadata(): AnnotationsMetadata {
+export function createAnnotationsMetadata(): StoredAnnotationsMetadata {
   return { version: CURRENT_ANNOTATIONS_VERSION, books: {} };
 }
 
-export function normalizeAnnotationsMetadata(value: unknown): AnnotationsMetadata {
+export function normalizeAnnotationsMetadata(value: unknown): StoredAnnotationsMetadata {
   if (!isRecord(value)) {
     invalid("root must be an object.");
   }

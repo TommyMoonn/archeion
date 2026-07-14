@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AnnotationsMetadata } from "../../types/annotation";
 import { AnnotationRepository, type AnnotationArchiveScope } from "./AnnotationRepository";
+import type { StoredAnnotationsMetadata } from "./annotationsMetadata";
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -18,9 +18,11 @@ function createHarness(initial: unknown = { version: 1, books: {} }) {
   let persisted = structuredClone(initial);
   let queue: Promise<void> = Promise.resolve();
   const loadMetadata = vi.fn(async () => structuredClone(persisted));
-  const saveMetadata = vi.fn(async (_scope: AnnotationArchiveScope, value: AnnotationsMetadata) => {
-    persisted = structuredClone(value);
-  });
+  const saveMetadata = vi.fn(
+    async (_scope: AnnotationArchiveScope, value: StoredAnnotationsMetadata) => {
+      persisted = structuredClone(value);
+    },
+  );
   const host = {
     createScope: (): AnnotationArchiveScope => ({ generation, rootPath: `archive-${generation}` }),
     assertCurrentScope: (scope: AnnotationArchiveScope) => {
@@ -133,7 +135,9 @@ describe("AnnotationRepository", () => {
     if (created.type !== "highlight") throw new Error("Expected a highlight.");
     expect(created.note).toBe(originalNote);
 
-    const updated = await annotations.update("book-1", created.id, { note: updatedNote });
+    const updated = await annotations.updateHighlight("book-1", created.id, {
+      note: updatedNote,
+    });
     expect(updated?.note).toBe(updatedNote);
     expect((await annotations.list("book-1"))[0]?.note).toBe(updatedNote);
 
@@ -160,7 +164,9 @@ describe("AnnotationRepository", () => {
       note: "Attached note",
     });
 
-    const updated = await annotations.update("book-1", created.id, { note: undefined });
+    const updated = await annotations.updateHighlight("book-1", created.id, {
+      note: undefined,
+    });
 
     expect(updated).toMatchObject({
       id: created.id,
@@ -186,7 +192,7 @@ describe("AnnotationRepository", () => {
       color: "rose",
       note: "Attached note",
     });
-    const persisted = harness.persisted as AnnotationsMetadata;
+    const persisted = harness.persisted as StoredAnnotationsMetadata;
     persisted.books["book-1"].annotations[0] = {
       ...created,
       futureAnchorMetadata: { preserved: true },
@@ -194,10 +200,10 @@ describe("AnnotationRepository", () => {
     harness.setPersisted(persisted);
     annotations.reset();
 
-    const detached = await annotations.update("book-1", created.id, {
+    const detached = await annotations.updateHighlight("book-1", created.id, {
       anchorStatus: "detached",
     });
-    const recovered = await annotations.update("book-1", created.id, {
+    const recovered = await annotations.updateHighlight("book-1", created.id, {
       anchorStatus: undefined,
       cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:2,/4/2:9)",
       chapterHref: "Text/new.xhtml",
@@ -269,16 +275,71 @@ describe("AnnotationRepository", () => {
     expect(harness.saveMetadata).not.toHaveBeenCalled();
   });
 
-  it("rejects adding a note to an existing bookmark", async () => {
+  it("rejects a highlight mutation targeting an existing bookmark", async () => {
     const harness = createHarness();
     const annotations = repository(harness);
     const bookmark = await annotations.create("book-1", { type: "bookmark" });
     harness.saveMetadata.mockClear();
 
     await expect(
-      annotations.update("book-1", bookmark.id, { note: "Not allowed" } as never),
-    ).rejects.toThrow("not allowed");
+      annotations.updateHighlight("book-1", bookmark.id, { note: "Not allowed" }),
+    ).rejects.toThrow("is bookmark, not highlight");
     expect(harness.saveMetadata).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed mutations without saving or replacing the cached snapshot", async () => {
+    const storedBookmark = {
+      id: "bookmark-1",
+      type: "bookmark" as const,
+      label: "Existing label",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const storedHighlight = {
+      id: "highlight-1",
+      type: "highlight" as const,
+      cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:1,/4/2:4)",
+      selectedText: "Keep this",
+      contextBefore: "Existing context",
+      color: "yellow",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const harness = createHarness({
+      version: 1,
+      books: { "book-1": { annotations: [storedBookmark, storedHighlight] } },
+    });
+    const annotations = repository(harness);
+    const before = await annotations.list("book-1");
+    harness.saveMetadata.mockClear();
+
+    await expect(
+      annotations.updateBookmark("book-1", storedBookmark.id, { label: 42 } as never),
+    ).rejects.toThrow("label for annotation 1");
+    await expect(
+      annotations.updateHighlight("book-1", storedHighlight.id, { contextBefore: {} } as never),
+    ).rejects.toThrow("contextBefore for annotation 1");
+
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+    await expect(annotations.list("book-1")).resolves.toEqual(before);
+    expect(harness.persisted).toEqual({
+      version: 1,
+      books: { "book-1": { annotations: [storedBookmark, storedHighlight] } },
+    });
+  });
+
+  it("does not persist arbitrary properties from an untyped create caller", async () => {
+    const harness = createHarness();
+    const annotations = repository(harness);
+
+    const created = await annotations.create("book-1", {
+      type: "bookmark",
+      label: "Reviewed",
+      injectedFutureField: { shouldNotPersist: true },
+    } as never);
+
+    expect(created).not.toHaveProperty("injectedFutureField");
+    expect(harness.persisted).not.toHaveProperty("books.book-1.annotations.0.injectedFutureField");
   });
 
   it("returns undefined for missing records without treating it as a stale queue result", async () => {
@@ -287,7 +348,7 @@ describe("AnnotationRepository", () => {
 
     await expect(annotations.get("book-1", "missing")).resolves.toBeUndefined();
     await expect(
-      annotations.update("book-1", "missing", { note: "Not present" }),
+      annotations.updateHighlight("book-1", "missing", { note: "Not present" }),
     ).resolves.toBeUndefined();
     await expect(annotations.delete("book-1", "missing")).resolves.toBe(false);
   });
@@ -298,7 +359,7 @@ describe("AnnotationRepository", () => {
     await annotations.create("book-1", { type: "bookmark", label: "Chapter start" });
 
     await expect(
-      annotations.update("book-1", "annotation-1", {
+      annotations.updateBookmark("book-1", "annotation-1", {
         label: "Updated label",
       }),
     ).resolves.toMatchObject({
@@ -496,9 +557,9 @@ describe("AnnotationRepository", () => {
     });
     const annotations = repository(harness);
 
-    await expect(annotations.update("book-1", stored.id, { note: "Same note" })).resolves.toEqual(
-      stored,
-    );
+    await expect(
+      annotations.updateHighlight("book-1", stored.id, { note: "Same note" }),
+    ).resolves.toEqual(stored);
 
     expect(harness.saveMetadata).not.toHaveBeenCalled();
     expect(harness.persisted).toMatchObject({
@@ -534,7 +595,7 @@ describe("AnnotationRepository", () => {
     cloneSpy.mockClear();
 
     try {
-      await annotations.update("book-1", stored.id, { color: "blue" });
+      await annotations.updateHighlight("book-1", stored.id, { color: "blue" });
 
       const metadataCloneCalls = cloneSpy.mock.calls.filter(
         ([value]) => value && typeof value === "object" && "books" in value,
@@ -630,7 +691,7 @@ describe("AnnotationRepository", () => {
     const annotations = repository(harness);
 
     await expect(
-      annotations.update("book-1", "duplicate", { note: "Must not be applied" }),
+      annotations.updateHighlight("book-1", "duplicate", { note: "Must not be applied" }),
     ).rejects.toThrow('duplicate annotation id "duplicate" in book "book-1"');
     await expect(annotations.delete("book-1", "duplicate")).rejects.toThrow(
       'duplicate annotation id "duplicate" in book "book-1"',

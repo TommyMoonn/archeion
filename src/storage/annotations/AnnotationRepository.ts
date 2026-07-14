@@ -1,16 +1,25 @@
-import {
-  ANNOTATION_TYPES,
-  type Annotation,
-  type AnnotationsMetadata,
-  type BookAnnotations,
-  type CreateAnnotationInput,
-  type UpdateAnnotationInput,
+import type {
+  Annotation,
+  BookmarkAnnotation,
+  CreateAnnotationInput,
+  CreateBookmarkAnnotationInput,
+  CreateHighlightAnnotationInput,
+  HighlightAnnotation,
+  UpdateBookmarkAnnotationInput,
+  UpdateHighlightAnnotationInput,
 } from "../../types/annotation";
 import {
+  createAnnotationInMetadata,
+  deleteAnnotationInMetadata,
+  restoreAnnotationInMetadata,
+  updateBookmarkInMetadata,
+  updateHighlightInMetadata,
+} from "./annotationMetadataMutations";
+import {
   createAnnotationsMetadata,
-  normalizeAnnotationNote,
-  normalizeAnnotationRecord,
   normalizeAnnotationsMetadata,
+  type StoredAnnotationRecord,
+  type StoredAnnotationsMetadata,
 } from "./annotationsMetadata";
 
 export type AnnotationArchiveScope = {
@@ -26,7 +35,10 @@ type AnnotationRepositoryHost = {
     operation: () => Promise<T>,
   ) => Promise<T | undefined>;
   loadMetadata: (scope: AnnotationArchiveScope) => Promise<unknown>;
-  saveMetadata: (scope: AnnotationArchiveScope, metadata: AnnotationsMetadata) => Promise<void>;
+  saveMetadata: (
+    scope: AnnotationArchiveScope,
+    metadata: StoredAnnotationsMetadata,
+  ) => Promise<void>;
   now?: () => string;
   createId?: () => string;
 };
@@ -42,43 +54,12 @@ function createAnnotationId(): string {
   return `annotation-${Date.now().toString(36)}-${fallbackIdCounter.toString(36)}`;
 }
 
-function cloneAnnotation(annotation: Annotation): Annotation {
+function cloneAnnotation(annotation: StoredAnnotationRecord | Annotation): Annotation {
   return structuredClone(annotation);
 }
 
-function cloneAnnotations(annotations: readonly Annotation[]): Annotation[] {
+function cloneAnnotations(annotations: readonly StoredAnnotationRecord[]): Annotation[] {
   return annotations.map(cloneAnnotation);
-}
-
-function jsonValuesEqual(left: unknown, right: unknown): boolean {
-  if (Object.is(left, right)) return true;
-  if (Array.isArray(left) && Array.isArray(right)) {
-    return (
-      left.length === right.length &&
-      left.every((entry, index) => jsonValuesEqual(entry, right[index]))
-    );
-  }
-  if (
-    typeof left === "object" &&
-    left !== null &&
-    !Array.isArray(left) &&
-    typeof right === "object" &&
-    right !== null &&
-    !Array.isArray(right)
-  ) {
-    const leftRecord = left as Record<string, unknown>;
-    const rightRecord = right as Record<string, unknown>;
-    const leftKeys = Object.keys(leftRecord).sort();
-    const rightKeys = Object.keys(rightRecord).sort();
-    return (
-      leftKeys.length === rightKeys.length &&
-      leftKeys.every(
-        (key, index) =>
-          key === rightKeys[index] && jsonValuesEqual(leftRecord[key], rightRecord[key]),
-      )
-    );
-  }
-  return false;
 }
 
 function normalizeBookId(bookId: string): string {
@@ -89,75 +70,13 @@ function normalizeBookId(bookId: string): string {
   return normalized;
 }
 
-function hasUnknownBookFields(book: AnnotationsMetadata["books"][string]): boolean {
-  return Object.keys(book).some((key) => key !== "annotations");
-}
-
-function replaceBookAnnotations(
-  metadata: AnnotationsMetadata,
-  bookId: string,
-  book: BookAnnotations,
-): AnnotationsMetadata {
-  return {
-    ...metadata,
-    books: {
-      ...metadata.books,
-      [bookId]: book,
-    },
-  };
-}
-
-const OPTIONAL_TRIMMED_TEXT_FIELDS = [
-  "cfiRange",
-  "chapterHref",
-  "selectedText",
-  "contextBefore",
-  "contextAfter",
-  "color",
-  "label",
-] as const;
-
-function normalizeOptionalTextFields<T extends Record<string, unknown>>(value: T): T {
-  const next: Record<string, unknown> = { ...value };
-  if (
-    Object.prototype.hasOwnProperty.call(next, "anchorStatus") &&
-    next.anchorStatus === undefined
-  ) {
-    delete next.anchorStatus;
-  }
-  for (const key of OPTIONAL_TRIMMED_TEXT_FIELDS) {
-    const candidate = next[key];
-    if (typeof candidate !== "string") {
-      delete next[key];
-      continue;
-    }
-    const normalized = candidate.trim();
-    if (normalized) {
-      next[key] = normalized;
-    } else {
-      delete next[key];
-    }
-  }
-
-  if (Object.prototype.hasOwnProperty.call(next, "note")) {
-    if (next.note === undefined) {
-      delete next.note;
-    } else if (typeof next.note === "string") {
-      const note = normalizeAnnotationNote(next.note);
-      if (note === undefined) {
-        delete next.note;
-      } else {
-        next.note = note;
-      }
-    }
-  }
-
-  return next as T;
+function normalizeAnnotationId(annotationId: string): string | undefined {
+  return annotationId.trim() || undefined;
 }
 
 export class AnnotationRepository {
   private cachedGeneration: number | null = null;
-  private metadata: AnnotationsMetadata = createAnnotationsMetadata();
+  private metadata: StoredAnnotationsMetadata = createAnnotationsMetadata();
 
   constructor(private readonly host: AnnotationRepositoryHost) {}
 
@@ -176,10 +95,8 @@ export class AnnotationRepository {
 
   async get(bookId: string, annotationId: string): Promise<Annotation | undefined> {
     const normalizedBookId = normalizeBookId(bookId);
-    const normalizedAnnotationId = annotationId.trim();
-    if (!normalizedAnnotationId) {
-      return undefined;
-    }
+    const normalizedAnnotationId = normalizeAnnotationId(annotationId);
+    if (!normalizedAnnotationId) return undefined;
 
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
@@ -190,168 +107,104 @@ export class AnnotationRepository {
     });
   }
 
+  create(bookId: string, input: CreateBookmarkAnnotationInput): Promise<BookmarkAnnotation>;
+  create(bookId: string, input: CreateHighlightAnnotationInput): Promise<HighlightAnnotation>;
+  create(bookId: string, input: CreateAnnotationInput): Promise<Annotation>;
   async create(bookId: string, input: CreateAnnotationInput): Promise<Annotation> {
     const normalizedBookId = normalizeBookId(bookId);
-    if (!ANNOTATION_TYPES.includes(input.type)) {
-      throw new Error(`Unsupported annotation type: ${String(input.type)}`);
-    }
-
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
-      const timestamp = this.host.now?.() ?? new Date().toISOString();
-      const annotation = normalizeAnnotationRecord(
-        normalizeOptionalTextFields({
-          ...input,
-          id: this.host.createId?.() ?? createAnnotationId(),
-          type: input.type,
-          createdAt: timestamp,
-          updatedAt: timestamp,
-        }),
+      const timestamp = this.timestamp();
+      const mutation = createAnnotationInMetadata(
+        metadata,
         normalizedBookId,
+        input,
+        this.host.createId?.() ?? createAnnotationId(),
+        timestamp,
       );
-      const existingBook = metadata.books[normalizedBookId];
-      if (annotation.type === "bookmark" && annotation.cfiRange) {
-        const existingBookmark = existingBook?.annotations.find(
-          (candidate) =>
-            candidate.type === "bookmark" && candidate.cfiRange === annotation.cfiRange,
-        );
-        if (existingBookmark) {
-          return cloneAnnotation(existingBookmark);
-        }
-      }
-
-      const book = existingBook ?? { annotations: [] };
-      if (book.annotations.some((candidate) => candidate.id === annotation.id)) {
-        throw new Error(`Annotation id already exists: ${annotation.id}`);
-      }
-      const next = replaceBookAnnotations(metadata, normalizedBookId, {
-        ...book,
-        annotations: [...book.annotations, annotation],
-      });
-      await this.persist(scope, next);
-      return cloneAnnotation(annotation);
+      if (mutation.changed) await this.persist(scope, mutation.metadata);
+      return cloneAnnotation(mutation.value);
     });
   }
 
+  restore(bookId: string, annotation: BookmarkAnnotation): Promise<BookmarkAnnotation>;
+  restore(bookId: string, annotation: HighlightAnnotation): Promise<HighlightAnnotation>;
+  restore(bookId: string, annotation: Annotation): Promise<Annotation>;
   async restore(bookId: string, annotation: Annotation): Promise<Annotation> {
     const normalizedBookId = normalizeBookId(bookId);
-    const restored = normalizeAnnotationRecord(cloneAnnotation(annotation), normalizedBookId);
-
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
-      const existingBook = metadata.books[normalizedBookId];
-      const sameId = existingBook?.annotations.find((candidate) => candidate.id === restored.id);
-      if (sameId) {
-        if (jsonValuesEqual(sameId, restored)) {
-          return cloneAnnotation(sameId);
-        }
-        throw new Error(
-          `Annotation restore collision: id ${JSON.stringify(restored.id)} already exists in book ${JSON.stringify(normalizedBookId)}.`,
-        );
-      }
-
-      if (restored.type === "bookmark" && restored.cfiRange) {
-        const sameLocation = existingBook?.annotations.find(
-          (candidate) => candidate.type === "bookmark" && candidate.cfiRange === restored.cfiRange,
-        );
-        if (sameLocation) {
-          throw new Error(
-            `Annotation restore collision: bookmark location already exists in book ${JSON.stringify(normalizedBookId)}.`,
-          );
-        }
-      }
-
-      const book = existingBook ?? { annotations: [] };
-      const next = replaceBookAnnotations(metadata, normalizedBookId, {
-        ...book,
-        annotations: [...book.annotations, restored],
-      });
-      await this.persist(scope, next);
-      return cloneAnnotation(restored);
+      const mutation = restoreAnnotationInMetadata(metadata, normalizedBookId, annotation);
+      if (mutation.changed) await this.persist(scope, mutation.metadata);
+      return cloneAnnotation(mutation.value);
     });
   }
 
-  async update(
+  async updateBookmark(
     bookId: string,
     annotationId: string,
-    changes: UpdateAnnotationInput,
-  ): Promise<Annotation | undefined> {
+    changes: UpdateBookmarkAnnotationInput,
+  ): Promise<BookmarkAnnotation | undefined> {
     const normalizedBookId = normalizeBookId(bookId);
-    const normalizedAnnotationId = annotationId.trim();
-    if (!normalizedAnnotationId) {
-      return undefined;
-    }
+    const normalizedAnnotationId = normalizeAnnotationId(annotationId);
+    if (!normalizedAnnotationId) return undefined;
 
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
-      const annotations = metadata.books[normalizedBookId]?.annotations;
-      const index = annotations?.findIndex(
-        (annotation) => annotation.id === normalizedAnnotationId,
-      );
-      if (index === undefined || index < 0 || !annotations) {
-        return undefined;
-      }
-
-      const current = annotations[index];
-      const updated = normalizeAnnotationRecord(
-        normalizeOptionalTextFields({
-          ...current,
-          ...changes,
-          id: current.id,
-          type: current.type,
-          createdAt: current.createdAt,
-          updatedAt: this.host.now?.() ?? new Date().toISOString(),
-        }),
+      const mutation = updateBookmarkInMetadata(
+        metadata,
         normalizedBookId,
+        normalizedAnnotationId,
+        changes,
+        this.timestamp(),
       );
-      if (jsonValuesEqual({ ...current, updatedAt: updated.updatedAt }, updated)) {
-        return cloneAnnotation(current);
-      }
-      const book = metadata.books[normalizedBookId];
-      const nextAnnotations = [...annotations];
-      nextAnnotations[index] = updated;
-      const next = replaceBookAnnotations(metadata, normalizedBookId, {
-        ...book,
-        annotations: nextAnnotations,
-      });
-      await this.persist(scope, next);
-      return cloneAnnotation(updated);
+      if (mutation.changed) await this.persist(scope, mutation.metadata);
+      return mutation.value ? (cloneAnnotation(mutation.value) as BookmarkAnnotation) : undefined;
+    });
+  }
+
+  async updateHighlight(
+    bookId: string,
+    annotationId: string,
+    changes: UpdateHighlightAnnotationInput,
+  ): Promise<HighlightAnnotation | undefined> {
+    const normalizedBookId = normalizeBookId(bookId);
+    const normalizedAnnotationId = normalizeAnnotationId(annotationId);
+    if (!normalizedAnnotationId) return undefined;
+
+    return this.run(async (scope) => {
+      const metadata = await this.ensureLoaded(scope);
+      const mutation = updateHighlightInMetadata(
+        metadata,
+        normalizedBookId,
+        normalizedAnnotationId,
+        changes,
+        this.timestamp(),
+      );
+      if (mutation.changed) await this.persist(scope, mutation.metadata);
+      return mutation.value ? (cloneAnnotation(mutation.value) as HighlightAnnotation) : undefined;
     });
   }
 
   async delete(bookId: string, annotationId: string): Promise<boolean> {
     const normalizedBookId = normalizeBookId(bookId);
-    const normalizedAnnotationId = annotationId.trim();
-    if (!normalizedAnnotationId) {
-      return false;
-    }
+    const normalizedAnnotationId = normalizeAnnotationId(annotationId);
+    if (!normalizedAnnotationId) return false;
 
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
-      const book = metadata.books[normalizedBookId];
-      if (!book) {
-        return false;
-      }
-
-      const annotationIndex = book.annotations.findIndex(
-        (annotation) => annotation.id === normalizedAnnotationId,
+      const mutation = deleteAnnotationInMetadata(
+        metadata,
+        normalizedBookId,
+        normalizedAnnotationId,
       );
-      if (annotationIndex < 0) {
-        return false;
-      }
-
-      const nextAnnotations = book.annotations.filter((_, index) => index !== annotationIndex);
-      const nextBooks = { ...metadata.books };
-      const nextBook = { ...book, annotations: nextAnnotations };
-      if (nextBook.annotations.length === 0 && !hasUnknownBookFields(nextBook)) {
-        delete nextBooks[normalizedBookId];
-      } else {
-        nextBooks[normalizedBookId] = nextBook;
-      }
-      const next = { ...metadata, books: nextBooks };
-      await this.persist(scope, next);
-      return true;
+      if (mutation.changed) await this.persist(scope, mutation.metadata);
+      return mutation.value;
     });
+  }
+
+  private timestamp(): string {
+    return this.host.now?.() ?? new Date().toISOString();
   }
 
   private async run<T>(operation: (scope: AnnotationArchiveScope) => Promise<T>): Promise<T> {
@@ -366,10 +219,8 @@ export class AnnotationRepository {
     return result.value;
   }
 
-  private async ensureLoaded(scope: AnnotationArchiveScope): Promise<AnnotationsMetadata> {
-    if (this.cachedGeneration === scope.generation) {
-      return this.metadata;
-    }
+  private async ensureLoaded(scope: AnnotationArchiveScope): Promise<StoredAnnotationsMetadata> {
+    if (this.cachedGeneration === scope.generation) return this.metadata;
 
     const raw = await this.host.loadMetadata(scope);
     this.host.assertCurrentScope(scope);
@@ -380,7 +231,7 @@ export class AnnotationRepository {
 
   private async persist(
     scope: AnnotationArchiveScope,
-    metadata: AnnotationsMetadata,
+    metadata: StoredAnnotationsMetadata,
   ): Promise<void> {
     await this.host.saveMetadata(scope, structuredClone(metadata));
     this.host.assertCurrentScope(scope);

@@ -135,7 +135,7 @@ function createStorage() {
     listAnnotations: vi.fn(async () => {
       throw new Error("highlight state must come from the shared annotation collection");
     }),
-    updateAnnotation: vi.fn(async () => recolored),
+    updateHighlightAnnotation: vi.fn(async () => recolored),
   } as unknown as LibraryStorage;
 }
 
@@ -198,12 +198,14 @@ describe("useReaderHighlights", () => {
   it("does not publish a stale recolor completion into another book session", async () => {
     const pendingRecolor = deferred<HighlightAnnotation>();
     const storage = createStorage();
-    vi.mocked(storage.updateAnnotation).mockImplementationOnce(() => pendingRecolor.promise);
+    vi.mocked(storage.updateHighlightAnnotation).mockImplementationOnce(
+      () => pendingRecolor.promise,
+    );
     const onChange = vi.fn();
     const rendered = await renderHarness(storage, onChange);
 
     act(() => rendered.container.querySelectorAll<HTMLButtonElement>("button")[1]?.click());
-    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", existingHighlight.id, {
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledWith("book-1", existingHighlight.id, {
       color: "blue",
     });
 
@@ -243,7 +245,7 @@ describe("useReaderHighlights", () => {
 
     await act(async () => buttons[2]?.click());
 
-    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", "highlight-1", {
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledWith("book-1", "highlight-1", {
       color: "green",
     });
     expect(storage.createAnnotation).not.toHaveBeenCalled();
@@ -256,7 +258,7 @@ describe("useReaderHighlights", () => {
 
     await act(async () => buttons[3]?.click());
 
-    expect(storage.updateAnnotation).not.toHaveBeenCalled();
+    expect(storage.updateHighlightAnnotation).not.toHaveBeenCalled();
     expect(storage.createAnnotation).not.toHaveBeenCalled();
     expect(rendered.container.querySelector('[data-testid="error"]')?.textContent).toBe(
       "Overlapping highlights cannot be edited together.",

@@ -84,7 +84,7 @@ export function useReaderHighlights({
       }
       try {
         if (resolution.kind === "existing") {
-          const updated = await storage.updateAnnotation(bookId, resolution.highlight.id, {
+          const updated = await storage.updateHighlightAnnotation(bookId, resolution.highlight.id, {
             color,
           });
           if (updated?.type === "highlight") onAnnotationChange(updated);
@@ -164,7 +164,7 @@ export function useReaderHighlights({
     async (id: string, color: ReaderHighlightColor) => {
       if (!session.bookId) return false;
       try {
-        const updated = await storage.updateAnnotation(session.bookId, id, {
+        const updated = await storage.updateHighlightAnnotation(session.bookId, id, {
           color: normalizeReaderHighlightColor(color),
         });
         if (activeSessionRef.current !== session) return false;

@@ -212,7 +212,7 @@ function createStorageHarness(initial: Record<string, Annotation[]> = {}) {
     listAnnotations,
     loadBookFile: vi.fn(async (bookId: string) => new Blob([bookId])),
     restoreAnnotation,
-    updateAnnotation,
+    updateHighlightAnnotation: updateAnnotation,
     updateBook,
   } as unknown as LibraryStorage;
 

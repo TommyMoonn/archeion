@@ -35,15 +35,6 @@ export type HighlightAnnotation = AnnotationBase & {
 
 export type Annotation = BookmarkAnnotation | HighlightAnnotation;
 
-export type BookAnnotations = Record<string, unknown> & {
-  annotations: Annotation[];
-};
-
-export type AnnotationsMetadata = Record<string, unknown> & {
-  version: 1;
-  books: Record<string, BookAnnotations>;
-};
-
 export type CreateBookmarkAnnotationInput = {
   type: "bookmark";
   cfiRange?: string;
@@ -69,6 +60,11 @@ export type UpdateBookmarkAnnotationInput = {
   cfiRange?: string;
   chapterHref?: string;
   label?: string;
+  selectedText?: never;
+  contextBefore?: never;
+  contextAfter?: never;
+  color?: never;
+  note?: never;
 };
 
 export type UpdateHighlightAnnotationInput = {
@@ -80,6 +76,5 @@ export type UpdateHighlightAnnotationInput = {
   contextAfter?: string;
   color?: string;
   note?: string;
+  label?: never;
 };
-
-export type UpdateAnnotationInput = UpdateBookmarkAnnotationInput | UpdateHighlightAnnotationInput;

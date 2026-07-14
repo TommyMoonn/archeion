@@ -11,7 +11,15 @@ import type {
 } from "../types/book";
 import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../types/archiveImport";
-import type { Annotation, CreateAnnotationInput, UpdateAnnotationInput } from "../types/annotation";
+import type {
+  Annotation,
+  BookmarkAnnotation,
+  CreateBookmarkAnnotationInput,
+  CreateHighlightAnnotationInput,
+  HighlightAnnotation,
+  UpdateBookmarkAnnotationInput,
+  UpdateHighlightAnnotationInput,
+} from "../types/annotation";
 import type { ArchiveImportSettings } from "../types/settings";
 
 export type StorageObserver<T> = {
@@ -104,13 +112,27 @@ export interface LibraryStorage {
 
   listAnnotations(bookId: string): Promise<Annotation[]>;
   getAnnotation(bookId: string, annotationId: string): Promise<Annotation | undefined>;
-  createAnnotation(bookId: string, input: CreateAnnotationInput): Promise<Annotation>;
+  createAnnotation(
+    bookId: string,
+    input: CreateBookmarkAnnotationInput,
+  ): Promise<BookmarkAnnotation>;
+  createAnnotation(
+    bookId: string,
+    input: CreateHighlightAnnotationInput,
+  ): Promise<HighlightAnnotation>;
+  restoreAnnotation(bookId: string, annotation: BookmarkAnnotation): Promise<BookmarkAnnotation>;
+  restoreAnnotation(bookId: string, annotation: HighlightAnnotation): Promise<HighlightAnnotation>;
   restoreAnnotation(bookId: string, annotation: Annotation): Promise<Annotation>;
-  updateAnnotation(
+  updateBookmarkAnnotation(
     bookId: string,
     annotationId: string,
-    changes: UpdateAnnotationInput,
-  ): Promise<Annotation | undefined>;
+    changes: UpdateBookmarkAnnotationInput,
+  ): Promise<BookmarkAnnotation | undefined>;
+  updateHighlightAnnotation(
+    bookId: string,
+    annotationId: string,
+    changes: UpdateHighlightAnnotationInput,
+  ): Promise<HighlightAnnotation | undefined>;
   deleteAnnotation(bookId: string, annotationId: string): Promise<boolean>;
 
   createFolder(input: CreateFolderInput): Promise<Folder>;

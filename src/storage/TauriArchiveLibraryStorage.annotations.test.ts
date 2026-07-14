@@ -62,6 +62,74 @@ describe("TauriArchiveLibraryStorage annotations", () => {
     });
   });
 
+  it("routes type-specific mutations through the scoped metadata boundary", async () => {
+    const { rootPath, storage } = await scopedStorage();
+    const original = {
+      id: "highlight-1",
+      type: "highlight" as const,
+      cfiRange: "epubcfi(/6/2!/4/2:10,/4/2:10,/4/2:18)",
+      selectedText: "Passage",
+      color: "yellow",
+      note: "Remember",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+      futureField: { preserve: true },
+    };
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_annotations_metadata") {
+        return {
+          version: 1,
+          futureTopLevel: true,
+          books: {
+            "book-1": {
+              futureBookField: true,
+              annotations: [original],
+            },
+          },
+        };
+      }
+      return undefined;
+    });
+
+    const updated = await storage.updateHighlightAnnotation("book-1", original.id, {
+      color: "rose",
+    });
+
+    expect(updated).toMatchObject({
+      id: original.id,
+      type: "highlight",
+      cfiRange: original.cfiRange,
+      selectedText: original.selectedText,
+      color: "rose",
+      note: original.note,
+      createdAt: original.createdAt,
+      futureField: { preserve: true },
+    });
+    expectCommandRootPath("load_annotations_metadata", rootPath);
+    expectCommandRootPath("save_annotations_metadata", rootPath);
+    const saveCall = invokeMock.mock.calls.find(
+      ([command]) => command === "save_annotations_metadata",
+    );
+    expect(saveCall?.[1]).toMatchObject({
+      metadata: {
+        futureTopLevel: true,
+        books: {
+          "book-1": {
+            futureBookField: true,
+            annotations: [
+              {
+                id: original.id,
+                type: "highlight",
+                color: "rose",
+                futureField: { preserve: true },
+              },
+            ],
+          },
+        },
+      },
+    });
+  });
+
   it("restores exact annotation data through the existing metadata save boundary", async () => {
     const { rootPath, storage } = await scopedStorage();
     const original = {

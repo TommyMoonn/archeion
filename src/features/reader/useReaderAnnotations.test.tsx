@@ -101,7 +101,9 @@ function HookHarness({
       </button>
       <button
         onClick={() => {
-          if (firstAnnotation) void annotations.updateLabel(firstAnnotation, "Updated label");
+          if (firstAnnotation?.type === "bookmark") {
+            void annotations.updateLabel(firstAnnotation, "Updated label");
+          }
         }}
         type="button"
       >
@@ -121,6 +123,13 @@ function HookHarness({
 
 function createStorage(initial: Annotation[] = []) {
   let annotations = structuredClone(initial);
+  const update = async (_bookId: string, id: string, patch: Partial<Annotation>) => {
+    const index = annotations.findIndex((candidate) => candidate.id === id);
+    if (index < 0) return undefined;
+    const updated = { ...annotations[index], ...patch } as Annotation;
+    annotations[index] = updated;
+    return structuredClone(updated);
+  };
   return {
     listAnnotations: vi.fn(async () => structuredClone(annotations)),
     createAnnotation: vi.fn(async () => {
@@ -138,13 +147,8 @@ function createStorage(initial: Annotation[] = []) {
       annotations = annotations.filter((candidate) => candidate.id !== id);
       return annotations.length !== previousLength;
     }),
-    updateAnnotation: vi.fn(async (_bookId: string, id: string, patch: Partial<Annotation>) => {
-      const index = annotations.findIndex((candidate) => candidate.id === id);
-      if (index < 0) return undefined;
-      const updated = { ...annotations[index], ...patch } as Annotation;
-      annotations[index] = updated;
-      return structuredClone(updated);
-    }),
+    updateBookmarkAnnotation: vi.fn(update),
+    updateHighlightAnnotation: vi.fn(update),
   } as unknown as LibraryStorage;
 }
 
@@ -228,7 +232,7 @@ describe("useReaderAnnotations", () => {
     await act(async () => actionButton(rendered, "Toggle").click());
 
     expect(storage.createAnnotation).not.toHaveBeenCalled();
-    expect(storage.updateAnnotation).toHaveBeenCalledWith("book-1", detached.id, {
+    expect(storage.updateBookmarkAnnotation).toHaveBeenCalledWith("book-1", detached.id, {
       anchorStatus: undefined,
       chapterHref: undefined,
     });
@@ -384,7 +388,7 @@ describe("useReaderAnnotations", () => {
     const bookB = bookmark("book-b-bookmark", "Book B");
     const storage = {
       listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
-      updateAnnotation: vi.fn(() => update.promise),
+      updateBookmarkAnnotation: vi.fn(() => update.promise),
     } as unknown as LibraryStorage;
     const rendered = await renderHarness(storage, "book-a");
 
@@ -404,7 +408,7 @@ describe("useReaderAnnotations", () => {
     const bookB = bookmark("book-b-bookmark", "Book B");
     const storage = {
       listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
-      updateAnnotation: vi.fn(() => update.promise),
+      updateHighlightAnnotation: vi.fn(() => update.promise),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     const rendered = await renderHarness(storage, "book-a", apiRef);
@@ -437,7 +441,7 @@ describe("useReaderAnnotations", () => {
     });
 
     expect(results).toEqual([true, true]);
-    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledTimes(2);
     expect(apiRef.current?.annotations).toEqual([
       expect.objectContaining({ anchorStatus: "detached", id: first.id }),
       expect.objectContaining({ anchorStatus: "detached", id: second.id }),
@@ -446,13 +450,15 @@ describe("useReaderAnnotations", () => {
   });
 
   it("waits for an interactive mutation before persisting a queued invalid anchor", async () => {
-    const labelSave = deferred<Annotation | undefined>();
+    const labelSave = deferred<BookmarkAnnotation | undefined>();
     const savedBookmark = bookmark("bookmark", "Original");
     const invalid = highlightWithNote();
     const storage = createStorage([savedBookmark, invalid]);
-    vi.mocked(storage.updateAnnotation)
-      .mockImplementationOnce(() => labelSave.promise)
-      .mockResolvedValueOnce({ ...invalid, anchorStatus: "detached" });
+    vi.mocked(storage.updateBookmarkAnnotation).mockImplementationOnce(() => labelSave.promise);
+    vi.mocked(storage.updateHighlightAnnotation).mockResolvedValueOnce({
+      ...invalid,
+      anchorStatus: "detached",
+    });
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     const rendered = await renderHarness(storage, "book-1", apiRef);
 
@@ -465,13 +471,15 @@ describe("useReaderAnnotations", () => {
         "invalid-during-label-save",
       );
     });
-    expect(storage.updateAnnotation).toHaveBeenCalledTimes(1);
+    expect(storage.updateBookmarkAnnotation).toHaveBeenCalledTimes(1);
+    expect(storage.updateHighlightAnnotation).not.toHaveBeenCalled();
 
     await act(async () => labelSave.resolve({ ...savedBookmark, label: "Updated label" }));
     await act(async () => {
       await expect(queued).resolves.toBe(true);
     });
-    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(storage.updateBookmarkAnnotation).toHaveBeenCalledTimes(1);
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledTimes(1);
     expect(apiRef.current?.annotations).toContainEqual(
       expect.objectContaining({ anchorStatus: "detached", id: invalid.id }),
     );
@@ -479,9 +487,9 @@ describe("useReaderAnnotations", () => {
 
   it("coalesces duplicate invalid signatures into one effective write", async () => {
     const invalid = highlightWithNote();
-    const update = deferred<Annotation | undefined>();
+    const update = deferred<HighlightAnnotation | undefined>();
     const storage = createStorage([invalid]);
-    vi.mocked(storage.updateAnnotation).mockReturnValueOnce(update.promise);
+    vi.mocked(storage.updateHighlightAnnotation).mockReturnValueOnce(update.promise);
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     await renderHarness(storage, "book-1", apiRef);
 
@@ -499,13 +507,13 @@ describe("useReaderAnnotations", () => {
     await act(async () => update.resolve({ ...invalid, anchorStatus: "detached" }));
 
     await expect(first).resolves.toBe(true);
-    expect(storage.updateAnnotation).toHaveBeenCalledOnce();
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledOnce();
   });
 
   it("keeps failed detached persistence visible and retryable", async () => {
     const invalid = highlightWithNote();
     const storage = createStorage([invalid]);
-    vi.mocked(storage.updateAnnotation)
+    vi.mocked(storage.updateHighlightAnnotation)
       .mockRejectedValueOnce(new Error("temporary write failure"))
       .mockResolvedValueOnce({ ...invalid, anchorStatus: "detached" });
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
@@ -523,7 +531,7 @@ describe("useReaderAnnotations", () => {
         apiRef.current!.queueAnchorUpdate(invalid, { anchorStatus: "detached" }, "retry-signature"),
       ).resolves.toBe(true);
     });
-    expect(storage.updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledTimes(2);
     expect(apiRef.current?.annotations[0]).toMatchObject({ anchorStatus: "detached" });
   });
 
@@ -533,7 +541,7 @@ describe("useReaderAnnotations", () => {
     const bookB = bookmark("book-b", "Book B");
     const storage = {
       listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
-      updateAnnotation: vi.fn(() => update.promise),
+      updateHighlightAnnotation: vi.fn(() => update.promise),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     const rendered = await renderHarness(storage, "book-a", apiRef);
@@ -560,7 +568,7 @@ describe("useReaderAnnotations", () => {
     const storage = {
       listAnnotations: vi.fn(async (bookId: string) => (bookId === "book-a" ? [bookA] : [bookB])),
       deleteAnnotation: vi.fn(() => deleteBookA.promise),
-      updateAnnotation: vi.fn(() => updateBookB.promise),
+      updateBookmarkAnnotation: vi.fn(() => updateBookB.promise),
     } as unknown as LibraryStorage;
     const rendered = await renderHarness(storage, "book-a");
 
