@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -116,6 +117,10 @@ function combinedOutput(result: ReturnType<typeof runPowerShell>): string {
   return `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
 }
 
+function sha256(contents: string): string {
+  return createHash("sha256").update(contents).digest("hex");
+}
+
 function readVersions(root: string) {
   const packageJson = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")) as {
     version: string;
@@ -182,6 +187,47 @@ describeReleaseTooling("release tooling", () => {
     expect(combinedOutput(result)).toContain(
       "CHANGELOG.md does not contain a dated [0.3.0] release section.",
     );
+  });
+
+  it("stages stable public installer names and matching checksums", () => {
+    const root = createFixture();
+    const bundleRoot = path.join(root, "bundle");
+    const outputDirectory = path.join(root, "artifacts", "windows");
+    const nsisContents = "fixture NSIS installer";
+    const msiContents = "fixture MSI installer";
+
+    fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
+    fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
+    fs.writeFileSync(path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"), nsisContents);
+    fs.writeFileSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"), msiContents);
+
+    const result = runPowerShell("stage-windows-bundles.ps1", [
+      "-ProjectRoot",
+      root,
+      "-BundleRoot",
+      bundleRoot,
+      "-OutputDirectory",
+      outputDirectory,
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(fs.readdirSync(outputDirectory).sort()).toEqual([
+      "Archeion-Setup-x64.exe",
+      "Archeion-x64.msi",
+      "SHA256SUMS.txt",
+    ]);
+    expect(fs.readFileSync(path.join(outputDirectory, "Archeion-Setup-x64.exe"), "utf8")).toBe(
+      nsisContents,
+    );
+    expect(fs.readFileSync(path.join(outputDirectory, "Archeion-x64.msi"), "utf8")).toBe(
+      msiContents,
+    );
+    expect(
+      fs.readFileSync(path.join(outputDirectory, "SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/),
+    ).toEqual([
+      `${sha256(nsisContents)}  Archeion-Setup-x64.exe`,
+      `${sha256(msiContents)}  Archeion-x64.msi`,
+    ]);
   });
 
   it(

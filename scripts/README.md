@@ -12,7 +12,7 @@ Run these commands from the project root using PowerShell.
 | `zip-project.ps1`            | Creates a full project ZIP using `.zipignore`.                        | `.\scripts\zip-project.ps1`                                 |
 | `check-release.ps1`          | Validates release versions, tags, and optional changelog metadata.    | `.\scripts\check-release.ps1 -RequireChangelogEntry`        |
 | `set-version.ps1`            | Updates every application version source as one transaction.          | `.\scripts\set-version.ps1 0.3.0`                           |
-| `stage-windows-bundles.ps1`  | Collects validated Windows release bundles and checksums.             | `.\scripts\stage-windows-bundles.ps1`                       |
+| `stage-windows-bundles.ps1`  | Collects validated Windows bundles under stable public asset names.   | `.\scripts\stage-windows-bundles.ps1`                       |
 
 ## npm command aliases
 
@@ -45,6 +45,11 @@ update or validation step fails.
 npm run version:set -- 0.4.0
 npm run release:check -- -Tag v0.4.0
 ```
+
+`stage-windows-bundles.ps1` validates that Tauri's generated installers contain
+the current version, then publishes them as `Archeion-Setup-x64.exe` and
+`Archeion-x64.msi` so the README can use permanent `releases/latest/download`
+links.
 
 ## Script flags
 

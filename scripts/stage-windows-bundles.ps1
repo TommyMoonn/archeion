@@ -1,25 +1,26 @@
 [CmdletBinding()]
 param(
     [string]$BundleRoot,
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 )
 
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
-$projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
+$ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 
-& (Join-Path $PSScriptRoot "check-release.ps1") -ProjectRoot $projectRoot
+& (Join-Path $PSScriptRoot "check-release.ps1") -ProjectRoot $ProjectRoot
 
 if ([string]::IsNullOrWhiteSpace($BundleRoot)) {
-    $BundleRoot = Join-Path $projectRoot "src-tauri/target/release/bundle"
+    $BundleRoot = Join-Path $ProjectRoot "src-tauri/target/release/bundle"
 }
 
 if ([string]::IsNullOrWhiteSpace($OutputDirectory)) {
-    $OutputDirectory = Join-Path $projectRoot "artifacts/windows"
+    $OutputDirectory = Join-Path $ProjectRoot "artifacts/windows"
 }
 
-$packagePath = Join-Path $projectRoot "package.json"
+$packagePath = Join-Path $ProjectRoot "package.json"
 $package = Get-Content -Raw -Path $packagePath | ConvertFrom-Json
 $version = [string]$package.version
 
@@ -55,11 +56,11 @@ New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $stagedFiles = @(
     @{
         Source = $nsisInstallers[0].FullName
-        Name = "Archeion_${version}_x64-setup.exe"
+        Name = "Archeion-Setup-x64.exe"
     },
     @{
         Source = $msiInstallers[0].FullName
-        Name = "Archeion_${version}_x64_en-US.msi"
+        Name = "Archeion-x64.msi"
     }
 )
 

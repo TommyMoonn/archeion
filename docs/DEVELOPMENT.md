@@ -103,6 +103,15 @@ Stage validated installers and generate `SHA256SUMS.txt`:
 npm run release:stage
 ```
 
+The staging step keeps Tauri's versioned build outputs for validation, then copies
+the public release assets to stable names:
+
+```text
+Archeion-Setup-x64.exe
+Archeion-x64.msi
+SHA256SUMS.txt
+```
+
 Generated build output and staged artifacts are ignored by Git.
 
 ## Project utilities
