@@ -49,6 +49,36 @@ afterEach(() => {
 });
 
 describe("BulkMetadataDialog", () => {
+  it("exposes the unavailable Review changes reason while blocking activation", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    act(() => {
+      root?.render(
+        <BulkMetadataDialog
+          books={[createBook("One", "First")]}
+          onApply={vi.fn(async () => undefined)}
+          onClose={vi.fn()}
+        />,
+      );
+    });
+
+    const review = button(container, "Review changes");
+    const reasonId = review.getAttribute("aria-describedby")!;
+    act(() => {
+      review.focus();
+      review.click();
+    });
+
+    expect(review.disabled).toBe(false);
+    expect(review.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(reasonId)?.textContent).toBe(
+      "Choose at least one metadata field.",
+    );
+    expect(document.activeElement).toBe(review);
+    expect(container.textContent).not.toContain("Review metadata changes");
+  });
+
   it("shows mixed values, previews each book, and applies only enabled fields", async () => {
     const container = document.createElement("div");
     document.body.append(container);

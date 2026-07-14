@@ -200,8 +200,8 @@ export function BookCoverWritebackDialog({
           </Button>
           <Button
             disabled={!canWrite}
+            disabledReason={!isWriting ? writeDisabledReason : undefined}
             onClick={() => void writeCover()}
-            title={writeDisabledReason}
           >
             {isWriting ? "Writing cover" : "Write cover to EPUB"}
           </Button>

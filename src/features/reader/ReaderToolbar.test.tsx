@@ -101,7 +101,8 @@ describe("ReaderToolbar", () => {
     const previousChapter = button(container, "Previous chapter");
     const nextChapter = button(container, "Next chapter");
 
-    expect(previousChapter.disabled).toBe(true);
+    expect(previousChapter.disabled).toBe(false);
+    expect(previousChapter.getAttribute("aria-disabled")).toBe("true");
     expect(previousChapter.title).toBe("You are at the first chapter");
     expect(nextChapter.disabled).toBe(false);
     expect(button(container, "Previous page").disabled).toBe(false);
@@ -111,6 +112,8 @@ describe("ReaderToolbar", () => {
 
     expect(callbacks.onNextChapter).toHaveBeenCalledTimes(1);
     expect(callbacks.onNext).not.toHaveBeenCalled();
+    act(() => previousChapter.click());
+    expect(callbacks.onPreviousChapter).not.toHaveBeenCalled();
   });
 
   it("falls back to book position when chapter navigation is unavailable", () => {
@@ -141,8 +144,13 @@ describe("ReaderToolbar", () => {
     });
 
     const toggle = button(container, "Add bookmark");
-    expect(toggle.disabled).toBe(true);
+    const reasonId = toggle.getAttribute("aria-describedby");
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.getAttribute("aria-disabled")).toBe("true");
     expect(toggle.title).toBe("Current reading location is still loading.");
+    expect(reasonId ? document.getElementById(reasonId)?.textContent : undefined).toBe(
+      "Current reading location is still loading.",
+    );
   });
 
   it("exposes bookmark state and annotation controls", () => {

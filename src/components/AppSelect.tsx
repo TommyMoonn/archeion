@@ -1,5 +1,13 @@
 import { CaretDown, Check } from "@phosphor-icons/react";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ControlSize } from "./Button";
 
 export type AppSelectOption<TValue extends string> = {
@@ -39,6 +47,16 @@ function getNextEnabledIndex<TValue extends string>(
   return -1;
 }
 
+function getSelectedOrFirstEnabledIndex<TValue extends string>(
+  options: Array<AppSelectOption<TValue>>,
+  selectedIndex: number,
+): number {
+  if (selectedIndex >= 0 && !options[selectedIndex]?.disabled) {
+    return selectedIndex;
+  }
+  return getNextEnabledIndex(options, -1, 1);
+}
+
 export function AppSelect<TValue extends string>({
   ariaLabel,
   className = "",
@@ -49,15 +67,22 @@ export function AppSelect<TValue extends string>({
   size = "standard",
   value,
 }: AppSelectProps<TValue>) {
+  const generatedId = useId();
+  const controlId = id ?? `app-select-${generatedId}`;
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : 0);
+  const resolvedActiveIndex =
+    activeIndex >= 0 && !options[activeIndex]?.disabled
+      ? activeIndex
+      : getSelectedOrFirstEnabledIndex(options, selectedIndex);
   const selectedOption = useMemo(
     () => options.find((option) => option.value === value) ?? options[0],
     [options, value],
   );
+  const optionId = (index: number) => `${controlId}-option-${index}`;
 
   useEffect(() => {
     if (!open) {
@@ -71,7 +96,9 @@ export function AppSelect<TValue extends string>({
     }
 
     function closeOnEscape(event: globalThis.KeyboardEvent) {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      const activeElement = document.activeElement;
+      if (!activeElement || !rootRef.current?.contains(activeElement)) return;
       event.preventDefault();
       event.stopPropagation();
       setOpen(false);
@@ -85,7 +112,7 @@ export function AppSelect<TValue extends string>({
       document.removeEventListener("pointerdown", closeOnPointerDown, true);
       document.removeEventListener("keydown", closeOnEscape, true);
     };
-  }, [open, selectedIndex]);
+  }, [open]);
 
   function chooseOption(option: AppSelectOption<TValue>) {
     if (option.disabled) {
@@ -101,7 +128,14 @@ export function AppSelect<TValue extends string>({
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const direction = event.key === "ArrowDown" ? 1 : -1;
-      const nextIndex = getNextEnabledIndex(options, open ? activeIndex : selectedIndex, direction);
+      const startIndex = open
+        ? resolvedActiveIndex
+        : selectedIndex >= 0
+          ? selectedIndex
+          : direction === 1
+            ? -1
+            : 0;
+      const nextIndex = getNextEnabledIndex(options, startIndex, direction);
 
       if (nextIndex >= 0) {
         setActiveIndex(nextIndex);
@@ -125,12 +159,12 @@ export function AppSelect<TValue extends string>({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       if (!open) {
-        setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+        setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
         setOpen(true);
         return;
       }
 
-      const activeOption = options[activeIndex];
+      const activeOption = options[resolvedActiveIndex];
       if (activeOption) {
         chooseOption(activeOption);
       }
@@ -138,26 +172,40 @@ export function AppSelect<TValue extends string>({
   }
 
   return (
-    <div className={`app-select app-select--${size} ${className}`.trim()} ref={rootRef}>
+    <div
+      className={`app-select app-select--${size} ${className}`.trim()}
+      onBlur={(event) => {
+        const nextTarget = event.relatedTarget;
+        if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
+          setOpen(false);
+        }
+      }}
+      ref={rootRef}
+    >
       {label ? (
-        <span className="app-select__label" id={id ? `${id}-label` : undefined}>
+        <span className="app-select__label" id={`${controlId}-label`}>
           {label}
         </span>
       ) : null}
       <button
-        aria-controls={id ? `${id}-menu` : undefined}
+        aria-activedescendant={
+          open && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined
+        }
+        aria-autocomplete="none"
+        aria-controls={`${controlId}-menu`}
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-label={ariaLabel}
-        aria-labelledby={label && id ? `${id}-label ${id}-button` : undefined}
+        aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
         className="app-select__trigger"
-        id={id ? `${id}-button` : undefined}
+        id={`${controlId}-button`}
         onClick={() => {
-          setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+          setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
           setOpen((current) => !current);
         }}
         onKeyDown={handleKeyDown}
         ref={buttonRef}
+        role="combobox"
         type="button"
       >
         <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
@@ -168,7 +216,8 @@ export function AppSelect<TValue extends string>({
       {open ? (
         <div
           className="app-select__menu"
-          id={id ? `${id}-menu` : undefined}
+          id={`${controlId}-menu`}
+          aria-labelledby={`${controlId}-button`}
           role="listbox"
           tabIndex={-1}
         >
@@ -177,12 +226,16 @@ export function AppSelect<TValue extends string>({
               aria-disabled={option.disabled || undefined}
               aria-selected={option.value === value}
               className="app-select__option"
-              data-active={index === activeIndex || undefined}
+              data-active={index === resolvedActiveIndex || undefined}
               disabled={option.disabled}
+              id={optionId(index)}
               key={option.value}
               onClick={() => chooseOption(option)}
-              onMouseEnter={() => setActiveIndex(index)}
+              onMouseEnter={() => {
+                if (!option.disabled) setActiveIndex(index);
+              }}
               role="option"
+              tabIndex={-1}
               type="button"
             >
               <span>{option.label}</span>

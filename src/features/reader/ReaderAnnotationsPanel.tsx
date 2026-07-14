@@ -16,6 +16,7 @@ import {
   useDeferredValue,
   useEffect,
   useLayoutEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -161,6 +162,7 @@ export function ReaderAnnotationsPanel({
   onUpdateBookmarkLabel,
   restoreFocusAnnotationId,
 }: ReaderAnnotationsPanelProps) {
+  const panelId = useId();
   const panelRef = useRef<HTMLElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -688,6 +690,7 @@ export function ReaderAnnotationsPanel({
             ref={exportMenuRef}
           >
             <summary
+              aria-haspopup="menu"
               aria-label="Export annotations"
               className="menu-trigger"
               title="Export annotations"
@@ -825,6 +828,9 @@ export function ReaderAnnotationsPanel({
                     const canNavigate = Boolean(
                       annotation.anchorStatus !== "detached" && annotation.cfiRange?.trim(),
                     );
+                    const navigationUnavailableReasonId = canNavigate
+                      ? undefined
+                      : `${panelId}-navigation-${encodeURIComponent(annotation.id)}`;
                     const isCurrent = Boolean(
                       annotation.anchorStatus !== "detached" &&
                       (currentAnnotationId === annotation.id ||
@@ -882,17 +888,28 @@ export function ReaderAnnotationsPanel({
                             <>
                               <button
                                 aria-current={isCurrent ? "location" : undefined}
+                                aria-describedby={navigationUnavailableReasonId}
+                                aria-disabled={!canNavigate || undefined}
                                 aria-label={`Go to ${label}`}
                                 className="reader-annotations__target"
                                 data-annotation-row-target
-                                disabled={!canNavigate || isBusy || isNavigationPending}
-                                onClick={() => void navigate(annotation)}
-                                title={
-                                  canNavigate ? undefined : "This annotation has no saved location."
-                                }
+                                disabled={isBusy || isNavigationPending}
+                                onClick={(event) => {
+                                  if (!canNavigate) {
+                                    event.preventDefault();
+                                    event.stopPropagation();
+                                    return;
+                                  }
+                                  void navigate(annotation);
+                                }}
                                 type="button"
                               >
                                 <AnnotationContent annotation={annotation} />
+                                {navigationUnavailableReasonId ? (
+                                  <span className="sr-only" id={navigationUnavailableReasonId}>
+                                    This annotation has no saved location.
+                                  </span>
+                                ) : null}
                               </button>
                               <button
                                 aria-expanded={menu?.annotation.id === annotation.id}

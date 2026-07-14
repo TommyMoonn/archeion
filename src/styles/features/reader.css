@@ -151,8 +151,8 @@
   color: var(--reader-muted);
 }
 
-.reader-toolbar .icon-button:hover:not(:disabled),
-.reader-settings .icon-button:hover:not(:disabled) {
+.reader-toolbar .icon-button:hover:not(:disabled):not([aria-disabled="true"]),
+.reader-settings .icon-button:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--reader-strong);
   background: var(--reader-surface);
 }
@@ -511,7 +511,7 @@
   color: var(--reader-muted);
 }
 
-.reader-toc .icon-button:hover:not(:disabled) {
+.reader-toc .icon-button:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--reader-strong);
   background: var(--reader-surface);
 }

@@ -287,6 +287,32 @@ describe("ReaderAnnotationsPanel", () => {
     expect(document.activeElement).toBe(markdown);
   });
 
+  it("opens the conditional-role export menu with Arrow keys and focuses an edge item", () => {
+    const rendered = renderPanel();
+    const exportTrigger = rendered.container.querySelector<HTMLElement>(
+      'summary[aria-label="Export annotations"]',
+    )!;
+    const markdown = textButton(rendered.container, "Export Markdown");
+    const json = textButton(rendered.container, "Export JSON");
+
+    act(() => {
+      exportTrigger.focus();
+      exportTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      );
+    });
+    expect(document.activeElement).toBe(markdown);
+
+    act(() => {
+      exportTrigger.click();
+      exportTrigger.focus();
+      exportTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
+      );
+    });
+    expect(document.activeElement).toBe(json);
+  });
+
   it("keeps export failure visible and retries the same format", async () => {
     const onExport = vi
       .fn()
@@ -423,7 +449,10 @@ describe("ReaderAnnotationsPanel", () => {
     const rendered = renderPanel();
     const sortTrigger = button(rendered.container, "Sort annotations");
 
-    act(() => sortTrigger.click());
+    act(() => {
+      sortTrigger.focus();
+      sortTrigger.click();
+    });
     expect(sortTrigger.getAttribute("aria-expanded")).toBe("true");
 
     pressEscape(sortTrigger);
@@ -1027,7 +1056,14 @@ describe("ReaderAnnotationsPanel", () => {
     for (const target of targets) {
       expect(target.querySelector("p, blockquote")).toBeNull();
     }
-    expect(button(rendered.container, "Go to Bookmark").disabled).toBe(true);
+    const unavailableTarget = button(rendered.container, "Go to Bookmark");
+    expect(unavailableTarget.disabled).toBe(false);
+    expect(unavailableTarget.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(unavailableTarget.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("This annotation has no saved location.");
+    act(() => unavailableTarget.click());
+    expect(rendered.props.onNavigate).not.toHaveBeenCalledWith(locationlessBookmark);
   });
 
   it("caps initial rendering for large annotation collections", () => {

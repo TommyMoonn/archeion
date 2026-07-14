@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import type { ControlSize } from "./Button";
 
@@ -16,6 +16,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     disabled,
     disabledReason,
     label,
+    onClick,
     size = "standard",
     title,
     type = "button",
@@ -23,19 +24,39 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   },
   ref,
 ) {
+  const reasonId = useId();
+  const hasAccessibleDisabledReason = Boolean(disabled && disabledReason);
+
   return (
-    <button
-      aria-label={label}
-      className={`icon-button icon-button--${size} ${className}`.trim()}
-      disabled={disabled}
-      ref={ref}
-      title={disabled && disabledReason ? disabledReason : (title ?? label)}
-      type={type}
-      {...props}
-    >
-      <span aria-hidden="true" className="icon-slot">
-        {children}
-      </span>
-    </button>
+    <>
+      <button
+        aria-describedby={hasAccessibleDisabledReason ? reasonId : undefined}
+        aria-disabled={disabled || undefined}
+        aria-label={label}
+        className={`icon-button icon-button--${size} ${className}`.trim()}
+        disabled={disabled && !hasAccessibleDisabledReason}
+        onClick={(event) => {
+          if (disabled) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          onClick?.(event);
+        }}
+        ref={ref}
+        title={disabled && disabledReason ? disabledReason : (title ?? label)}
+        type={type}
+        {...props}
+      >
+        <span aria-hidden="true" className="icon-slot">
+          {children}
+        </span>
+      </button>
+      {hasAccessibleDisabledReason ? (
+        <span className="sr-only" id={reasonId}>
+          {disabledReason}
+        </span>
+      ) : null}
+    </>
   );
 });

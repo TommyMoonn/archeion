@@ -150,7 +150,14 @@ describe("BookCoverWritebackDialog", () => {
       container?.querySelector<HTMLImageElement>('img[alt="Final replacement cover preview"]'),
     ).toHaveProperty("src", "blob:preview");
     expect(container?.textContent).toContain("Preview — not yet saved");
-    expect(buttonByText("Write cover to EPUB")?.disabled).toBe(true);
+    const explainedWriteButton = buttonByText("Write cover to EPUB")!;
+    expect(explainedWriteButton.disabled).toBe(false);
+    expect(explainedWriteButton.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(explainedWriteButton.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("Confirm the EPUB modification first.");
+    act(() => explainedWriteButton.click());
+    expect(onWriteCover).not.toHaveBeenCalled();
 
     act(() => {
       container
@@ -219,7 +226,12 @@ describe("BookCoverWritebackDialog", () => {
     renderDialog({ renderedBook: { ...book, isFileMissing: true } });
 
     expect(buttonByText("Choose image")?.disabled).toBe(true);
-    expect(buttonByText("Write cover to EPUB")?.disabled).toBe(true);
+    const writeButton = buttonByText("Write cover to EPUB")!;
+    expect(writeButton.disabled).toBe(false);
+    expect(writeButton.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(writeButton.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("The EPUB file is missing.");
     expect(container?.textContent).toContain("Cover writeback is unavailable");
   });
 });

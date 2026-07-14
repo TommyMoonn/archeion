@@ -236,8 +236,8 @@ export function BulkMetadataDialog({
             </Button>
             <Button
               disabled={!canReview || isWriting}
+              disabledReason={!isWriting ? reviewDisabledReason : undefined}
               onClick={() => setShowPreview(true)}
-              title={reviewDisabledReason}
             >
               Review changes
             </Button>
