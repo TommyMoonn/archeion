@@ -293,66 +293,157 @@
 
   initializeHomeOrbitAnimation();
 
-  const libraryTabs = Array.from(document.querySelectorAll("[data-library-mode]"));
+  const libraryViewButtons = Array.from(document.querySelectorAll("[data-library-view]"));
+  const sidebarSmartViewButtons = Array.from(
+    document.querySelectorAll("[data-sidebar-smart-view]"),
+  );
+  const folderButtons = Array.from(document.querySelectorAll("[data-library-folder]"));
   const bookGrid = document.querySelector("[data-book-grid]");
-  const folderView = document.querySelector("[data-folder-view]");
   const continueStrip = document.querySelector("[data-continue-strip]");
   const previewTitle = document.querySelector("[data-preview-title]");
   const previewKicker = document.querySelector("[data-preview-kicker]");
   const libraryCaption = document.querySelector("[data-library-caption]");
   const bookCards = Array.from(document.querySelectorAll(".book-card"));
+  const reduceLibraryMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
-  const libraryModes = {
+  const libraryViews = {
     library: {
       title: "Library",
       kicker: "All books",
-      caption: "See covers, progress, and current reads in one place.",
+      caption: "Browse all books, then switch views directly from the app sidebar.",
+      matches: () => true,
+      showContinueStrip: true,
     },
-    folders: {
-      title: "Folders",
-      kicker: "Folder browsing",
-      caption: "Browse the same nested folders you already use.",
+    continue: {
+      title: "Continue",
+      caption: "Return to every book you have already started.",
+      matches: (card) => card.dataset.readingStatus === "in-progress",
     },
     favorites: {
       title: "Favorites",
-      kicker: "Saved shelf",
       caption: "Keep a focused shelf of books you want close by.",
+      matches: (card) => card.dataset.favorite === "true",
     },
   };
 
-  const setLibraryMode = (mode) => {
-    const content = libraryModes[mode];
-    if (!content || !bookGrid || !folderView) return;
+  const smartViews = {
+    unread: {
+      title: "Unread",
+      caption: "See books that are ready to begin.",
+      matches: (card) => card.dataset.readingStatus === "unread",
+    },
+    "in-progress": {
+      title: "In Progress",
+      caption: "Return to every book you have already started.",
+      matches: (card) => card.dataset.readingStatus === "in-progress",
+    },
+    completed: {
+      title: "Completed",
+      caption: "Review the books you have finished.",
+      matches: (card) => card.dataset.readingStatus === "completed",
+    },
+    "needs-metadata": {
+      title: "Needs Metadata",
+      caption: "Find books with missing titles, authors, or details.",
+      matches: (card) => card.dataset.needsMetadata === "true",
+    },
+    "needs-cover": {
+      title: "Needs Cover",
+      caption: "Find books that still need an embedded cover.",
+      matches: (card) => card.dataset.needsCover === "true",
+    },
+  };
 
-    libraryTabs.forEach((tab) =>
-      tab.setAttribute("aria-selected", String(tab.dataset.libraryMode === mode)),
-    );
-    if (previewTitle) previewTitle.textContent = content.title;
-    if (previewKicker) previewKicker.textContent = content.kicker;
-    if (libraryCaption) libraryCaption.textContent = content.caption;
-
-    const showFolders = mode === "folders";
-    folderView.hidden = !showFolders;
-    bookGrid.hidden = showFolders;
-    if (continueStrip instanceof HTMLElement) continueStrip.hidden = mode !== "library";
-
-    bookCards.forEach((card) => {
-      const favorite = card.getAttribute("data-favorite") === "true";
-      card.classList.toggle("is-hidden", mode === "favorites" && !favorite);
+  const animateLibraryCards = (cards) => {
+    if (reduceLibraryMotion.matches) return;
+    cards.forEach((card, index) => {
+      if (!(card instanceof HTMLElement) || typeof card.animate !== "function") return;
+      card.animate(
+        [
+          { opacity: 0, transform: "translateY(8px)" },
+          { opacity: 1, transform: "translateY(0)" },
+        ],
+        { duration: 220, delay: index * 28, easing: "cubic-bezier(.22,.61,.36,1)" },
+      );
     });
   };
 
-  libraryTabs.forEach((tab) => {
-    tab.addEventListener("click", () => setLibraryMode(tab.dataset.libraryMode || "library"));
-    tab.addEventListener("keydown", (event) => {
-      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      event.preventDefault();
-      const index = libraryTabs.indexOf(tab);
-      const direction = event.key === "ArrowRight" ? 1 : -1;
-      const next = libraryTabs[(index + direction + libraryTabs.length) % libraryTabs.length];
-      next.focus();
-      setLibraryMode(next.dataset.libraryMode || "library");
+  const clearLibrarySelection = () => {
+    [...libraryViewButtons, ...sidebarSmartViewButtons, ...folderButtons].forEach((button) => {
+      button.classList.remove("active");
+      button.setAttribute("aria-pressed", "false");
     });
+  };
+
+  const renderLibraryBooks = ({ title, kicker, caption, matches, showContinueStrip = false }) => {
+    if (!bookGrid) return;
+
+    const visibleCards = bookCards.filter((card) => {
+      const visible = matches(card);
+      card.classList.toggle("is-hidden", !visible);
+      return visible;
+    });
+
+    if (previewTitle) previewTitle.textContent = title;
+    if (previewKicker) {
+      const suffix = visibleCards.length === 1 ? "book" : "books";
+      previewKicker.textContent = kicker || `${visibleCards.length} ${suffix}`;
+    }
+    if (libraryCaption) libraryCaption.textContent = caption;
+    if (continueStrip instanceof HTMLElement) continueStrip.hidden = !showContinueStrip;
+    animateLibraryCards(visibleCards);
+  };
+
+  const setLibraryView = (view) => {
+    const content = libraryViews[view];
+    if (!content) return;
+    clearLibrarySelection();
+    const activeButton = libraryViewButtons.find((button) => button.dataset.libraryView === view);
+    activeButton?.classList.add("active");
+    activeButton?.setAttribute("aria-pressed", "true");
+    renderLibraryBooks(content);
+  };
+
+  const setSmartView = (view) => {
+    const content = smartViews[view];
+    if (!content) return;
+    clearLibrarySelection();
+    const activeButton = sidebarSmartViewButtons.find(
+      (button) => button.dataset.sidebarSmartView === view,
+    );
+    activeButton?.classList.add("active");
+    activeButton?.setAttribute("aria-pressed", "true");
+    renderLibraryBooks({
+      ...content,
+      kicker: `Smart View`,
+    });
+  };
+
+  const setFolderView = (folder) => {
+    if (!folder) return;
+    clearLibrarySelection();
+    const activeButton = folderButtons.find((button) => button.dataset.libraryFolder === folder);
+    activeButton?.classList.add("active");
+    activeButton?.setAttribute("aria-pressed", "true");
+    renderLibraryBooks({
+      title: folder,
+      caption: `Browse the books stored in ${folder}.`,
+      matches: (card) => card.dataset.folder === folder,
+    });
+  };
+
+  libraryViewButtons.forEach((button) => {
+    button.addEventListener("click", () => setLibraryView(button.dataset.libraryView || "library"));
+  });
+
+  sidebarSmartViewButtons.forEach((button) => {
+    button.addEventListener("click", () =>
+      setSmartView(button.dataset.sidebarSmartView || "unread"),
+    );
+  });
+
+  folderButtons.forEach((button) => {
+    button.addEventListener("click", () => setFolderView(button.dataset.libraryFolder || ""));
   });
 
   const readerDemo = document.querySelector("[data-reader-demo]");

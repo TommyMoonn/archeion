@@ -243,26 +243,16 @@
           <div class="library-stage" data-reveal>
             <div class="library-stage__rail">
               <div class="stage-index" aria-hidden="true">01</div>
-              <div class="library-mode-tabs" role="tablist" aria-label="Library preview modes">
-                <button type="button" role="tab" aria-selected="true" data-library-mode="library">
-                  Library
-                </button>
-                <button type="button" role="tab" aria-selected="false" data-library-mode="folders">
-                  Folders
-                </button>
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected="false"
-                  data-library-mode="favorites"
-                >
-                  Favorites
-                </button>
-              </div>
-              <p data-library-caption>See covers, progress, and current reads in one place.</p>
+              <p data-library-caption>
+                Use the app sidebar to explore your library and Smart Views.
+              </p>
             </div>
 
-            <div class="app-preview" data-library-preview aria-hidden="true" inert>
+            <div
+              class="app-preview"
+              data-library-preview
+              aria-label="Interactive Archeion library preview"
+            >
               <div class="app-preview__bar">
                 <div class="window-controls" aria-hidden="true"><i></i><i></i><i></i></div>
                 <span>Archeion</span>
@@ -272,30 +262,65 @@
               </div>
               <div class="app-preview__body">
                 <aside class="app-sidebar">
-                  <div class="app-sidebar__nav">
-                    <button class="active" type="button">
+                  <nav class="app-sidebar__nav" aria-label="Library preview navigation">
+                    <button
+                      class="active"
+                      type="button"
+                      aria-pressed="true"
+                      data-library-view="library"
+                    >
                       <svg aria-hidden="true"><use href="#icon-library" /></svg><span>Library</span
                       ><small>24</small>
                     </button>
-                    <button type="button">
+                    <button type="button" aria-pressed="false" data-library-view="continue">
                       <svg aria-hidden="true"><use href="#icon-clock" /></svg><span>Continue</span
                       ><small>3</small>
                     </button>
-                    <button type="button">
+                    <button type="button" aria-pressed="false" data-library-view="favorites">
                       <svg aria-hidden="true"><use href="#icon-heart" /></svg><span>Favorites</span
                       ><small>5</small>
                     </button>
+                  </nav>
+                  <div class="app-sidebar__smart" role="group" aria-label="Smart Views">
+                    <p>Smart Views</p>
+                    <button type="button" aria-pressed="false" data-sidebar-smart-view="unread">
+                      <i></i><span>Unread</span><small>2</small>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed="false"
+                      data-sidebar-smart-view="in-progress"
+                    >
+                      <i></i><span>In Progress</span><small>3</small>
+                    </button>
+                    <button type="button" aria-pressed="false" data-sidebar-smart-view="completed">
+                      <i></i><span>Completed</span><small>1</small>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed="false"
+                      data-sidebar-smart-view="needs-metadata"
+                    >
+                      <i></i><span>Needs Metadata</span><small>1</small>
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed="false"
+                      data-sidebar-smart-view="needs-cover"
+                    >
+                      <i></i><span>Needs Cover</span><small>1</small>
+                    </button>
                   </div>
-                  <div class="app-sidebar__folders">
+                  <div class="app-sidebar__folders" role="group" aria-label="Library folders">
                     <p>Folders</p>
-                    <button type="button">
+                    <button type="button" aria-pressed="false" data-library-folder="Light novels">
                       <svg aria-hidden="true"><use href="#icon-folder" /></svg
                       ><span>Light novels</span>
                     </button>
-                    <button type="button">
+                    <button type="button" aria-pressed="false" data-library-folder="Research">
                       <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Research</span>
                     </button>
-                    <button type="button">
+                    <button type="button" aria-pressed="false" data-library-folder="Unsorted">
                       <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Unsorted</span>
                     </button>
                   </div>
@@ -315,7 +340,7 @@
                         ><svg aria-hidden="true"><use href="#icon-search" /></svg
                         ><span>Search books</span></label
                       >
-                      <button type="button">
+                      <button type="button" aria-label="Grid view">
                         <svg aria-hidden="true"><use href="#icon-grid" /></svg>
                       </button>
                     </div>
@@ -329,7 +354,14 @@
                     <button type="button">Resume</button>
                   </div>
                   <div class="book-grid" data-book-grid>
-                    <article class="book-card" data-folder="Light novels" data-favorite="true">
+                    <article
+                      class="book-card"
+                      data-folder="Light novels"
+                      data-favorite="true"
+                      data-reading-status="in-progress"
+                      data-needs-metadata="false"
+                      data-needs-cover="false"
+                    >
                       <div>
                         <img
                           src="assets/images/cover-orbit.svg"
@@ -338,7 +370,14 @@
                       </div>
                       <strong>Orbital Mechanics</strong><small>M. Kato</small>
                     </article>
-                    <article class="book-card" data-folder="Research" data-favorite="true">
+                    <article
+                      class="book-card"
+                      data-folder="Research"
+                      data-favorite="true"
+                      data-reading-status="in-progress"
+                      data-needs-metadata="false"
+                      data-needs-cover="false"
+                    >
                       <div>
                         <img
                           src="assets/images/cover-quiet.svg"
@@ -347,7 +386,14 @@
                       </div>
                       <strong>The Quiet Archive</strong><small>Elena Voss</small>
                     </article>
-                    <article class="book-card" data-folder="Light novels" data-favorite="false">
+                    <article
+                      class="book-card"
+                      data-folder="Light novels"
+                      data-favorite="false"
+                      data-reading-status="in-progress"
+                      data-needs-metadata="false"
+                      data-needs-cover="false"
+                    >
                       <div>
                         <img
                           src="assets/images/cover-signal.svg"
@@ -356,40 +402,51 @@
                       </div>
                       <strong>Signal and Dust</strong><small>H. Sato</small>
                     </article>
-                    <article class="book-card" data-folder="Research" data-favorite="false">
+                    <article
+                      class="book-card"
+                      data-folder="Research"
+                      data-favorite="false"
+                      data-reading-status="unread"
+                      data-needs-metadata="false"
+                      data-needs-cover="false"
+                    >
                       <div>
                         <img src="assets/images/cover-tide.svg" alt="A Theory of Tides cover" />
                       </div>
                       <strong>A Theory of Tides</strong><small>Iris Wren</small>
                     </article>
-                    <article class="book-card" data-folder="Unsorted" data-favorite="true">
+                    <article
+                      class="book-card"
+                      data-folder="Unsorted"
+                      data-favorite="true"
+                      data-reading-status="completed"
+                      data-needs-metadata="false"
+                      data-needs-cover="true"
+                    >
                       <div>
-                        <img src="assets/images/cover-machine.svg" alt="Small Machines cover" />
+                        <div
+                          class="book-cover-placeholder"
+                          aria-label="Small Machines has no embedded cover"
+                        >
+                          <svg aria-hidden="true"><use href="#icon-library" /></svg
+                          ><span>Cover missing</span>
+                        </div>
+                        <span>100%</span>
                       </div>
                       <strong>Small Machines</strong><small>Noah Reed</small>
                     </article>
-                    <article class="book-card" data-folder="Unsorted" data-favorite="false">
+                    <article
+                      class="book-card"
+                      data-folder="Unsorted"
+                      data-favorite="false"
+                      data-reading-status="unread"
+                      data-needs-metadata="true"
+                      data-needs-cover="false"
+                    >
                       <div>
                         <img src="assets/images/cover-after.svg" alt="After the Index cover" />
                       </div>
-                      <strong>After the Index</strong><small>Mara Li</small>
-                    </article>
-                  </div>
-                  <div class="folder-view" data-folder-view hidden>
-                    <article>
-                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
-                      <div><strong>Light novels</strong><small>2 books</small></div>
-                      <span>›</span>
-                    </article>
-                    <article>
-                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
-                      <div><strong>Research</strong><small>2 books</small></div>
-                      <span>›</span>
-                    </article>
-                    <article>
-                      <svg aria-hidden="true"><use href="#icon-folder" /></svg>
-                      <div><strong>Unsorted</strong><small>2 books</small></div>
-                      <span>›</span>
+                      <strong>After the Index</strong><small>Unknown author</small>
                     </article>
                   </div>
                 </div>

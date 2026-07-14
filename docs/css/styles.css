@@ -961,50 +961,6 @@ svg {
   font-style: italic;
 }
 
-.library-mode-tabs {
-  display: grid;
-  gap: 5px;
-  margin-top: 64px;
-}
-
-.library-mode-tabs button {
-  position: relative;
-  min-height: 42px;
-  padding: 0 0 0 18px;
-  border: 0;
-  color: var(--muted);
-  background: transparent;
-  font-size: 14px;
-  text-align: left;
-  cursor: pointer;
-  transition: color 150ms var(--ease);
-}
-
-.library-mode-tabs button::before {
-  position: absolute;
-  top: 50%;
-  left: 0;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--line);
-  content: "";
-  transform: translateY(-50%);
-  transition:
-    background 150ms var(--ease),
-    box-shadow 150ms var(--ease);
-}
-
-.library-mode-tabs button:hover,
-.library-mode-tabs button[aria-selected="true"] {
-  color: var(--ink);
-}
-
-.library-mode-tabs button[aria-selected="true"]::before {
-  background: var(--blue-deep);
-  box-shadow: 0 0 0 6px rgb(95 139 168 / 10%);
-}
-
 .library-stage__rail > p {
   margin: auto 0 0;
   color: var(--muted);
@@ -1073,6 +1029,7 @@ svg {
 }
 
 .app-sidebar__nav,
+.app-sidebar__smart,
 .app-sidebar__folders {
   display: grid;
   gap: 4px;
@@ -1091,6 +1048,20 @@ svg {
   background: transparent;
   font-size: 12px;
   text-align: left;
+  cursor: pointer;
+  transition:
+    color 150ms var(--ease),
+    background 150ms var(--ease);
+}
+
+.app-sidebar button:hover {
+  color: #d6d3d9;
+  background: rgb(255 255 255 / 5%);
+}
+
+.app-sidebar button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
 }
 
 .app-sidebar button.active {
@@ -1112,10 +1083,12 @@ svg {
   font-size: 10px;
 }
 
+.app-sidebar__smart,
 .app-sidebar__folders {
-  margin-top: 27px;
+  margin-top: 25px;
 }
 
+.app-sidebar__smart p,
 .app-sidebar__folders p {
   margin: 0 10px 8px;
   color: #6f6d73;
@@ -1123,6 +1096,22 @@ svg {
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
+}
+
+.app-sidebar__smart button {
+  grid-template-columns: 10px 1fr auto;
+}
+
+.app-sidebar__smart button i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #56545a;
+}
+
+.app-sidebar__smart button.active i {
+  background: var(--blue);
+  box-shadow: 0 0 0 4px rgb(143 193 227 / 8%);
 }
 
 .app-sidebar__folders button {
@@ -1313,6 +1302,34 @@ svg {
   transition: transform 250ms var(--ease);
 }
 
+.book-cover-placeholder {
+  display: grid;
+  aspect-ratio: 2 / 3;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 12px;
+  color: #77747b;
+  background: radial-gradient(circle at 50% 28%, rgb(143 193 227 / 9%), transparent 42%), #242427;
+  text-align: center;
+}
+
+.book-cover-placeholder svg {
+  width: 24px;
+  height: 24px;
+}
+
+.book-cover-placeholder span {
+  position: static !important;
+  padding: 0 !important;
+  color: #77747b !important;
+  background: transparent !important;
+  font-size: 7px !important;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: none !important;
+}
+
 .book-card:hover img {
   transform: scale(1.025);
 }
@@ -1347,50 +1364,6 @@ svg {
 
 .book-card small {
   margin-top: 2px;
-  color: #6f6d73;
-  font-size: 8px;
-}
-
-.folder-view {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 28px;
-}
-
-.folder-view[hidden] {
-  display: none;
-}
-
-.folder-view article {
-  display: grid;
-  grid-template-columns: 36px 1fr auto;
-  align-items: center;
-  gap: 11px;
-  min-height: 74px;
-  padding: 0 14px;
-  border: 1px solid #303034;
-  border-radius: 11px;
-  background: #1d1d1f;
-}
-
-.folder-view article > svg {
-  width: 21px;
-  height: 21px;
-  color: var(--blue);
-}
-
-.folder-view article div {
-  display: grid;
-}
-
-.folder-view strong {
-  color: #d6d3d9;
-  font-size: 10px;
-}
-
-.folder-view small,
-.folder-view article > span {
   color: #6f6d73;
   font-size: 8px;
 }
@@ -3003,21 +2976,6 @@ svg {
     gap: 20px;
   }
 
-  .library-mode-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    margin-top: 0;
-  }
-
-  .library-mode-tabs button {
-    min-height: 38px;
-    padding: 0 14px 0 28px;
-  }
-
-  .library-mode-tabs button::before {
-    left: 10px;
-  }
-
   .library-stage__rail > p {
     grid-column: 1 / -1;
     margin: 0;
@@ -3136,7 +3094,43 @@ svg {
   }
 
   .app-sidebar {
+    display: grid;
+    gap: 9px;
+    padding: 12px 14px 14px;
+    border-right: 0;
+    border-bottom: 1px solid #303034;
+    overflow: hidden;
+  }
+
+  .app-sidebar__nav,
+  .app-sidebar__smart {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+
+  .app-sidebar__nav::-webkit-scrollbar,
+  .app-sidebar__smart::-webkit-scrollbar {
     display: none;
+  }
+
+  .app-sidebar__smart {
+    margin-top: 0;
+  }
+
+  .app-sidebar__smart p,
+  .app-sidebar__folders,
+  .app-sidebar__footer {
+    display: none;
+  }
+
+  .app-sidebar__nav button,
+  .app-sidebar__smart button {
+    flex: 0 0 auto;
+    min-height: 34px;
+    padding-inline: 10px;
   }
 
   .app-library {
@@ -3163,10 +3157,6 @@ svg {
   .book-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 18px 10px;
-  }
-
-  .folder-view {
-    grid-template-columns: 1fr;
   }
 
   .feature-ledger {
