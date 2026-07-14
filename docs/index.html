@@ -47,10 +47,6 @@
           d="M20.8 5.8a5.3 5.3 0 0 0-7.5 0L12 7.1l-1.3-1.3a5.3 5.3 0 0 0-7.5 7.5L12 22l8.8-8.7a5.3 5.3 0 0 0 0-7.5Z"
         />
       </symbol>
-      <symbol id="icon-clock" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7v5l3 2" />
-      </symbol>
       <symbol id="icon-folder" viewBox="0 0 24 24">
         <path d="M3 6.5h6l2 2h10v10H3z" />
       </symbol>
@@ -147,8 +143,8 @@
             <p class="eyebrow">EPUB library and reader</p>
             <h1 id="hero-title">Pull every book <span>into orbit.</span></h1>
             <p class="hero__lede">
-              Open an existing folder or create a new archive. Browse covers, folders, series, smart
-              views, and saved progress, then read in paged or continuous mode.
+              Open an existing folder or create a new archive. Browse covers, favorites, folders,
+              series, and saved progress, then read in paged or continuous mode.
             </p>
             <div class="hero__actions">
               <a
@@ -170,7 +166,7 @@
             </div>
             <div class="hero__signals" aria-label="Product highlights">
               <span><i></i>Series and volumes</span>
-              <span><i></i>Smart Views</span>
+              <span><i></i>Folders stay intact</span>
               <span><i></i>Search and filters</span>
               <span><i></i>Progress that resumes</span>
             </div>
@@ -235,16 +231,16 @@
             </div>
             <div class="promise-row" aria-label="Library features">
               <span>Search across the archive</span>
-              <span>Browse folders and series</span>
-              <span>Filter by reading status</span>
+              <span>Browse favorites and folders</span>
+              <span>Open focused folder views</span>
             </div>
           </header>
 
-          <div class="library-stage" data-reveal>
+          <div class="library-stage">
             <div class="library-stage__rail">
               <div class="stage-index" aria-hidden="true">01</div>
               <p data-library-caption>
-                Use the app sidebar to explore your library and Smart Views.
+                Use the app sidebar to browse Library, Favorites, or an individual folder.
               </p>
             </div>
 
@@ -272,45 +268,11 @@
                       <svg aria-hidden="true"><use href="#icon-library" /></svg><span>Library</span
                       ><small>24</small>
                     </button>
-                    <button type="button" aria-pressed="false" data-library-view="continue">
-                      <svg aria-hidden="true"><use href="#icon-clock" /></svg><span>Continue</span
-                      ><small>3</small>
-                    </button>
                     <button type="button" aria-pressed="false" data-library-view="favorites">
                       <svg aria-hidden="true"><use href="#icon-heart" /></svg><span>Favorites</span
                       ><small>5</small>
                     </button>
                   </nav>
-                  <div class="app-sidebar__smart" role="group" aria-label="Smart Views">
-                    <p>Smart Views</p>
-                    <button type="button" aria-pressed="false" data-sidebar-smart-view="unread">
-                      <i></i><span>Unread</span><small>2</small>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed="false"
-                      data-sidebar-smart-view="in-progress"
-                    >
-                      <i></i><span>In Progress</span><small>3</small>
-                    </button>
-                    <button type="button" aria-pressed="false" data-sidebar-smart-view="completed">
-                      <i></i><span>Completed</span><small>1</small>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed="false"
-                      data-sidebar-smart-view="needs-metadata"
-                    >
-                      <i></i><span>Needs Metadata</span><small>1</small>
-                    </button>
-                    <button
-                      type="button"
-                      aria-pressed="false"
-                      data-sidebar-smart-view="needs-cover"
-                    >
-                      <i></i><span>Needs Cover</span><small>1</small>
-                    </button>
-                  </div>
                   <div class="app-sidebar__folders" role="group" aria-label="Library folders">
                     <p>Folders</p>
                     <button type="button" aria-pressed="false" data-library-folder="Light novels">
@@ -320,8 +282,8 @@
                     <button type="button" aria-pressed="false" data-library-folder="Research">
                       <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Research</span>
                     </button>
-                    <button type="button" aria-pressed="false" data-library-folder="Unsorted">
-                      <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Unsorted</span>
+                    <button type="button" aria-pressed="false" data-library-folder="Classics">
+                      <svg aria-hidden="true"><use href="#icon-folder" /></svg><span>Classics</span>
                     </button>
                   </div>
                   <div class="app-sidebar__footer">
@@ -345,23 +307,8 @@
                       </button>
                     </div>
                   </div>
-                  <div class="continue-strip" data-continue-strip>
-                    <div class="continue-strip__copy">
-                      <span>Continue reading</span><strong>Signal and Dust</strong
-                      ><small>Chapter 12 · 68%</small>
-                    </div>
-                    <div class="continue-strip__progress"><i style="--progress: 68%"></i></div>
-                    <button type="button">Resume</button>
-                  </div>
                   <div class="book-grid" data-book-grid>
-                    <article
-                      class="book-card"
-                      data-folder="Light novels"
-                      data-favorite="true"
-                      data-reading-status="in-progress"
-                      data-needs-metadata="false"
-                      data-needs-cover="false"
-                    >
+                    <article class="book-card" data-folder="Light novels" data-favorite="true">
                       <div>
                         <img
                           src="assets/images/cover-orbit.svg"
@@ -370,14 +317,7 @@
                       </div>
                       <strong>Orbital Mechanics</strong><small>M. Kato</small>
                     </article>
-                    <article
-                      class="book-card"
-                      data-folder="Research"
-                      data-favorite="true"
-                      data-reading-status="in-progress"
-                      data-needs-metadata="false"
-                      data-needs-cover="false"
-                    >
+                    <article class="book-card" data-folder="Research" data-favorite="true">
                       <div>
                         <img
                           src="assets/images/cover-quiet.svg"
@@ -386,14 +326,7 @@
                       </div>
                       <strong>The Quiet Archive</strong><small>Elena Voss</small>
                     </article>
-                    <article
-                      class="book-card"
-                      data-folder="Light novels"
-                      data-favorite="false"
-                      data-reading-status="in-progress"
-                      data-needs-metadata="false"
-                      data-needs-cover="false"
-                    >
+                    <article class="book-card" data-folder="Light novels" data-favorite="false">
                       <div>
                         <img
                           src="assets/images/cover-signal.svg"
@@ -402,27 +335,31 @@
                       </div>
                       <strong>Signal and Dust</strong><small>H. Sato</small>
                     </article>
-                    <article
-                      class="book-card"
-                      data-folder="Research"
-                      data-favorite="false"
-                      data-reading-status="unread"
-                      data-needs-metadata="false"
-                      data-needs-cover="false"
-                    >
+                    <article class="book-card" data-folder="Research" data-favorite="false">
                       <div>
                         <img src="assets/images/cover-tide.svg" alt="A Theory of Tides cover" />
                       </div>
                       <strong>A Theory of Tides</strong><small>Iris Wren</small>
                     </article>
-                    <article
-                      class="book-card"
-                      data-folder="Unsorted"
-                      data-favorite="true"
-                      data-reading-status="completed"
-                      data-needs-metadata="false"
-                      data-needs-cover="true"
-                    >
+                    <article class="book-card" data-folder="Light novels" data-favorite="true">
+                      <div>
+                        <img
+                          src="assets/images/cover-observatory.svg"
+                          alt="The Silent Observatory cover"
+                        /><span>28%</span>
+                      </div>
+                      <strong>The Silent Observatory</strong><small>Rin Aster</small>
+                    </article>
+                    <article class="book-card" data-folder="Research" data-favorite="false">
+                      <div>
+                        <img
+                          src="assets/images/cover-relay.svg"
+                          alt="Notes from the Outer Relay cover"
+                        /><span>54%</span>
+                      </div>
+                      <strong>Notes from the Outer Relay</strong><small>Jonas Vale</small>
+                    </article>
+                    <article class="book-card" data-folder="Classics" data-favorite="true">
                       <div>
                         <div
                           class="book-cover-placeholder"
@@ -435,18 +372,20 @@
                       </div>
                       <strong>Small Machines</strong><small>Noah Reed</small>
                     </article>
-                    <article
-                      class="book-card"
-                      data-folder="Unsorted"
-                      data-favorite="false"
-                      data-reading-status="unread"
-                      data-needs-metadata="true"
-                      data-needs-cover="false"
-                    >
+                    <article class="book-card" data-folder="Classics" data-favorite="false">
                       <div>
                         <img src="assets/images/cover-after.svg" alt="After the Index cover" />
                       </div>
                       <strong>After the Index</strong><small>Unknown author</small>
+                    </article>
+                    <article class="book-card" data-folder="Classics" data-favorite="true">
+                      <div>
+                        <img
+                          src="assets/images/cover-fragments.svg"
+                          alt="Fragments of a Vanished City cover"
+                        />
+                      </div>
+                      <strong>Fragments of a Vanished City</strong><small>Mara Li</small>
                     </article>
                   </div>
                 </div>
@@ -466,11 +405,11 @@
             </article>
             <article data-reveal>
               <span>02</span>
-              <h3>See what needs attention</h3>
+              <h3>Keep the folder structure familiar</h3>
               <ul>
-                <li>Open Smart Views for Unread, In Progress, and Completed</li>
-                <li>Find books missing metadata or covers</li>
-                <li>Filter by series, subject, language, and publisher</li>
+                <li>Browse the same folders already used on your computer</li>
+                <li>Open focused views for light novels, research, or unsorted books</li>
+                <li>Move between Library, Favorites, and individual folders from one sidebar</li>
               </ul>
             </article>
             <article data-reveal>
@@ -793,7 +732,7 @@
             <p class="section-label">Discover</p>
             <h2 id="architecture-title">Move from a full archive to the right next book.</h2>
             <div class="promise-row" aria-label="Library discovery features">
-              <span>Smart Views</span>
+              <span>Folder browsing</span>
               <span>Series overview</span>
               <span>Focused filters</span>
             </div>
@@ -806,26 +745,24 @@
               <div class="node-icon">
                 <svg aria-hidden="true"><use href="#icon-folder" /></svg>
               </div>
-              <h3>Smart Views that stay useful</h3>
-              <p>
-                Jump straight to Unread, In Progress, Completed, Needs Metadata, or Needs Cover.
-              </p>
+              <h3>Folders stay familiar</h3>
+              <p>Browse the same archive structure you already maintain on your computer.</p>
             </article>
 
             <div class="architecture-tree" aria-label="Example library views">
               <div class="tree-head"><i></i><i></i><i></i><span>Your Library</span></div>
               <pre><code>Your Library/
-├── Continue reading
+├── Favorites
+├── Folders/
+│   ├── Light novels
+│   ├── Research
+│   └── Classics
 ├── Series/
 │   ├── Orbital Mechanics
 │   └── Signal and Dust
-├── Smart Views/
-│   ├── Unread
-│   ├── In Progress
-│   └── Completed
-└── <b>Needs attention/</b>
-    ├── Metadata
-    └── Cover</code></pre>
+└── <b>Filters/</b>
+    ├── Reading status
+    └── Language</code></pre>
             </div>
 
             <article class="architecture-node architecture-node--sidecar">

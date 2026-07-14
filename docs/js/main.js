@@ -9,10 +9,6 @@
   const siteNav = document.querySelector(".site-nav");
   const navLinks = Array.from(document.querySelectorAll('.site-nav a[href^="#"]'));
 
-  const setHeaderState = () => {
-    header?.classList.toggle("is-scrolled", window.scrollY > 12);
-  };
-
   const closeNavigation = () => {
     if (!navToggle || !siteNav) return;
     navToggle.setAttribute("aria-expanded", "false");
@@ -45,9 +41,6 @@
     if (!siteNav.contains(target) && !navToggle.contains(target)) closeNavigation();
   });
 
-  window.addEventListener("scroll", setHeaderState, { passive: true });
-  setHeaderState();
-
   const revealElements = document.querySelectorAll("[data-reveal]");
   if (reducedMotion.matches || !("IntersectionObserver" in window)) {
     revealElements.forEach((element) => element.classList.add("is-visible"));
@@ -70,15 +63,27 @@
     navLinks.map((link) => link.getAttribute("href")?.slice(1)).filter(Boolean),
   );
   let navigationFrame = 0;
+  let metricsFrame = 0;
+  let headerHeight = 0;
+  let sectionBounds = [];
 
-  const updateActiveNavigation = () => {
-    navigationFrame = 0;
-    const headerHeight = header?.getBoundingClientRect().height ?? 0;
-    const activationLine = headerHeight + 16;
-    const activeSection = sections.find((section) => {
+  const refreshNavigationMetrics = () => {
+    headerHeight = header?.offsetHeight ?? 0;
+    sectionBounds = sections.map((section) => {
       const rect = section.getBoundingClientRect();
-      return rect.top <= activationLine && rect.bottom > activationLine;
+      const top = rect.top + window.scrollY;
+      return { id: section.id, top, bottom: top + rect.height };
     });
+  };
+
+  const updatePageOnScroll = () => {
+    navigationFrame = 0;
+    header?.classList.toggle("is-scrolled", window.scrollY > 12);
+
+    const activationPosition = window.scrollY + headerHeight + 16;
+    const activeSection = sectionBounds.find(
+      ({ top, bottom }) => top <= activationPosition && bottom > activationPosition,
+    );
     const activeId =
       activeSection && linkedSectionIds.has(activeSection.id) ? activeSection.id : null;
 
@@ -89,14 +94,29 @@
     });
   };
 
-  const requestNavigationUpdate = () => {
+  const requestPageScrollUpdate = () => {
     if (navigationFrame) return;
-    navigationFrame = window.requestAnimationFrame(updateActiveNavigation);
+    navigationFrame = window.requestAnimationFrame(updatePageOnScroll);
   };
 
-  window.addEventListener("scroll", requestNavigationUpdate, { passive: true });
-  window.addEventListener("resize", requestNavigationUpdate);
-  updateActiveNavigation();
+  const refreshPageMetrics = () => {
+    refreshNavigationMetrics();
+    requestPageScrollUpdate();
+  };
+
+  const requestPageMetricsRefresh = () => {
+    if (metricsFrame) return;
+    metricsFrame = window.requestAnimationFrame(() => {
+      metricsFrame = 0;
+      refreshPageMetrics();
+    });
+  };
+
+  window.addEventListener("scroll", requestPageScrollUpdate, { passive: true });
+  window.addEventListener("resize", requestPageMetricsRefresh);
+  window.addEventListener("load", refreshPageMetrics, { once: true });
+  document.fonts?.ready.then(refreshPageMetrics).catch(() => undefined);
+  refreshPageMetrics();
 
   const initializeHomeOrbitAnimation = () => {
     const hero = document.getElementById("top");
@@ -275,12 +295,12 @@
     if ("IntersectionObserver" in window) {
       const visibilityObserver = new IntersectionObserver(
         ([entry]) => {
-          visible = entry.isIntersecting;
+          visible = entry.isIntersecting && entry.intersectionRatio >= 0.12;
           stage.classList.toggle("is-paused", !visible);
           if (visible) startAnimation();
           else stopAnimation();
         },
-        { threshold: 0.01 },
+        { threshold: [0, 0.12] },
       );
       visibilityObserver.observe(hero);
     }
@@ -294,12 +314,8 @@
   initializeHomeOrbitAnimation();
 
   const libraryViewButtons = Array.from(document.querySelectorAll("[data-library-view]"));
-  const sidebarSmartViewButtons = Array.from(
-    document.querySelectorAll("[data-sidebar-smart-view]"),
-  );
   const folderButtons = Array.from(document.querySelectorAll("[data-library-folder]"));
   const bookGrid = document.querySelector("[data-book-grid]");
-  const continueStrip = document.querySelector("[data-continue-strip]");
   const previewTitle = document.querySelector("[data-preview-title]");
   const previewKicker = document.querySelector("[data-preview-kicker]");
   const libraryCaption = document.querySelector("[data-library-caption]");
@@ -310,14 +326,8 @@
     library: {
       title: "Library",
       kicker: "All books",
-      caption: "Browse all books, then switch views directly from the app sidebar.",
+      caption: "Browse every book in the active archive.",
       matches: () => true,
-      showContinueStrip: true,
-    },
-    continue: {
-      title: "Continue",
-      caption: "Return to every book you have already started.",
-      matches: (card) => card.dataset.readingStatus === "in-progress",
     },
     favorites: {
       title: "Favorites",
@@ -326,72 +336,50 @@
     },
   };
 
-  const smartViews = {
-    unread: {
-      title: "Unread",
-      caption: "See books that are ready to begin.",
-      matches: (card) => card.dataset.readingStatus === "unread",
-    },
-    "in-progress": {
-      title: "In Progress",
-      caption: "Return to every book you have already started.",
-      matches: (card) => card.dataset.readingStatus === "in-progress",
-    },
-    completed: {
-      title: "Completed",
-      caption: "Review the books you have finished.",
-      matches: (card) => card.dataset.readingStatus === "completed",
-    },
-    "needs-metadata": {
-      title: "Needs Metadata",
-      caption: "Find books with missing titles, authors, or details.",
-      matches: (card) => card.dataset.needsMetadata === "true",
-    },
-    "needs-cover": {
-      title: "Needs Cover",
-      caption: "Find books that still need an embedded cover.",
-      matches: (card) => card.dataset.needsCover === "true",
-    },
-  };
+  const animateLibraryGrid = () => {
+    if (
+      reduceLibraryMotion.matches ||
+      !(bookGrid instanceof HTMLElement) ||
+      typeof bookGrid.animate !== "function"
+    ) {
+      return;
+    }
 
-  const animateLibraryCards = (cards) => {
-    if (reduceLibraryMotion.matches) return;
-    cards.forEach((card, index) => {
-      if (!(card instanceof HTMLElement) || typeof card.animate !== "function") return;
-      card.animate(
-        [
-          { opacity: 0, transform: "translateY(8px)" },
-          { opacity: 1, transform: "translateY(0)" },
-        ],
-        { duration: 220, delay: index * 28, easing: "cubic-bezier(.22,.61,.36,1)" },
-      );
-    });
+    bookGrid.getAnimations().forEach((animation) => animation.cancel());
+    bookGrid.animate(
+      [
+        { opacity: 0.72, transform: "translateY(5px)" },
+        { opacity: 1, transform: "translateY(0)" },
+      ],
+      { duration: 160, easing: "cubic-bezier(.22,.61,.36,1)" },
+    );
   };
 
   const clearLibrarySelection = () => {
-    [...libraryViewButtons, ...sidebarSmartViewButtons, ...folderButtons].forEach((button) => {
+    [...libraryViewButtons, ...folderButtons].forEach((button) => {
       button.classList.remove("active");
       button.setAttribute("aria-pressed", "false");
     });
   };
 
-  const renderLibraryBooks = ({ title, kicker, caption, matches, showContinueStrip = false }) => {
+  const renderLibraryBooks = ({ title, kicker, caption, matches }) => {
     if (!bookGrid) return;
 
-    const visibleCards = bookCards.filter((card) => {
+    let visibleCount = 0;
+    bookCards.forEach((card) => {
       const visible = matches(card);
       card.classList.toggle("is-hidden", !visible);
-      return visible;
+      if (visible) visibleCount += 1;
     });
 
     if (previewTitle) previewTitle.textContent = title;
     if (previewKicker) {
-      const suffix = visibleCards.length === 1 ? "book" : "books";
-      previewKicker.textContent = kicker || `${visibleCards.length} ${suffix}`;
+      const suffix = visibleCount === 1 ? "book" : "books";
+      previewKicker.textContent = kicker || `${visibleCount} ${suffix}`;
     }
     if (libraryCaption) libraryCaption.textContent = caption;
-    if (continueStrip instanceof HTMLElement) continueStrip.hidden = !showContinueStrip;
-    animateLibraryCards(visibleCards);
+    animateLibraryGrid();
+    requestPageMetricsRefresh();
   };
 
   const setLibraryView = (view) => {
@@ -402,21 +390,6 @@
     activeButton?.classList.add("active");
     activeButton?.setAttribute("aria-pressed", "true");
     renderLibraryBooks(content);
-  };
-
-  const setSmartView = (view) => {
-    const content = smartViews[view];
-    if (!content) return;
-    clearLibrarySelection();
-    const activeButton = sidebarSmartViewButtons.find(
-      (button) => button.dataset.sidebarSmartView === view,
-    );
-    activeButton?.classList.add("active");
-    activeButton?.setAttribute("aria-pressed", "true");
-    renderLibraryBooks({
-      ...content,
-      kicker: `Smart View`,
-    });
   };
 
   const setFolderView = (folder) => {
@@ -434,12 +407,6 @@
 
   libraryViewButtons.forEach((button) => {
     button.addEventListener("click", () => setLibraryView(button.dataset.libraryView || "library"));
-  });
-
-  sidebarSmartViewButtons.forEach((button) => {
-    button.addEventListener("click", () =>
-      setSmartView(button.dataset.sidebarSmartView || "unread"),
-    );
   });
 
   folderButtons.forEach((button) => {

@@ -1013,6 +1013,7 @@ svg {
 }
 
 .app-preview__body {
+  contain: layout style;
   display: grid;
   grid-template-columns: 205px minmax(0, 1fr);
   min-height: 620px;
@@ -1029,7 +1030,6 @@ svg {
 }
 
 .app-sidebar__nav,
-.app-sidebar__smart,
 .app-sidebar__folders {
   display: grid;
   gap: 4px;
@@ -1083,12 +1083,10 @@ svg {
   font-size: 10px;
 }
 
-.app-sidebar__smart,
 .app-sidebar__folders {
   margin-top: 25px;
 }
 
-.app-sidebar__smart p,
 .app-sidebar__folders p {
   margin: 0 10px 8px;
   color: #6f6d73;
@@ -1096,22 +1094,6 @@ svg {
   font-weight: 700;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-}
-
-.app-sidebar__smart button {
-  grid-template-columns: 10px 1fr auto;
-}
-
-.app-sidebar__smart button i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: #56545a;
-}
-
-.app-sidebar__smart button.active i {
-  background: var(--blue);
-  box-shadow: 0 0 0 4px rgb(143 193 227 / 8%);
 }
 
 .app-sidebar__folders button {
@@ -1142,6 +1124,7 @@ svg {
 }
 
 .app-library {
+  contain: layout style;
   min-width: 0;
   padding: 30px 30px 34px;
   color: #d6d3d9;
@@ -1209,67 +1192,8 @@ svg {
   background: #1d1d1f;
 }
 
-.continue-strip {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px auto;
-  align-items: center;
-  gap: 18px;
-  margin-top: 25px;
-  padding: 15px 16px;
-  border: 1px solid #303034;
-  border-radius: 12px;
-  background: #1d1d1f;
-}
-
-.continue-strip__copy {
-  display: grid;
-}
-
-.continue-strip__copy span {
-  color: var(--blue);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.continue-strip__copy strong {
-  margin-top: 3px;
-  color: #ebe8ef;
-  font-size: 11px;
-}
-
-.continue-strip__copy small {
-  color: #6f6d73;
-  font-size: 9px;
-}
-
-.continue-strip__progress {
-  height: 3px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: #303034;
-}
-
-.continue-strip__progress i {
-  display: block;
-  width: var(--progress);
-  height: 100%;
-  background: var(--blue);
-}
-
-.continue-strip button {
-  min-height: 30px;
-  padding: 0 13px;
-  border: 0;
-  border-radius: 999px;
-  color: #151516;
-  background: var(--blue);
-  font-size: 9px;
-  font-weight: 700;
-}
-
 .book-grid {
+  contain: layout style;
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 20px 13px;
@@ -1344,7 +1268,6 @@ svg {
   background: rgb(21 21 22 / 82%);
   font-size: 7px;
   font-variant-numeric: tabular-nums;
-  backdrop-filter: blur(5px);
 }
 
 .book-card strong,
@@ -3103,31 +3026,34 @@ svg {
   }
 
   .app-sidebar__nav,
-  .app-sidebar__smart {
-    display: flex;
+  .app-sidebar__folders {
     gap: 6px;
     overflow-x: auto;
     padding-bottom: 2px;
     scrollbar-width: none;
   }
 
-  .app-sidebar__nav::-webkit-scrollbar,
-  .app-sidebar__smart::-webkit-scrollbar {
-    display: none;
+  .app-sidebar__nav {
+    display: flex;
   }
 
-  .app-sidebar__smart {
+  .app-sidebar__folders {
+    display: flex;
     margin-top: 0;
   }
 
-  .app-sidebar__smart p,
-  .app-sidebar__folders,
+  .app-sidebar__nav::-webkit-scrollbar,
+  .app-sidebar__folders::-webkit-scrollbar {
+    display: none;
+  }
+
+  .app-sidebar__folders p,
   .app-sidebar__footer {
     display: none;
   }
 
   .app-sidebar__nav button,
-  .app-sidebar__smart button {
+  .app-sidebar__folders button {
     flex: 0 0 auto;
     min-height: 34px;
     padding-inline: 10px;
@@ -3143,15 +3069,6 @@ svg {
 
   .app-library__tools label {
     display: none;
-  }
-
-  .continue-strip {
-    grid-template-columns: 1fr auto;
-  }
-
-  .continue-strip__progress {
-    grid-column: 1 / -1;
-    grid-row: 2;
   }
 
   .book-grid {
@@ -3425,8 +3342,7 @@ svg {
   }
 }
 
-.book-grid[hidden],
-.continue-strip[hidden] {
+.book-grid[hidden] {
   display: none;
 }
 
