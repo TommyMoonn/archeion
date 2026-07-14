@@ -413,6 +413,29 @@ describe("ReaderPage Quick Actions", () => {
     });
   });
 
+  it("registers the annotation command and opens the existing annotation surface", async () => {
+    const rendered = await renderReader();
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Open annotations"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      if (rendered.container.querySelector(".reader-annotations")) break;
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    }
+
+    expect(rendered.container.querySelector(".reader-annotations")).toBeInstanceOf(HTMLElement);
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+    expect(rendered.router.state.location.state).toEqual({
+      readerReturnContext: rendered.returnContext,
+    });
+  });
+
   it("ignores a rendition-forwarded shortcut from an iframe text input", async () => {
     const rendered = await renderReader();
     const input = createRenditionTarget("input");

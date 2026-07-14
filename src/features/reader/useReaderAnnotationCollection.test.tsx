@@ -31,15 +31,21 @@ function deferred<T>() {
 }
 
 function Harness({
+  activeArchiveId,
   apiRef,
   bookId,
   storage,
 }: {
+  activeArchiveId: string;
   apiRef: MutableRefObject<CollectionApi | undefined>;
   bookId?: string;
   storage: LibraryStorage;
 }) {
-  const collection = useReaderAnnotationCollection({ bookId, storage });
+  const collection = useReaderAnnotationCollection({
+    activeArchiveId,
+    bookId,
+    storage,
+  });
   useLayoutEffect(() => {
     apiRef.current = collection;
   }, [apiRef, collection]);
@@ -53,11 +59,19 @@ async function render(
   storage: LibraryStorage,
   bookId: string | undefined,
   apiRef: MutableRefObject<CollectionApi | undefined>,
+  activeArchiveId = "archive-a",
 ) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
   await act(async () => {
-    root?.render(<Harness apiRef={apiRef} bookId={bookId} storage={storage} />);
+    root?.render(
+      <Harness
+        activeArchiveId={activeArchiveId}
+        apiRef={apiRef}
+        bookId={bookId}
+        storage={storage}
+      />,
+    );
     await Promise.resolve();
   });
   await act(async () => Promise.resolve());
@@ -72,6 +86,33 @@ afterEach(() => {
 });
 
 describe("useReaderAnnotationCollection", () => {
+  it("hides archive A immediately and rejects its callbacks when the same book opens in archive B", async () => {
+    const archiveBLoad = deferred<Annotation[]>();
+    const storage = {
+      listAnnotations: vi
+        .fn()
+        .mockResolvedValueOnce([bookmark("archive-a")])
+        .mockReturnValueOnce(archiveBLoad.promise),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<CollectionApi | undefined> = { current: undefined };
+    const rendered = await render(storage, "shared-book", apiRef, "archive-a");
+    const staleSync = apiRef.current?.sync;
+    const staleForget = apiRef.current?.forget;
+    expect(rendered.textContent).toBe("archive-a");
+
+    await render(storage, "shared-book", apiRef, "archive-b");
+    expect(rendered.textContent).toBe("");
+    expect(apiRef.current?.loadStatus).toBe("loading");
+    act(() => {
+      staleSync?.(bookmark("stale-write"));
+      staleForget?.("archive-a");
+    });
+    expect(rendered.textContent).toBe("");
+
+    await act(async () => archiveBLoad.resolve([bookmark("archive-b")]));
+    expect(rendered.textContent).toBe("archive-b");
+  });
+
   it("loads one authoritative collection and updates it through sync and forget", async () => {
     const storage = {
       listAnnotations: vi.fn(async () => [bookmark("first")]),

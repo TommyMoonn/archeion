@@ -65,6 +65,7 @@ function deferred<T>() {
 }
 
 function Harness({
+  activeArchiveId,
   apiRef,
   bookId,
   cancel,
@@ -74,6 +75,7 @@ function Harness({
   sessionKey,
   storage,
 }: {
+  activeArchiveId: string;
   apiRef: MutableRefObject<MutationApi | undefined>;
   bookId: string;
   cancel: (annotationId: string) => void;
@@ -84,8 +86,8 @@ function Harness({
   storage: LibraryStorage;
 }) {
   const session = useMemo<ReaderAnnotationSession>(
-    () => ({ bookId, token: Symbol(`mutation-test-${sessionKey}`) }),
-    [bookId, sessionKey],
+    () => ({ archiveId: activeArchiveId, bookId, token: Symbol(`mutation-test-${sessionKey}`) }),
+    [activeArchiveId, bookId, sessionKey],
   );
   const sessionRef = useRef(session);
   const mountedRef = useRef(true);
@@ -152,6 +154,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 async function renderHarness({
+  activeArchiveId = "archive-a",
   apiRef,
   bookId = "book-a",
   cancel = vi.fn(),
@@ -161,6 +164,7 @@ async function renderHarness({
   sessionKey = bookId,
   storage,
 }: {
+  activeArchiveId?: string;
   apiRef: MutableRefObject<MutationApi | undefined>;
   bookId?: string;
   cancel?: (annotationId: string) => void;
@@ -175,6 +179,7 @@ async function renderHarness({
   await act(async () => {
     root?.render(
       <Harness
+        activeArchiveId={activeArchiveId}
         apiRef={apiRef}
         bookId={bookId}
         cancel={cancel}
@@ -201,6 +206,38 @@ afterEach(() => {
 });
 
 describe("useReaderAnnotationMutations", () => {
+  it("rejects an archive A completion after the same book becomes archive B state", async () => {
+    const archiveA = bookmark("archive-a");
+    const archiveB = bookmark("archive-b");
+    const removal = deferred<boolean>();
+    const storage = { deleteAnnotation: vi.fn(() => removal.promise) } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({
+      activeArchiveId: "archive-a",
+      apiRef,
+      initial: [archiveA],
+      storage,
+    });
+    let staleRemoval!: Promise<boolean>;
+    act(() => {
+      staleRemoval = apiRef.current!.remove(archiveA);
+    });
+    expect(text("busy")).toBe("true");
+
+    await renderHarness({
+      activeArchiveId: "archive-b",
+      apiRef,
+      initial: [archiveB],
+      storage,
+    });
+    expect(text("ids")).toBe(archiveB.id);
+    expect(text("busy")).toBe("false");
+    await act(async () => removal.resolve(true));
+    await expect(staleRemoval).resolves.toBe(false);
+    expect(text("ids")).toBe(archiveB.id);
+    expect(text("feedback")).toBe("");
+  });
+
   it("keeps one interactive busy owner until its mutation settles", async () => {
     const original = bookmark();
     const removal = deferred<boolean>();

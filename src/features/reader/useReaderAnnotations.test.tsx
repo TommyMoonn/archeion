@@ -59,6 +59,7 @@ function Harness({
   storage: LibraryStorage;
 }) {
   const annotations = useReaderAnnotations({
+    activeArchiveId: "archive-a",
     bookId,
     location,
     openingError: false,

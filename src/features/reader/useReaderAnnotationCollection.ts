@@ -28,16 +28,18 @@ type AnnotationLoadRequest = {
 };
 
 export function useReaderAnnotationCollection({
+  activeArchiveId,
   bookId,
   storage,
 }: {
+  activeArchiveId: string | null;
   bookId?: string;
   storage: LibraryStorage;
 }) {
   const mountedRef = useRef(true);
   const session = useMemo<ReaderAnnotationSession>(
-    () => ({ bookId, token: Symbol("reader-annotation-session") }),
-    [bookId],
+    () => ({ archiveId: activeArchiveId, bookId, token: Symbol("reader-annotation-session") }),
+    [activeArchiveId, bookId],
   );
   const sessionRef = useRef(session);
   const loadSequenceRef = useRef(0);
@@ -77,7 +79,8 @@ export function useReaderAnnotationCollection({
     const request = { id: ++loadSequenceRef.current, session };
     activeLoadRef.current = request;
     try {
-      const loaded = session.bookId ? await storage.listAnnotations(session.bookId) : [];
+      const loaded =
+        session.archiveId && session.bookId ? await storage.listAnnotations(session.bookId) : [];
       if (!ownsLoad(request)) return false;
       setAnnotationCollection({ items: loaded, session });
       setLoadErrorSession(undefined);

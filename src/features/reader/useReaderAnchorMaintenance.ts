@@ -51,7 +51,7 @@ export function useReaderAnchorMaintenance({
     const next = queueRef.current.values().next().value as AnchorMaintenanceRequest | undefined;
     if (!next) return;
     queueRef.current.delete(next.annotationId);
-    if (!next.session.bookId || !isCurrentSession(next.session)) {
+    if (!next.session.archiveId || !next.session.bookId || !isCurrentSession(next.session)) {
       next.resolve(false);
       queueMicrotask(() => drainAnchorMaintenanceRef.current());
       return;
@@ -137,7 +137,9 @@ export function useReaderAnchorMaintenance({
       changes: ReaderAnnotationAnchorChanges,
       signature: string,
     ): Promise<boolean> => {
-      if (!session.bookId || !isCurrentSession(session)) return Promise.resolve(false);
+      if (!session.archiveId || !session.bookId || !isCurrentSession(session)) {
+        return Promise.resolve(false);
+      }
       if (annotation.anchorStatus === "detached" && changes.anchorStatus === "detached") {
         return Promise.resolve(true);
       }

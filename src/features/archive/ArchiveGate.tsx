@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
@@ -7,6 +7,7 @@ import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { useArchive } from "./useArchive";
 import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
+import { router } from "../../app/router";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -17,6 +18,49 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
   const storage = useLibraryStorage();
   const { liveWatcherEnabled, scanOnStartup } = useFilesAndMetadataPreferences();
   const archivePath = state.status === "ready" ? state.path : null;
+  const readyArchiveId = state.status === "ready" ? state.archive.id : null;
+  const [renderedArchiveId, setRenderedArchiveId] = useState(readyArchiveId);
+  const replacingReadyArchive = Boolean(
+    readyArchiveId && renderedArchiveId && readyArchiveId !== renderedArchiveId,
+  );
+
+  useEffect(() => {
+    if (!readyArchiveId) return;
+    if (!renderedArchiveId) {
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) setRenderedArchiveId(readyArchiveId);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (readyArchiveId === renderedArchiveId) return;
+
+    let cancelled = false;
+    const leaveReader = router.state.location.pathname.startsWith("/reader/");
+    const navigation = leaveReader
+      ? router.navigate(
+          {
+            pathname: "/",
+            search: new URLSearchParams({
+              archiveId: readyArchiveId,
+              view: "library",
+            }).toString(),
+          },
+          { replace: true },
+        )
+      : Promise.resolve();
+    void navigation.then(
+      () => {
+        if (!cancelled) setRenderedArchiveId(readyArchiveId);
+      },
+      () => undefined,
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [readyArchiveId, renderedArchiveId]);
 
   useEffect(() => {
     storage.reset(archivePath);
@@ -65,6 +109,14 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
   }
 
   if (state.status !== "ready") return null;
+
+  if (replacingReadyArchive) {
+    return (
+      <main className="archive-setup" aria-busy="true">
+        <p className="archive-loading">Opening archive</p>
+      </main>
+    );
+  }
 
   return <CoverUrlCacheScopeContext value={state.archive.id}>{children}</CoverUrlCacheScopeContext>;
 }

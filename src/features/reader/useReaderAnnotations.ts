@@ -11,6 +11,7 @@ export type { ReaderAnnotationLoadStatus } from "./useReaderAnnotationCollection
 export type { ReaderAnnotationFeedback } from "./useReaderAnnotationMutations";
 
 type UseReaderAnnotationsOptions = {
+  activeArchiveId: string | null;
   bookId?: string;
   chapterHref?: string;
   chapterLabel?: string;
@@ -21,6 +22,7 @@ type UseReaderAnnotationsOptions = {
 };
 
 export function useReaderAnnotations({
+  activeArchiveId,
   bookId,
   chapterHref,
   chapterLabel,
@@ -31,7 +33,7 @@ export function useReaderAnnotations({
 }: UseReaderAnnotationsOptions) {
   const drainAnchorMaintenanceRef = useRef<() => void>(() => undefined);
   const cancelQueuedAnchorUpdateRef = useRef<(annotationId: string) => void>(() => undefined);
-  const collection = useReaderAnnotationCollection({ bookId, storage });
+  const collection = useReaderAnnotationCollection({ activeArchiveId, bookId, storage });
   const mutations = useReaderAnnotationMutations({
     cancelQueuedAnchorUpdateRef,
     drainAnchorMaintenanceRef,
@@ -96,6 +98,7 @@ export function useReaderAnnotations({
       queueAnchorUpdate: anchorMaintenance.queueAnchorUpdate,
       reload: collection.reload,
       remove: mutations.remove,
+      session: collection.session,
       sync: collection.sync,
       toggleCurrent: bookmarks.toggleCurrent,
       toggleDisabledReason: bookmarks.toggleDisabledReason,
@@ -121,6 +124,7 @@ export function useReaderAnnotations({
       feedback,
       mutations.busy,
       mutations.remove,
+      collection.session,
       mutations.undoRemove,
       mutations.updateAnchor,
     ],

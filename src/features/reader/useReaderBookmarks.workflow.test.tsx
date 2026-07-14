@@ -65,7 +65,7 @@ function Harness({
   synced: Annotation[];
 }) {
   const session = useMemo<ReaderAnnotationSession>(
-    () => ({ bookId, token: Symbol("bookmark-workflow-session") }),
+    () => ({ archiveId: "archive-a", bookId, token: Symbol("bookmark-workflow-session") }),
     [bookId],
   );
   const sessionRef = useRef(session);

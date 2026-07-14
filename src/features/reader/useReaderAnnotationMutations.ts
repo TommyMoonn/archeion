@@ -72,7 +72,13 @@ export function useReaderAnnotationMutations({
 
   const beginMutation = useCallback(
     (mutationSession: ReaderAnnotationSession): ReaderAnnotationMutation | undefined => {
-      if (!mutationSession.bookId || !isCurrentSession(mutationSession)) return undefined;
+      if (
+        !mutationSession.archiveId ||
+        !mutationSession.bookId ||
+        !isCurrentSession(mutationSession)
+      ) {
+        return undefined;
+      }
       const currentOwner = busyOwnerRef.current;
       if (currentOwner && isCurrentSession(currentOwner.session)) return undefined;
 

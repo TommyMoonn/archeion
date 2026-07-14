@@ -30,8 +30,8 @@ import {
   isLibrarySmartViewVisible,
   normalizeVisibleLibraryHref,
 } from "../../types/librarySmartViews";
-import type { Annotation, HighlightAnnotation } from "../../types/annotation";
-import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
+import type { Annotation } from "../../types/annotation";
+import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   normalizeReaderSettings,
@@ -51,9 +51,7 @@ import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor } from "./ReaderNoteEditor";
 import { getReaderKeyboardIntent } from "./readerNavigation";
-import { highlightNavigationTarget } from "./readerAnnotationNavigation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
-import { resolveHighlightSelection } from "./readerHighlightInteraction";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -63,8 +61,6 @@ import {
   QUICK_ACTION_SEARCH_BOOKS_REQUEST,
   type QuickActionCommand,
 } from "../quick-actions/quickActions";
-import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
-import { exportReaderAnnotationsToFile } from "./readerAnnotationExportFile";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import {
@@ -72,25 +68,10 @@ import {
   useReaderNoteSession,
   type ReaderNoteTarget,
 } from "./useReaderNoteSession";
-
-type ReaderAnnotationNavigationSession = {
-  bookId?: string;
-  token: symbol;
-};
-
-type CurrentReaderAnnotation = {
-  annotationId: string;
-  awaitingLocation: boolean;
-  locationCfi: string;
-  session: ReaderAnnotationNavigationSession;
-};
-
-function sameReaderAnnotationSession(
-  left: ReaderAnnotationNavigationSession,
-  right: ReaderAnnotationNavigationSession,
-): boolean {
-  return left.bookId === right.bookId && left.token === right.token;
-}
+import { useReaderAnnotationRecovery } from "./useReaderAnnotationRecovery";
+import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
+import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
+import { readerAnnotationQuickActions } from "./readerAnnotationQuickActions";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -139,37 +120,6 @@ export function ReaderPage() {
   const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
-  const annotationNavigationSession = useMemo<ReaderAnnotationNavigationSession>(
-    () => ({ bookId, token: Symbol("reader-annotation-navigation-session") }),
-    [bookId],
-  );
-  const annotationNavigationSessionRef = useRef(annotationNavigationSession);
-  const currentReaderLocationRef = useRef(readerSession.initialLocation);
-  const readerLocationVersionRef = useRef(0);
-  const currentAnnotationRef = useRef<CurrentReaderAnnotation | undefined>(undefined);
-  const annotationNavigationRequestRef = useRef(0);
-  const [currentAnnotationState, setCurrentAnnotationState] = useState<
-    CurrentReaderAnnotation | undefined
-  >(undefined);
-  const currentAnnotationId =
-    currentAnnotationState &&
-    sameReaderAnnotationSession(currentAnnotationState.session, annotationNavigationSession)
-      ? currentAnnotationState.annotationId
-      : undefined;
-
-  useLayoutEffect(() => {
-    if (
-      sameReaderAnnotationSession(
-        annotationNavigationSessionRef.current,
-        annotationNavigationSession,
-      )
-    ) {
-      return;
-    }
-    annotationNavigationSessionRef.current = annotationNavigationSession;
-    annotationNavigationRequestRef.current += 1;
-    currentAnnotationRef.current = undefined;
-  }, [annotationNavigationSession]);
 
   const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
@@ -196,6 +146,7 @@ export function ReaderPage() {
     navigationState.chapters.length > 0 &&
     (chapterSequence.current !== undefined || location.atStart);
   const annotations = useReaderAnnotations({
+    activeArchiveId,
     bookId,
     chapterHref: chapterSequence.current?.href,
     chapterLabel: chapterSequence.current?.label,
@@ -209,6 +160,46 @@ export function ReaderPage() {
     bookId,
     onAnnotationChange: annotations.sync,
     storage,
+  });
+  const resolveAnnotationAnchor = useCallback(
+    (annotation: Annotation, attemptRecovery: boolean) =>
+      viewerRef.current?.resolveAnnotationAnchor(annotation, attemptRecovery) ??
+      Promise.resolve<ReaderAnnotationRecoveryResult>({ kind: "failed" }),
+    [],
+  );
+  const navigateToAnnotationLocation = useCallback(
+    (cfi: string) => viewerRef.current?.navigateToLocation(cfi) ?? Promise.resolve(false),
+    [],
+  );
+  const {
+    handleInvalidHighlightAnchor,
+    persistAnchor: persistAnnotationAnchor,
+    recoverAnnotationAnchor,
+  } = useReaderAnnotationRecovery({
+    annotations: annotations.annotations,
+    queueAnchorUpdate: annotations.queueAnchorUpdate,
+    resolveAnchor: resolveAnnotationAnchor,
+    session: annotations.session,
+    updateAnchor: annotations.updateAnchor,
+  });
+  const {
+    currentAnnotationId,
+    handleLocationChange: handleAnnotationLocationChange,
+    navigateToAnnotation,
+  } = useReaderAnnotationNavigation({
+    annotations: annotations.annotations,
+    initialLocation: readerSession.initialLocation,
+    loadStatus: annotations.loadStatus,
+    navigateToLocation: navigateToAnnotationLocation,
+    persistAnchor: persistAnnotationAnchor,
+    queueAnchorUpdate: annotations.queueAnchorUpdate,
+    resolveAnchor: resolveAnnotationAnchor,
+    session: annotations.session,
+  });
+  const { exportCurrentAnnotations } = useReaderAnnotationExport({
+    annotations: annotations.annotations,
+    book,
+    chapters: navigationState.chapters,
   });
   const {
     connectSurface: connectNoteSurface,
@@ -273,16 +264,6 @@ export function ReaderPage() {
       }),
     [connectNoteSurface, getNoteTarget, showNoteTarget, updateNoteTarget],
   );
-  useEffect(() => {
-    const current = currentAnnotationRef.current;
-    if (!current || annotations.loadStatus !== "ready") return;
-    const annotation = annotations.annotations.find(
-      (candidate) => candidate.id === current.annotationId,
-    );
-    if (annotation && annotation.anchorStatus !== "detached") return;
-    currentAnnotationRef.current = undefined;
-    setCurrentAnnotationState(undefined);
-  }, [annotations.annotations, annotations.loadStatus]);
   const nextVolume = useReaderSeriesContinuation({
     book,
     isReaderReady: readerReady,
@@ -415,24 +396,20 @@ export function ReaderPage() {
         label: "Open reader TOC",
         order: 80,
       },
-      {
-        execute: openAnnotations,
-        group: "Reader",
-        id: "reader.open-annotations",
-        keywords: ["bookmarks", "highlights", "notes"],
-        label: "Open annotations",
-        order: 81,
-      },
     ];
   }, [
     navigateToLibraryView,
     libraryPreferences.smartViews,
     navigationState.chapters.length,
     navigationState.status,
-    openAnnotations,
     openToc,
   ]);
+  const annotationQuickActionCommands = useMemo(
+    () => readerAnnotationQuickActions(openAnnotations),
+    [openAnnotations],
+  );
   useRegisterQuickActions("reader", quickActionCommands);
+  useRegisterQuickActions("reader.annotations", annotationQuickActionCommands);
 
   const navigateToChapter = useCallback(
     (chapterId: string) =>
@@ -440,169 +417,6 @@ export function ReaderPage() {
         () => viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false),
       ),
     [runControlledReaderTransition],
-  );
-
-  const persistAnnotationAnchor = useCallback(
-    async (
-      annotation: Annotation,
-      result: Extract<ReaderAnnotationRecoveryResult, { kind: "detached" | "resolved" }>,
-    ): Promise<Annotation | undefined> => {
-      if (result.kind === "detached") {
-        if (annotation.anchorStatus === "detached") return annotation;
-        return annotations.updateAnchor(annotation, { anchorStatus: "detached" });
-      }
-
-      const nextChapterHref = result.chapterHref ?? annotation.chapterHref;
-      if (
-        annotation.anchorStatus !== "detached" &&
-        annotation.cfiRange === result.cfiRange &&
-        annotation.chapterHref === nextChapterHref
-      ) {
-        return annotation;
-      }
-      return annotations.updateAnchor(annotation, {
-        anchorStatus: undefined,
-        cfiRange: result.cfiRange,
-        ...(nextChapterHref ? { chapterHref: nextChapterHref } : {}),
-      });
-    },
-    [annotations],
-  );
-
-  const recoveredAnchorConflicts = useCallback(
-    (
-      annotation: Annotation,
-      result: Extract<ReaderAnnotationRecoveryResult, { kind: "resolved" }>,
-    ) => {
-      const activeOthers = annotations.annotations.filter(
-        (candidate) => candidate.id !== annotation.id && candidate.anchorStatus !== "detached",
-      );
-      if (annotation.type === "bookmark") {
-        return activeOthers.some(
-          (candidate) =>
-            candidate.type === "bookmark" && candidate.cfiRange?.trim() === result.cfiRange.trim(),
-        );
-      }
-      const activeHighlights = activeOthers.filter(
-        (candidate): candidate is HighlightAnnotation => candidate.type === "highlight",
-      );
-      return resolveHighlightSelection(result.cfiRange, activeHighlights).kind !== "new";
-    },
-    [annotations.annotations],
-  );
-
-  const navigateToAnnotation = useCallback(
-    async (annotation: Annotation) => {
-      const session = annotationNavigationSession;
-      if (!session.bookId) return false;
-
-      const validation = await (viewerRef.current?.resolveAnnotationAnchor(annotation, false) ??
-        Promise.resolve<ReaderAnnotationRecoveryResult>({ kind: "failed" }));
-      if (
-        !mountedRef.current ||
-        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session) ||
-        validation.kind === "cancelled" ||
-        validation.kind === "failed"
-      ) {
-        return false;
-      }
-      if (validation.kind === "detached") {
-        await annotations.queueAnchorUpdate(
-          annotation,
-          { anchorStatus: "detached" },
-          `${annotation.cfiRange}\u0000navigation-validation`,
-        );
-        return false;
-      }
-
-      const persisted = await persistAnnotationAnchor(annotation, validation);
-      if (!persisted) return false;
-      const savedCfi = validation.cfiRange.trim();
-      const cfi = annotation.type === "highlight" ? highlightNavigationTarget(savedCfi) : savedCfi;
-      if (!cfi) return false;
-
-      const requestId = ++annotationNavigationRequestRef.current;
-      const startingLocationVersion = readerLocationVersionRef.current;
-      const opened = await (viewerRef.current?.navigateToLocation(cfi) ?? Promise.resolve(false));
-      if (
-        !opened ||
-        !mountedRef.current ||
-        annotationNavigationRequestRef.current !== requestId ||
-        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session)
-      ) {
-        return false;
-      }
-
-      const currentAnnotation = {
-        annotationId: annotation.id,
-        awaitingLocation: readerLocationVersionRef.current === startingLocationVersion,
-        locationCfi: currentReaderLocationRef.current.cfi.trim(),
-        session,
-      };
-      currentAnnotationRef.current = currentAnnotation;
-      setCurrentAnnotationState(currentAnnotation);
-      return true;
-    },
-    [annotationNavigationSession, annotations, persistAnnotationAnchor],
-  );
-
-  const recoverAnnotationAnchor = useCallback(
-    async (annotation: Annotation): Promise<ReaderAnnotationRecoveryResult> => {
-      const session = annotationNavigationSession;
-      if (!session.bookId) return { kind: "failed" };
-      const result = await (viewerRef.current?.resolveAnnotationAnchor(annotation, true) ??
-        Promise.resolve<ReaderAnnotationRecoveryResult>({ kind: "failed" }));
-      if (
-        !mountedRef.current ||
-        !sameReaderAnnotationSession(annotationNavigationSessionRef.current, session)
-      ) {
-        return { kind: "cancelled" };
-      }
-      if (result.kind === "resolved" && recoveredAnchorConflicts(annotation, result)) {
-        return { kind: "detached", reason: "conflict" };
-      }
-      if (result.kind === "detached" || result.kind === "resolved") {
-        const persisted = await persistAnnotationAnchor(annotation, result);
-        return persisted ? result : { kind: "failed" };
-      }
-      return result;
-    },
-    [annotationNavigationSession, persistAnnotationAnchor, recoveredAnchorConflicts],
-  );
-
-  const exportCurrentAnnotations = useCallback(
-    (format: ReaderAnnotationExportFormat) => {
-      if (!book) return Promise.resolve({ status: "empty" } as const);
-      return exportReaderAnnotationsToFile({
-        books: [
-          {
-            annotations: annotations.annotations,
-            author: bookAuthor(book),
-            chapters: navigationState.chapters,
-            id: book.id,
-            title: bookTitle(book),
-          },
-        ],
-        format,
-      });
-    },
-    [annotations.annotations, book, navigationState.chapters],
-  );
-
-  const handleInvalidHighlightAnchor = useCallback(
-    (annotationId: string, anchorSignature = annotationId) => {
-      const annotation = annotations.annotations.find(
-        (candidate) => candidate.id === annotationId && candidate.type === "highlight",
-      );
-      if (!annotation) return Promise.resolve(false);
-      if (annotation.anchorStatus === "detached") return Promise.resolve(true);
-      return annotations.queueAnchorUpdate(
-        annotation,
-        { anchorStatus: "detached" },
-        anchorSignature,
-      );
-    },
-    [annotations],
   );
 
   const removeAnnotation = useCallback(
@@ -711,8 +525,6 @@ export function ReaderPage() {
     mountedRef.current = true;
     return () => {
       progressWriter.current?.flush();
-      annotationNavigationRequestRef.current += 1;
-      currentAnnotationRef.current = undefined;
       mountedRef.current = false;
     };
   }, []);
@@ -723,52 +535,14 @@ export function ReaderPage() {
         return;
       }
 
-      currentReaderLocationRef.current = nextLocation;
-      readerLocationVersionRef.current += 1;
-      const currentAnnotation = currentAnnotationRef.current;
-      const currentLocationCfi = currentAnnotation?.locationCfi.trim();
-      const nextLocationCfi = nextLocation.cfi.trim();
-      if (
-        currentAnnotation?.awaitingLocation &&
-        sameReaderAnnotationSession(
-          currentAnnotation.session,
-          annotationNavigationSessionRef.current,
-        )
-      ) {
-        const resolvedCurrentAnnotation = {
-          ...currentAnnotation,
-          awaitingLocation: false,
-          locationCfi: nextLocationCfi,
-        };
-        currentAnnotationRef.current = resolvedCurrentAnnotation;
-        setCurrentAnnotationState(resolvedCurrentAnnotation);
-      } else if (
-        currentAnnotation &&
-        sameReaderAnnotationSession(
-          currentAnnotation.session,
-          annotationNavigationSessionRef.current,
-        ) &&
-        currentLocationCfi &&
-        nextLocationCfi &&
-        currentLocationCfi !== nextLocationCfi
-      ) {
-        currentAnnotationRef.current = undefined;
-        setCurrentAnnotationState((current) =>
-          current &&
-          current.annotationId === currentAnnotation.annotationId &&
-          sameReaderAnnotationSession(current.session, currentAnnotation.session)
-            ? undefined
-            : current,
-        );
-      }
-
+      handleAnnotationLocationChange(nextLocation);
       setLocation(nextLocation);
       progressWriter.current?.schedule({
         bookId,
         location: nextLocation,
       });
     },
-    [bookId],
+    [bookId, handleAnnotationLocationChange],
   );
 
   const handleViewerError = useCallback((message: string) => {

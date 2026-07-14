@@ -59,7 +59,7 @@ function Harness({
   synced: Annotation[];
 }) {
   const session = useMemo<ReaderAnnotationSession>(
-    () => ({ bookId, token: Symbol(`anchor-test-${sessionKey}`) }),
+    () => ({ archiveId: "archive-a", bookId, token: Symbol(`anchor-test-${sessionKey}`) }),
     [bookId, sessionKey],
   );
   const sessionRef = useRef(session);
