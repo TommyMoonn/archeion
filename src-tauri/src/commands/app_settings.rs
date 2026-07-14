@@ -40,11 +40,22 @@ pub struct LibraryFilterSettings {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+pub struct LibrarySmartViewSettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_visible_smart_views")]
+    pub visible: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryDisplaySettings {
     #[serde(default)]
     pub filters: LibraryFilterSettings,
     #[serde(default = "default_library_sort")]
     pub sort_by: String,
+    #[serde(default)]
+    pub smart_views: LibrarySmartViewSettings,
     #[serde(default = "default_library_view")]
     pub view_mode: String,
 }
@@ -163,6 +174,18 @@ fn default_library_sort() -> String {
 fn default_library_view() -> String {
     "grid".to_string()
 }
+fn default_visible_smart_views() -> Vec<String> {
+    [
+        "unread",
+        "in-progress",
+        "completed",
+        "needs-metadata",
+        "needs-cover",
+    ]
+    .into_iter()
+    .map(str::to_string)
+    .collect()
+}
 fn default_reader_font_family() -> String {
     "serif".to_string()
 }
@@ -196,7 +219,17 @@ impl Default for LibraryDisplaySettings {
         Self {
             filters: LibraryFilterSettings::default(),
             sort_by: default_library_sort(),
+            smart_views: LibrarySmartViewSettings::default(),
             view_mode: default_library_view(),
+        }
+    }
+}
+
+impl Default for LibrarySmartViewSettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            visible: default_visible_smart_views(),
         }
     }
 }
@@ -395,7 +428,9 @@ pub fn save_app_settings(
 
 #[cfg(test)]
 mod tests {
-    use super::{read_settings, write_settings, AppPreferences, AppearanceSettings};
+    use super::{
+        read_settings, write_settings, AppPreferences, AppearanceSettings, LibrarySmartViewSettings,
+    };
 
     #[test]
     fn app_preferences_accept_missing_new_fields() {
@@ -403,7 +438,11 @@ mod tests {
             "density": "compact",
             "bookCardSize": "large",
             "showContinueReading": false,
-            "windowFrameStyle": "native"
+            "windowFrameStyle": "native",
+            "library": {
+                "sortBy": "author",
+                "viewMode": "list"
+            }
         }))
         .expect("old app preferences should parse");
 
@@ -414,7 +453,12 @@ mod tests {
         assert_eq!(parsed.startup_behavior, "open-last-archive");
         assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
-        assert_eq!(parsed.library.sort_by, "title");
+        assert_eq!(parsed.library.sort_by, "author");
+        assert_eq!(parsed.library.view_mode, "list");
+        assert_eq!(
+            parsed.library.smart_views,
+            LibrarySmartViewSettings::default()
+        );
         assert!(parsed.library.filters.series.is_empty());
         assert!(parsed.library.filters.reading_statuses.is_empty());
         assert!(!parsed.library.filters.favorites_only);
@@ -440,6 +484,10 @@ mod tests {
                     ..super::LibraryFilterSettings::default()
                 },
                 sort_by: "author".to_string(),
+                smart_views: LibrarySmartViewSettings {
+                    enabled: true,
+                    visible: vec!["needs-cover".to_string(), "unread".to_string()],
+                },
                 view_mode: "list".to_string(),
             },
             ..AppPreferences::default()
@@ -450,6 +498,38 @@ mod tests {
         let _ = std::fs::remove_file(&path);
 
         assert_eq!(loaded, preferences);
+    }
+
+    #[test]
+    fn smart_view_preferences_round_trip_enabled_and_disabled_selections() {
+        for (label, enabled, visible) in [
+            (
+                "enabled",
+                true,
+                vec!["completed".to_string(), "unread".to_string()],
+            ),
+            (
+                "disabled",
+                false,
+                vec!["needs-metadata".to_string(), "in-progress".to_string()],
+            ),
+        ] {
+            let path = temporary_settings_path(label);
+            let preferences = AppPreferences {
+                library: super::LibraryDisplaySettings {
+                    smart_views: LibrarySmartViewSettings { enabled, visible },
+                    ..super::LibraryDisplaySettings::default()
+                },
+                ..AppPreferences::default()
+            };
+
+            write_settings(&path, &preferences).expect("settings should write");
+            let loaded = read_settings(&path).expect("settings should read");
+            let _ = std::fs::remove_file(&path);
+
+            assert_eq!(loaded.library.smart_views, preferences.library.smart_views);
+            assert_eq!(loaded, preferences);
+        }
     }
 
     #[test]

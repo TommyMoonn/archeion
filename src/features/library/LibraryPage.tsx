@@ -12,6 +12,7 @@ import {
 import type { Book } from "../../types/book";
 import type { LibraryLocation } from "../../types/library";
 import { createDefaultLibraryFilters } from "../../types/library";
+import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
 import type { ImportSettings } from "../../types/settings";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { useArchive } from "../archive/useArchive";
@@ -125,10 +126,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     toggleBook: toggleBookSelection,
   } = useLibrarySelection(books);
   const { actions: dialogActions, dialog } = useLibraryWorkspaceDialogs();
+  const smartViewPreferences = libraryPreferences.smartViews;
   const navigation = useLibraryWorkspaceNavigation({
     activeArchiveId: activeArchive.id,
     beforeArchiveSwitch: exitSelectionMode,
     folders,
+    smartViewPreferences,
   });
   const { changeLocation, openBookSearch, openReader, scrollMainContentToTop } = navigation;
   const debouncedQuery = useDebouncedValue(navigation.query, 150);
@@ -159,6 +162,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     folders,
     location: navigation.location,
     searchIndexCache,
+    smartViewPreferences,
     sort,
   });
   const {
@@ -332,14 +336,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         label: "Go to Library",
         order: 50,
       },
-      {
-        execute: () => changeLocation({ type: "continue" }),
-        group: "Navigate",
-        id: "navigate.continue",
-        keywords: ["in progress", "continue reading"],
-        label: "Go to Continue",
-        order: 51,
-      },
+      ...(isLibrarySmartViewVisible(smartViewPreferences, "in-progress")
+        ? [
+            {
+              execute: () => changeLocation({ type: "continue" }),
+              group: "Navigate" as const,
+              id: "navigate.continue",
+              keywords: ["in progress", "continue reading"],
+              label: "Go to Continue",
+              order: 51,
+            },
+          ]
+        : []),
       {
         execute: () => changeLocation({ type: "favorites" }),
         group: "Navigate",
@@ -395,7 +403,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         order: 62,
       },
     ],
-    [bookActions.isImporting, changeLocation, dialogActions, openBookSearch],
+    [bookActions.isImporting, changeLocation, dialogActions, openBookSearch, smartViewPreferences],
   );
   useRegisterQuickActions("library", quickActionCommands);
 
@@ -504,6 +512,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           seriesCount,
           smartViewCounts,
+          smartViewPreferences,
         }}
         toolbarProps={{
           filterOptions,

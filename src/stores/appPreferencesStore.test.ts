@@ -230,6 +230,10 @@ describe("app preferences", () => {
           missingMetadata: true,
           missingCover: false,
         },
+        smartViews: {
+          enabled: false,
+          visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+        },
         viewMode: "list",
         sortBy: "author",
       },
@@ -250,6 +254,36 @@ describe("app preferences", () => {
       window: null,
       windowFrameStyle: "native",
     });
+  });
+
+  it("normalizes Smart View visibility to known canonical values", () => {
+    expect(normalizeAppPreferences(null).library.smartViews).toEqual({
+      enabled: false,
+      visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+    });
+    expect(
+      normalizeAppPreferences({
+        library: {
+          smartViews: {
+            enabled: true,
+            visible: ["needs-cover", "unread", "needs-cover", "unknown", "completed"],
+          },
+        },
+      }).library.smartViews,
+    ).toEqual({ enabled: true, visible: ["unread", "completed", "needs-cover"] });
+    expect(
+      normalizeAppPreferences({
+        library: { smartViews: { enabled: true, visible: [] } },
+      }).library.smartViews,
+    ).toEqual({
+      enabled: true,
+      visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+    });
+    expect(
+      normalizeAppPreferences({
+        library: { smartViews: { enabled: false, visible: ["completed"] } },
+      }).library.smartViews,
+    ).toEqual({ enabled: false, visible: ["completed"] });
   });
 
   it("preserves supported bundled reader fonts", () => {
@@ -457,6 +491,7 @@ describe("app preferences", () => {
       },
       import: { defaultConflictAction: "skip", defaultMode: "move" },
       library: {
+        ...normalizeAppPreferences(null).library,
         filters: createDefaultLibraryFilters(),
         sortBy: "recently-opened",
         viewMode: "list",
@@ -484,6 +519,7 @@ describe("app preferences", () => {
         },
         library: {
           filters: createDefaultLibraryFilters(),
+          smartViews: normalizeAppPreferences(null).library.smartViews,
           sortBy: "recently-opened",
           viewMode: "list",
         },

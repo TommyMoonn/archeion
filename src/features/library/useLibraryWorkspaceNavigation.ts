@@ -9,11 +9,16 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { FolderBrowserView, LibraryLocation } from "../../types/library";
+import type {
+  FolderBrowserView,
+  LibraryLocation,
+  LibrarySmartViewPreferences,
+} from "../../types/library";
 import { scrollElementToTop } from "../../utils/motion";
 import { requestsBookSearch } from "../quick-actions/quickActions";
 import {
   folderBrowserViewFromSearchParams,
+  hiddenSmartViewFallbackSearchParams,
   libraryLocationFromSearchParams,
   searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
@@ -30,12 +35,14 @@ type UseLibraryWorkspaceNavigationInput = {
   activeArchiveId: string;
   folders: Folder[] | undefined;
   beforeArchiveSwitch: () => void;
+  smartViewPreferences: LibrarySmartViewPreferences;
 };
 
 export function useLibraryWorkspaceNavigation({
   activeArchiveId,
   folders,
   beforeArchiveSwitch,
+  smartViewPreferences,
 }: UseLibraryWorkspaceNavigationInput) {
   const navigate = useNavigate();
   const routerLocation = useLocation();
@@ -54,8 +61,14 @@ export function useLibraryWorkspaceNavigation({
   );
 
   const location = useMemo(
-    () => libraryLocationFromSearchParams(searchParams, folders ?? [], activeArchiveId),
-    [activeArchiveId, folders, searchParams],
+    () =>
+      libraryLocationFromSearchParams(
+        searchParams,
+        folders ?? [],
+        activeArchiveId,
+        smartViewPreferences,
+      ),
+    [activeArchiveId, folders, searchParams, smartViewPreferences],
   );
   const folderBrowserView = useMemo(
     () => folderBrowserViewFromSearchParams(searchParams),
@@ -77,12 +90,21 @@ export function useLibraryWorkspaceNavigation({
         nextLocation,
         folders ?? [],
         activeArchiveId,
+        smartViewPreferences,
       );
       if (nextParams.toString() !== searchParams.toString()) {
         setSearchParams(nextParams);
       }
     },
-    [activeArchiveId, folders, location, scrollMainContentToTop, searchParams, setSearchParams],
+    [
+      activeArchiveId,
+      folders,
+      location,
+      scrollMainContentToTop,
+      searchParams,
+      setSearchParams,
+      smartViewPreferences,
+    ],
   );
 
   const changeFolderBrowserView = useCallback(
@@ -135,6 +157,17 @@ export function useLibraryWorkspaceNavigation({
     },
     [beforeArchiveSwitch, folders, searchParams, setSearchParams],
   );
+
+  useEffect(() => {
+    const fallbackParams = hiddenSmartViewFallbackSearchParams(
+      searchParams,
+      smartViewPreferences,
+      activeArchiveId,
+    );
+    if (fallbackParams) {
+      setSearchParams(fallbackParams, { replace: true });
+    }
+  }, [activeArchiveId, searchParams, setSearchParams, smartViewPreferences]);
 
   useEffect(() => {
     if (searchFocusRequest === 0 || location.type !== "library") {

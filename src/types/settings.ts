@@ -1,8 +1,14 @@
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "./archiveImport";
-import type { LibraryFilterState, LibrarySort, LibraryView } from "./library";
+import type {
+  LibraryFilterState,
+  LibrarySmartViewPreferences,
+  LibrarySort,
+  LibraryView,
+} from "./library";
 
 export type LibraryDisplaySettings = {
   filters: LibraryFilterState;
+  smartViews: LibrarySmartViewPreferences;
   sortBy: LibrarySort;
   viewMode: LibraryView;
 };

@@ -27,6 +27,27 @@ describe("settingsSearch", () => {
     ]);
   });
 
+  it("finds the Smart Views master and every built-in view", () => {
+    expect(findSettingsSearchResults("smart views").map((result) => result.item.id)).toContain(
+      "library.smart-views.enabled",
+    );
+    expect(findSettingsSearchResults("not started").map((result) => result.item.id)).toEqual([
+      "library.smart-views.unread",
+    ]);
+    expect(findSettingsSearchResults("continue reading").map((result) => result.item.id)).toContain(
+      "library.smart-views.in-progress",
+    );
+    expect(findSettingsSearchResults("finished").map((result) => result.item.id)).toEqual([
+      "library.smart-views.completed",
+    ]);
+    expect(findSettingsSearchResults("missing author").map((result) => result.item.id)).toEqual([
+      "library.smart-views.needs-metadata",
+    ]);
+    expect(findSettingsSearchResults("cover art").map((result) => result.item.id)).toEqual([
+      "library.smart-views.needs-cover",
+    ]);
+  });
+
   it("keeps removed composite labels out of search", () => {
     expect(findSettingsSearchResults("appearance and window")).toHaveLength(0);
     expect(findSettingsSearchResults("files and maintenance")).toHaveLength(0);

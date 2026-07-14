@@ -9,6 +9,7 @@ import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { HighlightAnnotation } from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
@@ -153,11 +154,14 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function renderReader(storage: LibraryStorage = createStorage()) {
+async function renderReader(
+  storage: LibraryStorage = createStorage(),
+  returnHref = "/?view=favorites&archiveId=archive-books",
+) {
   const returnContext = {
     archiveId: "archive-books",
     focusBookId: "book",
-    href: "/?view=favorites&archiveId=archive-books",
+    href: returnHref,
     label: "Favorites",
     query: "favorite",
     scrollTop: 180,
@@ -311,6 +315,79 @@ afterEach(() => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("falls back to Library when its saved Smart View return destination becomes hidden", async () => {
+    const original = appPreferencesStore.getSnapshot();
+
+    try {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: true, visible: ["unread"] },
+          },
+        });
+      });
+      const rendered = await renderReader(
+        createStorage(),
+        "/?archiveId=archive-books&view=smart&smartView=completed&query=space",
+      );
+      const back = rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Back to Library"]',
+      );
+
+      expect(back).toBeInstanceOf(HTMLButtonElement);
+      await act(async () => {
+        back?.click();
+        await Promise.resolve();
+      });
+
+      expect(rendered.router.state.location.pathname).toBe("/");
+      expect(rendered.router.state.location.search).toContain("view=library");
+      expect(rendered.router.state.location.search).toContain("query=space");
+      expect(rendered.router.state.location.search).not.toContain("smartView");
+    } finally {
+      await act(async () => {
+        await appPreferencesStore.update(original);
+      });
+    }
+  });
+
+  it("offers Continue navigation only while the In progress Smart View is visible", async () => {
+    const original = appPreferencesStore.getSnapshot();
+
+    try {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: false, visible: ["in-progress"] },
+          },
+        });
+      });
+      await renderReader();
+      let search = await openPalette();
+      await act(async () => setInputValue(search, "Go to Continue"));
+      expect(document.querySelector('[role="option"]')).toBeNull();
+
+      await act(async () => {
+        search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: true, visible: ["in-progress"] },
+          },
+        });
+      });
+      search = await openPalette();
+      await act(async () => setInputValue(search, "Go to Continue"));
+      expect(document.querySelector('[role="option"]')?.textContent).toContain("Go to Continue");
+    } finally {
+      await act(async () => {
+        await appPreferencesStore.update(original);
+      });
+    }
+  });
+
   it("opens the existing TOC action without changing the reader route or return context", async () => {
     const rendered = await renderReader();
     const search = await openPalette();

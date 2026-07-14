@@ -11,6 +11,7 @@ import {
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { bookReadingStatus, isBookInProgress } from "../reading/readingProgress";
 import { normalizeSeriesKey } from "../series/seriesDerivation";
+import { LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -24,6 +25,7 @@ export { bookAuthor, bookSourceAuthor, bookSourceTitle, bookTitle } from "../../
 
 export { DEFAULT_LIBRARY_SORT, normalizeLibrarySort } from "../../types/library";
 export type { LibrarySort } from "../../types/library";
+export { librarySmartViewLabel } from "../../types/librarySmartViews";
 
 export type LibraryFilterOptions = {
   series: string[];
@@ -33,29 +35,6 @@ export type LibraryFilterOptions = {
 };
 
 export type LibrarySmartViewCounts = Record<LibrarySmartView, number>;
-
-const librarySmartViews: readonly LibrarySmartView[] = [
-  "unread",
-  "in-progress",
-  "completed",
-  "needs-metadata",
-  "needs-cover",
-];
-
-export function librarySmartViewLabel(smartView: LibrarySmartView): string {
-  switch (smartView) {
-    case "unread":
-      return "Unread";
-    case "in-progress":
-      return "In Progress";
-    case "completed":
-      return "Completed";
-    case "needs-metadata":
-      return "Needs Metadata";
-    case "needs-cover":
-      return "Needs Cover";
-  }
-}
 
 function normalizedMetadataValue(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase() ?? "";
@@ -88,7 +67,10 @@ export function bookMatchesSmartView(book: Book, smartView: LibrarySmartView): b
   }
 }
 
-export function countBooksBySmartView(books: Book[]): LibrarySmartViewCounts {
+export function countBooksBySmartView(
+  books: Book[],
+  visibleSmartViews: readonly LibrarySmartView[] = LIBRARY_SMART_VIEWS,
+): LibrarySmartViewCounts {
   const counts: LibrarySmartViewCounts = {
     unread: 0,
     "in-progress": 0,
@@ -97,7 +79,7 @@ export function countBooksBySmartView(books: Book[]): LibrarySmartViewCounts {
     "needs-cover": 0,
   };
   for (const book of books) {
-    for (const smartView of librarySmartViews) {
+    for (const smartView of visibleSmartViews) {
       if (bookMatchesSmartView(book, smartView)) {
         counts[smartView] += 1;
       }

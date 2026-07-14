@@ -876,4 +876,21 @@ describe("library filters", () => {
       }).map((book) => book.id),
     ).toEqual(["completed"]);
   });
+
+  it("calculates only requested Smart View counts", () => {
+    const unread = createBook({ id: "unread-only", progressPercent: 0 });
+    Object.defineProperty(unread, "coverPath", {
+      get() {
+        throw new Error("Hidden Smart View matching should not read cover state.");
+      },
+    });
+
+    expect(countBooksBySmartView([unread], ["unread"])).toEqual({
+      unread: 1,
+      "in-progress": 0,
+      completed: 0,
+      "needs-metadata": 0,
+      "needs-cover": 0,
+    });
+  });
 });

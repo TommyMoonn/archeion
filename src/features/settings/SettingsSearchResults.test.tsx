@@ -145,6 +145,23 @@ describe("SettingsSearchResults", () => {
     });
   });
 
+  it("allows Smart Views to be enabled directly from settings search", () => {
+    const controller = createController();
+    const { container } = trackRoot(renderResults("show smart views", controller));
+    const master = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Show Smart Views"]',
+    );
+
+    act(() => master?.click());
+
+    expect(controller.updateLibrary).toHaveBeenCalledWith({
+      smartViews: {
+        enabled: true,
+        visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
+      },
+    });
+  });
+
   it("renders the actual Scan on startup toggle row", () => {
     const controller = createController();
     const { container } = trackRoot(renderResults("scan startup", controller));

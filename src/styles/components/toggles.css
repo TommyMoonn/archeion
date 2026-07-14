@@ -44,3 +44,9 @@
   background: var(--accent-strong);
   transform: translateX(var(--toggle-travel, 16px));
 }
+
+.toggle-control:disabled,
+.toggle-control[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

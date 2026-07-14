@@ -5,6 +5,11 @@ export type LibraryReadingStatus = "unread" | "in-progress" | "completed";
 export type LibrarySmartView =
   "unread" | "in-progress" | "completed" | "needs-metadata" | "needs-cover";
 
+export type LibrarySmartViewPreferences = {
+  enabled: boolean;
+  visible: LibrarySmartView[];
+};
+
 export type LibraryLocation =
   | { type: "library" }
   | { type: "continue" }

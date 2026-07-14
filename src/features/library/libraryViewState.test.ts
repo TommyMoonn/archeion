@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import type { Folder } from "../../types/folder";
+import type { LibrarySmartViewPreferences } from "../../types/library";
 import {
   folderBrowserViewFromSearchParams,
+  hiddenSmartViewFallbackSearchParams,
   libraryLocationFromSearchParams,
   searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
@@ -28,6 +30,11 @@ const folders: Folder[] = [
     updatedAt: "1",
   },
 ];
+
+const limitedSmartViews: LibrarySmartViewPreferences = {
+  enabled: true,
+  visible: ["unread"],
+};
 
 function params(search: string): URLSearchParams {
   return new URLSearchParams(search);
@@ -162,5 +169,90 @@ describe("library view URL state", () => {
     expect(next.get("folderPath")).toBeNull();
     expect(next.get("folderView")).toBeNull();
     expect(next.get("archiveId")).toBe("archive-books");
+  });
+
+  it("falls back from hidden Smart View URL state and removes its stale parameters", () => {
+    expect(
+      libraryLocationFromSearchParams(
+        params("view=smart&smartView=completed&query=space"),
+        folders,
+        undefined,
+        limitedSmartViews,
+      ),
+    ).toEqual({ type: "library" });
+    expect(
+      libraryLocationFromSearchParams(
+        params("view=smart&smartView=unread"),
+        folders,
+        undefined,
+        limitedSmartViews,
+      ),
+    ).toEqual({ type: "smart-view", smartView: "unread" });
+
+    const next = searchParamsForLibraryLocation(
+      params("view=smart&smartView=completed&query=space"),
+      { type: "smart-view", smartView: "completed" },
+      folders,
+      undefined,
+      limitedSmartViews,
+    );
+
+    expect(next.get("view")).toBe("library");
+    expect(next.get("smartView")).toBeNull();
+    expect(next.get("query")).toBe("space");
+  });
+
+  it("treats Continue as hidden when the In progress Smart View is not visible", () => {
+    expect(
+      libraryLocationFromSearchParams(
+        params("view=continue&query=unfinished"),
+        folders,
+        undefined,
+        limitedSmartViews,
+      ),
+    ).toEqual({ type: "library" });
+  });
+
+  it("replaces only raw URLs that target a hidden Smart View", () => {
+    const hiddenSmart = hiddenSmartViewFallbackSearchParams(
+      params("archiveId=archive-books&view=smart&smartView=completed&query=space&folderView=cards"),
+      limitedSmartViews,
+      "archive-books",
+    );
+    const hiddenContinue = hiddenSmartViewFallbackSearchParams(
+      params("archiveId=archive-books&view=continue&query=unfinished"),
+      limitedSmartViews,
+      "archive-books",
+    );
+
+    expect(hiddenSmart?.get("view")).toBe("library");
+    expect(hiddenSmart?.get("smartView")).toBeNull();
+    expect(hiddenSmart?.get("folderView")).toBeNull();
+    expect(hiddenSmart?.get("query")).toBe("space");
+    expect(hiddenSmart?.get("archiveId")).toBe("archive-books");
+    expect(hiddenContinue?.get("view")).toBe("library");
+    expect(hiddenContinue?.get("query")).toBe("unfinished");
+  });
+
+  it("does not replace normal, unrelated, or visible Smart View URLs", () => {
+    for (const search of [
+      "",
+      "view=library",
+      "view=favorites",
+      "view=folders",
+      "view=series",
+      "view=folder&folderPath=Root",
+      "view=smart&smartView=unread",
+      "view=smart&smartView=unknown",
+    ]) {
+      expect(hiddenSmartViewFallbackSearchParams(params(search), limitedSmartViews)).toBeNull();
+    }
+
+    expect(
+      hiddenSmartViewFallbackSearchParams(params("view=continue"), {
+        enabled: true,
+        visible: ["in-progress"],
+      }),
+    ).toBeNull();
   });
 });

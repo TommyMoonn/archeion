@@ -22,10 +22,15 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
   useAppPreferencesPersistenceStatus,
+  useLibraryPreferences,
   useReaderPreferences,
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
+import {
+  isLibrarySmartViewVisible,
+  normalizeVisibleLibraryHref,
+} from "../../types/librarySmartViews";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
@@ -114,6 +119,7 @@ export function ReaderPage() {
   const storage = useLibraryStorage();
   const { openPalette } = useQuickActions();
   const settings = useReaderPreferences();
+  const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
@@ -192,7 +198,17 @@ export function ReaderPage() {
   }, [annotationNavigationSession]);
 
   const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
-  const returnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
+  const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
+  const returnContext = useMemo(() => {
+    if (!storedReturnContext) return null;
+    const href = normalizeVisibleLibraryHref(
+      storedReturnContext.href,
+      libraryPreferences.smartViews,
+    );
+    return href === storedReturnContext.href
+      ? storedReturnContext
+      : { ...storedReturnContext, href, label: undefined };
+  }, [libraryPreferences.smartViews, storedReturnContext]);
   const returnDestination = readerReturnNavigation(returnContext);
   const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
@@ -489,14 +505,18 @@ export function ReaderPage() {
         label: "Go to Library",
         order: 50,
       },
-      {
-        execute: () => navigateToLibraryView("continue"),
-        group: "Navigate",
-        id: "reader.navigate.continue",
-        keywords: ["in progress", "continue reading"],
-        label: "Go to Continue",
-        order: 51,
-      },
+      ...(isLibrarySmartViewVisible(libraryPreferences.smartViews, "in-progress")
+        ? [
+            {
+              execute: () => navigateToLibraryView("continue"),
+              group: "Navigate" as const,
+              id: "reader.navigate.continue",
+              keywords: ["in progress", "continue reading"],
+              label: "Go to Continue",
+              order: 51,
+            },
+          ]
+        : []),
       {
         execute: () => navigateToLibraryView("favorites"),
         group: "Navigate",
@@ -541,6 +561,7 @@ export function ReaderPage() {
     ];
   }, [
     navigateToLibraryView,
+    libraryPreferences.smartViews,
     navigationState.chapters.length,
     navigationState.status,
     openAnnotations,

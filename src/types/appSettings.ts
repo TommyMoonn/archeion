@@ -5,6 +5,7 @@ import type {
 } from "./settings";
 import type { ReaderSettings } from "./reader";
 import { createDefaultLibraryFilters } from "./library";
+import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 
 export type InterfaceDensity = "comfortable" | "compact";
 export type BookCardSize = "small" | "medium" | "large";
@@ -68,6 +69,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   }),
   library: Object.freeze({
     filters: Object.freeze(createDefaultLibraryFilters()),
+    smartViews: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
     sortBy: "title",
     viewMode: "grid",
   }),

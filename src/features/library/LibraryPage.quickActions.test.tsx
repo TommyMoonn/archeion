@@ -10,6 +10,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Folder } from "../../types/folder";
 import { LibraryPage } from "./LibraryPage";
 
@@ -233,5 +234,41 @@ describe("LibraryPage Quick Actions", () => {
     });
 
     expect(rendered.storage.rescan).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Continue navigation only while the In progress Smart View is visible", async () => {
+    const original = appPreferencesStore.getSnapshot();
+
+    try {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: false, visible: ["in-progress"] },
+          },
+        });
+      });
+      await renderLibrary();
+      let search = await openPalette();
+      await act(async () => setInputValue(search, "Go to Continue"));
+      expect(document.querySelector('[role="option"]')).toBeNull();
+
+      await act(async () => {
+        search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: true, visible: ["in-progress"] },
+          },
+        });
+      });
+      search = await openPalette();
+      await act(async () => setInputValue(search, "Go to Continue"));
+      expect(document.querySelector('[role="option"]')?.textContent).toContain("Go to Continue");
+    } finally {
+      await act(async () => {
+        await appPreferencesStore.update(original);
+      });
+    }
   });
 });

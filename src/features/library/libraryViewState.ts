@@ -1,6 +1,15 @@
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 import type { Folder } from "../../types/folder";
-import type { FolderBrowserView, LibraryLocation, LibrarySmartView } from "../../types/library";
+import type {
+  FolderBrowserView,
+  LibraryLocation,
+  LibrarySmartViewPreferences,
+} from "../../types/library";
+import {
+  isLibrarySmartView,
+  isLibrarySmartViewVisible,
+  normalizeVisibleLibraryLocation,
+} from "../../types/librarySmartViews";
 
 const LIBRARY_VIEW_PARAM = "view";
 const FOLDER_PATH_PARAM = "folderPath";
@@ -10,20 +19,6 @@ const SMART_VIEW_PARAM = "smartView";
 const ARCHIVE_ID_PARAM = "archiveId";
 const DEFAULT_LIBRARY_LOCATION: LibraryLocation = { type: "library" };
 export const DEFAULT_FOLDER_BROWSER_VIEW: FolderBrowserView = "list";
-
-const supportedSmartViews = new Set<LibrarySmartView>([
-  "unread",
-  "in-progress",
-  "completed",
-  "needs-metadata",
-  "needs-cover",
-]);
-
-function normalizeSmartView(value: string | null): LibrarySmartView | null {
-  return value && supportedSmartViews.has(value as LibrarySmartView)
-    ? (value as LibrarySmartView)
-    : null;
-}
 
 function normalizedFolderPathKey(path: string | undefined): string | null {
   if (!path?.trim()) {
@@ -57,6 +52,7 @@ export function libraryLocationFromSearchParams(
   searchParams: URLSearchParams,
   folders: Folder[],
   activeArchiveId?: string,
+  smartViewPreferences?: LibrarySmartViewPreferences,
 ): LibraryLocation {
   const urlArchiveId = searchParams.get(ARCHIVE_ID_PARAM);
 
@@ -70,11 +66,20 @@ export function libraryLocationFromSearchParams(
     case "favorites":
       return { type: "favorites" };
     case "smart": {
-      const smartView = normalizeSmartView(searchParams.get(SMART_VIEW_PARAM));
-      return smartView ? { type: "smart-view", smartView } : DEFAULT_LIBRARY_LOCATION;
+      const smartView = searchParams.get(SMART_VIEW_PARAM);
+      const location: LibraryLocation = isLibrarySmartView(smartView)
+        ? { type: "smart-view", smartView }
+        : DEFAULT_LIBRARY_LOCATION;
+      return smartViewPreferences
+        ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
+        : location;
     }
-    case "continue":
-      return { type: "continue" };
+    case "continue": {
+      const location: LibraryLocation = { type: "continue" };
+      return smartViewPreferences
+        ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
+        : location;
+    }
     case "folders":
       return { type: "folders" };
     case "series": {
@@ -106,8 +111,12 @@ export function searchParamsForLibraryLocation(
   location: LibraryLocation,
   folders: Folder[],
   activeArchiveId?: string,
+  smartViewPreferences?: LibrarySmartViewPreferences,
 ): URLSearchParams {
   const nextParams = new URLSearchParams(currentParams);
+  const visibleLocation = smartViewPreferences
+    ? normalizeVisibleLibraryLocation(location, smartViewPreferences)
+    : location;
 
   if (activeArchiveId) {
     nextParams.set(ARCHIVE_ID_PARAM, activeArchiveId);
@@ -116,8 +125,8 @@ export function searchParamsForLibraryLocation(
   nextParams.delete(SERIES_KEY_PARAM);
   nextParams.delete(SMART_VIEW_PARAM);
 
-  if (location.type === "folder") {
-    const folderPath = folderPathForLocation(location, folders);
+  if (visibleLocation.type === "folder") {
+    const folderPath = folderPathForLocation(visibleLocation, folders);
 
     if (!folderPath) {
       nextParams.set(LIBRARY_VIEW_PARAM, "library");
@@ -130,27 +139,53 @@ export function searchParamsForLibraryLocation(
     return nextParams;
   }
 
-  if (location.type === "series-detail") {
+  if (visibleLocation.type === "series-detail") {
     nextParams.set(LIBRARY_VIEW_PARAM, "series");
-    nextParams.set(SERIES_KEY_PARAM, location.seriesKey);
+    nextParams.set(SERIES_KEY_PARAM, visibleLocation.seriesKey);
     nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }
 
-  if (location.type === "smart-view") {
+  if (visibleLocation.type === "smart-view") {
     nextParams.set(LIBRARY_VIEW_PARAM, "smart");
-    nextParams.set(SMART_VIEW_PARAM, location.smartView);
+    nextParams.set(SMART_VIEW_PARAM, visibleLocation.smartView);
     nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }
 
-  nextParams.set(LIBRARY_VIEW_PARAM, location.type);
+  nextParams.set(LIBRARY_VIEW_PARAM, visibleLocation.type);
 
-  if (location.type !== "folders") {
+  if (visibleLocation.type !== "folders") {
     nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
   }
 
   return nextParams;
+}
+
+export function hiddenSmartViewFallbackSearchParams(
+  currentParams: URLSearchParams,
+  smartViewPreferences: LibrarySmartViewPreferences,
+  activeArchiveId?: string,
+): URLSearchParams | null {
+  const view = currentParams.get(LIBRARY_VIEW_PARAM);
+  const requestedSmartView = currentParams.get(SMART_VIEW_PARAM);
+  const smartView =
+    view === "continue"
+      ? "in-progress"
+      : view === "smart" && isLibrarySmartView(requestedSmartView)
+        ? requestedSmartView
+        : null;
+
+  if (!smartView || isLibrarySmartViewVisible(smartViewPreferences, smartView)) {
+    return null;
+  }
+
+  return searchParamsForLibraryLocation(
+    currentParams,
+    DEFAULT_LIBRARY_LOCATION,
+    [],
+    activeArchiveId,
+  );
 }
 
 export function searchParamsForFolderBrowserView(

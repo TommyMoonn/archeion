@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultAppPreferences } from "../../../types/appSettings";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { ArchivesSettingsSection } from "./ArchivesSettingsSection";
+import { LibrarySettingsSection } from "./LibrarySettingsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
@@ -97,5 +98,28 @@ describe("settings section components", () => {
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Reveal in folder");
+  });
+
+  it("renders Smart Views as one accessible Library settings group", () => {
+    const markup = renderToStaticMarkup(<LibrarySettingsSection context={createController()} />);
+
+    expect(markup).toContain("Smart Views");
+    expect(markup).toContain("Show Smart Views");
+    expect(markup).toContain('aria-label="Show Unread Smart View"');
+    expect(markup).toContain("Turn on Show Smart Views to choose visible views.");
+  });
+
+  it("explains why the final enabled Smart View cannot be removed", () => {
+    const library = {
+      ...defaultAppPreferences.library,
+      smartViews: { enabled: true, visible: ["completed" as const] },
+    };
+    const preferences = { ...defaultAppPreferences, library };
+    const markup = renderToStaticMarkup(
+      <LibrarySettingsSection context={createController({ library, preferences })} />,
+    );
+
+    expect(markup).toContain("At least one Smart View must remain selected");
+    expect(markup).toContain('aria-label="Show Completed Smart View"');
   });
 });

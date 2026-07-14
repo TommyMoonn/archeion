@@ -14,6 +14,12 @@ import {
   normalizeLibraryFilters,
   normalizeLibrarySort,
 } from "../types/library";
+import type { LibrarySmartViewPreferences } from "../types/library";
+import {
+  DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
+  isLibrarySmartView,
+  LIBRARY_SMART_VIEWS,
+} from "../types/librarySmartViews";
 import type {
   FilesAndMetadataSettings,
   GlobalImportSettings,
@@ -104,10 +110,26 @@ function normalizeLibraryViewMode(value: unknown): LibraryDisplaySettings["viewM
   return value === "list" ? "list" : defaultAppPreferences.library.viewMode;
 }
 
+export function normalizeLibrarySmartViewPreferences(value: unknown): LibrarySmartViewPreferences {
+  const settings = isRecord(value) ? value : {};
+  const requested = Array.isArray(settings.visible)
+    ? new Set(settings.visible.filter(isLibrarySmartView))
+    : null;
+  const visible = requested
+    ? LIBRARY_SMART_VIEWS.filter((smartView) => requested.has(smartView))
+    : [];
+
+  return {
+    enabled: settings.enabled === true,
+    visible: visible.length > 0 ? visible : [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
+  };
+}
+
 function normalizeLibrarySettings(value: unknown): LibraryDisplaySettings {
   const settings = isRecord(value) ? value : {};
   return {
     filters: normalizeLibraryFilters(settings.filters),
+    smartViews: normalizeLibrarySmartViewPreferences(settings.smartViews),
     sortBy: normalizeLibrarySort(settings.sortBy),
     viewMode: normalizeLibraryViewMode(settings.viewMode),
   };

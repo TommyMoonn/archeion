@@ -3,7 +3,12 @@ import { useMemo, useRef } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { LibraryFilterState, LibraryLocation, LibrarySort } from "../../types/library";
+import type {
+  LibraryFilterState,
+  LibraryLocation,
+  LibrarySmartViewPreferences,
+  LibrarySort,
+} from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import { isBookInProgress } from "../reading/readingProgress";
 import {
@@ -29,6 +34,7 @@ type LibraryDerivedStateInput = {
   folders: Folder[] | undefined;
   location: LibraryLocation;
   searchIndexCache: LibrarySearchIndexCache;
+  smartViewPreferences: LibrarySmartViewPreferences;
   sort: LibrarySort;
 };
 
@@ -83,6 +89,7 @@ export function useLibraryDerivedState({
   folders,
   location,
   searchIndexCache,
+  smartViewPreferences,
   sort,
 }: LibraryDerivedStateInput): LibraryDerivedState {
   const currentBooks = useMemo(() => books ?? [], [books]);
@@ -118,7 +125,13 @@ export function useLibraryDerivedState({
     [debouncedQuery, effectiveSort, filters, location, searchIndex],
   );
   const filterOptions = useMemo(() => deriveLibraryFilterOptions(currentBooks), [currentBooks]);
-  const smartViewCounts = useMemo(() => countBooksBySmartView(currentBooks), [currentBooks]);
+  const smartViewCounts = useMemo(
+    () =>
+      smartViewPreferences.enabled
+        ? countBooksBySmartView(currentBooks, smartViewPreferences.visible)
+        : countBooksBySmartView([], []),
+    [currentBooks, smartViewPreferences],
+  );
   const continuePreview = useMemo(
     () => summary.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
     [summary.continueBooks],
