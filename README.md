@@ -9,7 +9,7 @@
 <p align="center">
   <a href="https://tommymoonn.github.io/archeion/">Website</a>
   ·
-  <a href="https://github.com/TommyMoonn/archeion/releases/latest">Download</a>
+  <a href="#download-archeion">Download</a>
   ·
   <a href="#features">Features</a>
   ·
@@ -30,6 +30,18 @@ Archeion turns a normal folder of EPUB files into a fast personal archive. It ke
 books on your computer, preserves your existing folder structure, and stores its
 own reading data beside the archive instead of requiring an account or cloud
 service.
+
+## Download Archeion
+
+- **[Windows EXE installer](https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion_0.3.0_x64-setup.exe)** — recommended
+- **[Windows MSI installer](https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion_0.3.0_x64_en-US.msi)**
+
+### Releases
+
+Archeion currently targets Windows 11 on x64 systems. Other desktop platforms are not packaged or supported yet.
+
+See the [latest release notes](https://github.com/TommyMoonn/archeion/releases/latest)
+or browse [all releases](https://github.com/TommyMoonn/archeion/releases).
 
 ## Features
 
@@ -64,14 +76,6 @@ Your Archive/
     covers/
     backups/
 ```
-
-## Get Archeion
-
-Download the latest Windows installers from the
-[GitHub Releases page](https://github.com/TommyMoonn/archeion/releases/latest).
-
-Archeion currently targets Windows 11. Other desktop platforms are not packaged
-or supported yet.
 
 ## Project documentation
 
