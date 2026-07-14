@@ -206,16 +206,10 @@ export function useReaderSideSurface<NoteTarget>({
 
   const surface = surfaceFromState(state);
   const noteTarget = state.kind === "annotations" ? state.noteTarget : undefined;
-  const noteTargetRef = useMemo(
-    () =>
-      ({
-        get current() {
-          const current = stateRef.current;
-          return current.kind === "annotations" ? (current.noteTarget ?? null) : null;
-        },
-      }) as MutableRefObject<NoteTarget | null>,
-    [],
-  );
+  const getNoteTarget = useCallback(() => {
+    const current = stateRef.current;
+    return current.kind === "annotations" ? (current.noteTarget ?? null) : null;
+  }, []);
   const surfaceRef = useMemo(
     () =>
       ({
@@ -234,8 +228,8 @@ export function useReaderSideSurface<NoteTarget>({
       closeSettings,
       closeToc,
       closeTopmost,
+      getNoteTarget,
       noteTarget,
-      noteTargetRef,
       openAnnotations,
       openSettings,
       openToc,
@@ -260,8 +254,8 @@ export function useReaderSideSurface<NoteTarget>({
       closeSettings,
       closeToc,
       closeTopmost,
+      getNoteTarget,
       noteTarget,
-      noteTargetRef,
       openAnnotations,
       openSettings,
       openToc,

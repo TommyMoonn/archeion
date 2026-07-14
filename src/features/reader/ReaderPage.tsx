@@ -38,7 +38,7 @@ import {
   type ReaderNavigationState,
   type ReaderSettings,
 } from "../../types/reader";
-import { EpubViewer, type EpubViewerHandle, type ReaderTextSelection } from "./EpubViewer";
+import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import type { ReaderLocation } from "./readerLocation";
 import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
@@ -49,7 +49,7 @@ import { ReaderToolbar } from "./ReaderToolbar";
 import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
-import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
+import { ReaderNoteEditor } from "./ReaderNoteEditor";
 import { getReaderKeyboardIntent } from "./readerNavigation";
 import { highlightNavigationTarget } from "./readerAnnotationNavigation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
@@ -67,14 +67,11 @@ import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
 import { exportReaderAnnotationsToFile } from "./readerAnnotationExportFile";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
-
-type ReaderNoteTarget = {
-  annotation: HighlightAnnotation;
-  bookId: string;
-  keepsHighlightOnEmptyClose: boolean;
-  editorKey: number;
-  targetIdentity: string;
-};
+import {
+  readerNoteTargetAnnotationId,
+  useReaderNoteSession,
+  type ReaderNoteTarget,
+} from "./useReaderNoteSession";
 
 type ReaderAnnotationNavigationSession = {
   bookId?: string;
@@ -93,14 +90,6 @@ function sameReaderAnnotationSession(
   right: ReaderAnnotationNavigationSession,
 ): boolean {
   return left.bookId === right.bookId && left.token === right.token;
-}
-
-function noteTargetIdentity(annotation: Annotation): string {
-  return `annotation:${annotation.id}`;
-}
-
-function noteTargetAnnotationId(target: ReaderNoteTarget): string {
-  return target.annotation.id;
 }
 
 export function ReaderRoute() {
@@ -125,9 +114,7 @@ export function ReaderPage() {
   const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
-  const noteEditorRef = useRef<ReaderNoteEditorHandle>(null);
   const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
-  const noteEditorKeyRef = useRef(0);
   const progressWriter = useRef<DebouncedTask<{
     bookId: string;
     location: ReaderLocation;
@@ -150,52 +137,6 @@ export function ReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
-  const noteOpenRequestRef = useRef(0);
-  const currentBookIdRef = useRef<string | undefined>(book?.id);
-  const settleActiveNoteEditor = useCallback(async () => {
-    return noteEditorRef.current ? noteEditorRef.current.settle() : true;
-  }, []);
-  const invalidateNoteOpenRequests = useCallback(() => {
-    noteOpenRequestRef.current += 1;
-  }, []);
-  const controlledTransitions = useReaderControlledTransitions({
-    onTransitionIntent: invalidateNoteOpenRequests,
-    sessionKey: bookId,
-    settle: settleActiveNoteEditor,
-  });
-  const revealSideSurfaceControls = useCallback(() => setControlsVisible(true), []);
-  const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
-    annotationId: noteTargetAnnotationId,
-    revealControls: revealSideSurfaceControls,
-    transitions: controlledTransitions,
-  });
-  const {
-    annotationButtonRef,
-    annotationsOpen,
-    closeAnnotations,
-    closeSettings,
-    closeToc,
-    closeTopmost,
-    noteTarget,
-    noteTargetRef,
-    openAnnotations,
-    openSettings,
-    openToc,
-    restoreFocusAnnotationId: annotationFocusTargetId,
-    returnNoteToAnnotations,
-    settingsButtonRef,
-    settingsOpen,
-    showNoteTarget,
-    surfaceRef: sideSurfaceRef,
-    tocButtonRef,
-    tocOpen,
-    toggleAnnotations,
-    toggleToc,
-    updateNoteTarget,
-  } = sideSurfaces;
-  const runAfterActiveNoteSettles = controlledTransitions.runAfterSettlement;
-  const runControlledReaderExit = controlledTransitions.runControlledExit;
-  const runControlledReaderTransition = controlledTransitions.runControlledTransition;
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
   const annotationNavigationSession = useMemo<ReaderAnnotationNavigationSession>(
@@ -269,6 +210,69 @@ export function ReaderPage() {
     onAnnotationChange: annotations.sync,
     storage,
   });
+  const {
+    connectSurface: connectNoteSurface,
+    deleteNote,
+    editorHandleRef,
+    invalidateOpenRequests,
+    openAnnotationNote,
+    openSelectionNote,
+    saveNote,
+    settle: settleNoteEditor,
+  } = useReaderNoteSession({
+    archiveId: activeArchiveId,
+    bookId,
+    ensureHighlight: highlights.ensure,
+    storage,
+    syncAnnotation: annotations.sync,
+  });
+  const controlledTransitions = useReaderControlledTransitions({
+    onTransitionIntent: invalidateOpenRequests,
+    sessionKey: bookId,
+    settle: settleNoteEditor,
+  });
+  const revealSideSurfaceControls = useCallback(() => setControlsVisible(true), []);
+  const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
+    annotationId: readerNoteTargetAnnotationId,
+    revealControls: revealSideSurfaceControls,
+    transitions: controlledTransitions,
+  });
+  const {
+    annotationButtonRef,
+    annotationsOpen,
+    closeAnnotations,
+    closeSettings,
+    closeToc,
+    closeTopmost,
+    getNoteTarget,
+    noteTarget,
+    openAnnotations,
+    openSettings,
+    openToc,
+    restoreFocusAnnotationId: annotationFocusTargetId,
+    returnNoteToAnnotations,
+    settingsButtonRef,
+    settingsOpen,
+    showNoteTarget,
+    surfaceRef: sideSurfaceRef,
+    tocButtonRef,
+    tocOpen,
+    toggleAnnotations,
+    toggleToc,
+    updateNoteTarget,
+  } = sideSurfaces;
+  const runControlledReaderExit = controlledTransitions.runControlledExit;
+  const runControlledReaderTransition = controlledTransitions.runControlledTransition;
+
+  useLayoutEffect(
+    () =>
+      connectNoteSurface({
+        getTarget: getNoteTarget,
+        showTarget: showNoteTarget,
+        updateTarget: updateNoteTarget,
+      }),
+    [connectNoteSurface, getNoteTarget, showNoteTarget, updateNoteTarget],
+  );
   useEffect(() => {
     const current = currentAnnotationRef.current;
     if (!current || annotations.loadStatus !== "ready") return;
@@ -286,18 +290,9 @@ export function ReaderPage() {
     storage,
   });
 
-  const beginNoteOpenRequest = useCallback(() => {
-    const requestId = ++noteOpenRequestRef.current;
-    return requestId;
-  }, []);
-
   useEffect(() => {
     controlsVisibleRef.current = controlsVisible;
   }, [controlsVisible]);
-
-  useEffect(() => {
-    currentBookIdRef.current = bookId;
-  }, [bookId]);
 
   useEffect(() => {
     return () => {
@@ -610,158 +605,6 @@ export function ReaderPage() {
     [annotations],
   );
 
-  const publishNoteTarget = useCallback(
-    (target: ReaderNoteTarget) => {
-      if (!mountedRef.current) return;
-      showNoteTarget(target);
-    },
-    [showNoteTarget],
-  );
-
-  const isCurrentNoteOpenRequest = useCallback(
-    (requestId: number, sessionBookId: string) =>
-      Boolean(
-        mountedRef.current &&
-        currentBookIdRef.current === sessionBookId &&
-        noteOpenRequestRef.current === requestId,
-      ),
-    [],
-  );
-
-  const settleCurrentNoteForRequest = useCallback(
-    async (requestId: number, sessionBookId: string) =>
-      runAfterActiveNoteSettles(
-        () => undefined,
-        () => isCurrentNoteOpenRequest(requestId, sessionBookId),
-      ),
-    [isCurrentNoteOpenRequest, runAfterActiveNoteSettles],
-  );
-
-  const isCurrentNoteSession = useCallback(
-    (sessionId: number, sessionBookId: string, targetIdentity: string) => {
-      const current = noteTargetRef.current;
-      return Boolean(
-        mountedRef.current &&
-        current?.editorKey === sessionId &&
-        current.bookId === sessionBookId &&
-        current.targetIdentity === targetIdentity,
-      );
-    },
-    [noteTargetRef],
-  );
-
-  const syncSavedNote = useCallback(
-    (sessionBookId: string, saved: Annotation) => {
-      if (!mountedRef.current || currentBookIdRef.current !== sessionBookId) return;
-      annotations.sync(saved);
-    },
-    [annotations],
-  );
-
-  const openSelectionNote = useCallback(
-    (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => {
-      const sessionBookId = bookId;
-      if (!sessionBookId) return;
-
-      const requestId = beginNoteOpenRequest();
-      const capturedSelection = { ...selection };
-      void (async () => {
-        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return;
-
-        const annotation = existingHighlight ?? (await highlights.ensure(capturedSelection));
-        if (!annotation || !isCurrentNoteOpenRequest(requestId, sessionBookId)) return;
-        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return;
-
-        publishNoteTarget({
-          annotation,
-          bookId: sessionBookId,
-          keepsHighlightOnEmptyClose: existingHighlight === undefined,
-          editorKey: ++noteEditorKeyRef.current,
-          targetIdentity: noteTargetIdentity(annotation),
-        });
-      })().catch(() => undefined);
-    },
-    [
-      beginNoteOpenRequest,
-      bookId,
-      settleCurrentNoteForRequest,
-      highlights,
-      isCurrentNoteOpenRequest,
-      publishNoteTarget,
-    ],
-  );
-
-  const saveNoteSession = useCallback(
-    async (
-      target: ReaderNoteTarget,
-      note: string,
-      persistedAnnotation: HighlightAnnotation,
-    ): Promise<HighlightAnnotation | undefined> => {
-      if (!note.trim()) return undefined;
-      try {
-        const saved = await storage.updateHighlightAnnotation(
-          target.bookId,
-          persistedAnnotation.id,
-          {
-            note,
-          },
-        );
-        if (!saved) return undefined;
-
-        if (isCurrentNoteSession(target.editorKey, target.bookId, target.targetIdentity)) {
-          const nextTarget = { ...target, annotation: saved };
-          updateNoteTarget(nextTarget);
-        }
-        syncSavedNote(target.bookId, saved);
-        return saved;
-      } catch {
-        return undefined;
-      }
-    },
-    [isCurrentNoteSession, storage, syncSavedNote, updateNoteTarget],
-  );
-
-  const deleteNoteSession = useCallback(
-    async (target: ReaderNoteTarget, persistedAnnotation: HighlightAnnotation) => {
-      try {
-        const updated = await storage.updateHighlightAnnotation(
-          target.bookId,
-          persistedAnnotation.id,
-          { note: undefined },
-        );
-        if (!updated) return false;
-        syncSavedNote(target.bookId, updated);
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [storage, syncSavedNote],
-  );
-
-  const openAnnotationNote = useCallback(
-    async (annotation: Annotation) => {
-      const sessionBookId = bookId;
-      if (!sessionBookId || annotation.type !== "highlight") return false;
-
-      const requestId = beginNoteOpenRequest();
-      try {
-        if (!(await settleCurrentNoteForRequest(requestId, sessionBookId))) return false;
-        publishNoteTarget({
-          annotation,
-          bookId: sessionBookId,
-          keepsHighlightOnEmptyClose: false,
-          editorKey: ++noteEditorKeyRef.current,
-          targetIdentity: noteTargetIdentity(annotation),
-        });
-        return true;
-      } catch {
-        return false;
-      }
-    },
-    [beginNoteOpenRequest, bookId, settleCurrentNoteForRequest, publishNoteTarget],
-  );
-
   const removeAnnotation = useCallback(
     (annotation: Annotation) => annotations.remove(annotation),
     [annotations],
@@ -870,7 +713,6 @@ export function ReaderPage() {
       progressWriter.current?.flush();
       annotationNavigationRequestRef.current += 1;
       currentAnnotationRef.current = undefined;
-      noteOpenRequestRef.current += 1;
       mountedRef.current = false;
     };
   }, []);
@@ -1274,11 +1116,11 @@ export function ReaderPage() {
               keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
               key={noteTarget.editorKey}
               onBack={returnNoteToAnnotations}
-              onDelete={(persistedAnnotation) => deleteNoteSession(noteTarget, persistedAnnotation)}
+              onDelete={(persistedAnnotation) => deleteNote(noteTarget, persistedAnnotation)}
               onSave={(note, persistedAnnotation) =>
-                saveNoteSession(noteTarget, note, persistedAnnotation)
+                saveNote(noteTarget, note, persistedAnnotation)
               }
-              ref={noteEditorRef}
+              ref={editorHandleRef}
             />
           ) : null}
         </>
