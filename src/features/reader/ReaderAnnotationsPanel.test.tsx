@@ -932,7 +932,7 @@ describe("ReaderAnnotationsPanel", () => {
     });
   });
 
-  it("restores focus to a surviving annotation row after removal", async () => {
+  it("restores focus to the next surviving annotation row after removal", async () => {
     function RemovablePanel() {
       const [annotations, setAnnotations] = useState<Annotation[]>([bookmark, highlight]);
       return (
@@ -953,6 +953,105 @@ describe("ReaderAnnotationsPanel", () => {
 
     expect(target.textContent).not.toContain("Chapter start");
     expect(document.activeElement).toBe(button(target, "Actions for Highlight"));
+  });
+
+  it("restores focus to the previous surviving annotation row after removing the final row", async () => {
+    function RemovablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([bookmark, highlight]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRemove={async (annotation) => {
+            setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
+            return true;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RemovablePanel />);
+    act(() => button(target, "Actions for Highlight").click());
+    act(() => textButton(target, "Remove highlight").click());
+    await act(async () => textButton(target, "Remove").click());
+
+    expect(target.textContent).not.toContain("A quoted passage");
+    expect(document.activeElement).toBe(button(target, "Actions for Chapter start"));
+  });
+
+  it("focuses annotation search after removing the final visible annotation", async () => {
+    function RemovablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([bookmark]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRemove={async (annotation) => {
+            setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
+            return true;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RemovablePanel />);
+    act(() => button(target, "Actions for Chapter start").click());
+    act(() => textButton(target, "Remove bookmark").click());
+    await act(async () => textButton(target, "Remove").click());
+
+    expect(target.textContent).toContain("No annotations");
+    expect(document.activeElement).toBe(
+      target.querySelector<HTMLInputElement>('input[type="search"]'),
+    );
+  });
+
+  it("focuses the panel when annotation search is unavailable after final-row removal", async () => {
+    function RemovablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([bookmark]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRemove={async (annotation) => {
+            setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
+            return true;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RemovablePanel />);
+    const search = target.querySelector<HTMLInputElement>('input[type="search"]')!;
+    search.disabled = true;
+    act(() => button(target, "Actions for Chapter start").click());
+    act(() => textButton(target, "Remove bookmark").click());
+    await act(async () => textButton(target, "Remove").click());
+
+    expect(document.activeElement).toBe(target.querySelector("aside"));
+  });
+
+  it("uses shell focus fallback when filtering leaves no surviving rendered row", async () => {
+    function RemovablePanel() {
+      const [annotations, setAnnotations] = useState<Annotation[]>([bookmark, highlight]);
+      return (
+        <ReaderAnnotationsPanel
+          {...defaultProps({ annotations })}
+          onRemove={async (annotation) => {
+            setAnnotations((current) => current.filter((item) => item.id !== annotation.id));
+            return true;
+          }}
+        />
+      );
+    }
+
+    const target = mount(<RemovablePanel />);
+    const search = target.querySelector<HTMLInputElement>('input[type="search"]')!;
+    setInputValue(search, "chapter start");
+    await act(async () => Promise.resolve());
+    act(() => button(target, "Actions for Chapter start").click());
+    act(() => textButton(target, "Remove bookmark").click());
+    await act(async () => textButton(target, "Remove").click());
+
+    expect(target.textContent).toContain("No matches");
+    expect(document.activeElement).toBe(search);
+    expect(document.activeElement).not.toBe(document.body);
   });
 
   it("uses annotation-wide search copy and searches labels, chapters, quotes, and notes", async () => {
@@ -1077,5 +1176,68 @@ describe("ReaderAnnotationsPanel", () => {
     expect(rendered.container.querySelectorAll(".reader-annotations__item")).toHaveLength(200);
     act(() => textButton(rendered.container, "Show more 5 remaining").click());
     expect(rendered.container.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
+  });
+  it("preserves query, view, render limit, scroll, and row focus across note-editor transitions", () => {
+    const annotations = Array.from({ length: 205 }, (_, index): Annotation => ({
+      ...highlight,
+      cfiRange: `epubcfi(/6/${index + 4},/1:0,/1:18)`,
+      id: `highlight-${index}`,
+      note: undefined,
+      selectedText: `Passage ${index}`,
+    }));
+
+    function NoteTransitionHarness() {
+      const [active, setActive] = useState(true);
+      return (
+        <>
+          <button aria-label="Open note editor" onClick={() => setActive(false)} type="button">
+            Open note editor
+          </button>
+          <button aria-label="Return to annotations" onClick={() => setActive(true)} type="button">
+            Return to annotations
+          </button>
+          <ReaderAnnotationsPanel
+            {...defaultProps({
+              active,
+              annotations,
+              currentCfi: undefined,
+              restoreFocusAnnotationId: "highlight-204",
+            })}
+          />
+        </>
+      );
+    }
+
+    const target = mount(<NoteTransitionHarness />);
+    const search = target.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const highlightsView = textButton(target, "Highlights");
+    pointerClick(highlightsView);
+    setInputValue(search, "passage");
+    act(() => textButton(target, "Show more 5 remaining").click());
+    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
+    const body = target.querySelector<HTMLElement>(".reader-annotations__body")!;
+    act(() => {
+      body.scrollTop = 146;
+    });
+
+    pointerClick(button(target, "Open note editor"));
+    expect(target.querySelector("aside")?.hidden).toBe(true);
+    pointerClick(button(target, "Return to annotations"));
+
+    expect(search.value).toBe("passage");
+    expect(highlightsView.getAttribute("aria-checked")).toBe("true");
+    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
+    expect(
+      Array.from(target.querySelectorAll<HTMLButtonElement>("button")).some((candidate) =>
+        candidate.textContent?.includes("Show more"),
+      ),
+    ).toBe(false);
+    expect(body.scrollTop).toBe(146);
+    const restoredRow = Array.from(
+      target.querySelectorAll<HTMLElement>(".reader-annotations__item"),
+    ).find((row) => row.textContent?.includes("Passage 204"));
+    expect(document.activeElement).toBe(
+      restoredRow?.querySelector<HTMLButtonElement>("[data-annotation-menu-trigger]"),
+    );
   });
 });
