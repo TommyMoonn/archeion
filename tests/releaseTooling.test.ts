@@ -94,7 +94,22 @@ function createFixture({
   return root;
 }
 
-function runPowerShell(scriptName: string, args: string[]) {
+function releaseToolingEnvironment(
+  overrides: NodeJS.ProcessEnv = {},
+): NodeJS.ProcessEnv {
+  const environment = { ...process.env };
+
+  delete environment.GITHUB_REF_NAME;
+  delete environment.GITHUB_REF_TYPE;
+
+  return { ...environment, ...overrides };
+}
+
+function runPowerShell(
+  scriptName: string,
+  args: string[],
+  environmentOverrides: NodeJS.ProcessEnv = {},
+) {
   return spawnSync(
     "pwsh",
     [
@@ -108,6 +123,7 @@ function runPowerShell(scriptName: string, args: string[]) {
     {
       cwd: projectRoot,
       encoding: "utf8",
+      env: releaseToolingEnvironment(environmentOverrides),
       windowsHide: true,
     },
   );
@@ -161,6 +177,22 @@ describeReleaseTooling("release tooling", () => {
       "v0.3.0",
       "-RequireChangelogEntry",
     ]);
+
+    expect(combinedOutput(result)).toContain("Release configuration is valid.");
+    expect(combinedOutput(result)).toContain("Tag:     v0.3.0");
+    expect(result.status).toBe(0);
+  });
+
+  it("validates an inherited GitHub release tag when no explicit tag is supplied", () => {
+    const root = createFixture();
+    const result = runPowerShell(
+      "check-release.ps1",
+      ["-ProjectRoot", root],
+      {
+        GITHUB_REF_NAME: "v0.3.0",
+        GITHUB_REF_TYPE: "tag",
+      },
+    );
 
     expect(combinedOutput(result)).toContain("Release configuration is valid.");
     expect(combinedOutput(result)).toContain("Tag:     v0.3.0");
