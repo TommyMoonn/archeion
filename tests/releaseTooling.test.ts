@@ -188,15 +188,9 @@ describeReleaseTooling("release tooling", () => {
     "updates all application version sources as one transaction",
     () => {
       const root = createFixture();
-      const result = runPowerShell("set-version.ps1", [
-        "0.4.0-beta.1",
-        "-ProjectRoot",
-        root,
-      ]);
+      const result = runPowerShell("set-version.ps1", ["0.4.0-beta.1", "-ProjectRoot", root]);
 
-      expect(combinedOutput(result)).toContain(
-        "Updated Archeion to version 0.4.0-beta.1.",
-      );
+      expect(combinedOutput(result)).toContain("Updated Archeion to version 0.4.0-beta.1.");
       expect(result.status).toBe(0);
       expect(readVersions(root)).toEqual({
         packageJson: "0.4.0-beta.1",
