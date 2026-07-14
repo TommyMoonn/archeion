@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scriptsRoot = path.join(projectRoot, "scripts");
 const temporaryRoots: string[] = [];
+const versionUpdateTimeout = 30_000;
 
 function commandExists(command: string): boolean {
   const result = spawnSync(command, ["--version"], {
@@ -183,45 +184,61 @@ describeReleaseTooling("release tooling", () => {
     );
   });
 
-  it("updates all application version sources as one transaction", () => {
-    const root = createFixture();
-    const result = runPowerShell("set-version.ps1", ["0.4.0-beta.1", "-ProjectRoot", root]);
+  it(
+    "updates all application version sources as one transaction",
+    () => {
+      const root = createFixture();
+      const result = runPowerShell("set-version.ps1", [
+        "0.4.0-beta.1",
+        "-ProjectRoot",
+        root,
+      ]);
 
-    expect(combinedOutput(result)).toContain("Updated Archeion to version 0.4.0-beta.1.");
-    expect(result.status).toBe(0);
-    expect(readVersions(root)).toEqual({
-      packageJson: "0.4.0-beta.1",
-      packageLock: "0.4.0-beta.1",
-      cargoToml: "0.4.0-beta.1",
-      cargoLock: "0.4.0-beta.1",
-      tauriConfig: "0.4.0-beta.1",
-    });
-  });
+      expect(combinedOutput(result)).toContain(
+        "Updated Archeion to version 0.4.0-beta.1.",
+      );
+      expect(result.status).toBe(0);
+      expect(readVersions(root)).toEqual({
+        packageJson: "0.4.0-beta.1",
+        packageLock: "0.4.0-beta.1",
+        cargoToml: "0.4.0-beta.1",
+        cargoLock: "0.4.0-beta.1",
+        tauriConfig: "0.4.0-beta.1",
+      });
+    },
+    versionUpdateTimeout,
+  );
 
-  it("restores every version file when an update step fails", () => {
-    const root = createFixture({ cargoLockIncludesArcheion: false });
-    const versionPaths = [
-      "package.json",
-      "package-lock.json",
-      "src-tauri/Cargo.toml",
-      "src-tauri/Cargo.lock",
-      "src-tauri/tauri.conf.json",
-    ];
-    const before = new Map(
-      versionPaths.map((relativePath) => [
-        relativePath,
-        fs.readFileSync(path.join(root, relativePath), "utf8"),
-      ]),
-    );
+  it(
+    "restores every version file when an update step fails",
+    () => {
+      const root = createFixture({ cargoLockIncludesArcheion: false });
+      const versionPaths = [
+        "package.json",
+        "package-lock.json",
+        "src-tauri/Cargo.toml",
+        "src-tauri/Cargo.lock",
+        "src-tauri/tauri.conf.json",
+      ];
+      const before = new Map(
+        versionPaths.map((relativePath) => [
+          relativePath,
+          fs.readFileSync(path.join(root, relativePath), "utf8"),
+        ]),
+      );
 
-    const result = runPowerShell("set-version.ps1", ["0.4.0", "-ProjectRoot", root]);
+      const result = runPowerShell("set-version.ps1", ["0.4.0", "-ProjectRoot", root]);
 
-    expect(result.status).not.toBe(0);
-    expect(combinedOutput(result)).toContain(
-      "Unable to locate src-tauri/Cargo.lock Archeion package.version.",
-    );
-    for (const relativePath of versionPaths) {
-      expect(fs.readFileSync(path.join(root, relativePath), "utf8")).toBe(before.get(relativePath));
-    }
-  });
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toContain(
+        "Unable to locate src-tauri/Cargo.lock Archeion package.version.",
+      );
+      for (const relativePath of versionPaths) {
+        expect(fs.readFileSync(path.join(root, relativePath), "utf8")).toBe(
+          before.get(relativePath),
+        );
+      }
+    },
+    versionUpdateTimeout,
+  );
 });
