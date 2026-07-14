@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
+import { useCoverUrlCacheScope } from "./coverUrlCacheScope";
 
 type BookCoverProps = {
   book: Book;
@@ -12,6 +13,7 @@ type BookCoverProps = {
 
 export const BookCover = memo(function BookCover({ book, className = "" }: BookCoverProps) {
   const storage = useLibraryStorage();
+  const cacheScope = useCoverUrlCacheScope();
   const coverRef = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
@@ -46,7 +48,7 @@ export const BookCover = memo(function BookCover({ book, className = "" }: BookC
     let cancelled = false;
     setCoverUrl(null);
     setState("loading");
-    const acquired = acquireCoverUrl(coverKey, () => storage.loadBookCover(book.id));
+    const acquired = acquireCoverUrl(cacheScope, coverKey, () => storage.loadBookCover(book.id));
 
     void acquired.promise
       .then((url) => {
@@ -69,7 +71,7 @@ export const BookCover = memo(function BookCover({ book, className = "" }: BookC
       cancelled = true;
       acquired.release();
     };
-  }, [book.id, coverKey, shouldLoad, storage]);
+  }, [book.id, cacheScope, coverKey, shouldLoad, storage]);
 
   return (
     <div

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import { BookCover } from "./BookCover";
+import { CoverUrlCacheScopeContext } from "./coverUrlCacheScope";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -66,11 +67,15 @@ function renderCover(book: Book, loadBookCover: () => Promise<Blob | undefined>)
   activeRoot = root;
   const storage = { loadBookCover };
 
-  function render(nextBook: Book) {
+  const defaultScope = `test-${book.id}`;
+
+  function render(nextBook: Book, cacheScope = defaultScope) {
     act(() => {
       root.render(
         <LibraryStorageContext.Provider value={storage as never}>
-          <BookCover book={nextBook} />
+          <CoverUrlCacheScopeContext value={cacheScope}>
+            <BookCover book={nextBook} />
+          </CoverUrlCacheScopeContext>
         </LibraryStorageContext.Provider>,
       );
     });
@@ -171,5 +176,19 @@ describe("BookCover", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("reloads the same book key when the active archive scope changes", async () => {
+    const loadBookCover = vi.fn().mockResolvedValue(new Blob(["cover"]));
+    const { container, render } = renderCover(
+      { ...baseBook, id: "book-cover-shared" },
+      loadBookCover,
+    );
+    await waitForCover(container);
+
+    render({ ...baseBook, id: "book-cover-shared" }, "archive-b");
+    await waitForCover(container);
+
+    expect(loadBookCover).toHaveBeenCalledTimes(2);
   });
 });

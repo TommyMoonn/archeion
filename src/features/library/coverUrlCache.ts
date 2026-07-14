@@ -17,6 +17,10 @@ const coverUrls = new Map<string, CoverUrlEntry>();
 const coverLoadQueue: CoverLoadTask[] = [];
 let activeCoverLoads = 0;
 
+function scopedCoverKey(scope: string, key: string): string {
+  return `${scope}\u0000${key}`;
+}
+
 function drainCoverLoadQueue(): void {
   while (activeCoverLoads < MAX_CONCURRENT_COVER_LOADS && coverLoadQueue.length > 0) {
     const task = coverLoadQueue.shift();
@@ -53,10 +57,12 @@ export type AcquiredCoverUrl = {
 };
 
 export function acquireCoverUrl(
+  scope: string,
   key: string,
   load: () => Promise<Blob | undefined>,
 ): AcquiredCoverUrl {
-  let entry = coverUrls.get(key);
+  const scopedKey = scopedCoverKey(scope, key);
+  let entry = coverUrls.get(scopedKey);
 
   if (!entry) {
     const nextEntry: CoverUrlEntry = {
@@ -66,11 +72,11 @@ export function acquireCoverUrl(
     };
     nextEntry.promise = enqueueCoverLoad(
       load,
-      () => nextEntry.references > 0 && coverUrls.get(key) === nextEntry,
+      () => nextEntry.references > 0 && coverUrls.get(scopedKey) === nextEntry,
     ).then((blob) => {
-      if (!blob || nextEntry.references === 0 || coverUrls.get(key) !== nextEntry) {
-        if (nextEntry.references === 0 && coverUrls.get(key) === nextEntry) {
-          coverUrls.delete(key);
+      if (!blob || nextEntry.references === 0 || coverUrls.get(scopedKey) !== nextEntry) {
+        if (nextEntry.references === 0 && coverUrls.get(scopedKey) === nextEntry) {
+          coverUrls.delete(scopedKey);
         }
 
         return undefined;
@@ -80,7 +86,7 @@ export function acquireCoverUrl(
       return nextEntry.url;
     });
     entry = nextEntry;
-    coverUrls.set(key, entry);
+    coverUrls.set(scopedKey, entry);
   }
 
   if (entry.revokeTimer !== null) {
@@ -100,8 +106,8 @@ export function acquireCoverUrl(
       if (entry.references > 0) return;
 
       entry.revokeTimer = globalThis.setTimeout(() => {
-        if (entry.references > 0 || coverUrls.get(key) !== entry) return;
-        coverUrls.delete(key);
+        if (entry.references > 0 || coverUrls.get(scopedKey) !== entry) return;
+        coverUrls.delete(scopedKey);
         void entry.promise
           .then((url) => {
             if (url) URL.revokeObjectURL(url);

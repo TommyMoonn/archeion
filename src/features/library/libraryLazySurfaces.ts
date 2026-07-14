@@ -1,4 +1,4 @@
-import { lazy, useEffect } from "react";
+import { lazy } from "react";
 
 const loadAddEpubDialog = () =>
   import("../filesystem/AddEpubDialog").then((module) => ({
@@ -38,7 +38,6 @@ const loadFolderRenameDialog = () =>
   import("../folders/FolderRenameDialog").then((module) => ({
     default: module.FolderRenameDialog,
   }));
-const loadReaderPage = () => import("../reader/ReaderPage");
 const loadSeriesDetail = () =>
   import("../series/SeriesDetail").then((module) => ({ default: module.SeriesDetail }));
 const loadSeriesOverview = () =>
@@ -59,51 +58,4 @@ export const SeriesOverview = lazy(loadSeriesOverview);
 
 export function preloadAboutDialog() {
   void loadAboutDialog();
-}
-
-export function preloadBookAdvancedMetadataDialog() {
-  void loadBookAdvancedMetadataDialog();
-}
-
-export function preloadBookDetailsDrawer() {
-  void loadBookDetailsDrawer();
-}
-
-export function preloadBookCoverWritebackDialog() {
-  void loadBookCoverWritebackDialog();
-}
-
-export function preloadReaderPage() {
-  void loadReaderPage();
-}
-
-export function useLibrarySurfacePreloading(preloadSettings: () => void) {
-  useEffect(() => {
-    const preloadPrimarySurfaces = () => {
-      preloadReaderPage();
-      preloadBookDetailsDrawer();
-      preloadBookAdvancedMetadataDialog();
-      preloadBookCoverWritebackDialog();
-      preloadSettings();
-      preloadAboutDialog();
-    };
-    const idleWindow = window as Window & {
-      cancelIdleCallback?: (handle: number) => void;
-      requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
-    };
-
-    if (
-      typeof idleWindow.requestIdleCallback === "function" &&
-      typeof idleWindow.cancelIdleCallback === "function"
-    ) {
-      const idleId = idleWindow.requestIdleCallback(preloadPrimarySurfaces, {
-        timeout: 2500,
-      });
-
-      return () => idleWindow.cancelIdleCallback?.(idleId);
-    }
-
-    const timeoutId = window.setTimeout(preloadPrimarySurfaces, 1200);
-    return () => window.clearTimeout(timeoutId);
-  }, [preloadSettings]);
 }

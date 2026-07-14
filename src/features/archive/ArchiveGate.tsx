@@ -6,6 +6,7 @@ import { archiveStore } from "../../stores/archiveStore";
 import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { useArchive } from "./useArchive";
+import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -65,5 +66,5 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
 
   if (state.status !== "ready") return null;
 
-  return children;
+  return <CoverUrlCacheScopeContext value={state.archive.id}>{children}</CoverUrlCacheScopeContext>;
 }

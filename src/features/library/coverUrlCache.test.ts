@@ -3,8 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
 
 describe("coverUrlCache", () => {
+  let scope: string;
+
   beforeEach(() => {
     vi.useFakeTimers();
+    scope = "archive-a";
   });
 
   afterEach(() => {
@@ -17,8 +20,8 @@ describe("coverUrlCache", () => {
     const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
     const load = vi.fn().mockResolvedValue(new Blob(["cover"]));
 
-    const first = acquireCoverUrl("book-1:fingerprint", load);
-    const second = acquireCoverUrl("book-1:fingerprint", load);
+    const first = acquireCoverUrl(scope, "book-1:fingerprint", load);
+    const second = acquireCoverUrl(scope, "book-1:fingerprint", load);
 
     await expect(first.promise).resolves.toBe("blob:shared-cover");
     await expect(second.promise).resolves.toBe("blob:shared-cover");
@@ -46,7 +49,7 @@ describe("coverUrlCache", () => {
     );
 
     const acquired = Array.from({ length: 6 }, (_, index) =>
-      acquireCoverUrl(`book-${index}:fingerprint`, load),
+      acquireCoverUrl(scope, `book-${index}:fingerprint`, load),
     );
 
     await Promise.resolve();
@@ -82,7 +85,7 @@ describe("coverUrlCache", () => {
     );
 
     const acquired = loaders.map((load, index) =>
-      acquireCoverUrl(`queued-book-${index}:fingerprint`, load),
+      acquireCoverUrl(scope, `queued-book-${index}:fingerprint`, load),
     );
 
     await Promise.resolve();
@@ -122,9 +125,9 @@ describe("coverUrlCache", () => {
     const cancelledLoad = vi.fn().mockResolvedValue(new Blob(["cancelled"]));
 
     const activeAcquired = activeLoaders.map((load, index) =>
-      acquireCoverUrl(`blocking-book-${index}:fingerprint`, load),
+      acquireCoverUrl(scope, `blocking-book-${index}:fingerprint`, load),
     );
-    const cancelled = acquireCoverUrl("reacquired-book:fingerprint", cancelledLoad);
+    const cancelled = acquireCoverUrl(scope, "reacquired-book:fingerprint", cancelledLoad);
 
     await Promise.resolve();
     expect(activeLoaders.every((load) => load.mock.calls.length === 1)).toBe(true);
@@ -138,7 +141,7 @@ describe("coverUrlCache", () => {
     expect(cancelledLoad).not.toHaveBeenCalled();
 
     const reloadLoad = vi.fn().mockResolvedValue(new Blob(["reloaded"]));
-    const reacquired = acquireCoverUrl("reacquired-book:fingerprint", reloadLoad);
+    const reacquired = acquireCoverUrl(scope, "reacquired-book:fingerprint", reloadLoad);
 
     await expect(reacquired.promise).resolves.toBe("blob:reacquired-cover");
     expect(reloadLoad).toHaveBeenCalledTimes(1);
@@ -155,5 +158,30 @@ describe("coverUrlCache", () => {
     expect(coverCacheKey("book-1", "2026-07-05", 100)).not.toBe(
       coverCacheKey("book-1", "2026-07-06", 100),
     );
+  });
+
+  it("does not reuse cover resources across storage scopes", async () => {
+    const createObjectUrl = vi
+      .spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:first-archive")
+      .mockReturnValueOnce("blob:second-archive");
+    const revokeObjectUrl = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const firstLoad = vi.fn().mockResolvedValue(new Blob(["first"]));
+    const secondLoad = vi.fn().mockResolvedValue(new Blob(["second"]));
+
+    const first = acquireCoverUrl("archive-a", "shared-book:fingerprint", firstLoad);
+    const second = acquireCoverUrl("archive-b", "shared-book:fingerprint", secondLoad);
+
+    await expect(first.promise).resolves.toBe("blob:first-archive");
+    await expect(second.promise).resolves.toBe("blob:second-archive");
+    expect(firstLoad).toHaveBeenCalledTimes(1);
+    expect(secondLoad).toHaveBeenCalledTimes(1);
+    expect(createObjectUrl).toHaveBeenCalledTimes(2);
+
+    first.release();
+    second.release();
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:first-archive");
+    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:second-archive");
   });
 });

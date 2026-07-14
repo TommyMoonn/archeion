@@ -1,9 +1,16 @@
 // @vitest-environment happy-dom
 
+import { act, createElement, useRef } from "react";
+import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
 import { createDefaultLibraryFilters } from "../types/library";
-import { AppPreferencesStore, normalizeAppPreferences } from "./appPreferencesStore";
+import {
+  appPreferencesStore,
+  AppPreferencesStore,
+  normalizeAppPreferences,
+  useConfirmDestructiveFileActionsPreference,
+} from "./appPreferencesStore";
 
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
@@ -42,6 +49,46 @@ function mockReducedMotion(matches: boolean) {
 }
 
 describe("app preferences", () => {
+  it("does not rerender a narrow preference consumer for unrelated UI changes", async () => {
+    const original = appPreferencesStore.getSnapshot();
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    let renders = 0;
+
+    function PreferenceConsumer() {
+      const renderCount = useRef(0);
+      renderCount.current += 1;
+      renders = renderCount.current;
+      return String(useConfirmDestructiveFileActionsPreference());
+    }
+
+    try {
+      await act(async () => {
+        root.render(createElement(PreferenceConsumer));
+      });
+      expect(renders).toBe(1);
+
+      await act(async () => {
+        await appPreferencesStore.update({
+          density: original.density === "compact" ? "comfortable" : "compact",
+        });
+      });
+      expect(renders).toBe(1);
+
+      await act(async () => {
+        await appPreferencesStore.update({
+          confirmDestructiveFileActions: !original.confirmDestructiveFileActions,
+        });
+      });
+      expect(renders).toBe(2);
+    } finally {
+      await act(async () => {
+        root.unmount();
+        await appPreferencesStore.update(original);
+      });
+    }
+  });
+
   it("uses defaults for missing and invalid values", () => {
     expect(normalizeAppPreferences(null)).toMatchObject({
       appThemePreset: "dark",

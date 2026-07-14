@@ -4,7 +4,7 @@ import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
-  useAppPreferences,
+  useConfirmDestructiveFileActionsPreference,
   useImportPreferences,
   useLibraryPreferences,
   useShowContinueReadingPreference,
@@ -25,7 +25,7 @@ import type { QuickActionCommand } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import { createLibrarySearchIndexCache, hasActiveLibraryFilters } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
-import { preloadAboutDialog, useLibrarySurfacePreloading } from "./libraryLazySurfaces";
+import { preloadAboutDialog } from "./libraryLazySurfaces";
 import { LibraryWorkspaceDialogs } from "./LibraryWorkspaceDialogs";
 import { LibraryWorkspaceSurface } from "./LibraryWorkspaceSurface";
 import type { LibrarySelectionIntent } from "./librarySelection";
@@ -84,7 +84,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const { openSettings, preloadSettings } = useQuickActions();
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
-  const { confirmDestructiveFileActions } = useAppPreferences();
+  const confirmDestructiveFileActions = useConfirmDestructiveFileActionsPreference();
   const showContinueReading = useShowContinueReadingPreference();
   const {
     dismiss: dismissFeedback,
@@ -131,8 +131,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     folders,
   });
   const { changeLocation, openBookSearch, openReader, scrollMainContentToTop } = navigation;
-  useLibrarySurfacePreloading(preloadSettings);
-
   const debouncedQuery = useDebouncedValue(navigation.query, 150);
   const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const filters = libraryPreferences.filters;

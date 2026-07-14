@@ -357,6 +357,8 @@ export class AppPreferencesStore {
 
   getReaderSnapshot = () => this.preferences.reader;
 
+  getConfirmDestructiveFileActionsSnapshot = () => this.preferences.confirmDestructiveFileActions;
+
   getShowContinueReadingSnapshot = () => this.preferences.showContinueReading;
 
   getWindowFrameStyleSnapshot = () => this.preferences.windowFrameStyle;
@@ -523,6 +525,13 @@ export function useLibraryPreferences() {
 
 export function useReaderPreferences() {
   return useSyncExternalStore(appPreferencesStore.subscribe, appPreferencesStore.getReaderSnapshot);
+}
+
+export function useConfirmDestructiveFileActionsPreference() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getConfirmDestructiveFileActionsSnapshot,
+  );
 }
 
 export function useShowContinueReadingPreference() {
