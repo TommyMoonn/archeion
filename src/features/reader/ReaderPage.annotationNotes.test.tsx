@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -33,9 +33,18 @@ type MockViewerProps = {
 };
 
 const viewerControl = vi.hoisted(() => ({
+  navigateToChapter: vi.fn(async () => true),
   paletteOpen: false,
   props: null as MockViewerProps | null,
   resolveAnnotationAnchor: vi.fn(),
+}));
+
+const seriesControl = vi.hoisted(() => ({
+  nextVolume: undefined as Book | undefined,
+}));
+
+const tocControl = vi.hoisted(() => ({
+  onNavigate: undefined as ((chapterId: string) => Promise<boolean>) | undefined,
 }));
 
 vi.mock("./EpubViewer", async () => {
@@ -48,7 +57,7 @@ vi.mock("./EpubViewer", async () => {
       viewerControl.props = props;
       const { onNavigationChange, onReady } = props;
       React.useImperativeHandle(ref, () => ({
-        navigateToChapter: vi.fn(async () => true),
+        navigateToChapter: viewerControl.navigateToChapter,
         navigateToLocation: vi.fn(async () => true),
         next: vi.fn(async () => undefined),
         previous: vi.fn(async () => undefined),
@@ -94,13 +103,24 @@ vi.mock("../archive/useArchive", () => ({
   }),
 }));
 
+vi.mock("./LazyReaderTocPanel", async () => {
+  const React = await import("react");
+  const { ReaderTocPanel } = await import("./ReaderTocPanel");
+  return {
+    LazyReaderTocPanel: (props: ComponentProps<typeof ReaderTocPanel>) => {
+      tocControl.onNavigate = props.onNavigate;
+      return React.createElement(ReaderTocPanel, props);
+    },
+  };
+});
+
 vi.mock("../quick-actions/QuickActionsContext", () => ({
   useQuickActions: () => ({ openPalette: vi.fn() }),
   useRegisterQuickActions: () => undefined,
 }));
 
 vi.mock("./useReaderSeriesContinuation", () => ({
-  useReaderSeriesContinuation: () => undefined,
+  useReaderSeriesContinuation: () => seriesControl.nextVolume,
 }));
 
 const timestamp = "2026-07-13T00:00:00.000Z";
@@ -408,6 +428,8 @@ async function waitForRoute(
 }
 
 beforeEach(() => {
+  seriesControl.nextVolume = undefined;
+  tocControl.onNavigate = undefined;
   viewerControl.paletteOpen = false;
   viewerControl.props = null;
   viewerControl.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
@@ -416,6 +438,7 @@ beforeEach(() => {
     kind: "resolved",
     strategy: "exact-cfi",
   }));
+  viewerControl.navigateToChapter.mockReset().mockResolvedValue(true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
     return 1;
@@ -936,6 +959,248 @@ describe("ReaderPage annotation notes", () => {
     expect(container?.querySelector('[data-testid="library-route"]')).toBeInstanceOf(HTMLElement);
   });
 
+  it("deduplicates repeated controlled returns while the route blocker settles", async () => {
+    const existing = highlight("reader-exit-dedup");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    const router = await renderReader(harness);
+    const navigate = vi.spyOn(router, "navigate");
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Save once");
+
+    act(() => {
+      button("Back to Library").click();
+      button("Back to Library").click();
+    });
+    await flush();
+
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+    expect(navigate).toHaveBeenCalledTimes(1);
+
+    await act(async () => pendingSave.resolve({ ...existing, note: "Save once" }));
+    await waitForRoute(router, "/");
+
+    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the first controlled destination when return and next-volume intents compete", async () => {
+    const existing = highlight("reader-exit-first");
+    const harness = createStorageHarness({ "book-1": [existing], "book-2": [] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    seriesControl.nextVolume = books["book-2"];
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "First destination wins");
+
+    act(() => {
+      button("Back to Library").click();
+      button("Open next volume").click();
+    });
+    await flush();
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+
+    await act(async () => pendingSave.resolve({ ...existing, note: "First destination wins" }));
+    await waitForRoute(router, "/");
+    expect(harness.storage.loadBookFile).not.toHaveBeenCalledWith("book-2");
+  });
+
+  it("keeps next volume when it owns a competing return first", async () => {
+    const existing = highlight("next-volume-first");
+    const harness = createStorageHarness({ "book-1": [existing], "book-2": [] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    seriesControl.nextVolume = books["book-2"];
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Next wins");
+
+    act(() => {
+      button("Open next volume").click();
+      button("Back to Library").click();
+    });
+    await flush();
+
+    await act(async () => pendingSave.resolve({ ...existing, note: "Next wins" }));
+    await waitForRoute(router, "/reader/book-2");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a later settings intent invalidate a blocked controlled return", async () => {
+    const existing = highlight("reader-exit-settings");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Settings wins");
+
+    act(() => button("Back to Library").click());
+    await flush();
+    act(() => button("Reader settings").click());
+
+    await act(async () => pendingSave.resolve({ ...existing, note: "Settings wins" }));
+    await waitForEditorToClose();
+    await waitForElement('aside[aria-label="Reader settings"]');
+
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a later chapter transition invalidate a blocked controlled return", async () => {
+    const existing = highlight("reader-exit-chapter");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    const router = await renderReader(harness);
+    act(() => button("Table of contents").click());
+    await waitForElement('aside[aria-label="Table of contents"]');
+    const navigateToChapter = tocControl.onNavigate;
+    expect(navigateToChapter).toBeTypeOf("function");
+
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Chapter wins");
+    act(() => button("Back to Library").click());
+    await flush();
+
+    let chapterNavigation!: Promise<boolean>;
+    act(() => {
+      chapterNavigation = navigateToChapter!("chapter");
+    });
+    await act(async () => pendingSave.resolve({ ...existing, note: "Chapter wins" }));
+    await expect(chapterNavigation).resolves.toBe(true);
+
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(viewerControl.navigateToChapter).toHaveBeenCalledExactlyOnceWith("chapter");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a later direct book route replace a blocked controlled return", async () => {
+    const first = highlight("reader-exit-direct");
+    const second = highlight("reader-direct-target");
+    const harness = createStorageHarness({ "book-1": [first], "book-2": [second] });
+    const pendingSave = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: first.cfiRange,
+        chapterHref: first.chapterHref,
+        selectedText: first.selectedText,
+      },
+      first,
+    );
+    setTextareaValue(editor, "Direct route wins");
+
+    act(() => button("Back to Library").click());
+    await flush();
+    const directNavigation = requestNavigation(router, "/reader/book-2");
+    await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+
+    await act(async () => pendingSave.resolve({ ...first, note: "Direct route wins" }));
+    await act(async () => directNavigation);
+    await waitForRoute(router, "/reader/book-2");
+    await waitForHighlights([second.id]);
+
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+    expect(harness.storage.loadBookFile).toHaveBeenCalledWith("book-2");
+  });
+
+  it("releases a failed controlled return so the user can retry", async () => {
+    const existing = highlight("reader-exit-retry");
+    const harness = createStorageHarness({ "book-1": [existing] });
+    harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable"));
+    const router = await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Retry exit");
+
+    act(() => button("Back to Library").click());
+    await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+
+    act(() => button("Back to Library").click());
+    await waitForRoute(router, "/");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps a controlled return owned while confirmed note deletion is pending", async () => {
+    const existing = highlight("reader-exit-delete", { note: "Delete before leaving" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    const pendingDelete = deferred<Annotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(() => pendingDelete.promise);
+    const router = await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    act(() => button("Delete note").click());
+    act(() => button("Delete").click());
+    await flush();
+
+    act(() => {
+      button("Back to Library").click();
+      button("Back to Library").click();
+    });
+    await flush();
+    expect(router.state.location.pathname).toBe("/reader/book-1");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+
+    await act(async () => pendingDelete.resolve({ ...existing, note: undefined }));
+    await waitForRoute(router, "/");
+    expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps TOC, settings, and annotation surfaces mutually exclusive", async () => {
     const harness = createStorageHarness();
     await renderReader(harness);
@@ -955,6 +1220,7 @@ describe("ReaderPage annotation notes", () => {
   });
 
   it("backs out of the note subview before closing the annotation surface on Escape", async () => {
+    const consoleError = vi.spyOn(console, "error");
     const existing = highlight("escape-order", { note: "Keep this" });
     const harness = createStorageHarness({ "book-1": [existing] });
     await renderReader(harness);
@@ -977,6 +1243,9 @@ describe("ReaderPage annotation notes", () => {
     await waitForEditorToClose();
     const panel = await waitForElement<HTMLElement>('aside[aria-label="Annotations"]');
     expect(panel.hidden).toBe(false);
+    expect(document.activeElement).toBe(
+      panel.querySelector<HTMLButtonElement>('button[aria-label^="Actions for"]'),
+    );
 
     act(() => {
       panel.dispatchEvent(
@@ -985,6 +1254,7 @@ describe("ReaderPage annotation notes", () => {
     });
     await flush();
     expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("creates a default highlight before opening a fresh empty note and keeps it on close", async () => {
