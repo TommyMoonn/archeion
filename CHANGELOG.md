@@ -2,25 +2,34 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-15
+
+Archeion's annotation-focused release for bookmarks, highlights, attached notes, and durable reading research.
+
 ### Added
 
 - Added persistent reader bookmarks, text highlights, and optional notes attached to highlights.
 - Added a unified annotation panel for browsing, navigating, editing, and deleting saved annotations.
+- Added Markdown and versioned JSON exports for bookmarks, highlights, and attached notes from the reader or a multi-book library selection.
 - Bundled Inter locally for application UI typography with pinned asset hashes and packaged license notices.
 
 ### Changed
 
 - Unified recurring controls, menus, focus states, status tokens, typography, and layout geometry across library, reader, settings, dialogs, and Archive Manager surfaces.
 - Made saved highlights directly editable and kept note creation within the highlight workflow instead of exposing separate note-only actions.
+- Made Smart Views individually configurable in Settings while preserving enabled views and library context across navigation.
+- Updated the project site with an interactive library preview and direct links to stable installer assets.
 
 ### Fixed
 
 - Corrected highlight-palette anchoring, dismissal behavior, and overlapping reader transient surfaces.
 - Prevented notes from existing independently of highlights and tightened annotation persistence around the supported bookmark and highlight model.
+- Preserved annotations across EPUB content changes, surfaced detached locations, and added recovery workflows for anchors that can no longer be resolved automatically.
 
 ### Testing
 
-- Expanded regression coverage for annotation persistence, bookmark and highlight interaction, note editing, panel navigation, reader lifecycle behavior, shared controls, and bundled UI font assets.
+- Expanded regression coverage for annotation persistence and recovery, bookmark and highlight interaction, note editing, export workflows, panel navigation, reader lifecycle behavior, configurable Smart Views, shared controls, and bundled UI font assets.
+- Strengthened release tooling and CI validation for packaged assets, stable Windows bundle names, and production builds.
 
 ## [0.3.0] - 2026-07-12
 
@@ -105,7 +114,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TommyMoonn/archeion/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TommyMoonn/archeion/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/TommyMoonn/archeion/releases/tag/v0.1.0
