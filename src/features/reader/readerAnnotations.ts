@@ -26,6 +26,11 @@ type ChapterDescriptor = {
   order: number;
 };
 
+type ReaderAnnotationProjection = {
+  annotation: Annotation;
+  chapter?: ChapterDescriptor;
+};
+
 const cfiCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
 
 function nonEmptyText(value: unknown): string | undefined {
@@ -142,27 +147,30 @@ function matchesQuery(
 }
 
 function compareBookOrder(
-  left: Annotation,
-  right: Annotation,
-  chapterLookup: ReturnType<typeof buildChapterLookup>,
+  left: ReaderAnnotationProjection,
+  right: ReaderAnnotationProjection,
 ): number {
-  const leftChapter = annotationChapter(left, chapterLookup);
-  const rightChapter = annotationChapter(right, chapterLookup);
-  const chapterOrder = leftChapter.order - rightChapter.order;
+  const chapterOrder = (left.chapter?.order ?? 0) - (right.chapter?.order ?? 0);
   if (chapterOrder !== 0) return chapterOrder;
 
-  const cfiOrder = cfiCollator.compare(left.cfiRange ?? "", right.cfiRange ?? "");
+  const cfiOrder = cfiCollator.compare(
+    left.annotation.cfiRange ?? "",
+    right.annotation.cfiRange ?? "",
+  );
   if (cfiOrder !== 0) return cfiOrder;
 
-  const createdOrder = left.createdAt.localeCompare(right.createdAt);
-  return createdOrder !== 0 ? createdOrder : left.id.localeCompare(right.id);
+  const createdOrder = left.annotation.createdAt.localeCompare(right.annotation.createdAt);
+  return createdOrder !== 0 ? createdOrder : left.annotation.id.localeCompare(right.annotation.id);
 }
 
-function compareRecent(left: Annotation, right: Annotation): number {
-  const updatedOrder = right.updatedAt.localeCompare(left.updatedAt);
+function compareRecent(
+  left: ReaderAnnotationProjection,
+  right: ReaderAnnotationProjection,
+): number {
+  const updatedOrder = right.annotation.updatedAt.localeCompare(left.annotation.updatedAt);
   if (updatedOrder !== 0) return updatedOrder;
-  const createdOrder = right.createdAt.localeCompare(left.createdAt);
-  return createdOrder !== 0 ? createdOrder : left.id.localeCompare(right.id);
+  const createdOrder = right.annotation.createdAt.localeCompare(left.annotation.createdAt);
+  return createdOrder !== 0 ? createdOrder : left.annotation.id.localeCompare(right.annotation.id);
 }
 
 export function visibleReaderAnnotations({
@@ -180,15 +188,22 @@ export function visibleReaderAnnotations({
 }): Annotation[] {
   const chapterLookup = buildChapterLookup(chapters);
   const searchQuery = createSearchQuery(query);
+  const hasQuery = !isEmptySearchQuery(searchQuery);
+  const needsChapter = hasQuery || sort === "book-order";
   return annotations
+    .filter((annotation) => matchesView(annotation, view))
+    .map((annotation): ReaderAnnotationProjection => {
+      const chapter = needsChapter ? annotationChapter(annotation, chapterLookup) : undefined;
+      return { annotation, chapter };
+    })
     .filter(
-      (annotation) =>
-        matchesView(annotation, view) &&
-        matchesQuery(annotation, annotationChapter(annotation, chapterLookup), searchQuery),
+      ({ annotation, chapter }) =>
+        !hasQuery || (chapter ? matchesQuery(annotation, chapter, searchQuery) : false),
     )
     .sort((left, right) =>
-      sort === "recent" ? compareRecent(left, right) : compareBookOrder(left, right, chapterLookup),
-    );
+      sort === "recent" ? compareRecent(left, right) : compareBookOrder(left, right),
+    )
+    .map(({ annotation }) => annotation);
 }
 
 export function groupReaderAnnotations(

@@ -207,6 +207,63 @@ describe("reader annotations", () => {
     ).toEqual(["newer", "older"]);
   });
 
+  it("derives chapter metadata once per annotation before sorting a large collection", () => {
+    let chapterHrefReads = 0;
+    const annotations = Array.from({ length: 1_000 }, (_, index) => {
+      const annotation = highlight({
+        cfiRange: `epubcfi(/6/${index + 2})`,
+        id: `highlight-${index}`,
+      });
+      Object.defineProperty(annotation, "chapterHref", {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          chapterHrefReads += 1;
+          return index % 2 === 0 ? "Text/chapter-1.xhtml" : "Text/chapter-2.xhtml";
+        },
+      });
+      return annotation;
+    });
+
+    const visible = visibleReaderAnnotations({
+      annotations,
+      chapters,
+      query: "",
+      sort: "book-order",
+      view: "all",
+    });
+
+    expect(visible).toHaveLength(1_000);
+    expect(chapterHrefReads).toBe(1_000);
+  });
+
+  it("does not derive chapter metadata for an unfiltered recent sort", () => {
+    let chapterHrefReads = 0;
+    const annotations = Array.from({ length: 1_000 }, (_, index) => {
+      const annotation = highlight({ id: `recent-highlight-${index}` });
+      Object.defineProperty(annotation, "chapterHref", {
+        configurable: true,
+        enumerable: true,
+        get: () => {
+          chapterHrefReads += 1;
+          return "Text/chapter-1.xhtml";
+        },
+      });
+      return annotation;
+    });
+
+    const visible = visibleReaderAnnotations({
+      annotations,
+      chapters,
+      query: "",
+      sort: "recent",
+      view: "all",
+    });
+
+    expect(visible).toHaveLength(1_000);
+    expect(chapterHrefReads).toBe(0);
+  });
+
   it("provides concise view and removal labels", () => {
     expect(readerAnnotationEmptyLabel("highlights")).toBe("No highlights");
     expect(readerAnnotationRemoveLabel(highlight({ id: "highlight" }))).toBe("Remove highlight");

@@ -292,6 +292,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const highlightValidationGenerationRef = useRef(0);
   const reconcileHighlightsRef = useRef<() => void>(() => undefined);
   const highlightsRef = useRef(highlights);
+  const highlightsById = useMemo(
+    () => new Map(highlights.map((highlight) => [highlight.id, highlight])),
+    [highlights],
+  );
+  const highlightsByIdRef = useRef(highlightsById);
   const interactionFeedbackDocumentRef = useRef<Document | null>(null);
   const renderedHighlightsRef = useRef(
     new Map<
@@ -342,6 +347,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   };
   contentThemeRef.current = contentTheme;
   highlightsRef.current = highlights;
+  highlightsByIdRef.current = highlightsById;
   highlightMenuStateRef.current = highlightMenu;
   const highlightMenuAnchor = highlightMenu?.anchor;
 
@@ -382,7 +388,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const highlightGestures = useMemo(
     () =>
       createHighlightActivationGestureController(({ annotationId, target }) => {
-        const highlight = highlightsRef.current.find((candidate) => candidate.id === annotationId);
+        const highlight = highlightsByIdRef.current.get(annotationId);
         if (!highlight) return;
         const anchor = directHighlightPaletteAnchor(target, highlight.cfiRange, [
           ...contentCleanupRef.current.keys(),
@@ -539,7 +545,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       string,
       { annotation: HighlightAnnotation; color: ReaderHighlightColor }
     >();
-    const currentIds = new Set(highlightsRef.current.map(({ id }) => id));
+    const currentIds = new Set(highlightsByIdRef.current.keys());
     for (const annotationId of validatedHighlightAnchorsRef.current.keys()) {
       if (!currentIds.has(annotationId)) validatedHighlightAnchorsRef.current.delete(annotationId);
     }
@@ -587,13 +593,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
               ) {
                 return;
               }
-              const current = highlightsRef.current.find(
-                (candidate) =>
-                  candidate.id === highlight.id &&
-                  candidate.anchorStatus !== "detached" &&
-                  `${candidate.cfiRange.trim()}\u0000${normalizeRecoveryText(candidate.selectedText)}` ===
-                    anchorSignature,
-              );
+              const candidate = highlightsByIdRef.current.get(highlight.id);
+              const current =
+                candidate &&
+                candidate.anchorStatus !== "detached" &&
+                `${candidate.cfiRange.trim()}\u0000${normalizeRecoveryText(candidate.selectedText)}` ===
+                  anchorSignature
+                  ? candidate
+                  : undefined;
               if (!current) return;
               if (result.kind === "resolved") {
                 validatedHighlightAnchorsRef.current.set(current.id, anchorSignature);

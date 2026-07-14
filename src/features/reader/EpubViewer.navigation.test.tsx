@@ -1185,6 +1185,46 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
   });
 
+  it("recolors one rendered highlight without rebuilding unrelated marks", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const secondHighlight = {
+      ...renderedHighlight,
+      cfiRange: "epubcfi(/6/2!/4/4,/1:2,/1:18)",
+      id: "highlight-2",
+    };
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight, secondHighlight],
+    };
+    const { root } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(2),
+    );
+
+    await rerenderViewer(root, {
+      ...props,
+      highlights: [{ ...renderedHighlight, color: "blue" }, secondHighlight],
+    });
+    await vi.waitFor(() =>
+      expect(session.rendition.annotations.highlight).toHaveBeenCalledTimes(3),
+    );
+
+    expect(session.rendition.annotations.remove).toHaveBeenCalledTimes(1);
+    expect(session.rendition.annotations.remove).toHaveBeenCalledWith(
+      renderedHighlight.cfiRange,
+      "highlight",
+    );
+    expect(session.rendition.annotations.remove).not.toHaveBeenCalledWith(
+      secondHighlight.cfiRange,
+      "highlight",
+    );
+    expect(session.rendition.annotations.highlight.mock.calls[2]?.[1]).toEqual({
+      annotationId: renderedHighlight.id,
+    });
+  });
+
   it("handles touch taps once, ignores selection drags, and keeps page zones outside content", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);

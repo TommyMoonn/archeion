@@ -479,6 +479,81 @@ describe("AnnotationRepository", () => {
     await expect(annotations.list("book-1")).resolves.toEqual([]);
   });
 
+  it("skips durable writes when normalization leaves an update unchanged", async () => {
+    const stored = {
+      id: "annotation-1",
+      type: "highlight" as const,
+      cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:1,/4/2:4)",
+      selectedText: "Keep this",
+      color: "yellow",
+      note: "Same note",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const harness = createHarness({
+      version: 1,
+      books: { "book-1": { annotations: [stored] } },
+    });
+    const annotations = repository(harness);
+
+    await expect(annotations.update("book-1", stored.id, { note: "Same note" })).resolves.toEqual(
+      stored,
+    );
+
+    expect(harness.saveMetadata).not.toHaveBeenCalled();
+    expect(harness.persisted).toMatchObject({
+      books: { "book-1": { annotations: [stored] } },
+    });
+  });
+
+  it("uses one repository metadata clone per changed-path persistence", async () => {
+    const stored = {
+      id: "annotation-1",
+      type: "highlight" as const,
+      cfiRange: "epubcfi(/6/4!/4/2:1,/4/2:1,/4/2:4)",
+      selectedText: "Keep this",
+      color: "yellow",
+      createdAt: "2026-07-10T00:00:00.000Z",
+      updatedAt: "2026-07-11T00:00:00.000Z",
+    };
+    const harness = createHarness({
+      version: 1,
+      books: {
+        "book-1": { annotations: [stored] },
+        "unrelated-book": {
+          annotations: [],
+          futureBookField: { nested: ["preserve"] },
+        },
+      },
+      futureRootField: { nested: ["preserve"] },
+    });
+    const annotations = repository(harness);
+    await annotations.list("book-1");
+    const clone = globalThis.structuredClone;
+    const cloneSpy = vi.spyOn(globalThis, "structuredClone");
+    cloneSpy.mockClear();
+
+    try {
+      await annotations.update("book-1", stored.id, { color: "blue" });
+
+      const metadataCloneCalls = cloneSpy.mock.calls.filter(
+        ([value]) => value && typeof value === "object" && "books" in value,
+      );
+      // One repository boundary clone and one durable-snapshot clone in this test host.
+      expect(metadataCloneCalls).toHaveLength(2);
+      expect(harness.persisted).toMatchObject({
+        books: {
+          "book-1": { annotations: [{ color: "blue", id: stored.id }] },
+          "unrelated-book": { futureBookField: { nested: ["preserve"] } },
+        },
+        futureRootField: { nested: ["preserve"] },
+      });
+    } finally {
+      cloneSpy.mockRestore();
+    }
+    expect(globalThis.structuredClone).toBe(clone);
+  });
+
   it.each([
     ["invalid root", null],
     ["invalid books", { version: 1, books: [] }],

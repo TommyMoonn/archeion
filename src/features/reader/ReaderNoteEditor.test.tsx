@@ -128,6 +128,19 @@ describe("ReaderNoteEditor", () => {
     expect(target.querySelector(".reader-note-editor__footer")).toBeInstanceOf(HTMLElement);
   });
 
+  it("coalesces a rapid editing burst into one final note write", async () => {
+    vi.useFakeTimers();
+    const { container: target, props } = renderEditor();
+
+    for (let index = 1; index <= 50; index += 1) {
+      enterText(target, `Draft ${index}`);
+    }
+    await act(async () => vi.advanceTimersByTimeAsync(650));
+
+    expect(props.onSave).toHaveBeenCalledTimes(1);
+    expect(props.onSave).toHaveBeenCalledWith("Draft 50", annotation);
+  });
+
   it("flushes a pending edit before closing without a duplicate timer save", async () => {
     vi.useFakeTimers();
     const { container: target, props } = renderEditor();

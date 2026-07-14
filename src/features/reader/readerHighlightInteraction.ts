@@ -246,18 +246,26 @@ export function resolveHighlightSelection(
   highlights: readonly HighlightAnnotation[],
 ): HighlightSelectionResolution {
   const normalizedRange = cfiRange.trim();
-  const activeHighlights = highlights.filter((highlight) => highlight.anchorStatus !== "detached");
-  const exact = activeHighlights.find((highlight) => highlight.cfiRange.trim() === normalizedRange);
-  if (exact) return { highlight: exact, kind: "existing" };
+  const activeHighlights: HighlightAnnotation[] = [];
+  for (const highlight of highlights) {
+    if (highlight.anchorStatus === "detached") continue;
+    if (highlight.cfiRange.trim() === normalizedRange) {
+      return { highlight, kind: "existing" };
+    }
+    activeHighlights.push(highlight);
+  }
 
   try {
     const selection = cfiInterval(normalizedRange);
-    const overlapping = activeHighlights.filter((highlight) =>
-      overlaps(selection, cfiInterval(highlight.cfiRange)),
-    );
+    const overlapping: Array<{ highlight: HighlightAnnotation; interval: CfiInterval }> = [];
+    for (const highlight of activeHighlights) {
+      const interval = cfiInterval(highlight.cfiRange);
+      if (overlaps(selection, interval)) overlapping.push({ highlight, interval });
+    }
     if (overlapping.length === 0) return { kind: "new" };
-    if (overlapping.length === 1 && contains(cfiInterval(overlapping[0].cfiRange), selection)) {
-      return { highlight: overlapping[0], kind: "existing" };
+    const onlyOverlap = overlapping[0];
+    if (overlapping.length === 1 && onlyOverlap && contains(onlyOverlap.interval, selection)) {
+      return { highlight: onlyOverlap.highlight, kind: "existing" };
     }
     return { kind: "blocked" };
   } catch {

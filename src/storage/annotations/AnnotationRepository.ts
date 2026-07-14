@@ -2,6 +2,7 @@ import {
   ANNOTATION_TYPES,
   type Annotation,
   type AnnotationsMetadata,
+  type BookAnnotations,
   type CreateAnnotationInput,
   type UpdateAnnotationInput,
 } from "../../types/annotation";
@@ -90,6 +91,20 @@ function normalizeBookId(bookId: string): string {
 
 function hasUnknownBookFields(book: AnnotationsMetadata["books"][string]): boolean {
   return Object.keys(book).some((key) => key !== "annotations");
+}
+
+function replaceBookAnnotations(
+  metadata: AnnotationsMetadata,
+  bookId: string,
+  book: BookAnnotations,
+): AnnotationsMetadata {
+  return {
+    ...metadata,
+    books: {
+      ...metadata.books,
+      [bookId]: book,
+    },
+  };
 }
 
 const OPTIONAL_TRIMMED_TEXT_FIELDS = [
@@ -205,15 +220,14 @@ export class AnnotationRepository {
         }
       }
 
-      const next = structuredClone(metadata);
-      const book = next.books[normalizedBookId] ?? { annotations: [] };
+      const book = existingBook ?? { annotations: [] };
       if (book.annotations.some((candidate) => candidate.id === annotation.id)) {
         throw new Error(`Annotation id already exists: ${annotation.id}`);
       }
-      next.books[normalizedBookId] = {
+      const next = replaceBookAnnotations(metadata, normalizedBookId, {
         ...book,
         annotations: [...book.annotations, annotation],
-      };
+      });
       await this.persist(scope, next);
       return cloneAnnotation(annotation);
     });
@@ -221,7 +235,7 @@ export class AnnotationRepository {
 
   async restore(bookId: string, annotation: Annotation): Promise<Annotation> {
     const normalizedBookId = normalizeBookId(bookId);
-    const restored = normalizeAnnotationRecord(structuredClone(annotation), normalizedBookId);
+    const restored = normalizeAnnotationRecord(cloneAnnotation(annotation), normalizedBookId);
 
     return this.run(async (scope) => {
       const metadata = await this.ensureLoaded(scope);
@@ -247,12 +261,11 @@ export class AnnotationRepository {
         }
       }
 
-      const next = structuredClone(metadata);
-      const book = next.books[normalizedBookId] ?? { annotations: [] };
-      next.books[normalizedBookId] = {
+      const book = existingBook ?? { annotations: [] };
+      const next = replaceBookAnnotations(metadata, normalizedBookId, {
         ...book,
         annotations: [...book.annotations, restored],
-      };
+      });
       await this.persist(scope, next);
       return cloneAnnotation(restored);
     });
@@ -291,8 +304,16 @@ export class AnnotationRepository {
         }),
         normalizedBookId,
       );
-      const next = structuredClone(metadata);
-      next.books[normalizedBookId].annotations[index] = updated;
+      if (jsonValuesEqual({ ...current, updatedAt: updated.updatedAt }, updated)) {
+        return cloneAnnotation(current);
+      }
+      const book = metadata.books[normalizedBookId];
+      const nextAnnotations = [...annotations];
+      nextAnnotations[index] = updated;
+      const next = replaceBookAnnotations(metadata, normalizedBookId, {
+        ...book,
+        annotations: nextAnnotations,
+      });
       await this.persist(scope, next);
       return cloneAnnotation(updated);
     });
@@ -319,12 +340,15 @@ export class AnnotationRepository {
         return false;
       }
 
-      const next = structuredClone(metadata);
-      const nextBook = next.books[normalizedBookId];
-      nextBook.annotations.splice(annotationIndex, 1);
+      const nextAnnotations = book.annotations.filter((_, index) => index !== annotationIndex);
+      const nextBooks = { ...metadata.books };
+      const nextBook = { ...book, annotations: nextAnnotations };
       if (nextBook.annotations.length === 0 && !hasUnknownBookFields(nextBook)) {
-        delete next.books[normalizedBookId];
+        delete nextBooks[normalizedBookId];
+      } else {
+        nextBooks[normalizedBookId] = nextBook;
       }
+      const next = { ...metadata, books: nextBooks };
       await this.persist(scope, next);
       return true;
     });
@@ -358,10 +382,9 @@ export class AnnotationRepository {
     scope: AnnotationArchiveScope,
     metadata: AnnotationsMetadata,
   ): Promise<void> {
-    const normalized = normalizeAnnotationsMetadata(metadata);
-    await this.host.saveMetadata(scope, structuredClone(normalized));
+    await this.host.saveMetadata(scope, structuredClone(metadata));
     this.host.assertCurrentScope(scope);
-    this.metadata = normalized;
+    this.metadata = metadata;
     this.cachedGeneration = scope.generation;
   }
 }
