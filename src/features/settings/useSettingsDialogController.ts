@@ -495,7 +495,7 @@ export function useSettingsDialogController({
       {
         filesAndMetadata: defaultAppPreferences.filesAndMetadata,
       },
-      { successMessage: "Storage settings reset." },
+      { successMessage: "Storage preferences reset." },
     );
   }
 

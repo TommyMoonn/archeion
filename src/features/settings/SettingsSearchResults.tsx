@@ -3,7 +3,7 @@ import { useMemo } from "react";
 
 import { Button } from "../../components/Button";
 import { findSettingsSearchResults } from "./settingsSearch";
-import type { SettingsItem } from "./settingsItems";
+import type { SettingsItem } from "./settingsItemTypes";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 

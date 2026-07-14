@@ -10,15 +10,22 @@ describe("settingsSearch", () => {
     expect(findSettingsSearchResults("animations").map((result) => result.item.id)).toContain(
       "appearance.animations",
     );
-    expect(findSettingsSearchResults("scan preferences").map((result) => result.item.id)).toContain(
+    expect(findSettingsSearchResults("file monitoring").map((result) => result.item.id)).toContain(
       "storage.scan-on-startup",
     );
+    expect(findSettingsSearchResults("archive scanning").map((result) => result.item.id)).toContain(
+      "storage.rescan-archive",
+    );
     expect(
-      findSettingsSearchResults("archive maintenance").map((result) => result.item.id),
-    ).toContain("storage.rescan-archive");
+      findSettingsSearchResults("generated cover cache").map((result) => result.item.id),
+    ).toContain("storage.cover-cache-status");
+    expect(findSettingsSearchResults("sidecar metadata").map((result) => result.item.id)).toContain(
+      "storage.repair-metadata",
+    );
     expect(findSettingsSearchResults("writeback backup").map((result) => result.item.id)).toContain(
       "storage.keep-epub-writeback-backup",
     );
+    expect(findSettingsSearchResults("archive maintenance")).toHaveLength(0);
   });
 
   it("supports useful row-level searches", () => {

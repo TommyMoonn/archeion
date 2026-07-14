@@ -37,7 +37,9 @@ describe("settingsSections", () => {
 
   it("does not match removed composite search labels", () => {
     expect(sectionMatches("appearance", "appearance and window")).toBe(false);
+    expect(sectionMatches("storage", "archive maintenance")).toBe(false);
     expect(sectionMatches("storage", "files and maintenance")).toBe(false);
+    expect(sectionMatches("storage", "scan preferences")).toBe(false);
     expect(sectionMatches("appearance", "interface")).toBe(false);
   });
 
@@ -46,8 +48,11 @@ describe("settingsSections", () => {
     expect(sectionMatches("appearance", "app appearance")).toBe(true);
     expect(sectionMatches("appearance", "window behavior")).toBe(true);
     expect(sectionMatches("storage", "storage")).toBe(true);
-    expect(sectionMatches("storage", "scan preferences")).toBe(true);
-    expect(sectionMatches("storage", "archive maintenance")).toBe(true);
+    expect(sectionMatches("storage", "file monitoring")).toBe(true);
+    expect(sectionMatches("storage", "archive scanning")).toBe(true);
+    expect(sectionMatches("storage", "generated cover cache")).toBe(true);
+    expect(sectionMatches("storage", "epub writeback backups")).toBe(true);
+    expect(sectionMatches("storage", "archive metadata and recovery")).toBe(true);
     expect(sectionMatches("appearance", "display density")).toBe(true);
     expect(sectionMatches("appearance", "animations")).toBe(true);
   });

@@ -1,10 +1,7 @@
 import { type ReactNode } from "react";
 
-import {
-  getSettingsItemsForSection,
-  type SettingsItem,
-  type SettingsItemGroupStyle,
-} from "./settingsItems";
+import { getSettingsItemsForSection } from "./settingsItems";
+import type { SettingsItem, SettingsItemGroupStyle } from "./settingsItemTypes";
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 

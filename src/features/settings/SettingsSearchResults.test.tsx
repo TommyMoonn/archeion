@@ -167,7 +167,7 @@ describe("SettingsSearchResults", () => {
     const { container } = trackRoot(renderResults("scan startup", controller));
 
     expect(container.textContent).toContain("Storage");
-    expect(container.textContent).toContain("Scan preferences");
+    expect(container.textContent).toContain("File monitoring");
     expect(container.textContent).toContain("Scan on startup");
 
     const switchControl = container.querySelector("[role='switch']");
@@ -208,7 +208,12 @@ describe("SettingsSearchResults", () => {
   });
 
   it("does not match removed compatibility terms", () => {
-    for (const query of ["appearance and window", "files and maintenance", "interface"]) {
+    for (const query of [
+      "appearance and window",
+      "archive maintenance",
+      "files and maintenance",
+      "interface",
+    ]) {
       const { container, root } = renderResults(query);
       roots.push(root);
       expect(container.textContent).toContain("No settings found");

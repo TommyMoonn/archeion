@@ -86,10 +86,29 @@ describe("settings section components", () => {
     const markup = renderStorage();
 
     expect(markup).toContain("Storage");
-    expect(markup).toContain("Scan preferences");
-    expect(markup).toContain("Archive maintenance");
+    expect(markup).toContain("File monitoring");
+    expect(markup).toContain("Archive scanning");
+    expect(markup).toContain("Generated cover cache");
+    expect(markup).toContain("EPUB writeback backups");
+    expect(markup).toContain("Archive metadata and recovery");
+    expect(markup).toContain("Reset storage preferences");
+    expect(markup).not.toContain("Archive maintenance");
     expect(markup).toContain("Keep EPUB writeback backup");
     expect(markup).toContain("Clear EPUB writeback backups");
+
+    const groups = [
+      "File monitoring",
+      "Archive scanning",
+      "Generated cover cache",
+      "EPUB writeback backups",
+      "Archive metadata and recovery",
+      "Reset",
+    ];
+    for (let index = 1; index < groups.length; index += 1) {
+      expect(markup.indexOf(`>${groups[index - 1]}<`)).toBeLessThan(
+        markup.indexOf(`>${groups[index]}<`),
+      );
+    }
   });
 
   it("disables archive reveal when no archive path is available", () => {

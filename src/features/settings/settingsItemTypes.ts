@@ -1,0 +1,21 @@
+import type { ReactNode } from "react";
+
+import type { SettingsSection } from "./settingsSections";
+import type { SettingsDialogController } from "./useSettingsDialogController";
+
+export type SettingsItemGroupStyle = "standard" | "actions";
+
+export type SettingsDeferredDataRequirement =
+  "archiveImportSettings" | "coverCacheStatus" | "epubWritebackBackupStatus" | "folders";
+
+export type SettingsItem = {
+  deferredData?: readonly SettingsDeferredDataRequirement[];
+  description?: string;
+  groupLabel?: string;
+  groupStyle?: SettingsItemGroupStyle;
+  id: string;
+  label: string;
+  render: (context: SettingsDialogController) => ReactNode;
+  searchTerms?: readonly string[];
+  sectionId: SettingsSection;
+};

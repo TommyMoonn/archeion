@@ -5,8 +5,8 @@ import {
   normalizeSearchText,
   searchFieldsMatchQuery,
 } from "../../utils/searchText";
-import type { SettingsItem } from "./settingsItems";
 import { settingsItems } from "./settingsItems";
+import type { SettingsItem } from "./settingsItemTypes";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 
 const sectionLabels = new Map<SettingsSection, string>(

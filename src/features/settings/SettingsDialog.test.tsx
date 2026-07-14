@@ -24,6 +24,9 @@ function installDialogPolyfill() {
 
 function createStorage() {
   return {
+    clearCoverCache: vi.fn(),
+    clearEpubWritebackBackups: vi.fn(),
+    clearScannerCache: vi.fn(),
     getArchiveImportSettings: vi.fn(async () => ({})),
     getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
     getEpubWritebackBackupStatus: vi.fn(async () => ({
@@ -31,6 +34,9 @@ function createStorage() {
       totalBytes: 2048,
     })),
     listFolders: vi.fn(async () => []),
+    repairArchiveMetadata: vi.fn(),
+    rescan: vi.fn(),
+    revealMetadataFolder: vi.fn(),
   } as unknown as LibraryStorage;
 }
 
@@ -170,6 +176,12 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getCoverCacheStatus).toHaveBeenCalledTimes(1);
     expect(storage.getEpubWritebackBackupStatus).toHaveBeenCalledTimes(1);
     expect(storage.listFolders).not.toHaveBeenCalled();
+    expect(storage.rescan).not.toHaveBeenCalled();
+    expect(storage.clearCoverCache).not.toHaveBeenCalled();
+    expect(storage.clearScannerCache).not.toHaveBeenCalled();
+    expect(storage.clearEpubWritebackBackups).not.toHaveBeenCalled();
+    expect(storage.repairArchiveMetadata).not.toHaveBeenCalled();
+    expect(storage.revealMetadataFolder).not.toHaveBeenCalled();
   });
 
   it("loads folder and archive import settings when Import controls become visible", async () => {
