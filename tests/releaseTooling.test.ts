@@ -94,9 +94,7 @@ function createFixture({
   return root;
 }
 
-function releaseToolingEnvironment(
-  overrides: NodeJS.ProcessEnv = {},
-): NodeJS.ProcessEnv {
+function releaseToolingEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
   const environment = { ...process.env };
 
   delete environment.GITHUB_REF_NAME;
@@ -185,14 +183,10 @@ describeReleaseTooling("release tooling", () => {
 
   it("validates an inherited GitHub release tag when no explicit tag is supplied", () => {
     const root = createFixture();
-    const result = runPowerShell(
-      "check-release.ps1",
-      ["-ProjectRoot", root],
-      {
-        GITHUB_REF_NAME: "v0.3.0",
-        GITHUB_REF_TYPE: "tag",
-      },
-    );
+    const result = runPowerShell("check-release.ps1", ["-ProjectRoot", root], {
+      GITHUB_REF_NAME: "v0.3.0",
+      GITHUB_REF_TYPE: "tag",
+    });
 
     expect(combinedOutput(result)).toContain("Release configuration is valid.");
     expect(combinedOutput(result)).toContain("Tag:     v0.3.0");
