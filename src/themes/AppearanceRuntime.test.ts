@@ -4,13 +4,20 @@ import { describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences, type AppPreferences } from "../types/appSettings";
 import type { ArchiveAppearanceSettings } from "../types/settings";
-import { AppearanceRuntime, type GlobalAppearanceSource } from "./AppearanceRuntime";
+import {
+  AppearanceRuntime,
+  AppearanceRuntimeArchiveChangedError,
+  AppearanceRuntimeSettingsChangedError,
+  type GlobalAppearanceSource,
+} from "./AppearanceRuntime";
 import { ArchiveThemeCatalog } from "./ArchiveThemeCatalog";
 import { readerThemeCssProperties } from "./themeCssVariables";
+import { resolveTheme } from "./resolveTheme";
 import {
   appThemeResolvedTokenRegistry,
   readerThemeResolvedTokenRegistry,
 } from "./themeTokenRegistry";
+import { validateThemeManifest } from "./validateThemeManifest";
 
 function createPreferencesSource(
   initial: Partial<Pick<AppPreferences, "appThemePreset" | "reader">> = {},
@@ -76,6 +83,12 @@ function appearanceSettings(
   readerTheme: ArchiveAppearanceSettings["readerTheme"],
 ): ArchiveAppearanceSettings {
   return { appTheme, readerTheme };
+}
+
+function resolvedManifest(id: string) {
+  const validation = validateThemeManifest(JSON.parse(manifest(id)));
+  if (!validation.ok) throw new Error(JSON.stringify(validation.diagnostics));
+  return resolveTheme(validation.manifest);
 }
 
 function deferred<Value>() {
@@ -294,6 +307,223 @@ describe("AppearanceRuntime", () => {
     expect(removeProperty).not.toHaveBeenCalled();
     expect(setProperty).not.toHaveBeenCalled();
     expect(readManifest).toHaveBeenCalledOnce();
+  });
+
+  it("applies and reverts an application-only preview without disturbing the reader channel", async () => {
+    const preferences = createPreferencesSource({ appThemePreset: "light" });
+    const root = document.createElement("div");
+    const removeProperty = vi.spyOn(root.style, "removeProperty");
+    const setProperty = vi.spyOn(root.style, "setProperty");
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => root,
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+      },
+    );
+    const before = runtime.getSnapshot();
+    const preview = resolvedManifest("preview-theme");
+    removeProperty.mockClear();
+    setProperty.mockClear();
+
+    expect(runtime.applyPreview(before.archive!, { app: preview.app })).toBe(true);
+
+    const active = runtime.getSnapshot();
+    expect(active.app).toBe(preview.app);
+    expect(active.reader).toBe(before.reader);
+    expect(removeProperty).toHaveBeenCalledTimes(Object.keys(appThemeResolvedTokenRegistry).length);
+    expect(setProperty).toHaveBeenCalledTimes(Object.keys(appThemeResolvedTokenRegistry).length);
+
+    expect(runtime.clearPreview(before.archive!)).toBe(true);
+    expect(runtime.getSnapshot().app).toBe(before.app);
+    expect(runtime.getSnapshot().reader).toBe(before.reader);
+  });
+
+  it("applies and reverts a reader-only preview without rewriting application variables", async () => {
+    const preferences = createPreferencesSource({ appThemePreset: "light" });
+    const root = document.createElement("div");
+    const removeProperty = vi.spyOn(root.style, "removeProperty");
+    const setProperty = vi.spyOn(root.style, "setProperty");
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => root,
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+      },
+    );
+    const before = runtime.getSnapshot();
+    const preview = resolvedManifest("preview-theme");
+    if (!preview.reader) throw new Error("Expected a reader preview palette");
+    removeProperty.mockClear();
+    setProperty.mockClear();
+
+    expect(runtime.applyPreview(before.archive!, { reader: preview.reader })).toBe(true);
+
+    expect(runtime.getSnapshot().app).toBe(before.app);
+    expect(runtime.getSnapshot().reader).toBe(preview.reader);
+    expect(removeProperty).not.toHaveBeenCalled();
+    expect(setProperty).not.toHaveBeenCalled();
+
+    expect(runtime.clearPreview(before.archive!)).toBe(true);
+    expect(runtime.getSnapshot().app).toBe(before.app);
+    expect(runtime.getSnapshot().reader).toBe(before.reader);
+  });
+
+  it("persists preview settings through the active archive source and publishes their resolution", async () => {
+    const preferences = createPreferencesSource();
+    const saveArchiveAppearanceSettings = vi.fn(async (settings: ArchiveAppearanceSettings) =>
+      appearanceSettings(settings.appTheme, settings.readerTheme),
+    );
+    const runtime = new AppearanceRuntime({
+      catalog: new ArchiveThemeCatalog(() => ({
+        listPackageDirectories: vi.fn(async () => []),
+        readManifest: vi.fn(async () => manifest("preview-theme")),
+      })),
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings,
+      },
+    );
+    const context = runtime.getPreviewContext();
+    const preview = resolvedManifest("preview-theme");
+    if (!context || !preview.reader) throw new Error("Expected an active preview context");
+    runtime.applyPreview(context.archive, { app: preview.app, reader: preview.reader });
+
+    const next = appearanceSettings(
+      { kind: "custom", id: "preview-theme" },
+      { kind: "custom", id: "preview-theme" },
+    );
+    await expect(
+      runtime.keepPreview(
+        context.archive,
+        appearanceSettings({ kind: "builtin", id: "dark" }, { kind: "inherit" }),
+        next,
+      ),
+    ).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    expect(saveArchiveAppearanceSettings).not.toHaveBeenCalled();
+    await runtime.keepPreview(context.archive, context.settings, next);
+
+    expect(saveArchiveAppearanceSettings).toHaveBeenCalledWith(next);
+    expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#123456");
+    expect(runtime.getSnapshot().reader.publicTokens.background).toBe("#f0e0c0");
+    expect(runtime.getPreviewContext()?.settings).toEqual(next);
+  });
+
+  it("drops preview palettes immediately when the archive generation changes", async () => {
+    const preferences = createPreferencesSource();
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+      },
+    );
+    const firstContext = runtime.getPreviewContext();
+    if (!firstContext) throw new Error("Expected an active preview context");
+    runtime.applyPreview(firstContext.archive, { app: resolvedManifest("preview-theme").app });
+
+    const secondActivation = runtime.activateArchive(
+      { id: "archive-b", rootPath: "D:\\Archive B" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" }),
+      },
+    );
+
+    expect(runtime.getSnapshot().archive?.id).toBe("archive-b");
+    expect(runtime.getSnapshot().app.publicTokens.accent).not.toBe("#123456");
+    expect(runtime.clearPreview(firstContext.archive)).toBe(false);
+    await secondActivation;
+    expect(runtime.getSnapshot().app.base).toBe("light");
+  });
+
+  it("drops transient preview state on teardown and reloads only persisted selections", async () => {
+    const preferences = createPreferencesSource();
+    const persisted = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    const settingsSource = {
+      getArchiveAppearanceSettings: vi.fn(async () => persisted),
+    };
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive({ id: "archive-a", rootPath: "D:\\Archive A" }, settingsSource);
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active preview context");
+    runtime.applyPreview(context.archive, { app: resolvedManifest("preview-theme").app });
+    expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#123456");
+
+    runtime.stop();
+    runtime.start();
+    await runtime.activateArchive({ id: "archive-a", rootPath: "D:\\Archive A" }, settingsSource);
+
+    expect(runtime.getSnapshot().app.base).toBe("light");
+    expect(runtime.getSnapshot().app.publicTokens.accent).not.toBe("#123456");
+    expect(runtime.getSnapshot().reader.base).toBe("sepia");
+    expect(settingsSource.getArchiveAppearanceSettings).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not publish a stale Keep result after an archive switch", async () => {
+    const preferences = createPreferencesSource();
+    const pendingSave = deferred<ArchiveAppearanceSettings>();
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: () => pendingSave.promise,
+      },
+    );
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active preview context");
+    runtime.applyPreview(context.archive, { app: resolvedManifest("preview-theme").app });
+    const next = appearanceSettings({ kind: "custom", id: "preview-theme" }, { kind: "inherit" });
+    const keeping = runtime.keepPreview(context.archive, context.settings, next);
+
+    await runtime.activateArchive(
+      { id: "archive-b", rootPath: "D:\\Archive B" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" }),
+      },
+    );
+    pendingSave.resolve(next);
+
+    await expect(keeping).rejects.toBeInstanceOf(AppearanceRuntimeArchiveChangedError);
+    expect(runtime.getSnapshot().archive?.id).toBe("archive-b");
+    expect(runtime.getSnapshot().app.base).toBe("light");
+    expect(runtime.getSnapshot().app.publicTokens.accent).not.toBe("#123456");
   });
 
   it("resolves custom application and reader palettes, then closes to global fallbacks", async () => {

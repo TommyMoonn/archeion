@@ -1,4 +1,4 @@
-import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
+import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ControlSize = "compact" | "standard" | "prominent";
@@ -8,6 +8,7 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children: ReactNode;
   disabledReason?: string;
   icon?: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
   size?: ControlSize;
   variant?: ButtonVariant;
 };
@@ -20,6 +21,7 @@ export function Button({
   disabledReason,
   icon,
   onClick,
+  ref,
   size = "prominent",
   title,
   type = "button",
@@ -48,6 +50,7 @@ export function Button({
         className={`button button--${variant} button--${size} ${className}`.trim()}
         disabled={disabled && !hasExplainedDisabledState}
         onClick={handleClick}
+        ref={ref}
         title={hasExplainedDisabledState ? disabledReason : title}
         type={type}
         {...props}

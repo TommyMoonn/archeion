@@ -28,6 +28,9 @@ export type GlobalAppearanceSource = Readonly<{
 
 export type ArchiveAppearanceSettingsSource = Readonly<{
   getArchiveAppearanceSettings: () => Promise<ArchiveAppearanceSettings>;
+  saveArchiveAppearanceSettings?: (
+    settings: ArchiveAppearanceSettings,
+  ) => Promise<ArchiveAppearanceSettings>;
 }>;
 
 export type AppearanceArchive = Readonly<{
@@ -43,6 +46,16 @@ export type AppearanceRuntimeSnapshot = Readonly<{
   reader: ResolvedReaderTheme;
 }>;
 
+export type AppearancePreviewContext = Readonly<{
+  archive: ActiveAppearanceArchive;
+  settings: Readonly<ArchiveAppearanceSettings>;
+}>;
+
+export type AppearancePreviewPalette = Readonly<{
+  app?: ResolvedAppTheme;
+  reader?: ResolvedReaderTheme;
+}>;
+
 export type AppearanceRuntimeOptions = Readonly<{
   catalog?: ArchiveThemeCatalog;
   getDocumentRoot?: () => HTMLElement | null;
@@ -54,6 +67,11 @@ export type AppearanceRuntimeOptions = Readonly<{
 type ActiveArchiveContext = ActiveAppearanceArchive &
   Readonly<{
     settingsSource: ArchiveAppearanceSettingsSource;
+  }>;
+
+type ActiveAppearancePreview = AppearancePreviewPalette &
+  Readonly<{
+    archiveGeneration: number;
   }>;
 
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
@@ -69,11 +87,13 @@ export class AppearanceRuntime {
   private readonly customThemes = new WeakMap<ThemeManifestV1, ResolvedTheme>();
   private readonly readerThemes = new Map<ReaderThemeBase, ResolvedReaderTheme>();
   private activeArchive: ActiveArchiveContext | null = null;
+  private appearanceSettings: Readonly<ArchiveAppearanceSettings> | null = null;
   private appliedAppTheme: ResolvedAppTheme | null = null;
   private appliedDocumentRoot: HTMLElement | null = null;
   private generation = 0;
   private mediaQuery: MediaQueryList | null = null;
   private preferences: GlobalAppearancePreferences;
+  private preview: ActiveAppearancePreview | null = null;
   private resolution: ArchiveThemeSelectionResolution | null = null;
   private snapshot: AppearanceRuntimeSnapshot;
   private stopPreferences: (() => void) | null = null;
@@ -98,6 +118,67 @@ export class AppearanceRuntime {
   getSnapshot = (): AppearanceRuntimeSnapshot => this.snapshot;
 
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
+
+  getPreviewContext(): AppearancePreviewContext | null {
+    if (!this.activeArchive || !this.appearanceSettings || !this.resolution) return null;
+    return Object.freeze({
+      archive: publicArchive(this.activeArchive),
+      settings: this.appearanceSettings,
+    });
+  }
+
+  applyPreview(archive: ActiveAppearanceArchive, palette: AppearancePreviewPalette): boolean {
+    if (!palette.app && !palette.reader) return false;
+    if (!this.isArchiveCurrent(archive)) return false;
+    this.preview = Object.freeze({
+      ...(palette.app ? { app: palette.app } : {}),
+      ...(palette.reader ? { reader: palette.reader } : {}),
+      archiveGeneration: archive.generation,
+    });
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  clearPreview(archive: ActiveAppearanceArchive): boolean {
+    if (!this.preview || !this.isArchiveCurrent(archive)) return false;
+    if (this.preview.archiveGeneration !== archive.generation) return false;
+    this.preview = null;
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  async keepPreview(
+    archive: ActiveAppearanceArchive,
+    expectedSettings: Readonly<ArchiveAppearanceSettings>,
+    settings: ArchiveAppearanceSettings,
+  ): Promise<void> {
+    const context = this.activeArchive;
+    if (!context || !this.isArchiveCurrent(archive)) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+    if (!this.preview || this.preview.archiveGeneration !== archive.generation) {
+      throw new Error("There is no active theme preview for this archive.");
+    }
+    if (
+      !this.appearanceSettings ||
+      !sameAppearanceSettings(this.appearanceSettings, expectedSettings)
+    ) {
+      throw new AppearanceRuntimeSettingsChangedError();
+    }
+    if (!context.settingsSource.saveArchiveAppearanceSettings) {
+      throw new Error("Archive appearance settings cannot be saved.");
+    }
+
+    const saved = await context.settingsSource.saveArchiveAppearanceSettings(settings);
+    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+    const resolution = await this.catalog.loadSelected(saved);
+    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+
+    this.appearanceSettings = appearanceSettingsFromResolution(resolution);
+    this.resolution = resolution;
+    this.preview = null;
+    this.commitCurrentAppearance();
+  }
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -135,6 +216,8 @@ export class AppearanceRuntime {
     });
     this.generation = context.generation;
     this.activeArchive = context;
+    this.appearanceSettings = null;
+    this.preview = null;
     this.resolution = null;
     this.commitCurrentAppearance();
 
@@ -144,10 +227,12 @@ export class AppearanceRuntime {
       if (!this.isCurrent(context)) return;
       const resolution = await this.catalog.loadSelected(settings);
       if (!this.isCurrent(context)) return;
+      this.appearanceSettings = appearanceSettingsFromResolution(resolution);
       this.resolution = resolution;
       this.commitCurrentAppearance();
     } catch (error) {
       if (!this.isCurrent(context) || error instanceof ArchiveThemeCatalogChangedError) return;
+      this.appearanceSettings = null;
       this.resolution = null;
       this.commitCurrentAppearance();
       this.onError(error);
@@ -166,6 +251,8 @@ export class AppearanceRuntime {
 
     this.generation += 1;
     this.activeArchive = null;
+    this.appearanceSettings = null;
+    this.preview = null;
     this.resolution = null;
     this.catalog.deactivateArchive();
     this.commitCurrentAppearance();
@@ -197,16 +284,18 @@ export class AppearanceRuntime {
   };
 
   private commitCurrentAppearance(): void {
-    const archive = this.activeArchive
-      ? Object.freeze({
-          generation: this.activeArchive.generation,
-          id: this.activeArchive.id,
-          rootPath: this.activeArchive.rootPath,
-        })
-      : null;
-    const snapshot = this.resolution
+    const archive = this.activeArchive ? publicArchive(this.activeArchive) : null;
+    const resolved = this.resolution
       ? this.resolvedSnapshot(this.resolution, archive)
       : this.globalSnapshot(archive);
+    const snapshot =
+      this.preview && archive?.generation === this.preview.archiveGeneration
+        ? Object.freeze({
+            app: this.preview.app ?? resolved.app,
+            archive,
+            reader: this.preview.reader ?? resolved.reader,
+          })
+        : resolved;
 
     const root = this.getDocumentRoot();
     if (!root) {
@@ -306,6 +395,14 @@ export class AppearanceRuntime {
     return this.activeArchive === context;
   }
 
+  private isArchiveCurrent(archive: ActiveAppearanceArchive): boolean {
+    return (
+      this.activeArchive?.generation === archive.generation &&
+      this.activeArchive.id === archive.id &&
+      this.activeArchive.rootPath === archive.rootPath
+    );
+  }
+
   private addSystemSchemeListener(): void {
     if (typeof this.mediaQuery?.addEventListener === "function") {
       this.mediaQuery.addEventListener("change", this.handleSystemSchemeChange);
@@ -321,4 +418,52 @@ export class AppearanceRuntime {
     }
     this.mediaQuery?.removeListener(this.handleSystemSchemeChange);
   }
+}
+
+export class AppearanceRuntimeArchiveChangedError extends Error {
+  constructor() {
+    super("The active archive changed before the theme preview operation completed.");
+    this.name = "AppearanceRuntimeArchiveChangedError";
+  }
+}
+
+export class AppearanceRuntimeSettingsChangedError extends Error {
+  constructor() {
+    super("Archive appearance settings changed after the theme preview started.");
+    this.name = "AppearanceRuntimeSettingsChangedError";
+  }
+}
+
+function publicArchive(archive: ActiveArchiveContext): ActiveAppearanceArchive {
+  return Object.freeze({
+    generation: archive.generation,
+    id: archive.id,
+    rootPath: archive.rootPath,
+  });
+}
+
+function appearanceSettingsFromResolution(
+  resolution: ArchiveThemeSelectionResolution,
+): Readonly<ArchiveAppearanceSettings> {
+  return Object.freeze({
+    appTheme: Object.freeze({ ...resolution.app.requested }),
+    readerTheme: Object.freeze({ ...resolution.reader.requested }),
+  });
+}
+
+function sameAppearanceSettings(
+  left: Readonly<ArchiveAppearanceSettings>,
+  right: Readonly<ArchiveAppearanceSettings>,
+): boolean {
+  return (
+    sameSelection(left.appTheme, right.appTheme) &&
+    sameSelection(left.readerTheme, right.readerTheme)
+  );
+}
+
+function sameSelection(
+  left: Readonly<{ id?: string; kind: string }>,
+  right: Readonly<{ id?: string; kind: string }>,
+): boolean {
+  return left.kind === right.kind && left.id === right.id;
 }
