@@ -4,7 +4,9 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ArchiveAppearanceSettingsSource } from "../../storage/archiveAppearanceSettingsSource";
 import type { ArchiveState } from "../../stores/archiveStore";
+import type { ArchiveAppearanceSettings } from "../../types/settings";
 import { ArchiveGate } from "./ArchiveGate";
 
 const routerMock = vi.hoisted(() => ({
@@ -12,11 +14,21 @@ const routerMock = vi.hoisted(() => ({
   state: { location: { pathname: "/reader/shared-book" } },
 }));
 const storageMock = vi.hoisted(() => ({
+  getArchiveAppearanceSettings: vi.fn(async () => ({
+    appTheme: { kind: "inherit" as const },
+    readerTheme: { kind: "inherit" as const },
+  })),
   rescan: vi.fn(async () => undefined),
   reset: vi.fn(),
+  saveArchiveAppearanceSettings: vi.fn(async (settings: ArchiveAppearanceSettings) => settings),
 }));
 const appearanceRuntimeMock = vi.hoisted(() => ({
-  activateArchive: vi.fn(async () => undefined),
+  activateArchive: vi.fn<
+    (
+      archive: Readonly<{ id: string; rootPath: string }>,
+      source: ArchiveAppearanceSettingsSource,
+    ) => Promise<void>
+  >(async () => undefined),
   deactivateArchive: vi.fn(),
 }));
 
@@ -76,6 +88,8 @@ afterEach(() => {
   routerMock.state.location.pathname = "/reader/shared-book";
   storageMock.reset.mockReset();
   storageMock.rescan.mockReset();
+  storageMock.getArchiveAppearanceSettings.mockClear();
+  storageMock.saveArchiveAppearanceSettings.mockClear();
   appearanceRuntimeMock.activateArchive.mockReset();
   appearanceRuntimeMock.deactivateArchive.mockReset();
 });
@@ -88,11 +102,41 @@ describe("ArchiveGate ready archive replacement", () => {
     expect(storageMock.reset).toHaveBeenCalledWith("D:\\archive-a");
     expect(appearanceRuntimeMock.activateArchive).toHaveBeenCalledWith(
       { id: "archive-a", rootPath: "D:\\archive-a" },
-      storageMock,
+      expect.not.objectContaining({ reset: expect.anything() }),
     );
     expect(storageMock.reset.mock.invocationCallOrder[0]).toBeLessThan(
       appearanceRuntimeMock.activateArchive.mock.invocationCallOrder[0]!,
     );
+    const source = appearanceRuntimeMock.activateArchive.mock.calls[0]?.[1];
+    await expect(source.getArchiveAppearanceSettings()).resolves.toEqual({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    });
+    await expect(
+      source.saveArchiveAppearanceSettings({
+        appTheme: { kind: "builtin", id: "light" },
+        readerTheme: { kind: "builtin", id: "sepia" },
+      }),
+    ).resolves.toEqual({
+      appTheme: { kind: "builtin", id: "light" },
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    expect(storageMock.getArchiveAppearanceSettings).toHaveBeenCalledOnce();
+    expect(storageMock.saveArchiveAppearanceSettings).toHaveBeenCalledOnce();
+  });
+
+  it("keeps one receiver-safe appearance source for the active storage instance", async () => {
+    archiveState = readyArchive("archive-a");
+    await render();
+    const firstSource = appearanceRuntimeMock.activateArchive.mock.calls[0]?.[1];
+
+    archiveState = readyArchive("archive-b");
+    routerMock.state.location.pathname = "/";
+    await render();
+    await act(async () => Promise.resolve());
+    const secondSource = appearanceRuntimeMock.activateArchive.mock.calls.at(-1)?.[1];
+
+    expect(secondSource).toBe(firstSource);
   });
 
   it("unmounts the reader and replaces it with the new archive Library route", async () => {

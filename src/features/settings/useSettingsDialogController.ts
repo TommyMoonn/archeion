@@ -41,7 +41,6 @@ const LOCAL_STATUS_AUTO_DISMISS_MS = 2500;
 
 export type SettingsDialogControllerOptions = {
   committedArchiveAppearance?: AppearancePreviewContext | null;
-  loadArchiveAppearanceSettings?: boolean;
   loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
@@ -54,7 +53,6 @@ export type SettingsDialogControllerOptions = {
 
 export function useSettingsDialogController({
   committedArchiveAppearance = null,
-  loadArchiveAppearanceSettings = false,
   loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
@@ -74,9 +72,6 @@ export function useSettingsDialogController({
   const [archiveImport, setArchiveImport] = useState<ArchiveImportSettings>({
     ...defaultArchiveImportSettings,
   });
-  const [archiveAppearance, setArchiveAppearance] = useState<ArchiveAppearanceSettings | null>(
-    null,
-  );
   const [folders, setFolders] = useState<Folder[]>([]);
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [epubWritebackBackupStatus, setEpubWritebackBackupStatus] =
@@ -88,11 +83,6 @@ export function useSettingsDialogController({
   const statusDismissTimerRef = useRef<number | null>(null);
   const archiveImportLoadedRef = useRef(false);
   const archiveImportLoadingRef = useRef(false);
-  const archiveAppearanceLoadedRef = useRef(false);
-  const archiveAppearanceLoadingRef = useRef(false);
-  const archiveAppearanceRef = useRef<ArchiveAppearanceSettings | null>(null);
-  const archiveAppearanceSaveRevisionRef = useRef(0);
-  const committedAppearanceArchiveRef = useRef<AppearancePreviewContext["archive"] | null>(null);
   const coverCacheLoadedRef = useRef(false);
   const coverCacheLoadingRef = useRef(false);
   const epubWritebackBackupStatusLoadedRef = useRef(false);
@@ -119,6 +109,10 @@ export function useSettingsDialogController({
     ? importDestinationValue
     : destinationOptions[0]?.value;
   const selectedArchivePath = archive.status === "ready" ? archive.path : undefined;
+  const archiveAppearance =
+    selectedArchivePath && committedArchiveAppearance?.archive.rootPath === selectedArchivePath
+      ? committedArchiveAppearance.settings
+      : null;
 
   const clearStatusDismissTimer = useCallback(() => {
     if (statusDismissTimerRef.current === null) return;
@@ -182,14 +176,6 @@ export function useSettingsDialogController({
 
   useEffect(() => {
     dataLoadGenerationRef.current += 1;
-    archiveAppearanceLoadedRef.current = false;
-    archiveAppearanceLoadingRef.current = false;
-    archiveAppearanceRef.current = null;
-    archiveAppearanceSaveRevisionRef.current += 1;
-    const resetGeneration = dataLoadGenerationRef.current;
-    queueMicrotask(() => {
-      if (dataLoadGenerationRef.current === resetGeneration) setArchiveAppearance(null);
-    });
     archiveImportLoadedRef.current = false;
     archiveImportLoadingRef.current = false;
     coverCacheLoadedRef.current = false;
@@ -199,74 +185,6 @@ export function useSettingsDialogController({
     foldersLoadedRef.current = false;
     foldersLoadingRef.current = false;
   }, [storage]);
-
-  useEffect(() => {
-    const previousArchive = committedAppearanceArchiveRef.current;
-    const nextArchive = committedArchiveAppearance?.archive ?? null;
-    committedAppearanceArchiveRef.current = nextArchive;
-    if (previousArchive && !sameAppearanceArchive(previousArchive, nextArchive)) {
-      const generation = dataLoadGenerationRef.current + 1;
-      dataLoadGenerationRef.current = generation;
-      archiveAppearanceSaveRevisionRef.current += 1;
-      archiveAppearanceLoadedRef.current = false;
-      archiveAppearanceLoadingRef.current = false;
-      archiveAppearanceRef.current = null;
-      queueMicrotask(() => {
-        if (dataLoadGenerationRef.current === generation) setArchiveAppearance(null);
-      });
-    }
-
-    if (
-      !loadArchiveAppearanceSettings ||
-      !selectedArchivePath ||
-      committedArchiveAppearance?.archive.rootPath !== selectedArchivePath
-    ) {
-      return;
-    }
-
-    const next = cloneArchiveAppearance(committedArchiveAppearance.settings);
-    const generation = dataLoadGenerationRef.current + 1;
-    dataLoadGenerationRef.current = generation;
-    archiveAppearanceSaveRevisionRef.current += 1;
-    archiveAppearanceLoadedRef.current = true;
-    archiveAppearanceLoadingRef.current = false;
-    archiveAppearanceRef.current = next;
-    queueMicrotask(() => {
-      if (dataLoadGenerationRef.current === generation) setArchiveAppearance(next);
-    });
-  }, [committedArchiveAppearance, loadArchiveAppearanceSettings, selectedArchivePath]);
-
-  useEffect(() => {
-    if (
-      !loadArchiveAppearanceSettings ||
-      archiveAppearanceLoadedRef.current ||
-      archiveAppearanceLoadingRef.current
-    ) {
-      return;
-    }
-
-    const generation = dataLoadGenerationRef.current;
-    archiveAppearanceLoadingRef.current = true;
-    void storage
-      .getArchiveAppearanceSettings()
-      .then((settings) => {
-        if (dataLoadGenerationRef.current !== generation) return;
-        const next = cloneArchiveAppearance(settings);
-        archiveAppearanceLoadedRef.current = true;
-        archiveAppearanceRef.current = next;
-        setArchiveAppearance(next);
-      })
-      .catch(() => {
-        if (dataLoadGenerationRef.current === generation) {
-          setErrorStatus("Archive appearance could not be loaded.");
-        }
-      })
-      .finally(() => {
-        if (dataLoadGenerationRef.current === generation) {
-          archiveAppearanceLoadingRef.current = false;
-        }
-      });
-  }, [loadArchiveAppearanceSettings, storage, setErrorStatus]);
 
   useEffect(() => {
     if (
@@ -456,63 +374,27 @@ export function useSettingsDialogController({
   async function updateArchiveAppearance(
     changes: Partial<ArchiveAppearanceSettings>,
   ): Promise<boolean> {
-    const current = archiveAppearanceRef.current;
     const previewContext = appearanceRuntime.getPreviewContext();
-    if (!current || !previewContext) {
+    if (
+      !previewContext ||
+      !selectedArchivePath ||
+      previewContext.archive.rootPath !== selectedArchivePath
+    ) {
       setErrorStatus("Archive appearance is unavailable.");
       return false;
     }
 
-    const next = cloneArchiveAppearance({ ...current, ...changes });
-    archiveAppearanceSaveRevisionRef.current += 1;
-    const revision = archiveAppearanceSaveRevisionRef.current;
-    archiveAppearanceRef.current = next;
-    setArchiveAppearance(next);
     clearLocalStatus();
 
     try {
-      const saved = await appearanceRuntime.saveArchiveAppearanceSettings(
-        previewContext.archive,
-        next,
-      );
-      if (archiveAppearanceSaveRevisionRef.current !== revision) return true;
-      const normalized = cloneArchiveAppearance(saved);
-      archiveAppearanceRef.current = normalized;
-      setArchiveAppearance(normalized);
+      await appearanceRuntime.updateArchiveAppearanceSettings(previewContext.archive, changes);
       setSuccessStatus("Archive appearance saved.");
       return true;
     } catch (error) {
-      if (archiveAppearanceSaveRevisionRef.current === revision) {
-        const active = appearanceRuntime.getPreviewContext()?.settings;
-        const restored = active ? cloneArchiveAppearance(active) : current;
-        archiveAppearanceRef.current = restored;
-        setArchiveAppearance(restored);
-        setErrorStatus(
-          error instanceof Error ? error.message : "Archive appearance could not be saved.",
-        );
-      }
+      setErrorStatus(
+        error instanceof Error ? error.message : "Archive appearance could not be saved.",
+      );
       return false;
-    }
-  }
-
-  async function refreshArchiveAppearance(): Promise<void> {
-    archiveAppearanceSaveRevisionRef.current += 1;
-    const active = appearanceRuntime.getPreviewContext()?.settings;
-    if (active) {
-      const next = cloneArchiveAppearance(active);
-      archiveAppearanceLoadedRef.current = true;
-      archiveAppearanceRef.current = next;
-      setArchiveAppearance(next);
-      return;
-    }
-
-    try {
-      const next = cloneArchiveAppearance(await storage.getArchiveAppearanceSettings());
-      archiveAppearanceLoadedRef.current = true;
-      archiveAppearanceRef.current = next;
-      setArchiveAppearance(next);
-    } catch {
-      setErrorStatus("Archive appearance could not be refreshed.");
     }
   }
 
@@ -715,7 +597,6 @@ export function useSettingsDialogController({
     resetReader,
     resetStorage,
     resetWindow,
-    refreshArchiveAppearance,
     revealArchiveFolder,
     revealMetadata,
     safeImportDestinationValue,
@@ -741,24 +622,3 @@ export function useSettingsDialogController({
 }
 
 export type SettingsDialogController = ReturnType<typeof useSettingsDialogController>;
-
-function cloneArchiveAppearance(
-  settings: Readonly<ArchiveAppearanceSettings>,
-): ArchiveAppearanceSettings {
-  return {
-    appTheme: { ...settings.appTheme },
-    readerTheme: { ...settings.readerTheme },
-  };
-}
-
-function sameAppearanceArchive(
-  left: AppearancePreviewContext["archive"],
-  right: AppearancePreviewContext["archive"] | null,
-): boolean {
-  return (
-    right !== null &&
-    left.generation === right.generation &&
-    left.id === right.id &&
-    left.rootPath === right.rootPath
-  );
-}

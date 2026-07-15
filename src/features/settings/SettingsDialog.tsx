@@ -90,7 +90,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const committedArchiveAppearance = useCommittedArchiveAppearance();
   const controller = useSettingsDialogController({
     committedArchiveAppearance,
-    loadArchiveAppearanceSettings: dataRequirements.has("archiveAppearanceSettings"),
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),

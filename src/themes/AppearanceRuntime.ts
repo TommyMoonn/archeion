@@ -1,5 +1,6 @@
 import type { AppPreferences } from "../types/appSettings";
 import type { ArchiveAppearanceSettings } from "../types/settings";
+import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearanceSettingsSource";
 import {
   ArchiveThemeCatalog,
   ArchiveThemeCatalogChangedError,
@@ -24,13 +25,6 @@ export type GlobalAppearancePreferences = Pick<AppPreferences, "appThemePreset" 
 export type GlobalAppearanceSource = Readonly<{
   getSnapshot: () => GlobalAppearancePreferences;
   subscribe: (listener: Listener) => () => void;
-}>;
-
-export type ArchiveAppearanceSettingsSource = Readonly<{
-  getArchiveAppearanceSettings: () => Promise<ArchiveAppearanceSettings>;
-  saveArchiveAppearanceSettings?: (
-    settings: ArchiveAppearanceSettings,
-  ) => Promise<ArchiveAppearanceSettings>;
 }>;
 
 export type AppearanceArchive = Readonly<{
@@ -65,6 +59,7 @@ export type AppearanceRuntimeOptions = Readonly<{
 }>;
 
 type AppearancePersistenceCoordinator = {
+  desiredSettings: Readonly<ArchiveAppearanceSettings> | null;
   lastPersistedSettings: Readonly<ArchiveAppearanceSettings> | null;
   latestOperation: number;
   tail: Promise<void>;
@@ -167,10 +162,6 @@ export class AppearanceRuntime {
     ) {
       throw new AppearanceRuntimeSettingsChangedError();
     }
-    if (!context.settingsSource.saveArchiveAppearanceSettings) {
-      throw new Error("Archive appearance settings cannot be saved.");
-    }
-
     await this.persistAppearance(context, settings, true);
   }
 
@@ -185,11 +176,30 @@ export class AppearanceRuntime {
     if (this.preview) {
       throw new Error("End the active theme preview before changing archive appearance.");
     }
-    if (!context.settingsSource.saveArchiveAppearanceSettings) {
-      throw new Error("Archive appearance settings cannot be saved.");
-    }
-
     return this.persistAppearance(context, settings, false);
+  }
+
+  async updateArchiveAppearanceSettings(
+    archive: ActiveAppearanceArchive,
+    changes: Partial<ArchiveAppearanceSettings>,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    const context = this.activeArchive;
+    if (!context || !this.isArchiveCurrent(archive)) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+    if (this.preview) {
+      throw new Error("End the active theme preview before changing archive appearance.");
+    }
+    const desired = context.persistence.desiredSettings;
+    if (!desired) throw new AppearanceRuntimeSettingsChangedError();
+    return this.persistAppearance(
+      context,
+      {
+        appTheme: { ...(changes.appTheme ?? desired.appTheme) },
+        readerTheme: { ...(changes.readerTheme ?? desired.readerTheme) },
+      },
+      false,
+    );
   }
 
   async refreshArchiveAppearance(
@@ -257,6 +267,7 @@ export class AppearanceRuntime {
       generation: this.generation + 1,
       id: archive.id,
       persistence: {
+        desiredSettings: null,
         lastPersistedSettings: null,
         latestOperation: 0,
         tail: Promise.resolve(),
@@ -451,15 +462,16 @@ export class AppearanceRuntime {
     settings: ArchiveAppearanceSettings,
     clearPreview: boolean,
   ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    const save = context.settingsSource.saveArchiveAppearanceSettings;
-    if (!save) throw new Error("Archive appearance settings cannot be saved.");
-    const operation = this.nextPersistenceOperation(context);
     const requested = freezeAppearanceSettings(settings);
+    context.persistence.desiredSettings = requested;
+    const operation = this.nextPersistenceOperation(context);
     return this.enqueuePersistence(context, async () => {
       this.assertPersistenceOperationCurrent(context, operation);
       let saved: Readonly<ArchiveAppearanceSettings>;
       try {
-        saved = freezeAppearanceSettings(await save(requested));
+        saved = freezeAppearanceSettings(
+          await context.settingsSource.saveArchiveAppearanceSettings(requested),
+        );
         context.persistence.lastPersistedSettings = saved;
       } catch (error) {
         if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
@@ -545,6 +557,7 @@ export class AppearanceRuntime {
   ): Readonly<ArchiveAppearanceSettings> {
     if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
     const settings = appearanceSettingsFromResolution(resolution);
+    context.persistence.desiredSettings = settings;
     this.appearanceSettings = settings;
     this.resolution = resolution;
     if (clearPreview) this.preview = null;

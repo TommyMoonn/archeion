@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import { createArchiveAppearanceSettingsSource } from "../../storage/archiveAppearanceSettingsSource";
 import { archiveStore } from "../../stores/archiveStore";
 import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
@@ -17,6 +18,10 @@ type ArchiveGateProps = {
 export function ArchiveGate({ children }: ArchiveGateProps) {
   const state = useArchive();
   const storage = useLibraryStorage();
+  const appearanceSettingsSource = useMemo(
+    () => createArchiveAppearanceSettingsSource(storage),
+    [storage],
+  );
   const { liveWatcherEnabled, scanOnStartup } = useFilesAndMetadataPreferences();
   const archivePath = state.status === "ready" ? state.path : null;
   const readyArchiveId = state.status === "ready" ? state.archive.id : null;
@@ -71,9 +76,9 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
     }
 
     const archive = { id: readyArchiveId, rootPath: archivePath };
-    void appearanceRuntime.activateArchive(archive, storage);
+    void appearanceRuntime.activateArchive(archive, appearanceSettingsSource);
     return () => appearanceRuntime.deactivateArchive(archive);
-  }, [archivePath, readyArchiveId, storage]);
+  }, [appearanceSettingsSource, archivePath, readyArchiveId, storage]);
 
   useEffect(() => {
     if (!archivePath) {

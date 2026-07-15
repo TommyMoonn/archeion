@@ -8,6 +8,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
 import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
+import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import {
   useSettingsDialogController,
   type SettingsDialogController,
@@ -35,7 +36,6 @@ function Harness({
 }: Readonly<{ committedArchiveAppearance: AppearancePreviewContext | null }>) {
   const controller = useSettingsDialogController({
     committedArchiveAppearance,
-    loadArchiveAppearanceSettings: true,
   });
   useEffect(() => {
     latest = controller;
@@ -99,6 +99,33 @@ describe("Settings committed appearance subscription", () => {
     await render(keptContext);
 
     expect(latest.archiveAppearance).toEqual(keptContext.settings);
+    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
+  });
+
+  it("forwards rapid channel changes as partial runtime-owned updates", async () => {
+    const update = vi
+      .spyOn(appearanceRuntime, "updateArchiveAppearanceSettings")
+      .mockResolvedValue(initialContext.settings);
+    vi.spyOn(appearanceRuntime, "getPreviewContext").mockReturnValue(initialContext);
+    await render(initialContext);
+
+    await act(async () => {
+      const application = latest.updateArchiveAppearance({
+        appTheme: { kind: "builtin", id: "light" },
+      });
+      const reader = latest.updateArchiveAppearance({
+        readerTheme: { kind: "builtin", id: "sepia" },
+      });
+      await Promise.all([application, reader]);
+    });
+
+    expect(update).toHaveBeenNthCalledWith(1, archive, {
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    expect(update).toHaveBeenNthCalledWith(2, archive, {
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
   });
 
   it("clears previous-archive selections when the committed scope is invalidated", async () => {

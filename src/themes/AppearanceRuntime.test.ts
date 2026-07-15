@@ -168,6 +168,44 @@ async function pendingCustomFallback() {
   };
 }
 
+async function runtimeWithPendingAppearanceWrite(initial: ArchiveAppearanceSettings) {
+  const preferences = createPreferencesSource();
+  const firstWrite = deferred<ArchiveAppearanceSettings>();
+  let persisted = appearanceSettings({ ...initial.appTheme }, { ...initial.readerTheme });
+  const saveArchiveAppearanceSettings = vi
+    .fn<(settings: ArchiveAppearanceSettings) => Promise<ArchiveAppearanceSettings>>()
+    .mockImplementationOnce(async () => {
+      const saved = await firstWrite.promise;
+      persisted = appearanceSettings({ ...saved.appTheme }, { ...saved.readerTheme });
+      return persisted;
+    })
+    .mockImplementation(async (settings) => {
+      persisted = appearanceSettings({ ...settings.appTheme }, { ...settings.readerTheme });
+      return persisted;
+    });
+  const runtime = new AppearanceRuntime({
+    getDocumentRoot: () => document.createElement("div"),
+    globalPreferences: preferences.source,
+  });
+  runtime.start();
+  await runtime.activateArchive(
+    { id: "archive-a", rootPath: "D:\\Archive A" },
+    {
+      getArchiveAppearanceSettings: async () => persisted,
+      saveArchiveAppearanceSettings,
+    },
+  );
+  const context = runtime.getPreviewContext();
+  if (!context) throw new Error("Expected an active appearance context");
+  return {
+    archive: context.archive,
+    firstWrite,
+    persisted: () => persisted,
+    runtime,
+    saveArchiveAppearanceSettings,
+  };
+}
+
 describe("AppearanceRuntime", () => {
   it("owns a complete synchronous application variable commit and follows system changes", () => {
     const preferences = createPreferencesSource({ appThemePreset: "system" });
@@ -330,6 +368,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "custom", id: "app-override" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 
@@ -366,6 +405,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "inherit" }, { kind: "custom", id: "reader-override" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 
@@ -393,6 +433,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
     const before = runtime.getSnapshot();
@@ -428,6 +469,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
     const before = runtime.getSnapshot();
@@ -539,6 +581,167 @@ describe("AppearanceRuntime", () => {
     expect(setProperty).toHaveBeenCalledTimes(Object.keys(appThemeResolvedTokenRegistry).length);
   });
 
+  it("persists and applies built-in and custom selections for both channels", async () => {
+    const preferences = createPreferencesSource();
+    const saveArchiveAppearanceSettings = vi.fn(async (settings: ArchiveAppearanceSettings) =>
+      appearanceSettings({ ...settings.appTheme }, { ...settings.readerTheme }),
+    );
+    const runtime = new AppearanceRuntime({
+      catalog: new ArchiveThemeCatalog(() => ({
+        listPackageDirectories: vi.fn(async () => []),
+        readManifest: vi.fn(async (id: string) => manifest(id)),
+      })),
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings,
+      },
+    );
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active appearance context");
+
+    const builtIn = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    await runtime.saveArchiveAppearanceSettings(context.archive, builtIn);
+    expect(runtime.getSnapshot().app.base).toBe("light");
+    expect(runtime.getSnapshot().reader.base).toBe("sepia");
+
+    const custom = appearanceSettings(
+      { kind: "custom", id: "runtime-theme" },
+      { kind: "custom", id: "runtime-theme" },
+    );
+    await runtime.saveArchiveAppearanceSettings(context.archive, custom);
+    expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#123456");
+    expect(runtime.getSnapshot().reader.publicTokens.background).toBe("#f0e0c0");
+    expect(runtime.getPreviewContext()?.settings).toEqual(custom);
+    expect(saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(1, builtIn);
+    expect(saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(2, custom);
+  });
+
+  it("preserves an application update when a reader update is queued before it commits", async () => {
+    const initial = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "dark" },
+    );
+    const fixture = await runtimeWithPendingAppearanceWrite(initial);
+    const application = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    const reader = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    const firstRequested = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "dark" },
+    );
+    const combined = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    fixture.firstWrite.resolve(firstRequested);
+
+    await expect(application).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(reader).resolves.toEqual(combined);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(1, firstRequested);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(2, combined);
+    expect(fixture.persisted()).toEqual(combined);
+    expect(fixture.runtime.getPreviewContext()?.settings).toEqual(combined);
+    expect(fixture.runtime.getSnapshot().app.base).toBe("light");
+    expect(fixture.runtime.getSnapshot().reader.base).toBe("sepia");
+  });
+
+  it("preserves a reader update when an application update is queued before it commits", async () => {
+    const initial = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "dark" },
+    );
+    const fixture = await runtimeWithPendingAppearanceWrite(initial);
+    const reader = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    const application = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    const firstRequested = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "sepia" },
+    );
+    const combined = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    fixture.firstWrite.resolve(firstRequested);
+
+    await expect(reader).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(application).resolves.toEqual(combined);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(1, firstRequested);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(2, combined);
+    expect(fixture.persisted()).toEqual(combined);
+    expect(fixture.runtime.getPreviewContext()?.settings).toEqual(combined);
+  });
+
+  it("keeps the newest same-channel update and leaves the other channel unchanged", async () => {
+    const initial = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "sepia" },
+    );
+    const fixture = await runtimeWithPendingAppearanceWrite(initial);
+    const light = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    const dark = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      appTheme: { kind: "builtin", id: "dark" },
+    });
+    const firstRequested = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    fixture.firstWrite.resolve(firstRequested);
+
+    await expect(light).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(dark).resolves.toEqual(initial);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(2, initial);
+    expect(fixture.persisted()).toEqual(initial);
+    expect(fixture.runtime.getPreviewContext()?.settings).toEqual(initial);
+  });
+
+  it("retains combined pending intent when an older cross-channel write fails", async () => {
+    const initial = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "dark" },
+    );
+    const fixture = await runtimeWithPendingAppearanceWrite(initial);
+    const application = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    const reader = fixture.runtime.updateArchiveAppearanceSettings(fixture.archive, {
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    const combined = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    fixture.firstWrite.reject(new Error("older write failed"));
+
+    await expect(application).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(reader).resolves.toEqual(combined);
+    expect(fixture.saveArchiveAppearanceSettings).toHaveBeenNthCalledWith(2, combined);
+    expect(fixture.persisted()).toEqual(combined);
+    expect(fixture.runtime.getPreviewContext()?.settings).toEqual(combined);
+  });
+
   it("serializes archive appearance writes so a superseded write cannot win persistence", async () => {
     const preferences = createPreferencesSource();
     const firstWrite = deferred<ArchiveAppearanceSettings>();
@@ -596,7 +799,11 @@ describe("AppearanceRuntime", () => {
     const saveArchiveAppearanceSettings = vi
       .fn<(settings: ArchiveAppearanceSettings) => Promise<ArchiveAppearanceSettings>>()
       .mockImplementationOnce(() => firstWrite.promise)
-      .mockRejectedValueOnce(new Error("latest write failed"));
+      .mockRejectedValueOnce(new Error("latest write failed"))
+      .mockImplementation(async (settings) => {
+        persisted = settings;
+        return settings;
+      });
     const runtime = new AppearanceRuntime({
       getDocumentRoot: () => document.createElement("div"),
       globalPreferences: preferences.source,
@@ -621,7 +828,16 @@ describe("AppearanceRuntime", () => {
     expect(runtime.getPreviewContext()?.settings).toEqual(firstSettings);
     expect(runtime.getSnapshot().app.base).toBe("light");
     expect(runtime.getSnapshot().reader.base).toBe("dark");
-    await expect(runtime.refreshArchiveAppearance(context.archive)).resolves.toEqual(firstSettings);
+    const afterRecovery = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    await expect(
+      runtime.updateArchiveAppearanceSettings(context.archive, {
+        readerTheme: { kind: "builtin", id: "sepia" },
+      }),
+    ).resolves.toEqual(afterRecovery);
+    await expect(runtime.refreshArchiveAppearance(context.archive)).resolves.toEqual(afterRecovery);
     expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(3);
   });
 
@@ -687,7 +903,10 @@ describe("AppearanceRuntime", () => {
       { id: "archive-a", rootPath: "D:\\Archive A" },
       {
         getArchiveAppearanceSettings,
-        saveArchiveAppearanceSettings: vi.fn(() => write.promise),
+        saveArchiveAppearanceSettings: vi
+          .fn<(settings: ArchiveAppearanceSettings) => Promise<ArchiveAppearanceSettings>>()
+          .mockImplementationOnce(() => write.promise)
+          .mockImplementation(async (settings) => settings),
       },
     );
     const context = runtime.getPreviewContext();
@@ -703,6 +922,17 @@ describe("AppearanceRuntime", () => {
     await expect(refreshing).resolves.toEqual(written);
     expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2);
     expect(runtime.getPreviewContext()?.settings).toEqual(written);
+
+    const afterRefresh = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    await expect(
+      runtime.updateArchiveAppearanceSettings(context.archive, {
+        readerTheme: { kind: "builtin", id: "sepia" },
+      }),
+    ).resolves.toEqual(afterRefresh);
+    expect(runtime.getPreviewContext()?.settings).toEqual(afterRefresh);
   });
 
   it("publishes the last successful write when a superseding refresh read fails", async () => {
@@ -810,7 +1040,10 @@ describe("AppearanceRuntime", () => {
 
     await runtime.activateArchive(
       { id: "archive-b", rootPath: "D:\\Archive B" },
-      { getArchiveAppearanceSettings: async () => replacement },
+      {
+        getArchiveAppearanceSettings: async () => replacement,
+        saveArchiveAppearanceSettings: async (settings) => settings,
+      },
     );
     const replacementContext = runtime.getPreviewContext();
     if (!replacementContext) throw new Error("Expected the replacement archive context");
@@ -887,7 +1120,10 @@ describe("AppearanceRuntime", () => {
 
     await scenario.runtime.activateArchive(
       { id: "archive-b", rootPath: "D:\\Archive B" },
-      { getArchiveAppearanceSettings: async () => replacement },
+      {
+        getArchiveAppearanceSettings: async () => replacement,
+        saveArchiveAppearanceSettings: async (settings) => settings,
+      },
     );
     const replacementContext = scenario.runtime.getPreviewContext();
     if (!replacementContext) throw new Error("Expected the replacement archive context");
@@ -965,7 +1201,7 @@ describe("AppearanceRuntime", () => {
     for (let index = 0; index < 3; index += 1) await Promise.resolve();
 
     const secondSettings = appearanceSettings(
-      { kind: "builtin", id: "dark" },
+      { kind: "inherit" },
       { kind: "builtin", id: "sepia" },
     );
     const secondSave = vi.fn(async (settings: ArchiveAppearanceSettings) => settings);
@@ -981,7 +1217,9 @@ describe("AppearanceRuntime", () => {
     if (!secondContext) throw new Error("Expected the second archive context");
 
     await expect(
-      runtime.saveArchiveAppearanceSettings(secondContext.archive, secondSettings),
+      runtime.updateArchiveAppearanceSettings(secondContext.archive, {
+        readerTheme: { kind: "builtin", id: "sepia" },
+      }),
     ).resolves.toEqual(secondSettings);
     expect(secondSave).toHaveBeenCalledOnce();
     expect(runtime.getPreviewContext()?.archive.id).toBe("archive-b");
@@ -1002,6 +1240,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
     const firstContext = runtime.getPreviewContext();
@@ -1013,6 +1252,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 
@@ -1031,6 +1271,7 @@ describe("AppearanceRuntime", () => {
     );
     const settingsSource = {
       getArchiveAppearanceSettings: vi.fn(async () => persisted),
+      saveArchiveAppearanceSettings: vi.fn(async (settings: ArchiveAppearanceSettings) => settings),
     };
     const runtime = new AppearanceRuntime({
       getDocumentRoot: () => document.createElement("div"),
@@ -1080,6 +1321,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
     pendingSave.resolve(next);
@@ -1114,6 +1356,7 @@ describe("AppearanceRuntime", () => {
             { kind: "custom", id: "moon-ink" },
             { kind: "custom", id: "moon-ink" },
           ),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 
@@ -1156,13 +1399,17 @@ describe("AppearanceRuntime", () => {
 
     const first = runtime.activateArchive(
       { id: "archive-a", rootPath: "D:\\Archive A" },
-      { getArchiveAppearanceSettings: () => firstSettings.promise },
+      {
+        getArchiveAppearanceSettings: () => firstSettings.promise,
+        saveArchiveAppearanceSettings: async (settings) => settings,
+      },
     );
     await runtime.activateArchive(
       { id: "archive-b", rootPath: "D:\\Archive B" },
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "builtin", id: "light" }, { kind: "builtin", id: "sepia" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
     runtime.deactivateArchive({ id: "archive-a", rootPath: "D:\\Archive A" });
@@ -1197,6 +1444,7 @@ describe("AppearanceRuntime", () => {
           getArchiveAppearanceSettings: async () => {
             throw new Error("settings unavailable");
           },
+          saveArchiveAppearanceSettings: async (settings) => settings,
         },
       ),
     ).resolves.toBeUndefined();
@@ -1207,6 +1455,41 @@ describe("AppearanceRuntime", () => {
     expect(runtime.getSnapshot().archive?.id).toBe("archive-a");
     expect(runtime.getSnapshot().app.base).toBe("light");
     expect(runtime.getSnapshot().reader.base).toBe("dark");
+  });
+
+  it.each([
+    ["missing", async () => Promise.reject(new Error("package missing"))],
+    ["invalid", async () => "{not valid json"],
+  ])("keeps archive opening when a selected custom package is %s", async (_case, readManifest) => {
+    const preferences = createPreferencesSource({ appThemePreset: "light" });
+    const runtime = new AppearanceRuntime({
+      catalog: new ArchiveThemeCatalog(() => ({
+        listPackageDirectories: vi.fn(async () => []),
+        readManifest: vi.fn(readManifest),
+      })),
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    const requested = appearanceSettings(
+      { kind: "custom", id: "unavailable-theme" },
+      { kind: "custom", id: "unavailable-theme" },
+    );
+
+    await expect(
+      runtime.activateArchive(
+        { id: "archive-a", rootPath: "D:\\Archive A" },
+        {
+          getArchiveAppearanceSettings: async () => requested,
+          saveArchiveAppearanceSettings: async (settings) => settings,
+        },
+      ),
+    ).resolves.toBeUndefined();
+
+    expect(runtime.getSnapshot().archive?.id).toBe("archive-a");
+    expect(runtime.getSnapshot().app.base).toBe("light");
+    expect(runtime.getSnapshot().reader.base).toBe("dark");
+    expect(runtime.getPreviewContext()?.settings).toEqual(requested);
   });
 
   it("uses the OS scheme for an archive system selection independently of the global fallback", async () => {
@@ -1224,6 +1507,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "system" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 
@@ -1246,6 +1530,7 @@ describe("AppearanceRuntime", () => {
       {
         getArchiveAppearanceSettings: async () =>
           appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" }),
+        saveArchiveAppearanceSettings: async (settings) => settings,
       },
     );
 

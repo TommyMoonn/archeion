@@ -201,6 +201,7 @@ describe("useCommittedArchiveAppearance", () => {
             appTheme: { kind: "builtin", id: "light" },
             readerTheme: { kind: "builtin", id: "sepia" },
           }),
+          saveArchiveAppearanceSettings: async (settings) => settings,
         },
       );
     });

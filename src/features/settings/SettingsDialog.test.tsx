@@ -170,7 +170,7 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
   });
 
-  it("loads archive appearance only when Reader or Appearance controls require it", async () => {
+  it("does not load a competing archive appearance copy when controls become visible", async () => {
     const { container, storage } = track(renderDialog());
 
     clickButton(container, "Appearance");
@@ -178,7 +178,7 @@ describe("SettingsDialog responsiveness", () => {
       await Promise.resolve();
     });
 
-    expect(storage.getArchiveAppearanceSettings).toHaveBeenCalledTimes(1);
+    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Application theme for this archive");
     expect(container.textContent).toContain("Manage archive themes");
   });
