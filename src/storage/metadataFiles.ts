@@ -1,5 +1,10 @@
 import type { EpubSourceMetadata } from "../types/book";
-import type { ArchiveImportSettings } from "../types/settings";
+import type {
+  ArchiveAppearanceSettings,
+  ArchiveAppThemeSelection,
+  ArchiveImportSettings,
+  ArchiveReaderThemeSelection,
+} from "../types/settings";
 
 export type LibraryBookMetadata = {
   relativePath: string;
@@ -29,15 +34,18 @@ export type ProgressMetadata = {
 };
 
 export type SettingsMetadata = {
-  version: 1;
+  version: 2;
   import: ArchiveImportSettings;
+  appearance: ArchiveAppearanceSettings;
 };
 
-export type LegacySettingsMetadata = Partial<SettingsMetadata> & {
+export type LegacySettingsMetadata = {
+  version?: unknown;
   reader?: unknown;
   library?: unknown;
   filesAndMetadata?: unknown;
-  import?: Partial<ArchiveImportSettings> & Record<string, unknown>;
+  import?: unknown;
+  appearance?: unknown;
 };
 
 export type MetadataBundle = {
@@ -47,6 +55,10 @@ export type MetadataBundle = {
 };
 
 export const defaultArchiveImportSettings: Readonly<ArchiveImportSettings> = Object.freeze({});
+export const defaultArchiveAppearanceSettings: Readonly<ArchiveAppearanceSettings> = Object.freeze({
+  appTheme: Object.freeze({ kind: "inherit" }),
+  readerTheme: Object.freeze({ kind: "inherit" }),
+});
 
 export function createLibraryMetadata(): LibraryMetadata {
   return { version: 1, books: {} };
@@ -58,8 +70,9 @@ export function createProgressMetadata(): ProgressMetadata {
 
 export function createSettingsMetadata(): SettingsMetadata {
   return {
-    version: 1,
+    version: 2,
     import: { ...defaultArchiveImportSettings },
+    appearance: cloneArchiveAppearanceSettings(defaultArchiveAppearanceSettings),
   };
 }
 
@@ -81,9 +94,63 @@ export function normalizeArchiveImportSettings(
   };
 }
 
+export function normalizeArchiveAppearanceSettings(settings?: unknown): ArchiveAppearanceSettings {
+  const appearance = isRecord(settings) ? settings : undefined;
+  return {
+    appTheme: normalizeAppThemeSelection(appearance?.appTheme),
+    readerTheme: normalizeReaderThemeSelection(appearance?.readerTheme),
+  };
+}
+
 export function normalizeSettingsMetadata(metadata?: LegacySettingsMetadata): SettingsMetadata {
   return {
-    version: 1,
-    import: normalizeArchiveImportSettings(metadata?.import),
+    version: 2,
+    import: normalizeArchiveImportSettings(
+      isRecord(metadata?.import) ? metadata.import : undefined,
+    ),
+    appearance:
+      metadata?.version === 2
+        ? normalizeArchiveAppearanceSettings(metadata.appearance)
+        : cloneArchiveAppearanceSettings(defaultArchiveAppearanceSettings),
   };
+}
+
+export function cloneArchiveAppearanceSettings(
+  settings: Readonly<ArchiveAppearanceSettings>,
+): ArchiveAppearanceSettings {
+  return {
+    appTheme: { ...settings.appTheme },
+    readerTheme: { ...settings.readerTheme },
+  };
+}
+
+function normalizeAppThemeSelection(value: unknown): ArchiveAppThemeSelection {
+  if (!isRecord(value)) return { kind: "inherit" };
+  if (value.kind === "inherit" || value.kind === "system") return { kind: value.kind };
+  if (value.kind === "builtin" && (value.id === "dark" || value.id === "light")) {
+    return { kind: "builtin", id: value.id };
+  }
+  if (value.kind === "custom" && typeof value.id === "string") {
+    return { kind: "custom", id: value.id };
+  }
+  return { kind: "inherit" };
+}
+
+function normalizeReaderThemeSelection(value: unknown): ArchiveReaderThemeSelection {
+  if (!isRecord(value)) return { kind: "inherit" };
+  if (value.kind === "inherit") return { kind: "inherit" };
+  if (
+    value.kind === "builtin" &&
+    (value.id === "dark" || value.id === "light" || value.id === "sepia")
+  ) {
+    return { kind: "builtin", id: value.id };
+  }
+  if (value.kind === "custom" && typeof value.id === "string") {
+    return { kind: "custom", id: value.id };
+  }
+  return { kind: "inherit" };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

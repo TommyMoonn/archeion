@@ -76,25 +76,101 @@ impl Default for ProgressMetadata {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ImportSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub default_destination_folder_path: Option<String>,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BuiltInAppThemeId {
+    Dark,
+    Light,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BuiltInReaderThemeId {
+    Dark,
+    Light,
+    Sepia,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ArchiveAppThemeSelection {
+    #[default]
+    Inherit,
+    System,
+    Builtin {
+        id: BuiltInAppThemeId,
+    },
+    Custom {
+        id: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ArchiveReaderThemeSelection {
+    #[default]
+    Inherit,
+    Builtin {
+        id: BuiltInReaderThemeId,
+    },
+    Custom {
+        id: String,
+    },
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveAppearanceSettings {
+    #[serde(default)]
+    pub app_theme: ArchiveAppThemeSelection,
+    #[serde(default)]
+    pub reader_theme: ArchiveReaderThemeSelection,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct StoredSettingsMetadata {
+    version: u8,
+    #[serde(default)]
+    import: ImportSettings,
+    #[serde(default)]
+    appearance: Option<ArchiveAppearanceSettings>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(from = "StoredSettingsMetadata")]
 pub struct SettingsMetadata {
     pub version: u8,
-    #[serde(default)]
     pub import: ImportSettings,
+    pub appearance: ArchiveAppearanceSettings,
+}
+
+impl From<StoredSettingsMetadata> for SettingsMetadata {
+    fn from(stored: StoredSettingsMetadata) -> Self {
+        Self {
+            version: 2,
+            import: stored.import,
+            appearance: if stored.version == 2 {
+                stored.appearance.unwrap_or_default()
+            } else {
+                ArchiveAppearanceSettings::default()
+            },
+        }
+    }
 }
 
 impl Default for SettingsMetadata {
     fn default() -> Self {
         Self {
-            version: 1,
+            version: 2,
             import: ImportSettings::default(),
+            appearance: ArchiveAppearanceSettings::default(),
         }
     }
 }
@@ -621,8 +697,9 @@ mod tests {
 
     use super::{
         initialize_at, load_annotations_at, load_settings_at, metadata_path, read_json,
-        replace_json_file_with_fs, save_annotations_at, write_json, LibraryBookMetadata,
-        LibraryMetadata, MetadataFileSystem, SettingsMetadata,
+        replace_json_file_with_fs, save_annotations_at, write_json, ArchiveAppThemeSelection,
+        ArchiveReaderThemeSelection, BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata,
+        MetadataFileSystem, SettingsMetadata,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -673,6 +750,13 @@ mod tests {
         assert!(metadata.join("library.json").is_file());
         assert!(metadata.join("progress.json").is_file());
         assert!(metadata.join("settings.json").is_file());
+        let settings: serde_json::Value = serde_json::from_slice(
+            &fs::read(metadata.join("settings.json")).expect("settings should be readable"),
+        )
+        .expect("settings should be valid JSON");
+        assert_eq!(settings["version"], 2);
+        assert_eq!(settings["appearance"]["appTheme"]["kind"], "inherit");
+        assert_eq!(settings["appearance"]["readerTheme"]["kind"], "inherit");
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
         fs::remove_dir_all(root).expect("test archive should be removed");
@@ -773,8 +857,112 @@ mod tests {
             settings.import.default_destination_folder_path.as_deref(),
             Some("Fiction")
         );
+        assert_eq!(settings.version, 2);
+        assert_eq!(
+            settings.appearance.app_theme,
+            ArchiveAppThemeSelection::Inherit
+        );
+        assert_eq!(
+            settings.appearance.reader_theme,
+            ArchiveReaderThemeSelection::Inherit
+        );
         assert!(!metadata_path(&root).join("library.json").exists());
         assert!(!metadata_path(&root).join("progress.json").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn normalizes_version_one_settings_without_eagerly_rewriting_the_file() {
+        let root = test_root("settings-v1-normalization");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let settings_path = metadata_path(&root).join("settings.json");
+        fs::create_dir_all(
+            settings_path
+                .parent()
+                .expect("settings should have a parent"),
+        )
+        .expect("metadata directory should be created");
+        let source = br#"{
+            "version": 1,
+            "import": { "defaultDestinationFolderPath": "Fiction" },
+            "appearance": {
+                "appTheme": { "kind": "custom", "id": "ignored-v1" },
+                "readerTheme": { "kind": "builtin", "id": "sepia" }
+            }
+        }"#;
+        fs::write(&settings_path, source).expect("settings metadata should be written");
+
+        let settings = load_settings_at(&root).expect("settings should load");
+
+        assert_eq!(settings.version, 2);
+        assert_eq!(
+            settings.appearance.app_theme,
+            ArchiveAppThemeSelection::Inherit
+        );
+        assert_eq!(
+            settings.appearance.reader_theme,
+            ArchiveReaderThemeSelection::Inherit
+        );
+        assert_eq!(
+            fs::read(&settings_path).expect("settings should remain readable"),
+            source
+        );
+        assert!(!settings_path.with_extension("json.bak").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn preserves_version_two_selections_and_persists_the_normalized_shape_on_write() {
+        let root = test_root("settings-v2-roundtrip");
+        fs::create_dir_all(&root).expect("test archive should be created");
+        let settings_path = metadata_path(&root).join("settings.json");
+        fs::create_dir_all(
+            settings_path
+                .parent()
+                .expect("settings should have a parent"),
+        )
+        .expect("metadata directory should be created");
+        fs::write(
+            &settings_path,
+            br#"{
+                "version": 2,
+                "import": { "defaultDestinationFolderPath": "Fiction" },
+                "appearance": {
+                    "appTheme": { "kind": "custom", "id": "moon-ink" },
+                    "readerTheme": { "kind": "builtin", "id": "sepia" }
+                }
+            }"#,
+        )
+        .expect("settings metadata should be written");
+
+        let settings = load_settings_at(&root).expect("settings should load");
+        assert_eq!(
+            settings.appearance.app_theme,
+            ArchiveAppThemeSelection::Custom {
+                id: "moon-ink".to_string()
+            }
+        );
+        assert_eq!(
+            settings.appearance.reader_theme,
+            ArchiveReaderThemeSelection::Builtin {
+                id: BuiltInReaderThemeId::Sepia
+            }
+        );
+
+        write_json(&settings_path, &settings, true).expect("settings should save");
+        let serialized: serde_json::Value = serde_json::from_slice(
+            &fs::read(&settings_path).expect("settings should remain readable"),
+        )
+        .expect("settings should remain valid JSON");
+        assert_eq!(serialized["version"], 2);
+        assert_eq!(
+            serialized["import"]["defaultDestinationFolderPath"],
+            "Fiction"
+        );
+        assert_eq!(serialized["appearance"]["appTheme"]["kind"], "custom");
+        assert_eq!(serialized["appearance"]["appTheme"]["id"], "moon-ink");
+        assert_eq!(serialized["appearance"]["readerTheme"]["id"], "sepia");
+        assert!(settings_path.with_extension("json.bak").is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1031,6 +1219,9 @@ mod tests {
             serialized["import"]["defaultDestinationFolderPath"],
             "Fiction"
         );
+        assert_eq!(serialized["version"], 2);
+        assert_eq!(serialized["appearance"]["appTheme"]["kind"], "inherit");
+        assert_eq!(serialized["appearance"]["readerTheme"]["kind"], "inherit");
         assert!(serialized.get("reader").is_none());
         assert!(serialized.get("library").is_none());
         assert!(serialized.get("filesAndMetadata").is_none());

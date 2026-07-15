@@ -20,12 +20,15 @@ import type {
   UpdateBookmarkAnnotationInput,
   UpdateHighlightAnnotationInput,
 } from "../types/annotation";
-import type { ArchiveImportSettings } from "../types/settings";
+import type { ArchiveAppearanceSettings, ArchiveImportSettings } from "../types/settings";
 import {
+  cloneArchiveAppearanceSettings,
   createLibraryMetadata,
   createProgressMetadata,
   createSettingsMetadata,
+  defaultArchiveAppearanceSettings,
   defaultArchiveImportSettings,
+  normalizeArchiveAppearanceSettings,
   normalizeArchiveImportSettings,
   normalizeSettingsMetadata,
   type SettingsMetadata,
@@ -409,28 +412,65 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   async saveArchiveImportSettings(settings: ArchiveImportSettings): Promise<ArchiveImportSettings> {
     const scope = this.createArchiveCommandScope();
-    const current = await this.ensureSettingsMetadata(scope);
-    const metadata = await this.saveSettingsMetadata(
-      {
-        ...current,
-        import: normalizeArchiveImportSettings(settings),
-      },
-      scope,
-    );
+    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
+      ...current,
+      import: normalizeArchiveImportSettings(settings),
+    }));
     return { ...metadata.import };
   }
 
-  updateArchiveImportSettings(
+  async updateArchiveImportSettings(
     changes: Partial<ArchiveImportSettings>,
   ): Promise<ArchiveImportSettings> {
-    return this.saveArchiveImportSettings({
-      ...this.settingsMetadata.import,
-      ...changes,
-    });
+    const scope = this.createArchiveCommandScope();
+    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
+      ...current,
+      import: {
+        ...current.import,
+        ...changes,
+      },
+    }));
+    return { ...metadata.import };
   }
 
   resetArchiveImportSettings(): Promise<ArchiveImportSettings> {
     return this.saveArchiveImportSettings({ ...defaultArchiveImportSettings });
+  }
+
+  async getArchiveAppearanceSettings(): Promise<ArchiveAppearanceSettings> {
+    const settings = await this.ensureSettingsMetadata();
+    return cloneArchiveAppearanceSettings(settings.appearance);
+  }
+
+  async saveArchiveAppearanceSettings(
+    settings: ArchiveAppearanceSettings,
+  ): Promise<ArchiveAppearanceSettings> {
+    const scope = this.createArchiveCommandScope();
+    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
+      ...current,
+      appearance: normalizeArchiveAppearanceSettings(settings),
+    }));
+    return cloneArchiveAppearanceSettings(metadata.appearance);
+  }
+
+  async updateArchiveAppearanceSettings(
+    changes: Partial<ArchiveAppearanceSettings>,
+  ): Promise<ArchiveAppearanceSettings> {
+    const scope = this.createArchiveCommandScope();
+    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
+      ...current,
+      appearance: {
+        ...current.appearance,
+        ...changes,
+      },
+    }));
+    return cloneArchiveAppearanceSettings(metadata.appearance);
+  }
+
+  resetArchiveAppearanceSettings(): Promise<ArchiveAppearanceSettings> {
+    return this.saveArchiveAppearanceSettings(
+      cloneArchiveAppearanceSettings(defaultArchiveAppearanceSettings),
+    );
   }
 
   getCoverCacheStatus(): Promise<CoverCacheStatus> {
@@ -660,20 +700,28 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.settingsMetadata;
   }
 
-  private async saveSettingsMetadata(
-    metadata: SettingsMetadata,
-    scope = this.createArchiveCommandScope(),
+  private async mutateSettingsMetadata(
+    scope: ArchiveCommandScope,
+    mutation: (current: Readonly<SettingsMetadata>) => SettingsMetadata,
   ): Promise<SettingsMetadata> {
-    const normalized = normalizeSettingsMetadata(metadata);
-    await this.enqueueMetadataIo(
-      () =>
-        this.commands.invoke("save_settings_metadata", { metadata: normalized }, scope.rootPath),
-      scope.generation,
-    );
-    if (this.isCurrentArchiveScope(scope)) {
+    await this.ensureSettingsMetadata(scope);
+    const metadata = await this.enqueueMetadataIo(async () => {
+      this.assertCurrentArchiveScope(scope);
+      const normalized = normalizeSettingsMetadata(mutation(this.settingsMetadata));
+      await this.commands.invoke(
+        "save_settings_metadata",
+        { metadata: normalized },
+        scope.rootPath,
+      );
+      this.assertCurrentArchiveScope(scope);
       this.settingsMetadata = normalized;
+      return normalized;
+    }, scope.generation);
+    this.assertCurrentArchiveScope(scope);
+    if (!metadata) {
+      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
     }
-    return normalized;
+    return metadata;
   }
 
   private clearCoverPromisesForBook(bookId: string): void {

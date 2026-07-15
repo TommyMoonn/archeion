@@ -28,4 +28,20 @@ export type ArchiveImportSettings = {
   defaultDestinationFolderPath?: string;
 };
 
+export type ArchiveAppThemeSelection =
+  | { kind: "inherit" }
+  | { kind: "system" }
+  | { kind: "builtin"; id: "dark" | "light" }
+  | { kind: "custom"; id: string };
+
+export type ArchiveReaderThemeSelection =
+  | { kind: "inherit" }
+  | { kind: "builtin"; id: "dark" | "light" | "sepia" }
+  | { kind: "custom"; id: string };
+
+export type ArchiveAppearanceSettings = {
+  appTheme: ArchiveAppThemeSelection;
+  readerTheme: ArchiveReaderThemeSelection;
+};
+
 export type ImportSettings = GlobalImportSettings & ArchiveImportSettings;

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import {
+  deferred,
   expectCommandRootPath,
   firstScan,
   invokeMock,
@@ -24,9 +25,13 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
       "save_settings_metadata",
       expect.objectContaining({
         metadata: {
-          version: 1,
+          version: 2,
           import: {
             defaultDestinationFolderPath: "Author/Series",
+          },
+          appearance: {
+            appTheme: { kind: "inherit" },
+            readerTheme: { kind: "inherit" },
           },
         },
       }),
@@ -41,6 +46,145 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
     expect(settings.defaultDestinationFolderPath).toBe("Author");
     expect(invokeMock).toHaveBeenCalledWith("load_settings_metadata");
     expect(invokeMock).not.toHaveBeenCalledWith("load_archive_metadata");
+  });
+
+  it("normalizes version 1 appearance without eagerly rewriting settings", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+
+    await expect(storage.getArchiveAppearanceSettings()).resolves.toEqual({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    });
+    expect(invokeMock).toHaveBeenCalledWith("load_settings_metadata");
+    expect(invokeMock).not.toHaveBeenCalledWith("save_settings_metadata", expect.anything());
+  });
+
+  it("saves, updates, and resets appearance through narrow operations", async () => {
+    const { storage } = await scopedStorage();
+
+    await expect(
+      storage.saveArchiveAppearanceSettings({
+        appTheme: { kind: "custom", id: "moon-ink" },
+        readerTheme: { kind: "builtin", id: "sepia" },
+      }),
+    ).resolves.toEqual({
+      appTheme: { kind: "custom", id: "moon-ink" },
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    await expect(
+      storage.updateArchiveAppearanceSettings({
+        readerTheme: { kind: "custom", id: "paper-reader" },
+      }),
+    ).resolves.toEqual({
+      appTheme: { kind: "custom", id: "moon-ink" },
+      readerTheme: { kind: "custom", id: "paper-reader" },
+    });
+    await expect(storage.resetArchiveAppearanceSettings()).resolves.toEqual({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    });
+
+    const saveCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "save_settings_metadata",
+    );
+    expect(saveCalls).toHaveLength(3);
+    expect(saveCalls[0]?.[1]).toMatchObject({
+      metadata: {
+        version: 2,
+        import: { defaultDestinationFolderPath: "Author" },
+        appearance: {
+          appTheme: { kind: "custom", id: "moon-ink" },
+          readerTheme: { kind: "builtin", id: "sepia" },
+        },
+      },
+    });
+    expect(saveCalls[2]?.[1]).toMatchObject({
+      metadata: {
+        import: { defaultDestinationFolderPath: "Author" },
+        appearance: {
+          appTheme: { kind: "inherit" },
+          readerTheme: { kind: "inherit" },
+        },
+      },
+    });
+  });
+
+  it("serializes concurrent import and appearance updates without cross-subtree loss", async () => {
+    const { storage } = await scopedStorage();
+
+    const [appearance, importSettings] = await Promise.all([
+      storage.updateArchiveAppearanceSettings({
+        appTheme: { kind: "builtin", id: "light" },
+      }),
+      storage.updateArchiveImportSettings({
+        defaultDestinationFolderPath: "Fiction/New",
+      }),
+    ]);
+
+    expect(appearance.appTheme).toEqual({ kind: "builtin", id: "light" });
+    expect(importSettings).toEqual({ defaultDestinationFolderPath: "Fiction/New" });
+    const saveCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "save_settings_metadata",
+    );
+    expect(saveCalls).toHaveLength(2);
+    expect(saveCalls[1]?.[1]).toMatchObject({
+      metadata: {
+        import: { defaultDestinationFolderPath: "Fiction/New" },
+        appearance: {
+          appTheme: { kind: "builtin", id: "light" },
+          readerTheme: { kind: "inherit" },
+        },
+      },
+    });
+  });
+
+  it("does not publish a failed appearance save to the authoritative snapshot", async () => {
+    const { storage } = await scopedStorage();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "save_settings_metadata") throw new Error("write failed");
+      return undefined;
+    });
+
+    await expect(
+      storage.updateArchiveAppearanceSettings({
+        appTheme: { kind: "custom", id: "not-saved" },
+      }),
+    ).rejects.toThrow("write failed");
+    await expect(storage.getArchiveAppearanceSettings()).resolves.toEqual({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    });
+  });
+
+  it("rejects queued settings writes after the archive generation changes", async () => {
+    const { storage } = await scopedStorage("C:/ArchiveA");
+    const saveStarted = deferred<void>();
+    const releaseSave = deferred<void>();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "save_settings_metadata") {
+        saveStarted.resolve();
+        await releaseSave.promise;
+      }
+      return undefined;
+    });
+
+    const inFlight = storage.updateArchiveAppearanceSettings({
+      appTheme: { kind: "builtin", id: "light" },
+    });
+    await saveStarted.promise;
+    const queued = storage.updateArchiveImportSettings({
+      defaultDestinationFolderPath: "Stale",
+    });
+    storage.reset("C:/ArchiveB");
+    releaseSave.resolve();
+
+    await expect(inFlight).rejects.toThrow("active archive changed");
+    await expect(queued).rejects.toThrow("active archive changed");
+    const saveCalls = invokeMock.mock.calls.filter(
+      ([command]) => command === "save_settings_metadata",
+    );
+    expect(saveCalls).toHaveLength(1);
+    expect(saveCalls[0]?.[1]).toMatchObject({ rootPath: "C:/ArchiveA" });
   });
 
   it("loads and clears retained EPUB writeback backup status", async () => {

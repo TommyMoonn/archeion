@@ -14,14 +14,18 @@ describe("metadataFiles", () => {
     });
   });
 
-  it("keeps archive settings scoped to import destination only", () => {
+  it("creates version 2 archive settings with inherited appearance", () => {
     expect(createSettingsMetadata()).toEqual({
-      version: 1,
+      version: 2,
       import: {},
+      appearance: {
+        appTheme: { kind: "inherit" },
+        readerTheme: { kind: "inherit" },
+      },
     });
   });
 
-  it("normalizes legacy archive settings without keeping app-level fields", () => {
+  it("normalizes version 1 settings in memory without keeping old app-level fields", () => {
     expect(
       normalizeSettingsMetadata({
         version: 1,
@@ -47,9 +51,52 @@ describe("metadataFiles", () => {
         },
       }),
     ).toEqual({
-      version: 1,
+      version: 2,
       import: {
         defaultDestinationFolderPath: "Fiction/Classics",
+      },
+      appearance: {
+        appTheme: { kind: "inherit" },
+        readerTheme: { kind: "inherit" },
+      },
+    });
+  });
+
+  it("normalizes version 2 appearance selections while preserving custom references", () => {
+    expect(
+      normalizeSettingsMetadata({
+        version: 2,
+        import: { defaultDestinationFolderPath: " Themes\\Incoming " },
+        appearance: {
+          appTheme: { kind: "custom", id: "missing-theme" },
+          readerTheme: { kind: "builtin", id: "sepia" },
+        },
+      }),
+    ).toEqual({
+      version: 2,
+      import: { defaultDestinationFolderPath: "Themes/Incoming" },
+      appearance: {
+        appTheme: { kind: "custom", id: "missing-theme" },
+        readerTheme: { kind: "builtin", id: "sepia" },
+      },
+    });
+  });
+
+  it("falls back malformed selections independently without exposing unsupported kinds", () => {
+    expect(
+      normalizeSettingsMetadata({
+        version: 2,
+        appearance: {
+          appTheme: { kind: "builtin", id: "sepia" },
+          readerTheme: { kind: "system" },
+        },
+      }),
+    ).toEqual({
+      version: 2,
+      import: {},
+      appearance: {
+        appTheme: { kind: "inherit" },
+        readerTheme: { kind: "inherit" },
       },
     });
   });
