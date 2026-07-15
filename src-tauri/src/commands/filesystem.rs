@@ -574,7 +574,7 @@ fn delete_archive_item(path: &Path, is_directory: bool) -> Result<(), String> {
     delete_archive_item_with_trash(path, is_directory, trash_with_platform)
 }
 
-fn open_folder(path: &Path) -> Result<(), String> {
+pub(crate) fn open_folder(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let mut command = Command::new("explorer");
     #[cfg(target_os = "macos")]

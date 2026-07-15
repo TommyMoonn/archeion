@@ -9,4 +9,5 @@ pub mod epub_writeback;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;
+pub mod themes;
 pub mod watcher;
