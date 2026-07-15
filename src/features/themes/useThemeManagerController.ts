@@ -9,26 +9,16 @@ import type { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
 import type { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { parseThemeJson } from "../../themes/parseThemeJson";
-import { createStarterThemeManifest, type StarterThemeInput } from "../../themes/starterTheme";
 import type {
   ArchiveThemeCatalogSnapshot,
   ThemeCatalogEntry,
 } from "../../themes/themeCatalogReadModel";
-import type {
-  ThemePreviewChannels,
-  ThemePreviewHandle,
-  ThemePreviewSession,
-} from "../../themes/ThemePreviewSession";
+import type { ThemePreviewHandle, ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { validateThemeManifest } from "../../themes/validateThemeManifest";
 
 export type ThemeManagerRepository = Pick<
   ArchiveThemeRepository,
-  | "createStarterPackage"
-  | "deletePackage"
-  | "replaceManifest"
-  | "revealPackage"
-  | "revealThemesRoot"
-  | "storeManifest"
+  "deletePackage" | "replaceManifest" | "revealThemesRoot" | "storeManifest"
 >;
 
 export type ThemeManagerAppearanceRuntime = Readonly<{
@@ -36,24 +26,22 @@ export type ThemeManagerAppearanceRuntime = Readonly<{
   refreshArchiveAppearance: (
     archive: ActiveAppearanceArchive,
   ) => Promise<Readonly<ArchiveAppearanceSettings>>;
-  saveArchiveAppearanceSettings: (
+  updateArchiveAppearanceSettings: (
     archive: ActiveAppearanceArchive,
-    settings: ArchiveAppearanceSettings,
+    changes: Partial<ArchiveAppearanceSettings>,
   ) => Promise<Readonly<ArchiveAppearanceSettings>>;
 }>;
 
 export type PendingThemeReplacement = Readonly<{
   manifest: ThemeManifestV1;
-  source: "import" | "replace" | "starter";
 }>;
 
 export type ThemeManagerBusyAction =
-  "apply" | "delete" | "import" | "load" | "reload" | "replace" | "reveal" | "starter";
+  "apply" | "delete" | "import" | "load" | "reload" | "replace" | "reveal";
 
 export type ThemeManagerControllerOptions = Readonly<{
   archiveRootPath: string;
   catalog: ArchiveThemeCatalog;
-  onAppearanceChanged?: (settings: Readonly<ArchiveAppearanceSettings>) => void;
   onArchiveScopeInvalidated?: () => void;
   previewSession: ThemePreviewSession;
   repository: ThemeManagerRepository;
@@ -63,7 +51,6 @@ export type ThemeManagerControllerOptions = Readonly<{
 export function useThemeManagerController({
   archiveRootPath,
   catalog,
-  onAppearanceChanged,
   onArchiveScopeInvalidated,
   previewSession,
   repository,
@@ -147,15 +134,15 @@ export function useThemeManagerController({
     previousPreviewStatusRef.current = previewSnapshot.status;
     if (previous === "idle" || previewSnapshot.status !== "idle") return;
     previewHandleRef.current = null;
-    const settings = runtime.getPreviewContext()?.settings;
-    if (settings) onAppearanceChanged?.(settings);
-  }, [onAppearanceChanged, previewSnapshot.status, runtime]);
+  }, [previewSnapshot.status]);
 
+  const entries = snapshot.entries.filter(
+    (entry) => entry.origin === "custom" || entry.capabilities.application,
+  );
   const selectedEntry =
-    snapshot.entries.find((entry) => entryKey(entry) === selectedKey) ??
-    snapshot.entries[0] ??
-    null;
+    entries.find((entry) => entryKey(entry) === selectedKey) ?? entries[0] ?? null;
   const effectiveSelectedKey = selectedEntry ? entryKey(selectedEntry) : selectedKey;
+  const activeAppThemeKey = appThemeEntryKey(runtime.getPreviewContext()?.settings.appTheme);
   const previewActive = previewSnapshot.status !== "idle";
 
   function beginOperation(action: ThemeManagerBusyAction): number {
@@ -180,10 +167,9 @@ export function useThemeManagerController({
       assertArchiveCurrent();
       await catalog.reload();
       assertArchiveCurrent();
-      const settings = await refreshRuntimeAppearance();
+      await refreshRuntimeAppearance();
       finishOperation(revision, () => {
         setMessage("Theme packages reloaded.");
-        if (settings) onAppearanceChanged?.(settings);
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
@@ -207,8 +193,8 @@ export function useThemeManagerController({
       );
       if (existing) {
         finishOperation(revision, () => {
-          setPendingReplacement(Object.freeze({ manifest, source: "import" }));
-          setMessage("A theme package with this ID already exists.");
+          setPendingReplacement(Object.freeze({ manifest }));
+          setMessage("A theme with this ID already exists.");
         });
         return false;
       }
@@ -226,59 +212,6 @@ export function useThemeManagerController({
     }
   }
 
-  async function prepareReplacement(file: File): Promise<boolean> {
-    if (busyAction || previewActive || selectedEntry?.origin !== "custom") return false;
-    const revision = beginOperation("replace");
-    try {
-      const manifest = await validatedFile(file, selectedEntry.packageId);
-      assertArchiveCurrent();
-      finishOperation(revision, () => {
-        setPendingReplacement(Object.freeze({ manifest, source: "replace" }));
-        setMessage("Confirm replacement before theme.json is changed.");
-      });
-      return true;
-    } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
-      return false;
-    }
-  }
-
-  async function createStarter(
-    input: StarterThemeInput,
-  ): Promise<"created" | "confirm" | "failed"> {
-    if (busyAction || previewActive) return "failed";
-    const revision = beginOperation("starter");
-    try {
-      const manifest = createStarterThemeManifest(input);
-      assertArchiveCurrent();
-      const builtInConflict = snapshot.entries.some(
-        (entry) => entry.origin === "builtin" && entry.id === manifest.id,
-      );
-      if (builtInConflict) throw new Error(`Theme id "${manifest.id}" is reserved by a built-in.`);
-      const existing = snapshot.entries.find(
-        (entry) => entry.origin === "custom" && entry.packageId === manifest.id,
-      );
-      if (existing) {
-        finishOperation(revision, () => {
-          setPendingReplacement(Object.freeze({ manifest, source: "starter" }));
-          setMessage("A theme package with this ID already exists.");
-        });
-        return "confirm";
-      }
-      await repository.createStarterPackage(input);
-      assertArchiveCurrent();
-      await reloadAfterMutation();
-      finishOperation(revision, () => {
-        setSelectedKey(customEntryKey(manifest.id));
-        setMessage(`Created ${manifest.name}.`);
-      });
-      return operationRevisionRef.current === revision ? "created" : "failed";
-    } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
-      return "failed";
-    }
-  }
-
   async function confirmReplacement(): Promise<boolean> {
     const pending = pendingReplacement;
     if (!pending || busyAction || previewActive) return false;
@@ -291,7 +224,7 @@ export function useThemeManagerController({
       finishOperation(revision, () => {
         setPendingReplacement(null);
         setSelectedKey(customEntryKey(pending.manifest.id));
-        setMessage(`Replaced ${pending.manifest.name}.`);
+        setMessage(`Updated ${pending.manifest.name}.`);
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
@@ -312,9 +245,7 @@ export function useThemeManagerController({
       await reloadAfterMutation();
       finishOperation(revision, () => {
         setPendingDeleteKey(null);
-        setMessage(
-          `Deleted ${entry.name ?? entry.packageId}. Stored selections now fall back if needed.`,
-        );
+        setMessage(`Deleted ${entry.name ?? entry.packageId}.`);
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
@@ -323,12 +254,12 @@ export function useThemeManagerController({
     }
   }
 
-  async function applyTo(channel: "application" | "reader"): Promise<boolean> {
+  async function useSelectedTheme(): Promise<boolean> {
     const entry = selectedEntry;
     const context = runtime.getPreviewContext();
     if (
       !entry?.applicable ||
-      !entry.capabilities[channel] ||
+      !entry.capabilities.application ||
       !context ||
       !isManagerArchive(context.archive) ||
       busyAction ||
@@ -336,34 +267,18 @@ export function useThemeManagerController({
     ) {
       return false;
     }
-    let next: ArchiveAppearanceSettings;
-    if (channel === "application") {
-      const appTheme =
-        entry.origin === "custom"
-          ? ({ kind: "custom", id: entry.id } as const)
-          : entry.appBase
-            ? ({ kind: "builtin", id: entry.appBase } as const)
-            : null;
-      if (!appTheme) return false;
-      next = { appTheme, readerTheme: { ...context.settings.readerTheme } };
-    } else {
-      const readerTheme =
-        entry.origin === "custom"
-          ? ({ kind: "custom", id: entry.id } as const)
-          : entry.readerBase
-            ? ({ kind: "builtin", id: entry.readerBase } as const)
-            : null;
-      if (!readerTheme) return false;
-      next = { appTheme: { ...context.settings.appTheme }, readerTheme };
-    }
+    const appTheme =
+      entry.origin === "custom"
+        ? ({ kind: "custom", id: entry.id } as const)
+        : entry.appBase
+          ? ({ kind: "builtin", id: entry.appBase } as const)
+          : null;
+    if (!appTheme) return false;
     const revision = beginOperation("apply");
     try {
-      const saved = await runtime.saveArchiveAppearanceSettings(context.archive, next);
+      await runtime.updateArchiveAppearanceSettings(context.archive, { appTheme });
       finishOperation(revision, () => {
-        setMessage(
-          `${entry.name} applied to ${channel === "application" ? "the application" : "the reader"}.`,
-        );
-        onAppearanceChanged?.(saved);
+        setMessage(`${entry.name} is now selected.`);
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
@@ -372,8 +287,15 @@ export function useThemeManagerController({
     }
   }
 
-  function preview(channels: ThemePreviewChannels): boolean {
-    if (busyAction || selectedEntry?.origin !== "custom" || !selectedEntry.applicable) return false;
+  function preview(): boolean {
+    if (
+      busyAction ||
+      selectedEntry?.origin !== "custom" ||
+      !selectedEntry.applicable ||
+      !selectedEntry.capabilities.application
+    ) {
+      return false;
+    }
     try {
       assertArchiveCurrent();
       const context = runtime.getPreviewContext();
@@ -386,7 +308,7 @@ export function useThemeManagerController({
     }
     previewHandleRef.current?.dispose();
     previewHandleRef.current = null;
-    const started = previewSession.startPreview({ candidate: selectedEntry.manifest, channels });
+    const started = previewSession.startPreview({ candidate: selectedEntry.manifest });
     if (!started.ok) {
       setError("This theme could not be previewed.");
       return false;
@@ -397,16 +319,12 @@ export function useThemeManagerController({
     return true;
   }
 
-  async function reveal(target: "package" | "root"): Promise<boolean> {
+  async function openThemesFolder(): Promise<boolean> {
     if (busyAction) return false;
-    const entry = selectedEntry;
-    if (target === "package" && entry?.origin !== "custom") return false;
-    const packageId = entry?.origin === "custom" ? entry.packageId : null;
     const revision = beginOperation("reveal");
     try {
       assertArchiveCurrent();
-      if (target === "root") await repository.revealThemesRoot();
-      else if (packageId) await repository.revealPackage(packageId);
+      await repository.revealThemesRoot();
       finishOperation(revision, () => undefined);
       return operationRevisionRef.current === revision;
     } catch (reason) {
@@ -422,10 +340,10 @@ export function useThemeManagerController({
     await refreshRuntimeAppearance();
   }
 
-  async function refreshRuntimeAppearance(): Promise<Readonly<ArchiveAppearanceSettings> | null> {
+  async function refreshRuntimeAppearance(): Promise<void> {
     const context = runtime.getPreviewContext();
-    if (!context || context.archive.rootPath !== archiveRootPath) return null;
-    return runtime.refreshArchiveAppearance(context.archive);
+    if (!context || context.archive.rootPath !== archiveRootPath) return;
+    await runtime.refreshArchiveAppearance(context.archive);
   }
 
   function disposePreview(): void {
@@ -445,27 +363,26 @@ export function useThemeManagerController({
   }
 
   return {
-    applyTo,
+    activeAppThemeKey,
     busyAction,
     cancelDelete: () => setPendingDeleteKey(null),
     cancelReplacement: () => setPendingReplacement(null),
     confirmDelete,
     confirmReplacement,
-    createStarter,
     disposePreview,
+    entries,
     error,
     importFile,
     message,
     pendingDeleteKey,
     pendingReplacement,
-    prepareReplacement,
     preview,
     previewActive,
     reload,
     requestDelete: () => {
       if (selectedEntry?.origin === "custom") setPendingDeleteKey(entryKey(selectedEntry));
     },
-    reveal,
+    openThemesFolder,
     select: (key: string) => {
       setPendingDeleteKey(null);
       setPendingReplacement(null);
@@ -473,7 +390,7 @@ export function useThemeManagerController({
     },
     selectedEntry,
     selectedKey: effectiveSelectedKey,
-    snapshot,
+    useSelectedTheme,
   };
 }
 
@@ -487,6 +404,14 @@ function customEntryKey(id: string): string {
   return `custom:${id}`;
 }
 
+function appThemeEntryKey(
+  selection: ArchiveAppearanceSettings["appTheme"] | undefined,
+): string | null {
+  if (selection?.kind === "custom") return customEntryKey(selection.id);
+  if (selection?.kind === "builtin") return `builtin:${selection.id}`;
+  return null;
+}
+
 function initialSelectedKey(
   context: AppearancePreviewContext | null,
   snapshot: ArchiveThemeCatalogSnapshot,
@@ -497,10 +422,10 @@ function initialSelectedKey(
   return entryKey(snapshot.entries[0]!);
 }
 
-async function validatedFile(file: File, expectedId?: string): Promise<ThemeManifestV1> {
+async function validatedFile(file: File): Promise<ThemeManifestV1> {
   const parsed = parseThemeJson(await file.text());
   if (!parsed.ok) throw new Error(parsed.diagnostics.map(formatDiagnostic).join(" "));
-  const validated = validateThemeManifest(parsed.value, expectedId ? { expectedId } : undefined);
+  const validated = validateThemeManifest(parsed.value);
   if (!validated.ok) throw new Error(validated.diagnostics.map(formatDiagnostic).join(" "));
   return validated.manifest;
 }

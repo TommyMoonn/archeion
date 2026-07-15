@@ -2,24 +2,22 @@ import type { ArchiveAppearanceSettings } from "../types/settings";
 import type {
   ActiveAppearanceArchive,
   AppearancePreviewContext,
-  AppearancePreviewPalette,
   AppearanceRuntimeSnapshot,
 } from "./AppearanceRuntime";
-import type { ThemeContrastWarning, ThemeDiagnostic, ThemeManifestV1 } from "./domain";
+import type {
+  ResolvedAppTheme,
+  ThemeContrastWarning,
+  ThemeDiagnostic,
+  ThemeManifestV1,
+} from "./domain";
 import { resolveTheme } from "./resolveTheme";
 import { validateThemeManifest } from "./validateThemeManifest";
 
 type Listener = () => void;
 
-export type ThemePreviewChannels = Readonly<{
-  application: boolean;
-  reader: boolean;
-}>;
-
 type ActiveThemePreviewSnapshot = Readonly<{
   archive: ActiveAppearanceArchive;
   candidate: Readonly<{ id: string; name: string }>;
-  channels: ThemePreviewChannels;
   contrastWarnings: readonly ThemeContrastWarning[];
   error?: string;
   status: "previewing" | "keeping" | "error";
@@ -37,11 +35,11 @@ export type ThemePreviewStartResult =
   | Readonly<{
       diagnostics?: readonly ThemeDiagnostic[];
       ok: false;
-      reason: "busy" | "invalid-theme" | "no-active-archive" | "no-channels" | "reader-unavailable";
+      reason: "busy" | "invalid-theme" | "no-active-archive";
     }>;
 
 export type ThemePreviewRuntime = Readonly<{
-  applyPreview: (archive: ActiveAppearanceArchive, palette: AppearancePreviewPalette) => boolean;
+  applyPreview: (archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme) => boolean;
   clearPreview: (archive: ActiveAppearanceArchive) => boolean;
   getPreviewContext: () => AppearancePreviewContext | null;
   getSnapshot: () => AppearanceRuntimeSnapshot;
@@ -79,10 +77,7 @@ export class ThemePreviewSession {
     return () => this.listeners.delete(listener);
   };
 
-  startPreview(input: {
-    candidate: unknown;
-    channels: ThemePreviewChannels;
-  }): ThemePreviewStartResult {
+  startPreview(input: { candidate: unknown }): ThemePreviewStartResult {
     if (this.snapshot.status === "keeping") return Object.freeze({ ok: false, reason: "busy" });
 
     const validation = validateThemeManifest(input.candidate);
@@ -93,14 +88,7 @@ export class ThemePreviewSession {
         reason: "invalid-theme",
       });
     }
-    if (!input.channels.application && !input.channels.reader) {
-      return Object.freeze({ ok: false, reason: "no-channels" });
-    }
-
     const resolved = resolveTheme(validation.manifest);
-    if (input.channels.reader && !resolved.reader) {
-      return Object.freeze({ ok: false, reason: "reader-unavailable" });
-    }
 
     const initialContext = this.runtime.getPreviewContext();
     if (!initialContext) return Object.freeze({ ok: false, reason: "no-active-archive" });
@@ -111,16 +99,11 @@ export class ThemePreviewSession {
       return Object.freeze({ ok: false, reason: "no-active-archive" });
     }
 
-    const channels = Object.freeze({ ...input.channels });
     const contrastWarnings = Object.freeze(
-      resolved.contrastWarnings.filter((warning) => warningAppliesToChannels(warning, channels)),
+      resolved.contrastWarnings.filter((warning) => !warning.foregroundPath.startsWith("$.reader")),
     );
     const rollbackSettings = freezeAppearanceSettings(context.settings);
-    const nextSettings = previewSettings(rollbackSettings, validation.manifest, channels);
-    const palette: AppearancePreviewPalette = Object.freeze({
-      ...(channels.application ? { app: resolved.app } : {}),
-      ...(channels.reader && resolved.reader ? { reader: resolved.reader } : {}),
-    });
+    const nextSettings = previewSettings(rollbackSettings, validation.manifest);
     const id = this.nextSessionId + 1;
     this.nextSessionId = id;
     this.active = Object.freeze({
@@ -134,7 +117,6 @@ export class ThemePreviewSession {
       activeSnapshot({
         archive: context.archive,
         candidate: validation.manifest,
-        channels,
         contrastWarnings,
         status: "previewing",
         warningsAcknowledged: false,
@@ -142,7 +124,7 @@ export class ThemePreviewSession {
     );
     this.stopRuntime = this.runtime.subscribe(this.handleRuntimeChange);
 
-    if (!this.runtime.applyPreview(context.archive, palette)) {
+    if (!this.runtime.applyPreview(context.archive, resolved.app)) {
       this.finishSession(id);
       return Object.freeze({ ok: false, reason: "no-active-archive" });
     }
@@ -265,15 +247,10 @@ function activeSnapshot(
 function previewSettings(
   rollbackSettings: Readonly<ArchiveAppearanceSettings>,
   manifest: ThemeManifestV1,
-  channels: ThemePreviewChannels,
 ): ArchiveAppearanceSettings {
   return {
-    appTheme: channels.application
-      ? { kind: "custom", id: manifest.id }
-      : { ...rollbackSettings.appTheme },
-    readerTheme: channels.reader
-      ? { kind: "custom", id: manifest.id }
-      : { ...rollbackSettings.readerTheme },
+    appTheme: { kind: "custom", id: manifest.id },
+    readerTheme: { ...rollbackSettings.readerTheme },
   };
 }
 
@@ -284,14 +261,6 @@ function freezeAppearanceSettings(
     appTheme: Object.freeze({ ...settings.appTheme }),
     readerTheme: Object.freeze({ ...settings.readerTheme }),
   });
-}
-
-function warningAppliesToChannels(
-  warning: ThemeContrastWarning,
-  channels: ThemePreviewChannels,
-): boolean {
-  if (warning.foregroundPath.startsWith("$.reader")) return channels.reader;
-  return channels.application;
 }
 
 function sameArchive(left: ActiveAppearanceArchive, right: ActiveAppearanceArchive): boolean {

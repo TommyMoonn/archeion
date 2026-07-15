@@ -18,8 +18,8 @@ import { StorageSettingsSection } from "./sections/StorageSettingsSection";
 import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
-import { useArchiveThemeCatalogEntries } from "./useArchiveThemeCatalogEntries";
-import { useCommittedArchiveAppearance } from "./useCommittedArchiveAppearance";
+import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
+import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 
 type SettingsDialogProps = {
@@ -96,7 +96,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     loadFolders: dataRequirements.has("folders"),
     onOpenThemeManager: () => setThemeManagerOpen(true),
     themeCatalogEntries: themeCatalog.entries,
-    themeCatalogError: themeCatalog.error,
     themeCatalogLoading: themeCatalog.loading,
   });
 
@@ -170,7 +169,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
           <SettingsStatus
             persistenceStatus={controller.persistenceStatus}
-            status={controller.status}
+            status={
+              controller.status ??
+              (themeCatalog.error ? { message: themeCatalog.error, tone: "error" } : null)
+            }
           />
         </main>
 
@@ -188,10 +190,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
         {themeManagerOpen && controller.selectedArchivePath ? (
           <ThemeManagerDialog
             archiveRootPath={controller.selectedArchivePath}
-            onClose={() => {
-              setThemeManagerOpen(false);
-              themeCatalog.refresh();
-            }}
+            onClose={() => setThemeManagerOpen(false)}
           />
         ) : null}
       </div>

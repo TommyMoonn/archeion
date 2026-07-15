@@ -45,11 +45,6 @@ export type AppearancePreviewContext = Readonly<{
   settings: Readonly<ArchiveAppearanceSettings>;
 }>;
 
-export type AppearancePreviewPalette = Readonly<{
-  app?: ResolvedAppTheme;
-  reader?: ResolvedReaderTheme;
-}>;
-
 export type AppearanceRuntimeOptions = Readonly<{
   catalog?: ArchiveThemeCatalog;
   getDocumentRoot?: () => HTMLElement | null;
@@ -71,10 +66,10 @@ type ActiveArchiveContext = ActiveAppearanceArchive &
     settingsSource: ArchiveAppearanceSettingsSource;
   }>;
 
-type ActiveAppearancePreview = AppearancePreviewPalette &
-  Readonly<{
-    archiveGeneration: number;
-  }>;
+type ActiveAppearancePreview = Readonly<{
+  app: ResolvedAppTheme;
+  archiveGeneration: number;
+}>;
 
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
 
@@ -124,12 +119,10 @@ export class AppearanceRuntime {
 
   getPreviewContext = (): AppearancePreviewContext | null => this.committedContext;
 
-  applyPreview(archive: ActiveAppearanceArchive, palette: AppearancePreviewPalette): boolean {
-    if (!palette.app && !palette.reader) return false;
+  applyPreview(archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme): boolean {
     if (!this.isArchiveCurrent(archive)) return false;
     this.preview = Object.freeze({
-      ...(palette.app ? { app: palette.app } : {}),
-      ...(palette.reader ? { reader: palette.reader } : {}),
+      app: appTheme,
       archiveGeneration: archive.generation,
     });
     this.commitCurrentAppearance();
@@ -353,9 +346,9 @@ export class AppearanceRuntime {
     const snapshot =
       this.preview && archive?.generation === this.preview.archiveGeneration
         ? Object.freeze({
-            app: this.preview.app ?? resolved.app,
+            app: this.preview.app,
             archive,
-            reader: this.preview.reader ?? resolved.reader,
+            reader: resolved.reader,
           })
         : resolved;
 

@@ -424,6 +424,23 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   width: 188px;
 }
 
+.settings-theme-control {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.settings-theme-control .app-select {
+  width: 188px;
+}
+
+.settings-row__unavailable {
+  color: var(--muted);
+  font-size: var(--type-meta);
+}
+
 .settings-row__control .segmented-control {
   min-width: 188px;
 }
@@ -470,9 +487,15 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   }
 
   .settings-row__control .app-select,
+  .settings-theme-control .app-select,
   .settings-row__control .segmented-control,
   .settings-row__control input[type="range"] {
     width: 100%;
+  }
+
+  .settings-theme-control {
+    width: 100%;
+    flex-wrap: wrap;
   }
 }
 

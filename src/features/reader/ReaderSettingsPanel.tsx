@@ -5,20 +5,20 @@ import { AppSelect } from "../../components/AppSelect";
 import { readerTypefaceOptions } from "./readerFonts";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type { ReaderProgressPlacement, ReaderSettings, ReaderTheme } from "../../types/reader";
+import type { ReaderProgressPlacement, ReaderSettings } from "../../types/reader";
+import type { ArchiveReaderThemeSelection } from "../../types/settings";
+import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
+import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
 
 type ReaderSettingsPanelProps = {
   onChange: (settings: ReaderSettings) => void;
   onClose: () => void;
+  onReaderThemeChange: (selection: ArchiveReaderThemeSelection) => void;
   persistenceFailed: boolean;
+  readerThemeEntries: readonly ThemeCatalogEntry[];
+  readerThemeSelection: ArchiveReaderThemeSelection | null;
   settings: ReaderSettings;
 };
-
-const themes: Array<{ label: string; value: ReaderTheme }> = [
-  { label: "Light", value: "light" },
-  { label: "Sepia", value: "sepia" },
-  { label: "Dark", value: "dark" },
-];
 
 const lineHeights = [
   { label: "Tight", value: "1.4" },
@@ -49,7 +49,10 @@ const readerModes = [
 export function ReaderSettingsPanel({
   onChange,
   onClose,
+  onReaderThemeChange,
   persistenceFailed,
+  readerThemeEntries,
+  readerThemeSelection,
   settings,
 }: ReaderSettingsPanelProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -96,24 +99,17 @@ export function ReaderSettingsPanel({
       </div>
 
       <div className="reader-setting">
-        <span className="reader-setting__label">Theme</span>
-        <SegmentedControl
-          className="reader-control reader-control--themes"
-          label="Reader theme"
-          onChange={(theme) => update({ theme })}
-          options={themes.map((theme) => ({
-            ...theme,
-            icon: (
-              <span
-                aria-hidden="true"
-                className="reader-theme-swatch"
-                data-theme-option={theme.value}
-              />
-            ),
-          }))}
-          size="standard"
-          value={settings.theme}
-        />
+        <span className="reader-setting__label">Reader theme</span>
+        {readerThemeSelection ? (
+          <ArchiveReaderThemeSelect
+            entries={readerThemeEntries}
+            fallback={settings.theme}
+            onChange={onReaderThemeChange}
+            selection={readerThemeSelection}
+          />
+        ) : (
+          <span className="reader-setting__unavailable">Unavailable</span>
+        )}
       </div>
 
       <div className="reader-setting">

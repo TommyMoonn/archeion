@@ -166,10 +166,6 @@ fn create_theme_package_at(root: &Path, id: &str, manifest_json: &str) -> Result
     result
 }
 
-fn create_starter_package_at(root: &Path, id: &str, manifest_json: &str) -> Result<(), String> {
-    create_theme_package_at(root, id, manifest_json)
-}
-
 trait ThemeFileSystem {
     fn rename(&self, source: &Path, destination: &Path) -> Result<(), String>;
 }
@@ -392,40 +388,15 @@ pub fn reveal_archive_themes_folder(
     filesystem::open_folder(&themes)
 }
 
-#[tauri::command]
-pub fn reveal_archive_theme_package(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    id: String,
-) -> Result<(), String> {
-    let package =
-        resolve_existing_package_at(&resolve_command_archive_root(&app, root_path)?, &id)?;
-    filesystem::open_folder(&package)
-}
-
-#[tauri::command]
-pub fn create_archive_theme_starter(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    id: String,
-    manifest_json: String,
-) -> Result<(), String> {
-    create_starter_package_at(
-        &resolve_command_archive_root(&app, root_path)?,
-        &id,
-        &manifest_json,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path, time::SystemTime};
 
     use super::{
-        create_starter_package_at, create_theme_package_at, delete_theme_package_at,
-        list_theme_packages_at, normalize_manifest_json, read_theme_manifest_at,
-        replace_manifest_with_fs, replace_theme_manifest_at, themes_root_at, validate_theme_id,
-        ThemeFileSystem, MAX_THEME_MANIFEST_BYTES,
+        create_theme_package_at, delete_theme_package_at, list_theme_packages_at,
+        normalize_manifest_json, read_theme_manifest_at, replace_manifest_with_fs,
+        replace_theme_manifest_at, themes_root_at, validate_theme_id, ThemeFileSystem,
+        MAX_THEME_MANIFEST_BYTES,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -547,20 +518,6 @@ mod tests {
         );
         let source = read_theme_manifest_at(&root, "moon-ink").unwrap();
         assert!(source.contains("First"));
-        fs::remove_dir_all(root).unwrap();
-    }
-
-    #[test]
-    fn starter_creation_uses_create_only_package_semantics() {
-        let root = test_root("starter");
-        create_starter_package_at(&root, "moon-ink", &manifest("moon-ink", "Starter")).unwrap();
-        assert!(
-            create_starter_package_at(&root, "moon-ink", &manifest("moon-ink", "Replacement"))
-                .is_err()
-        );
-        assert!(read_theme_manifest_at(&root, "moon-ink")
-            .unwrap()
-            .contains("Starter"));
         fs::remove_dir_all(root).unwrap();
     }
 

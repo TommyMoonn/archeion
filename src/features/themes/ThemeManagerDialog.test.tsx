@@ -39,18 +39,20 @@ function createServices() {
   }));
   catalog.activateArchive(archive);
   let settings: ArchiveAppearanceSettings = {
-    appTheme: { kind: "inherit" },
-    readerTheme: { kind: "inherit" },
+    appTheme: { kind: "custom", id: "moon-ink" },
+    readerTheme: { kind: "builtin", id: "sepia" },
   };
   const runtimeListeners = new Set<() => void>();
   const clearPreview = vi.fn(() => true);
   const runtime = {
     getPreviewContext: () => ({ archive, settings }),
     refreshArchiveAppearance: vi.fn(async () => settings),
-    saveArchiveAppearanceSettings: vi.fn(async (_archive, next) => {
-      settings = next;
-      return settings;
-    }),
+    updateArchiveAppearanceSettings: vi.fn(
+      async (_archive, changes: Partial<ArchiveAppearanceSettings>) => {
+        settings = { ...settings, ...changes };
+        return settings;
+      },
+    ),
   } satisfies ThemeManagerControllerOptions["runtime"];
   const previewSession = new ThemePreviewSession({
     applyPreview: vi.fn(() => true),
@@ -59,7 +61,7 @@ function createServices() {
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("dark"),
       archive,
-      reader: resolveBuiltInReaderTheme("dark"),
+      reader: resolveBuiltInReaderTheme("sepia"),
     }),
     keepPreview: vi.fn(async () => undefined),
     subscribe: (listener) => {
@@ -72,10 +74,8 @@ function createServices() {
     clearPreview,
     previewSession,
     repository: {
-      createStarterPackage: vi.fn(),
       deletePackage: vi.fn(),
       replaceManifest: vi.fn(),
-      revealPackage: vi.fn(),
       revealThemesRoot: vi.fn(),
       storeManifest: vi.fn(),
     },
@@ -125,49 +125,78 @@ describe("ThemeManagerDialog", () => {
     vi.restoreAllMocks();
   });
 
-  it("exposes the complete archive package workflow without an in-app editor", async () => {
+  it("presents the final app-only flat manager workflow", async () => {
     const services = createServices();
     await act(async () => root.render(<Owner services={services} />));
     await settle();
 
-    expect(container.textContent).toContain("Theme Manager");
-    expect(container.textContent).toContain("Import JSON");
-    expect(container.textContent).toContain("Create starter");
-    expect(container.textContent).toContain("Reload");
-    expect(container.textContent).toContain("Reveal themes folder");
+    expect(container.textContent).toContain("Import Themes");
+    expect(container.querySelector('button[aria-label="Reload themes"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Open themes folder"]')).not.toBeNull();
     expect(container.textContent).toContain("Theme guide");
     expect(container.textContent).toContain("Public schema");
+    expect(container.textContent).toContain("Archeion Dark");
+    expect(container.textContent).toContain("Archeion Light");
+    expect(container.textContent).toContain("Moon Ink");
+    expect(container.textContent).toContain("Selected");
+    expect(container.textContent).not.toMatch(
+      /Built in|This archive|Sepia|Create starter|Reader colors|capabilit/i,
+    );
     expect(container.querySelector("textarea")).toBeNull();
-
-    act(() => button(container, "Create starter").click());
-    expect(container.textContent).toContain("Theme ID");
-    expect(container.textContent).toContain("Application base");
-    expect(container.textContent).toContain("Reader base");
   });
 
-  it("owns preview controls inside its native dialog and reverts them when the manager closes", async () => {
+  it("uses an explicit Update theme confirmation for duplicate imports", async () => {
     const services = createServices();
     await act(async () => root.render(<Owner services={services} />));
     await settle();
 
+    const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const replacement = { ...customManifest, name: "Moon Ink Revised" };
+    Object.defineProperty(input, "files", {
+      configurable: true,
+      value: [
+        new File([JSON.stringify(replacement)], "moon-ink.json", {
+          type: "application/json",
+        }),
+      ],
+    });
+    act(() => input.dispatchEvent(new Event("change", { bubbles: true })));
+    await settle();
+
+    const dialogs = container.querySelectorAll("dialog");
+    expect(dialogs).toHaveLength(2);
+    expect(dialogs[1]?.textContent).toContain("A theme with this ID already exists.");
+    expect(button(dialogs[1]!, "Update theme")).not.toBeNull();
+    expect(dialogs[1]?.textContent).not.toContain("Replace theme");
+    expect(services.repository.replaceManifest).not.toHaveBeenCalled();
+
+    act(() => button(dialogs[1]!, "Update theme").click());
+    await settle();
+    expect(services.repository.replaceManifest).toHaveBeenCalledWith(replacement);
+  });
+
+  it("owns preview controls inside its native dialog and reverts them on close", async () => {
+    const services = createServices();
+    await act(async () => root.render(<Owner services={services} />));
+    await settle();
+
+    const readerSelection = services.runtime.getPreviewContext()?.settings.readerTheme;
     act(() => button(container, "Moon Ink").click());
     act(() => button(container, "Preview").click());
 
+    expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
     const dialog = container.querySelector("dialog");
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
-    expect(dialog).not.toBeNull();
-    expect(controls).not.toBeNull();
     expect(dialog?.contains(controls ?? null)).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
 
     act(() => button(container, "Close").click());
-
     expect(container.querySelector("dialog")).toBeNull();
     expect(services.clearPreview).toHaveBeenCalledOnce();
-    expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
+    expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
   });
 
-  it("keeps destructive package confirmation inside the manager's native modal subtree", async () => {
+  it("keeps package deletion confirmation in the manager modal subtree", async () => {
     const services = createServices();
     await act(async () => root.render(<Owner services={services} />));
     await settle();
@@ -178,10 +207,7 @@ describe("ThemeManagerDialog", () => {
     const dialogs = container.querySelectorAll("dialog");
     expect(dialogs).toHaveLength(2);
     expect(dialogs[0]?.contains(dialogs[1] ?? null)).toBe(true);
-    expect(dialogs[1]?.textContent).toContain("Delete theme package?");
-    expect(dialogs[1]?.textContent).toContain("safely falls back");
-
-    act(() => button(container, "Cancel").click());
-    expect(container.querySelectorAll("dialog")).toHaveLength(1);
+    expect(dialogs[1]?.textContent).toContain("Delete theme?");
+    expect(dialogs[1]?.textContent).toContain("active archive");
   });
 });

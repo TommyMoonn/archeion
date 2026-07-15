@@ -128,15 +128,17 @@ Archeion derives quotation and visited-link treatments. Reader typography remain
 
 ## Managing themes in Archeion
 
-Open **Settings → Appearance → Manage archive themes** to inspect both built-in themes and packages stored with the active archive. Theme Manager can import a JSON manifest, create a minimal starter, preview a valid custom package, apply it to the application or reader, replace its manifest, delete it, or reveal its folder.
+Open **Settings → Appearance → App themes → Manage** to inspect built-in application themes and packages stored with the active archive. Theme Manager can import a JSON manifest, preview a valid custom application theme, select it for the app, or delete its package. Use **Open themes folder** to create or edit packages directly in `.archeion/themes/` with an external editor. The [schema](schemas/archeion-theme-v1.schema.json) and [examples](../examples/themes/) provide canonical starting points.
 
-Import and starter creation are create-only. If a package with the same ID already exists, Archeion asks before replacing that package's `theme.json`; it does not silently overwrite it. Replacement preserves other files in the package. A starter asks for the package ID, display name, application base, and optional reader base, then writes an immediately valid manifest with the canonical `$schema` URL.
+Import is create-only. If a package with the same ID already exists, Archeion asks before updating that package's `theme.json`; it does not silently overwrite it. Updating preserves other files in the package.
 
-Theme Manager shows invalid packages and their diagnostics so they can be repaired. After editing `theme.json` in an external editor, choose **Reload** to reread package directories and manifests. Archeion does not watch theme files continuously.
+Theme Manager shows invalid packages and their diagnostics so they can be repaired. After editing `theme.json`, choose **Reload themes** to reread package directories and manifests. Archeion does not watch theme files continuously.
 
-Preview is temporary. **Revert** restores the stored appearance, while **Keep theme** saves the previewed application and/or reader selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before keeping a preview with warnings.
+Preview is temporary and applies only to the application. **Revert** restores the stored appearance, while **Keep theme** saves the previewed application selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before keeping a preview with warnings.
 
-Archive theme selections retain their custom IDs even if a selected package is deleted or becomes invalid. Archeion safely falls back until that package is restored, reloaded, and valid again, or a different selection is saved.
+Choose reader colors from **Settings → Reader → Reader theme** or from the Reader settings panel. Both selectors offer the same built-in and compatible custom reader themes.
+
+If a selected custom package is missing or invalid, its ID remains stored so the selection can resume after the package is restored and reloaded. Choose another available theme to replace that selection immediately.
 
 To move or back up archive-local themes, copy the archive's complete `.archeion/` directory together with its theme packages and settings. Copying only `theme.json` files preserves the packages but not the archive's selected application and reader references.
 

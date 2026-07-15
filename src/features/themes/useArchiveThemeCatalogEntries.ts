@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { archiveThemeCatalog } from "../../themes/appearanceRuntimeInstance";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
@@ -26,23 +26,6 @@ export function useArchiveThemeCatalogEntries(enabled: boolean) {
     enabled && archiveRootPath && snapshot.archive?.rootPath === archiveRootPath,
   );
 
-  const refresh = useCallback(() => {
-    const current = archiveThemeCatalog.getSnapshot();
-    if (!archiveRootPath || current.archive?.rootPath !== archiveRootPath) return;
-    setFailure(null);
-    if (!current.fullyEnumerated) {
-      void archiveThemeCatalog.enumeratePackages().catch((reason: unknown) => {
-        setFailure({
-          message:
-            reason instanceof Error && reason.message.trim()
-              ? reason.message
-              : "Custom themes could not be listed.",
-          rootPath: archiveRootPath,
-        });
-      });
-    }
-  }, [archiveRootPath]);
-
   useEffect(() => {
     const current = archiveThemeCatalog.getSnapshot();
     if (!enabled || !archiveRootPath || current.archive?.rootPath !== archiveRootPath) return;
@@ -50,7 +33,9 @@ export function useArchiveThemeCatalogEntries(enabled: boolean) {
 
     let active = true;
     void archiveThemeCatalog.enumeratePackages().then(
-      () => undefined,
+      () => {
+        if (active) setFailure(null);
+      },
       (reason) => {
         if (!active) return;
         setFailure({
@@ -71,6 +56,5 @@ export function useArchiveThemeCatalogEntries(enabled: boolean) {
     entries: snapshot.entries,
     error,
     loading: inScope && !snapshot.fullyEnumerated && !error,
-    refresh,
-  } satisfies ArchiveThemeCatalogEntriesState & Readonly<{ refresh: () => void }>;
+  } satisfies ArchiveThemeCatalogEntriesState;
 }

@@ -24,19 +24,23 @@ function renderPanel(persistenceFailed = false) {
   document.body.append(container);
   root = createRoot(container);
   const onClose = vi.fn();
+  const onReaderThemeChange = vi.fn();
 
   act(() => {
     root?.render(
       <ReaderSettingsPanel
         onChange={vi.fn()}
         onClose={onClose}
+        onReaderThemeChange={onReaderThemeChange}
         persistenceFailed={persistenceFailed}
+        readerThemeEntries={[]}
+        readerThemeSelection={{ kind: "builtin", id: "dark" }}
         settings={{ ...defaultReaderSettings }}
       />,
     );
   });
 
-  return { container, onClose };
+  return { container, onClose, onReaderThemeChange };
 }
 
 describe("ReaderSettingsPanel", () => {
@@ -58,5 +62,19 @@ describe("ReaderSettingsPanel", () => {
     expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
       "Settings could not be saved",
     );
+  });
+
+  it("uses the shared archive reader-theme selection", () => {
+    const rendered = renderPanel();
+    const select = rendered.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;
+
+    act(() => select.click());
+    const sepia = Array.from(rendered.container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Sepia",
+    )!;
+    act(() => sepia.click());
+
+    expect(rendered.onReaderThemeChange).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
+    expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
   });
 });

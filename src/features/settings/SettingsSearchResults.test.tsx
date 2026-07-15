@@ -129,6 +129,18 @@ describe("SettingsSearchResults", () => {
     });
   });
 
+  it("renders one app and one reader theme row without duplicate legacy controls", () => {
+    const { container } = trackRoot(renderResults("theme"));
+    const ids = Array.from(container.querySelectorAll<HTMLElement>("[data-setting-id]")).map(
+      (element) => element.dataset.settingId,
+    );
+
+    expect(ids).toEqual(["reader.theme", "appearance.app-themes"]);
+    expect(container.textContent).toContain("Reader theme");
+    expect(container.textContent).toContain("App themes");
+    expect(container.textContent).not.toMatch(/fallback|override|inherit/i);
+  });
+
   it("changes settings directly from a rendered search result control", () => {
     const controller = createController();
     const { container } = trackRoot(renderResults("display density", controller));

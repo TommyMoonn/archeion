@@ -1,7 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
 import type { ThemeDiagnostic, ThemeManifestV1 } from "./domain";
-import { createStarterThemeManifest, type StarterThemeInput } from "./starterTheme";
 import { validateThemeManifest } from "./validateThemeManifest";
 
 type ThemeCommandDefinition<Args, Result> = Readonly<{ args: Args; result: Result }>;
@@ -16,8 +15,6 @@ type ThemeCommandMap = Readonly<{
   >;
   delete_archive_theme_package: ThemeCommandDefinition<{ id: string }, void>;
   reveal_archive_themes_folder: ThemeCommandDefinition<undefined, void>;
-  reveal_archive_theme_package: ThemeCommandDefinition<{ id: string }, void>;
-  create_archive_theme_starter: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
 }>;
 
 type ThemeCommandName = keyof ThemeCommandMap;
@@ -73,19 +70,6 @@ export class ArchiveThemeRepository {
 
   revealThemesRoot(): Promise<void> {
     return this.invoke("reveal_archive_themes_folder", undefined);
-  }
-
-  revealPackage(id: string): Promise<void> {
-    return this.invoke("reveal_archive_theme_package", { id });
-  }
-
-  async createStarterPackage(input: StarterThemeInput): Promise<ThemeManifestV1> {
-    const manifest = createStarterThemeManifest(input);
-    await this.invoke("create_archive_theme_starter", {
-      id: manifest.id,
-      manifestJson: serializeManifest(manifest),
-    });
-    return manifest;
   }
 
   private invoke<Name extends ThemeCommandName>(

@@ -34,6 +34,13 @@ describe("settingsSearch", () => {
     ]);
   });
 
+  it("returns only the final app and reader theme controls", () => {
+    expect(findSettingsSearchResults("theme").map((result) => result.item.id)).toEqual([
+      "reader.theme",
+      "appearance.app-themes",
+    ]);
+  });
+
   it("finds the Smart Views master and every built-in view", () => {
     expect(findSettingsSearchResults("smart views").map((result) => result.item.id)).toContain(
       "library.smart-views.enabled",

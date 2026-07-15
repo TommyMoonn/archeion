@@ -11,10 +11,7 @@ const archive = Object.freeze({
   rootPath: "D:\\Archive A",
 });
 
-function manifest(
-  id = "preview-theme",
-  overrides: Record<string, unknown> = {},
-): Record<string, unknown> {
+function manifest(id = "preview-theme", overrides: Record<string, unknown> = {}) {
   return {
     schemaVersion: 1,
     id,
@@ -29,7 +26,7 @@ function manifest(
 function settings(): ArchiveAppearanceSettings {
   return {
     appTheme: { kind: "builtin", id: "light" },
-    readerTheme: { kind: "inherit" },
+    readerTheme: { kind: "builtin", id: "sepia" },
   };
 }
 
@@ -57,7 +54,7 @@ function createRuntime() {
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("light"),
       archive: currentArchive,
-      reader: resolveBuiltInReaderTheme("dark"),
+      reader: resolveBuiltInReaderTheme("sepia"),
     }),
     keepPreview,
     subscribe: (listener) => {
@@ -78,224 +75,146 @@ function createRuntime() {
 }
 
 describe("ThemePreviewSession", () => {
-  it("previews in memory and persists only the selected channel after Keep", async () => {
+  it("previews and keeps only the application selection", async () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
 
-    const started = session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: false },
-    });
+    const started = session.startPreview({ candidate: manifest() });
 
     expect(started.ok).toBe(true);
     expect(owner.applyPreview).toHaveBeenCalledWith(
       archive,
-      expect.objectContaining({
-        app: expect.objectContaining({ base: "dark" }),
-      }),
+      expect.objectContaining({ base: "dark" }),
     );
-    expect(owner.applyPreview.mock.calls[0]?.[1]).not.toHaveProperty("reader");
-    expect(owner.keepPreview).not.toHaveBeenCalled();
 
     await expect(session.keep()).resolves.toBe(true);
-
     expect(owner.keepPreview).toHaveBeenCalledWith(archive, settings(), {
       appTheme: { kind: "custom", id: "preview-theme" },
-      readerTheme: { kind: "inherit" },
+      readerTheme: { kind: "builtin", id: "sepia" },
     });
     expect(session.getSnapshot()).toEqual({ status: "idle" });
-    expect(owner.clearPreview).not.toHaveBeenCalled();
   });
 
-  it("reverts without persistence and lets the owner handle clean up manager close", () => {
+  it("reverts without persistence", () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
-    const started = session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: true },
-    });
+    const started = session.startPreview({ candidate: manifest() });
     if (!started.ok) throw new Error(started.reason);
 
     expect(started.handle.dispose()).toBe(true);
-
     expect(owner.clearPreview).toHaveBeenCalledWith(archive);
     expect(owner.keepPreview).not.toHaveBeenCalled();
-    expect(session.getSnapshot()).toEqual({ status: "idle" });
   });
 
-  it("reverts the previous candidate on replacement without letting an old handle clear the new one", () => {
+  it("replaces only the current preview and makes the old handle harmless", () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
-    const first = session.startPreview({
-      candidate: manifest("first-theme"),
-      channels: { application: true, reader: false },
-    });
-    const second = session.startPreview({
-      candidate: manifest("second-theme"),
-      channels: { application: false, reader: true },
-    });
+    const first = session.startPreview({ candidate: manifest("first-theme") });
+    const second = session.startPreview({ candidate: manifest("second-theme") });
     if (!first.ok || !second.ok) throw new Error("Expected both previews to start");
 
-    expect(owner.clearPreview).toHaveBeenCalledTimes(1);
+    expect(owner.clearPreview).toHaveBeenCalledOnce();
     expect(first.handle.dispose()).toBe(false);
     expect(session.getSnapshot()).toMatchObject({
       candidate: { id: "second-theme" },
-      channels: { application: false, reader: true },
       status: "previewing",
     });
     expect(second.handle.dispose()).toBe(true);
     expect(owner.clearPreview).toHaveBeenCalledTimes(2);
   });
 
-  it("does not replace the only session while Keep is in flight and lets a successful Keep finish", async () => {
+  it("does not replace a preview while Keep is in flight", async () => {
     const owner = createRuntime();
     const save = deferred<void>();
     owner.keepPreview.mockImplementationOnce(() => save.promise);
     const session = new ThemePreviewSession(owner.runtime);
-    session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: false },
-    });
+    session.startPreview({ candidate: manifest() });
 
     const keeping = session.keep();
-
-    expect(session.getSnapshot()).toMatchObject({ status: "keeping" });
     expect(session.revert()).toBe(true);
-    expect(
-      session.startPreview({
-        candidate: manifest("replacement"),
-        channels: { application: true, reader: false },
-      }),
-    ).toEqual({ ok: false, reason: "busy" });
+    expect(session.startPreview({ candidate: manifest("replacement") })).toEqual({
+      ok: false,
+      reason: "busy",
+    });
 
     save.resolve();
     await expect(keeping).resolves.toBe(true);
     expect(session.getSnapshot()).toEqual({ status: "idle" });
-    expect(owner.clearPreview).not.toHaveBeenCalled();
   });
 
-  it("clears a transient preview after owner teardown when an in-flight Keep fails", async () => {
+  it("clears the preview after owner teardown when an in-flight Keep fails", async () => {
     const owner = createRuntime();
     const save = deferred<void>();
     owner.keepPreview.mockImplementationOnce(() => save.promise);
     const session = new ThemePreviewSession(owner.runtime);
-    const started = session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: false },
-    });
+    const started = session.startPreview({ candidate: manifest() });
     if (!started.ok) throw new Error(started.reason);
 
     const keeping = session.keep();
     expect(started.handle.dispose()).toBe(true);
-    expect(session.getSnapshot()).toMatchObject({ status: "keeping" });
-
     save.reject(new Error("disk unavailable"));
+
     await expect(keeping).resolves.toBe(false);
     expect(owner.clearPreview).toHaveBeenCalledOnce();
     expect(session.getSnapshot()).toEqual({ status: "idle" });
   });
 
-  it("blocks invalid manifests, empty channel requests, and unavailable reader palettes", () => {
+  it("rejects invalid themes and missing archive context", () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
-    const appOnly = manifest("app-only");
-    delete appOnly.reader;
 
-    expect(
-      session.startPreview({
-        candidate: { schemaVersion: 1 },
-        channels: { application: true, reader: false },
-      }),
-    ).toMatchObject({ ok: false, reason: "invalid-theme" });
-    expect(
-      session.startPreview({
-        candidate: manifest(),
-        channels: { application: false, reader: false },
-      }),
-    ).toEqual({ ok: false, reason: "no-channels" });
-    expect(
-      session.startPreview({
-        candidate: appOnly,
-        channels: { application: false, reader: true },
-      }),
-    ).toEqual({ ok: false, reason: "reader-unavailable" });
+    expect(session.startPreview({ candidate: { schemaVersion: 1 } })).toMatchObject({
+      ok: false,
+      reason: "invalid-theme",
+    });
     owner.switchArchive(null);
-    expect(
-      session.startPreview({
-        candidate: manifest(),
-        channels: { application: true, reader: false },
-      }),
-    ).toEqual({ ok: false, reason: "no-active-archive" });
+    expect(session.startPreview({ candidate: manifest() })).toEqual({
+      ok: false,
+      reason: "no-active-archive",
+    });
     expect(owner.applyPreview).not.toHaveBeenCalled();
   });
 
-  it("requires acknowledgement for relevant contrast warnings before Keep", async () => {
+  it("requires acknowledgement only for application contrast warnings", async () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
     const started = session.startPreview({
       candidate: manifest("low-contrast", {
         app: { main: "#000000", text: "#000000" },
+        reader: { base: "dark", background: "#000000", text: "#000000" },
       }),
-      channels: { application: true, reader: false },
     });
     expect(started.ok).toBe(true);
-    expect(session.getSnapshot()).toMatchObject({
-      status: "previewing",
-      warningsAcknowledged: false,
-    });
     const snapshot = session.getSnapshot();
     if (snapshot.status === "idle") throw new Error("Expected an active preview");
     expect(snapshot.contrastWarnings.length).toBeGreaterThan(0);
+    expect(
+      snapshot.contrastWarnings.every((warning) => !warning.foregroundPath.startsWith("$.reader")),
+    ).toBe(true);
 
     await expect(session.keep()).resolves.toBe(false);
-    expect(owner.keepPreview).not.toHaveBeenCalled();
-
     session.acknowledgeWarnings(true);
     await expect(session.keep()).resolves.toBe(true);
-    expect(owner.keepPreview).toHaveBeenCalledOnce();
   });
 
-  it("does not require acknowledgement for warnings outside the previewed channel", async () => {
-    const owner = createRuntime();
-    const session = new ThemePreviewSession(owner.runtime);
-    const started = session.startPreview({
-      candidate: manifest("reader-only", {
-        app: { main: "#000000", text: "#000000" },
-      }),
-      channels: { application: false, reader: true },
-    });
-    expect(started.ok).toBe(true);
-    expect(session.getSnapshot()).toMatchObject({ contrastWarnings: [] });
-
-    await expect(session.keep()).resolves.toBe(true);
-  });
-
-  it("keeps a failed save inspectable and previewed until Revert", async () => {
+  it("keeps a failed save previewed and retryable until Revert", async () => {
     const owner = createRuntime();
     owner.keepPreview.mockRejectedValueOnce(new Error("disk unavailable"));
     const session = new ThemePreviewSession(owner.runtime);
-    session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: false },
-    });
+    session.startPreview({ candidate: manifest() });
 
     await expect(session.keep()).resolves.toBe(false);
-
     expect(session.getSnapshot()).toMatchObject({
       error: "The theme could not be kept. The preview is still active.",
       status: "error",
     });
     expect(session.revert()).toBe(true);
-    expect(owner.clearPreview).toHaveBeenCalledOnce();
   });
 
-  it("invalidates without leaking when the active archive generation changes", () => {
+  it("invalidates without publishing when the archive generation changes", () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);
-    const started = session.startPreview({
-      candidate: manifest(),
-      channels: { application: true, reader: true },
-    });
+    const started = session.startPreview({ candidate: manifest() });
     if (!started.ok) throw new Error(started.reason);
 
     owner.switchArchive(

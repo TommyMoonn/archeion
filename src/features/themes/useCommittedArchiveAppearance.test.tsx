@@ -105,7 +105,6 @@ describe("useCommittedArchiveAppearance", () => {
     const session = new ThemePreviewSession(runtime);
     const started = session.startPreview({
       candidate,
-      channels: { application: true, reader: false },
     });
     if (!started.ok) throw new Error(started.reason);
     if (session.getSnapshot().status !== "idle") session.acknowledgeWarnings(true);
@@ -143,7 +142,6 @@ describe("useCommittedArchiveAppearance", () => {
 
     const failedPreview = session.startPreview({
       candidate,
-      channels: { application: false, reader: true },
     });
     if (!failedPreview.ok) throw new Error(failedPreview.reason);
     session.acknowledgeWarnings(true);
@@ -186,7 +184,6 @@ describe("useCommittedArchiveAppearance", () => {
     const session = new ThemePreviewSession(runtime);
     const started = session.startPreview({
       candidate,
-      channels: { application: true, reader: false },
     });
     if (!started.ok) throw new Error(started.reason);
     session.acknowledgeWarnings(true);

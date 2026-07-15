@@ -77,41 +77,16 @@ describe("ArchiveThemeRepository", () => {
     expect(invokeMock).not.toHaveBeenCalled();
   });
 
-  it("routes delete and reveal operations without arbitrary paths", async () => {
+  it("routes delete and root-folder reveal operations without arbitrary paths", async () => {
     const repository = new ArchiveThemeRepository("C:/ArchiveA");
 
     await repository.deletePackage("moon-ink");
     await repository.revealThemesRoot();
-    await repository.revealPackage("moon-ink");
 
     expect(invokeMock.mock.calls).toEqual([
       ["delete_archive_theme_package", { id: "moon-ink", rootPath: "C:/ArchiveA" }],
       ["reveal_archive_themes_folder", { rootPath: "C:/ArchiveA" }],
-      ["reveal_archive_theme_package", { id: "moon-ink", rootPath: "C:/ArchiveA" }],
     ]);
-  });
-
-  it("creates a validated canonical starter before invoking native creation", async () => {
-    const repository = new ArchiveThemeRepository("C:/ArchiveA");
-
-    const created = await repository.createStarterPackage({
-      appBase: "light",
-      id: "paper-light",
-      name: "Paper Light",
-      readerBase: "sepia",
-    });
-
-    expect(created).toMatchObject({
-      $schema: ARCHEION_THEME_SCHEMA_URL,
-      id: "paper-light",
-      app: { accent: "#386f99" },
-      reader: { base: "sepia", link: "#765b34" },
-    });
-    expect(invokeMock).toHaveBeenCalledWith("create_archive_theme_starter", {
-      id: "paper-light",
-      manifestJson: `${JSON.stringify(created, null, 2)}\n`,
-      rootPath: "C:/ArchiveA",
-    });
   });
 
   it("rejects a missing archive scope", () => {

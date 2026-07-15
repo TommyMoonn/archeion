@@ -11,6 +11,7 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
+import { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
@@ -47,7 +48,6 @@ export type SettingsDialogControllerOptions = {
   loadFolders?: boolean;
   onOpenThemeManager?: () => void;
   themeCatalogEntries?: readonly ThemeCatalogEntry[];
-  themeCatalogError?: string | null;
   themeCatalogLoading?: boolean;
 };
 
@@ -59,7 +59,6 @@ export function useSettingsDialogController({
   loadFolders = false,
   onOpenThemeManager,
   themeCatalogEntries = [],
-  themeCatalogError = null,
   themeCatalogLoading = false,
 }: SettingsDialogControllerOptions = {}) {
   const storage = useLibraryStorage();
@@ -406,6 +405,21 @@ export function useSettingsDialogController({
     onOpenThemeManager();
   }
 
+  async function openThemesFolder(): Promise<boolean> {
+    if (!selectedArchivePath) {
+      setErrorStatus("Themes require an active archive.");
+      return false;
+    }
+    clearLocalStatus();
+    try {
+      await new ArchiveThemeRepository(selectedArchivePath).revealThemesRoot();
+      return true;
+    } catch (error) {
+      setErrorStatus(error instanceof Error ? error.message : "The themes folder could not open.");
+      return false;
+    }
+  }
+
   async function rescan() {
     closeConfirmation("rescanArchive");
     setNeutralStatus("Rescanning archive", { autoDismiss: false });
@@ -586,6 +600,7 @@ export function useSettingsDialogController({
     library,
     openArchiveManager,
     openThemeManager,
+    openThemesFolder,
     openConfirmation,
     persistenceStatus,
     preferences,
@@ -603,7 +618,6 @@ export function useSettingsDialogController({
     selectedArchivePath,
     status,
     themeCatalogEntries,
-    themeCatalogError,
     themeCatalogLoading,
     updateArchiveAppearance,
     updateAppPreferences,

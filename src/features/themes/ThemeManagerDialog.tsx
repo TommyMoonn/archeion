@@ -1,13 +1,13 @@
-import { ArrowsClockwise, FilePlus, FolderOpen, Plus } from "@phosphor-icons/react";
-import { useMemo, useRef, useState, type ChangeEvent } from "react";
+import { ArrowsClockwise, FilePlus, FolderOpen } from "@phosphor-icons/react";
+import { useMemo, useRef, type ChangeEvent } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
+import { IconButton } from "../../components/IconButton";
 import { appearanceRuntime, archiveThemeCatalog } from "../../themes/appearanceRuntimeInstance";
 import { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
 import { ARCHEION_THEME_SCHEMA_URL } from "../../themes/themeTokenRegistry";
 import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
-import { CreateStarterThemePanel } from "./CreateStarterThemePanel";
 import { ThemeCatalogList } from "./ThemeCatalogList";
 import { ThemeDetails } from "./ThemeDetails";
 import { ThemePreviewControls } from "./ThemePreviewControls";
@@ -21,7 +21,6 @@ const THEME_GUIDE_URL = "https://tommymoonn.github.io/archeion/custom-themes.htm
 
 type ThemeManagerDialogProps = Readonly<{
   archiveRootPath: string;
-  onAppearanceChanged?: ThemeManagerControllerOptions["onAppearanceChanged"];
   onClose: () => void;
   services?: Readonly<{
     catalog: ThemeManagerControllerOptions["catalog"];
@@ -33,7 +32,6 @@ type ThemeManagerDialogProps = Readonly<{
 
 export function ThemeManagerDialog({
   archiveRootPath,
-  onAppearanceChanged,
   onClose,
   services,
 }: ThemeManagerDialogProps) {
@@ -44,15 +42,12 @@ export function ThemeManagerDialog({
   const controller = useThemeManagerController({
     archiveRootPath,
     catalog: services?.catalog ?? archiveThemeCatalog,
-    onAppearanceChanged,
     onArchiveScopeInvalidated: onClose,
     previewSession: services?.previewSession ?? themePreviewSession,
     repository,
     runtime: services?.runtime ?? appearanceRuntime,
   });
   const importInputRef = useRef<HTMLInputElement>(null);
-  const replaceInputRef = useRef<HTMLInputElement>(null);
-  const [starterOpen, setStarterOpen] = useState(false);
   const busy = controller.busyAction !== null;
 
   function close() {
@@ -73,7 +68,7 @@ export function ThemeManagerDialog({
     <Dialog
       className="theme-manager-dialog"
       closeOnBackdropClick={false}
-      description={`Archive-local themes in ${archiveRootPath}`}
+      description="Browse, preview, and manage application themes."
       footer={
         <Button onClick={close} variant="secondary">
           Close
@@ -90,15 +85,6 @@ export function ThemeManagerDialog({
         tabIndex={-1}
         type="file"
       />
-      <input
-        accept=".json,application/json"
-        className="sr-only"
-        onChange={(event) => void readChosenFile(event, controller.prepareReplacement)}
-        ref={replaceInputRef}
-        tabIndex={-1}
-        type="file"
-      />
-
       <div className="theme-manager__toolbar">
         <Button
           disabled={busy || controller.previewActive}
@@ -107,35 +93,26 @@ export function ThemeManagerDialog({
           size="standard"
           variant="secondary"
         >
-          Import JSON
+          Import Themes
         </Button>
-        <Button
-          disabled={busy || controller.previewActive}
-          icon={<Plus aria-hidden="true" />}
-          onClick={() => setStarterOpen(true)}
-          size="standard"
-          variant="secondary"
-        >
-          Create starter
-        </Button>
-        <Button
-          disabled={busy || controller.previewActive}
-          icon={<ArrowsClockwise aria-hidden="true" />}
-          onClick={() => void controller.reload()}
-          size="standard"
-          variant="ghost"
-        >
-          Reload
-        </Button>
-        <Button
-          disabled={busy || controller.previewActive}
-          icon={<FolderOpen aria-hidden="true" />}
-          onClick={() => void controller.reveal("root")}
-          size="standard"
-          variant="ghost"
-        >
-          Reveal themes folder
-        </Button>
+        <div className="theme-manager__icon-actions">
+          <IconButton
+            disabled={busy || controller.previewActive}
+            label="Reload themes"
+            onClick={() => void controller.reload()}
+            size="standard"
+          >
+            <ArrowsClockwise aria-hidden="true" />
+          </IconButton>
+          <IconButton
+            disabled={busy || controller.previewActive}
+            label="Open themes folder"
+            onClick={() => void controller.openThemesFolder()}
+            size="standard"
+          >
+            <FolderOpen aria-hidden="true" />
+          </IconButton>
+        </div>
         <span className="theme-manager__toolbar-links">
           <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
             Theme guide
@@ -159,7 +136,7 @@ export function ThemeManagerDialog({
       {controller.pendingReplacement ? (
         <Dialog
           closeOnBackdropClick={false}
-          description={`Replace the existing “${controller.pendingReplacement.manifest.id}” theme.json? Other package files are preserved.`}
+          description="A theme with this ID already exists. Updating theme.json preserves the package's other files."
           footer={
             <>
               <Button onClick={controller.cancelReplacement} size="standard" variant="secondary">
@@ -167,41 +144,32 @@ export function ThemeManagerDialog({
               </Button>
               <Button
                 onClick={() => {
-                  const source = controller.pendingReplacement?.source;
-                  void controller.confirmReplacement().then((replaced) => {
-                    if (replaced && source === "starter") setStarterOpen(false);
-                  });
+                  void controller.confirmReplacement();
                 }}
                 size="standard"
-                variant="danger"
+                variant="primary"
               >
-                Replace theme
+                Update theme
               </Button>
             </>
           }
           onClose={controller.cancelReplacement}
-          title="Replace theme?"
+          title="Update existing theme?"
         >
           {controller.error ? <p role="alert">{controller.error}</p> : null}
         </Dialog>
       ) : null}
 
-      {starterOpen ? (
-        <CreateStarterThemePanel controller={controller} onClose={() => setStarterOpen(false)} />
-      ) : (
-        <div className="theme-manager__workspace" aria-busy={busy || undefined}>
-          <ThemeCatalogList
-            busy={busy}
-            entries={controller.snapshot.entries}
-            onSelect={controller.select}
-            selectedKey={controller.selectedKey}
-          />
-          <ThemeDetails
-            controller={controller}
-            onChooseReplacement={() => replaceInputRef.current?.click()}
-          />
-        </div>
-      )}
+      <div className="theme-manager__workspace" aria-busy={busy || undefined}>
+        <ThemeCatalogList
+          activeThemeKey={controller.activeAppThemeKey}
+          busy={busy}
+          entries={controller.entries}
+          onSelect={controller.select}
+          selectedKey={controller.selectedKey}
+        />
+        <ThemeDetails controller={controller} />
+      </div>
 
       <ThemePreviewControls session={services?.previewSession ?? themePreviewSession} />
     </Dialog>

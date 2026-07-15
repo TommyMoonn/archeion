@@ -93,7 +93,6 @@ const documentedDirectColorLiterals = {
   "src/styles/features/reader.css": [
     "#171615",
     "#171717",
-    "#171717",
     "#1d1d1f",
     "#2e271f",
     "#303034",
@@ -122,9 +121,7 @@ const documentedDirectColorLiterals = {
     "#ebe8ef",
     "#ebe9e4",
     "#eee5d2",
-    "#eee5d2",
     "#f2c94c",
-    "#f5f4f1",
     "#f5f4f1",
   ],
   "src/styles/layout/window-frame.css": ["#c42b3a", "#fff"],

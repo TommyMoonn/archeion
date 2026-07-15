@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import { defaultAppPreferences, type AppPreferences } from "../types/appSettings";
 import type { ArchiveAppearanceSettings } from "../types/settings";
@@ -11,6 +11,7 @@ import {
   type GlobalAppearanceSource,
 } from "./AppearanceRuntime";
 import { ArchiveThemeCatalog, ArchiveThemeCatalogChangedError } from "./ArchiveThemeCatalog";
+import type { ResolvedAppTheme } from "./domain";
 import { readerThemeCssProperties } from "./themeCssVariables";
 import { resolveTheme } from "./resolveTheme";
 import {
@@ -207,6 +208,12 @@ async function runtimeWithPendingAppearanceWrite(initial: ArchiveAppearanceSetti
 }
 
 describe("AppearanceRuntime", () => {
+  it("exposes an application-only preview API", () => {
+    expectTypeOf<
+      Parameters<AppearanceRuntime["applyPreview"]>[1]
+    >().toEqualTypeOf<ResolvedAppTheme>();
+  });
+
   it("owns a complete synchronous application variable commit and follows system changes", () => {
     const preferences = createPreferencesSource({ appThemePreset: "system" });
     const media = createMediaQuery(true);
@@ -441,7 +448,7 @@ describe("AppearanceRuntime", () => {
     removeProperty.mockClear();
     setProperty.mockClear();
 
-    expect(runtime.applyPreview(before.archive!, { app: preview.app })).toBe(true);
+    expect(runtime.applyPreview(before.archive!, preview.app)).toBe(true);
 
     const active = runtime.getSnapshot();
     expect(active.app).toBe(preview.app);
@@ -454,43 +461,7 @@ describe("AppearanceRuntime", () => {
     expect(runtime.getSnapshot().reader).toBe(before.reader);
   });
 
-  it("applies and reverts a reader-only preview without rewriting application variables", async () => {
-    const preferences = createPreferencesSource({ appThemePreset: "light" });
-    const root = document.createElement("div");
-    const removeProperty = vi.spyOn(root.style, "removeProperty");
-    const setProperty = vi.spyOn(root.style, "setProperty");
-    const runtime = new AppearanceRuntime({
-      getDocumentRoot: () => root,
-      globalPreferences: preferences.source,
-    });
-    runtime.start();
-    await runtime.activateArchive(
-      { id: "archive-a", rootPath: "D:\\Archive A" },
-      {
-        getArchiveAppearanceSettings: async () =>
-          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
-        saveArchiveAppearanceSettings: async (settings) => settings,
-      },
-    );
-    const before = runtime.getSnapshot();
-    const preview = resolvedManifest("preview-theme");
-    if (!preview.reader) throw new Error("Expected a reader preview palette");
-    removeProperty.mockClear();
-    setProperty.mockClear();
-
-    expect(runtime.applyPreview(before.archive!, { reader: preview.reader })).toBe(true);
-
-    expect(runtime.getSnapshot().app).toBe(before.app);
-    expect(runtime.getSnapshot().reader).toBe(preview.reader);
-    expect(removeProperty).not.toHaveBeenCalled();
-    expect(setProperty).not.toHaveBeenCalled();
-
-    expect(runtime.clearPreview(before.archive!)).toBe(true);
-    expect(runtime.getSnapshot().app).toBe(before.app);
-    expect(runtime.getSnapshot().reader).toBe(before.reader);
-  });
-
-  it("persists preview settings through the active archive source and publishes their resolution", async () => {
+  it("keeps an application preview without changing the committed reader selection or palette", async () => {
     const preferences = createPreferencesSource();
     const saveArchiveAppearanceSettings = vi.fn(async (settings: ArchiveAppearanceSettings) =>
       appearanceSettings(settings.appTheme, settings.readerTheme),
@@ -508,23 +479,26 @@ describe("AppearanceRuntime", () => {
       { id: "archive-a", rootPath: "D:\\Archive A" },
       {
         getArchiveAppearanceSettings: async () =>
-          appearanceSettings({ kind: "inherit" }, { kind: "inherit" }),
+          appearanceSettings({ kind: "inherit" }, { kind: "builtin", id: "sepia" }),
         saveArchiveAppearanceSettings,
       },
     );
     const context = runtime.getPreviewContext();
     const preview = resolvedManifest("preview-theme");
-    if (!context || !preview.reader) throw new Error("Expected an active preview context");
-    runtime.applyPreview(context.archive, { app: preview.app, reader: preview.reader });
+    if (!context) throw new Error("Expected an active preview context");
+    const readerPalette = runtime.getSnapshot().reader;
+    const readerSelection = context.settings.readerTheme;
 
-    const next = appearanceSettings(
-      { kind: "custom", id: "preview-theme" },
-      { kind: "custom", id: "preview-theme" },
-    );
+    runtime.applyPreview(context.archive, preview.app);
+
+    expect(runtime.getSnapshot().reader).toBe(readerPalette);
+    expect(runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
+
+    const next = appearanceSettings({ kind: "custom", id: "preview-theme" }, readerSelection);
     await expect(
       runtime.keepPreview(
         context.archive,
-        appearanceSettings({ kind: "builtin", id: "dark" }, { kind: "inherit" }),
+        appearanceSettings({ kind: "builtin", id: "dark" }, readerSelection),
         next,
       ),
     ).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
@@ -533,8 +507,9 @@ describe("AppearanceRuntime", () => {
 
     expect(saveArchiveAppearanceSettings).toHaveBeenCalledWith(next);
     expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#123456");
-    expect(runtime.getSnapshot().reader.publicTokens.background).toBe("#f0e0c0");
+    expect(runtime.getSnapshot().reader).toBe(readerPalette);
     expect(runtime.getPreviewContext()?.settings).toEqual(next);
+    expect(runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
   });
 
   it("saves archive appearance through the runtime owner and preserves the unchanged channel", async () => {
@@ -1245,7 +1220,7 @@ describe("AppearanceRuntime", () => {
     );
     const firstContext = runtime.getPreviewContext();
     if (!firstContext) throw new Error("Expected an active preview context");
-    runtime.applyPreview(firstContext.archive, { app: resolvedManifest("preview-theme").app });
+    runtime.applyPreview(firstContext.archive, resolvedManifest("preview-theme").app);
 
     const secondActivation = runtime.activateArchive(
       { id: "archive-b", rootPath: "D:\\Archive B" },
@@ -1281,7 +1256,7 @@ describe("AppearanceRuntime", () => {
     await runtime.activateArchive({ id: "archive-a", rootPath: "D:\\Archive A" }, settingsSource);
     const context = runtime.getPreviewContext();
     if (!context) throw new Error("Expected an active preview context");
-    runtime.applyPreview(context.archive, { app: resolvedManifest("preview-theme").app });
+    runtime.applyPreview(context.archive, resolvedManifest("preview-theme").app);
     expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#123456");
 
     runtime.stop();
@@ -1312,7 +1287,7 @@ describe("AppearanceRuntime", () => {
     );
     const context = runtime.getPreviewContext();
     if (!context) throw new Error("Expected an active preview context");
-    runtime.applyPreview(context.archive, { app: resolvedManifest("preview-theme").app });
+    runtime.applyPreview(context.archive, resolvedManifest("preview-theme").app);
     const next = appearanceSettings({ kind: "custom", id: "preview-theme" }, { kind: "inherit" });
     const keeping = runtime.keepPreview(context.archive, context.settings, next);
 

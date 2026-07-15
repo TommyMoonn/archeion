@@ -110,7 +110,6 @@ describe("ThemePreviewControls", () => {
     await act(async () => {
       const started = session.startPreview({
         candidate: candidate(),
-        channels: { application: true, reader: true },
       });
       expect(started.ok).toBe(true);
     });
@@ -132,7 +131,6 @@ describe("ThemePreviewControls", () => {
     const { clearPreview, session } = createSession();
     const started = session.startPreview({
       candidate: candidate(),
-      channels: { application: true, reader: true },
     });
     if (!started.ok) throw new Error(started.reason);
 
@@ -152,7 +150,6 @@ describe("ThemePreviewControls", () => {
     const { clearPreview, session } = createSession();
     const started = session.startPreview({
       candidate: candidate(),
-      channels: { application: false, reader: true },
     });
     if (!started.ok) throw new Error(started.reason);
 
@@ -168,7 +165,6 @@ describe("ThemePreviewControls", () => {
     const { clearPreview, session } = createSession();
     const started = session.startPreview({
       candidate: candidate(),
-      channels: { application: true, reader: false },
     });
     if (!started.ok) throw new Error(started.reason);
     act(() => root.render(<ThemePreviewControls session={session} />));
@@ -188,7 +184,6 @@ describe("ThemePreviewControls", () => {
     await act(async () => {
       const started = session.startPreview({
         candidate: candidate(true),
-        channels: { application: true, reader: false },
       });
       expect(started.ok).toBe(true);
     });

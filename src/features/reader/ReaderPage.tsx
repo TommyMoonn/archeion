@@ -31,6 +31,7 @@ import {
   normalizeVisibleLibraryHref,
 } from "../../types/librarySmartViews";
 import type { Annotation } from "../../types/annotation";
+import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import { bookTitle } from "../../utils/bookDisplay";
 import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
@@ -71,9 +72,11 @@ import {
 import { useReaderAnnotationRecovery } from "./useReaderAnnotationRecovery";
 import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
 import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
-import { useResolvedReaderTheme } from "../../themes/appearanceRuntimeInstance";
+import { appearanceRuntime, useResolvedReaderTheme } from "../../themes/appearanceRuntimeInstance";
 import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { readerAnnotationQuickActions } from "./readerAnnotationQuickActions";
+import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
+import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -95,6 +98,8 @@ export function ReaderPage() {
   const { openPalette } = useQuickActions();
   const settings = useReaderPreferences();
   const readerTheme = useResolvedReaderTheme();
+  const committedAppearance = useCommittedArchiveAppearance();
+  const themeCatalog = useArchiveThemeCatalogEntries(true);
   const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
   const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
@@ -106,6 +111,7 @@ export function ReaderPage() {
   }> | null>(null);
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
+  const readerThemeSaveRevision = useRef(0);
   const lastControlsRevealAt = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [loadedFile, setLoadedFile] = useState<{
@@ -114,6 +120,7 @@ export function ReaderPage() {
     failed: boolean;
   } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
+  const [readerThemeSaveFailed, setReaderThemeSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
     chapters: [],
@@ -140,7 +147,12 @@ export function ReaderPage() {
   const returnDestination = readerReturnNavigation(returnContext);
   const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
-  const settingsPersistenceFailed = appSettingsStatus.status === "error";
+  const settingsPersistenceFailed = appSettingsStatus.status === "error" || readerThemeSaveFailed;
+  const archiveRootPath = "path" in archive ? archive.path : null;
+  const readerThemeSelection =
+    archiveRootPath && committedAppearance?.archive.rootPath === archiveRootPath
+      ? committedAppearance.settings.readerTheme
+      : null;
   const chapterSequence = useMemo(
     () => deriveReaderChapterSequence(navigationState.chapters, navigationState.currentChapterId),
     [navigationState.chapters, navigationState.currentChapterId],
@@ -471,6 +483,28 @@ export function ReaderPage() {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
     void appPreferencesStore.update({ reader: normalizedSettings }).catch(() => undefined);
   }, []);
+
+  const changeReaderTheme = useCallback(
+    (readerTheme: ArchiveReaderThemeSelection) => {
+      const revision = readerThemeSaveRevision.current + 1;
+      readerThemeSaveRevision.current = revision;
+      setReaderThemeSaveFailed(false);
+      const context = appearanceRuntime.getPreviewContext();
+      if (!context || !archiveRootPath || context.archive.rootPath !== archiveRootPath) {
+        setReaderThemeSaveFailed(true);
+        return;
+      }
+      void appearanceRuntime.updateArchiveAppearanceSettings(context.archive, { readerTheme }).then(
+        () => {
+          if (readerThemeSaveRevision.current === revision) setReaderThemeSaveFailed(false);
+        },
+        () => {
+          if (readerThemeSaveRevision.current === revision) setReaderThemeSaveFailed(true);
+        },
+      );
+    },
+    [archiveRootPath],
+  );
 
   const handleReady = useCallback(() => {
     if (!bookId || isBookFileMissing) {
@@ -919,7 +953,10 @@ export function ReaderPage() {
           <ReaderSettingsPanel
             onChange={changeSettings}
             onClose={closeSettings}
+            onReaderThemeChange={changeReaderTheme}
             persistenceFailed={settingsPersistenceFailed}
+            readerThemeEntries={themeCatalog.entries}
+            readerThemeSelection={readerThemeSelection}
             settings={settings}
           />
         </div>

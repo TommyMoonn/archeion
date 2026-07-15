@@ -835,26 +835,9 @@
   border-color: var(--reader-line);
 }
 
-.reader-control--themes .segmented-control__option {
-  display: grid;
-  min-height: 56px;
-  gap: 5px;
-}
-
-.reader-theme-swatch {
-  width: 22px;
-  height: 17px;
-  border: 1px solid var(--reader-line);
-  border-radius: 4px;
-  background: #f5f4f1;
-}
-
-.reader-theme-swatch[data-theme-option="sepia"] {
-  background: #eee5d2;
-}
-
-.reader-theme-swatch[data-theme-option="dark"] {
-  background: #171717;
+.reader-setting__unavailable {
+  color: var(--reader-muted);
+  font-size: var(--type-meta);
 }
 
 @media (max-width: 760px) {

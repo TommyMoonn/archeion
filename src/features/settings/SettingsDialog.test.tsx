@@ -179,8 +179,9 @@ describe("SettingsDialog responsiveness", () => {
     });
 
     expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Application theme for this archive");
-    expect(container.textContent).toContain("Manage archive themes");
+    expect(container.textContent).toContain("App themes");
+    expect(container.textContent).toContain("Manage");
+    expect(container.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 
   it("loads cover cache status when the Storage section becomes visible", async () => {
