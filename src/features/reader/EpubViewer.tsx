@@ -34,6 +34,7 @@ import { useEpubSession, type EpubSessionBridge, type EpubSessionError } from ".
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderLocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
+import type { ResolvedReaderTheme } from "../../themes/domain";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
@@ -68,6 +69,7 @@ type EpubViewerProps = {
   onRemoveHighlight?: (id: string) => Promise<boolean>;
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
+  readerTheme: ResolvedReaderTheme;
   settings: ReaderSettings;
 };
 
@@ -96,6 +98,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onRemoveHighlight,
     onNavigationChange,
     onReady,
+    readerTheme,
     settings,
   },
   ref,
@@ -119,14 +122,16 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const contentTheme = useMemo(
     () =>
-      createReaderContentTheme({
-        fontFamily: settings.fontFamily,
-        fontSize: settings.fontSize,
-        lineHeight: settings.lineHeight,
-        margin: settings.margin,
-        theme: settings.theme,
-      }),
-    [settings.fontFamily, settings.fontSize, settings.lineHeight, settings.margin, settings.theme],
+      createReaderContentTheme(
+        {
+          fontFamily: settings.fontFamily,
+          fontSize: settings.fontSize,
+          lineHeight: settings.lineHeight,
+          margin: settings.margin,
+        },
+        readerTheme.tokens,
+      ),
+    [readerTheme, settings.fontFamily, settings.fontSize, settings.lineHeight, settings.margin],
   );
 
   const interaction = useHighlightInteractionController({
@@ -373,7 +378,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       ref={viewerRef}
       className="epub-viewer"
       data-reader-mode={settings.mode}
-      data-reader-theme={settings.theme}
+      data-reader-theme={readerTheme.base}
     >
       <div ref={containerRef} className="epub-viewer__stage" />
       {settings.mode === "paged" ? (
@@ -469,6 +474,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
+    previous.readerTheme === next.readerTheme &&
     previous.settings.mode === next.settings.mode &&
     readerContentSettingsEqual(previous.settings, next.settings)
   );

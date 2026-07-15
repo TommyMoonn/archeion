@@ -15,6 +15,10 @@ const storageMock = vi.hoisted(() => ({
   rescan: vi.fn(async () => undefined),
   reset: vi.fn(),
 }));
+const appearanceRuntimeMock = vi.hoisted(() => ({
+  activateArchive: vi.fn(async () => undefined),
+  deactivateArchive: vi.fn(),
+}));
 
 let archiveState: ArchiveState;
 
@@ -22,6 +26,9 @@ vi.mock("../../app/router", () => ({ router: routerMock }));
 vi.mock("../../storage/useLibraryStorage", () => ({ useLibraryStorage: () => storageMock }));
 vi.mock("../../stores/appPreferencesStore", () => ({
   useFilesAndMetadataPreferences: () => ({ liveWatcherEnabled: false, scanOnStartup: false }),
+}));
+vi.mock("../../themes/appearanceRuntimeInstance", () => ({
+  appearanceRuntime: appearanceRuntimeMock,
 }));
 vi.mock("./useArchive", () => ({ useArchive: () => archiveState }));
 
@@ -69,9 +76,25 @@ afterEach(() => {
   routerMock.state.location.pathname = "/reader/shared-book";
   storageMock.reset.mockReset();
   storageMock.rescan.mockReset();
+  appearanceRuntimeMock.activateArchive.mockReset();
+  appearanceRuntimeMock.deactivateArchive.mockReset();
 });
 
 describe("ArchiveGate ready archive replacement", () => {
+  it("hands the reset archive scope to the appearance runtime", async () => {
+    archiveState = readyArchive("archive-a");
+    await render();
+
+    expect(storageMock.reset).toHaveBeenCalledWith("D:\\archive-a");
+    expect(appearanceRuntimeMock.activateArchive).toHaveBeenCalledWith(
+      { id: "archive-a", rootPath: "D:\\archive-a" },
+      storageMock,
+    );
+    expect(storageMock.reset.mock.invocationCallOrder[0]).toBeLessThan(
+      appearanceRuntimeMock.activateArchive.mock.invocationCallOrder[0]!,
+    );
+  });
+
   it("unmounts the reader and replaces it with the new archive Library route", async () => {
     archiveState = readyArchive("archive-a");
     const rendered = await render();

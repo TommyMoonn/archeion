@@ -511,7 +511,6 @@ export class AppPreferencesStore {
       return;
     }
 
-    document.documentElement.dataset.appTheme = this.preferences.appThemePreset;
     document.documentElement.dataset.motion = getEffectiveMotionState(this.preferences);
     document.documentElement.dataset.density = this.preferences.density;
     document.documentElement.dataset.cardSize = this.preferences.bookCardSize;

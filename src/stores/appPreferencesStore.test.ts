@@ -538,6 +538,24 @@ describe("app preferences", () => {
     expect(document.documentElement.dataset.motion).toBe("off");
   });
 
+  it("leaves application theme DOM ownership to the appearance runtime", async () => {
+    const previousTheme = document.documentElement.dataset.appTheme;
+    document.documentElement.dataset.appTheme = "runtime-owned";
+    try {
+      const store = new AppPreferencesStore(createPersistence());
+      await store.initialize();
+      await store.update({ appThemePreset: "light" });
+
+      expect(document.documentElement.dataset.appTheme).toBe("runtime-owned");
+    } finally {
+      if (previousTheme === undefined) {
+        delete document.documentElement.dataset.appTheme;
+      } else {
+        document.documentElement.dataset.appTheme = previousTheme;
+      }
+    }
+  });
+
   it("applies motion on only when animations are enabled and reduced motion is not requested", async () => {
     const restoreMatchMedia = mockReducedMotion(false);
     const store = new AppPreferencesStore(createPersistence());

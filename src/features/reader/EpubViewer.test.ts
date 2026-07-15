@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
+import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { forwardContinuousWheel, stabilizeContinuousRendition } from "./readerContinuousScroll";
 import { readerTypefaceOptions } from "./readerFonts";
 import {
@@ -12,6 +13,9 @@ import {
   readerFontFaceCssForSettings,
   readerThemeForSettings,
 } from "./readerTheme";
+
+const readerPalette = (base: "dark" | "light" | "sepia" = "dark") =>
+  resolveBuiltInReaderTheme(base).tokens;
 
 describe("continuous reader scrolling", () => {
   it("forwards iframe wheel input to the parent rendition scroller", () => {
@@ -54,14 +58,16 @@ describe("continuous reader scrolling", () => {
 
 describe("readerThemeForSettings", () => {
   it("maps typography and spacing settings into EPUB theme rules", () => {
-    const theme = readerThemeForSettings({
-      ...defaultReaderSettings,
-      fontFamily: "sans",
-      fontSize: 22,
-      lineHeight: 1.8,
-      margin: 72,
-      theme: "sepia",
-    });
+    const theme = readerThemeForSettings(
+      {
+        ...defaultReaderSettings,
+        fontFamily: "sans",
+        fontSize: 22,
+        lineHeight: 1.8,
+        margin: 72,
+      },
+      readerPalette("sepia"),
+    );
 
     expect(theme.body).toMatchObject({
       "font-size": "22px !important",
@@ -81,10 +87,10 @@ describe("readerThemeForSettings", () => {
   });
 
   it("maps bundled Literata into reader theme output", () => {
-    const theme = readerThemeForSettings({
-      ...defaultReaderSettings,
-      fontFamily: "literata",
-    });
+    const theme = readerThemeForSettings(
+      { ...defaultReaderSettings, fontFamily: "literata" },
+      readerPalette(),
+    );
 
     expect(theme["body, body *"]["font-family"]).toContain("Literata");
     expect(
@@ -96,10 +102,10 @@ describe("readerThemeForSettings", () => {
   });
 
   it("maps bundled Atkinson Hyperlegible into reader theme output", () => {
-    const theme = readerThemeForSettings({
-      ...defaultReaderSettings,
-      fontFamily: "atkinson",
-    });
+    const theme = readerThemeForSettings(
+      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      readerPalette(),
+    );
 
     expect(theme["body, body *"]["font-family"]).toContain("Atkinson Hyperlegible");
     expect(
@@ -121,14 +127,16 @@ describe("readerThemeForSettings", () => {
   });
 
   it("builds one content theme payload for rendition and iframe styling", () => {
-    const contentTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "literata",
-      fontSize: 20,
-      lineHeight: 1.7,
-      margin: 64,
-      theme: "light",
-    });
+    const contentTheme = createReaderContentTheme(
+      {
+        ...defaultReaderSettings,
+        fontFamily: "literata",
+        fontSize: 20,
+        lineHeight: 1.7,
+        margin: 64,
+      },
+      readerPalette("light"),
+    );
 
     expect(contentTheme.name).toBe("archeion-reader");
     expect(contentTheme.rules.body["font-size"]).toBe("20px !important");
@@ -145,10 +153,10 @@ describe("readerThemeForSettings", () => {
         select: vi.fn(),
       },
     };
-    const contentTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "atkinson",
-    });
+    const contentTheme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      readerPalette(),
+    );
 
     applyReaderContentTheme(target, contentTheme, [firstChapter, firstChapter, nextChapter]);
 
@@ -166,14 +174,14 @@ describe("readerThemeForSettings", () => {
     const previousUiStack = document.documentElement.style.getPropertyValue("--font-ui");
     const previousBodyFont = document.body.style.fontFamily;
     const chapter = document.implementation.createHTMLDocument("Chapter");
-    const literataTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "literata",
-    });
-    const atkinsonTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "atkinson",
-    });
+    const literataTheme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: "literata" },
+      readerPalette(),
+    );
+    const atkinsonTheme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      readerPalette(),
+    );
 
     document.documentElement.style.setProperty(
       "--font-ui",
@@ -202,14 +210,14 @@ describe("readerThemeForSettings", () => {
 
   it("updates font faces in place when the reader typeface changes", () => {
     const chapter = document.implementation.createHTMLDocument("Chapter");
-    const literataTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "literata",
-    });
-    const atkinsonTheme = createReaderContentTheme({
-      ...defaultReaderSettings,
-      fontFamily: "atkinson",
-    });
+    const literataTheme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: "literata" },
+      readerPalette(),
+    );
+    const atkinsonTheme = createReaderContentTheme(
+      { ...defaultReaderSettings, fontFamily: "atkinson" },
+      readerPalette(),
+    );
 
     applyReaderContentTheme(null, literataTheme, [chapter]);
     const initialStyle = chapter.getElementById("archeion-reader-font-faces");
@@ -221,10 +229,10 @@ describe("readerThemeForSettings", () => {
   });
 
   it("forces the selected reader font over EPUB-provided element fonts", () => {
-    const theme = readerThemeForSettings({
-      ...defaultReaderSettings,
-      fontFamily: "literata",
-    });
+    const theme = readerThemeForSettings(
+      { ...defaultReaderSettings, fontFamily: "literata" },
+      readerPalette(),
+    );
 
     expect(theme["body, body *"]["font-family"]).toBe(
       '"Literata", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif !important',
@@ -252,10 +260,10 @@ describe("readerThemeForSettings", () => {
   });
 
   it("falls back to the book serif for unknown stored font values", () => {
-    const theme = readerThemeForSettings({
-      ...defaultReaderSettings,
-      fontFamily: "removed-font" as never,
-    });
+    const theme = readerThemeForSettings(
+      { ...defaultReaderSettings, fontFamily: "removed-font" as never },
+      readerPalette(),
+    );
 
     expect(theme["body, body *"]["font-family"]).toContain("Iowan Old Style");
   });

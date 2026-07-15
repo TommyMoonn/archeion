@@ -6,7 +6,9 @@ import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
 import type { ThemeManifestV1 } from "../src/themes/domain";
+import { readerThemeForSettings } from "../src/features/reader/readerTheme";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../src/themes/resolveTheme";
+import { defaultReaderSettings } from "../src/types/reader";
 import {
   appThemeDerivedTokenRegistry,
   appThemePublicTokenRegistry,
@@ -324,10 +326,6 @@ describe("theme token baseline", () => {
       path.join(projectRoot, "src/styles/features/reader.css"),
       "utf8",
     );
-    const readerThemeSource = fs.readFileSync(
-      path.join(projectRoot, "src/features/reader/readerTheme.ts"),
-      "utf8",
-    );
     const cssBlocks = {
       dark: readerCss.match(/^\.reader-page\s*{([\s\S]*?)}\s*\n/m)?.[1] ?? "",
       light:
@@ -359,11 +357,19 @@ describe("theme token baseline", () => {
         );
       }
 
-      for (const token of ["background", "text", "strong", "link"] as const) {
-        expect(readerThemeSource, `${base}.${token}`).toContain(
-          `${token}: "${resolved.publicTokens[token]}"`,
-        );
-      }
+      const contentRules = readerThemeForSettings(defaultReaderSettings, resolved.tokens);
+      expect(contentRules.body.background, `${base}.content.background`).toBe(
+        `${resolved.publicTokens.background} !important`,
+      );
+      expect(contentRules.body.color, `${base}.content.text`).toBe(
+        `${resolved.publicTokens.text} !important`,
+      );
+      expect(contentRules["h1, h2, h3, h4, h5, h6"].color, `${base}.content.strong`).toBe(
+        `${resolved.publicTokens.strong} !important`,
+      );
+      expect(contentRules.a.color, `${base}.content.link`).toBe(
+        `${resolved.publicTokens.link} !important`,
+      );
     }
   });
 });

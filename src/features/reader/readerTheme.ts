@@ -1,4 +1,5 @@
 import type { ReaderSettings } from "../../types/reader";
+import type { ResolvedReaderThemeTokens } from "../../themes/themeTokenRegistry";
 import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
@@ -6,29 +7,8 @@ const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
 
 export type ReaderContentSettings = Pick<
   ReaderSettings,
-  "fontFamily" | "fontSize" | "lineHeight" | "margin" | "theme"
+  "fontFamily" | "fontSize" | "lineHeight" | "margin"
 >;
-
-const themeColors = {
-  dark: {
-    background: "#171717",
-    text: "#d6d3d9",
-    strong: "#ebe8ef",
-    link: "#8fc1e3",
-  },
-  light: {
-    background: "#f5f4f1",
-    text: "#353331",
-    strong: "#171615",
-    link: "#356f96",
-  },
-  sepia: {
-    background: "#eee5d2",
-    text: "#4b4033",
-    strong: "#2e271f",
-    link: "#765b34",
-  },
-};
 
 type ReaderThemeRules = ReturnType<typeof readerThemeForSettings>;
 
@@ -49,18 +29,20 @@ export function readerFontFaceCssForSettings(settings: ReaderContentSettings) {
   return readerFontFaceCssForId(settings.fontFamily);
 }
 
-export function readerThemeForSettings(settings: ReaderContentSettings) {
-  const colors = themeColors[settings.theme];
+export function readerThemeForSettings(
+  settings: ReaderContentSettings,
+  palette: ResolvedReaderThemeTokens,
+) {
   const fontFamily = readerFontFamilyForId(settings.fontFamily);
   return {
     html: {
-      background: `${colors.background} !important`,
+      background: `${palette.background} !important`,
       "overscroll-behavior": "contain !important",
       "scrollbar-width": "none !important",
     },
     body: {
-      color: `${colors.text} !important`,
-      background: `${colors.background} !important`,
+      color: `${palette.text} !important`,
+      background: `${palette.background} !important`,
       "font-size": `${settings.fontSize}px !important`,
       "line-height": `${settings.lineHeight} !important`,
       padding: `0 ${settings.margin}px !important`,
@@ -79,15 +61,15 @@ export function readerThemeForSettings(settings: ReaderContentSettings) {
       "box-sizing": "border-box !important",
     },
     "p, li": {
-      color: `${colors.text} !important`,
+      color: `${palette.text} !important`,
     },
     "h1, h2, h3, h4, h5, h6": {
-      color: `${colors.strong} !important`,
+      color: `${palette.strong} !important`,
       "font-weight": "500 !important",
       "line-height": "1.3 !important",
     },
     a: {
-      color: `${colors.link} !important`,
+      color: `${palette.link} !important`,
     },
     "img, svg, video, canvas": {
       "max-width": "100% !important",
@@ -102,11 +84,14 @@ export function readerThemeForSettings(settings: ReaderContentSettings) {
   };
 }
 
-export function createReaderContentTheme(settings: ReaderContentSettings): ReaderContentTheme {
+export function createReaderContentTheme(
+  settings: ReaderContentSettings,
+  palette: ResolvedReaderThemeTokens,
+): ReaderContentTheme {
   return {
     fontFaceCss: readerFontFaceCssForSettings(settings),
     name: READER_CONTENT_THEME_NAME,
-    rules: readerThemeForSettings(settings),
+    rules: readerThemeForSettings(settings, palette),
   };
 }
 
@@ -118,8 +103,7 @@ export function readerContentSettingsEqual(
     left.fontFamily === right.fontFamily &&
     left.fontSize === right.fontSize &&
     left.lineHeight === right.lineHeight &&
-    left.margin === right.margin &&
-    left.theme === right.theme
+    left.margin === right.margin
   );
 }
 

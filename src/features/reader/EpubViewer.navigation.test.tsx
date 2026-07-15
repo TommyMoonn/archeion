@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
+import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 
 const epubModuleMock = vi.hoisted(() => ({
   openBook: vi.fn(),
@@ -286,6 +287,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
     onReady: vi.fn(),
+    readerTheme: resolveBuiltInReaderTheme("dark"),
     settings: defaultReaderSettings,
   };
 }
@@ -384,7 +386,7 @@ describe("EpubViewer navigation lifecycle", () => {
     });
   });
 
-  it("does not recreate the book or rendition when settings or callback identities change", async () => {
+  it("does not recreate the book or rendition when settings, palette, or callbacks change", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
     const fileBlob = new Blob(["book-one"]);
@@ -401,16 +403,34 @@ describe("EpubViewer navigation lifecycle", () => {
       },
     };
     await rerenderViewer(root, settingsProps);
+    const registerTheme = vi.mocked(session.rendition.themes.register);
+    const selectTheme = vi.mocked(session.rendition.themes.select);
+    const registrationsBeforePalette = registerTheme.mock.calls.length;
+    const selectionsBeforePalette = selectTheme.mock.calls.length;
+
+    const paletteProps = {
+      ...settingsProps,
+      readerTheme: resolveReaderTheme("dark", { background: "#123456" }),
+    };
+    await rerenderViewer(root, paletteProps);
 
     const replacementNavigationCallback = vi.fn<(navigation: ReaderNavigationState) => void>();
     await rerenderViewer(root, {
-      ...settingsProps,
+      ...paletteProps,
       onNavigationChange: replacementNavigationCallback,
     });
 
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
     expect(session.renderTo).toHaveBeenCalledTimes(1);
     expect(session.rendition.display).toHaveBeenCalledTimes(1);
+    expect(registerTheme).toHaveBeenCalledTimes(registrationsBeforePalette + 1);
+    expect(selectTheme).toHaveBeenCalledTimes(selectionsBeforePalette + 1);
+    expect(registerTheme).toHaveBeenLastCalledWith(
+      "archeion-reader",
+      expect.objectContaining({
+        body: expect.objectContaining({ background: "#123456 !important" }),
+      }),
+    );
     expect(replacementNavigationCallback).toHaveBeenCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       status: "ready",

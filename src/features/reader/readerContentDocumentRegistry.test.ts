@@ -3,6 +3,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { defaultReaderSettings } from "../../types/reader";
+import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { createReaderContentTheme } from "./readerTheme";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 
@@ -88,13 +89,19 @@ describe("ReaderContentDocumentRegistry", () => {
 
     registry.applyTheme(
       null,
-      createReaderContentTheme({ ...defaultReaderSettings, fontFamily: "literata" }),
+      createReaderContentTheme(
+        { ...defaultReaderSettings, fontFamily: "literata" },
+        resolveBuiltInReaderTheme("dark").tokens,
+      ),
       null,
     );
     const style = chapter.getElementById("archeion-reader-font-faces");
     registry.applyTheme(
       null,
-      createReaderContentTheme({ ...defaultReaderSettings, fontFamily: "atkinson" }),
+      createReaderContentTheme(
+        { ...defaultReaderSettings, fontFamily: "atkinson" },
+        resolveBuiltInReaderTheme("dark").tokens,
+      ),
       null,
     );
 

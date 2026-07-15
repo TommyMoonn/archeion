@@ -8,6 +8,7 @@ import { ArchiveWatcherController } from "./archiveWatcher";
 import { useArchive } from "./useArchive";
 import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
+import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -64,7 +65,15 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
 
   useEffect(() => {
     storage.reset(archivePath);
-  }, [archivePath, storage]);
+    if (!archivePath || !readyArchiveId) {
+      appearanceRuntime.deactivateArchive();
+      return;
+    }
+
+    const archive = { id: readyArchiveId, rootPath: archivePath };
+    void appearanceRuntime.activateArchive(archive, storage);
+    return () => appearanceRuntime.deactivateArchive(archive);
+  }, [archivePath, readyArchiveId, storage]);
 
   useEffect(() => {
     if (!archivePath) {

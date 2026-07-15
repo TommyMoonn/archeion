@@ -71,6 +71,8 @@ import {
 import { useReaderAnnotationRecovery } from "./useReaderAnnotationRecovery";
 import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
 import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
+import { useResolvedReaderTheme } from "../../themes/appearanceRuntimeInstance";
+import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { readerAnnotationQuickActions } from "./readerAnnotationQuickActions";
 
 export function ReaderRoute() {
@@ -92,6 +94,8 @@ export function ReaderPage() {
   const storage = useLibraryStorage();
   const { openPalette } = useQuickActions();
   const settings = useReaderPreferences();
+  const readerTheme = useResolvedReaderTheme();
+  const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
   const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
@@ -750,9 +754,10 @@ export function ReaderPage() {
   return (
     <main
       className="reader-page"
-      data-reader-theme={settings.theme}
+      data-reader-theme={readerTheme.base}
       onFocusCapture={revealControls}
       onPointerMove={revealControls}
+      style={readerThemeStyle}
     >
       <div
         className="reader-controls"
@@ -821,6 +826,7 @@ export function ReaderPage() {
           onRemoveHighlight={removeHighlight}
           onNavigationChange={setNavigationState}
           onReady={handleReady}
+          readerTheme={readerTheme}
           settings={settings}
         />
       )}

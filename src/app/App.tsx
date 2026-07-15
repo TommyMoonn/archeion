@@ -24,6 +24,7 @@ import {
 } from "./startupController";
 import { MainWindowStateController } from "./windowState";
 import { resolveWindowMode } from "./windowMode";
+import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -33,6 +34,10 @@ const ArchiveManagerWindow = lazy(() =>
 
 export function App() {
   const [windowMode, setWindowMode] = useState<ReturnType<typeof resolveWindowMode> | null>(null);
+
+  useEffect(() => {
+    return appearanceRuntime.start();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
