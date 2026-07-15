@@ -71,6 +71,8 @@
   --success: #a0cdb0;
   --success-soft: rgb(160 205 176 / 8%);
   --success-border: rgb(160 205 176 / 24%);
+  --warning: #d1ad68;
+  --info: #8fc1e3;
   --error: #d9707e;
   --error-strong: #e58a96;
   --error-soft: rgb(217 112 126 / 7%);
@@ -141,6 +143,8 @@ html[data-app-theme="light"] {
   --success: #467a55;
   --success-soft: rgb(70 122 85 / 9%);
   --success-border: rgb(70 122 85 / 24%);
+  --warning: #8a641f;
+  --info: #386f99;
   --error: #aa4350;
   --error-strong: #8e3440;
   --error-soft: rgb(170 67 80 / 8%);
@@ -190,6 +194,8 @@ html[data-app-theme="light"] {
     --success: #467a55;
     --success-soft: rgb(70 122 85 / 9%);
     --success-border: rgb(70 122 85 / 24%);
+    --warning: #8a641f;
+    --info: #386f99;
     --error: #aa4350;
     --error-strong: #8e3440;
     --error-soft: rgb(170 67 80 / 8%);

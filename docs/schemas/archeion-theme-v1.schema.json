@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
+  "title": "Archeion Theme Manifest v1",
+  "description": "A safe, color-only theme manifest for Archeion application and reader palettes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "base", "app"],
+  "properties": {
+    "$schema": {
+      "const": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json"
+    },
+    "schemaVersion": {
+      "const": 1
+    },
+    "id": {
+      "$ref": "#/$defs/themeId"
+    },
+    "name": {
+      "$ref": "#/$defs/name"
+    },
+    "author": {
+      "$ref": "#/$defs/author"
+    },
+    "description": {
+      "$ref": "#/$defs/description"
+    },
+    "base": {
+      "$ref": "#/$defs/appBase"
+    },
+    "app": {
+      "$ref": "#/$defs/appOverrides"
+    },
+    "reader": {
+      "$ref": "#/$defs/readerOverrides"
+    }
+  },
+  "$defs": {
+    "themeId": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 64,
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+    },
+    "name": {
+      "$ref": "#/$defs/metadataText",
+      "type": "string",
+      "maxLength": 80
+    },
+    "author": {
+      "$ref": "#/$defs/metadataText",
+      "type": "string",
+      "maxLength": 80
+    },
+    "description": {
+      "$ref": "#/$defs/metadataText",
+      "type": "string",
+      "maxLength": 240
+    },
+    "metadataText": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?=[\\s\\S]*\\S)(?![\\s\\S]*[\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029])"
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}(?:[0-9A-Fa-f]{2})?$"
+    },
+    "appBase": {
+      "type": "string",
+      "enum": ["dark", "light"]
+    },
+    "readerBase": {
+      "type": "string",
+      "enum": ["dark", "light", "sepia"]
+    },
+    "appOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "canvas": { "$ref": "#/$defs/color" },
+        "canvasDeep": { "$ref": "#/$defs/color" },
+        "surface": { "$ref": "#/$defs/color" },
+        "surfaceRaised": { "$ref": "#/$defs/color" },
+        "surfaceHover": { "$ref": "#/$defs/color" },
+        "frame": { "$ref": "#/$defs/color" },
+        "sidebar": { "$ref": "#/$defs/color" },
+        "main": { "$ref": "#/$defs/color" },
+        "mainRaised": { "$ref": "#/$defs/color" },
+        "line": { "$ref": "#/$defs/color" },
+        "lineStrong": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" },
+        "textStrong": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" },
+        "mutedSoft": { "$ref": "#/$defs/color" },
+        "accent": { "$ref": "#/$defs/color" },
+        "accentStrong": { "$ref": "#/$defs/color" },
+        "focus": { "$ref": "#/$defs/color" },
+        "success": { "$ref": "#/$defs/color" },
+        "warning": { "$ref": "#/$defs/color" },
+        "error": { "$ref": "#/$defs/color" },
+        "info": { "$ref": "#/$defs/color" }
+      }
+    },
+    "readerOverrides": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 2,
+      "required": ["base"],
+      "properties": {
+        "base": { "$ref": "#/$defs/readerBase" },
+        "background": { "$ref": "#/$defs/color" },
+        "surface": { "$ref": "#/$defs/color" },
+        "line": { "$ref": "#/$defs/color" },
+        "text": { "$ref": "#/$defs/color" },
+        "strong": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" },
+        "focus": { "$ref": "#/$defs/color" },
+        "danger": { "$ref": "#/$defs/color" },
+        "link": { "$ref": "#/$defs/color" },
+        "codeBackground": { "$ref": "#/$defs/color" },
+        "selection": { "$ref": "#/$defs/color" }
+      }
+    }
+  }
+}
