@@ -205,7 +205,7 @@ describe("ThemePreviewSession", () => {
 
     await expect(session.keep()).resolves.toBe(false);
     expect(session.getSnapshot()).toMatchObject({
-      error: "The theme could not be kept. The preview is still active.",
+      error: "The theme could not be saved. The preview is still active.",
       status: "error",
     });
     expect(session.revert()).toBe(true);

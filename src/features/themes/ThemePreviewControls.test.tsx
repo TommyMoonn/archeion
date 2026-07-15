@@ -102,7 +102,7 @@ describe("ThemePreviewControls", () => {
     expect(appSource).not.toContain("ThemePreviewControls");
   });
 
-  it("renders nothing without a preview and uses a complete safe built-in control palette", async () => {
+  it("renders nothing without a preview and inherits the active preview palette", async () => {
     const { session } = createSession();
     act(() => root.render(<ThemePreviewControls session={session} />));
     expect(container.textContent).toBe("");
@@ -115,15 +115,13 @@ describe("ThemePreviewControls", () => {
     });
 
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
-    const safeTheme = resolveBuiltInAppTheme("dark");
     expect(controls).not.toBeNull();
-    expect(controls?.style.getPropertyValue("--surface")).toBe(safeTheme.tokens.surface);
-    expect(controls?.style.getPropertyValue("--text")).toBe(safeTheme.tokens.text);
-    expect(controls?.style.getPropertyValue("--focus")).toBe(safeTheme.tokens.focus);
-    expect(controls?.style.getPropertyValue("--shadow-popover")).toBe(
-      safeTheme.tokens.popoverShadow,
-    );
+    expect(controls?.hasAttribute("style")).toBe(false);
+    expect(controls?.style.getPropertyValue("--surface")).toBe("");
+    expect(controls?.style.getPropertyValue("--text")).toBe("");
     expect(container.textContent).toContain("Midnight Draft");
+    expect(container.textContent).not.toContain("Temporary until you keep it.");
+    expect(container.textContent).toContain("Use theme");
     expect(document.activeElement?.textContent).toContain("Revert");
   });
 
@@ -190,7 +188,7 @@ describe("ThemePreviewControls", () => {
 
     const checkbox = container.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     const keep = [...container.querySelectorAll("button")].find((button) =>
-      button.textContent?.includes("Keep theme"),
+      button.textContent?.includes("Use theme"),
     )!;
     expect(container.textContent).toContain("contrast warning");
     expect(keep.getAttribute("aria-disabled")).toBe("true");

@@ -1,18 +1,12 @@
-import { useEffect, useRef, useSyncExternalStore, type CSSProperties } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "../../components/Button";
-import { resolveBuiltInAppTheme } from "../../themes/resolveTheme";
 import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
 import type { ThemePreviewSession } from "../../themes/ThemePreviewSession";
-import { appThemeResolvedTokenRegistry } from "../../themes/themeTokenRegistry";
 
 type ThemePreviewControlsProps = Readonly<{
   session?: ThemePreviewSession;
 }>;
-
-type SafePreviewStyle = CSSProperties & Record<`--${string}`, string>;
-
-const SAFE_CONTROL_STYLE = createSafeControlStyle();
 
 export function ThemePreviewControls({ session = themePreviewSession }: ThemePreviewControlsProps) {
   const snapshot = useSyncExternalStore(
@@ -46,15 +40,10 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
   const keepBlocked = hasWarnings && !snapshot.warningsAcknowledged;
 
   return (
-    <aside
-      aria-label="Theme preview controls"
-      className="theme-preview-controls"
-      style={SAFE_CONTROL_STYLE}
-    >
+    <aside aria-label="Theme preview controls" className="theme-preview-controls">
       <div className="theme-preview-controls__copy" aria-live="polite">
         <p>Theme preview</p>
         <strong>{snapshot.candidate.name}</strong>
-        <span>Temporary until you keep it.</span>
         {snapshot.error ? <span role="alert">{snapshot.error}</span> : null}
         {hasWarnings ? (
           <label className="theme-preview-controls__warning">
@@ -85,24 +74,14 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
           busy={keeping}
           disabled={keeping || keepBlocked}
           disabledReason={
-            keepBlocked ? "Acknowledge the contrast warning before keeping." : undefined
+            keepBlocked ? "Acknowledge the contrast warning before using this theme." : undefined
           }
           onClick={() => void session.keep()}
           size="standard"
         >
-          {keeping ? "Keeping" : "Keep theme"}
+          {keeping ? "Applying" : "Use theme"}
         </Button>
       </div>
     </aside>
   );
-}
-
-function createSafeControlStyle(): SafePreviewStyle {
-  const safeTheme = resolveBuiltInAppTheme("dark");
-  const properties: Record<`--${string}`, string> = {};
-  for (const [token, definition] of Object.entries(appThemeResolvedTokenRegistry)) {
-    properties[definition.cssVariable] =
-      safeTheme.tokens[token as keyof typeof appThemeResolvedTokenRegistry];
-  }
-  return Object.freeze({ ...properties, colorScheme: "dark" });
 }

@@ -170,7 +170,7 @@ export class ThemePreviewSession {
         this.publish(
           activeSnapshot({
             ...snapshot,
-            error: "The theme could not be kept. The preview is still active.",
+            error: "The theme could not be saved. The preview is still active.",
             status: "error",
           }),
         );

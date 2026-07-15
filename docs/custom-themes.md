@@ -134,7 +134,7 @@ Import is create-only. If a package with the same ID already exists, Archeion as
 
 Theme Manager shows invalid packages and their diagnostics so they can be repaired. After editing `theme.json`, choose **Reload themes** to reread package directories and manifests. Archeion does not watch theme files continuously.
 
-Preview is temporary and applies only to the application. **Revert** restores the stored appearance, while **Keep theme** saves the previewed application selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before keeping a preview with warnings.
+Preview is temporary and applies only to the application. **Revert** restores the stored appearance, while **Use theme** saves the previewed application selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before using a preview with warnings.
 
 Choose reader colors from **Settings → Reader → Reader theme** or from the Reader settings panel. Both selectors offer the same built-in and compatible custom reader themes.
 

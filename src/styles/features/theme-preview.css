@@ -70,6 +70,7 @@
   display: flex;
   flex: none;
   align-items: center;
+  margin-left: auto;
   gap: 8px;
 }
 
@@ -81,6 +82,7 @@
 
   .theme-preview-controls__actions {
     display: grid;
+    margin-left: 0;
     grid-template-columns: 1fr 1fr;
   }
 
