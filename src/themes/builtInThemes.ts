@@ -6,10 +6,10 @@ import type {
   ThemeColor,
 } from "./themeTokenRegistry";
 
-type AppThemeBaseline = Readonly<Record<AppThemePublicToken, ThemeColor>>;
-type ReaderThemeBaseline = Readonly<Record<ReaderThemePublicToken, ThemeColor>>;
+type AppThemeBaseTokens = Readonly<Record<AppThemePublicToken, ThemeColor>>;
+type ReaderThemeBaseTokens = Readonly<Record<ReaderThemePublicToken, ThemeColor>>;
 
-export const builtInAppThemeBaselines = Object.freeze({
+const app = Object.freeze({
   dark: Object.freeze({
     canvas: "#171717",
     canvasDeep: "#121213",
@@ -58,9 +58,9 @@ export const builtInAppThemeBaselines = Object.freeze({
     error: "#aa4350",
     info: "#386f99",
   }),
-} satisfies Record<AppThemeBase, AppThemeBaseline>);
+} satisfies Record<AppThemeBase, AppThemeBaseTokens>);
 
-export const builtInReaderThemeBaselines = Object.freeze({
+const reader = Object.freeze({
   dark: Object.freeze({
     background: "#171717",
     surface: "#1d1d1f",
@@ -100,4 +100,6 @@ export const builtInReaderThemeBaselines = Object.freeze({
     codeBackground: "#e4d8c0",
     selection: "#d8c49f",
   }),
-} satisfies Record<ReaderThemeBase, ReaderThemeBaseline>);
+} satisfies Record<ReaderThemeBase, ReaderThemeBaseTokens>);
+
+export const builtInThemeRegistry = Object.freeze({ app, reader });

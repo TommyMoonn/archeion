@@ -167,15 +167,3 @@ export type AppThemeOverrides = Partial<Record<AppThemePublicToken, ThemeColor>>
 export type ReaderThemeOverrides = Partial<Record<ReaderThemePublicToken, ThemeColor>>;
 export type ResolvedAppThemeTokens = Readonly<Record<AppThemeResolvedToken, string>>;
 export type ResolvedReaderThemeTokens = Readonly<Record<ReaderThemeResolvedToken, string>>;
-
-export type ThemeManifestV1 = Readonly<{
-  $schema?: typeof ARCHEION_THEME_SCHEMA_URL;
-  schemaVersion: typeof ARCHEION_THEME_SCHEMA_VERSION;
-  id: string;
-  name: string;
-  author?: string;
-  description?: string;
-  base: AppThemeBase;
-  app: AppThemeOverrides;
-  reader?: Readonly<{ base: ReaderThemeBase } & ReaderThemeOverrides>;
-}>;

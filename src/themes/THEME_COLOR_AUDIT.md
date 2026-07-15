@@ -22,7 +22,7 @@ This inventory records the 0.4.0 palette baseline used by the version 1 theme co
 - Dark remains the immediate `:root` application bootstrap.
 - Light and System-light remain identical bootstrap palettes.
 - Dark, Light, and Sepia reader chrome values remain unchanged.
-- EPUB-content Dark, Light, and Sepia values remain unchanged and are inventoried beside the reader chrome values in `builtInReaderThemeBaselines`.
+- EPUB-content Dark, Light, and Sepia values remain unchanged and are inventoried beside the reader chrome values in `builtInThemeRegistry.reader`.
 - Direct palette duplication between reader chrome, EPUB content, and built-in swatches is intentional until the runtime resolver and reader palette adapter own those paths.
 - No core palette literal in the audited sources is obsolete in this phase. Unsupported feature-level literals outside these owners are migration inputs for Phase 0.5.0.7, not part of this contract-only change.
 

@@ -5,10 +5,8 @@ import { fileURLToPath } from "node:url";
 import Ajv2020 from "ajv/dist/2020.js";
 import { describe, expect, it } from "vitest";
 
-import {
-  builtInAppThemeBaselines,
-  builtInReaderThemeBaselines,
-} from "../src/themes/builtInThemeBaselines";
+import type { ThemeManifestV1 } from "../src/themes/domain";
+import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../src/themes/resolveTheme";
 import {
   appThemeDerivedTokenRegistry,
   appThemePublicTokenRegistry,
@@ -18,8 +16,9 @@ import {
   readerThemeDerivedTokenRegistry,
   readerThemePublicTokenRegistry,
   readerThemeResolvedTokenRegistry,
-  type ThemeManifestV1,
+  type AppThemeResolvedToken,
 } from "../src/themes/themeTokenRegistry";
+import { validateThemeManifest } from "../src/themes/validateThemeManifest";
 
 type JsonSchema = {
   $defs: {
@@ -61,18 +60,24 @@ function expectInvalid(candidate: unknown): void {
 
 function assertRuntimeFixture(candidate: unknown, packageDirectory: string): ThemeManifestV1 {
   expect(validate(candidate), JSON.stringify(validate.errors, null, 2)).toBe(true);
-  if (!validate(candidate)) throw new Error("Expected a schema-valid runtime fixture");
+  const runtimeResult = validateThemeManifest(candidate, { expectedId: packageDirectory });
+  expect(runtimeResult.ok).toBe(true);
+  if (!validate(candidate) || !runtimeResult.ok) {
+    throw new Error("Expected a schema-valid runtime fixture");
+  }
 
-  expect(candidate.schemaVersion).toBe(ARCHEION_THEME_SCHEMA_VERSION);
-  expect(candidate.id).toBe(packageDirectory);
-  expect(Object.keys(candidate.app).every((key) => key in appThemePublicTokenRegistry)).toBe(true);
+  expect(runtimeResult.manifest.schemaVersion).toBe(ARCHEION_THEME_SCHEMA_VERSION);
+  expect(runtimeResult.manifest.id).toBe(packageDirectory);
   expect(
-    !candidate.reader ||
-      Object.keys(candidate.reader).every(
+    Object.keys(runtimeResult.manifest.app).every((key) => key in appThemePublicTokenRegistry),
+  ).toBe(true);
+  expect(
+    !runtimeResult.manifest.reader ||
+      Object.keys(runtimeResult.manifest.reader).every(
         (key) => key === "base" || key in readerThemePublicTokenRegistry,
       ),
   ).toBe(true);
-  return candidate;
+  return runtimeResult.manifest;
 }
 
 function declarations(source: string): Map<string, string> {
@@ -97,6 +102,20 @@ function resolveCssVariable(
   return reference
     ? resolveCssVariable(reference, themeDeclarations, fallbackDeclarations, visited)
     : value;
+}
+
+function normalizeCssColors(value: string): string {
+  return value
+    .replace(
+      /rgb\(\s*(\d+)\s+(\d+)\s+(\d+)\s*\/\s*([\d.]+)%\s*\)/gi,
+      (_match, red: string, green: string, blue: string, alphaPercent: string) => {
+        const hex = [red, green, blue, String((Number(alphaPercent) / 100) * 255)]
+          .map((channel) => Math.round(Number(channel)).toString(16).padStart(2, "0"))
+          .join("");
+        return `#${hex}`;
+      },
+    )
+    .replace(/#[0-9a-f]{6}(?:[0-9a-f]{2})?/gi, (color) => color.toLowerCase());
 }
 
 describe("Archeion theme schema v1", () => {
@@ -219,7 +238,7 @@ describe("theme token baseline", () => {
     );
   });
 
-  it("keeps Dark and Light public application baselines aligned with tokens.css", () => {
+  it("keeps Dark, Light, and system-light resolved application baselines aligned with tokens.css", () => {
     const tokensSource = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
     const rootSource = tokensSource.slice(0, tokensSource.indexOf('html[data-app-theme="light"]'));
     const lightSource = tokensSource.match(
@@ -232,31 +251,72 @@ describe("theme token baseline", () => {
     expect(systemLightSource).toBeDefined();
 
     const rootDeclarations = declarations(rootSource);
-    const themes = {
+    const cssThemes = {
       dark: rootDeclarations,
       light: declarations(lightSource ?? ""),
     } as const;
 
-    for (const [base, baseline] of Object.entries(builtInAppThemeBaselines)) {
-      for (const [token, definition] of Object.entries(appThemePublicTokenRegistry)) {
-        expect(
-          resolveCssVariable(
-            definition.cssVariable,
-            themes[base as "dark" | "light"],
-            rootDeclarations,
-          ),
-          `${base}.${token}`,
-        ).toBe(baseline[token as keyof typeof baseline]);
+    const resolvedThemes = {
+      dark: resolveBuiltInAppTheme("dark"),
+      light: resolveBuiltInAppTheme("light"),
+    } as const;
+    const requiredDerivedTokens = [
+      "lineSubtle",
+      "accentSoft",
+      "accentBorder",
+      "successSoft",
+      "successBorder",
+      "errorStrong",
+      "errorSoft",
+      "errorBorder",
+      "danger",
+      "dangerStrong",
+      "dangerSoft",
+      "dangerBorder",
+      "shellHover",
+      "shellActive",
+      "cardShadow",
+      "popoverShadow",
+      "dialogShadow",
+      "drawerShadow",
+    ] as const satisfies readonly AppThemeResolvedToken[];
+    const bootstrapOwnedTokens = [
+      ...(Object.keys(appThemePublicTokenRegistry) as AppThemeResolvedToken[]),
+      ...requiredDerivedTokens,
+    ].sort();
+
+    for (const [base, resolved] of Object.entries(resolvedThemes)) {
+      const comparedTokens: AppThemeResolvedToken[] = [];
+      for (const [token, definition] of Object.entries(appThemeResolvedTokenRegistry)) {
+        const cssValue = resolveCssVariable(
+          definition.cssVariable,
+          cssThemes[base as "dark" | "light"],
+          rootDeclarations,
+        );
+        if (cssValue === undefined) continue;
+        comparedTokens.push(token as AppThemeResolvedToken);
+        expect(normalizeCssColors(cssValue), `${base}.${token}`).toBe(
+          normalizeCssColors(resolved.tokens[token as AppThemeResolvedToken]),
+        );
       }
+      expect(comparedTokens.sort()).toEqual(bootstrapOwnedTokens);
     }
 
     const systemLightDeclarations = declarations(systemLightSource ?? "");
-    for (const [token, definition] of Object.entries(appThemePublicTokenRegistry)) {
-      expect(
-        resolveCssVariable(definition.cssVariable, systemLightDeclarations, rootDeclarations),
-        `system-light.${token}`,
-      ).toBe(builtInAppThemeBaselines.light[token as keyof typeof builtInAppThemeBaselines.light]);
+    const comparedSystemTokens: AppThemeResolvedToken[] = [];
+    for (const [token, definition] of Object.entries(appThemeResolvedTokenRegistry)) {
+      const cssValue = resolveCssVariable(
+        definition.cssVariable,
+        systemLightDeclarations,
+        rootDeclarations,
+      );
+      if (cssValue === undefined) continue;
+      comparedSystemTokens.push(token as AppThemeResolvedToken);
+      expect(normalizeCssColors(cssValue), `system-light.${token}`).toBe(
+        normalizeCssColors(resolvedThemes.light.tokens[token as AppThemeResolvedToken]),
+      );
     }
+    expect(comparedSystemTokens.sort()).toEqual(bootstrapOwnedTokens);
   });
 
   it("preserves reader chrome and EPUB-content Dark, Light, and Sepia colors", () => {
@@ -276,7 +336,12 @@ describe("theme token baseline", () => {
         readerCss.match(/\.reader-page\[data-reader-theme="sepia"\]\s*{([\s\S]*?)}/)?.[1] ?? "",
     };
 
-    for (const [base, baseline] of Object.entries(builtInReaderThemeBaselines)) {
+    const resolvedThemes = {
+      dark: resolveBuiltInReaderTheme("dark"),
+      light: resolveBuiltInReaderTheme("light"),
+      sepia: resolveBuiltInReaderTheme("sepia"),
+    } as const;
+    for (const [base, resolved] of Object.entries(resolvedThemes)) {
       const cssDeclarations = declarations(cssBlocks[base as keyof typeof cssBlocks]);
       for (const token of [
         "background",
@@ -289,11 +354,15 @@ describe("theme token baseline", () => {
         "danger",
       ] as const) {
         const variable = readerThemePublicTokenRegistry[token].cssVariable;
-        expect(cssDeclarations.get(variable), `${base}.${token}`).toBe(baseline[token]);
+        expect(cssDeclarations.get(variable), `${base}.${token}`).toBe(
+          resolved.publicTokens[token],
+        );
       }
 
       for (const token of ["background", "text", "strong", "link"] as const) {
-        expect(readerThemeSource, `${base}.${token}`).toContain(`${token}: "${baseline[token]}"`);
+        expect(readerThemeSource, `${base}.${token}`).toContain(
+          `${token}: "${resolved.publicTokens[token]}"`,
+        );
       }
     }
   });
