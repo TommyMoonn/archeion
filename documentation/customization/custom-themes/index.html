@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Create archive-local JSON theme packages for the application and EPUB reader."
+    />
+    <meta name="theme-color" content="#171717" />
+    <title>Custom themes | Archeion Docs</title>
+    <link rel="icon" href="../../../assets/images/archeion-icon.png" />
+    <link rel="stylesheet" href="../../assets/docs.css" />
+    <script src="../../assets/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></symbol>
+      <symbol id="icon-github" viewBox="0 0 24 24">
+        <path
+          d="M12 2.7a9.3 9.3 0 0 0-2.9 18.14c.47.09.64-.2.64-.45v-1.63c-2.6.57-3.16-1.1-3.16-1.1-.43-1.09-1.05-1.38-1.05-1.38-.85-.59.07-.58.07-.58.94.07 1.44.97 1.44.97.84 1.44 2.2 1.03 2.73.79.09-.61.33-1.03.59-1.26-2.08-.24-4.27-1.04-4.27-4.63 0-1.03.37-1.86.97-2.52-.1-.24-.42-1.19.1-2.49 0 0 .79-.25 2.56.96A8.9 8.9 0 0 1 12 7.18a8.9 8.9 0 0 1 2.33.31c1.77-1.21 2.56-.96 2.56-.96.52 1.3.2 2.25.1 2.49.6.66.97 1.49.97 2.52 0 3.6-2.19 4.39-4.29 4.62.34.29.64.86.64 1.74v2.49c0 .25.18.54.65.45A9.3 9.3 0 0 0 12 2.7Z"
+        />
+      </symbol>
+      <symbol id="icon-theme" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+        />
+      </symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="11" height="11" rx="2" />
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+      </symbol>
+    </svg>
+    <header class="docs-header">
+      <div class="docs-header__inner">
+        <button
+          class="icon-button mobile-menu-button"
+          type="button"
+          data-nav-open
+          aria-label="Open documentation navigation"
+          aria-controls="docs-sidebar"
+          aria-expanded="false"
+        >
+          <svg aria-hidden="true"><use href="#icon-menu" /></svg>
+        </button>
+        <a class="docs-brand" href="../../../" aria-label="Archeion website">
+          <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
+          <span>Archeion</span>
+        </a>
+        <a class="docs-label" href="../../">Docs</a>
+        <button
+          class="docs-search-trigger"
+          type="button"
+          data-search-trigger
+          aria-label="Search documentation"
+        >
+          <svg aria-hidden="true"><use href="#icon-search" /></svg><span>Search documentation</span
+          ><kbd>Ctrl K</kbd>
+        </button>
+        <div class="docs-header__actions">
+          <button
+            class="icon-button"
+            type="button"
+            data-theme-toggle
+            aria-label="Change documentation theme"
+            title="Change theme"
+          >
+            <svg aria-hidden="true"><use href="#icon-theme" /></svg>
+          </button>
+          <a
+            class="icon-button"
+            href="https://github.com/TommyMoonn/archeion"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Archeion on GitHub"
+            title="GitHub"
+            ><svg aria-hidden="true"><use href="#icon-github" /></svg
+          ></a>
+        </div>
+      </div>
+    </header>
+
+    <dialog class="docs-search-dialog" data-search-dialog aria-labelledby="docs-search-title">
+      <div class="docs-search-dialog__header">
+        <h2 id="docs-search-title">Search documentation</h2>
+        <button class="icon-button" type="button" data-search-close aria-label="Close search">
+          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+        </button>
+      </div>
+      <label class="docs-search-field">
+        <span class="sr-only">Search documentation pages</span>
+        <svg aria-hidden="true"><use href="#icon-search" /></svg>
+        <input type="search" placeholder="Search pages" autocomplete="off" data-search-input />
+      </label>
+      <nav
+        class="docs-search-results"
+        data-search-results
+        aria-label="Documentation search results"
+      ></nav>
+      <p class="docs-search-empty" data-search-empty hidden>No matching pages.</p>
+    </dialog>
+
+    <div class="mobile-backdrop" data-nav-backdrop hidden></div>
+    <aside
+      class="docs-sidebar"
+      id="docs-sidebar"
+      data-sidebar
+      aria-label="Documentation navigation"
+    >
+      <div class="docs-sidebar__mobile-header">
+        <strong>Documentation</strong>
+        <button
+          class="icon-button"
+          type="button"
+          data-nav-close
+          aria-label="Close documentation navigation"
+        >
+          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+        </button>
+      </div>
+      <nav>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-0"
+              data-sidebar-group-toggle
+            >
+              <span>Overview</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-0" data-sidebar-group-items>
+            <a
+              href="../../"
+              data-doc-link
+              data-search="overview start here for installation, archives, reading, organization, and customization."
+              ><span>Overview</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-1"
+              data-sidebar-group-toggle
+            >
+              <span>Getting started</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-1" data-sidebar-group-items>
+            <a
+              href="../../getting-started/installing/"
+              data-doc-link
+              data-search="installation download and install archeion on a supported windows system."
+              ><span>Installation</span></a
+            ><a
+              href="../../getting-started/archives/"
+              data-doc-link
+              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              ><span>Open or create an archive</span></a
+            ><a
+              href="../../getting-started/adding-books/"
+              data-doc-link
+              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              ><span>Add EPUB files</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-2"
+              data-sidebar-group-toggle
+            >
+              <span>Using Archeion</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-2" data-sidebar-group-items>
+            <a
+              href="../../guides/library/"
+              data-doc-link
+              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              ><span>Library</span></a
+            ><a
+              href="../../guides/reading/"
+              data-doc-link
+              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              ><span>Reader and annotations</span></a
+            ><a
+              href="../../guides/file-management/"
+              data-doc-link
+              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              ><span>File management</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-3"
+              data-sidebar-group-toggle
+            >
+              <span>Customization</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-3" data-sidebar-group-items>
+            <a
+              href="../appearance/"
+              data-doc-link
+              data-search="appearance configure application appearance, library presentation, and reader typography."
+              ><span>Appearance</span></a
+            ><a
+              href="./"
+              data-doc-link
+              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              aria-current="page"
+              ><span>Custom themes</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-4"
+              data-sidebar-group-toggle
+            >
+              <span>Reference</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-4" data-sidebar-group-items>
+            <a
+              href="../../reference/archive-storage/"
+              data-doc-link
+              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              ><span>Archive storage</span></a
+            >
+          </div>
+        </section>
+      </nav>
+      <div class="docs-sidebar__footer">
+        <span>Archeion 0.4.0</span>
+        <a href="../../../">Back to website</a>
+      </div>
+    </aside>
+
+    <div class="docs-layout">
+      <main class="docs-main" id="main-content">
+        <div class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Customization</span
+          ><span aria-hidden="true">/</span><span aria-current="page">Custom themes</span>
+        </div>
+        <article class="doc-article" data-doc-article>
+          <header class="article-header">
+            <p class="eyebrow">Customization</p>
+            <h1>Custom themes</h1>
+            <p>Create archive-local JSON theme packages for the application and EPUB reader.</p>
+          </header>
+          <details class="mobile-outline" data-mobile-outline>
+            <summary>On this page</summary>
+            <nav data-mobile-toc></nav>
+          </details>
+
+          <p class="lead">
+            Archeion theme manifests are strict, color-only JSON files. They can recolor the
+            application and EPUB reader without changing layout, typography, motion, assets, or
+            behavior.
+          </p>
+
+          <div class="notice notice--info">
+            <strong>Themes belong to the archive</strong>
+            <p>
+              Custom theme packages are stored under the active archive's
+              <code>.archeion/themes/</code> directory. Copy the complete
+              <code>.archeion</code> folder when moving or backing up selected themes and settings.
+            </p>
+          </div>
+
+          <h2 id="package-layout">Package layout</h2>
+          <p>Store each theme in one direct child directory of <code>.archeion/themes/</code>:</p>
+          <pre><code class="language-text">My Archive/
+└── .archeion/
+    └── themes/
+        └── moon-ink/
+            └── theme.json</code></pre>
+          <p>
+            The directory name must exactly match the manifest <code>id</code>. Archeion reads only
+            <code>theme.json</code> from each direct child directory. Hidden directories and nested
+            packages are ignored.
+          </p>
+
+          <h2 id="schema">Schema</h2>
+          <p>
+            Use the published version 1 schema for completion and validation in JSON-aware editors:
+          </p>
+          <pre><code class="language-text">https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json</code></pre>
+          <p><a href="../../../schemas/archeion-theme-v1.schema.json">Open the theme schema</a></p>
+          <pre><code class="language-json">{
+  "$schema": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
+  "schemaVersion": 1,
+  "id": "my-theme",
+  "name": "My Theme",
+  "base": "dark",
+  "app": {
+    "accent": "#8FC1E3"
+  }
+}</code></pre>
+          <p>
+            <code>$schema</code> is optional. Archeion does not download it during runtime
+            validation.
+          </p>
+
+          <h2 id="manifest-fields">Manifest fields</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Required</th>
+                  <th>Rules</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>$schema</code></td>
+                  <td>No</td>
+                  <td>When present, use the canonical version 1 schema URL.</td>
+                </tr>
+                <tr>
+                  <td><code>schemaVersion</code></td>
+                  <td>Yes</td>
+                  <td>Integer <code>1</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>id</code></td>
+                  <td>Yes</td>
+                  <td>
+                    3 to 64 lowercase ASCII letters, digits, dots, underscores, or hyphens. It must
+                    match the package directory.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>name</code></td>
+                  <td>Yes</td>
+                  <td>1 to 80 visible Unicode characters on one line.</td>
+                </tr>
+                <tr>
+                  <td><code>author</code></td>
+                  <td>No</td>
+                  <td>1 to 80 visible Unicode characters when present.</td>
+                </tr>
+                <tr>
+                  <td><code>description</code></td>
+                  <td>No</td>
+                  <td>1 to 240 visible Unicode characters when present.</td>
+                </tr>
+                <tr>
+                  <td><code>base</code></td>
+                  <td>Yes</td>
+                  <td>
+                    <code>dark</code> or <code>light</code>. Supplies omitted application colors.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>app</code></td>
+                  <td>Yes</td>
+                  <td>Strict object with at least one supported application color override.</td>
+                </tr>
+                <tr>
+                  <td><code>reader</code></td>
+                  <td>No</td>
+                  <td>
+                    Strict object with a <code>dark</code>, <code>light</code>, or
+                    <code>sepia</code> base and at least one reader override.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Every color must use <code>#RRGGBB</code> or <code>#RRGGBBAA</code>. CSS functions,
+            variables, keywords, gradients, URLs, unknown fields, and unknown token names are
+            rejected.
+          </p>
+
+          <h2 id="partial-overrides">Partial overrides</h2>
+          <p>
+            A theme only needs to provide the colors it changes. <code>base</code> supplies omitted
+            application colors, while <code>reader.base</code> supplies omitted reader colors.
+          </p>
+          <pre><code class="language-json">{
+  "schemaVersion": 1,
+  "id": "blue-accent",
+  "name": "Blue Accent",
+  "base": "light",
+  "app": {
+    "accent": "#285F88"
+  }
+}</code></pre>
+          <p>Custom themes cannot inherit from other custom themes.</p>
+
+          <h2 id="application-tokens">Application tokens</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>canvas</code></td>
+                  <td>Application canvas behind primary surfaces.</td>
+                </tr>
+                <tr>
+                  <td><code>canvasDeep</code></td>
+                  <td>Deeper canvas separating nested regions.</td>
+                </tr>
+                <tr>
+                  <td><code>surface</code></td>
+                  <td>Default control and content surface.</td>
+                </tr>
+                <tr>
+                  <td><code>surfaceRaised</code></td>
+                  <td>Raised controls, cards, and secondary surfaces.</td>
+                </tr>
+                <tr>
+                  <td><code>surfaceHover</code></td>
+                  <td>Hover treatment for ordinary raised surfaces.</td>
+                </tr>
+                <tr>
+                  <td><code>frame</code></td>
+                  <td>Window frame and title bar.</td>
+                </tr>
+                <tr>
+                  <td><code>sidebar</code></td>
+                  <td>Library navigation sidebar.</td>
+                </tr>
+                <tr>
+                  <td><code>main</code></td>
+                  <td>Primary application workspace.</td>
+                </tr>
+                <tr>
+                  <td><code>mainRaised</code></td>
+                  <td>Raised surface within the primary workspace.</td>
+                </tr>
+                <tr>
+                  <td><code>line</code></td>
+                  <td>Default borders and separators.</td>
+                </tr>
+                <tr>
+                  <td><code>lineStrong</code></td>
+                  <td>Emphasized borders and separators.</td>
+                </tr>
+                <tr>
+                  <td><code>text</code></td>
+                  <td>Primary body text.</td>
+                </tr>
+                <tr>
+                  <td><code>textStrong</code></td>
+                  <td>Headings and emphasized text.</td>
+                </tr>
+                <tr>
+                  <td><code>muted</code></td>
+                  <td>Secondary labels and metadata.</td>
+                </tr>
+                <tr>
+                  <td><code>mutedSoft</code></td>
+                  <td>De-emphasized text and inactive affordances.</td>
+                </tr>
+                <tr>
+                  <td><code>accent</code></td>
+                  <td>Primary interactive accent.</td>
+                </tr>
+                <tr>
+                  <td><code>accentStrong</code></td>
+                  <td>Emphasized accent text and active controls.</td>
+                </tr>
+                <tr>
+                  <td><code>focus</code></td>
+                  <td>Keyboard focus indicators.</td>
+                </tr>
+                <tr>
+                  <td><code>success</code></td>
+                  <td>Successful outcomes.</td>
+                </tr>
+                <tr>
+                  <td><code>warning</code></td>
+                  <td>Cautionary, non-fatal outcomes.</td>
+                </tr>
+                <tr>
+                  <td><code>error</code></td>
+                  <td>Errors and destructive outcomes.</td>
+                </tr>
+                <tr>
+                  <td><code>info</code></td>
+                  <td>Neutral informational outcomes.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h2 id="reader-tokens">Reader tokens</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Token</th>
+                  <th>Meaning</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>background</code></td>
+                  <td>Reader page and EPUB content background.</td>
+                </tr>
+                <tr>
+                  <td><code>surface</code></td>
+                  <td>Reader controls, panels, and code blocks.</td>
+                </tr>
+                <tr>
+                  <td><code>line</code></td>
+                  <td>Reader borders and separators.</td>
+                </tr>
+                <tr>
+                  <td><code>text</code></td>
+                  <td>EPUB body text and primary reader text.</td>
+                </tr>
+                <tr>
+                  <td><code>strong</code></td>
+                  <td>EPUB headings and emphasized reader text.</td>
+                </tr>
+                <tr>
+                  <td><code>muted</code></td>
+                  <td>Reader metadata and secondary text.</td>
+                </tr>
+                <tr>
+                  <td><code>focus</code></td>
+                  <td>Reader focus indicators.</td>
+                </tr>
+                <tr>
+                  <td><code>danger</code></td>
+                  <td>Reader errors and destructive actions.</td>
+                </tr>
+                <tr>
+                  <td><code>link</code></td>
+                  <td>Links inside EPUB content.</td>
+                </tr>
+                <tr>
+                  <td><code>codeBackground</code></td>
+                  <td>Code and preformatted content background.</td>
+                </tr>
+                <tr>
+                  <td><code>selection</code></td>
+                  <td>Text selection background inside EPUB content.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            Reader typography remains controlled by Reader settings and cannot be changed by a
+            theme.
+          </p>
+
+          <h2 id="manage-themes">Manage themes in Archeion</h2>
+          <ol class="steps">
+            <li>
+              <strong>Open Theme Manager.</strong
+              ><span>Go to <strong>Settings → Appearance → App themes → Manage</strong>.</span>
+            </li>
+            <li>
+              <strong>Import or open the themes folder.</strong
+              ><span
+                >Import a JSON manifest, or create and edit package folders in
+                <code>.archeion/themes/</code>.</span
+              >
+            </li>
+            <li>
+              <strong>Reload themes.</strong
+              ><span
+                >After editing <code>theme.json</code> externally, choose
+                <strong>Reload themes</strong>. Archeion does not continuously watch theme
+                files.</span
+              >
+            </li>
+            <li>
+              <strong>Preview the application theme.</strong
+              ><span
+                >Preview is temporary. Choose <strong>Keep theme</strong> to save it, or
+                <strong>Revert</strong> to restore the stored appearance.</span
+              >
+            </li>
+            <li>
+              <strong>Choose reader colors separately.</strong
+              ><span>Use Settings or the Reader settings panel for compatible reader themes.</span>
+            </li>
+          </ol>
+          <p>
+            Import is create-only. If a package ID already exists, Archeion asks before updating its
+            <code>theme.json</code> and preserves other files in the package.
+          </p>
+
+          <h2 id="diagnostics">Diagnostics and contrast</h2>
+          <p>
+            Theme Manager lists invalid packages with diagnostics so they can be repaired. Contrast
+            findings are warnings rather than schema failures and must be acknowledged before
+            keeping a preview with warnings.
+          </p>
+          <p>
+            If a selected custom package becomes missing or invalid, its ID remains stored so the
+            selection can resume after the package is restored and reloaded.
+          </p>
+
+          <h2 id="fixed-colors">Fixed colors</h2>
+          <p>Some visual identities are intentionally not theme tokens:</p>
+          <ul>
+            <li>The Windows close button keeps its platform-style white-on-red hover treatment.</li>
+            <li>Annotation highlights remain yellow, green, blue, and rose.</li>
+            <li>
+              Cover-image controls keep a neutral white-on-black treatment for legibility over
+              artwork.
+            </li>
+          </ul>
+
+          <h2 id="examples">Examples</h2>
+          <ul>
+            <li><a href="../../../examples/themes/moon-ink/theme.json">Moon Ink dark theme</a></li>
+            <li><a href="../../../examples/themes/paper-light/theme.json">Paper Light theme</a></li>
+          </ul>
+        </article>
+        <nav class="article-pager" aria-label="Documentation pages">
+          <a class="article-pager__item article-pager__item--previous" href="../appearance/"
+            ><span>Previous</span><strong>Appearance</strong></a
+          ><a
+            class="article-pager__item article-pager__item--next"
+            href="../../reference/archive-storage/"
+            ><span>Next</span><strong>Archive storage</strong></a
+          >
+        </nav>
+        <footer class="docs-footer">
+          <span>Archeion documentation</span>
+          <a href="https://github.com/TommyMoonn/archeion/issues" target="_blank" rel="noreferrer"
+            >Report a documentation issue <span aria-hidden="true">↗</span></a
+          >
+        </footer>
+      </main>
+      <aside class="docs-outline" aria-label="On this page">
+        <h2>On this page</h2>
+        <nav data-toc></nav>
+      </aside>
+    </div>
+  </body>
+</html>

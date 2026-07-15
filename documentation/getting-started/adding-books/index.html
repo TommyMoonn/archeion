@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en" data-theme="system">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Add one or more EPUBs and choose destination, conflict, and copy or move behavior."
+    />
+    <meta name="theme-color" content="#171717" />
+    <title>Add EPUB files | Archeion Docs</title>
+    <link rel="icon" href="../../../assets/images/archeion-icon.png" />
+    <link rel="stylesheet" href="../../assets/docs.css" />
+    <script src="../../assets/docs.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+
+    <svg class="svg-defs" aria-hidden="true" focusable="false">
+      <symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16" /></symbol>
+      <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18" /></symbol>
+      <symbol id="icon-search" viewBox="0 0 24 24">
+        <circle cx="10.5" cy="10.5" r="6.5" />
+        <path d="m16 16 5 5" />
+      </symbol>
+      <symbol id="icon-chevron" viewBox="0 0 24 24"><path d="m8 10 4 4 4-4" /></symbol>
+      <symbol id="icon-github" viewBox="0 0 24 24">
+        <path
+          d="M12 2.7a9.3 9.3 0 0 0-2.9 18.14c.47.09.64-.2.64-.45v-1.63c-2.6.57-3.16-1.1-3.16-1.1-.43-1.09-1.05-1.38-1.05-1.38-.85-.59.07-.58.07-.58.94.07 1.44.97 1.44.97.84 1.44 2.2 1.03 2.73.79.09-.61.33-1.03.59-1.26-2.08-.24-4.27-1.04-4.27-4.63 0-1.03.37-1.86.97-2.52-.1-.24-.42-1.19.1-2.49 0 0 .79-.25 2.56.96A8.9 8.9 0 0 1 12 7.18a8.9 8.9 0 0 1 2.33.31c1.77-1.21 2.56-.96 2.56-.96.52 1.3.2 2.25.1 2.49.6.66.97 1.49.97 2.52 0 3.6-2.19 4.39-4.29 4.62.34.29.64.86.64 1.74v2.49c0 .25.18.54.65.45A9.3 9.3 0 0 0 12 2.7Z"
+        />
+      </symbol>
+      <symbol id="icon-theme" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
+        />
+      </symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+      <symbol id="icon-copy" viewBox="0 0 24 24">
+        <rect x="8" y="8" width="11" height="11" rx="2" />
+        <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+      </symbol>
+    </svg>
+    <header class="docs-header">
+      <div class="docs-header__inner">
+        <button
+          class="icon-button mobile-menu-button"
+          type="button"
+          data-nav-open
+          aria-label="Open documentation navigation"
+          aria-controls="docs-sidebar"
+          aria-expanded="false"
+        >
+          <svg aria-hidden="true"><use href="#icon-menu" /></svg>
+        </button>
+        <a class="docs-brand" href="../../../" aria-label="Archeion website">
+          <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
+          <span>Archeion</span>
+        </a>
+        <a class="docs-label" href="../../">Docs</a>
+        <button
+          class="docs-search-trigger"
+          type="button"
+          data-search-trigger
+          aria-label="Search documentation"
+        >
+          <svg aria-hidden="true"><use href="#icon-search" /></svg><span>Search documentation</span
+          ><kbd>Ctrl K</kbd>
+        </button>
+        <div class="docs-header__actions">
+          <button
+            class="icon-button"
+            type="button"
+            data-theme-toggle
+            aria-label="Change documentation theme"
+            title="Change theme"
+          >
+            <svg aria-hidden="true"><use href="#icon-theme" /></svg>
+          </button>
+          <a
+            class="icon-button"
+            href="https://github.com/TommyMoonn/archeion"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="Archeion on GitHub"
+            title="GitHub"
+            ><svg aria-hidden="true"><use href="#icon-github" /></svg
+          ></a>
+        </div>
+      </div>
+    </header>
+
+    <dialog class="docs-search-dialog" data-search-dialog aria-labelledby="docs-search-title">
+      <div class="docs-search-dialog__header">
+        <h2 id="docs-search-title">Search documentation</h2>
+        <button class="icon-button" type="button" data-search-close aria-label="Close search">
+          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+        </button>
+      </div>
+      <label class="docs-search-field">
+        <span class="sr-only">Search documentation pages</span>
+        <svg aria-hidden="true"><use href="#icon-search" /></svg>
+        <input type="search" placeholder="Search pages" autocomplete="off" data-search-input />
+      </label>
+      <nav
+        class="docs-search-results"
+        data-search-results
+        aria-label="Documentation search results"
+      ></nav>
+      <p class="docs-search-empty" data-search-empty hidden>No matching pages.</p>
+    </dialog>
+
+    <div class="mobile-backdrop" data-nav-backdrop hidden></div>
+    <aside
+      class="docs-sidebar"
+      id="docs-sidebar"
+      data-sidebar
+      aria-label="Documentation navigation"
+    >
+      <div class="docs-sidebar__mobile-header">
+        <strong>Documentation</strong>
+        <button
+          class="icon-button"
+          type="button"
+          data-nav-close
+          aria-label="Close documentation navigation"
+        >
+          <svg aria-hidden="true"><use href="#icon-close" /></svg>
+        </button>
+      </div>
+      <nav>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-0"
+              data-sidebar-group-toggle
+            >
+              <span>Overview</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-0" data-sidebar-group-items>
+            <a
+              href="../../"
+              data-doc-link
+              data-search="overview start here for installation, archives, reading, organization, and customization."
+              ><span>Overview</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-1"
+              data-sidebar-group-toggle
+            >
+              <span>Getting started</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-1" data-sidebar-group-items>
+            <a
+              href="../installing/"
+              data-doc-link
+              data-search="installation download and install archeion on a supported windows system."
+              ><span>Installation</span></a
+            ><a
+              href="../archives/"
+              data-doc-link
+              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              ><span>Open or create an archive</span></a
+            ><a
+              href="./"
+              data-doc-link
+              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              aria-current="page"
+              ><span>Add EPUB files</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-2"
+              data-sidebar-group-toggle
+            >
+              <span>Using Archeion</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-2" data-sidebar-group-items>
+            <a
+              href="../../guides/library/"
+              data-doc-link
+              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              ><span>Library</span></a
+            ><a
+              href="../../guides/reading/"
+              data-doc-link
+              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              ><span>Reader and annotations</span></a
+            ><a
+              href="../../guides/file-management/"
+              data-doc-link
+              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              ><span>File management</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-3"
+              data-sidebar-group-toggle
+            >
+              <span>Customization</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-3" data-sidebar-group-items>
+            <a
+              href="../../customization/appearance/"
+              data-doc-link
+              data-search="appearance configure application appearance, library presentation, and reader typography."
+              ><span>Appearance</span></a
+            ><a
+              href="../../customization/custom-themes/"
+              data-doc-link
+              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              ><span>Custom themes</span></a
+            >
+          </div>
+        </section>
+        <section class="sidebar-group" data-sidebar-group>
+          <h2>
+            <button
+              class="sidebar-group__toggle"
+              type="button"
+              aria-expanded="true"
+              aria-controls="sidebar-group-4"
+              data-sidebar-group-toggle
+            >
+              <span>Reference</span><svg aria-hidden="true"><use href="#icon-chevron" /></svg>
+            </button>
+          </h2>
+          <div class="sidebar-group__items" id="sidebar-group-4" data-sidebar-group-items>
+            <a
+              href="../../reference/archive-storage/"
+              data-doc-link
+              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              ><span>Archive storage</span></a
+            >
+          </div>
+        </section>
+      </nav>
+      <div class="docs-sidebar__footer">
+        <span>Archeion 0.4.0</span>
+        <a href="../../../">Back to website</a>
+      </div>
+    </aside>
+
+    <div class="docs-layout">
+      <main class="docs-main" id="main-content">
+        <div class="breadcrumbs" aria-label="Breadcrumb">
+          <a href="../../">Docs</a><span aria-hidden="true">/</span><span>Getting started</span
+          ><span aria-hidden="true">/</span><span aria-current="page">Add EPUB files</span>
+        </div>
+        <article class="doc-article" data-doc-article>
+          <header class="article-header">
+            <p class="eyebrow">Getting started</p>
+            <h1>Add EPUB files</h1>
+            <p>
+              Add one or more EPUBs and choose destination, conflict, and copy or move behavior.
+            </p>
+          </header>
+          <details class="mobile-outline" data-mobile-outline>
+            <summary>On this page</summary>
+            <nav data-mobile-toc></nav>
+          </details>
+
+          <p class="lead">
+            Use <strong>Add EPUB</strong> to bring one or more books into the active archive.
+            Archeion accepts EPUB files and lets you choose where and how they are added.
+          </p>
+
+          <h2 id="add-books">Add books from the Library</h2>
+          <ol class="steps">
+            <li>
+              <strong>Select Add EPUB.</strong><span>The button is in the Library toolbar.</span>
+            </li>
+            <li>
+              <strong>Choose one or more files.</strong
+              ><span>The picker filters for <code>.epub</code> files.</span>
+            </li>
+            <li>
+              <strong>Choose a destination.</strong
+              ><span>Select the archive root or an existing library folder.</span>
+            </li>
+            <li>
+              <strong>Choose conflict behavior.</strong
+              ><span
+                >Decide what Archeion should do when the destination already contains a file with
+                the same name.</span
+              >
+            </li>
+            <li>
+              <strong>Choose the operation.</strong
+              ><span>Copy keeps the source file. Move transfers it into the archive.</span>
+            </li>
+            <li>
+              <strong>Select Add EPUB.</strong
+              ><span>Archeion performs the operation and refreshes the Library.</span>
+            </li>
+          </ol>
+
+          <h2 id="filename-conflicts">Filename conflicts</h2>
+          <p>
+            The selected filename policy controls what happens when a destination filename already
+            exists. Replacing an existing EPUB is destructive, so Archeion can require confirmation
+            before proceeding.
+          </p>
+
+          <div class="notice notice--warning">
+            <strong>Check the destination before using Move</strong>
+            <p>
+              A move operation removes the source file after the archive copy succeeds. Use Copy
+              when you want the original file to remain in place.
+            </p>
+          </div>
+
+          <h2 id="outside-changes">Adding files outside Archeion</h2>
+          <p>
+            You can also copy EPUB files directly into the archive with Windows Explorer. Archeion
+            can pick up filesystem changes through its watcher, and the Library toolbar provides
+            <strong>Rescan archive</strong> when you need an explicit refresh.
+          </p>
+
+          <h2 id="organize-first">Create folders first</h2>
+          <p>
+            Use the plus button beside <strong>Folders</strong> in the Library sidebar to create a
+            real folder. You can then select that folder as the destination in Add EPUB.
+          </p>
+        </article>
+        <nav class="article-pager" aria-label="Documentation pages">
+          <a class="article-pager__item article-pager__item--previous" href="../archives/"
+            ><span>Previous</span><strong>Open or create an archive</strong></a
+          ><a class="article-pager__item article-pager__item--next" href="../../guides/library/"
+            ><span>Next</span><strong>Library</strong></a
+          >
+        </nav>
+        <footer class="docs-footer">
+          <span>Archeion documentation</span>
+          <a href="https://github.com/TommyMoonn/archeion/issues" target="_blank" rel="noreferrer"
+            >Report a documentation issue <span aria-hidden="true">↗</span></a
+          >
+        </footer>
+      </main>
+      <aside class="docs-outline" aria-label="On this page">
+        <h2>On this page</h2>
+        <nav data-toc></nav>
+      </aside>
+    </div>
+  </body>
+</html>
