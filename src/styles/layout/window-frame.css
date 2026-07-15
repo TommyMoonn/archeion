@@ -4,7 +4,7 @@
   height: 100dvh;
   min-height: 0;
   overflow: hidden;
-  background: var(--surface-base);
+  background: var(--surface-app-frame);
 
   --window-titlebar-archeion-height: 36px;
   --window-titlebar-hidden-height: 32px;
@@ -43,7 +43,7 @@
   height: var(--window-titlebar-archeion-height);
   padding-left: 14px;
   color: var(--muted);
-  background: var(--surface-sidebar);
+  background: var(--surface-app-frame);
   border-bottom: 1px solid var(--surface-border);
   user-select: none;
 }

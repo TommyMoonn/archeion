@@ -113,7 +113,7 @@
   width: 68px;
   height: 68px;
   object-fit: contain;
-  filter: drop-shadow(0 12px 22px rgb(0 0 0 / 34%));
+  filter: drop-shadow(0 12px 22px color-mix(in srgb, var(--darkening) 34%, transparent));
 }
 
 .archive-manager-window__identity h1 {
@@ -279,11 +279,11 @@ html[data-motion="on"]
 }
 
 .archive-row:hover {
-  background: rgb(255 255 255 / 4%);
+  background: color-mix(in srgb, var(--text-strong) 4%, transparent);
 }
 
 .archive-row--busy {
-  background: rgb(255 255 255 / 4.5%);
+  background: color-mix(in srgb, var(--text-strong) 4.5%, transparent);
 }
 
 .archive-row--missing {

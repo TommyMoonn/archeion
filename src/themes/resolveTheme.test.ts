@@ -140,16 +140,23 @@ describe("theme resolution", () => {
 
   it("derives dark shadows from canvas and light shadows from strong text", () => {
     const dark = resolveAppTheme("dark", { canvasDeep: "#202020" });
+    expect(dark.tokens.darkening).toBe("#141516");
     expect(dark.tokens.cardShadow).toBe("0 8px 24px #1316191c");
     expect(dark.tokens.popoverShadow).toBe("0 18px 50px #0e0e0d61");
     expect(dark.tokens.dialogShadow).toBe("0 28px 90px #0e0e0d85");
     expect(dark.tokens.drawerShadow).toBe("-24px 0 70px #13161952");
 
     const light = resolveAppTheme("light", { textStrong: "#202020" });
+    expect(light.tokens.darkening).toBe("#080d12");
     expect(light.tokens.cardShadow).toBe("0 8px 24px #524a3d1a");
     expect(light.tokens.popoverShadow).toBe("0 18px 50px #524a3d2e");
     expect(light.tokens.dialogShadow).toBe("0 28px 90px #524a3d3d");
     expect(light.tokens.drawerShadow).toBe("-24px 0 70px #524a3d2e");
+  });
+
+  it("preserves the accepted built-in darkening neutral", () => {
+    expect(resolveBuiltInAppTheme("dark").tokens.darkening).toBe("#060709");
+    expect(resolveBuiltInAppTheme("light").tokens.darkening).toBe("#060709");
   });
 
   it("multiplies alpha while deriving tokens from translucent overrides", () => {

@@ -22,15 +22,24 @@
   border: 1px solid var(--accent-border);
   border-radius: 50%;
   background:
-    radial-gradient(circle at 38% 32%, rgb(143 193 227 / 20%), transparent 45%),
-    radial-gradient(circle at 67% 72%, rgb(154 127 199 / 13%), transparent 50%), var(--surface);
-  box-shadow: 0 20px 60px rgb(5 15 25 / 20%);
+    radial-gradient(
+      circle at 38% 32%,
+      color-mix(in srgb, var(--accent) 20%, transparent),
+      transparent 45%
+    ),
+    radial-gradient(
+      circle at 67% 72%,
+      color-mix(in srgb, var(--focus) 13%, transparent),
+      transparent 50%
+    ),
+    var(--surface);
+  box-shadow: 0 20px 60px color-mix(in srgb, var(--darkening) 20%, transparent);
 }
 
 .empty-state__glow::after {
   position: absolute;
   inset: 13px;
-  border: 1px solid rgb(214 211 217 / 7%);
+  border: 1px solid var(--line-subtle);
   border-radius: inherit;
   content: "";
 }

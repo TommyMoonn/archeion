@@ -391,7 +391,12 @@
   height: 8px;
   border-radius: var(--radius-pill);
   background:
-    linear-gradient(100deg, transparent 28%, rgb(214 211 217 / 7%) 48%, transparent 68%),
+    linear-gradient(
+      100deg,
+      transparent 28%,
+      color-mix(in srgb, var(--reader-text) 7%, transparent) 48%,
+      transparent 68%
+    ),
     var(--reader-surface);
   background-size: 220% 100%;
   animation: loading-sheen 1.5s ease-in-out infinite;
@@ -660,7 +665,12 @@
   height: 40px;
   border-radius: 8px;
   background:
-    linear-gradient(100deg, transparent 28%, rgb(214 211 217 / 7%) 48%, transparent 68%),
+    linear-gradient(
+      100deg,
+      transparent 28%,
+      color-mix(in srgb, var(--reader-text) 7%, transparent) 48%,
+      transparent 68%
+    ),
     var(--reader-surface);
   background-size: 220% 100%;
   animation: loading-sheen 1.5s ease-in-out infinite;

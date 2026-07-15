@@ -212,7 +212,7 @@ html[data-motion="on"] .folder-browser > .empty-state {
   padding: 17px 82px 17px 17px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
-  background: rgb(255 255 255 / 1.8%);
+  background: color-mix(in srgb, var(--text-strong) 1.8%, transparent);
 }
 
 .folder-browser__open:hover,

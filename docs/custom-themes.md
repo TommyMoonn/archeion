@@ -132,6 +132,7 @@ Some colors communicate identities that must remain recognizable across themes:
 
 - The Windows close button keeps its platform-style white-on-red hover treatment.
 - Annotation highlight identities remain yellow, green, blue, and rose. Changing themes does not reinterpret a saved highlight color.
+- Cover-image controls keep a neutral white-on-black treatment so they remain legible over arbitrary artwork.
 - Transparent values and `currentColor` continue to inherit from their owning semantic context.
 
 These fixed colors are not manifest tokens.

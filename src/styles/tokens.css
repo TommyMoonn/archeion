@@ -58,6 +58,7 @@
   --surface-hover: #29292d;
   --line: #303034;
   --line-subtle: rgb(255 255 255 / 6%);
+  --darkening: #060709;
   --line-strong: #414147;
   --text: #d6d3d9;
   --text-strong: #ebe8ef;
@@ -82,9 +83,8 @@
   --danger-soft: var(--error-soft);
   --danger-border: var(--error-border);
 
-  --surface-base: #202023;
-  --surface-app-frame: var(--surface-base);
-  --surface-sidebar: var(--surface-base);
+  --surface-app-frame: #202023;
+  --surface-sidebar: #202023;
   --surface-main: #151516;
   --surface-main-raised: #1d1d20;
   --surface-border: var(--line);
@@ -96,6 +96,10 @@
   --shadow-popover: 0 18px 50px rgb(0 0 0 / 38%);
   --shadow-dialog: 0 28px 90px rgb(0 0 0 / 52%);
   --shadow-drawer: -24px 0 70px rgb(5 8 12 / 32%);
+
+  --backdrop: color-mix(in srgb, var(--darkening) 66%, transparent);
+  --backdrop-strong: color-mix(in srgb, var(--darkening) 72%, transparent);
+  --backdrop-soft: color-mix(in srgb, var(--darkening) 62%, transparent);
 
   --sidebar-width: 248px;
 
@@ -130,6 +134,7 @@ html[data-app-theme="light"] {
   --surface-hover: #f2ece2;
   --line: #ddd4c8;
   --line-subtle: rgb(30 26 23 / 7%);
+  --darkening: #060709;
   --line-strong: #cabeae;
   --text: #403b34;
   --text-strong: #1e1a17;
@@ -154,9 +159,8 @@ html[data-app-theme="light"] {
   --danger-soft: var(--error-soft);
   --danger-border: var(--error-border);
 
-  --surface-base: #eee8de;
-  --surface-app-frame: var(--surface-base);
-  --surface-sidebar: var(--surface-base);
+  --surface-app-frame: #eee8de;
+  --surface-sidebar: #eee8de;
   --surface-main: #f8f5ef;
   --surface-main-raised: #ffffff;
   --surface-border: var(--line);
@@ -181,6 +185,7 @@ html[data-app-theme="light"] {
     --surface-hover: #f2ece2;
     --line: #ddd4c8;
     --line-subtle: rgb(30 26 23 / 7%);
+    --darkening: #060709;
     --line-strong: #cabeae;
     --text: #403b34;
     --text-strong: #1e1a17;
@@ -205,9 +210,8 @@ html[data-app-theme="light"] {
     --danger-soft: var(--error-soft);
     --danger-border: var(--error-border);
 
-    --surface-base: #eee8de;
-    --surface-app-frame: var(--surface-base);
-    --surface-sidebar: var(--surface-base);
+    --surface-app-frame: #eee8de;
+    --surface-sidebar: #eee8de;
     --surface-main: #f8f5ef;
     --surface-main-raised: #ffffff;
     --surface-border: var(--line);

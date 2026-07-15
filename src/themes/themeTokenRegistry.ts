@@ -70,6 +70,10 @@ export type AppThemePublicToken = keyof typeof appThemePublicTokenRegistry;
 
 export const appThemeDerivedTokenRegistry = defineTokenRegistry({
   lineSubtle: { cssVariable: "--line-subtle", description: "Low-emphasis separator." },
+  darkening: {
+    cssVariable: "--darkening",
+    description: "Opaque neutral used to derive backdrops and local elevation shadows.",
+  },
   accentSoft: { cssVariable: "--accent-soft", description: "Soft accent background." },
   accentBorder: { cssVariable: "--accent-border", description: "Accent-tinted border." },
   selected: { cssVariable: "--selected", description: "Selected-item background." },

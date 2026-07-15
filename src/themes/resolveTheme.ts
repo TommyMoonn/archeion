@@ -27,38 +27,41 @@ import {
 
 type ColorChannelAdjustment = Readonly<{ blue: number; green: number; red: number }>;
 
-type ShadowDerivation = Readonly<{
+type ColorDerivation = Readonly<{
   adjustment: ColorChannelAdjustment;
   source: AppThemePublicToken;
 }>;
 
 type AppDerivationRecipe = Readonly<{
+  darkening: ColorDerivation;
   errorStrong: ColorChannelAdjustment;
   shadows: Readonly<{
-    card: ShadowDerivation;
-    dialog: ShadowDerivation;
-    drawer: ShadowDerivation;
-    popover: ShadowDerivation;
+    card: ColorDerivation;
+    dialog: ColorDerivation;
+    drawer: ColorDerivation;
+    popover: ColorDerivation;
   }>;
 }>;
 
 const APP_DERIVATION_RECIPES: Readonly<Record<AppThemeBase, AppDerivationRecipe>> = Object.freeze({
   dark: Object.freeze({
+    darkening: colorDerivation("canvasDeep", -12, -11, -10),
     errorStrong: Object.freeze({ red: 12, green: 26, blue: 24 }),
     shadows: Object.freeze({
-      card: shadowDerivation("canvasDeep", -13, -10, -7),
-      popover: shadowDerivation("canvasDeep", -18, -18, -19),
-      dialog: shadowDerivation("canvasDeep", -18, -18, -19),
-      drawer: shadowDerivation("canvasDeep", -13, -10, -7),
+      card: colorDerivation("canvasDeep", -13, -10, -7),
+      popover: colorDerivation("canvasDeep", -18, -18, -19),
+      dialog: colorDerivation("canvasDeep", -18, -18, -19),
+      drawer: colorDerivation("canvasDeep", -13, -10, -7),
     }),
   }),
   light: Object.freeze({
+    darkening: colorDerivation("textStrong", -24, -19, -14),
     errorStrong: Object.freeze({ red: -28, green: -15, blue: -16 }),
     shadows: Object.freeze({
-      card: shadowDerivation("textStrong", 50, 42, 29),
-      popover: shadowDerivation("textStrong", 50, 42, 29),
-      dialog: shadowDerivation("textStrong", 50, 42, 29),
-      drawer: shadowDerivation("textStrong", 50, 42, 29),
+      card: colorDerivation("textStrong", 50, 42, 29),
+      popover: colorDerivation("textStrong", 50, 42, 29),
+      dialog: colorDerivation("textStrong", 50, 42, 29),
+      drawer: colorDerivation("textStrong", 50, 42, 29),
     }),
   }),
 });
@@ -96,10 +99,10 @@ export function resolveAppTheme(
   const neutralOverlay: ThemeColor = base === "dark" ? "#ffffff" : publicTokens.textStrong;
   const recipe = APP_DERIVATION_RECIPES[base];
   const shadowColors = {
-    card: deriveShadowColor(publicTokens, recipe.shadows.card),
-    popover: deriveShadowColor(publicTokens, recipe.shadows.popover),
-    dialog: deriveShadowColor(publicTokens, recipe.shadows.dialog),
-    drawer: deriveShadowColor(publicTokens, recipe.shadows.drawer),
+    card: deriveColor(publicTokens, recipe.shadows.card),
+    popover: deriveColor(publicTokens, recipe.shadows.popover),
+    dialog: deriveColor(publicTokens, recipe.shadows.dialog),
+    drawer: deriveColor(publicTokens, recipe.shadows.drawer),
   };
   const errorStrong = adjustThemeColorChannels(publicTokens.error, recipe.errorStrong);
   const errorSoft = themeColorWithOpacity(publicTokens.error, base === "dark" ? 0.07 : 0.08);
@@ -107,6 +110,7 @@ export function resolveAppTheme(
   const tokens: ResolvedAppThemeTokens = Object.freeze({
     ...publicTokens,
     lineSubtle: themeColorWithOpacity(neutralOverlay, base === "dark" ? 0.06 : 0.07),
+    darkening: deriveColor(publicTokens, recipe.darkening),
     accentSoft: themeColorWithOpacity(publicTokens.accent, base === "dark" ? 0.12 : 0.1),
     accentBorder: themeColorWithOpacity(publicTokens.accent, base === "dark" ? 0.24 : 0.22),
     selected: themeColorWithOpacity(publicTokens.accent, 0.18),
@@ -171,18 +175,18 @@ function objectKeys<ObjectType extends object>(value: ObjectType): Array<keyof O
   return Object.keys(value) as Array<keyof ObjectType>;
 }
 
-function shadowDerivation(
+function colorDerivation(
   source: AppThemePublicToken,
   red: number,
   green: number,
   blue: number,
-): ShadowDerivation {
+): ColorDerivation {
   return Object.freeze({ source, adjustment: Object.freeze({ red, green, blue }) });
 }
 
-function deriveShadowColor(
+function deriveColor(
   publicTokens: Readonly<Record<AppThemePublicToken, ThemeColor>>,
-  derivation: ShadowDerivation,
+  derivation: ColorDerivation,
 ): ThemeColor {
   return adjustThemeColorChannels(publicTokens[derivation.source], derivation.adjustment);
 }

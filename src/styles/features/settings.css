@@ -12,7 +12,7 @@
 }
 
 .settings-dialog::backdrop {
-  background: rgb(5 5 6 / 68%);
+  background: color-mix(in srgb, var(--darkening) 68%, transparent);
 }
 
 .settings-window {
@@ -258,7 +258,7 @@ html[data-motion="on"] .settings-section {
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
-  box-shadow: 0 10px 28px rgb(0 0 0 / 22%);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--darkening) 22%, transparent);
   font-size: var(--type-meta);
   line-height: 1.35;
 }
@@ -277,7 +277,7 @@ html[data-motion="on"] .settings-status {
 }
 
 .about-dialog::backdrop {
-  background: rgb(5 5 6 / 66%);
+  background: var(--backdrop);
 }
 
 .about-window {

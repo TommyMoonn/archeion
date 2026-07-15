@@ -7,7 +7,12 @@ import { describe, expect, it } from "vitest";
 
 import type { ThemeManifestV1 } from "../src/themes/domain";
 import { readerThemeForSettings } from "../src/features/reader/readerTheme";
-import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../src/themes/resolveTheme";
+import {
+  resolveBuiltInAppTheme,
+  resolveBuiltInReaderTheme,
+  resolveTheme,
+} from "../src/themes/resolveTheme";
+import { readerThemeCssProperties } from "../src/themes/themeCssVariables";
 import { defaultReaderSettings } from "../src/types/reader";
 import {
   appThemeDerivedTokenRegistry,
@@ -264,6 +269,7 @@ describe("theme token baseline", () => {
     } as const;
     const requiredDerivedTokens = [
       "lineSubtle",
+      "darkening",
       "accentSoft",
       "accentBorder",
       "successSoft",
@@ -372,4 +378,93 @@ describe("theme token baseline", () => {
       );
     }
   });
+
+  it.each(examplePaths)(
+    "routes the custom theme %s through every supported application and reader surface",
+    (relativePath) => {
+      const packageDirectory = path.basename(path.dirname(relativePath));
+      const manifest = assertRuntimeFixture(readJson(relativePath), packageDirectory);
+      const resolved = resolveTheme(manifest);
+      const appVariables = new Map(
+        Object.entries(appThemeResolvedTokenRegistry).map(([token, definition]) => [
+          definition.cssVariable,
+          resolved.app.tokens[token as AppThemeResolvedToken],
+        ]),
+      );
+      const reader = resolved.reader;
+      expect(reader).toBeDefined();
+      if (!reader) throw new Error(`${relativePath} must define a reader palette`);
+      const readerVariables = readerThemeCssProperties(reader);
+
+      const applicationSurfaceContracts = [
+        [
+          "src/styles/layout/window-frame.css",
+          /\.window-titlebar\s*{[^}]*background:\s*var\(--surface-app-frame\);/,
+        ],
+        [
+          "src/styles/layout/app-shell.css",
+          /\.sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
+        ],
+        [
+          "src/styles/features/library.css",
+          /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface-main-raised\);/,
+        ],
+        [
+          "src/styles/features/settings.css",
+          /\.settings-window\s*{[^}]*background:\s*var\(--canvas\);/,
+        ],
+        ["src/styles/components/dialogs.css", /\.dialog\s*{[^}]*background:\s*var\(--surface\);/],
+        [
+          "src/styles/components/dialogs.css",
+          /\.dialog::backdrop\s*{[^}]*background:\s*var\(--backdrop-strong\);/,
+        ],
+        [
+          "src/styles/features/archive.css",
+          /\.archive-manager-window\s*{[^}]*background:\s*var\(--canvas\);/,
+        ],
+        [
+          "src/styles/features/archive.css",
+          /\.archive-manager-window__sidebar\s*{[^}]*background:\s*var\(--surface-sidebar\);/,
+        ],
+      ] as const;
+      for (const [stylePath, contract] of applicationSurfaceContracts) {
+        const source = fs.readFileSync(path.join(projectRoot, stylePath), "utf8");
+        expect(source, `${packageDirectory}: ${stylePath}`).toMatch(contract);
+      }
+
+      expect(appVariables.get("--surface-app-frame")).toBe(resolved.app.tokens.frame);
+      expect(appVariables.get("--surface-sidebar")).toBe(resolved.app.tokens.sidebar);
+      expect(appVariables.get("--surface-main")).toBe(resolved.app.tokens.main);
+      expect(appVariables.get("--canvas")).toBe(resolved.app.tokens.canvas);
+      expect(appVariables.get("--surface")).toBe(resolved.app.tokens.surface);
+      expect(appVariables.get("--darkening")).toBe(resolved.app.tokens.darkening);
+
+      const tokensSource = fs.readFileSync(path.join(projectRoot, "src/styles/tokens.css"), "utf8");
+      expect(tokensSource).toContain(
+        "--backdrop-strong: color-mix(in srgb, var(--darkening) 72%, transparent);",
+      );
+
+      const readerCss = fs.readFileSync(
+        path.join(projectRoot, "src/styles/features/reader.css"),
+        "utf8",
+      );
+      expect(readerCss).toMatch(
+        /^\.reader-page\s*{[^}]*color:\s*var\(--reader-text\);[^}]*background:\s*var\(--reader-bg\);/m,
+      );
+      expect(readerCss).toMatch(/\.reader-progress\s*{[^}]*background:\s*var\(--reader-surface\);/);
+      for (const [token, definition] of Object.entries(readerThemeResolvedTokenRegistry)) {
+        expect(readerVariables[definition.cssVariable]).toBe(
+          reader.tokens[token as keyof typeof readerThemeResolvedTokenRegistry],
+        );
+      }
+
+      const contentRules = readerThemeForSettings(defaultReaderSettings, reader.tokens);
+      expect(contentRules.body.background).toBe(`${reader.tokens.background} !important`);
+      expect(contentRules.body.color).toBe(`${reader.tokens.text} !important`);
+      expect(contentRules["h1, h2, h3, h4, h5, h6"].color).toBe(
+        `${reader.tokens.strong} !important`,
+      );
+      expect(contentRules.a.color).toBe(`${reader.tokens.link} !important`);
+    },
+  );
 });

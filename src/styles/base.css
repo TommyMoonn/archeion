@@ -11,7 +11,12 @@ body {
   margin: 0;
   color: var(--text);
   background:
-    radial-gradient(circle at 78% 4%, rgb(143 193 227 / 4%), transparent 28rem), var(--surface-main);
+    radial-gradient(
+      circle at 78% 4%,
+      color-mix(in srgb, var(--accent) 4%, transparent),
+      transparent 28rem
+    ),
+    var(--surface-main);
 }
 
 button,

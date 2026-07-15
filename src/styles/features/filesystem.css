@@ -52,7 +52,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   color: var(--muted);
-  background: rgb(18 18 19 / 46%);
+  background: color-mix(in srgb, var(--canvas-deep) 46%, transparent);
   font-size: var(--type-meta);
   line-height: 1.45;
   list-style: none;
@@ -169,7 +169,7 @@
   padding: 0 11px;
   border-left: 1px solid var(--line);
   color: var(--muted);
-  background: rgb(214 211 217 / 4%);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
   font-size: var(--type-body);
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),

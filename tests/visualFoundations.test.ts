@@ -73,9 +73,80 @@ const readerThemeSource = fs.readFileSync(
   path.join(projectRoot, "src/features/reader/readerTheme.ts"),
   "utf8",
 );
+const customThemesGuideSource = fs.readFileSync(
+  path.join(projectRoot, "docs/custom-themes.md"),
+  "utf8",
+);
 const interManifest = readJson<InterFontManifest>("scripts/inter-font-manifest.json");
 const packageJson = readJson<PackageJson>("package.json");
 const packageLock = readJson<PackageLock>("package-lock.json");
+
+const documentedDirectColorLiterals = {
+  "src/styles/features/library.css": [
+    "#fff",
+    "rgb(10 11 13 / 78%)",
+    "rgb(10 11 13 / 94%)",
+    "rgb(255 255 255 / 18%)",
+    "rgb(255 255 255 / 34%)",
+    "rgb(255 255 255 / 86%)",
+  ],
+  "src/styles/features/reader.css": [
+    "#171615",
+    "#171717",
+    "#171717",
+    "#1d1d1f",
+    "#2e271f",
+    "#303034",
+    "#353331",
+    "#386f99",
+    "#4b4033",
+    "#56ccf2",
+    "#6fcf97",
+    "#74a8d8",
+    "#765f43",
+    "#77736e",
+    "#7ebc89",
+    "#806f5b",
+    "#8e3440",
+    "#8f3f47",
+    "#929096",
+    "#c9c4ef",
+    "#d1c2a7",
+    "#d6d3d9",
+    "#d8d5ce",
+    "#d98eaa",
+    "#e4d8c0",
+    "#e58a96",
+    "#e9c46a",
+    "#eb8fa3",
+    "#ebe8ef",
+    "#ebe9e4",
+    "#eee5d2",
+    "#eee5d2",
+    "#f2c94c",
+    "#f5f4f1",
+    "#f5f4f1",
+  ],
+  "src/styles/layout/window-frame.css": ["#c42b3a", "#fff"],
+} as const;
+
+function directColorLiteralsByFile(): Record<string, string[]> {
+  const colorLiteral =
+    /(?:#[0-9a-f]{3,8}\b|(?:rgb|rgba|hsl|hsla|hwb|lab|lch|oklab|oklch|color)\([^;{}]*\))/gi;
+
+  return Object.fromEntries(
+    cssFiles
+      .filter((filePath) => path.basename(filePath) !== "tokens.css")
+      .map((filePath) => {
+        const relativePath = path.relative(projectRoot, filePath).replaceAll(path.sep, "/");
+        const literals = [...fs.readFileSync(filePath, "utf8").matchAll(colorLiteral)]
+          .map((match) => (match[0] ?? "").replace(/\s+/g, " ").toLowerCase())
+          .sort();
+        return [relativePath, literals] as const;
+      })
+      .filter(([, literals]) => literals.length > 0),
+  );
+}
 
 function declarations(property: string): string[] {
   return [...cssSource.matchAll(new RegExp(`^\\s*${property}:\\s*([^;]+);`, "gm"))].map(
@@ -207,6 +278,19 @@ describe("visual foundations", () => {
     expect(tokensSource).toContain("--line-subtle:");
     expect(tokensSource).toContain("--danger:");
     expect(cssSource).not.toContain("var(--text-muted)");
+  });
+
+  it("keeps direct UI color literals limited to documented bootstrap and fixed identities", () => {
+    expect(directColorLiteralsByFile()).toEqual(documentedDirectColorLiterals);
+    expect(customThemesGuideSource).toContain(
+      "Windows close button keeps its platform-style white-on-red hover treatment",
+    );
+    expect(customThemesGuideSource).toContain(
+      "Annotation highlight identities remain yellow, green, blue, and rose",
+    );
+    expect(customThemesGuideSource).toContain(
+      "Cover-image controls keep a neutral white-on-black treatment",
+    );
   });
 
   it("provides stable shared icon slots", () => {

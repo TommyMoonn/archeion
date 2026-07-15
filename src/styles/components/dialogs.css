@@ -16,7 +16,7 @@ html[data-motion="on"] .dialog[open] {
 }
 
 .dialog::backdrop {
-  background: rgb(6 7 9 / 72%);
+  background: var(--backdrop-strong);
   backdrop-filter: blur(3px);
 }
 
@@ -93,7 +93,7 @@ html[data-motion="on"] .dialog[open] {
   display: grid;
   place-items: center;
   padding: 24px;
-  background: rgb(6 7 9 / 66%);
+  background: var(--backdrop);
 }
 
 .dialog-loading-fallback__panel {
