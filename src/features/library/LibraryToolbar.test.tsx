@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -102,6 +105,17 @@ describe("LibraryToolbar", () => {
       act(() => activeRoot?.unmount());
       activeRoot = null;
     }
+  });
+
+  it("keeps the view switch aligned to the sort control height", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
+
+    expect(styles).toMatch(
+      /\.library-view-toggle\.segmented-control\s*\{[^}]*height:\s*var\(--control-height-standard\)/s,
+    );
+    expect(styles).toMatch(
+      /\.library-view-toggle \.segmented-control__option\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0/s,
+    );
   });
 
   it("disables native autofill on the library search field", () => {

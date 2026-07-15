@@ -436,6 +436,10 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   width: 188px;
 }
 
+.settings-theme-control__manage {
+  border-radius: var(--radius-control);
+}
+
 .settings-row__unavailable {
   color: var(--muted);
   font-size: var(--type-meta);

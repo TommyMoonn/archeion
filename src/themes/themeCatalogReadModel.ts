@@ -17,6 +17,7 @@ export type BuiltInThemeCatalogEntry = Readonly<{
   applicable: true;
   appBase?: AppThemeBase;
   capabilities: ThemeCatalogCapabilities;
+  description?: string;
   id: "dark" | "light" | "sepia";
   name: string;
   origin: "builtin";
@@ -113,6 +114,7 @@ export const builtInThemeCatalogEntries: readonly BuiltInThemeCatalogEntry[] = O
     applicable: true,
     appBase: "dark",
     capabilities: appAndReaderCapabilities,
+    description: "A minimal, intuitive dark theme designed for focused reading.",
     id: "dark",
     name: "Archeion Dark",
     origin: "builtin",
@@ -123,6 +125,7 @@ export const builtInThemeCatalogEntries: readonly BuiltInThemeCatalogEntry[] = O
     applicable: true,
     appBase: "light",
     capabilities: appAndReaderCapabilities,
+    description: "A minimal, intuitive light theme designed for clear daytime reading.",
     id: "light",
     name: "Archeion Light",
     origin: "builtin",

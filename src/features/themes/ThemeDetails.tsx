@@ -1,4 +1,3 @@
-import { Trash } from "@phosphor-icons/react";
 import { useMemo } from "react";
 
 import { Button } from "../../components/Button";
@@ -25,6 +24,7 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const selected = controller.activeAppThemeKey === controller.selectedKey;
   const canUse = entry.applicable && entry.capabilities.application;
   const canPreview = entry.origin === "custom" && canUse;
+  const author = entry.origin === "custom" ? entry.author : undefined;
 
   return (
     <section className="theme-details" aria-labelledby="theme-details-title">
@@ -40,12 +40,47 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
         </div>
       </header>
 
-      {entry.origin === "custom" && (entry.author || entry.description) ? (
+      {author || entry.description ? (
         <div className="theme-details__metadata">
-          {entry.author ? <p>By {entry.author}</p> : null}
+          {author ? <p>By {author}</p> : null}
           {entry.description ? <p>{entry.description}</p> : null}
         </div>
       ) : null}
+
+      <div className="theme-details__actions">
+        {canUse ? (
+          <Button
+            className="theme-details__action"
+            disabled={actionBlocked || selected}
+            onClick={() => void controller.useSelectedTheme()}
+            size="compact"
+          >
+            Use theme
+          </Button>
+        ) : null}
+        {canPreview ? (
+          <Button
+            className="theme-details__action"
+            disabled={actionBlocked}
+            onClick={() => controller.preview()}
+            size="compact"
+            variant="secondary"
+          >
+            Preview
+          </Button>
+        ) : null}
+        {entry.origin === "custom" ? (
+          <Button
+            className="theme-details__action"
+            disabled={actionBlocked}
+            onClick={controller.requestDelete}
+            size="compact"
+            variant="danger"
+          >
+            Remove
+          </Button>
+        ) : null}
+      </div>
 
       {entry.origin === "custom" && entry.diagnostics.length ? (
         <div className="theme-details__diagnostics" role="alert">
@@ -72,32 +107,6 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
         </div>
       ) : null}
 
-      <div className="theme-details__actions">
-        {canUse ? (
-          <Button
-            disabled={actionBlocked || selected}
-            onClick={() => void controller.useSelectedTheme()}
-          >
-            Use this theme
-          </Button>
-        ) : null}
-        {canPreview ? (
-          <Button disabled={actionBlocked} onClick={() => controller.preview()} variant="secondary">
-            Preview
-          </Button>
-        ) : null}
-        {entry.origin === "custom" ? (
-          <Button
-            disabled={actionBlocked}
-            icon={<Trash aria-hidden="true" />}
-            onClick={controller.requestDelete}
-            variant="danger"
-          >
-            Delete
-          </Button>
-        ) : null}
-      </div>
-
       {controller.pendingDeleteKey === controller.selectedKey ? (
         <Dialog
           closeOnBackdropClick={false}
@@ -112,12 +121,12 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
                 size="standard"
                 variant="danger"
               >
-                Delete theme
+                Remove theme
               </Button>
             </>
           }
           onClose={controller.cancelDelete}
-          title="Delete theme?"
+          title="Remove theme?"
         />
       ) : null}
     </section>

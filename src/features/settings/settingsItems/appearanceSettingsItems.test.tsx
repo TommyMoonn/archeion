@@ -104,6 +104,9 @@ describe("appearanceSettingsItems", () => {
     const manage = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Manage",
     )!;
+    expect(manage.classList).toContain("settings-theme-control__manage");
+    expect(manage.classList).toContain("button--standard");
+
     const readerSelect = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Reader theme"]',
     )!;

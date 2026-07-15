@@ -1,4 +1,4 @@
-import { ArrowsClockwise, FilePlus, FolderOpen } from "@phosphor-icons/react";
+import { ArrowsClockwise, FilePlus, FolderOpen, X } from "@phosphor-icons/react";
 import { useMemo, useRef, type ChangeEvent } from "react";
 
 import { Button } from "../../components/Button";
@@ -68,34 +68,19 @@ export function ThemeManagerDialog({
     <Dialog
       className="theme-manager-dialog"
       closeOnBackdropClick={false}
-      description="Browse, preview, and manage application themes."
-      footer={
-        <Button onClick={close} variant="secondary">
-          Close
-        </Button>
-      }
       onClose={close}
       title="Theme Manager"
     >
-      <input
-        accept=".json,application/json"
-        className="sr-only"
-        onChange={(event) => void readChosenFile(event, controller.importFile)}
-        ref={importInputRef}
-        tabIndex={-1}
-        type="file"
-      />
       <div className="theme-manager__toolbar">
-        <Button
-          disabled={busy || controller.previewActive}
-          icon={<FilePlus aria-hidden="true" />}
-          onClick={() => importInputRef.current?.click()}
-          size="standard"
-          variant="secondary"
-        >
-          Import Themes
-        </Button>
-        <div className="theme-manager__icon-actions">
+        <span className="theme-manager__toolbar-links">
+          <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
+            Theme guide
+          </a>
+          <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
+            Public schema
+          </a>
+        </span>
+        <div className="theme-manager__toolbar-actions">
           <IconButton
             disabled={busy || controller.previewActive}
             label="Reload themes"
@@ -112,16 +97,34 @@ export function ThemeManagerDialog({
           >
             <FolderOpen aria-hidden="true" />
           </IconButton>
+          <Button
+            className="theme-manager__import"
+            disabled={busy || controller.previewActive}
+            icon={<FilePlus aria-hidden="true" />}
+            onClick={() => importInputRef.current?.click()}
+            size="standard"
+            variant="secondary"
+          >
+            Import
+          </Button>
         </div>
-        <span className="theme-manager__toolbar-links">
-          <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
-            Theme guide
-          </a>
-          <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
-            Public schema
-          </a>
-        </span>
       </div>
+      <IconButton
+        className="theme-manager__close"
+        label="Close Theme Manager"
+        onClick={close}
+        size="compact"
+      >
+        <X aria-hidden="true" weight="bold" />
+      </IconButton>
+      <input
+        accept=".json,application/json"
+        className="sr-only"
+        onChange={(event) => void readChosenFile(event, controller.importFile)}
+        ref={importInputRef}
+        tabIndex={-1}
+        type="file"
+      />
 
       {controller.error ? (
         <p className="theme-manager__status" data-tone="error" role="alert">

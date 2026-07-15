@@ -1116,11 +1116,16 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .library-view-toggle.segmented-control {
+  box-sizing: border-box;
   min-width: 82px;
+  height: var(--control-height-standard);
+  padding: 2px;
 }
 
 .library-view-toggle .segmented-control__option {
+  height: 100%;
   min-width: 34px;
+  min-height: 0;
   padding: 0 8px;
 }
 

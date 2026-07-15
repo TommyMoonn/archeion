@@ -130,15 +130,36 @@ describe("ThemeManagerDialog", () => {
     await act(async () => root.render(<Owner services={services} />));
     await settle();
 
-    expect(container.textContent).toContain("Import Themes");
+    expect(container.textContent).toContain("Import");
+    expect(container.textContent).not.toContain("Import Themes");
     expect(container.querySelector('button[aria-label="Reload themes"]')).not.toBeNull();
     expect(container.querySelector('button[aria-label="Open themes folder"]')).not.toBeNull();
     expect(container.textContent).toContain("Theme guide");
     expect(container.textContent).toContain("Public schema");
+    expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");
+    expect(container.querySelector('button[aria-label="Close Theme Manager"]')).not.toBeNull();
+
+    const toolbar = container.querySelector(".theme-manager__toolbar")!;
+    const links = toolbar.querySelector(".theme-manager__toolbar-links")!;
+    const actions = toolbar.querySelector(".theme-manager__toolbar-actions")!;
+    expect(toolbar.firstElementChild).toBe(links);
+    expect(toolbar.lastElementChild).toBe(actions);
+    expect(actions.lastElementChild?.textContent).toContain("Import");
     expect(container.textContent).toContain("Archeion Dark");
     expect(container.textContent).toContain("Archeion Light");
     expect(container.textContent).toContain("Moon Ink");
     expect(container.textContent).toContain("Selected");
+
+    act(() => button(container, "Archeion Dark").click());
+    expect(container.textContent).toContain(
+      "A minimal, intuitive dark theme designed for focused reading.",
+    );
+    act(() => button(container, "Archeion Light").click());
+    expect(container.textContent).toContain(
+      "A minimal, intuitive light theme designed for clear daytime reading.",
+    );
+    expect(button(container, "Use theme").classList).toContain("button--compact");
+
     expect(container.textContent).not.toMatch(
       /Built in|This archive|Sepia|Create starter|Reader colors|capabilit/i,
     );
@@ -190,7 +211,11 @@ describe("ThemeManagerDialog", () => {
     expect(dialog?.contains(controls ?? null)).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
 
-    act(() => button(container, "Close").click());
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Close Theme Manager"]')!
+        .click(),
+    );
     expect(container.querySelector("dialog")).toBeNull();
     expect(services.clearPreview).toHaveBeenCalledOnce();
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
@@ -202,12 +227,12 @@ describe("ThemeManagerDialog", () => {
     await settle();
 
     act(() => button(container, "Moon Ink").click());
-    act(() => button(container, "Delete").click());
+    act(() => button(container, "Remove").click());
 
     const dialogs = container.querySelectorAll("dialog");
     expect(dialogs).toHaveLength(2);
     expect(dialogs[0]?.contains(dialogs[1] ?? null)).toBe(true);
-    expect(dialogs[1]?.textContent).toContain("Delete theme?");
+    expect(dialogs[1]?.textContent).toContain("Remove theme?");
     expect(dialogs[1]?.textContent).toContain("active archive");
   });
 });

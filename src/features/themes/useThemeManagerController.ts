@@ -245,7 +245,7 @@ export function useThemeManagerController({
       await reloadAfterMutation();
       finishOperation(revision, () => {
         setPendingDeleteKey(null);
-        setMessage(`Deleted ${entry.name ?? entry.packageId}.`);
+        setMessage(`Removed ${entry.name ?? entry.packageId}.`);
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {

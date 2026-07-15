@@ -77,8 +77,10 @@ export const appearanceSettingsItems = [
             <span className="settings-row__unavailable">Unavailable</span>
           )}
           <Button
+            className="settings-theme-control__manage"
             disabled={!context.selectedArchivePath || context.themeCatalogLoading}
             onClick={context.openThemeManager}
+            size="standard"
             variant="secondary"
           >
             Manage
