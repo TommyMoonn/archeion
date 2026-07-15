@@ -33,8 +33,8 @@ service.
 
 ## Download Archeion
 
-- **[Windows EXE installer](https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion_0.3.0_x64-setup.exe)** — recommended
-- **[Windows MSI installer](https://github.com/TommyMoonn/archeion/releases/download/v0.3.0/Archeion_0.3.0_x64_en-US.msi)**
+- **[Windows EXE installer](https://github.com/TommyMoonn/archeion/releases/latest/download/Archeion-Setup-x64.exe)** (recommended)
+- **[Windows MSI installer](https://github.com/TommyMoonn/archeion/releases/latest/download/Archeion-x64.msi)**
 
 ### Releases
 
