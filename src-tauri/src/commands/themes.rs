@@ -308,22 +308,7 @@ fn read_theme_manifest_at(root: &Path, id: &str) -> Result<String, String> {
     if bytes.len() > MAX_THEME_MANIFEST_BYTES {
         return Err("The theme manifest grew beyond the safe read limit.".to_string());
     }
-    let source =
-        String::from_utf8(bytes).map_err(|_| "The theme manifest must use UTF-8.".to_string())?;
-    if let Ok(value) = serde_json::from_str::<Value>(&source) {
-        if let Some(manifest_id) = value
-            .as_object()
-            .and_then(|object| object.get("id"))
-            .and_then(Value::as_str)
-        {
-            if manifest_id != id {
-                return Err(format!(
-                    "Theme id \"{manifest_id}\" must match package directory \"{id}\"."
-                ));
-            }
-        }
-    }
-    Ok(source)
+    String::from_utf8(bytes).map_err(|_| "The theme manifest must use UTF-8.".to_string())
 }
 
 fn delete_theme_package_at(root: &Path, id: &str) -> Result<(), String> {
@@ -580,7 +565,7 @@ mod tests {
     }
 
     #[test]
-    fn read_rejects_a_manifest_id_that_differs_from_its_package() {
+    fn read_returns_mismatched_json_for_catalog_validation() {
         let root = test_root("read-mismatch");
         let themes = themes_root_at(&root, true).unwrap().unwrap();
         let package = themes.join("moon-ink");
@@ -591,10 +576,10 @@ mod tests {
         )
         .unwrap();
 
-        let error = read_theme_manifest_at(&root, "moon-ink").unwrap_err();
+        let source = read_theme_manifest_at(&root, "moon-ink").unwrap();
+        let value: serde_json::Value = serde_json::from_str(&source).unwrap();
 
-        assert!(error.contains("paper-light"));
-        assert!(error.contains("moon-ink"));
+        assert_eq!(value["id"], "paper-light");
         fs::remove_dir_all(root).unwrap();
     }
 
