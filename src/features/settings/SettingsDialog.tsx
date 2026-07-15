@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { getProgrammaticScrollBehavior } from "../../utils/motion";
+import { ThemeManagerDialog } from "../themes/ThemeManagerDialog";
 import { SettingsConfirmations } from "./SettingsConfirmations";
 import { SettingsSearchResults } from "./SettingsSearchResults";
 import { SettingsSidebar } from "./SettingsSidebar";
@@ -17,6 +18,8 @@ import { StorageSettingsSection } from "./sections/StorageSettingsSection";
 import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
+import { useArchiveThemeCatalogEntries } from "./useArchiveThemeCatalogEntries";
+import { useCommittedArchiveAppearance } from "./useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 
 type SettingsDialogProps = {
@@ -61,6 +64,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const trimmedQuery = query.trim();
   const searchActive = trimmedQuery.length > 0;
@@ -80,11 +84,21 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     () => getSettingsItemsDataRequirements(visibleSettingsItems),
     [visibleSettingsItems],
   );
+  const themeCatalog = useArchiveThemeCatalogEntries(
+    dataRequirements.has("archiveAppearanceSettings"),
+  );
+  const committedArchiveAppearance = useCommittedArchiveAppearance();
   const controller = useSettingsDialogController({
+    committedArchiveAppearance,
+    loadArchiveAppearanceSettings: dataRequirements.has("archiveAppearanceSettings"),
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
     loadFolders: dataRequirements.has("folders"),
+    onOpenThemeManager: () => setThemeManagerOpen(true),
+    themeCatalogEntries: themeCatalog.entries,
+    themeCatalogError: themeCatalog.error,
+    themeCatalogLoading: themeCatalog.loading,
   });
 
   function showSection(section: SettingsSection) {
@@ -171,6 +185,16 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           onRepairMetadata={controller.confirmRepairMetadata}
           onRescanArchive={controller.confirmRescanArchive}
         />
+
+        {themeManagerOpen && controller.selectedArchivePath ? (
+          <ThemeManagerDialog
+            archiveRootPath={controller.selectedArchivePath}
+            onClose={() => {
+              setThemeManagerOpen(false);
+              themeCatalog.refresh();
+            }}
+          />
+        ) : null}
       </div>
     </dialog>
   );

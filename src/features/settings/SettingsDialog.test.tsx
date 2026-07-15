@@ -27,6 +27,10 @@ function createStorage() {
     clearCoverCache: vi.fn(),
     clearEpubWritebackBackups: vi.fn(),
     clearScannerCache: vi.fn(),
+    getArchiveAppearanceSettings: vi.fn(async () => ({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    })),
     getArchiveImportSettings: vi.fn(async () => ({})),
     getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
     getEpubWritebackBackupStatus: vi.fn(async () => ({
@@ -163,6 +167,20 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getEpubWritebackBackupStatus).not.toHaveBeenCalled();
     expect(storage.listFolders).not.toHaveBeenCalled();
     expect(storage.getArchiveImportSettings).not.toHaveBeenCalled();
+    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
+  });
+
+  it("loads archive appearance only when Reader or Appearance controls require it", async () => {
+    const { container, storage } = track(renderDialog());
+
+    clickButton(container, "Appearance");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(storage.getArchiveAppearanceSettings).toHaveBeenCalledTimes(1);
+    expect(container.textContent).toContain("Application theme for this archive");
+    expect(container.textContent).toContain("Manage archive themes");
   });
 
   it("loads cover cache status when the Storage section becomes visible", async () => {

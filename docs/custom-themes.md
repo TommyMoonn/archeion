@@ -126,6 +126,20 @@ Archeion derives subtle lines, tinted backgrounds and borders, selected and disa
 
 Archeion derives quotation and visited-link treatments. Reader typography remains controlled by Reader settings and cannot be changed by a theme.
 
+## Managing themes in Archeion
+
+Open **Settings → Appearance → Manage archive themes** to inspect both built-in themes and packages stored with the active archive. Theme Manager can import a JSON manifest, create a minimal starter, preview a valid custom package, apply it to the application or reader, replace its manifest, delete it, or reveal its folder.
+
+Import and starter creation are create-only. If a package with the same ID already exists, Archeion asks before replacing that package's `theme.json`; it does not silently overwrite it. Replacement preserves other files in the package. A starter asks for the package ID, display name, application base, and optional reader base, then writes an immediately valid manifest with the canonical `$schema` URL.
+
+Theme Manager shows invalid packages and their diagnostics so they can be repaired. After editing `theme.json` in an external editor, choose **Reload** to reread package directories and manifests. Archeion does not watch theme files continuously.
+
+Preview is temporary. **Revert** restores the stored appearance, while **Keep theme** saves the previewed application and/or reader selection for the active archive. Closing Theme Manager while a preview is active reverts it. Contrast findings are warnings rather than schema failures and must be acknowledged before keeping a preview with warnings.
+
+Archive theme selections retain their custom IDs even if a selected package is deleted or becomes invalid. Archeion safely falls back until that package is restored, reloaded, and valid again, or a different selection is saved.
+
+To move or back up archive-local themes, copy the archive's complete `.archeion/` directory together with its theme packages and settings. Copying only `theme.json` files preserves the packages but not the archive's selected application and reader references.
+
 ## Fixed colors
 
 Some colors communicate identities that must remain recognizable across themes:

@@ -64,8 +64,15 @@ export type AppearanceRuntimeOptions = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
+type AppearancePersistenceCoordinator = {
+  lastPersistedSettings: Readonly<ArchiveAppearanceSettings> | null;
+  latestOperation: number;
+  tail: Promise<void>;
+};
+
 type ActiveArchiveContext = ActiveAppearanceArchive &
   Readonly<{
+    persistence: AppearancePersistenceCoordinator;
     settingsSource: ArchiveAppearanceSettingsSource;
   }>;
 
@@ -90,6 +97,7 @@ export class AppearanceRuntime {
   private appearanceSettings: Readonly<ArchiveAppearanceSettings> | null = null;
   private appliedAppTheme: ResolvedAppTheme | null = null;
   private appliedDocumentRoot: HTMLElement | null = null;
+  private committedContext: AppearancePreviewContext | null = null;
   private generation = 0;
   private mediaQuery: MediaQueryList | null = null;
   private preferences: GlobalAppearancePreferences;
@@ -119,13 +127,7 @@ export class AppearanceRuntime {
 
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
 
-  getPreviewContext(): AppearancePreviewContext | null {
-    if (!this.activeArchive || !this.appearanceSettings || !this.resolution) return null;
-    return Object.freeze({
-      archive: publicArchive(this.activeArchive),
-      settings: this.appearanceSettings,
-    });
-  }
+  getPreviewContext = (): AppearancePreviewContext | null => this.committedContext;
 
   applyPreview(archive: ActiveAppearanceArchive, palette: AppearancePreviewPalette): boolean {
     if (!palette.app && !palette.reader) return false;
@@ -169,15 +171,58 @@ export class AppearanceRuntime {
       throw new Error("Archive appearance settings cannot be saved.");
     }
 
-    const saved = await context.settingsSource.saveArchiveAppearanceSettings(settings);
-    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
-    const resolution = await this.catalog.loadSelected(saved);
-    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+    await this.persistAppearance(context, settings, true);
+  }
 
-    this.appearanceSettings = appearanceSettingsFromResolution(resolution);
-    this.resolution = resolution;
-    this.preview = null;
-    this.commitCurrentAppearance();
+  async saveArchiveAppearanceSettings(
+    archive: ActiveAppearanceArchive,
+    settings: ArchiveAppearanceSettings,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    const context = this.activeArchive;
+    if (!context || !this.isArchiveCurrent(archive)) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+    if (this.preview) {
+      throw new Error("End the active theme preview before changing archive appearance.");
+    }
+    if (!context.settingsSource.saveArchiveAppearanceSettings) {
+      throw new Error("Archive appearance settings cannot be saved.");
+    }
+
+    return this.persistAppearance(context, settings, false);
+  }
+
+  async refreshArchiveAppearance(
+    archive: ActiveAppearanceArchive,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    const context = this.activeArchive;
+    if (!context || !this.appearanceSettings || !this.isArchiveCurrent(archive)) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+    if (this.preview) {
+      throw new Error("End the active theme preview before reloading archive appearance.");
+    }
+
+    const operation = this.nextPersistenceOperation(context);
+    return this.enqueuePersistence(context, async () => {
+      this.assertPersistenceOperationCurrent(context, operation);
+      let settings: Readonly<ArchiveAppearanceSettings>;
+      try {
+        settings = freezeAppearanceSettings(
+          await context.settingsSource.getArchiveAppearanceSettings(),
+        );
+      } catch (error) {
+        this.assertPersistenceOperationCurrent(context, operation);
+        const knownPersisted = context.persistence.lastPersistedSettings;
+        if (knownPersisted) {
+          await this.resolveAndPublishAppearance(context, knownPersisted, operation, false);
+        }
+        throw error;
+      }
+      context.persistence.lastPersistedSettings = settings;
+      this.assertPersistenceOperationCurrent(context, operation);
+      return this.resolveAndPublishAppearance(context, settings, operation, false);
+    });
   }
 
   subscribe = (listener: Listener): (() => void) => {
@@ -211,12 +256,18 @@ export class AppearanceRuntime {
     const context: ActiveArchiveContext = Object.freeze({
       generation: this.generation + 1,
       id: archive.id,
+      persistence: {
+        lastPersistedSettings: null,
+        latestOperation: 0,
+        tail: Promise.resolve(),
+      },
       rootPath: archive.rootPath,
       settingsSource,
     });
     this.generation = context.generation;
     this.activeArchive = context;
     this.appearanceSettings = null;
+    this.committedContext = null;
     this.preview = null;
     this.resolution = null;
     this.commitCurrentAppearance();
@@ -225,11 +276,10 @@ export class AppearanceRuntime {
       this.catalog.activateArchive({ generation: context.generation, rootPath: context.rootPath });
       const settings = await settingsSource.getArchiveAppearanceSettings();
       if (!this.isCurrent(context)) return;
+      context.persistence.lastPersistedSettings = freezeAppearanceSettings(settings);
       const resolution = await this.catalog.loadSelected(settings);
       if (!this.isCurrent(context)) return;
-      this.appearanceSettings = appearanceSettingsFromResolution(resolution);
-      this.resolution = resolution;
-      this.commitCurrentAppearance();
+      this.publishResolvedAppearance(context, resolution, false);
     } catch (error) {
       if (!this.isCurrent(context) || error instanceof ArchiveThemeCatalogChangedError) return;
       this.appearanceSettings = null;
@@ -252,6 +302,7 @@ export class AppearanceRuntime {
     this.generation += 1;
     this.activeArchive = null;
     this.appearanceSettings = null;
+    this.committedContext = null;
     this.preview = null;
     this.resolution = null;
     this.catalog.deactivateArchive();
@@ -395,6 +446,150 @@ export class AppearanceRuntime {
     return this.activeArchive === context;
   }
 
+  private async persistAppearance(
+    context: ActiveArchiveContext,
+    settings: ArchiveAppearanceSettings,
+    clearPreview: boolean,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    const save = context.settingsSource.saveArchiveAppearanceSettings;
+    if (!save) throw new Error("Archive appearance settings cannot be saved.");
+    const operation = this.nextPersistenceOperation(context);
+    const requested = freezeAppearanceSettings(settings);
+    return this.enqueuePersistence(context, async () => {
+      this.assertPersistenceOperationCurrent(context, operation);
+      let saved: Readonly<ArchiveAppearanceSettings>;
+      try {
+        saved = freezeAppearanceSettings(await save(requested));
+        context.persistence.lastPersistedSettings = saved;
+      } catch (error) {
+        if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+        if (context.persistence.latestOperation !== operation) {
+          throw new AppearanceRuntimeSettingsChangedError();
+        }
+        await this.reconcilePersistedAppearance(context, operation);
+        throw error;
+      }
+
+      this.assertPersistenceOperationCurrent(context, operation);
+      return this.resolveAndPublishAppearance(context, saved, operation, clearPreview);
+    });
+  }
+
+  private nextPersistenceOperation(context: ActiveArchiveContext): number {
+    context.persistence.latestOperation += 1;
+    return context.persistence.latestOperation;
+  }
+
+  private enqueuePersistence<Result>(
+    context: ActiveArchiveContext,
+    task: () => Promise<Result>,
+  ): Promise<Result> {
+    const operation = context.persistence.tail.catch(() => undefined).then(task);
+    context.persistence.tail = operation.then(
+      () => undefined,
+      () => undefined,
+    );
+    return operation;
+  }
+
+  private async reconcilePersistedAppearance(
+    context: ActiveArchiveContext,
+    operation: number,
+  ): Promise<void> {
+    this.assertPersistenceOperationCurrent(context, operation);
+    let authoritative: Readonly<ArchiveAppearanceSettings>;
+    try {
+      authoritative = freezeAppearanceSettings(
+        await context.settingsSource.getArchiveAppearanceSettings(),
+      );
+      context.persistence.lastPersistedSettings = authoritative;
+    } catch (error) {
+      const knownPersisted = context.persistence.lastPersistedSettings;
+      if (!knownPersisted) throw error;
+      authoritative = knownPersisted;
+      this.onError(error);
+    }
+    this.assertPersistenceOperationCurrent(context, operation);
+    await this.resolveAndPublishAppearance(context, authoritative, operation, false);
+  }
+
+  private async resolveAndPublishAppearance(
+    context: ActiveArchiveContext,
+    settings: Readonly<ArchiveAppearanceSettings>,
+    operation: number,
+    clearPreview: boolean,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    let retriedCurrentCatalog = false;
+    while (true) {
+      this.assertPersistenceOperationCurrent(context, operation);
+      this.assertCatalogScopeCurrent(context);
+      try {
+        const resolution = await this.catalog.loadSelected(settings);
+        this.assertPersistenceOperationCurrent(context, operation);
+        this.assertCatalogScopeCurrent(context);
+        return this.publishResolvedAppearance(context, resolution, clearPreview);
+      } catch (error) {
+        if (!(error instanceof ArchiveThemeCatalogChangedError)) throw error;
+        this.assertPersistenceOperationCurrent(context, operation);
+        this.assertCatalogScopeCurrent(context);
+        if (retriedCurrentCatalog) throw error;
+        retriedCurrentCatalog = true;
+      }
+    }
+  }
+
+  private publishResolvedAppearance(
+    context: ActiveArchiveContext,
+    resolution: ArchiveThemeSelectionResolution,
+    clearPreview: boolean,
+  ): Readonly<ArchiveAppearanceSettings> {
+    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+    const settings = appearanceSettingsFromResolution(resolution);
+    this.appearanceSettings = settings;
+    this.resolution = resolution;
+    if (clearPreview) this.preview = null;
+    this.updateCommittedContext(context, settings);
+    this.commitCurrentAppearance();
+    return settings;
+  }
+
+  private updateCommittedContext(
+    context: ActiveArchiveContext,
+    settings: Readonly<ArchiveAppearanceSettings>,
+  ): void {
+    const current = this.committedContext;
+    if (
+      current &&
+      current.archive.generation === context.generation &&
+      current.archive.id === context.id &&
+      current.archive.rootPath === context.rootPath &&
+      sameAppearanceSettings(current.settings, settings)
+    ) {
+      return;
+    }
+    this.committedContext = Object.freeze({
+      archive: publicArchive(context),
+      settings,
+    });
+  }
+
+  private assertPersistenceOperationCurrent(
+    context: ActiveArchiveContext,
+    operation: number,
+  ): void {
+    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
+    if (context.persistence.latestOperation !== operation) {
+      throw new AppearanceRuntimeSettingsChangedError();
+    }
+  }
+
+  private assertCatalogScopeCurrent(context: ActiveArchiveContext): void {
+    const scope = this.catalog.getSnapshot().archive;
+    if (!scope || scope.generation !== context.generation || scope.rootPath !== context.rootPath) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+  }
+
   private isArchiveCurrent(archive: ActiveAppearanceArchive): boolean {
     return (
       this.activeArchive?.generation === archive.generation &&
@@ -445,9 +640,18 @@ function publicArchive(archive: ActiveArchiveContext): ActiveAppearanceArchive {
 function appearanceSettingsFromResolution(
   resolution: ArchiveThemeSelectionResolution,
 ): Readonly<ArchiveAppearanceSettings> {
+  return freezeAppearanceSettings({
+    appTheme: resolution.app.requested,
+    readerTheme: resolution.reader.requested,
+  });
+}
+
+function freezeAppearanceSettings(
+  settings: Readonly<ArchiveAppearanceSettings>,
+): Readonly<ArchiveAppearanceSettings> {
   return Object.freeze({
-    appTheme: Object.freeze({ ...resolution.app.requested }),
-    readerTheme: Object.freeze({ ...resolution.reader.requested }),
+    appTheme: Object.freeze({ ...settings.appTheme }),
+    readerTheme: Object.freeze({ ...settings.readerTheme }),
   });
 }
 

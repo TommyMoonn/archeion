@@ -48,6 +48,7 @@ type ThemePackageReaderFactory = (archiveRootPath: string) => ThemePackageReader
 type CatalogContext = {
   cache: Map<string, CustomThemeCatalogEntry>;
   catalogDiagnostics: Map<string, readonly ThemeCatalogDiagnostic[]>;
+  enumeration: Promise<ArchiveThemeCatalogSnapshot> | null;
   fullyEnumerated: boolean;
   pending: Map<string, Promise<CustomThemeCatalogEntry>>;
   reader: ThemePackageReader;
@@ -63,11 +64,18 @@ export class ArchiveThemeCatalogChangedError extends Error {
 
 export class ArchiveThemeCatalog {
   private context: CatalogContext | null = null;
+  private readonly listeners = new Set<() => void>();
+  private snapshot: ArchiveThemeCatalogSnapshot = inactiveSnapshot();
 
   constructor(
     private readonly createReader: ThemePackageReaderFactory = (rootPath) =>
       new ArchiveThemeRepository(rootPath),
   ) {}
+
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
 
   activateArchive(scope: ArchiveThemeCatalogScope): void {
     const normalizedScope = normalizeScope(scope);
@@ -78,17 +86,18 @@ export class ArchiveThemeCatalog {
       return;
     }
     this.context = null;
+    this.publish();
     const reader = this.createReader(normalizedScope.rootPath);
     this.context = createContext(normalizedScope, reader);
+    this.publish();
   }
 
   deactivateArchive(): void {
     this.context = null;
+    this.publish();
   }
 
-  getSnapshot(): ArchiveThemeCatalogSnapshot {
-    return this.context ? snapshotFor(this.context) : inactiveSnapshot();
-  }
+  getSnapshot = (): ArchiveThemeCatalogSnapshot => this.snapshot;
 
   async loadSelected(
     settings: Readonly<ArchiveAppearanceSettings>,
@@ -102,16 +111,29 @@ export class ArchiveThemeCatalog {
     const entries = await Promise.all([...customIds].map((id) => this.loadPackage(context, id)));
     this.assertCurrent(context);
     for (const entry of entries) context.cache.set(entry.packageId, entry);
+    this.publish();
 
     return Object.freeze({
       app: resolveAppSelection(context, appSelection),
       reader: resolveReaderSelection(context, readerSelection),
-      snapshot: snapshotFor(context),
+      snapshot: this.snapshot,
     });
   }
 
-  async enumeratePackages(): Promise<ArchiveThemeCatalogSnapshot> {
+  enumeratePackages(): Promise<ArchiveThemeCatalogSnapshot> {
     const context = this.requireContext();
+    if (context.fullyEnumerated) return Promise.resolve(this.snapshot);
+    if (context.enumeration) return context.enumeration;
+    const operation = this.enumerateContext(context);
+    context.enumeration = operation;
+    const clearEnumeration = () => {
+      if (context.enumeration === operation) context.enumeration = null;
+    };
+    void operation.then(clearEnumeration, clearEnumeration);
+    return operation;
+  }
+
+  private async enumerateContext(context: CatalogContext): Promise<ArchiveThemeCatalogSnapshot> {
     let packageIds: readonly string[];
     try {
       packageIds = await context.reader.listPackageDirectories();
@@ -134,12 +156,14 @@ export class ArchiveThemeCatalog {
     context.cache = new Map(entries.map((entry) => [entry.packageId, entry]));
     context.catalogDiagnostics = catalogDiagnostics;
     context.fullyEnumerated = true;
-    return snapshotFor(context);
+    this.publish();
+    return this.snapshot;
   }
 
   async reload(): Promise<ArchiveThemeCatalogSnapshot> {
     const context = this.requireContext();
     this.context = createContext(context.scope, context.reader);
+    this.publish();
     return this.enumeratePackages();
   }
 
@@ -151,6 +175,7 @@ export class ArchiveThemeCatalog {
     const next = createContext(context.scope, context.reader);
     next.cache = cache;
     this.context = next;
+    this.publish();
   }
 
   private requireContext(): CatalogContext {
@@ -160,6 +185,11 @@ export class ArchiveThemeCatalog {
 
   private assertCurrent(context: CatalogContext): void {
     if (this.context !== context) throw new ArchiveThemeCatalogChangedError();
+  }
+
+  private publish(): void {
+    this.snapshot = this.context ? snapshotFor(this.context) : inactiveSnapshot();
+    this.listeners.forEach((listener) => listener());
   }
 
   private loadPackage(
@@ -244,6 +274,7 @@ function createContext(
   return {
     cache: new Map(),
     catalogDiagnostics: new Map(),
+    enumeration: null,
     fullyEnumerated: false,
     pending: new Map(),
     reader,

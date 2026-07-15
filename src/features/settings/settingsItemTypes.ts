@@ -6,7 +6,11 @@ import type { SettingsDialogController } from "./useSettingsDialogController";
 export type SettingsItemGroupStyle = "standard" | "actions";
 
 export type SettingsDeferredDataRequirement =
-  "archiveImportSettings" | "coverCacheStatus" | "epubWritebackBackupStatus" | "folders";
+  | "archiveAppearanceSettings"
+  | "archiveImportSettings"
+  | "coverCacheStatus"
+  | "epubWritebackBackupStatus"
+  | "folders";
 
 export type SettingsItem = {
   deferredData?: readonly SettingsDeferredDataRequirement[];

@@ -118,6 +118,41 @@ describe("ArchiveThemeCatalog", () => {
     expect(result.snapshot.fullyEnumerated).toBe(false);
   });
 
+  it("shares an in-flight full enumeration between settings and manager consumers", async () => {
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink") });
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const listener = vi.fn();
+    const unsubscribe = catalog.subscribe(listener);
+
+    const [settingsSnapshot, managerSnapshot] = await Promise.all([
+      catalog.enumeratePackages(),
+      catalog.enumeratePackages(),
+    ]);
+
+    expect(archiveReader.listPackageDirectories).toHaveBeenCalledOnce();
+    expect(archiveReader.readManifest).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledOnce();
+    expect(settingsSnapshot.entries).toEqual(managerSnapshot.entries);
+    await catalog.enumeratePackages();
+    expect(archiveReader.listPackageDirectories).toHaveBeenCalledOnce();
+    unsubscribe();
+  });
+
+  it("publishes one stable snapshot identity until catalog-owned data changes", async () => {
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink") });
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const before = catalog.getSnapshot();
+
+    expect(catalog.getSnapshot()).toBe(before);
+    const enumerated = await catalog.enumeratePackages();
+
+    expect(enumerated).toBe(catalog.getSnapshot());
+    expect(enumerated).not.toBe(before);
+    expect(catalog.getSnapshot()).toBe(enumerated);
+  });
+
   it.each(["dark", "light"] as const)(
     "rejects a selected application custom package using built-in id %s without enumerating",
     async (id) => {

@@ -4,12 +4,7 @@ import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
-import type {
-  AppThemePreset,
-  BookCardSize,
-  InterfaceDensity,
-  WindowFrameStyle,
-} from "../../types/appSettings";
+import type { BookCardSize } from "../../types/appSettings";
 import type { LibrarySort } from "../../types/library";
 import { LIBRARY_SMART_VIEW_DEFINITIONS, LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
 import type { ReaderSettings } from "../../types/reader";
@@ -20,14 +15,11 @@ import {
 import { SettingsRow, SliderRow } from "./SettingsRow";
 import type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 import { storageSettingsItems } from "./settingsItems/storageSettingsItems";
+import { appearanceSettingsItems } from "./settingsItems/appearanceSettingsItems";
 import {
-  appThemeOptions,
   cardSizeOptions,
   defaultLibrarySortOptions,
-  densityOptions,
-  frameOptions,
   progressPlacementOptions,
-  readerThemeOptions,
   startupOptions,
   typefaceOptions,
   viewOptions,
@@ -348,23 +340,7 @@ export const settingsItems: readonly SettingsItem[] = [
     searchTerms: ["margin", "padding"],
     sectionId: "reader",
   },
-  {
-    description: "Applies inside the EPUB reader.",
-    id: "reader.theme",
-    label: "Reader theme",
-    render: (context) => (
-      <SettingsRow description="Applies inside the EPUB reader." label="Reader theme">
-        <SegmentedControl
-          label="Reader theme"
-          onChange={(theme) => updateReader(context, { theme })}
-          options={readerThemeOptions}
-          value={context.reader.theme}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["theme", "light", "sepia", "dark", "epub reader"],
-    sectionId: "reader",
-  },
+  ...appearanceSettingsItems,
   {
     description: "Chooses where reading progress appears.",
     id: "reader.progress-placement",
@@ -394,133 +370,6 @@ export const settingsItems: readonly SettingsItem[] = [
     ),
     searchTerms: ["reset"],
     sectionId: "reader",
-  },
-  {
-    description: "Sets the app theme.",
-    groupLabel: "App appearance",
-    id: "appearance.app-theme-preset",
-    label: "App theme preset",
-    render: (context) => (
-      <SettingsRow description="Sets the app theme." label="App theme preset">
-        <AppSelect<AppThemePreset>
-          ariaLabel="App theme preset"
-          onChange={(appThemePreset) => void context.updateAppPreferences({ appThemePreset })}
-          options={appThemeOptions}
-          value={context.preferences.appThemePreset}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["theme", "system", "dark", "light"],
-    sectionId: "appearance",
-  },
-  {
-    description: "Enable subtle app transitions.",
-    groupLabel: "App appearance",
-    id: "appearance.animations",
-    label: "Animations",
-    render: (context) => (
-      <SettingsRow description="Enable subtle app transitions." label="Animations">
-        <Toggle
-          checked={context.preferences.appearance.animationsEnabled}
-          label="Animations"
-          onChange={(animationsEnabled) =>
-            void context.updateAppPreferences({
-              appearance: { animationsEnabled },
-            })
-          }
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["animations", "motion", "transitions", "app appearance"],
-    sectionId: "appearance",
-  },
-  {
-    description: "Adjusts spacing across the app.",
-    groupLabel: "App appearance",
-    id: "appearance.display-density",
-    label: "Display density",
-    render: (context) => (
-      <SettingsRow description="Adjusts spacing across the app." label="Display density">
-        <SegmentedControl<InterfaceDensity>
-          label="Display density"
-          onChange={(density) => void context.updateAppPreferences({ density })}
-          options={densityOptions}
-          value={context.preferences.density}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["density", "comfortable", "compact", "app appearance"],
-    sectionId: "appearance",
-  },
-  {
-    description: "Controls the desktop window chrome.",
-    groupLabel: "Window behavior",
-    id: "appearance.window-frame-style",
-    label: "Window frame style",
-    render: (context) => (
-      <SettingsRow description="Controls the desktop window chrome." label="Window frame style">
-        <AppSelect<WindowFrameStyle>
-          ariaLabel="Window frame style"
-          onChange={(windowFrameStyle) => void context.updateAppPreferences({ windowFrameStyle })}
-          options={frameOptions}
-          value={context.preferences.windowFrameStyle}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["window", "frame", "chrome", "hidden", "archeion", "native"],
-    sectionId: "appearance",
-  },
-  {
-    description: "Restores the previous window layout when supported.",
-    groupLabel: "Window behavior",
-    id: "appearance.remember-window-state",
-    label: "Remember window size and position",
-    render: (context) => (
-      <SettingsRow
-        description="Restores the previous window layout when supported."
-        label="Remember window size and position"
-      >
-        <Toggle
-          checked={context.preferences.rememberWindowState}
-          label="Remember window size and position"
-          onChange={(rememberWindowState) =>
-            void context.updateAppPreferences({ rememberWindowState })
-          }
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["window", "size", "position", "window behavior"],
-    sectionId: "appearance",
-  },
-  {
-    groupLabel: "Reset",
-    groupStyle: "actions",
-    id: "appearance.reset-appearance",
-    label: "Reset appearance settings",
-    render: (context) => (
-      <SettingsRow label="Reset appearance settings">
-        <Button onClick={() => void context.resetAppearance()} variant="secondary">
-          Reset
-        </Button>
-      </SettingsRow>
-    ),
-    searchTerms: ["reset", "app appearance"],
-    sectionId: "appearance",
-  },
-  {
-    groupLabel: "Reset",
-    groupStyle: "actions",
-    id: "appearance.reset-window",
-    label: "Reset window settings",
-    render: (context) => (
-      <SettingsRow label="Reset window settings">
-        <Button onClick={() => void context.resetWindow()} variant="secondary">
-          Reset
-        </Button>
-      </SettingsRow>
-    ),
-    searchTerms: ["reset", "window behavior"],
-    sectionId: "appearance",
   },
   {
     description: "The active archive root on disk.",
