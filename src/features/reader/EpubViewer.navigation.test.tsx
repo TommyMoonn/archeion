@@ -9,14 +9,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
+import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 
 const epubModuleMock = vi.hoisted(() => ({
   openBook: vi.fn(),
 }));
+const resolveEpubIllustration = vi.hoisted(() => vi.fn());
 
 vi.mock("epubjs", () => ({
   default: epubModuleMock.openBook,
+}));
+vi.mock("./epubIllustrationResolver", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./epubIllustrationResolver")>()),
+  resolveEpubIllustration,
 }));
 
 type Deferred<T> = {
@@ -345,6 +351,7 @@ async function flushAsyncWork(): Promise<void> {
 describe("EpubViewer navigation lifecycle", () => {
   beforeEach(() => {
     epubModuleMock.openBook.mockReset();
+    resolveEpubIllustration.mockReset();
     document.getSelection()?.removeAllRanges();
   });
 
@@ -384,6 +391,66 @@ describe("EpubViewer navigation lifecycle", () => {
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       status: "ready",
     });
+  });
+
+  it("opens and closes a content illustration without recreating or navigating the rendition", async () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const release = vi.fn();
+    resolveEpubIllustration.mockResolvedValue({
+      kind: "resolved",
+      value: {
+        byteLength: 1024,
+        height: 900,
+        href: "Images/plate.jpg",
+        mediaType: "image/jpeg",
+        release,
+        url: "blob:plate",
+        width: 1200,
+      },
+    } satisfies EpubIllustrationResolution);
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const { container } = await renderViewer(props);
+    await waitForActiveRendition(session);
+    const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+    const frame = document.createElement("iframe");
+    stage.append(frame);
+    Object.defineProperty(frame.contentWindow, "frameElement", {
+      configurable: true,
+      value: frame,
+    });
+    const image = frame.contentDocument!.createElement("img");
+    image.setAttribute("src", "../Images/plate.jpg");
+    frame.contentDocument!.body.append(image);
+
+    await act(async () =>
+      session.rendition.emitMock(
+        "rendered",
+        { href: "Text/chapter-1.xhtml" },
+        { document: frame.contentDocument },
+      ),
+    );
+    expect(image.getAttribute("role")).toBe("button");
+    await act(async () => image.click());
+    await act(async () => Promise.resolve());
+
+    const dialog = container.querySelector<HTMLDialogElement>(".reader-illustration-viewer");
+    expect(dialog?.open).toBe(true);
+    expect(dialog?.querySelector("img")?.getAttribute("src")).toBe("blob:plate");
+    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
+    expect(session.renderTo).toHaveBeenCalledTimes(1);
+    expect(session.rendition.display).toHaveBeenCalledTimes(1);
+    expect(props.onLocationChange).not.toHaveBeenCalled();
+
+    await act(async () => dialog?.dispatchEvent(new Event("cancel", { cancelable: true })));
+    expect(container.querySelector(".reader-illustration-viewer")).toBeNull();
+    expect(release).toHaveBeenCalledOnce();
+    expect(frame.contentDocument?.activeElement).toBe(image);
+    expect(session.destroy).not.toHaveBeenCalled();
   });
 
   it("does not recreate the book or rendition when settings, palette, or callbacks change", async () => {

@@ -24,6 +24,7 @@ export type ReaderContentDocumentContext = Readonly<{
 
 export type ReaderContentDocumentRegistryOptions = {
   onContentClick?: (event: MouseEvent, context: ReaderContentDocumentContext) => boolean;
+  onContentKeyDown?: (event: KeyboardEvent, context: ReaderContentDocumentContext) => boolean;
   onContentPointerDown?: (event: PointerEvent, context: ReaderContentDocumentContext) => boolean;
   onDocumentRemoved?: (document: Document) => void;
   onEscape?: () => boolean;
@@ -79,6 +80,11 @@ export class ReaderContentDocumentRegistry {
 
     const onContentKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && this.options.onEscape?.()) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (this.options.onContentKeyDown?.(event, context())) {
         event.preventDefault();
         event.stopPropagation();
         return;

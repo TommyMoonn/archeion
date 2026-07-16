@@ -164,9 +164,188 @@
   color: var(--reader-muted);
 }
 
+.reader-illustration-viewer {
+  width: min(1120px, calc(100% - 28px));
+  height: min(820px, calc(100dvh - 28px));
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border: 1px solid var(--reader-line);
+  border-radius: var(--radius-card);
+  color: var(--reader-text);
+  background: var(--reader-bg);
+  box-shadow: var(--shadow-dialog);
+  overflow: hidden;
+}
+
+.reader-illustration-viewer::backdrop {
+  background: var(--backdrop);
+}
+
+.reader-illustration-viewer__panel {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.reader-illustration-viewer__header,
+.reader-illustration-viewer__controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 10px 12px 10px 16px;
+  border-color: var(--reader-line);
+  background: var(--reader-surface);
+}
+
+.reader-illustration-viewer__header {
+  border-bottom: 1px solid var(--reader-line);
+}
+
+.reader-illustration-viewer__header h2,
+.reader-illustration-viewer__header p {
+  margin: 0;
+}
+
+.reader-illustration-viewer__header h2 {
+  color: var(--reader-strong);
+  font-family: var(--font-display);
+  font-size: var(--type-section-title);
+  font-weight: var(--font-weight-regular);
+}
+
+.reader-illustration-viewer__header p {
+  margin-top: 2px;
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.reader-illustration-viewer__header .icon-button {
+  flex: none;
+  color: var(--reader-muted);
+}
+
+.reader-illustration-viewer__viewport {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 18px;
+  color: var(--reader-muted);
+  background:
+    linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--reader-line) 18%, transparent) 25%,
+      transparent 25%,
+      transparent 75%,
+      color-mix(in srgb, var(--reader-line) 18%, transparent) 75%
+    ),
+    linear-gradient(
+      45deg,
+      color-mix(in srgb, var(--reader-line) 18%, transparent) 25%,
+      transparent 25%,
+      transparent 75%,
+      color-mix(in srgb, var(--reader-line) 18%, transparent) 75%
+    ),
+    var(--reader-bg);
+  background-position:
+    0 0,
+    10px 10px;
+  background-size: 20px 20px;
+  scrollbar-gutter: stable;
+}
+
+.reader-illustration-viewer__viewport[data-pannable] {
+  cursor: grab;
+  touch-action: none;
+}
+
+.reader-illustration-viewer__viewport[data-pannable]:active {
+  cursor: grabbing;
+}
+
+.reader-illustration-viewer__viewport > p {
+  max-width: 36ch;
+  margin: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--reader-line);
+  border-radius: var(--radius-control);
+  background: var(--reader-surface);
+  text-align: center;
+}
+
+.reader-illustration-viewer__viewport > p[role="alert"] {
+  color: var(--reader-danger);
+}
+
+.reader-illustration-viewer__viewport img {
+  display: block;
+  flex: none;
+  margin: auto;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  user-select: none;
+}
+
+.reader-illustration-viewer__viewport img.is-fit {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.reader-illustration-viewer__controls {
+  border-top: 1px solid var(--reader-line);
+  flex-wrap: wrap;
+}
+
+.reader-illustration-viewer__zoom-controls,
+.reader-illustration-viewer__size-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.reader-illustration-viewer__zoom-controls output {
+  min-width: 52px;
+  color: var(--reader-strong);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.reader-illustration-viewer__controls .button,
+.reader-illustration-viewer__controls .icon-button {
+  border-color: var(--reader-line);
+}
+
 @media (max-width: 520px) {
   .reader-footnote {
     width: calc(100vw - 20px);
     max-height: min(440px, calc(100dvh - 20px));
+  }
+
+  .reader-illustration-viewer {
+    width: calc(100% - 16px);
+    height: calc(100dvh - 16px);
+  }
+
+  .reader-illustration-viewer__controls,
+  .reader-illustration-viewer__size-controls {
+    align-items: stretch;
+  }
+
+  .reader-illustration-viewer__controls {
+    flex-direction: column;
+  }
+
+  .reader-illustration-viewer__size-controls {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }

@@ -6,9 +6,13 @@ import {
 
 export type ReaderContentActionAnchor = Readonly<{
   document: Document;
-  focusTarget: HTMLElement;
+  focusTarget: ReaderContentActionFocusTarget;
   resolveRect: () => ClientRect | null;
 }>;
+
+export type ReaderContentActionFocusTarget = Element & {
+  focus: (options?: FocusOptions) => void;
+};
 
 export type ReaderFootnotePlacement = Readonly<{
   left: number;
@@ -20,7 +24,7 @@ const VIEWPORT_GAP = 12;
 const ANCHOR_GAP = 10;
 
 export function contentActionAnchorForElement(
-  element: HTMLElement,
+  element: ReaderContentActionFocusTarget,
 ): ReaderContentActionAnchor | null {
   const document = element.ownerDocument;
   return {

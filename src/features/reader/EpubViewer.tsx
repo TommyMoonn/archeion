@@ -25,6 +25,7 @@ import { createReaderContentTheme, readerContentSettingsEqual } from "./readerTh
 import { IconButton } from "../../components/IconButton";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
+import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import { RenderedAnnotationAdapter } from "./RenderedAnnotationAdapter";
@@ -230,14 +231,18 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     confirmExternal,
     dismissExternal,
     dismissFootnote,
+    dismissIllustration,
     external: externalLink,
     feedback: contentActionFeedback,
     footnote,
+    illustration,
     handleContentClick,
+    handleContentKeyDown,
     handleContentPointerDown,
     handleDocumentRemoved: handleContentActionDocumentRemoved,
     handleEscape: handleContentActionEscape,
     handleFootnoteAction,
+    prepareDocument,
     resetForSession: resetContentActionSession,
   } = contentActions;
 
@@ -247,6 +252,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         contentDocuments.renditionTargetIsUsable(rendition, target),
       onContent: (content) => {
         contentDocuments.bind(content);
+        if (content.document) {
+          const context = contentDocuments.contextFor(content.document);
+          if (context) prepareDocument(context);
+        }
       },
       onDisplayed: () => {
         contentDocuments.bindMounted(containerRef.current);
@@ -266,6 +275,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onRendered: (section, view) => {
         contentDocuments.pruneDisconnected();
         contentDocuments.bindRenderedView(view, renderedSectionHref(section));
+        for (const document of contentDocuments.list()) {
+          const context = contentDocuments.contextFor(document);
+          if (context) prepareDocument(context);
+        }
         refreshAnchor();
         annotations.reconcile();
       },
@@ -296,6 +309,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onLocationChange,
     onNavigationChange,
     onReady,
+    prepareDocument,
     refreshAnchor,
     resetContentActionSession,
     resetHighlightSession,
@@ -351,6 +365,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useEffect(() => {
     contentDocuments.updateOptions({
       onContentClick: handleContentClick,
+      onContentKeyDown: handleContentKeyDown,
       onContentPointerDown: handleContentPointerDown,
       onDocumentRemoved: handleRegisteredDocumentRemoved,
       onEscape: handleRegisteredEscape,
@@ -363,6 +378,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   }, [
     contentDocuments,
     handleContentClick,
+    handleContentKeyDown,
     handleContentPointerDown,
     handlePointerDown,
     handleRegisteredDocumentRemoved,
@@ -395,6 +411,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearFeedback();
     dismissFootnote(false);
     dismissExternal(false);
+    dismissIllustration(false);
     clearContentActionFeedback();
     onInteraction();
   }, [
@@ -403,6 +420,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     dismiss,
     dismissExternal,
     dismissFootnote,
+    dismissIllustration,
     onInteraction,
   ]);
 
@@ -520,6 +538,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           onConfirm={confirmExternal}
           opening={externalLink.opening}
           url={externalLink.url}
+        />
+      ) : null}
+      {illustration ? (
+        <ReaderIllustrationViewer
+          error={illustration.error}
+          loading={illustration.loading}
+          onClose={() => dismissIllustration()}
+          resource={illustration.resource}
         />
       ) : null}
       {contentActionFeedback ? (
