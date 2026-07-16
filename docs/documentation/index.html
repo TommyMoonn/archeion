@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Start here for installation, archives, reading, organization, and customization."
+      content="Install Archeion, set up an archive, read books, manage files, and customize the app."
     />
     <meta name="theme-color" content="#171717" />
     <title>Archeion documentation | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="./">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="./"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               aria-current="page"
               ><span>Overview</span></a
             >
@@ -167,17 +166,17 @@
             <a
               href="getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -198,17 +197,17 @@
             <a
               href="guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -229,12 +228,12 @@
             <a
               href="customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +254,14 @@
             <a
               href="reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../">Back to website</a>
       </div>
     </aside>
@@ -276,93 +275,85 @@
           <header class="article-header">
             <p class="eyebrow">Documentation</p>
             <h1>Archeion documentation</h1>
-            <p>Start here for installation, archives, reading, organization, and customization.</p>
+            <p>
+              Guides for installing Archeion, setting up an archive, reading, organizing files, and
+              customizing the app.
+            </p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Archeion is a local-first Windows desktop app for organizing and reading EPUB libraries.
-            These guides cover the workflows needed to create an archive, add books, browse the
-            library, read and annotate, manage files, and customize appearance.
+            Start with installation and archive setup, then use the other guides when you need help
+            with a specific part of Archeion.
           </p>
 
           <div class="notice notice--info">
-            <strong>Current scope</strong>
-            <p>
-              This documentation reflects Archeion 0.4.0. Archeion currently targets Windows 11 on
-              x64 systems and supports EPUB files.
-            </p>
+            <strong>Supported platform</strong>
+            <p>These guides cover Archeion on Windows 11 x64. Archeion supports EPUB files.</p>
           </div>
 
-          <h2 id="start-here">Start here</h2>
+          <h2 id="get-started">Get started</h2>
           <div class="doc-card-grid">
             <a class="doc-card" href="getting-started/installing/">
               <span class="doc-card__number">01</span>
               <strong>Install Archeion</strong>
-              <span>Choose the EXE or MSI package and complete the Windows installation.</span>
+              <span>Download the EXE or MSI package and install the app.</span>
             </a>
             <a class="doc-card" href="getting-started/archives/">
               <span class="doc-card__number">02</span>
               <strong>Open or create an archive</strong>
-              <span>Use an existing EPUB folder or start with a new local folder.</span>
+              <span>Use an existing EPUB folder or create a new archive.</span>
             </a>
             <a class="doc-card" href="getting-started/adding-books/">
               <span class="doc-card__number">03</span>
               <strong>Add EPUB files</strong>
-              <span>Copy or move books into the archive and control filename conflicts.</span>
+              <span>Copy or move books into the archive and choose their destination.</span>
             </a>
             <a class="doc-card" href="guides/reading/">
               <span class="doc-card__number">04</span>
               <strong>Read and annotate</strong>
-              <span>Use paged or continuous mode, bookmarks, highlights, notes, and exports.</span>
+              <span>Use reading modes, bookmarks, highlights, notes, and exports.</span>
             </a>
           </div>
 
-          <h2 id="core-concepts">Core concepts</h2>
-          <h3 id="archive">Archive</h3>
+          <h2 id="library-structure">How your library is organized</h2>
+          <h3 id="archive-folder">Archive folder</h3>
           <p>
-            An archive is a normal folder that contains your EPUB files and nested folders. Archeion
-            keeps the filesystem understandable outside the app instead of importing books into a
-            private database.
+            An archive is the folder that contains your EPUB files. Existing subfolders appear in
+            the Library, so you can keep the folder structure you already use.
           </p>
 
           <h3 id="active-archive">Active archive</h3>
           <p>
-            Archeion works with one active archive at a time. Use the archive switcher in the
-            Library sidebar or open <strong>Manage archives</strong> to switch, create, rename,
-            reveal, or forget archives.
+            Archeion opens one archive at a time. Use the archive switcher or Archive Manager to
+            open another archive, create one, or remove an old entry from the app.
           </p>
 
-          <h3 id="sidecar-data">Sidecar data</h3>
+          <h3 id="archeion-data">Archeion data</h3>
           <p>
-            Archeion stores library state, reading progress, annotations, settings, caches, backups,
-            and custom theme packages inside a hidden <code>.archeion</code> folder beside your
-            books. Copy that folder with the archive when you want to preserve the complete Archeion
-            state.
+            Reading progress, annotations, settings, covers, backups, and custom themes are stored
+            in the hidden <code>.archeion</code> folder inside the archive. Include this folder when
+            you back up or move the archive.
           </p>
 
-          <h2 id="documentation-map">Documentation map</h2>
+          <h2 id="find-a-guide">Find a guide</h2>
           <div class="feature-list">
             <div>
               <strong>Getting started</strong
-              ><span>Installation, archive setup, and adding EPUBs.</span>
+              ><span>Install Archeion, open an archive, and add books.</span>
             </div>
             <div>
               <strong>Using Archeion</strong
-              ><span>Library navigation, reading, annotations, and file operations.</span>
+              ><span>Browse the Library, read books, manage annotations, and work with files.</span>
             </div>
             <div>
               <strong>Customization</strong
-              ><span
-                >Application appearance, reader controls, and archive-local custom themes.</span
-              >
+              ><span>Change app colors, reader settings, and custom themes.</span>
             </div>
             <div>
-              <strong>Reference</strong
-              ><span>The archive storage model and what belongs in <code>.archeion</code>.</span>
+              <strong>Reference</strong><span>Back up, move, and inspect an archive safely.</span>
             </div>
           </div>
         </article>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Create archive-local JSON theme packages for the application and EPUB reader."
+      content="Create and manage JSON color themes for Archeion and the Reader."
     />
     <meta name="theme-color" content="#171717" />
     <title>Custom themes | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,17 +196,17 @@
             <a
               href="../../guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../../guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../../guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -228,12 +227,12 @@
             <a
               href="../appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="./"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               aria-current="page"
               ><span>Custom themes</span></a
             >
@@ -255,14 +254,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,47 +276,36 @@
           <header class="article-header">
             <p class="eyebrow">Customization</p>
             <h1>Custom themes</h1>
-            <p>Create archive-local JSON theme packages for the application and EPUB reader.</p>
+            <p>Create and manage JSON color themes for the app and Reader.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Archeion theme manifests are strict, color-only JSON files. They can recolor the
-            application and EPUB reader without changing layout, typography, motion, assets, or
-            behavior.
+            A custom theme is a <code>theme.json</code> file that changes supported colors. It does
+            not change layout, fonts, motion, images, or app behavior.
           </p>
 
           <div class="notice notice--info">
-            <strong>Themes belong to the archive</strong>
+            <strong>Themes are stored with the archive</strong>
             <p>
-              Custom theme packages are stored under the active archive's
-              <code>.archeion/themes/</code> directory. Copy the complete
-              <code>.archeion</code> folder when moving or backing up selected themes and settings.
+              Custom themes are kept in <code>.archeion/themes/</code> inside the active archive.
+              Include <code>.archeion</code> when backing up or moving the archive.
             </p>
           </div>
 
-          <h2 id="package-layout">Package layout</h2>
-          <p>Store each theme in one direct child directory of <code>.archeion/themes/</code>:</p>
+          <h2 id="create-package">Create a theme package</h2>
+          <h3 id="package-layout">Folder structure</h3>
+          <p>Create one folder for each theme directly inside <code>.archeion/themes/</code>:</p>
           <pre><code class="language-text">My Archive/
 └── .archeion/
     └── themes/
         └── moon-ink/
             └── theme.json</code></pre>
-          <p>
-            The directory name must exactly match the manifest <code>id</code>. Archeion reads only
-            <code>theme.json</code> from each direct child directory. Hidden directories and nested
-            packages are ignored.
-          </p>
+          <p>The theme folder name must match the <code>id</code> in <code>theme.json</code>.</p>
 
-          <h2 id="schema">Schema</h2>
-          <p>
-            Use the published version 1 schema for completion and validation in JSON-aware editors:
-          </p>
-          <pre><code class="language-text">https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json</code></pre>
-          <p><a href="../../../schemas/archeion-theme-v1.schema.json">Open the theme schema</a></p>
+          <h3 id="basic-theme">Basic theme file</h3>
           <pre><code class="language-json">{
   "$schema": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
   "schemaVersion": 1,
@@ -328,88 +316,94 @@
     "accent": "#8FC1E3"
   }
 }</code></pre>
-          <p>
-            <code>$schema</code> is optional. Archeion does not download it during runtime
-            validation.
-          </p>
 
-          <h2 id="manifest-fields">Manifest fields</h2>
+          <h3 id="schema">Use the theme schema</h3>
+          <p>
+            Add the published schema URL to get completion and validation in editors that support
+            JSON Schema:
+          </p>
+          <pre><code class="language-text">https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json</code></pre>
+          <p><a href="../../../schemas/archeion-theme-v1.schema.json">Open the theme schema</a></p>
+
+          <h2 id="theme-fields">Theme file fields</h2>
+          <h3 id="manifest-fields">Fields and requirements</h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Field</th>
                   <th>Required</th>
-                  <th>Rules</th>
+                  <th>Value</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>$schema</code></td>
                   <td>No</td>
-                  <td>When present, use the canonical version 1 schema URL.</td>
+                  <td>The version 1 schema URL.</td>
                 </tr>
                 <tr>
                   <td><code>schemaVersion</code></td>
                   <td>Yes</td>
-                  <td>Integer <code>1</code>.</td>
+                  <td><code>1</code>.</td>
                 </tr>
                 <tr>
                   <td><code>id</code></td>
                   <td>Yes</td>
                   <td>
-                    3 to 64 lowercase ASCII letters, digits, dots, underscores, or hyphens. It must
-                    match the package directory.
+                    3 to 64 lowercase letters, digits, dots, underscores, or hyphens. It must match
+                    the folder name.
                   </td>
                 </tr>
                 <tr>
                   <td><code>name</code></td>
                   <td>Yes</td>
-                  <td>1 to 80 visible Unicode characters on one line.</td>
+                  <td>A one-line display name from 1 to 80 characters.</td>
                 </tr>
                 <tr>
                   <td><code>author</code></td>
                   <td>No</td>
-                  <td>1 to 80 visible Unicode characters when present.</td>
+                  <td>A one-line author name from 1 to 80 characters.</td>
                 </tr>
                 <tr>
                   <td><code>description</code></td>
                   <td>No</td>
-                  <td>1 to 240 visible Unicode characters when present.</td>
+                  <td>A one-line description from 1 to 240 characters.</td>
                 </tr>
                 <tr>
                   <td><code>base</code></td>
                   <td>Yes</td>
-                  <td>
-                    <code>dark</code> or <code>light</code>. Supplies omitted application colors.
-                  </td>
+                  <td><code>dark</code> or <code>light</code>.</td>
                 </tr>
                 <tr>
                   <td><code>app</code></td>
                   <td>Yes</td>
-                  <td>Strict object with at least one supported application color override.</td>
+                  <td>At least one supported app color.</td>
                 </tr>
                 <tr>
                   <td><code>reader</code></td>
                   <td>No</td>
                   <td>
-                    Strict object with a <code>dark</code>, <code>light</code>, or
-                    <code>sepia</code> base and at least one reader override.
+                    A <code>dark</code>, <code>light</code>, or <code>sepia</code> base and at least
+                    one supported Reader color.
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+
+          <h3 id="color-format">Color format</h3>
           <p>
-            Every color must use <code>#RRGGBB</code> or <code>#RRGGBBAA</code>. CSS functions,
-            variables, keywords, gradients, URLs, unknown fields, and unknown token names are
-            rejected.
+            Use <code>#RRGGBB</code> or <code>#RRGGBBAA</code>. Do not use CSS variables, color
+            names, functions, gradients, or URLs. Unknown fields and token names make the theme
+            invalid.
           </p>
 
-          <h2 id="partial-overrides">Partial overrides</h2>
+          <h3 id="partial-overrides">Change only the colors you need</h3>
           <p>
-            A theme only needs to provide the colors it changes. <code>base</code> supplies omitted
-            application colors, while <code>reader.base</code> supplies omitted reader colors.
+            You only need to include the colors you want to replace. The selected
+            <code>base</code> provides the remaining app colors. Use <code>reader.base</code> for
+            the remaining Reader colors.
           </p>
           <pre><code class="language-json">{
   "schemaVersion": 1,
@@ -420,29 +414,30 @@
     "accent": "#285F88"
   }
 }</code></pre>
-          <p>Custom themes cannot inherit from other custom themes.</p>
+          <p>A custom theme cannot inherit from another custom theme.</p>
 
-          <h2 id="application-tokens">Application tokens</h2>
+          <h2 id="available-colors">Available colors</h2>
+          <h3 id="application-tokens">App colors</h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Token</th>
-                  <th>Meaning</th>
+                  <th>Used for</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>canvas</code></td>
-                  <td>Application canvas behind primary surfaces.</td>
+                  <td>Background behind the main app surfaces.</td>
                 </tr>
                 <tr>
                   <td><code>canvasDeep</code></td>
-                  <td>Deeper canvas separating nested regions.</td>
+                  <td>Darker or deeper background areas.</td>
                 </tr>
                 <tr>
                   <td><code>surface</code></td>
-                  <td>Default control and content surface.</td>
+                  <td>Standard controls and content surfaces.</td>
                 </tr>
                 <tr>
                   <td><code>surfaceRaised</code></td>
@@ -450,7 +445,7 @@
                 </tr>
                 <tr>
                   <td><code>surfaceHover</code></td>
-                  <td>Hover treatment for ordinary raised surfaces.</td>
+                  <td>Hover state for raised surfaces.</td>
                 </tr>
                 <tr>
                   <td><code>frame</code></td>
@@ -458,27 +453,27 @@
                 </tr>
                 <tr>
                   <td><code>sidebar</code></td>
-                  <td>Library navigation sidebar.</td>
+                  <td>Library sidebar.</td>
                 </tr>
                 <tr>
                   <td><code>main</code></td>
-                  <td>Primary application workspace.</td>
+                  <td>Main app area.</td>
                 </tr>
                 <tr>
                   <td><code>mainRaised</code></td>
-                  <td>Raised surface within the primary workspace.</td>
+                  <td>Raised surfaces in the main app area.</td>
                 </tr>
                 <tr>
                   <td><code>line</code></td>
-                  <td>Default borders and separators.</td>
+                  <td>Standard borders and separators.</td>
                 </tr>
                 <tr>
                   <td><code>lineStrong</code></td>
-                  <td>Emphasized borders and separators.</td>
+                  <td>Stronger borders and separators.</td>
                 </tr>
                 <tr>
                   <td><code>text</code></td>
-                  <td>Primary body text.</td>
+                  <td>Normal text.</td>
                 </tr>
                 <tr>
                   <td><code>textStrong</code></td>
@@ -490,53 +485,53 @@
                 </tr>
                 <tr>
                   <td><code>mutedSoft</code></td>
-                  <td>De-emphasized text and inactive affordances.</td>
+                  <td>Less prominent text and inactive controls.</td>
                 </tr>
                 <tr>
                   <td><code>accent</code></td>
-                  <td>Primary interactive accent.</td>
+                  <td>Main interactive color.</td>
                 </tr>
                 <tr>
                   <td><code>accentStrong</code></td>
-                  <td>Emphasized accent text and active controls.</td>
+                  <td>Active controls and stronger accent text.</td>
                 </tr>
                 <tr>
                   <td><code>focus</code></td>
-                  <td>Keyboard focus indicators.</td>
+                  <td>Keyboard focus outline.</td>
                 </tr>
                 <tr>
                   <td><code>success</code></td>
-                  <td>Successful outcomes.</td>
+                  <td>Successful actions.</td>
                 </tr>
                 <tr>
                   <td><code>warning</code></td>
-                  <td>Cautionary, non-fatal outcomes.</td>
+                  <td>Warnings.</td>
                 </tr>
                 <tr>
                   <td><code>error</code></td>
-                  <td>Errors and destructive outcomes.</td>
+                  <td>Errors and destructive actions.</td>
                 </tr>
                 <tr>
                   <td><code>info</code></td>
-                  <td>Neutral informational outcomes.</td>
+                  <td>Information messages.</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <h2 id="reader-tokens">Reader tokens</h2>
+          <h3 id="reader-tokens">Reader colors</h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Token</th>
-                  <th>Meaning</th>
+                  <th>Used for</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>background</code></td>
-                  <td>Reader page and EPUB content background.</td>
+                  <td>Reader page background.</td>
                 </tr>
                 <tr>
                   <td><code>surface</code></td>
@@ -548,19 +543,19 @@
                 </tr>
                 <tr>
                   <td><code>text</code></td>
-                  <td>EPUB body text and primary reader text.</td>
+                  <td>Book text and normal Reader text.</td>
                 </tr>
                 <tr>
                   <td><code>strong</code></td>
-                  <td>EPUB headings and emphasized reader text.</td>
+                  <td>Book headings and emphasized Reader text.</td>
                 </tr>
                 <tr>
                   <td><code>muted</code></td>
-                  <td>Reader metadata and secondary text.</td>
+                  <td>Secondary Reader text.</td>
                 </tr>
                 <tr>
                   <td><code>focus</code></td>
-                  <td>Reader focus indicators.</td>
+                  <td>Reader keyboard focus outline.</td>
                 </tr>
                 <tr>
                   <td><code>danger</code></td>
@@ -568,83 +563,77 @@
                 </tr>
                 <tr>
                   <td><code>link</code></td>
-                  <td>Links inside EPUB content.</td>
+                  <td>Links inside a book.</td>
                 </tr>
                 <tr>
                   <td><code>codeBackground</code></td>
-                  <td>Code and preformatted content background.</td>
+                  <td>Code and preformatted text background.</td>
                 </tr>
                 <tr>
                   <td><code>selection</code></td>
-                  <td>Text selection background inside EPUB content.</td>
+                  <td>Selected text background.</td>
                 </tr>
               </tbody>
             </table>
           </div>
-          <p>
-            Reader typography remains controlled by Reader settings and cannot be changed by a
-            theme.
-          </p>
+          <p>Reader fonts, text size, spacing, and page width are controlled in Reader settings.</p>
 
-          <h2 id="manage-themes">Manage themes in Archeion</h2>
+          <h3 id="fixed-colors">Colors that themes do not change</h3>
+          <ul>
+            <li>The Windows close button keeps its normal white-on-red hover state.</li>
+            <li>Annotation highlights stay yellow, green, blue, and rose.</li>
+            <li>Controls shown over cover images keep a white-on-black style for readability.</li>
+          </ul>
+
+          <h2 id="use-theme">Add and apply a theme</h2>
+          <h3 id="manage-themes">Open Theme Manager</h3>
           <ol class="steps">
             <li>
-              <strong>Open Theme Manager.</strong
-              ><span>Go to <strong>Settings → Appearance → App themes → Manage</strong>.</span>
+              <strong>Open Settings.</strong
+              ><span>Go to <strong>Appearance → App themes → Manage</strong>.</span>
             </li>
             <li>
-              <strong>Import or open the themes folder.</strong
+              <strong>Import a theme or open the themes folder.</strong
               ><span
-                >Import a JSON manifest, or create and edit package folders in
+                >You can import a JSON file or edit theme folders directly in
                 <code>.archeion/themes/</code>.</span
               >
             </li>
             <li>
-              <strong>Reload themes.</strong
+              <strong>Reload after editing.</strong
               ><span
-                >After editing <code>theme.json</code> externally, choose
-                <strong>Reload themes</strong>. Archeion does not continuously watch theme
-                files.</span
+                >Select <strong>Reload themes</strong> after changing
+                <code>theme.json</code> outside Archeion.</span
               >
             </li>
             <li>
-              <strong>Preview the application theme.</strong
+              <strong>Preview the theme.</strong
               ><span
-                >Preview is temporary. Choose <strong>Keep theme</strong> to save it, or
-                <strong>Revert</strong> to restore the stored appearance.</span
+                >Select <strong>Keep theme</strong> to save it or <strong>Revert</strong> to restore
+                the previous theme.</span
               >
             </li>
             <li>
-              <strong>Choose reader colors separately.</strong
-              ><span>Use Settings or the Reader settings panel for compatible reader themes.</span>
+              <strong>Choose Reader colors.</strong
+              ><span>Select a compatible Reader theme from Settings or Reader settings.</span>
             </li>
           </ol>
+
+          <h3 id="update-theme">Update an existing theme</h3>
           <p>
-            Import is create-only. If a package ID already exists, Archeion asks before updating its
-            <code>theme.json</code> and preserves other files in the package.
+            If an imported theme uses an existing package ID, Archeion asks before replacing its
+            <code>theme.json</code>. Other files in that theme folder are kept.
           </p>
 
-          <h2 id="diagnostics">Diagnostics and contrast</h2>
+          <h3 id="fix-theme">Fix an invalid theme</h3>
           <p>
-            Theme Manager lists invalid packages with diagnostics so they can be repaired. Contrast
-            findings are warnings rather than schema failures and must be acknowledged before
-            keeping a preview with warnings.
+            Theme Manager shows the problems found in invalid packages. Fix the listed fields or
+            colors, save the file, then reload themes.
           </p>
           <p>
-            If a selected custom package becomes missing or invalid, its ID remains stored so the
-            selection can resume after the package is restored and reloaded.
+            Low-contrast color combinations are shown as warnings. Review them before keeping the
+            preview.
           </p>
-
-          <h2 id="fixed-colors">Fixed colors</h2>
-          <p>Some visual identities are intentionally not theme tokens:</p>
-          <ul>
-            <li>The Windows close button keeps its platform-style white-on-red hover treatment.</li>
-            <li>Annotation highlights remain yellow, green, blue, and rose.</li>
-            <li>
-              Cover-image controls keep a neutral white-on-black treatment for legibility over
-              artwork.
-            </li>
-          </ul>
 
           <h2 id="examples">Examples</h2>
           <ul>

@@ -234,16 +234,6 @@ svg {
   height: 30px;
   border-radius: 7px;
 }
-.docs-label {
-  padding-left: 12px;
-  border-left: 1px solid #3b3b40;
-  color: var(--sidebar-muted);
-  font-weight: 700;
-  text-decoration: none;
-}
-.docs-label:hover {
-  color: var(--sidebar-text);
-}
 .docs-search-trigger {
   display: flex;
   align-items: center;
@@ -1001,9 +991,6 @@ td:first-child {
   }
   .docs-brand span {
     display: none;
-  }
-  .docs-label {
-    padding-left: 9px;
   }
   .docs-search-trigger {
     width: auto;

@@ -58,8 +58,8 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     const guidePath = path.join(projectRoot, "docs/custom-themes.md");
     const guide = fs.readFileSync(guidePath, "utf8");
 
-    expect(guide).toContain("[examples](../examples/themes/)");
-    expect(fs.existsSync(path.resolve(path.dirname(guidePath), "../examples/themes"))).toBe(true);
+    expect(guide).toContain("[examples](examples/themes/)");
+    expect(fs.existsSync(path.resolve(path.dirname(guidePath), "examples/themes"))).toBe(true);
     expect(guide).not.toMatch(/create starter|starter button/i);
     expect(guide).not.toMatch(/Theme Manager[^\n]*(preview|appl)[^\n]*reader/i);
   });

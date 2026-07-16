@@ -3,10 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Download and install Archeion on a supported Windows system."
-    />
+    <meta name="description" content="Download and install Archeion on Windows 11 x64." />
     <meta name="theme-color" content="#171717" />
     <title>Install Archeion | Archeion Docs</title>
     <link rel="icon" href="../../../assets/images/archeion-icon.png" />
@@ -57,7 +54,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +141,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,18 +162,18 @@
             <a
               href="./"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               aria-current="page"
               ><span>Installation</span></a
             ><a
               href="../archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -198,17 +194,17 @@
             <a
               href="../../guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../../guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../../guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -229,12 +225,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +251,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,44 +273,45 @@
           <header class="article-header">
             <p class="eyebrow">Getting started</p>
             <h1>Install Archeion</h1>
-            <p>Download and install Archeion on a supported Windows system.</p>
+            <p>Download and install Archeion on Windows.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Archeion is distributed as an x64 Windows application. The EXE installer is recommended
-            for most users, while the MSI is available for Windows Installer workflows.
+            Use the EXE installer for a normal installation. Use the MSI package when you
+            specifically need Windows Installer.
           </p>
 
-          <h2 id="requirements">Requirements</h2>
+          <h2 id="before-installing">Before installing</h2>
+          <h3 id="requirements">Requirements</h3>
           <ul>
             <li>Windows 11 on an x64 computer.</li>
-            <li>Permission to install an application for the current Windows user.</li>
-            <li>EPUB files stored on a local or otherwise reliably mounted folder.</li>
+            <li>Permission to install an app for the current Windows user.</li>
+            <li>A local or reliably mounted folder for your EPUB library.</li>
           </ul>
 
-          <h2 id="download">Download the installer</h2>
+          <h3 id="choose-installer">Choose an installer</h3>
+          <ul>
+            <li><code>Archeion-Setup-x64.exe</code>: recommended for most users.</li>
+            <li><code>Archeion-x64.msi</code>: intended for MSI-based installation workflows.</li>
+          </ul>
+
+          <h2 id="install-archeion">Install Archeion</h2>
+          <h3 id="download">Download the installer</h3>
           <ol class="steps">
             <li>
               <strong>Open the latest release.</strong
               ><span>Use the official Archeion GitHub release page.</span>
             </li>
             <li>
-              <strong>Choose a package.</strong
-              ><span
-                >Download <code>Archeion-Setup-x64.exe</code> for the recommended NSIS installer, or
-                <code>Archeion-x64.msi</code> for MSI deployment.</span
-              >
+              <strong>Download the package you need.</strong
+              ><span>Choose the EXE or MSI file for x64 Windows.</span>
             </li>
             <li>
-              <strong>Optional: verify the file.</strong
-              ><span
-                >Compare the installer SHA-256 value with the matching entry in
-                <code>SHA256SUMS.txt</code>.</span
-              >
+              <strong>Optional: verify the download.</strong
+              ><span>Compare the file's SHA-256 value with <code>SHA256SUMS.txt</code>.</span>
             </li>
           </ol>
           <p>
@@ -327,37 +324,31 @@
             >
           </p>
 
-          <h2 id="install">Run the installation</h2>
+          <h3 id="run-installer">Run the installer</h3>
           <ol class="steps">
             <li>
-              <strong>Open the downloaded installer.</strong
-              ><span>Follow the Windows prompts to install Archeion for the current user.</span>
+              <strong>Open the downloaded file.</strong
+              ><span>Follow the Windows installation prompts.</span>
             </li>
             <li>
-              <strong>Review any SmartScreen warning.</strong
+              <strong>Check any SmartScreen warning.</strong
               ><span
-                >The installers are not code-signed. Continue only after confirming that the file
-                came from the official release and, when needed, that its checksum matches.</span
+                >The installer is not code-signed. Continue only when the file came from the
+                official release page.</span
               >
             </li>
             <li>
               <strong>Launch Archeion.</strong
-              ><span
-                >The Archive Manager lets you open an existing folder or create an empty
-                archive.</span
-              >
+              ><span>Archive Manager opens so you can choose your library folder.</span>
             </li>
           </ol>
 
           <div class="notice notice--warning">
-            <strong>Do not download installers from mirrors</strong>
-            <p>
-              Use the official repository release page. A matching filename alone does not verify
-              the origin of a file.
-            </p>
+            <strong>Use the official release page</strong>
+            <p>Do not install copies downloaded from mirrors or unrelated websites.</p>
           </div>
 
-          <h2 id="next-step">Next step</h2>
+          <h2 id="after-installing">After installing</h2>
           <p>Continue to <a href="../archives/">Open or create an archive</a>.</p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">

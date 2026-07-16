@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Navigate EPUBs, tune reading controls, and work with bookmarks, highlights, and notes."
+      content="Read EPUB files and manage bookmarks, highlights, and notes."
     />
     <meta name="theme-color" content="#171717" />
     <title>Read and annotate | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,18 +196,18 @@
             <a
               href="../library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="./"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               aria-current="page"
               ><span>Reader and annotations</span></a
             ><a
               href="../file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -229,12 +228,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +254,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,84 +276,82 @@
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Read and annotate</h1>
-            <p>
-              Navigate EPUBs, tune reading controls, and work with bookmarks, highlights, and notes.
-            </p>
+            <p>Navigate books, adjust the Reader, and manage bookmarks, highlights, and notes.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Open a book from the Library to enter the Reader. Reading progress is saved locally with
-            the archive so you can return to the previous location.
+            Open a book from the Library to enter the Reader. Archeion saves your reading position
+            with the archive.
           </p>
 
-          <h2 id="navigation">Navigate a book</h2>
-          <p>The Reader toolbar provides:</p>
+          <h2 id="read-book">Read a book</h2>
+          <h3 id="navigation">Open and navigate</h3>
+          <p>The Reader toolbar includes:</p>
           <ul>
             <li>Back to the Library.</li>
-            <li>Previous and next chapter controls when chapter navigation is available.</li>
-            <li>Table of contents.</li>
-            <li>Previous and next page in Paged mode, or scroll controls in Continuous mode.</li>
+            <li>Previous and next chapter controls when available.</li>
+            <li>The table of contents.</li>
+            <li>Page controls in Paged mode and scrolling in Continuous mode.</li>
             <li>Book and chapter progress.</li>
           </ul>
 
-          <h2 id="reader-settings">Adjust reading settings</h2>
-          <p>Open <strong>Reader settings</strong> to configure:</p>
+          <h3 id="reader-settings">Change reading settings</h3>
+          <p>Open <strong>Reader settings</strong> to change:</p>
           <ul>
-            <li>Paged or Continuous reading mode.</li>
-            <li>Reader theme.</li>
+            <li>Paged or Continuous mode.</li>
+            <li>Reader colors.</li>
             <li>Typeface and text size.</li>
             <li>Line spacing and page width.</li>
             <li>Top or side progress bar placement.</li>
           </ul>
           <p>
-            Reader settings save automatically. The panel reports when persistence fails instead of
-            implying that a change was saved.
+            Changes save automatically. The Reader shows an error when a setting could not be saved.
           </p>
 
-          <h2 id="bookmarks">Bookmarks</h2>
+          <h2 id="create-annotations">Create annotations</h2>
+          <h3 id="bookmarks">Bookmarks</h3>
           <p>
-            Use the bookmark button in the Reader toolbar to add or remove a bookmark at the current
-            location. Bookmarks appear in the Annotations panel and can have editable labels.
+            Use the bookmark button to add or remove a bookmark at the current location. Bookmarks
+            appear in the Annotations panel and can have labels.
           </p>
 
-          <h2 id="highlights-and-notes">Highlights and notes</h2>
+          <h3 id="highlights-notes">Highlights and notes</h3>
           <p>
-            Select text inside the EPUB to create a highlight. Archeion supports stable highlight
-            identities using yellow, green, blue, and rose. A highlight may also contain an attached
+            Select text to create a highlight, then choose yellow, green, blue, or rose. You can
+            attach a note to a highlight.
+          </p>
+          <p>
+            Removing a note keeps the highlight. Removing the highlight also removes its attached
             note.
           </p>
-          <p>
-            Notes belong to highlights. Removing a note keeps the highlight, while removing the
-            highlight also removes its attached note.
-          </p>
 
-          <h2 id="annotations-panel">Manage annotations</h2>
+          <h2 id="review-annotations">Review and export annotations</h2>
+          <h3 id="annotations-panel">Use the Annotations panel</h3>
           <p>Open <strong>Annotations</strong> from the Reader toolbar to:</p>
           <ul>
-            <li>View all annotations, bookmarks only, or highlights only.</li>
+            <li>Show all annotations, bookmarks only, or highlights only.</li>
             <li>Search annotation text and labels.</li>
             <li>Sort by book order or recently updated.</li>
-            <li>Navigate to an annotation.</li>
-            <li>Edit labels, colors, and attached notes.</li>
+            <li>Open an annotation in the book.</li>
+            <li>Edit labels, colors, and notes.</li>
             <li>Copy or remove annotations.</li>
           </ul>
 
-          <h2 id="export">Export annotations</h2>
+          <h3 id="export">Export annotations</h3>
           <p>
-            From the Annotations panel, export the current book's annotations as readable Markdown
-            or structured JSON. Selection mode in the Library can export annotations across multiple
-            selected books.
+            Export the current book's annotations from the Annotations panel as Markdown or JSON. To
+            export annotations from several books, select the books in the Library and use the bulk
+            export action.
           </p>
 
-          <h2 id="recovery">When an EPUB changes</h2>
+          <h2 id="book-changes">If the EPUB file changes</h2>
           <p>
-            If an EPUB is replaced or edited, Archeion attempts to recover saved annotation
-            locations. An annotation that cannot be located is preserved as detached so it can still
-            be reviewed, copied, exported, recovered, or removed deliberately.
+            When an EPUB is replaced or edited, Archeion tries to reconnect each annotation to its
+            text. An annotation that cannot be matched remains available as a detached annotation so
+            you can review, copy, export, recover, or remove it.
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">

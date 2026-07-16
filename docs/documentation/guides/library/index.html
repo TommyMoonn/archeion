@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Search, filter, sort, switch views, browse folders, and work with multiple books."
+      content="Find books, use folders, change views, and manage one or more books."
     />
     <meta name="theme-color" content="#171717" />
     <title>Browse and organize the Library | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,18 +196,18 @@
             <a
               href="./"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               aria-current="page"
               ><span>Library</span></a
             ><a
               href="../reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -229,12 +228,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +254,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,75 +276,72 @@
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Browse and organize the Library</h1>
-            <p>Search, filter, sort, switch views, browse folders, and work with multiple books.</p>
+            <p>Find books, use folders, change the layout, and manage one or more books.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
+          <p class="lead">The Library shows the EPUB files and folders in the active archive.</p>
 
-          <p class="lead">
-            The Library reflects the active archive and its folder structure. Use the sidebar for
-            location, the toolbar for discovery, and selection mode for bulk operations.
-          </p>
-
-          <h2 id="sidebar">Use the sidebar</h2>
-          <p>
-            The sidebar provides access to the main library views, folders, optional Smart Views,
-            the archive switcher, About, and Settings.
-          </p>
+          <h2 id="navigate-library">Navigate the Library</h2>
+          <h3 id="main-views">Main views</h3>
           <ul>
             <li><strong>Library</strong> shows the active collection.</li>
-            <li><strong>Favorites</strong> collects books you have marked as favorites.</li>
-            <li><strong>Folders</strong> mirrors nested folders in the archive.</li>
-            <li>
-              <strong>Smart Views</strong> can expose focused views such as in-progress or
-              missing-metadata books when enabled in Settings.
-            </li>
+            <li><strong>Favorites</strong> shows books marked as favorites.</li>
+            <li><strong>Folders</strong> follows the archive's folder structure.</li>
           </ul>
 
-          <h2 id="search-filter-sort">Search, filter, and sort</h2>
+          <h3 id="smart-views">Smart Views</h3>
           <p>
-            Use <strong>Search books</strong> to narrow the current view. Filters can combine fields
-            such as series, subject, language, publisher, reading status, favorites, and missing
-            information. The result count updates to reflect the current query and filters.
-          </p>
-          <p>
-            Use the sort selector to change ordering, and switch between Grid and List without
-            changing the underlying collection.
+            Smart Views show focused groups such as books in progress or books with missing
+            metadata. You can choose which Smart Views appear from Settings.
           </p>
 
-          <h2 id="book-actions">Book actions</h2>
+          <h2 id="find-books">Find books</h2>
+          <h3 id="search-filter">Search and filter</h3>
+          <p>
+            Use <strong>Search books</strong> to narrow the current view. Filters can be combined
+            for series, subject, language, publisher, reading status, favorites, and missing
+            information.
+          </p>
+
+          <h3 id="sort-layout">Sort and change the layout</h3>
+          <p>
+            Use the sort selector to change the order. Switch between Grid and List view without
+            changing the books included in the current view.
+          </p>
+
+          <h2 id="manage-books">Manage books</h2>
+          <h3 id="single-book">Work with one book</h3>
           <p>Open a book's action menu to:</p>
           <ul>
             <li>Read the book.</li>
             <li>Add or remove it from Favorites.</li>
             <li>Open Details.</li>
-            <li>Rename the file.</li>
-            <li>Move it to another archive folder.</li>
+            <li>Rename or move the file.</li>
             <li>Reveal it in Windows Explorer.</li>
-            <li>Delete the EPUB, or remove stale metadata if the file is already missing.</li>
+            <li>Delete it, or remove its old Library entry when the file is already missing.</li>
           </ul>
 
-          <h2 id="selection-mode">Work with multiple books</h2>
+          <h3 id="multiple-books">Work with multiple books</h3>
           <p>
-            Select <strong>Select books</strong> in the toolbar to enter selection mode. The bulk
-            action bar supports favorites, moving, metadata editing and re-extraction, cover
-            regeneration, EPUB export, annotation export, and deletion to the Recycle Bin.
+            Select <strong>Select books</strong> in the toolbar. The bulk action bar can update
+            favorites, move books, edit or refresh metadata, regenerate covers, export files or
+            annotations, and delete selected books to the Recycle Bin.
           </p>
 
-          <h2 id="folders">Manage folders</h2>
+          <h3 id="folders">Manage folders</h3>
           <p>
-            Folder controls operate on real directories inside the archive. Depending on the current
-            state, you can create, rename, move, reveal, or delete folders. Keep non-Archeion files
-            out of <code>.archeion</code>, which is reserved for sidecar data.
+            Folder actions work on the real folders inside the archive. You can create, rename,
+            move, reveal, or delete folders when the action is available. Do not place books or
+            personal files inside <code>.archeion</code>.
           </p>
 
           <h2 id="quick-actions">Use Quick Actions</h2>
           <p>
-            Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open Quick Actions. Search
-            available commands for the current Library or Reader context instead of navigating
-            through menus.
+            Press <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>P</kbd> to open Quick Actions and search
+            the commands available on the current screen.
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">

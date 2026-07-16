@@ -2651,6 +2651,12 @@ svg {
   content: "";
 }
 
+.get-started__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .terminal-card {
   overflow: hidden;
   border: 1px solid #333338;
@@ -3195,7 +3201,8 @@ svg {
 }
 
 @media (max-width: 420px) {
-  .hero__actions .button {
+  .hero__actions .button,
+  .get-started__actions .button {
     width: 100%;
   }
 

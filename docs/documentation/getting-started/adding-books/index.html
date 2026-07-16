@@ -3,10 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta
-      name="description"
-      content="Add one or more EPUBs and choose destination, conflict, and copy or move behavior."
-    />
+    <meta name="description" content="Copy or move EPUB files into the active archive." />
     <meta name="theme-color" content="#171717" />
     <title>Add EPUB files | Archeion Docs</title>
     <link rel="icon" href="../../../assets/images/archeion-icon.png" />
@@ -57,7 +54,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +141,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +162,17 @@
             <a
               href="../installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="./"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               aria-current="page"
               ><span>Add EPUB files</span></a
             >
@@ -198,17 +194,17 @@
             <a
               href="../../guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../../guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../../guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -229,12 +225,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +251,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,76 +273,76 @@
           <header class="article-header">
             <p class="eyebrow">Getting started</p>
             <h1>Add EPUB files</h1>
-            <p>
-              Add one or more EPUBs and choose destination, conflict, and copy or move behavior.
-            </p>
+            <p>Add books to the active archive by copying or moving them.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Use <strong>Add EPUB</strong> to bring one or more books into the active archive.
-            Archeion accepts EPUB files and lets you choose where and how they are added.
+            Use <strong>Add EPUB</strong> when you want Archeion to place books in the archive for
+            you.
           </p>
 
-          <h2 id="add-books">Add books from the Library</h2>
+          <h2 id="add-in-archeion">Add books in Archeion</h2>
+          <h3 id="choose-files">Choose files and a destination</h3>
           <ol class="steps">
             <li>
               <strong>Select Add EPUB.</strong><span>The button is in the Library toolbar.</span>
             </li>
             <li>
               <strong>Choose one or more files.</strong
-              ><span>The picker filters for <code>.epub</code> files.</span>
+              ><span>Select the <code>.epub</code> files you want to add.</span>
             </li>
             <li>
               <strong>Choose a destination.</strong
-              ><span>Select the archive root or an existing library folder.</span>
+              ><span>Use the archive root or an existing folder.</span>
             </li>
             <li>
-              <strong>Choose conflict behavior.</strong
+              <strong>Choose what to do with filename conflicts.</strong
               ><span
-                >Decide what Archeion should do when the destination already contains a file with
-                the same name.</span
+                >Select the option you want when a file with the same name already exists.</span
               >
             </li>
             <li>
-              <strong>Choose the operation.</strong
-              ><span>Copy keeps the source file. Move transfers it into the archive.</span>
+              <strong>Select Copy or Move.</strong
+              ><span>Copy keeps the original file. Move transfers it into the archive.</span>
             </li>
             <li>
-              <strong>Select Add EPUB.</strong
-              ><span>Archeion performs the operation and refreshes the Library.</span>
+              <strong>Confirm Add EPUB.</strong
+              ><span>Archeion adds the files and refreshes the Library.</span>
             </li>
           </ol>
 
-          <h2 id="filename-conflicts">Filename conflicts</h2>
+          <h3 id="copy-or-move">Copy or move</h3>
           <p>
-            The selected filename policy controls what happens when a destination filename already
-            exists. Replacing an existing EPUB is destructive, so Archeion can require confirmation
-            before proceeding.
+            Use <strong>Copy</strong> when you want to keep the original file. Use
+            <strong>Move</strong> when the archive should become the file's new location.
           </p>
-
           <div class="notice notice--warning">
-            <strong>Check the destination before using Move</strong>
-            <p>
-              A move operation removes the source file after the archive copy succeeds. Use Copy
-              when you want the original file to remain in place.
-            </p>
+            <strong>Check the destination before moving files</strong>
+            <p>A move removes the source file after it has been placed in the archive.</p>
           </div>
 
-          <h2 id="outside-changes">Adding files outside Archeion</h2>
+          <h2 id="existing-filenames">Handle existing filenames</h2>
           <p>
-            You can also copy EPUB files directly into the archive with Windows Explorer. Archeion
-            can pick up filesystem changes through its watcher, and the Library toolbar provides
-            <strong>Rescan archive</strong> when you need an explicit refresh.
+            When the destination already contains the same filename, use the conflict option shown
+            in the dialog. Review replacement confirmations carefully because replacing a file is
+            destructive.
           </p>
 
-          <h2 id="organize-first">Create folders first</h2>
+          <h2 id="organize-books">Organize books</h2>
+          <h3 id="create-folders">Create a folder first</h3>
           <p>
-            Use the plus button beside <strong>Folders</strong> in the Library sidebar to create a
-            real folder. You can then select that folder as the destination in Add EPUB.
+            Use the plus button beside <strong>Folders</strong> in the Library sidebar. The new
+            folder can then be selected as the destination when adding books.
+          </p>
+
+          <h3 id="add-with-explorer">Add files with Windows Explorer</h3>
+          <p>
+            You can copy EPUB files directly into the archive folder. Archeion normally detects the
+            change. Use <strong>Rescan archive</strong> from the Library toolbar when a new or moved
+            file does not appear.
           </p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">

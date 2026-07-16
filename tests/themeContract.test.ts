@@ -42,8 +42,8 @@ const schema = JSON.parse(schemaSource) as JsonSchema;
 const validate = new Ajv2020({ allErrors: true, strict: true }).compile<ThemeManifestV1>(schema);
 
 const examplePaths = [
-  "examples/themes/moon-ink/theme.json",
-  "examples/themes/paper-light/theme.json",
+  "docs/examples/themes/moon-ink/theme.json",
+  "docs/examples/themes/paper-light/theme.json",
 ] as const;
 
 function readJson(relativePath: string): unknown {

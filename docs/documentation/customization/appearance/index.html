@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Configure application appearance, library presentation, and reader typography."
+      content="Change app colors, Reader typography, and the Library layout."
     />
     <meta name="theme-color" content="#171717" />
     <title>Appearance and reader controls | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,17 +196,17 @@
             <a
               href="../../guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../../guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../../guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -228,13 +227,13 @@
             <a
               href="./"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               aria-current="page"
               ><span>Appearance</span></a
             ><a
               href="../custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +254,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,54 +276,54 @@
           <header class="article-header">
             <p class="eyebrow">Customization</p>
             <h1>Appearance and reader controls</h1>
-            <p>Configure application appearance, library presentation, and reader typography.</p>
+            <p>Change app colors, reader typography, and the Library layout.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Archeion separates application appearance from reading typography. App themes control
-            semantic interface colors, while Reader settings control the EPUB reading surface and
-            text layout.
+            App themes control the Archeion interface. Reader settings control the page colors,
+            text, and layout used while reading.
           </p>
 
-          <h2 id="app-theme">Application theme</h2>
+          <h2 id="app-appearance">App appearance</h2>
+          <h3 id="app-theme">Choose an app theme</h3>
           <p>
-            Open <strong>Settings → Appearance</strong> to choose the application theme used by the
-            active archive. Built-in themes are available immediately. Valid archive-local custom
-            themes appear in the same theme catalog.
+            Open <strong>Settings → Appearance</strong> and choose an App theme. Built-in themes are
+            available immediately. Custom themes stored with the active archive appear in the same
+            list when they are valid.
           </p>
 
-          <h2 id="reader-theme">Reader theme</h2>
+          <h3 id="custom-themes">Use a custom theme</h3>
           <p>
-            Choose reader colors from <strong>Settings → Appearance → Reader theme</strong> or from
-            the Reader settings panel. Both locations use the same built-in and compatible custom
-            reader themes.
+            Custom themes can change supported app and reader colors. They cannot add CSS, scripts,
+            fonts, images, or layout changes.
+          </p>
+          <p>
+            See <a href="../custom-themes/">Custom themes</a> for setup and editing instructions.
           </p>
 
-          <h2 id="reader-typography">Reader typography</h2>
+          <h2 id="reader-appearance">Reader appearance</h2>
+          <h3 id="reader-theme">Choose reader colors</h3>
           <p>
-            The Reader settings panel controls typeface, text size, line spacing, and page width.
-            These settings are independent from custom theme manifests, which cannot change fonts or
-            layout.
+            Choose a Reader theme from <strong>Settings → Appearance</strong> or from the Reader
+            settings panel.
           </p>
 
-          <h2 id="library-presentation">Library presentation</h2>
+          <h3 id="reader-typography">Change text and layout</h3>
           <p>
-            The Library toolbar lets you choose Grid or List view and apply sorting and filters.
-            Additional Library options in Settings control features such as Continue Reading and
-            whether Smart Views appear in the sidebar.
+            Open Reader settings to change the typeface, text size, line spacing, page width,
+            reading mode, and progress bar position. Custom theme files do not change these
+            settings.
           </p>
 
-          <h2 id="custom-themes">Custom themes</h2>
+          <h2 id="library-layout">Library layout</h2>
           <p>
-            Custom themes are strict JSON packages stored inside the active archive. They can
-            override approved application and reader color tokens without injecting CSS, scripts,
-            fonts, images, or layout rules.
+            Use the Library toolbar to switch between Grid and List view, change sorting, and apply
+            filters. Settings also controls features such as Continue Reading and which Smart Views
+            appear in the sidebar.
           </p>
-          <p>Continue to <a href="../custom-themes/">Create and manage custom themes</a>.</p>
         </article>
         <nav class="article-pager" aria-label="Documentation pages">
           <a

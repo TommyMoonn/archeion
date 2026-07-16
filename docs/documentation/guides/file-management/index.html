@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Rename, move, reveal, export, and delete real EPUB files and folders."
+      content="Rename, move, reveal, export, and delete books and folders."
     />
     <meta name="theme-color" content="#171717" />
     <title>Manage books and folders | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,17 +196,17 @@
             <a
               href="../library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="./"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               aria-current="page"
               ><span>File management</span></a
             >
@@ -229,12 +228,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -255,14 +254,14 @@
             <a
               href="../../reference/archive-storage/"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               ><span>Archive storage</span></a
             >
           </div>
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,67 +276,67 @@
           <header class="article-header">
             <p class="eyebrow">Using Archeion</p>
             <h1>Manage books and folders</h1>
-            <p>Rename, move, reveal, export, and delete real EPUB files and folders.</p>
+            <p>Rename, move, reveal, export, and delete files in the active archive.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            Archeion manages real files inside the active archive. File actions are designed to keep
-            the Library and filesystem aligned.
+            Archeion's file actions change the real EPUB files and folders inside the archive.
           </p>
 
-          <h2 id="book-files">Book file actions</h2>
+          <h2 id="manage-book">Manage a book</h2>
+          <h3 id="rename-move">Rename or move</h3>
           <p>
-            Use a book action menu or Details drawer to rename, move, reveal, or delete an EPUB.
-            Renaming and moving update the real path inside the archive.
+            Use the book action menu or Details drawer to rename an EPUB or move it to another
+            folder in the same archive.
           </p>
 
-          <h2 id="folders">Folder actions</h2>
+          <h3 id="reveal-export">Reveal or export</h3>
           <p>
-            The folder tree supports real folder creation and, when available, rename, move, reveal,
-            and delete operations. Moving a folder also moves the EPUB files and nested folders
-            inside it.
+            Use <strong>Reveal in folder</strong> to open the file's location in Windows Explorer.
+            Selection mode can export selected EPUB files to another location without changing the
+            files in the archive.
           </p>
 
-          <h2 id="delete">Delete behavior</h2>
+          <h3 id="delete-book">Delete a book</h3>
           <p>
-            Bulk deletion is presented as <strong>Delete to Recycle Bin</strong>. Review destructive
-            confirmations carefully, especially when operating on multiple books or a folder with
-            nested content.
+            Deletion is shown as <strong>Delete to Recycle Bin</strong>. Review the confirmation
+            before deleting one or more books.
           </p>
           <p>
-            If an EPUB has already disappeared outside Archeion, its action changes to
-            <strong>Remove metadata</strong> so stale library state can be cleared without
-            pretending a file was deleted.
+            If the file was already deleted outside Archeion, use
+            <strong>Remove metadata</strong> to clear its old Library entry.
           </p>
 
-          <h2 id="reveal">Reveal in folder</h2>
+          <h2 id="manage-folder">Manage folders</h2>
+          <h3 id="folder-actions">Create, rename, move, or reveal</h3>
           <p>
-            Use <strong>Reveal in folder</strong> for books, folders, archives, or the themes
-            directory when you need to inspect the actual files in Windows Explorer.
+            Folder actions work on real directories. Moving a folder also moves the EPUB files and
+            subfolders inside it.
           </p>
 
-          <h2 id="export-epubs">Export EPUBs</h2>
+          <h3 id="delete-folder">Delete a folder</h3>
           <p>
-            Selection mode can export selected EPUB files to another location without changing their
-            archive paths. Annotation export is a separate action and supports Markdown or JSON.
+            Check the folder contents before deleting it. A folder deletion can include every book
+            and subfolder inside that folder.
           </p>
 
-          <h2 id="external-changes">Changes made outside Archeion</h2>
+          <h2 id="outside-changes">Changes made outside Archeion</h2>
+          <h3 id="refresh-library">Refresh the Library</h3>
           <p>
-            Archeion watches the active archive for relevant filesystem changes. Use
-            <strong>Rescan archive</strong> when the Library needs an explicit reconciliation after
-            external moves, renames, or additions.
+            Archeion normally detects files added, moved, renamed, or removed with Windows Explorer.
+            Use <strong>Rescan archive</strong> when the Library does not reflect an external
+            change.
           </p>
 
+          <h3 id="backup-first">Back up before large changes</h3>
           <div class="notice notice--warning">
-            <strong>Back up before large reorganizations</strong>
+            <strong>Copy the complete archive</strong>
             <p>
-              For a complete backup, copy the EPUB folders and the archive's
-              <code>.archeion</code> directory together.
+              For a complete backup, copy the EPUB folders and the hidden
+              <code>.archeion</code> folder together.
             </p>
           </div>
         </article>

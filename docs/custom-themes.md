@@ -41,7 +41,7 @@ Add that URL as `$schema` for completion and validation in JSON-aware editors:
 
 `$schema` is optional. When present, it must be the canonical URL above. Archeion never downloads the schema when loading a theme; runtime validation is offline.
 
-See the complete [Moon Ink](../examples/themes/moon-ink/theme.json) and [Paper Light](../examples/themes/paper-light/theme.json) examples for dark- and light-based packages.
+See the complete [Moon Ink](examples/themes/moon-ink/theme.json) and [Paper Light](examples/themes/paper-light/theme.json) examples for dark- and light-based packages.
 
 ## Manifest fields
 
@@ -128,7 +128,7 @@ Archeion derives quotation and visited-link treatments. Reader typography remain
 
 ## Managing themes in Archeion
 
-Open **Settings → Appearance → App themes → Manage** to inspect built-in application themes and packages stored with the active archive. Theme Manager can import a JSON manifest, preview a valid custom application theme, select it for the app, or delete its package. Use **Open themes folder** to create or edit packages directly in `.archeion/themes/` with an external editor. The [schema](schemas/archeion-theme-v1.schema.json) and [examples](../examples/themes/) provide canonical starting points.
+Open **Settings → Appearance → App themes → Manage** to inspect built-in application themes and packages stored with the active archive. Theme Manager can import a JSON manifest, preview a valid custom application theme, select it for the app, or delete its package. Use **Open themes folder** to create or edit packages directly in `.archeion/themes/` with an external editor. The [schema](schemas/archeion-theme-v1.schema.json) and [examples](examples/themes/) provide canonical starting points.
 
 Import is create-only. If a package with the same ID already exists, Archeion asks before updating that package's `theme.json`; it does not silently overwrite it. Updating preserves other files in the package.
 

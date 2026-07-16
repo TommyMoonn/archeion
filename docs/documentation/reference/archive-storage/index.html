@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
-      content="Understand the real folders, sidecar files, caches, backups, themes, and portability model."
+      content="See what an archive contains and how to back it up or move it."
     />
     <meta name="theme-color" content="#171717" />
     <title>Archive storage and backups | Archeion Docs</title>
@@ -57,7 +57,6 @@
           <img src="../../../assets/images/archeion-icon.png" width="32" height="32" alt="" />
           <span>Archeion</span>
         </a>
-        <a class="docs-label" href="../../">Docs</a>
         <button
           class="docs-search-trigger"
           type="button"
@@ -145,7 +144,7 @@
             <a
               href="../../"
               data-doc-link
-              data-search="overview start here for installation, archives, reading, organization, and customization."
+              data-search="overview find installation, archive setup, reading, organization, and customization guides."
               ><span>Overview</span></a
             >
           </div>
@@ -166,17 +165,17 @@
             <a
               href="../../getting-started/installing/"
               data-doc-link
-              data-search="installation download and install archeion on a supported windows system."
+              data-search="installation download and install archeion on windows."
               ><span>Installation</span></a
             ><a
               href="../../getting-started/archives/"
               data-doc-link
-              data-search="open or create an archive connect archeion to an existing epub folder or create a new archive."
+              data-search="open or create an archive choose an existing epub folder or create a new one."
               ><span>Open or create an archive</span></a
             ><a
               href="../../getting-started/adding-books/"
               data-doc-link
-              data-search="add epub files add one or more epubs and choose destination, conflict, and copy or move behavior."
+              data-search="add epub files copy or move books into an archive folder."
               ><span>Add EPUB files</span></a
             >
           </div>
@@ -197,17 +196,17 @@
             <a
               href="../../guides/library/"
               data-doc-link
-              data-search="library search, filter, sort, switch views, browse folders, and work with multiple books."
+              data-search="library find books, use folders, change views, and manage multiple books."
               ><span>Library</span></a
             ><a
               href="../../guides/reading/"
               data-doc-link
-              data-search="reader and annotations navigate epubs, tune reading controls, and work with bookmarks, highlights, and notes."
+              data-search="reader and annotations read books and manage bookmarks, highlights, and notes."
               ><span>Reader and annotations</span></a
             ><a
               href="../../guides/file-management/"
               data-doc-link
-              data-search="file management rename, move, reveal, export, and delete real epub files and folders."
+              data-search="file management rename, move, reveal, export, and delete books and folders."
               ><span>File management</span></a
             >
           </div>
@@ -228,12 +227,12 @@
             <a
               href="../../customization/appearance/"
               data-doc-link
-              data-search="appearance configure application appearance, library presentation, and reader typography."
+              data-search="appearance change app colors, reader typography, and library layout."
               ><span>Appearance</span></a
             ><a
               href="../../customization/custom-themes/"
               data-doc-link
-              data-search="custom themes create archive-local json theme packages for the application and epub reader."
+              data-search="custom themes create, import, preview, and fix custom color themes."
               ><span>Custom themes</span></a
             >
           </div>
@@ -254,7 +253,7 @@
             <a
               href="./"
               data-doc-link
-              data-search="archive storage understand the real folders, sidecar files, caches, backups, themes, and portability model."
+              data-search="archive storage back up, move, and inspect the files stored with an archive."
               aria-current="page"
               ><span>Archive storage</span></a
             >
@@ -262,7 +261,7 @@
         </section>
       </nav>
       <div class="docs-sidebar__footer">
-        <span>Archeion 0.4.0</span>
+        <span>Archeion documentation</span>
         <a href="../../../">Back to website</a>
       </div>
     </aside>
@@ -277,22 +276,19 @@
           <header class="article-header">
             <p class="eyebrow">Reference</p>
             <h1>Archive storage and backups</h1>
-            <p>
-              Understand the real folders, sidecar files, caches, backups, themes, and portability
-              model.
-            </p>
+            <p>See what an archive contains and how to back it up or move it.</p>
           </header>
-          <details class="mobile-outline" data-mobile-outline>
+          <details class="mobile-outline" data-mobile-outline="">
             <summary>On this page</summary>
-            <nav data-mobile-toc></nav>
+            <nav data-mobile-toc=""></nav>
           </details>
-
           <p class="lead">
-            The archive folder is the source of truth for EPUB files. Archeion adds a hidden sidecar
-            directory for app-managed state while keeping books as ordinary portable files.
+            Your EPUB files remain normal files and folders. Archeion stores its own data in the
+            hidden <code>.archeion</code> folder inside the archive.
           </p>
 
-          <h2 id="example-layout">Example layout</h2>
+          <h2 id="archive-contents">What an archive contains</h2>
+          <h3 id="example-layout">Example layout</h3>
           <pre><code class="language-text">Your Archive/
 ├── Book.epub
 ├── Series/
@@ -307,27 +303,25 @@
     ├── backups/
     └── themes/</code></pre>
 
-          <h2 id="epub-files">EPUB files and folders</h2>
+          <h3 id="epub-files">EPUB files and folders</h3>
           <p>
-            Books remain normal <code>.epub</code> files. Nested directories remain real directories
-            and are reflected in the Library folder tree. You can inspect, copy, or back up these
-            files outside Archeion.
+            Books stay as normal <code>.epub</code> files. Subfolders stay as real folders and
+            appear in the Library folder tree. You can inspect and copy them with Windows Explorer.
           </p>
 
-          <h2 id="sidecar">The .archeion directory</h2>
-          <p>The exact sidecar contents can evolve, but the directory may include:</p>
+          <h3 id="sidecar">The <code>.archeion</code> folder</h3>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
                   <th>Path</th>
-                  <th>Purpose</th>
+                  <th>Contains</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
                   <td><code>library.json</code></td>
-                  <td>Library metadata and archive state.</td>
+                  <td>Library metadata and archive information.</td>
                 </tr>
                 <tr>
                   <td><code>progress.json</code></td>
@@ -335,72 +329,79 @@
                 </tr>
                 <tr>
                   <td><code>annotations.json</code></td>
-                  <td>Bookmarks, highlights, attached notes, and annotation recovery state.</td>
+                  <td>Bookmarks, highlights, notes, and annotation recovery data.</td>
                 </tr>
                 <tr>
                   <td><code>settings.json</code></td>
-                  <td>Archive-owned settings and selected themes.</td>
+                  <td>Settings stored with the archive, including selected themes.</td>
                 </tr>
                 <tr>
                   <td><code>scanner-cache.json</code></td>
-                  <td>Data used to reduce repeated scanning work.</td>
+                  <td>Cached scan information.</td>
                 </tr>
                 <tr>
                   <td><code>covers/</code></td>
-                  <td>Generated or cached cover assets.</td>
+                  <td>Generated or cached covers.</td>
                 </tr>
                 <tr>
                   <td><code>backups/</code></td>
-                  <td>Backups created by supported writeback operations.</td>
+                  <td>Backups created before supported book file changes.</td>
                 </tr>
                 <tr>
                   <td><code>themes/</code></td>
-                  <td>Archive-local custom theme packages.</td>
+                  <td>Custom theme packages.</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <h2 id="backup">Back up an archive</h2>
+          <h2 id="backup-move">Back up or move an archive</h2>
+          <h3 id="backup">Back up an archive</h3>
           <p>
-            Copy the complete archive root, including hidden items. The EPUB files preserve the
-            books, while <code>.archeion</code> preserves Archeion-specific progress, annotations,
-            settings, caches, and custom themes.
+            Copy the complete archive folder, including hidden files. The EPUB files contain the
+            books. The <code>.archeion</code> folder contains progress, annotations, settings,
+            covers, backups, and themes.
           </p>
 
-          <h2 id="move">Move an archive</h2>
+          <h3 id="move">Move an archive</h3>
           <ol class="steps">
             <li>
-              <strong>Close active file operations.</strong
-              ><span>Let current imports, exports, metadata writes, or cover writes finish.</span>
+              <strong>Wait for active operations to finish.</strong
+              ><span>Let imports, exports, metadata changes, and cover changes complete.</span>
             </li>
             <li>
-              <strong>Move the complete folder.</strong
-              ><span>Include <code>.archeion</code> and every nested book folder.</span>
+              <strong>Move the complete archive folder.</strong
+              ><span>Include all EPUB folders and <code>.archeion</code>.</span>
             </li>
             <li>
-              <strong>Open the moved folder.</strong
-              ><span>Use Archive Manager to open the archive at its new location.</span>
+              <strong>Open the archive from its new location.</strong
+              ><span>Use Archive Manager.</span>
             </li>
             <li>
-              <strong>Forget the missing entry if needed.</strong
-              ><span
-                >Forgetting removes the old known-archive entry and does not delete files.</span
-              >
+              <strong>Forget the old missing entry if needed.</strong
+              ><span>This removes the old entry from Archeion. It does not delete files.</span>
             </li>
           </ol>
 
-          <h2 id="do-not-edit">Files to edit carefully</h2>
+          <h2 id="edit-files">Edit files carefully</h2>
+          <h3 id="theme-files">Theme files</h3>
           <p>
-            Theme manifests are designed for manual editing. Other JSON sidecar files are app-owned.
-            Editing them while Archeion is open can cause conflicts or invalid state. Prefer app
-            controls and keep a backup before manual recovery work.
+            Files inside <code>.archeion/themes/</code> are intended for manual editing. See
+            <a href="../../customization/custom-themes/">Custom themes</a> for the supported format.
           </p>
 
-          <h2 id="local-first">Local-first boundaries</h2>
+          <h3 id="other-files">Other <code>.archeion</code> files</h3>
           <p>
-            Archeion has no account system, cloud synchronization, or telemetry service. Moving data
-            between computers is a filesystem operation that you control.
+            Use Archeion to change progress, annotations, settings, and metadata. Manual edits to
+            the other JSON files can make the data invalid. Make a backup before attempting manual
+            recovery.
+          </p>
+
+          <h2 id="another-computer">Move to another computer</h2>
+          <p>
+            Copy the complete archive to the other computer, install Archeion, and open the copied
+            folder from Archive Manager. Archeion does not provide account-based or cloud
+            synchronization.
           </p>
         </article>
         <nav class="article-pager article-pager--single" aria-label="Documentation pages">
