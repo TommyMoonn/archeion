@@ -638,15 +638,26 @@ mod tests {
             match std::os::windows::fs::symlink_dir(target, link) {
                 Ok(()) => Ok(()),
                 Err(error) if error.raw_os_error() == Some(1314) => {
-                    let status = std::process::Command::new("cmd")
+                    let output = std::process::Command::new("cmd")
                         .args(["/c", "mklink", "/J"])
                         .arg(link)
                         .arg(target)
-                        .status()?;
-                    status
-                        .success()
-                        .then_some(())
-                        .ok_or_else(|| std::io::Error::other("junction creation failed"))
+                        .output()?;
+                    if output.status.success() {
+                        Ok(())
+                    } else {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        let stdout = String::from_utf8_lossy(&output.stdout);
+                        let detail = if stderr.trim().is_empty() {
+                            stdout.trim()
+                        } else {
+                            stderr.trim()
+                        };
+                        Err(std::io::Error::other(format!(
+                            "junction creation failed ({}): {detail}",
+                            output.status
+                        )))
+                    }
                 }
                 Err(error) => Err(error),
             }
