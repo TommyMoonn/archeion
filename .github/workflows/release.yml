@@ -16,10 +16,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build-windows:
-    name: Build Windows x64 release
-    runs-on: windows-latest
-    timeout-minutes: 60
+  verify-release:
+    name: Verify release commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    permissions:
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout
@@ -34,6 +37,56 @@ jobs:
           set -euo pipefail
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
+      - name: Require successful CI for tagged commit
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          run_id=""
+          for attempt in {1..12}; do
+            runs_json=$(gh run list \
+              --workflow ci.yml \
+              --commit "$GITHUB_SHA" \
+              --event push \
+              --limit 20 \
+              --json databaseId,headSha)
+
+            run_id=$(jq -r --arg sha "$GITHUB_SHA" \
+              '[.[] | select(.headSha == $sha)] | sort_by(.databaseId) | last | .databaseId // empty' \
+              <<<"$runs_json")
+
+            if [[ -n "$run_id" ]]; then
+              break
+            fi
+
+            echo "No CI run is visible for $GITHUB_SHA yet; retrying in 10 seconds."
+            sleep 10
+          done
+
+          if [[ -z "$run_id" ]]; then
+            echo "No push-triggered CI run was found for tagged commit $GITHUB_SHA." >&2
+            echo "Push the release commit to main and wait for CI before creating the tag." >&2
+            exit 1
+          fi
+
+          echo "Reusing CI run $run_id for tagged commit $GITHUB_SHA."
+          gh run watch "$run_id" --exit-status
+
+  build-windows:
+    name: Build Windows x64 release
+    needs: verify-release
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+        with:
+          persist-credentials: false
+
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
@@ -44,7 +97,6 @@ jobs:
         uses: dtolnay/rust-toolchain@fa04a1451ff1842e2626ccb99004d0195b455a88 # master
         with:
           toolchain: stable
-          components: rustfmt, clippy
           targets: x86_64-pc-windows-msvc
 
       - name: Cache Rust dependencies
@@ -62,9 +114,6 @@ jobs:
           ./scripts/check-release.ps1
           -Tag "${{ github.ref_name }}"
           -RequireChangelogEntry
-
-      - name: Run release checks
-        run: npm run verify
 
       - name: Build NSIS and MSI installers
         run: npm run tauri:build:windows -- --ci --target x86_64-pc-windows-msvc
