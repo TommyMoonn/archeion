@@ -7,6 +7,7 @@ import {
   epubIllustrationExportFileName,
   epubIllustrationFileExtension,
   epubIllustrationImageType,
+  epubIllustrationImageTypeForExtension,
 } from "./epubIllustrationImage";
 
 describe("EPUB illustration image contract", () => {
@@ -30,6 +31,7 @@ describe("EPUB illustration image contract", () => {
       for (const extension of imageType.extensions) {
         expect(extensionOwners.has(extension)).toBe(false);
         extensionOwners.set(extension, imageType.mediaType);
+        expect(epubIllustrationImageTypeForExtension(extension)).toBe(imageType);
       }
     }
   });
@@ -76,5 +78,6 @@ describe("EPUB illustration image contract", () => {
     expect(epubIllustrationImageType("image/png")).toBeDefined();
     expect(epubIllustrationImageType("image/webp")).toBeDefined();
     expect(epubIllustrationImageType("image/svg+xml")).toBeUndefined();
+    expect(epubIllustrationImageTypeForExtension("svg")).toBeUndefined();
   });
 });

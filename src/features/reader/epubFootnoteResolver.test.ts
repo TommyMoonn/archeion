@@ -80,6 +80,68 @@ describe("resolveEpubFootnote", () => {
     expect(createObjectURL).toHaveBeenCalledOnce();
     expect(JSON.stringify(resolution.value.nodes)).toContain("blob:plate");
     resolution.value.release();
+    resolution.value.release();
     expect(revokeObjectURL).toHaveBeenCalledWith("blob:plate");
+    expect(revokeObjectURL).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    "\n../Images/plate.png",
+    "../Images/plate.png\t",
+    "\r../Images/plate.png",
+    `../Images/${String.fromCharCode(0x7f)}plate.png`,
+    "%0A../Images/plate.png",
+    "../Images/%7Fplate.png",
+    "chapter.xhtml#note%0A1",
+  ])("does not normalize malformed footnote targets %j", async (rawTarget) => {
+    const document = documentWith(`
+      <aside id="note-1" role="doc-footnote">
+        <a id="target">Target</a><img id="image" alt="Plate">
+      </aside>
+    `);
+    document.getElementById("target")?.setAttribute("href", rawTarget);
+    document.getElementById("image")?.setAttribute("src", rawTarget);
+    const getBlob = vi.fn(async () => new Blob(["image"], { type: "image/png" }));
+    const load = vi.fn(async () => new Blob(["image"], { type: "image/png" }));
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:plate");
+
+    const resolution = await resolveEpubFootnote({
+      book: { archive: { getBlob }, load, spine: {} } as unknown as EpubBook,
+      currentDocument: { document, href: "Text/chapter.xhtml" },
+      forceFootnote: true,
+      target,
+    });
+
+    expect(resolution.kind).toBe("resolved");
+    if (resolution.kind !== "resolved") return;
+    expect(JSON.stringify(resolution.value.nodes)).not.toMatch(/"type":"(?:link|image)"/);
+    expect(getBlob).not.toHaveBeenCalled();
+    expect(load).not.toHaveBeenCalled();
+    expect(createObjectURL).not.toHaveBeenCalled();
+    resolution.value.release();
+  });
+
+  it("rejects empty and unsupported image resources before creating an object URL", async () => {
+    const document = documentWith(`
+      <aside id="note-1" role="doc-footnote">
+        <p>Plate</p><img src="../Images/empty.png"><img src="../Images/vector.svg"><img src="../Images/plate.bmp">
+      </aside>
+    `);
+    const getBlob = vi.fn(async () => new Blob([], { type: "image/png" }));
+    const createObjectURL = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:empty");
+
+    const resolution = await resolveEpubFootnote({
+      book: { archive: { getBlob }, spine: {} } as unknown as EpubBook,
+      currentDocument: { document, href: "Text/chapter.xhtml" },
+      forceFootnote: true,
+      target,
+    });
+
+    expect(resolution.kind).toBe("resolved");
+    if (resolution.kind !== "resolved") return;
+    expect(getBlob).toHaveBeenCalledOnce();
+    expect(createObjectURL).not.toHaveBeenCalled();
+    expect(JSON.stringify(resolution.value.nodes)).not.toContain('"type":"image"');
+    resolution.value.release();
   });
 });

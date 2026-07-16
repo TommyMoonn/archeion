@@ -23,12 +23,23 @@ export const EPUB_ILLUSTRATION_IMAGE_TYPES = EPUB_ILLUSTRATION_IMAGE_CONTRACT.ty
 const IMAGE_TYPE_BY_MEDIA_TYPE = new Map(
   EPUB_ILLUSTRATION_IMAGE_TYPES.map((type) => [type.mediaType, type] as const),
 );
+const IMAGE_TYPE_BY_EXTENSION = new Map(
+  EPUB_ILLUSTRATION_IMAGE_TYPES.flatMap((type) =>
+    type.extensions.map((extension) => [extension, type] as const),
+  ),
+);
 
 export function epubIllustrationImageType(
   mediaType: string,
 ): EpubIllustrationImageType | undefined {
   const normalized = mediaType.split(";", 1)[0]?.trim().toLowerCase();
   return IMAGE_TYPE_BY_MEDIA_TYPE.get(normalized);
+}
+
+export function epubIllustrationImageTypeForExtension(
+  extension: string,
+): EpubIllustrationImageType | undefined {
+  return IMAGE_TYPE_BY_EXTENSION.get(extension.trim().toLowerCase());
 }
 
 export function epubIllustrationFileExtension(

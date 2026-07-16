@@ -5,12 +5,12 @@ import {
   epubSemanticsFromElement,
   findEpubFragmentTarget,
   isFootnoteTargetSemantics,
-  resolveEpubLocalTarget,
   targetSemanticsForElement,
   type EpubContentAction,
   type EpubLocalTarget,
 } from "./epubContentActions";
 import { resolveEpubLocalDocument } from "./epubLocalDocumentResolver";
+import { epubIllustrationImageTypeForExtension } from "./epubIllustrationImage";
 
 export type EpubFootnoteElementTag =
   | "b"
@@ -102,7 +102,6 @@ const DROP_SUBTREE_TAGS = new Set([
   "track",
   "video",
 ]);
-const SAFE_FOOTNOTE_IMAGE_EXTENSIONS = new Set(["avif", "gif", "jpeg", "jpg", "png", "webp"]);
 const MAX_FOOTNOTE_IMAGES = 4;
 const MAX_FOOTNOTE_IMAGE_BYTES = 512 * 1024;
 const MAX_FOOTNOTE_NODES = 600;
@@ -238,8 +237,8 @@ class FootnoteSanitizer {
 
   private async sanitizeLink(element: Element): Promise<EpubFootnoteNode[]> {
     const children = await this.sanitizeChildren(element);
-    const href = element.getAttribute("href")?.trim();
-    if (!href || children.length === 0) return children;
+    const href = element.getAttribute("href");
+    if (href === null || children.length === 0) return children;
 
     let action = classifyEpubLink({
       currentDocumentHref: this.documentHref,
@@ -268,17 +267,20 @@ class FootnoteSanitizer {
 
   private async sanitizeImage(element: Element): Promise<EpubFootnoteNode | null> {
     if (this.imageCount >= MAX_FOOTNOTE_IMAGES || this.signal?.aborted) return null;
-    const src = element.getAttribute("src")?.trim();
-    if (!src) return null;
-    const target = resolveEpubLocalTarget(this.documentHref, src);
-    if ("kind" in target || target.resourceKind !== "illustration") return null;
+    const src = element.getAttribute("src");
+    if (src === null) return null;
+    const action = classifyEpubLink({ currentDocumentHref: this.documentHref, href: src });
+    if (action.kind !== "illustration") return null;
+    const target = action.target;
     const extension = target.documentHref
       .slice(target.documentHref.lastIndexOf(".") + 1)
       .toLowerCase();
-    if (!SAFE_FOOTNOTE_IMAGE_EXTENSIONS.has(extension)) return null;
+    if (!epubIllustrationImageTypeForExtension(extension)) return null;
 
     const blob = await loadLocalImageBlob(this.book, target.documentHref);
-    if (!blob || blob.size > MAX_FOOTNOTE_IMAGE_BYTES || this.signal?.aborted) return null;
+    if (!blob || blob.size <= 0 || blob.size > MAX_FOOTNOTE_IMAGE_BYTES || this.signal?.aborted) {
+      return null;
+    }
     const objectUrl = URL.createObjectURL(blob);
     this.objectUrls.push(objectUrl);
     this.imageCount += 1;

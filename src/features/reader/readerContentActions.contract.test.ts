@@ -20,6 +20,9 @@ describe("reader content action contract", () => {
     );
     const illustrationViewer = read("src/features/reader/ReaderIllustrationViewer.tsx");
     const illustrationExport = read("src/features/reader/readerIllustrationExportFile.ts");
+    const illustrationImages = read("src/features/reader/epubIllustrationImage.ts");
+    const contentActions = read("src/features/reader/epubContentActions.ts");
+    const footnoteResolver = read("src/features/reader/epubFootnoteResolver.ts");
 
     expect(session).not.toMatch(
       /classifyEpubLink|resolveEpubFootnote|ReaderFootnotePopover|ReaderIllustrationViewer/,
@@ -40,6 +43,11 @@ describe("reader content action contract", () => {
     expect(illustrationViewer).not.toMatch(/plugin-dialog|invoke\(|archive\.getBlob|arrayBuffer/);
     expect(illustrationExport).toContain("resource.blob.arrayBuffer()");
     expect(illustrationExport).not.toMatch(/fetch\(|createObjectURL|<a|download=/);
+    expect(contentActions).toContain("epubIllustrationImageTypeForExtension");
+    expect(footnoteResolver).toContain("epubIllustrationImageTypeForExtension");
+    expect(illustrationImages).toContain("IMAGE_TYPE_BY_EXTENSION");
+    expect(contentActions).not.toContain("ILLUSTRATION_EXTENSIONS");
+    expect(footnoteResolver).not.toContain("SAFE_FOOTNOTE_IMAGE_EXTENSIONS");
   });
 
   it("uses semantic reader tokens and introduces no history or content plugin framework", () => {

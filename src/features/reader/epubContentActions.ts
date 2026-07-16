@@ -1,3 +1,5 @@
+import { epubIllustrationImageTypeForExtension } from "./epubIllustrationImage";
+
 export type EpubLocalResourceKind = "document" | "illustration";
 
 export type EpubLocalTarget = Readonly<{
@@ -30,7 +32,6 @@ export type ClassifyEpubLinkInput = Readonly<{
 }>;
 
 const DOCUMENT_EXTENSIONS = new Set(["htm", "html", "xht", "xhtml"]);
-const ILLUSTRATION_EXTENSIONS = new Set(["avif", "gif", "jpeg", "jpg", "png", "svg", "webp"]);
 const FOOTNOTE_EPUB_TYPES = new Set(["endnote", "footnote", "rearnote"]);
 const FOOTNOTE_ROLES = new Set(["doc-endnote", "doc-footnote"]);
 const NOTEREF_EPUB_TYPES = new Set(["noteref"]);
@@ -65,29 +66,36 @@ export function resolveEpubLocalTarget(
   currentDocumentHref: string,
   href: string,
 ): EpubLocalTarget | Readonly<{ kind: "unsupported"; reason: EpubUnsupportedLinkReason }> {
-  const rawHref = href.trim().replace(/\\/g, "/");
-  if (!rawHref) return { kind: "unsupported", reason: "empty" };
-  if (rawHref.startsWith("//")) return { kind: "unsupported", reason: "remote-content" };
-  if (rawHref.startsWith("/")) return { kind: "unsupported", reason: "traversal" };
-
-  const hashIndex = rawHref.indexOf("#");
-  const beforeFragment = hashIndex >= 0 ? rawHref.slice(0, hashIndex) : rawHref;
-  const rawFragment = hashIndex >= 0 ? rawHref.slice(hashIndex + 1) : undefined;
-  if (beforeFragment.includes("?")) return { kind: "unsupported", reason: "malformed" };
-
-  const decodedDocument = safeDecodeUri(beforeFragment);
-  const decodedCurrent = safeDecodeUri(currentDocumentHref.trim().replace(/\\/g, "/"));
-  if (decodedDocument === null || decodedCurrent === null) {
+  if (hasAsciiControlCharacter(currentDocumentHref) || hasAsciiControlCharacter(href)) {
+    return { kind: "unsupported", reason: "malformed" };
+  }
+  const decodedHref = decodeEpubLocalUri(href);
+  const decodedCurrent = decodeEpubLocalUri(currentDocumentHref);
+  if (decodedHref === null || decodedCurrent === null) {
     return { kind: "unsupported", reason: "malformed" };
   }
 
-  const currentPath = splitDocumentHref(decodedCurrent);
+  const normalizedHref = decodedHref.trim().replace(/\\/g, "/");
+  if (!normalizedHref) return { kind: "unsupported", reason: "empty" };
+  if (normalizedHref.startsWith("//")) {
+    return { kind: "unsupported", reason: "remote-content" };
+  }
+  if (normalizedHref.startsWith("/")) return { kind: "unsupported", reason: "traversal" };
+
+  const hashIndex = normalizedHref.indexOf("#");
+  const beforeFragment = hashIndex >= 0 ? normalizedHref.slice(0, hashIndex) : normalizedHref;
+  const rawHref = href.trim().replace(/\\/g, "/");
+  const rawHashIndex = rawHref.indexOf("#");
+  const rawFragment = rawHashIndex >= 0 ? rawHref.slice(rawHashIndex + 1) : undefined;
+  if (beforeFragment.includes("?")) return { kind: "unsupported", reason: "malformed" };
+
+  const currentPath = splitDocumentHref(decodedCurrent.trim().replace(/\\/g, "/"));
   if (!currentPath || currentPath.absolute || currentPath.traversedRoot) {
     return { kind: "unsupported", reason: "malformed" };
   }
 
-  const targetPath = decodedDocument
-    ? normalizeRelativePath(directoryOf(currentPath.path), decodedDocument)
+  const targetPath = beforeFragment
+    ? normalizeRelativePath(directoryOf(currentPath.path), beforeFragment)
     : currentPath;
   if (!targetPath || targetPath.absolute) {
     return { kind: "unsupported", reason: "malformed" };
@@ -99,7 +107,7 @@ export function resolveEpubLocalTarget(
     return { kind: "unsupported", reason: "malformed" };
   }
 
-  const fragment = rawFragment === undefined ? undefined : safeDecodeComponent(rawFragment);
+  const fragment = rawFragment === undefined ? undefined : decodeEpubLocalComponent(rawFragment);
   if (rawFragment !== undefined && fragment === null) {
     return { kind: "unsupported", reason: "malformed" };
   }
@@ -107,7 +115,7 @@ export function resolveEpubLocalTarget(
   const extension = extensionOf(targetPath.path);
   const resourceKind = DOCUMENT_EXTENSIONS.has(extension)
     ? "document"
-    : ILLUSTRATION_EXTENSIONS.has(extension)
+    : extension === "svg" || epubIllustrationImageTypeForExtension(extension)
       ? "illustration"
       : undefined;
   if (!resourceKind) {
@@ -171,7 +179,7 @@ export function isFootnoteTargetSemantics(semantics: EpubTargetSemantics | undef
 }
 
 export function findEpubFragmentTarget(document: Document, fragment: string): Element | null {
-  const candidates = uniqueStrings([fragment, safeDecodeComponent(fragment) ?? undefined]);
+  const candidates = uniqueStrings([fragment, decodeEpubLocalComponent(fragment) ?? undefined]);
   for (const candidate of candidates) {
     const byId = document.getElementById(candidate);
     if (byId) return byId;
@@ -185,9 +193,10 @@ export function findEpubFragmentTarget(document: Document, fragment: string): El
 }
 
 export function normalizedEpubDocumentHref(value: string): string | null {
-  const decoded = safeDecodeUri(value.trim().replace(/\\/g, "/"));
+  if (hasAsciiControlCharacter(value)) return null;
+  const decoded = decodeEpubLocalUri(value);
   if (decoded === null) return null;
-  const normalized = splitDocumentHref(decoded);
+  const normalized = splitDocumentHref(decoded.trim().replace(/\\/g, "/"));
   return normalized && !normalized.absolute && !normalized.traversedRoot ? normalized.path : null;
 }
 
@@ -292,17 +301,19 @@ function normalizedToken(value: string | null): string | undefined {
   return normalized || undefined;
 }
 
-function safeDecodeUri(value: string): string | null {
+function decodeEpubLocalUri(value: string): string | null {
   try {
-    return decodeURI(value);
+    const decoded = decodeURI(value);
+    return hasAsciiControlCharacter(decoded) ? null : decoded;
   } catch {
     return null;
   }
 }
 
-function safeDecodeComponent(value: string): string | null {
+function decodeEpubLocalComponent(value: string): string | null {
   try {
-    return decodeURIComponent(value);
+    const decoded = decodeURIComponent(value);
+    return hasAsciiControlCharacter(decoded) ? null : decoded;
   } catch {
     return null;
   }
