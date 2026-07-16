@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-07-16
+
+Archeion's make-it-yours release for safe, archive-local application and reader themes.
+
+### Added
+
+- Added archive-local JSON theme packages under `.archeion/themes/`, with independent application and reader selections that remain portable with the archive.
+- Added a Theme Manager for browsing built-in and custom application themes, inspecting validation diagnostics and color swatches, importing packages, previewing changes, selecting a theme, deleting packages, reloading external edits, and opening the archive themes folder.
+- Added temporary application-theme previews with safe Keep and Revert controls, contrast-warning acknowledgement, and automatic rollback when the manager closes or the active archive changes.
+- Added a public version 1 JSON Schema, dark and light example packages, and a complete authoring guide for creating themes in external editors.
+- Added shared archive reader-theme selection in Settings and the in-reader settings panel, including Light, Sepia, Dark, and compatible custom reader palettes.
+
+### Changed
+
+- Consolidated active-archive appearance into one **App themes** control and one **Reader theme** control while retaining global preferences only as safe startup, legacy, and recovery fallbacks.
+- Made application and reader theme references archive-owned and stored them in version 2 of `.archeion/settings.json` without requiring existing archives to be reorganized.
+- Routed supported application, dialog, library, settings, Archive Manager, reader chrome, and EPUB content colors through the semantic theme contract.
+- Made Theme Manager application-only, with one flat theme list, a visible Selected state, and focused import, preview, selection, deletion, reload, folder, guide, and schema actions.
+- Made external theme editing an explicit Reload workflow rather than introducing a watcher or polling loop.
+- Kept annotation highlight identities, Windows close-button treatment, and cover-overlay controls fixed where their visual meaning must remain stable across themes.
+
+### Fixed
+
+- Fixed archive theme selection failing with `Cannot read properties of undefined (reading 'createArchiveCommandScope')` by preserving the storage receiver behind a narrow appearance settings boundary.
+- Prevented rapid application and reader changes from overwriting one another while archive settings writes are pending.
+- Prevented stale theme reads, writes, previews, and catalog operations from publishing after an archive switch or newer appearance operation.
+- Reconciled failed appearance writes and reloads with the authoritative persisted archive settings instead of leaving runtime state different from disk.
+- Preserved missing or invalid custom theme references while applying safe fallback palettes so restored packages can recover after Reload.
+- Preserved the active EPUB book, rendition, chapter, and reading location when reader palette colors change.
+- Hardened managed theme package operations against traversal, invalid Windows names, oversized or invalid files, symlink or junction escapes, partial writes, and unconfirmed replacement.
+
+### Testing
+
+- Added regression coverage for schema and runtime validation, built-in bootstrap parity, derived colors, contrast warnings, package path safety, atomic replacement, catalog diagnostics, archive settings migration, and archive-generation invalidation.
+- Expanded integration coverage for application and reader persistence, preview Keep and Revert behavior, rapid cross-channel changes, Theme Manager workflows, shared reader selectors, EPUB palette updates, and removal of obsolete theme-management paths.
+
 ## [0.4.0] - 2026-07-15
 
 Archeion's annotation-focused release for bookmarks, highlights, attached notes, and durable reading research.
@@ -114,7 +150,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TommyMoonn/archeion/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/TommyMoonn/archeion/compare/v0.1.0...v0.2.0
