@@ -2,11 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import {
   canRunReaderWheelTurn,
+  getContinuousReaderWheelDelta,
   getReaderKeyboardIntent,
   getReaderWheelDelta,
   getReaderWheelIntentFromDelta,
+  isPagedReaderWheelTargetBlocked,
+  isReaderTransientSurfaceTarget,
   READER_WHEEL_THROTTLE_MS,
   READER_WHEEL_TURN_DELTA,
+  shouldIgnoreReaderWheelEvent,
 } from "./readerNavigation";
 
 function keyEvent(
@@ -33,18 +37,28 @@ function wheelEvent(
   options: Partial<
     Pick<
       WheelEvent,
-      "altKey" | "ctrlKey" | "deltaMode" | "deltaX" | "deltaY" | "metaKey" | "shiftKey"
+      | "altKey"
+      | "ctrlKey"
+      | "defaultPrevented"
+      | "deltaMode"
+      | "deltaX"
+      | "deltaY"
+      | "metaKey"
+      | "shiftKey"
+      | "target"
     >
   >,
 ) {
   return {
     altKey: false,
     ctrlKey: false,
+    defaultPrevented: false,
     deltaMode: 0,
     deltaX: 0,
     deltaY: 0,
     metaKey: false,
     shiftKey: false,
+    target: null,
     ...options,
   } as WheelEvent;
 }
@@ -52,6 +66,18 @@ function wheelEvent(
 function wheelIntent(event: WheelEvent) {
   const delta = getReaderWheelDelta(event);
   return delta === null ? null : getReaderWheelIntentFromDelta(delta);
+}
+
+function elementTarget(
+  matchingSelector: string | null = null,
+  selectionCollapsed = true,
+): EventTarget {
+  return {
+    closest: (selector: string) =>
+      matchingSelector && selector.includes(matchingSelector) ? {} : null,
+    nodeType: 1,
+    ownerDocument: { getSelection: () => ({ isCollapsed: selectionCollapsed }) },
+  } as unknown as EventTarget;
 }
 
 describe("reader navigation helpers", () => {
@@ -96,6 +122,51 @@ describe("reader navigation helpers", () => {
   it("ignores modified wheel gestures", () => {
     expect(getReaderWheelDelta(wheelEvent({ ctrlKey: true, deltaY: 80 }))).toBeNull();
     expect(getReaderWheelDelta(wheelEvent({ metaKey: true, deltaY: 80 }))).toBeNull();
+  });
+
+  it("defensively ignores consumed wheel events and transient reader surfaces", () => {
+    const transientTarget = {
+      closest: (selector: string) => (selector === "[data-reader-ignore-shortcuts]" ? {} : null),
+      nodeType: 1,
+      ownerDocument: { getSelection: () => null },
+    } as unknown as EventTarget;
+
+    expect(isReaderTransientSurfaceTarget(transientTarget)).toBe(true);
+    expect(shouldIgnoreReaderWheelEvent(wheelEvent({ target: transientTarget }))).toBe(true);
+    expect(getReaderWheelDelta(wheelEvent({ defaultPrevented: true, deltaY: 80 }))).toBeNull();
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: transientTarget }))).toBeNull();
+  });
+
+  it.each([
+    "a[href]",
+    "button",
+    "input",
+    "select",
+    "textarea",
+    "summary",
+    "[role='button']",
+    "[contenteditable='true']",
+  ])("blocks paged wheel navigation over %s", (selector) => {
+    const target = elementTarget(selector);
+
+    expect(isPagedReaderWheelTargetBlocked(target)).toBe(true);
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target }))).toBeNull();
+  });
+
+  it("blocks paged wheel navigation while the target document has a text selection", () => {
+    const target = elementTarget(null, false);
+
+    expect(isPagedReaderWheelTargetBlocked(target)).toBe(true);
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target }))).toBeNull();
+  });
+
+  it("keeps ordinary targets paged-eligible and interactive targets continuous-eligible", () => {
+    const ordinaryTarget = elementTarget();
+    const linkTarget = elementTarget("a[href]");
+
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: ordinaryTarget }))).toBe(80);
+    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: linkTarget }))).toBeNull();
+    expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: linkTarget }))).toBe(80);
   });
 
   it("throttles wheel page turns", () => {

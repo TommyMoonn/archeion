@@ -229,12 +229,11 @@
 }
 
 .reader-illustration-viewer__viewport {
-  display: flex;
+  display: block;
   min-width: 0;
   min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
-  padding: 18px;
   color: var(--reader-muted);
   background:
     linear-gradient(
@@ -264,39 +263,42 @@
   touch-action: none;
 }
 
-.reader-illustration-viewer__viewport[data-pannable]:active {
+.reader-illustration-viewer__viewport[data-panning] {
   cursor: grabbing;
 }
 
-.reader-illustration-viewer__viewport > p {
+.reader-illustration-viewer__canvas {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.reader-illustration-viewer__canvas > p {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   max-width: 36ch;
-  margin: auto;
+  margin: 0;
   padding: 12px 14px;
   border: 1px solid var(--reader-line);
   border-radius: var(--radius-control);
   background: var(--reader-surface);
   text-align: center;
+  transform: translate(-50%, -50%);
 }
 
-.reader-illustration-viewer__viewport > p[role="alert"] {
+.reader-illustration-viewer__canvas > p[role="alert"] {
   color: var(--reader-danger);
 }
 
-.reader-illustration-viewer__viewport img {
+.reader-illustration-viewer__canvas img {
+  position: absolute;
   display: block;
-  flex: none;
-  margin: auto;
+  margin: 0;
   max-width: none;
   max-height: none;
   object-fit: contain;
   user-select: none;
-}
-
-.reader-illustration-viewer__viewport img.is-fit {
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  max-height: 100%;
 }
 
 .reader-illustration-viewer__controls {
@@ -312,7 +314,7 @@
 }
 
 .reader-illustration-viewer__zoom-controls output {
-  min-width: 52px;
+  min-width: 76px;
   color: var(--reader-strong);
   font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;

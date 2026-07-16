@@ -4,23 +4,12 @@ import {
   MagnifyingGlassPlus,
   X,
 } from "@phosphor-icons/react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type PointerEvent,
-} from "react";
+import { useEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
-
-const READER_ILLUSTRATION_MIN_ZOOM = 0.25;
-const READER_ILLUSTRATION_MAX_ZOOM = 4;
-const ZOOM_STEP = 0.25;
-const KEYBOARD_PAN_STEP = 56;
+import { useReaderIllustrationInteraction } from "./useReaderIllustrationInteraction";
 
 type ReaderIllustrationViewerProps = Readonly<{
   error?: string;
@@ -28,8 +17,6 @@ type ReaderIllustrationViewerProps = Readonly<{
   onClose: () => void;
   resource?: ResolvedEpubIllustration;
 }>;
-
-type PanOrigin = Readonly<{ left: number; top: number; x: number; y: number }>;
 
 export function ReaderIllustrationViewer({
   error,
@@ -57,8 +44,7 @@ function ReaderIllustrationViewerInstance({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const panRef = useRef<PanOrigin | null>(null);
-  const [zoom, setZoom] = useState<"fit" | number>("fit");
+  const interaction = useReaderIllustrationInteraction(resource, dialogRef, viewportRef);
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -70,104 +56,6 @@ function ReaderIllustrationViewerInstance({
     };
   }, []);
 
-  function updateZoom(direction: -1 | 1) {
-    setZoom((current) =>
-      clampIllustrationZoom((current === "fit" ? 1 : current) + direction * ZOOM_STEP),
-    );
-  }
-
-  function fitToViewport() {
-    setZoom("fit");
-    resetPan(viewportRef.current);
-  }
-
-  function showActualSize() {
-    setZoom(1);
-    resetPan(viewportRef.current);
-  }
-
-  function panBy(left: number, top: number) {
-    viewportRef.current?.scrollBy({ behavior: "auto", left, top });
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLDialogElement>) {
-    if (event.ctrlKey || event.metaKey || event.altKey) return;
-    switch (event.key) {
-      case "+":
-      case "=":
-        event.preventDefault();
-        event.stopPropagation();
-        updateZoom(1);
-        break;
-      case "-":
-        event.preventDefault();
-        event.stopPropagation();
-        updateZoom(-1);
-        break;
-      case "0":
-        event.preventDefault();
-        event.stopPropagation();
-        fitToViewport();
-        break;
-      case "ArrowLeft":
-        event.preventDefault();
-        event.stopPropagation();
-        panBy(-KEYBOARD_PAN_STEP, 0);
-        break;
-      case "ArrowRight":
-        event.preventDefault();
-        event.stopPropagation();
-        panBy(KEYBOARD_PAN_STEP, 0);
-        break;
-      case "ArrowUp":
-        event.preventDefault();
-        event.stopPropagation();
-        panBy(0, -KEYBOARD_PAN_STEP);
-        break;
-      case "ArrowDown":
-        event.preventDefault();
-        event.stopPropagation();
-        panBy(0, KEYBOARD_PAN_STEP);
-        break;
-    }
-  }
-
-  function beginPan(event: PointerEvent<HTMLDivElement>) {
-    const viewport = viewportRef.current;
-    if (!viewport || zoom === "fit" || event.button !== 0) return;
-    event.preventDefault();
-    panRef.current = {
-      left: viewport.scrollLeft,
-      top: viewport.scrollTop,
-      x: event.clientX,
-      y: event.clientY,
-    };
-    event.currentTarget.setPointerCapture?.(event.pointerId);
-  }
-
-  function movePan(event: PointerEvent<HTMLDivElement>) {
-    const viewport = viewportRef.current;
-    const origin = panRef.current;
-    if (!viewport || !origin) return;
-    viewport.scrollLeft = origin.left - (event.clientX - origin.x);
-    viewport.scrollTop = origin.top - (event.clientY - origin.y);
-  }
-
-  function endPan(event: PointerEvent<HTMLDivElement>) {
-    panRef.current = null;
-    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-  }
-
-  const imageStyle =
-    resource && zoom !== "fit"
-      ? ({
-          height: `${resource.height * zoom}px`,
-          width: `${resource.width * zoom}px`,
-        } satisfies CSSProperties)
-      : undefined;
-
   return (
     <dialog
       ref={dialogRef}
@@ -178,7 +66,7 @@ function ReaderIllustrationViewerInstance({
         event.preventDefault();
         onClose();
       }}
-      onKeyDown={handleKeyDown}
+      onKeyDown={interaction.handleKeyDown}
     >
       <div className="reader-illustration-viewer__panel">
         <header className="reader-illustration-viewer__header">
@@ -198,59 +86,61 @@ function ReaderIllustrationViewerInstance({
         <div
           ref={viewportRef}
           aria-busy={loading || undefined}
-          aria-label="Illustration viewport"
+          aria-label={interaction.viewportLabel}
           className="reader-illustration-viewer__viewport"
-          data-pannable={zoom !== "fit" || undefined}
-          onPointerCancel={endPan}
-          onPointerDown={beginPan}
-          onPointerMove={movePan}
-          onPointerUp={endPan}
+          data-pannable={interaction.pannable || undefined}
+          onLostPointerCapture={interaction.handleLostPointerCapture}
+          onPointerCancel={interaction.handlePointerCancel}
+          onPointerDown={interaction.handlePointerDown}
+          onPointerMove={interaction.handlePointerMove}
+          onPointerUp={interaction.handlePointerUp}
           tabIndex={0}
         >
-          {loading ? <p role="status">Opening illustration…</p> : null}
-          {error ? <p role="alert">{error}</p> : null}
-          {resource ? (
-            <img
-              alt="EPUB illustration"
-              className={zoom === "fit" ? "is-fit" : undefined}
-              draggable={false}
-              src={resource.url}
-              style={imageStyle}
-            />
-          ) : null}
+          <div className="reader-illustration-viewer__canvas" style={interaction.canvasStyle}>
+            {loading ? <p role="status">Opening illustration…</p> : null}
+            {error ? <p role="alert">{error}</p> : null}
+            {resource ? (
+              <img
+                alt="EPUB illustration"
+                draggable={false}
+                src={resource.url}
+                style={interaction.imageStyle}
+              />
+            ) : null}
+          </div>
         </div>
 
         <footer className="reader-illustration-viewer__controls">
           <div className="reader-illustration-viewer__zoom-controls">
             <IconButton
-              disabled={!resource || zoom === READER_ILLUSTRATION_MIN_ZOOM}
+              disabled={!interaction.canZoomOut}
               label="Zoom out"
-              onClick={() => updateZoom(-1)}
+              onClick={interaction.zoomOut}
             >
               <MagnifyingGlassMinus aria-hidden="true" />
             </IconButton>
-            <output aria-live="polite">{zoom === "fit" ? "Fit" : `${zoom * 100}%`}</output>
+            <output aria-live="polite">{interaction.zoomLabel}</output>
             <IconButton
-              disabled={!resource || zoom === READER_ILLUSTRATION_MAX_ZOOM}
+              disabled={!interaction.canZoomIn}
               label="Zoom in"
-              onClick={() => updateZoom(1)}
+              onClick={interaction.zoomIn}
             >
               <MagnifyingGlassPlus aria-hidden="true" />
             </IconButton>
           </div>
           <div className="reader-illustration-viewer__size-controls">
-            <Button disabled={!resource} onClick={fitToViewport} variant="secondary">
+            <Button disabled={!resource} onClick={interaction.fitToViewport} variant="secondary">
               Fit to viewport
             </Button>
             <Button
               disabled={!resource}
               icon={<ArrowsOutSimple aria-hidden="true" />}
-              onClick={showActualSize}
+              onClick={interaction.showActualSize}
               variant="secondary"
             >
               Actual size
             </Button>
-            <Button disabled={!resource} onClick={fitToViewport} variant="ghost">
+            <Button disabled={!resource} onClick={interaction.fitToViewport} variant="ghost">
               Reset
             </Button>
           </div>
@@ -258,14 +148,6 @@ function ReaderIllustrationViewerInstance({
       </div>
     </dialog>
   );
-}
-
-function clampIllustrationZoom(value: number): number {
-  return Math.min(Math.max(value, READER_ILLUSTRATION_MIN_ZOOM), READER_ILLUSTRATION_MAX_ZOOM);
-}
-
-function resetPan(viewport: HTMLDivElement | null) {
-  viewport?.scrollTo({ behavior: "auto", left: 0, top: 0 });
 }
 
 function mediaTypeLabel(mediaType: string): string {

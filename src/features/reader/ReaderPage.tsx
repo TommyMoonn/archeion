@@ -51,7 +51,7 @@ import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor } from "./ReaderNoteEditor";
-import { getReaderKeyboardIntent } from "./readerNavigation";
+import { getReaderKeyboardIntent, isReaderTransientSurfaceTarget } from "./readerNavigation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
@@ -694,10 +694,7 @@ export function ReaderPage() {
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
-      if (
-        event.target instanceof Element &&
-        event.target.closest("[data-reader-ignore-shortcuts]")
-      ) {
+      if (isReaderTransientSurfaceTarget(event.target)) {
         return;
       }
 

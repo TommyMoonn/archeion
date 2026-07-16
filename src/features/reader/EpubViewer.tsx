@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -18,6 +19,7 @@ import {
   getReaderWheelDelta,
   getReaderWheelIntentFromDelta,
   READER_WHEEL_GESTURE_RESET_MS,
+  shouldIgnoreReaderWheelEvent,
   type ReaderNavigationIntent,
 } from "./readerNavigation";
 import { forwardContinuousWheel } from "./readerContinuousScroll";
@@ -120,6 +122,12 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const lastWheelEventAtRef = useRef(Number.NEGATIVE_INFINITY);
   const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
   const wheelDeltaRef = useRef(0);
+  const illustrationWasOpenRef = useRef(false);
+  const clearReaderWheelGesture = useCallback(() => {
+    wheelDeltaRef.current = 0;
+    lastWheelEventAtRef.current = Number.NEGATIVE_INFINITY;
+    lastWheelTurnAtRef.current = Number.NEGATIVE_INFINITY;
+  }, []);
   const [contentDocuments] = useState(() => new ReaderContentDocumentRegistry());
   const [annotations] = useState(
     () =>
@@ -246,6 +254,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     resetForSession: resetContentActionSession,
   } = contentActions;
 
+  useLayoutEffect(() => {
+    const illustrationIsOpen = illustration !== null;
+    if (illustrationWasOpenRef.current === illustrationIsOpen) return;
+    illustrationWasOpenRef.current = illustrationIsOpen;
+    clearReaderWheelGesture();
+  }, [clearReaderWheelGesture, illustration]);
+
   useEffect(() => {
     bridgeRef.current = {
       isLocationUsable: (rendition, target) =>
@@ -292,12 +307,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         resetHighlightSession();
         resetContentActionSession();
         contentDocuments.clear();
-        wheelDeltaRef.current = 0;
+        clearReaderWheelGesture();
       },
     };
   }, [
     annotations,
     clearContentActionFeedback,
+    clearReaderWheelGesture,
     clearFeedback,
     contentDocuments,
     contentTheme,
@@ -317,6 +333,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
+      if (shouldIgnoreReaderWheelEvent(event)) return;
+
       if (settings.mode === "continuous") {
         onInteraction();
         forwardContinuousWheel(

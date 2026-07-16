@@ -14,13 +14,28 @@ describe("reader content action contract", () => {
     const controller = read("src/features/reader/useEpubContentActionController.ts");
     const resolver = read("src/features/reader/epubFootnoteResolver.ts");
     const popover = read("src/features/reader/ReaderFootnotePopover.tsx");
+    const illustrationInteraction = read("src/features/reader/readerIllustrationInteraction.ts");
+    const illustrationInteractionHook = read(
+      "src/features/reader/useReaderIllustrationInteraction.ts",
+    );
+    const illustrationViewer = read("src/features/reader/ReaderIllustrationViewer.tsx");
 
-    expect(session).not.toMatch(/classifyEpubLink|resolveEpubFootnote|ReaderFootnotePopover/);
+    expect(session).not.toMatch(
+      /classifyEpubLink|resolveEpubFootnote|ReaderFootnotePopover|ReaderIllustrationViewer/,
+    );
     expect(registry).not.toMatch(/classifyEpubLink|resolveEpubFootnote|openExternalEpubLink/);
     expect(controller).toContain("navigateToTarget");
     expect(controller).toContain("footnoteRef.current?.anchor");
     expect(popover).not.toContain("event.currentTarget");
     expect(resolver).not.toMatch(/from ["']react["']|ReaderFootnotePopover/);
+    expect(illustrationInteraction).not.toMatch(/from ["']react["']|HTMLCanvasElement|WebGL/);
+    expect(illustrationViewer).toContain("useReaderIllustrationInteraction");
+    expect(illustrationViewer).not.toContain("onWheelCapture");
+    expect(illustrationInteractionHook).toContain('dialog.addEventListener("wheel"');
+    expect(illustrationInteractionHook).toContain("capture: true, passive: false");
+    expect(illustrationViewer).not.toMatch(
+      /calculateIllustrationFitScale|preserveIllustrationFocalPoint|archive\.getBlob/,
+    );
   });
 
   it("uses semantic reader tokens and introduces no history or content plugin framework", () => {
@@ -32,6 +47,9 @@ describe("reader content action contract", () => {
       "src/features/reader/useEpubContentActionController.ts",
       "src/features/reader/ReaderFootnotePopover.tsx",
       "src/features/reader/ReaderExternalLinkDialog.tsx",
+      "src/features/reader/ReaderIllustrationViewer.tsx",
+      "src/features/reader/readerIllustrationInteraction.ts",
+      "src/features/reader/useReaderIllustrationInteraction.ts",
     ]
       .map(read)
       .join("\n");

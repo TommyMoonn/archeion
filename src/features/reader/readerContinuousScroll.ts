@@ -1,6 +1,6 @@
 import type { Rendition } from "epubjs";
 
-import { getReaderWheelDelta } from "./readerNavigation";
+import { getContinuousReaderWheelDelta } from "./readerNavigation";
 
 type ContinuousRenditionManager = {
   check?: (...args: unknown[]) => Promise<unknown>;
@@ -71,7 +71,7 @@ export function stabilizeContinuousRendition(rendition: RenditionWithManager): v
 }
 
 export function forwardContinuousWheel(event: WheelEvent, scroller: HTMLElement | null): boolean {
-  const deltaY = getReaderWheelDelta(event);
+  const deltaY = getContinuousReaderWheelDelta(event);
 
   if (!scroller || deltaY === null) {
     return false;

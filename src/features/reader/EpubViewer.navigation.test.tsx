@@ -393,65 +393,230 @@ describe("EpubViewer navigation lifecycle", () => {
     });
   });
 
-  it("opens and closes a content illustration without recreating or navigating the rendition", async () => {
-    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      callback(0);
-      return 1;
-    });
-    const release = vi.fn();
-    resolveEpubIllustration.mockResolvedValue({
-      kind: "resolved",
-      value: {
-        byteLength: 1024,
-        height: 900,
-        href: "Images/plate.jpg",
-        mediaType: "image/jpeg",
-        release,
-        url: "blob:plate",
-        width: 1200,
-      },
-    } satisfies EpubIllustrationResolution);
-    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
-    epubModuleMock.openBook.mockReturnValue(session.book);
-    const props = defaultViewerProps(new Blob(["book-one"]));
-    const { container } = await renderViewer(props);
-    await waitForActiveRendition(session);
-    const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
-    const frame = document.createElement("iframe");
-    stage.append(frame);
-    Object.defineProperty(frame.contentWindow, "frameElement", {
-      configurable: true,
-      value: frame,
-    });
-    const image = frame.contentDocument!.createElement("img");
-    image.setAttribute("src", "../Images/plate.jpg");
-    frame.contentDocument!.body.append(image);
+  it.each(["paged", "continuous"] as const)(
+    "isolates illustration input in %s mode without recreating the rendition",
+    async (mode) => {
+      vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+        callback(0);
+        return 1;
+      });
+      const release = vi.fn();
+      resolveEpubIllustration.mockResolvedValue({
+        kind: "resolved",
+        value: {
+          byteLength: 1024,
+          height: 900,
+          href: "Images/plate.jpg",
+          mediaType: "image/jpeg",
+          release,
+          url: "blob:plate",
+          width: 1200,
+        },
+      } satisfies EpubIllustrationResolution);
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        settings: { ...defaultReaderSettings, mode },
+      };
+      const { container } = await renderViewer(props);
+      await waitForActiveRendition(session);
+      const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+      const scroller = document.createElement("div");
+      scroller.className = "epub-container";
+      scroller.scrollTop = 40;
+      stage.append(scroller);
+      const frame = document.createElement("iframe");
+      stage.append(frame);
+      Object.defineProperty(frame.contentWindow, "frameElement", {
+        configurable: true,
+        value: frame,
+      });
+      const image = frame.contentDocument!.createElement("img");
+      image.setAttribute("src", "../Images/plate.jpg");
+      frame.contentDocument!.body.append(image);
 
-    await act(async () =>
-      session.rendition.emitMock(
-        "rendered",
-        { href: "Text/chapter-1.xhtml" },
-        { document: frame.contentDocument },
-      ),
-    );
-    expect(image.getAttribute("role")).toBe("button");
-    await act(async () => image.click());
-    await act(async () => Promise.resolve());
+      await act(async () =>
+        session.rendition.emitMock(
+          "rendered",
+          { href: "Text/chapter-1.xhtml" },
+          { document: frame.contentDocument },
+        ),
+      );
+      expect(image.getAttribute("role")).toBe("button");
+      if (mode === "paged") {
+        act(() =>
+          frame.contentDocument!.dispatchEvent(
+            new WheelEvent("wheel", { cancelable: true, deltaY: 24 }),
+          ),
+        );
+      }
+      expect(session.rendition.next).not.toHaveBeenCalled();
+      await act(async () => image.click());
+      await act(async () => Promise.resolve());
 
-    const dialog = container.querySelector<HTMLDialogElement>(".reader-illustration-viewer");
-    expect(dialog?.open).toBe(true);
-    expect(dialog?.querySelector("img")?.getAttribute("src")).toBe("blob:plate");
-    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
-    expect(session.renderTo).toHaveBeenCalledTimes(1);
-    expect(session.rendition.display).toHaveBeenCalledTimes(1);
-    expect(props.onLocationChange).not.toHaveBeenCalled();
+      const dialog = container.querySelector<HTMLDialogElement>(".reader-illustration-viewer");
+      expect(dialog?.open).toBe(true);
+      expect(dialog?.querySelector("img")?.getAttribute("src")).toBe("blob:plate");
+      expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
+      expect(session.renderTo).toHaveBeenCalledTimes(1);
+      expect(session.rendition.display).toHaveBeenCalledTimes(1);
+      expect(props.onLocationChange).not.toHaveBeenCalled();
+      const interactionCountBeforeModalWheel = props.onInteraction.mock.calls.length;
+      const modalWheel = new WheelEvent("wheel", {
+        bubbles: true,
+        cancelable: true,
+        deltaY: 80,
+      });
+      act(() =>
+        dialog?.querySelector(".reader-illustration-viewer__viewport")?.dispatchEvent(modalWheel),
+      );
+      expect(modalWheel.defaultPrevented).toBe(true);
+      expect(props.onInteraction).toHaveBeenCalledTimes(interactionCountBeforeModalWheel);
+      expect(scroller.scrollTop).toBe(40);
+      expect(session.rendition.next).not.toHaveBeenCalled();
+      expect(session.rendition.prev).not.toHaveBeenCalled();
 
-    await act(async () => dialog?.dispatchEvent(new Event("cancel", { cancelable: true })));
-    expect(container.querySelector(".reader-illustration-viewer")).toBeNull();
-    expect(release).toHaveBeenCalledOnce();
-    expect(frame.contentDocument?.activeElement).toBe(image);
-    expect(session.destroy).not.toHaveBeenCalled();
-  });
+      if (mode === "paged") {
+        act(() =>
+          frame.contentDocument!.dispatchEvent(
+            new WheelEvent("wheel", { cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).not.toHaveBeenCalled();
+      }
+
+      await act(async () => dialog?.dispatchEvent(new Event("cancel", { cancelable: true })));
+      act(() =>
+        frame.contentDocument!.dispatchEvent(
+          new WheelEvent("wheel", { cancelable: true, deltaY: 24 }),
+        ),
+      );
+      if (mode === "paged") {
+        expect(session.rendition.next).not.toHaveBeenCalled();
+        act(() =>
+          frame.contentDocument!.dispatchEvent(
+            new WheelEvent("wheel", { cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).toHaveBeenCalledOnce();
+      } else {
+        expect(scroller.scrollTop).toBe(64);
+        expect(session.rendition.next).not.toHaveBeenCalled();
+      }
+      expect(container.querySelector(".reader-illustration-viewer")).toBeNull();
+      expect(release).toHaveBeenCalledOnce();
+      expect(frame.contentDocument?.activeElement).toBe(image);
+      expect(session.destroy).not.toHaveBeenCalled();
+      expect(props.onLocationChange).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["paged", "continuous"] as const)(
+    "rejects transient-surface wheel input before %s reader handling",
+    async (mode) => {
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        settings: { ...defaultReaderSettings, mode },
+      };
+      const { container } = await renderViewer(props);
+      await waitForActiveRendition(session);
+      const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+      const scroller = document.createElement("div");
+      scroller.className = "epub-container";
+      scroller.scrollTop = 40;
+      const transient = document.createElement("div");
+      transient.dataset.readerIgnoreShortcuts = "";
+      const child = document.createElement("span");
+      transient.append(child);
+      stage.append(scroller, transient);
+      const interactionCount = props.onInteraction.mock.calls.length;
+
+      act(() =>
+        child.dispatchEvent(
+          new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 80 }),
+        ),
+      );
+
+      expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount);
+      expect(scroller.scrollTop).toBe(40);
+      expect(session.rendition.next).not.toHaveBeenCalled();
+      expect(session.rendition.prev).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["paged", "continuous"] as const)(
+    "applies %s wheel policy over the same ordinary EPUB link",
+    async (mode) => {
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        settings: { ...defaultReaderSettings, mode },
+      };
+      const { container } = await renderViewer(props);
+      await waitForActiveRendition(session);
+      const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+      const scroller = document.createElement("div");
+      scroller.className = "epub-container";
+      scroller.scrollTop = 40;
+      const frame = document.createElement("iframe");
+      stage.append(scroller, frame);
+      Object.defineProperty(frame.contentWindow, "frameElement", {
+        configurable: true,
+        value: frame,
+      });
+      const link = frame.contentDocument!.createElement("a");
+      link.href = "#chapter";
+      link.textContent = "Chapter link";
+      const paragraph = frame.contentDocument!.createElement("p");
+      paragraph.textContent = "Ordinary EPUB text";
+      frame.contentDocument!.body.append(link, paragraph);
+
+      await act(async () =>
+        session.rendition.emitMock(
+          "rendered",
+          { href: "Text/chapter-1.xhtml" },
+          { document: frame.contentDocument },
+        ),
+      );
+      const interactionCount = props.onInteraction.mock.calls.length;
+
+      act(() =>
+        link.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaY: mode === "paged" ? 24 : 80,
+          }),
+        ),
+      );
+
+      if (mode === "paged") {
+        expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount);
+        expect(session.rendition.next).not.toHaveBeenCalled();
+        act(() =>
+          paragraph.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).not.toHaveBeenCalled();
+        act(() =>
+          paragraph.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).toHaveBeenCalledOnce();
+      } else {
+        expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount + 1);
+        expect(scroller.scrollTop).toBe(120);
+        expect(session.rendition.next).not.toHaveBeenCalled();
+      }
+      expect(session.rendition.prev).not.toHaveBeenCalled();
+    },
+  );
 
   it("does not recreate the book or rendition when settings, palette, or callbacks change", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
