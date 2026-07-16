@@ -1,5 +1,6 @@
 import {
   ArrowsOutSimple,
+  DownloadSimple,
   MagnifyingGlassMinus,
   MagnifyingGlassPlus,
   X,
@@ -9,20 +10,25 @@ import { useEffect, useRef } from "react";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
+import type { ReaderIllustrationExportState } from "./useReaderIllustrationExport";
 import { useReaderIllustrationInteraction } from "./useReaderIllustrationInteraction";
 
 type ReaderIllustrationViewerProps = Readonly<{
   error?: string;
   loading: boolean;
   onClose: () => void;
+  onSaveImage?: () => void;
   resource?: ResolvedEpubIllustration;
+  saveState?: ReaderIllustrationExportState;
 }>;
 
 export function ReaderIllustrationViewer({
   error,
   loading,
   onClose,
+  onSaveImage,
   resource,
+  saveState,
 }: ReaderIllustrationViewerProps) {
   return (
     <ReaderIllustrationViewerInstance
@@ -30,7 +36,9 @@ export function ReaderIllustrationViewer({
       error={error}
       loading={loading}
       onClose={onClose}
+      onSaveImage={onSaveImage}
       resource={resource}
+      saveState={saveState}
     />
   );
 }
@@ -39,7 +47,9 @@ function ReaderIllustrationViewerInstance({
   error,
   loading,
   onClose,
+  onSaveImage,
   resource,
+  saveState = { status: "idle" },
 }: ReaderIllustrationViewerProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -129,6 +139,16 @@ function ReaderIllustrationViewerInstance({
             </IconButton>
           </div>
           <div className="reader-illustration-viewer__size-controls">
+            {resource && onSaveImage ? (
+              <Button
+                disabled={saveState.status === "saving"}
+                icon={<DownloadSimple aria-hidden="true" />}
+                onClick={onSaveImage}
+                variant="primary"
+              >
+                {saveState.status === "saving" ? "Saving…" : "Save image"}
+              </Button>
+            ) : null}
             <Button disabled={!resource} onClick={interaction.fitToViewport} variant="secondary">
               Fit to viewport
             </Button>
@@ -144,6 +164,14 @@ function ReaderIllustrationViewerInstance({
               Reset
             </Button>
           </div>
+          {saveState.message ? (
+            <p
+              className="reader-illustration-viewer__save-feedback"
+              role={saveState.status === "error" ? "alert" : "status"}
+            >
+              {saveState.message}
+            </p>
+          ) : null}
         </footer>
       </div>
     </dialog>

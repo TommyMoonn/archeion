@@ -31,6 +31,7 @@ pub fn run() {
             commands::filesystem::delete_archive_folder,
             commands::filesystem::export_archive_epub_file,
             commands::filesystem::write_annotation_export_file,
+            commands::illustration_export::write_illustration_image_file,
             commands::filesystem::move_archive_epub_file,
             commands::filesystem::move_archive_folder,
             commands::filesystem::rename_archive_epub_file,

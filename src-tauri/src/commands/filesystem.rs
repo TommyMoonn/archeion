@@ -1,14 +1,15 @@
 use std::{
-    fs::{self, OpenOptions},
-    io::Write,
+    fs,
     path::{Component, Path, PathBuf},
     process::Command,
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
 
-use super::archive_root;
+use super::{
+    archive_root,
+    export_file::{write_atomic_export_file, ExportFileKind},
+};
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
 const RESERVED_ITEM_NAME_CHARS: [char; 9] = ['\\', '/', ':', '*', '?', '"', '<', '>', '|'];
@@ -213,15 +214,6 @@ impl AnnotationExportFormat {
     }
 }
 
-fn annotation_export_destination_is_regular_file(destination: &Path) -> Result<bool, String> {
-    match fs::symlink_metadata(destination) {
-        Ok(metadata) if metadata.file_type().is_file() => Ok(true),
-        Ok(_) => Err("The annotation export destination must be a regular file.".to_string()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
-        Err(error) => Err(error.to_string()),
-    }
-}
-
 #[tauri::command]
 pub fn write_annotation_export_file(
     path: String,
@@ -253,65 +245,17 @@ pub fn write_annotation_export_file(
 fn write_annotation_export_to_destination<R>(
     destination: &Path,
     contents: &str,
-    mut rename: R,
+    rename: R,
 ) -> Result<(), String>
 where
     R: FnMut(&Path, &Path) -> std::io::Result<()>,
 {
-    let parent = destination
-        .parent()
-        .filter(|value| value.is_dir())
-        .ok_or_else(|| "The annotation export folder is unavailable.".to_string())?;
-    let file_name = destination
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| "The annotation export file name is unavailable.".to_string())?;
-    let replacing = annotation_export_destination_is_regular_file(destination)?;
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map_err(|error| error.to_string())?
-        .as_nanos();
-    let temporary = parent.join(format!(".{file_name}.{nonce}.tmp"));
-    let backup = parent.join(format!(".{file_name}.{nonce}.bak"));
-
-    let write_result = (|| -> Result<(), String> {
-        let mut file = OpenOptions::new()
-            .create_new(true)
-            .write(true)
-            .open(&temporary)
-            .map_err(|error| error.to_string())?;
-        file.write_all(contents.as_bytes())
-            .map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
-        drop(file);
-
-        if annotation_export_destination_is_regular_file(destination)? != replacing {
-            return Err(
-                "The annotation export destination changed before it was written.".to_string(),
-            );
-        }
-        if replacing {
-            rename(destination, &backup).map_err(|error| error.to_string())?;
-        }
-        if let Err(error) = rename(&temporary, destination) {
-            if replacing {
-                let _ = rename(&backup, destination);
-            }
-            return Err(error.to_string());
-        }
-        if replacing {
-            let _ = fs::remove_file(&backup);
-        }
-        Ok(())
-    })();
-
-    if write_result.is_err() {
-        let _ = fs::remove_file(&temporary);
-        if backup.exists() && destination.exists() {
-            let _ = fs::remove_file(backup);
-        }
-    }
-    write_result
+    write_atomic_export_file(
+        destination,
+        contents.as_bytes(),
+        ExportFileKind::Annotation,
+        rename,
+    )
 }
 
 fn canonical_root(root: &Path) -> Result<PathBuf, String> {

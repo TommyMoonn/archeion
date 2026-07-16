@@ -1,18 +1,15 @@
 import type { Book as EpubBook } from "epubjs";
 
 import { classifyEpubLink, type EpubLocalTarget } from "./epubContentActions";
+import {
+  EPUB_ILLUSTRATION_MAX_BYTES,
+  epubIllustrationImageType,
+  type EpubIllustrationMediaType,
+} from "./epubIllustrationImage";
 
-export const EPUB_ILLUSTRATION_MAX_BYTES = 32 * 1024 * 1024;
+export { EPUB_ILLUSTRATION_MAX_BYTES } from "./epubIllustrationImage";
 export const EPUB_ILLUSTRATION_MAX_DIMENSION = 8192;
 export const EPUB_ILLUSTRATION_MAX_PIXELS = 40_000_000;
-
-const SUPPORTED_MEDIA_TYPES = new Set([
-  "image/avif",
-  "image/gif",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
 
 type IllustrationBookAdapter = EpubBook & {
   archive?: { getBlob?: (path: string, mediaType?: string) => Promise<Blob> | undefined };
@@ -28,10 +25,11 @@ type IllustrationBookAdapter = EpubBook & {
 export type EpubIllustrationDimensions = Readonly<{ height: number; width: number }>;
 
 export type ResolvedEpubIllustration = Readonly<{
+  blob: Blob;
   byteLength: number;
   height: number;
   href: string;
-  mediaType: string;
+  mediaType: EpubIllustrationMediaType;
   release: () => void;
   url: string;
   width: number;
@@ -65,10 +63,11 @@ export async function resolveEpubIllustration(
   const adaptedBook = book as IllustrationBookAdapter;
   const item = matchingManifestItem(adaptedBook, target.documentHref);
   if (!item) return { kind: "unsupported", reason: "missing" };
-  const mediaType = normalizedMediaType(item.type);
-  if (!mediaType || !SUPPORTED_MEDIA_TYPES.has(mediaType)) {
+  const imageType = epubIllustrationImageType(item.type);
+  if (!imageType) {
     return { kind: "unsupported", reason: "type" };
   }
+  const mediaType = imageType.mediaType;
 
   const resolvedPath = safeResolvedBookPath(adaptedBook, item.href);
   if (!resolvedPath || typeof adaptedBook.archive?.getBlob !== "function") {
@@ -119,6 +118,7 @@ export async function resolveEpubIllustration(
     return {
       kind: "resolved",
       value: Object.freeze({
+        blob,
         byteLength: blob.size,
         height: dimensions.height,
         href: target.documentHref,
@@ -255,11 +255,6 @@ function normalizedManifestHref(value: string): string | null {
     }
   }
   return segments.join("/") || null;
-}
-
-function normalizedMediaType(value: string): string | null {
-  const normalized = value.split(";", 1)[0]?.trim().toLowerCase();
-  return normalized || null;
 }
 
 function isGeneratedResourceUrl(value: string): boolean {

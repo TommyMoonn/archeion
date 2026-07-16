@@ -76,6 +76,7 @@ describe("epubIllustrationResolver", () => {
       url: "blob:illustration",
       width: 1600,
     });
+    expect(owner.createObjectUrl).toHaveBeenCalledWith(resolution.value.blob);
     resolution.value.release();
     resolution.value.release();
     expect(owner.revokeObjectUrl).toHaveBeenCalledOnce();

@@ -38,6 +38,7 @@ import {
 } from "./useHighlightInteractionController";
 import { useEpubSession, type EpubSessionBridge, type EpubSessionError } from "./useEpubSession";
 import { useEpubContentActionController } from "./useEpubContentActionController";
+import { useReaderIllustrationExport } from "./useReaderIllustrationExport";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderLocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
@@ -253,6 +254,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     prepareDocument,
     resetForSession: resetContentActionSession,
   } = contentActions;
+  const illustrationExport = useReaderIllustrationExport(illustration?.resource);
 
   useLayoutEffect(() => {
     const illustrationIsOpen = illustration !== null;
@@ -563,7 +565,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           error={illustration.error}
           loading={illustration.loading}
           onClose={() => dismissIllustration()}
+          onSaveImage={() => void illustrationExport.save()}
           resource={illustration.resource}
+          saveState={illustrationExport.state}
         />
       ) : null}
       {contentActionFeedback ? (

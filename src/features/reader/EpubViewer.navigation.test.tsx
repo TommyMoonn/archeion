@@ -404,6 +404,7 @@ describe("EpubViewer navigation lifecycle", () => {
       resolveEpubIllustration.mockResolvedValue({
         kind: "resolved",
         value: {
+          blob: new Blob([new Uint8Array(1024)], { type: "image/jpeg" }),
           byteLength: 1024,
           height: 900,
           href: "Images/plate.jpg",

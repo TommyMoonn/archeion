@@ -19,6 +19,7 @@ describe("reader content action contract", () => {
       "src/features/reader/useReaderIllustrationInteraction.ts",
     );
     const illustrationViewer = read("src/features/reader/ReaderIllustrationViewer.tsx");
+    const illustrationExport = read("src/features/reader/readerIllustrationExportFile.ts");
 
     expect(session).not.toMatch(
       /classifyEpubLink|resolveEpubFootnote|ReaderFootnotePopover|ReaderIllustrationViewer/,
@@ -36,6 +37,9 @@ describe("reader content action contract", () => {
     expect(illustrationViewer).not.toMatch(
       /calculateIllustrationFitScale|preserveIllustrationFocalPoint|archive\.getBlob/,
     );
+    expect(illustrationViewer).not.toMatch(/plugin-dialog|invoke\(|archive\.getBlob|arrayBuffer/);
+    expect(illustrationExport).toContain("resource.blob.arrayBuffer()");
+    expect(illustrationExport).not.toMatch(/fetch\(|createObjectURL|<a|download=/);
   });
 
   it("uses semantic reader tokens and introduces no history or content plugin framework", () => {
@@ -78,5 +82,27 @@ describe("reader content action contract", () => {
     expect(command).toContain("url.username().is_empty()");
     expect(modules).toContain("pub mod external;");
     expect(handler).toContain("commands::external::open_external_url");
+  });
+
+  it("keeps illustration export binary, bounded, and explicitly save-capable", () => {
+    const exportFile = read("src/features/reader/readerIllustrationExportFile.ts");
+    const writer = read("src-tauri/src/commands/illustration_export.rs");
+    const imageContract = read("shared/illustration-image-contract.json");
+    const frontendImageContract = read("src/features/reader/epubIllustrationImage.ts");
+    const handler = read("src-tauri/src/lib.rs");
+    const capability = read("src-tauri/capabilities/default.json");
+
+    expect(exportFile).toContain('dependencies.invoke("write_illustration_image_file", contents');
+    expect(exportFile).toContain("resource.blob.arrayBuffer()");
+    expect(writer).toContain("tauri::ipc::InvokeBody::Raw(contents)");
+    expect(writer).toContain("tauri::async_runtime::spawn_blocking");
+    expect(writer).toContain('include_str!("../../../shared/illustration-image-contract.json")');
+    expect(frontendImageContract).toContain(
+      'from "../../../shared/illustration-image-contract.json"',
+    );
+    expect(JSON.parse(imageContract)).toHaveProperty("maximumBytes", 33_554_432);
+    expect(writer).not.toMatch(/enum IllustrationImageMediaType|32\s*\*\s*1024\s*\*\s*1024/);
+    expect(handler).toContain("commands::illustration_export::write_illustration_image_file");
+    expect(capability).toContain('"dialog:allow-save"');
   });
 });

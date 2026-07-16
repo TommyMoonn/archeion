@@ -204,6 +204,7 @@ describe("useEpubContentActionController", () => {
     resolveEpubIllustration.mockResolvedValue({
       kind: "resolved",
       value: {
+        blob: new Blob([new Uint8Array(1024)], { type: "image/jpeg" }),
         byteLength: 1024,
         height: 1200,
         href: "Images/plate.jpg",
@@ -246,6 +247,7 @@ describe("useEpubContentActionController", () => {
     resolveEpubIllustration.mockResolvedValue({
       kind: "resolved",
       value: {
+        blob: new Blob([new Uint8Array(256)], { type: "image/png" }),
         byteLength: 256,
         height: 480,
         href: "Images/plate.png",
@@ -336,6 +338,7 @@ describe("useEpubContentActionController", () => {
     resolveEpubIllustration.mockResolvedValue({
       kind: "resolved",
       value: {
+        blob: new Blob([new Uint8Array(512)], { type: "image/png" }),
         byteLength: 512,
         height: 800,
         href: "Images/full.png",
@@ -377,6 +380,7 @@ describe("useEpubContentActionController", () => {
     resolveEpubIllustration.mockResolvedValue({
       kind: "resolved",
       value: {
+        blob: new Blob([new Uint8Array(512)], { type: "image/jpeg" }),
         byteLength: 512,
         height: 600,
         href: "Images/plate.jpg",
@@ -415,6 +419,7 @@ describe("useEpubContentActionController", () => {
       .mockResolvedValueOnce({
         kind: "resolved",
         value: {
+          blob: new Blob([new Uint8Array(1)], { type: "image/jpeg" }),
           byteLength: 1,
           height: 100,
           href: "Images/first.jpg",
@@ -427,6 +432,7 @@ describe("useEpubContentActionController", () => {
       .mockResolvedValueOnce({
         kind: "resolved",
         value: {
+          blob: new Blob([new Uint8Array(1)], { type: "image/jpeg" }),
           byteLength: 1,
           height: 100,
           href: "Images/second.jpg",
@@ -499,6 +505,7 @@ describe("useEpubContentActionController", () => {
       finish({
         kind: "resolved",
         value: {
+          blob: new Blob([new Uint8Array(1)], { type: "image/jpeg" }),
           byteLength: 1,
           height: 10,
           href: "Images/plate.jpg",

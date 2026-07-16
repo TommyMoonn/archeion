@@ -1,0 +1,35 @@
+{
+  "maximumBytes": 33554432,
+  "types": [
+    {
+      "mediaType": "image/avif",
+      "extensions": ["avif"],
+      "preferredExtension": "avif",
+      "label": "AVIF image"
+    },
+    {
+      "mediaType": "image/gif",
+      "extensions": ["gif"],
+      "preferredExtension": "gif",
+      "label": "GIF image"
+    },
+    {
+      "mediaType": "image/jpeg",
+      "extensions": ["jpg", "jpeg"],
+      "preferredExtension": "jpg",
+      "label": "JPEG image"
+    },
+    {
+      "mediaType": "image/png",
+      "extensions": ["png"],
+      "preferredExtension": "png",
+      "label": "PNG image"
+    },
+    {
+      "mediaType": "image/webp",
+      "extensions": ["webp"],
+      "preferredExtension": "webp",
+      "label": "WebP image"
+    }
+  ]
+}

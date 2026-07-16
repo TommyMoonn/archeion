@@ -6,8 +6,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
+import type { ReaderIllustrationExportState } from "./useReaderIllustrationExport";
 
 const resource: ResolvedEpubIllustration = Object.freeze({
+  blob: new Blob([new Uint8Array(2048)], { type: "image/jpeg" }),
   byteLength: 2048,
   height: 1200,
   href: "Images/plate.jpg",
@@ -89,7 +91,9 @@ describe("ReaderIllustrationViewer", () => {
       error?: string;
       loading?: boolean;
       onClose?: () => void;
+      onSaveImage?: () => void;
       resource?: ResolvedEpubIllustration;
+      saveState?: ReaderIllustrationExportState;
     }> = {},
   ) {
     const onClose = props.onClose ?? vi.fn();
@@ -99,7 +103,9 @@ describe("ReaderIllustrationViewer", () => {
           error={props.error}
           loading={props.loading ?? false}
           onClose={onClose}
+          onSaveImage={props.onSaveImage}
           resource={"resource" in props ? props.resource : resource}
+          saveState={props.saveState}
         />,
       );
     });
@@ -137,6 +143,34 @@ describe("ReaderIllustrationViewer", () => {
     expect(container.textContent).toContain("1600 × 1200 · JPEG");
     expect(container.querySelector("img")?.getAttribute("src")).toBe("blob:illustration");
     expect(container.querySelector("output")?.textContent).toBe("Fit · 47%");
+  });
+
+  it("shows Save image only for a resolved resource and delegates operation state", () => {
+    const onSaveImage = vi.fn();
+    renderViewer({ onSaveImage });
+    const save = buttonWithText("Save image");
+    act(() => save.click());
+    expect(onSaveImage).toHaveBeenCalledOnce();
+
+    renderViewer({ onSaveImage, saveState: { status: "saving" } });
+    expect(buttonWithText("Saving…").disabled).toBe(true);
+
+    renderViewer({
+      onSaveImage,
+      saveState: { message: "Image saved.", status: "saved" },
+    });
+    expect(container.querySelector('[role="status"]')?.textContent).toBe("Image saved.");
+
+    renderViewer({
+      onSaveImage,
+      saveState: { message: "Image could not be saved.", status: "error" },
+    });
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+      "Image could not be saved.",
+    );
+
+    renderViewer({ loading: true, onSaveImage, resource: undefined });
+    expect(buttonWithText("Save image")).toBeUndefined();
   });
 
   it("owns wheel input through one active native listener across rerenders and replacement", () => {
