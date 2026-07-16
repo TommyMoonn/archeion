@@ -1,3 +1,9 @@
+import {
+  isPublisherImageMapIllustration,
+  READER_ILLUSTRATION_TRIGGER_SELECTOR,
+  READER_PUBLISHER_INTERACTIVE_SELECTOR,
+} from "./readerIllustrationTrigger";
+
 export type ReaderNavigationIntent = "backward" | "forward";
 export type ReaderKeyboardIntent = ReaderNavigationIntent | "close" | "settings";
 
@@ -10,17 +16,6 @@ const DOM_DELTA_PAGE = 2;
 const WHEEL_LINE_DELTA_PX = 16;
 const WHEEL_PAGE_DELTA_PX = 800;
 const READER_TRANSIENT_SURFACE_SELECTOR = "[data-reader-ignore-shortcuts]";
-
-const interactiveSelector = [
-  "a[href]",
-  "button",
-  "input",
-  "select",
-  "textarea",
-  "summary",
-  "[role='button']",
-  "[contenteditable='true']",
-].join(", ");
 
 type ReaderWheelEvent = Pick<
   WheelEvent,
@@ -36,7 +31,11 @@ type ReaderWheelEvent = Pick<
 >;
 
 export function isReaderShortcutTargetBlocked(target: EventTarget | null) {
-  return isReaderTransientSurfaceTarget(target) || isReaderInteractiveOrSelectionTarget(target);
+  return (
+    isReaderTransientSurfaceTarget(target) ||
+    isReaderIllustrationTriggerTarget(target) ||
+    isReaderInteractiveOrSelectionTarget(target)
+  );
 }
 
 export function isReaderTransientSurfaceTarget(target: EventTarget | null): boolean {
@@ -50,13 +49,36 @@ export function shouldIgnoreReaderWheelEvent(
 }
 
 export function isPagedReaderWheelTargetBlocked(target: EventTarget | null): boolean {
-  return isReaderInteractiveOrSelectionTarget(target);
+  const element = eventTargetElement(target);
+  if (!element) return false;
+  if (hasActiveReaderSelection(element)) return true;
+  if (isPublisherImageMapIllustration(element)) return true;
+  if (isStandaloneReaderIllustrationTrigger(element)) return false;
+  return Boolean(element.closest(READER_PUBLISHER_INTERACTIVE_SELECTOR));
 }
 
 function isReaderInteractiveOrSelectionTarget(target: EventTarget | null): boolean {
   const element = eventTargetElement(target);
   if (!element) return false;
-  if (element.closest(interactiveSelector)) return true;
+  return (
+    Boolean(element.closest(READER_PUBLISHER_INTERACTIVE_SELECTOR)) ||
+    hasActiveReaderSelection(element)
+  );
+}
+
+function isReaderIllustrationTriggerTarget(target: EventTarget | null): boolean {
+  return Boolean(eventTargetElement(target)?.closest(READER_ILLUSTRATION_TRIGGER_SELECTOR));
+}
+
+function isStandaloneReaderIllustrationTrigger(element: Element): boolean {
+  const trigger = element.closest(READER_ILLUSTRATION_TRIGGER_SELECTOR);
+  if (!trigger) return false;
+  const targetInteractive = element.closest(READER_PUBLISHER_INTERACTIVE_SELECTOR);
+  if (targetInteractive && targetInteractive !== trigger) return false;
+  return !trigger.parentElement?.closest(READER_PUBLISHER_INTERACTIVE_SELECTOR);
+}
+
+function hasActiveReaderSelection(element: Element): boolean {
   const selection = element.ownerDocument.getSelection();
   return Boolean(selection && !selection.isCollapsed);
 }

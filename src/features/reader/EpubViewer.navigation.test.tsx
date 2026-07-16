@@ -10,6 +10,7 @@ import { defaultReaderSettings, type ReaderNavigationState } from "../../types/r
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
+import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 
 const epubModuleMock = vi.hoisted(() => ({
@@ -612,6 +613,170 @@ describe("EpubViewer navigation lifecycle", () => {
         expect(session.rendition.next).toHaveBeenCalledOnce();
       } else {
         expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount + 1);
+        expect(scroller.scrollTop).toBe(120);
+        expect(session.rendition.next).not.toHaveBeenCalled();
+      }
+      expect(session.rendition.prev).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["paged", "continuous"] as const)(
+    "keeps prepared illustration hover wheel input active in %s mode",
+    async (mode) => {
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        settings: { ...defaultReaderSettings, mode },
+      };
+      const { container } = await renderViewer(props);
+      await waitForActiveRendition(session);
+      const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+      const scroller = document.createElement("div");
+      scroller.className = "epub-container";
+      scroller.scrollTop = 40;
+      const frame = document.createElement("iframe");
+      stage.append(scroller, frame);
+      Object.defineProperty(frame.contentWindow, "frameElement", {
+        configurable: true,
+        value: frame,
+      });
+
+      const standalone = frame.contentDocument!.createElement("img");
+      standalone.setAttribute("src", "../Images/standalone.jpg");
+      const link = frame.contentDocument!.createElement("a");
+      link.setAttribute("href", "chapter-2.xhtml");
+      const linked = frame.contentDocument!.createElement("img");
+      linked.setAttribute("src", "../Images/linked.jpg");
+      link.append(linked);
+      const button = frame.contentDocument!.createElement("button");
+      button.textContent = "Publisher control";
+      frame.contentDocument!.body.append(standalone, link, button);
+
+      await act(async () =>
+        session.rendition.emitMock(
+          "rendered",
+          { href: "Text/chapter-1.xhtml" },
+          { document: frame.contentDocument },
+        ),
+      );
+
+      expect(standalone.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(true);
+      expect(linked.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(false);
+
+      if (mode === "paged") {
+        act(() => {
+          linked.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          );
+          button.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          );
+          standalone.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          );
+        });
+        expect(session.rendition.next).not.toHaveBeenCalled();
+
+        act(() =>
+          standalone.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          ),
+        );
+
+        expect(session.rendition.next).toHaveBeenCalledOnce();
+        expect(scroller.scrollTop).toBe(40);
+      } else {
+        act(() =>
+          standalone.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 80 }),
+          ),
+        );
+        expect(scroller.scrollTop).toBe(120);
+
+        act(() =>
+          linked.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 80 }),
+          ),
+        );
+        expect(scroller.scrollTop).toBe(200);
+        expect(session.rendition.next).not.toHaveBeenCalled();
+      }
+      expect(session.rendition.prev).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["paged", "continuous"] as const)(
+    "preserves publisher image-map wheel ownership in %s mode",
+    async (mode) => {
+      const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+      epubModuleMock.openBook.mockReturnValue(session.book);
+      const props = {
+        ...defaultViewerProps(new Blob(["book-one"])),
+        settings: { ...defaultReaderSettings, mode },
+      };
+      const { container } = await renderViewer(props);
+      await waitForActiveRendition(session);
+      const stage = container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+      const scroller = document.createElement("div");
+      scroller.className = "epub-container";
+      scroller.scrollTop = 40;
+      const frame = document.createElement("iframe");
+      stage.append(scroller, frame);
+      Object.defineProperty(frame.contentWindow, "frameElement", {
+        configurable: true,
+        value: frame,
+      });
+
+      const mappedImage = frame.contentDocument!.createElement("img");
+      mappedImage.setAttribute("src", "../Images/diagram.png");
+      mappedImage.setAttribute("usemap", "#diagram-map");
+      const map = frame.contentDocument!.createElement("map");
+      map.setAttribute("name", "diagram-map");
+      const area = frame.contentDocument!.createElement("area");
+      area.setAttribute("href", "chapter-2.xhtml");
+      map.append(area);
+      const paragraph = frame.contentDocument!.createElement("p");
+      paragraph.textContent = "Ordinary EPUB text";
+      frame.contentDocument!.body.append(mappedImage, map, paragraph);
+
+      await act(async () =>
+        session.rendition.emitMock(
+          "rendered",
+          { href: "Text/chapter-1.xhtml" },
+          { document: frame.contentDocument },
+        ),
+      );
+
+      expect(mappedImage.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(false);
+      expect(mappedImage.hasAttribute("role")).toBe(false);
+
+      act(() =>
+        mappedImage.dispatchEvent(
+          new WheelEvent("wheel", {
+            bubbles: true,
+            cancelable: true,
+            deltaY: mode === "paged" ? 24 : 80,
+          }),
+        ),
+      );
+
+      if (mode === "paged") {
+        expect(session.rendition.next).not.toHaveBeenCalled();
+        act(() =>
+          paragraph.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).not.toHaveBeenCalled();
+        act(() =>
+          paragraph.dispatchEvent(
+            new WheelEvent("wheel", { bubbles: true, cancelable: true, deltaY: 24 }),
+          ),
+        );
+        expect(session.rendition.next).toHaveBeenCalledOnce();
+        expect(scroller.scrollTop).toBe(40);
+      } else {
         expect(scroller.scrollTop).toBe(120);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }

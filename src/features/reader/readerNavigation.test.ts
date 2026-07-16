@@ -12,6 +12,7 @@ import {
   READER_WHEEL_TURN_DELTA,
   shouldIgnoreReaderWheelEvent,
 } from "./readerNavigation";
+import { READER_ILLUSTRATION_TRIGGER_SELECTOR } from "./readerIllustrationTrigger";
 
 function keyEvent(
   options: Partial<
@@ -80,6 +81,39 @@ function elementTarget(
   } as unknown as EventTarget;
 }
 
+type NestedElementTarget = {
+  closest: (selector: string) => NestedElementTarget | null;
+  matchingSelectors: readonly string[];
+  nodeType: number;
+  ownerDocument: { getSelection: () => { isCollapsed: boolean } };
+  parent: NestedElementTarget | null;
+  parentElement: NestedElementTarget | null;
+};
+
+function nestedElementTarget(
+  matchingSelectors: readonly string[],
+  parent: EventTarget | null = null,
+  selectionCollapsed = true,
+): EventTarget {
+  const parentTarget = parent as NestedElementTarget | null;
+  const target: NestedElementTarget = {
+    closest: (selector: string) => {
+      let candidate: NestedElementTarget | null = target;
+      while (candidate) {
+        if (candidate.matchingSelectors.some((match) => selector.includes(match))) return candidate;
+        candidate = candidate.parent;
+      }
+      return null;
+    },
+    matchingSelectors,
+    nodeType: 1,
+    ownerDocument: { getSelection: () => ({ isCollapsed: selectionCollapsed }) },
+    parent: parentTarget,
+    parentElement: parentTarget,
+  };
+  return target as unknown as EventTarget;
+}
+
 describe("reader navigation helpers", () => {
   it("maps paged reader keyboard shortcuts", () => {
     expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight" }))).toBe("forward");
@@ -139,6 +173,7 @@ describe("reader navigation helpers", () => {
 
   it.each([
     "a[href]",
+    "area[href]",
     "button",
     "input",
     "select",
@@ -158,6 +193,54 @@ describe("reader navigation helpers", () => {
 
     expect(isPagedReaderWheelTargetBlocked(target)).toBe(true);
     expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target }))).toBeNull();
+  });
+
+  it("keeps a standalone reader-owned illustration wheel-eligible but shortcut-blocked", () => {
+    const illustration = nestedElementTarget([
+      READER_ILLUSTRATION_TRIGGER_SELECTOR,
+      "[role='button']",
+    ]);
+
+    expect(isPagedReaderWheelTargetBlocked(illustration)).toBe(false);
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(80);
+    expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(
+      80,
+    );
+    expect(
+      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: illustration })),
+    ).toBeNull();
+    const publisherStyledIllustration = nestedElementTarget([READER_ILLUSTRATION_TRIGGER_SELECTOR]);
+    expect(
+      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: publisherStyledIllustration })),
+    ).toBeNull();
+  });
+
+  it.each(["a", "button"])(
+    "keeps a marked illustration inside a publisher %s blocked in paged mode",
+    (ownerSelector) => {
+      const owner = nestedElementTarget([ownerSelector === "a" ? "a[href]" : "button"]);
+      const illustration = nestedElementTarget(
+        [READER_ILLUSTRATION_TRIGGER_SELECTOR, "[role='button']"],
+        owner,
+      );
+
+      expect(isPagedReaderWheelTargetBlocked(illustration)).toBe(true);
+      expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBeNull();
+      expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBe(
+        80,
+      );
+    },
+  );
+
+  it("keeps a standalone illustration blocked while its document has an active selection", () => {
+    const illustration = nestedElementTarget(
+      [READER_ILLUSTRATION_TRIGGER_SELECTOR, "[role='button']"],
+      null,
+      false,
+    );
+
+    expect(isPagedReaderWheelTargetBlocked(illustration)).toBe(true);
+    expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: illustration }))).toBeNull();
   });
 
   it("keeps ordinary targets paged-eligible and interactive targets continuous-eligible", () => {

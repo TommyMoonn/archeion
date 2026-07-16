@@ -17,6 +17,10 @@ import {
   type ResolvedEpubIllustration,
 } from "./epubIllustrationResolver";
 import {
+  hasPublisherIllustrationInteractionOwner,
+  READER_ILLUSTRATION_TRIGGER_ATTRIBUTE,
+} from "./readerIllustrationTrigger";
+import {
   contentActionAnchorForElement,
   readerViewportRect,
   type ReaderContentActionAnchor,
@@ -514,12 +518,18 @@ export function useEpubContentActionController({
       const session = getSession();
       if (!session || !context.sectionHref) return;
       for (const element of context.document.querySelectorAll("img, image")) {
-        if (element.closest("a[href], area[href]")) continue;
         if (!illustrationTargetForElement(session.book, element, context.sectionHref)) continue;
         const focusTarget = illustrationFocusTarget(element);
-        if (!focusTarget || focusTarget.hasAttribute("tabindex")) continue;
-        focusTarget.setAttribute("tabindex", "0");
-        focusTarget.setAttribute("role", "button");
+        if (!focusTarget || hasPublisherIllustrationInteractionOwner(element, focusTarget)) {
+          continue;
+        }
+        focusTarget.setAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE, "");
+        if (!focusTarget.hasAttribute("tabindex")) {
+          focusTarget.setAttribute("tabindex", "0");
+        }
+        if (!focusTarget.hasAttribute("role")) {
+          focusTarget.setAttribute("role", "button");
+        }
         if (!focusTarget.hasAttribute("aria-label")) {
           focusTarget.setAttribute("aria-label", "Open illustration");
         }

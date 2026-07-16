@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EpubFootnoteResolution } from "./epubFootnoteResolver";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
+import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import type { EpubSessionSnapshot } from "./useEpubSession";
 import {
@@ -223,6 +224,7 @@ describe("useEpubContentActionController", () => {
     const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
 
     act(() => harness.latest().prepareDocument(context));
+    expect(image.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(true);
     expect(image.tabIndex).toBe(0);
     expect(image.getAttribute("role")).toBe("button");
     expect(image.getAttribute("aria-label")).toBe("Open illustration");
@@ -268,6 +270,7 @@ describe("useEpubContentActionController", () => {
     const context = { document: chapter, sectionHref: "Text/chapter.xhtml" };
 
     act(() => harness.latest().prepareDocument(context));
+    expect(svg.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(true);
     expect(svg.getAttribute("role")).toBe("button");
     expect(svg.getAttribute("tabindex")).toBe("0");
 
@@ -283,6 +286,113 @@ describe("useEpubContentActionController", () => {
     );
     expect(harness.latest().illustration?.resource?.url).toBe("blob:svg-plate");
   });
+
+  it("marks standalone triggers without replacing publisher accessibility values", () => {
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const image = chapter.createElement("img");
+    image.setAttribute("src", "../Images/plate.jpg");
+    image.setAttribute("tabindex", "2");
+    image.setAttribute("role", "img");
+    image.setAttribute("aria-label", "Publisher plate description");
+    chapter.body.append(image);
+
+    act(() =>
+      harness.latest().prepareDocument({
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      }),
+    );
+
+    expect(image.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(true);
+    expect(image.getAttribute("tabindex")).toBe("2");
+    expect(image.getAttribute("role")).toBe("img");
+    expect(image.getAttribute("aria-label")).toBe("Publisher plate description");
+  });
+
+  it.each(["a", "button"])("does not mark an illustration owned by a publisher %s", (ownerName) => {
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter } = linkedDocument("chapter-2.xhtml");
+    const owner = chapter.createElement(ownerName);
+    if (ownerName === "a") owner.setAttribute("href", "chapter-2.xhtml");
+    const image = chapter.createElement("img");
+    image.setAttribute("src", "../Images/plate.jpg");
+    owner.append(image);
+    chapter.body.append(owner);
+
+    act(() =>
+      harness.latest().prepareDocument({
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      }),
+    );
+
+    expect(image.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(false);
+    expect(image.hasAttribute("tabindex")).toBe(false);
+    expect(image.hasAttribute("role")).toBe(false);
+    expect(image.hasAttribute("aria-label")).toBe(false);
+  });
+
+  it.each(["name", "id"])(
+    "does not prepare an illustration owned by a matching image map %s",
+    (mapIdentity) => {
+      const activeSession = { current: session() };
+      const harness = renderController(activeSession);
+      const { document: chapter } = linkedDocument("chapter-2.xhtml");
+      const image = chapter.createElement("img");
+      image.setAttribute("src", "../Images/diagram.png");
+      image.setAttribute("usemap", "#diagram-map");
+      const map = chapter.createElement("map");
+      map.setAttribute(mapIdentity, "diagram-map");
+      const area = chapter.createElement("area");
+      area.setAttribute("href", "chapter-2.xhtml");
+      map.append(area);
+      chapter.body.append(image, map);
+
+      act(() =>
+        harness.latest().prepareDocument({
+          document: chapter,
+          sectionHref: "Text/chapter.xhtml",
+        }),
+      );
+
+      expect(image.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(false);
+      expect(image.hasAttribute("tabindex")).toBe(false);
+      expect(image.hasAttribute("role")).toBe(false);
+      expect(image.hasAttribute("aria-label")).toBe(false);
+    },
+  );
+
+  it.each(["#missing-map", "chapter.xhtml#diagram-map", "#%", "#unrelated-map"])(
+    "keeps an illustration standalone when image-map reference %s has no active owner",
+    (useMap) => {
+      const activeSession = { current: session() };
+      const harness = renderController(activeSession);
+      const { document: chapter } = linkedDocument("chapter-2.xhtml");
+      const image = chapter.createElement("img");
+      image.setAttribute("src", "../Images/diagram.png");
+      image.setAttribute("usemap", useMap);
+      const unrelatedMap = chapter.createElement("map");
+      unrelatedMap.setAttribute("name", "unrelated-map");
+      chapter.body.append(image, unrelatedMap);
+
+      expect(() =>
+        act(() =>
+          harness.latest().prepareDocument({
+            document: chapter,
+            sectionHref: "Text/chapter.xhtml",
+          }),
+        ),
+      ).not.toThrow();
+
+      expect(image.hasAttribute(READER_ILLUSTRATION_TRIGGER_ATTRIBUTE)).toBe(true);
+      expect(image.getAttribute("tabindex")).toBe("0");
+      expect(image.getAttribute("role")).toBe("button");
+      expect(image.getAttribute("aria-label")).toBe("Open illustration");
+    },
+  );
 
   it("does not prepare or activate illustration sources containing raw controls", () => {
     const getBlob = vi.fn();
