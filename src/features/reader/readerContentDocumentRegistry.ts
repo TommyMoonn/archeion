@@ -17,7 +17,14 @@ export type RenderedView = {
   iframe?: HTMLIFrameElement;
 };
 
+export type ReaderContentDocumentContext = Readonly<{
+  document: Document;
+  sectionHref?: string;
+}>;
+
 export type ReaderContentDocumentRegistryOptions = {
+  onContentClick?: (event: MouseEvent, context: ReaderContentDocumentContext) => boolean;
+  onContentPointerDown?: (event: PointerEvent, context: ReaderContentDocumentContext) => boolean;
   onDocumentRemoved?: (document: Document) => void;
   onEscape?: () => boolean;
   onInteraction?: () => void;
@@ -29,6 +36,7 @@ export type ReaderContentDocumentRegistryOptions = {
 
 type RegisteredDocument = {
   cleanup: () => void;
+  sectionHref?: string;
   window: Window | null;
 };
 
@@ -57,7 +65,12 @@ export class ReaderContentDocumentRegistry {
 
   bind(content: EpubContent | null): boolean {
     const document = content?.document ?? null;
-    if (!document || this.documents.has(document)) return false;
+    if (!document) return false;
+    const existing = this.documents.get(document);
+    if (existing) {
+      if (content?.section?.href) existing.sectionHref = content.section.href;
+      return false;
+    }
 
     if (this.theme) applyReaderContentTheme(null, this.theme, [document]);
     const window = contentWindow(document, content?.window);
@@ -72,8 +85,23 @@ export class ReaderContentDocumentRegistry {
       }
       this.options.onKeyDown?.(event);
     };
+    const context = (): ReaderContentDocumentContext => ({
+      document,
+      sectionHref: this.documents.get(document)?.sectionHref ?? content?.section?.href,
+    });
+    const onContentClick = (event: MouseEvent) => {
+      if (this.options.onContentClick?.(event, context())) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      this.options.onInteraction?.();
+    };
     const onContentInteraction = () => this.options.onInteraction?.();
-    const onContentPointerDown = () => this.options.onPointerDown?.();
+    const onContentPointerDown = (event: PointerEvent) => {
+      if (this.options.onContentPointerDown?.(event, context())) return;
+      this.options.onPointerDown?.();
+    };
     const onContentTeardown = () => this.remove(document);
     const onSelectionChange = () => {
       if (document.getSelection()?.isCollapsed) {
@@ -87,11 +115,11 @@ export class ReaderContentDocumentRegistry {
       target.addEventListener("wheel", onContentWheel, wheelOptions);
     }
     document.addEventListener("keydown", onContentKeyDown, keyOptions);
+    document.addEventListener("click", onContentClick, true);
     document.addEventListener("pointerdown", onContentPointerDown, true);
     document.addEventListener("selectionchange", onSelectionChange);
     document.addEventListener("mousemove", onContentInteraction);
     document.addEventListener("touchstart", onContentInteraction);
-    document.addEventListener("click", onContentInteraction);
     window?.addEventListener("pagehide", onContentTeardown);
 
     const cleanup = () => {
@@ -99,22 +127,23 @@ export class ReaderContentDocumentRegistry {
         target.removeEventListener("wheel", onContentWheel, wheelOptions);
       }
       document.removeEventListener("keydown", onContentKeyDown, keyOptions);
+      document.removeEventListener("click", onContentClick, true);
       document.removeEventListener("pointerdown", onContentPointerDown, true);
       document.removeEventListener("selectionchange", onSelectionChange);
       document.removeEventListener("mousemove", onContentInteraction);
       document.removeEventListener("touchstart", onContentInteraction);
-      document.removeEventListener("click", onContentInteraction);
       window?.removeEventListener("pagehide", onContentTeardown);
     };
 
-    this.documents.set(document, { cleanup, window });
+    this.documents.set(document, { cleanup, sectionHref: content?.section?.href, window });
     return true;
   }
 
-  bindRenderedView(view: unknown): boolean {
+  bindRenderedView(view: unknown, sectionHref?: string): boolean {
     const document = documentFromRenderedView(view);
     return this.bind({
       document: document ?? undefined,
+      section: sectionHref ? { href: sectionHref } : undefined,
       window: document?.defaultView ?? undefined,
     });
   }
@@ -180,6 +209,11 @@ export class ReaderContentDocumentRegistry {
     for (const registeredDocument of this.documents.keys()) {
       registeredDocument.getSelection()?.removeAllRanges();
     }
+  }
+
+  contextFor(document: Document): ReaderContentDocumentContext | null {
+    const registered = this.documents.get(document);
+    return registered ? { document, sectionHref: registered.sectionHref } : null;
   }
 
   renditionTargetIsUsable(rendition: Rendition, target: string): boolean {

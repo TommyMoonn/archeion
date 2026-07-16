@@ -44,6 +44,7 @@ pub fn run() {
             commands::epub_writeback::clear_epub_writeback_backups,
             commands::epub_writeback::get_epub_writeback_backup_status,
             commands::epub_writeback::write_epub_metadata,
+            commands::external::open_external_url,
             commands::metadata::initialize_archive_metadata,
             commands::metadata::load_archive_metadata,
             commands::metadata::load_annotations_metadata,

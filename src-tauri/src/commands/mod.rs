@@ -6,6 +6,7 @@ pub mod epub;
 pub mod epub_cover_writeback;
 pub mod epub_metadata;
 pub mod epub_writeback;
+pub mod external;
 pub mod filesystem;
 pub mod metadata;
 pub mod scanner;

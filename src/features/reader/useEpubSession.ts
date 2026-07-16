@@ -30,7 +30,7 @@ export type EpubSessionBridge = {
   onNavigationChange: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
   onRelocated: () => void;
-  onRendered: (view: unknown) => void;
+  onRendered: (section: unknown, view: unknown) => void;
   onSelected: (cfiRange: string, contents: EpubContent) => void;
   onSessionCreated: (session: EpubSessionSnapshot) => void;
   onSessionEnding: (session: EpubSessionSnapshot) => void;
@@ -75,9 +75,11 @@ export type UseEpubSessionOptions = {
 export type EpubSessionFacade = {
   getNavigationState: () => ReaderNavigationState;
   getRendition: () => Rendition | null;
+  getSession: () => EpubSessionSnapshot | null;
   isLoading: boolean;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
+  navigateToTarget: (target: string) => Promise<boolean>;
   turn: (intent: ReaderNavigationIntent) => Promise<void>;
 };
 
@@ -160,26 +162,10 @@ export function useEpubSession({
     [invalidateTurnOwner],
   );
 
-  const navigateToChapter = useCallback(async (chapterId: string) => {
-    const session = sessionRef.current;
-    const target = navigationControllerRef.current?.getModel().resolveChapterTarget(chapterId);
-    if (!session || !target || isNavigatingRef.current) return false;
-
-    isNavigatingRef.current = true;
-    try {
-      await session.rendition.display(target);
-      return sessionRef.current === session;
-    } catch {
-      return false;
-    } finally {
-      if (sessionRef.current === session) isNavigatingRef.current = false;
-    }
-  }, []);
-
-  const navigateToLocation = useCallback(
-    async (cfi: string) => {
+  const displayTarget = useCallback(
+    async (rawTarget: string, requireUsableLocation = false) => {
       const session = sessionRef.current;
-      const target = cfi.trim();
+      const target = rawTarget.trim();
       if (!session || !target || isNavigatingRef.current) return false;
 
       isNavigatingRef.current = true;
@@ -187,8 +173,10 @@ export function useEpubSession({
         await session.rendition.display(target);
         if (sessionRef.current !== session) return false;
         const bridge = bridgeRef.current;
-        if (!bridge?.isLocationUsable(session.rendition, target)) return false;
-        bridge.onDisplayed();
+        if (requireUsableLocation && !bridge?.isLocationUsable(session.rendition, target)) {
+          return false;
+        }
+        bridge?.onDisplayed();
         return true;
       } catch {
         return false;
@@ -198,6 +186,21 @@ export function useEpubSession({
     },
     [bridgeRef],
   );
+
+  const navigateToChapter = useCallback(
+    async (chapterId: string) => {
+      const target = navigationControllerRef.current?.getModel().resolveChapterTarget(chapterId);
+      return target ? displayTarget(target) : false;
+    },
+    [displayTarget],
+  );
+
+  const navigateToLocation = useCallback(
+    (cfi: string) => displayTarget(cfi, true),
+    [displayTarget],
+  );
+
+  const navigateToTarget = useCallback((target: string) => displayTarget(target), [displayTarget]);
 
   useEffect(() => {
     let cancelled = false;
@@ -296,9 +299,9 @@ export function useEpubSession({
         const session: EpubSessionSnapshot = { book, generation, rendition };
         const owner: EpubSessionLifecycle = {
           cancelDeferredNavigation: () => undefined,
-          onRendered: (_section, view) => {
+          onRendered: (section, view) => {
             if (!ownsSession(session)) return;
-            bridgeRef.current?.onRendered(view);
+            bridgeRef.current?.onRendered(section, view);
           },
           onRelocated: (location) => {
             if (!ownsSession(session)) return;
@@ -383,13 +386,16 @@ export function useEpubSession({
     [],
   );
   const getRendition = useCallback(() => sessionRef.current?.rendition ?? null, []);
+  const getSession = useCallback(() => sessionRef.current, []);
 
   return {
     getNavigationState,
     getRendition,
+    getSession,
     isLoading: settledSessionKey !== sessionKey,
     navigateToChapter,
     navigateToLocation,
+    navigateToTarget,
     turn,
   };
 }

@@ -9,7 +9,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { CaretLeft, CaretRight } from "@phosphor-icons/react";
+import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
@@ -22,6 +22,9 @@ import {
 } from "./readerNavigation";
 import { forwardContinuousWheel } from "./readerContinuousScroll";
 import { createReaderContentTheme, readerContentSettingsEqual } from "./readerTheme";
+import { IconButton } from "../../components/IconButton";
+import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
+import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import { RenderedAnnotationAdapter } from "./RenderedAnnotationAdapter";
@@ -31,6 +34,7 @@ import {
   type ReaderTextSelection,
 } from "./useHighlightInteractionController";
 import { useEpubSession, type EpubSessionBridge, type EpubSessionError } from "./useEpubSession";
+import { useEpubContentActionController } from "./useEpubContentActionController";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderLocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
@@ -72,6 +76,12 @@ type EpubViewerProps = {
   readerTheme: ResolvedReaderTheme;
   settings: ReaderSettings;
 };
+
+function renderedSectionHref(section: unknown): string | undefined {
+  if (typeof section !== "object" || section === null) return undefined;
+  const href = (section as { href?: unknown }).href;
+  return typeof href === "string" ? href : undefined;
+}
 
 function sessionErrorMessage(error: EpubSessionError): string {
   switch (error.kind) {
@@ -154,8 +164,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearFeedback,
     dismiss,
     gestures,
-    handleDocumentRemoved,
-    handleEscape,
+    handleDocumentRemoved: handleHighlightDocumentRemoved,
+    handleEscape: handleHighlightEscape,
     handlePointerDown,
     handleSelection,
     handleSelectionCollapsed,
@@ -163,7 +173,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     openNote,
     paletteViewport,
     refreshAnchor,
-    resetForSession,
+    resetForSession: resetHighlightSession,
   } = interaction;
 
   useEffect(() => {
@@ -191,6 +201,46 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onSessionEnding: () => undefined,
   });
 
+  const {
+    getNavigationState,
+    getRendition,
+    getSession,
+    isLoading,
+    navigateToChapter: displayChapter,
+    navigateToLocation: displayLocation,
+    navigateToTarget: displayTarget,
+    turn,
+  } = useEpubSession({
+    bridgeRef,
+    containerRef,
+    fileBlob,
+    initialCfi,
+    mode: settings.mode,
+  });
+
+  const contentActions = useEpubContentActionController({
+    getSession,
+    navigateToTarget: displayTarget,
+    onInteraction,
+    registry: contentDocuments,
+    viewerRef,
+  });
+  const {
+    clearFeedback: clearContentActionFeedback,
+    confirmExternal,
+    dismissExternal,
+    dismissFootnote,
+    external: externalLink,
+    feedback: contentActionFeedback,
+    footnote,
+    handleContentClick,
+    handleContentPointerDown,
+    handleDocumentRemoved: handleContentActionDocumentRemoved,
+    handleEscape: handleContentActionEscape,
+    handleFootnoteAction,
+    resetForSession: resetContentActionSession,
+  } = contentActions;
+
   useEffect(() => {
     bridgeRef.current = {
       isLocationUsable: (rendition, target) =>
@@ -209,10 +259,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onRelocated: () => {
         dismiss(false);
         clearFeedback();
+        dismissFootnote(false);
+        dismissExternal(false);
+        clearContentActionFeedback();
       },
-      onRendered: (view) => {
+      onRendered: (section, view) => {
         contentDocuments.pruneDisconnected();
-        contentDocuments.bindRenderedView(view);
+        contentDocuments.bindRenderedView(view, renderedSectionHref(section));
         refreshAnchor();
         annotations.reconcile();
       },
@@ -223,40 +276,30 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       },
       onSessionEnding: () => {
         annotations.setSession(null);
-        resetForSession();
+        resetHighlightSession();
+        resetContentActionSession();
         contentDocuments.clear();
         wheelDeltaRef.current = 0;
       },
     };
   }, [
     annotations,
+    clearContentActionFeedback,
     clearFeedback,
     contentDocuments,
     contentTheme,
     dismiss,
+    dismissExternal,
+    dismissFootnote,
     handleSelection,
     onError,
     onLocationChange,
     onNavigationChange,
     onReady,
     refreshAnchor,
-    resetForSession,
+    resetContentActionSession,
+    resetHighlightSession,
   ]);
-
-  const {
-    getNavigationState,
-    getRendition,
-    isLoading,
-    navigateToChapter: displayChapter,
-    navigateToLocation: displayLocation,
-    turn,
-  } = useEpubSession({
-    bridgeRef,
-    containerRef,
-    fileBlob,
-    initialCfi,
-    mode: settings.mode,
-  });
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -292,10 +335,25 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [onInteraction, settings.mode, turn],
   );
 
+  const handleRegisteredDocumentRemoved = useCallback(
+    (document: Document) => {
+      handleHighlightDocumentRemoved(document);
+      handleContentActionDocumentRemoved(document);
+    },
+    [handleContentActionDocumentRemoved, handleHighlightDocumentRemoved],
+  );
+
+  const handleRegisteredEscape = useCallback(
+    () => handleContentActionEscape() || handleHighlightEscape(),
+    [handleContentActionEscape, handleHighlightEscape],
+  );
+
   useEffect(() => {
     contentDocuments.updateOptions({
-      onDocumentRemoved: handleDocumentRemoved,
-      onEscape: handleEscape,
+      onContentClick: handleContentClick,
+      onContentPointerDown: handleContentPointerDown,
+      onDocumentRemoved: handleRegisteredDocumentRemoved,
+      onEscape: handleRegisteredEscape,
       onInteraction,
       onKeyDown,
       onPointerDown: handlePointerDown,
@@ -304,9 +362,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     });
   }, [
     contentDocuments,
-    handleDocumentRemoved,
-    handleEscape,
+    handleContentClick,
+    handleContentPointerDown,
     handlePointerDown,
+    handleRegisteredDocumentRemoved,
+    handleRegisteredEscape,
     handleSelectionCollapsed,
     handleWheel,
     onInteraction,
@@ -333,8 +393,18 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const prepareNavigation = useCallback(() => {
     dismiss(false);
     clearFeedback();
+    dismissFootnote(false);
+    dismissExternal(false);
+    clearContentActionFeedback();
     onInteraction();
-  }, [clearFeedback, dismiss, onInteraction]);
+  }, [
+    clearContentActionFeedback,
+    clearFeedback,
+    dismiss,
+    dismissExternal,
+    dismissFootnote,
+    onInteraction,
+  ]);
 
   const navigateToChapter = useCallback(
     async (chapterId: string) => {
@@ -430,6 +500,38 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           <span className="reader-loading__line" />
           <span className="reader-loading__line reader-loading__line--short" />
           <span>Opening book</span>
+        </div>
+      ) : null}
+      {footnote ? (
+        <ReaderFootnotePopover
+          anchorRect={footnote.anchorRect}
+          content={footnote.content}
+          message={footnote.message}
+          onAction={handleFootnoteAction}
+          onDismiss={() => dismissFootnote()}
+          viewportRect={footnote.viewportRect}
+        />
+      ) : null}
+      {externalLink ? (
+        <ReaderExternalLinkDialog
+          error={externalLink.error}
+          host={externalLink.host}
+          onCancel={() => dismissExternal()}
+          onConfirm={confirmExternal}
+          opening={externalLink.opening}
+          url={externalLink.url}
+        />
+      ) : null}
+      {contentActionFeedback ? (
+        <div className="reader-content-action-feedback" role="status">
+          <span>{contentActionFeedback}</span>
+          <IconButton
+            label="Dismiss link message"
+            onClick={clearContentActionFeedback}
+            size="compact"
+          >
+            <X aria-hidden="true" />
+          </IconButton>
         </div>
       ) : null}
       {menu ? (

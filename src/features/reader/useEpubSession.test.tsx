@@ -444,6 +444,29 @@ describe("useEpubSession lifecycle", () => {
     expect(bridge.onRelocated).not.toHaveBeenCalled();
     expect(bridge.onSelected).not.toHaveBeenCalled();
   });
+
+  it("routes arbitrary safe EPUB targets through the active rendition display path", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      { bridgeRef: createBridgeRef(bridge), fileBlob: new Blob(["book-a"]), mode: "paged" },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+    session.rendition.display.mockClear();
+    vi.mocked(bridge.onDisplayed).mockClear();
+
+    let navigated = false;
+    await act(async () => {
+      navigated = await facadeRef.current!.navigateToTarget("Text/chapter-2.xhtml#part");
+    });
+
+    expect(navigated).toBe(true);
+    expect(session.rendition.display).toHaveBeenCalledWith("Text/chapter-2.xhtml#part");
+    expect(bridge.onDisplayed).toHaveBeenCalledOnce();
+  });
 });
 
 describe("useEpubSession content-hook ownership", () => {

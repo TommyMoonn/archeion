@@ -61,6 +61,95 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(second).toHaveBeenCalledOnce();
   });
 
+  it("suppresses EPUB link activation before reader page-turn and highlight interactions", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const link = chapter.createElement("a");
+    link.href = "#note";
+    chapter.body.append(link);
+    const onContentClick = vi.fn(() => true);
+    const onInteraction = vi.fn();
+    const onPointerDown = vi.fn();
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions({
+      onContentClick,
+      onContentPointerDown: () => true,
+      onInteraction,
+      onPointerDown,
+    });
+    registry.bind({
+      document: chapter,
+      section: { href: "Text/chapter.xhtml" },
+      window: frame.contentWindow!,
+    });
+    const pointerDown = new PointerEvent("pointerdown", { bubbles: true, cancelable: true });
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+
+    link.dispatchEvent(pointerDown);
+    link.dispatchEvent(click);
+
+    expect(onContentClick).toHaveBeenCalledWith(
+      click,
+      expect.objectContaining({ document: chapter, sectionHref: "Text/chapter.xhtml" }),
+    );
+    expect(click.defaultPrevented).toBe(true);
+    expect(onInteraction).not.toHaveBeenCalled();
+    expect(onPointerDown).not.toHaveBeenCalled();
+  });
+
+  it("routes link pointer and click events from every registered EPUB document", () => {
+    const first = mountedFrame();
+    const second = mountedFrame();
+    const secondDocument = second.contentDocument!;
+    const link = secondDocument.createElement("a");
+    link.href = "chapter-3.xhtml#section";
+    secondDocument.body.append(link);
+    const onContentClick = vi.fn(() => true);
+    const onContentPointerDown = vi.fn(() => true);
+    const onInteraction = vi.fn();
+    const onPointerDown = vi.fn();
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions({
+      onContentClick,
+      onContentPointerDown,
+      onInteraction,
+      onPointerDown,
+    });
+    registry.bind({
+      document: first.contentDocument!,
+      section: { href: "Text/chapter-1.xhtml" },
+      window: first.contentWindow!,
+    });
+    registry.bind({
+      document: secondDocument,
+      section: { href: "Text/chapter-2.xhtml" },
+      window: second.contentWindow!,
+    });
+
+    const pointerDown = new PointerEvent("pointerdown", { bubbles: true, cancelable: true });
+    const click = new MouseEvent("click", { bubbles: true, cancelable: true });
+    link.dispatchEvent(pointerDown);
+    link.dispatchEvent(click);
+
+    expect(onContentPointerDown).toHaveBeenCalledWith(
+      pointerDown,
+      expect.objectContaining({
+        document: secondDocument,
+        sectionHref: "Text/chapter-2.xhtml",
+      }),
+    );
+    expect(onContentClick).toHaveBeenCalledWith(
+      click,
+      expect.objectContaining({
+        document: secondDocument,
+        sectionHref: "Text/chapter-2.xhtml",
+      }),
+    );
+    expect(click.defaultPrevented).toBe(true);
+    expect(onInteraction).not.toHaveBeenCalled();
+    expect(onPointerDown).not.toHaveBeenCalled();
+  });
+
   it("prunes only disconnected frames and retains a connected sibling", () => {
     const first = mountedFrame();
     const second = mountedFrame();
