@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-07-16
+
+Archeion's reader-fidelity release for footnotes, safe links, illustration viewing, and original-image export.
+
+### Added
+
+- Added footnote and endnote popovers that keep the current reading position and preserve useful text, lists, emphasis, links, and supported local images.
+- Added safe routing for EPUB links: internal links use the existing reader navigation flow, while external HTTP and HTTPS links require confirmation before opening in the system browser.
+- Added a focused local illustration viewer with Fit, Actual size, bounded zoom, wheel and trackpad zoom, keyboard controls, and drag-to-pan interaction.
+- Added native **Save image** support for original AVIF, GIF, JPEG, PNG, and WebP resources without capturing, resizing, or re-encoding the displayed view.
+
+### Changed
+
+- Made safe standalone EPUB illustrations accessible by click, Enter, and Space while keeping wheel page turns and continuous scrolling responsive when the pointer is over the image.
+- Kept footnotes, links, and illustration actions within the active reader lifecycle so the EPUB book, rendition, reading location, focus, and theme remain stable.
+
+### Fixed
+
+- Prevented illustration-modal wheel, trackpad, pointer, and keyboard input from reaching the reader underneath it.
+- Rejected malformed, remote, traversal, scriptable, ambiguous, oversized, and unsupported local content before it can be opened or exported.
+- Prevented stale illustration work, object URLs, loaded target documents, and temporary export files from surviving close, replacement, cancellation, or reader-session changes.
+
+### Testing
+
+- Expanded reader coverage for link classification, footnote sanitization, focus and dismissal, illustration resolution, zoom and pan geometry, input isolation, resource cleanup, and rendition preservation.
+- Added frontend and Rust coverage for native image export validation, supported image types, byte limits, atomic replacement, restoration after failure, and shared media-type rules.
+
 ## [0.5.0] - 2026-07-16
 
 Archeion's make-it-yours release for safe, archive-local application and reader themes.
@@ -150,7 +177,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/TommyMoonn/archeion/compare/v0.2.0...v0.3.0
