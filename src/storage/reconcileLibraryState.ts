@@ -30,6 +30,12 @@ export type ArchiveScan = {
   warnings?: ArchiveScanWarning[];
 };
 
+export type ArchiveEpubScan = {
+  books: ScannedBook[];
+  missingRelativePaths: string[];
+  warnings?: ArchiveScanWarning[];
+};
+
 export type ReconcileLibraryStateInput = {
   previousBooks: Book[];
   previousFolders: Folder[];
@@ -53,6 +59,19 @@ type LegacyLibraryBookMetadata = LibraryBookMetadata & {
   displayTitle?: unknown;
   displayAuthor?: unknown;
 };
+
+function bookRecordsEqual(left: Book, right: Book): boolean {
+  const leftKeys = Object.keys(left) as Array<keyof Book>;
+  const rightKeys = Object.keys(right) as Array<keyof Book>;
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every((key) =>
+      key === "sourceMetadata"
+        ? sourceMetadataEqual(left.sourceMetadata, right.sourceMetadata)
+        : Object.is(left[key], right[key]),
+    )
+  );
+}
 
 function omitLegacyDisplayOverrides(metadata: LibraryMetadata): {
   metadata: LibraryMetadata;
@@ -303,7 +322,7 @@ export function reconcileLibraryState({
     missingBooks.set(id, buildMissingBook(id, metadata, progressMetadata));
   }
 
-  const reconciledBooks = reconcileById(previousBooks, visibleBooks, shallowEqualRecords);
+  const reconciledBooks = reconcileById(previousBooks, visibleBooks, bookRecordsEqual);
   const reconciledFolders = reconcileFolders(previousFolders, scan.folders, timestamp);
 
   return {
