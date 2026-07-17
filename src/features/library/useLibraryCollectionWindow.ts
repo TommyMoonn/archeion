@@ -5,7 +5,7 @@ import type { LibraryView } from "../../types/library";
 export const LIBRARY_WINDOWING_THRESHOLD = 48;
 const DEFAULT_VIEWPORT_HEIGHT = 800;
 const MIN_OVERSCAN_PX = 360;
-const GRID_LAYOUT_PIXEL_TOLERANCE = 0.5;
+const LAYOUT_PIXEL_TOLERANCE = 0.5;
 
 export type LibraryWindowRange = Readonly<{
   start: number;
@@ -49,6 +49,14 @@ export type LibraryCollectionLayout = {
   rowGap: number;
 };
 
+type CachedLibraryCollectionLayout = {
+  view: LibraryView;
+  layout: LibraryCollectionLayout;
+  collectionWidth: number;
+  viewportHeight: number;
+  scrollRootWidth: number;
+};
+
 export function calculateAnchoredViewportStart(
   viewportStart: number,
   previous: LibraryCollectionLayout,
@@ -72,8 +80,8 @@ export function hasMeaningfulGridLayoutChange(
 ): boolean {
   return (
     previous.columns !== next.columns ||
-    Math.abs(previous.itemHeight - next.itemHeight) > GRID_LAYOUT_PIXEL_TOLERANCE ||
-    Math.abs(previous.rowGap - next.rowGap) > GRID_LAYOUT_PIXEL_TOLERANCE
+    Math.abs(previous.itemHeight - next.itemHeight) > LAYOUT_PIXEL_TOLERANCE ||
+    Math.abs(previous.rowGap - next.rowGap) > LAYOUT_PIXEL_TOLERANCE
   );
 }
 
@@ -130,17 +138,16 @@ export function useLibraryCollectionWindow(
   windowed: boolean;
 } {
   const collectionRef = useRef<HTMLElement>(null);
-  const layoutRef = useRef<{
-    view: LibraryView;
-    layout: LibraryCollectionLayout;
-  } | null>(null);
+  const layoutRef = useRef<CachedLibraryCollectionLayout | null>(null);
   const focusedIndexRef = useRef<number | undefined>(undefined);
+  const measurementElementRef = useRef<HTMLElement | null>(null);
+  const measurementObserverRef = useRef<ResizeObserver | null>(null);
   const windowed = itemCount > LIBRARY_WINDOWING_THRESHOLD;
   const [range, setRange] = useState<LibraryWindowRange>(() =>
     initialRange(itemCount, view, windowed),
   );
 
-  const measure = useCallback(() => {
+  const updateWindow = useCallback(() => {
     const collection = collectionRef.current;
     if (!collection || !windowed) {
       setRange(fullRange(itemCount));
@@ -148,34 +155,17 @@ export function useLibraryCollectionWindow(
     }
 
     const scrollRoot = findScrollRoot(collection);
+    const cached =
+      layoutRef.current?.view === view
+        ? layoutRef.current
+        : fallbackCachedLayout(collection, scrollRoot, view);
+    const { columns, itemHeight, rowGap } = cached.layout;
     const viewportHeight =
-      scrollRoot?.clientHeight || window.innerHeight || DEFAULT_VIEWPORT_HEIGHT;
+      scrollRoot?.clientHeight ||
+      cached.viewportHeight ||
+      window.innerHeight ||
+      DEFAULT_VIEWPORT_HEIGHT;
     let viewportStart = relativeViewportStart(collection, scrollRoot);
-    const style = window.getComputedStyle(collection);
-    const columns = view === "grid" ? measuredGridColumns(collection, style) : 1;
-    const item = collection.querySelector<HTMLElement>("[data-reader-book-id]");
-    const measuredHeight = item?.getBoundingClientRect().height || item?.offsetHeight;
-    const itemHeight = measuredHeight || estimatedItemHeight(collection, view, columns);
-    const rowGap = view === "grid" ? cssPixels(style.rowGap || style.gap) : 0;
-    const previousLayout = layoutRef.current?.view === view ? layoutRef.current.layout : null;
-    const nextLayout = { columns, itemHeight, rowGap };
-    if (
-      scrollRoot &&
-      view === "grid" &&
-      previousLayout &&
-      hasMeaningfulGridLayoutChange(previousLayout, nextLayout)
-    ) {
-      const nextViewportStart = calculateAnchoredViewportStart(viewportStart, previousLayout, {
-        columns,
-        itemHeight,
-        rowGap,
-      });
-      if (Math.abs(nextViewportStart - viewportStart) >= 1) {
-        scrollRoot.scrollTop += nextViewportStart - viewportStart;
-        viewportStart = nextViewportStart;
-      }
-    }
-    layoutRef.current = { view, layout: nextLayout };
 
     if (scrollRoot && restorationIndex !== undefined) {
       const targetRow = Math.floor(restorationIndex / columns);
@@ -188,6 +178,7 @@ export function useLibraryCollectionWindow(
         viewportStart = centeredStart;
       }
     }
+
     const next = calculateLibraryWindowRange({
       itemCount,
       columns,
@@ -201,52 +192,171 @@ export function useLibraryCollectionWindow(
     setRange((current) => (rangesEqual(current, next) ? current : next));
   }, [itemCount, restorationIndex, view, windowed]);
 
+  const measureLayout = useCallback(() => {
+    const collection = collectionRef.current;
+    if (!collection || !windowed) return;
+
+    const scrollRoot = findScrollRoot(collection);
+    const collectionWidth = measuredWidth(collection);
+    const viewportHeight =
+      scrollRoot?.clientHeight || window.innerHeight || DEFAULT_VIEWPORT_HEIGHT;
+    const scrollRootWidth = scrollRoot ? measuredWidth(scrollRoot) : window.innerWidth;
+    const style = window.getComputedStyle(collection);
+    const columns = view === "grid" ? measuredGridColumns(collection, style) : 1;
+    const previous = layoutRef.current?.view === view ? layoutRef.current : null;
+    const measurementElement = stableVisibleMeasurementElement(
+      collection,
+      scrollRoot,
+      measurementElementRef.current,
+    );
+    const measuredHeight = elementHeight(measurementElement);
+    const itemHeight =
+      measuredHeight ||
+      previous?.layout.itemHeight ||
+      estimatedItemHeight(collection, view, columns);
+    const rowGap = view === "grid" ? cssPixels(style.rowGap || style.gap) : 0;
+    const nextLayout = { columns, itemHeight, rowGap };
+    const viewportStart = relativeViewportStart(collection, scrollRoot);
+
+    layoutRef.current = {
+      view,
+      layout: nextLayout,
+      collectionWidth,
+      viewportHeight,
+      scrollRootWidth,
+    };
+    observeMeasurementElement(measurementElementRef, measurementObserverRef, measurementElement);
+
+    if (
+      scrollRoot &&
+      view === "grid" &&
+      previous &&
+      hasMeaningfulGridLayoutChange(previous.layout, nextLayout)
+    ) {
+      const nextViewportStart = calculateAnchoredViewportStart(
+        viewportStart,
+        previous.layout,
+        nextLayout,
+      );
+      if (Math.abs(nextViewportStart - viewportStart) >= 1) {
+        scrollRoot.scrollTop += nextViewportStart - viewportStart;
+      }
+    }
+
+    updateWindow();
+  }, [updateWindow, view, windowed]);
+
   useLayoutEffect(() => {
     const collection = collectionRef.current;
     if (!collection) return;
     if (!windowed) {
       layoutRef.current = null;
+      measurementElementRef.current = null;
       return;
     }
 
     const scrollRoot = findScrollRoot(collection);
-    let animationFrame = 0;
-    const scheduleMeasure = () => {
-      if (animationFrame) return;
-      animationFrame = window.requestAnimationFrame(() => {
-        animationFrame = 0;
-        measure();
+    let windowFrame = 0;
+    let layoutFrame = 0;
+    const scheduleWindowUpdate = () => {
+      if (windowFrame || layoutFrame) return;
+      windowFrame = window.requestAnimationFrame(() => {
+        windowFrame = 0;
+        updateWindow();
       });
     };
-    const resizeObserver =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(scheduleMeasure);
+    const scheduleLayoutMeasurement = () => {
+      if (layoutFrame) return;
+      if (windowFrame) {
+        window.cancelAnimationFrame(windowFrame);
+        windowFrame = 0;
+      }
+      layoutFrame = window.requestAnimationFrame(() => {
+        layoutFrame = 0;
+        measureLayout();
+      });
+    };
+    const geometryObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver((entries) => {
+            const cached = layoutRef.current;
+            if (!cached) {
+              scheduleLayoutMeasurement();
+              return;
+            }
+            const collectionEntry = entries.find((entry) => entry.target === collection);
+            const rootEntry = scrollRoot
+              ? entries.find((entry) => entry.target === scrollRoot)
+              : undefined;
+            const collectionWidth = collectionEntry
+              ? resizeEntryWidth(collectionEntry)
+              : cached.collectionWidth;
+            const viewportHeight = rootEntry ? resizeEntryHeight(rootEntry) : cached.viewportHeight;
+            const scrollRootWidth = rootEntry
+              ? resizeEntryWidth(rootEntry)
+              : cached.scrollRootWidth;
+            if (
+              meaningfullyDifferent(collectionWidth, cached.collectionWidth) ||
+              meaningfullyDifferent(viewportHeight, cached.viewportHeight) ||
+              meaningfullyDifferent(scrollRootWidth, cached.scrollRootWidth)
+            ) {
+              scheduleLayoutMeasurement();
+            }
+          });
+    const measurementObserver =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver((entries) => {
+            const target = measurementElementRef.current;
+            const cached = layoutRef.current;
+            if (!target || !cached) return;
+            const entry = entries.find((candidate) => candidate.target === target);
+            if (
+              entry &&
+              meaningfullyDifferent(resizeEntryHeight(entry), cached.layout.itemHeight)
+            ) {
+              scheduleLayoutMeasurement();
+            }
+          });
+    measurementObserverRef.current = measurementObserver;
+
     const handleFocus = (event: FocusEvent) => {
       const target = event.target instanceof Element ? event.target : null;
       const book = target?.closest<HTMLElement>("[data-library-index]");
       const index = Number(book?.dataset.libraryIndex);
       focusedIndexRef.current = Number.isInteger(index) ? index : undefined;
-      scheduleMeasure();
+      scheduleWindowUpdate();
     };
+    const preferenceObserver =
+      typeof MutationObserver === "undefined"
+        ? null
+        : new MutationObserver(scheduleLayoutMeasurement);
 
-    measure();
-    scrollRoot?.addEventListener("scroll", scheduleMeasure, { passive: true });
+    measureLayout();
+    scrollRoot?.addEventListener("scroll", scheduleWindowUpdate, { passive: true });
     collection.addEventListener("focusin", handleFocus);
-    window.addEventListener("resize", scheduleMeasure, { passive: true });
-    resizeObserver?.observe(collection);
-    if (scrollRoot) resizeObserver?.observe(scrollRoot);
+    window.addEventListener("resize", scheduleLayoutMeasurement, { passive: true });
+    geometryObserver?.observe(collection);
+    if (scrollRoot) geometryObserver?.observe(scrollRoot);
+    preferenceObserver?.observe(document.documentElement, {
+      attributeFilter: ["data-card-size", "data-density"],
+      attributes: true,
+    });
 
     return () => {
-      if (animationFrame) window.cancelAnimationFrame(animationFrame);
-      scrollRoot?.removeEventListener("scroll", scheduleMeasure);
+      if (windowFrame) window.cancelAnimationFrame(windowFrame);
+      if (layoutFrame) window.cancelAnimationFrame(layoutFrame);
+      scrollRoot?.removeEventListener("scroll", scheduleWindowUpdate);
       collection.removeEventListener("focusin", handleFocus);
-      window.removeEventListener("resize", scheduleMeasure);
-      resizeObserver?.disconnect();
+      window.removeEventListener("resize", scheduleLayoutMeasurement);
+      geometryObserver?.disconnect();
+      measurementObserver?.disconnect();
+      preferenceObserver?.disconnect();
+      measurementObserverRef.current = null;
+      measurementElementRef.current = null;
     };
-  }, [itemCount, measure, windowed]);
-
-  useLayoutEffect(() => {
-    if (windowed) measure();
-  }, [measure, range.start, range.end, windowed]);
+  }, [itemCount, measureLayout, updateWindow, windowed]);
 
   return useMemo(
     () => ({ collectionRef, range: windowed ? range : fullRange(itemCount), windowed }),
@@ -269,6 +379,24 @@ function initialRange(itemCount: number, view: LibraryView, windowed: boolean): 
 
 function fullRange(itemCount: number): LibraryWindowRange {
   return { start: 0, end: itemCount, topSpacer: 0, bottomSpacer: 0, columns: 1 };
+}
+
+function fallbackCachedLayout(
+  collection: HTMLElement,
+  scrollRoot: HTMLElement | null,
+  view: LibraryView,
+): CachedLibraryCollectionLayout {
+  return {
+    view,
+    layout: {
+      columns: view === "grid" ? 5 : 1,
+      itemHeight: view === "grid" ? 300 : 75,
+      rowGap: view === "grid" ? 28 : 0,
+    },
+    collectionWidth: measuredWidth(collection),
+    viewportHeight: scrollRoot?.clientHeight || window.innerHeight || DEFAULT_VIEWPORT_HEIGHT,
+    scrollRootWidth: scrollRoot ? measuredWidth(scrollRoot) : window.innerWidth,
+  };
 }
 
 function findScrollRoot(collection: HTMLElement): HTMLElement | null {
@@ -300,7 +428,7 @@ function measuredGridColumns(collection: HTMLElement, style: CSSStyleDeclaration
     const tracks = template.split(/\s+/u).filter(Boolean);
     if (tracks.length > 0 && tracks.every((track) => track !== "none")) return tracks.length;
   }
-  const width = collection.clientWidth || collection.getBoundingClientRect().width || 1000;
+  const width = measuredWidth(collection) || 1_000;
   const cardSize = document.documentElement.dataset.cardSize;
   const minimum = cardSize === "small" ? 120 : cardSize === "large" ? 190 : 150;
   const gap = cssPixels(style.columnGap || style.gap) || 20;
@@ -309,10 +437,78 @@ function measuredGridColumns(collection: HTMLElement, style: CSSStyleDeclaration
 
 function estimatedItemHeight(collection: HTMLElement, view: LibraryView, columns: number): number {
   if (view === "list") return 75;
-  const width = collection.clientWidth || collection.getBoundingClientRect().width || 1000;
+  const width = measuredWidth(collection) || 1_000;
   const gap = cssPixels(window.getComputedStyle(collection).columnGap) || 20;
   const cardWidth = Math.max(100, (width - gap * (columns - 1)) / columns);
   return cardWidth * 1.5 + 62;
+}
+
+function stableVisibleMeasurementElement(
+  collection: HTMLElement,
+  scrollRoot: HTMLElement | null,
+  current: HTMLElement | null,
+): HTMLElement | null {
+  if (current?.isConnected && isVisibleMeasurementElement(current, scrollRoot)) return current;
+
+  const scrollRootRect = scrollRoot?.getBoundingClientRect();
+  const viewportTop = scrollRootRect?.top ?? 0;
+  const viewportBottom = scrollRootRect?.bottom ?? window.innerHeight;
+  let closest: HTMLElement | null = null;
+  let closestDistance = Number.POSITIVE_INFINITY;
+  for (const candidate of collection.querySelectorAll<HTMLElement>("[data-reader-book-id]")) {
+    const rect = candidate.getBoundingClientRect();
+    if (rect.height <= 0 || rect.bottom <= viewportTop || rect.top >= viewportBottom) continue;
+    const distance = Math.abs(rect.top - viewportTop);
+    if (distance < closestDistance) {
+      closest = candidate;
+      closestDistance = distance;
+    }
+  }
+  return closest;
+}
+
+function isVisibleMeasurementElement(
+  element: HTMLElement,
+  scrollRoot: HTMLElement | null,
+): boolean {
+  const rect = element.getBoundingClientRect();
+  const viewportTop = scrollRoot?.getBoundingClientRect().top ?? 0;
+  const viewportBottom = scrollRoot?.getBoundingClientRect().bottom ?? window.innerHeight;
+  return rect.height > 0 && rect.bottom > viewportTop && rect.top < viewportBottom;
+}
+
+function observeMeasurementElement(
+  elementRef: React.MutableRefObject<HTMLElement | null>,
+  observerRef: React.MutableRefObject<ResizeObserver | null>,
+  next: HTMLElement | null,
+): void {
+  const previous = elementRef.current;
+  if (previous === next) return;
+  if (previous) observerRef.current?.unobserve(previous);
+  elementRef.current = next;
+  if (next) observerRef.current?.observe(next);
+}
+
+function elementHeight(element: HTMLElement | null): number {
+  if (!element) return 0;
+  return element.getBoundingClientRect().height || element.offsetHeight;
+}
+
+function measuredWidth(element: HTMLElement): number {
+  return element.clientWidth || element.getBoundingClientRect().width;
+}
+
+function resizeEntryWidth(entry: ResizeObserverEntry): number {
+  return entry.contentRect.width || measuredWidth(entry.target as HTMLElement);
+}
+
+function resizeEntryHeight(entry: ResizeObserverEntry): number {
+  const element = entry.target as HTMLElement;
+  return entry.contentRect.height || element.clientHeight || element.getBoundingClientRect().height;
+}
+
+function meaningfullyDifferent(left: number, right: number): boolean {
+  return Math.abs(left - right) > LAYOUT_PIXEL_TOLERANCE;
 }
 
 function cssPixels(value: string): number {

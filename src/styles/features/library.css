@@ -387,6 +387,17 @@ html[data-motion="on"] .library-content {
   padding: 32px 0;
 }
 
+.book-grid[data-windowed],
+.book-list[data-windowed] {
+  overflow-anchor: none;
+}
+
+.book-grid[data-windowed] .book-card__select,
+.book-list[data-windowed] .book-row__select {
+  content-visibility: visible;
+  contain-intrinsic-size: none;
+}
+
 .book-grid__window {
   display: grid;
   grid-column: 1 / -1;
