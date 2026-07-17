@@ -8,8 +8,8 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "../../types/book";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
-import { deriveLibrarySummary, useLibraryDerivedState } from "./libraryDerivedState";
-import { createLibrarySearchIndexCache } from "./libraryFilters";
+import { useLibraryDerivedState } from "./libraryDerivedState";
+import { createLibraryIndex } from "./libraryIndex";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -64,7 +64,7 @@ describe("library derived state helpers", () => {
       lastOpenedAt: "2026-07-01T00:00:00.000Z",
     });
 
-    const summary = deriveLibrarySummary([older, favorite, createBook({ id: "root" })]);
+    const summary = createLibraryIndex([older, favorite, createBook({ id: "root" })], []);
 
     expect(Object.fromEntries(summary.bookCountsByFolder)).toEqual({ "folder-a": 2 });
     expect(summary.favoriteCount).toBe(1);
@@ -86,7 +86,6 @@ describe("library derived state helpers", () => {
       filters: createDefaultLibraryFilters(),
       folders: [],
       location: { type: "library" },
-      searchIndexCache: createLibrarySearchIndexCache(),
       smartViewPreferences: {
         enabled: true,
         visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],

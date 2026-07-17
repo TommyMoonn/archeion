@@ -21,7 +21,7 @@ import { searchFolders } from "./folderSearch";
 import { formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
 
 type FolderBrowserProps = {
-  bookCounts: Map<string, number>;
+  bookCounts: ReadonlyMap<string, number>;
   canManageFolders?: boolean;
   canRevealFolders?: boolean;
   folders: Folder[];

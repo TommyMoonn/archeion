@@ -34,6 +34,13 @@ export type LibraryFilterOptions = {
   publishers: string[];
 };
 
+export type LibraryFilterOptionAccumulator = {
+  series: Map<string, string>;
+  subjects: Map<string, string>;
+  languages: Map<string, string>;
+  publishers: Map<string, string>;
+};
+
 export type LibrarySmartViewCounts = Record<LibrarySmartView, number>;
 
 function normalizedMetadataValue(value: string | undefined): string {
@@ -89,41 +96,55 @@ export function countBooksBySmartView(
   return counts;
 }
 
-function uniqueMetadataValues(values: Array<string | undefined>): string[] {
-  const valuesByKey = new Map<string, string>();
-
-  for (const value of values) {
-    const displayValue = value?.trim();
-    if (!displayValue) continue;
-
-    const key = displayValue.toLocaleLowerCase();
-    if (!valuesByKey.has(key)) valuesByKey.set(key, displayValue);
-  }
-
-  const collator = getLibrarySortCollator();
-  return [...valuesByKey.values()].sort((left, right) => collator.compare(left, right));
-}
-
-function uniqueSeriesValues(values: Array<string | undefined>): string[] {
-  const valuesByKey = new Map<string, string>();
-
-  for (const value of values) {
-    const displayValue = value?.trim();
-    const key = normalizeSeriesKey(displayValue);
-    if (displayValue && key && !valuesByKey.has(key)) valuesByKey.set(key, displayValue);
-  }
-
-  const collator = getLibrarySortCollator();
-  return [...valuesByKey.values()].sort((left, right) => collator.compare(left, right));
-}
-
 export function deriveLibraryFilterOptions(books: Book[]): LibraryFilterOptions {
+  const accumulator = createLibraryFilterOptionAccumulator();
+  for (const book of books) collectLibraryFilterOptions(accumulator, book);
+  return finalizeLibraryFilterOptions(accumulator);
+}
+
+export function createLibraryFilterOptionAccumulator(): LibraryFilterOptionAccumulator {
   return {
-    series: uniqueSeriesValues(books.map((book) => book.sourceMetadata?.series)),
-    subjects: uniqueMetadataValues(books.flatMap((book) => book.sourceMetadata?.subjects ?? [])),
-    languages: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.language)),
-    publishers: uniqueMetadataValues(books.map((book) => book.sourceMetadata?.publisher)),
+    series: new Map(),
+    subjects: new Map(),
+    languages: new Map(),
+    publishers: new Map(),
   };
+}
+
+export function collectLibraryFilterOptions(
+  accumulator: LibraryFilterOptionAccumulator,
+  book: Book,
+): void {
+  addFilterOption(accumulator.series, book.sourceMetadata?.series, normalizeSeriesKey);
+  for (const subject of book.sourceMetadata?.subjects ?? []) {
+    addFilterOption(accumulator.subjects, subject, normalizedMetadataValue);
+  }
+  addFilterOption(accumulator.languages, book.sourceMetadata?.language, normalizedMetadataValue);
+  addFilterOption(accumulator.publishers, book.sourceMetadata?.publisher, normalizedMetadataValue);
+}
+
+export function finalizeLibraryFilterOptions(
+  accumulator: LibraryFilterOptionAccumulator,
+): LibraryFilterOptions {
+  const collator = getLibrarySortCollator();
+  const sorted = (values: Map<string, string>) =>
+    [...values.values()].sort((left, right) => collator.compare(left, right));
+  return {
+    series: sorted(accumulator.series),
+    subjects: sorted(accumulator.subjects),
+    languages: sorted(accumulator.languages),
+    publishers: sorted(accumulator.publishers),
+  };
+}
+
+function addFilterOption(
+  values: Map<string, string>,
+  value: string | undefined,
+  normalize: (value: string | undefined) => string | undefined,
+): void {
+  const displayValue = value?.trim();
+  const key = normalize(displayValue);
+  if (displayValue && key && !values.has(key)) values.set(key, displayValue);
 }
 
 function matchesSelectedValues(value: string | undefined, selectedValues: string[]): boolean {
@@ -275,30 +296,6 @@ function fileTitle(fileName: string): string {
   return fileName.replace(/\.epub$/i, "").trim();
 }
 
-function cachePart(value: string | number | null | undefined): string {
-  return String(value ?? "");
-}
-
-function bookSearchIndexCacheKey(book: Book, folder: Folder | undefined): string {
-  return [
-    book.id,
-    book.fileName,
-    book.relativePath,
-    book.folderId,
-    book.folderPath,
-    book.originalTitle,
-    book.originalAuthor,
-    book.sourceMetadata?.title,
-    book.sourceMetadata?.creator,
-    book.sourceMetadata?.identifier,
-    folder?.name,
-    folder?.relativePath,
-    folder?.parentPath,
-  ]
-    .map(cachePart)
-    .join("\u0000");
-}
-
 type BookSearchFields = {
   resolvedTitle: SearchTextVariants;
   originalTitle: SearchTextVariants;
@@ -315,26 +312,6 @@ export type LibrarySearchIndexEntry = {
   book: Book;
   fields: BookSearchFields;
 };
-
-type LibrarySearchIndexCacheEntry = {
-  cacheKey: string;
-  entry: LibrarySearchIndexEntry;
-};
-
-export type LibrarySearchIndexCache = Map<string, LibrarySearchIndexCacheEntry>;
-
-export type LibraryVisibleBooksCache = {
-  key: string | null;
-  books: Book[];
-};
-
-export function createLibraryVisibleBooksCache(): LibraryVisibleBooksCache {
-  return { key: null, books: [] };
-}
-
-export function createLibrarySearchIndexCache(): LibrarySearchIndexCache {
-  return new Map();
-}
 
 type WeightedBookField = {
   field: SearchTextVariants;
@@ -386,7 +363,7 @@ function scoreBookSearchEntry(entry: LibrarySearchIndexEntry, query: SearchQuery
   );
 }
 
-function createLibrarySearchIndexEntry(
+export function createLibrarySearchIndexEntry(
   book: Book,
   folderLookup: Map<string, Folder>,
 ): LibrarySearchIndexEntry {
@@ -418,38 +395,6 @@ export function createLibrarySearchIndex(
   const folderLookup = foldersById(folders);
 
   return books.map((book) => createLibrarySearchIndexEntry(book, folderLookup));
-}
-
-export function createCachedLibrarySearchIndex(
-  books: Book[],
-  folders: Folder[] = [],
-  cache: LibrarySearchIndexCache,
-): LibrarySearchIndexEntry[] {
-  const folderLookup = foldersById(folders);
-  const nextCache: LibrarySearchIndexCache = new Map();
-  const entries = books.map((book) => {
-    const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
-    const cacheKey = bookSearchIndexCacheKey(book, folder);
-    const cached = cache.get(book.id);
-
-    if (cached?.cacheKey === cacheKey) {
-      const reusedEntry = { book, fields: cached.entry.fields };
-      nextCache.set(book.id, { cacheKey, entry: reusedEntry });
-      return reusedEntry;
-    }
-
-    const nextEntry = {
-      cacheKey,
-      entry: createLibrarySearchIndexEntry(book, folderLookup),
-    };
-    nextCache.set(book.id, nextEntry);
-    return nextEntry.entry;
-  });
-
-  cache.clear();
-  nextCache.forEach((entry, id) => cache.set(id, entry));
-
-  return entries;
 }
 
 function rankBookSearchIndex(
@@ -568,86 +513,6 @@ export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
   );
 }
 
-function libraryLocationCacheKey(location: LibraryLocation): string {
-  if (location.type === "folder") return `${location.type}:${location.folderId}`;
-  if (location.type === "series-detail") return `${location.type}:${location.seriesKey}`;
-  if (location.type === "smart-view") return `${location.type}:${location.smartView}`;
-  return location.type;
-}
-
-function searchFieldsCacheKey(entry: LibrarySearchIndexEntry): string {
-  return [
-    entry.fields.resolvedTitle.normalized,
-    entry.fields.originalTitle.normalized,
-    entry.fields.fileTitle.normalized,
-    entry.fields.sourceAuthor.normalized,
-    entry.fields.originalAuthor.normalized,
-    entry.fields.fileName.normalized,
-    entry.fields.folderName.normalized,
-    entry.fields.relativePath.normalized,
-    entry.fields.sourceIdentifier.normalized,
-  ].join("\u0002");
-}
-
-function visibleBookCacheKey(
-  entry: LibrarySearchIndexEntry,
-  sort: LibrarySort,
-  includeSearchFields: boolean,
-): string {
-  const book = entry.book;
-  return [
-    book.id,
-    book.fileName,
-    book.relativePath,
-    book.folderId,
-    book.isFavorite ? "favorite" : "",
-    book.isFileMissing ? "missing" : "",
-    book.progressPercent ?? "",
-    book.lastOpenedAt ?? "",
-    book.addedAt,
-    book.originalTitle,
-    book.originalAuthor,
-    book.sourceMetadata?.title,
-    book.sourceMetadata?.creator,
-    book.sourceMetadata?.series,
-    book.sourceMetadata?.subjects?.join("\u0002"),
-    book.sourceMetadata?.language,
-    book.sourceMetadata?.publisher,
-    book.coverPath,
-    book.coverRevision,
-    bookTitle(book),
-    bookAuthor(book),
-    stablePath(book),
-    sort,
-    includeSearchFields ? searchFieldsCacheKey(entry) : "",
-  ]
-    .map(cachePart)
-    .join("\u0001");
-}
-
-function libraryFiltersCacheKey(filters: LibraryFilterState): string {
-  return JSON.stringify(filters);
-}
-
-function visibleBooksCacheKey(
-  index: LibrarySearchIndexEntry[],
-  query: string,
-  sort: LibrarySort,
-  location: LibraryLocation,
-  filters: LibraryFilterState,
-): string {
-  const searchQuery = createSearchQuery(query);
-  const includeSearchFields = !isEmptySearchQuery(searchQuery);
-
-  return [
-    query,
-    normalizeLibrarySort(sort),
-    libraryLocationCacheKey(location),
-    libraryFiltersCacheKey(filters),
-    ...index.map((entry) => visibleBookCacheKey(entry, sort, includeSearchFields)),
-  ].join("\u0003");
-}
-
 function filterSearchIndexByLocation(
   index: LibrarySearchIndexEntry[],
   location: LibraryLocation,
@@ -709,26 +574,6 @@ export function getVisibleBooksFromSearchIndex(
         left.indexOrder - right.indexOrder,
     )
     .map(({ entry }) => entry.book);
-}
-
-export function getCachedVisibleBooksFromSearchIndex(
-  index: LibrarySearchIndexEntry[],
-  query: string,
-  sort: LibrarySort,
-  location: LibraryLocation,
-  cache: LibraryVisibleBooksCache,
-  filters: LibraryFilterState = createDefaultLibraryFilters(),
-): Book[] {
-  const cacheKey = visibleBooksCacheKey(index, query, sort, location, filters);
-
-  if (cache.key === cacheKey) {
-    return cache.books;
-  }
-
-  const books = getVisibleBooksFromSearchIndex(index, query, sort, location, filters);
-  cache.key = cacheKey;
-  cache.books = books;
-  return books;
 }
 
 export function getVisibleBooks(

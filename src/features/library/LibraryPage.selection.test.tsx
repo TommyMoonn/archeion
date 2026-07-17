@@ -82,6 +82,71 @@ describe("LibraryPage selection and bulk workflows", () => {
     );
   });
 
+  it("applies range and Select all to the complete result across unmounted windows", async () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      const element = this as HTMLElement;
+      const scrollRoot = element.closest<HTMLElement>(".page-shell");
+      const height = element.matches("[data-reader-book-id]")
+        ? 300
+        : element.classList.contains("page-shell")
+          ? 600
+          : 0;
+      const top = element.classList.contains("book-grid") ? -(scrollRoot?.scrollTop ?? 0) : 0;
+      return {
+        bottom: top + height,
+        height,
+        left: 0,
+        right: 1_000,
+        top,
+        width: 1_000,
+        x: 0,
+        y: top,
+        toJSON: () => ({}),
+      } as DOMRect;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      return this.classList.contains("page-shell") ? 600 : 0;
+    });
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(1_000);
+    const books = Array.from({ length: 500 }, (_, index) =>
+      selectionBook(`book-${index}`, `Book ${String(index).padStart(3, "0")}`),
+    );
+    const session = await renderLibraryPage(createStorage({ books }));
+    suite.trackRoot(session.root);
+
+    await act(async () => clickBook(session.container, "Book 000", { ctrlKey: true }));
+    const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
+    await act(async () => {
+      pageShell.scrollTop = 15_000;
+      pageShell.dispatchEvent(new Event("scroll"));
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
+    });
+    expect(session.container.querySelector("[data-reader-book-id='book-0']")).toBeNull();
+
+    await act(async () => clickBook(session.container, "Book 300", { shiftKey: true }));
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "301 selected",
+    );
+    expect(
+      session.container
+        .querySelector("[data-reader-book-id='book-300']")
+        ?.hasAttribute("data-selected"),
+    ).toBe(true);
+    expect(
+      session.container.querySelector("[data-reader-book-id='book-300'] .book-menu"),
+    ).not.toBeNull();
+
+    await act(async () => buttonWithText(session.container, "Select all").click());
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "500 selected",
+    );
+    expect(session.container.querySelectorAll("[data-reader-book-id]").length).toBeLessThan(80);
+  });
+
   it("supports explicit selection mode without opening book details", async () => {
     const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
     const session = await renderLibraryPage(storage);

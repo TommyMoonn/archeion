@@ -80,6 +80,23 @@ npm run test
 npm run test:watch
 ```
 
+### Library windowing evidence
+
+`libraryPerformanceEvidence.test.ts` retains deterministic structural measurements for a
+1,000 × 800 CSS-pixel collection viewport. The grid fixture uses six 303-pixel cards with a
+28-pixel row gap; both views use 600 pixels of overscan. These figures are development evidence,
+not hardware-dependent product guarantees.
+
+| Fixture | Results before windowing | Maximum mounted grid books and covers | Maximum mounted list books and covers | Reused index entries after one favorite change |
+| ------- | -----------------------: | ------------------------------------: | ------------------------------------: | ---------------------------------------------: |
+| Medium  |                      500 |                                    48 |                                    28 |                                      499 / 500 |
+| Large   |                    2,000 |                                    48 |                                    28 |                                  1,999 / 2,000 |
+
+Before windowing, each view mounted every result and its cover owner. The retained fixtures now
+mount only the calculated viewport and overscan range. `coverUrlCache.test.ts` also verifies that
+queued cover work released after leaving that range does not start; the recorded stale queued-load
+count is zero.
+
 Rust tests use the committed Cargo lockfile:
 
 ```powershell

@@ -23,6 +23,8 @@ import {
   searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
+import type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
+export type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
 
 export function libraryLocationKey(location: LibraryLocation): string {
   if (location.type === "folder") return `folder:${location.folderId}`;
@@ -47,10 +49,15 @@ export function useLibraryWorkspaceNavigation({
   const navigate = useNavigate();
   const routerLocation = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  const restoreContext = useMemo(
+  const routeRestoreContext = useMemo(
     () => libraryRestoreContextFromState(routerLocation.state, activeArchiveId),
     [activeArchiveId, routerLocation.state],
   );
+  const [initialRestoreContext] = useState(routeRestoreContext);
+  const restoreContext =
+    initialRestoreContext?.archiveId === activeArchiveId
+      ? initialRestoreContext
+      : routeRestoreContext;
   const pageShellRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const returnContextRestoredRef = useRef(false);
@@ -210,7 +217,32 @@ type UseLibraryWorkspaceNavigationLifecycleInput = {
   pageShellRef: React.RefObject<HTMLElement | null>;
   restoreContext: ReturnType<typeof libraryRestoreContextFromState>;
   returnContextRestoredRef: React.RefObject<boolean>;
+  visibleBooks: readonly Book[];
 };
+
+export type LibraryReturnRestoration = Readonly<{
+  collectionRequest: LibraryReturnFocusRequest | null;
+  onMountedSurfaceReady: (surfaceKey: string) => void;
+}>;
+
+const MOUNTED_READER_FOCUS_TARGET_SELECTOR =
+  "button, a[href], input, select, textarea, summary, [tabindex]";
+
+export function findMountedReaderBookFocusTarget(
+  root: HTMLElement,
+  bookId: string,
+): HTMLElement | null {
+  for (const bookTarget of root.querySelectorAll<HTMLElement>("[data-reader-book-id]")) {
+    if (bookTarget.dataset.readerBookId !== bookId) continue;
+    if (isUsableReaderFocusTarget(bookTarget)) return bookTarget;
+    for (const descendant of bookTarget.querySelectorAll<HTMLElement>(
+      MOUNTED_READER_FOCUS_TARGET_SELECTOR,
+    )) {
+      if (isUsableReaderFocusTarget(descendant)) return descendant;
+    }
+  }
+  return null;
+}
 
 export function useLibraryWorkspaceNavigationLifecycle({
   activeSeriesExists,
@@ -220,7 +252,85 @@ export function useLibraryWorkspaceNavigationLifecycle({
   pageShellRef,
   restoreContext,
   returnContextRestoredRef,
-}: UseLibraryWorkspaceNavigationLifecycleInput) {
+  visibleBooks,
+}: UseLibraryWorkspaceNavigationLifecycleInput): LibraryReturnRestoration {
+  const [pendingBookId, setPendingBookId] = useState<string | null>(null);
+  const pendingBookIdRef = useRef<string | null>(null);
+  const focusAtRequestRef = useRef<Element | null>(null);
+  const readyMountedSurfaceKeyRef = useRef<string | null>(null);
+  const restorationRequestedRef = useRef(false);
+
+  const pendingCollectionIndex = pendingBookId
+    ? visibleBooks.findIndex((book) => book.id === pendingBookId)
+    : -1;
+
+  const completeRestoration = useCallback(
+    (target: HTMLElement | null) => {
+      if (returnContextRestoredRef.current) return;
+      const main = pageShellRef.current;
+      const currentFocus = document.activeElement;
+      const userMovedFocus =
+        currentFocus instanceof HTMLElement &&
+        currentFocus !== document.body &&
+        currentFocus !== main &&
+        currentFocus !== focusAtRequestRef.current;
+      if (!userMovedFocus) (target ?? main)?.focus({ preventScroll: true });
+      returnContextRestoredRef.current = true;
+      pendingBookIdRef.current = null;
+      setPendingBookId(null);
+    },
+    [pageShellRef, returnContextRestoredRef],
+  );
+
+  const resolveMountedTarget = useCallback(
+    (bookId: string): boolean => {
+      const main = pageShellRef.current;
+      if (!main) return false;
+      const target = findMountedReaderBookFocusTarget(main, bookId);
+      if (!target) return false;
+      completeRestoration(target);
+      return true;
+    },
+    [completeRestoration, pageShellRef],
+  );
+
+  const onMountedSurfaceReady = useCallback(
+    (surfaceKey: string) => {
+      readyMountedSurfaceKeyRef.current = surfaceKey;
+      const bookId = pendingBookIdRef.current;
+      if (!bookId || returnContextRestoredRef.current) return;
+      if (!resolveMountedTarget(bookId)) completeRestoration(null);
+    },
+    [completeRestoration, resolveMountedTarget, returnContextRestoredRef],
+  );
+
+  const completeCollectionTargetRestoration = useCallback(
+    (bookId: string, index: number, target: HTMLElement) => {
+      const bookTarget = target.closest<HTMLElement>("[data-library-index]");
+      if (
+        returnContextRestoredRef.current ||
+        pendingBookIdRef.current !== bookId ||
+        pendingBookId !== bookId ||
+        pendingCollectionIndex !== index ||
+        !target.isConnected ||
+        bookTarget?.dataset.readerBookId !== bookId ||
+        Number(bookTarget.dataset.libraryIndex) !== index
+      ) {
+        return;
+      }
+      const main = pageShellRef.current;
+      const preferredTarget = main ? findMountedReaderBookFocusTarget(main, bookId) : null;
+      completeRestoration(preferredTarget ?? target);
+    },
+    [
+      completeRestoration,
+      pageShellRef,
+      pendingBookId,
+      pendingCollectionIndex,
+      returnContextRestoredRef,
+    ],
+  );
+
   useEffect(() => {
     if (booksReady && location.type === "series-detail" && !activeSeriesExists) {
       changeLocation({ type: "series" });
@@ -230,6 +340,7 @@ export function useLibraryWorkspaceNavigationLifecycle({
   useEffect(() => {
     if (
       returnContextRestoredRef.current ||
+      restorationRequestedRef.current ||
       !restoreContext ||
       !booksReady ||
       (location.type === "series-detail" && !activeSeriesExists)
@@ -240,28 +351,90 @@ export function useLibraryWorkspaceNavigationLifecycle({
     const frame = window.requestAnimationFrame(() => {
       const main = pageShellRef.current;
       if (!main) return;
-      returnContextRestoredRef.current = true;
+      restorationRequestedRef.current = true;
+      focusAtRequestRef.current = document.activeElement;
       main.scrollTop = restoreContext.scrollTop ?? 0;
+      const bookId = restoreContext.focusBookId;
+      if (!bookId) {
+        completeRestoration(null);
+        return;
+      }
 
-      const target = restoreContext.focusBookId
-        ? [...main.querySelectorAll<HTMLElement>("[data-reader-book-id]")].find(
-            (element) => element.dataset.readerBookId === restoreContext.focusBookId,
-          )
-        : undefined;
-      const focusTarget =
-        target instanceof HTMLButtonElement
-          ? target
-          : target?.querySelector<HTMLElement>("button, [tabindex]");
-      (focusTarget ?? main).focus({ preventScroll: true });
+      if (resolveMountedTarget(bookId)) return;
+
+      pendingBookIdRef.current = bookId;
+      setPendingBookId(bookId);
+      if (locationUsesBookCollection(location)) {
+        if (!visibleBooks.some((book) => book.id === bookId)) completeRestoration(null);
+        return;
+      }
+      if (
+        locationUsesMountedReaderSurface(location) &&
+        readyMountedSurfaceKeyRef.current !== libraryLocationKey(location)
+      ) {
+        return;
+      }
+      completeRestoration(null);
     });
 
     return () => window.cancelAnimationFrame(frame);
   }, [
     activeSeriesExists,
     booksReady,
-    location.type,
+    location,
     pageShellRef,
     restoreContext,
     returnContextRestoredRef,
+    completeRestoration,
+    resolveMountedTarget,
+    visibleBooks,
   ]);
+
+  useEffect(() => {
+    if (!pendingBookId || returnContextRestoredRef.current) return;
+    if (resolveMountedTarget(pendingBookId)) return;
+    if (locationUsesBookCollection(location)) {
+      if (pendingCollectionIndex < 0) completeRestoration(null);
+      return;
+    }
+    if (
+      !locationUsesMountedReaderSurface(location) ||
+      readyMountedSurfaceKeyRef.current === libraryLocationKey(location)
+    ) {
+      completeRestoration(null);
+    }
+  }, [
+    completeRestoration,
+    location,
+    pendingBookId,
+    pendingCollectionIndex,
+    resolveMountedTarget,
+    returnContextRestoredRef,
+  ]);
+
+  return {
+    collectionRequest:
+      pendingBookId && locationUsesBookCollection(location) && pendingCollectionIndex >= 0
+        ? {
+            bookId: pendingBookId,
+            index: pendingCollectionIndex,
+            onTargetReady: completeCollectionTargetRestoration,
+          }
+        : null,
+    onMountedSurfaceReady,
+  };
+}
+
+function locationUsesBookCollection(location: LibraryLocation): boolean {
+  return !["folders", "series", "series-detail"].includes(location.type);
+}
+
+function locationUsesMountedReaderSurface(location: LibraryLocation): boolean {
+  return location.type === "series" || location.type === "series-detail";
+}
+
+function isUsableReaderFocusTarget(target: HTMLElement): boolean {
+  if (!target.matches(MOUNTED_READER_FOCUS_TARGET_SELECTOR)) return false;
+  if (target.matches(":disabled, [aria-disabled='true']")) return false;
+  return target.getAttribute("tabindex") !== "-1";
 }

@@ -9,15 +9,11 @@ import {
   bookMatchesLibraryFilters,
   bookNeedsMetadata,
   bookTitle,
-  createCachedLibrarySearchIndex,
   createLibrarySearchIndex,
-  createLibrarySearchIndexCache,
-  createLibraryVisibleBooksCache,
   countBooksBySmartView,
   deriveLibraryFilterOptions,
   filterBookSearchIndex,
   filterBooks,
-  getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
   getVisibleBooks,
   hasActiveLibraryFilters,
@@ -141,155 +137,6 @@ describe("library filters", () => {
     expect(filterBooks([contextualBook], "cafe chen")).toEqual([contextualBook]);
     expect(filterBooks([contextualBook], "volume 02")).toEqual([contextualBook]);
     expect(filterBooks([contextualBook], "science", folders)).toEqual([contextualBook]);
-  });
-
-  it("reuses cached search field variants while keeping current book state", () => {
-    const cache = createLibrarySearchIndexCache();
-    const book = createBook({
-      id: "cached",
-      originalTitle: "Cached Title",
-      isFavorite: false,
-    });
-
-    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
-    const updatedBook = { ...book, isFavorite: true };
-    const [secondEntry] = createCachedLibrarySearchIndex([updatedBook], [], cache);
-
-    expect(secondEntry.fields).toBe(firstEntry.fields);
-    expect(secondEntry.book).toBe(updatedBook);
-    expect(secondEntry.book.isFavorite).toBe(true);
-  });
-
-  it("rebuilds cached search fields when searchable book metadata changes", () => {
-    const cache = createLibrarySearchIndexCache();
-    const book = createBook({ id: "cached", originalTitle: "Old Title" });
-
-    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
-    const [secondEntry] = createCachedLibrarySearchIndex(
-      [{ ...book, originalTitle: "New Title" }],
-      [],
-      cache,
-    );
-
-    expect(secondEntry.fields).not.toBe(firstEntry.fields);
-    expect(secondEntry.fields.resolvedTitle.normalized).toBe("new title");
-  });
-
-  it("rebuilds cached search fields when folder search context changes", () => {
-    const cache = createLibrarySearchIndexCache();
-    const book = createBook({
-      id: "cached",
-      originalTitle: "Folder Book",
-      folderId: "folder-one",
-    });
-    const initialFolder: Folder = {
-      id: "folder-one",
-      name: "Old Folder",
-      relativePath: "Old Folder",
-      createdAt: "2026-07-01T00:00:00.000Z",
-      updatedAt: "2026-07-01T00:00:00.000Z",
-    };
-    const renamedFolder = {
-      ...initialFolder,
-      name: "New Folder",
-      relativePath: "New Folder",
-      updatedAt: "2026-07-02T00:00:00.000Z",
-    };
-
-    const [firstEntry] = createCachedLibrarySearchIndex([book], [initialFolder], cache);
-    const [secondEntry] = createCachedLibrarySearchIndex([book], [renamedFolder], cache);
-
-    expect(secondEntry.fields).not.toBe(firstEntry.fields);
-    expect(secondEntry.fields.folderName.normalized).toBe("new folder");
-  });
-
-  it("does not rebuild cached search fields for file-stat-only updates", () => {
-    const cache = createLibrarySearchIndexCache();
-    const book = createBook({
-      id: "cached-stats",
-      originalTitle: "Stable Title",
-      modifiedAt: "2026-07-01T00:00:00.000Z",
-      size: 2048,
-    });
-
-    const [firstEntry] = createCachedLibrarySearchIndex([book], [], cache);
-    const [secondEntry] = createCachedLibrarySearchIndex(
-      [
-        {
-          ...book,
-          modifiedAt: "2026-07-02T00:00:00.000Z",
-          size: 4096,
-          sourceMetadata: {
-            ...book.sourceMetadata,
-            publisher: "Updated Publisher",
-          },
-        },
-      ],
-      [],
-      cache,
-    );
-
-    expect(secondEntry.fields).toBe(firstEntry.fields);
-  });
-
-  it("reuses visible books when only non-rendering file stats change", () => {
-    const cache = createLibraryVisibleBooksCache();
-    const book = createBook({
-      id: "visible-stats",
-      originalTitle: "Stable Title",
-      modifiedAt: "2026-07-01T00:00:00.000Z",
-      size: 2048,
-      coverRevision: "cover:v1",
-    });
-    const firstIndex = createLibrarySearchIndex([book]);
-    const firstVisible = getCachedVisibleBooksFromSearchIndex(
-      firstIndex,
-      "",
-      "title",
-      { type: "library" },
-      cache,
-    );
-    const secondIndex = createLibrarySearchIndex([
-      {
-        ...book,
-        modifiedAt: "2026-07-02T00:00:00.000Z",
-        size: 4096,
-      },
-    ]);
-    const secondVisible = getCachedVisibleBooksFromSearchIndex(
-      secondIndex,
-      "",
-      "title",
-      { type: "library" },
-      cache,
-    );
-
-    expect(secondVisible).toBe(firstVisible);
-  });
-
-  it("recomputes visible books when displayed metadata changes", () => {
-    const cache = createLibraryVisibleBooksCache();
-    const book = createBook({
-      id: "visible-title",
-      originalTitle: "Old Title",
-    });
-    const firstVisible = getCachedVisibleBooksFromSearchIndex(
-      createLibrarySearchIndex([book]),
-      "",
-      "title",
-      { type: "library" },
-      cache,
-    );
-    const secondVisible = getCachedVisibleBooksFromSearchIndex(
-      createLibrarySearchIndex([{ ...book, originalTitle: "New Title" }]),
-      "",
-      "title",
-      { type: "library" },
-      cache,
-    );
-
-    expect(secondVisible).not.toBe(firstVisible);
-    expect(bookTitle(secondVisible[0])).toBe("New Title");
   });
 
   it("builds a reusable search index for repeated queries", () => {

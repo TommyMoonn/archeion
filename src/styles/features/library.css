@@ -387,6 +387,14 @@ html[data-motion="on"] .library-content {
   padding: 32px 0;
 }
 
+.book-grid__window {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: inherit;
+  gap: inherit;
+  min-width: 0;
+}
+
 .book-card {
   position: relative;
   min-width: 0;
@@ -544,6 +552,8 @@ html[data-motion="on"] .library-content {
 
 .book-card__copy {
   display: block;
+  block-size: 78px;
+  overflow: hidden;
   padding: 13px 2px 0;
 }
 
@@ -618,6 +628,11 @@ html[data-motion="on"] .library-content {
   align-self: start;
   width: 100%;
   padding: 24px 0 40px;
+}
+
+.book-list__window {
+  display: grid;
+  min-width: 0;
 }
 
 .book-row {

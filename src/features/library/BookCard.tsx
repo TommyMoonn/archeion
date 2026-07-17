@@ -23,6 +23,8 @@ type BookCardProps = {
   canManageFile?: boolean;
   selected: boolean;
   selectionMode: boolean;
+  loadCoverImmediately?: boolean;
+  collectionIndex?: number;
 };
 
 function BookCardComponent({
@@ -39,6 +41,8 @@ function BookCardComponent({
   canManageFile = false,
   selected,
   selectionMode,
+  loadCoverImmediately = false,
+  collectionIndex,
 }: BookCardProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
@@ -56,6 +60,7 @@ function BookCardComponent({
     <article
       className="book-card"
       data-reader-book-id={book.id}
+      data-library-index={collectionIndex}
       data-selected={selected || undefined}
       data-selection-mode={selectionMode || undefined}
     >
@@ -70,7 +75,7 @@ function BookCardComponent({
         type="button"
         onClick={activateBook}
       >
-        <BookCover book={book} />
+        <BookCover book={book} loadImmediately={loadCoverImmediately} />
         <span className="book-card__copy">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
@@ -122,6 +127,8 @@ export const BookCard = memo(
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
     previous.selectionMode === next.selectionMode &&
+    previous.loadCoverImmediately === next.loadCoverImmediately &&
+    previous.collectionIndex === next.collectionIndex &&
     previous.onDelete === next.onDelete &&
     previous.onMove === next.onMove &&
     previous.onRead === next.onRead &&

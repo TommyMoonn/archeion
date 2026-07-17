@@ -1,13 +1,6 @@
-import { useMemo, useState } from "react";
-
-import type { Book } from "../../types/book";
 import type { LibraryLocation } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
-import {
-  countSeriesGroups,
-  createSeriesEntriesCache,
-  getCachedSeriesEntries,
-} from "./seriesDerivation";
+import type { LibraryIndex } from "../library/libraryIndex";
 
 type LibrarySeriesState = {
   activeSeries: SeriesEntry | undefined;
@@ -16,20 +9,14 @@ type LibrarySeriesState = {
 };
 
 export function useLibrarySeriesState(
-  books: Book[] | undefined,
+  index: LibraryIndex,
   location: LibraryLocation,
 ): LibrarySeriesState {
-  const [cache] = useState(() => createSeriesEntriesCache());
-  const seriesCount = useMemo(() => countSeriesGroups(books ?? []), [books]);
-  const isSeriesSurface = location.type === "series" || location.type === "series-detail";
-  const entries = useMemo(
-    () => (isSeriesSurface ? getCachedSeriesEntries(books ?? [], cache) : cache.entries),
-    [books, cache, isSeriesSurface],
-  );
+  const entries = index.seriesEntries;
   const activeSeries =
     location.type === "series-detail"
       ? entries.find((entry) => entry.key === location.seriesKey)
       : undefined;
 
-  return { activeSeries, entries, seriesCount };
+  return { activeSeries, entries, seriesCount: index.seriesCount };
 }

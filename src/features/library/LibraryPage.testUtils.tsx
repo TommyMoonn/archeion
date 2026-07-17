@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, vi } from "vitest";
@@ -278,7 +278,14 @@ export function clickBook(
   button.dispatchEvent(new MouseEvent("click", { bubbles: true, ...modifiers }));
 }
 
-export async function renderLibraryPage(storage: LibraryStorage, initialEntry = "/") {
+type MemoryRouterInitialEntry = NonNullable<
+  ComponentProps<typeof MemoryRouter>["initialEntries"]
+>[number];
+
+export async function renderLibraryPage(
+  storage: LibraryStorage,
+  initialEntry: MemoryRouterInitialEntry = "/",
+) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);

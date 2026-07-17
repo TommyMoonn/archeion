@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/refs -- This hook intentionally uses deterministic ref-backed render caches for derived library values. */
-import { useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
@@ -10,20 +9,14 @@ import type {
   LibrarySort,
 } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
-import { isBookInProgress } from "../reading/readingProgress";
 import {
-  countBooksBySmartView,
-  createCachedLibrarySearchIndex,
-  createLibraryVisibleBooksCache,
-  deriveLibraryFilterOptions,
-  getCachedVisibleBooksFromSearchIndex,
   getEffectiveLibrarySort,
+  getVisibleBooksFromSearchIndex,
   librarySmartViewLabel,
-  sortBooks,
   type LibraryFilterOptions,
-  type LibrarySearchIndexCache,
   type LibrarySmartViewCounts,
 } from "./libraryFilters";
+import { createLibraryIndex, createLibraryIndexCache, type LibraryIndex } from "./libraryIndex";
 
 const CONTINUE_PREVIEW_LIMIT = 5;
 
@@ -33,14 +26,13 @@ type LibraryDerivedStateInput = {
   filters: LibraryFilterState;
   folders: Folder[] | undefined;
   location: LibraryLocation;
-  searchIndexCache: LibrarySearchIndexCache;
   smartViewPreferences: LibrarySmartViewPreferences;
   sort: LibrarySort;
 };
 
 type LibraryDerivedState = {
   bookCount: number;
-  bookCountsByFolder: Map<string, number>;
+  bookCountsByFolder: ReadonlyMap<string, number>;
   continueBooks: Book[];
   continuePreview: Book[];
   currentFolder: Folder | undefined;
@@ -48,39 +40,10 @@ type LibraryDerivedState = {
   favoriteCount: number;
   filterOptions: LibraryFilterOptions;
   libraryTitle: string;
+  index: LibraryIndex;
   smartViewCounts: LibrarySmartViewCounts;
   visibleBooks: Book[];
 };
-
-type LibrarySummary = {
-  bookCountsByFolder: Map<string, number>;
-  continueBooks: Book[];
-  favoriteCount: number;
-};
-
-export function deriveLibrarySummary(books: readonly Book[]): LibrarySummary {
-  const bookCountsByFolder = new Map<string, number>();
-  const continueCandidates: Book[] = [];
-  let favoriteCount = 0;
-
-  for (const book of books) {
-    if (book.folderId) {
-      bookCountsByFolder.set(book.folderId, (bookCountsByFolder.get(book.folderId) ?? 0) + 1);
-    }
-    if (book.isFavorite) {
-      favoriteCount += 1;
-    }
-    if (isBookInProgress(book)) {
-      continueCandidates.push(book);
-    }
-  }
-
-  return {
-    bookCountsByFolder,
-    continueBooks: sortBooks(continueCandidates, "recently-opened"),
-    favoriteCount,
-  };
-}
 
 export function useLibraryDerivedState({
   books,
@@ -88,58 +51,43 @@ export function useLibraryDerivedState({
   filters,
   folders,
   location,
-  searchIndexCache,
   smartViewPreferences,
   sort,
 }: LibraryDerivedStateInput): LibraryDerivedState {
   const currentBooks = useMemo(() => books ?? [], [books]);
   const currentFolders = useMemo(() => folders ?? [], [folders]);
-  const visibleBooksCacheRef = useRef(createLibraryVisibleBooksCache());
-  const summary = useMemo(
+  const [indexCache] = useState(createLibraryIndexCache);
+  const index = useMemo(
     () =>
-      measurePerformance("archeion:derive-library-summary", () =>
-        deriveLibrarySummary(currentBooks),
+      measurePerformance("archeion:create-library-index", () =>
+        createLibraryIndex(currentBooks, currentFolders, indexCache),
       ),
-    [currentBooks],
-  );
-  const searchIndex = useMemo(
-    () =>
-      measurePerformance("archeion:create-library-search-index", () =>
-        createCachedLibrarySearchIndex(currentBooks, currentFolders, searchIndexCache),
-      ),
-    [currentBooks, currentFolders, searchIndexCache],
+    [currentBooks, currentFolders, indexCache],
   );
   const effectiveSort = useMemo(() => getEffectiveLibrarySort(location, sort), [location, sort]);
   const visibleBooks = useMemo(
     () =>
       measurePerformance("archeion:filter-and-sort-library", () =>
-        getCachedVisibleBooksFromSearchIndex(
-          searchIndex,
+        getVisibleBooksFromSearchIndex(
+          index.searchEntries,
           debouncedQuery,
           effectiveSort,
           location,
-          visibleBooksCacheRef.current,
           filters,
         ),
       ),
-    [debouncedQuery, effectiveSort, filters, location, searchIndex],
+    [debouncedQuery, effectiveSort, filters, index.searchEntries, location],
   );
-  const filterOptions = useMemo(() => deriveLibraryFilterOptions(currentBooks), [currentBooks]);
   const smartViewCounts = useMemo(
-    () =>
-      smartViewPreferences.enabled
-        ? countBooksBySmartView(currentBooks, smartViewPreferences.visible)
-        : countBooksBySmartView([], []),
-    [currentBooks, smartViewPreferences],
+    () => visibleSmartViewCounts(index.smartViewCounts, smartViewPreferences),
+    [index.smartViewCounts, smartViewPreferences],
   );
   const continuePreview = useMemo(
-    () => summary.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
-    [summary.continueBooks],
+    () => index.continueBooks.slice(0, CONTINUE_PREVIEW_LIMIT),
+    [index.continueBooks],
   );
   const currentFolder =
-    location.type === "folder"
-      ? currentFolders.find((folder) => folder.id === location.folderId)
-      : undefined;
+    location.type === "folder" ? index.folderById.get(location.folderId) : undefined;
   const libraryTitle =
     location.type === "favorites"
       ? "Favorites"
@@ -150,16 +98,31 @@ export function useLibraryDerivedState({
           : (currentFolder?.name ?? "Library");
 
   return {
-    bookCount: currentBooks.length,
-    bookCountsByFolder: summary.bookCountsByFolder,
-    continueBooks: summary.continueBooks,
+    bookCount: index.books.length,
+    bookCountsByFolder: index.bookCountsByFolder,
+    continueBooks: index.continueBooks,
     continuePreview,
     currentFolder,
     effectiveSort,
-    favoriteCount: summary.favoriteCount,
-    filterOptions,
+    favoriteCount: index.favoriteCount,
+    filterOptions: index.filterOptions,
+    index,
     libraryTitle,
     smartViewCounts,
     visibleBooks,
+  };
+}
+
+function visibleSmartViewCounts(
+  counts: LibrarySmartViewCounts,
+  preferences: LibrarySmartViewPreferences,
+): LibrarySmartViewCounts {
+  const visible = preferences.enabled ? new Set(preferences.visible) : new Set();
+  return {
+    unread: visible.has("unread") ? counts.unread : 0,
+    "in-progress": visible.has("in-progress") ? counts["in-progress"] : 0,
+    completed: visible.has("completed") ? counts.completed : 0,
+    "needs-metadata": visible.has("needs-metadata") ? counts["needs-metadata"] : 0,
+    "needs-cover": visible.has("needs-cover") ? counts["needs-cover"] : 0,
   };
 }

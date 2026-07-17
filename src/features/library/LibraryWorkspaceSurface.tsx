@@ -1,5 +1,11 @@
 import { BookOpenText } from "@phosphor-icons/react";
-import { Suspense, type ComponentProps, type RefObject } from "react";
+import {
+  Suspense,
+  useLayoutEffect,
+  type ComponentProps,
+  type ReactNode,
+  type RefObject,
+} from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -16,6 +22,7 @@ import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
+import type { LibraryReturnFocusRequest } from "./useLibraryWorkspaceNavigation";
 
 type LibrarySurfaceState = "empty" | "filter-empty" | "loading" | "results" | "search-empty";
 
@@ -34,7 +41,7 @@ function getLibrarySurfaceState(
 
 type SharedBookCollectionProps = Omit<
   ComponentProps<typeof BookGrid>,
-  "books" | "selectedBookIds" | "selectionMode"
+  "books" | "returnFocusRequest" | "selectedBookIds" | "selectionMode"
 > & {
   selectedBookIds: ReadonlySet<string>;
   selectionMode: boolean;
@@ -53,6 +60,8 @@ type LibraryWorkspaceSurfaceProps = {
   isImporting: boolean;
   location: LibraryLocation;
   mainRef: RefObject<HTMLElement | null>;
+  onMountedReturnSurfaceReady: (surfaceKey: string) => void;
+  returnFocusRequest: LibraryReturnFocusRequest | null;
   onClearFilters: () => void;
   onClearLibrarySearch: () => void;
   selectionBarProps: ComponentProps<typeof LibrarySelectionBar> | null;
@@ -78,6 +87,8 @@ export function LibraryWorkspaceSurface({
   isImporting,
   location,
   mainRef,
+  onMountedReturnSurfaceReady,
+  returnFocusRequest,
   onClearFilters,
   onClearLibrarySearch,
   selectionBarProps,
@@ -115,7 +126,13 @@ export function LibraryWorkspaceSurface({
             </div>
           }
         >
-          <SeriesOverview {...seriesOverviewProps} />
+          <MountedReaderReturnSurface
+            key={libraryLocationKey(location)}
+            onReady={onMountedReturnSurfaceReady}
+            surfaceKey={libraryLocationKey(location)}
+          >
+            <SeriesOverview {...seriesOverviewProps} />
+          </MountedReaderReturnSurface>
         </Suspense>
       ) : location.type === "series-detail" ? (
         <Suspense
@@ -125,7 +142,13 @@ export function LibraryWorkspaceSurface({
             </div>
           }
         >
-          <SeriesDetail {...seriesDetailProps} />
+          <MountedReaderReturnSurface
+            key={libraryLocationKey(location)}
+            onReady={onMountedReturnSurfaceReady}
+            surfaceKey={libraryLocationKey(location)}
+          >
+            <SeriesDetail {...seriesDetailProps} />
+          </MountedReaderReturnSurface>
         </Suspense>
       ) : (
         <>
@@ -171,9 +194,17 @@ export function LibraryWorkspaceSurface({
                 title="No search results"
               />
             ) : view === "grid" ? (
-              <BookGrid books={visibleBooks} {...bookCollectionProps} />
+              <BookGrid
+                books={visibleBooks}
+                returnFocusRequest={returnFocusRequest}
+                {...bookCollectionProps}
+              />
             ) : (
-              <BookList books={visibleBooks} {...bookCollectionProps} />
+              <BookList
+                books={visibleBooks}
+                returnFocusRequest={returnFocusRequest}
+                {...bookCollectionProps}
+              />
             )}
           </div>
         </>
@@ -182,4 +213,19 @@ export function LibraryWorkspaceSurface({
       <LibraryFeedbackStack {...feedbackProps} />
     </PageShell>
   );
+}
+
+function MountedReaderReturnSurface({
+  children,
+  onReady,
+  surfaceKey,
+}: {
+  children: ReactNode;
+  onReady: (surfaceKey: string) => void;
+  surfaceKey: string;
+}) {
+  useLayoutEffect(() => {
+    onReady(surfaceKey);
+  }, [onReady, surfaceKey]);
+  return children;
 }

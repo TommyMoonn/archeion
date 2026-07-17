@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
@@ -24,7 +24,7 @@ import { useExternalEpubDrop } from "../filesystem/useExternalEpubDrop";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import type { QuickActionCommand } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
-import { createLibrarySearchIndexCache, hasActiveLibraryFilters } from "./libraryFilters";
+import { hasActiveLibraryFilters } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
 import { preloadAboutDialog } from "./libraryLazySurfaces";
 import { LibraryWorkspaceDialogs } from "./LibraryWorkspaceDialogs";
@@ -135,7 +135,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
   const { changeLocation, openBookSearch, openReader, scrollMainContentToTop } = navigation;
   const debouncedQuery = useDebouncedValue(navigation.query, 150);
-  const [searchIndexCache] = useState(() => createLibrarySearchIndexCache());
   const filters = libraryPreferences.filters;
   const sort = libraryPreferences.sortBy;
   const view = libraryPreferences.viewMode;
@@ -152,6 +151,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     effectiveSort,
     favoriteCount,
     filterOptions,
+    index,
     libraryTitle,
     smartViewCounts,
     visibleBooks,
@@ -161,7 +161,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     filters,
     folders,
     location: navigation.location,
-    searchIndexCache,
     smartViewPreferences,
     sort,
   });
@@ -169,9 +168,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     activeSeries,
     entries: seriesEntries,
     seriesCount,
-  } = useLibrarySeriesState(books, navigation.location);
+  } = useLibrarySeriesState(index, navigation.location);
 
-  useLibraryWorkspaceNavigationLifecycle({
+  const returnRestoration = useLibraryWorkspaceNavigationLifecycle({
     activeSeriesExists: Boolean(activeSeries),
     booksReady: booksLoadState.status === "ready",
     changeLocation,
@@ -179,6 +178,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     pageShellRef: navigation.pageShellRef,
     restoreContext: navigation.restoreContext,
     returnContextRestoredRef: navigation.returnContextRestoredRef,
+    visibleBooks,
   });
 
   const { changeFilters, changeSort, changeView } = useLibraryViewPreferences({
@@ -456,6 +456,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         isImporting={bookActions.isImporting}
         location={navigation.location}
         mainRef={navigation.pageShellRef}
+        onMountedReturnSurfaceReady={returnRestoration.onMountedSurfaceReady}
+        returnFocusRequest={returnRestoration.collectionRequest}
         onClearFilters={clearFilters}
         onClearLibrarySearch={navigation.clearLibrarySearch}
         selectionBarProps={

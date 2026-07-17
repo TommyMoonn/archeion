@@ -61,7 +61,11 @@ const baseBook: Book = {
 
 let activeRoot: Root | null = null;
 
-function renderCover(book: Book, loadBookCover: () => Promise<Blob | undefined>) {
+function renderCover(
+  book: Book,
+  loadBookCover: () => Promise<Blob | undefined>,
+  loadImmediately = false,
+) {
   const container = document.createElement("div");
   const root = createRoot(container);
   activeRoot = root;
@@ -74,7 +78,7 @@ function renderCover(book: Book, loadBookCover: () => Promise<Blob | undefined>)
       root.render(
         <LibraryStorageContext.Provider value={storage as never}>
           <CoverUrlCacheScopeContext value={cacheScope}>
-            <BookCover book={nextBook} />
+            <BookCover book={nextBook} loadImmediately={loadImmediately} />
           </CoverUrlCacheScopeContext>
         </LibraryStorageContext.Provider>,
       );
@@ -126,6 +130,21 @@ describe("BookCover", () => {
     expect(container.querySelector(".book-cover")?.getAttribute("data-cover-state")).toBe(
       "available",
     );
+  });
+
+  it("lets a retained collection window load without a per-cover observer", async () => {
+    const observe = vi.spyOn(ImmediateIntersectionObserver.prototype, "observe");
+    const loadBookCover = vi.fn().mockResolvedValue(new Blob(["cover"]));
+    const { container } = renderCover(
+      { ...baseBook, id: "book-cover-windowed" },
+      loadBookCover,
+      true,
+    );
+
+    await waitForCover(container);
+
+    expect(observe).not.toHaveBeenCalled();
+    expect(loadBookCover).toHaveBeenCalledTimes(1);
   });
 
   it("reloads when coverRevision changes", async () => {

@@ -5,36 +5,36 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
 import { useCoverUrlCacheScope } from "./coverUrlCacheScope";
+import { observeCoverVisibility } from "./coverVisibilityObserver";
 
 type BookCoverProps = {
   book: Book;
   className?: string;
+  loadImmediately?: boolean;
 };
 
-export const BookCover = memo(function BookCover({ book, className = "" }: BookCoverProps) {
+export const BookCover = memo(function BookCover({
+  book,
+  className = "",
+  loadImmediately = false,
+}: BookCoverProps) {
   const storage = useLibraryStorage();
   const cacheScope = useCoverUrlCacheScope();
   const coverRef = useRef<HTMLDivElement>(null);
-  const [shouldLoad, setShouldLoad] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(loadImmediately);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
   const [state, setState] = useState<"loading" | "available" | "unavailable">("loading");
 
   useEffect(() => {
+    if (loadImmediately) {
+      setShouldLoad(true);
+      return;
+    }
     if (shouldLoad || !coverRef.current) {
       return;
     }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) {
-          setShouldLoad(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "240px" },
-    );
-    observer.observe(coverRef.current);
-    return () => observer.disconnect();
-  }, [shouldLoad]);
+    return observeCoverVisibility(coverRef.current, () => setShouldLoad(true));
+  }, [loadImmediately, shouldLoad]);
 
   const coverKey = useMemo(
     () => coverCacheKey(book.id, book.modifiedAt, book.size, book.coverRevision),

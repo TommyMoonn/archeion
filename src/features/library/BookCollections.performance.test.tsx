@@ -103,4 +103,103 @@ describe.each(["grid", "list"] as const)("%s selection rendering", (view) => {
     expect(coverRenderCounts.get("one")).toBe(2);
     expect(coverRenderCounts.get("two")).toBe(1);
   });
+
+  it("does not commit an unaffected book when one favorite changes", async () => {
+    const books = [createBook("one"), createBook("two")];
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    activeContainer = container;
+    const Collection = view === "grid" ? BookGrid : BookList;
+    const render = (nextBooks: Book[]) =>
+      root.render(
+        <Collection
+          {...callbacks}
+          books={nextBooks}
+          selectedBookIds={new Set()}
+          selectionMode={false}
+        />,
+      );
+
+    await act(async () => render(books));
+    await act(async () => render([{ ...books[0]!, isFavorite: true }, books[1]!]));
+
+    expect(coverRenderCounts.get("one")).toBe(2);
+    expect(coverRenderCounts.get("two")).toBe(1);
+  });
+
+  it("keeps mounted books proportional to the viewport for a large collection", async () => {
+    const books = Array.from({ length: 500 }, (_, index) => createBook(`book-${index}`));
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    activeContainer = container;
+    const Collection = view === "grid" ? BookGrid : BookList;
+
+    await act(async () => {
+      root.render(
+        <Collection
+          {...callbacks}
+          books={books}
+          selectedBookIds={new Set()}
+          selectionMode={false}
+        />,
+      );
+    });
+
+    const collection = container.querySelector<HTMLElement>("[data-windowed='true']");
+    const mountedBooks = container.querySelectorAll("[data-reader-book-id]");
+    expect(collection?.dataset.windowTotal).toBe("500");
+    expect(mountedBooks.length).toBeGreaterThan(0);
+    expect(mountedBooks.length).toBeLessThan(80);
+    expect(container.querySelectorAll("[data-cover-book-id]")).toHaveLength(mountedBooks.length);
+  });
+});
+
+describe("large collection scrolling", () => {
+  it("replaces the retained list window without mounting the full collection", async () => {
+    const books = Array.from({ length: 500 }, (_, index) => createBook(`book-${index}`));
+    const container = document.createElement("div");
+    container.className = "page-shell";
+    Object.defineProperty(container, "clientHeight", { configurable: true, value: 300 });
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    activeContainer = container;
+
+    await act(async () => {
+      root.render(
+        <BookList {...callbacks} books={books} selectedBookIds={new Set()} selectionMode={false} />,
+      );
+    });
+    expect(container.querySelector("[data-reader-book-id='book-0']")).not.toBeNull();
+    const collection = container.querySelector<HTMLElement>(".book-list")!;
+    vi.spyOn(collection, "getBoundingClientRect").mockImplementation(
+      () =>
+        ({
+          bottom: 0,
+          height: 0,
+          left: 0,
+          right: 0,
+          top: -container.scrollTop,
+          width: 1_000,
+          x: 0,
+          y: -container.scrollTop,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    );
+
+    await act(async () => {
+      container.scrollTop = 15_000;
+      container.dispatchEvent(new Event("scroll"));
+      await new Promise((resolve) => window.requestAnimationFrame(() => resolve(undefined)));
+    });
+
+    const retained = container.querySelectorAll("[data-reader-book-id]");
+    expect(container.querySelector("[data-reader-book-id='book-0']")).toBeNull();
+    expect(retained.length).toBeGreaterThan(0);
+    expect(retained.length).toBeLessThan(30);
+  });
 });

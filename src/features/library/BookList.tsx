@@ -1,5 +1,5 @@
 import { Check, Heart, PencilSimple } from "@phosphor-icons/react";
-import { memo, type MouseEvent } from "react";
+import { memo, useLayoutEffect, type MouseEvent } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
@@ -9,6 +9,11 @@ import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 import type { LibrarySelectionIntent } from "./librarySelection";
+import {
+  reportLibraryReturnTarget,
+  useLibraryCollectionWindow,
+  type LibraryReturnFocusRequest,
+} from "./useLibraryCollectionWindow";
 
 type BookListProps = {
   books: Book[];
@@ -24,10 +29,13 @@ type BookListProps = {
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
   selectionMode: boolean;
+  returnFocusRequest?: LibraryReturnFocusRequest | null;
 };
 
 type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
   book: Book;
+  loadCoverImmediately?: boolean;
+  collectionIndex?: number;
   selected: boolean;
 };
 
@@ -45,6 +53,8 @@ function BookRowComponent({
   canManageFile = false,
   selected,
   selectionMode,
+  loadCoverImmediately = false,
+  collectionIndex,
 }: BookRowProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
@@ -62,6 +72,7 @@ function BookRowComponent({
     <article
       className="book-row"
       data-reader-book-id={book.id}
+      data-library-index={collectionIndex}
       data-selected={selected || undefined}
       data-selection-mode={selectionMode || undefined}
     >
@@ -72,7 +83,7 @@ function BookRowComponent({
         type="button"
         onClick={activateBook}
       >
-        <BookCover book={book} className="book-cover--row" />
+        <BookCover book={book} className="book-cover--row" loadImmediately={loadCoverImmediately} />
         <span className="book-row__identity">
           <strong>{title}</strong>
           {author ? <span>{author}</span> : null}
@@ -135,6 +146,8 @@ const BookRow = memo(
     previous.canManageFile === next.canManageFile &&
     previous.selected === next.selected &&
     previous.selectionMode === next.selectionMode &&
+    previous.loadCoverImmediately === next.loadCoverImmediately &&
+    previous.collectionIndex === next.collectionIndex &&
     previous.onDelete === next.onDelete &&
     previous.onMove === next.onMove &&
     previous.onRead === next.onRead &&
@@ -148,13 +161,45 @@ const BookRow = memo(
 export const BookList = memo(function BookList({
   books,
   selectedBookIds,
+  returnFocusRequest,
   ...rowProps
 }: BookListProps) {
+  const { collectionRef, range, windowed } = useLibraryCollectionWindow(
+    books.length,
+    "list",
+    returnFocusRequest?.index,
+  );
+  const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
+
+  useLayoutEffect(() => {
+    reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
+  }, [collectionRef, range.end, range.start, returnFocusRequest]);
+
   return (
-    <section className="book-list" aria-label="Books">
-      {books.map((book) => (
-        <BookRow book={book} key={book.id} selected={selectedBookIds.has(book.id)} {...rowProps} />
-      ))}
+    <section
+      ref={collectionRef}
+      className="book-list"
+      aria-label="Books"
+      data-windowed={windowed || undefined}
+      data-window-start={range.start}
+      data-window-end={range.end}
+      data-window-total={books.length}
+    >
+      <div
+        className="book-list__window"
+        style={{ paddingBlockStart: range.topSpacer, paddingBlockEnd: range.bottomSpacer }}
+      >
+        {retainedBooks.map((book, retainedIndex) => (
+          <BookRow
+            book={book}
+            key={book.id}
+            selected={selectedBookIds.has(book.id)}
+            loadCoverImmediately
+            collectionIndex={range.start + retainedIndex}
+            {...rowProps}
+          />
+        ))}
+      </div>
     </section>
   );
 });
