@@ -1,17 +1,15 @@
 use std::{
-    collections::HashMap,
     fs::{self, File},
     io::{Cursor, Read, Write},
     path::{Path, PathBuf},
     process::Command,
-    sync::{Arc, Condvar, Mutex, OnceLock},
     time::UNIX_EPOCH,
 };
 
 use image::{ImageFormat, ImageReader, Limits};
 use zip::ZipArchive;
 
-use super::{archive_root, epub_metadata, filesystem};
+use super::{archive_root, epub_cover_requests, epub_metadata, filesystem};
 
 pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     filesystem::resolve_existing_epub_path(root, relative_path)
@@ -129,42 +127,6 @@ fn write_cover_cache_atomic(cache_path: &Path, bytes: &[u8]) -> Result<(), Strin
     write_result
 }
 
-struct CoverLoadWaiter {
-    state: Mutex<Option<Result<Vec<u8>, String>>>,
-    ready: Condvar,
-}
-
-impl CoverLoadWaiter {
-    fn new() -> Self {
-        Self {
-            state: Mutex::new(None),
-            ready: Condvar::new(),
-        }
-    }
-}
-
-fn cover_loads() -> &'static Mutex<HashMap<PathBuf, Arc<CoverLoadWaiter>>> {
-    static COVER_LOADS: OnceLock<Mutex<HashMap<PathBuf, Arc<CoverLoadWaiter>>>> = OnceLock::new();
-    COVER_LOADS.get_or_init(|| Mutex::new(HashMap::new()))
-}
-
-fn wait_for_cover_load(waiter: &CoverLoadWaiter) -> Result<Vec<u8>, String> {
-    let mut state = waiter
-        .state
-        .lock()
-        .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
-
-    loop {
-        if let Some(result) = state.clone() {
-            return result;
-        }
-        state = waiter
-            .ready
-            .wait(state)
-            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
-    }
-}
-
 fn load_epub_cover_uncached(
     epub_path: &Path,
     cache_dir: &Path,
@@ -201,43 +163,9 @@ pub(crate) fn load_epub_cover_at(
         return fs::read(cache_path).map_err(|error| error.to_string());
     }
 
-    let (waiter, is_owner) = {
-        let mut loads = cover_loads()
-            .lock()
-            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
-        if let Some(waiter) = loads.get(&cache_path) {
-            (Arc::clone(waiter), false)
-        } else {
-            let waiter = Arc::new(CoverLoadWaiter::new());
-            loads.insert(cache_path.clone(), Arc::clone(&waiter));
-            (waiter, true)
-        }
-    };
-
-    if !is_owner {
-        return wait_for_cover_load(&waiter);
-    }
-
-    let result = load_epub_cover_uncached(&epub_path, &cache_dir, &cache_path, book_id);
-    {
-        let mut state = waiter
-            .state
-            .lock()
-            .map_err(|_| "The cover cache load state is unavailable.".to_string())?;
-        *state = Some(result.clone());
-        waiter.ready.notify_all();
-    }
-
-    if let Ok(mut loads) = cover_loads().lock() {
-        if loads
-            .get(&cache_path)
-            .is_some_and(|current| Arc::ptr_eq(current, &waiter))
-        {
-            loads.remove(&cache_path);
-        }
-    }
-
-    result
+    epub_cover_requests::load_once(cache_path.clone(), || {
+        load_epub_cover_uncached(&epub_path, &cache_dir, &cache_path, book_id)
+    })
 }
 
 #[tauri::command]
