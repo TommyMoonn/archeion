@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -168,6 +171,15 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain('class="sidebar__folder-scroll"');
     expect(markup).toMatch(
       /sidebar__section-heading[\s\S]*?Create folder[\s\S]*?sidebar__folder-scroll/,
+    );
+  });
+
+  it("places the folder scrollbar at the sidebar edge without moving the section heading", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
+
+    expect(styles).toMatch(/\.sidebar__section\s*\{[^}]*padding-right:\s*4px;[^}]*\}/s);
+    expect(styles).toMatch(
+      /\.sidebar__folder-scroll\s*\{[^}]*scrollbar-gutter:\s*stable;[^}]*padding-right:\s*4px;[^}]*margin-right:\s*-4px;[^}]*\}/s,
     );
   });
 

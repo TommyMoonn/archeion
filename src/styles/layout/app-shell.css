@@ -111,6 +111,7 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   padding-right: 4px;
+  margin-right: -4px;
 }
 
 .section-label {
