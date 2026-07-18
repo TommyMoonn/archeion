@@ -2,6 +2,8 @@ import type { Book } from "../types/book";
 import type { Folder } from "../types/folder";
 import type { LibraryMetadata, ProgressMetadata } from "./metadataFiles";
 import { normalizeArchiveRelativePath } from "./pathSafety";
+import { sanitizeProgressMetadataForLibrary } from "./progressMetadataSanitization";
+import { retireReplacementPathIdentities } from "./replacementIdentityRetirement";
 import {
   reconcileLibraryState,
   type ArchiveScan,
@@ -30,6 +32,7 @@ export type ArchiveModelDelta =
       removedRelativePaths?: readonly string[];
       warnings?: readonly ArchiveScanWarning[];
       coverRevisionOverrides?: Readonly<Record<string, string | undefined>>;
+      replacementRelativePaths?: readonly string[];
     }
   | {
       kind: "create-folder";
@@ -63,6 +66,7 @@ export type ArchiveModelReduction = {
   missingBooks: Map<string, Book>;
   progressMetadata: ProgressMetadata;
   progressChanged: boolean;
+  progressPersistenceDeferred: boolean;
 };
 
 function fileNameFromPath(relativePath: string): string {
@@ -317,9 +321,8 @@ function applyFolderPathChange(
 function applyFolderRemoval(
   scan: ArchiveScan,
   libraryMetadata: LibraryMetadata,
-  progressMetadata: ProgressMetadata,
   relativePath: string,
-): { libraryChanged: boolean; progressChanged: boolean } {
+): boolean {
   const folderPath = normalizeArchiveRelativePath(relativePath);
   if (!scan.folders.some((folder) => folder.relativePath === folderPath)) {
     throw new Error(`Folder "${folderPath}" could not be removed from the archive model.`);
@@ -329,19 +332,14 @@ function applyFolderRemoval(
   scan.books = scan.books.filter((book) => !isInsidePath(book.relativePath, folderPath));
 
   let libraryChanged = false;
-  let progressChanged = false;
   for (const [bookId, entry] of Object.entries(libraryMetadata.books)) {
     if (!isInsidePath(entry.relativePath, folderPath)) {
       continue;
     }
     delete libraryMetadata.books[bookId];
     libraryChanged = true;
-    if (Object.hasOwn(progressMetadata.progress, bookId)) {
-      delete progressMetadata.progress[bookId];
-      progressChanged = true;
-    }
   }
-  return { libraryChanged, progressChanged };
+  return libraryChanged;
 }
 
 export function reduceArchiveModel(
@@ -350,10 +348,27 @@ export function reduceArchiveModel(
   timestamp: string,
 ): ArchiveModelReduction {
   const scan = buildCurrentScan(snapshot);
-  const libraryMetadata = cloneLibraryMetadata(snapshot.libraryMetadata);
-  const progressMetadata = cloneProgressMetadata(snapshot.progressMetadata);
-  let libraryMutated = false;
-  let progressChanged = false;
+  const clonedLibraryMetadata = cloneLibraryMetadata(snapshot.libraryMetadata);
+  const retirement =
+    delta.kind === "scanned-books"
+      ? retireReplacementPathIdentities(
+          clonedLibraryMetadata,
+          delta.replacementRelativePaths ?? [],
+          delta.books.map((book) => book.relativePath),
+        )
+      : { libraryMetadata: clonedLibraryMetadata, retiredBookIds: new Set<string>() };
+  const libraryMetadata = retirement.libraryMetadata;
+  const retiredBookIds = retirement.retiredBookIds;
+  const sanitizedProgress =
+    delta.kind === "scanned-books"
+      ? sanitizeProgressMetadataForLibrary(snapshot.progressMetadata, libraryMetadata)
+      : { changed: false, metadata: snapshot.progressMetadata };
+  const progressMetadata = cloneProgressMetadata(sanitizedProgress.metadata);
+  let libraryMutated = retiredBookIds.size > 0;
+  // Filesystem deltas remain single-sidecar commits. Targeted scanned-book reconciliation
+  // applies orphan cleanup immediately in memory and leaves persistence to a repair scan.
+  const progressChanged = sanitizedProgress.changed;
+  const progressPersistenceDeferred = delta.kind === "scanned-books" && progressChanged;
 
   switch (delta.kind) {
     case "book-paths":
@@ -370,10 +385,6 @@ export function reduceArchiveModel(
           throw new Error(`Book metadata "${id}" could not be removed.`);
         }
         delete libraryMetadata.books[id];
-        if (Object.hasOwn(progressMetadata.progress, id)) {
-          delete progressMetadata.progress[id];
-          progressChanged = true;
-        }
       }
       scan.books = scan.books.filter((book) => !ids.has(book.discoveryId));
       libraryMutated = ids.size > 0;
@@ -410,14 +421,7 @@ export function reduceArchiveModel(
       );
       break;
     case "remove-folder": {
-      const removal = applyFolderRemoval(
-        scan,
-        libraryMetadata,
-        progressMetadata,
-        delta.relativePath,
-      );
-      libraryMutated = removal.libraryChanged;
-      progressChanged = removal.progressChanged;
+      libraryMutated = applyFolderRemoval(scan, libraryMetadata, delta.relativePath);
       break;
     }
   }
@@ -427,7 +431,9 @@ export function reduceArchiveModel(
   validateScan(scan);
 
   const reconciled = reconcileLibraryState({
-    previousBooks: snapshot.books,
+    previousBooks: retiredBookIds.size
+      ? snapshot.books.filter((book) => !retiredBookIds.has(book.id))
+      : snapshot.books,
     previousFolders: snapshot.folders,
     libraryMetadata,
     progressMetadata,
@@ -456,5 +462,6 @@ export function reduceArchiveModel(
     libraryChanged: reconciled.libraryChanged || libraryMutated,
     progressMetadata,
     progressChanged,
+    progressPersistenceDeferred,
   };
 }

@@ -208,3 +208,210 @@ describe("reduceArchiveModel", () => {
     ).toThrow("duplicate EPUB path");
   });
 });
+
+it("sanitizes orphan progress before targeted scanned-book reconciliation", () => {
+  const snapshot = createSnapshot();
+  delete snapshot.libraryMetadata.books["book-1"];
+  snapshot.books = snapshot.books.filter((book) => book.id !== "book-1");
+  const missingBooks = new Map(snapshot.missingBooks);
+  missingBooks.delete("book-1");
+  snapshot.missingBooks = missingBooks;
+
+  const next = reduceArchiveModel(
+    snapshot,
+    {
+      kind: "scanned-books",
+      books: [
+        {
+          discoveryId: "book-1",
+          relativePath: "Author/Series/One.epub",
+          fileName: "One.epub",
+          folderPath: "Author/Series",
+          size: 100,
+          modifiedAt: 1_700_000_000_000,
+          sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+        },
+      ],
+    },
+    "2026-07-17T00:01:00.000Z",
+  );
+
+  expect(next.books.find((book) => book.id === "book-1")).toMatchObject({
+    progressPercent: undefined,
+    progressCfi: undefined,
+    lastOpenedAt: undefined,
+  });
+  expect(next.progressMetadata.progress["book-1"]).toBeUndefined();
+  expect(next.progressChanged).toBe(true);
+  expect(next.progressPersistenceDeferred).toBe(true);
+});
+
+it("preserves progress when current library metadata still owns the scanned identity", () => {
+  const snapshot = createSnapshot();
+  snapshot.books = snapshot.books.filter((book) => book.id !== "book-1");
+  const missingBooks = new Map(snapshot.missingBooks);
+  missingBooks.set("book-1", {
+    ...createSnapshot().books.find((book) => book.id === "book-1")!,
+    isFileMissing: true,
+  });
+  snapshot.missingBooks = missingBooks;
+
+  const next = reduceArchiveModel(
+    snapshot,
+    {
+      kind: "scanned-books",
+      books: [
+        {
+          discoveryId: "different-discovery-id",
+          relativePath: "Author/Series/One.epub",
+          fileName: "One.epub",
+          folderPath: "Author/Series",
+          size: 100,
+          modifiedAt: 1_700_000_000_000,
+          sourceMetadata: { identifier: "urn:one", title: "One" },
+        },
+      ],
+    },
+    "2026-07-17T00:01:00.000Z",
+  );
+
+  expect(next.books.find((book) => book.id === "book-1")).toMatchObject({
+    progressPercent: 25,
+    isFileMissing: false,
+  });
+  expect(next.progressMetadata.progress["book-1"]).toEqual({ percent: 25 });
+  expect(next.progressChanged).toBe(false);
+});
+
+it("does not attach deleted-folder progress to recreated books with colliding identities", () => {
+  const snapshot = createSnapshot();
+  snapshot.libraryMetadata.books = {};
+  snapshot.books = [];
+  snapshot.missingBooks = new Map();
+
+  const next = reduceArchiveModel(
+    snapshot,
+    {
+      kind: "scanned-books",
+      books: [
+        {
+          discoveryId: "book-1",
+          relativePath: "Author/Series/One.epub",
+          fileName: "One.epub",
+          folderPath: "Author/Series",
+          size: 100,
+          modifiedAt: 1_700_000_000_000,
+        },
+        {
+          discoveryId: "book-2",
+          relativePath: "Other/Two.epub",
+          fileName: "Two.epub",
+          folderPath: "Other",
+          size: 200,
+          modifiedAt: 1_700_000_001_000,
+        },
+      ],
+    },
+    "2026-07-17T00:01:00.000Z",
+  );
+
+  expect(next.books).toHaveLength(2);
+  expect(next.books.every((book) => book.progressPercent === undefined)).toBe(true);
+  expect(next.progressMetadata.progress).toEqual({});
+});
+
+it("retires a replaced path identity before progress sanitization", () => {
+  const snapshot = createSnapshot();
+  const previous = snapshot.books.find((book) => book.id === "book-1")!;
+  snapshot.libraryMetadata.books["book-1"] = {
+    ...snapshot.libraryMetadata.books["book-1"],
+    coverPath: "covers/old.webp",
+    sourceMetadata: { identifier: "urn:old", title: "Old title" },
+  };
+  snapshot.progressMetadata.progress["book-1"] = {
+    percent: 72,
+    cfi: "epubcfi(/6/4)",
+    lastOpenedAt: "2026-07-16T12:00:00.000Z",
+  };
+
+  const next = reduceArchiveModel(
+    snapshot,
+    {
+      kind: "scanned-books",
+      replacementRelativePaths: ["Author/Series/One.epub"],
+      books: [
+        {
+          discoveryId: "replacement-id",
+          relativePath: "Author/Series/One.epub",
+          fileName: "One.epub",
+          folderPath: "Author/Series",
+          size: 333,
+          modifiedAt: 1_700_000_020_000,
+          sourceMetadata: { identifier: "urn:new", title: "New title" },
+        },
+      ],
+    },
+    "2026-07-17T00:02:00.000Z",
+  );
+
+  const replacement = next.books.find((book) => book.relativePath === "Author/Series/One.epub")!;
+  expect(replacement).not.toBe(previous);
+  expect(replacement).toMatchObject({
+    id: "replacement-id",
+    isFavorite: false,
+    progressPercent: undefined,
+    progressCfi: undefined,
+    lastOpenedAt: undefined,
+    coverPath: undefined,
+    addedAt: "2026-07-17T00:02:00.000Z",
+    sourceMetadata: { identifier: "urn:new", title: "New title" },
+  });
+  expect(next.libraryMetadata.books["book-1"]).toBeUndefined();
+  expect(next.progressMetadata.progress["book-1"]).toBeUndefined();
+  expect(next.progressPersistenceDeferred).toBe(true);
+});
+
+it("retires old metadata even when replacement discovery id collides", () => {
+  const snapshot = createSnapshot();
+  snapshot.libraryMetadata.books["book-1"] = {
+    ...snapshot.libraryMetadata.books["book-1"],
+    coverPath: "covers/old.webp",
+    sourceMetadata: { identifier: "urn:old", title: "Old title" },
+  };
+  snapshot.progressMetadata.progress["book-1"] = {
+    percent: 72,
+    cfi: "epubcfi(/6/4)",
+    lastOpenedAt: "2026-07-16T12:00:00.000Z",
+  };
+
+  const next = reduceArchiveModel(
+    snapshot,
+    {
+      kind: "scanned-books",
+      replacementRelativePaths: ["author\\series\\one.epub"],
+      books: [
+        {
+          discoveryId: "book-1",
+          relativePath: "Author/Series/One.epub",
+          fileName: "One.epub",
+          folderPath: "Author/Series",
+          size: 100,
+          modifiedAt: 1_700_000_000_000,
+          sourceMetadata: { identifier: "urn:new", title: "Replacement" },
+        },
+      ],
+    },
+    "2026-07-17T00:02:00.000Z",
+  );
+
+  expect(next.books.find((book) => book.id === "book-1")).toMatchObject({
+    isFavorite: false,
+    progressPercent: undefined,
+    progressCfi: undefined,
+    lastOpenedAt: undefined,
+    coverPath: undefined,
+    addedAt: "2026-07-17T00:02:00.000Z",
+    sourceMetadata: { identifier: "urn:new", title: "Replacement" },
+  });
+  expect(next.progressMetadata.progress["book-1"]).toBeUndefined();
+});

@@ -40,11 +40,13 @@ function validate(input: {
   folders?: Folder[];
   missing?: string[];
   presenceRule?: "represented" | "scanned-book-required";
+  required?: string[];
   requested?: string[];
 }) {
   return validateTargetedArchiveScan({
     currentFolders: input.folders ?? folders,
     presenceRule: input.presenceRule ?? "represented",
+    requiredPresentRelativePaths: input.required,
     requestedRelativePaths: input.requested ?? ["Author/Series/Book.epub"],
     scan: {
       books: input.books ?? [scannedBook()],
@@ -134,6 +136,29 @@ describe("validateTargetedArchiveScan", () => {
       books: [],
       missingRelativePaths: ["Author/Series/Book.epub"],
     });
+  });
+
+  it("requires only the non-folded imported subset to remain present", () => {
+    expect(
+      validate({
+        books: [scannedBook("Author/Series/Stable.epub")],
+        missing: ["Author/Series/Folded.epub"],
+        presenceRule: "scanned-book-required",
+        required: ["Author/Series/Stable.epub"],
+        requested: ["Author/Series/Stable.epub", "Author/Series/Folded.epub"],
+      }),
+    ).toMatchObject({
+      books: [{ relativePath: "Author/Series/Stable.epub" }],
+      missingRelativePaths: ["Author/Series/Folded.epub"],
+    });
+  });
+
+  it("rejects a required-present path outside the targeted request", () => {
+    expect(() =>
+      validate({
+        required: ["Author/Series/Other.epub"],
+      }),
+    ).toThrow("was not requested");
   });
 
   it.each([

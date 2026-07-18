@@ -11,6 +11,7 @@ export type TargetedScanPresenceRule = "represented" | "scanned-book-required";
 export type TargetedArchiveScanValidationInput = {
   currentFolders: readonly Folder[];
   presenceRule: TargetedScanPresenceRule;
+  requiredPresentRelativePaths?: readonly string[];
   requestedRelativePaths: readonly string[];
   scan: ArchiveEpubScan;
 };
@@ -117,11 +118,22 @@ function normalizeReturnedBook(book: ScannedBook): ScannedBook {
 export function validateTargetedArchiveScan({
   currentFolders,
   presenceRule,
+  requiredPresentRelativePaths,
   requestedRelativePaths,
   scan,
 }: TargetedArchiveScanValidationInput): ValidatedTargetedArchiveScan {
   const requested = normalizeRequestedPaths(requestedRelativePaths);
   const requestedByKey = new Map(requested.map((path) => [archivePathKey(path), path]));
+  const requiredPresentKeys = new Set(
+    (requiredPresentRelativePaths ?? requested).map((path) => {
+      const normalized = normalizeTargetedEpubPath(path, "Required EPUB path");
+      const key = archivePathKey(normalized);
+      if (!requestedByKey.has(key)) {
+        throw new Error(`Required EPUB path "${normalized}" was not requested.`);
+      }
+      return key;
+    }),
+  );
   const folderKeys = new Set(
     currentFolders.flatMap((folder) => {
       if (!folder.relativePath) {
@@ -170,7 +182,11 @@ export function validateTargetedArchiveScan({
     if (!returnedKeys.has(key) && !missingByKey.has(key)) {
       throw new Error(`Targeted EPUB scan omitted requested path "${path}".`);
     }
-    if (presenceRule === "scanned-book-required" && !returnedKeys.has(key)) {
+    if (
+      presenceRule === "scanned-book-required" &&
+      requiredPresentKeys.has(key) &&
+      !returnedKeys.has(key)
+    ) {
       throw new Error(`Targeted EPUB scan did not return imported EPUB "${path}".`);
     }
   }
