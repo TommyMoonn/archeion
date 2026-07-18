@@ -46,3 +46,42 @@
 .segmented-control__icon {
   color: inherit;
 }
+
+.segmented-control--icon-only {
+  --segmented-icon-option-size: 38px;
+
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.segmented-control--icon-only .segmented-control__option {
+  width: var(--segmented-icon-option-size);
+  height: var(--segmented-icon-option-size);
+  min-width: var(--segmented-icon-option-size);
+  min-height: var(--segmented-icon-option-size);
+  padding: 0;
+  transition:
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard),
+    border-color var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.segmented-control--icon-only .segmented-control__icon {
+  --icon-slot-size: 18px;
+  --icon-glyph-size: 18px;
+}
+
+.segmented-control--icon-only .segmented-control__option:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.segmented-control--icon-only .segmented-control__option[aria-checked="true"] {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+}
+
+html[data-density="compact"] .segmented-control--icon-only {
+  --segmented-icon-option-size: 36px;
+}

@@ -102,12 +102,17 @@
   --backdrop-soft: color-mix(in srgb, var(--darkening) 62%, transparent);
 
   --sidebar-width: 248px;
+  --collection-content-offset: 20px;
 
   --motion-duration-fast: 0ms;
   --motion-duration-standard: 0ms;
   --motion-duration-slow: 0ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --motion-distance-small: 6px;
+}
+
+html[data-density="compact"] {
+  --collection-content-offset: 16px;
 }
 
 html[data-motion="on"] {

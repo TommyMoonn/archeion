@@ -119,7 +119,7 @@ export function FolderBrowser({
 
         <div className="folder-browser__controls">
           <SegmentedControl
-            className="folder-view-toggle"
+            appearance="icon-only"
             label="Folder view"
             onChange={changeView}
             options={folderViewOptions}

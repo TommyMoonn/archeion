@@ -1,6 +1,6 @@
 html[data-density="compact"] .book-grid {
   gap: 22px 18px;
-  padding-block: 28px;
+  padding-bottom: 28px;
 }
 
 html[data-card-size="small"] .book-grid {
@@ -88,13 +88,19 @@ html[data-card-size="large"] .book-grid {
 .library-rescan-button {
   width: 36px;
   height: 36px;
-  border-color: var(--line-strong);
 }
 
-.library-select-button[aria-pressed="true"] {
-  border-color: var(--accent-border);
-  color: var(--accent-strong);
-  background: var(--accent-soft);
+.library-select-button .icon-slot,
+.library-rescan-button .icon-slot {
+  --icon-slot-size: 18px;
+  --icon-glyph-size: 18px;
+}
+
+.library-select-button[aria-pressed="true"],
+.library-rescan-button[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: var(--surface-raised);
 }
 
 .library-add-button {
@@ -213,6 +219,11 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   margin: 0 auto;
 }
 
+.library-content[data-surface-state="results"] {
+  row-gap: var(--collection-content-offset);
+  padding-top: var(--collection-content-offset);
+}
+
 .library-content > .book-grid,
 .library-content > .book-list {
   width: 100%;
@@ -232,7 +243,7 @@ html[data-motion="on"] .library-content {
   width: 100%;
   max-width: 1440px;
   padding: 0 0 22px;
-  margin: 0 auto 8px;
+  margin: 0 auto;
   border-bottom: 1px solid var(--line);
 }
 
@@ -384,7 +395,7 @@ html[data-motion="on"] .library-content {
   gap: 28px 20px;
   width: 100%;
   align-self: start;
-  padding: 32px 0;
+  padding: 0 0 32px;
 }
 
 .book-grid[data-windowed],
@@ -638,7 +649,7 @@ html[data-motion="on"] .library-content {
   display: grid;
   align-self: start;
   width: 100%;
-  padding: 24px 0 40px;
+  padding: 0 0 40px;
 }
 
 .book-list__window {
@@ -1141,29 +1152,6 @@ html[data-motion="on"] .details-drawer[open] {
   min-width: 178px;
 }
 
-.library-view-toggle.segmented-control {
-  box-sizing: border-box;
-  min-width: 82px;
-  height: var(--control-height-standard);
-  padding: 2px;
-}
-
-.library-view-toggle .segmented-control__option {
-  height: 100%;
-  min-width: 34px;
-  min-height: 0;
-  padding: 0 8px;
-}
-
-.library-view-toggle .segmented-control__option > span:last-child {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
 @media (max-width: 1100px) {
   .library-header {
     grid-template-columns: 1fr;
@@ -1190,12 +1178,6 @@ html[data-motion="on"] .details-drawer[open] {
 @media (max-height: 640px) {
   .library-content {
     min-height: 320px;
-    padding-top: 20px;
-  }
-
-  .book-grid,
-  .book-list {
-    padding-top: 22px;
   }
 
   .details-drawer__body {
@@ -1271,7 +1253,6 @@ html[data-motion="on"] .details-drawer[open] {
   .book-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 14px;
-    padding-top: 28px;
   }
 
   .details-drawer {

@@ -89,6 +89,11 @@ describe("RescanArchiveButton", () => {
     await act(async () => {
       session.container.querySelector<HTMLButtonElement>("button")?.click();
     });
+    const trigger = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Rescan archive"]',
+    );
+    expect(trigger?.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(trigger?.getAttribute("aria-expanded")).toBe("true");
     const confirm = [...session.container.querySelectorAll("button")].find(
       (button) => button.textContent === "Rescan archive",
     );
@@ -99,6 +104,7 @@ describe("RescanArchiveButton", () => {
     expect(rescan).toHaveBeenCalledTimes(1);
     expect(session.onSuccess).toHaveBeenCalledTimes(1);
     expect(session.onError).not.toHaveBeenCalled();
+    expect(trigger?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("reports manual rescan failure", async () => {

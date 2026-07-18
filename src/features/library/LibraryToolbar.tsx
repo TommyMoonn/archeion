@@ -155,11 +155,10 @@ export function LibraryToolbar({
             value={sort}
           />
           <SegmentedControl
-            className="library-view-toggle"
+            appearance="icon-only"
             label="Library view"
             onChange={onViewChange}
             options={viewOptions}
-            size="standard"
             value={view}
           />
         </div>

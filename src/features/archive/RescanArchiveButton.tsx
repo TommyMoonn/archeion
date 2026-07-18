@@ -36,6 +36,8 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
   return (
     <>
       <IconButton
+        aria-expanded={confirmationOpen}
+        aria-haspopup="dialog"
         className="library-rescan-button"
         disabled={isScanning}
         disabledReason="Wait for the archive scan to finish"

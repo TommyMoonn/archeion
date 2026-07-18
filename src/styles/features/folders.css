@@ -150,7 +150,7 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-browser__items {
-  padding-top: 20px;
+  padding-top: var(--collection-content-offset);
 }
 
 html[data-motion="on"] .folder-browser__items,
@@ -311,25 +311,6 @@ html[data-motion="on"] .folder-browser > .empty-state {
   right: 0;
 }
 
-.folder-view-toggle.segmented-control {
-  align-self: center;
-  min-width: 82px;
-}
-
-.folder-view-toggle .segmented-control__option {
-  min-width: 34px;
-  padding: 0 8px;
-}
-
-.folder-view-toggle .segmented-control__option > span:last-child {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-}
-
 @media (max-width: 820px) {
   .folder-browser__header {
     grid-template-columns: 1fr;
@@ -348,12 +329,6 @@ html[data-motion="on"] .folder-browser > .empty-state {
   }
 }
 
-@media (max-height: 640px) {
-  .folder-browser__items {
-    padding-top: 16px;
-  }
-}
-
 @media (max-width: 560px) {
   .folder-tree {
     max-height: 180px;
@@ -363,14 +338,6 @@ html[data-motion="on"] .folder-browser > .empty-state {
   .folder-browser__actions {
     display: grid;
     grid-template-columns: 1fr;
-    width: 100%;
-  }
-
-  .folder-browser__controls {
-    justify-content: stretch;
-  }
-
-  .folder-view-toggle.segmented-control {
     width: 100%;
   }
 

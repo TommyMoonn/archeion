@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, type FormEvent } from "react";
+import { act, type FormEvent, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -193,6 +193,78 @@ describe("shared control geometry", () => {
     expect(markup).toContain("menu-item--no-icon");
     expect(markup).toContain("menu-item__label");
     expect(markup).not.toContain("menu-item__icon");
+  });
+});
+
+function IconOnlySegmentedControlHarness() {
+  const [value, setValue] = useState<"cards" | "grid" | "list">("grid");
+
+  return (
+    <SegmentedControl
+      appearance="icon-only"
+      label="Collection view"
+      onChange={setValue}
+      options={[
+        { icon: <svg />, label: "Grid", value: "grid" },
+        { disabled: true, icon: <svg />, label: "Cards", value: "cards" },
+        { icon: <svg />, label: "List", value: "list" },
+      ]}
+      value={value}
+    />
+  );
+}
+
+describe("icon-only SegmentedControl", () => {
+  it("uses option labels as accessible names without rendering duplicate visible text", () => {
+    const markup = renderToStaticMarkup(<IconOnlySegmentedControlHarness />);
+
+    expect(markup).toContain("segmented-control--icon-only");
+    expect(markup).toContain('aria-label="Collection view"');
+    expect(markup).toContain('aria-label="Grid"');
+    expect(markup).toContain('aria-label="Cards"');
+    expect(markup).toContain('aria-label="List"');
+    expect(markup).not.toContain(">Grid<");
+    expect(markup).not.toContain(">Cards<");
+    expect(markup).not.toContain(">List<");
+  });
+
+  it("preserves roving focus, disabled skipping, arrows, Home, End, and click behavior", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    activeRoot = createRoot(container);
+
+    act(() => activeRoot?.render(<IconOnlySegmentedControlHarness />));
+
+    const grid = container.querySelector<HTMLButtonElement>('button[aria-label="Grid"]')!;
+    const cards = container.querySelector<HTMLButtonElement>('button[aria-label="Cards"]')!;
+    const list = container.querySelector<HTMLButtonElement>('button[aria-label="List"]')!;
+
+    expect(grid.tabIndex).toBe(0);
+    expect(cards.disabled).toBe(true);
+    expect(list.tabIndex).toBe(-1);
+
+    act(() => {
+      grid.focus();
+      grid.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
+    });
+    expect(list.getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(list);
+
+    act(() => {
+      list.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
+    });
+    expect(grid.getAttribute("aria-checked")).toBe("true");
+    expect(document.activeElement).toBe(grid);
+
+    act(() => {
+      grid.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));
+    });
+    expect(list.getAttribute("aria-checked")).toBe("true");
+
+    act(() => grid.click());
+    expect(grid.getAttribute("aria-checked")).toBe("true");
+    expect(grid.tabIndex).toBe(0);
+    expect(list.tabIndex).toBe(-1);
   });
 });
 

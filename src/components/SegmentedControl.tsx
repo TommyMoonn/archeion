@@ -9,6 +9,7 @@ export type SegmentedControlOption<TValue extends string> = {
 };
 
 type SegmentedControlProps<TValue extends string> = {
+  appearance?: "default" | "icon-only";
   className?: string;
   label: string;
   onChange: (value: TValue) => void;
@@ -38,6 +39,7 @@ function nextEnabledIndex<TValue extends string>(
 }
 
 export function SegmentedControl<TValue extends string>({
+  appearance = "default",
   className = "",
   label,
   onChange,
@@ -47,6 +49,7 @@ export function SegmentedControl<TValue extends string>({
 }: SegmentedControlProps<TValue>) {
   const buttonRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const selectedIndex = options.findIndex((option) => option.value === value);
+  const iconOnly = appearance === "icon-only";
 
   function focusAndChange(nextIndex: number) {
     const option = options[nextIndex];
@@ -86,7 +89,7 @@ export function SegmentedControl<TValue extends string>({
   return (
     <div
       aria-label={label}
-      className={`segmented-control segmented-control--${size} ${className}`.trim()}
+      className={`segmented-control segmented-control--${size} ${iconOnly ? "segmented-control--icon-only" : ""} ${className}`.trim()}
       onKeyDown={handleKeyDown}
       role="radiogroup"
     >
@@ -96,6 +99,7 @@ export function SegmentedControl<TValue extends string>({
         return (
           <button
             aria-checked={selected}
+            aria-label={iconOnly ? option.label : undefined}
             className="segmented-control__option"
             disabled={option.disabled}
             key={option.value}
@@ -112,7 +116,7 @@ export function SegmentedControl<TValue extends string>({
                 {option.icon}
               </span>
             ) : null}
-            <span>{option.label}</span>
+            {iconOnly ? null : <span>{option.label}</span>}
           </button>
         );
       })}

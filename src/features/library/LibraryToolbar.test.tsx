@@ -107,15 +107,33 @@ describe("LibraryToolbar", () => {
     }
   });
 
-  it("keeps the view switch aligned to the sort control height", () => {
+  it("uses the shared accessible icon-only collection view control", () => {
+    const markup = renderToolbar();
+
+    expect(markup).toContain("segmented-control--icon-only");
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain('aria-label="Library view"');
+    expect(markup).toContain('aria-label="Grid"');
+    expect(markup).toContain('aria-label="List"');
+    expect(markup).not.toContain("library-view-toggle");
+  });
+
+  it("keeps selection and rescan actions on the shared ghost-button treatment", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
 
     expect(styles).toMatch(
-      /\.library-view-toggle\.segmented-control\s*\{[^}]*height:\s*var\(--control-height-standard\)/s,
+      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*\}/s,
+    );
+    expect(styles).not.toMatch(
+      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*border(?:-color)?:/s,
     );
     expect(styles).toMatch(
-      /\.library-view-toggle \.segmented-control__option\s*\{[^}]*height:\s*100%[^}]*min-height:\s*0/s,
+      /\.library-select-button \.icon-slot,\s*\.library-rescan-button \.icon-slot\s*\{[^}]*--icon-slot-size:\s*18px;[^}]*--icon-glyph-size:\s*18px;/s,
     );
+    expect(styles).toMatch(
+      /\.library-select-button\[aria-pressed="true"\],\s*\.library-rescan-button\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*color:\s*var\(--text-strong\);[^}]*background:\s*var\(--surface-raised\);/s,
+    );
+    expect(styles).not.toMatch(/\.library-select-button\[aria-pressed="true"\][^}]*var\(--accent/s);
   });
 
   it("disables native autofill on the library search field", () => {
