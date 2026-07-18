@@ -320,6 +320,16 @@ where
 }
 
 #[cfg(test)]
+pub(super) fn wait_for_participants(key: &PathBuf, expected: usize) {
+    coordinator().request(key).wait_for_participants(expected);
+}
+
+#[cfg(test)]
+pub(super) fn contains_request(key: &PathBuf) -> bool {
+    recover_lock(&coordinator().requests).contains_key(key)
+}
+
+#[cfg(test)]
 mod tests {
     use std::{
         collections::HashSet,

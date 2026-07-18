@@ -6,6 +6,7 @@ pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod epub;
 mod epub_cover_requests;
+mod epub_cover_resource;
 pub mod epub_cover_writeback;
 pub mod epub_metadata;
 pub mod epub_writeback;
