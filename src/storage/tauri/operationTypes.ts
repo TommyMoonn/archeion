@@ -1,7 +1,13 @@
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import type { ArchiveModelDelta } from "../archiveModelReducer";
 import type { LibraryMetadata, ProgressMetadata } from "../metadataFiles";
-import type { RescanOptions } from "../LibraryStorage";
+import type {
+  ArchiveCacheWarning,
+  ArchiveOperationWarning,
+  RescanOptions,
+} from "../LibraryStorage";
+import type { TargetedScanPresenceRule } from "../targetedArchiveScanValidation";
 import {
   beginWritebackWatcherSuppression,
   finishWritebackWatcherSuppression,
@@ -12,14 +18,43 @@ import type { ArchiveCommandClient } from "./archiveCommandClient";
 export const ARCHIVE_CHANGED_ERROR_MESSAGE =
   "The active archive changed before the operation completed.";
 
+export const ARCHIVE_DELTA_PERSISTENCE_ERROR_NAME = "ArchiveDeltaPersistenceError";
+
+export function isArchiveDeltaPersistenceError(error: unknown): error is Error {
+  return error instanceof Error && error.name === ARCHIVE_DELTA_PERSISTENCE_ERROR_NAME;
+}
+
 export type ArchiveCommandScope = {
   generation: number;
   rootPath: string | null;
 };
 
-export type MetadataWriteSelection = {
-  library?: boolean;
-  progress?: boolean;
+export type ArchiveStateMutationSnapshot = {
+  books: readonly Book[];
+  libraryMetadata: Readonly<LibraryMetadata>;
+  progressMetadata: Readonly<ProgressMetadata>;
+};
+
+export type ArchiveStateMutationResult<T> = {
+  books: readonly Book[];
+  booksChanged: boolean;
+  libraryMetadata: LibraryMetadata;
+  libraryChanged: boolean;
+  progressMetadata: ProgressMetadata;
+  progressChanged: boolean;
+  result: T;
+};
+
+export type ArchiveModelCommitOptions = {
+  targetedScan?: {
+    presenceRule: TargetedScanPresenceRule;
+    requiredPresentRelativePaths?: readonly string[];
+    requestedRelativePaths: readonly string[];
+  };
+};
+
+export type ArchiveModelCommitResult = {
+  fallbackUsed: boolean;
 };
 
 export interface StorageOperationHost {
@@ -31,20 +66,81 @@ export interface StorageOperationHost {
   getBooks(): readonly Book[];
   getMissingBook(id: string): Book | undefined;
   getFolders(): readonly Folder[];
-  getLibraryMetadata(): LibraryMetadata;
-  getProgressMetadata(): ProgressMetadata;
-  replaceLibraryMetadata(metadata: LibraryMetadata): void;
-  replaceProgressMetadata(metadata: ProgressMetadata): void;
-  replaceBooks(books: Book[]): void;
-  removeMissingBook(id: string): void;
-  emitBooks(): void;
-  saveMetadata(scope: ArchiveCommandScope, selection: MetadataWriteSelection): Promise<void>;
+  commitArchiveStateMutation<T>(
+    scope: ArchiveCommandScope,
+    mutation: (snapshot: ArchiveStateMutationSnapshot) => ArchiveStateMutationResult<T>,
+  ): Promise<T | undefined>;
   runMetadataIo<T>(scope: ArchiveCommandScope, operation: () => Promise<T>): Promise<T | undefined>;
   rescan(options?: RescanOptions): Promise<void>;
+  applyArchiveDelta(
+    scope: ArchiveCommandScope,
+    delta: ArchiveModelDelta,
+    options?: ArchiveModelCommitOptions,
+  ): Promise<ArchiveModelCommitResult>;
   getCoverPromise(key: string): Promise<Blob | undefined> | undefined;
   setCoverPromise(key: string, promise: Promise<Blob | undefined>): void;
   deleteCoverPromise(key: string, expected?: Promise<Blob | undefined>): void;
   clearCoverPromisesForBook(bookId: string): void;
+  reportOperationWarning(warning: ArchiveOperationWarning): void;
+}
+
+export function archiveCacheWarningFromResult(
+  result: ArchiveCacheWarning,
+): ArchiveOperationWarning | undefined {
+  if (!result.cacheWarning) {
+    return undefined;
+  }
+  return {
+    kind: "scanner-cache",
+    message: result.cacheWarning.message,
+    repairRequired: result.cacheWarning.repairRequired,
+  };
+}
+
+export function reportArchiveCacheWarning(
+  host: StorageOperationHost,
+  result: ArchiveCacheWarning,
+): void {
+  const warning = archiveCacheWarningFromResult(result);
+  if (!warning) {
+    return;
+  }
+  console.warn(warning.message);
+  host.reportOperationWarning(warning);
+}
+
+export function reportAggregatedArchiveCacheWarnings(
+  host: StorageOperationHost,
+  results: readonly ArchiveCacheWarning[],
+): void {
+  const warnings = results.flatMap((result) => {
+    const warning = archiveCacheWarningFromResult(result);
+    return warning ? [warning] : [];
+  });
+  if (!warnings.length) {
+    return;
+  }
+  const repairRequired = warnings.some((warning) => warning.repairRequired);
+  const representative = warnings.find((warning) => warning.repairRequired) ?? warnings[0];
+  console.warn(...warnings.map((warning) => warning.message));
+  host.reportOperationWarning({
+    ...representative,
+    occurrences: warnings.length,
+    repairRequired,
+  });
+}
+
+export function reportArchiveMetadataRecoveryWarning(
+  host: StorageOperationHost,
+  operationLabel: string,
+  error: unknown,
+): void {
+  const detail = error instanceof Error ? error.message : String(error);
+  host.reportOperationWarning({
+    kind: "archive-metadata",
+    message: `${operationLabel} completed on disk, but archive metadata recovery could not finish. ${detail}`,
+    repairRequired: true,
+  });
 }
 
 export function indexBooksById(books: readonly Book[]): Map<string, Book> {
@@ -126,21 +222,4 @@ export function replacePathPrefix(
   }
   const suffix = relativePath.slice(oldPrefix.length + 1);
   return newPrefix ? `${newPrefix}/${suffix}` : suffix;
-}
-
-export function updateBookMetadataPath(
-  host: StorageOperationHost,
-  id: string,
-  relativePath: string,
-  timestamp: string,
-): void {
-  const current = host.getLibraryMetadata().books[id];
-  if (!current) {
-    throw new Error(`Book metadata "${id}" was not found.`);
-  }
-  host.getLibraryMetadata().books[id] = {
-    ...current,
-    relativePath,
-    updatedAt: timestamp,
-  };
 }

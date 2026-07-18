@@ -1,13 +1,13 @@
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { ArchivePathChange } from "../LibraryStorage";
 import {
-  ARCHIVE_CHANGED_ERROR_MESSAGE,
   type ArchiveCommandScope,
   type StorageOperationHost,
   WatcherSuppressionGroup,
+  reportArchiveCacheWarning,
+  reportArchiveMetadataRecoveryWarning,
   requireAvailableBook,
   requireFolder,
-  updateBookMetadataPath,
 } from "./operationTypes";
 
 export class BookOperations {
@@ -76,86 +76,125 @@ export class BookOperations {
   }
 
   async updateBook(id: string, changes: UpdateBookInput): Promise<Book | undefined> {
+    const changesFavorite = Object.hasOwn(changes, "isFavorite");
+    const changesProgress =
+      Object.hasOwn(changes, "progressCfi") ||
+      Object.hasOwn(changes, "progressPercent") ||
+      Object.hasOwn(changes, "lastOpenedAt");
+    if (changesFavorite && changesProgress) {
+      throw new Error("Favorite and reading progress changes must be saved as separate updates.");
+    }
+
     const scope = this.host.createScope();
     const loading = this.host.ensureLoadedOrPromise(scope);
     if (loading) await loading;
-    const books = this.host.getBooks();
-    const index = books.findIndex((book) => book.id === id);
-    if (index < 0) {
-      throw new Error(`Book "${id}" was not found.`);
-    }
 
-    const timestamp = new Date().toISOString();
-    let libraryChanged = false;
-    let progressChanged = false;
+    return this.host.commitArchiveStateMutation(
+      scope,
+      ({ books, libraryMetadata, progressMetadata }) => {
+        const index = books.findIndex((book) => book.id === id);
+        if (index < 0) {
+          throw new Error(`Book "${id}" was not found.`);
+        }
 
-    if (Object.hasOwn(changes, "isFavorite")) {
-      const current = this.host.getLibraryMetadata().books[id];
-      const nextEntry = {
-        ...current,
-        relativePath: books[index].relativePath ?? current.relativePath,
-        isFavorite: Boolean(changes.isFavorite),
-      };
+        const currentBook = books[index];
+        const timestamp = new Date().toISOString();
+        let nextLibraryMetadata = libraryMetadata;
+        let nextProgressMetadata = progressMetadata;
+        let libraryChanged = false;
+        let progressChanged = false;
+        let nextFavorite = currentBook.isFavorite;
+        let nextProgressCfi = currentBook.progressCfi;
+        let nextProgressPercent = currentBook.progressPercent;
+        let nextLastOpenedAt = currentBook.lastOpenedAt;
 
-      libraryChanged =
-        current.relativePath !== nextEntry.relativePath ||
-        current.isFavorite !== nextEntry.isFavorite;
+        if (changesFavorite) {
+          const currentEntry = libraryMetadata.books[id];
+          if (!currentEntry) {
+            throw new Error(`Book metadata "${id}" was not found.`);
+          }
 
-      if (libraryChanged) {
-        this.host.getLibraryMetadata().books[id] = {
-          ...nextEntry,
+          nextFavorite = Boolean(changes.isFavorite);
+          libraryChanged = currentEntry.isFavorite !== nextFavorite;
+          if (libraryChanged) {
+            nextLibraryMetadata = {
+              ...libraryMetadata,
+              books: {
+                ...libraryMetadata.books,
+                [id]: {
+                  ...currentEntry,
+                  isFavorite: nextFavorite,
+                  updatedAt: timestamp,
+                },
+              },
+            };
+          }
+        }
+
+        if (changesProgress) {
+          const currentEntry = progressMetadata.progress[id] ?? { percent: 0 };
+          const nextEntry = {
+            cfi: Object.hasOwn(changes, "progressCfi") ? changes.progressCfi : currentEntry.cfi,
+            percent: Object.hasOwn(changes, "progressPercent")
+              ? (changes.progressPercent ?? 0)
+              : currentEntry.percent,
+            lastOpenedAt: Object.hasOwn(changes, "lastOpenedAt")
+              ? changes.lastOpenedAt
+              : currentEntry.lastOpenedAt,
+          };
+
+          nextProgressCfi = nextEntry.cfi;
+          nextProgressPercent = nextEntry.percent;
+          nextLastOpenedAt = nextEntry.lastOpenedAt;
+          progressChanged =
+            currentEntry.cfi !== nextEntry.cfi ||
+            currentEntry.percent !== nextEntry.percent ||
+            currentEntry.lastOpenedAt !== nextEntry.lastOpenedAt;
+          if (progressChanged) {
+            nextProgressMetadata = {
+              ...progressMetadata,
+              progress: {
+                ...progressMetadata.progress,
+                [id]: nextEntry,
+              },
+            };
+          }
+        }
+
+        if (!libraryChanged && !progressChanged) {
+          return {
+            books,
+            booksChanged: false,
+            libraryMetadata,
+            libraryChanged: false,
+            progressMetadata,
+            progressChanged: false,
+            result: currentBook,
+          };
+        }
+
+        const nextBook: Book = {
+          ...currentBook,
+          isFavorite: nextFavorite,
+          lastOpenedAt: nextLastOpenedAt,
+          progressCfi: nextProgressCfi,
+          progressPercent: nextProgressPercent,
           updatedAt: timestamp,
         };
-      }
-    }
+        const nextBooks = [...books];
+        nextBooks[index] = nextBook;
 
-    if (
-      Object.hasOwn(changes, "progressCfi") ||
-      Object.hasOwn(changes, "progressPercent") ||
-      Object.hasOwn(changes, "lastOpenedAt")
-    ) {
-      const current = this.host.getProgressMetadata().progress[id] ?? { percent: 0 };
-      const nextProgress = {
-        cfi: Object.hasOwn(changes, "progressCfi") ? changes.progressCfi : current.cfi,
-        percent: Object.hasOwn(changes, "progressPercent")
-          ? (changes.progressPercent ?? 0)
-          : current.percent,
-        lastOpenedAt: Object.hasOwn(changes, "lastOpenedAt")
-          ? changes.lastOpenedAt
-          : current.lastOpenedAt,
-      };
-
-      progressChanged =
-        current.cfi !== nextProgress.cfi ||
-        current.percent !== nextProgress.percent ||
-        current.lastOpenedAt !== nextProgress.lastOpenedAt;
-
-      if (progressChanged) {
-        this.host.getProgressMetadata().progress[id] = nextProgress;
-      }
-    }
-
-    if (!libraryChanged && !progressChanged) {
-      return books[index];
-    }
-
-    await this.host.saveMetadata(scope, {
-      library: libraryChanged,
-      progress: progressChanged,
-    });
-    if (!this.host.isCurrentScope(scope)) {
-      return undefined;
-    }
-
-    const nextBooks = [...this.host.getBooks()];
-    nextBooks[index] = {
-      ...nextBooks[index],
-      ...changes,
-      updatedAt: timestamp,
-    };
-    this.host.replaceBooks(nextBooks);
-    this.host.emitBooks();
-    return nextBooks[index];
+        return {
+          books: nextBooks,
+          booksChanged: true,
+          libraryMetadata: nextLibraryMetadata,
+          libraryChanged,
+          progressMetadata: nextProgressMetadata,
+          progressChanged,
+          result: nextBook,
+        };
+      },
+    );
   }
 
   async renameBookFile(id: string, fileName: string): Promise<Book | undefined> {
@@ -173,6 +212,10 @@ export class BookOperations {
         scope.rootPath,
       );
       suppression.addPath(change.newRelativePath);
+      if (!this.host.isCurrentScope(scope)) {
+        return undefined;
+      }
+      reportArchiveCacheWarning(this.host, change);
       return this.applyBookPathChange(id, change, scope);
     } finally {
       suppression.finish();
@@ -197,6 +240,10 @@ export class BookOperations {
         scope.rootPath,
       );
       suppression.addPath(change.newRelativePath);
+      if (!this.host.isCurrentScope(scope)) {
+        return undefined;
+      }
+      reportArchiveCacheWarning(this.host, change);
       return this.applyBookPathChange(id, change, scope);
     } finally {
       suppression.finish();
@@ -217,31 +264,47 @@ export class BookOperations {
     if (!book) {
       return false;
     }
+    const suppression = new WatcherSuppressionGroup(scope.rootPath);
     if (!book.isFileMissing) {
       if (!book.relativePath) {
         throw new Error("The selected EPUB file is unavailable.");
       }
-      await this.host.commands.invoke(
-        "delete_archive_epub_file",
-        { relativePath: book.relativePath },
-        scope.rootPath,
-      );
-      if (!this.host.isCurrentScope(scope)) {
-        return false;
+      suppression.begin(book.relativePath);
+    }
+
+    try {
+      if (!book.isFileMissing) {
+        const result = await this.host.commands.invoke(
+          "delete_archive_epub_file",
+          { relativePath: book.relativePath! },
+          scope.rootPath,
+        );
+        if (!this.host.isCurrentScope(scope)) {
+          return false;
+        }
+        reportArchiveCacheWarning(this.host, result);
       }
-    }
 
-    delete this.host.getLibraryMetadata().books[id];
-    delete this.host.getProgressMetadata().progress[id];
-    await this.host.saveMetadata(scope, { library: true, progress: true });
-    this.host.clearCoverPromisesForBook(id);
-
-    if (book.isFileMissing) {
-      this.host.removeMissingBook(id);
-    } else {
-      await this.host.rescan();
+      try {
+        await this.host.applyArchiveDelta(scope, {
+          kind: "remove-books",
+          bookIds: [id],
+        });
+      } catch (error) {
+        if (!book.isFileMissing) {
+          if (this.host.isCurrentScope(scope)) {
+            reportArchiveMetadataRecoveryWarning(this.host, "The EPUB deletion", error);
+          }
+          this.host.clearCoverPromisesForBook(id);
+          return true;
+        }
+        throw error;
+      }
+      this.host.clearCoverPromisesForBook(id);
+      return true;
+    } finally {
+      suppression.finish();
     }
-    return true;
   }
 
   private async loadArchiveBookCover(
@@ -266,14 +329,12 @@ export class BookOperations {
     if (!this.host.isCurrentScope(scope)) {
       return undefined;
     }
-    updateBookMetadataPath(this.host, id, change.newRelativePath, new Date().toISOString());
-    await this.host.saveMetadata(scope, { library: true });
+    await this.host.applyArchiveDelta(scope, {
+      kind: "book-paths",
+      changes: [{ bookId: id, newRelativePath: change.newRelativePath }],
+    });
     if (!this.host.isCurrentScope(scope)) {
       return undefined;
-    }
-    await this.host.rescan();
-    if (!this.host.isCurrentScope(scope)) {
-      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
     }
     return this.host.getBooks().find((book) => book.id === id);
   }

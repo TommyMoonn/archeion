@@ -42,8 +42,9 @@ describe("TauriArchiveLibraryStorage bulk operations", () => {
     expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
   });
 
-  it("moves eligible books with one final reconciliation", async () => {
+  it("moves eligible books through one direct archive-model reconciliation", async () => {
     const storage = await scopedBulkStorage();
+    const before = await storage.getBook("book-1");
 
     const result = await storage.bulkMoveBooksToFolder(["book-1", "missing-book"], "folder:Author");
 
@@ -52,7 +53,12 @@ describe("TauriArchiveLibraryStorage bulk operations", () => {
     expect(
       invokeMock.mock.calls.filter(([command]) => command === "move_archive_epub_file"),
     ).toHaveLength(1);
-    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      id: before?.id,
+      relativePath: "Author/Volume_01.epub",
+      progressPercent: 42,
+    });
   });
 
   it("keeps watcher suppression active until a bulk move batch reconciles", async () => {
@@ -175,6 +181,7 @@ describe("TauriArchiveLibraryStorage bulk operations", () => {
       ) {
         throw new Error("Trash is unavailable.");
       }
+      if (command === "delete_archive_epub_file") return {};
       if (command === "save_library_metadata") {
         savedLibrary = structuredClone(commandArgs?.metadata as LibraryMetadata);
       }
@@ -345,5 +352,100 @@ describe("TauriArchiveLibraryStorage bulk operations", () => {
       invokeMock.mock.calls.filter(([command]) => command === "write_epub_metadata"),
     ).toHaveLength(1);
     expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+  });
+
+  it("reports a disappearing EPUB as a failed metadata re-extraction", async () => {
+    const storage = await scopedBulkStorage();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "invalidate_scanner_cache_entries") return undefined;
+      if (command === "scan_archive_epub_paths") {
+        return {
+          books: [],
+          missingRelativePaths: ["Author/Series/Volume_01.epub"],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+
+    const result = await storage.bulkReextractMetadata(["book-1"]);
+
+    expect(result).toEqual({
+      requested: 1,
+      succeeded: [],
+      failed: [
+        {
+          bookId: "book-1",
+          message: "The EPUB file disappeared before its metadata could be re-extracted.",
+        },
+      ],
+      skipped: [],
+    });
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ isFileMissing: true });
+  });
+  it("leaves bulk favorite state untouched when persistence fails", async () => {
+    const storage = await scopedBulkStorage();
+    const before = await storage.getBook("book-1");
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "save_library_metadata") {
+        throw new Error("disk full");
+      }
+      return undefined;
+    });
+
+    const result = await storage.bulkSetFavorite(["book-1"], false);
+
+    expect(result).toEqual({
+      requested: 1,
+      succeeded: [],
+      failed: [{ bookId: "book-1", message: "disk full" }],
+      skipped: [],
+    });
+    expect(await storage.getBook("book-1")).toBe(before);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ isFavorite: true });
+  });
+
+  it("does not restore stale metadata when deletion cleanup persistence fails", async () => {
+    const storage = await scopedBulkStorage();
+    const deleteStarted = deferred<void>();
+    const releaseDelete = deferred<void>();
+    let failLibrarySave = false;
+    let librarySaveCount = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "delete_archive_epub_file") {
+        deleteStarted.resolve();
+        await releaseDelete.promise;
+        return {};
+      }
+      if (command === "save_library_metadata") {
+        librarySaveCount += 1;
+        if (failLibrarySave) {
+          throw new Error("disk full");
+        }
+      }
+      return undefined;
+    });
+
+    const warnings: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => warnings.push(value) });
+    const deletion = storage.bulkDeleteBooks(["book-1"]);
+    await deleteStarted.promise;
+    await storage.updateBook("book-1", { isFavorite: false });
+    failLibrarySave = true;
+    releaseDelete.resolve();
+    const deletionResult = await deletion;
+
+    expect(deletionResult.succeeded).toEqual([{ bookId: "book-1" }]);
+    expect(deletionResult.failed).toEqual([]);
+    expect(warnings).toEqual([
+      expect.objectContaining({ kind: "archive-metadata", repairRequired: true }),
+    ]);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ isFavorite: false });
+
+    failLibrarySave = false;
+    await storage.updateBook("book-1", { isFavorite: true });
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({ isFavorite: true });
+    expect(librarySaveCount).toBe(4);
   });
 });

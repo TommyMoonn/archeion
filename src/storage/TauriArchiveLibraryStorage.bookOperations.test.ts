@@ -43,11 +43,8 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
         metadata: expect.objectContaining({ books: {} }),
       }),
     );
-    expect(invokeMock).toHaveBeenCalledWith(
-      "save_progress_metadata",
-      expect.objectContaining({
-        metadata: expect.objectContaining({ progress: {} }),
-      }),
+    expect(invokeMock.mock.calls.some(([command]) => command === "save_progress_metadata")).toBe(
+      false,
     );
   });
 
@@ -107,6 +104,48 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     expect(currentMetadata.library.books["book-1"].relativePath).toBe("Author/Series/Renamed.epub");
   });
 
+  it("falls back to one complete scan when a native path result fails validation", async () => {
+    let scanCalls = 0;
+    let currentScan = structuredClone(firstScan);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCalls += 1;
+        return structuredClone(currentScan);
+      }
+      if (command === "load_archive_metadata") {
+        return structuredClone(metadata);
+      }
+      if (command === "rename_archive_epub_file") {
+        currentScan = {
+          ...currentScan,
+          books: [
+            {
+              ...currentScan.books[0],
+              relativePath: "Author/Series/Renamed.epub",
+              fileName: "Renamed.epub",
+            },
+          ],
+        };
+        return {
+          oldRelativePath: "Author/Series/Volume_01.epub",
+          newRelativePath: "../Renamed.epub",
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    scanCalls = 0;
+
+    const renamed = await storage.renameBookFile("book-1", "Renamed.epub");
+
+    expect(scanCalls).toBe(1);
+    expect(renamed).toMatchObject({
+      id: "book-1",
+      relativePath: "Author/Series/Renamed.epub",
+    });
+  });
+
   it("keeps watcher suppression active until a single move reconciles", async () => {
     vi.useFakeTimers();
     try {
@@ -156,6 +195,7 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
       if (command === "delete_archive_epub_file") {
         expect(args).toEqual({ relativePath: "Author/Series/Volume_01.epub" });
         currentScan = { ...currentScan, books: [] };
+        return {};
       }
       if (command === "save_library_metadata") {
         currentMetadata = {
@@ -177,18 +217,18 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     await expect(storage.deleteBook("book-1")).resolves.toBe(true);
 
     expect(currentMetadata.library.books).toEqual({});
+    expect(currentMetadata.progress.progress).toHaveProperty("book-1");
+
+    await storage.rescan({ quiet: true });
     expect(currentMetadata.progress.progress).toEqual({});
   });
 
-  it("persists favorites and progress in separate metadata files", async () => {
+  it("persists a favorite-only update without writing progress metadata", async () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
+    invokeMock.mockClear();
 
-    await storage.updateBook("book-1", {
-      isFavorite: false,
-      progressCfi: "epubcfi(/6/4)",
-      progressPercent: 50,
-    });
+    await storage.updateBook("book-1", { isFavorite: false });
 
     expect(invokeMock).toHaveBeenCalledWith(
       "save_library_metadata",
@@ -200,6 +240,19 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
         }),
       }),
     );
+    expect(invokeMock).not.toHaveBeenCalledWith("save_progress_metadata", expect.anything());
+  });
+
+  it("persists a progress-only update without writing library metadata", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.updateBook("book-1", {
+      progressCfi: "epubcfi(/6/4)",
+      progressPercent: 50,
+    });
+
     expect(invokeMock).toHaveBeenCalledWith(
       "save_progress_metadata",
       expect.objectContaining({
@@ -213,6 +266,24 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
         }),
       }),
     );
+    expect(invokeMock).not.toHaveBeenCalledWith("save_library_metadata", expect.anything());
+  });
+
+  it("rejects mixed favorite and progress updates before either metadata save", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await expect(
+      storage.updateBook("book-1", {
+        isFavorite: false,
+        progressCfi: "epubcfi(/6/4)",
+        progressPercent: 50,
+      }),
+    ).rejects.toThrow("Favorite and reading progress changes must be saved as separate updates.");
+
+    expect(invokeMock).not.toHaveBeenCalledWith("save_library_metadata", expect.anything());
+    expect(invokeMock).not.toHaveBeenCalledWith("save_progress_metadata", expect.anything());
   });
 
   it("clears the saved reading position while preserving last opened", async () => {
@@ -365,5 +436,80 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     const { rootPath, storage } = await scopedStorage();
     await operation(storage).catch(() => undefined);
     expectCommandRootPath(command, rootPath);
+  });
+  it("surfaces EPUB deletion cache warnings without changing the successful result", async () => {
+    const { storage } = await scopedStorage();
+    const surfaced: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "delete_archive_epub_file") {
+        return {
+          cacheWarning: {
+            message: "Deleted EPUB cache entries will be rebuilt.",
+            repairRequired: false,
+          },
+        };
+      }
+      return undefined;
+    });
+
+    await expect(storage.deleteBook("book-1")).resolves.toBe(true);
+    expect(surfaced).toEqual([
+      {
+        kind: "scanner-cache",
+        message: "Deleted EPUB cache entries will be rebuilt.",
+        repairRequired: false,
+      },
+    ]);
+  });
+
+  it("does not surface an operation warning when cache maintenance succeeds", async () => {
+    const { storage } = await scopedStorage();
+    const surfaced: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "rename_archive_epub_file") {
+        return {
+          oldRelativePath: "Author/Series/Volume_01.epub",
+          newRelativePath: "Author/Series/Renamed.epub",
+        };
+      }
+      return undefined;
+    });
+
+    await storage.renameBookFile("book-1", "Renamed.epub");
+    expect(surfaced).toEqual([]);
+  });
+
+  it("reports non-authoritative scanner-cache maintenance warnings", async () => {
+    const { storage } = await scopedStorage();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const surfaced: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "rename_archive_epub_file") {
+        return {
+          oldRelativePath: "Author/Series/Volume_01.epub",
+          newRelativePath: "Author/Series/Renamed.epub",
+          cacheWarning: {
+            message: "Scanner cache will be repaired by a later scan.",
+            repairRequired: false,
+          },
+        };
+      }
+      return undefined;
+    });
+
+    await storage.renameBookFile("book-1", "Renamed.epub");
+
+    expect(warning).toHaveBeenCalledWith("Scanner cache will be repaired by a later scan.");
+    expect(surfaced).toEqual([
+      {
+        kind: "scanner-cache",
+        message: "Scanner cache will be repaired by a later scan.",
+        repairRequired: false,
+      },
+    ]);
+    warning.mockRestore();
   });
 });

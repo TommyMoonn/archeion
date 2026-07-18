@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ArchiveImportResult } from "../../storage/LibraryStorage";
 import {
+  createArchiveOperationWarningFeedbackToken,
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
   createFolderSuccessFeedbackToken,
@@ -64,6 +65,65 @@ describe("libraryFeedback", () => {
     ]);
 
     expect(tokens.map((token) => token.id)).toEqual(["second", "third", "fourth"]);
+  });
+
+  it("auto-dismisses routine scanner-cache rebuild warnings", () => {
+    expect(
+      createArchiveOperationWarningFeedbackToken({
+        kind: "scanner-cache",
+        message: "The scanner cache was discarded.",
+        repairRequired: false,
+      }),
+    ).toMatchObject({
+      id: "scanner-cache-warning",
+      tone: "warning",
+      title: "Archive cache will be rebuilt.",
+      autoDismiss: true,
+    });
+  });
+
+  it("keeps restart-safety warnings persistent and directs repair", () => {
+    const token = createArchiveOperationWarningFeedbackToken({
+      kind: "scanner-cache",
+      message: "Restart safety could not be established.",
+      repairRequired: true,
+    });
+
+    expect(token).toMatchObject({
+      id: "scanner-cache-warning",
+      tone: "warning",
+      title: "Archive metadata repair is required.",
+      autoDismiss: false,
+    });
+    expect(token.detail).toContain("Run Archive metadata repair");
+  });
+
+  it("keeps archive metadata recovery warnings persistent with an accurate action", () => {
+    const token = createArchiveOperationWarningFeedbackToken({
+      kind: "archive-metadata",
+      message: "The EPUB was deleted, but library metadata could not be saved.",
+      repairRequired: true,
+    });
+
+    expect(token).toMatchObject({
+      id: "archive-metadata-warning",
+      tone: "warning",
+      title: "Archive metadata cleanup is required.",
+      autoDismiss: false,
+    });
+    expect(token.detail).toContain("Resolve archive write access");
+    expect(token.detail).toContain("remove the missing metadata entry");
+  });
+
+  it("summarizes aggregated cache warnings in one token", () => {
+    const token = createArchiveOperationWarningFeedbackToken({
+      kind: "scanner-cache",
+      message: "Scanner cache maintenance degraded.",
+      occurrences: 4,
+      repairRequired: false,
+    });
+
+    expect(token.detail).toContain("4 operations");
   });
 
   it("creates an auto-dismissing success token for folder creation", () => {

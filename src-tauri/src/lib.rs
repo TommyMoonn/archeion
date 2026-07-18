@@ -4,8 +4,21 @@ use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let import_transaction_state =
+        commands::archive_import_transaction::ArchiveImportTransactionState::default();
+    let import_suppressions = commands::watcher::ArchiveWatcherSuppressionOwner::default();
+    let watcher_state = commands::watcher::ArchiveWatcherState::with_import_suppressions(
+        import_suppressions.clone(),
+    );
+    let import_command_state = commands::archive_import::ArchiveImportCommandState::new(
+        import_transaction_state.clone(),
+        import_suppressions,
+    );
+
     tauri::Builder::default()
-        .manage(commands::watcher::ArchiveWatcherState::default())
+        .manage(watcher_state)
+        .manage(import_transaction_state)
+        .manage(import_command_state)
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             if window.label() == "archive-manager" && matches!(event, tauri::WindowEvent::Destroyed)
@@ -26,6 +39,7 @@ pub fn run() {
             commands::archive::rename_archive,
             commands::archive::reveal_archive,
             commands::archive_import::add_epub_files_to_archive,
+            commands::archive_import_artifacts::cleanup_archive_import_artifacts,
             commands::filesystem::create_archive_folder,
             commands::filesystem::delete_archive_epub_file,
             commands::filesystem::delete_archive_folder,
@@ -57,6 +71,7 @@ pub fn run() {
             commands::scanner::clear_scanner_cache,
             commands::scanner::invalidate_scanner_cache_entries,
             commands::scanner::scan_archive,
+            commands::scanner::scan_archive_epub_paths,
             commands::themes::delete_archive_theme_package,
             commands::themes::list_archive_theme_packages,
             commands::themes::read_archive_theme_manifest,

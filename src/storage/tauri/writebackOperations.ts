@@ -8,37 +8,13 @@ import type {
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
 } from "../../types/book";
-import { normalizeSourceMetadata, sourceMetadataEqual } from "../sourceMetadata";
+import { normalizeSourceMetadata } from "../sourceMetadata";
 import {
   type ArchiveCommandScope,
   type StorageOperationHost,
   WatcherSuppressionGroup,
   requireAvailableBook,
 } from "./operationTypes";
-
-function isWritebackBookEquivalent(left: Book, right: Book): boolean {
-  return (
-    left.id === right.id &&
-    left.fileName === right.fileName &&
-    left.relativePath === right.relativePath &&
-    left.folderPath === right.folderPath &&
-    left.size === right.size &&
-    left.modifiedAt === right.modifiedAt &&
-    left.originalTitle === right.originalTitle &&
-    left.originalAuthor === right.originalAuthor &&
-    left.coverPath === right.coverPath &&
-    left.coverRevision === right.coverRevision &&
-    left.isFileMissing === right.isFileMissing &&
-    left.folderId === right.folderId &&
-    left.isFavorite === right.isFavorite &&
-    left.addedAt === right.addedAt &&
-    left.updatedAt === right.updatedAt &&
-    left.lastOpenedAt === right.lastOpenedAt &&
-    left.progressCfi === right.progressCfi &&
-    left.progressPercent === right.progressPercent &&
-    sourceMetadataEqual(left.sourceMetadata, right.sourceMetadata)
-  );
-}
 
 export class WritebackOperations {
   constructor(private readonly host: StorageOperationHost) {}
@@ -184,60 +160,27 @@ export class WritebackOperations {
     options: { refreshCover?: boolean } = {},
   ): Promise<void> {
     this.host.assertCurrentScope(scope);
-    const books = this.host.getBooks();
-    const index = books.findIndex((book) => book.id === id);
-    if (index < 0) {
+    const currentBook = this.host.getBooks().find((book) => book.id === id);
+    if (!currentBook) {
       throw new Error(`Book "${id}" was not found.`);
     }
 
-    const currentBook = books[index];
-    const currentEntry = this.host.getLibraryMetadata().books[id];
-    if (!currentEntry) {
-      throw new Error(`Book metadata "${id}" was not found.`);
-    }
-
-    const timestamp = new Date().toISOString();
-    const sourceMetadata = normalizeSourceMetadata(result.sourceMetadata);
-    const fileModifiedAt = result.fileStat.modifiedAt;
-    const fileSize = result.fileStat.size;
-    const normalizedRelativePath = result.fileStat.relativePath;
-    const metadataChanged =
-      currentEntry.relativePath !== normalizedRelativePath ||
-      currentEntry.fileSize !== fileSize ||
-      currentEntry.fileModifiedAt !== fileModifiedAt ||
-      !sourceMetadataEqual(currentEntry.sourceMetadata, sourceMetadata);
-
-    if (metadataChanged) {
-      this.host.getLibraryMetadata().books[id] = {
-        ...currentEntry,
-        relativePath: normalizedRelativePath,
-        sourceMetadata,
-        fileSize,
-        fileModifiedAt,
-        updatedAt: timestamp,
-      };
-      await this.host.saveMetadata(scope, { library: true });
-      this.host.assertCurrentScope(scope);
-    }
-
-    const nextBook: Book = {
-      ...currentBook,
-      relativePath: normalizedRelativePath,
-      fileName: result.fileStat.fileName,
-      folderPath: result.fileStat.folderPath,
-      size: fileSize,
-      modifiedAt: new Date(fileModifiedAt).toISOString(),
-      originalAuthor: sourceMetadata?.creator,
-      sourceMetadata,
-      coverRevision: options.refreshCover ? timestamp : currentBook.coverRevision,
-      updatedAt: metadataChanged ? timestamp : currentBook.updatedAt,
-    };
-
-    if (!isWritebackBookEquivalent(currentBook, nextBook)) {
-      this.host.replaceBooks(
-        books.map((book, bookIndex) => (bookIndex === index ? nextBook : book)),
-      );
-      this.host.emitBooks();
-    }
+    await this.host.applyArchiveDelta(scope, {
+      kind: "scanned-books",
+      books: [
+        {
+          discoveryId: id,
+          relativePath: result.fileStat.relativePath,
+          fileName: result.fileStat.fileName,
+          folderPath: result.fileStat.folderPath,
+          size: result.fileStat.size,
+          modifiedAt: result.fileStat.modifiedAt,
+          sourceMetadata: normalizeSourceMetadata(result.sourceMetadata),
+        },
+      ],
+      coverRevisionOverrides: options.refreshCover
+        ? undefined
+        : { [id]: currentBook.coverRevision },
+    });
   }
 }

@@ -36,7 +36,38 @@ export type RescanOptions = {
 
 export type ScanStatus = { status: "idle" } | { status: "scanning"; startedAt: string };
 
-export type ArchivePathChange = {
+export type ArchiveWatcherChangeKind =
+  "create" | "modify" | "remove" | "rename" | "metadata" | "unknown";
+
+export type ArchiveWatcherChange = {
+  kind: ArchiveWatcherChangeKind;
+  relativePaths: string[];
+};
+
+export type ArchiveWatcherChangeSet = {
+  changes: ArchiveWatcherChange[];
+  overflow?: boolean;
+};
+
+export type ArchiveCacheWarningDetail = {
+  message: string;
+  repairRequired: boolean;
+};
+
+export type ArchiveCacheWarning = {
+  cacheWarning?: ArchiveCacheWarningDetail;
+};
+
+export type ArchiveOperationWarning = {
+  kind: "archive-metadata" | "scanner-cache";
+  message: string;
+  occurrences?: number;
+  repairRequired: boolean;
+};
+
+export type ArchiveOperationResult = ArchiveCacheWarning;
+
+export type ArchivePathChange = ArchiveCacheWarning & {
   oldRelativePath: string;
   newRelativePath: string;
 };
@@ -53,7 +84,25 @@ export type ArchiveImportResult = {
   fileName: string;
   message?: string;
   relativePath?: string;
+  replacedExisting?: boolean;
   sourcePath: string;
+  sourceCleanupWarning?: string;
+  maintenanceWarning?: string;
+};
+
+export type ArchiveImportCommandResult = ArchiveCacheWarning & {
+  foldedWatcherChanges?: ArchiveWatcherChange[];
+  results: ArchiveImportResult[];
+};
+
+export type ArchiveImportArtifactCleanupFailure = {
+  relativePath: string;
+  message: string;
+};
+
+export type ArchiveImportArtifactCleanupResult = {
+  removedCount: number;
+  failures: ArchiveImportArtifactCleanupFailure[];
 };
 
 export type CoverCacheStatus = {
@@ -76,7 +125,11 @@ export type BulkActionResult = {
 export interface LibraryStorage {
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
+  applyArchiveWatcherChanges(changeSet: ArchiveWatcherChangeSet): Promise<void>;
   observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription;
+  observeOperationWarnings?(
+    observer: StorageObserver<ArchiveOperationWarning>,
+  ): StorageSubscription;
   addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]>;
 
   getBook(id: string): Promise<Book | undefined>;

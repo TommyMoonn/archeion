@@ -33,6 +33,7 @@ import type { LibrarySelectionIntent } from "./librarySelection";
 import { pruneUnavailableLibraryMetadataFilters } from "./libraryFilters";
 import { useLibraryBookActions } from "./useLibraryBookActions";
 import { useLibraryBulkActions } from "./useLibraryBulkActions";
+import { createArchiveOperationWarningFeedbackToken } from "./libraryFeedback";
 import { useLibraryFeedback } from "./useLibraryFeedback";
 import { useLibrarySelection } from "./useLibrarySelection";
 import {
@@ -95,6 +96,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     showRescanSuccess,
     tokens: feedbackTokens,
   } = useLibraryFeedback();
+
+  useEffect(
+    () =>
+      storage.observeOperationWarnings?.({
+        next: (warning) => pushFeedback(createArchiveOperationWarningFeedbackToken(warning)),
+      }),
+    [pushFeedback, storage],
+  );
 
   const handleArchiveLoadError = useCallback(
     () => showLibraryError("The active archive could not be loaded."),

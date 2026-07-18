@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
-use super::{archive_root, epub, epub_metadata, filesystem, metadata};
+use super::{archive_root, epub, epub_metadata, filesystem, metadata, scanner_cache};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -284,7 +284,7 @@ fn update_writeback_scanner_cache_entry(
     file_stat: &EpubMetadataWritebackFileStat,
     source_metadata: &epub_metadata::EpubPackageMetadata,
 ) -> Result<(), String> {
-    metadata::update_scanner_cache_entry_at(
+    let maintenance = scanner_cache::update_entry(
         root,
         relative_path,
         metadata::ScannerCacheEntry {
@@ -293,7 +293,11 @@ fn update_writeback_scanner_cache_entry(
             source_metadata: (!source_metadata.is_empty()).then_some(source_metadata.clone()),
             metadata_error: None,
         },
-    )
+    );
+    if let Some(warning) = maintenance.warning {
+        return Err(warning.message);
+    }
+    Ok(())
 }
 
 fn finalize_successful_backup_at<Retain, Remove>(

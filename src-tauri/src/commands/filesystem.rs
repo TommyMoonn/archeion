@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use super::{
     archive_root,
     export_file::{write_atomic_export_file, ExportFileKind},
+    scanner_cache,
 };
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
@@ -162,6 +163,15 @@ pub(crate) fn resolve_existing_epub_path(
 pub struct ArchivePathChange {
     old_relative_path: String,
     new_relative_path: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cache_warning: Option<scanner_cache::ScannerCacheWarning>,
+}
+
+#[derive(Debug, Default, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveOperationResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cache_warning: Option<scanner_cache::ScannerCacheWarning>,
 }
 
 fn resolve_command_archive_root(
@@ -323,7 +333,24 @@ fn path_change(root: &Path, old_path: &Path, new_path: &Path) -> Result<ArchiveP
     Ok(ArchivePathChange {
         old_relative_path: path_relative_to(root, old_path)?,
         new_relative_path: path_relative_to(root, new_path)?,
+        cache_warning: None,
     })
+}
+
+fn record_epub_path_change_cache_invalidation(root: &Path, change: &mut ArchivePathChange) {
+    let relative_paths = [
+        change.old_relative_path.clone(),
+        change.new_relative_path.clone(),
+    ];
+    change.cache_warning = scanner_cache::invalidate_paths(root, &relative_paths).warning;
+}
+
+fn record_folder_path_change_cache_invalidation(root: &Path, change: &mut ArchivePathChange) {
+    let prefixes = [
+        change.old_relative_path.clone(),
+        change.new_relative_path.clone(),
+    ];
+    change.cache_warning = scanner_cache::invalidate_prefixes(root, &prefixes).warning;
 }
 
 #[cfg(any(target_os = "windows", test))]
@@ -514,10 +541,6 @@ fn delete_archive_item_with_trash(
     })
 }
 
-fn delete_archive_item(path: &Path, is_directory: bool) -> Result<(), String> {
-    delete_archive_item_with_trash(path, is_directory, trash_with_platform)
-}
-
 pub(crate) fn open_folder(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     let mut command = Command::new("explorer");
@@ -567,8 +590,9 @@ pub(crate) fn rename_archive_epub_at(
         return Err("An item with this name already exists.".to_string());
     }
 
-    let change = path_change(&canonical_root, &source, &destination)?;
+    let mut change = path_change(&canonical_root, &source, &destination)?;
     rename_archive_path(&source, &destination)?;
+    record_epub_path_change_cache_invalidation(&canonical_root, &mut change);
     Ok(change)
 }
 
@@ -590,8 +614,9 @@ pub(crate) fn move_archive_epub_at(
         return Err("An EPUB with this name already exists in the destination folder.".to_string());
     }
 
-    let change = path_change(&canonical_root, &source, &destination)?;
+    let mut change = path_change(&canonical_root, &source, &destination)?;
     rename_archive_path(&source, &destination)?;
+    record_epub_path_change_cache_invalidation(&canonical_root, &mut change);
     Ok(change)
 }
 
@@ -612,8 +637,9 @@ pub(crate) fn rename_archive_folder_at(
         return Err("An item with this name already exists.".to_string());
     }
 
-    let change = path_change(&canonical_root, &source, &destination)?;
+    let mut change = path_change(&canonical_root, &source, &destination)?;
     rename_archive_path(&source, &destination)?;
+    record_folder_path_change_cache_invalidation(&canonical_root, &mut change);
     Ok(change)
 }
 
@@ -642,21 +668,52 @@ pub(crate) fn move_archive_folder_at(
         );
     }
 
-    let change = path_change(&canonical_root, &source, &destination)?;
+    let mut change = path_change(&canonical_root, &source, &destination)?;
     rename_archive_path(&source, &destination)?;
+    record_folder_path_change_cache_invalidation(&canonical_root, &mut change);
     Ok(change)
 }
 
-pub(crate) fn delete_archive_epub_at(root: &Path, relative_path: &str) -> Result<(), String> {
+fn delete_archive_epub_with_trash(
+    root: &Path,
+    relative_path: &str,
+    trash_archive_item: TrashArchiveItem,
+) -> Result<ArchiveOperationResult, String> {
     let canonical_root = canonical_root(root)?;
     let path = resolve_existing_epub_path(&canonical_root, relative_path)?;
-    delete_archive_item(&path, false)
+    let normalized = path_relative_to(&canonical_root, &path)?;
+    delete_archive_item_with_trash(&path, false, trash_archive_item)?;
+    Ok(ArchiveOperationResult {
+        cache_warning: scanner_cache::invalidate_paths(&canonical_root, &[normalized]).warning,
+    })
 }
 
-pub(crate) fn delete_archive_folder_at(root: &Path, relative_path: &str) -> Result<(), String> {
+pub(crate) fn delete_archive_epub_at(
+    root: &Path,
+    relative_path: &str,
+) -> Result<ArchiveOperationResult, String> {
+    delete_archive_epub_with_trash(root, relative_path, trash_with_platform)
+}
+
+fn delete_archive_folder_with_trash(
+    root: &Path,
+    relative_path: &str,
+    trash_archive_item: TrashArchiveItem,
+) -> Result<ArchiveOperationResult, String> {
     let canonical_root = canonical_root(root)?;
     let path = resolve_existing_folder_path(&canonical_root, relative_path)?;
-    delete_archive_item(&path, true)
+    let normalized = path_relative_to(&canonical_root, &path)?;
+    delete_archive_item_with_trash(&path, true, trash_archive_item)?;
+    Ok(ArchiveOperationResult {
+        cache_warning: scanner_cache::invalidate_prefixes(&canonical_root, &[normalized]).warning,
+    })
+}
+
+pub(crate) fn delete_archive_folder_at(
+    root: &Path,
+    relative_path: &str,
+) -> Result<ArchiveOperationResult, String> {
+    delete_archive_folder_with_trash(root, relative_path, trash_with_platform)
 }
 
 #[tauri::command]
@@ -719,7 +776,7 @@ pub fn delete_archive_epub_file(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
-) -> Result<(), String> {
+) -> Result<ArchiveOperationResult, String> {
     let root = resolve_command_archive_root(&app, root_path)?;
     delete_archive_epub_at(&root, &relative_path)
 }
@@ -729,7 +786,7 @@ pub fn delete_archive_folder(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
-) -> Result<(), String> {
+) -> Result<ArchiveOperationResult, String> {
     let root = resolve_command_archive_root(&app, root_path)?;
     delete_archive_folder_at(&root, &relative_path)
 }
@@ -753,11 +810,13 @@ mod tests {
     };
 
     use super::{
+        delete_archive_epub_with_trash, delete_archive_folder_with_trash,
         delete_archive_item_with_trash, is_reserved_archive_path, normalize_archive_relative_path,
-        normalize_windows_shell_path, resolve_existing_epub_path, validate_archive_item_name,
-        validate_epub_file_name, write_annotation_export_file,
+        normalize_windows_shell_path, rename_archive_folder_at, resolve_existing_epub_path,
+        validate_archive_item_name, validate_epub_file_name, write_annotation_export_file,
         write_annotation_export_to_destination, AnnotationExportFormat,
     };
+    use crate::commands::{metadata, scanner_cache};
 
     fn test_root() -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -777,6 +836,24 @@ mod tests {
 
     fn test_trash_failure(_path: &std::path::Path, _is_directory: bool) -> Result<(), String> {
         Err("trash unavailable".to_string())
+    }
+
+    fn initialize_cache(root: &std::path::Path, entries: &[&str]) {
+        fs::create_dir_all(root.join(metadata::METADATA_DIRECTORY))
+            .expect("metadata folder should be created");
+        let mut cache = metadata::ScannerCache::default();
+        for (index, relative_path) in entries.iter().enumerate() {
+            cache.entries.insert(
+                (*relative_path).to_string(),
+                metadata::ScannerCacheEntry {
+                    size: index as u64 + 1,
+                    modified_at: index as u64 + 1,
+                    source_metadata: None,
+                    metadata_error: None,
+                },
+            );
+        }
+        metadata::save_scanner_cache_at(root, &cache).expect("scanner cache should be saved");
     }
 
     #[test]
@@ -864,6 +941,108 @@ mod tests {
             .expect("trash success should delete folder");
 
         assert!(!path.exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn epub_delete_invalidation_survives_restart_and_preserves_unrelated_entries() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        fs::write(root.join("Book.epub"), b"old").expect("test EPUB should exist");
+        initialize_cache(&root, &["Book.epub", "Other.epub"]);
+
+        scanner_cache::force_cache_save_failure(&root, true);
+        let result = delete_archive_epub_with_trash(&root, "Book.epub", test_trash_success)
+            .expect("filesystem deletion should remain authoritative");
+        assert!(result.cache_warning.is_some());
+        scanner_cache::force_cache_save_failure(&root, false);
+        scanner_cache::simulate_restart(&root);
+
+        fs::write(root.join("Book.epub"), b"replacement")
+            .expect("replacement EPUB should be created");
+        let cache = scanner_cache::load_snapshot(&root);
+        assert!(!cache.snapshot.cache().entries.contains_key("Book.epub"));
+        assert!(cache.snapshot.cache().entries.contains_key("Other.epub"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn failed_epub_delete_does_not_invalidate_the_unchanged_source() {
+        let root = test_root();
+        fs::create_dir_all(&root).expect("test archive should be created");
+        fs::write(root.join("Book.epub"), b"old").expect("test EPUB should exist");
+        initialize_cache(&root, &["Book.epub"]);
+
+        delete_archive_epub_with_trash(&root, "Book.epub", test_trash_failure)
+            .expect_err("failed filesystem deletion should remain a failure");
+
+        let cache = scanner_cache::load_snapshot(&root);
+        assert!(cache.snapshot.cache().entries.contains_key("Book.epub"));
+        assert!(root.join("Book.epub").is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn folder_delete_invalidates_nested_cache_entries_across_restart() {
+        let root = test_root();
+        fs::create_dir_all(root.join("Series/Nested")).expect("test folder should be created");
+        fs::write(root.join("Series/Book.epub"), b"book").expect("test EPUB should exist");
+        initialize_cache(
+            &root,
+            &[
+                "Series/Book.epub",
+                "Series/Nested/Other.epub",
+                "Stable.epub",
+            ],
+        );
+
+        scanner_cache::force_cache_save_failure(&root, true);
+        let result = delete_archive_folder_with_trash(&root, "Series", test_trash_success)
+            .expect("folder deletion should remain authoritative");
+        assert!(result.cache_warning.is_some());
+        scanner_cache::force_cache_save_failure(&root, false);
+        scanner_cache::simulate_restart(&root);
+
+        let cache = scanner_cache::load_snapshot(&root);
+        assert!(!cache
+            .snapshot
+            .cache()
+            .entries
+            .contains_key("Series/Book.epub"));
+        assert!(!cache
+            .snapshot
+            .cache()
+            .entries
+            .contains_key("Series/Nested/Other.epub"));
+        assert!(cache.snapshot.cache().entries.contains_key("Stable.epub"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn folder_rename_invalidates_old_and_destination_prefixes_across_restart() {
+        let root = test_root();
+        fs::create_dir_all(root.join("Old/Nested")).expect("source folder should be created");
+        fs::write(root.join("Old/Book.epub"), b"book").expect("test EPUB should exist");
+        initialize_cache(
+            &root,
+            &["Old/Book.epub", "Renamed/Stale.epub", "Stable.epub"],
+        );
+
+        scanner_cache::force_cache_save_failure(&root, true);
+        let result = rename_archive_folder_at(&root, "Old", "Renamed")
+            .expect("folder rename should remain authoritative");
+        assert!(result.cache_warning.is_some());
+        scanner_cache::force_cache_save_failure(&root, false);
+        scanner_cache::simulate_restart(&root);
+
+        let cache = scanner_cache::load_snapshot(&root);
+        assert!(!cache.snapshot.cache().entries.contains_key("Old/Book.epub"));
+        assert!(!cache
+            .snapshot
+            .cache()
+            .entries
+            .contains_key("Renamed/Stale.epub"));
+        assert!(cache.snapshot.cache().entries.contains_key("Stable.epub"));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

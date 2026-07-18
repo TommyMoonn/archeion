@@ -176,7 +176,11 @@ export function setupDefaultStorageMock(): void {
     if (command === "load_settings_metadata") return structuredClone(metadata.settings);
     if (command === "read_epub_file") return new Uint8Array([80, 75, 3, 4]).buffer;
     if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;
-    if (command === "add_epub_files_to_archive") return [];
+    if (command === "add_epub_files_to_archive") return { results: [] };
+    if (command === "cleanup_archive_import_artifacts") {
+      return { removedCount: 0, failures: [] };
+    }
+    if (command === "delete_archive_epub_file" || command === "delete_archive_folder") return {};
     if (command === "rename_archive_epub_file") {
       return {
         oldRelativePath: "Author/Series/Volume_01.epub",

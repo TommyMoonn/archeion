@@ -34,10 +34,22 @@ import {
   type SettingsMetadata,
 } from "./metadataFiles";
 import { AnnotationRepository } from "./annotations/AnnotationRepository";
-import { reconcileLibraryState } from "./reconcileLibraryState";
+import { reduceArchiveModel, type ArchiveModelDelta } from "./archiveModelReducer";
+import { planArchiveWatcherChanges } from "./archiveWatcherChangePlan";
+import { validateTargetedArchiveScan } from "./targetedArchiveScanValidation";
+import {
+  reconcileLibraryState,
+  type ArchiveEpubScan,
+  type ArchiveScan,
+} from "./reconcileLibraryState";
+import { sanitizeProgressMetadataForLibrary } from "./progressMetadataSanitization";
+import { retireReplacementPathIdentities } from "./replacementIdentityRetirement";
+import { collectImportOutcomePaths } from "./archiveImportOutcomePaths";
 import type {
   AddArchiveEpubInput,
   ArchiveImportResult,
+  ArchiveOperationWarning,
+  ArchiveWatcherChangeSet,
   BulkActionResult,
   CoverCacheStatus,
   EpubWritebackBackupStatus,
@@ -54,11 +66,50 @@ import { FolderOperations } from "./tauri/folderOperations";
 import { MaintenanceOperations } from "./tauri/maintenanceOperations";
 import {
   ARCHIVE_CHANGED_ERROR_MESSAGE,
+  ARCHIVE_DELTA_PERSISTENCE_ERROR_NAME,
   type ArchiveCommandScope,
-  type MetadataWriteSelection,
+  type ArchiveModelCommitOptions,
+  type ArchiveModelCommitResult,
+  type ArchiveStateMutationResult,
+  type ArchiveStateMutationSnapshot,
   type StorageOperationHost,
+  reportArchiveCacheWarning,
 } from "./tauri/operationTypes";
 import { WritebackOperations } from "./tauri/writebackOperations";
+
+function reportImportOutcomeWarnings(
+  report: (warning: ArchiveOperationWarning) => void,
+  results: readonly ArchiveImportResult[],
+): void {
+  const sourceWarnings = results.flatMap((result) =>
+    result.sourceCleanupWarning ? [result.sourceCleanupWarning] : [],
+  );
+  if (sourceWarnings.length) {
+    report({
+      kind: "archive-metadata",
+      message:
+        sourceWarnings.length === 1
+          ? sourceWarnings[0]
+          : `${sourceWarnings.length} EPUBs were imported, but their original source files could not be removed and remain outside the archive.`,
+      occurrences: sourceWarnings.length,
+      repairRequired: false,
+    });
+  }
+  const maintenanceWarnings = results.flatMap((result) =>
+    result.maintenanceWarning ? [result.maintenanceWarning] : [],
+  );
+  if (maintenanceWarnings.length) {
+    report({
+      kind: "archive-metadata",
+      message:
+        maintenanceWarnings.length === 1
+          ? maintenanceWarnings[0]
+          : `${maintenanceWarnings.length} imported EPUBs left replacement backups that require archive metadata repair.`,
+      occurrences: maintenanceWarnings.length,
+      repairRequired: true,
+    });
+  }
+}
 
 export class TauriArchiveLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
@@ -69,7 +120,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private archiveRootPath: string | null = null;
   private scanPromise: Promise<void> | null = null;
   private followUpScanQueued = false;
-  private metadataIoQueue: Promise<void> = Promise.resolve();
+  private archiveStateQueue: Promise<void> = Promise.resolve();
   private scanStatus: ScanStatus = { status: "idle" };
   private scanStatusVisible = false;
   private scanStatusStartedAt: string | null = null;
@@ -77,6 +128,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly bookObservers = new Set<StorageObserver<Book[]>>();
   private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
   private readonly scanStatusObservers = new Set<StorageObserver<ScanStatus>>();
+  private readonly operationWarningObservers = new Set<StorageObserver<ArchiveOperationWarning>>();
   private libraryMetadata = createLibraryMetadata();
   private progressMetadata = createProgressMetadata();
   private settingsMetadata = createSettingsMetadata();
@@ -88,6 +140,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly folderOperations: FolderOperations;
   private readonly maintenanceOperations: MaintenanceOperations;
   private readonly annotationRepository: AnnotationRepository;
+  private readonly operationHost: StorageOperationHost;
 
   constructor() {
     const host: StorageOperationHost = {
@@ -99,24 +152,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       getBooks: () => this.books,
       getMissingBook: (id) => this.missingBooks.get(id),
       getFolders: () => this.folders,
-      getLibraryMetadata: () => this.libraryMetadata,
-      getProgressMetadata: () => this.progressMetadata,
-      replaceLibraryMetadata: (metadata) => {
-        this.libraryMetadata = metadata;
-      },
-      replaceProgressMetadata: (metadata) => {
-        this.progressMetadata = metadata;
-      },
-      replaceBooks: (books) => {
-        this.books = books;
-      },
-      removeMissingBook: (id) => {
-        this.missingBooks.delete(id);
-      },
-      emitBooks: () => this.emitBooks(),
-      saveMetadata: (scope, selection) => this.saveMetadata(scope, selection),
+      commitArchiveStateMutation: (scope, mutation) =>
+        this.commitArchiveStateMutation(scope, mutation),
       runMetadataIo: (scope, operation) => this.enqueueMetadataIo(operation, scope.generation),
       rescan: (options) => this.rescan(options),
+      applyArchiveDelta: (scope, delta, options) => this.commitArchiveDelta(scope, delta, options),
       getCoverPromise: (key) => this.coverPromises.get(key),
       setCoverPromise: (key, promise) => {
         this.coverPromises.set(key, promise);
@@ -127,8 +167,10 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         }
       },
       clearCoverPromisesForBook: (bookId) => this.clearCoverPromisesForBook(bookId),
+      reportOperationWarning: (warning) => this.emitOperationWarning(warning),
     };
 
+    this.operationHost = host;
     this.bookOperations = new BookOperations(host);
     this.writebackOperations = new WritebackOperations(host);
     this.bulkBookOperations = new BulkBookOperations(host, this.writebackOperations);
@@ -212,16 +254,146 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return () => this.scanStatusObservers.delete(observer);
   }
 
+  observeOperationWarnings(
+    observer: StorageObserver<ArchiveOperationWarning>,
+  ): StorageSubscription {
+    this.operationWarningObservers.add(observer);
+    return () => this.operationWarningObservers.delete(observer);
+  }
+
   async addEpubFilesToArchive(input: AddArchiveEpubInput): Promise<ArchiveImportResult[]> {
     const scope = this.createArchiveCommandScope();
-    const results = await this.commands.invoke("add_epub_files_to_archive", input, scope.rootPath);
-    if (
-      this.isCurrentArchiveScope(scope) &&
-      results.some((result) => result.status === "imported")
-    ) {
-      await this.rescan({ quiet: true });
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+
+    const response = await this.commands.invoke("add_epub_files_to_archive", input, scope.rootPath);
+    const { results } = response;
+    if (!this.isCurrentArchiveScope(scope)) {
+      return results;
     }
+    reportArchiveCacheWarning(this.operationHost, response);
+    reportImportOutcomeWarnings(
+      (warning) => this.operationHost.reportOperationWarning(warning),
+      results,
+    );
+
+    const outcomePaths = collectImportOutcomePaths(results, response.foldedWatcherChanges ?? []);
+    const { requiredPresentPaths, replacementPaths, scanPaths } = outcomePaths;
+    if (outcomePaths.contractError) {
+      if (this.isCurrentArchiveScope(scope)) {
+        await this.refreshAfterReplacementImport(scope, replacementPaths);
+      }
+      throw outcomePaths.contractError;
+    }
+    if (!scanPaths.length) {
+      return results;
+    }
+
+    let targeted: ArchiveEpubScan;
+    try {
+      targeted = await this.commands.invoke(
+        "scan_archive_epub_paths",
+        { relativePaths: scanPaths },
+        scope.rootPath,
+      );
+    } catch (error) {
+      if (!this.isCurrentArchiveScope(scope)) {
+        return results;
+      }
+      await this.refreshAfterReplacementImport(scope, replacementPaths).catch((rescanError) => {
+        throw new Error("The EPUB files were imported, but the library could not refresh them.", {
+          cause: rescanError ?? error,
+        });
+      });
+      return results;
+    }
+
+    this.assertCurrentArchiveScope(scope);
+    try {
+      await this.commitArchiveDelta(
+        scope,
+        {
+          kind: "scanned-books",
+          books: targeted.books,
+          removedRelativePaths: targeted.missingRelativePaths,
+          warnings: targeted.warnings,
+          replacementRelativePaths: replacementPaths,
+        },
+        {
+          targetedScan: {
+            presenceRule: "scanned-book-required",
+            requiredPresentRelativePaths: requiredPresentPaths,
+            requestedRelativePaths: scanPaths,
+          },
+        },
+      );
+    } catch (error) {
+      if (!this.isCurrentArchiveScope(scope)) {
+        return results;
+      }
+      throw new Error("The EPUB files were imported, but the library could not refresh them.", {
+        cause: error,
+      });
+    }
+
     return results;
+  }
+
+  async applyArchiveWatcherChanges(changeSet: ArchiveWatcherChangeSet): Promise<void> {
+    const scope = this.createArchiveCommandScope();
+    const loading = this.ensureLoadedOrPromise(scope);
+    if (loading) await loading;
+
+    if (this.scanPromise) {
+      await this.rescan({ followUpIfRunning: true, quiet: true });
+      return;
+    }
+
+    const plan = planArchiveWatcherChanges(changeSet);
+    if (plan.kind === "full-scan") {
+      await this.rescan({ followUpIfRunning: true, quiet: true });
+      return;
+    }
+
+    let targeted: ArchiveEpubScan;
+    try {
+      targeted = await this.commands.invoke(
+        "scan_archive_epub_paths",
+        { relativePaths: plan.relativePaths },
+        scope.rootPath,
+      );
+    } catch {
+      if (this.isCurrentArchiveScope(scope)) {
+        await this.rescan({ followUpIfRunning: true, quiet: true });
+      }
+      return;
+    }
+
+    if (!this.isCurrentArchiveScope(scope)) {
+      return;
+    }
+    try {
+      await this.commitArchiveDelta(
+        scope,
+        {
+          kind: "scanned-books",
+          books: targeted.books,
+          removedRelativePaths: targeted.missingRelativePaths,
+          warnings: targeted.warnings,
+        },
+        {
+          targetedScan: {
+            presenceRule: "represented",
+            requestedRelativePaths: plan.relativePaths,
+          },
+        },
+      );
+    } catch (error) {
+      if (!this.isCurrentArchiveScope(scope)) {
+        return;
+      }
+      throw error;
+    }
   }
 
   getBook(id: string): Promise<Book | undefined> {
@@ -501,6 +673,145 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.maintenanceOperations.revealMetadataFolder();
   }
 
+  private async commitArchiveDelta(
+    scope: ArchiveCommandScope,
+    delta: ArchiveModelDelta,
+    options: ArchiveModelCommitOptions = {},
+  ): Promise<ArchiveModelCommitResult> {
+    this.assertCurrentArchiveScope(scope);
+    const activeScan = this.scanPromise;
+    if (activeScan) {
+      await activeScan.catch(() => undefined);
+      this.assertCurrentArchiveScope(scope);
+    }
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const commit = await this.enqueueArchiveModelCommit(scope, async () => {
+        let next;
+        try {
+          let validatedDelta = delta;
+          if (delta.kind === "scanned-books" && options.targetedScan) {
+            const validated = validateTargetedArchiveScan({
+              currentFolders: this.folders,
+              presenceRule: options.targetedScan.presenceRule,
+              requiredPresentRelativePaths: options.targetedScan.requiredPresentRelativePaths,
+              requestedRelativePaths: options.targetedScan.requestedRelativePaths,
+              scan: {
+                books: [...delta.books],
+                missingRelativePaths: [...(delta.removedRelativePaths ?? [])],
+                warnings: delta.warnings ? [...delta.warnings] : undefined,
+              },
+            });
+            validatedDelta = {
+              ...delta,
+              books: validated.books,
+              removedRelativePaths: validated.missingRelativePaths,
+              warnings: validated.warnings,
+            };
+          }
+
+          next = reduceArchiveModel(
+            {
+              books: this.books,
+              folders: this.folders,
+              libraryMetadata: this.libraryMetadata,
+              missingBooks: this.missingBooks,
+              progressMetadata: this.progressMetadata,
+            },
+            validatedDelta,
+            new Date().toISOString(),
+          );
+        } catch (error) {
+          return { kind: "fallback" as const, error };
+        }
+
+        if (next.libraryChanged && next.progressChanged && !next.progressPersistenceDeferred) {
+          return {
+            kind: "persistence-failed" as const,
+            error: new Error(
+              "Archive filesystem deltas cannot synchronously update both metadata sidecars.",
+            ),
+          };
+        }
+
+        try {
+          if (next.libraryChanged) {
+            await this.commands.invoke(
+              "save_library_metadata",
+              { metadata: structuredClone(next.libraryMetadata) },
+              scope.rootPath,
+            );
+          } else if (next.progressChanged && !next.progressPersistenceDeferred) {
+            await this.commands.invoke(
+              "save_progress_metadata",
+              { metadata: structuredClone(next.progressMetadata) },
+              scope.rootPath,
+            );
+          }
+        } catch (error) {
+          return { kind: "persistence-failed" as const, error };
+        }
+
+        if (!this.isCurrentArchiveScope(scope)) {
+          return undefined;
+        }
+        if (next.libraryChanged) {
+          this.libraryMetadata = next.libraryMetadata;
+        }
+        if (next.progressChanged) {
+          this.progressMetadata = next.progressMetadata;
+        }
+        this.books = next.books;
+        this.missingBooks = next.missingBooks;
+        this.folders = next.folders;
+        if (next.booksChanged) this.emitBooks();
+        if (next.foldersChanged) this.emitFolders();
+        return { kind: "committed" as const };
+      });
+
+      if (!commit) {
+        throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
+      }
+      if (commit.kind === "committed") {
+        return { fallbackUsed: false };
+      }
+      if (commit.kind === "persistence-failed") {
+        if (attempt === 0 && this.isCurrentArchiveScope(scope)) {
+          continue;
+        }
+        const causeMessage =
+          commit.error instanceof Error ? commit.error.message : String(commit.error);
+        const error = new Error(
+          `The filesystem operation completed, but archive metadata could not be persisted after recovery: ${causeMessage}`,
+          { cause: commit.error },
+        );
+        error.name = ARCHIVE_DELTA_PERSISTENCE_ERROR_NAME;
+        throw error;
+      }
+
+      try {
+        const replacementPaths =
+          delta.kind === "scanned-books" ? (delta.replacementRelativePaths ?? []) : [];
+        if (replacementPaths.length) {
+          await this.refreshAfterReplacementImport(scope, replacementPaths);
+        } else {
+          await this.rescan({ quiet: true });
+        }
+        this.assertCurrentArchiveScope(scope);
+        return { fallbackUsed: true };
+      } catch (fallbackError) {
+        const validationMessage =
+          commit.error instanceof Error ? commit.error.message : String(commit.error);
+        throw new Error(
+          `The library update could not be validated (${validationMessage}), and the fallback scan failed.`,
+          { cause: fallbackError },
+        );
+      }
+    }
+
+    throw new Error("Archive delta commit exhausted its recovery attempts.");
+  }
+
   private async performQueuedScans(generation: number): Promise<void> {
     do {
       this.followUpScanQueued = false;
@@ -521,56 +832,105 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     });
   }
 
-  private async performScan(generation: number): Promise<void> {
-    const wasLoaded = this.loaded;
-    const rootPath = this.archiveRootPath;
-    try {
-      const scan = await this.commands.invoke("scan_archive", undefined, rootPath);
-      const reconciled = await this.enqueueMetadataIo(async () => {
-        const metadata = await this.commands.invoke("load_archive_metadata", undefined, rootPath);
-
-        if (this.generation !== generation) {
-          return undefined;
-        }
-
-        const next = reconcileLibraryState({
-          previousBooks: this.books,
-          previousFolders: this.folders,
-          libraryMetadata: metadata.library,
-          progressMetadata: metadata.progress,
-          scan,
-          timestamp: new Date().toISOString(),
-        });
-
-        if (next.libraryChanged) {
-          await this.commands.invoke(
-            "save_library_metadata",
-            { metadata: structuredClone(next.libraryMetadata) },
-            rootPath,
-          );
-        }
-
-        if (this.generation !== generation) {
-          return undefined;
-        }
-
-        this.libraryMetadata = next.libraryMetadata;
-        this.progressMetadata = metadata.progress;
-        this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
-        this.books = next.books;
-        this.missingBooks = next.missingBooks;
-        this.folders = next.folders;
-        return next;
-      }, generation);
-
-      if (!reconciled || this.generation !== generation) {
-        return;
+  private async commitFullScan(
+    scope: ArchiveCommandScope,
+    scan: ArchiveScan,
+    replacementRelativePaths: readonly string[] = [],
+  ): Promise<boolean> {
+    const committed = await this.enqueueArchiveModelCommit(scope, async () => {
+      const metadata = await this.commands.invoke(
+        "load_archive_metadata",
+        undefined,
+        scope.rootPath,
+      );
+      if (!this.isCurrentArchiveScope(scope)) {
+        return false;
       }
 
+      const retirement = retireReplacementPathIdentities(
+        metadata.library,
+        replacementRelativePaths,
+        scan.books.map((book) => book.relativePath),
+      );
+      const sanitizedProgress = sanitizeProgressMetadataForLibrary(
+        metadata.progress,
+        retirement.libraryMetadata,
+      );
+      const wasLoaded = this.loaded;
+      const next = reconcileLibraryState({
+        previousBooks: retirement.retiredBookIds.size
+          ? this.books.filter((book) => !retirement.retiredBookIds.has(book.id))
+          : this.books,
+        previousFolders: this.folders,
+        libraryMetadata: retirement.libraryMetadata,
+        progressMetadata: sanitizedProgress.metadata,
+        scan,
+        timestamp: new Date().toISOString(),
+      });
+
+      if (next.libraryChanged || retirement.retiredBookIds.size > 0) {
+        await this.commands.invoke(
+          "save_library_metadata",
+          { metadata: structuredClone(next.libraryMetadata) },
+          scope.rootPath,
+        );
+      }
+
+      if (sanitizedProgress.changed) {
+        try {
+          await this.commands.invoke(
+            "save_progress_metadata",
+            { metadata: structuredClone(sanitizedProgress.metadata) },
+            scope.rootPath,
+          );
+        } catch (error) {
+          console.warn(
+            "Orphan reading progress could not be persisted and will be retried by a later repair scan.",
+            error,
+          );
+        }
+      }
+      if (!this.isCurrentArchiveScope(scope)) {
+        return false;
+      }
+
+      this.libraryMetadata = next.libraryMetadata;
+      this.progressMetadata = sanitizedProgress.metadata;
+      this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
+      this.books = next.books;
+      this.missingBooks = next.missingBooks;
+      this.folders = next.folders;
       this.loaded = true;
-      if (!wasLoaded || reconciled.booksChanged) this.emitBooks();
-      if (!wasLoaded || reconciled.foldersChanged) this.emitFolders();
+      if (!wasLoaded || next.booksChanged) this.emitBooks();
+      if (!wasLoaded || next.foldersChanged) this.emitFolders();
+      return true;
+    });
+
+    return Boolean(committed && this.isCurrentArchiveScope(scope));
+  }
+
+  private async refreshAfterReplacementImport(
+    scope: ArchiveCommandScope,
+    replacementRelativePaths: readonly string[],
+  ): Promise<void> {
+    this.assertCurrentArchiveScope(scope);
+    const scan = await this.commands.invoke("scan_archive", undefined, scope.rootPath);
+    const committed = await this.commitFullScan(scope, scan, replacementRelativePaths);
+    if (!committed) {
+      throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
+    }
+  }
+
+  private async performScan(generation: number): Promise<void> {
+    const rootPath = this.archiveRootPath;
+    const scope: ArchiveCommandScope = { generation, rootPath };
+    try {
+      const scan = await this.commands.invoke("scan_archive", undefined, rootPath);
+      await this.commitFullScan(scope, scan);
     } catch (error) {
+      if (this.generation !== generation) {
+        return;
+      }
       if (!this.loaded) {
         this.loaded = true;
         this.emitBooks();
@@ -613,6 +973,10 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return undefined;
   }
 
+  private emitOperationWarning(warning: ArchiveOperationWarning): void {
+    this.operationWarningObservers.forEach((observer) => observer.next(warning));
+  }
+
   private emitBooks(): void {
     const books = [...this.books];
     this.bookObservers.forEach((observer) => observer.next(books));
@@ -638,41 +1002,79 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.scanStatusObservers.forEach((observer) => observer.next(status));
   }
 
+  private enqueueArchiveModelCommit<T>(
+    scope: ArchiveCommandScope,
+    operation: () => Promise<T>,
+  ): Promise<T | undefined> {
+    return this.enqueueMetadataIo(async () => {
+      this.assertCurrentArchiveScope(scope);
+      return operation();
+    }, scope.generation);
+  }
+
   private enqueueMetadataIo<T>(
     operation: () => Promise<T>,
     generation = this.generation,
   ): Promise<T | undefined> {
-    const pending = this.metadataIoQueue.then(async () => {
+    const pending = this.archiveStateQueue.then(async () => {
       if (this.generation !== generation) {
         return undefined;
       }
       return operation();
     });
-    this.metadataIoQueue = pending.then(
+    this.archiveStateQueue = pending.then(
       () => undefined,
       () => undefined,
     );
     return pending;
   }
 
-  private async saveMetadata(
+  private async commitArchiveStateMutation<T>(
     scope: ArchiveCommandScope,
-    selection: MetadataWriteSelection,
-  ): Promise<void> {
-    const library = selection.library ? structuredClone(this.libraryMetadata) : undefined;
-    const progress = selection.progress ? structuredClone(this.progressMetadata) : undefined;
-    await this.enqueueMetadataIo(async () => {
-      if (library) {
-        await this.commands.invoke("save_library_metadata", { metadata: library }, scope.rootPath);
+    mutation: (snapshot: ArchiveStateMutationSnapshot) => ArchiveStateMutationResult<T>,
+  ): Promise<T | undefined> {
+    const committed = await this.enqueueArchiveModelCommit(scope, async () => {
+      const next = mutation({
+        books: this.books,
+        libraryMetadata: this.libraryMetadata,
+        progressMetadata: this.progressMetadata,
+      });
+
+      if (next.libraryChanged) {
+        await this.commands.invoke(
+          "save_library_metadata",
+          { metadata: structuredClone(next.libraryMetadata) },
+          scope.rootPath,
+        );
+        if (!this.isCurrentArchiveScope(scope)) {
+          return { committed: false as const };
+        }
       }
-      if (progress) {
+      if (next.progressChanged) {
         await this.commands.invoke(
           "save_progress_metadata",
-          { metadata: progress },
+          { metadata: structuredClone(next.progressMetadata) },
           scope.rootPath,
         );
       }
-    }, scope.generation);
+
+      if (!this.isCurrentArchiveScope(scope)) {
+        return { committed: false as const };
+      }
+      if (next.libraryChanged) {
+        this.libraryMetadata = next.libraryMetadata;
+      }
+      if (next.progressChanged) {
+        this.progressMetadata = next.progressMetadata;
+      }
+      if (next.booksChanged) {
+        this.books = [...next.books];
+        this.emitBooks();
+      }
+      return { committed: true as const, result: next.result };
+    });
+
+    return committed?.committed ? committed.result : undefined;
   }
 
   private async loadSettingsMetadataOnly(

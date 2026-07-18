@@ -9,7 +9,7 @@ import {
   setupDefaultStorageMock,
 } from "./tauri/storageTestSupport";
 import { TauriArchiveLibraryStorage } from "./TauriArchiveLibraryStorage";
-import type { LibraryMetadata } from "./metadataFiles";
+import type { LibraryMetadata, ProgressMetadata } from "./metadataFiles";
 
 describe("TauriArchiveLibraryStorage scan and archive session", () => {
   beforeEach(setupDefaultStorageMock);
@@ -585,8 +585,9 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     expect(statuses).toEqual(["idle", "scanning", "idle"]);
   });
 
-  it("keeps import-triggered refreshes quiet while returning import results", async () => {
-    invokeMock.mockImplementation(async (command) => {
+  it("keeps imports with normalized internal transaction renames on targeted reconciliation", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    invokeMock.mockImplementation(async (command, args) => {
       if (command === "scan_archive") {
         return firstScan;
       }
@@ -594,18 +595,45 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
         return structuredClone(metadata);
       }
       if (command === "add_epub_files_to_archive") {
-        return [
-          {
-            status: "imported",
-            fileName: "New.epub",
-            relativePath: "New.epub",
-            sourcePath: "C:/Incoming/New.epub",
+        return {
+          foldedWatcherChanges: [],
+          cacheWarning: {
+            message: "Imported paths were invalidated durably.",
+            repairRequired: false,
           },
-        ];
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        expect(args).toEqual({ relativePaths: ["New.epub"] });
+        return {
+          books: [
+            {
+              discoveryId: "new-book",
+              relativePath: "New.epub",
+              fileName: "New.epub",
+              folderPath: "",
+              size: 1024,
+              modifiedAt: 1_700_000_010_000,
+              sourceMetadata: { title: "New" },
+            },
+          ],
+          missingRelativePaths: [],
+          warnings: [],
+        };
       }
       return undefined;
     });
     const storage = new TauriArchiveLibraryStorage();
+    const surfaced: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
     await storage.listBooks();
     const statuses: string[] = [];
     storage.observeScanStatus({
@@ -621,7 +649,481 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
 
     expect(results).toMatchObject([{ status: "imported", fileName: "New.epub" }]);
     expect(statuses).toEqual(["idle"]);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(1);
+    await expect(storage.listBooks()).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ relativePath: "New.epub" })]),
+    );
+    expect(warning).toHaveBeenCalledWith("Imported paths were invalidated durably.");
+    expect(surfaced).toEqual([
+      {
+        kind: "scanner-cache",
+        message: "Imported paths were invalidated durably.",
+        repairRequired: false,
+      },
+    ]);
+    warning.mockRestore();
+  });
+
+  it("does not scan a failed replacement whose original destination was restored", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "failed",
+              fileName: "Volume_01.epub",
+              sourcePath: "C:/Incoming/Volume_01.epub",
+              message: "The replacement EPUB could not be placed in the archive.",
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const results = await storage.addEpubFilesToArchive({
+      conflictAction: "replace",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/Volume_01.epub"],
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        message: "The replacement EPUB could not be placed in the archive.",
+      }),
+    ]);
+    expect(
+      invokeMock.mock.calls.some(
+        ([command]) => command === "scan_archive_epub_paths" || command === "scan_archive",
+      ),
+    ).toBe(false);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      isFavorite: true,
+      progressPercent: 42,
+      isFileMissing: false,
+    });
+  });
+
+  it("target-scans a failed replacement whose rollback left the destination missing", async () => {
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          foldedWatcherChanges: [
+            { kind: "remove", relativePaths: ["Author/Series/Volume_01.epub"] },
+          ],
+          results: [
+            {
+              status: "failed",
+              fileName: "Volume_01.epub",
+              sourcePath: "C:/Incoming/Volume_01.epub",
+              message:
+                "The original EPUB could not be restored. Its replacement backup remains available for recovery.",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        expect(args).toEqual({ relativePaths: ["Author/Series/Volume_01.epub"] });
+        return {
+          books: [],
+          missingRelativePaths: ["Author/Series/Volume_01.epub"],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const results = await storage.addEpubFilesToArchive({
+      conflictAction: "replace",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/Volume_01.epub"],
+    });
+
+    expect(results).toEqual([
+      expect.objectContaining({
+        status: "failed",
+        message: expect.stringContaining("replacement backup remains available"),
+      }),
+    ]);
+    expect(results[0].replacedExisting).not.toBe(true);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    await expect(storage.listBooks()).resolves.not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ relativePath: "Author/Series/Volume_01.epub" }),
+      ]),
+    );
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      isFavorite: true,
+      progressPercent: 42,
+      isFileMissing: true,
+    });
+  });
+
+  it("falls back to one quiet complete scan when targeted import refresh fails", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return scanCount === 1
+          ? firstScan
+          : {
+              ...firstScan,
+              books: [
+                ...firstScan.books,
+                {
+                  discoveryId: "new-book",
+                  relativePath: "New.epub",
+                  fileName: "New.epub",
+                  folderPath: "",
+                  size: 1024,
+                  modifiedAt: 1_700_000_010_000,
+                },
+              ],
+            };
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        throw new Error("targeted scan failed");
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
     expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    await expect(storage.listBooks()).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ relativePath: "New.epub" })]),
+    );
+  });
+
+  it("falls back when a successful import is reported missing by the targeted scan", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return scanCount === 1
+          ? structuredClone(firstScan)
+          : {
+              ...structuredClone(firstScan),
+              books: [
+                ...structuredClone(firstScan.books),
+                {
+                  discoveryId: "new-book",
+                  relativePath: "New.epub",
+                  fileName: "New.epub",
+                  folderPath: "",
+                  size: 1024,
+                  modifiedAt: 1_700_000_010_000,
+                },
+              ],
+            };
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        return {
+          books: [],
+          missingRelativePaths: ["New.epub"],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const results = await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
+    expect(results).toMatchObject([{ status: "imported", relativePath: "New.epub" }]);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    await expect(storage.listBooks()).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ relativePath: "New.epub" })]),
+    );
+  });
+
+  it("does not let a folded create weaken successful import presence", async () => {
+    let fullScanCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") {
+        fullScanCount += 1;
+        return fullScanCount === 1
+          ? structuredClone(firstScan)
+          : {
+              ...structuredClone(firstScan),
+              books: [
+                ...structuredClone(firstScan.books),
+                {
+                  discoveryId: "new-book",
+                  relativePath: "New.epub",
+                  fileName: "New.epub",
+                  folderPath: "",
+                  size: 1024,
+                  modifiedAt: 1_700_000_010_000,
+                },
+              ],
+            };
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          foldedWatcherChanges: [
+            { kind: "create", relativePaths: ["New.epub"] },
+            { kind: "create", relativePaths: ["New.epub"] },
+          ],
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        expect(args).toEqual({ relativePaths: ["New.epub"] });
+        return {
+          books: [],
+          missingRelativePaths: ["New.epub"],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(1);
+    await expect(storage.listBooks()).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ relativePath: "New.epub" })]),
+    );
+  });
+
+  it("allows a folded remove to reconcile a successful import as missing", async () => {
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          foldedWatcherChanges: [{ kind: "remove", relativePaths: ["New.epub"] }],
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        expect(args).toEqual({ relativePaths: ["New.epub"] });
+        return { books: [], missingRelativePaths: ["New.epub"], warnings: [] };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(1);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+  });
+
+  it("reconciles a later same-path watcher modification after the import scan", async () => {
+    let targetedCall = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        targetedCall += 1;
+        return {
+          books: [
+            {
+              discoveryId: "new-book",
+              relativePath: "New.epub",
+              fileName: "New.epub",
+              folderPath: "",
+              size: targetedCall === 1 ? 1_024 : 2_048,
+              modifiedAt: targetedCall === 1 ? 1_700_000_010_000 : 1_700_000_020_000,
+              sourceMetadata: {
+                title: targetedCall === 1 ? "Imported" : "Externally changed",
+              },
+            },
+          ],
+          missingRelativePaths: [],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+    await storage.applyArchiveWatcherChanges({
+      changes: [{ kind: "modify", relativePaths: ["New.epub"] }],
+    });
+
+    expect(targetedCall).toBe(2);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    await expect(storage.getBook("new-book")).resolves.toMatchObject({
+      size: 2_048,
+      sourceMetadata: { title: "Externally changed" },
+    });
+  });
+
+  it("reconciles a same-path deletion delivered after the import scan", async () => {
+    let targetedCall = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        targetedCall += 1;
+        return targetedCall === 1
+          ? {
+              books: [
+                {
+                  discoveryId: "new-book",
+                  relativePath: "New.epub",
+                  fileName: "New.epub",
+                  folderPath: "",
+                  size: 1_024,
+                  modifiedAt: 1_700_000_010_000,
+                },
+              ],
+              missingRelativePaths: [],
+              warnings: [],
+            }
+          : {
+              books: [],
+              missingRelativePaths: ["New.epub"],
+              warnings: [],
+            };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await storage.addEpubFilesToArchive({
+      conflictAction: "skip",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+    await storage.applyArchiveWatcherChanges({
+      changes: [{ kind: "remove", relativePaths: ["New.epub"] }],
+    });
+
+    expect(targetedCall).toBe(2);
+    expect(invokeMock.mock.calls.some(([command]) => command === "scan_archive")).toBe(false);
+    await expect(storage.getBook("new-book")).resolves.toMatchObject({ isFileMissing: true });
+    await expect(storage.listBooks()).resolves.not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ relativePath: "New.epub" })]),
+    );
   });
 
   it.each([
@@ -640,5 +1142,466 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     const { rootPath, storage } = await scopedStorage();
     await operation(storage).catch(() => undefined);
     expectCommandRootPath(command, rootPath);
+  });
+});
+
+describe("orphan progress identity safety", () => {
+  beforeEach(setupDefaultStorageMock);
+
+  function staleMetadataBundle() {
+    const staleMetadata = structuredClone(metadata) as unknown as {
+      library: LibraryMetadata;
+      progress: ProgressMetadata;
+      settings: typeof metadata.settings;
+    };
+    staleMetadata.library.books = {};
+    staleMetadata.progress.progress["book-1"] = {
+      percent: 72,
+      cfi: "epubcfi(/6/4)",
+      lastOpenedAt: "2026-07-16T12:00:00.000Z",
+    };
+    return staleMetadata;
+  }
+
+  it("sanitizes stale progress before a replacement discovery is reconciled on startup", async () => {
+    const staleMetadata = staleMetadataBundle();
+    const saveProgress = vi.fn();
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(staleMetadata);
+      if (command === "save_progress_metadata") {
+        saveProgress((args as { metadata: ProgressMetadata }).metadata);
+      }
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    const books = await storage.listBooks();
+
+    expect(books[0]).toMatchObject({
+      id: "book-1",
+      progressPercent: undefined,
+      progressCfi: undefined,
+      lastOpenedAt: undefined,
+    });
+    expect(saveProgress).toHaveBeenCalledWith({ version: 1, progress: {} });
+  });
+
+  it("keeps sanitized progress in memory when cleanup persistence fails", async () => {
+    const staleMetadata = staleMetadataBundle();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(staleMetadata);
+      if (command === "save_progress_metadata") throw new Error("progress save unavailable");
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    const books = await storage.listBooks();
+
+    expect(books[0]).toMatchObject({
+      progressPercent: undefined,
+      progressCfi: undefined,
+      lastOpenedAt: undefined,
+    });
+    expect(warning).toHaveBeenCalledWith(
+      "Orphan reading progress could not be persisted and will be retried by a later repair scan.",
+      expect.any(Error),
+    );
+    warning.mockRestore();
+  });
+
+  it("sanitizes the same stale disk progress again after a simulated restart", async () => {
+    const staleMetadata = staleMetadataBundle();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(staleMetadata);
+      if (command === "save_progress_metadata") throw new Error("progress save unavailable");
+      return undefined;
+    });
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const firstStorage = new TauriArchiveLibraryStorage();
+    const replacementStorage = new TauriArchiveLibraryStorage();
+
+    await expect(firstStorage.listBooks()).resolves.toMatchObject([{ progressPercent: undefined }]);
+    await expect(replacementStorage.listBooks()).resolves.toMatchObject([
+      { progressPercent: undefined },
+    ]);
+    vi.restoreAllMocks();
+  });
+
+  it("preserves progress still owned by library metadata while pruning unrelated entries", async () => {
+    const ownedMetadata = structuredClone(metadata) as unknown as {
+      library: LibraryMetadata;
+      progress: ProgressMetadata;
+      settings: typeof metadata.settings;
+    };
+    ownedMetadata.progress.progress["orphan-book"] = { percent: 88 };
+    let savedProgress: ProgressMetadata | undefined;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(ownedMetadata);
+      if (command === "save_progress_metadata") {
+        savedProgress = (args as { metadata: ProgressMetadata }).metadata;
+      }
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    const books = await storage.listBooks();
+
+    expect(books[0].progressPercent).toBe(42);
+    expect(savedProgress).toEqual({
+      version: 1,
+      progress: { "book-1": ownedMetadata.progress.progress["book-1"] },
+    });
+  });
+});
+
+describe("replacement import identity", () => {
+  beforeEach(setupDefaultStorageMock);
+
+  it.each([
+    ["different discovery id", "replacement-book"],
+    ["colliding discovery id", "book-1"],
+  ])(
+    "retires the destination identity for a true replacement with %s",
+    async (_case, discoveryId) => {
+      const replacementScan = {
+        books: [
+          {
+            discoveryId,
+            relativePath: "Author/Series/Volume_01.epub",
+            fileName: "Volume_01.epub",
+            folderPath: "Author/Series",
+            size: 2048,
+            modifiedAt: 1_700_000_000_000,
+            sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+          },
+        ],
+        missingRelativePaths: [],
+        warnings: [],
+      };
+      let savedLibrary: LibraryMetadata | undefined;
+      const saveProgress = vi.fn();
+      invokeMock.mockImplementation(async (command, args) => {
+        if (command === "scan_archive") return structuredClone(firstScan);
+        if (command === "load_archive_metadata") return structuredClone(metadata);
+        if (command === "add_epub_files_to_archive") {
+          return {
+            results: [
+              {
+                status: "imported",
+                fileName: "Volume_01.epub",
+                relativePath: "Author/Series/Volume_01.epub",
+                replacedExisting: true,
+                sourcePath: "C:/Incoming/Volume_01.epub",
+              },
+            ],
+          };
+        }
+        if (command === "scan_archive_epub_paths") return structuredClone(replacementScan);
+        if (command === "save_library_metadata") {
+          savedLibrary = structuredClone((args as { metadata: LibraryMetadata }).metadata);
+        }
+        if (command === "save_progress_metadata") saveProgress();
+        return undefined;
+      });
+
+      const storage = new TauriArchiveLibraryStorage();
+      await storage.listBooks();
+      const oldBook = (await storage.listBooks())[0];
+
+      await storage.addEpubFilesToArchive({
+        conflictAction: "replace",
+        mode: "copy",
+        sourcePaths: ["C:/Incoming/Volume_01.epub"],
+      });
+
+      const replacement = (await storage.listBooks())[0];
+      expect(replacement).not.toBe(oldBook);
+      expect(replacement).toMatchObject({
+        id: discoveryId,
+        relativePath: "Author/Series/Volume_01.epub",
+        isFavorite: false,
+        progressPercent: undefined,
+        progressCfi: undefined,
+        lastOpenedAt: undefined,
+        sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+      });
+      expect(savedLibrary?.books[discoveryId]).toMatchObject({
+        isFavorite: false,
+        sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+      });
+      expect(saveProgress).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not retire identity for an automatically renamed import", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "Volume_01 (2).epub",
+              relativePath: "Author/Series/Volume_01 (2).epub",
+              replacedExisting: false,
+              sourcePath: "C:/Incoming/Volume_01.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        return {
+          books: [
+            {
+              discoveryId: "new-book",
+              relativePath: "Author/Series/Volume_01 (2).epub",
+              fileName: "Volume_01 (2).epub",
+              folderPath: "Author/Series",
+              size: 999,
+              modifiedAt: 1_700_000_050_000,
+            },
+          ],
+          missingRelativePaths: [],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    await storage.addEpubFilesToArchive({
+      conflictAction: "keepBoth",
+      mode: "copy",
+      sourcePaths: ["C:/Incoming/Volume_01.epub"],
+    });
+
+    const books = await storage.listBooks();
+    expect(books.find((book) => book.id === "book-1")).toMatchObject({
+      isFavorite: true,
+      progressPercent: 42,
+    });
+    expect(books.find((book) => book.id === "new-book")).toMatchObject({
+      isFavorite: false,
+      progressPercent: undefined,
+    });
+  });
+});
+
+it("retires replacement identity when targeted import refresh falls back to a full scan", async () => {
+  setupDefaultStorageMock();
+  let scanCount = 0;
+  invokeMock.mockImplementation(async (command) => {
+    if (command === "scan_archive") {
+      scanCount += 1;
+      return scanCount === 1
+        ? structuredClone(firstScan)
+        : {
+            ...structuredClone(firstScan),
+            books: [
+              {
+                ...structuredClone(firstScan.books[0]),
+                discoveryId: "book-1",
+                sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+              },
+            ],
+          };
+    }
+    if (command === "load_archive_metadata") return structuredClone(metadata);
+    if (command === "add_epub_files_to_archive") {
+      return {
+        results: [
+          {
+            status: "imported",
+            fileName: "Volume_01.epub",
+            relativePath: "Author/Series/Volume_01.epub",
+            replacedExisting: true,
+            sourcePath: "C:/Incoming/Volume_01.epub",
+          },
+        ],
+      };
+    }
+    if (command === "scan_archive_epub_paths") throw new Error("targeted scan unavailable");
+    return undefined;
+  });
+
+  const storage = new TauriArchiveLibraryStorage();
+  await storage.listBooks();
+  await storage.addEpubFilesToArchive({
+    conflictAction: "replace",
+    mode: "copy",
+    sourcePaths: ["C:/Incoming/Volume_01.epub"],
+  });
+
+  expect((await storage.listBooks())[0]).toMatchObject({
+    id: "book-1",
+    isFavorite: false,
+    progressPercent: undefined,
+    progressCfi: undefined,
+    lastOpenedAt: undefined,
+    sourceMetadata: { identifier: "urn:replacement", title: "Replacement" },
+  });
+  expect(invokeMock.mock.calls.filter(([command]) => command === "scan_archive")).toHaveLength(2);
+});
+
+describe("native import outcome finalization", () => {
+  beforeEach(setupDefaultStorageMock);
+
+  it("reconciles a move import when source cleanup fails and reports a warning", async () => {
+    const warnings: Array<{ message: string; repairRequired: boolean }> = [];
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return structuredClone(firstScan);
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              replacedExisting: false,
+              sourcePath: "C:/Incoming/New.epub",
+              sourceCleanupWarning:
+                "The EPUB was imported, but the original source could not be removed and remains outside the archive.",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        return {
+          books: [
+            {
+              discoveryId: "new-book",
+              relativePath: "New.epub",
+              fileName: "New.epub",
+              folderPath: "",
+              size: 10,
+              modifiedAt: 10,
+            },
+          ],
+          missingRelativePaths: [],
+          warnings: [],
+        };
+      }
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    storage.observeOperationWarnings({ next: (warning) => warnings.push(warning) });
+    await storage.listBooks();
+    const results = await storage.addEpubFilesToArchive({
+      conflictAction: "keepBoth",
+      mode: "move",
+      sourcePaths: ["C:/Incoming/New.epub"],
+    });
+
+    expect(results[0].status).toBe("imported");
+    expect((await storage.listBooks()).some((book) => book.id === "new-book")).toBe(true);
+    expect(warnings).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining("original source could not be removed"),
+        repairRequired: false,
+      }),
+    ]);
+  });
+
+  it("runs one safe full scan for contradictory duplicate native paths", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return structuredClone(firstScan);
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          results: [
+            {
+              status: "imported",
+              fileName: "Volume_01.epub",
+              relativePath: "Author/Series/Volume_01.epub",
+              replacedExisting: true,
+              sourcePath: "C:/Incoming A/Volume_01.epub",
+            },
+            {
+              status: "imported",
+              fileName: "Volume_01.epub",
+              relativePath: "author\\series\\volume_01.epub",
+              replacedExisting: true,
+              sourcePath: "C:/Incoming B/Volume_01.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        throw new Error("targeted scan must not run for contradictory results");
+      }
+      return undefined;
+    });
+
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    await expect(
+      storage.addEpubFilesToArchive({
+        conflictAction: "replace",
+        mode: "copy",
+        sourcePaths: ["C:/Incoming A/Volume_01.epub", "C:/Incoming B/Volume_01.epub"],
+      }),
+    ).rejects.toThrow("internally contradictory");
+
+    expect(scanCount).toBe(2);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(0);
+  });
+
+  it("uses one full repair scan without reusing an ambiguous folded change", async () => {
+    let scanCount = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return structuredClone(firstScan);
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "add_epub_files_to_archive") {
+        return {
+          foldedWatcherChanges: [{ kind: "unknown", relativePaths: ["New.epub"] }],
+          results: [
+            {
+              status: "imported",
+              fileName: "New.epub",
+              relativePath: "New.epub",
+              sourcePath: "C:/Incoming/New.epub",
+            },
+          ],
+        };
+      }
+      if (command === "scan_archive_epub_paths") {
+        throw new Error("ambiguous folded changes must not reach targeted validation");
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+
+    await expect(
+      storage.addEpubFilesToArchive({
+        conflictAction: "skip",
+        mode: "copy",
+        sourcePaths: ["C:/Incoming/New.epub"],
+      }),
+    ).rejects.toThrow("internally contradictory");
+
+    expect(scanCount).toBe(2);
+    expect(
+      invokeMock.mock.calls.filter(([command]) => command === "scan_archive_epub_paths"),
+    ).toHaveLength(0);
   });
 });

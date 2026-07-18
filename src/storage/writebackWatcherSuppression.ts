@@ -76,27 +76,6 @@ function upsertSuppression(
   return next;
 }
 
-export function archiveRelativePathFromAbsolutePath(
-  archiveRootPath: string | null | undefined,
-  absolutePath: string | null | undefined,
-): string | undefined {
-  if (!archiveRootPath || !absolutePath) {
-    return undefined;
-  }
-
-  const normalizedRoot = normalizePathForComparison(archiveRootPath);
-  const normalizedAbsolute = normalizePathForComparison(absolutePath);
-  if (normalizedAbsolute === normalizedRoot) {
-    return "";
-  }
-
-  if (!normalizedAbsolute.startsWith(`${normalizedRoot}/`)) {
-    return undefined;
-  }
-
-  return normalizeRelativePath(absolutePath.replaceAll("\\", "/").slice(normalizedRoot.length + 1));
-}
-
 export function beginWritebackWatcherSuppression(
   archiveRootPath: string | null | undefined,
   relativePath: string | null | undefined,
@@ -167,7 +146,11 @@ export function shouldSuppressWritebackWatcherEvent(
     }
 
     const suppressedPath = normalizeRelativePathForComparison(entry.relativePath);
-    if (eventPath === suppressedPath || eventPath === normalizedParentPath(suppressedPath)) {
+    if (
+      eventPath === suppressedPath ||
+      eventPath === normalizedParentPath(suppressedPath) ||
+      eventPath.startsWith(`${suppressedPath}/`)
+    ) {
       return true;
     }
   }

@@ -1,6 +1,6 @@
 import type { Book, BulkMetadataEditInput, EpubMetadataWritebackInput } from "../../types/book";
 import { metadataAfterBulkEdit, previewBulkMetadataBookEdit } from "../bulkMetadata";
-import type { ArchivePathChange, BulkActionResult } from "../LibraryStorage";
+import type { ArchiveCacheWarning, ArchivePathChange, BulkActionResult } from "../LibraryStorage";
 import type { WritebackOperations } from "./writebackOperations";
 import {
   ARCHIVE_CHANGED_ERROR_MESSAGE,
@@ -8,8 +8,9 @@ import {
   WatcherSuppressionGroup,
   bulkErrorMessage,
   indexBooksById,
+  reportAggregatedArchiveCacheWarnings,
+  reportArchiveMetadataRecoveryWarning,
   requireFolder,
-  updateBookMetadataPath,
 } from "./operationTypes";
 
 type BulkMetadataWorkItem =
@@ -61,6 +62,7 @@ export class BulkBookOperations {
       : undefined;
     const booksById = indexBooksById(this.host.getBooks());
     const changes: Array<{ id: string; change: ArchivePathChange }> = [];
+    const cacheWarnings: ArchivePathChange[] = [];
     const suppression = new WatcherSuppressionGroup(scope.rootPath);
 
     try {
@@ -93,6 +95,7 @@ export class BulkBookOperations {
             scope.rootPath,
           );
           suppression.addPath(change.newRelativePath);
+          cacheWarnings.push(change);
           changes.push({ id, change });
           result.succeeded.push({ bookId: id });
         } catch (error) {
@@ -101,14 +104,14 @@ export class BulkBookOperations {
       }
 
       if (changes.length && this.host.isCurrentScope(scope)) {
-        const timestamp = new Date().toISOString();
-        for (const { id, change } of changes) {
-          updateBookMetadataPath(this.host, id, change.newRelativePath, timestamp);
-        }
         try {
-          await this.host.saveMetadata(scope, { library: true });
-          this.host.assertCurrentScope(scope);
-          await this.host.rescan({ quiet: true });
+          await this.host.applyArchiveDelta(scope, {
+            kind: "book-paths",
+            changes: changes.map(({ id, change }) => ({
+              bookId: id,
+              newRelativePath: change.newRelativePath,
+            })),
+          });
         } catch (error) {
           const message = `The EPUB was moved, but the library could not reconcile it. ${bulkErrorMessage(error)}`;
           const movedIds = new Set(changes.map(({ id }) => id));
@@ -116,6 +119,7 @@ export class BulkBookOperations {
           result.failed.push(...[...movedIds].map((bookId) => ({ bookId, message })));
         }
       }
+      reportAggregatedArchiveCacheWarnings(this.host, cacheWarnings);
       return result;
     } finally {
       suppression.finish();
@@ -126,54 +130,109 @@ export class BulkBookOperations {
     const scope = this.host.createScope();
     const loading = this.host.ensureLoadedOrPromise(scope);
     if (loading) await loading;
-    const result = createBulkResult(ids.length);
-    const booksById = indexBooksById(this.host.getBooks());
-    const metadataBefore = structuredClone(this.host.getLibraryMetadata());
-    const timestamp = new Date().toISOString();
-    const changedIds: string[] = [];
 
-    for (const id of ids) {
-      const book = booksById.get(id);
-      const entry = this.host.getLibraryMetadata().books[id];
-      if (!book || !entry) {
-        result.skipped.push({ bookId: id, reason: "The book is no longer in the library." });
-      } else if (book.isFavorite === isFavorite) {
-        result.skipped.push({
-          bookId: id,
-          reason: isFavorite ? "Already a favorite." : "Not a favorite.",
-        });
-      } else {
-        this.host.getLibraryMetadata().books[id] = { ...entry, isFavorite, updatedAt: timestamp };
-        changedIds.push(id);
+    let plannedResult: BulkActionResult | undefined;
+    try {
+      const committed = await this.host.commitArchiveStateMutation(
+        scope,
+        ({ books, libraryMetadata, progressMetadata }) => {
+          const result = createBulkResult(ids.length);
+          const booksById = indexBooksById(books);
+          const changedIds: string[] = [];
+
+          for (const id of ids) {
+            const book = booksById.get(id);
+            const entry = libraryMetadata.books[id];
+            if (!book || !entry) {
+              result.skipped.push({
+                bookId: id,
+                reason: "The book is no longer in the library.",
+              });
+            } else if (book.isFavorite === isFavorite) {
+              result.skipped.push({
+                bookId: id,
+                reason: isFavorite ? "Already a favorite." : "Not a favorite.",
+              });
+            } else {
+              changedIds.push(id);
+            }
+          }
+
+          if (!changedIds.length) {
+            plannedResult = result;
+            return {
+              books,
+              booksChanged: false,
+              libraryMetadata,
+              libraryChanged: false,
+              progressMetadata,
+              progressChanged: false,
+              result,
+            };
+          }
+
+          const timestamp = new Date().toISOString();
+          const changed = new Set(changedIds);
+          const nextEntries = { ...libraryMetadata.books };
+          for (const id of changedIds) {
+            nextEntries[id] = {
+              ...nextEntries[id],
+              isFavorite,
+              updatedAt: timestamp,
+            };
+          }
+
+          const nextBooks = books.map((book) =>
+            changed.has(book.id) ? { ...book, isFavorite, updatedAt: timestamp } : book,
+          );
+          result.succeeded.push(...changedIds.map((bookId) => ({ bookId })));
+          plannedResult = result;
+
+          return {
+            books: nextBooks,
+            booksChanged: true,
+            libraryMetadata: {
+              ...libraryMetadata,
+              books: nextEntries,
+            },
+            libraryChanged: true,
+            progressMetadata,
+            progressChanged: false,
+            result,
+          };
+        },
+      );
+
+      if (committed) {
+        return committed;
       }
-    }
 
-    if (!changedIds.length) {
+      const result = plannedResult ?? createBulkResult(ids.length);
+      const failedIds = result.succeeded.length
+        ? result.succeeded.map(({ bookId }) => bookId)
+        : ids.filter((id) => !result.skipped.some(({ bookId }) => bookId === id));
+      result.succeeded = [];
+      result.failed.push(
+        ...failedIds.map((bookId) => ({
+          bookId,
+          message: ARCHIVE_CHANGED_ERROR_MESSAGE,
+        })),
+      );
+      return result;
+    } catch (error) {
+      const result = plannedResult ?? createBulkResult(ids.length);
+      const failedIds = result.succeeded.length
+        ? result.succeeded.map(({ bookId }) => bookId)
+        : ids.filter((id) => !result.skipped.some(({ bookId }) => bookId === id));
+      result.succeeded = [];
+      result.failed.push(
+        ...failedIds.map((bookId) => ({
+          bookId,
+          message: bulkErrorMessage(error),
+        })),
+      );
       return result;
     }
-
-    try {
-      await this.host.saveMetadata(scope, { library: true });
-      this.host.assertCurrentScope(scope);
-      const changed = new Set(changedIds);
-      this.host.replaceBooks(
-        this.host
-          .getBooks()
-          .map((book) =>
-            changed.has(book.id) ? { ...book, isFavorite, updatedAt: timestamp } : book,
-          ),
-      );
-      this.host.emitBooks();
-      result.succeeded.push(...changedIds.map((bookId) => ({ bookId })));
-    } catch (error) {
-      if (this.host.isCurrentScope(scope)) {
-        this.host.replaceLibraryMetadata(metadataBefore);
-      }
-      result.failed.push(
-        ...changedIds.map((bookId) => ({ bookId, message: bulkErrorMessage(error) })),
-      );
-    }
-    return result;
   }
 
   async deleteBooks(ids: readonly string[]): Promise<BulkActionResult> {
@@ -181,10 +240,9 @@ export class BulkBookOperations {
     const loading = this.host.ensureLoadedOrPromise(scope);
     if (loading) await loading;
     const result = createBulkResult(ids.length);
-    const libraryMetadataBefore = structuredClone(this.host.getLibraryMetadata());
-    const progressMetadataBefore = structuredClone(this.host.getProgressMetadata());
     const booksById = indexBooksById(this.host.getBooks());
     const deletedIds = new Set<string>();
+    const cacheWarnings: ArchiveCacheWarning[] = [];
     const suppression = new WatcherSuppressionGroup(scope.rootPath);
 
     try {
@@ -207,14 +265,13 @@ export class BulkBookOperations {
               throw new Error("The EPUB file is unavailable.");
             }
             suppression.begin(book.relativePath);
-            await this.host.commands.invoke(
+            const deleteResult = await this.host.commands.invoke(
               "delete_archive_epub_file",
               { relativePath: book.relativePath },
               scope.rootPath,
             );
+            cacheWarnings.push(deleteResult);
           }
-          delete this.host.getLibraryMetadata().books[id];
-          delete this.host.getProgressMetadata().progress[id];
           deletedIds.add(id);
           result.succeeded.push({ bookId: id });
         } catch (error) {
@@ -227,26 +284,19 @@ export class BulkBookOperations {
       }
 
       try {
-        await this.host.saveMetadata(scope, { library: true, progress: true });
-        this.host.assertCurrentScope(scope);
+        await this.host.applyArchiveDelta(scope, {
+          kind: "remove-books",
+          bookIds: [...deletedIds],
+        });
+        for (const bookId of deletedIds) {
+          this.host.clearCoverPromisesForBook(bookId);
+        }
       } catch (error) {
         if (this.host.isCurrentScope(scope)) {
-          this.host.replaceLibraryMetadata(libraryMetadataBefore);
-          this.host.replaceProgressMetadata(progressMetadataBefore);
+          reportArchiveMetadataRecoveryWarning(this.host, "The bulk EPUB deletion", error);
         }
-        const message = `The file operation completed, but library cleanup failed. ${bulkErrorMessage(error)}`;
-        result.succeeded = result.succeeded.filter(({ bookId }) => !deletedIds.has(bookId));
-        result.failed.push(...[...deletedIds].map((bookId) => ({ bookId, message })));
-        return result;
       }
-
-      try {
-        await this.host.rescan({ quiet: true });
-      } catch (error) {
-        const message = `The files were removed, but the library could not reconcile them. ${bulkErrorMessage(error)}`;
-        result.succeeded = result.succeeded.filter(({ bookId }) => !deletedIds.has(bookId));
-        result.failed.push(...[...deletedIds].map((bookId) => ({ bookId, message })));
-      }
+      reportAggregatedArchiveCacheWarnings(this.host, cacheWarnings);
       return result;
     } finally {
       suppression.finish();
@@ -340,14 +390,59 @@ export class BulkBookOperations {
     }
 
     try {
+      const relativePaths = eligible.map((book) => book.relativePath);
       await this.host.commands.invoke(
         "invalidate_scanner_cache_entries",
-        { relativePaths: eligible.map((book) => book.relativePath) },
+        { relativePaths },
         scope.rootPath,
       );
       this.host.assertCurrentScope(scope);
-      await this.host.rescan({ quiet: true });
-      result.succeeded.push(...eligible.map((book) => ({ bookId: book.id })));
+      const targeted = await this.host.commands.invoke(
+        "scan_archive_epub_paths",
+        { relativePaths },
+        scope.rootPath,
+      );
+      this.host.assertCurrentScope(scope);
+      const commit = await this.host.applyArchiveDelta(
+        scope,
+        {
+          kind: "scanned-books",
+          books: targeted.books,
+          removedRelativePaths: targeted.missingRelativePaths,
+          warnings: targeted.warnings,
+        },
+        {
+          targetedScan: {
+            presenceRule: "represented",
+            requestedRelativePaths: relativePaths,
+          },
+        },
+      );
+
+      if (commit.fallbackUsed) {
+        result.failed.push(
+          ...eligible.map((book) => ({
+            bookId: book.id,
+            message:
+              "Metadata re-extraction could not be verified. The library was refreshed with a complete scan.",
+          })),
+        );
+        return result;
+      }
+
+      const returnedPaths = new Set(
+        targeted.books.map((book) => book.relativePath.replaceAll("\\", "/").toLowerCase()),
+      );
+      for (const book of eligible) {
+        if (returnedPaths.has(book.relativePath.replaceAll("\\", "/").toLowerCase())) {
+          result.succeeded.push({ bookId: book.id });
+        } else {
+          result.failed.push({
+            bookId: book.id,
+            message: "The EPUB file disappeared before its metadata could be re-extracted.",
+          });
+        }
+      }
     } catch (error) {
       result.failed.push(
         ...eligible.map((book) => ({ bookId: book.id, message: bulkErrorMessage(error) })),
@@ -413,12 +508,29 @@ export class BulkBookOperations {
 
     if (regenerated.size && this.host.isCurrentScope(scope)) {
       const coverRevision = new Date().toISOString();
-      this.host.replaceBooks(
-        this.host
-          .getBooks()
-          .map((book) => (regenerated.has(book.id) ? { ...book, coverRevision } : book)),
+      await this.host.commitArchiveStateMutation(
+        scope,
+        ({ books, libraryMetadata, progressMetadata }) => {
+          let booksChanged = false;
+          const nextBooks = books.map((book) => {
+            if (!regenerated.has(book.id)) {
+              return book;
+            }
+            booksChanged = true;
+            return { ...book, coverRevision };
+          });
+
+          return {
+            books: nextBooks,
+            booksChanged,
+            libraryMetadata,
+            libraryChanged: false,
+            progressMetadata,
+            progressChanged: false,
+            result: undefined,
+          };
+        },
       );
-      this.host.emitBooks();
     }
     return result;
   }

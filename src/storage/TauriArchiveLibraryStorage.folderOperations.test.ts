@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   expectCommandRootPath,
@@ -72,6 +72,30 @@ describe("TauriArchiveLibraryStorage folder operations", () => {
       parentId: null,
     });
     expect(currentMetadata.library.books["book-1"].relativePath).toBe("Series/Volume_01.epub");
+  });
+
+  it("reports cache warnings from folder deletion", async () => {
+    const { storage } = await scopedStorage();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const surfaced: unknown[] = [];
+    storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "delete_archive_folder") {
+        return {
+          cacheWarning: {
+            message: "Folder cache entries will be rebuilt.",
+            repairRequired: false,
+          },
+        };
+      }
+      return undefined;
+    });
+
+    await storage.deleteFolder("folder:Author/Series");
+
+    expect(warning).toHaveBeenCalledWith("Folder cache entries will be rebuilt.");
+    expect(surfaced).toHaveLength(1);
+    warning.mockRestore();
   });
 
   it.each([

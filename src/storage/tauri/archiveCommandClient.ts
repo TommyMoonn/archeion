@@ -14,14 +14,20 @@ import type {
   ProgressMetadata,
   SettingsMetadata,
 } from "../metadataFiles";
-import type { ArchiveScan } from "../reconcileLibraryState";
+import type { ArchiveEpubScan, ArchiveScan } from "../reconcileLibraryState";
 import type {
   AddArchiveEpubInput,
-  ArchiveImportResult,
+  ArchiveImportArtifactCleanupResult,
+  ArchiveImportCommandResult,
+  ArchiveOperationResult,
   ArchivePathChange,
   CoverCacheStatus,
   EpubWritebackBackupStatus,
 } from "../LibraryStorage";
+import {
+  beginWritebackWatcherSuppression,
+  finishWritebackWatcherSuppression,
+} from "../writebackWatcherSuppression";
 
 type CommandDefinition<Args, Result> = {
   args: Args;
@@ -30,6 +36,7 @@ type CommandDefinition<Args, Result> = {
 
 type ArchiveCommandMap = {
   scan_archive: CommandDefinition<undefined, ArchiveScan>;
+  scan_archive_epub_paths: CommandDefinition<{ relativePaths: string[] }, ArchiveEpubScan>;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
   load_settings_metadata: CommandDefinition<undefined, SettingsMetadata>;
   load_annotations_metadata: CommandDefinition<undefined, unknown>;
@@ -37,7 +44,7 @@ type ArchiveCommandMap = {
   save_progress_metadata: CommandDefinition<{ metadata: ProgressMetadata }, void>;
   save_settings_metadata: CommandDefinition<{ metadata: SettingsMetadata }, void>;
   save_annotations_metadata: CommandDefinition<{ metadata: StoredAnnotationsMetadata }, void>;
-  add_epub_files_to_archive: CommandDefinition<AddArchiveEpubInput, ArchiveImportResult[]>;
+  add_epub_files_to_archive: CommandDefinition<AddArchiveEpubInput, ArchiveImportCommandResult>;
   read_epub_file: CommandDefinition<{ relativePath: string }, ArrayBuffer>;
   load_epub_cover: CommandDefinition<{ relativePath: string; bookId: string }, ArrayBuffer>;
   reveal_epub_file: CommandDefinition<{ relativePath: string }, void>;
@@ -79,7 +86,7 @@ type ArchiveCommandMap = {
     { relativePath: string; destinationFolderPath?: string },
     ArchivePathChange
   >;
-  delete_archive_epub_file: CommandDefinition<{ relativePath: string }, void>;
+  delete_archive_epub_file: CommandDefinition<{ relativePath: string }, ArchiveOperationResult>;
   invalidate_scanner_cache_entries: CommandDefinition<{ relativePaths: string[] }, void>;
   invalidate_cover_cache_entries: CommandDefinition<{ bookIds: string[] }, void>;
   export_archive_epub_file: CommandDefinition<
@@ -96,12 +103,16 @@ type ArchiveCommandMap = {
     ArchivePathChange
   >;
   reveal_archive_folder: CommandDefinition<{ relativePath: string }, void>;
-  delete_archive_folder: CommandDefinition<{ relativePath: string }, void>;
+  delete_archive_folder: CommandDefinition<{ relativePath: string }, ArchiveOperationResult>;
   cover_cache_status: CommandDefinition<undefined, CoverCacheStatus>;
   clear_cover_cache: CommandDefinition<undefined, CoverCacheStatus>;
   get_epub_writeback_backup_status: CommandDefinition<undefined, EpubWritebackBackupStatus>;
   clear_epub_writeback_backups: CommandDefinition<undefined, EpubWritebackBackupStatus>;
   clear_scanner_cache: CommandDefinition<undefined, void>;
+  cleanup_archive_import_artifacts: CommandDefinition<
+    undefined,
+    ArchiveImportArtifactCleanupResult
+  >;
   initialize_archive_metadata: CommandDefinition<undefined, void>;
   reveal_archeion_folder: CommandDefinition<undefined, void>;
 };
@@ -110,21 +121,34 @@ type ArchiveCommandName = keyof ArchiveCommandMap;
 type ArchiveCommandArgs<Name extends ArchiveCommandName> = ArchiveCommandMap[Name]["args"];
 type ArchiveCommandResult<Name extends ArchiveCommandName> = ArchiveCommandMap[Name]["result"];
 
+const METADATA_WRITE_COMMANDS = new Set<ArchiveCommandName>([
+  "save_library_metadata",
+  "save_progress_metadata",
+  "save_settings_metadata",
+  "save_annotations_metadata",
+  "initialize_archive_metadata",
+]);
+
 export class ArchiveCommandClient {
   invoke<Name extends ArchiveCommandName>(
     command: Name,
     args: ArchiveCommandArgs<Name>,
     rootPath: string | null,
   ): Promise<ArchiveCommandResult<Name>> {
+    const suppression = METADATA_WRITE_COMMANDS.has(command)
+      ? beginWritebackWatcherSuppression(rootPath, ".archeion")
+      : undefined;
+    let result: Promise<ArchiveCommandResult<Name>>;
     if (rootPath) {
-      return invoke<ArchiveCommandResult<Name>>(command, {
+      result = invoke<ArchiveCommandResult<Name>>(command, {
         ...(args ?? {}),
         rootPath,
       });
+    } else if (args) {
+      result = invoke<ArchiveCommandResult<Name>>(command, args);
+    } else {
+      result = invoke<ArchiveCommandResult<Name>>(command);
     }
-    if (args) {
-      return invoke<ArchiveCommandResult<Name>>(command, args);
-    }
-    return invoke<ArchiveCommandResult<Name>>(command);
+    return result.finally(() => finishWritebackWatcherSuppression(suppression));
   }
 }

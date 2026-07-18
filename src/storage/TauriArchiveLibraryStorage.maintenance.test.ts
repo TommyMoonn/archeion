@@ -219,6 +219,9 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
       if (command === "load_archive_metadata") {
         return structuredClone(metadata);
       }
+      if (command === "cleanup_archive_import_artifacts") {
+        return { removedCount: 2, failures: [] };
+      }
       return undefined;
     });
     const rootPath = "C:/ArchiveA";
@@ -231,6 +234,7 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
 
     expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
       "initialize_archive_metadata",
+      "cleanup_archive_import_artifacts",
       "clear_scanner_cache",
       "scan_archive",
       "load_archive_metadata",
@@ -239,11 +243,47 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
       invokeMock.mock.calls.find(([command]) => command === "initialize_archive_metadata")?.[1],
     ).toMatchObject({ rootPath });
     expect(
+      invokeMock.mock.calls.find(
+        ([command]) => command === "cleanup_archive_import_artifacts",
+      )?.[1],
+    ).toMatchObject({ rootPath });
+    expect(
       invokeMock.mock.calls.find(([command]) => command === "clear_scanner_cache")?.[1],
     ).toMatchObject({ rootPath });
     expect(
       invokeMock.mock.calls.find(([command]) => command === "scan_archive")?.[1],
     ).toMatchObject({ rootPath });
+  });
+
+  it("reports unresolved import artifact cleanup instead of claiming repair success", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "cleanup_archive_import_artifacts") {
+        return {
+          removedCount: 1,
+          failures: [
+            {
+              relativePath: "Series/Novel.epub.replace-backup-123-45",
+              message: "The file is in use.",
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    await expect(storage.repairArchiveMetadata()).rejects.toThrow(
+      "Archive import artifact cleanup left 1 unresolved item",
+    );
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
+      "initialize_archive_metadata",
+      "cleanup_archive_import_artifacts",
+    ]);
   });
 
   it.each([

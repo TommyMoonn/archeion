@@ -43,238 +43,308 @@ describe("ArchiveWatcherController", () => {
     vi.useRealTimers();
   });
 
-  it("debounces filesystem events into one rescan", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+  it("debounces duplicate filesystem events into one change set", async () => {
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const watcher = new ArchiveWatcherController({
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
     watcher.notifyChanged();
     vi.advanceTimersByTime(50);
     watcher.notifyChanged();
     vi.advanceTimersByTime(99);
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
 
     vi.advanceTimersByTime(1);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
-    expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true, quiet: true });
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledWith({
+      changes: [{ kind: "unknown", relativePaths: [] }],
+      overflow: undefined,
+    });
+  });
+
+  it("preserves typed rename pairs and normalizes all watcher paths", async () => {
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { applyArchiveWatcherChanges },
+    });
+
+    watcher.notifyChanged({
+      kind: "rename",
+      relativePaths: ["Books/Old.epub", "Books\\New.epub"],
+    });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledWith({
+      changes: [
+        {
+          kind: "rename",
+          relativePaths: ["Books/Old.epub", "Books/New.epub"],
+        },
+      ],
+      overflow: undefined,
+    });
+  });
+
+  it("forwards watcher overflow as a safe full-scan signal", async () => {
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { applyArchiveWatcherChanges },
+    });
+
+    watcher.notifyChanged({ kind: "unknown", relativePaths: [], overflow: true });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledWith({
+      changes: [],
+      overflow: true,
+    });
+  });
+
+  it("classifies sidecar paths as metadata even when native kind is missing", async () => {
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
+    const watcher = new ArchiveWatcherController({
+      archiveRootPath: "C:/Archive",
+      debounceMs: 100,
+      storage: { applyArchiveWatcherChanges },
+    });
+
+    watcher.notifyChanged({ relativePaths: [".archeion/library.json"] });
+    vi.advanceTimersByTime(100);
+    await vi.runAllTimersAsync();
+
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledWith({
+      changes: [
+        {
+          kind: "metadata",
+          relativePaths: [".archeion/library.json"],
+        },
+      ],
+      overflow: undefined,
+    });
   });
 
   it("suppresses exact writeback EPUB watcher events during the settled suppression window", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series/Volume_01.epub"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
   });
 
   it("suppresses parent-directory watcher events while writeback is in flight", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
     finishWritebackWatcherSuppression(token);
   });
 
   it("suppresses exact writeback EPUB watcher events during the TTL tail", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series/Volume_01.epub"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
   });
 
   it("suppresses parent-directory watcher events during the TTL tail", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Author/Series/Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
   });
 
   it("suppresses archive-root directory watcher events for active root-level writeback", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive" });
+    watcher.notifyChanged({ relativePaths: [""] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
     finishWritebackWatcherSuppression(token);
   });
 
   it("suppresses archive-root directory watcher events during the TTL tail for root-level writeback", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Volume_01.epub");
     finishWritebackWatcherSuppression(token);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive" });
+    watcher.notifyChanged({ relativePaths: [""] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
   });
 
   it("does not suppress archive-root directory watcher events for nested-only writeback", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const token = beginWritebackWatcherSuppression("C:/Archive", "Books/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive" });
+    watcher.notifyChanged({ relativePaths: [""] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
     finishWritebackWatcherSuppression(token);
   });
 
   it("does not suppress archive-root directory watcher events without active writeback", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive" });
+    watcher.notifyChanged({ relativePaths: [""] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("allows archive-root directory watcher rescans after root-level suppression expires", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     suppressWritebackWatcherPath("C:/Archive", "Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
     vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
-    watcher.notifyChanged({ path: "C:/Archive" });
+    watcher.notifyChanged({ relativePaths: [""] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("does not suppress watcher rescans for different EPUB paths", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_02.epub" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series/Volume_02.epub"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("allows exact watcher rescans after writeback suppression expires", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
     vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series/Volume_01.epub" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series/Volume_01.epub"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("allows parent-directory watcher rescans after writeback suppression expires", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     suppressWritebackWatcherPath("C:/Archive", "Author/Series/Volume_01.epub");
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
     vi.advanceTimersByTime(WRITEBACK_WATCHER_SUPPRESSION_TTL_MS + 1);
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("does not suppress parent-directory watcher events without active writeback", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const watcher = new ArchiveWatcherController({
       archiveRootPath: "C:/Archive",
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
 
-    watcher.notifyChanged({ path: "C:/Archive/Author/Series" });
+    watcher.notifyChanged({ relativePaths: ["Author/Series"] });
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
   });
 
   it("queues one follow-up rescan when events arrive during an active scan", async () => {
@@ -282,66 +352,78 @@ describe("ArchiveWatcherController", () => {
     const firstScan = new Promise<void>((resolve) => {
       finishFirstScan = resolve;
     });
-    const rescan = vi
+    const applyArchiveWatcherChanges = vi
       .fn<() => Promise<void>>()
       .mockReturnValueOnce(firstScan)
       .mockResolvedValue(undefined);
     const watcher = new ArchiveWatcherController({
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
     watcher.notifyChanged();
     vi.advanceTimersByTime(100);
     await vi.runOnlyPendingTimersAsync();
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
 
     watcher.notifyChanged();
     watcher.notifyChanged();
     vi.advanceTimersByTime(100);
     await vi.runOnlyPendingTimersAsync();
-    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(1);
 
     finishFirstScan();
     await vi.runAllTimersAsync();
 
-    expect(rescan).toHaveBeenCalledTimes(2);
+    expect(applyArchiveWatcherChanges).toHaveBeenCalledTimes(2);
   });
 
   it("stops pending debounce work when stopped", async () => {
-    const rescan = vi.fn().mockResolvedValue(undefined);
+    const applyArchiveWatcherChanges = vi.fn().mockResolvedValue(undefined);
     const watcher = new ArchiveWatcherController({
       debounceMs: 100,
-      storage: { rescan },
+      storage: { applyArchiveWatcherChanges },
     });
     watcher.notifyChanged();
     await watcher.stop();
     vi.advanceTimersByTime(100);
     await vi.runAllTimersAsync();
 
-    expect(rescan).not.toHaveBeenCalled();
+    expect(applyArchiveWatcherChanges).not.toHaveBeenCalled();
   });
 
   it("does not start a native watcher after being stopped while listeners attach", async () => {
     let finishChangeListener!: () => void;
     let finishErrorListener!: () => void;
+    let markListenersAttached!: () => void;
+    const listenersAttached = new Promise<void>((resolve) => {
+      markListenersAttached = resolve;
+    });
     const stopChangeListener = vi.fn();
     const stopErrorListener = vi.fn();
+    let listenerCount = 0;
     listenMock
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishChangeListener = () => resolve(stopChangeListener);
-        }),
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            listenerCount += 1;
+            if (listenerCount === 2) markListenersAttached();
+            finishChangeListener = () => resolve(stopChangeListener);
+          }),
       )
-      .mockReturnValueOnce(
-        new Promise((resolve) => {
-          finishErrorListener = () => resolve(stopErrorListener);
-        }),
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            listenerCount += 1;
+            if (listenerCount === 2) markListenersAttached();
+            finishErrorListener = () => resolve(stopErrorListener);
+          }),
       );
     const watcher = new ArchiveWatcherController({
-      storage: { rescan: vi.fn() },
+      storage: { applyArchiveWatcherChanges: vi.fn() },
     });
 
     const pendingStart = watcher.start();
+    await listenersAttached;
     await watcher.stop();
     finishChangeListener();
     finishErrorListener();
@@ -380,10 +462,10 @@ describe("ArchiveWatcherController", () => {
       return undefined;
     });
     const firstWatcher = new ArchiveWatcherController({
-      storage: { rescan: vi.fn() },
+      storage: { applyArchiveWatcherChanges: vi.fn() },
     });
     const replacementWatcher = new ArchiveWatcherController({
-      storage: { rescan: vi.fn() },
+      storage: { applyArchiveWatcherChanges: vi.fn() },
     });
 
     const firstPendingStart = firstWatcher.start();
@@ -404,9 +486,52 @@ describe("ArchiveWatcherController", () => {
     await replacementWatcher.stop();
   });
 
+  it("attaches replacement listeners only after the previous native watcher stops", async () => {
+    const operations: string[] = [];
+    let startCount = 0;
+    invokeMock.mockImplementation(async (command, args) => {
+      if (command === "start_archive_watcher") {
+        startCount += 1;
+        operations.push(`start-${startCount}`);
+        return `watcher-${startCount}`;
+      }
+      if (command === "stop_archive_watcher") {
+        operations.push(`stop-${String((args as { watcherId?: string }).watcherId)}`);
+      }
+      return undefined;
+    });
+    listenMock.mockImplementation(async () => {
+      operations.push("listen");
+      const unlisten: () => void = vi.fn();
+      return unlisten;
+    });
+    const firstWatcher = new ArchiveWatcherController({
+      storage: { applyArchiveWatcherChanges: vi.fn() },
+    });
+    const replacementWatcher = new ArchiveWatcherController({
+      storage: { applyArchiveWatcherChanges: vi.fn() },
+    });
+
+    await firstWatcher.start();
+    const stop = firstWatcher.stop();
+    const replacementStart = replacementWatcher.start();
+    await Promise.all([stop, replacementStart]);
+
+    expect(operations).toEqual([
+      "listen",
+      "listen",
+      "start-1",
+      "stop-watcher-1",
+      "listen",
+      "listen",
+      "start-2",
+    ]);
+    await replacementWatcher.stop();
+  });
+
   it("stops the active native watcher by id", async () => {
     const watcher = new ArchiveWatcherController({
-      storage: { rescan: vi.fn() },
+      storage: { applyArchiveWatcherChanges: vi.fn() },
     });
 
     await watcher.start();
@@ -434,7 +559,7 @@ describe("ArchiveWatcherController", () => {
       return undefined;
     });
     const watcher = new ArchiveWatcherController({
-      storage: { rescan: vi.fn() },
+      storage: { applyArchiveWatcherChanges: vi.fn() },
     });
 
     const pendingStart = watcher.start();

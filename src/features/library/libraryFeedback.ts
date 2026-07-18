@@ -1,4 +1,8 @@
-import type { ArchiveImportResult, BulkActionResult } from "../../storage/LibraryStorage";
+import type {
+  ArchiveImportResult,
+  ArchiveOperationWarning,
+  BulkActionResult,
+} from "../../storage/LibraryStorage";
 import { summarizeArchiveImportResults } from "../filesystem/archiveImport";
 
 export type LibraryFeedbackTone = "success" | "warning" | "error";
@@ -78,6 +82,31 @@ const DELETE_ERROR_TITLES: Record<LibraryDeleteErrorFeedbackType, string> = {
   folderDeleteFailed: "This folder could not be deleted.",
   metadataRemoveFailed: "The saved metadata could not be removed.",
 };
+
+export function createArchiveOperationWarningFeedbackToken(
+  warning: ArchiveOperationWarning,
+): LibraryFeedbackToken {
+  const occurrences = warning.occurrences ?? 1;
+  const isArchiveMetadataRecovery = warning.kind === "archive-metadata";
+  const detail = warning.repairRequired
+    ? isArchiveMetadataRecovery
+      ? `${warning.message} Resolve archive write access, then remove the missing metadata entry or repeat the operation.`
+      : `${warning.message} Run Archive metadata repair from Settings before restarting Archeion.`
+    : occurrences > 1
+      ? `${occurrences} operations reported degraded scanner-cache maintenance. The cache will rebuild automatically.`
+      : `${warning.message} The cache will rebuild automatically.`;
+  return {
+    id: isArchiveMetadataRecovery ? "archive-metadata-warning" : "scanner-cache-warning",
+    tone: "warning",
+    title: warning.repairRequired
+      ? isArchiveMetadataRecovery
+        ? "Archive metadata cleanup is required."
+        : "Archive metadata repair is required."
+      : "Archive cache will be rebuilt.",
+    detail,
+    autoDismiss: !warning.repairRequired,
+  };
+}
 
 export function createFolderSuccessFeedbackToken(): LibraryFeedbackToken {
   return {

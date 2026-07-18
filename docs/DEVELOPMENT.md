@@ -103,6 +103,43 @@ Rust tests use the committed Cargo lockfile:
 npm run rust:test
 ```
 
+### Scanner measurements
+
+The ignored `measures_representative_scanner_fixtures` Rust test generates synthetic archives of
+50, 500, and 2,000 EPUBs. It reports five-run medians and ranges plus cache, metadata, cancellation,
+and bounded-parser diagnostics. Fixture generation is excluded from the measured interval. Run it
+explicitly with:
+
+```powershell
+cargo test --locked --manifest-path src-tauri/Cargo.toml measures_representative_scanner_fixtures -- --ignored --nocapture
+```
+
+The Phase 0.7.0.2 finalization run produced the following same-machine medians. The baseline was an
+isolated `HEAD` archive from before Phase 0.7.0.2; each value is the median of five runs.
+
+| EPUBs | Baseline cold | Final cold | Baseline warm | Final warm |       Payload |
+| ----: | ------------: | ---------: | ------------: | ---------: | ------------: |
+|    50 |         53 ms |      40 ms |         12 ms |      13 ms |  21,637 bytes |
+|   500 |        255 ms |     124 ms |         37 ms |      34 ms | 160,377 bytes |
+| 2,000 |        912 ms |     432 ms |         70 ms |      82 ms | 590,975 bytes |
+
+| EPUBs | Phase | Uncached jobs | Path hits | Signature hits | Max parse workers / open EPUBs | Cache load | Signature index | Metadata resolution | Cache publication | Cancellation |
+| ----: | :---- | ------------: | --------: | -------------: | -----------------------------: | ---------: | --------------: | ------------------: | ----------------: | :----------- |
+|    50 | Cold  |            50 |         0 |              0 |                          4 / 4 |       5 ms |            0 ms |                6 ms |             17 ms | Completed    |
+|    50 | Warm  |             0 |        50 |              0 |                          0 / 0 |       1 ms |            0 ms |                0 ms |              0 ms | Completed    |
+|   500 | Cold  |           500 |         0 |              0 |                          4 / 4 |       6 ms |            0 ms |               55 ms |             34 ms | Completed    |
+|   500 | Warm  |             0 |       500 |              0 |                          0 / 0 |       3 ms |            0 ms |                0 ms |              0 ms | Completed    |
+| 2,000 | Cold  |         2,000 |         0 |              0 |                          4 / 4 |       7 ms |            0 ms |              267 ms |            102 ms | Completed    |
+| 2,000 | Warm  |             0 |     2,000 |              0 |                          0 / 0 |      16 ms |            3 ms |                2 ms |              1 ms | Completed    |
+
+The pre-finalization 2,000-book warm median was 2,784 ms because publication repeatedly traversed
+the complete cache for every accepted path. Normalized map publication and a revision-safe unchanged
+snapshot fast path reduced that median to 82 ms. The four-worker parser reduced the representative
+2,000-book cold median from 912 ms to 432 ms while keeping parser-owned EPUB handles bounded at four.
+
+These measurements are diagnostic development evidence for comparing implementations on the same
+machine. They are not release guarantees or cross-hardware benchmarks.
+
 Release-tool integration tests invoke PowerShell, npm, and Cargo against temporary
 fixtures. They never modify the real project version files.
 

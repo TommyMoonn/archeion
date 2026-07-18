@@ -547,6 +547,7 @@ pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> 
     read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))
 }
 
+#[cfg(test)]
 pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
     read_json(&metadata_path(root).join(SCANNER_CACHE_FILE))
 }
@@ -562,39 +563,10 @@ pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result
     write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
 }
 
-pub(crate) fn update_scanner_cache_entry_at(
-    root: &Path,
-    relative_path: &str,
-    entry: ScannerCacheEntry,
-) -> Result<(), String> {
-    let mut cache = load_scanner_cache_at(root)?;
-    if cache.entries.get(relative_path) == Some(&entry) {
-        return Ok(());
-    }
-
-    cache.entries.insert(relative_path.to_string(), entry);
-    save_scanner_cache_at(root, &cache)
-}
-
 pub(crate) fn clear_scanner_cache_at(root: &Path) -> Result<(), String> {
     let path = metadata_path(root).join(SCANNER_CACHE_FILE);
     if path.exists() {
         fs::remove_file(path).map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-pub(crate) fn invalidate_scanner_cache_entries_at(
-    root: &Path,
-    relative_paths: &[String],
-) -> Result<(), String> {
-    let mut cache = load_scanner_cache_at(root)?;
-    let mut changed = false;
-    for relative_path in relative_paths {
-        changed |= cache.entries.remove(relative_path).is_some();
-    }
-    if changed {
-        save_scanner_cache_at(root, &cache)?;
     }
     Ok(())
 }

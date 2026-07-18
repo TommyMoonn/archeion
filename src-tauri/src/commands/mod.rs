@@ -1,6 +1,8 @@
 pub mod app_settings;
 pub mod archive;
 pub mod archive_import;
+pub mod archive_import_artifacts;
+pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod epub;
 pub mod epub_cover_writeback;
@@ -12,5 +14,6 @@ pub mod filesystem;
 pub mod illustration_export;
 pub mod metadata;
 pub mod scanner;
+pub(crate) mod scanner_cache;
 pub mod themes;
 pub mod watcher;
