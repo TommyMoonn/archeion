@@ -210,41 +210,49 @@ export function buttonWithText(container: HTMLElement, text: string): HTMLButton
   return button;
 }
 
-export async function waitForButtonWithText(
+const ASYNC_SURFACE_RENDER_TIMEOUT_MS = 1_000;
+const ASYNC_SURFACE_RENDER_POLL_MS = 10;
+
+async function waitForRenderedButton(
+  findButton: () => HTMLButtonElement | undefined,
+  errorMessage: string,
+): Promise<HTMLButtonElement> {
+  const deadline = performance.now() + ASYNC_SURFACE_RENDER_TIMEOUT_MS;
+
+  while (performance.now() < deadline) {
+    const button = findButton();
+    if (button) return button;
+
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, ASYNC_SURFACE_RENDER_POLL_MS));
+    });
+  }
+
+  throw new Error(errorMessage);
+}
+
+export function waitForButtonWithText(
   container: HTMLElement,
   text: string,
 ): Promise<HTMLButtonElement> {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
-    const button = Array.from(container.querySelectorAll("button")).find(
-      (candidate) => candidate.textContent === text,
-    );
-
-    if (button instanceof HTMLButtonElement) {
-      return button;
-    }
-
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
-  }
-
-  throw new Error(`Button with text ${text} was not rendered.`);
+  return waitForRenderedButton(
+    () =>
+      Array.from(container.querySelectorAll("button")).find(
+        (candidate): candidate is HTMLButtonElement =>
+          candidate instanceof HTMLButtonElement && candidate.textContent === text,
+      ),
+    `Button with text ${text} was not rendered.`,
+  );
 }
 
-export async function waitForButtonWithLabel(
+export function waitForButtonWithLabel(
   container: HTMLElement,
   label: string,
 ): Promise<HTMLButtonElement> {
-  for (let attempt = 0; attempt < 8; attempt += 1) {
+  return waitForRenderedButton(() => {
     const button = container.querySelector(`button[aria-label="${label}"]`);
-    if (button instanceof HTMLButtonElement) return button;
-
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
-  }
-
-  throw new Error(`Button with label ${label} was not rendered.`);
+    return button instanceof HTMLButtonElement ? button : undefined;
+  }, `Button with label ${label} was not rendered.`);
 }
 
 export function setInputValue(input: HTMLInputElement, value: string): void {
