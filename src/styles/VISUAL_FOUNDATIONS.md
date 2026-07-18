@@ -8,7 +8,19 @@ Inter is Archeion's bundled default application UI font. The application does no
 
 The canonical `@font-face` declarations live in `src/styles/fonts.css`. Their three static WOFF2 sources come from the exact pinned `inter-ui@4.1.1` development package and are verified against the approved Inter v4.1 hashes in `scripts/inter-font-manifest.json`. Vite emits only those selected faces into the application bundle. The assets are owned by the Inter Project Authors, and their notice is stored at `public/licenses/fonts/Inter-OFL-1.1.txt`.
 
-EPUB reader typography remains independently configurable. Reader-selected typefaces and bundled reading fonts are applied only inside publication content.
+The application small-text scale is deliberately compact but readable:
+
+| Role                 | Size   | Typical use                            |
+| -------------------- | ------ | -------------------------------------- |
+| `--type-caption`     | `12px` | secondary labels and compact metadata  |
+| `--type-meta`        | `13px` | standard metadata and compact controls |
+| `--type-body`        | `14px` | primary UI copy and navigation         |
+| `--type-body-large`  | `15px` | emphasized body copy                   |
+| `--type-title-small` | `16px` | local titles                           |
+
+These values apply to application surfaces such as the shell, library, archive and settings workflows, dialogs, menus, forms, empty states, and feedback. Normal and compact density may change spacing and control geometry, but they share this readable type scale.
+
+Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Application typography changes must not alter reader chrome or publication layout.
 
 Use the named text roles from `tokens.css`:
 
@@ -18,7 +30,7 @@ Use the named text roles from `tokens.css`:
 - `--type-title-small`, `--type-title`, and `--type-heading` for local hierarchy
 - the dialog, section, page, and display roles for large headings
 
-Interactive labels, important status text, and primary metadata must not drop below `--type-caption`.
+Interactive labels, navigation, important status text, and primary metadata must not drop below `--type-caption`. Caption is the smallest application role and should remain reserved for genuinely secondary information.
 
 ## Icons and Geometry
 

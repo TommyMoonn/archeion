@@ -1,3 +1,12 @@
+.reader-page,
+.reader-status-page {
+  --type-caption: 11px;
+  --type-meta: 12px;
+  --type-body: 13px;
+  --type-body-large: 14px;
+  --type-title-small: 15px;
+}
+
 .reader-page {
   --reader-bg: #171717;
   --reader-surface: #1d1d1f;

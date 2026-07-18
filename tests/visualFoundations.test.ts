@@ -45,6 +45,20 @@ function collectCssFiles(directory: string): string[] {
   });
 }
 
+function collectApplicationSourceFiles(directory: string): string[] {
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+
+    if (entry.isDirectory()) {
+      return entry.name === "reader" ? [] : collectApplicationSourceFiles(entryPath);
+    }
+
+    return entry.isFile() && /\.tsx?$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+      ? [entryPath]
+      : [];
+  });
+}
+
 function readJson<T>(relativePath: string): T {
   return JSON.parse(fs.readFileSync(path.join(projectRoot, relativePath), "utf8")) as T;
 }
@@ -55,6 +69,9 @@ function fontFaceBlocks(source: string): string[] {
 
 const cssFiles = collectCssFiles(stylesRoot);
 const cssSource = cssFiles.map((filePath) => fs.readFileSync(filePath, "utf8")).join("\n");
+const applicationSource = collectApplicationSourceFiles(path.join(projectRoot, "src"))
+  .map((filePath) => fs.readFileSync(filePath, "utf8"))
+  .join("\n");
 const fontsSource = fs.readFileSync(path.join(stylesRoot, "fonts.css"), "utf8");
 const tokensSource = fs.readFileSync(path.join(stylesRoot, "tokens.css"), "utf8");
 const indexSource = fs.readFileSync(path.join(stylesRoot, "index.css"), "utf8");
@@ -151,6 +168,11 @@ function declarations(property: string): string[] {
   );
 }
 
+function customProperty(source: string, property: string): string | undefined {
+  const escapedProperty = property.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return source.match(new RegExp(`${escapedProperty}:\\s*([^;]+);`))?.[1]?.trim();
+}
+
 describe("visual foundations", () => {
   it("uses bundled Inter first with defensive system fallbacks and supported weight roles", () => {
     const uiStack = tokensSource.match(/--font-ui:\s*([^;]+);/)?.[1]?.trim();
@@ -245,6 +267,39 @@ describe("visual foundations", () => {
     expect(readerFontsSource).toContain('id: "atkinson"');
   });
 
+  it("uses the readable application small-text scale without changing reader chrome", () => {
+    const applicationScale = {
+      "--type-caption": "12px",
+      "--type-meta": "13px",
+      "--type-body": "14px",
+      "--type-body-large": "15px",
+      "--type-title-small": "16px",
+    } as const;
+    const readerScale = {
+      "--type-caption": "11px",
+      "--type-meta": "12px",
+      "--type-body": "13px",
+      "--type-body-large": "14px",
+      "--type-title-small": "15px",
+    } as const;
+    const readerRoot = readerSource.match(
+      /\.reader-page,\s*\.reader-status-page\s*{([\s\S]*?)}/,
+    )?.[1];
+
+    expect(readerRoot).toBeDefined();
+
+    for (const [role, size] of Object.entries(applicationScale)) {
+      expect(customProperty(tokensSource, role)).toBe(size);
+    }
+
+    for (const [role, size] of Object.entries(readerScale)) {
+      expect(customProperty(readerRoot ?? "", role)).toBe(size);
+    }
+
+    expect(readerRoot).not.toContain("--type-title:");
+    expect(readerRoot).not.toContain("--type-heading:");
+  });
+
   it("routes UI font sizes through named typography roles", () => {
     const fontSizes = declarations("font-size");
 
@@ -255,6 +310,12 @@ describe("visual foundations", () => {
       ),
     ).toBe(true);
     expect(cssSource).not.toMatch(/font-size:\s*10px/);
+  });
+
+  it("keeps small application typography out of inline source styles", () => {
+    expect(applicationSource).not.toMatch(
+      /\bfontSize\s*:\s*(?:1[0-3](?:\.\d+)?|["'`]1[0-3](?:\.\d+)?px["'`])/,
+    );
   });
 
   it("keeps semantic custom properties resolved or intentionally fallback-backed", () => {

@@ -1177,6 +1177,14 @@ html[data-motion="on"] .details-drawer[open] {
   .library-controls {
     grid-row: 3;
   }
+
+  .book-row__select {
+    grid-template-columns: 42px minmax(0, 1fr) 110px;
+  }
+
+  .book-row__file {
+    display: none;
+  }
 }
 
 @media (max-height: 640px) {
@@ -1202,10 +1210,10 @@ html[data-motion="on"] .details-drawer[open] {
   }
 
   .book-row__select {
-    grid-template-columns: 42px minmax(0, 1fr) 110px;
+    grid-template-columns: 42px minmax(0, 1fr);
   }
 
-  .book-row__file {
+  .book-row__date {
     display: none;
   }
 }
@@ -1264,14 +1272,6 @@ html[data-motion="on"] .details-drawer[open] {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 24px 14px;
     padding-top: 28px;
-  }
-
-  .book-row__select {
-    grid-template-columns: 42px minmax(0, 1fr);
-  }
-
-  .book-row__date {
-    display: none;
   }
 
   .details-drawer {

@@ -144,6 +144,32 @@ function detailsSecondaryActionRules(): Array<{ declarations: string; selector: 
     .filter(({ selector }) => selector.includes(".details-actions__secondary"));
 }
 
+function cssBlockContents(source: string, header: string): string {
+  const headerIndex = source.indexOf(header);
+  if (headerIndex < 0) {
+    throw new Error(`CSS block not found: ${header}`);
+  }
+
+  const openingBrace = source.indexOf("{", headerIndex + header.length);
+  if (openingBrace < 0 || source.slice(headerIndex, openingBrace).trim() !== header) {
+    throw new Error(`Malformed CSS block header: ${header}`);
+  }
+
+  let depth = 0;
+  for (let index = openingBrace; index < source.length; index += 1) {
+    const character = source[index];
+    if (character === "{") depth += 1;
+    if (character !== "}") continue;
+
+    depth -= 1;
+    if (depth === 0) {
+      return source.slice(openingBrace + 1, index);
+    }
+  }
+
+  throw new Error(`Unclosed CSS block: ${header}`);
+}
+
 describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
   it("keeps shared icon slots authoritative over control glyph geometry", () => {
     expect(baseStyles).toMatch(/\.icon-slot > svg\s*{[\s\S]*width:\s*var\(--icon-glyph-size\);/);
@@ -234,5 +260,35 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
 
     expect(rules.length).toBeGreaterThan(0);
     expect(forbiddenDeclarations).toEqual([]);
+  });
+
+  it("collapses list metadata before the minimum-width shell can overlap row actions", () => {
+    const narrowShellRules = cssBlockContents(libraryStyles, "@media (max-width: 1100px)");
+    const compactShellRules = cssBlockContents(libraryStyles, "@media (max-width: 820px)");
+
+    expect(narrowShellRules).toMatch(
+      /\.book-row__select\s*{[\s\S]*grid-template-columns:\s*42px minmax\(0, 1fr\) 110px;/,
+    );
+    expect(narrowShellRules).toMatch(/\.book-row__file\s*{[\s\S]*display:\s*none;/);
+    expect(compactShellRules).toMatch(
+      /\.book-row__select\s*{[\s\S]*grid-template-columns:\s*42px minmax\(0, 1fr\);/,
+    );
+    expect(compactShellRules).toMatch(/\.book-row__date\s*{[\s\S]*display:\s*none;/);
+  });
+
+  it("extracts an exact CSS block without crossing into a sibling media query", () => {
+    const source = `
+      @media (max-width: 1100px) {
+        .owned { display: grid; }
+      }
+      @media (max-height: 640px) {
+        .sibling { display: none; }
+      }
+    `;
+
+    const contents = cssBlockContents(source, "@media (max-width: 1100px)");
+
+    expect(contents).toContain(".owned");
+    expect(contents).not.toContain(".sibling");
   });
 });
