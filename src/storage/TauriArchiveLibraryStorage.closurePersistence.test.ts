@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   deferred,
@@ -220,6 +220,7 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
 
   it("aggregates repeated bulk cache warnings into one operation warning", async () => {
     const archive = twoBookArchive("Author/Series");
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     invokeMock.mockImplementation(async (command, args) => {
       if (command === "scan_archive") return structuredClone(archive.scan);
       if (command === "load_archive_metadata") return structuredClone(archive.metadata);
@@ -252,5 +253,9 @@ describe("TauriArchiveLibraryStorage closure persistence", () => {
         repairRequired: false,
       }),
     ]);
+    expect(warning).toHaveBeenCalledWith(
+      "Scanner cache will rebuild.",
+      "Scanner cache will rebuild.",
+    );
   });
 });

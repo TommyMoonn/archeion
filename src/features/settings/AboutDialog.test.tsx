@@ -106,10 +106,12 @@ describe("AboutDialog", () => {
     );
   });
 
-  it("dismisses safely through Cancel and a true backdrop press", () => {
+  it("dismisses safely through Cancel and a true backdrop press", async () => {
     const { container, onClose } = renderDialog();
     const dialog = container.querySelector("dialog")!;
     const surface = container.querySelector(".about-window")!;
+
+    await act(async () => Promise.resolve());
 
     act(() => {
       surface.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));

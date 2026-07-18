@@ -439,6 +439,7 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
   });
   it("surfaces EPUB deletion cache warnings without changing the successful result", async () => {
     const { storage } = await scopedStorage();
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     const surfaced: unknown[] = [];
     storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
     invokeMock.mockImplementation(async (command) => {
@@ -461,6 +462,7 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
         repairRequired: false,
       },
     ]);
+    expect(warning).toHaveBeenCalledWith("Deleted EPUB cache entries will be rebuilt.");
   });
 
   it("does not surface an operation warning when cache maintenance succeeds", async () => {
