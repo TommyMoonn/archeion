@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it } from "vitest";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const scriptsRoot = path.join(projectRoot, "scripts");
 const temporaryRoots: string[] = [];
-const versionUpdateTimeout = 30_000;
+const releaseProcessTimeout = 30_000;
 
 function commandExists(command: string): boolean {
   const result = spawnSync(command, ["--version"], {
@@ -215,46 +215,50 @@ describeReleaseTooling("release tooling", () => {
     );
   });
 
-  it("stages stable public installer names and matching checksums", () => {
-    const root = createFixture();
-    const bundleRoot = path.join(root, "bundle");
-    const outputDirectory = path.join(root, "artifacts", "windows");
-    const nsisContents = "fixture NSIS installer";
-    const msiContents = "fixture MSI installer";
+  it(
+    "stages stable public installer names and matching checksums",
+    () => {
+      const root = createFixture();
+      const bundleRoot = path.join(root, "bundle");
+      const outputDirectory = path.join(root, "artifacts", "windows");
+      const nsisContents = "fixture NSIS installer";
+      const msiContents = "fixture MSI installer";
 
-    fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
-    fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
-    fs.writeFileSync(path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"), nsisContents);
-    fs.writeFileSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"), msiContents);
+      fs.mkdirSync(path.join(bundleRoot, "nsis"), { recursive: true });
+      fs.mkdirSync(path.join(bundleRoot, "msi"), { recursive: true });
+      fs.writeFileSync(path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"), nsisContents);
+      fs.writeFileSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"), msiContents);
 
-    const result = runPowerShell("stage-windows-bundles.ps1", [
-      "-ProjectRoot",
-      root,
-      "-BundleRoot",
-      bundleRoot,
-      "-OutputDirectory",
-      outputDirectory,
-    ]);
+      const result = runPowerShell("stage-windows-bundles.ps1", [
+        "-ProjectRoot",
+        root,
+        "-BundleRoot",
+        bundleRoot,
+        "-OutputDirectory",
+        outputDirectory,
+      ]);
 
-    expect(result.status).toBe(0);
-    expect(fs.readdirSync(outputDirectory).sort()).toEqual([
-      "Archeion-Setup-x64.exe",
-      "Archeion-x64.msi",
-      "SHA256SUMS.txt",
-    ]);
-    expect(fs.readFileSync(path.join(outputDirectory, "Archeion-Setup-x64.exe"), "utf8")).toBe(
-      nsisContents,
-    );
-    expect(fs.readFileSync(path.join(outputDirectory, "Archeion-x64.msi"), "utf8")).toBe(
-      msiContents,
-    );
-    expect(
-      fs.readFileSync(path.join(outputDirectory, "SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/),
-    ).toEqual([
-      `${sha256(nsisContents)}  Archeion-Setup-x64.exe`,
-      `${sha256(msiContents)}  Archeion-x64.msi`,
-    ]);
-  });
+      expect(result.status).toBe(0);
+      expect(fs.readdirSync(outputDirectory).sort()).toEqual([
+        "Archeion-Setup-x64.exe",
+        "Archeion-x64.msi",
+        "SHA256SUMS.txt",
+      ]);
+      expect(fs.readFileSync(path.join(outputDirectory, "Archeion-Setup-x64.exe"), "utf8")).toBe(
+        nsisContents,
+      );
+      expect(fs.readFileSync(path.join(outputDirectory, "Archeion-x64.msi"), "utf8")).toBe(
+        msiContents,
+      );
+      expect(
+        fs.readFileSync(path.join(outputDirectory, "SHA256SUMS.txt"), "utf8").trim().split(/\r?\n/),
+      ).toEqual([
+        `${sha256(nsisContents)}  Archeion-Setup-x64.exe`,
+        `${sha256(msiContents)}  Archeion-x64.msi`,
+      ]);
+    },
+    releaseProcessTimeout,
+  );
 
   it(
     "updates all application version sources as one transaction",
@@ -272,7 +276,7 @@ describeReleaseTooling("release tooling", () => {
         tauriConfig: "0.4.0-beta.1",
       });
     },
-    versionUpdateTimeout,
+    releaseProcessTimeout,
   );
 
   it(
@@ -305,6 +309,6 @@ describeReleaseTooling("release tooling", () => {
         );
       }
     },
-    versionUpdateTimeout,
+    releaseProcessTimeout,
   );
 });
