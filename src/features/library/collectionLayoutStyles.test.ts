@@ -41,6 +41,15 @@ describe("collection content spacing ownership", () => {
     expect(pageShell).not.toContain("4.5vw");
   });
 
+  it("keeps the selection ribbon on the muted selected-control treatment", () => {
+    const selectionBar = cssBlock(libraryStyles, "\n.library-selection-bar");
+
+    expect(selectionBar).toContain("border: 1px solid var(--line-strong);");
+    expect(selectionBar).toContain("background: var(--surface-raised);");
+    expect(selectionBar).not.toContain("var(--accent-border)");
+    expect(selectionBar).not.toContain("box-shadow");
+  });
+
   it("reserves exactly two clamped title lines before every grid-card author", () => {
     const title = cssBlock(libraryStyles, ".book-card__copy strong");
 

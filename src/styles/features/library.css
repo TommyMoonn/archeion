@@ -134,11 +134,9 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   min-height: 44px;
   padding: 5px 6px 5px 12px;
   margin: 0 auto 28px;
-  border: 1px solid var(--line);
-  border-color: var(--accent-border);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius-menu);
-  background: var(--surface-main-raised);
-  box-shadow: var(--shadow-card);
+  background: var(--surface-raised);
 }
 
 .library-selection-bar__status,

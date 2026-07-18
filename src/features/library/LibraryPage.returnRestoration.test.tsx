@@ -319,7 +319,7 @@ describe("mounted reader-return surfaces", () => {
       },
     });
     suite.trackRoot(session.root);
-    await waitForButtonWithText(session.container, "Read");
+    await waitForButtonWithLabel(session.container, "Read The Return");
     await flushRestoration();
 
     const volumeAction = session.container.querySelector<HTMLButtonElement>(

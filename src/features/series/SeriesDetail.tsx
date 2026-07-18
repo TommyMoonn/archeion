@@ -1,4 +1,11 @@
-import { ArrowLeft, CheckCircle, Play, Stack, WarningCircle } from "@phosphor-icons/react";
+import {
+  ArrowLeft,
+  CaretRight,
+  CheckCircle,
+  Play,
+  Stack,
+  WarningCircle,
+} from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -93,30 +100,36 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               key={book.id}
               role="listitem"
             >
-              <BookCover book={book} className="book-cover--series-volume" />
-              <div className="series-volume__copy">
-                <div className="series-volume__meta">
-                  <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
-                  {isCurrent ? <span data-marker="current">Current volume</span> : null}
-                  {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
-                </div>
-                <h2>{bookTitle(book)}</h2>
-                {bookAuthor(book) ? <p>{bookAuthor(book)}</p> : null}
-                <div className="series-volume__progress">
-                  <span>{bookProgressLabel(book)}</span>
-                  {status === "completed" ? (
-                    <CheckCircle aria-hidden="true" size={14} weight="fill" />
-                  ) : null}
-                </div>
-              </div>
-              <Button
+              <button
+                aria-label={`${bookActionLabel(book)} ${bookTitle(book)}`}
+                className="series-volume__open"
                 disabled={Boolean(book.isFileMissing)}
                 onClick={() => onRead(book)}
-                size="standard"
-                variant="ghost"
+                type="button"
               >
-                {bookActionLabel(book)}
-              </Button>
+                <BookCover book={book} className="book-cover--series-volume" />
+                <span className="series-volume__copy">
+                  <span className="series-volume__meta">
+                    <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
+                    {isCurrent ? <span data-marker="current">Current volume</span> : null}
+                    {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
+                  </span>
+                  <strong className="series-volume__title">{bookTitle(book)}</strong>
+                  {bookAuthor(book) ? (
+                    <span className="series-volume__author">{bookAuthor(book)}</span>
+                  ) : null}
+                  <span className="series-volume__progress">
+                    <span>{bookProgressLabel(book)}</span>
+                    {status === "completed" ? (
+                      <CheckCircle aria-hidden="true" size={14} weight="fill" />
+                    ) : null}
+                  </span>
+                </span>
+                <span className="series-volume__action">
+                  <span>{bookActionLabel(book)}</span>
+                  <CaretRight aria-hidden="true" size={16} weight="bold" />
+                </span>
+              </button>
             </article>
           );
         })}

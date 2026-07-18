@@ -158,11 +158,9 @@ describe("series library surfaces", () => {
     const scope = mount(<SeriesDetail entry={entry} onBack={vi.fn()} onRead={onRead} />);
     const volumeRows = Array.from(scope.querySelectorAll(".series-volume"));
 
-    expect(volumeRows.map((row) => row.querySelector("h2")?.textContent)).toEqual([
-      "The Beginning",
-      "The Crossing",
-      "The Return",
-    ]);
+    expect(
+      volumeRows.map((row) => row.querySelector(".series-volume__title")?.textContent),
+    ).toEqual(["The Beginning", "The Crossing", "The Return"]);
     expect(scope.textContent).toContain("Volume 3 may be missing");
     expect(
       scope.querySelector('[data-marker="current"]')?.parentElement?.parentElement?.textContent,
@@ -173,16 +171,35 @@ describe("series library surfaces", () => {
     expect(scope.textContent).toContain("Vol. 01");
     expect(seriesStyles).not.toContain(".series-volume[data-current]");
     expect(seriesStyles).not.toContain(".series-volume[data-unread]");
-    expect(
-      Array.from(scope.querySelectorAll(".series-volume > .button")).every((button) =>
-        button.classList.contains("button--ghost"),
-      ),
-    ).toBe(true);
+    expect(volumeRows.every((row) => row.querySelectorAll("button").length === 1)).toBe(true);
+
+    const currentVolume = volumeRows[1]?.querySelector<HTMLButtonElement>(
+      '.series-volume__open[aria-label="Continue The Crossing"]',
+    );
+    expect(currentVolume?.querySelector(".series-volume__action svg")).not.toBeNull();
+
+    act(() => currentVolume?.click());
+    expect(onRead.mock.calls.map(([book]) => book.id)).toEqual(["volume-2"]);
+
+    onRead.mockClear();
 
     act(() => buttonWithText(scope, "Continue Series").click());
 
     expect(onRead.mock.calls.map(([book]) => book.id)).toEqual(["volume-2"]);
     expect(scope.textContent).not.toContain("Open next unread");
+  });
+
+  it("makes each series volume row a full-width interactive surface", () => {
+    const openStyles = cssBlock(seriesStyles, ".series-volume__open");
+    const hoverStyles = cssBlock(
+      seriesStyles,
+      ".series-volume__open:hover:not(:disabled),\n.series-volume__open:focus-visible",
+    );
+
+    expect(openStyles).toContain("width: 100%;");
+    expect(openStyles).toContain("cursor: pointer;");
+    expect(hoverStyles).toContain("border-color: var(--line-strong);");
+    expect(hoverStyles).toContain("background: var(--surface-raised);");
   });
 
   it("shows a recovery state for a stale series location", () => {

@@ -247,15 +247,37 @@
 }
 
 .series-volume {
+  min-width: 0;
+}
+
+.series-volume__open {
   display: grid;
   grid-template-columns: 54px minmax(0, 1fr) auto;
   align-items: center;
   gap: 15px;
+  width: 100%;
   min-width: 0;
   padding: 11px 13px;
   border: 1px solid var(--line);
   border-radius: var(--radius-menu);
+  color: inherit;
   background: color-mix(in srgb, var(--surface) 60%, transparent);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.series-volume__open:hover:not(:disabled),
+.series-volume__open:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--surface-raised);
+}
+
+.series-volume__open:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
 }
 
 .book-cover--series-volume {
@@ -291,21 +313,22 @@
   text-transform: none;
 }
 
-.series-volume h2,
-.series-volume p {
+.series-volume__title,
+.series-volume__author {
+  display: block;
   overflow: hidden;
   margin: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.series-volume h2 {
+.series-volume__title {
   color: var(--text-strong);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
 }
 
-.series-volume p,
+.series-volume__author,
 .series-volume__progress {
   color: var(--muted);
   font-size: var(--type-caption);
@@ -322,8 +345,19 @@
   color: var(--success);
 }
 
-.series-volume > .button {
+.series-volume__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
   min-width: 94px;
+  color: var(--text);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.series-volume__action > svg {
+  color: var(--muted-soft);
 }
 
 html[data-motion="on"] .series-grid,
@@ -376,17 +410,21 @@ html[data-motion="on"] .series-detail {
     grid-template-columns: 1fr;
   }
 
-  .series-volume {
-    grid-template-columns: 46px minmax(0, 1fr);
+  .series-volume__open {
+    grid-template-columns: 46px minmax(0, 1fr) auto;
+    gap: 11px;
   }
 
   .book-cover--series-volume {
     width: 46px;
   }
 
-  .series-volume > .button {
-    grid-column: 1 / -1;
-    width: 100%;
+  .series-volume__action {
+    min-width: 0;
+  }
+
+  .series-volume__action > span {
+    display: none;
   }
 }
 
