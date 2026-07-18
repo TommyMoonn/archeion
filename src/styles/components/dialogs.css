@@ -15,6 +15,10 @@ html[data-motion="on"] .dialog[open] {
   animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
+html[data-motion="on"] dialog[open] > .modal-surface {
+  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
 .dialog::backdrop {
   background: var(--backdrop-strong);
   backdrop-filter: blur(3px);

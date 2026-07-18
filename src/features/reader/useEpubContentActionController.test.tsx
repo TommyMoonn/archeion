@@ -17,7 +17,7 @@ import {
 
 const resolveEpubFootnote = vi.hoisted(() => vi.fn());
 const resolveEpubIllustration = vi.hoisted(() => vi.fn());
-const openExternalEpubLink = vi.hoisted(() => vi.fn(async () => undefined));
+const openExternalUrl = vi.hoisted(() => vi.fn(async () => undefined));
 
 vi.mock("./epubFootnoteResolver", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./epubFootnoteResolver")>()),
@@ -27,7 +27,7 @@ vi.mock("./epubIllustrationResolver", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./epubIllustrationResolver")>()),
   resolveEpubIllustration,
 }));
-vi.mock("./openExternalEpubLink", () => ({ openExternalEpubLink }));
+vi.mock("../../app/openExternalUrl", () => ({ openExternalUrl }));
 
 type HarnessProps = {
   getSession: () => EpubSessionSnapshot | null;
@@ -95,8 +95,8 @@ afterEach(() => {
   document.body.replaceChildren();
   resolveEpubFootnote.mockReset();
   resolveEpubIllustration.mockReset();
-  openExternalEpubLink.mockReset();
-  openExternalEpubLink.mockResolvedValue(undefined);
+  openExternalUrl.mockReset();
+  openExternalUrl.mockResolvedValue(undefined);
   vi.restoreAllMocks();
 });
 
@@ -643,12 +643,12 @@ describe("useEpubContentActionController", () => {
         sectionHref: "Text/chapter.xhtml",
       });
     });
-    expect(openExternalEpubLink).not.toHaveBeenCalled();
+    expect(openExternalUrl).not.toHaveBeenCalled();
     expect(harness.latest().external?.host).toBe("example.com");
 
     act(() => harness.latest().confirmExternal());
     await act(async () => Promise.resolve());
-    expect(openExternalEpubLink).toHaveBeenCalledWith("https://example.com/source");
+    expect(openExternalUrl).toHaveBeenCalledWith("https://example.com/source");
   });
 
   it("does not create external confirmation state for malformed authorities", () => {
@@ -675,7 +675,7 @@ describe("useEpubContentActionController", () => {
       expect(harness.latest().external).toBeNull();
     }
 
-    expect(openExternalEpubLink).not.toHaveBeenCalled();
+    expect(openExternalUrl).not.toHaveBeenCalled();
     expect(resolveEpubFootnote).not.toHaveBeenCalled();
   });
 
@@ -702,7 +702,7 @@ describe("useEpubContentActionController", () => {
       expect(harness.latest().external).toBeNull();
     }
 
-    expect(openExternalEpubLink).not.toHaveBeenCalled();
+    expect(openExternalUrl).not.toHaveBeenCalled();
     expect(resolveEpubFootnote).not.toHaveBeenCalled();
   });
 
@@ -711,7 +711,7 @@ describe("useEpubContentActionController", () => {
       callback(0);
       return 1;
     });
-    openExternalEpubLink.mockRejectedValueOnce(new Error("unavailable"));
+    openExternalUrl.mockRejectedValueOnce(new Error("unavailable"));
     const activeSession = { current: session() };
     const harness = renderController(activeSession);
     const { document: chapter, link } = linkedDocument("https://example.com/source");

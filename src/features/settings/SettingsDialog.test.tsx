@@ -122,6 +122,7 @@ describe("SettingsDialog responsiveness", () => {
   it("renders only the active settings section in normal mode", () => {
     const { container } = track(renderDialog());
 
+    expect(container.querySelector(".settings-window.modal-surface")).not.toBeNull();
     expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();

@@ -2,6 +2,7 @@ import { X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import { getProgrammaticScrollBehavior } from "../../utils/motion";
 import { ThemeManagerDialog } from "../themes/ThemeManagerDialog";
 import { SettingsConfirmations } from "./SettingsConfirmations";
@@ -61,8 +62,8 @@ function renderSettingsSection(
 }
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
   const contentRef = useRef<HTMLElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -88,6 +89,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     dataRequirements.has("archiveAppearanceSettings"),
   );
   const committedArchiveAppearance = useCommittedArchiveAppearance();
+  const modal = useModalDialogLifecycle({ dialogRef, onClose });
   const controller = useSettingsDialogController({
     committedArchiveAppearance,
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
@@ -110,19 +112,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   }
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
-
-    return () => {
-      if (dialog?.open) {
-        dialog.close();
-      }
-    };
-  }, []);
-
-  useEffect(() => {
     scrollSettingsContent(contentRef.current);
   }, [trimmedQuery]);
 
@@ -131,18 +120,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       aria-labelledby="settings-title"
       aria-modal="true"
       className="settings-dialog"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
       ref={dialogRef}
     >
-      <div className="settings-window">
+      <div className="settings-window modal-surface">
         <SettingsSidebar
           onQueryChange={setQuery}
           onSectionChange={showSection}

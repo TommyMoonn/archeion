@@ -27,7 +27,7 @@ describe("reader content action contract", () => {
     expect(session).not.toMatch(
       /classifyEpubLink|resolveEpubFootnote|ReaderFootnotePopover|ReaderIllustrationViewer/,
     );
-    expect(registry).not.toMatch(/classifyEpubLink|resolveEpubFootnote|openExternalEpubLink/);
+    expect(registry).not.toMatch(/classifyEpubLink|resolveEpubFootnote|openExternalUrl/);
     expect(controller).toContain("navigateToTarget");
     expect(controller).toContain("footnoteRef.current?.anchor");
     expect(popover).not.toContain("event.currentTarget");

@@ -29,10 +29,6 @@
   box-shadow: var(--shadow-dialog);
 }
 
-html[data-motion="on"] .settings-dialog[open] .settings-window {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
 .settings-sidebar {
   display: flex;
   flex-direction: column;
@@ -268,12 +264,14 @@ html[data-motion="on"] .settings-status {
 }
 
 .about-dialog {
-  width: min(460px, calc(100% - 40px));
+  width: min(500px, calc(100% - 32px));
   max-width: none;
+  max-height: calc(100dvh - 32px);
   padding: 0;
   border: 0;
   color: var(--text);
   background: transparent;
+  overflow: hidden;
 }
 
 .about-dialog::backdrop {
@@ -282,11 +280,8 @@ html[data-motion="on"] .settings-status {
 
 .about-window {
   position: relative;
-  display: grid;
-  justify-items: center;
-  min-height: 374px;
-  gap: 24px;
-  padding: 44px 32px 32px;
+  max-height: calc(100dvh - 32px);
+  overflow: hidden;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-card);
   background: var(--canvas);
@@ -294,14 +289,22 @@ html[data-motion="on"] .settings-status {
   text-align: center;
 }
 
-html[data-motion="on"] .about-dialog[open] .about-window {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
 .about-window__close {
   position: absolute;
+  z-index: 2;
   top: 10px;
   right: 10px;
+}
+
+.about-window__content {
+  display: grid;
+  justify-items: center;
+  gap: 20px;
+  max-height: calc(100dvh - 34px);
+  padding: 36px 28px 28px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .about-window__brand {
@@ -311,8 +314,8 @@ html[data-motion="on"] .about-dialog[open] .about-window {
 
 .about-window__brand img {
   display: block;
-  width: 112px;
-  height: 112px;
+  width: 96px;
+  height: 96px;
   object-fit: contain;
 }
 
@@ -343,37 +346,52 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   font-weight: var(--font-weight-semibold);
 }
 
-.about-window__github {
+.about-window__links {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.about-window__link {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   width: 100%;
-  min-height: 56px;
-  padding: 10px 12px;
+  min-height: 54px;
+  padding: 9px 11px;
   border: 1px solid var(--line);
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--surface);
   text-align: left;
+  text-decoration: none;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
-.about-window__github svg {
+.about-window__link > svg:first-child {
   color: var(--accent);
 }
 
-.about-window__github-copy {
+.about-window__link > svg:last-child {
+  color: var(--muted);
+}
+
+.about-window__link-copy {
   display: grid;
   min-width: 0;
   gap: 3px;
 }
 
-.about-window__github-copy span {
+.about-window__link-copy strong {
+  color: var(--text);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
 }
 
-.about-window__github-copy small {
+.about-window__link-copy small {
   overflow: hidden;
   color: var(--muted);
   font-size: var(--type-caption);
@@ -381,31 +399,40 @@ html[data-motion="on"] .about-dialog[open] .about-window {
   white-space: nowrap;
 }
 
-.about-window__github-action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 32px;
-  padding: 0 13px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-control);
-  color: var(--text-strong);
-  background: var(--surface-raised);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
-  text-decoration: none;
-}
-
-.about-window__github-action:hover,
-.about-window__github-action:focus-visible {
+.about-window__link:hover,
+.about-window__link:focus-visible {
   border-color: var(--accent);
   color: var(--text-strong);
-  background: color-mix(in srgb, var(--surface-raised) 84%, var(--accent-soft));
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft));
 }
 
-.about-window__github-action:focus-visible {
+.about-window__link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.about-window__error {
+  width: 100%;
+  color: var(--error-strong);
+  font-size: var(--type-meta);
+  line-height: 1.4;
+}
+
+@media (max-width: 480px) {
+  .about-dialog,
+  .about-window {
+    max-height: calc(100dvh - 20px);
+  }
+
+  .about-window__content {
+    max-height: calc(100dvh - 22px);
+    padding: 32px 20px 22px;
+  }
+
+  .about-window__brand img {
+    width: 80px;
+    height: 80px;
+  }
 }
 
 .settings-row__meta {

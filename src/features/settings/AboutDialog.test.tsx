@@ -1,35 +1,146 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AboutDialog } from "./AboutDialog";
 
-vi.mock("@tauri-apps/api/app", () => ({
-  getVersion: vi.fn(async () => "9.9.9"),
+const resolveApplicationVersion = vi.hoisted(() => vi.fn(async () => "9.9.9"));
+const openExternalUrl = vi.hoisted(() => vi.fn(async () => undefined));
+
+vi.mock("../../app/appVersion", () => ({
+  APPLICATION_VERSION_FALLBACK: "0.6.0",
+  resolveApplicationVersion,
 }));
 
-vi.mock("@tauri-apps/api/core", () => ({
-  isTauri: () => false,
-}));
+vi.mock("../../app/openExternalUrl", () => ({ openExternalUrl }));
+
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
+  true;
+
+type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
+
+const roots: Root[] = [];
+
+function renderDialog(onClose = vi.fn()) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  roots.push(root);
+  act(() => root.render(<AboutDialog onClose={onClose} />));
+  return { container, onClose, root };
+}
+
+beforeEach(() => {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    (this as DialogElementWithOpen).open = true;
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    (this as DialogElementWithOpen).open = false;
+  };
+  resolveApplicationVersion.mockReset();
+  resolveApplicationVersion.mockResolvedValue("9.9.9");
+  openExternalUrl.mockReset();
+  openExternalUrl.mockResolvedValue(undefined);
+});
+
+afterEach(() => {
+  act(() => {
+    for (const root of roots.splice(0)) root.unmount();
+  });
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
+});
 
 describe("AboutDialog", () => {
-  it("renders the branded about content with fallback version and GitHub link", () => {
+  it("renders branding, the centralized fallback version, and all project destinations", () => {
     const markup = renderToStaticMarkup(<AboutDialog onClose={vi.fn()} />);
 
     expect(markup).toContain("Archeion");
-    expect(markup).toContain("Version 0.2.0");
-    expect(markup).not.toContain("Your books and reading data stay on this device.");
-    expect(markup).toContain("GitHub");
-    expect(markup).toContain("https://github.com/TommyMoonn/archeion");
+    expect(markup).toContain("Version 0.6.0");
     expect(markup).toContain("about-window__brand");
-    expect(markup).not.toContain("Local EPUB archive");
+    expect(markup).toContain("modal-surface");
+    expect(markup).toContain("Website");
+    expect(markup).toContain("Documentation");
+    expect(markup).toContain("Source code");
+    expect(markup).toContain("https://tommymoonn.github.io/archeion/");
+    expect(markup).toContain("https://tommymoonn.github.io/archeion/documentation/");
+    expect(markup).toContain("https://github.com/TommyMoonn/archeion");
+    expect(markup).not.toContain("about-window__github");
+    expect(markup).not.toContain("Version 0.2.0");
   });
 
-  it("renders an explicit external GitHub action", () => {
-    const markup = renderToStaticMarkup(<AboutDialog onClose={vi.fn()} />);
+  it("uses the native-approved external URL owner for every destination", async () => {
+    const { container } = renderDialog();
+    const links = Array.from(container.querySelectorAll<HTMLAnchorElement>(".about-window__link"));
 
-    expect(markup).toContain("Open");
-    expect(markup).toContain('href="https://github.com/TommyMoonn/archeion"');
-    expect(markup).toContain('target="_blank"');
-    expect(markup).toContain('rel="noreferrer"');
+    for (const link of links) {
+      await act(async () => link.click());
+    }
+
+    expect(openExternalUrl.mock.calls).toEqual([
+      ["https://tommymoonn.github.io/archeion/"],
+      ["https://tommymoonn.github.io/archeion/documentation/"],
+      ["https://github.com/TommyMoonn/archeion"],
+    ]);
+    for (const link of links) {
+      expect(link.target).toBe("_blank");
+      expect(link.rel).toBe("noreferrer");
+    }
+  });
+
+  it("publishes the runtime version and reports an external-open failure locally", async () => {
+    openExternalUrl.mockRejectedValueOnce(new Error("unavailable"));
+    const { container } = renderDialog();
+
+    await act(async () => Promise.resolve());
+    expect(container.textContent).toContain("Version 9.9.9");
+
+    await act(async () =>
+      container.querySelector<HTMLAnchorElement>(".about-window__link")?.click(),
+    );
+    expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Archeion could not open that link.",
+    );
+  });
+
+  it("dismisses safely through Cancel and a true backdrop press", () => {
+    const { container, onClose } = renderDialog();
+    const dialog = container.querySelector("dialog")!;
+    const surface = container.querySelector(".about-window")!;
+
+    act(() => {
+      surface.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onClose).not.toHaveBeenCalled();
+
+    act(() => {
+      dialog.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      dialog.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    act(() => dialog.dispatchEvent(new Event("cancel", { cancelable: true })));
+    expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns focus to its opener after unmount despite the autofocus close button", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    const { root } = renderDialog();
+
+    expect(document.activeElement).not.toBe(opener);
+    act(() => root.unmount());
+    roots.splice(roots.indexOf(root), 1);
+
+    expect(document.activeElement).toBe(opener);
   });
 });

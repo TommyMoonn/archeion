@@ -1,4 +1,6 @@
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
+
+import { useModalDialogLifecycle } from "./useModalDialogLifecycle";
 
 type DialogProps = {
   children?: ReactNode;
@@ -19,33 +21,10 @@ export function Dialog({
   onClose,
   title,
 }: DialogProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const pointerStartedOnBackdropRef = useRef(false);
-  const returnFocusRef = useRef<HTMLElement | null>(null);
   const descriptionId = useId();
   const titleId = useId();
-
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    const activeElement = document.activeElement;
-    returnFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
-
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
-
-    return () => {
-      if (dialog?.open) {
-        dialog.close();
-      }
-      const returnFocus = returnFocusRef.current;
-      window.requestAnimationFrame(() => {
-        if (returnFocus?.isConnected) {
-          returnFocus.focus({ preventScroll: true });
-        }
-      });
-    };
-  }, []);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const modal = useModalDialogLifecycle({ closeOnBackdropClick, dialogRef, onClose });
 
   return (
     <dialog
@@ -54,23 +33,9 @@ export function Dialog({
       aria-describedby={description ? descriptionId : undefined}
       aria-labelledby={titleId}
       aria-modal="true"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (
-          closeOnBackdropClick &&
-          pointerStartedOnBackdropRef.current &&
-          event.target === event.currentTarget
-        ) {
-          onClose();
-        }
-        pointerStartedOnBackdropRef.current = false;
-      }}
-      onPointerDown={(event) => {
-        pointerStartedOnBackdropRef.current = event.target === event.currentTarget;
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
     >
       <div className="dialog__panel">
         <div className="dialog__copy">

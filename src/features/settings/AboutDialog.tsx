@@ -1,83 +1,117 @@
-import { getVersion } from "@tauri-apps/api/app";
-import { isTauri } from "@tauri-apps/api/core";
-import { GithubLogo, X } from "@phosphor-icons/react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowSquareOut, BookOpenText, GithubLogo, Globe, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 
+import { APPLICATION_VERSION_FALLBACK, resolveApplicationVersion } from "../../app/appVersion";
+import { openExternalUrl } from "../../app/openExternalUrl";
 import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { IconButton } from "../../components/IconButton";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 
-const GITHUB_URL = "https://github.com/TommyMoonn/archeion";
+const ABOUT_DESTINATIONS = [
+  {
+    href: "https://tommymoonn.github.io/archeion/",
+    icon: Globe,
+    label: "Website",
+    location: "tommymoonn.github.io/archeion",
+  },
+  {
+    href: "https://tommymoonn.github.io/archeion/documentation/",
+    icon: BookOpenText,
+    label: "Documentation",
+    location: "tommymoonn.github.io/archeion/documentation",
+  },
+  {
+    href: "https://github.com/TommyMoonn/archeion",
+    icon: GithubLogo,
+    label: "Source code",
+    location: "github.com/TommyMoonn/archeion",
+  },
+] as const;
 
 type AboutDialogProps = {
   onClose: () => void;
 };
 
 export function AboutDialog({ onClose }: AboutDialogProps) {
+  const [version, setVersion] = useState(APPLICATION_VERSION_FALLBACK);
+  const [externalLinkError, setExternalLinkError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [version, setVersion] = useState("0.2.0");
+  const linkOperationRef = useRef(0);
+  const modal = useModalDialogLifecycle({ dialogRef, onClose });
 
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
-    if (isTauri()) {
-      void getVersion()
-        .then(setVersion)
-        .catch(() => undefined);
-    }
+    let active = true;
+    void resolveApplicationVersion().then((resolvedVersion) => {
+      if (active) setVersion(resolvedVersion);
+    });
 
     return () => {
-      if (dialog?.open) {
-        dialog.close();
-      }
+      active = false;
+      linkOperationRef.current += 1;
     };
   }, []);
+
+  function openDestination(event: MouseEvent<HTMLAnchorElement>, href: string) {
+    event.preventDefault();
+    const operation = ++linkOperationRef.current;
+    setExternalLinkError(null);
+    void openExternalUrl(href).catch(() => {
+      if (linkOperationRef.current === operation) {
+        setExternalLinkError("Archeion could not open that link.");
+      }
+    });
+  }
 
   return (
     <dialog
       aria-labelledby="about-title"
       aria-modal="true"
       className="about-dialog"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
       ref={dialogRef}
     >
-      <section className="about-window">
+      <section className="about-window modal-surface">
         <IconButton autoFocus className="about-window__close" label="Close About" onClick={onClose}>
           <X aria-hidden="true" />
         </IconButton>
 
-        <div className="about-window__brand" aria-hidden="true">
-          <img alt="" src={archeionIcon} />
-        </div>
-
-        <div className="about-window__copy">
-          <h1 id="about-title">Archeion</h1>
-          <p className="about-window__version">Version {version}</p>
-        </div>
-
-        <div className="about-window__github">
-          <GithubLogo aria-hidden="true" size={20} weight="regular" />
-          <div className="about-window__github-copy">
-            <span>GitHub</span>
-            <small>{GITHUB_URL}</small>
+        <div className="about-window__content">
+          <div className="about-window__brand" aria-hidden="true">
+            <img alt="" src={archeionIcon} />
           </div>
-          <a
-            className="about-window__github-action"
-            href={GITHUB_URL}
-            rel="noreferrer"
-            target="_blank"
-          >
-            Open
-          </a>
+
+          <div className="about-window__copy">
+            <h1 id="about-title">Archeion</h1>
+            <p className="about-window__version">Version {version}</p>
+          </div>
+
+          <nav aria-label="Archeion links" className="about-window__links">
+            {ABOUT_DESTINATIONS.map(({ href, icon: DestinationIcon, label, location }) => (
+              <a
+                className="about-window__link"
+                href={href}
+                key={href}
+                onClick={(event) => openDestination(event, href)}
+                rel="noreferrer"
+                target="_blank"
+              >
+                <DestinationIcon aria-hidden="true" size={20} weight="regular" />
+                <span className="about-window__link-copy">
+                  <strong>{label}</strong>
+                  <small>{location}</small>
+                </span>
+                <ArrowSquareOut aria-hidden="true" size={18} weight="bold" />
+              </a>
+            ))}
+          </nav>
+
+          {externalLinkError ? (
+            <p className="about-window__error" role="alert">
+              {externalLinkError}
+            </p>
+          ) : null}
         </div>
       </section>
     </dialog>

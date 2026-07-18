@@ -30,7 +30,7 @@ import type {
   ReaderContentDocumentRegistry,
 } from "./readerContentDocumentRegistry";
 import type { ClientRect } from "./readerHighlightPaletteAnchor";
-import { openExternalEpubLink } from "./openExternalEpubLink";
+import { openExternalUrl } from "../../app/openExternalUrl";
 
 export type ReaderFootnoteState = Readonly<{
   anchor: ReaderContentActionAnchor;
@@ -572,7 +572,7 @@ export function useEpubContentActionController({
     const opening = { ...current, error: undefined, opening: true };
     setExternal(opening);
 
-    void openExternalEpubLink(current.url).then(
+    void openExternalUrl(current.url).then(
       () => {
         if (!isCurrentOperation(operation, session) || externalRef.current !== opening) return;
         setExternal(null);
