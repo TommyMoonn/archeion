@@ -67,12 +67,6 @@
   justify-content: space-between;
 }
 
-.add-epub-dialog .app-select__menu {
-  width: 100%;
-  max-height: 220px;
-  overflow: auto;
-}
-
 .add-epub-dialog__label,
 .add-epub-dialog__field > span {
   display: inline-flex;
@@ -112,12 +106,6 @@
 
 .move-to-folder-dialog .app-select__trigger {
   justify-content: space-between;
-}
-
-.move-to-folder-dialog .app-select__menu {
-  width: 100%;
-  max-height: 220px;
-  overflow: auto;
 }
 
 .move-to-folder-dialog__label {

@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import type { ControlSize } from "./Button";
+import { useAppSelectPlacement } from "./useAppSelectPlacement";
 
 export type AppSelectOption<TValue extends string> = {
   disabled?: boolean;
@@ -72,6 +73,7 @@ export function AppSelect<TValue extends string>({
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const selectedIndex = options.findIndex((option) => option.value === value);
   const [activeIndex, setActiveIndex] = useState(selectedIndex >= 0 ? selectedIndex : 0);
   const resolvedActiveIndex =
@@ -83,6 +85,18 @@ export function AppSelect<TValue extends string>({
     [options, value],
   );
   const optionId = (index: number) => `${controlId}-option-${index}`;
+  const activeOptionId =
+    open && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
+  const contentRevision = options
+    .map((option) => `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`)
+    .join("\u0001");
+  const menuPlacement = useAppSelectPlacement({
+    activeOptionId,
+    contentRevision,
+    menuRef,
+    open,
+    triggerRef: buttonRef,
+  });
 
   useEffect(() => {
     if (!open) {
@@ -188,9 +202,7 @@ export function AppSelect<TValue extends string>({
         </span>
       ) : null}
       <button
-        aria-activedescendant={
-          open && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined
-        }
+        aria-activedescendant={activeOptionId}
         aria-autocomplete="none"
         aria-controls={`${controlId}-menu`}
         aria-expanded={open}
@@ -216,9 +228,22 @@ export function AppSelect<TValue extends string>({
       {open ? (
         <div
           className="app-select__menu"
+          data-placement={menuPlacement?.placement}
           id={`${controlId}-menu`}
           aria-labelledby={`${controlId}-button`}
+          ref={menuRef}
           role="listbox"
+          style={
+            menuPlacement
+              ? {
+                  left: menuPlacement.left,
+                  maxHeight: menuPlacement.maxHeight,
+                  top: menuPlacement.top,
+                  visibility: "visible",
+                  width: menuPlacement.width,
+                }
+              : { visibility: "hidden" }
+          }
           tabIndex={-1}
         >
           {options.map((option, index) => (
