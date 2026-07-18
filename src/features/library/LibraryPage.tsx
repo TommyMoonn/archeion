@@ -426,6 +426,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         bookCollectionProps={{
           canManageFile: true,
           onDelete: bookActions.requestDeleteBook,
+          onEditMetadata: dialogActions.openBookMetadata,
           onMove: dialogActions.openMoveBook,
           onRead: readBook,
           onRenameFile: dialogActions.openRenameBook,
@@ -495,7 +496,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onClearSearch: () => navigation.setSeriesQuery(""),
           onOpen: (entry) => changeLocation({ type: "series-detail", seriesKey: entry.key }),
           onQueryChange: navigation.setSeriesQuery,
-          onRead: readBook,
           query: navigation.seriesQuery,
         }}
         showContinueReading={showContinueReading}

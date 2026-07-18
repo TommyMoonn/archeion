@@ -12,6 +12,7 @@ import type { LibrarySelectionIntent } from "./librarySelection";
 type BookCardProps = {
   book: Book;
   onDelete: (book: Book) => void;
+  onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
   onRenameFile?: (book: Book) => void;
@@ -30,6 +31,7 @@ type BookCardProps = {
 function BookCardComponent({
   book,
   onDelete,
+  onEditMetadata,
   onMove,
   onRead,
   onRenameFile,
@@ -105,7 +107,7 @@ function BookCardComponent({
       <BookContextMenu
         book={book}
         onDelete={onDelete}
-        onDetails={onSelect}
+        onEditMetadata={onEditMetadata}
         onMove={onMove}
         onRead={onRead}
         onRenameFile={onRenameFile}
@@ -130,6 +132,7 @@ export const BookCard = memo(
     previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
     previous.onDelete === next.onDelete &&
+    previous.onEditMetadata === next.onEditMetadata &&
     previous.onMove === next.onMove &&
     previous.onRead === next.onRead &&
     previous.onRenameFile === next.onRenameFile &&

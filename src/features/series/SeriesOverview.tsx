@@ -1,13 +1,12 @@
-import { CaretRight, MagnifyingGlass, Play, Stack, X } from "@phosphor-icons/react";
+import { CaretRight, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
-import type { Book } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
 import { BookCover } from "../library/BookCover";
-import { filterSeriesEntries, seriesContinueBook } from "./seriesDerivation";
+import { filterSeriesEntries } from "./seriesDerivation";
 import { seriesProgressLabel, volumeCountLabel } from "./seriesDisplay";
 
 type SeriesOverviewProps = {
@@ -16,7 +15,6 @@ type SeriesOverviewProps = {
   onClearSearch: () => void;
   onOpen: (entry: SeriesEntry) => void;
   onQueryChange: (query: string) => void;
-  onRead: (book: Book) => void;
   query: string;
 };
 
@@ -26,7 +24,6 @@ export function SeriesOverview({
   onClearSearch,
   onOpen,
   onQueryChange,
-  onRead,
   query,
 }: SeriesOverviewProps) {
   const visibleEntries = filterSeriesEntries(entries, query);
@@ -95,7 +92,6 @@ export function SeriesOverview({
         <div className="series-grid">
           {visibleEntries.map((entry) => {
             const representative = entry.books[0];
-            const continueBook = seriesContinueBook(entry);
 
             if (!representative) {
               return null;
@@ -117,18 +113,6 @@ export function SeriesOverview({
                   </span>
                   <CaretRight aria-hidden="true" size={17} weight="bold" />
                 </button>
-                {continueBook ? (
-                  <button
-                    className="series-card__continue"
-                    data-reader-book-id={continueBook.id}
-                    disabled={Boolean(continueBook.isFileMissing)}
-                    onClick={() => onRead(continueBook)}
-                    type="button"
-                  >
-                    <Play aria-hidden="true" size={13} weight="fill" />
-                    <span>Continue</span>
-                  </button>
-                ) : null}
               </article>
             );
           })}

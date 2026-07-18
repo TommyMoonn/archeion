@@ -60,8 +60,7 @@
 
 .series-card {
   position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: block;
   min-width: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
@@ -82,12 +81,14 @@
   grid-template-columns: 72px minmax(0, 1fr) auto;
   align-items: center;
   min-width: 0;
+  width: 100%;
   gap: 16px;
   padding: 13px;
   border: 0;
   color: inherit;
   background: transparent;
   text-align: left;
+  cursor: pointer;
 }
 
 .book-cover--series {
@@ -126,29 +127,6 @@
 
 .series-card__open > svg {
   color: var(--muted-soft);
-}
-
-.series-card__continue {
-  display: inline-flex;
-  align-items: center;
-  align-self: center;
-  gap: 6px;
-  min-height: 32px;
-  margin-right: 14px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--text);
-  background: transparent;
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
-}
-
-.series-card__continue:hover:not(:disabled),
-.series-card__continue:focus-visible {
-  border-color: var(--accent-border);
-  color: var(--text-strong);
-  background: var(--accent-soft);
 }
 
 .series-loading {
@@ -280,13 +258,6 @@
   background: color-mix(in srgb, var(--surface) 60%, transparent);
 }
 
-.series-volume[data-current],
-.series-volume[data-unread] {
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
-  background: color-mix(in srgb, var(--accent) 5%, var(--surface));
-  box-shadow: inset 3px 0 var(--accent);
-}
-
 .book-cover--series-volume {
   width: 54px;
   border-radius: 5px;
@@ -390,15 +361,6 @@ html[data-motion="on"] .series-detail {
 
   .series-search {
     width: 100%;
-  }
-
-  .series-card {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .series-card__continue {
-    justify-content: center;
-    margin: 0 14px 14px;
   }
 
   .series-detail__actions,

@@ -11,6 +11,7 @@ import {
   renderLibraryPage,
   selectionBook,
   setupLibraryPageTestSuite,
+  waitForButtonWithLabel,
   waitForButtonWithText,
 } from "./LibraryPage.testUtils";
 
@@ -280,7 +281,7 @@ describe("mounted reader-return surfaces", () => {
     expect(document.activeElement).toBe(search);
   });
 
-  it("restores a mounted Series Overview Continue control", async () => {
+  it("falls back safely for an obsolete Series Overview reader target", async () => {
     const books = seriesBooks();
     const session = await renderLibraryPage(createStorage({ books }), {
       pathname: "/",
@@ -295,12 +296,11 @@ describe("mounted reader-return surfaces", () => {
       },
     });
     suite.trackRoot(session.root);
-    const continueButton = await waitForButtonWithText(session.container, "Continue");
+    await waitForButtonWithLabel(session.container, "Open Star Saga");
     await flushRestoration();
 
     const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
-    expect(document.activeElement).toBe(continueButton);
-    expect(document.activeElement).not.toBe(pageShell);
+    expect(document.activeElement).toBe(pageShell);
     expect(pageShell.scrollTop).toBe(360);
     expect(session.container.querySelector(".book-grid, .book-list")).toBeNull();
   });

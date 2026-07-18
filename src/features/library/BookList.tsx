@@ -18,6 +18,7 @@ import {
 type BookListProps = {
   books: Book[];
   onDelete: (book: Book) => void;
+  onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
   onRenameFile?: (book: Book) => void;
@@ -42,6 +43,7 @@ type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
 function BookRowComponent({
   book,
   onDelete,
+  onEditMetadata,
   onMove,
   onRead,
   onRenameFile,
@@ -124,7 +126,7 @@ function BookRowComponent({
       <BookContextMenu
         book={book}
         onDelete={onDelete}
-        onDetails={onSelect}
+        onEditMetadata={onEditMetadata}
         onMove={onMove}
         onRead={onRead}
         onRevealFile={onRevealFile}
@@ -149,6 +151,7 @@ const BookRow = memo(
     previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
     previous.onDelete === next.onDelete &&
+    previous.onEditMetadata === next.onEditMetadata &&
     previous.onMove === next.onMove &&
     previous.onRead === next.onRead &&
     previous.onRenameFile === next.onRenameFile &&

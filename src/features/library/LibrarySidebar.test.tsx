@@ -174,6 +174,23 @@ describe("LibrarySidebar", () => {
     );
   });
 
+  it("exposes each truncated folder name through its native hover title", () => {
+    const folderName = "Come Barefoot Tomorrow Through the Long Summer";
+    const markup = renderSidebar([
+      {
+        id: "folder-long-name",
+        name: folderName,
+        relativePath: folderName,
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ]);
+
+    expect(markup).toContain(`title="${folderName}"`);
+  });
+
   it("places the folder scrollbar at the sidebar edge without moving the section heading", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
 

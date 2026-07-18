@@ -17,7 +17,7 @@ import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuP
 type BookContextMenuProps = {
   book: Book;
   onDelete: (book: Book) => void;
-  onDetails: (book: Book) => void;
+  onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
   onRenameFile?: (book: Book) => void;
@@ -32,7 +32,7 @@ type BookContextMenuProps = {
 export function BookContextMenu({
   book,
   onDelete,
-  onDetails,
+  onEditMetadata,
   onMove,
   onRead,
   onRenameFile,
@@ -76,8 +76,8 @@ export function BookContextMenu({
         >
           {book.isFavorite ? "Remove favorite" : "Add favorite"}
         </MenuItem>
-        <MenuItem icon={<Info weight="regular" />} onClick={() => runAction(onDetails)}>
-          Details
+        <MenuItem icon={<Info weight="regular" />} onClick={() => runAction(onEditMetadata)}>
+          Edit metadata
         </MenuItem>
         {showRenameFileAction && showFileActions && onRenameFile ? (
           <MenuItem

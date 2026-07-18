@@ -197,7 +197,7 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   background: var(--surface-main);
-  padding: 42px clamp(26px, 4.5vw, 68px) 36px;
+  padding: 42px clamp(20px, 2.5vw, 40px) 36px;
 }
 
 html[data-density="compact"] .sidebar {

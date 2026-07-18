@@ -50,6 +50,27 @@ describe("LibraryPage dialogs and book actions", () => {
     expect(session.container.querySelector(".library-selection-bar")).toBeNull();
   });
 
+  it("opens metadata editing from the card menu while card activation keeps details ownership", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    await import("./BookAdvancedMetadataDialog");
+
+    await act(async () => {
+      session.container
+        .querySelector<HTMLElement>('summary[aria-label="Actions for Alpha"]')
+        ?.click();
+      buttonWithText(session.container, "Edit metadata").click();
+      await Promise.resolve();
+    });
+
+    expect(await waitForButtonWithText(session.container, "Write metadata to EPUB")).toBeInstanceOf(
+      HTMLButtonElement,
+    );
+    expect(session.container.querySelector(".dialog--metadata-writeback")).not.toBeNull();
+    expect(session.container.querySelector(".details-drawer")).toBeNull();
+  });
+
   it("opens embedded cover writeback from the book details drawer", async () => {
     const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
     const session = await renderLibraryPage(storage);

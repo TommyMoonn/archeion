@@ -3,6 +3,10 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const tokens = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
+const appShellStyles = readFileSync(
+  new URL("../../styles/layout/app-shell.css", import.meta.url),
+  "utf8",
+);
 const libraryStyles = readFileSync(
   new URL("../../styles/features/library.css", import.meta.url),
   "utf8",
@@ -12,7 +16,40 @@ const folderStyles = readFileSync(
   "utf8",
 );
 
+function cssBlock(source: string, selector: string): string {
+  const selectorIndex = source.indexOf(selector);
+  if (selectorIndex < 0) throw new Error(`Missing CSS selector: ${selector}`);
+  const openingBrace = source.indexOf("{", selectorIndex + selector.length);
+  if (openingBrace < 0) throw new Error(`Missing opening brace for: ${selector}`);
+
+  let depth = 0;
+  for (let index = openingBrace; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return source.slice(openingBrace + 1, index);
+  }
+
+  throw new Error(`Missing closing brace for: ${selector}`);
+}
+
 describe("collection content spacing ownership", () => {
+  it("uses the shared page shell to keep horizontal gutters compact across views", () => {
+    const pageShell = cssBlock(appShellStyles, ".page-shell");
+
+    expect(pageShell).toContain("padding: 42px clamp(20px, 2.5vw, 40px) 36px;");
+    expect(pageShell).not.toContain("4.5vw");
+  });
+
+  it("reserves exactly two clamped title lines before every grid-card author", () => {
+    const title = cssBlock(libraryStyles, ".book-card__copy strong");
+
+    expect(title).toContain("block-size: 2.8em;");
+    expect(title).toContain("line-height: 1.4;");
+    expect(title).toContain("text-overflow: ellipsis;");
+    expect(title).toContain("-webkit-line-clamp: 2;");
+  });
+
   it("publishes one normal and compact semantic collection offset", () => {
     expect(tokens).toMatch(/--collection-content-offset:\s*20px;/u);
     expect(tokens).toMatch(

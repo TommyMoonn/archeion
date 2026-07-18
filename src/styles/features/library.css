@@ -581,12 +581,14 @@ html[data-motion="on"] .library-content {
 
 .book-card__copy strong {
   display: -webkit-box;
+  block-size: 2.8em;
   overflow: hidden;
   margin: 0;
   color: var(--text);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
   line-height: 1.4;
+  text-overflow: ellipsis;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }

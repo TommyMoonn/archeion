@@ -113,7 +113,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
                 disabled={Boolean(book.isFileMissing)}
                 onClick={() => onRead(book)}
                 size="standard"
-                variant={isCurrent || isFirstUnread ? "secondary" : "ghost"}
+                variant="ghost"
               >
                 {bookActionLabel(book)}
               </Button>

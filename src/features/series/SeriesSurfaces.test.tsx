@@ -1,5 +1,8 @@
 // @vitest-environment happy-dom
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -8,6 +11,25 @@ import type { Book } from "../../types/book";
 import { deriveSeriesEntries } from "./seriesDerivation";
 import { SeriesDetail } from "./SeriesDetail";
 import { SeriesOverview } from "./SeriesOverview";
+
+const seriesStyles = readFileSync(resolve(process.cwd(), "src/styles/features/series.css"), "utf8");
+
+function cssBlock(source: string, selector: string): string {
+  const selectorIndex = source.indexOf(selector);
+  if (selectorIndex < 0) throw new Error(`Missing CSS selector: ${selector}`);
+  const openingBrace = source.indexOf("{", selectorIndex + selector.length);
+  if (openingBrace < 0) throw new Error(`Missing opening brace for: ${selector}`);
+
+  let depth = 0;
+  for (let index = openingBrace; index < source.length; index += 1) {
+    if (source[index] === "{") depth += 1;
+    if (source[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return source.slice(openingBrace + 1, index);
+  }
+
+  throw new Error(`Missing closing brace for: ${selector}`);
+}
 
 vi.mock("../library/BookCover", () => ({
   BookCover: ({ book, className = "" }: { book: Book; className?: string }) => (
@@ -82,7 +104,7 @@ function buttonWithText(scope: HTMLElement, text: string): HTMLButtonElement {
 }
 
 describe("series library surfaces", () => {
-  it("renders searchable series summaries and opens or continues a series", () => {
+  it("makes each searchable series summary one complete open target", () => {
     const entries = deriveSeriesEntries([
       ...seriesBooks(),
       createBook({
@@ -91,7 +113,6 @@ describe("series library surfaces", () => {
       }),
     ]);
     const onOpen = vi.fn();
-    const onRead = vi.fn();
     const scope = mount(
       <SeriesOverview
         entries={entries}
@@ -99,7 +120,6 @@ describe("series library surfaces", () => {
         onClearSearch={vi.fn()}
         onOpen={onOpen}
         onQueryChange={vi.fn()}
-        onRead={onRead}
         query="star"
       />,
     );
@@ -110,11 +130,26 @@ describe("series library surfaces", () => {
     expect(scope.textContent).toContain("1 in progress · 1 complete · 1 unread");
     expect(scope.querySelector('[data-cover-book="volume-1"]')).not.toBeNull();
 
-    act(() => scope.querySelector<HTMLButtonElement>('[aria-label="Open Star Saga"]')?.click());
-    act(() => buttonWithText(scope, "Continue").click());
+    const card = scope.querySelector<HTMLElement>(".series-card");
+    const openButton = card?.querySelector<HTMLButtonElement>('[aria-label="Open Star Saga"]');
+
+    expect(card?.querySelectorAll("button")).toHaveLength(1);
+    expect(openButton?.querySelector('[data-cover-book="volume-1"]')).not.toBeNull();
+    expect(openButton?.querySelector("svg")).not.toBeNull();
+    expect(scope.textContent).not.toContain("Continue");
+
+    act(() => openButton?.click());
 
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "star saga" }));
-    expect(onRead).toHaveBeenCalledWith(expect.objectContaining({ id: "volume-2" }));
+  });
+
+  it("keeps the full series open target visibly interactive", () => {
+    const openTargetStyles = cssBlock(seriesStyles, ".series-card__open");
+    const hoverStyles = cssBlock(seriesStyles, ".series-card:hover,\n.series-card:focus-within");
+
+    expect(openTargetStyles).toContain("width: 100%;");
+    expect(openTargetStyles).toContain("cursor: pointer;");
+    expect(hoverStyles).toContain("background: var(--surface-raised);");
   });
 
   it("renders ordered volumes, conservative hints, and continuation markers", () => {
@@ -136,6 +171,13 @@ describe("series library surfaces", () => {
       scope.querySelector('[data-marker="unread"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Return");
     expect(scope.textContent).toContain("Vol. 01");
+    expect(seriesStyles).not.toContain(".series-volume[data-current]");
+    expect(seriesStyles).not.toContain(".series-volume[data-unread]");
+    expect(
+      Array.from(scope.querySelectorAll(".series-volume > .button")).every((button) =>
+        button.classList.contains("button--ghost"),
+      ),
+    ).toBe(true);
 
     act(() => buttonWithText(scope, "Continue Series").click());
 

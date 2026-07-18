@@ -12,6 +12,7 @@ import {
 type BookGridProps = {
   books: Book[];
   onDelete: (book: Book) => void;
+  onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
   onRead: (book: Book) => void;
   onRenameFile?: (book: Book) => void;
@@ -29,6 +30,7 @@ type BookGridProps = {
 export const BookGrid = memo(function BookGrid({
   books,
   onDelete,
+  onEditMetadata,
   onMove,
   onRead,
   onRenameFile,
@@ -72,6 +74,7 @@ export const BookGrid = memo(function BookGrid({
             book={book}
             key={book.id}
             onDelete={onDelete}
+            onEditMetadata={onEditMetadata}
             onMove={onMove}
             onRead={onRead}
             onRenameFile={onRenameFile}

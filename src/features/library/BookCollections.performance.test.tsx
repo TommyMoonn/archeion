@@ -30,6 +30,7 @@ let activeContainer: HTMLDivElement | null = null;
 
 const callbacks = {
   onDelete: vi.fn(),
+  onEditMetadata: vi.fn(),
   onMove: vi.fn(),
   onRead: vi.fn(),
   onRenameFile: vi.fn(),

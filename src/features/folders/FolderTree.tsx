@@ -53,6 +53,7 @@ function FolderNode({
           aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
           data-active={isSelected || undefined}
+          title={folder.name}
           type="button"
           onClick={() => onSelect(folder)}
         >
