@@ -43,14 +43,14 @@ const folderViewOptions: Array<{
   value: FolderBrowserView;
 }> = [
   {
-    icon: <List aria-hidden="true" weight="regular" />,
-    label: "List",
-    value: "list",
-  },
-  {
     icon: <GridFour aria-hidden="true" weight="regular" />,
     label: "Cards",
     value: "cards",
+  },
+  {
+    icon: <List aria-hidden="true" weight="regular" />,
+    label: "List",
+    value: "list",
   },
 ];
 
@@ -80,13 +80,13 @@ export function FolderBrowser({
 
   return (
     <section className="folder-browser">
-      <header className="folder-browser__header">
-        <div className="folder-browser__title">
+      <header className="library-header folder-browser__header">
+        <div className="library-header__title folder-browser__title">
           <p className="eyebrow">Library folders</p>
           <h2>Folders</h2>
         </div>
 
-        <div className="folder-browser__actions">
+        <div className="library-header__actions library-header__actions--primary-only folder-browser__actions">
           <div className="library-search folder-browser__search">
             <Input
               icon={<MagnifyingGlass aria-hidden="true" />}
@@ -97,6 +97,7 @@ export function FolderBrowser({
               name="archeion-folder-search"
               onChange={(event) => setQuery(event.currentTarget.value)}
               placeholder="Search folders"
+              size="standard"
               spellCheck={false}
               type="search"
               value={query}
@@ -112,20 +113,37 @@ export function FolderBrowser({
             ) : null}
           </div>
           {canManageFolders && onCreate ? (
-            <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
-              New folder
-            </Button>
+            <>
+              <span aria-hidden="true" className="library-header__action-divider" />
+              <Button
+                className="folder-browser__add-button"
+                icon={<FolderPlus aria-hidden="true" weight="bold" />}
+                onClick={onCreate}
+                size="standard"
+              >
+                Add Folder
+              </Button>
+            </>
           ) : null}
         </div>
 
-        <div className="folder-browser__controls">
-          <SegmentedControl
-            appearance="icon-only"
-            label="Folder view"
-            onChange={changeView}
-            options={folderViewOptions}
-            value={view}
-          />
+        <div className="library-controls folder-browser__controls">
+          <span
+            aria-label={`${visibleFolders.length} ${visibleFolders.length === 1 ? "folder" : "folders"} shown`}
+            aria-live="polite"
+            className="library-result-count"
+          >
+            {visibleFolders.length} {visibleFolders.length === 1 ? "folder" : "folders"}
+          </span>
+          <div className="library-controls__display">
+            <SegmentedControl
+              appearance="icon-only"
+              label="Folder view"
+              onChange={changeView}
+              options={folderViewOptions}
+              value={view}
+            />
+          </div>
         </div>
       </header>
 
@@ -139,7 +157,7 @@ export function FolderBrowser({
               </Button>
             ) : canManageFolders && onCreate ? (
               <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
-                New folder
+                Add Folder
               </Button>
             ) : undefined
           }

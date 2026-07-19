@@ -143,6 +143,39 @@ describe("series library surfaces", () => {
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "star saga" }));
   });
 
+  it("places the count on row two and switches the series collection between grid and list", () => {
+    const entries = deriveSeriesEntries([
+      ...seriesBooks(),
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const scope = mount(
+      <SeriesOverview
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        query=""
+      />,
+    );
+
+    const controls = scope.querySelector(".series-overview__controls");
+    const collection = scope.querySelector(".series-grid");
+    const listButton = scope.querySelector<HTMLButtonElement>('[role="radio"][aria-label="List"]');
+
+    expect(controls?.firstElementChild?.textContent).toBe("2 series");
+    expect(controls?.lastElementChild?.querySelector('[aria-label="Series view"]')).not.toBeNull();
+    expect(collection?.classList.contains("series-grid--grid")).toBe(true);
+
+    act(() => listButton?.click());
+
+    expect(collection?.classList.contains("series-grid--list")).toBe(true);
+    expect(listButton?.getAttribute("aria-checked")).toBe("true");
+  });
+
   it("keeps the full series open target visibly interactive", () => {
     const openTargetStyles = cssBlock(seriesStyles, ".series-card__open");
     const hoverStyles = cssBlock(seriesStyles, ".series-card:hover,\n.series-card:focus-within");

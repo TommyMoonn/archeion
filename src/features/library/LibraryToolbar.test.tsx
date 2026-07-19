@@ -136,6 +136,20 @@ describe("LibraryToolbar", () => {
     expect(styles).not.toMatch(/\.library-select-button\[aria-pressed="true"\][^}]*var\(--accent/s);
   });
 
+  it("groups utility actions before a divider and the primary action", () => {
+    const session = renderInteractiveToolbar();
+    activeRoot = session.root;
+
+    const actions = session.container.querySelector(".library-header__actions");
+    const utilities = actions?.querySelector('[role="group"][aria-label="Library utilities"]');
+    const divider = actions?.querySelector(".library-header__action-divider");
+    const addButton = actions?.querySelector<HTMLButtonElement>(".library-add-button");
+
+    expect(utilities?.querySelectorAll("button")).toHaveLength(2);
+    expect(utilities?.nextElementSibling).toBe(divider);
+    expect(divider?.nextElementSibling).toBe(addButton);
+  });
+
   it("disables native autofill on the library search field", () => {
     const markup = renderToolbar();
 

@@ -6,15 +6,16 @@
 }
 
 .series-header {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 24px;
+  max-width: none;
+}
+
+.series-header__actions {
+  justify-self: end;
 }
 
 .series-search {
   position: relative;
-  width: min(320px, 34vw);
+  width: 100%;
 }
 
 .series-search .input-shell {
@@ -39,16 +40,8 @@
   transform: translateY(calc(-50% + 1px));
 }
 
-.series-overview__rule {
-  display: flex;
-  justify-content: flex-end;
-  min-height: 48px;
-  align-items: center;
-  margin-top: 6px;
-  border-bottom: 1px solid var(--line);
-  color: var(--muted-soft);
-  font-size: var(--type-caption);
-  font-variant-numeric: tabular-nums;
+.series-overview__controls {
+  max-width: none;
 }
 
 .series-grid {
@@ -56,6 +49,10 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding: 28px 0;
+}
+
+.series-grid--list {
+  grid-template-columns: 1fr;
 }
 
 .series-card {
@@ -388,15 +385,6 @@ html[data-motion="on"] .series-detail {
 }
 
 @media (max-width: 620px) {
-  .series-header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .series-search {
-    width: 100%;
-  }
-
   .series-detail__actions,
   .series-detail__actions .button {
     width: 100%;

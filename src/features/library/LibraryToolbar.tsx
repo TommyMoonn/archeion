@@ -109,15 +109,18 @@ export function LibraryToolbar({
             </IconButton>
           ) : null}
         </div>
-        <IconButton
-          aria-pressed={selectionMode}
-          className="library-select-button"
-          label={selectionMode ? "Finish selecting books" : "Select books"}
-          onClick={onToggleSelectionMode}
-        >
-          <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
-        </IconButton>
-        <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
+        <div className="library-header__utilities" aria-label="Library utilities" role="group">
+          <IconButton
+            aria-pressed={selectionMode}
+            className="library-select-button"
+            label={selectionMode ? "Finish selecting books" : "Select books"}
+            onClick={onToggleSelectionMode}
+          >
+            <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
+          </IconButton>
+          <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
+        </div>
+        <span aria-hidden="true" className="library-header__action-divider" />
         <Button
           busy={isImporting}
           className="library-add-button"
