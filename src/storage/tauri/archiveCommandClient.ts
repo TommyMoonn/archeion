@@ -106,6 +106,7 @@ type ArchiveCommandMap = {
   delete_archive_folder: CommandDefinition<{ relativePath: string }, ArchiveOperationResult>;
   cover_cache_status: CommandDefinition<undefined, CoverCacheStatus>;
   clear_cover_cache: CommandDefinition<undefined, CoverCacheStatus>;
+  maintain_cover_cache: CommandDefinition<undefined, void>;
   get_epub_writeback_backup_status: CommandDefinition<undefined, EpubWritebackBackupStatus>;
   clear_epub_writeback_backups: CommandDefinition<undefined, EpubWritebackBackupStatus>;
   clear_scanner_cache: CommandDefinition<undefined, void>;

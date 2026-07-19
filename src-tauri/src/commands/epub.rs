@@ -62,22 +62,6 @@ fn cover_cache_path(cache_dir: &Path, epub_path: &Path, book_id: &str) -> Result
     Ok(cache_dir.join(format!("{book_id}-{}-{modified}.cover", metadata.len())))
 }
 
-fn remove_stale_covers(cache_dir: &Path, book_id: &str, keep: &Path) {
-    let prefix = format!("{book_id}-");
-    let legacy_name = format!("{book_id}.cover");
-    let Ok(entries) = fs::read_dir(cache_dir) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if path != keep && (name == legacy_name || name.starts_with(&prefix)) {
-            let _ = fs::remove_file(path);
-        }
-    }
-}
-
 fn temporary_cover_cache_path(cache_path: &Path) -> Result<PathBuf, String> {
     let file_name = cache_path
         .file_name()
@@ -146,7 +130,6 @@ fn load_epub_cover_uncached(
     epub_path: &Path,
     cache_dir: &Path,
     cache_path: &Path,
-    book_id: &str,
 ) -> Result<Vec<u8>, String> {
     match read_cover_cache(cache_path)? {
         CoverCacheRead::Hit(bytes) => return Ok(bytes),
@@ -157,13 +140,11 @@ fn load_epub_cover_uncached(
     fs::create_dir_all(cache_dir).map_err(|error| error.to_string())?;
     let Some(extracted) = extracted else {
         write_cover_cache_atomic(cache_path, &[])?;
-        remove_stale_covers(cache_dir, book_id, cache_path);
         return Ok(Vec::new());
     };
 
     let bytes = extracted.into_ipc_bytes()?;
     write_cover_cache_atomic(cache_path, &bytes)?;
-    remove_stale_covers(cache_dir, book_id, cache_path);
     Ok(bytes)
 }
 
@@ -174,7 +155,7 @@ fn load_epub_cover_at_with_loader<F>(
     loader: F,
 ) -> Result<Vec<u8>, String>
 where
-    F: FnOnce(&Path, &Path, &Path, &str) -> Result<Vec<u8>, String>,
+    F: FnOnce(&Path, &Path, &Path) -> Result<Vec<u8>, String>,
 {
     let epub_path = resolve_epub_path(root, relative_path)?;
     let cache_dir = root.join(".archeion").join("covers");
@@ -185,7 +166,7 @@ where
     }
 
     epub_cover_requests::load_once(cache_path.clone(), || {
-        loader(&epub_path, &cache_dir, &cache_path, book_id)
+        loader(&epub_path, &cache_dir, &cache_path)
     })
 }
 
@@ -550,7 +531,7 @@ mod tests {
             cover_cache_path(&cache_dir, &epub_path, "book-1").expect("cache path should resolve");
         write_oversized_cache(&cache_path);
 
-        let loaded = load_epub_cover_uncached(&epub_path, &cache_dir, &cache_path, "book-1")
+        let loaded = load_epub_cover_uncached(&epub_path, &cache_dir, &cache_path)
             .expect("owner cache recheck should regenerate the cover");
         let cached = read_cache_hit(&cache_path);
 
@@ -591,13 +572,13 @@ mod tests {
                     root.as_path(),
                     "book.epub",
                     "book-1",
-                    |epub_path, cache_dir, cache_path, book_id| {
+                    |epub_path, cache_dir, cache_path| {
                         load_count.fetch_add(1, Ordering::SeqCst);
                         loader_started
                             .send(())
                             .expect("the test should observe the owner loader");
                         release_loader.wait();
-                        load_epub_cover_uncached(epub_path, cache_dir, cache_path, book_id)
+                        load_epub_cover_uncached(epub_path, cache_dir, cache_path)
                     },
                 )
             }));
@@ -661,7 +642,7 @@ mod tests {
                     root.as_path(),
                     "book.epub",
                     "book-1",
-                    |_epub_path, _cache_dir, _cache_path, _book_id| {
+                    |_epub_path, _cache_dir, _cache_path| {
                         failure_count.fetch_add(1, Ordering::SeqCst);
                         loader_started
                             .send(())
@@ -711,32 +692,32 @@ mod tests {
         let unrestricted_cache_read = concat!("fs::read", "(cache_path");
 
         assert!(!production.contains(unrestricted_cache_read));
+        assert!(!production.contains("read_dir("));
         assert_eq!(production.matches("read_cover_cache(").count(), 3);
     }
 
     #[test]
-    fn removes_stale_cover_files_after_new_cache_file_is_written() {
+    fn repeated_cover_generation_never_traverses_or_removes_stale_revisions() {
         let root = test_root();
         fs::create_dir_all(&root).expect("test archive should be created");
         let epub_path = root.join("book.epub");
-        write_test_epub(&epub_path, Some(&[1, 2, 3]));
-        let first =
-            load_epub_cover_at(&root, "book.epub", "book-1").expect("first cover load should work");
-        assert_eq!(first, vec![1, 2, 3]);
         let cache_dir = root.join(".archeion").join("covers");
-        let old_cache_path = cover_cache_path(&cache_dir, &epub_path, "book-1")
-            .expect("old cache path should resolve");
-        assert!(old_cache_path.is_file());
+        let mut generated_paths = Vec::new();
 
-        write_test_epub(&epub_path, Some(&[4, 5, 6, 7, 8]));
-        let second = load_epub_cover_at(&root, "book.epub", "book-1")
-            .expect("second cover load should work");
+        for byte_count in 1..=8 {
+            let cover = vec![byte_count as u8; byte_count];
+            write_test_epub(&epub_path, Some(&cover));
+            assert_eq!(
+                load_epub_cover_at(&root, "book.epub", "book-1").expect("cover load should work"),
+                cover
+            );
+            generated_paths.push(
+                cover_cache_path(&cache_dir, &epub_path, "book-1")
+                    .expect("cache path should resolve"),
+            );
+        }
 
-        assert_eq!(second, vec![4, 5, 6, 7, 8]);
-        assert!(!old_cache_path.exists());
-        assert!(cover_cache_path(&cache_dir, &epub_path, "book-1")
-            .expect("new cache path should resolve")
-            .is_file());
+        assert!(generated_paths.iter().all(|path| path.is_file()));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 

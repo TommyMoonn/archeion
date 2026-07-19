@@ -6,7 +6,7 @@ use std::{
 
 use serde::Serialize;
 
-use super::archive;
+use super::{archive, epub_cover_cache};
 
 pub(crate) fn read_archive_path(app: &tauri::AppHandle) -> Result<Option<String>, String> {
     archive::read_active_archive_path(app)
@@ -112,6 +112,17 @@ pub fn cover_cache_status(
     root_path: Option<String>,
 ) -> Result<CoverCacheStatus, String> {
     cover_cache_status_at(&archeion_path(&app, root_path)?.join("covers"))
+}
+
+#[tauri::command]
+pub async fn maintain_cover_cache(
+    app: tauri::AppHandle,
+    root_path: Option<String>,
+) -> Result<(), String> {
+    let path = archeion_path(&app, root_path)?.join("covers");
+    tauri::async_runtime::spawn_blocking(move || epub_cover_cache::maintain_at(&path).map(|_| ()))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

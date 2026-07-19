@@ -80,6 +80,7 @@ pub fn run() {
             commands::themes::store_archive_theme_manifest,
             commands::archive_root::clear_cover_cache,
             commands::archive_root::invalidate_cover_cache_entries,
+            commands::archive_root::maintain_cover_cache,
             commands::archive_root::cover_cache_status,
             commands::archive_root::reveal_archeion_folder,
             commands::archive_root::validate_archive_path,

@@ -44,6 +44,7 @@ export class MaintenanceOperations {
           `Archive import artifact cleanup left ${cleanup.failures.length} unresolved item${cleanup.failures.length === 1 ? "" : "s"}. ${firstFailure.relativePath}: ${firstFailure.message}`,
         );
       }
+      await this.host.commands.invoke("maintain_cover_cache", undefined, scope.rootPath);
       await this.host.commands.invoke("clear_scanner_cache", undefined, scope.rootPath);
     });
     this.host.assertCurrentScope(scope);

@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
-    path::PathBuf,
+    io,
+    path::{Path, PathBuf},
     sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock},
 };
 
@@ -317,6 +318,22 @@ where
     F: FnOnce() -> Result<Vec<u8>, String>,
 {
     coordinator().load(key, loader)
+}
+
+pub(super) fn remove_cache_file_if_inactive(
+    request_key: &Path,
+    candidate: &Path,
+) -> io::Result<bool> {
+    let requests = recover_lock(&coordinator().requests);
+    if requests.contains_key(request_key) {
+        return Ok(false);
+    }
+
+    match std::fs::remove_file(candidate) {
+        Ok(()) => Ok(true),
+        Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(error),
+    }
 }
 
 #[cfg(test)]

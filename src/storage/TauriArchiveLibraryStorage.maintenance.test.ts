@@ -235,6 +235,7 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
     expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
       "initialize_archive_metadata",
       "cleanup_archive_import_artifacts",
+      "maintain_cover_cache",
       "clear_scanner_cache",
       "scan_archive",
       "load_archive_metadata",
@@ -248,11 +249,56 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
       )?.[1],
     ).toMatchObject({ rootPath });
     expect(
+      invokeMock.mock.calls.find(([command]) => command === "maintain_cover_cache")?.[1],
+    ).toMatchObject({ rootPath });
+    expect(
       invokeMock.mock.calls.find(([command]) => command === "clear_scanner_cache")?.[1],
     ).toMatchObject({ rootPath });
     expect(
       invokeMock.mock.calls.find(([command]) => command === "scan_archive")?.[1],
     ).toMatchObject({ rootPath });
+  });
+
+  it("waits for the complete cover-cache maintenance session before clearing scanner state", async () => {
+    const maintenanceStarted = deferred<void>();
+    const releaseMaintenance = deferred<void>();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "cleanup_archive_import_artifacts") {
+        return { removedCount: 0, failures: [] };
+      }
+      if (command === "maintain_cover_cache") {
+        maintenanceStarted.resolve();
+        await releaseMaintenance.promise;
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const repair = storage.repairArchiveMetadata();
+    await maintenanceStarted.promise;
+
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
+      "initialize_archive_metadata",
+      "cleanup_archive_import_artifacts",
+      "maintain_cover_cache",
+    ]);
+
+    releaseMaintenance.resolve();
+    await repair;
+
+    expect(invokeMock.mock.calls.map(([command]) => command)).toEqual([
+      "initialize_archive_metadata",
+      "cleanup_archive_import_artifacts",
+      "maintain_cover_cache",
+      "clear_scanner_cache",
+      "scan_archive",
+      "load_archive_metadata",
+    ]);
   });
 
   it("reports unresolved import artifact cleanup instead of claiming repair success", async () => {
