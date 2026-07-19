@@ -140,6 +140,35 @@ snapshot fast path reduced that median to 82 ms. The four-worker parser reduced 
 These measurements are diagnostic development evidence for comparing implementations on the same
 machine. They are not release guarantees or cross-hardware benchmarks.
 
+### Startup measurements
+
+Development builds retain User Timing entries for the main startup critical path. The trace starts
+before React mounts and records appearance runtime startup, preference initialization, archive
+resolution, window restoration, active storage preparation, optional startup scan, the first
+Library render, and the first usable Library state.
+
+The two retained terminal measures are:
+
+```text
+archeion:startup-to-shell
+archeion:startup-to-usable-library
+```
+
+Inspect them in the Tauri WebView2 developer tools after startup:
+
+```js
+performance
+  .getEntriesByType("measure")
+  .filter((entry) => entry.name.startsWith("archeion:startup-to-"))
+  .map(({ name, duration }) => ({ name, duration }));
+```
+
+Compare repeated median runs with the same appearance, window state, startup behavior, scan
+setting, archive fixture, and warm/cold filesystem state. Use representative small, medium, and
+large archives; the existing 50, 500, and 2,000 EPUB scanner fixtures are suitable when copied into
+normal development archives. These timings are diagnostic and machine-specific, not release
+guarantees.
+
 Release-tool integration tests invoke PowerShell, npm, and Cargo against temporary
 fixtures. They never modify the real project version files.
 

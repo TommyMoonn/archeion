@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
@@ -44,6 +44,7 @@ import {
 import { useLibraryWorkspaceData } from "./useLibraryWorkspaceData";
 import { useLibraryWorkspaceDialogs } from "./useLibraryWorkspaceDialogs";
 import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
+import { startupTrace } from "../../app/startupTrace";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
@@ -123,6 +124,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     onArchiveLoadError: handleArchiveLoadError,
     onWatcherError: handleWatcherError,
   });
+
+  useLayoutEffect(() => {
+    startupTrace.mark("library-render");
+  }, []);
+
+  useLayoutEffect(() => {
+    if (booksLoadState.status === "ready") {
+      startupTrace.mark("library-usable");
+    }
+  }, [booksLoadState.status]);
 
   const {
     clear: clearSelection,

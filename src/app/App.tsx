@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
@@ -12,19 +12,20 @@ import {
 } from "../features/archive/archiveManagerLifecycle";
 import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { QuickActionsProvider } from "../features/quick-actions/QuickActionsProvider";
-import { appPreferencesStore } from "../stores/appPreferencesStore";
+import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { archiveStore } from "../stores/archiveStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
 import {
   initializeMainStartup,
-  resumeMainStartupAfterArchiveManagerClose,
+  resumeInitialStartupAfterArchiveManagerClose,
   restoreRememberedReaderRoute,
   StartupArchiveManagerOpenError,
 } from "./startupController";
 import { MainWindowStateController } from "./windowState";
 import { resolveWindowMode } from "./windowMode";
 import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
+import { startupTrace } from "./startupTrace";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -33,31 +34,13 @@ const ArchiveManagerWindow = lazy(() =>
 );
 
 export function App() {
-  const [windowMode, setWindowMode] = useState<ReturnType<typeof resolveWindowMode> | null>(null);
+  const windowMode = resolveWindowMode();
 
   useEffect(() => {
-    return appearanceRuntime.start();
+    const stop = appearanceRuntime.start();
+    startupTrace.mark("appearance-runtime");
+    return stop;
   }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    void appPreferencesStore
-      .initialize()
-      .catch(() => undefined)
-      .finally(() => {
-        if (!cancelled) {
-          setWindowMode(resolveWindowMode());
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  if (windowMode === null) {
-    return <StartupLoading />;
-  }
 
   if (windowMode === "archive-manager") {
     return (
@@ -78,7 +61,25 @@ export function App() {
 }
 
 type MainWindowStartupState =
-  { status: "loading" | "manager" | "app" } | { message: string; status: "error" };
+  | { status: "loading" }
+  | { status: "manager" }
+  | {
+      preparedArchive: NonNullable<
+        Awaited<ReturnType<typeof initializeMainStartup>>["preparedArchive"]
+      >;
+      status: "app";
+    }
+  | { message: string; status: "error" };
+
+type InitialStartupPhase =
+  "initializing" | "archive-manager-open" | "completing-archive-manager" | "mounted" | "failed";
+
+type InitialStartupAttempt = {
+  archiveManagerCloseReceived: boolean;
+  completion: Promise<void> | null;
+  id: number;
+  phase: InitialStartupPhase;
+};
 
 function StartupLoading() {
   return (
@@ -94,69 +95,152 @@ function StartupLoading() {
 
 function MainWindowApp() {
   const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
-  const startupAttemptRef = useRef(0);
+  const startupAttemptRef = useRef<InitialStartupAttempt | null>(null);
+  const startupAttemptSequenceRef = useRef(0);
+
+  const publishStartupError = useCallback((attempt: InitialStartupAttempt, message: string) => {
+    if (startupAttemptRef.current !== attempt) return;
+
+    attempt.phase = "failed";
+    setStartupState({ message, status: "error" });
+  }, []);
+
+  const completeInitialStartup = useCallback(
+    (attempt: InitialStartupAttempt): Promise<void> => {
+      if (startupAttemptRef.current !== attempt) {
+        return attempt.completion ?? Promise.resolve();
+      }
+
+      if (
+        attempt.phase === "completing-archive-manager" ||
+        attempt.phase === "mounted" ||
+        attempt.phase === "failed"
+      ) {
+        return attempt.completion ?? Promise.resolve();
+      }
+
+      if (!attempt.archiveManagerCloseReceived || attempt.phase !== "archive-manager-open") {
+        return Promise.resolve();
+      }
+
+      attempt.phase = "completing-archive-manager";
+      const completion = (async () => {
+        try {
+          const preparedArchive = await resumeInitialStartupAfterArchiveManagerClose({
+            getArchiveState: archiveStore.getSnapshot,
+            getStorage: getLibraryStorage,
+            isCurrentAttempt: () =>
+              startupAttemptRef.current === attempt &&
+              attempt.phase === "completing-archive-manager",
+            navigateToLibrary: () => router.navigate("/", { replace: true }),
+            refreshActiveArchive: () => archiveStore.refreshActiveArchive(),
+          });
+
+          if (startupAttemptRef.current !== attempt) return;
+
+          if (!preparedArchive) {
+            publishStartupError(attempt, "Archeion could not open the selected archive.");
+            return;
+          }
+
+          attempt.phase = "mounted";
+          setStartupState({ preparedArchive, status: "app" });
+        } catch (error) {
+          console.error("Archive Manager startup completion failed", error);
+          publishStartupError(attempt, "Archeion could not open the selected archive.");
+        }
+      })();
+
+      attempt.completion = completion;
+      return completion;
+    },
+    [publishStartupError],
+  );
 
   const runStartup = useCallback(async () => {
-    const attempt = startupAttemptRef.current + 1;
+    const attempt: InitialStartupAttempt = {
+      archiveManagerCloseReceived: false,
+      completion: null,
+      id: startupAttemptSequenceRef.current + 1,
+      phase: "initializing",
+    };
+    startupAttemptSequenceRef.current = attempt.id;
     startupAttemptRef.current = attempt;
     setStartupState({ status: "loading" });
 
     try {
       const result = await initializeMainStartup({
-        restoreReaderRoute: (preferences) =>
-          restoreRememberedReaderRoute(preferences, {
+        onArchiveManagerOpened: () => {
+          if (startupAttemptRef.current !== attempt || attempt.phase !== "initializing") return;
+
+          attempt.phase = "archive-manager-open";
+          if (attempt.archiveManagerCloseReceived) {
+            void completeInitialStartup(attempt);
+          }
+        },
+        restoreReaderRoute: (preferences, storage) =>
+          restoreRememberedReaderRoute(preferences, storage, {
             getCurrentPathname: () => router.state.location.pathname,
             navigate: (path) => router.navigate(path, { replace: true }),
           }),
       });
 
-      if (startupAttemptRef.current === attempt) {
-        setStartupState({ status: result.showArchiveManager ? "manager" : "app" });
+      if (startupAttemptRef.current !== attempt) return;
+      if (
+        attempt.phase === "completing-archive-manager" ||
+        attempt.phase === "mounted" ||
+        attempt.phase === "failed"
+      ) {
+        return;
       }
+
+      if (result.showArchiveManager) {
+        attempt.phase = "archive-manager-open";
+        if (attempt.archiveManagerCloseReceived) {
+          void completeInitialStartup(attempt);
+          return;
+        }
+
+        setStartupState({ status: "manager" });
+        return;
+      }
+
+      attempt.phase = "mounted";
+      setStartupState({ preparedArchive: result.preparedArchive, status: "app" });
     } catch (error) {
       console.error("Archeion startup failed", error);
-      if (startupAttemptRef.current !== attempt) return;
+      if (
+        startupAttemptRef.current !== attempt ||
+        attempt.phase === "completing-archive-manager" ||
+        attempt.phase === "mounted" ||
+        attempt.phase === "failed"
+      ) {
+        return;
+      }
 
-      setStartupState({
-        message:
-          error instanceof StartupArchiveManagerOpenError
-            ? error.message
-            : "Archeion could not finish startup.",
-        status: "error",
-      });
+      publishStartupError(
+        attempt,
+        error instanceof StartupArchiveManagerOpenError
+          ? error.message
+          : "Archeion could not finish startup.",
+      );
     }
-  }, []);
+  }, [completeInitialStartup, publishStartupError]);
 
   useEffect(() => {
     let cancelled = false;
     let unlisten: () => void = () => undefined;
 
     void listenForArchiveManagerClosed(() => {
-      startupAttemptRef.current += 1;
-      void resumeMainStartupAfterArchiveManagerClose({
-        navigateToLibrary: () => router.navigate("/", { replace: true }),
-        refreshActiveArchive: () => archiveStore.refreshActiveArchive(),
-      })
-        .then((resumed) => {
-          if (cancelled) return;
+      const attempt = startupAttemptRef.current;
+      if (!attempt || attempt.phase === "mounted" || attempt.phase === "failed" || cancelled) {
+        return;
+      }
 
-          setStartupState((current) => {
-            if (resumed) return { status: "app" };
-            if (current.status === "app" && archiveStore.getSnapshot().status === "ready") {
-              return current;
-            }
-            return { message: "Archeion could not open the selected archive.", status: "error" };
-          });
-        })
-        .catch((error) => {
-          console.error("Archive Manager startup completion failed", error);
-          if (!cancelled) {
-            setStartupState({
-              message: "Archeion could not open the selected archive.",
-              status: "error",
-            });
-          }
-        });
+      attempt.archiveManagerCloseReceived = true;
+      if (attempt.phase === "archive-manager-open") {
+        void completeInitialStartup(attempt);
+      }
     })
       .then((stopListening) => {
         if (cancelled) {
@@ -175,10 +259,16 @@ function MainWindowApp() {
 
     return () => {
       cancelled = true;
-      startupAttemptRef.current += 1;
+      startupAttemptRef.current = null;
       unlisten();
     };
-  }, [runStartup]);
+  }, [completeInitialStartup, runStartup]);
+
+  useLayoutEffect(() => {
+    if (startupState.status === "app") {
+      startupTrace.mark("shell");
+    }
+  }, [startupState.status]);
 
   useEffect(() => {
     if (startupState.status !== "app") {
@@ -247,9 +337,14 @@ function MainWindowApp() {
       <WindowFrame />
       <div className="window-app__content">
         <AppErrorBoundary>
-          <LibraryStorageProvider>
+          <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
             <QuickActionsProvider>
-              <ArchiveGate>
+              <ArchiveGate
+                preparedArchiveAtMount={{
+                  id: startupState.preparedArchive.archiveId,
+                  rootPath: startupState.preparedArchive.rootPath,
+                }}
+              >
                 <RouterProvider router={router} />
               </ArchiveGate>
             </QuickActionsProvider>

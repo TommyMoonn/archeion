@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
@@ -10,12 +10,14 @@ import { useArchive } from "./useArchive";
 import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
+import { startupTrace } from "../../app/startupTrace";
 
 type ArchiveGateProps = {
   children: ReactNode;
+  preparedArchiveAtMount?: { id: string; rootPath: string };
 };
 
-export function ArchiveGate({ children }: ArchiveGateProps) {
+export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGateProps) {
   const state = useArchive();
   const storage = useLibraryStorage();
   const appearanceSettingsSource = useMemo(
@@ -26,6 +28,7 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
   const archivePath = state.status === "ready" ? state.path : null;
   const readyArchiveId = state.status === "ready" ? state.archive.id : null;
   const [renderedArchiveId, setRenderedArchiveId] = useState(readyArchiveId);
+  const storageArchiveRef = useRef(preparedArchiveAtMount ?? null);
   const replacingReadyArchive = Boolean(
     readyArchiveId && renderedArchiveId && readyArchiveId !== renderedArchiveId,
   );
@@ -69,7 +72,18 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
   }, [readyArchiveId, renderedArchiveId]);
 
   useEffect(() => {
-    storage.reset(archivePath);
+    const alreadyPrepared = Boolean(
+      archivePath &&
+      readyArchiveId &&
+      storageArchiveRef.current?.id === readyArchiveId &&
+      storageArchiveRef.current.rootPath === archivePath,
+    );
+    if (!alreadyPrepared) {
+      storage.reset(archivePath);
+      storageArchiveRef.current =
+        archivePath && readyArchiveId ? { id: readyArchiveId, rootPath: archivePath } : null;
+      startupTrace.mark("storage");
+    }
     if (!archivePath || !readyArchiveId) {
       appearanceRuntime.deactivateArchive();
       return;
@@ -89,6 +103,7 @@ export function ArchiveGate({ children }: ArchiveGateProps) {
     let cancelled = false;
 
     if (scanOnStartup) {
+      startupTrace.mark("scan");
       void storage.rescan().catch(() => undefined);
     }
 

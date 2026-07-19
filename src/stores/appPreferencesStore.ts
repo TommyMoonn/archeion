@@ -364,7 +364,6 @@ export class AppPreferencesStore {
   constructor(persistence = createDefaultPersistence()) {
     this.persistence = persistence;
     this.apply();
-    void this.initialize().catch(() => undefined);
   }
 
   getSnapshot = () => this.preferences;
@@ -400,7 +399,7 @@ export class AppPreferencesStore {
   }
 
   async update(changes: Partial<AppPreferences>): Promise<AppPreferences> {
-    await this.waitForPendingLoad();
+    await this.initialize();
 
     const next = mergeAppPreferences(this.preferences, changes);
     this.mutationRevision += 1;
@@ -410,12 +409,6 @@ export class AppPreferencesStore {
 
   reset(changes: Partial<AppPreferences> = {}): Promise<AppPreferences> {
     return this.update(mergeAppPreferences(defaultAppPreferences, changes));
-  }
-
-  private async waitForPendingLoad(): Promise<void> {
-    if (this.loadPromise && this.persistenceStatus.status === "loading") {
-      await this.loadPromise;
-    }
   }
 
   private async loadPreferences() {

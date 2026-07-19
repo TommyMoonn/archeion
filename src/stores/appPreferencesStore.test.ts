@@ -49,6 +49,18 @@ function mockReducedMotion(matches: boolean) {
 }
 
 describe("app preferences", () => {
+  it("loads preferences only when the window startup owner initializes it", async () => {
+    const loadDesktop = vi.fn(async () => ({ density: "compact" }));
+    const store = new AppPreferencesStore(createPersistence({ loadDesktop }));
+
+    expect(loadDesktop).not.toHaveBeenCalled();
+
+    await Promise.all([store.initialize(), store.initialize()]);
+
+    expect(loadDesktop).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot().density).toBe("compact");
+  });
+
   it("does not rerender a narrow preference consumer for unrelated UI changes", async () => {
     const original = appPreferencesStore.getSnapshot();
     const container = document.createElement("div");

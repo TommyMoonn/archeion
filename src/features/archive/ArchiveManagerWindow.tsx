@@ -1,7 +1,7 @@
 import { Component, useEffect, useState } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 
-import { archiveStore } from "../../stores/archiveStore";
+import { initializeArchiveManagerStartup } from "../../app/startupController";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
 import { completeArchiveManagerAction } from "./archiveManagerCompletion";
 import { useArchive } from "./useArchive";
@@ -74,7 +74,7 @@ export function ArchiveManagerWindow() {
   useEffect(() => {
     let cancelled = false;
 
-    void archiveStore.initialize().catch((error) => {
+    void initializeArchiveManagerStartup().catch((error) => {
       if (!cancelled) {
         setInitializationError(messageFromError(error));
       }

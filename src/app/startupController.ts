@@ -1,3 +1,4 @@
+import type { LibraryStorage } from "../storage/LibraryStorage";
 import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { appPreferencesStore } from "../stores/appPreferencesStore";
 import { archiveStore } from "../stores/archiveStore";
@@ -5,12 +6,26 @@ import type { AppPreferences } from "../types/appSettings";
 import type { ArchiveState } from "../stores/archiveStore";
 import type { Book } from "../types/book";
 import { canonicalReaderRoute } from "./navigationState";
+import { startupTrace } from "./startupTrace";
 import { restoreMainWindowState } from "./windowState";
 
-export type MainStartupResult = {
-  restoredReader: boolean;
-  showArchiveManager: boolean;
+export type PreparedArchiveStorage = {
+  archiveId: string;
+  rootPath: string;
+  storage: LibraryStorage;
 };
+
+export type MainStartupResult =
+  | {
+      preparedArchive: null;
+      restoredReader: false;
+      showArchiveManager: true;
+    }
+  | {
+      preparedArchive: PreparedArchiveStorage;
+      restoredReader: boolean;
+      showArchiveManager: false;
+    };
 
 export class StartupArchiveManagerOpenError extends Error {
   constructor() {
@@ -22,31 +37,39 @@ export class StartupArchiveManagerOpenError extends Error {
 type MainStartupDependencies = {
   getPreferences: () => AppPreferences;
   getArchiveState: () => ArchiveState;
+  getStorage: () => Promise<LibraryStorage>;
   initializeArchiveRegistry: () => Promise<void>;
   initializePreferences: () => Promise<void>;
+  onArchiveManagerOpened: () => void;
   openArchiveManagerWindow: () => Promise<boolean>;
-  restoreReaderRoute: (preferences: AppPreferences) => Promise<boolean>;
+  restoreReaderRoute: (preferences: AppPreferences, storage: LibraryStorage) => Promise<boolean>;
   restoreWindowState: (preferences: AppPreferences) => Promise<boolean>;
 };
 
 type MainStartupOptions = Pick<MainStartupDependencies, "restoreReaderRoute"> &
   Partial<Omit<MainStartupDependencies, "restoreReaderRoute">>;
 
-type ResumeMainStartupDependencies = {
+type ResumeInitialStartupDependencies = {
+  getArchiveState: () => ArchiveState;
+  getStorage: () => Promise<LibraryStorage>;
+  isCurrentAttempt?: () => boolean;
   navigateToLibrary: () => Promise<unknown>;
   refreshActiveArchive: () => Promise<boolean>;
 };
 
+type ArchiveManagerStartupDependencies = Pick<
+  MainStartupDependencies,
+  "initializeArchiveRegistry" | "initializePreferences"
+>;
+
 type ReaderRestoreStorage = {
   getBook: (bookId: string) => Promise<Book | undefined>;
-  reset: (archiveRootPath: string | null) => void;
 };
 
 type ReaderRestoreDependencies = {
   clearNavigation: () => Promise<void>;
   getArchiveState: () => ArchiveState;
   getCurrentPathname: () => string;
-  getStorage: () => Promise<ReaderRestoreStorage>;
   navigate: (path: string) => Promise<unknown>;
 };
 
@@ -69,13 +92,13 @@ async function navigateToLibraryIfNeeded(
 
 export async function restoreRememberedReaderRoute(
   preferences: AppPreferences,
+  storage: ReaderRestoreStorage,
   options: ReaderRestoreOptions,
 ): Promise<boolean> {
   const dependencies: ReaderRestoreDependencies = {
     clearNavigation: clearRememberedNavigation,
     getArchiveState: archiveStore.getSnapshot,
     getCurrentPathname: () => window.location.pathname,
-    getStorage: getLibraryStorage,
     ...options,
   };
   const archive = dependencies.getArchiveState();
@@ -95,8 +118,6 @@ export async function restoreRememberedReaderRoute(
   }
 
   try {
-    const storage = await dependencies.getStorage();
-    storage.reset(archive.path);
     const book = await storage.getBook(remembered.bookId);
     if (!book || book.isFileMissing) {
       throw new Error("The remembered book is unavailable.");
@@ -114,44 +135,116 @@ export async function restoreRememberedReaderRoute(
 const defaultDependencies: Omit<MainStartupDependencies, "restoreReaderRoute"> = {
   getArchiveState: archiveStore.getSnapshot,
   getPreferences: appPreferencesStore.getSnapshot,
+  getStorage: getLibraryStorage,
   initializeArchiveRegistry: () => archiveStore.initialize(),
   initializePreferences: () => appPreferencesStore.initialize(),
+  onArchiveManagerOpened: () => undefined,
   openArchiveManagerWindow: () => archiveStore.openArchiveManagerWindow(),
   restoreWindowState: restoreMainWindowState,
 };
+
+const defaultArchiveManagerDependencies: ArchiveManagerStartupDependencies = {
+  initializeArchiveRegistry: defaultDependencies.initializeArchiveRegistry,
+  initializePreferences: defaultDependencies.initializePreferences,
+};
+
+async function prepareArchiveStorageIfCurrent(
+  archive: ArchiveState,
+  getStorage: () => Promise<LibraryStorage>,
+  isCurrentAttempt: () => boolean,
+): Promise<PreparedArchiveStorage | null> {
+  if (archive.status !== "ready") {
+    throw new Error("The active archive was not resolved before storage preparation.");
+  }
+
+  if (!isCurrentAttempt()) return null;
+
+  const storage = await getStorage();
+  if (!isCurrentAttempt()) return null;
+
+  storage.reset(archive.path);
+  startupTrace.mark("storage");
+  return { archiveId: archive.archive.id, rootPath: archive.path, storage };
+}
+
+async function prepareArchiveStorage(
+  archive: ArchiveState,
+  getStorage: () => Promise<LibraryStorage>,
+): Promise<PreparedArchiveStorage> {
+  const preparedArchive = await prepareArchiveStorageIfCurrent(archive, getStorage, () => true);
+  if (!preparedArchive) {
+    throw new Error("Startup storage preparation was cancelled unexpectedly.");
+  }
+  return preparedArchive;
+}
+
+export async function initializeArchiveManagerStartup(
+  dependencyOverrides: Partial<ArchiveManagerStartupDependencies> = {},
+): Promise<void> {
+  const dependencies = { ...defaultArchiveManagerDependencies, ...dependencyOverrides };
+  await Promise.all([
+    dependencies.initializePreferences().then(() => startupTrace.mark("preferences")),
+    dependencies.initializeArchiveRegistry().then(() => startupTrace.mark("archive")),
+  ]);
+}
 
 export async function initializeMainStartup(
   dependencyOverrides: MainStartupOptions,
 ): Promise<MainStartupResult> {
   const dependencies = { ...defaultDependencies, ...dependencyOverrides };
-  await dependencies.initializePreferences();
-  const preferences = dependencies.getPreferences();
-  await dependencies.initializeArchiveRegistry();
+  const preferencesTask = dependencies.initializePreferences().then(() => {
+    startupTrace.mark("preferences");
+    return dependencies.getPreferences();
+  });
+  const archiveTask = dependencies.initializeArchiveRegistry().then(() => {
+    startupTrace.mark("archive");
+    return dependencies.getArchiveState();
+  });
+  const windowTask = preferencesTask.then(async (preferences) => {
+    await dependencies.restoreWindowState(preferences);
+    startupTrace.mark("window");
+  });
+  const [preferences, archive] = await Promise.all([preferencesTask, archiveTask, windowTask]);
 
   const showArchiveManager =
-    preferences.startupBehavior === "show-archive-manager" ||
-    dependencies.getArchiveState().status !== "ready";
-  await dependencies.restoreWindowState(preferences);
+    preferences.startupBehavior === "show-archive-manager" || archive.status !== "ready";
 
   if (showArchiveManager) {
     if (!(await dependencies.openArchiveManagerWindow())) {
       throw new StartupArchiveManagerOpenError();
     }
-    return { restoredReader: false, showArchiveManager: true };
+    dependencies.onArchiveManagerOpened();
+    return { preparedArchive: null, restoredReader: false, showArchiveManager: true };
   }
 
-  const restoredReader = await dependencies.restoreReaderRoute(preferences);
-  return { restoredReader, showArchiveManager: false };
+  const preparedArchive = await prepareArchiveStorage(archive, dependencies.getStorage);
+  const restoredReader = await dependencies.restoreReaderRoute(
+    preferences,
+    preparedArchive.storage,
+  );
+  return { preparedArchive, restoredReader, showArchiveManager: false };
 }
 
-export async function resumeMainStartupAfterArchiveManagerClose({
+export async function resumeInitialStartupAfterArchiveManagerClose({
+  getArchiveState,
+  getStorage,
+  isCurrentAttempt = () => true,
   navigateToLibrary,
   refreshActiveArchive,
-}: ResumeMainStartupDependencies): Promise<boolean> {
+}: ResumeInitialStartupDependencies): Promise<PreparedArchiveStorage | null> {
   if (!(await refreshActiveArchive())) {
-    return false;
+    return null;
   }
 
+  if (!isCurrentAttempt()) return null;
+
+  const preparedArchive = await prepareArchiveStorageIfCurrent(
+    getArchiveState(),
+    getStorage,
+    isCurrentAttempt,
+  );
+  if (!preparedArchive || !isCurrentAttempt()) return null;
+
   await navigateToLibrary();
-  return true;
+  return isCurrentAttempt() ? preparedArchive : null;
 }
