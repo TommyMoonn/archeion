@@ -9,6 +9,7 @@ mod epub_cover_cache;
 mod epub_cover_requests;
 mod epub_cover_resource;
 pub mod epub_cover_writeback;
+mod epub_file_resource;
 pub mod epub_metadata;
 pub mod epub_writeback;
 pub(crate) mod export_file;

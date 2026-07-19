@@ -21,6 +21,10 @@ const viewerMock = vi.hoisted(() => ({
   },
 }));
 
+const fileOwnerMock = vi.hoisted(() => ({
+  release: vi.fn(),
+}));
+
 vi.mock("./EpubViewer", async () => {
   const React = await import("react");
 
@@ -55,6 +59,22 @@ vi.mock("./EpubViewer", async () => {
 
       return <div data-testid="epub-viewer" />;
     }),
+  };
+});
+
+vi.mock("./useReaderFileLoad", async (importOriginal) => {
+  const React = await import("react");
+  const actual = await importOriginal<typeof import("./useReaderFileLoad")>();
+  return {
+    ...actual,
+    useReaderFileLoad(options: Parameters<typeof actual.useReaderFileLoad>[0]) {
+      const { release: releaseOwnedFile, result } = actual.useReaderFileLoad(options);
+      const release = React.useCallback(() => {
+        fileOwnerMock.release();
+        releaseOwnedFile();
+      }, [releaseOwnedFile]);
+      return { release, result };
+    },
   };
 });
 
@@ -150,6 +170,7 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  fileOwnerMock.release.mockClear();
 });
 
 describe("ReaderPage series continuation", () => {
@@ -176,13 +197,39 @@ describe("ReaderPage series continuation", () => {
 
     expect(loadBookFile).toHaveBeenCalledWith("unreadable-book");
     expect(rendered.container.textContent).toContain("Unable to open book");
-    expect(rendered.container.textContent).toContain("may have been moved or deleted");
+    expect(rendered.container.textContent).toContain("Unreadable EPUB");
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+  });
+
+  it("surfaces the native EPUB size boundary before mounting the viewer", async () => {
+    const loadBookFile = vi
+      .fn()
+      .mockRejectedValue(new Error("This EPUB exceeds Archeion's 256 MiB reader limit."));
+    const rendered = await renderReader(
+      [createBook({ id: "oversized-book" })],
+      "oversized-book",
+      undefined,
+      { loadBookFile },
+    );
+
+    expect(rendered.container.textContent).toContain(
+      "This EPUB exceeds Archeion's 256 MiB reader limit.",
+    );
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
   });
 
   it("replaces the active viewer with a concise EPUB parsing failure", async () => {
-    const rendered = await renderReader([createBook({ id: "invalid-book" })], "invalid-book");
+    const loadBookFile = vi.fn().mockResolvedValue(new Blob(["invalid epub"]));
+    const rendered = await renderReader(
+      [createBook({ id: "invalid-book" })],
+      "invalid-book",
+      undefined,
+      { loadBookFile },
+    );
     const reportError = viewerMock.onError;
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeInstanceOf(
+      HTMLElement,
+    );
     expect(reportError).toBeTypeOf("function");
 
     act(() => reportError?.("The EPUB package is invalid."));
@@ -190,7 +237,10 @@ describe("ReaderPage series continuation", () => {
     const alert = rendered.container.querySelector<HTMLElement>('[role="alert"]');
     expect(alert?.textContent).toContain("Unable to open book");
     expect(alert?.textContent).toContain("The EPUB package is invalid.");
+    expect(fileOwnerMock.release).toHaveBeenCalledTimes(1);
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+    await act(async () => Promise.resolve());
+    expect(loadBookFile).toHaveBeenCalledTimes(1);
   });
 
   it("uses the library root when Escape has no valid return context", async () => {

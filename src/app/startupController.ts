@@ -39,7 +39,6 @@ type ResumeMainStartupDependencies = {
 
 type ReaderRestoreStorage = {
   getBook: (bookId: string) => Promise<Book | undefined>;
-  loadBookFile: (bookId: string) => Promise<Blob>;
   reset: (archiveRootPath: string | null) => void;
 };
 
@@ -103,7 +102,6 @@ export async function restoreRememberedReaderRoute(
       throw new Error("The remembered book is unavailable.");
     }
 
-    await storage.loadBookFile(book.id);
     await dependencies.navigate(canonicalReaderRoute(book.id));
     return true;
   } catch {

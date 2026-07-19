@@ -371,6 +371,84 @@ describe("TauriArchiveLibraryStorage single-book operations", () => {
     expect(blob.size).toBe(4);
   });
 
+  it("deduplicates concurrent reads of the same archive book", async () => {
+    const fileRead = deferred<ArrayBuffer>();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
+      if (command === "read_epub_file") return fileRead.promise;
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    await storage.listBooks();
+    invokeMock.mockClear();
+
+    const first = storage.loadBookFile("book-1");
+    const second = storage.loadBookFile("book-1");
+    await vi.waitFor(() => {
+      expect(
+        invokeMock.mock.calls.filter(([command]) => command === "read_epub_file"),
+      ).toHaveLength(1);
+    });
+    fileRead.resolve(new Uint8Array([80, 75, 3, 4]).buffer);
+    const [firstBlob, secondBlob] = await Promise.all([first, second]);
+
+    expect(secondBlob).toBe(firstBlob);
+  });
+
+  it("does not retain a completed file promise between reader opens", async () => {
+    const storage = new TauriArchiveLibraryStorage();
+
+    const first = await storage.loadBookFile("book-1");
+    const second = await storage.loadBookFile("book-1");
+
+    expect(second).not.toBe(first);
+    expect(invokeMock.mock.calls.filter(([command]) => command === "read_epub_file")).toHaveLength(
+      2,
+    );
+  });
+
+  it("rejects a completed file read after its archive scope changes", async () => {
+    const fileRead = deferred<ArrayBuffer>();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
+      if (command === "read_epub_file") return fileRead.promise;
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+
+    const pending = storage.loadBookFile("book-1");
+    storage.reset("C:/ArchiveB");
+    fileRead.resolve(new Uint8Array([80, 75, 3, 4]).buffer);
+
+    await expect(pending).rejects.toThrow("The active archive changed");
+  });
+
+  it("removes failed file reads so the same book can retry", async () => {
+    let readAttempts = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return firstScan;
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "load_settings_metadata") return structuredClone(metadata.settings);
+      if (command === "read_epub_file") {
+        readAttempts += 1;
+        if (readAttempts === 1) throw new Error("read failed");
+        return new Uint8Array([80, 75, 3, 4]).buffer;
+      }
+      return undefined;
+    });
+    const storage = new TauriArchiveLibraryStorage();
+
+    await expect(storage.loadBookFile("book-1")).rejects.toThrow("read failed");
+    await expect(storage.loadBookFile("book-1")).resolves.toMatchObject({ size: 4 });
+    expect(readAttempts).toBe(2);
+  });
+
   it("loads and reuses cached cover bytes", async () => {
     invokeMock.mockImplementation(async (command) => {
       if (command === "scan_archive") {

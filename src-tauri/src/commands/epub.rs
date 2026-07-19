@@ -8,7 +8,10 @@ use std::{
 
 use zip::ZipArchive;
 
-use super::{archive_root, epub_cover_requests, epub_cover_resource, epub_metadata, filesystem};
+use super::{
+    archive_root, epub_cover_requests, epub_cover_resource, epub_file_resource, epub_metadata,
+    filesystem,
+};
 
 pub(crate) fn resolve_epub_path(root: &Path, relative_path: &str) -> Result<PathBuf, String> {
     filesystem::resolve_existing_epub_path(root, relative_path)
@@ -179,15 +182,18 @@ pub(crate) fn load_epub_cover_at(
 }
 
 #[tauri::command]
-pub fn read_epub_file(
+pub async fn read_epub_file(
     app: tauri::AppHandle,
     root_path: Option<String>,
     relative_path: String,
 ) -> Result<tauri::ipc::Response, String> {
     let root = archive_root::resolve_archive_root(&app, root_path)?;
     let path = resolve_epub_path(&root, &relative_path)?;
-    let bytes = fs::read(path).map_err(|error| error.to_string())?;
-    Ok(tauri::ipc::Response::new(bytes))
+    tauri::async_runtime::spawn_blocking(move || {
+        epub_file_resource::read_epub_file_bytes(&path).map(tauri::ipc::Response::new)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

@@ -77,6 +77,7 @@ import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { readerAnnotationQuickActions } from "./readerAnnotationQuickActions";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
+import { useReaderFileLoad } from "./useReaderFileLoad";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -114,11 +115,6 @@ export function ReaderPage() {
   const readerThemeSaveRevision = useRef(0);
   const lastControlsRevealAt = useRef(0);
   const [error, setError] = useState<string | null>(null);
-  const [loadedFile, setLoadedFile] = useState<{
-    bookId: string;
-    blob?: Blob;
-    failed: boolean;
-  } | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [readerThemeSaveFailed, setReaderThemeSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
@@ -149,6 +145,20 @@ export function ReaderPage() {
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error" || readerThemeSaveFailed;
   const archiveRootPath = "path" in archive ? archive.path : null;
+  const readerFileRequestKey =
+    bookId && activeArchiveId && !isBookFileMissing
+      ? JSON.stringify([activeArchiveId, archiveRootPath, bookId])
+      : null;
+  const loadReaderFile = useCallback(() => {
+    if (!bookId) {
+      return Promise.reject(new Error("The selected EPUB is unavailable."));
+    }
+    return storage.loadBookFile(bookId);
+  }, [bookId, storage]);
+  const { release: releaseReaderFile, result: readerFile } = useReaderFileLoad({
+    load: loadReaderFile,
+    requestKey: readerFileRequestKey,
+  });
   const readerThemeSelection =
     archiveRootPath && committedAppearance?.archive.rootPath === archiveRootPath
       ? committedAppearance.settings.readerTheme
@@ -583,9 +593,13 @@ export function ReaderPage() {
     [bookId, handleAnnotationLocationChange],
   );
 
-  const handleViewerError = useCallback((message: string) => {
-    setError(message);
-  }, []);
+  const handleViewerError = useCallback(
+    (message: string) => {
+      releaseReaderFile();
+      setError(message);
+    },
+    [releaseReaderFile],
+  );
 
   const handleRescanAndReturn = useCallback(() => {
     setRecoveryStatus("rescanning");
@@ -652,30 +666,6 @@ export function ReaderPage() {
   );
 
   useEffect(() => {
-    let cancelled = false;
-    if (!bookId || isBookFileMissing) {
-      return;
-    }
-
-    void storage
-      .loadBookFile(bookId)
-      .then((blob) => {
-        if (!cancelled) {
-          setLoadedFile({ bookId, blob, failed: false });
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setLoadedFile({ bookId, failed: true });
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bookId, isBookFileMissing, storage]);
-
-  useEffect(() => {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
@@ -738,12 +728,10 @@ export function ReaderPage() {
   }
 
   const title = bookTitle(book);
-  const currentLoadedFile = loadedFile?.bookId === book.id ? loadedFile : null;
-  const fileBlob = currentLoadedFile?.blob;
-  const fileLoadFailed = currentLoadedFile?.failed ?? false;
-  const isFileLoading = !fileBlob && !fileLoadFailed;
+  const fileBlob = readerFile.status === "ready" ? readerFile.blob : undefined;
+  const isFileLoading = readerFile.status === "loading";
 
-  if (isFileLoading) {
+  if (!error && isFileLoading) {
     return (
       <main className="reader-status-page" aria-busy="true">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
@@ -753,12 +741,16 @@ export function ReaderPage() {
     );
   }
 
-  if (fileLoadFailed || !fileBlob) {
+  if (!error && (readerFile.status === "error" || !fileBlob)) {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Unable to open book</h1>
-        <p>The EPUB file may have been moved or deleted.</p>
+        <p>
+          {readerFile.status === "error"
+            ? readerFile.error
+            : "The EPUB file may have been moved or deleted."}
+        </p>
         <div className="reader-status-page__actions">
           <Button
             busy={recoveryStatus === "rescanning"}
@@ -838,7 +830,7 @@ export function ReaderPage() {
             Back
           </button>
         </section>
-      ) : (
+      ) : fileBlob ? (
         <EpubViewer
           ref={viewerRef}
           fileBlob={fileBlob}
@@ -860,7 +852,7 @@ export function ReaderPage() {
           readerTheme={readerTheme}
           settings={settings}
         />
-      )}
+      ) : null}
 
       {annotations.feedback ? (
         <div

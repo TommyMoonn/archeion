@@ -275,13 +275,21 @@ export function useEpubSession({
 
     const openBook = async () => {
       try {
-        const [{ default: ePub }, fileContents] = await Promise.all([
-          import("epubjs"),
-          fileBlob.arrayBuffer(),
-        ]);
-        if (cancelled || !containerRef.current) return;
+        const epubModule = import("epubjs");
+        let fileContents: ArrayBuffer | null = await fileBlob.arrayBuffer();
+        if (cancelled || !containerRef.current) {
+          fileContents = null;
+          void epubModule.catch(() => undefined);
+          return;
+        }
 
+        const { default: ePub } = await epubModule;
+        if (cancelled || !containerRef.current) {
+          fileContents = null;
+          return;
+        }
         book = ePub(fileContents);
+        fileContents = null;
         await book.opened;
         if (cancelled || !containerRef.current) {
           destroyBookOnce();

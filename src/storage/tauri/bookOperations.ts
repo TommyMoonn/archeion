@@ -11,6 +11,8 @@ import {
 } from "./operationTypes";
 
 export class BookOperations {
+  private readonly filePromises = new Map<string, Promise<Blob>>();
+
   constructor(private readonly host: StorageOperationHost) {}
 
   async getBook(id: string): Promise<Book | undefined> {
@@ -25,11 +27,40 @@ export class BookOperations {
     const loading = this.host.ensureLoadedOrPromise(scope);
     if (loading) await loading;
     const book = requireAvailableBook(this.host, id);
+    const requestKey = JSON.stringify([
+      scope.generation,
+      id,
+      book.relativePath,
+      book.size ?? "unknown",
+      book.modifiedAt ?? "unknown",
+    ]);
+    const current = this.filePromises.get(requestKey);
+    if (current) {
+      return current;
+    }
+
+    const pending = this.loadArchiveBookFile(book, scope);
+    this.filePromises.set(requestKey, pending);
+    void pending
+      .finally(() => {
+        if (this.filePromises.get(requestKey) === pending) {
+          this.filePromises.delete(requestKey);
+        }
+      })
+      .catch(() => undefined);
+    return pending;
+  }
+
+  private async loadArchiveBookFile(
+    book: Book & { relativePath: string },
+    scope: ArchiveCommandScope,
+  ): Promise<Blob> {
     const contents = await this.host.commands.invoke(
       "read_epub_file",
       { relativePath: book.relativePath },
       scope.rootPath,
     );
+    this.host.assertCurrentScope(scope);
     return new Blob([contents], { type: "application/epub+zip" });
   }
 

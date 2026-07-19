@@ -164,10 +164,15 @@ describe("reader route restoration", () => {
     expect(navigate).toHaveBeenCalledWith("/");
   });
 
-  it("restores a readable book only in the remembered archive", async () => {
+  it("restores a readable book only in the remembered archive without preloading its bytes", async () => {
     const navigate = vi.fn(async () => undefined);
     const reset = vi.fn();
     const loadBookFile = vi.fn(async () => new Blob(["epub"]));
+    const storage = {
+      getBook: async () => rememberedBook,
+      loadBookFile,
+      reset,
+    };
     const restored = await restoreRememberedReaderRoute(
       preferences({
         navigation: {
@@ -193,18 +198,14 @@ describe("reader route restoration", () => {
           status: "ready",
           watcherError: null,
         }),
-        getStorage: async () => ({
-          getBook: async () => rememberedBook,
-          loadBookFile,
-          reset,
-        }),
+        getStorage: async () => storage,
         navigate,
       },
     );
 
     expect(restored).toBe(true);
     expect(reset).toHaveBeenCalledWith("D:\\Books");
-    expect(loadBookFile).toHaveBeenCalledWith(rememberedBook.id);
+    expect(loadBookFile).not.toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith("/reader/book%201");
   });
 
@@ -239,7 +240,6 @@ describe("reader route restoration", () => {
         getCurrentPathname: () => "/reader/missing",
         getStorage: async () => ({
           getBook: async () => undefined,
-          loadBookFile: async () => new Blob(),
           reset: vi.fn(),
         }),
         navigate,

@@ -265,6 +265,52 @@ describe("useEpubSession lifecycle", () => {
     expect(session.destroy).toHaveBeenCalledTimes(1);
   });
 
+  it("does not create an EPUB.js book when teardown cancels a pending byte conversion", async () => {
+    const contents = deferred<ArrayBuffer>();
+    const fileBlob = new Blob(["book-a"]);
+    vi.spyOn(fileBlob, "arrayBuffer").mockReturnValue(contents.promise);
+    const { root } = await renderHarness({
+      bridgeRef: createBridgeRef(),
+      fileBlob,
+      mode: "paged",
+    });
+
+    act(() => root.unmount());
+    await act(async () => contents.resolve(new ArrayBuffer(8)));
+
+    expect(epubModuleMock.openBook).not.toHaveBeenCalled();
+  });
+
+  it("releases every superseded EPUB.js session across repeated book transitions", async () => {
+    const sessions = Array.from({ length: 5 }, () => createBookSession());
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    for (const session of sessions) {
+      epubModuleMock.openBook.mockReturnValueOnce(session.book);
+    }
+
+    const { root } = await renderHarness(
+      { bridgeRef, fileBlob: new Blob(["book-0"]), mode: "paged" },
+      facadeRef,
+    );
+    await waitForReady(sessions[0], bridge);
+
+    for (let index = 1; index < sessions.length; index += 1) {
+      await rerenderHarness(
+        root,
+        { bridgeRef, fileBlob: new Blob([`book-${index}`]), mode: "paged" },
+        facadeRef,
+      );
+      await waitForReady(sessions[index], bridge);
+      expect(sessions[index - 1].destroy).toHaveBeenCalledTimes(1);
+    }
+
+    act(() => root.unmount());
+    expect(sessions.at(-1)?.destroy).toHaveBeenCalledTimes(1);
+    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(sessions.length);
+  });
+
   it("keeps the session when the initial display fails but fallback display succeeds", async () => {
     const session = createBookSession();
     session.rendition.display
