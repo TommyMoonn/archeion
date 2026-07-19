@@ -25,6 +25,7 @@ import {
 } from "./libraryFeedback";
 import { isInsideFolder } from "./libraryFolderRelations";
 import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
+import type { RunFolderPathMutation } from "./useFolderPathMutationContinuity";
 
 type UseLibraryBookActionsInput = {
   changeLocation: (location: LibraryLocation) => void;
@@ -34,6 +35,7 @@ type UseLibraryBookActionsInput = {
   dismissFeedback: (id: string) => void;
   location: LibraryLocation;
   pushFeedback: (feedback: LibraryFeedbackDraft) => string;
+  runFolderPathMutation: RunFolderPathMutation;
   showLibraryError: (title: string, detail?: string) => void;
   showRescanError: () => void;
   showRescanSuccess: () => void;
@@ -48,6 +50,7 @@ export function useLibraryBookActions({
   dismissFeedback,
   location,
   pushFeedback,
+  runFolderPathMutation,
   showLibraryError,
   showRescanError,
   showRescanSuccess,
@@ -277,15 +280,19 @@ export function useLibraryBookActions({
   );
   const renameFolder = useCallback(
     async (folder: Folder, name: string) => {
-      await storage.updateFolder(folder.id, { name });
+      await runFolderPathMutation(folder, { name }, () =>
+        storage.updateFolder(folder.id, { name }),
+      );
     },
-    [storage],
+    [runFolderPathMutation, storage],
   );
   const moveFolder = useCallback(
     async (folder: Folder, folderId: string | null) => {
-      await storage.updateFolder(folder.id, { parentId: folderId });
+      await runFolderPathMutation(folder, { parentId: folderId }, () =>
+        storage.updateFolder(folder.id, { parentId: folderId }),
+      );
     },
-    [storage],
+    [runFolderPathMutation, storage],
   );
   const revealFolder = useCallback(
     async (folder: Folder) => {

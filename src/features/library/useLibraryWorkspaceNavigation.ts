@@ -24,6 +24,7 @@ import {
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
 import type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
+import { useFolderPathMutationContinuity } from "./useFolderPathMutationContinuity";
 export type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
 
 export function libraryLocationKey(location: LibraryLocation): string {
@@ -66,6 +67,12 @@ export function useLibraryWorkspaceNavigation({
   const [searchFocusRequest, setSearchFocusRequest] = useState(() =>
     requestsBookSearch(routerLocation.state) ? 1 : 0,
   );
+  const folderPathMutation = useFolderPathMutationContinuity({
+    activeArchiveId,
+    folders,
+    searchParams,
+    setSearchParams,
+  });
 
   const location = useMemo(
     () =>
@@ -74,8 +81,15 @@ export function useLibraryWorkspaceNavigation({
         folders ?? [],
         activeArchiveId,
         smartViewPreferences,
+        folderPathMutation.pendingMapping,
       ),
-    [activeArchiveId, folders, searchParams, smartViewPreferences],
+    [
+      activeArchiveId,
+      folderPathMutation.pendingMapping,
+      folders,
+      searchParams,
+      smartViewPreferences,
+    ],
   );
   const folderBrowserView = useMemo(
     () => folderBrowserViewFromSearchParams(searchParams),
@@ -189,6 +203,7 @@ export function useLibraryWorkspaceNavigation({
   }, [location.type, searchFocusRequest]);
 
   return {
+    captureFolderMutationFocus: folderPathMutation.captureFocus,
     changeFolderBrowserView,
     changeLocation,
     clearLibrarySearch,
@@ -198,6 +213,7 @@ export function useLibraryWorkspaceNavigation({
     openReader,
     pageShellRef,
     query,
+    runFolderPathMutation: folderPathMutation.run,
     restoreContext,
     returnContextRestoredRef,
     scrollMainContentToTop,

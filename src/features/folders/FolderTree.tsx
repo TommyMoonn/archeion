@@ -3,6 +3,7 @@ import { useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react
 
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
+import { folderMutationOwnerAttributes } from "./folderMutationFocus";
 import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 
@@ -41,6 +42,7 @@ function FolderNode({
     <li>
       <div
         className="folder-tree__row"
+        {...folderMutationOwnerAttributes(folder, "tree")}
         data-has-actions={showActions ? "true" : undefined}
         data-import-drop-active={
           activeImportDropTargetId === `sidebar-folder:${folder.id}` || undefined
@@ -53,6 +55,7 @@ function FolderNode({
           aria-current={isSelected ? "page" : undefined}
           className="folder-tree__select"
           data-active={isSelected || undefined}
+          data-library-folder-primary-action
           title={folder.name}
           type="button"
           onClick={() => onSelect(folder)}

@@ -14,6 +14,10 @@ import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { LibraryPage } from "./LibraryPage";
+import {
+  LibraryPageRouteProbe,
+  type LibraryPageRouteChange,
+} from "./LibraryPageRouteProbe.testUtils";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -60,22 +64,26 @@ export function createStorage({
     updatedAt: "1",
   } satisfies Folder),
   deleteBook = vi.fn(),
+  deleteFolder = vi.fn(),
   listAnnotations = vi.fn().mockResolvedValue([]),
   observeBooks,
   observeFolders,
   observeScanStatus,
   updateBook = vi.fn(),
+  updateFolder = vi.fn(),
 }: {
   books?: Book[];
   bulkSetFavorite?: LibraryStorage["bulkSetFavorite"];
   folders?: Folder[];
   createFolder?: LibraryStorage["createFolder"];
   deleteBook?: LibraryStorage["deleteBook"];
+  deleteFolder?: LibraryStorage["deleteFolder"];
   listAnnotations?: LibraryStorage["listAnnotations"];
   observeBooks?: LibraryStorage["observeBooks"];
   observeFolders?: LibraryStorage["observeFolders"];
   observeScanStatus?: LibraryStorage["observeScanStatus"];
   updateBook?: LibraryStorage["updateBook"];
+  updateFolder?: LibraryStorage["updateFolder"];
 } = {}): LibraryStorage {
   return {
     reset: vi.fn(),
@@ -116,9 +124,9 @@ export function createStorage({
     createFolder,
     getFolder: vi.fn(),
     listFolders: vi.fn(),
-    updateFolder: vi.fn(),
+    updateFolder,
     revealFolder: vi.fn(),
-    deleteFolder: vi.fn(),
+    deleteFolder,
     observeFolders:
       observeFolders ??
       vi.fn((observer) => {
@@ -293,6 +301,7 @@ type MemoryRouterInitialEntry = NonNullable<
 export async function renderLibraryPage(
   storage: LibraryStorage,
   initialEntry: MemoryRouterInitialEntry = "/",
+  onRouteChange?: (route: LibraryPageRouteChange) => void,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -301,6 +310,7 @@ export async function renderLibraryPage(
   await act(async () => {
     root.render(
       <MemoryRouter initialEntries={[initialEntry]}>
+        {onRouteChange ? <LibraryPageRouteProbe onChange={onRouteChange} /> : null}
         <LibraryStorageContext.Provider value={storage}>
           <LibraryPage />
         </LibraryStorageContext.Provider>

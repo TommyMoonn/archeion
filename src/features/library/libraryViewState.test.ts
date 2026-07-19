@@ -71,6 +71,29 @@ describe("library view URL state", () => {
     expect(location).toEqual({ type: "folder", folderId: "folder-series" });
   });
 
+  it("resolves an owned path mutation against the observer's rewritten folder model", () => {
+    const renamedFolders: Folder[] = [
+      { ...folders[0]!, id: "folder-library", name: "Library", relativePath: "Library" },
+      {
+        ...folders[1]!,
+        id: "folder-library-series",
+        parentId: "folder-library",
+        parentPath: "Library",
+        relativePath: "Library/Series",
+      },
+    ];
+
+    expect(
+      libraryLocationFromSearchParams(
+        params("view=folder&folderPath=Root%2FSeries"),
+        renamedFolders,
+        undefined,
+        undefined,
+        { oldRelativePath: "Root", newRelativePath: "Library" },
+      ),
+    ).toEqual({ type: "folder", folderId: "folder-library-series" });
+  });
+
   it("falls back to Library for stale or unsafe folder params", () => {
     expect(
       libraryLocationFromSearchParams(params("view=folder&folderPath=Missing"), folders),

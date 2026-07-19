@@ -10,6 +10,10 @@ import {
   isLibrarySmartViewVisible,
   normalizeVisibleLibraryLocation,
 } from "../../types/librarySmartViews";
+import {
+  rewriteFolderPathForMutation,
+  type FolderPathMutationMapping,
+} from "./folderPathMutationContinuity";
 
 const LIBRARY_VIEW_PARAM = "view";
 const FOLDER_PATH_PARAM = "folderPath";
@@ -53,6 +57,7 @@ export function libraryLocationFromSearchParams(
   folders: Folder[],
   activeArchiveId?: string,
   smartViewPreferences?: LibrarySmartViewPreferences,
+  pendingFolderPathMutation?: FolderPathMutationMapping | null,
 ): LibraryLocation {
   const urlArchiveId = searchParams.get(ARCHIVE_ID_PARAM);
 
@@ -88,7 +93,16 @@ export function libraryLocationFromSearchParams(
     }
     case "folder": {
       const folderPath = normalizedFolderPathKey(searchParams.get(FOLDER_PATH_PARAM) ?? undefined);
-      const folder = folderByRelativePath(folders, folderPath);
+      const directFolder = folderByRelativePath(folders, folderPath);
+      const rewrittenFolderPath = pendingFolderPathMutation
+        ? rewriteFolderPathForMutation(
+            searchParams.get(FOLDER_PATH_PARAM) ?? undefined,
+            pendingFolderPathMutation,
+          )
+        : null;
+      const folder =
+        directFolder ??
+        folderByRelativePath(folders, normalizedFolderPathKey(rewrittenFolderPath ?? undefined));
 
       return folder ? { type: "folder", folderId: folder.id } : DEFAULT_LIBRARY_LOCATION;
     }

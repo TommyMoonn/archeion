@@ -10,6 +10,7 @@ import {
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
+import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
@@ -272,6 +273,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     (book: Book) => openReader(book, readerReturnLabel, true),
     [openReader, readerReturnLabel],
   );
+  const openRenameFolder = useCallback(
+    (folder: Folder) => {
+      navigation.captureFolderMutationFocus(folder);
+      dialogActions.openRenameFolder(folder);
+    },
+    [dialogActions, navigation],
+  );
+  const openMoveFolder = useCallback(
+    (folder: Folder) => {
+      navigation.captureFolderMutationFocus(folder);
+      dialogActions.openMoveFolder(folder);
+    },
+    [dialogActions, navigation],
+  );
 
   const bookActions = useLibraryBookActions({
     changeLocation,
@@ -281,6 +296,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     dismissFeedback,
     location: navigation.location,
     pushFeedback,
+    runFolderPathMutation: navigation.runFolderPathMutation,
     showLibraryError,
     showRescanError,
     showRescanSuccess,
@@ -449,9 +465,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           folders: folders ?? [],
           onCreate: dialogActions.openCreateFolder,
           onDelete: bookActions.requestDeleteFolder,
-          onMove: dialogActions.openMoveFolder,
+          onMove: openMoveFolder,
           onOpen: (folder) => changeLocation({ type: "folder", folderId: folder.id }),
-          onRename: dialogActions.openRenameFolder,
+          onRename: openRenameFolder,
           onReveal: (folder) => void bookActions.revealFolder(folder),
           onViewChange: navigation.changeFolderBrowserView,
           view: navigation.folderBrowserView,
@@ -513,12 +529,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onDeleteFolder: bookActions.requestDeleteFolder,
           onLocationChange: navigation.changeLocation,
           onManageArchives: openArchiveManager,
-          onMoveFolder: dialogActions.openMoveFolder,
+          onMoveFolder: openMoveFolder,
           onOpenAbout: dialogActions.openAbout,
           onOpenSettings: openSettings,
           onPreloadAbout: preloadAboutDialog,
           onPreloadSettings: preloadSettings,
-          onRenameFolder: dialogActions.openRenameFolder,
+          onRenameFolder: openRenameFolder,
           onRevealFolder: (folder) => void bookActions.revealFolder(folder),
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           seriesCount,

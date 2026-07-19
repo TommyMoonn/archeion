@@ -17,6 +17,7 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Folder } from "../../types/folder";
 import type { FolderBrowserView } from "../../types/library";
 import { FolderActionsMenu } from "./FolderActionsMenu";
+import { folderMutationOwnerAttributes } from "./folderMutationFocus";
 import { searchFolders } from "./folderSearch";
 import { formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
 
@@ -161,6 +162,7 @@ export function FolderBrowser({
             return (
               <article
                 className="folder-browser__item"
+                {...folderMutationOwnerAttributes(folder, "browser")}
                 data-import-drop-active={
                   activeImportDropTargetId === `folder-browser:${folder.id}` || undefined
                 }
@@ -171,6 +173,7 @@ export function FolderBrowser({
               >
                 <button
                   className="folder-browser__open"
+                  data-library-folder-primary-action
                   onClick={() => onOpen(folder)}
                   type="button"
                 >
