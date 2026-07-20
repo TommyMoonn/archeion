@@ -14,6 +14,7 @@ export type SeriesEntry = {
   duplicateVolumeHints: string[];
   firstUnreadBookId?: string;
   key: string;
+  latestOpenedAt?: string;
   missingVolumeHints: string[];
   startedCount: number;
 };

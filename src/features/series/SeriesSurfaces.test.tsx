@@ -115,12 +115,17 @@ describe("series library surfaces", () => {
     const onOpen = vi.fn();
     const scope = mount(
       <SeriesOverview
+        cardSize="medium"
         entries={entries}
         isLoading={false}
         onClearSearch={vi.fn()}
         onOpen={onOpen}
         onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
         query="star"
+        sort="title"
+        view="grid"
       />,
     );
 
@@ -151,14 +156,20 @@ describe("series library surfaces", () => {
         sourceMetadata: { series: "Moon Tales", volume: "1" },
       }),
     ]);
+    const onViewChange = vi.fn();
     const scope = mount(
       <SeriesOverview
+        cardSize="medium"
         entries={entries}
         isLoading={false}
         onClearSearch={vi.fn()}
         onOpen={vi.fn()}
         onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={onViewChange}
         query=""
+        sort="title"
+        view="grid"
       />,
     );
 
@@ -172,8 +183,38 @@ describe("series library surfaces", () => {
 
     act(() => listButton?.click());
 
-    expect(collection?.classList.contains("series-grid--list")).toBe(true);
-    expect(listButton?.getAttribute("aria-checked")).toBe("true");
+    expect(onViewChange).toHaveBeenCalledWith("list");
+    expect(collection?.classList.contains("series-grid--grid")).toBe(true);
+  });
+
+  it("routes sort changes through the controlled preference callback", () => {
+    const onSortChange = vi.fn();
+    const scope = mount(
+      <SeriesOverview
+        cardSize="large"
+        entries={deriveSeriesEntries(seriesBooks())}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onSortChange={onSortChange}
+        onViewChange={vi.fn()}
+        query=""
+        sort="title"
+        view="grid"
+      />,
+    );
+
+    act(() => scope.querySelector<HTMLButtonElement>('[aria-label="Sort series"]')?.click());
+    const mostVolumes = Array.from(scope.querySelectorAll<HTMLElement>('[role="option"]')).find(
+      (option) => option.textContent?.includes("Most volumes"),
+    );
+    act(() => mostVolumes?.click());
+
+    expect(onSortChange).toHaveBeenCalledWith("most-volumes");
+    expect(scope.querySelector(".series-grid")?.getAttribute("data-series-card-size")).toBe(
+      "large",
+    );
   });
 
   it("keeps the full series open target visibly interactive", () => {
@@ -188,12 +229,17 @@ describe("series library surfaces", () => {
   it("uses the shared collection-content layout for series empty states", () => {
     const scope = mount(
       <SeriesOverview
+        cardSize="medium"
         entries={[]}
         isLoading={false}
         onClearSearch={vi.fn()}
         onOpen={vi.fn()}
         onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
         query=""
+        sort="title"
+        view="grid"
       />,
     );
     const content = scope.querySelector(".collection-content.series-overview__content");

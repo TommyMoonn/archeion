@@ -9,18 +9,12 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type {
-  FolderBrowserView,
-  LibraryLocation,
-  LibrarySmartViewPreferences,
-} from "../../types/library";
+import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
 import { scrollElementToTop } from "../../utils/motion";
 import { requestsBookSearch } from "../quick-actions/quickActions";
 import {
-  folderBrowserViewFromSearchParams,
   hiddenSmartViewFallbackSearchParams,
   libraryLocationFromSearchParams,
-  searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
 import type { LibraryReturnFocusRequest } from "./useLibraryCollectionWindow";
@@ -91,11 +85,6 @@ export function useLibraryWorkspaceNavigation({
       smartViewPreferences,
     ],
   );
-  const folderBrowserView = useMemo(
-    () => folderBrowserViewFromSearchParams(searchParams),
-    [searchParams],
-  );
-
   const scrollMainContentToTop = useCallback(() => {
     scrollElementToTop(pageShellRef.current);
   }, []);
@@ -126,16 +115,6 @@ export function useLibraryWorkspaceNavigation({
       setSearchParams,
       smartViewPreferences,
     ],
-  );
-
-  const changeFolderBrowserView = useCallback(
-    (nextView: FolderBrowserView) => {
-      const nextParams = searchParamsForFolderBrowserView(searchParams, nextView);
-      if (nextParams.toString() !== searchParams.toString()) {
-        setSearchParams(nextParams, { replace: true });
-      }
-    },
-    [searchParams, setSearchParams],
   );
 
   const clearLibrarySearch = useCallback(() => {
@@ -204,10 +183,8 @@ export function useLibraryWorkspaceNavigation({
 
   return {
     captureFolderMutationFocus: folderPathMutation.captureFocus,
-    changeFolderBrowserView,
     changeLocation,
     clearLibrarySearch,
-    folderBrowserView,
     location,
     openBookSearch,
     openReader,

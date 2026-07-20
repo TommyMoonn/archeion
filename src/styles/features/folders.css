@@ -155,8 +155,16 @@ html[data-motion="on"] .folder-browser > .empty-state {
 
 .folder-browser__items--cards {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 12px;
+}
+
+.folder-browser__items--cards[data-folder-card-size="small"] {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.folder-browser__items--cards[data-folder-card-size="large"] {
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
 }
 
 .folder-browser__item {
@@ -203,6 +211,18 @@ html[data-motion="on"] .folder-browser > .empty-state {
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--text-strong) 1.8%, transparent);
+}
+
+.folder-browser__items--cards[data-folder-card-size="small"] .folder-browser__open {
+  min-height: 100px;
+  padding-block: 13px;
+  padding-left: 13px;
+}
+
+.folder-browser__items--cards[data-folder-card-size="large"] .folder-browser__open {
+  min-height: 136px;
+  padding-block: 21px;
+  padding-left: 21px;
 }
 
 .folder-browser__open:hover,

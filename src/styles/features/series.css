@@ -46,12 +46,21 @@
 
 .series-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 12px;
   padding: 0 0 32px;
 }
 
-.series-grid--list {
+.series-grid--grid[data-series-card-size="small"] {
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+}
+
+.series-grid--grid[data-series-card-size="large"] {
+  grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+}
+
+.series-grid--list,
+.series-grid--list[data-series-card-size] {
   grid-template-columns: 1fr;
 }
 
@@ -88,9 +97,29 @@
   cursor: pointer;
 }
 
+.series-grid--grid[data-series-card-size="small"] .series-card__open {
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 10px;
+}
+
+.series-grid--grid[data-series-card-size="large"] .series-card__open {
+  grid-template-columns: 88px minmax(0, 1fr) auto;
+  gap: 19px;
+  padding: 16px;
+}
+
 .book-cover--series {
   width: 72px;
   border-radius: 7px;
+}
+
+.series-grid--grid[data-series-card-size="small"] .book-cover--series {
+  width: 58px;
+}
+
+.series-grid--grid[data-series-card-size="large"] .book-cover--series {
+  width: 88px;
 }
 
 .series-card__copy {

@@ -204,6 +204,10 @@ function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly Book[]): Se
   const sortedBooks = sortSeriesBooks(groupedSeriesBooks);
   const representative = [...groupedSeriesBooks].sort(compareBookIdentity)[0];
   const progress = deriveSeriesProgress(sortedBooks);
+  const latestOpenedAt = groupedSeriesBooks
+    .map((book) => book.lastOpenedAt)
+    .filter((value): value is string => Boolean(value))
+    .sort((left, right) => right.localeCompare(left))[0];
 
   return {
     books: sortedBooks,
@@ -213,6 +217,7 @@ function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly Book[]): Se
     duplicateVolumeHints: findDuplicateVolumeHints(sortedBooks),
     ...(progress.firstUnreadBookId ? { firstUnreadBookId: progress.firstUnreadBookId } : {}),
     key,
+    ...(latestOpenedAt ? { latestOpenedAt } : {}),
     missingVolumeHints: findMissingVolumeHints(sortedBooks),
     startedCount: progress.startedCount,
   };

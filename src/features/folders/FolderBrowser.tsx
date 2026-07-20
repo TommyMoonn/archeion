@@ -9,20 +9,27 @@ import {
 } from "@phosphor-icons/react";
 import { useMemo, useState, type ReactNode, type Ref } from "react";
 
+import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Folder } from "../../types/folder";
-import type { FolderBrowserView } from "../../types/library";
+import type { CollectionCardSize, FolderBrowserView, FolderSort } from "../../types/library";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
-import { searchFolders } from "./folderSearch";
-import { formatFolderBookCount, getFolderDisplayPath } from "./folderTreeUtils";
+import {
+  createFolderBrowserEntries,
+  filterFolderBrowserEntries,
+  sortFolderBrowserEntries,
+} from "./folderBrowserReadModel";
+import { folderSortOptions } from "./folderSortOptions";
+import { formatFolderBookCount } from "./folderTreeUtils";
 
 type FolderBrowserProps = {
   bookCounts: ReadonlyMap<string, number>;
+  cardSize: CollectionCardSize;
   canManageFolders?: boolean;
   canRevealFolders?: boolean;
   folders: Folder[];
@@ -32,9 +39,11 @@ type FolderBrowserProps = {
   onOpen: (folder: Folder) => void;
   onRename?: (folder: Folder) => void;
   onReveal?: (folder: Folder) => void;
-  onViewChange?: (view: FolderBrowserView) => void;
+  onSortChange: (sort: FolderSort) => void;
+  onViewChange: (view: FolderBrowserView) => void;
   activeImportDropTargetId?: string | null;
-  view?: FolderBrowserView;
+  sort: FolderSort;
+  view: FolderBrowserView;
   searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
@@ -58,6 +67,7 @@ const folderViewOptions: Array<{
 
 export function FolderBrowser({
   bookCounts,
+  cardSize,
   canManageFolders = false,
   canRevealFolders = false,
   folders,
@@ -67,20 +77,26 @@ export function FolderBrowser({
   onOpen,
   onRename,
   onReveal,
+  onSortChange,
   onViewChange,
   activeImportDropTargetId,
-  view: controlledView,
+  sort,
+  view,
   searchAriaKeyShortcuts,
   searchInputRef,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
-  const [localView, setLocalView] = useState<FolderBrowserView>("list");
-  const view = controlledView ?? localView;
-  const changeView = onViewChange ?? setLocalView;
-  const visibleFolders = useMemo(() => searchFolders(folders, query), [folders, query]);
+  const entries = useMemo(
+    () => createFolderBrowserEntries(folders, bookCounts),
+    [bookCounts, folders],
+  );
+  const visibleEntries = useMemo(
+    () => sortFolderBrowserEntries(filterFolderBrowserEntries(entries, query), sort),
+    [entries, query, sort],
+  );
   const showFolderActions = Boolean(canManageFolders && onDelete && onMove && onRename);
-  const surfaceState = visibleFolders.length > 0 ? "results" : query ? "search-empty" : "empty";
-  const surfaceKey = `${view}:${surfaceState}`;
+  const surfaceState = visibleEntries.length > 0 ? "results" : query ? "search-empty" : "empty";
+  const surfaceKey = `${view}:${sort}:${cardSize}:${surfaceState}`;
 
   return (
     <section className="folder-browser">
@@ -135,17 +151,24 @@ export function FolderBrowser({
 
         <div className="library-controls folder-browser__controls">
           <span
-            aria-label={`${visibleFolders.length} ${visibleFolders.length === 1 ? "folder" : "folders"} shown`}
+            aria-label={`${visibleEntries.length} ${visibleEntries.length === 1 ? "folder" : "folders"} shown`}
             aria-live="polite"
             className="library-result-count"
           >
-            {visibleFolders.length} {visibleFolders.length === 1 ? "folder" : "folders"}
+            {visibleEntries.length} {visibleEntries.length === 1 ? "folder" : "folders"}
           </span>
           <div className="library-controls__display">
+            <AppSelect
+              ariaLabel="Sort folders"
+              className="folder-sort-select"
+              onChange={onSortChange}
+              options={folderSortOptions}
+              value={sort}
+            />
             <SegmentedControl
               appearance="icon-only"
               label="Folder view"
-              onChange={changeView}
+              onChange={onViewChange}
               options={folderViewOptions}
               value={view}
             />
@@ -153,7 +176,7 @@ export function FolderBrowser({
         </div>
       </header>
 
-      {visibleFolders.length === 0 ? (
+      {visibleEntries.length === 0 ? (
         <EmptyState
           key={surfaceKey}
           action={
@@ -176,13 +199,11 @@ export function FolderBrowser({
       ) : (
         <div
           className={`folder-browser__items folder-browser__items--${view}`}
+          data-folder-card-size={cardSize}
           data-surface-state={surfaceState}
           key={surfaceKey}
         >
-          {visibleFolders.map((folder) => {
-            const displayPath = getFolderDisplayPath(folder);
-            const bookCount = bookCounts.get(folder.id) ?? 0;
-
+          {visibleEntries.map(({ bookCount, displayPath, folder }) => {
             return (
               <article
                 className="folder-browser__item"

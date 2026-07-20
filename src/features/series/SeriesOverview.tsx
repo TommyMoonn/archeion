@@ -1,24 +1,32 @@
 import { CaretRight, GridFour, List, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
-import { useState, type ReactNode, type Ref } from "react";
+import { useMemo, type ReactNode, type Ref } from "react";
 
+import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
-import type { LibraryView } from "../../types/library";
+import type { CollectionCardSize, LibraryView, SeriesSort } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
 import { BookCover } from "../library/BookCover";
 import { filterSeriesEntries } from "./seriesDerivation";
 import { seriesProgressLabel, volumeCountLabel } from "./seriesDisplay";
+import { seriesSortOptions } from "./seriesSortOptions";
+import { sortSeriesEntries } from "./seriesSorting";
 
 type SeriesOverviewProps = {
+  cardSize: CollectionCardSize;
   entries: readonly SeriesEntry[];
   isLoading: boolean;
   onClearSearch: () => void;
   onOpen: (entry: SeriesEntry) => void;
   onQueryChange: (query: string) => void;
+  onSortChange: (sort: SeriesSort) => void;
+  onViewChange: (view: LibraryView) => void;
   query: string;
+  sort: SeriesSort;
+  view: LibraryView;
   searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
@@ -41,17 +49,24 @@ const seriesViewOptions: Array<{
 ];
 
 export function SeriesOverview({
+  cardSize,
   entries,
   isLoading,
   onClearSearch,
   onOpen,
   onQueryChange,
+  onSortChange,
+  onViewChange,
   query,
+  sort,
+  view,
   searchAriaKeyShortcuts,
   searchInputRef,
 }: SeriesOverviewProps) {
-  const [view, setView] = useState<LibraryView>("grid");
-  const visibleEntries = filterSeriesEntries(entries, query);
+  const visibleEntries = useMemo(
+    () => sortSeriesEntries(filterSeriesEntries(entries, query), sort),
+    [entries, query, sort],
+  );
   const surfaceState = isLoading
     ? "loading"
     : entries.length === 0
@@ -102,10 +117,17 @@ export function SeriesOverview({
             {isLoading ? "Loading series" : `${visibleEntries.length} series`}
           </span>
           <div className="library-controls__display">
+            <AppSelect
+              ariaLabel="Sort series"
+              className="series-sort-select"
+              onChange={onSortChange}
+              options={seriesSortOptions}
+              value={sort}
+            />
             <SegmentedControl
               appearance="icon-only"
               label="Series view"
-              onChange={setView}
+              onChange={onViewChange}
               options={seriesViewOptions}
               value={view}
             />
@@ -140,7 +162,7 @@ export function SeriesOverview({
             title="No matching series"
           />
         ) : (
-          <div className={`series-grid series-grid--${view}`}>
+          <div className={`series-grid series-grid--${view}`} data-series-card-size={cardSize}>
             {visibleEntries.map((entry) => {
               const representative = entry.books[0];
 

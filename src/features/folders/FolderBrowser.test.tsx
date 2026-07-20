@@ -6,7 +6,16 @@ import { FolderBrowser } from "./FolderBrowser";
 describe("FolderBrowser", () => {
   it("uses the shared accessible icon-only collection view control", () => {
     const markup = renderToStaticMarkup(
-      <FolderBrowser bookCounts={new Map()} folders={[]} onOpen={vi.fn()} />,
+      <FolderBrowser
+        bookCounts={new Map()}
+        cardSize="medium"
+        folders={[]}
+        onOpen={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
+      />,
     );
 
     expect(markup).toContain("segmented-control--icon-only");
@@ -22,6 +31,7 @@ describe("FolderBrowser", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
         bookCounts={new Map()}
+        cardSize="medium"
         canManageFolders
         folders={[
           {
@@ -39,6 +49,10 @@ describe("FolderBrowser", () => {
         onMove={vi.fn()}
         onOpen={vi.fn()}
         onRename={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
       />,
     );
 
@@ -53,9 +67,12 @@ describe("FolderBrowser", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
         bookCounts={new Map()}
+        cardSize="medium"
         folders={[]}
         onOpen={vi.fn()}
+        onSortChange={vi.fn()}
         onViewChange={vi.fn()}
+        sort="name"
         view="cards"
       />,
     );
@@ -66,7 +83,16 @@ describe("FolderBrowser", () => {
 
   it("disables native autofill on the folder search field", () => {
     const markup = renderToStaticMarkup(
-      <FolderBrowser bookCounts={new Map()} folders={[]} onOpen={vi.fn()} />,
+      <FolderBrowser
+        bookCounts={new Map()}
+        cardSize="medium"
+        folders={[]}
+        onOpen={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
+      />,
     );
 
     expect(markup).toContain('type="search"');
@@ -94,7 +120,12 @@ describe("FolderBrowser", () => {
           },
         ]}
         activeImportDropTargetId="folder-browser:folder-fiction"
+        cardSize="medium"
         onOpen={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
       />,
     );
 

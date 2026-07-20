@@ -3,10 +3,8 @@ import { describe, expect, it } from "vitest";
 import type { Folder } from "../../types/folder";
 import type { LibrarySmartViewPreferences } from "../../types/library";
 import {
-  folderBrowserViewFromSearchParams,
   hiddenSmartViewFallbackSearchParams,
   libraryLocationFromSearchParams,
-  searchParamsForFolderBrowserView,
   searchParamsForLibraryLocation,
 } from "./libraryViewState";
 
@@ -160,14 +158,18 @@ describe("library view URL state", () => {
     expect(library.get("seriesKey")).toBeNull();
   });
 
-  it("persists the selected Folders page view mode", () => {
-    const cards = searchParamsForFolderBrowserView(params("view=folders"), "cards");
-    const list = searchParamsForFolderBrowserView(cards, "list");
+  it("ignores legacy folderView state and never emits it", () => {
+    expect(
+      libraryLocationFromSearchParams(params("view=folders&folderView=cards"), folders),
+    ).toEqual({ type: "folders" });
 
-    expect(cards.get("folderView")).toBe("cards");
-    expect(folderBrowserViewFromSearchParams(cards)).toBe("cards");
-    expect(list.get("folderView")).toBeNull();
-    expect(folderBrowserViewFromSearchParams(list)).toBe("list");
+    const next = searchParamsForLibraryLocation(
+      params("view=folders&folderView=cards"),
+      { type: "folders" },
+      folders,
+    );
+
+    expect(next.get("folderView")).toBeNull();
   });
 
   it("restores and writes derived smart views", () => {

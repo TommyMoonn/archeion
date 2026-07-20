@@ -6,8 +6,10 @@ import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   useBooksCollectionPreferences,
   useConfirmDestructiveFileActionsPreference,
+  useFoldersCollectionPreferences,
   useImportPreferences,
   useLibraryPreferences,
+  useSeriesCollectionPreferences,
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
@@ -45,6 +47,7 @@ import {
 } from "./useLibraryWorkspaceNavigation";
 import { useLibraryWorkspaceData } from "./useLibraryWorkspaceData";
 import { useLibraryWorkspaceDialogs } from "./useLibraryWorkspaceDialogs";
+import { useCollectionDisplayPreferences } from "./useCollectionDisplayPreferences";
 import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
 import { startupTrace } from "../../app/startupTrace";
 
@@ -93,6 +96,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const libraryPreferences = useLibraryPreferences();
   const booksDisplayPreferences = useBooksCollectionPreferences();
+  const foldersDisplayPreferences = useFoldersCollectionPreferences();
+  const seriesDisplayPreferences = useSeriesCollectionPreferences();
   const globalImportPreferences = useImportPreferences();
   const confirmDestructiveFileActions = useConfirmDestructiveFileActionsPreference();
   const showContinueReading = useShowContinueReadingPreference();
@@ -211,6 +216,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const { changeFilters, changeSort, changeView } = useLibraryViewPreferences({
     showLibraryError,
   });
+  const { changeFolderSort, changeFolderView, changeSeriesSort, changeSeriesView } =
+    useCollectionDisplayPreferences({ showLibraryError });
 
   useEffect(() => {
     if (booksLoadState.status !== "ready" || booksLoadState.archiveId !== activeArchive.id) return;
@@ -529,7 +536,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           selectedBookIds,
           selectionMode,
         }}
-        bookCardSize={booksDisplayPreferences.cardSize}
         continuePreview={continuePreview}
         debouncedQuery={debouncedQuery}
         emptyState={emptyState}
@@ -546,10 +552,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpen: (folder) => changeLocation({ type: "folder", folderId: folder.id }),
           onRename: openRenameFolder,
           onReveal: (folder) => void bookActions.revealFolder(folder),
-          onViewChange: navigation.changeFolderBrowserView,
+          cardSize: foldersDisplayPreferences.cardSize,
+          onSortChange: changeFolderSort,
+          onViewChange: changeFolderView,
           searchAriaKeyShortcuts: focusSearchAriaKeyShortcuts,
           searchInputRef: folderSearchInputRef,
-          view: navigation.folderBrowserView,
+          sort: foldersDisplayPreferences.sortBy,
+          view: foldersDisplayPreferences.viewMode,
         }}
         hasFilters={hasFilters}
         importDropTarget={{
@@ -590,10 +599,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           isLoading: books === undefined,
           onClearSearch: () => navigation.setSeriesQuery(""),
           onOpen: (entry) => changeLocation({ type: "series-detail", seriesKey: entry.key }),
+          cardSize: seriesDisplayPreferences.cardSize,
           onQueryChange: navigation.setSeriesQuery,
+          onSortChange: changeSeriesSort,
+          onViewChange: changeSeriesView,
           query: navigation.seriesQuery,
           searchAriaKeyShortcuts: focusSearchAriaKeyShortcuts,
           searchInputRef: seriesSearchInputRef,
+          sort: seriesDisplayPreferences.sortBy,
+          view: seriesDisplayPreferences.viewMode,
         }}
         showContinueReading={showContinueReading}
         sidebarProps={{
@@ -648,6 +662,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           title: libraryTitle,
           view,
         }}
+        bookCardSize={booksDisplayPreferences.cardSize}
         view={view}
         visibleBooks={visibleBooks}
       />

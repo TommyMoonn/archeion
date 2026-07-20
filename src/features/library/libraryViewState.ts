@@ -1,10 +1,6 @@
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 import type { Folder } from "../../types/folder";
-import type {
-  FolderBrowserView,
-  LibraryLocation,
-  LibrarySmartViewPreferences,
-} from "../../types/library";
+import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
 import {
   isLibrarySmartView,
   isLibrarySmartViewVisible,
@@ -17,12 +13,10 @@ import {
 
 const LIBRARY_VIEW_PARAM = "view";
 const FOLDER_PATH_PARAM = "folderPath";
-const FOLDER_BROWSER_VIEW_PARAM = "folderView";
 const SERIES_KEY_PARAM = "seriesKey";
 const SMART_VIEW_PARAM = "smartView";
 const ARCHIVE_ID_PARAM = "archiveId";
 const DEFAULT_LIBRARY_LOCATION: LibraryLocation = { type: "library" };
-export const DEFAULT_FOLDER_BROWSER_VIEW: FolderBrowserView = "list";
 
 function normalizedFolderPathKey(path: string | undefined): string | null {
   if (!path?.trim()) {
@@ -112,14 +106,6 @@ export function libraryLocationFromSearchParams(
   }
 }
 
-export function folderBrowserViewFromSearchParams(
-  searchParams: URLSearchParams,
-): FolderBrowserView {
-  return searchParams.get(FOLDER_BROWSER_VIEW_PARAM) === "cards"
-    ? "cards"
-    : DEFAULT_FOLDER_BROWSER_VIEW;
-}
-
 export function searchParamsForLibraryLocation(
   currentParams: URLSearchParams,
   location: LibraryLocation,
@@ -136,6 +122,7 @@ export function searchParamsForLibraryLocation(
     nextParams.set(ARCHIVE_ID_PARAM, activeArchiveId);
   }
   nextParams.delete(FOLDER_PATH_PARAM);
+  nextParams.delete("folderView");
   nextParams.delete(SERIES_KEY_PARAM);
   nextParams.delete(SMART_VIEW_PARAM);
 
@@ -149,29 +136,22 @@ export function searchParamsForLibraryLocation(
 
     nextParams.set(LIBRARY_VIEW_PARAM, "folder");
     nextParams.set(FOLDER_PATH_PARAM, folderPath);
-    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }
 
   if (visibleLocation.type === "series-detail") {
     nextParams.set(LIBRARY_VIEW_PARAM, "series");
     nextParams.set(SERIES_KEY_PARAM, visibleLocation.seriesKey);
-    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }
 
   if (visibleLocation.type === "smart-view") {
     nextParams.set(LIBRARY_VIEW_PARAM, "smart");
     nextParams.set(SMART_VIEW_PARAM, visibleLocation.smartView);
-    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
     return nextParams;
   }
 
   nextParams.set(LIBRARY_VIEW_PARAM, visibleLocation.type);
-
-  if (visibleLocation.type !== "folders") {
-    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
-  }
 
   return nextParams;
 }
@@ -200,19 +180,4 @@ export function hiddenSmartViewFallbackSearchParams(
     [],
     activeArchiveId,
   );
-}
-
-export function searchParamsForFolderBrowserView(
-  currentParams: URLSearchParams,
-  view: FolderBrowserView,
-): URLSearchParams {
-  const nextParams = new URLSearchParams(currentParams);
-
-  if (view === DEFAULT_FOLDER_BROWSER_VIEW) {
-    nextParams.delete(FOLDER_BROWSER_VIEW_PARAM);
-  } else {
-    nextParams.set(FOLDER_BROWSER_VIEW_PARAM, view);
-  }
-
-  return nextParams;
 }

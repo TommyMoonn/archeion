@@ -15,6 +15,7 @@ import {
   renderLibraryPage,
   setInputValue,
   setupLibraryPageTestSuite,
+  waitForButtonWithLabel,
 } from "./LibraryPage.testUtils";
 
 describe("LibraryPage navigation and archive loading", () => {
@@ -501,5 +502,156 @@ describe("LibraryPage navigation and archive loading", () => {
       publishers: ["Archive B Press"],
     });
     expect(updatePreferences).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains folder and series display preferences across route changes and archive remounts", async () => {
+    const folder: Folder = {
+      id: "folder-fiction",
+      name: "Fiction",
+      parentId: null,
+      relativePath: "Fiction",
+      parentPath: null,
+      createdAt: "1",
+      updatedAt: "1",
+    };
+    const book: Book = {
+      addedAt: "1",
+      fileName: "Volume.epub",
+      folderId: folder.id,
+      id: "series-volume",
+      isFavorite: false,
+      originalTitle: "Volume",
+      relativePath: "Fiction/Volume.epub",
+      sourceMetadata: { series: "Shared Series", volume: "1" },
+      updatedAt: "1",
+    };
+    const archiveB = {
+      ...readyState,
+      path: "E:\\Books",
+      archive: {
+        ...readyState.archive,
+        id: "archive-b",
+        displayName: "Archive B",
+        rootPath: "E:\\Books",
+      },
+      archives: [
+        ...readyState.archives,
+        {
+          ...readyState.archive,
+          id: "archive-b",
+          displayName: "Archive B",
+          rootPath: "E:\\Books",
+        },
+      ],
+    } satisfies Extract<ArchiveState, { status: "ready" }>;
+    let currentArchive: Extract<ArchiveState, { status: "ready" }> = readyState;
+    let notifyArchiveChange: (() => void) | undefined;
+    vi.mocked(archiveStore.getSnapshot).mockImplementation(() => currentArchive);
+    vi.mocked(archiveStore.subscribe).mockImplementation((listener) => {
+      notifyArchiveChange = listener;
+      return () => true;
+    });
+
+    const currentPreferences = appPreferencesStore.getSnapshot();
+    await appPreferencesStore.update({
+      library: {
+        ...currentPreferences.library,
+        collections: {
+          ...currentPreferences.library.collections,
+          folders: { cardSize: "small", sortBy: "name", viewMode: "list" },
+          series: { cardSize: "large", sortBy: "title", viewMode: "grid" },
+        },
+      },
+    });
+
+    const session = await renderLibraryPage(
+      createStorage({ books: [book], folders: [folder] }),
+      "/?view=folders&archiveId=archive-books",
+    );
+    suite.trackRoot(session.root);
+
+    const sidebarButton = (label: string) => {
+      const button = Array.from(
+        session.container.querySelectorAll<HTMLButtonElement>("button.nav-item"),
+      ).find((candidate) => candidate.textContent?.includes(label));
+      if (!button) throw new Error(`Sidebar button ${label} was not rendered.`);
+      return button;
+    };
+    const chooseSort = async (label: "Most books" | "Most volumes") => {
+      const option = Array.from(
+        session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+      ).find((candidate) => candidate.textContent?.includes(label));
+      if (!option) throw new Error(`Sort option ${label} was not rendered.`);
+      await act(async () => option.click());
+    };
+
+    expect(
+      session.container
+        .querySelector(".folder-browser__items")
+        ?.getAttribute("data-folder-card-size"),
+    ).toBe("small");
+
+    await act(async () => {
+      session.container
+        .querySelector<HTMLButtonElement>('[role="radio"][aria-label="Cards"]')
+        ?.click();
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Sort folders"]')?.click();
+    });
+    await chooseSort("Most books");
+
+    expect(appPreferencesStore.getSnapshot().library.collections.folders).toEqual({
+      cardSize: "small",
+      sortBy: "most-books",
+      viewMode: "cards",
+    });
+
+    await act(async () => sidebarButton("Series").click());
+    await waitForButtonWithLabel(session.container, "Sort series");
+    await act(async () => {
+      session.container
+        .querySelector<HTMLButtonElement>('[role="radio"][aria-label="List"]')
+        ?.click();
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Sort series"]')?.click();
+    });
+    await chooseSort("Most volumes");
+
+    expect(appPreferencesStore.getSnapshot().library.collections.series).toEqual({
+      cardSize: "large",
+      sortBy: "most-volumes",
+      viewMode: "list",
+    });
+
+    await act(async () => sidebarButton("Folders").click());
+    expect(
+      session.container
+        .querySelector('[role="radio"][aria-label="Cards"]')
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Sort folders"]')
+        ?.textContent,
+    ).toContain("Most books");
+
+    await act(async () => sidebarButton("Series").click());
+    await waitForButtonWithLabel(session.container, "Sort series");
+    currentArchive = archiveB;
+    await act(async () => {
+      notifyArchiveChange?.();
+      await Promise.resolve();
+    });
+
+    await act(async () => sidebarButton("Series").click());
+    await waitForButtonWithLabel(session.container, "Sort series");
+    expect(
+      session.container
+        .querySelector('[role="radio"][aria-label="List"]')
+        ?.getAttribute("aria-checked"),
+    ).toBe("true");
+    expect(
+      session.container.querySelector<HTMLButtonElement>('[aria-label="Sort series"]')?.textContent,
+    ).toContain("Most volumes");
+    expect(
+      session.container.querySelector(".series-grid")?.getAttribute("data-series-card-size"),
+    ).toBe("large");
   });
 });
