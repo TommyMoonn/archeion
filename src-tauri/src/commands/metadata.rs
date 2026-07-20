@@ -1,12 +1,16 @@
 use std::{
     collections::BTreeMap,
-    fs::{self, File},
-    io::Write,
+    fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+
+use crate::atomic_file::{
+    transaction_path, AtomicFileSystem, AtomicReplaceError, BackupCleanup, PreparedAtomicFile,
+    RealAtomicFileSystem,
+};
 
 use super::{archive_root, epub_metadata};
 
@@ -298,67 +302,27 @@ fn backup_existing_json(path: &Path) -> Result<(), String> {
     prune_timestamped_backups(path, "backup", MAX_METADATA_BACKUPS)
 }
 
-trait MetadataFileSystem {
-    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String>;
-    fn remove_file(&self, path: &Path) -> Result<(), String>;
-}
-
-struct RealMetadataFileSystem;
-
-impl MetadataFileSystem for RealMetadataFileSystem {
-    fn rename(&self, source: &Path, destination: &Path) -> Result<(), String> {
-        fs::rename(source, destination).map_err(|error| error.to_string())
-    }
-
-    fn remove_file(&self, path: &Path) -> Result<(), String> {
-        fs::remove_file(path).map_err(|error| error.to_string())
+fn metadata_replace_error(error: AtomicReplaceError) -> String {
+    match error {
+        AtomicReplaceError::DestinationNotFile => "Metadata path is not a file.".to_string(),
+        AtomicReplaceError::MoveDestinationToBackup(error)
+        | AtomicReplaceError::ReplaceMissingDestination(error)
+        | AtomicReplaceError::RemoveBackup(error) => error,
+        AtomicReplaceError::ReplaceRestored { replace_error } => {
+            format!("Metadata save failed and the previous file was restored: {replace_error}")
+        }
+        AtomicReplaceError::RestoreFailed { restore_error } => format!(
+            "Metadata save failed and the previous file could not be restored: {restore_error}"
+        ),
     }
 }
 
-fn metadata_transaction_path(path: &Path, marker: &str) -> PathBuf {
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy())
-        .unwrap_or_default();
-    path.with_file_name(format!("{file_name}.{marker}-{}", timestamp_suffix()))
-}
-
-fn replace_json_file_with_fs(
-    temporary_path: &Path,
-    destination_path: &Path,
-    fs_ops: &impl MetadataFileSystem,
+fn write_json_with_fs<T: Serialize>(
+    path: &Path,
+    value: &T,
+    backup: bool,
+    fs_ops: &impl AtomicFileSystem,
 ) -> Result<(), String> {
-    if !destination_path.exists() {
-        return fs_ops.rename(temporary_path, destination_path);
-    }
-
-    if !destination_path.is_file() {
-        return Err("Metadata path is not a file.".to_string());
-    }
-
-    let transaction_backup_path = metadata_transaction_path(destination_path, "write-backup");
-    fs_ops.rename(destination_path, &transaction_backup_path)?;
-
-    if let Err(rename_error) = fs_ops.rename(temporary_path, destination_path) {
-        return match fs_ops.rename(&transaction_backup_path, destination_path) {
-            Ok(()) => Err(format!(
-                "Metadata save failed and the previous file was restored: {rename_error}"
-            )),
-            Err(restore_error) => Err(format!(
-                "Metadata save failed and the previous file could not be restored: {restore_error}"
-            )),
-        };
-    }
-
-    fs_ops.remove_file(&transaction_backup_path)?;
-    Ok(())
-}
-
-fn replace_json_file(temporary_path: &Path, destination_path: &Path) -> Result<(), String> {
-    replace_json_file_with_fs(temporary_path, destination_path, &RealMetadataFileSystem)
-}
-
-fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), String> {
     let parent = path
         .parent()
         .ok_or_else(|| "Metadata directory is unavailable.".to_string())?;
@@ -366,30 +330,25 @@ fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), 
     let contents = serde_json::to_vec_pretty(value).map_err(|error| error.to_string())?;
     serde_json::from_slice::<serde_json::Value>(&contents)
         .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
-    let temporary_path = metadata_transaction_path(path, "tmp-write");
 
-    let write_result = (|| -> Result<(), String> {
-        let mut temporary = File::create(&temporary_path).map_err(|error| error.to_string())?;
-        temporary
-            .write_all(&contents)
-            .map_err(|error| error.to_string())?;
-        temporary.sync_all().map_err(|error| error.to_string())?;
-        drop(temporary);
-        let temporary_contents = fs::read(&temporary_path).map_err(|error| error.to_string())?;
-        serde_json::from_slice::<serde_json::Value>(&temporary_contents)
-            .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
+    let temporary = PreparedAtomicFile::write(transaction_path(path, "tmp-write"), &contents)
+        .map_err(|error| error.into_source().to_string())?;
+    let temporary_contents = fs::read(temporary.path()).map_err(|error| error.to_string())?;
+    serde_json::from_slice::<serde_json::Value>(&temporary_contents)
+        .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
 
-        if backup {
-            backup_existing_json(path)?;
-        }
-        replace_json_file(&temporary_path, path)
-    })();
-
-    if write_result.is_err() {
-        let _ = fs::remove_file(&temporary_path);
+    if backup {
+        backup_existing_json(path)?;
     }
 
-    write_result
+    let transaction_backup = transaction_path(path, "write-backup");
+    temporary
+        .replace(path, &transaction_backup, BackupCleanup::Required, fs_ops)
+        .map_err(metadata_replace_error)
+}
+
+fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), String> {
+    write_json_with_fs(path, value, backup, &RealAtomicFileSystem)
 }
 
 fn backup_candidates(path: &Path) -> Vec<PathBuf> {
@@ -669,9 +628,9 @@ mod tests {
 
     use super::{
         initialize_at, load_annotations_at, load_settings_at, metadata_path, read_json,
-        replace_json_file_with_fs, save_annotations_at, write_json, ArchiveAppThemeSelection,
+        save_annotations_at, write_json, write_json_with_fs, ArchiveAppThemeSelection,
         ArchiveReaderThemeSelection, BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata,
-        MetadataFileSystem, SettingsMetadata,
+        SettingsMetadata,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -684,7 +643,7 @@ mod tests {
 
     struct FailingMetadataRenameFileSystem;
 
-    impl MetadataFileSystem for FailingMetadataRenameFileSystem {
+    impl crate::atomic_file::AtomicFileSystem for FailingMetadataRenameFileSystem {
         fn rename(
             &self,
             source: &std::path::Path,
@@ -975,14 +934,24 @@ mod tests {
         let root = test_root("transaction-restore");
         fs::create_dir_all(&root).expect("test archive should be created");
         let path = root.join("library.json");
-        let temporary_path = root.join("library.json.tmp-write-test");
         fs::write(&path, br#"{"version":1,"books":{}}"#)
             .expect("active metadata should be written");
-        fs::write(&temporary_path, br#"{"version":1,"books":{"new":{}}}"#)
-            .expect("temporary metadata should be written");
-
+        let mut replacement = LibraryMetadata::default();
+        replacement.books.insert(
+            "new".to_string(),
+            LibraryBookMetadata {
+                relative_path: "new.epub".to_string(),
+                is_favorite: false,
+                cover_path: None,
+                source_metadata: None,
+                file_size: None,
+                file_modified_at: None,
+                added_at: "now".to_string(),
+                updated_at: "now".to_string(),
+            },
+        );
         let result =
-            replace_json_file_with_fs(&temporary_path, &path, &FailingMetadataRenameFileSystem);
+            write_json_with_fs(&path, &replacement, false, &FailingMetadataRenameFileSystem);
 
         assert!(result.is_err());
         assert_eq!(

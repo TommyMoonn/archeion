@@ -1,3 +1,4 @@
+mod atomic_file;
 mod commands;
 
 use tauri::Manager;

@@ -1,11 +1,15 @@
 use std::{
     fs,
-    io::{ErrorKind, Write},
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
+
+use crate::atomic_file::{
+    transaction_path, AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
+    TemporaryWriteStage,
+};
 use tauri::Manager;
 
 const APP_SETTINGS_FILE: &str = "settings.json";
@@ -328,54 +332,42 @@ fn read_settings(path: &Path) -> Result<AppPreferences, String> {
     }
 }
 
-fn app_settings_write_backup_path(path: &Path) -> PathBuf {
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default();
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy())
-        .unwrap_or_default();
-    path.with_file_name(format!("{file_name}.write-backup-{timestamp}"))
+fn app_settings_temporary_write_error(error: crate::atomic_file::TemporaryWriteError) -> String {
+    let stage = error.stage();
+    let source = error.into_source();
+    match stage {
+        TemporaryWriteStage::Create => {
+            format!("App settings temporary file could not be created: {source}")
+        }
+        TemporaryWriteStage::Write => {
+            format!("App settings temporary file could not be written: {source}")
+        }
+        TemporaryWriteStage::Sync => {
+            format!("App settings temporary file could not be synced: {source}")
+        }
+    }
 }
 
-fn replace_settings_file(temporary_path: &Path, destination_path: &Path) -> Result<(), String> {
-    if !destination_path.exists() {
-        return fs::rename(temporary_path, destination_path)
-            .map_err(|error| format!("App settings file could not be replaced: {error}"));
-    }
-
-    if !destination_path.is_file() {
-        return Err("App settings path is not a file.".to_string());
-    }
-
-    let backup_path = app_settings_write_backup_path(destination_path);
-    fs::rename(destination_path, &backup_path)
-        .map_err(|error| format!("App settings backup could not be created: {error}"))?;
-
-    if let Err(replace_error) = fs::rename(temporary_path, destination_path) {
-        return match fs::rename(&backup_path, destination_path) {
-            Ok(()) => Err(format!(
-                "App settings file could not be replaced and the previous file was restored: {replace_error}"
-            )),
-            Err(restore_error) => Err(format!(
-                "App settings file could not be replaced and the previous file could not be restored: {restore_error}"
-            )),
-        };
-    }
-
-    fs::remove_file(&backup_path).map_err(|error| {
-        format!("App settings transaction backup could not be removed: {error}")
-    })?;
-    Ok(())
-}
-
-fn remove_temporary_settings_file(path: &Path) {
-    match fs::remove_file(path) {
-        Ok(()) => {}
-        Err(error) if error.kind() == ErrorKind::NotFound => {}
-        Err(_) => {}
+fn app_settings_replace_error(error: AtomicReplaceError) -> String {
+    match error {
+        AtomicReplaceError::DestinationNotFile => {
+            "App settings path is not a file.".to_string()
+        }
+        AtomicReplaceError::MoveDestinationToBackup(error) => {
+            format!("App settings backup could not be created: {error}")
+        }
+        AtomicReplaceError::ReplaceMissingDestination(error) => {
+            format!("App settings file could not be replaced: {error}")
+        }
+        AtomicReplaceError::ReplaceRestored { replace_error } => format!(
+            "App settings file could not be replaced and the previous file was restored: {replace_error}"
+        ),
+        AtomicReplaceError::RestoreFailed { restore_error } => format!(
+            "App settings file could not be replaced and the previous file could not be restored: {restore_error}"
+        ),
+        AtomicReplaceError::RemoveBackup(error) => {
+            format!("App settings transaction backup could not be removed: {error}")
+        }
     }
 }
 
@@ -387,28 +379,18 @@ fn write_settings(path: &Path, preferences: &AppPreferences) -> Result<(), Strin
 
     let contents = serde_json::to_vec_pretty(preferences)
         .map_err(|error| format!("App settings could not be serialized: {error}"))?;
-    let temporary_path = path.with_extension("json.tmp");
+    let temporary = PreparedAtomicFile::write(transaction_path(path, "tmp-write"), &contents)
+        .map_err(app_settings_temporary_write_error)?;
+    let backup = transaction_path(path, "write-backup");
 
-    let result = (|| {
-        let mut temporary_file = fs::File::create(&temporary_path).map_err(|error| {
-            format!("App settings temporary file could not be created: {error}")
-        })?;
-        temporary_file.write_all(&contents).map_err(|error| {
-            format!("App settings temporary file could not be written: {error}")
-        })?;
-        temporary_file
-            .sync_all()
-            .map_err(|error| format!("App settings temporary file could not be synced: {error}"))?;
-        drop(temporary_file);
-
-        replace_settings_file(&temporary_path, path)
-    })();
-
-    if result.is_err() {
-        remove_temporary_settings_file(&temporary_path);
-    }
-
-    result
+    temporary
+        .replace(
+            path,
+            &backup,
+            BackupCleanup::Required,
+            &RealAtomicFileSystem,
+        )
+        .map_err(app_settings_replace_error)
 }
 
 #[tauri::command]
@@ -563,6 +545,31 @@ mod tests {
 
         assert_eq!(loaded, second);
         assert!(!write_backup_exists);
+    }
+
+    #[test]
+    fn app_preferences_reject_non_file_destination_without_temporary_artifacts() {
+        let path = temporary_settings_path("directory-conflict");
+        std::fs::create_dir_all(&path).expect("conflicting directory should be created");
+
+        let error = write_settings(&path, &AppPreferences::default())
+            .expect_err("directory destination should be rejected");
+
+        assert_eq!(error, "App settings path is not a file.");
+        let parent = path.parent().expect("settings path should have a parent");
+        let file_name = path
+            .file_name()
+            .expect("settings path should have a file name")
+            .to_string_lossy();
+        assert!(!parent
+            .read_dir()
+            .expect("settings directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| {
+                let entry_name = entry.file_name().to_string_lossy().to_string();
+                entry_name.starts_with(file_name.as_ref()) && entry_name.contains("tmp-write")
+            }));
+        std::fs::remove_dir_all(path).expect("conflicting directory should be removed");
     }
 
     #[test]

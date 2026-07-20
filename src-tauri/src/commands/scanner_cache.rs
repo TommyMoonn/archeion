@@ -1,13 +1,15 @@
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
-    fs::{self, File},
-    io::Write,
+    fs,
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard, OnceLock},
-    time::{SystemTime, UNIX_EPOCH},
 };
 
 use serde::{Deserialize, Serialize};
+
+use crate::atomic_file::{
+    transaction_path, AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
+};
 
 use super::metadata::{self, ScannerCache, ScannerCacheEntry};
 
@@ -212,17 +214,6 @@ fn invalidation_path(root: &Path) -> PathBuf {
         .join(INVALIDATION_FILE)
 }
 
-fn invalidation_transaction_path(root: &Path, marker: &str) -> PathBuf {
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos())
-        .unwrap_or_default();
-    root.join(metadata::METADATA_DIRECTORY).join(format!(
-        "{INVALIDATION_FILE}.{marker}-{}-{nonce}",
-        std::process::id()
-    ))
-}
-
 fn read_durable_invalidations(root: &Path) -> Result<DurableInvalidations, String> {
     let path = invalidation_path(root);
     match fs::read(&path) {
@@ -240,6 +231,23 @@ fn read_durable_invalidations(root: &Path) -> Result<DurableInvalidations, Strin
             Ok(DurableInvalidations::default())
         }
         Err(error) => Err(error.to_string()),
+    }
+}
+
+fn scanner_invalidation_replace_error(error: AtomicReplaceError) -> String {
+    match error {
+        AtomicReplaceError::DestinationNotFile => {
+            "The scanner-cache invalidation journal path is not a file.".to_string()
+        }
+        AtomicReplaceError::MoveDestinationToBackup(error)
+        | AtomicReplaceError::ReplaceMissingDestination(error)
+        | AtomicReplaceError::RemoveBackup(error) => error,
+        AtomicReplaceError::ReplaceRestored { replace_error } => format!(
+            "Scanner-cache invalidation save failed and the previous journal was restored: {replace_error}"
+        ),
+        AtomicReplaceError::RestoreFailed { restore_error } => format!(
+            "Scanner-cache invalidation save failed and the previous journal could not be restored: {restore_error}"
+        ),
     }
 }
 
@@ -271,54 +279,22 @@ fn write_durable_invalidations(
         .parent()
         .ok_or_else(|| "The scanner-cache metadata folder is unavailable.".to_string())?;
     fs::create_dir_all(parent).map_err(|error| error.to_string())?;
-    let temporary = invalidation_transaction_path(root, "tmp-write");
     let contents = serde_json::to_vec_pretty(invalidations).map_err(|error| error.to_string())?;
-    let write_result = (|| -> Result<(), String> {
-        let mut file = File::create(&temporary).map_err(|error| error.to_string())?;
-        file.write_all(&contents)
-            .map_err(|error| error.to_string())?;
-        file.sync_all().map_err(|error| error.to_string())?;
-        drop(file);
-        let temporary_contents = fs::read(&temporary).map_err(|error| error.to_string())?;
-        serde_json::from_slice::<DurableInvalidations>(&temporary_contents)
-            .map_err(|error| error.to_string())?;
-        Ok(())
-    })();
-    if let Err(error) = write_result {
-        let _ = fs::remove_file(&temporary);
-        return Err(error);
-    }
+    let temporary = PreparedAtomicFile::write(transaction_path(&path, "tmp-write"), &contents)
+        .map_err(|error| error.into_source().to_string())?;
+    let temporary_contents = fs::read(temporary.path()).map_err(|error| error.to_string())?;
+    serde_json::from_slice::<DurableInvalidations>(&temporary_contents)
+        .map_err(|error| error.to_string())?;
 
-    if !path.exists() {
-        return fs::rename(&temporary, &path).map_err(|error| {
-            let _ = fs::remove_file(&temporary);
-            error.to_string()
-        });
-    }
-    if !path.is_file() {
-        let _ = fs::remove_file(&temporary);
-        return Err("The scanner-cache invalidation journal path is not a file.".to_string());
-    }
-
-    let backup = invalidation_transaction_path(root, "write-backup");
-    if let Err(error) = fs::rename(&path, &backup) {
-        let _ = fs::remove_file(&temporary);
-        return Err(error.to_string());
-    }
-    if let Err(rename_error) = fs::rename(&temporary, &path) {
-        let _ = fs::remove_file(&temporary);
-        return match fs::rename(&backup, &path) {
-            Ok(()) => Err(format!(
-                "Scanner-cache invalidation save failed and the previous journal was restored: {rename_error}"
-            )),
-            Err(restore_error) => Err(format!(
-                "Scanner-cache invalidation save failed and the previous journal could not be restored: {restore_error}"
-            )),
-        };
-    }
-
-    let _ = fs::remove_file(backup);
-    Ok(())
+    let backup = transaction_path(&path, "write-backup");
+    temporary
+        .replace(
+            &path,
+            &backup,
+            BackupCleanup::BestEffort,
+            &RealAtomicFileSystem,
+        )
+        .map_err(scanner_invalidation_replace_error)
 }
 
 fn save_cache(root: &Path, cache: &ScannerCache) -> Result<(), String> {
@@ -889,6 +865,63 @@ mod tests {
                 .insert((*relative_path).to_string(), entry(*size));
         }
         metadata::save_scanner_cache_at(root, &cache).expect("scanner cache should be initialized");
+    }
+
+    #[test]
+    fn invalidation_journal_replacement_removes_transaction_artifacts() {
+        let root = test_archive("journal-replacement");
+        let first = DurableInvalidations {
+            version: INVALIDATION_VERSION,
+            exact_paths: BTreeSet::from(["First.epub".to_string()]),
+            prefixes: BTreeSet::new(),
+        };
+        let second = DurableInvalidations {
+            version: INVALIDATION_VERSION,
+            exact_paths: BTreeSet::from(["Second.epub".to_string()]),
+            prefixes: BTreeSet::new(),
+        };
+
+        write_durable_invalidations(&root, &first).expect("first journal should be written");
+        write_durable_invalidations(&root, &second).expect("journal should be replaced");
+
+        assert_eq!(read_durable_invalidations(&root).unwrap(), second);
+        assert!(!root
+            .join(metadata::METADATA_DIRECTORY)
+            .read_dir()
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                name.contains("tmp-write") || name.contains("write-backup")
+            }));
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn invalidation_journal_rejects_directory_destination_without_temporary_artifacts() {
+        let root = test_archive("journal-directory");
+        let path = invalidation_path(&root);
+        fs::create_dir_all(&path).expect("conflicting directory should be created");
+        let invalidations = DurableInvalidations {
+            version: INVALIDATION_VERSION,
+            exact_paths: BTreeSet::from(["Book.epub".to_string()]),
+            prefixes: BTreeSet::new(),
+        };
+
+        let error = write_durable_invalidations(&root, &invalidations)
+            .expect_err("directory destination should be rejected");
+
+        assert_eq!(
+            error,
+            "The scanner-cache invalidation journal path is not a file."
+        );
+        assert!(!root
+            .join(metadata::METADATA_DIRECTORY)
+            .read_dir()
+            .unwrap()
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains("tmp-write")));
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
