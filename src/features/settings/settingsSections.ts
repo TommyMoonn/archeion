@@ -64,6 +64,22 @@ export const settingsSections = [
     ],
   },
   {
+    id: "keyboard",
+    label: "Keyboard",
+    searchTerms: [
+      "keyboard",
+      "shortcut",
+      "shortcuts",
+      "hotkey",
+      "key binding",
+      "quick actions",
+      "settings shortcut",
+      "focus search",
+      "reader keys",
+      "escape",
+    ],
+  },
+  {
     id: "appearance",
     label: "Appearance",
     searchTerms: [

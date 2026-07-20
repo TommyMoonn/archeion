@@ -614,3 +614,123 @@ html[data-motion="on"] .settings-status {
   font-size: var(--type-meta);
   line-height: 1.55;
 }
+
+.keyboard-shortcut-row__controls {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.keyboard-shortcut-binding-control {
+  position: relative;
+  min-width: 0;
+}
+
+.keyboard-shortcut-binding {
+  display: inline-flex;
+  min-width: 112px;
+  min-height: var(--control-height-compact);
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 calc(var(--control-height-compact) + 4px) 0 11px;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: var(--surface);
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.keyboard-shortcut-binding:hover,
+.keyboard-shortcut-binding:focus-visible {
+  border-color: var(--accent-border);
+  background: var(--surface-raised);
+}
+
+.keyboard-shortcut-binding kbd,
+.keyboard-shortcut-keycaps kbd {
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.keyboard-shortcut-clear {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-end: 0;
+  opacity: 0;
+  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.keyboard-shortcut-binding-control:hover .keyboard-shortcut-clear,
+.keyboard-shortcut-binding-control:focus-within .keyboard-shortcut-clear,
+.keyboard-shortcut-clear:focus-visible {
+  opacity: 1;
+}
+
+.keyboard-shortcut-reset {
+  color: var(--muted);
+}
+
+.keyboard-shortcut-keycaps {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.keyboard-shortcut-keycaps kbd {
+  min-height: var(--control-height-compact);
+  padding: 6px 9px;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+}
+
+.keyboard-shortcut-capture {
+  display: grid;
+  min-width: 0;
+  min-height: 112px;
+  place-content: center;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.keyboard-shortcut-capture strong {
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--type-title-small);
+  overflow-wrap: anywhere;
+}
+
+.keyboard-shortcut-capture p {
+  min-width: 0;
+  max-width: 38ch;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-meta);
+  overflow-wrap: anywhere;
+}
+
+.keyboard-shortcut-capture p[role="alert"] {
+  color: var(--danger);
+}
+
+@media (max-width: 760px) {
+  .keyboard-shortcut-row__controls,
+  .keyboard-shortcut-binding-control,
+  .keyboard-shortcut-binding {
+    width: 100%;
+  }
+}

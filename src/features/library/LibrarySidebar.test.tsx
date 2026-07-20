@@ -132,6 +132,47 @@ describe("LibrarySidebar", () => {
     document.body.innerHTML = "";
   });
 
+  it("exposes only the effective Settings shortcut on the existing Settings control", () => {
+    const markup = renderToStaticMarkup(
+      <LibrarySidebar {...sidebarProps()} settingsAriaKeyShortcuts="Control+," />,
+    );
+
+    expect(markup).toContain('aria-label="Settings"');
+    expect(markup).toContain('aria-keyshortcuts="Control+,"');
+    expect(markup).not.toContain('aria-label="Quick Actions"');
+  });
+
+  it("keeps Quick Actions out of the library UI and preserves footer ordering", () => {
+    const markup = renderSidebar();
+
+    expect(markup).not.toContain('aria-label="Quick Actions"');
+    expect(markup).toContain('aria-label="Settings"');
+    expect(markup.indexOf("archive-switcher")).toBeLessThan(markup.indexOf("About Archeion"));
+    expect(markup.indexOf("About Archeion")).toBeLessThan(markup.indexOf('aria-label="Settings"'));
+  });
+
+  it("removes the obsolete Quick Actions sidebar API without adding a toolbar replacement", () => {
+    const sidebarSource = readFileSync(
+      resolve(process.cwd(), "src/features/library/LibrarySidebar.tsx"),
+      "utf8",
+    );
+    const pageSource = readFileSync(
+      resolve(process.cwd(), "src/features/library/LibraryPage.tsx"),
+      "utf8",
+    );
+    const toolbarSource = readFileSync(
+      resolve(process.cwd(), "src/features/library/LibraryToolbar.tsx"),
+      "utf8",
+    );
+
+    for (const source of [sidebarSource, pageSource]) {
+      expect(source).not.toContain("onOpenQuickActions");
+      expect(source).not.toContain("quickActionsAriaKeyShortcuts");
+    }
+    expect(sidebarSource).not.toContain("Lightning");
+    expect(toolbarSource).not.toContain("Quick Actions");
+  });
+
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
     const archiveRows = markup.match(

@@ -12,10 +12,10 @@ import {
 
 import { router } from "../../app/router";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
+import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import {
   commandDefinitions,
-  defaultKeyboardPreferences,
   effectiveKeyboardBinding,
   getConfigurableCommandDefinition,
 } from "./commandBindings";
@@ -41,7 +41,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   const openerRef = useRef<HTMLElement | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const keyboard = defaultKeyboardPreferences;
+  const keyboard = useKeyboardPreferences();
   const archive = useSyncExternalStore(
     archiveStore.subscribe,
     archiveStore.getSnapshot,

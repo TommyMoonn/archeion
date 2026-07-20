@@ -3,8 +3,9 @@ import type {
   GlobalImportSettings,
   LibraryDisplaySettings,
 } from "./settings";
-import type { ReaderSettings } from "./reader";
+import type { KeyboardPreferences } from "./keyboard";
 import { createDefaultLibraryFilters } from "./library";
+import type { ReaderSettings } from "./reader";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 
 export type InterfaceDensity = "comfortable" | "compact";
@@ -39,6 +40,7 @@ export type AppPreferences = {
   density: InterfaceDensity;
   filesAndMetadata: FilesAndMetadataSettings;
   import: GlobalImportSettings;
+  keyboard: KeyboardPreferences;
   library: LibraryDisplaySettings;
   navigation: RememberedNavigationState | null;
   reader: ReaderSettings;
@@ -66,6 +68,9 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   import: Object.freeze({
     defaultConflictAction: "keepBoth",
     defaultMode: "copy",
+  }),
+  keyboard: Object.freeze({
+    shortcuts: Object.freeze({}),
   }),
   library: Object.freeze({
     filters: Object.freeze(createDefaultLibraryFilters()),

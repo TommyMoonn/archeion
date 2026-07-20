@@ -35,6 +35,7 @@ type FolderBrowserProps = {
   onViewChange?: (view: FolderBrowserView) => void;
   activeImportDropTargetId?: string | null;
   view?: FolderBrowserView;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
 
@@ -69,6 +70,7 @@ export function FolderBrowser({
   onViewChange,
   activeImportDropTargetId,
   view: controlledView,
+  searchAriaKeyShortcuts,
   searchInputRef,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
@@ -92,6 +94,7 @@ export function FolderBrowser({
           <div className="library-search folder-browser__search">
             <Input
               icon={<MagnifyingGlass aria-hidden="true" />}
+              aria-keyshortcuts={searchAriaKeyShortcuts}
               autoCapitalize="none"
               autoComplete="off"
               autoCorrect="off"

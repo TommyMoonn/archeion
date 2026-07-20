@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
@@ -101,6 +102,64 @@ pub struct GlobalImportSettings {
     pub default_mode: String,
 }
 
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardBinding {
+    #[serde(default)]
+    pub alt: bool,
+    pub key: String,
+    #[serde(default)]
+    pub primary: bool,
+    #[serde(default)]
+    pub shift: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct KeyboardBindingWire {
+    #[serde(default)]
+    alt: bool,
+    #[serde(default)]
+    ctrl: bool,
+    key: String,
+    #[serde(default)]
+    meta: bool,
+    primary: Option<bool>,
+    #[serde(default)]
+    shift: bool,
+}
+
+impl<'de> Deserialize<'de> for KeyboardBinding {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let wire = KeyboardBindingWire::deserialize(deserializer)?;
+        Ok(Self {
+            alt: wire.alt,
+            key: wire.key,
+            primary: wire.primary.unwrap_or(wire.ctrl || wire.meta),
+            shift: wire.shift,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardShortcutOverride {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub binding: Option<KeyboardBinding>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub disabled: bool,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyboardPreferences {
+    #[serde(default)]
+    pub shortcuts: HashMap<String, KeyboardShortcutOverride>,
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct RememberedNavigationState {
@@ -137,6 +196,8 @@ pub struct AppPreferences {
     pub files_and_metadata: FilesAndMetadataSettings,
     #[serde(default)]
     pub import: GlobalImportSettings,
+    #[serde(default)]
+    pub keyboard: KeyboardPreferences,
     #[serde(default)]
     pub library: LibraryDisplaySettings,
     #[serde(default)]
@@ -214,6 +275,9 @@ fn default_startup_behavior() -> String {
 fn default_true() -> bool {
     true
 }
+fn is_false(value: &bool) -> bool {
+    !*value
+}
 fn default_window_frame_style() -> String {
     "hidden".to_string()
 }
@@ -280,6 +344,7 @@ impl Default for AppPreferences {
             density: default_density(),
             files_and_metadata: FilesAndMetadataSettings::default(),
             import: GlobalImportSettings::default(),
+            keyboard: KeyboardPreferences::default(),
             library: LibraryDisplaySettings::default(),
             navigation: None,
             reader: ReaderSettings::default(),
@@ -411,7 +476,8 @@ pub fn save_app_settings(
 #[cfg(test)]
 mod tests {
     use super::{
-        read_settings, write_settings, AppPreferences, AppearanceSettings, LibrarySmartViewSettings,
+        read_settings, write_settings, AppPreferences, AppearanceSettings, KeyboardBinding,
+        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
     };
 
     #[test]
@@ -448,7 +514,43 @@ mod tests {
         assert_eq!(parsed.reader.progress_placement, "top");
         assert_eq!(parsed.import.default_mode, "copy");
         assert!(!parsed.files_and_metadata.keep_epub_writeback_backup);
+        assert!(parsed.keyboard.shortcuts.is_empty());
         assert!(parsed.window.is_none());
+    }
+
+    #[test]
+    fn app_preferences_migrate_legacy_keyboard_modifiers_to_primary() {
+        let parsed: AppPreferences = serde_json::from_value(serde_json::json!({
+            "keyboard": {
+                "shortcuts": {
+                    "system.quick-actions": {
+                        "binding": {
+                            "alt": false,
+                            "ctrl": true,
+                            "key": "p",
+                            "meta": false,
+                            "shift": true
+                        }
+                    }
+                }
+            }
+        }))
+        .expect("legacy keyboard binding should parse");
+
+        let binding = parsed
+            .keyboard
+            .shortcuts
+            .get("system.quick-actions")
+            .and_then(|shortcut| shortcut.binding.as_ref())
+            .expect("binding should be preserved");
+        assert!(binding.primary);
+        assert_eq!(binding.key, "p");
+
+        let serialized = serde_json::to_value(parsed).expect("preferences should serialize");
+        let binding = &serialized["keyboard"]["shortcuts"]["system.quick-actions"]["binding"];
+        assert_eq!(binding["primary"], true);
+        assert!(binding.get("ctrl").is_none());
+        assert!(binding.get("meta").is_none());
     }
 
     #[test]
@@ -458,6 +560,31 @@ mod tests {
             density: "compact".to_string(),
             appearance: AppearanceSettings {
                 animations_enabled: true,
+            },
+            keyboard: KeyboardPreferences {
+                shortcuts: [
+                    (
+                        "system.quick-actions".to_string(),
+                        KeyboardShortcutOverride {
+                            binding: Some(KeyboardBinding {
+                                alt: false,
+                                key: "k".to_string(),
+                                primary: true,
+                                shift: true,
+                            }),
+                            disabled: false,
+                        },
+                    ),
+                    (
+                        "system.open-settings".to_string(),
+                        KeyboardShortcutOverride {
+                            binding: None,
+                            disabled: true,
+                        },
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             library: super::LibraryDisplaySettings {
                 filters: super::LibraryFilterSettings {

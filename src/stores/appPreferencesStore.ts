@@ -1,8 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
 
+import { normalizeKeyboardPreferences } from "../features/quick-actions/commandBindings";
 import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
-
 import {
   defaultAppPreferences,
   type AppearanceSettings,
@@ -270,6 +270,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
     density: value.density === "compact" ? "compact" : defaultAppPreferences.density,
     filesAndMetadata: normalizeFilesAndMetadataSettings(value.filesAndMetadata),
     import: normalizeGlobalImportSettings(value.import),
+    keyboard: normalizeKeyboardPreferences(value.keyboard),
     library: normalizeLibrarySettings(value.library),
     navigation: normalizeRememberedNavigation(value.navigation),
     reader: normalizeReader(value.reader),
@@ -316,6 +317,13 @@ function mergeAppPreferences(
             ...base.import,
             ...changes.import,
           },
+    keyboard:
+      changes.keyboard === undefined
+        ? base.keyboard
+        : {
+            ...base.keyboard,
+            ...changes.keyboard,
+          },
     library:
       changes.library === undefined
         ? base.library
@@ -340,6 +348,9 @@ function mergeAppPreferences(
   }
   if (changes.import === undefined) {
     next.import = base.import;
+  }
+  if (changes.keyboard === undefined) {
+    next.keyboard = base.keyboard;
   }
   if (changes.library === undefined) {
     next.library = base.library;
@@ -382,6 +393,8 @@ export class AppPreferencesStore {
   getFilesAndMetadataSnapshot = () => this.preferences.filesAndMetadata;
 
   getImportSnapshot = () => this.preferences.import;
+
+  getKeyboardSnapshot = () => this.preferences.keyboard;
 
   getLibrarySnapshot = () => this.preferences.library;
 
@@ -548,6 +561,13 @@ export function useFilesAndMetadataPreferences() {
 
 export function useImportPreferences() {
   return useSyncExternalStore(appPreferencesStore.subscribe, appPreferencesStore.getImportSnapshot);
+}
+
+export function useKeyboardPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getKeyboardSnapshot,
+  );
 }
 
 export function useLibraryPreferences() {

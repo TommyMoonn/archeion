@@ -31,6 +31,7 @@ type LazyReaderAnnotationsPanelProps = {
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 

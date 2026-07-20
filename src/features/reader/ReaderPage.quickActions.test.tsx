@@ -11,7 +11,11 @@ import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
-import type { HighlightAnnotation } from "../../types/annotation";
+import type {
+  BookmarkAnnotation,
+  CreateBookmarkAnnotationInput,
+  HighlightAnnotation,
+} from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
@@ -265,7 +269,10 @@ function createRenditionTarget<K extends keyof HTMLElementTagNameMap>(
   return target;
 }
 
-function dispatchRenditionShortcut(target: HTMLElement): KeyboardEvent {
+function dispatchRenditionShortcut(
+  target: HTMLElement,
+  init: KeyboardEventInit = { ctrlKey: true, key: "p", shiftKey: true },
+): KeyboardEvent {
   const view = target.ownerDocument.defaultView;
   if (!view) {
     throw new Error("EPUB rendition window was not available.");
@@ -274,9 +281,7 @@ function dispatchRenditionShortcut(target: HTMLElement): KeyboardEvent {
   const event = new view.KeyboardEvent("keydown", {
     bubbles: true,
     cancelable: true,
-    ctrlKey: true,
-    key: "p",
-    shiftKey: true,
+    ...init,
   });
   target.addEventListener(
     "keydown",
@@ -303,7 +308,7 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   if (root) {
     act(() => root?.unmount());
   }
@@ -312,6 +317,7 @@ afterEach(() => {
   container = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
+  await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
 });
 
 describe("ReaderPage Quick Actions", () => {
@@ -391,7 +397,7 @@ describe("ReaderPage Quick Actions", () => {
   it("opens the existing TOC action without changing the reader route or return context", async () => {
     const rendered = await renderReader();
     const search = await openPalette();
-    await act(async () => setInputValue(search, "Open reader TOC"));
+    await act(async () => setInputValue(search, "Toggle table of contents"));
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
       await Promise.resolve();
@@ -416,7 +422,7 @@ describe("ReaderPage Quick Actions", () => {
   it("registers the annotation command and opens the existing annotation surface", async () => {
     const rendered = await renderReader();
     const search = await openPalette();
-    await act(async () => setInputValue(search, "Open annotations"));
+    await act(async () => setInputValue(search, "Toggle annotations"));
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
       await Promise.resolve();
@@ -456,6 +462,22 @@ describe("ReaderPage Quick Actions", () => {
     });
   });
 
+  it("does not take the global shortcut from a publisher-owned iframe control", async () => {
+    const rendered = await renderReader();
+    const publisherButton = createRenditionTarget("button");
+    publisherButton.textContent = "Publisher action";
+
+    let shortcutEvent!: KeyboardEvent;
+    await act(async () => {
+      shortcutEvent = dispatchRenditionShortcut(publisherButton);
+      await Promise.resolve();
+    });
+
+    expect(shortcutEvent.defaultPrevented).toBe(false);
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(rendered.router.state.location.pathname).toBe("/reader/book");
+  });
+
   it("opens from ordinary iframe content and restores focus without changing reader context", async () => {
     const rendered = await renderReader();
     const frame = getRenditionFrame();
@@ -486,6 +508,183 @@ describe("ReaderPage Quick Actions", () => {
     expect(rendered.router.state.location.state).toEqual({
       readerReturnContext: rendered.returnContext,
     });
+  });
+
+  it("focuses the active reader search surface with Ctrl+F", async () => {
+    const rendered = await renderReader();
+    const annotationsButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Annotations"]',
+    );
+
+    await act(async () => annotationsButton?.click());
+    await vi.waitFor(() =>
+      expect(
+        rendered.container.querySelector<HTMLInputElement>(
+          '.reader-annotations input[type="search"]',
+        ),
+      ).toBeInstanceOf(HTMLInputElement),
+    );
+    const readerPage = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+    readerPage.tabIndex = -1;
+    readerPage.focus();
+
+    await act(async () => {
+      readerPage.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "f",
+        }),
+      );
+    });
+
+    expect(document.activeElement).toBe(
+      rendered.container.querySelector<HTMLInputElement>(
+        '.reader-annotations input[type="search"]',
+      ),
+    );
+  });
+
+  it("executes configurable reader commands directly in the parent document", async () => {
+    const rendered = await renderReader();
+    const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "s" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-settings")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+  });
+
+  it("executes configurable reader commands from ordinary EPUB content", async () => {
+    const rendered = await renderReader();
+    const paragraph = createRenditionTarget("p");
+
+    let event!: KeyboardEvent;
+    await act(async () => {
+      event = dispatchRenditionShortcut(paragraph, { key: "a" });
+    });
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(rendered.container.querySelector(".reader-annotations")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("uses the direct bookmark shortcut with the existing stable-location callback", async () => {
+    const storage = createStorage();
+    const createdBookmark = {
+      bookId: "book",
+      cfiRange: "epubcfi(/6/4)",
+      chapterHref: "chapter-1",
+      createdAt: "2026-07-20T00:00:00.000Z",
+      id: "bookmark-direct",
+      type: "bookmark" as const,
+      updatedAt: "2026-07-20T00:00:00.000Z",
+    };
+    const createBookmark = storage.createAnnotation as (
+      bookId: string,
+      input: CreateBookmarkAnnotationInput,
+    ) => Promise<BookmarkAnnotation>;
+    vi.mocked(createBookmark).mockResolvedValue(createdBookmark);
+    const rendered = await renderReader(storage);
+    const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "b" }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(storage.createAnnotation).toHaveBeenCalledWith("book", {
+      chapterHref: "chapter-1",
+      cfiRange: "epubcfi(/6/4)",
+      label: "Chapter 1",
+      type: "bookmark",
+    });
+  });
+
+  it("applies reader remapping, clearing, reset, and active shortcut attributes immediately", async () => {
+    await appPreferencesStore.update({
+      keyboard: {
+        shortcuts: {
+          "reader.open-toc": {
+            binding: { alt: false, key: "q", primary: false, shift: false },
+          },
+        },
+      },
+    });
+    const rendered = await renderReader();
+    const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+    const tocButton = () =>
+      rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Table of contents"]',
+      )!;
+
+    expect(tocButton().getAttribute("aria-keyshortcuts")).toBe("Q");
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "q" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "q" }),
+      );
+      await appPreferencesStore.update({
+        keyboard: { shortcuts: { "reader.open-toc": { disabled: true } } },
+      });
+    });
+    expect(tocButton().hasAttribute("aria-keyshortcuts")).toBe(false);
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "q" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+
+    await act(async () => {
+      await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
+    });
+    expect(tocButton().getAttribute("aria-keyshortcuts")).toBe("T");
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
+      );
+    });
+    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("blocks EPUB reader commands while the parent Quick Actions dialog is open", async () => {
+    const rendered = await renderReader();
+    const paragraph = createRenditionTarget("p");
+    await openPalette();
+
+    let event!: KeyboardEvent;
+    await act(async () => {
+      event = dispatchRenditionShortcut(paragraph, { key: "a" });
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.querySelector(".quick-actions")).not.toBeNull();
+    expect(rendered.container.querySelector(".reader-annotations")).toBeNull();
   });
 
   it("closes the palette on Escape before the reader handles its own Back action", async () => {

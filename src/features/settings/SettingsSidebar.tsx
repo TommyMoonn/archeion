@@ -4,12 +4,14 @@ import {
   Broom,
   Database,
   DownloadSimple,
+  Keyboard,
   MagnifyingGlass,
   Palette,
   SlidersHorizontal,
 } from "@phosphor-icons/react";
 
 import { Input } from "../../components/Input";
+import type { Ref } from "react";
 import type { SettingsSection } from "./settingsSections";
 
 type SettingsSidebarSection = {
@@ -19,6 +21,8 @@ type SettingsSidebarSection = {
 
 type SettingsSidebarProps = {
   onQueryChange: (query: string) => void;
+  searchAriaKeyShortcuts?: string;
+  searchInputRef?: Ref<HTMLInputElement>;
   onSectionChange: (section: SettingsSection) => void;
   query: string;
   sections: readonly SettingsSidebarSection[];
@@ -33,6 +37,8 @@ function SectionIcon({ section }: { section: SettingsSection }) {
       return <Database aria-hidden="true" size={16} />;
     case "reader":
       return <BookOpenText aria-hidden="true" size={16} />;
+    case "keyboard":
+      return <Keyboard aria-hidden="true" size={16} />;
     case "appearance":
       return <Palette aria-hidden="true" size={16} />;
     case "archives":
@@ -48,6 +54,8 @@ export function SettingsSidebar({
   onQueryChange,
   onSectionChange,
   query,
+  searchAriaKeyShortcuts,
+  searchInputRef,
   sections,
   selectedSection,
 }: SettingsSidebarProps) {
@@ -60,10 +68,12 @@ export function SettingsSidebar({
       <Input
         className="settings-search"
         icon={<MagnifyingGlass aria-hidden="true" />}
+        aria-keyshortcuts={searchAriaKeyShortcuts}
         autoCapitalize="none"
         autoComplete="off"
         autoCorrect="off"
         label="Search settings"
+        ref={searchInputRef}
         name="archeion-settings-search"
         onChange={(event) => onQueryChange(event.currentTarget.value)}
         placeholder="Search settings"

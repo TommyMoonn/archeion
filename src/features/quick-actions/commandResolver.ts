@@ -55,14 +55,7 @@ export function resolveKeyboardCommand(
   if (!eventBinding) return null;
 
   const candidates = commands.filter((command) => {
-    const configuredBinding = effectiveKeyboardBinding(
-      {
-        configuration: command.configuration ?? "unbound",
-        defaultBinding: command.defaultBinding,
-        id: command.id,
-      },
-      preferences,
-    );
+    const configuredBinding = effectiveKeyboardBinding(command, preferences);
     if (!keyboardBindingsEqual(configuredBinding, eventBinding)) return false;
     if (event.repeat && (command.repeatPolicy ?? "ignore") === "ignore") return false;
     return commandCanOwnEvent(command, event, context);
@@ -72,22 +65,20 @@ export function resolveKeyboardCommand(
     const overlapping = candidates.filter((candidate, index) =>
       candidates.some(
         (other, otherIndex) =>
-          index !== otherIndex &&
-          commandScopesOverlap([candidate.scope ?? "global"], [other.scope ?? "global"]),
+          index !== otherIndex && commandScopesOverlap([candidate.scope], [other.scope]),
       ),
     );
     if (overlapping.length > 1) {
       throw new Error(
         `Conflicting keyboard command registrations: ${overlapping
-          .map((command) => `${command.id}:${command.scope ?? "global"}`)
+          .map((command) => `${command.id}:${command.scope}`)
           .join(", ")}`,
       );
     }
   }
 
   const command = candidates.sort((left, right) => {
-    const scopeDifference =
-      SCOPE_PRIORITY[right.scope ?? "global"] - SCOPE_PRIORITY[left.scope ?? "global"];
+    const scopeDifference = SCOPE_PRIORITY[right.scope] - SCOPE_PRIORITY[left.scope];
     if (scopeDifference !== 0) return scopeDifference;
     return (right.priority ?? 0) - (left.priority ?? 0);
   })[0];
@@ -110,16 +101,15 @@ function commandCanOwnEvent(
   if (command.canHandleEvent && !command.canHandleEvent(event, context)) return false;
 
   const target = eventTargetElement(event.target);
-  const commandScope = command.scope ?? "global";
   const modalScope = activeApplicationModalScope(context.applicationDocument, target);
-  if (modalScope && commandScope !== modalScope && commandScope !== "transient-surface") {
+  if (modalScope && command.scope !== modalScope && command.scope !== "transient-surface") {
     return false;
   }
 
   if (isTextEntryTarget(event.target) && !command.allowInTextEntry) return false;
   if (hasActiveSelection(context.sourceDocument) && !command.allowWithSelection) return false;
   if (target?.closest("[data-reader-ignore-shortcuts]")) {
-    return commandScope === "transient-surface" || commandScope === "settings";
+    return command.scope === "transient-surface" || command.scope === "settings";
   }
 
   return true;

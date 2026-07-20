@@ -231,6 +231,9 @@ describe("app preferences", () => {
         defaultConflictAction: "replace",
         defaultMode: "move",
       },
+      keyboard: {
+        shortcuts: {},
+      },
       library: {
         filters: {
           series: ["Star Saga"],

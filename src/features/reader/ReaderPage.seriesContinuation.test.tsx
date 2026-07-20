@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
@@ -146,7 +148,9 @@ async function renderReader(
   await act(async () => {
     root?.render(
       <LibraryStorageContext.Provider value={storage}>
-        <RouterProvider router={router} />
+        <QuickActionsProvider>
+          <RouterProvider router={router} />
+        </QuickActionsProvider>
       </LibraryStorageContext.Provider>,
     );
   });

@@ -50,6 +50,7 @@ export const commandDefinitions = {
   },
   settings: {
     configuration: "configurable",
+    defaultBinding: binding(",", { primary: true }),
     group: "General",
     id: "system.open-settings",
     label: "Open Settings",
@@ -58,6 +59,7 @@ export const commandDefinitions = {
   },
   focusSearch: {
     configuration: "configurable",
+    defaultBinding: binding("f", { primary: true }),
     group: "Library and Folders",
     id: "surface.focus-search",
     label: "Focus search",
@@ -65,6 +67,7 @@ export const commandDefinitions = {
   },
   readerToc: {
     configuration: "configurable",
+    defaultBinding: binding("t"),
     group: "Reader",
     id: "reader.open-toc",
     label: "Toggle table of contents",
@@ -73,6 +76,7 @@ export const commandDefinitions = {
   },
   readerAnnotations: {
     configuration: "configurable",
+    defaultBinding: binding("a"),
     group: "Reader",
     id: "reader.open-annotations",
     label: "Toggle annotations",
@@ -81,6 +85,7 @@ export const commandDefinitions = {
   },
   readerBookmark: {
     configuration: "configurable",
+    defaultBinding: binding("b"),
     group: "Reader",
     id: "reader.toggle-bookmark",
     label: "Toggle bookmark",

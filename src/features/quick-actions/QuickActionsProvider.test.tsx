@@ -4,9 +4,13 @@ import { act, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import "../settings/SettingsDialog";
+import type { LibraryStorage } from "../../storage/LibraryStorage";
+import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
-import { useRegisterQuickActions } from "./QuickActionsContext";
+import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionCommand, QuickActionsRegistry } from "./quickActions";
 
@@ -59,6 +63,39 @@ vi.mock("./QuickActionsPalette", async () => {
   };
 });
 
+type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
+
+function installDialogPolyfill(): void {
+  HTMLDialogElement.prototype.showModal = function showModal() {
+    (this as DialogElementWithOpen).open = true;
+  };
+  HTMLDialogElement.prototype.close = function close() {
+    (this as DialogElementWithOpen).open = false;
+  };
+}
+
+function createStorage(): LibraryStorage {
+  return {
+    clearCoverCache: vi.fn(),
+    clearEpubWritebackBackups: vi.fn(),
+    clearScannerCache: vi.fn(),
+    getArchiveAppearanceSettings: vi.fn(async () => ({
+      appTheme: { kind: "inherit" },
+      readerTheme: { kind: "inherit" },
+    })),
+    getArchiveImportSettings: vi.fn(async () => ({})),
+    getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
+    getEpubWritebackBackupStatus: vi.fn(async () => ({
+      fileCount: 1,
+      totalBytes: 2048,
+    })),
+    listFolders: vi.fn(async () => []),
+    repairArchiveMetadata: vi.fn(),
+    rescan: vi.fn(),
+    revealMetadataFolder: vi.fn(),
+  } as unknown as LibraryStorage;
+}
+
 const readyArchive: ArchiveState = {
   status: "ready",
   path: "D:\\Books",
@@ -99,14 +136,17 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 }
 
 function Harness({ onRun }: { onRun: () => void }) {
+  const { openPalette, openSettings } = useQuickActions();
   const commands = useMemo<QuickActionCommand[]>(
     () => [
       {
+        configuration: "unbound",
         execute: onRun,
         group: "System",
         id: "test.run",
         keywords: ["custom action"],
         label: "Run test command",
+        scope: "global",
       },
     ],
     [onRun],
@@ -115,8 +155,11 @@ function Harness({ onRun }: { onRun: () => void }) {
 
   return (
     <div>
-      <button id="palette-opener" type="button">
+      <button id="palette-opener" onClick={openPalette} type="button">
         Open from here
+      </button>
+      <button id="settings-opener" onClick={openSettings} type="button">
+        Open settings
       </button>
       <input aria-label="Text field" type="text" />
     </div>
@@ -130,9 +173,11 @@ async function renderProvider(onRun = vi.fn()) {
 
   await act(async () => {
     root?.render(
-      <QuickActionsProvider>
-        <Harness onRun={onRun} />
-      </QuickActionsProvider>,
+      <LibraryStorageContext value={createStorage()}>
+        <QuickActionsProvider>
+          <Harness onRun={onRun} />
+        </QuickActionsProvider>
+      </LibraryStorageContext>,
     );
   });
 
@@ -153,7 +198,19 @@ async function waitForPalette(): Promise<HTMLDialogElement> {
   throw new Error("Quick Actions palette was not rendered.");
 }
 
+async function waitForSettings(): Promise<HTMLDialogElement> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const settings = document.querySelector<HTMLDialogElement>(".settings-dialog");
+    if (settings) return settings;
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+    });
+  }
+  throw new Error("Settings dialog was not rendered.");
+}
+
 beforeEach(() => {
+  installDialogPolyfill();
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
@@ -162,7 +219,7 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   if (root) {
     act(() => root?.unmount());
   }
@@ -171,6 +228,7 @@ afterEach(() => {
   container = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
+  await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
 });
 
 describe("QuickActionsProvider", () => {
@@ -287,6 +345,114 @@ describe("QuickActionsProvider", () => {
       expect(navigate).toHaveBeenCalledTimes(1);
     });
     expect(navigate).toHaveBeenCalledWith("/", { replace: true });
+  });
+
+  it("opens Settings with Ctrl+, by default", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    await act(async () => {
+      opener.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: ",",
+        }),
+      );
+    });
+
+    expect(await waitForSettings()).toBeTruthy();
+  });
+
+  it("focuses Settings search with Ctrl+F while Settings owns the modal scope", async () => {
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!.click());
+    const settings = await waitForSettings();
+    const closeButton = settings.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close settings"]',
+    );
+    const search = settings.querySelector<HTMLInputElement>('input[type="search"]');
+    expect(closeButton).toBeInstanceOf(HTMLButtonElement);
+    expect(search).toBeInstanceOf(HTMLInputElement);
+    closeButton?.focus();
+
+    await act(async () => {
+      closeButton?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "f",
+        }),
+      );
+    });
+
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("uses a remapped Settings binding and stops matching the default", async () => {
+    await appPreferencesStore.update({
+      keyboard: {
+        shortcuts: {
+          "system.open-settings": {
+            binding: { alt: false, key: "k", primary: true, shift: true },
+          },
+        },
+      },
+    });
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    await act(async () => {
+      opener.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: ",",
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+
+    await act(async () => {
+      opener.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "K",
+          shiftKey: true,
+        }),
+      );
+    });
+    expect(await waitForSettings()).toBeTruthy();
+  });
+
+  it("keeps Settings reachable through visible UI after its binding is cleared", async () => {
+    await appPreferencesStore.update({
+      keyboard: { shortcuts: { "system.open-settings": { disabled: true } } },
+    });
+    const rendered = await renderProvider();
+    const keyboardTarget = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    await act(async () => {
+      keyboardTarget.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: ",",
+        }),
+      );
+      await Promise.resolve();
+    });
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!.click());
+    expect(await waitForSettings()).toBeTruthy();
   });
 });
 

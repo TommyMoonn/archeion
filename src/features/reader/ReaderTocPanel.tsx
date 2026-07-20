@@ -11,6 +11,7 @@ type ReaderTocPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onNavigate: (chapterId: string) => Promise<boolean>;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
@@ -18,6 +19,7 @@ export function ReaderTocPanel({
   navigation,
   onClose,
   onNavigate,
+  searchAriaKeyShortcuts,
   searchInputRef,
 }: ReaderTocPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
@@ -94,6 +96,7 @@ export function ReaderTocPanel({
 
       {showSearch ? (
         <Input
+          aria-keyshortcuts={searchAriaKeyShortcuts}
           className="reader-toc__search"
           icon={<MagnifyingGlass aria-hidden="true" />}
           label="Search chapters"

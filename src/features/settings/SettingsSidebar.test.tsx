@@ -11,6 +11,7 @@ describe("SettingsSidebar", () => {
         onQueryChange={vi.fn()}
         onSectionChange={vi.fn()}
         query=""
+        searchAriaKeyShortcuts="Control+F"
         sections={settingsSections}
         selectedSection="appearance"
       />,
@@ -21,8 +22,10 @@ describe("SettingsSidebar", () => {
     expect(markup).toContain('autoCorrect="off"');
     expect(markup).toContain('autoCapitalize="none"');
     expect(markup).toContain('name="archeion-settings-search"');
+    expect(markup).toContain('aria-keyshortcuts="Control+F"');
     expect(markup).toContain('spellCheck="false"');
     expect(markup).toContain("General");
+    expect(markup).toContain("Keyboard");
     expect(markup).toContain("Appearance");
     expect(markup).toContain("Storage");
     expect(markup).toContain('aria-current="page"');

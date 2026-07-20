@@ -8,6 +8,7 @@ describe("settingsSections", () => {
       "General",
       "Library",
       "Reader",
+      "Keyboard",
       "Appearance",
       "Archives",
       "Storage",
@@ -20,6 +21,7 @@ describe("settingsSections", () => {
       "general",
       "library",
       "reader",
+      "keyboard",
       "appearance",
       "archives",
       "storage",
@@ -59,6 +61,8 @@ describe("settingsSections", () => {
 
   it("matches settings search aliases", () => {
     expect(sectionMatches("storage", "cover")).toBe(true);
+    expect(sectionMatches("keyboard", "shortcut")).toBe(true);
+    expect(sectionMatches("keyboard", "quick actions")).toBe(true);
     expect(sectionMatches("appearance", " window ")).toBe(true);
     expect(sectionMatches("import", "destination")).toBe(true);
     expect(sectionMatches("reader", "destination")).toBe(false);

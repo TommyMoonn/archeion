@@ -34,7 +34,7 @@ export type QuickActionCommand = {
     event: KeyboardEvent,
     context: import("./commandResolver").KeyboardInteractionContext,
   ) => boolean;
-  configuration?: CommandConfigurationPolicy;
+  configuration: CommandConfigurationPolicy;
   defaultBinding?: KeyboardBinding;
   execute: () => Promise<void> | void;
   group:
@@ -52,7 +52,7 @@ export type QuickActionCommand = {
   order?: number;
   priority?: number;
   repeatPolicy?: CommandRepeatPolicy;
-  scope?: CommandScope;
+  scope: CommandScope;
   showInPalette?: boolean;
   visibleControlOwner?: string;
 };
@@ -126,7 +126,7 @@ export class QuickActionsRegistry {
     const commandKeys = new Set<string>();
 
     for (const command of commands) {
-      const commandKey = `${command.id}:${command.scope ?? "global"}`;
+      const commandKey = `${command.id}:${command.scope}`;
       if (commandKeys.has(commandKey)) {
         throw new Error(`Duplicate command registration: ${commandKey}`);
       }

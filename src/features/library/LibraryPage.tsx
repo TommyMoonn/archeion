@@ -23,7 +23,7 @@ import {
 } from "../filesystem/archiveImport";
 import { useExternalEpubDrop } from "../filesystem/useExternalEpubDrop";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
-import { commandDefinitions } from "../quick-actions/commandBindings";
+import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBindings";
 import type { QuickActionCommand } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import { hasActiveLibraryFilters } from "./libraryFilters";
@@ -86,7 +86,10 @@ export function LibraryPage() {
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const activeArchive = archive.archive;
   const storage = useLibraryStorage();
-  const { openSettings, preloadSettings } = useQuickActions();
+  const { getCommandBinding, openSettings, preloadSettings } = useQuickActions();
+  const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
+    getCommandBinding(commandDefinitions.focusSearch.id),
+  );
   const libraryPreferences = useLibraryPreferences();
   const globalImportPreferences = useImportPreferences();
   const confirmDestructiveFileActions = useConfirmDestructiveFileActionsPreference();
@@ -542,6 +545,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRename: openRenameFolder,
           onReveal: (folder) => void bookActions.revealFolder(folder),
           onViewChange: navigation.changeFolderBrowserView,
+          searchAriaKeyShortcuts: focusSearchAriaKeyShortcuts,
           searchInputRef: folderSearchInputRef,
           view: navigation.folderBrowserView,
         }}
@@ -586,6 +590,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpen: (entry) => changeLocation({ type: "series-detail", seriesKey: entry.key }),
           onQueryChange: navigation.setSeriesQuery,
           query: navigation.seriesQuery,
+          searchAriaKeyShortcuts: focusSearchAriaKeyShortcuts,
           searchInputRef: seriesSearchInputRef,
         }}
         showContinueReading={showContinueReading}
@@ -608,6 +613,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpenSettings: openSettings,
           onPreloadAbout: preloadAboutDialog,
           onPreloadSettings: preloadSettings,
+          settingsAriaKeyShortcuts: ariaKeyShortcut(
+            getCommandBinding(commandDefinitions.settings.id),
+          ),
           onRenameFolder: openRenameFolder,
           onRevealFolder: (folder) => void bookActions.revealFolder(folder),
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
@@ -630,6 +638,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onToggleSelectionMode: toggleSelectionMode,
           onViewChange: changeView,
           query: navigation.query,
+          searchAriaKeyShortcuts: focusSearchAriaKeyShortcuts,
           resultCount: visibleBooks.length,
           searchInputRef: navigation.searchInputRef,
           selectionMode,

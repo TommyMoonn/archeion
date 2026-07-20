@@ -15,6 +15,7 @@ import { GeneralSettingsSection } from "./sections/GeneralSettingsSection";
 import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
+import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
 import { StorageSettingsSection } from "./sections/StorageSettingsSection";
 import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
 import { findSettingsSearchResults } from "./settingsSearch";
@@ -22,6 +23,8 @@ import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
+import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBindings";
 
 type SettingsDialogProps = {
   onClose: () => void;
@@ -49,6 +52,8 @@ function renderSettingsSection(
       return <LibrarySettingsSection context={controller} />;
     case "reader":
       return <ReaderSettingsSection context={controller} />;
+    case "keyboard":
+      return <KeyboardSettingsSection context={controller} />;
     case "appearance":
       return <AppearanceSettingsSection context={controller} />;
     case "storage":
@@ -63,10 +68,12 @@ function renderSettingsSection(
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const contentRef = useRef<HTMLElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const { getCommandBinding } = useQuickActions();
   const trimmedQuery = query.trim();
   const searchActive = trimmedQuery.length > 0;
 
@@ -100,6 +107,21 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     themeCatalogEntries: themeCatalog.entries,
     themeCatalogLoading: themeCatalog.loading,
   });
+  const settingsCommands = useMemo(
+    () => [
+      {
+        ...commandDefinitions.focusSearch,
+        execute: () => searchInputRef.current?.focus({ preventScroll: true }),
+        keywords: ["find setting", "search preferences"],
+        scope: "settings" as const,
+      },
+    ],
+    [],
+  );
+  useRegisterQuickActions("settings", settingsCommands);
+  const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
+    getCommandBinding(commandDefinitions.focusSearch.id),
+  );
 
   function showSection(section: SettingsSection) {
     setActiveSection(section);
@@ -128,8 +150,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       <div className="settings-window modal-surface">
         <SettingsSidebar
           onQueryChange={setQuery}
+          searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
           onSectionChange={showSection}
           query={query}
+          searchInputRef={searchInputRef}
           sections={settingsSections}
           selectedSection={selectedSection}
         />

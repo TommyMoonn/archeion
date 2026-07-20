@@ -3,7 +3,6 @@ import { useSyncExternalStore } from "react";
 
 import { Input } from "../../components/Input";
 import {
-  defaultKeyboardPreferences,
   effectiveKeyboardBinding,
   formatKeyboardBinding,
   type KeyboardPreferences,
@@ -17,14 +16,14 @@ import {
 } from "./quickActions";
 
 type QuickActionsPaletteProps = {
-  keyboard?: KeyboardPreferences;
+  keyboard: KeyboardPreferences;
   onClose: () => void;
   onExecute: (command: QuickActionCommand) => void;
   registry: QuickActionsRegistry;
 };
 
 export function QuickActionsPalette({
-  keyboard = defaultKeyboardPreferences,
+  keyboard,
   onClose,
   onExecute,
   registry,
@@ -183,16 +182,7 @@ export function QuickActionsPalette({
               const reasonId = !availability.available
                 ? `${commandDomId(listId, command.id)}-reason`
                 : undefined;
-              const shortcut = formatKeyboardBinding(
-                effectiveKeyboardBinding(
-                  {
-                    configuration: command.configuration ?? "unbound",
-                    defaultBinding: command.defaultBinding,
-                    id: command.id,
-                  },
-                  keyboard,
-                ),
-              );
+              const shortcut = formatKeyboardBinding(effectiveKeyboardBinding(command, keyboard));
 
               return (
                 <button

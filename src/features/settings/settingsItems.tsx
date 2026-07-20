@@ -16,6 +16,7 @@ import { SettingsRow, SliderRow } from "./SettingsRow";
 import type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 import { storageSettingsItems } from "./settingsItems/storageSettingsItems";
 import { appearanceSettingsItems } from "./settingsItems/appearanceSettingsItems";
+import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
 import {
   cardSizeOptions,
   defaultLibrarySortOptions,
@@ -491,6 +492,7 @@ export const settingsItems: readonly SettingsItem[] = [
     searchTerms: ["reset"],
     sectionId: "import",
   },
+  ...keyboardSettingsItems,
 ] as const;
 
 export function getSettingsItemsForSection(sectionId: SettingsSection) {

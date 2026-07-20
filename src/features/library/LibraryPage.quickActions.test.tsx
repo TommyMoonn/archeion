@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import "../series/SeriesOverview";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
@@ -181,7 +182,7 @@ beforeEach(() => {
   });
 });
 
-afterEach(() => {
+afterEach(async () => {
   if (root) {
     act(() => root?.unmount());
   }
@@ -190,6 +191,7 @@ afterEach(() => {
   container = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
+  await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
 });
 
 describe("LibraryPage Quick Actions", () => {
@@ -205,6 +207,80 @@ describe("LibraryPage Quick Actions", () => {
     expect(search).toBeInstanceOf(HTMLInputElement);
     expect(document.activeElement).toBe(search);
     expect(rendered.container.textContent).toContain("Your collection");
+  });
+
+  it.each([
+    ["library", "/", 'input[name="archeion-library-search"]'],
+    ["folders", "/?view=folders&archiveId=archive-books", 'input[name="archeion-folder-search"]'],
+    ["series", "/?view=series&archiveId=archive-books", 'input[name="archeion-series-search"]'],
+  ])("focuses only the active %s search surface with Ctrl+F", async (_surface, route, selector) => {
+    const rendered = await renderLibrary(route);
+    await vi.waitFor(() =>
+      expect(rendered.container.querySelector<HTMLInputElement>(selector)).toBeInstanceOf(
+        HTMLInputElement,
+      ),
+    );
+    const target = rendered.container.querySelector<HTMLButtonElement>("button")!;
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "f",
+        }),
+      );
+    });
+
+    const activeSearch = rendered.container.querySelector<HTMLInputElement>(selector);
+    expect(document.activeElement).toBe(activeSearch);
+    expect(activeSearch?.getAttribute("aria-keyshortcuts")).toBe("Control+F");
+  });
+
+  it("updates and removes the active library search shortcut attribute after preference changes", async () => {
+    const rendered = await renderLibrary();
+    const search = rendered.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    )!;
+    expect(search.getAttribute("aria-keyshortcuts")).toBe("Control+F");
+
+    await act(async () => {
+      await appPreferencesStore.update({
+        keyboard: {
+          shortcuts: {
+            "surface.focus-search": {
+              binding: { alt: false, key: "g", primary: true, shift: false },
+            },
+          },
+        },
+      });
+    });
+    expect(search.getAttribute("aria-keyshortcuts")).toBe("Control+G");
+
+    const nonTextTarget =
+      rendered.container.querySelector<HTMLButtonElement>('button[aria-label="Grid view"]') ??
+      rendered.container.querySelector<HTMLButtonElement>("button");
+    expect(nonTextTarget).not.toBeNull();
+    nonTextTarget!.focus();
+    await act(async () => {
+      nonTextTarget!.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "g",
+        }),
+      );
+    });
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      await appPreferencesStore.update({
+        keyboard: { shortcuts: { "surface.focus-search": { disabled: true } } },
+      });
+    });
+    expect(search.hasAttribute("aria-keyshortcuts")).toBe(false);
   });
 
   it("opens the existing Add EPUB dialog instead of duplicating import behavior", async () => {

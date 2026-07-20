@@ -73,6 +73,7 @@ type LibrarySidebarProps = {
   onRenameFolder: (folder: Folder) => void;
   onRevealFolder?: (folder: Folder) => void;
   onSwitchArchive: (archive: KnownArchive) => void;
+  settingsAriaKeyShortcuts?: string;
   canRevealFolders?: boolean;
   activeImportDropTargetId?: string | null;
 };
@@ -100,6 +101,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onRenameFolder,
   onRevealFolder,
   onSwitchArchive,
+  settingsAriaKeyShortcuts,
   canRevealFolders = false,
   activeImportDropTargetId,
 }: LibrarySidebarProps) {
@@ -327,6 +329,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <Question aria-hidden="true" weight="bold" />
         </IconButton>
         <IconButton
+          aria-keyshortcuts={settingsAriaKeyShortcuts}
           label="Settings"
           onClick={onOpenSettings}
           onFocus={onPreloadSettings}

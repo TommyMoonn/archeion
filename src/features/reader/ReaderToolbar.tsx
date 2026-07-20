@@ -6,6 +6,7 @@ import {
   CaretDoubleRight,
   CaretLeft,
   CaretRight,
+  Lightning,
   ListBullets,
   TextAa,
 } from "@phosphor-icons/react";
@@ -21,9 +22,11 @@ type ReaderToolbarProps = {
   chapterTitle?: string;
   hasChapterNavigation: boolean;
   bookmarkActive: boolean;
+  bookmarkAriaKeyShortcuts?: string;
   bookmarkBusy: boolean;
   bookmarkToggleDisabled: boolean;
   bookmarkToggleDisabledReason?: string;
+  annotationsAriaKeyShortcuts?: string;
   annotationsOpen: boolean;
   nextChapterDisabled: boolean;
   backLabel: string;
@@ -34,6 +37,7 @@ type ReaderToolbarProps = {
   onNextChapter: () => void;
   onPrevious: () => void;
   onPreviousChapter: () => void;
+  onQuickActions: () => void;
   onSettings: () => void;
   onToc: () => void;
   percentage: number;
@@ -41,6 +45,9 @@ type ReaderToolbarProps = {
   progressSaveFailed: boolean;
   title: string;
   mode: ReaderMode;
+  quickActionsAriaKeyShortcuts?: string;
+  settingsAriaKeyShortcuts?: string;
+  tocAriaKeyShortcuts?: string;
   settingsButtonRef?: Ref<HTMLButtonElement>;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
@@ -54,9 +61,11 @@ export function ReaderToolbar({
   chapterTitle,
   hasChapterNavigation,
   bookmarkActive,
+  bookmarkAriaKeyShortcuts,
   bookmarkBusy,
   bookmarkToggleDisabled,
   bookmarkToggleDisabledReason,
+  annotationsAriaKeyShortcuts,
   annotationsOpen,
   nextChapterDisabled,
   backLabel,
@@ -67,6 +76,7 @@ export function ReaderToolbar({
   onNextChapter,
   onPrevious,
   onPreviousChapter,
+  onQuickActions,
   onSettings,
   onToc,
   percentage,
@@ -74,6 +84,9 @@ export function ReaderToolbar({
   progressSaveFailed,
   title,
   mode,
+  quickActionsAriaKeyShortcuts,
+  settingsAriaKeyShortcuts,
+  tocAriaKeyShortcuts,
   settingsButtonRef,
   tocButtonRef,
   tocOpen,
@@ -138,6 +151,7 @@ export function ReaderToolbar({
       <div className="reader-toolbar__navigation">
         <IconButton
           aria-controls="reader-table-of-contents"
+          aria-keyshortcuts={tocAriaKeyShortcuts}
           aria-expanded={tocOpen}
           label="Table of contents"
           onClick={onToc}
@@ -148,6 +162,7 @@ export function ReaderToolbar({
         </IconButton>
         <IconButton
           aria-controls="reader-annotations"
+          aria-keyshortcuts={annotationsAriaKeyShortcuts}
           aria-expanded={annotationsOpen}
           label="Annotations"
           onClick={onAnnotations}
@@ -157,6 +172,7 @@ export function ReaderToolbar({
           <BookmarksSimple aria-hidden="true" weight="regular" />
         </IconButton>
         <IconButton
+          aria-keyshortcuts={bookmarkAriaKeyShortcuts}
           aria-pressed={bookmarkActive}
           aria-busy={bookmarkBusy || undefined}
           disabled={bookmarkToggleDisabled}
@@ -192,6 +208,15 @@ export function ReaderToolbar({
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton
+          aria-keyshortcuts={quickActionsAriaKeyShortcuts}
+          label="Quick Actions"
+          onClick={onQuickActions}
+          size="compact"
+        >
+          <Lightning aria-hidden="true" weight="regular" />
+        </IconButton>
+        <IconButton
+          aria-keyshortcuts={settingsAriaKeyShortcuts}
           label="Reader settings"
           onClick={onSettings}
           ref={settingsButtonRef}

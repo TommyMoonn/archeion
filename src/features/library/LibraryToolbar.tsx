@@ -29,6 +29,7 @@ type LibraryToolbarProps = {
   onViewChange: (view: LibraryView) => void;
   query: string;
   resultCount: number;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
   selectionMode: boolean;
   sort: LibrarySort;
@@ -69,6 +70,7 @@ export function LibraryToolbar({
   onViewChange,
   query,
   resultCount,
+  searchAriaKeyShortcuts,
   searchInputRef,
   selectionMode,
   sort,
@@ -85,6 +87,7 @@ export function LibraryToolbar({
       <div className="library-header__actions">
         <div className="library-search">
           <Input
+            aria-keyshortcuts={searchAriaKeyShortcuts}
             icon={<MagnifyingGlass aria-hidden="true" weight="regular" />}
             autoCapitalize="none"
             autoComplete="off"

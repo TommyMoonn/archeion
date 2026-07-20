@@ -10,6 +10,7 @@ type LazyReaderTocPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onNavigate: (chapterId: string) => Promise<boolean>;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 

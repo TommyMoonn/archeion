@@ -9,6 +9,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { Book } from "../../types/book";
+import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { archiveStore, type ArchiveTransitionGuard } from "../../stores/archiveStore";
 import { ReaderRoute } from "./ReaderPage";
 
@@ -113,11 +114,6 @@ vi.mock("./LazyReaderTocPanel", async () => {
     },
   };
 });
-
-vi.mock("../quick-actions/QuickActionsContext", () => ({
-  useQuickActions: () => ({ openPalette: vi.fn() }),
-  useRegisterQuickActions: () => undefined,
-}));
 
 vi.mock("./useReaderSeriesContinuation", () => ({
   useReaderSeriesContinuation: () => seriesControl.nextVolume,
@@ -283,7 +279,9 @@ async function renderReader(
   await act(async () => {
     root?.render(
       <LibraryStorageContext.Provider value={harness.storage}>
-        <RouterProvider router={router} />
+        <QuickActionsProvider>
+          <RouterProvider router={router} />
+        </QuickActionsProvider>
       </LibraryStorageContext.Provider>,
     );
   });

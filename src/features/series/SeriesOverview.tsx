@@ -19,6 +19,7 @@ type SeriesOverviewProps = {
   onOpen: (entry: SeriesEntry) => void;
   onQueryChange: (query: string) => void;
   query: string;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
 
@@ -46,6 +47,7 @@ export function SeriesOverview({
   onOpen,
   onQueryChange,
   query,
+  searchAriaKeyShortcuts,
   searchInputRef,
 }: SeriesOverviewProps) {
   const [view, setView] = useState<LibraryView>("grid");
@@ -68,6 +70,7 @@ export function SeriesOverview({
         <div className="library-header__actions library-header__actions--search-only series-header__actions">
           <div className="series-search">
             <Input
+              aria-keyshortcuts={searchAriaKeyShortcuts}
               autoCapitalize="none"
               autoComplete="off"
               autoCorrect="off"

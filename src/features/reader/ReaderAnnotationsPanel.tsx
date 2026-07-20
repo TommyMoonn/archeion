@@ -63,6 +63,7 @@ type ReaderAnnotationsPanelProps = {
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
+  searchAriaKeyShortcuts?: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
@@ -83,6 +84,7 @@ export function ReaderAnnotationsPanel({
   onRemove,
   onUpdateBookmarkLabel,
   restoreFocusAnnotationId,
+  searchAriaKeyShortcuts,
   searchInputRef,
 }: ReaderAnnotationsPanelProps) {
   const panelId = useId();
@@ -294,6 +296,7 @@ export function ReaderAnnotationsPanel({
         />
         <div className="reader-annotations__tools">
           <Input
+            aria-keyshortcuts={searchAriaKeyShortcuts}
             className="reader-annotations__search"
             icon={<MagnifyingGlass aria-hidden="true" />}
             label="Search annotations"
