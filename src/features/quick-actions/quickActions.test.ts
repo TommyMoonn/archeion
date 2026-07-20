@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createQuickActionIndex,
-  isQuickActionsShortcut,
   isTextEntryTarget,
   QuickActionsRegistry,
   searchQuickActions,
@@ -15,8 +14,10 @@ function command(
   overrides: Partial<QuickActionCommand> & Pick<QuickActionCommand, "id" | "label">,
 ) {
   return {
+    configuration: "unbound" as const,
     execute: vi.fn(),
     group: "Library" as const,
+    scope: "global" as const,
     ...overrides,
   };
 }
@@ -56,7 +57,7 @@ describe("QuickActionsRegistry", () => {
     registry.register("first", [command({ id: "same", label: "First" })]);
 
     expect(() => registry.register("second", [command({ id: "same", label: "Second" })])).toThrow(
-      "Duplicate Quick Actions command id: same",
+      "Duplicate command registration: same:global",
     );
     expect(registry.getSnapshot().commands.map((item) => item.label)).toEqual(["First"]);
   });
@@ -71,7 +72,7 @@ describe("Quick Actions search", () => {
       order: 2,
     }),
     command({
-      disabledReason: "Select a book first.",
+      availability: { available: false, reason: "Select a book first." },
       group: "Reader",
       id: "toc",
       keywords: ["chapters"],
@@ -85,26 +86,6 @@ describe("Quick Actions search", () => {
     expect(searchQuickActions(index, "searchbooks", []).map((item) => item.id)).toEqual(["search"]);
     expect(searchQuickActions(index, "chapters", []).map((item) => item.id)).toEqual(["toc"]);
     expect(searchQuickActions(index, "open a book", []).map((item) => item.id)).toEqual(["toc"]);
-  });
-});
-
-describe("Quick Actions keyboard shortcut", () => {
-  it("recognizes Ctrl+Shift+P without accepting conflicting modifiers", () => {
-    expect(
-      isQuickActionsShortcut(
-        new KeyboardEvent("keydown", { ctrlKey: true, key: "P", shiftKey: true }),
-      ),
-    ).toBe(true);
-    expect(
-      isQuickActionsShortcut(
-        new KeyboardEvent("keydown", {
-          altKey: true,
-          ctrlKey: true,
-          key: "P",
-          shiftKey: true,
-        }),
-      ),
-    ).toBe(false);
   });
 });
 

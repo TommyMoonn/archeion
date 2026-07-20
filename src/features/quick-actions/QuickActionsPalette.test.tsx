@@ -22,10 +22,12 @@ function createCommand(
   overrides: Partial<QuickActionCommand> = {},
 ): QuickActionCommand {
   return {
+    configuration: "unbound",
     execute: vi.fn(),
     group: "Library",
     id,
     label,
+    scope: "global",
     ...overrides,
   };
 }
@@ -41,7 +43,12 @@ async function renderPalette(commands: QuickActionCommand[]) {
 
   await act(async () => {
     root?.render(
-      <QuickActionsPalette onClose={onClose} onExecute={onExecute} registry={registry} />,
+      <QuickActionsPalette
+        keyboard={{ shortcuts: {} }}
+        onClose={onClose}
+        onExecute={onExecute}
+        registry={registry}
+      />,
     );
   });
 
@@ -82,7 +89,7 @@ describe("QuickActionsPalette", () => {
 
   it("keeps disabled commands visible with a reason and does not execute them", async () => {
     const disabled = createCommand("disabled", "Open reader TOC", {
-      disabledReason: "Select a book first.",
+      availability: { available: false, reason: "Select a book first." },
     });
     const rendered = await renderPalette([disabled]);
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;

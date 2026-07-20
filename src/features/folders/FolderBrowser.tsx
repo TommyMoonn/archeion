@@ -7,7 +7,7 @@ import {
   PencilSimple,
   X,
 } from "@phosphor-icons/react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode, type Ref } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -35,6 +35,7 @@ type FolderBrowserProps = {
   onViewChange?: (view: FolderBrowserView) => void;
   activeImportDropTargetId?: string | null;
   view?: FolderBrowserView;
+  searchInputRef?: Ref<HTMLInputElement>;
 };
 
 const folderViewOptions: Array<{
@@ -68,6 +69,7 @@ export function FolderBrowser({
   onViewChange,
   activeImportDropTargetId,
   view: controlledView,
+  searchInputRef,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
   const [localView, setLocalView] = useState<FolderBrowserView>("list");
@@ -97,6 +99,7 @@ export function FolderBrowser({
               name="archeion-folder-search"
               onChange={(event) => setQuery(event.currentTarget.value)}
               placeholder="Search folders"
+              ref={searchInputRef}
               size="standard"
               spellCheck={false}
               type="search"

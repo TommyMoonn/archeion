@@ -3,6 +3,13 @@ import { useSyncExternalStore } from "react";
 
 import { Input } from "../../components/Input";
 import {
+  defaultKeyboardPreferences,
+  effectiveKeyboardBinding,
+  formatKeyboardBinding,
+  type KeyboardPreferences,
+} from "./commandBindings";
+import { commandAvailability } from "./commandResolver";
+import {
   createQuickActionIndex,
   searchQuickActions,
   type QuickActionCommand,
@@ -10,12 +17,18 @@ import {
 } from "./quickActions";
 
 type QuickActionsPaletteProps = {
+  keyboard?: KeyboardPreferences;
   onClose: () => void;
   onExecute: (command: QuickActionCommand) => void;
   registry: QuickActionsRegistry;
 };
 
-export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActionsPaletteProps) {
+export function QuickActionsPalette({
+  keyboard = defaultKeyboardPreferences,
+  onClose,
+  onExecute,
+  registry,
+}: QuickActionsPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pointerStartedOnBackdropRef = useRef(false);
@@ -71,10 +84,7 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
   }
 
   function execute(command: QuickActionCommand | undefined): void {
-    if (!command || command.disabledReason) {
-      return;
-    }
-
+    if (!command || !commandAvailability(command).available) return;
     onExecute(command);
   }
 
@@ -169,14 +179,25 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
           {results.length > 0 ? (
             results.map((command, index) => {
               const isActive = index === boundedActiveIndex;
-              const reasonId = command.disabledReason
+              const availability = commandAvailability(command);
+              const reasonId = !availability.available
                 ? `${commandDomId(listId, command.id)}-reason`
                 : undefined;
+              const shortcut = formatKeyboardBinding(
+                effectiveKeyboardBinding(
+                  {
+                    configuration: command.configuration ?? "unbound",
+                    defaultBinding: command.defaultBinding,
+                    id: command.id,
+                  },
+                  keyboard,
+                ),
+              );
 
               return (
                 <button
                   aria-describedby={reasonId}
-                  aria-disabled={command.disabledReason ? "true" : undefined}
+                  aria-disabled={!availability.available ? "true" : undefined}
                   aria-selected={isActive}
                   className="quick-actions__command"
                   data-active={isActive || undefined}
@@ -191,11 +212,11 @@ export function QuickActionsPalette({ onClose, onExecute, registry }: QuickActio
                     <strong>
                       {command.group}: {command.label}
                     </strong>
-                    {command.disabledReason ? (
-                      <span id={reasonId}>{command.disabledReason}</span>
+                    {!availability.available ? (
+                      <span id={reasonId}>{availability.reason}</span>
                     ) : null}
                   </span>
-                  {command.shortcut ? <kbd>{command.shortcut}</kbd> : null}
+                  {shortcut ? <kbd>{shortcut}</kbd> : null}
                 </button>
               );
             })

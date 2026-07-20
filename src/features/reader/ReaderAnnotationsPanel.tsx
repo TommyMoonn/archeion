@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type RefObject,
 } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
@@ -62,6 +63,7 @@ type ReaderAnnotationsPanelProps = {
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function ReaderAnnotationsPanel({
@@ -81,10 +83,12 @@ export function ReaderAnnotationsPanel({
   onRemove,
   onUpdateBookmarkLabel,
   restoreFocusAnnotationId,
+  searchInputRef,
 }: ReaderAnnotationsPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const localSearchRef = useRef<HTMLInputElement>(null);
+  const searchRef = searchInputRef ?? localSearchRef;
   const listRef = useRef<ReaderAnnotationListHandle>(null);
   const { closeDetails: closeExportDetails, detailsRef: exportMenuRef } = useDismissibleDetails();
   const [query, setQuery] = useState("");
@@ -111,13 +115,13 @@ export function ReaderAnnotationsPanel({
     listRef.current?.requestActionFocus(annotationId);
   }, []);
   const focusPanelFallback = useCallback(() => {
-    const searchInput = searchRef.current;
+    const searchInput = searchInputRef?.current ?? localSearchRef.current;
     if (searchInput?.isConnected && !searchInput.disabled) {
       searchInput.focus();
       if (document.activeElement === searchInput) return;
     }
     panelRef.current?.focus();
-  }, []);
+  }, [searchInputRef]);
   const survivingRowId = useCallback(
     (annotationId: string) =>
       readerAnnotationSurvivingRowId(listModel.visibleAnnotations, annotationId),
@@ -145,8 +149,10 @@ export function ReaderAnnotationsPanel({
     const focusedRow = restoreFocusAnnotationId
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
-    if (!focusedRow) (searchRef.current ?? panelRef.current)?.focus();
-  }, [active, restoreFocusAnnotationId]);
+    if (!focusedRow) {
+      (searchInputRef?.current ?? localSearchRef.current ?? panelRef.current)?.focus();
+    }
+  }, [active, restoreFocusAnnotationId, searchInputRef]);
 
   function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
     closeExportDetails(options);

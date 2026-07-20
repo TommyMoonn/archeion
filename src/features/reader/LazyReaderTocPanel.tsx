@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type RefObject } from "react";
 
 import type { ReaderNavigationState } from "../../types/reader";
 
@@ -10,6 +10,7 @@ type LazyReaderTocPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onNavigate: (chapterId: string) => Promise<boolean>;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function LazyReaderTocPanel(props: LazyReaderTocPanelProps) {

@@ -1,5 +1,5 @@
 import { CaretRight, GridFour, List, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type Ref } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -19,6 +19,7 @@ type SeriesOverviewProps = {
   onOpen: (entry: SeriesEntry) => void;
   onQueryChange: (query: string) => void;
   query: string;
+  searchInputRef?: Ref<HTMLInputElement>;
 };
 
 const seriesViewOptions: Array<{
@@ -45,6 +46,7 @@ export function SeriesOverview({
   onOpen,
   onQueryChange,
   query,
+  searchInputRef,
 }: SeriesOverviewProps) {
   const [view, setView] = useState<LibraryView>("grid");
   const visibleEntries = filterSeriesEntries(entries, query);
@@ -74,6 +76,7 @@ export function SeriesOverview({
               name="archeion-series-search"
               onChange={(event) => onQueryChange(event.currentTarget.value)}
               placeholder="Search series"
+              ref={searchInputRef}
               size="standard"
               spellCheck={false}
               type="search"

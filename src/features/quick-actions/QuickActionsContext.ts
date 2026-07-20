@@ -1,8 +1,12 @@
 import { createContext, useContext, useEffect } from "react";
 
+import type { KeyboardBinding } from "./commandBindings";
+import type { KeyboardInteractionContext } from "./commandResolver";
 import type { QuickActionCommand } from "./quickActions";
 
 export type QuickActionsContextValue = {
+  getCommandBinding: (commandId: string) => KeyboardBinding | undefined;
+  handleKeyboardEvent: (event: KeyboardEvent, context?: KeyboardInteractionContext) => boolean;
   openPalette: () => void;
   openSettings: () => void;
   preloadSettings: () => void;
@@ -10,6 +14,8 @@ export type QuickActionsContextValue = {
 };
 
 const fallbackContext: QuickActionsContextValue = {
+  getCommandBinding: () => undefined,
+  handleKeyboardEvent: () => false,
   openPalette: () => undefined,
   openSettings: () => undefined,
   preloadSettings: () => undefined,
@@ -20,10 +26,12 @@ export const QuickActionsContext = createContext<QuickActionsContextValue>(fallb
 
 export function useQuickActions(): Pick<
   QuickActionsContextValue,
-  "openPalette" | "openSettings" | "preloadSettings"
+  "getCommandBinding" | "handleKeyboardEvent" | "openPalette" | "openSettings" | "preloadSettings"
 > {
   const context = useContext(QuickActionsContext);
   return {
+    getCommandBinding: context.getCommandBinding,
+    handleKeyboardEvent: context.handleKeyboardEvent,
     openPalette: context.openPalette,
     openSettings: context.openSettings,
     preloadSettings: context.preloadSettings,
@@ -35,6 +43,5 @@ export function useRegisterQuickActions(
   commands: readonly QuickActionCommand[],
 ): void {
   const context = useContext(QuickActionsContext);
-
   useEffect(() => context.registerCommands(sourceId, commands), [commands, context, sourceId]);
 }

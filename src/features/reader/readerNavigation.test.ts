@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canRunReaderWheelTurn,
   getContinuousReaderWheelDelta,
-  getReaderKeyboardIntent,
+  isReaderKeyboardCommandEligible,
   getReaderWheelDelta,
   getReaderWheelIntentFromDelta,
   isPagedReaderWheelTargetBlocked,
@@ -115,21 +115,12 @@ function nestedElementTarget(
 }
 
 describe("reader navigation helpers", () => {
-  it("maps paged reader keyboard shortcuts", () => {
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight" }))).toBe("forward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "PageDown" }))).toBe("forward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: " " }))).toBe("forward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowLeft" }))).toBe("backward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "PageUp" }))).toBe("backward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: " ", shiftKey: true }))).toBe("backward");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "s" }))).toBe("settings");
-    expect(getReaderKeyboardIntent(keyEvent({ key: "Escape" }))).toBe("close");
-  });
+  it("keeps command matching outside reader eligibility", () => {
+    const ordinary = keyEvent({ key: "s", target: elementTarget() });
+    const publisherControl = keyEvent({ key: "s", target: elementTarget("button") });
 
-  it("does not treat modified or selection-style shortcuts as page turns", () => {
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", shiftKey: true }))).toBeNull();
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", ctrlKey: true }))).toBeNull();
-    expect(getReaderKeyboardIntent(keyEvent({ key: "s", metaKey: true }))).toBeNull();
+    expect(isReaderKeyboardCommandEligible(ordinary)).toBe(true);
+    expect(isReaderKeyboardCommandEligible(publisherControl)).toBe(false);
   });
 
   it("maps vertical wheel gestures to page direction", () => {
@@ -207,12 +198,14 @@ describe("reader navigation helpers", () => {
       80,
     );
     expect(
-      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: illustration })),
-    ).toBeNull();
+      isReaderKeyboardCommandEligible(keyEvent({ key: "ArrowRight", target: illustration })),
+    ).toBe(false);
     const publisherStyledIllustration = nestedElementTarget([READER_ILLUSTRATION_TRIGGER_SELECTOR]);
     expect(
-      getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: publisherStyledIllustration })),
-    ).toBeNull();
+      isReaderKeyboardCommandEligible(
+        keyEvent({ key: "ArrowRight", target: publisherStyledIllustration }),
+      ),
+    ).toBe(false);
   });
 
   it.each(["a", "button"])(
@@ -248,7 +241,9 @@ describe("reader navigation helpers", () => {
     const linkTarget = elementTarget("a[href]");
 
     expect(getReaderWheelDelta(wheelEvent({ deltaY: 80, target: ordinaryTarget }))).toBe(80);
-    expect(getReaderKeyboardIntent(keyEvent({ key: "ArrowRight", target: linkTarget }))).toBeNull();
+    expect(
+      isReaderKeyboardCommandEligible(keyEvent({ key: "ArrowRight", target: linkTarget })),
+    ).toBe(false);
     expect(getContinuousReaderWheelDelta(wheelEvent({ deltaY: 80, target: linkTarget }))).toBe(80);
   });
 

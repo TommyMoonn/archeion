@@ -50,17 +50,21 @@ import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor } from "./ReaderNoteEditor";
-import { getReaderKeyboardIntent, isReaderTransientSurfaceTarget } from "./readerNavigation";
+import {
+  isReaderKeyboardCommandEligible,
+  isReaderShortcutTargetBlocked,
+  READER_TOC_SEARCH_THRESHOLD,
+} from "./readerNavigation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
+
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import {
-  isQuickActionsShortcut,
-  isTextEntryTarget,
   QUICK_ACTION_SEARCH_BOOKS_REQUEST,
   type QuickActionCommand,
 } from "../quick-actions/quickActions";
+import { commandDefinitions } from "../quick-actions/commandBindings";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import {
@@ -73,7 +77,6 @@ import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
 import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
 import { appearanceRuntime, useResolvedReaderTheme } from "../../themes/appearanceRuntimeInstance";
 import { readerThemeCssProperties } from "../../themes/themeCssVariables";
-import { readerAnnotationQuickActions } from "./readerAnnotationQuickActions";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useReaderFileLoad } from "./useReaderFileLoad";
@@ -95,7 +98,7 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
-  const { openPalette } = useQuickActions();
+  const { handleKeyboardEvent } = useQuickActions();
   const settings = useReaderPreferences();
   const readerTheme = useResolvedReaderTheme();
   const committedAppearance = useCommittedArchiveAppearance();
@@ -269,18 +272,17 @@ export function ReaderPage() {
     closeTopmost,
     getNoteTarget,
     noteTarget,
-    openAnnotations,
-    openSettings,
-    openToc,
     restoreFocusAnnotationId: annotationFocusTargetId,
     returnNoteToAnnotations,
     settingsButtonRef,
     settingsOpen,
     showNoteTarget,
+    surface: sideSurface,
     surfaceRef: sideSurfaceRef,
     tocButtonRef,
     tocOpen,
     toggleAnnotations,
+    toggleSettings,
     toggleToc,
     updateNoteTarget,
   } = sideSurfaces;
@@ -360,6 +362,33 @@ export function ReaderPage() {
     [activeArchiveId, navigate, runControlledReaderExit],
   );
 
+  const returnToOrigin = useCallback(() => {
+    void runControlledReaderExit(() =>
+      navigate(returnDestination.href, {
+        replace: true,
+        state: returnDestination.state,
+      }),
+    );
+  }, [navigate, returnDestination, runControlledReaderExit]);
+
+  const annotationsSearchInputRef = useRef<HTMLInputElement>(null);
+  const tocSearchInputRef = useRef<HTMLInputElement>(null);
+  const readerSearchAvailable =
+    (annotationsOpen && !noteTarget) ||
+    (tocOpen && navigationState.chapters.length > READER_TOC_SEARCH_THRESHOLD);
+  const focusReaderSearch = useCallback(() => {
+    if (annotationsOpen && !noteTarget) {
+      annotationsSearchInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (tocOpen) tocSearchInputRef.current?.focus({ preventScroll: true });
+  }, [annotationsOpen, noteTarget, tocOpen]);
+
+  const {
+    canToggleCurrent: canToggleCurrentBookmark,
+    toggleCurrent: toggleCurrentBookmark,
+    toggleDisabledReason: bookmarkToggleDisabledReason,
+  } = annotations;
   const quickActionCommands = useMemo<QuickActionCommand[]>(() => {
     const tocDisabledReason =
       navigationState.status === "loading"
@@ -367,83 +396,209 @@ export function ReaderPage() {
         : navigationState.chapters.length === 0
           ? "This book has no usable table of contents."
           : undefined;
+    const bookmarkAvailability = canToggleCurrentBookmark
+      ? { available: true as const }
+      : {
+          available: false as const,
+          reason: bookmarkToggleDisabledReason ?? "The current location cannot be bookmarked.",
+        };
+    const canHandleReaderCommand = (event: KeyboardEvent) => isReaderKeyboardCommandEligible(event);
 
-    return [
+    const commands: QuickActionCommand[] = [
       {
+        configuration: "unbound",
         execute: () => navigateToLibraryView("library", true),
         group: "Library",
         id: "reader.search-books",
         keywords: ["find books", "search library"],
         label: "Search books",
         order: 40,
+        scope: "reader",
       },
       {
+        ...commandDefinitions.focusSearch,
+        availability: readerSearchAvailable
+          ? { available: true }
+          : { available: false, reason: "Open Contents or Annotations to search this reader." },
+        canHandleEvent: canHandleReaderCommand,
+        execute: focusReaderSearch,
+        keywords: ["find chapters", "search annotations", "focus reader search"],
+        order: 41,
+        scope: "reader",
+      },
+      {
+        configuration: "unbound",
         execute: () => navigateToLibraryView("library"),
         group: "Navigate",
         id: "reader.navigate.library",
         keywords: ["go to collection", "home"],
         label: "Go to Library",
         order: 50,
+        scope: "reader",
       },
       ...(isLibrarySmartViewVisible(libraryPreferences.smartViews, "in-progress")
         ? [
             {
+              configuration: "unbound" as const,
               execute: () => navigateToLibraryView("continue"),
               group: "Navigate" as const,
               id: "reader.navigate.continue",
               keywords: ["in progress", "continue reading"],
               label: "Go to Continue",
               order: 51,
+              scope: "reader" as const,
             },
           ]
         : []),
       {
+        configuration: "unbound",
         execute: () => navigateToLibraryView("favorites"),
         group: "Navigate",
         id: "reader.navigate.favorites",
         keywords: ["favorite books", "starred"],
         label: "Go to Favorites",
         order: 52,
+        scope: "reader",
       },
       {
+        configuration: "unbound",
         execute: () => navigateToLibraryView("folders"),
         group: "Navigate",
         id: "reader.navigate.folders",
         keywords: ["browse folders", "organization"],
         label: "Go to Folders",
         order: 53,
+        scope: "reader",
       },
       {
+        configuration: "unbound",
         execute: () => navigateToLibraryView("series"),
         group: "Navigate",
         id: "reader.navigate.series",
         keywords: ["browse series", "collections"],
         label: "Go to Series",
         order: 54,
+        scope: "reader",
       },
       {
-        disabledReason: tocDisabledReason,
-        execute: openToc,
-        group: "Reader",
-        id: "reader.open-toc",
+        ...commandDefinitions.readerToc,
+        availability: tocDisabledReason
+          ? { available: false, reason: tocDisabledReason }
+          : { available: true },
+        canHandleEvent: canHandleReaderCommand,
+        execute: toggleToc,
         keywords: ["reader toc", "chapters", "contents"],
-        label: "Open reader TOC",
         order: 80,
+        scope: "reader",
+      },
+      {
+        ...commandDefinitions.readerAnnotations,
+        canHandleEvent: canHandleReaderCommand,
+        execute: toggleAnnotations,
+        keywords: ["bookmarks", "highlights", "notes"],
+        order: 81,
+        scope: "reader",
+      },
+      {
+        ...commandDefinitions.readerBookmark,
+        availability: bookmarkAvailability,
+        canHandleEvent: canHandleReaderCommand,
+        execute: () => void toggleCurrentBookmark(),
+        keywords: ["bookmark", "reading location"],
+        order: 82,
+        scope: "reader",
+      },
+      {
+        ...commandDefinitions.readerSettings,
+        canHandleEvent: canHandleReaderCommand,
+        execute: toggleSettings,
+        keywords: ["reading settings", "appearance", "layout"],
+        order: 83,
+        scope: "reader",
+      },
+      {
+        ...commandDefinitions.closeTopmostSurface,
+        canHandleEvent: (event, context) =>
+          context.sourceDocument === context.applicationDocument ||
+          isReaderKeyboardCommandEligible(event),
+        execute: () => {
+          if (!closeTopmost()) returnToOrigin();
+        },
+        scope: sideSurface ? "transient-surface" : "reader",
+        showInPalette: false,
       },
     ];
+
+    const pagedReaderCommands: QuickActionCommand[] =
+      settings.mode === "continuous"
+        ? []
+        : [
+            {
+              ...commandDefinitions.readerPreviousPage,
+              canHandleEvent: canHandleReaderCommand,
+              execute: movePrevious,
+              scope: "reader",
+              showInPalette: false,
+            },
+            {
+              ...commandDefinitions.readerPreviousPageKey,
+              canHandleEvent: canHandleReaderCommand,
+              execute: movePrevious,
+              scope: "reader",
+              showInPalette: false,
+            },
+            {
+              ...commandDefinitions.readerPreviousPageSpace,
+              canHandleEvent: canHandleReaderCommand,
+              execute: movePrevious,
+              scope: "reader",
+              showInPalette: false,
+            },
+            {
+              ...commandDefinitions.readerNextPage,
+              canHandleEvent: canHandleReaderCommand,
+              execute: moveNext,
+              scope: "reader",
+              showInPalette: false,
+            },
+            {
+              ...commandDefinitions.readerNextPageKey,
+              canHandleEvent: canHandleReaderCommand,
+              execute: moveNext,
+              scope: "reader",
+              showInPalette: false,
+            },
+            {
+              ...commandDefinitions.readerNextPageSpace,
+              canHandleEvent: canHandleReaderCommand,
+              execute: moveNext,
+              scope: "reader",
+              showInPalette: false,
+            },
+          ];
+
+    return [...commands, ...pagedReaderCommands];
   }, [
-    navigateToLibraryView,
+    bookmarkToggleDisabledReason,
+    canToggleCurrentBookmark,
+    closeTopmost,
+    focusReaderSearch,
     libraryPreferences.smartViews,
+    moveNext,
+    movePrevious,
+    navigateToLibraryView,
     navigationState.chapters.length,
     navigationState.status,
-    openToc,
+    readerSearchAvailable,
+    returnToOrigin,
+    settings.mode,
+    sideSurface,
+    toggleAnnotations,
+    toggleCurrentBookmark,
+    toggleSettings,
+    toggleToc,
   ]);
-  const annotationQuickActionCommands = useMemo(
-    () => readerAnnotationQuickActions(openAnnotations),
-    [openAnnotations],
-  );
   useRegisterQuickActions("reader", quickActionCommands);
-  useRegisterQuickActions("reader.annotations", annotationQuickActionCommands);
 
   const navigateToChapter = useCallback(
     (chapterId: string) =>
@@ -487,15 +642,6 @@ export function ReaderPage() {
       }),
     );
   }, [navigate, nextVolume, returnContext, runControlledReaderExit]);
-
-  const returnToOrigin = useCallback(() => {
-    void runControlledReaderExit(() =>
-      navigate(returnDestination.href, {
-        replace: true,
-        state: returnDestination.state,
-      }),
-    );
-  }, [navigate, returnDestination, runControlledReaderExit]);
 
   const changeSettings = useCallback((nextSettings: ReaderSettings) => {
     const normalizedSettings = normalizeReaderSettings(nextSettings);
@@ -586,52 +732,16 @@ export function ReaderPage() {
       });
   }, [returnToOrigin, storage]);
 
-  const handleReaderKeyDown = useCallback(
-    (event: KeyboardEvent, preventDefault: boolean) => {
-      const intent = getReaderKeyboardIntent(event);
-
-      if (!intent) {
-        return;
-      }
-
-      if (settings.mode === "continuous" && (intent === "backward" || intent === "forward")) {
-        return;
-      }
-
-      if (preventDefault) {
-        event.preventDefault();
-      }
-
-      if (intent === "close") {
-        if (!closeTopmost()) returnToOrigin();
-        return;
-      }
-
-      if (intent === "settings") {
-        openSettings();
-        return;
-      }
-
-      if (intent === "backward") {
-        movePrevious();
-      } else {
-        moveNext();
-      }
-    },
-    [closeTopmost, moveNext, movePrevious, openSettings, returnToOrigin, settings.mode],
-  );
-
   const handleContentKeyDown = useCallback(
     (event: KeyboardEvent) => {
-      if (isQuickActionsShortcut(event) && !isTextEntryTarget(event.target)) {
-        event.preventDefault();
-        openPalette();
-        return;
-      }
-
-      handleReaderKeyDown(event, true);
+      if (isReaderShortcutTargetBlocked(event.target)) return;
+      const sourceDocument =
+        (event.target as { ownerDocument?: Document } | null)?.ownerDocument ??
+        event.view?.document ??
+        document;
+      handleKeyboardEvent(event, { applicationDocument: document, sourceDocument });
     },
-    [handleReaderKeyDown, openPalette],
+    [handleKeyboardEvent],
   );
 
   useEffect(() => {
@@ -650,22 +760,6 @@ export function ReaderPage() {
       }
     };
   }, [annotationsOpen, settingsOpen, tocOpen]);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (isReaderTransientSurfaceTarget(event.target)) {
-        return;
-      }
-
-      handleReaderKeyDown(event, true);
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleReaderKeyDown]);
 
   if (!book || book.isFileMissing) {
     return (
@@ -774,7 +868,7 @@ export function ReaderPage() {
           onNextChapter={moveNextChapter}
           onPrevious={movePrevious}
           onPreviousChapter={movePreviousChapter}
-          onSettings={openSettings}
+          onSettings={toggleSettings}
           onToc={toggleToc}
           percentage={location.percentage}
           progressSaveFailed={progressSaveFailed}
@@ -881,6 +975,7 @@ export function ReaderPage() {
             onRemove={removeAnnotation}
             onUpdateBookmarkLabel={annotations.updateLabel}
             restoreFocusAnnotationId={annotationFocusTargetId}
+            searchInputRef={annotationsSearchInputRef}
           />
           {noteTarget ? (
             <ReaderNoteEditor
@@ -903,6 +998,7 @@ export function ReaderPage() {
           navigation={navigationState}
           onClose={closeToc}
           onNavigate={navigateToChapter}
+          searchInputRef={tocSearchInputRef}
         />
       ) : null}
 

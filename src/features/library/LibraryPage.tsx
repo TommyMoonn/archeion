@@ -23,6 +23,7 @@ import {
 } from "../filesystem/archiveImport";
 import { useExternalEpubDrop } from "../filesystem/useExternalEpubDrop";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import { commandDefinitions } from "../quick-actions/commandBindings";
 import type { QuickActionCommand } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import { hasActiveLibraryFilters } from "./libraryFilters";
@@ -354,92 +355,152 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
 
   const openArchiveManager = useCallback(() => void archiveStore.openArchiveManagerWindow(), []);
+  const folderSearchInputRef = useRef<HTMLInputElement>(null);
+  const seriesSearchInputRef = useRef<HTMLInputElement>(null);
+  const searchSurfaceAvailable = navigation.location.type !== "series-detail";
+  const focusActiveSearch = useCallback(() => {
+    if (navigation.location.type === "folders") {
+      folderSearchInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (navigation.location.type === "series") {
+      seriesSearchInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    openBookSearch();
+  }, [navigation.location.type, openBookSearch]);
+  const activeSearchScope: QuickActionCommand["scope"] =
+    navigation.location.type === "folders" ? "folders" : "library";
   const quickActionCommands = useMemo<QuickActionCommand[]>(
     () => [
       {
-        execute: openBookSearch,
-        group: "Library",
-        id: "library.search",
-        keywords: ["find books", "search library"],
-        label: "Search books",
+        ...commandDefinitions.focusSearch,
+        availability: searchSurfaceAvailable
+          ? { available: true }
+          : { available: false, reason: "This surface does not have search." },
+        execute: focusActiveSearch,
+        keywords: ["find books", "search library", "search folders", "search series"],
         order: 40,
+        scope: activeSearchScope,
       },
+      ...(navigation.location.type === "folders" ||
+      navigation.location.type === "series" ||
+      navigation.location.type === "series-detail"
+        ? [
+            {
+              configuration: "unbound" as const,
+              execute: openBookSearch,
+              group: "Library" as const,
+              id: "library.search-books",
+              keywords: ["find books", "search library"],
+              label: "Search books",
+              order: 41,
+              scope: activeSearchScope,
+            },
+          ]
+        : []),
       {
+        configuration: "unbound",
         execute: () => changeLocation({ type: "library" }),
         group: "Navigate",
         id: "navigate.library",
         keywords: ["go to collection", "home"],
         label: "Go to Library",
         order: 50,
+        scope: "library",
       },
       ...(isLibrarySmartViewVisible(smartViewPreferences, "in-progress")
         ? [
             {
+              configuration: "unbound" as const,
               execute: () => changeLocation({ type: "continue" }),
               group: "Navigate" as const,
               id: "navigate.continue",
               keywords: ["in progress", "continue reading"],
               label: "Go to Continue",
               order: 51,
+              scope: "library" as const,
             },
           ]
         : []),
       {
+        configuration: "unbound",
         execute: () => changeLocation({ type: "favorites" }),
         group: "Navigate",
         id: "navigate.favorites",
         keywords: ["favorite books", "starred"],
         label: "Go to Favorites",
         order: 52,
+        scope: "library",
       },
       {
+        configuration: "unbound",
         execute: () => changeLocation({ type: "folders" }),
         group: "Navigate",
         id: "navigate.folders",
         keywords: ["browse folders", "organization"],
         label: "Go to Folders",
         order: 53,
+        scope: "library",
       },
       {
+        configuration: "unbound",
         execute: () => changeLocation({ type: "series" }),
         group: "Navigate",
         id: "navigate.series",
         keywords: ["browse series", "collections"],
         label: "Go to Series",
         order: 54,
+        scope: "library",
       },
       {
-        disabledReason: bookActions.isImporting
-          ? "Wait for the current EPUB import to finish."
-          : undefined,
+        availability: bookActions.isImporting
+          ? { available: false, reason: "Wait for the current EPUB import to finish." }
+          : { available: true },
+        configuration: "unbound",
         execute: () => dialogActions.openAddEpub(),
         group: "Library",
         id: "library.add-epubs",
         keywords: ["import books", "add files"],
         label: "Add EPUBs",
         order: 60,
+        scope: "library",
       },
       {
+        configuration: "unbound",
         execute: dialogActions.openCreateFolder,
         group: "Library",
         id: "library.create-folder",
         keywords: ["new folder", "organize books"],
         label: "Create folder",
         order: 61,
+        scope: "library",
       },
       {
-        disabledReason: bookActions.isImporting
-          ? "Wait for the current EPUB import to finish."
-          : undefined,
+        availability: bookActions.isImporting
+          ? { available: false, reason: "Wait for the current EPUB import to finish." }
+          : { available: true },
+        configuration: "unbound",
         execute: dialogActions.openRescan,
         group: "Library",
         id: "library.rescan",
         keywords: ["refresh archive", "scan files"],
         label: "Rescan archive",
         order: 62,
+        scope: "library",
       },
     ],
-    [bookActions.isImporting, changeLocation, dialogActions, openBookSearch, smartViewPreferences],
+    [
+      activeSearchScope,
+      bookActions.isImporting,
+      changeLocation,
+      dialogActions,
+      focusActiveSearch,
+      navigation.location.type,
+      openBookSearch,
+      searchSurfaceAvailable,
+      smartViewPreferences,
+    ],
   );
   useRegisterQuickActions("library", quickActionCommands);
 
@@ -481,6 +542,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRename: openRenameFolder,
           onReveal: (folder) => void bookActions.revealFolder(folder),
           onViewChange: navigation.changeFolderBrowserView,
+          searchInputRef: folderSearchInputRef,
           view: navigation.folderBrowserView,
         }}
         hasFilters={hasFilters}
@@ -524,6 +586,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpen: (entry) => changeLocation({ type: "series-detail", seriesKey: entry.key }),
           onQueryChange: navigation.setSeriesQuery,
           query: navigation.seriesQuery,
+          searchInputRef: seriesSearchInputRef,
         }}
         showContinueReading={showContinueReading}
         sidebarProps={{

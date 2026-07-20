@@ -1,27 +1,33 @@
 import { BookOpenText, Check, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
+import type { CSSProperties, RefObject } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
+import { READER_TOC_SEARCH_THRESHOLD } from "./readerNavigation";
 
 type ReaderTocPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onNavigate: (chapterId: string) => Promise<boolean>;
+  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
-const TOC_SEARCH_THRESHOLD = 12;
-
-export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPanelProps) {
+export function ReaderTocPanel({
+  navigation,
+  onClose,
+  onNavigate,
+  searchInputRef,
+}: ReaderTocPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
-  const searchRef = useRef<HTMLInputElement>(null);
+  const localSearchRef = useRef<HTMLInputElement>(null);
+  const searchRef = searchInputRef ?? localSearchRef;
   const currentChapterRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState("");
   const [navigatingId, setNavigatingId] = useState<string>();
   const [navigationFailed, setNavigationFailed] = useState(false);
-  const showSearch = navigation.chapters.length > TOC_SEARCH_THRESHOLD;
+  const showSearch = navigation.chapters.length > READER_TOC_SEARCH_THRESHOLD;
   const visibleChapters = useMemo(
     () => filterChapters(navigation.chapters, query),
     [navigation.chapters, query],
@@ -29,11 +35,11 @@ export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPan
 
   useEffect(() => {
     const focusTarget = showSearch
-      ? searchRef.current
+      ? (searchInputRef?.current ?? localSearchRef.current)
       : (currentChapterRef.current ?? panelRef.current);
     focusTarget?.focus();
     currentChapterRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [navigation.status, showSearch]);
+  }, [navigation.status, searchInputRef, showSearch]);
 
   async function selectChapter(chapter: ReaderChapter) {
     if (navigatingId) {

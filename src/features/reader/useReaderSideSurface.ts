@@ -173,6 +173,12 @@ export function useReaderSideSurface<NoteTarget>({
   const closeToc = useCallback(() => transition(null, tocButtonRef), [transition]);
   const closeAnnotations = useCallback(() => transition(null, annotationButtonRef), [transition]);
   const returnNoteToAnnotations = useCallback(() => transition("annotations"), [transition]);
+  const toggleSettings = useCallback(() => {
+    transition(
+      surfaceFromState(stateRef.current) === "settings" ? null : "settings",
+      settingsButtonRef,
+    );
+  }, [transition]);
   const toggleToc = useCallback(() => {
     transition(surfaceFromState(stateRef.current) === "toc" ? null : "toc", tocButtonRef);
   }, [transition]);
@@ -244,6 +250,7 @@ export function useReaderSideSurface<NoteTarget>({
       tocButtonRef,
       tocOpen: surface === "toc",
       toggleAnnotations,
+      toggleSettings,
       toggleToc,
       transition,
       updateNoteTarget,
@@ -265,6 +272,7 @@ export function useReaderSideSurface<NoteTarget>({
       surface,
       surfaceRef,
       toggleAnnotations,
+      toggleSettings,
       toggleToc,
       transition,
       updateNoteTarget,

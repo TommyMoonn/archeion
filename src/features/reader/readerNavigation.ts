@@ -5,8 +5,8 @@ import {
 } from "./readerIllustrationTrigger";
 
 export type ReaderNavigationIntent = "backward" | "forward";
-export type ReaderKeyboardIntent = ReaderNavigationIntent | "close" | "settings";
 
+export const READER_TOC_SEARCH_THRESHOLD = 12;
 export const READER_WHEEL_THROTTLE_MS = 360;
 export const READER_WHEEL_TURN_DELTA = 48;
 export const READER_WHEEL_GESTURE_RESET_MS = 260;
@@ -83,35 +83,8 @@ function hasActiveReaderSelection(element: Element): boolean {
   return Boolean(selection && !selection.isCollapsed);
 }
 
-export function getReaderKeyboardIntent(event: KeyboardEvent): ReaderKeyboardIntent | null {
-  if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
-    return null;
-  }
-
-  if (event.key === "Escape") {
-    return "close";
-  }
-
-  if (isReaderShortcutTargetBlocked(event.target)) {
-    return null;
-  }
-
-  if (event.shiftKey && event.key !== " ") {
-    return null;
-  }
-
-  switch (event.key) {
-    case "ArrowLeft":
-    case "PageUp":
-      return "backward";
-    case "ArrowRight":
-    case "PageDown":
-      return "forward";
-    case " ":
-      return event.shiftKey ? "backward" : "forward";
-    default:
-      return event.shiftKey ? null : event.key.toLowerCase() === "s" ? "settings" : null;
-  }
+export function isReaderKeyboardCommandEligible(event: KeyboardEvent): boolean {
+  return !isReaderShortcutTargetBlocked(event.target);
 }
 
 export function getReaderWheelDelta(event: ReaderWheelEvent): number | null {

@@ -14,11 +14,17 @@ import { router } from "../../app/router";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { archiveStore } from "../../stores/archiveStore";
 import {
-  isQuickActionsShortcut,
-  isTextEntryTarget,
-  QuickActionsRegistry,
-  type QuickActionCommand,
-} from "./quickActions";
+  commandDefinitions,
+  defaultKeyboardPreferences,
+  effectiveKeyboardBinding,
+  getConfigurableCommandDefinition,
+} from "./commandBindings";
+import {
+  createKeyboardInteractionContext,
+  resolveKeyboardCommand,
+  type KeyboardInteractionContext,
+} from "./commandResolver";
+import { QuickActionsRegistry, type QuickActionCommand } from "./quickActions";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 
 const loadQuickActionsPalette = () =>
@@ -28,7 +34,6 @@ const loadSettingsDialog = () =>
 
 const QuickActionsPalette = lazy(loadQuickActionsPalette);
 const SettingsDialog = lazy(loadSettingsDialog);
-
 const quickActionsRegistry = new QuickActionsRegistry();
 
 export function QuickActionsProvider({ children }: { children: ReactNode }) {
@@ -36,6 +41,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   const openerRef = useRef<HTMLElement | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const keyboard = defaultKeyboardPreferences;
   const archive = useSyncExternalStore(
     archiveStore.subscribe,
     archiveStore.getSnapshot,
@@ -58,9 +64,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
     const opener = openerRef.current;
     openerRef.current = null;
     window.requestAnimationFrame(() => {
-      if (opener?.isConnected) {
-        opener.focus({ preventScroll: true });
-      }
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     });
   }, []);
 
@@ -73,109 +77,155 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
     setSettingsOpen(true);
   }, [preloadSettings]);
 
+  const executeCommand = useCallback(
+    (command: QuickActionCommand) => {
+      registry.recordRecent(command.id);
+      void Promise.resolve(command.execute()).catch((error) => {
+        console.error(`Command failed: ${command.id}`, error);
+      });
+    },
+    [registry],
+  );
+
+  const handleKeyboardEvent = useCallback(
+    (event: KeyboardEvent, context?: KeyboardInteractionContext): boolean => {
+      const resolved = resolveKeyboardCommand(
+        event,
+        registry.getSnapshot().commands,
+        keyboard,
+        context ?? createKeyboardInteractionContext(event, document),
+      );
+      if (!resolved) return false;
+
+      event.preventDefault();
+      event.stopPropagation();
+      if (resolved.availability.available) executeCommand(resolved.command);
+      return true;
+    },
+    [executeCommand, keyboard, registry],
+  );
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyboardEvent, true);
+    return () => document.removeEventListener("keydown", handleKeyboardEvent, true);
+  }, [handleKeyboardEvent]);
+
   const registerCommands = useCallback(
     (sourceId: string, commands: readonly QuickActionCommand[]) =>
       registry.register(sourceId, commands),
     [registry],
   );
 
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent): void {
-      if (paletteOpen && event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
-        closePalette(true);
-        return;
-      }
-
-      if (!isQuickActionsShortcut(event) || isTextEntryTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      event.stopPropagation();
-      openPalette();
-    }
-
-    document.addEventListener("keydown", handleKeyDown, true);
-    return () => document.removeEventListener("keydown", handleKeyDown, true);
-  }, [closePalette, openPalette, paletteOpen]);
-
   const appCommands = useMemo<QuickActionCommand[]>(() => {
     const activeArchive = archive.status === "ready" ? archive.archive : null;
-    const commands: QuickActionCommand[] = [
+    const switchTargets = archive.archives.filter(
+      (candidate) => candidate.id !== activeArchive?.id,
+    );
+    const switchCommands: QuickActionCommand[] =
+      switchTargets.length === 0
+        ? [
+            {
+              availability: {
+                available: false,
+                reason: "No other known archives are available.",
+              },
+              configuration: "unbound",
+              execute: () => undefined,
+              group: "Archive",
+              id: "archive.switch-unavailable",
+              keywords: ["switch archive", "change archive"],
+              label: "Switch archive",
+              order: 20,
+              scope: "global",
+            },
+          ]
+        : switchTargets.map((candidate, index) => ({
+            configuration: "unbound",
+            execute: async () => {
+              const switched = await archiveStore.switchArchive(candidate.id);
+              if (switched) await router.navigate("/", { replace: true });
+            },
+            group: "Archive",
+            id: `archive.switch.${candidate.id}`,
+            keywords: ["switch archive", "change archive", candidate.rootPath],
+            label: `Switch to ${candidate.displayName}`,
+            order: 20 + index,
+            scope: "global",
+          }));
+
+    return [
       {
-        disabledReason: activeArchive ? undefined : "No archive is open.",
+        ...commandDefinitions.quickActions,
+        execute: openPalette,
+        scope: "global",
+        showInPalette: false,
+      },
+      {
+        ...commandDefinitions.settings,
+        availability: settingsOpen
+          ? { available: false, reason: "Settings are already open." }
+          : { available: true },
+        execute: openSettings,
+        keywords: ["preferences", "configuration"],
+        order: 90,
+        scope: "global",
+      },
+      {
+        availability: activeArchive
+          ? { available: true }
+          : { available: false, reason: "No archive is open." },
+        configuration: "unbound",
         execute: () => {
-          if (activeArchive) {
-            void archiveStore.revealArchive(activeArchive.id);
-          }
+          if (activeArchive) void archiveStore.revealArchive(activeArchive.id);
         },
         group: "Archive",
         id: "archive.open-current-folder",
         keywords: ["open current archive", "reveal folder", "file explorer"],
         label: "Open current archive folder",
         order: 10,
+        scope: "global",
       },
+      ...switchCommands,
       {
-        execute: () => {
-          void archiveStore.openArchiveManagerWindow();
-        },
+        configuration: "unbound",
+        execute: () => void archiveStore.openArchiveManagerWindow(),
         group: "Archive",
         id: "archive.open-manager",
         keywords: ["manage archives", "archive manager"],
         label: "Open Archive Manager",
         order: 30,
-      },
-      {
-        execute: openSettings,
-        group: "System",
-        id: "system.open-settings",
-        keywords: ["preferences", "configuration"],
-        label: "Open Settings",
-        order: 90,
+        scope: "global",
       },
     ];
-
-    const switchTargets = archive.archives.filter(
-      (candidate) => candidate.id !== activeArchive?.id,
-    );
-    if (switchTargets.length === 0) {
-      commands.push({
-        disabledReason: "No other known archives are available.",
-        execute: () => undefined,
-        group: "Archive",
-        id: "archive.switch-unavailable",
-        keywords: ["switch archive", "change archive"],
-        label: "Switch archive",
-        order: 20,
-      });
-    } else {
-      commands.push(
-        ...switchTargets.map<QuickActionCommand>((candidate, index) => ({
-          execute: async () => {
-            const switched = await archiveStore.switchArchive(candidate.id);
-            if (switched) {
-              await router.navigate("/", { replace: true });
-            }
-          },
-          group: "Archive",
-          id: `archive.switch.${candidate.id}`,
-          keywords: ["switch archive", "change archive", candidate.rootPath],
-          label: `Switch to ${candidate.displayName}`,
-          order: 20 + index,
-        })),
-      );
-    }
-
-    return commands;
-  }, [archive, openSettings]);
+  }, [archive, openPalette, openSettings, settingsOpen]);
 
   useEffect(() => registry.register("app", appCommands), [appCommands, registry]);
 
+  const getCommandBinding = useCallback(
+    (commandId: string) => {
+      const definition = getConfigurableCommandDefinition(commandId);
+      return definition ? effectiveKeyboardBinding(definition, keyboard) : undefined;
+    },
+    [keyboard],
+  );
+
   const contextValue = useMemo<QuickActionsContextValue>(
-    () => ({ openPalette, openSettings, preloadSettings, registerCommands }),
-    [openPalette, openSettings, preloadSettings, registerCommands],
+    () => ({
+      getCommandBinding,
+      handleKeyboardEvent,
+      openPalette,
+      openSettings,
+      preloadSettings,
+      registerCommands,
+    }),
+    [
+      getCommandBinding,
+      handleKeyboardEvent,
+      openPalette,
+      openSettings,
+      preloadSettings,
+      registerCommands,
+    ],
   );
 
   return (
@@ -184,15 +234,11 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       {paletteOpen ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette
+            keyboard={keyboard}
             onClose={() => closePalette(true)}
             onExecute={(command) => {
-              registry.recordRecent(command.id);
               closePalette(false);
-              window.requestAnimationFrame(() => {
-                void Promise.resolve(command.execute()).catch((error) => {
-                  console.error(`Quick Action failed: ${command.id}`, error);
-                });
-              });
+              window.requestAnimationFrame(() => executeCommand(command));
             }}
             registry={registry}
           />
