@@ -103,6 +103,13 @@ describe("collection content spacing ownership", () => {
     );
   });
 
+  it("scopes Books card sizes to BookGrid instead of the document root", () => {
+    expect(libraryStyles).toContain('.book-grid[data-book-card-size="small"]');
+    expect(libraryStyles).toContain('.book-grid[data-book-card-size="large"]');
+    expect(libraryStyles).not.toContain("html[data-card-size");
+    expect(libraryWorkspaceSource).toContain("cardSize={bookCardSize}");
+  });
+
   it("gives every collection view the same empty-state placement contract", () => {
     expect(libraryStyles).toMatch(/\.continue-reading\s*\{[^}]*margin:\s*0 auto;/s);
     expect(collectionContentStyles).toMatch(

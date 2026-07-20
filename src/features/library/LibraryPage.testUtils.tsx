@@ -359,9 +359,15 @@ export function setupLibraryPageTestSuite() {
       confirmDestructiveFileActions: true,
       library: {
         ...currentPreferences.library,
+        collections: {
+          ...currentPreferences.library.collections,
+          books: {
+            ...currentPreferences.library.collections.books,
+            sortBy: "title",
+            viewMode: "grid",
+          },
+        },
         filters: createDefaultLibraryFilters(),
-        sortBy: "title",
-        viewMode: "grid",
       },
     });
   });

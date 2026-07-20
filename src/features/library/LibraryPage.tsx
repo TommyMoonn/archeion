@@ -4,6 +4,7 @@ import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
+  useBooksCollectionPreferences,
   useConfirmDestructiveFileActionsPreference,
   useImportPreferences,
   useLibraryPreferences,
@@ -91,6 +92,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
   const libraryPreferences = useLibraryPreferences();
+  const booksDisplayPreferences = useBooksCollectionPreferences();
   const globalImportPreferences = useImportPreferences();
   const confirmDestructiveFileActions = useConfirmDestructiveFileActionsPreference();
   const showContinueReading = useShowContinueReadingPreference();
@@ -161,8 +163,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const { changeLocation, openBookSearch, openReader, scrollMainContentToTop } = navigation;
   const debouncedQuery = useDebouncedValue(navigation.query, 150);
   const filters = libraryPreferences.filters;
-  const sort = libraryPreferences.sortBy;
-  const view = libraryPreferences.viewMode;
+  const sort = booksDisplayPreferences.sortBy;
+  const view = booksDisplayPreferences.viewMode;
   const hasFilters = hasActiveLibraryFilters(filters);
   const importSettings: ImportSettings = {
     ...globalImportPreferences,
@@ -207,7 +209,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
 
   const { changeFilters, changeSort, changeView } = useLibraryViewPreferences({
-    preferences: libraryPreferences,
     showLibraryError,
   });
 
@@ -528,6 +529,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           selectedBookIds,
           selectionMode,
         }}
+        bookCardSize={booksDisplayPreferences.cardSize}
         continuePreview={continuePreview}
         debouncedQuery={debouncedQuery}
         emptyState={emptyState}

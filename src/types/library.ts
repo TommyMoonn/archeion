@@ -1,6 +1,33 @@
 export type LibraryView = "grid" | "list";
 export type FolderBrowserView = "list" | "cards";
+export type CollectionCardSize = "small" | "medium" | "large";
 export type LibrarySort = "title" | "author" | "recently-opened";
+export type FolderSort = "name" | "path" | "most-books";
+export type SeriesSort = "title" | "recently-opened" | "most-volumes";
+
+export type BooksCollectionPreferences = {
+  cardSize: CollectionCardSize;
+  sortBy: LibrarySort;
+  viewMode: LibraryView;
+};
+
+export type FoldersCollectionPreferences = {
+  cardSize: CollectionCardSize;
+  sortBy: FolderSort;
+  viewMode: FolderBrowserView;
+};
+
+export type SeriesCollectionPreferences = {
+  cardSize: CollectionCardSize;
+  sortBy: SeriesSort;
+  viewMode: LibraryView;
+};
+
+export type LibraryCollectionPreferences = {
+  books: BooksCollectionPreferences;
+  folders: FoldersCollectionPreferences;
+  series: SeriesCollectionPreferences;
+};
 export type LibraryReadingStatus = "unread" | "in-progress" | "completed";
 export type LibrarySmartView =
   "unread" | "in-progress" | "completed" | "needs-metadata" | "needs-cover";
@@ -31,9 +58,30 @@ export type LibraryFilterState = {
   missingCover: boolean;
 };
 
-export const DEFAULT_LIBRARY_SORT: LibrarySort = "title";
+export const DEFAULT_BOOKS_COLLECTION_PREFERENCES: Readonly<BooksCollectionPreferences> =
+  Object.freeze({
+    cardSize: "medium",
+    sortBy: "title",
+    viewMode: "grid",
+  });
+export const DEFAULT_FOLDERS_COLLECTION_PREFERENCES: Readonly<FoldersCollectionPreferences> =
+  Object.freeze({
+    cardSize: "medium",
+    sortBy: "name",
+    viewMode: "list",
+  });
+export const DEFAULT_SERIES_COLLECTION_PREFERENCES: Readonly<SeriesCollectionPreferences> =
+  Object.freeze({
+    cardSize: "medium",
+    sortBy: "title",
+    viewMode: "grid",
+  });
+export const DEFAULT_LIBRARY_SORT: LibrarySort = DEFAULT_BOOKS_COLLECTION_PREFERENCES.sortBy;
 
+const supportedCardSizes = new Set<string>(["small", "medium", "large"]);
 const supportedLibrarySorts = new Set<string>(["title", "author", "recently-opened"]);
+const supportedFolderSorts = new Set<string>(["name", "path", "most-books"]);
+const supportedSeriesSorts = new Set<string>(["title", "recently-opened", "most-volumes"]);
 const supportedReadingStatuses = new Set<string>(["unread", "in-progress", "completed"]);
 
 function normalizeFilterValues(value: unknown): string[] {
@@ -88,8 +136,52 @@ export function normalizeLibraryFilters(value: unknown): LibraryFilterState {
   };
 }
 
-export function normalizeLibrarySort(value: unknown): LibrarySort {
+export function normalizeCollectionCardSize(
+  value: unknown,
+  fallback: CollectionCardSize = "medium",
+): CollectionCardSize {
+  return typeof value === "string" && supportedCardSizes.has(value)
+    ? (value as CollectionCardSize)
+    : fallback;
+}
+
+export function normalizeLibraryView(
+  value: unknown,
+  fallback: LibraryView = DEFAULT_BOOKS_COLLECTION_PREFERENCES.viewMode,
+): LibraryView {
+  return value === "grid" || value === "list" ? value : fallback;
+}
+
+export function normalizeFolderBrowserView(
+  value: unknown,
+  fallback: FolderBrowserView = DEFAULT_FOLDERS_COLLECTION_PREFERENCES.viewMode,
+): FolderBrowserView {
+  return value === "cards" || value === "list" ? value : fallback;
+}
+
+export function normalizeLibrarySort(
+  value: unknown,
+  fallback: LibrarySort = DEFAULT_LIBRARY_SORT,
+): LibrarySort {
   return typeof value === "string" && supportedLibrarySorts.has(value)
     ? (value as LibrarySort)
-    : DEFAULT_LIBRARY_SORT;
+    : fallback;
+}
+
+export function normalizeFolderSort(
+  value: unknown,
+  fallback: FolderSort = DEFAULT_FOLDERS_COLLECTION_PREFERENCES.sortBy,
+): FolderSort {
+  return typeof value === "string" && supportedFolderSorts.has(value)
+    ? (value as FolderSort)
+    : fallback;
+}
+
+export function normalizeSeriesSort(
+  value: unknown,
+  fallback: SeriesSort = DEFAULT_SERIES_COLLECTION_PREFERENCES.sortBy,
+): SeriesSort {
+  return typeof value === "string" && supportedSeriesSorts.has(value)
+    ? (value as SeriesSort)
+    : fallback;
 }

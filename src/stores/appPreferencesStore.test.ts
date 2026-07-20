@@ -108,13 +108,15 @@ describe("app preferences", () => {
         animationsEnabled: false,
       },
       density: "comfortable",
-      bookCardSize: "medium",
       showContinueReading: true,
       startupBehavior: "open-last-archive",
       windowFrameStyle: "hidden",
       library: {
-        viewMode: "grid",
-        sortBy: "title",
+        collections: {
+          books: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
+          folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
+          series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
+        },
       },
       reader: {
         fontSize: 18,
@@ -148,12 +150,14 @@ describe("app preferences", () => {
         animationsEnabled: false,
       },
       density: "comfortable",
-      bookCardSize: "medium",
       startupBehavior: "open-last-archive",
       windowFrameStyle: "hidden",
       library: {
-        viewMode: "grid",
-        sortBy: "title",
+        collections: {
+          books: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
+          folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
+          series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
+        },
       },
       reader: {
         fontSize: 18,
@@ -220,7 +224,6 @@ describe("app preferences", () => {
         animationsEnabled: true,
       },
       density: "compact",
-      bookCardSize: "large",
       confirmDestructiveFileActions: false,
       filesAndMetadata: {
         keepEpubWritebackBackup: true,
@@ -249,8 +252,11 @@ describe("app preferences", () => {
           enabled: false,
           visible: ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"],
         },
-        viewMode: "list",
-        sortBy: "author",
+        collections: {
+          books: { cardSize: "large", sortBy: "author", viewMode: "list" },
+          folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
+          series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
+        },
       },
       navigation: null,
       reader: {
@@ -269,6 +275,62 @@ describe("app preferences", () => {
       window: null,
       windowFrameStyle: "native",
     });
+  });
+
+  it("normalizes invalid collection fields without discarding valid siblings", () => {
+    const normalized = normalizeAppPreferences({
+      bookCardSize: "large",
+      library: {
+        sortBy: "author",
+        viewMode: "list",
+        collections: {
+          books: { cardSize: "invalid", sortBy: "recently-opened", viewMode: "invalid" },
+          folders: { cardSize: "small", sortBy: "invalid", viewMode: "cards" },
+          series: { cardSize: "large", sortBy: "most-volumes", viewMode: "invalid" },
+        },
+      },
+    });
+
+    expect(normalized.library.collections).toEqual({
+      books: { cardSize: "large", sortBy: "recently-opened", viewMode: "list" },
+      folders: { cardSize: "small", sortBy: "name", viewMode: "cards" },
+      series: { cardSize: "large", sortBy: "most-volumes", viewMode: "grid" },
+    });
+    expect(normalized).not.toHaveProperty("bookCardSize");
+    expect(normalized.library).not.toHaveProperty("sortBy");
+    expect(normalized.library).not.toHaveProperty("viewMode");
+  });
+
+  it("round-trips the new collection schema through browser fallback persistence", async () => {
+    let saved: unknown = null;
+    const persistence = createPersistence({
+      isDesktop: () => false,
+      readLegacy: () => saved,
+      saveBrowserFallback: vi.fn((preferences) => {
+        saved = structuredClone(preferences);
+      }),
+    });
+    const first = new AppPreferencesStore(persistence);
+    await first.initialize();
+    await first.updateLibraryCollection("folders", {
+      cardSize: "small",
+      sortBy: "most-books",
+      viewMode: "cards",
+    });
+    await first.updateLibraryCollection("series", {
+      cardSize: "large",
+      sortBy: "recently-opened",
+      viewMode: "list",
+    });
+
+    const second = new AppPreferencesStore(persistence);
+    await second.initialize();
+
+    expect(second.getSnapshot().library.collections).toMatchObject({
+      folders: { cardSize: "small", sortBy: "most-books", viewMode: "cards" },
+      series: { cardSize: "large", sortBy: "recently-opened", viewMode: "list" },
+    });
+    expect(saved).not.toHaveProperty("bookCardSize");
   });
 
   it("normalizes Smart View visibility to known canonical values", () => {
@@ -391,7 +453,7 @@ describe("app preferences", () => {
 
     expect(store.getSnapshot()).toMatchObject({
       density: "compact",
-      bookCardSize: "large",
+      library: { collections: { books: { cardSize: "large" } } },
       showContinueReading: false,
     });
     expect(saveDesktop).toHaveBeenCalledWith(expect.objectContaining({ density: "compact" }));
@@ -453,8 +515,12 @@ describe("app preferences", () => {
     expect(saveDesktop).toHaveBeenLastCalledWith(
       expect.objectContaining({
         appThemePreset: "light",
-        bookCardSize: "large",
         density: "compact",
+        library: expect.objectContaining({
+          collections: expect.objectContaining({
+            books: expect.objectContaining({ cardSize: "large" }),
+          }),
+        }),
       }),
     );
   });
@@ -507,9 +573,15 @@ describe("app preferences", () => {
       import: { defaultConflictAction: "skip", defaultMode: "move" },
       library: {
         ...normalizeAppPreferences(null).library,
+        collections: {
+          ...normalizeAppPreferences(null).library.collections,
+          books: {
+            ...normalizeAppPreferences(null).library.collections.books,
+            sortBy: "recently-opened",
+            viewMode: "list",
+          },
+        },
         filters: createDefaultLibraryFilters(),
-        sortBy: "recently-opened",
-        viewMode: "list",
       },
       reader: {
         ...normalizeAppPreferences(null).reader,
@@ -533,10 +605,16 @@ describe("app preferences", () => {
           defaultMode: "move",
         },
         library: {
+          collections: {
+            ...normalizeAppPreferences(null).library.collections,
+            books: {
+              ...normalizeAppPreferences(null).library.collections.books,
+              sortBy: "recently-opened",
+              viewMode: "list",
+            },
+          },
           filters: createDefaultLibraryFilters(),
           smartViews: normalizeAppPreferences(null).library.smartViews,
-          sortBy: "recently-opened",
-          viewMode: "list",
         },
         reader: expect.objectContaining({
           fontSize: 24,
@@ -603,7 +681,7 @@ describe("app preference write coalescing", () => {
     try {
       await store.initialize();
       const first = store.update({ density: "compact" });
-      const second = store.update({ bookCardSize: "large" });
+      const second = store.updateLibraryCollection("books", { cardSize: "large" });
 
       expect(saveDesktop).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(250);
@@ -611,7 +689,14 @@ describe("app preference write coalescing", () => {
 
       expect(saveDesktop).toHaveBeenCalledOnce();
       expect(saveDesktop).toHaveBeenCalledWith(
-        expect.objectContaining({ density: "compact", bookCardSize: "large" }),
+        expect.objectContaining({
+          density: "compact",
+          library: expect.objectContaining({
+            collections: expect.objectContaining({
+              books: expect.objectContaining({ cardSize: "large" }),
+            }),
+          }),
+        }),
       );
     } finally {
       vi.useRealTimers();

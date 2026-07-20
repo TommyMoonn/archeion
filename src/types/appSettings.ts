@@ -4,12 +4,16 @@ import type {
   LibraryDisplaySettings,
 } from "./settings";
 import type { KeyboardPreferences } from "./keyboard";
-import { createDefaultLibraryFilters } from "./library";
+import {
+  createDefaultLibraryFilters,
+  DEFAULT_BOOKS_COLLECTION_PREFERENCES,
+  DEFAULT_FOLDERS_COLLECTION_PREFERENCES,
+  DEFAULT_SERIES_COLLECTION_PREFERENCES,
+} from "./library";
 import type { ReaderSettings } from "./reader";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 
 export type InterfaceDensity = "comfortable" | "compact";
-export type BookCardSize = "small" | "medium" | "large";
 export type WindowFrameStyle = "hidden" | "archeion" | "native";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
 export type AppThemePreset = "system" | "dark" | "light";
@@ -35,7 +39,6 @@ export type AppearanceSettings = {
 export type AppPreferences = {
   appThemePreset: AppThemePreset;
   appearance: AppearanceSettings;
-  bookCardSize: BookCardSize;
   confirmDestructiveFileActions: boolean;
   density: InterfaceDensity;
   filesAndMetadata: FilesAndMetadataSettings;
@@ -57,7 +60,6 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   appearance: Object.freeze({
     animationsEnabled: false,
   }),
-  bookCardSize: "medium",
   confirmDestructiveFileActions: true,
   density: "comfortable",
   filesAndMetadata: Object.freeze({
@@ -73,10 +75,13 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     shortcuts: Object.freeze({}),
   }),
   library: Object.freeze({
+    collections: Object.freeze({
+      books: DEFAULT_BOOKS_COLLECTION_PREFERENCES,
+      folders: DEFAULT_FOLDERS_COLLECTION_PREFERENCES,
+      series: DEFAULT_SERIES_COLLECTION_PREFERENCES,
+    }),
     filters: Object.freeze(createDefaultLibraryFilters()),
     smartViews: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
-    sortBy: "title",
-    viewMode: "grid",
   }),
   navigation: null,
   reader: Object.freeze({

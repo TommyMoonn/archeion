@@ -1,6 +1,7 @@
 import { memo, useLayoutEffect } from "react";
 
 import type { Book } from "../../types/book";
+import type { CollectionCardSize } from "../../types/library";
 import { BookCard } from "./BookCard";
 import type { LibrarySelectionIntent } from "./librarySelection";
 import {
@@ -11,6 +12,7 @@ import {
 
 type BookGridProps = {
   books: Book[];
+  cardSize?: CollectionCardSize;
   onDelete: (book: Book) => void;
   onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
@@ -29,6 +31,7 @@ type BookGridProps = {
 
 export const BookGrid = memo(function BookGrid({
   books,
+  cardSize = "medium",
   onDelete,
   onEditMetadata,
   onMove,
@@ -59,6 +62,7 @@ export const BookGrid = memo(function BookGrid({
     <section
       ref={collectionRef}
       className="book-grid"
+      data-book-card-size={cardSize}
       aria-label="Books"
       data-windowed={windowed || undefined}
       data-window-start={range.start}

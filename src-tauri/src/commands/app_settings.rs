@@ -54,15 +54,85 @@ pub struct LibrarySmartViewSettings {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct LibraryDisplaySettings {
-    #[serde(default)]
-    pub filters: LibraryFilterSettings,
+pub struct BookCollectionDisplaySettings {
+    #[serde(default = "default_collection_card_size")]
+    pub card_size: String,
     #[serde(default = "default_library_sort")]
     pub sort_by: String,
-    #[serde(default)]
-    pub smart_views: LibrarySmartViewSettings,
     #[serde(default = "default_library_view")]
     pub view_mode: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FolderCollectionDisplaySettings {
+    #[serde(default = "default_collection_card_size")]
+    pub card_size: String,
+    #[serde(default = "default_folder_sort")]
+    pub sort_by: String,
+    #[serde(default = "default_folder_view")]
+    pub view_mode: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SeriesCollectionDisplaySettings {
+    #[serde(default = "default_collection_card_size")]
+    pub card_size: String,
+    #[serde(default = "default_series_sort")]
+    pub sort_by: String,
+    #[serde(default = "default_series_view")]
+    pub view_mode: String,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryCollectionDisplaySettings {
+    #[serde(default)]
+    pub books: BookCollectionDisplaySettings,
+    #[serde(default)]
+    pub folders: FolderCollectionDisplaySettings,
+    #[serde(default)]
+    pub series: SeriesCollectionDisplaySettings,
+}
+
+#[derive(Clone, Debug, Default, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LibraryDisplaySettings {
+    pub collections: LibraryCollectionDisplaySettings,
+    pub filters: LibraryFilterSettings,
+    pub smart_views: LibrarySmartViewSettings,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CollectionDisplaySettingsWire {
+    card_size: Option<String>,
+    sort_by: Option<String>,
+    view_mode: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryCollectionDisplaySettingsWire {
+    #[serde(default)]
+    books: CollectionDisplaySettingsWire,
+    #[serde(default)]
+    folders: CollectionDisplaySettingsWire,
+    #[serde(default)]
+    series: CollectionDisplaySettingsWire,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryDisplaySettingsWire {
+    collections: Option<LibraryCollectionDisplaySettingsWire>,
+    #[serde(default)]
+    filters: LibraryFilterSettings,
+    #[serde(default)]
+    smart_views: LibrarySmartViewSettings,
+    sort_by: Option<String>,
+    view_mode: Option<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -179,49 +249,96 @@ pub struct PersistedWindowState {
     pub y: f64,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferences {
-    #[serde(default = "default_app_theme_preset")]
     pub app_theme_preset: String,
-    #[serde(default)]
     pub appearance: AppearanceSettings,
-    #[serde(default = "default_book_card_size")]
-    pub book_card_size: String,
-    #[serde(default = "default_true")]
     pub confirm_destructive_file_actions: bool,
-    #[serde(default = "default_density")]
     pub density: String,
-    #[serde(default)]
     pub files_and_metadata: FilesAndMetadataSettings,
-    #[serde(default)]
     pub import: GlobalImportSettings,
-    #[serde(default)]
     pub keyboard: KeyboardPreferences,
-    #[serde(default)]
     pub library: LibraryDisplaySettings,
-    #[serde(default)]
     pub navigation: Option<RememberedNavigationState>,
-    #[serde(default)]
     pub reader: ReaderSettings,
-    #[serde(default)]
     pub remember_window_state: bool,
-    #[serde(default)]
     pub restore_last_reader: bool,
-    #[serde(default = "default_true")]
     pub show_continue_reading: bool,
-    #[serde(default = "default_startup_behavior")]
     pub startup_behavior: String,
-    #[serde(default)]
     pub window: Option<PersistedWindowState>,
-    #[serde(default = "default_window_frame_style")]
     pub window_frame_style: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AppPreferencesWire {
+    #[serde(default = "default_app_theme_preset")]
+    app_theme_preset: String,
+    #[serde(default)]
+    appearance: AppearanceSettings,
+    book_card_size: Option<String>,
+    #[serde(default = "default_true")]
+    confirm_destructive_file_actions: bool,
+    #[serde(default = "default_density")]
+    density: String,
+    #[serde(default)]
+    files_and_metadata: FilesAndMetadataSettings,
+    #[serde(default)]
+    import: GlobalImportSettings,
+    #[serde(default)]
+    keyboard: KeyboardPreferences,
+    #[serde(default)]
+    library: LibraryDisplaySettingsWire,
+    #[serde(default)]
+    navigation: Option<RememberedNavigationState>,
+    #[serde(default)]
+    reader: ReaderSettings,
+    #[serde(default)]
+    remember_window_state: bool,
+    #[serde(default)]
+    restore_last_reader: bool,
+    #[serde(default = "default_true")]
+    show_continue_reading: bool,
+    #[serde(default = "default_startup_behavior")]
+    startup_behavior: String,
+    #[serde(default)]
+    window: Option<PersistedWindowState>,
+    #[serde(default = "default_window_frame_style")]
+    window_frame_style: String,
+}
+
+impl<'de> Deserialize<'de> for AppPreferences {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let wire = AppPreferencesWire::deserialize(deserializer)?;
+        Ok(Self {
+            app_theme_preset: wire.app_theme_preset,
+            appearance: wire.appearance,
+            confirm_destructive_file_actions: wire.confirm_destructive_file_actions,
+            density: wire.density,
+            files_and_metadata: wire.files_and_metadata,
+            import: wire.import,
+            keyboard: wire.keyboard,
+            library: LibraryDisplaySettings::from_wire(wire.library, wire.book_card_size),
+            navigation: wire.navigation,
+            reader: wire.reader,
+            remember_window_state: wire.remember_window_state,
+            restore_last_reader: wire.restore_last_reader,
+            show_continue_reading: wire.show_continue_reading,
+            startup_behavior: wire.startup_behavior,
+            window: wire.window,
+            window_frame_style: wire.window_frame_style,
+        })
+    }
 }
 
 fn default_app_theme_preset() -> String {
     "dark".to_string()
 }
-fn default_book_card_size() -> String {
+fn default_collection_card_size() -> String {
     "medium".to_string()
 }
 fn default_density() -> String {
@@ -233,10 +350,22 @@ fn default_import_conflict_action() -> String {
 fn default_import_mode() -> String {
     "copy".to_string()
 }
+fn default_folder_sort() -> String {
+    "name".to_string()
+}
+fn default_folder_view() -> String {
+    "list".to_string()
+}
 fn default_library_sort() -> String {
     "title".to_string()
 }
 fn default_library_view() -> String {
+    "grid".to_string()
+}
+fn default_series_sort() -> String {
+    "title".to_string()
+}
+fn default_series_view() -> String {
     "grid".to_string()
 }
 fn default_visible_smart_views() -> Vec<String> {
@@ -282,13 +411,113 @@ fn default_window_frame_style() -> String {
     "hidden".to_string()
 }
 
-impl Default for LibraryDisplaySettings {
+fn normalize_setting(value: Option<String>, supported: &[&str], fallback: &str) -> String {
+    value
+        .filter(|candidate| supported.contains(&candidate.as_str()))
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+impl Default for BookCollectionDisplaySettings {
     fn default() -> Self {
         Self {
-            filters: LibraryFilterSettings::default(),
+            card_size: default_collection_card_size(),
             sort_by: default_library_sort(),
-            smart_views: LibrarySmartViewSettings::default(),
             view_mode: default_library_view(),
+        }
+    }
+}
+
+impl Default for FolderCollectionDisplaySettings {
+    fn default() -> Self {
+        Self {
+            card_size: default_collection_card_size(),
+            sort_by: default_folder_sort(),
+            view_mode: default_folder_view(),
+        }
+    }
+}
+
+impl Default for SeriesCollectionDisplaySettings {
+    fn default() -> Self {
+        Self {
+            card_size: default_collection_card_size(),
+            sort_by: default_series_sort(),
+            view_mode: default_series_view(),
+        }
+    }
+}
+
+impl LibraryDisplaySettings {
+    fn from_wire(wire: LibraryDisplaySettingsWire, legacy_book_card_size: Option<String>) -> Self {
+        let legacy_view = normalize_setting(wire.view_mode, &["grid", "list"], "grid");
+        let legacy_sort = normalize_setting(
+            wire.sort_by,
+            &["title", "author", "recently-opened"],
+            "title",
+        );
+        let legacy_card_size = normalize_setting(
+            legacy_book_card_size,
+            &["small", "medium", "large"],
+            "medium",
+        );
+        let collections = wire.collections.unwrap_or_default();
+
+        Self {
+            collections: LibraryCollectionDisplaySettings {
+                books: BookCollectionDisplaySettings {
+                    card_size: normalize_setting(
+                        collections.books.card_size,
+                        &["small", "medium", "large"],
+                        &legacy_card_size,
+                    ),
+                    sort_by: normalize_setting(
+                        collections.books.sort_by,
+                        &["title", "author", "recently-opened"],
+                        &legacy_sort,
+                    ),
+                    view_mode: normalize_setting(
+                        collections.books.view_mode,
+                        &["grid", "list"],
+                        &legacy_view,
+                    ),
+                },
+                folders: FolderCollectionDisplaySettings {
+                    card_size: normalize_setting(
+                        collections.folders.card_size,
+                        &["small", "medium", "large"],
+                        "medium",
+                    ),
+                    sort_by: normalize_setting(
+                        collections.folders.sort_by,
+                        &["name", "path", "most-books"],
+                        "name",
+                    ),
+                    view_mode: normalize_setting(
+                        collections.folders.view_mode,
+                        &["cards", "list"],
+                        "list",
+                    ),
+                },
+                series: SeriesCollectionDisplaySettings {
+                    card_size: normalize_setting(
+                        collections.series.card_size,
+                        &["small", "medium", "large"],
+                        "medium",
+                    ),
+                    sort_by: normalize_setting(
+                        collections.series.sort_by,
+                        &["title", "recently-opened", "most-volumes"],
+                        "title",
+                    ),
+                    view_mode: normalize_setting(
+                        collections.series.view_mode,
+                        &["grid", "list"],
+                        "grid",
+                    ),
+                },
+            },
+            filters: wire.filters,
+            smart_views: wire.smart_views,
         }
     }
 }
@@ -339,7 +568,6 @@ impl Default for AppPreferences {
         Self {
             app_theme_preset: default_app_theme_preset(),
             appearance: AppearanceSettings::default(),
-            book_card_size: default_book_card_size(),
             confirm_destructive_file_actions: true,
             density: default_density(),
             files_and_metadata: FilesAndMetadataSettings::default(),
@@ -495,14 +723,22 @@ mod tests {
         .expect("old app preferences should parse");
 
         assert_eq!(parsed.density, "compact");
-        assert_eq!(parsed.book_card_size, "large");
+        assert_eq!(parsed.library.collections.books.card_size, "large");
         assert!(!parsed.show_continue_reading);
         assert_eq!(parsed.window_frame_style, "native");
         assert_eq!(parsed.startup_behavior, "open-last-archive");
         assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
-        assert_eq!(parsed.library.sort_by, "author");
-        assert_eq!(parsed.library.view_mode, "list");
+        assert_eq!(parsed.library.collections.books.sort_by, "author");
+        assert_eq!(parsed.library.collections.books.view_mode, "list");
+        assert_eq!(
+            parsed.library.collections.folders,
+            super::FolderCollectionDisplaySettings::default()
+        );
+        assert_eq!(
+            parsed.library.collections.series,
+            super::SeriesCollectionDisplaySettings::default()
+        );
         assert_eq!(
             parsed.library.smart_views,
             LibrarySmartViewSettings::default()
@@ -516,6 +752,54 @@ mod tests {
         assert!(!parsed.files_and_metadata.keep_epub_writeback_backup);
         assert!(parsed.keyboard.shortcuts.is_empty());
         assert!(parsed.window.is_none());
+    }
+
+    #[test]
+    fn app_preferences_normalize_collection_fields_independently_and_emit_only_new_schema() {
+        let parsed: AppPreferences = serde_json::from_value(serde_json::json!({
+            "bookCardSize": "large",
+            "library": {
+                "sortBy": "author",
+                "viewMode": "list",
+                "collections": {
+                    "books": {
+                        "cardSize": "invalid",
+                        "sortBy": "recently-opened",
+                        "viewMode": "invalid"
+                    },
+                    "folders": {
+                        "cardSize": "small",
+                        "sortBy": "invalid",
+                        "viewMode": "cards"
+                    },
+                    "series": {
+                        "cardSize": "large",
+                        "sortBy": "most-volumes",
+                        "viewMode": "invalid"
+                    }
+                }
+            }
+        }))
+        .expect("mixed collection settings should parse");
+
+        assert_eq!(parsed.library.collections.books.card_size, "large");
+        assert_eq!(parsed.library.collections.books.sort_by, "recently-opened");
+        assert_eq!(parsed.library.collections.books.view_mode, "list");
+        assert_eq!(parsed.library.collections.folders.card_size, "small");
+        assert_eq!(parsed.library.collections.folders.sort_by, "name");
+        assert_eq!(parsed.library.collections.folders.view_mode, "cards");
+        assert_eq!(parsed.library.collections.series.card_size, "large");
+        assert_eq!(parsed.library.collections.series.sort_by, "most-volumes");
+        assert_eq!(parsed.library.collections.series.view_mode, "grid");
+
+        let serialized = serde_json::to_value(parsed).expect("preferences should serialize");
+        assert!(serialized.get("bookCardSize").is_none());
+        assert!(serialized["library"].get("sortBy").is_none());
+        assert!(serialized["library"].get("viewMode").is_none());
+        assert_eq!(
+            serialized["library"]["collections"]["folders"]["viewMode"],
+            "cards"
+        );
     }
 
     #[test]
@@ -587,17 +871,32 @@ mod tests {
                 .collect(),
             },
             library: super::LibraryDisplaySettings {
+                collections: super::LibraryCollectionDisplaySettings {
+                    books: super::BookCollectionDisplaySettings {
+                        card_size: "large".to_string(),
+                        sort_by: "author".to_string(),
+                        view_mode: "list".to_string(),
+                    },
+                    folders: super::FolderCollectionDisplaySettings {
+                        card_size: "small".to_string(),
+                        sort_by: "most-books".to_string(),
+                        view_mode: "cards".to_string(),
+                    },
+                    series: super::SeriesCollectionDisplaySettings {
+                        card_size: "large".to_string(),
+                        sort_by: "recently-opened".to_string(),
+                        view_mode: "list".to_string(),
+                    },
+                },
                 filters: super::LibraryFilterSettings {
                     languages: vec!["en".to_string()],
                     missing_cover: true,
                     ..super::LibraryFilterSettings::default()
                 },
-                sort_by: "author".to_string(),
                 smart_views: LibrarySmartViewSettings {
                     enabled: true,
                     visible: vec!["needs-cover".to_string(), "unread".to_string()],
                 },
-                view_mode: "list".to_string(),
             },
             ..AppPreferences::default()
         };

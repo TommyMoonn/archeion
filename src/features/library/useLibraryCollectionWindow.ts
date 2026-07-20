@@ -339,8 +339,12 @@ export function useLibraryCollectionWindow(
     window.addEventListener("resize", scheduleLayoutMeasurement, { passive: true });
     geometryObserver?.observe(collection);
     if (scrollRoot) geometryObserver?.observe(scrollRoot);
+    preferenceObserver?.observe(collection, {
+      attributeFilter: ["data-book-card-size"],
+      attributes: true,
+    });
     preferenceObserver?.observe(document.documentElement, {
-      attributeFilter: ["data-card-size", "data-density"],
+      attributeFilter: ["data-density"],
       attributes: true,
     });
 
@@ -429,7 +433,7 @@ function measuredGridColumns(collection: HTMLElement, style: CSSStyleDeclaration
     if (tracks.length > 0 && tracks.every((track) => track !== "none")) return tracks.length;
   }
   const width = measuredWidth(collection) || 1_000;
-  const cardSize = document.documentElement.dataset.cardSize;
+  const cardSize = collection.dataset.bookCardSize;
   const minimum = cardSize === "small" ? 120 : cardSize === "large" ? 190 : 150;
   const gap = cssPixels(style.columnGap || style.gap) || 20;
   return Math.max(1, Math.floor((width + gap) / (minimum + gap)));

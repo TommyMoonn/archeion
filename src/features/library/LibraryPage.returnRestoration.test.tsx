@@ -71,7 +71,13 @@ describe.each(["grid", "list"] as const)("%s reader-return restoration", (view) 
   beforeEach(async () => {
     const preferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({
-      library: { ...preferences.library, viewMode: view },
+      library: {
+        ...preferences.library,
+        collections: {
+          ...preferences.library.collections,
+          books: { ...preferences.library.collections.books, viewMode: view },
+        },
+      },
     });
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
       this: HTMLElement,
@@ -206,7 +212,13 @@ describe.each(["grid", "list"] as const)("small %s reader-return restoration", (
   beforeEach(async () => {
     const preferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({
-      library: { ...preferences.library, viewMode: view },
+      library: {
+        ...preferences.library,
+        collections: {
+          ...preferences.library.collections,
+          books: { ...preferences.library.collections.books, viewMode: view },
+        },
+      },
     });
   });
 

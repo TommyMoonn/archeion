@@ -307,8 +307,8 @@ export function useSettingsDialogController({
     setConfirmations((current) => ({ ...current, [confirmation]: false }));
   }
 
-  async function updateAppPreferences(
-    changes: Partial<AppPreferences>,
+  async function persistAppPreferences(
+    operation: () => Promise<AppPreferences>,
     options?: { successMessage?: string | false },
   ): Promise<boolean> {
     appPreferenceSaveRevisionRef.current += 1;
@@ -316,7 +316,7 @@ export function useSettingsDialogController({
     clearLocalStatus();
 
     try {
-      await appPreferencesStore.update(changes);
+      await operation();
       if (appPreferenceSaveRevisionRef.current !== saveRevision) {
         return true;
       }
@@ -334,12 +334,30 @@ export function useSettingsDialogController({
     }
   }
 
+  function updateAppPreferences(
+    changes: Partial<AppPreferences>,
+    options?: { successMessage?: string | false },
+  ): Promise<boolean> {
+    return persistAppPreferences(() => appPreferencesStore.update(changes), options);
+  }
+
   function updateReader(changes: Partial<AppPreferences["reader"]>) {
     void updateAppPreferences({ reader: { ...reader, ...changes } });
   }
 
   function updateLibrary(changes: Partial<AppPreferences["library"]>) {
-    void updateAppPreferences({ library: { ...library, ...changes } });
+    void persistAppPreferences(() => appPreferencesStore.updateLibrary(changes));
+  }
+
+  function updateLibraryCollection<
+    TCollection extends keyof AppPreferences["library"]["collections"],
+  >(
+    collection: TCollection,
+    changes: Partial<AppPreferences["library"]["collections"][TCollection]>,
+  ) {
+    void persistAppPreferences(() =>
+      appPreferencesStore.updateLibraryCollection(collection, changes),
+    );
   }
 
   function updateFiles(changes: Partial<AppPreferences["filesAndMetadata"]>) {
@@ -531,7 +549,6 @@ export function useSettingsDialogController({
   async function resetLibrary() {
     await updateAppPreferences(
       {
-        bookCardSize: defaultAppPreferences.bookCardSize,
         library: defaultAppPreferences.library,
         showContinueReading: defaultAppPreferences.showContinueReading,
       },
@@ -625,6 +642,7 @@ export function useSettingsDialogController({
     updateImportDefaults,
     updateImportDestination,
     updateLibrary,
+    updateLibraryCollection,
     updateReader,
     confirmClearCoverCache: () => void clearCache(),
     confirmClearEpubWritebackBackups: () => void clearEpubWritebackBackups(),

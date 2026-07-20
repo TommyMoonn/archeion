@@ -11,7 +11,7 @@ import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
 import type { Book } from "../../types/book";
-import type { LibraryLocation, LibraryView } from "../../types/library";
+import type { CollectionCardSize, LibraryLocation, LibraryView } from "../../types/library";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
@@ -41,13 +41,14 @@ function getLibrarySurfaceState(
 
 type SharedBookCollectionProps = Omit<
   ComponentProps<typeof BookGrid>,
-  "books" | "returnFocusRequest" | "selectedBookIds" | "selectionMode"
+  "books" | "cardSize" | "returnFocusRequest" | "selectedBookIds" | "selectionMode"
 > & {
   selectedBookIds: ReadonlySet<string>;
   selectionMode: boolean;
 };
 
 type LibraryWorkspaceSurfaceProps = {
+  bookCardSize: CollectionCardSize;
   books: Book[] | undefined;
   bookCollectionProps: SharedBookCollectionProps;
   continuePreview: Book[];
@@ -75,6 +76,7 @@ type LibraryWorkspaceSurfaceProps = {
 };
 
 export function LibraryWorkspaceSurface({
+  bookCardSize,
   books,
   bookCollectionProps,
   continuePreview,
@@ -200,6 +202,7 @@ export function LibraryWorkspaceSurface({
             ) : view === "grid" ? (
               <BookGrid
                 books={visibleBooks}
+                cardSize={bookCardSize}
                 returnFocusRequest={returnFocusRequest}
                 {...bookCollectionProps}
               />

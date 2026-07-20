@@ -12,11 +12,19 @@ import {
 } from "../types/appSettings";
 import { normalizeReaderSettings, type ReaderSettings } from "../types/reader";
 import {
-  DEFAULT_LIBRARY_SORT,
+  DEFAULT_BOOKS_COLLECTION_PREFERENCES,
+  DEFAULT_FOLDERS_COLLECTION_PREFERENCES,
+  DEFAULT_SERIES_COLLECTION_PREFERENCES,
+  normalizeCollectionCardSize,
+  normalizeFolderBrowserView,
+  normalizeFolderSort,
   normalizeLibraryFilters,
   normalizeLibrarySort,
+  normalizeLibraryView,
+  normalizeSeriesSort,
+  type LibraryCollectionPreferences,
+  type LibrarySmartViewPreferences,
 } from "../types/library";
-import type { LibrarySmartViewPreferences } from "../types/library";
 import {
   DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES,
   isLibrarySmartView,
@@ -31,6 +39,12 @@ import type {
 const LEGACY_STORAGE_KEY = "archeion:preferences";
 const APP_PREFERENCES_WRITE_DELAY_MS = 250;
 type Listener = () => void;
+
+type LibraryDisplaySettingsUpdate = Partial<Omit<LibraryDisplaySettings, "collections">> & {
+  collections?: Partial<LibraryCollectionPreferences>;
+};
+
+type LibraryCollectionKey = keyof LibraryCollectionPreferences;
 
 type AppPreferencesCommand = "load_app_settings" | "save_app_settings";
 
@@ -109,10 +123,6 @@ function createDefaultPersistence(): AppPreferencesPersistence {
   };
 }
 
-function normalizeLibraryViewMode(value: unknown): LibraryDisplaySettings["viewMode"] {
-  return value === "list" ? "list" : defaultAppPreferences.library.viewMode;
-}
-
 export function normalizeLibrarySmartViewPreferences(value: unknown): LibrarySmartViewPreferences {
   const settings = isRecord(value) ? value : {};
   const requested = Array.isArray(settings.visible)
@@ -128,13 +138,60 @@ export function normalizeLibrarySmartViewPreferences(value: unknown): LibrarySma
   };
 }
 
-function normalizeLibrarySettings(value: unknown): LibraryDisplaySettings {
+function normalizeLibrarySettings(
+  value: unknown,
+  legacyBookCardSize: unknown,
+): LibraryDisplaySettings {
   const settings = isRecord(value) ? value : {};
+  const collections = isRecord(settings.collections) ? settings.collections : {};
+  const books = isRecord(collections.books) ? collections.books : {};
+  const folders = isRecord(collections.folders) ? collections.folders : {};
+  const series = isRecord(collections.series) ? collections.series : {};
+  const legacyBookView = normalizeLibraryView(
+    settings.viewMode,
+    DEFAULT_BOOKS_COLLECTION_PREFERENCES.viewMode,
+  );
+  const legacyBookSort = normalizeLibrarySort(
+    settings.sortBy,
+    DEFAULT_BOOKS_COLLECTION_PREFERENCES.sortBy,
+  );
+  const legacyCardSize = normalizeCollectionCardSize(
+    legacyBookCardSize,
+    DEFAULT_BOOKS_COLLECTION_PREFERENCES.cardSize,
+  );
+
   return {
+    collections: {
+      books: {
+        cardSize: normalizeCollectionCardSize(books.cardSize, legacyCardSize),
+        sortBy: normalizeLibrarySort(books.sortBy, legacyBookSort),
+        viewMode: normalizeLibraryView(books.viewMode, legacyBookView),
+      },
+      folders: {
+        cardSize: normalizeCollectionCardSize(
+          folders.cardSize,
+          DEFAULT_FOLDERS_COLLECTION_PREFERENCES.cardSize,
+        ),
+        sortBy: normalizeFolderSort(folders.sortBy, DEFAULT_FOLDERS_COLLECTION_PREFERENCES.sortBy),
+        viewMode: normalizeFolderBrowserView(
+          folders.viewMode,
+          DEFAULT_FOLDERS_COLLECTION_PREFERENCES.viewMode,
+        ),
+      },
+      series: {
+        cardSize: normalizeCollectionCardSize(
+          series.cardSize,
+          DEFAULT_SERIES_COLLECTION_PREFERENCES.cardSize,
+        ),
+        sortBy: normalizeSeriesSort(series.sortBy, DEFAULT_SERIES_COLLECTION_PREFERENCES.sortBy),
+        viewMode: normalizeLibraryView(
+          series.viewMode,
+          DEFAULT_SERIES_COLLECTION_PREFERENCES.viewMode,
+        ),
+      },
+    },
     filters: normalizeLibraryFilters(settings.filters),
     smartViews: normalizeLibrarySmartViewPreferences(settings.smartViews),
-    sortBy: normalizeLibrarySort(settings.sortBy),
-    viewMode: normalizeLibraryViewMode(settings.viewMode),
   };
 }
 
@@ -262,16 +319,12 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
         ? value.appThemePreset
         : defaultAppPreferences.appThemePreset,
     appearance: normalizeAppearanceSettings(value.appearance),
-    bookCardSize:
-      value.bookCardSize === "small" || value.bookCardSize === "large"
-        ? value.bookCardSize
-        : defaultAppPreferences.bookCardSize,
     confirmDestructiveFileActions: value.confirmDestructiveFileActions !== false,
     density: value.density === "compact" ? "compact" : defaultAppPreferences.density,
     filesAndMetadata: normalizeFilesAndMetadataSettings(value.filesAndMetadata),
     import: normalizeGlobalImportSettings(value.import),
     keyboard: normalizeKeyboardPreferences(value.keyboard),
-    library: normalizeLibrarySettings(value.library),
+    library: normalizeLibrarySettings(value.library, value.bookCardSize),
     navigation: normalizeRememberedNavigation(value.navigation),
     reader: normalizeReader(value.reader),
     rememberWindowState: value.rememberWindowState === true,
@@ -330,6 +383,13 @@ function mergeAppPreferences(
         : {
             ...base.library,
             ...changes.library,
+            collections:
+              changes.library.collections === undefined
+                ? base.library.collections
+                : {
+                    ...base.library.collections,
+                    ...changes.library.collections,
+                  },
           },
     reader:
       changes.reader === undefined
@@ -398,6 +458,12 @@ export class AppPreferencesStore {
 
   getLibrarySnapshot = () => this.preferences.library;
 
+  getBooksCollectionSnapshot = () => this.preferences.library.collections.books;
+
+  getFoldersCollectionSnapshot = () => this.preferences.library.collections.folders;
+
+  getSeriesCollectionSnapshot = () => this.preferences.library.collections.series;
+
   getReaderSnapshot = () => this.preferences.reader;
 
   getConfirmDestructiveFileActionsSnapshot = () => this.preferences.confirmDestructiveFileActions;
@@ -427,6 +493,38 @@ export class AppPreferencesStore {
     this.mutationRevision += 1;
     this.setPreferences(next);
     return this.persist(next, this.mutationRevision);
+  }
+
+  async updateLibrary(changes: LibraryDisplaySettingsUpdate): Promise<AppPreferences> {
+    await this.initialize();
+    const current = this.preferences.library;
+    return this.update({
+      library: {
+        ...current,
+        ...changes,
+        collections: {
+          ...current.collections,
+          ...changes.collections,
+        },
+      },
+    });
+  }
+
+  async updateLibraryCollection<TKey extends LibraryCollectionKey>(
+    collection: TKey,
+    changes: Partial<LibraryCollectionPreferences[TKey]>,
+  ): Promise<AppPreferences> {
+    await this.initialize();
+    const currentCollections = this.preferences.library.collections;
+    return this.updateLibrary({
+      collections: {
+        ...currentCollections,
+        [collection]: {
+          ...currentCollections[collection],
+          ...changes,
+        },
+      },
+    });
   }
 
   async flushPendingWrites(): Promise<void> {
@@ -539,10 +637,7 @@ export class AppPreferencesStore {
 
     document.documentElement.dataset.motion = getEffectiveMotionState(this.preferences);
     document.documentElement.dataset.density = this.preferences.density;
-    document.documentElement.dataset.cardSize = this.preferences.bookCardSize;
     document.documentElement.dataset.windowFrame = this.preferences.windowFrameStyle;
-    document.documentElement.dataset.librarySort =
-      this.preferences.library.sortBy ?? DEFAULT_LIBRARY_SORT;
   }
 }
 
@@ -574,6 +669,27 @@ export function useLibraryPreferences() {
   return useSyncExternalStore(
     appPreferencesStore.subscribe,
     appPreferencesStore.getLibrarySnapshot,
+  );
+}
+
+export function useBooksCollectionPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getBooksCollectionSnapshot,
+  );
+}
+
+export function useFoldersCollectionPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getFoldersCollectionSnapshot,
+  );
+}
+
+export function useSeriesCollectionPreferences() {
+  return useSyncExternalStore(
+    appPreferencesStore.subscribe,
+    appPreferencesStore.getSeriesCollectionSnapshot,
   );
 }
 

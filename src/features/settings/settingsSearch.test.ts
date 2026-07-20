@@ -62,6 +62,28 @@ describe("settingsSearch", () => {
     ]);
   });
 
+  it("finds collection display settings by domain-specific terms", () => {
+    expect(findSettingsSearchResults("folder path").map((result) => result.item.id)).toContain(
+      "library.folders.default-sort",
+    );
+    expect(findSettingsSearchResults("book count").map((result) => result.item.id)).toContain(
+      "library.folders.default-sort",
+    );
+    expect(
+      findSettingsSearchResults("recently opened series").map((result) => result.item.id),
+    ).toContain("library.series.default-sort");
+    expect(findSettingsSearchResults("volume count").map((result) => result.item.id)).toContain(
+      "library.series.default-sort",
+    );
+    expect(findSettingsSearchResults("card size").map((result) => result.item.id)).toEqual(
+      expect.arrayContaining([
+        "library.books.card-size",
+        "library.folders.card-size",
+        "library.series.card-size",
+      ]),
+    );
+  });
+
   it("keeps removed composite labels out of search", () => {
     expect(findSettingsSearchResults("appearance and window")).toHaveLength(0);
     expect(findSettingsSearchResults("files and maintenance")).toHaveLength(0);

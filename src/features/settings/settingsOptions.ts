@@ -1,11 +1,10 @@
 import type {
   AppThemePreset,
-  BookCardSize,
   InterfaceDensity,
   StartupBehavior,
   WindowFrameStyle,
 } from "../../types/appSettings";
-import type { LibrarySort } from "../../types/library";
+import type { CollectionCardSize, FolderBrowserView, LibrarySort } from "../../types/library";
 import type { ReaderProgressPlacement, ReaderTheme } from "../../types/reader";
 import { readerTypefaceOptions } from "../reader/readerFonts";
 import type { LibraryView } from "../../types/library";
@@ -38,7 +37,7 @@ export const cardSizeOptions = [
   { label: "Small", value: "small" },
   { label: "Medium", value: "medium" },
   { label: "Large", value: "large" },
-] satisfies Array<SettingsOption<BookCardSize>>;
+] satisfies Array<SettingsOption<CollectionCardSize>>;
 
 export const frameOptions = [
   { label: "Hidden", value: "hidden" },
@@ -63,3 +62,11 @@ export const viewOptions = [
 ] satisfies Array<SettingsOption<LibraryView>>;
 
 export const defaultLibrarySortOptions: Array<SettingsOption<LibrarySort>> = librarySortOptions;
+
+export const folderViewOptions = [
+  { label: "Cards", value: "cards" },
+  { label: "List", value: "list" },
+] satisfies Array<SettingsOption<FolderBrowserView>>;
+
+export { folderSortOptions } from "../folders/folderSortOptions";
+export { seriesSortOptions } from "../series/seriesSortOptions";

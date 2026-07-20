@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import { defaultAppPreferences } from "../../types/appSettings";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { SettingsDialog } from "./SettingsDialog";
 
@@ -126,6 +128,37 @@ describe("SettingsDialog responsiveness", () => {
     expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();
+  });
+
+  it("resets all collection display groups through the existing Library reset", async () => {
+    const original = appPreferencesStore.getSnapshot();
+    try {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            collections: {
+              books: { cardSize: "large", sortBy: "author", viewMode: "list" },
+              folders: { cardSize: "small", sortBy: "most-books", viewMode: "cards" },
+              series: { cardSize: "large", sortBy: "recently-opened", viewMode: "list" },
+            },
+          },
+          showContinueReading: false,
+        });
+      });
+      const { container } = track(renderDialog());
+      clickButton(container, "Library");
+      await act(async () => Promise.resolve());
+      clickButton(container, "Reset");
+      await act(async () => Promise.resolve());
+
+      expect(appPreferencesStore.getSnapshot().library).toEqual(defaultAppPreferences.library);
+      expect(appPreferencesStore.getSnapshot().showContinueReading).toBe(true);
+    } finally {
+      await act(async () => {
+        await appPreferencesStore.update(original);
+      });
+    }
   });
 
   it("uses instant section scrolling when app motion is disabled", async () => {

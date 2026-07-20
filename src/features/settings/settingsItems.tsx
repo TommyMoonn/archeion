@@ -4,8 +4,7 @@ import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import { Toggle } from "../../components/Toggle";
-import type { BookCardSize } from "../../types/appSettings";
-import type { LibrarySort } from "../../types/library";
+import type { CollectionCardSize, FolderSort, LibrarySort, SeriesSort } from "../../types/library";
 import { LIBRARY_SMART_VIEW_DEFINITIONS, LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
 import type { ReaderSettings } from "../../types/reader";
 import {
@@ -20,7 +19,10 @@ import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
 import {
   cardSizeOptions,
   defaultLibrarySortOptions,
+  folderSortOptions,
+  folderViewOptions,
   progressPlacementOptions,
+  seriesSortOptions,
   startupOptions,
   typefaceOptions,
   viewOptions,
@@ -126,57 +128,183 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "general",
   },
   {
-    description: "Used when browsing an archive.",
-    id: "library.default-view",
-    label: "Default view",
-    render: (context) => (
-      <SettingsRow description="Used when browsing an archive." label="Default view">
-        <SegmentedControl
-          label="Default library view"
-          onChange={(viewMode) => context.updateLibrary({ viewMode })}
-          options={viewOptions}
-          value={context.library.viewMode}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["library view", "grid", "list"],
-    sectionId: "library",
-  },
-  {
-    description: "Used for Library, Favorites, and folder views.",
-    id: "library.default-sort",
-    label: "Default sort",
+    description: "Used for Library, Favorites, Smart Views, and books inside folders.",
+    groupLabel: "Books",
+    id: "library.books.default-view",
+    label: "Default book view",
     render: (context) => (
       <SettingsRow
-        description="Used for Library, Favorites, and folder views."
-        label="Default sort"
+        description="Used for Library, Favorites, Smart Views, and books inside folders."
+        label="Default book view"
       >
-        <AppSelect<LibrarySort>
-          ariaLabel="Default library sort"
-          onChange={(sortBy) => context.updateLibrary({ sortBy })}
-          options={defaultLibrarySortOptions}
-          value={context.library.sortBy}
+        <SegmentedControl
+          label="Default book view"
+          onChange={(viewMode) => context.updateLibraryCollection("books", { viewMode })}
+          options={viewOptions}
+          value={context.library.collections.books.viewMode}
         />
       </SettingsRow>
     ),
-    searchTerms: ["sort", "title", "author", "recently opened"],
+    searchTerms: ["books", "book view", "library view", "grid", "list"],
     sectionId: "library",
   },
   {
-    description: "Changes cover size in grid view.",
-    id: "library.book-card-size",
-    label: "Book card size",
+    description: "Used for Library, Favorites, Smart Views, and books inside folders.",
+    groupLabel: "Books",
+    id: "library.books.default-sort",
+    label: "Default book sort",
     render: (context) => (
-      <SettingsRow description="Changes cover size in grid view." label="Book card size">
-        <AppSelect<BookCardSize>
-          ariaLabel="Book card size"
-          onChange={(bookCardSize) => void context.updateAppPreferences({ bookCardSize })}
-          options={cardSizeOptions}
-          value={context.preferences.bookCardSize}
+      <SettingsRow
+        description="Used for Library, Favorites, Smart Views, and books inside folders."
+        label="Default book sort"
+      >
+        <AppSelect<LibrarySort>
+          ariaLabel="Default book sort"
+          onChange={(sortBy) => context.updateLibraryCollection("books", { sortBy })}
+          options={defaultLibrarySortOptions}
+          value={context.library.collections.books.sortBy}
         />
       </SettingsRow>
     ),
-    searchTerms: ["card size", "cover size", "small", "medium", "large"],
+    searchTerms: ["books", "book sort", "title", "author", "recently opened"],
+    sectionId: "library",
+  },
+  {
+    description: "Changes book cover size in grid view.",
+    groupLabel: "Books",
+    id: "library.books.card-size",
+    label: "Book card size",
+    render: (context) => (
+      <SettingsRow description="Changes book cover size in grid view." label="Book card size">
+        <AppSelect<CollectionCardSize>
+          ariaLabel="Book card size"
+          onChange={(cardSize) => context.updateLibraryCollection("books", { cardSize })}
+          options={cardSizeOptions}
+          value={context.library.collections.books.cardSize}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["books", "book card size", "cover size", "small", "medium", "large"],
+    sectionId: "library",
+  },
+  {
+    description: "Used when browsing the folders collection.",
+    groupLabel: "Folders",
+    id: "library.folders.default-view",
+    label: "Default folder view",
+    render: (context) => (
+      <SettingsRow
+        description="Used when browsing the folders collection."
+        label="Default folder view"
+      >
+        <SegmentedControl
+          label="Default folder view"
+          onChange={(viewMode) => context.updateLibraryCollection("folders", { viewMode })}
+          options={folderViewOptions}
+          value={context.library.collections.folders.viewMode}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["folders", "folder view", "cards", "list"],
+    sectionId: "library",
+  },
+  {
+    description: "Sets the ordering of folder summaries.",
+    groupLabel: "Folders",
+    id: "library.folders.default-sort",
+    label: "Default folder sort",
+    render: (context) => (
+      <SettingsRow description="Sets the ordering of folder summaries." label="Default folder sort">
+        <AppSelect<FolderSort>
+          ariaLabel="Default folder sort"
+          onChange={(sortBy) => context.updateLibraryCollection("folders", { sortBy })}
+          options={folderSortOptions}
+          value={context.library.collections.folders.sortBy}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["folders", "folder sort", "name", "path", "book count", "most books"],
+    sectionId: "library",
+  },
+  {
+    description: "Changes folder card density without affecting list view.",
+    groupLabel: "Folders",
+    id: "library.folders.card-size",
+    label: "Folder card size",
+    render: (context) => (
+      <SettingsRow
+        description="Changes folder card density without affecting list view."
+        label="Folder card size"
+      >
+        <AppSelect<CollectionCardSize>
+          ariaLabel="Folder card size"
+          onChange={(cardSize) => context.updateLibraryCollection("folders", { cardSize })}
+          options={cardSizeOptions}
+          value={context.library.collections.folders.cardSize}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["folders", "folder card size", "small", "medium", "large"],
+    sectionId: "library",
+  },
+  {
+    description: "Used when browsing series summaries.",
+    groupLabel: "Series",
+    id: "library.series.default-view",
+    label: "Default series view",
+    render: (context) => (
+      <SettingsRow description="Used when browsing series summaries." label="Default series view">
+        <SegmentedControl
+          label="Default series view"
+          onChange={(viewMode) => context.updateLibraryCollection("series", { viewMode })}
+          options={viewOptions}
+          value={context.library.collections.series.viewMode}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["series", "series view", "grid", "list"],
+    sectionId: "library",
+  },
+  {
+    description: "Sets the ordering of series summaries without changing volume order.",
+    groupLabel: "Series",
+    id: "library.series.default-sort",
+    label: "Default series sort",
+    render: (context) => (
+      <SettingsRow
+        description="Sets the ordering of series summaries without changing volume order."
+        label="Default series sort"
+      >
+        <AppSelect<SeriesSort>
+          ariaLabel="Default series sort"
+          onChange={(sortBy) => context.updateLibraryCollection("series", { sortBy })}
+          options={seriesSortOptions}
+          value={context.library.collections.series.sortBy}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["series", "series sort", "recently opened", "volume count", "most volumes"],
+    sectionId: "library",
+  },
+  {
+    description: "Changes series overview cover size and card density.",
+    groupLabel: "Series",
+    id: "library.series.card-size",
+    label: "Series card size",
+    render: (context) => (
+      <SettingsRow
+        description="Changes series overview cover size and card density."
+        label="Series card size"
+      >
+        <AppSelect<CollectionCardSize>
+          ariaLabel="Series card size"
+          onChange={(cardSize) => context.updateLibraryCollection("series", { cardSize })}
+          options={cardSizeOptions}
+          value={context.library.collections.series.cardSize}
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["series", "series card size", "cover size", "small", "medium", "large"],
     sectionId: "library",
   },
   {

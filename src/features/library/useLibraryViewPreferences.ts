@@ -2,42 +2,37 @@ import { useCallback } from "react";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { LibraryFilterState, LibrarySort, LibraryView } from "../../types/library";
-import type { LibraryDisplaySettings } from "../../types/settings";
 
 type UseLibraryViewPreferencesInput = {
-  preferences: LibraryDisplaySettings;
   showLibraryError: (title: string) => void;
 };
 
-export function useLibraryViewPreferences({
-  preferences,
-  showLibraryError,
-}: UseLibraryViewPreferencesInput) {
+export function useLibraryViewPreferences({ showLibraryError }: UseLibraryViewPreferencesInput) {
   const changeSort = useCallback(
     (nextSort: LibrarySort) => {
       void appPreferencesStore
-        .update({ library: { ...preferences, sortBy: nextSort } })
+        .updateLibraryCollection("books", { sortBy: nextSort })
         .catch(() => showLibraryError("Library preferences could not be saved."));
     },
-    [preferences, showLibraryError],
+    [showLibraryError],
   );
 
   const changeView = useCallback(
     (nextView: LibraryView) => {
       void appPreferencesStore
-        .update({ library: { ...preferences, viewMode: nextView } })
+        .updateLibraryCollection("books", { viewMode: nextView })
         .catch(() => showLibraryError("Library preferences could not be saved."));
     },
-    [preferences, showLibraryError],
+    [showLibraryError],
   );
 
   const changeFilters = useCallback(
     (nextFilters: LibraryFilterState) => {
       void appPreferencesStore
-        .update({ library: { ...preferences, filters: nextFilters } })
+        .updateLibrary({ filters: nextFilters })
         .catch(() => showLibraryError("Library filters could not be saved."));
     },
-    [preferences, showLibraryError],
+    [showLibraryError],
   );
 
   return { changeFilters, changeSort, changeView };

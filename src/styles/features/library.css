@@ -3,11 +3,11 @@ html[data-density="compact"] .book-grid {
   padding-bottom: 28px;
 }
 
-html[data-card-size="small"] .book-grid {
+.book-grid[data-book-card-size="small"] {
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
 }
 
-html[data-card-size="large"] .book-grid {
+.book-grid[data-book-card-size="large"] {
   grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
 }
 

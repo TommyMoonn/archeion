@@ -342,7 +342,13 @@ describe("LibraryPage selection and bulk workflows", () => {
   it("uses the same selection model in list view", async () => {
     const currentPreferences = appPreferencesStore.getSnapshot();
     await appPreferencesStore.update({
-      library: { ...currentPreferences.library, viewMode: "list" },
+      library: {
+        ...currentPreferences.library,
+        collections: {
+          ...currentPreferences.library.collections,
+          books: { ...currentPreferences.library.collections.books, viewMode: "list" },
+        },
+      },
     });
     const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
     const session = await renderLibraryPage(storage);
