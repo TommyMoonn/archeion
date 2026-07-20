@@ -618,27 +618,36 @@ html[data-motion="on"] .settings-status {
 .keyboard-shortcut-row__controls {
   display: flex;
   min-width: 0;
+  max-width: 100%;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 
 .keyboard-shortcut-binding-control {
-  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
   min-width: 0;
+  max-width: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 .keyboard-shortcut-binding {
   display: inline-flex;
-  min-width: 112px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   min-height: var(--control-height-compact);
   align-items: center;
-  justify-content: flex-end;
-  padding: 0 calc(var(--control-height-compact) + 4px) 0 11px;
+  justify-content: center;
+  padding: 0 10px;
   border: var(--border-width) solid var(--line-strong);
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--surface);
+  overflow: hidden;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard);
@@ -656,21 +665,13 @@ html[data-motion="on"] .settings-status {
   font-family: var(--font-mono);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-semibold);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .keyboard-shortcut-clear {
-  position: absolute;
-  inset-block-start: 0;
-  inset-inline-end: 0;
-  opacity: 0;
-  transition: opacity var(--motion-duration-standard) var(--motion-ease-standard);
-}
-
-.keyboard-shortcut-binding-control:hover .keyboard-shortcut-clear,
-.keyboard-shortcut-binding-control:focus-within .keyboard-shortcut-clear,
-.keyboard-shortcut-clear:focus-visible {
-  opacity: 1;
+  flex: none;
 }
 
 .keyboard-shortcut-reset {
@@ -728,9 +729,7 @@ html[data-motion="on"] .settings-status {
 }
 
 @media (max-width: 760px) {
-  .keyboard-shortcut-row__controls,
-  .keyboard-shortcut-binding-control,
-  .keyboard-shortcut-binding {
+  .keyboard-shortcut-row__controls {
     width: 100%;
   }
 }

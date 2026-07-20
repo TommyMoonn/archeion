@@ -90,6 +90,16 @@ function openCapture(commandLabel: string): HTMLButtonElement {
 }
 
 describe("Keyboard settings", () => {
+  it("renders the Keyboard heading without the removed section description", () => {
+    const markup = renderToStaticMarkup(<KeyboardSettingsSection context={controller()} />);
+
+    expect(markup).toContain("<h2>Keyboard</h2>");
+    expect(markup).not.toContain(
+      "Configure application shortcuts and review fixed reader interaction keys.",
+    );
+    expect(markup).not.toMatch(/<header>\s*<h2>Keyboard<\/h2>\s*<p/);
+  });
+
   it("renders the compact grouped keymap without implementation metadata", () => {
     const markup = renderToStaticMarkup(<KeyboardSettingsSection context={controller()} />);
 
@@ -294,6 +304,26 @@ describe("Keyboard settings", () => {
     expect(document.querySelector('[aria-label="Clear shortcut for Open Settings"]')).toBeNull();
   });
 
+  it("renders assigned binding and clear actions as separate controls in one compact group", () => {
+    render(
+      <KeyboardShortcutRow
+        command={commandDefinitions.readerToc}
+        context={controller(defaultAppPreferences.keyboard)}
+      />,
+    );
+
+    const group = document.querySelector<HTMLElement>(".keyboard-shortcut-binding-control");
+    const binding = buttonByName("Change shortcut for Toggle table of contents");
+    const clear = buttonByName("Clear shortcut for Toggle table of contents");
+
+    expect(group).toBeTruthy();
+    expect(group?.children).toHaveLength(2);
+    expect(group?.children[0]).toBe(binding);
+    expect(group?.children[1]).toBe(clear);
+    expect(binding.contains(clear)).toBe(false);
+    expect(binding.textContent).toContain("T");
+  });
+
   it("omits reset when a redundant persisted override equals the default", () => {
     render(
       <KeyboardShortcutRow
@@ -381,5 +411,23 @@ describe("Keyboard settings", () => {
     expect(css).not.toMatch(/\.keyboard-shortcut-capture-dialog\s+\.dialog__panel/);
     expect(css).toContain("overflow-wrap: anywhere");
     expect(css).toContain("min-width: 0");
+  });
+
+  it("uses content-sized bindings and a permanently visible non-overlapping clear control", () => {
+    const css = readFileSync(resolve("src/styles/features/settings.css"), "utf8");
+    const bindingRule = css.match(/\.keyboard-shortcut-binding\s*\{(?<body>[^}]*)\}/)?.groups?.body;
+    const bindingControlRule = css.match(/\.keyboard-shortcut-binding-control\s*\{(?<body>[^}]*)\}/)
+      ?.groups?.body;
+    const clearRule = css.match(/\.keyboard-shortcut-clear\s*\{(?<body>[^}]*)\}/)?.groups?.body;
+
+    expect(css).not.toContain("min-width: 112px");
+    expect(bindingRule).toContain("flex: 0 1 auto");
+    expect(bindingRule).toContain("max-width: 100%");
+    expect(bindingRule).not.toMatch(/(?:^|;)\s*width\s*:/);
+    expect(bindingControlRule).toContain("display: inline-flex");
+    expect(bindingControlRule).not.toContain("position: relative");
+    expect(clearRule).not.toContain("position: absolute");
+    expect(clearRule).not.toContain("opacity:");
+    expect(css).not.toMatch(/keyboard-shortcut-binding-control:(?:hover|focus-within)[^{]*\{/);
   });
 });

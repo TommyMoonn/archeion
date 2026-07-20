@@ -6,7 +6,6 @@ export function KeyboardSettingsSection({ context }: { context: SettingsDialogCo
     <section className="settings-section">
       <header>
         <h2>Keyboard</h2>
-        <p>Configure application shortcuts and review fixed reader interaction keys.</p>
       </header>
       <SettingsSectionItems context={context} sectionId="keyboard" />
     </section>
