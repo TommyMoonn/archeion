@@ -7,12 +7,24 @@ const appShellStyles = readFileSync(
   new URL("../../styles/layout/app-shell.css", import.meta.url),
   "utf8",
 );
+const collectionContentStyles = readFileSync(
+  new URL("../../styles/layout/collection-content.css", import.meta.url),
+  "utf8",
+);
 const libraryStyles = readFileSync(
   new URL("../../styles/features/library.css", import.meta.url),
   "utf8",
 );
 const folderStyles = readFileSync(
   new URL("../../styles/features/folders.css", import.meta.url),
+  "utf8",
+);
+const libraryWorkspaceSource = readFileSync(
+  new URL("./LibraryWorkspaceSurface.tsx", import.meta.url),
+  "utf8",
+);
+const seriesOverviewSource = readFileSync(
+  new URL("../series/SeriesOverview.tsx", import.meta.url),
   "utf8",
 );
 
@@ -66,9 +78,16 @@ describe("collection content spacing ownership", () => {
     );
   });
 
-  it("starts Library grid and list results from the parent-owned offset", () => {
-    expect(libraryStyles).toMatch(
-      /\.library-content\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
+  it("routes the primary Library and Series views through the same content layout owner", () => {
+    expect(libraryWorkspaceSource).toContain('className="collection-content library-content"');
+    expect(seriesOverviewSource).toContain(
+      'className="collection-content series-overview__content"',
+    );
+  });
+
+  it("starts Library grid and list results from the shared parent-owned offset", () => {
+    expect(collectionContentStyles).toMatch(
+      /\.collection-content\[data-surface-state="results"\]\s*\{[^}]*row-gap:\s*var\(--collection-content-offset\);[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
     );
     expect(libraryStyles).toMatch(/\.book-grid\s*\{[^}]*padding:\s*0 0 32px;/s);
     expect(libraryStyles).toMatch(/\.book-list\s*\{[^}]*padding:\s*0 0 40px;/s);
@@ -84,11 +103,13 @@ describe("collection content spacing ownership", () => {
     );
   });
 
-  it("gives Continue Reading one parent-owned boundary without moving empty states", () => {
+  it("gives every collection view the same empty-state placement contract", () => {
     expect(libraryStyles).toMatch(/\.continue-reading\s*\{[^}]*margin:\s*0 auto;/s);
-    expect(libraryStyles).toMatch(/\.library-content\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s);
-    expect(libraryStyles).toMatch(
-      /\.library-content > \.empty-state,\s*\.library-content > \.library-loading\s*\{[^}]*margin-top:\s*clamp\(48px, 10vh, 110px\);/s,
+    expect(collectionContentStyles).toMatch(
+      /\.collection-content\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
+    );
+    expect(collectionContentStyles).toMatch(
+      /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin-top:\s*clamp\(48px, 10vh, 110px\);/s,
     );
   });
 });

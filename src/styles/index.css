@@ -5,6 +5,7 @@
 
 @import "./layout/window-frame.css";
 @import "./layout/app-shell.css";
+@import "./layout/collection-content.css";
 
 @import "./components/buttons.css";
 @import "./components/forms.css";

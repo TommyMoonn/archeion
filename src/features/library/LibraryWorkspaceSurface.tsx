@@ -153,7 +153,11 @@ export function LibraryWorkspaceSurface({
       ) : (
         <>
           <LibraryToolbar {...toolbarProps} />
-          <div className="library-content" data-surface-state={surfaceState} key={surfaceKey}>
+          <div
+            className="collection-content library-content"
+            data-surface-state={surfaceState}
+            key={surfaceKey}
+          >
             {location.type === "library" &&
             !toolbarProps.query &&
             !hasFilters &&
@@ -161,7 +165,7 @@ export function LibraryWorkspaceSurface({
               <ContinueReading books={continuePreview} onContinue={bookCollectionProps.onRead} />
             ) : null}
             {books === undefined || (isImporting && books.length === 0) ? (
-              <div className="library-loading" role="status">
+              <div className="collection-content__loading library-loading" role="status">
                 <span className="library-loading__cover" />
                 <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>
               </div>

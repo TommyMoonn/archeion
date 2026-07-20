@@ -233,33 +233,9 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   border-color: var(--line-strong);
 }
 
-.library-content {
-  display: grid;
-  align-content: start;
-  min-height: clamp(420px, 63vh, 720px);
-  max-width: 1440px;
-  padding-top: 26px;
-  margin: 0 auto;
-}
-
-.library-content[data-surface-state="results"] {
-  row-gap: var(--collection-content-offset);
-  padding-top: var(--collection-content-offset);
-}
-
 .library-content > .book-grid,
 .library-content > .book-list {
   width: 100%;
-}
-
-.library-content > .empty-state,
-.library-content > .library-loading {
-  justify-self: center;
-  margin-top: clamp(48px, 10vh, 110px);
-}
-
-html[data-motion="on"] .library-content {
-  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .continue-reading {
@@ -1201,10 +1177,6 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 @media (max-height: 640px) {
-  .library-content {
-    min-height: 320px;
-  }
-
   .details-drawer__body {
     padding-top: 22px;
     padding-bottom: 22px;
@@ -1273,10 +1245,6 @@ html[data-motion="on"] .details-drawer[open] {
     height: 1px;
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
-  }
-
-  .library-content {
-    min-height: 55vh;
   }
 
   .continue-reading__track {

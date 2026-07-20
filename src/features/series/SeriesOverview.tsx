@@ -48,6 +48,13 @@ export function SeriesOverview({
 }: SeriesOverviewProps) {
   const [view, setView] = useState<LibraryView>("grid");
   const visibleEntries = filterSeriesEntries(entries, query);
+  const surfaceState = isLoading
+    ? "loading"
+    : entries.length === 0
+      ? "empty"
+      : visibleEntries.length === 0
+        ? "search-empty"
+        : "results";
 
   return (
     <section aria-labelledby="series-overview-title" className="series-overview">
@@ -100,58 +107,63 @@ export function SeriesOverview({
         </div>
       </header>
 
-      {isLoading ? (
-        <div aria-label="Loading series" className="series-loading" role="status">
-          <span />
-          <span />
-        </div>
-      ) : entries.length === 0 ? (
-        <EmptyState
-          description="Add series metadata to EPUBs to group their volumes here."
-          icon={<Stack size={42} weight="thin" />}
-          title="No series metadata"
-        />
-      ) : visibleEntries.length === 0 ? (
-        <EmptyState
-          action={
-            <Button onClick={onClearSearch} size="standard" variant="secondary">
-              Clear search
-            </Button>
-          }
-          description="Try another series name."
-          icon={<Stack size={42} weight="thin" />}
-          title="No matching series"
-        />
-      ) : (
-        <div className={`series-grid series-grid--${view}`}>
-          {visibleEntries.map((entry) => {
-            const representative = entry.books[0];
-
-            if (!representative) {
-              return null;
+      <div
+        className="collection-content series-overview__content"
+        data-surface-state={surfaceState}
+      >
+        {isLoading ? (
+          <div aria-label="Loading series" className="series-loading" role="status">
+            <span />
+            <span />
+          </div>
+        ) : entries.length === 0 ? (
+          <EmptyState
+            description="Add series metadata to EPUBs to group their volumes here."
+            icon={<Stack size={42} weight="thin" />}
+            title="No series metadata"
+          />
+        ) : visibleEntries.length === 0 ? (
+          <EmptyState
+            action={
+              <Button onClick={onClearSearch} size="standard" variant="secondary">
+                Clear search
+              </Button>
             }
+            description="Try another series name."
+            icon={<Stack size={42} weight="thin" />}
+            title="No matching series"
+          />
+        ) : (
+          <div className={`series-grid series-grid--${view}`}>
+            {visibleEntries.map((entry) => {
+              const representative = entry.books[0];
 
-            return (
-              <article className="series-card" key={entry.key}>
-                <button
-                  aria-label={`Open ${entry.displayName}`}
-                  className="series-card__open"
-                  onClick={() => onOpen(entry)}
-                  type="button"
-                >
-                  <BookCover book={representative} className="book-cover--series" />
-                  <span className="series-card__copy">
-                    <strong>{entry.displayName}</strong>
-                    <span>{volumeCountLabel(entry.books.length)}</span>
-                    <span className="series-card__status">{seriesProgressLabel(entry)}</span>
-                  </span>
-                  <CaretRight aria-hidden="true" size={17} weight="bold" />
-                </button>
-              </article>
-            );
-          })}
-        </div>
-      )}
+              if (!representative) {
+                return null;
+              }
+
+              return (
+                <article className="series-card" key={entry.key}>
+                  <button
+                    aria-label={`Open ${entry.displayName}`}
+                    className="series-card__open"
+                    onClick={() => onOpen(entry)}
+                    type="button"
+                  >
+                    <BookCover book={representative} className="book-cover--series" />
+                    <span className="series-card__copy">
+                      <strong>{entry.displayName}</strong>
+                      <span>{volumeCountLabel(entry.books.length)}</span>
+                      <span className="series-card__status">{seriesProgressLabel(entry)}</span>
+                    </span>
+                    <CaretRight aria-hidden="true" size={17} weight="bold" />
+                  </button>
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

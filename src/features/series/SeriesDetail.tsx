@@ -26,7 +26,10 @@ type SeriesDetailProps = {
 export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
   if (!entry) {
     return (
-      <section className="series-detail series-detail--missing">
+      <section
+        className="collection-content series-detail series-detail--missing"
+        data-surface-state="empty"
+      >
         <EmptyState
           action={
             <Button

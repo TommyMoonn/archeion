@@ -185,6 +185,24 @@ describe("series library surfaces", () => {
     expect(hoverStyles).toContain("background: var(--surface-raised);");
   });
 
+  it("uses the shared collection-content layout for series empty states", () => {
+    const scope = mount(
+      <SeriesOverview
+        entries={[]}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        query=""
+      />,
+    );
+    const content = scope.querySelector(".collection-content.series-overview__content");
+
+    expect(content?.getAttribute("data-surface-state")).toBe("empty");
+    expect(content?.querySelector(":scope > .empty-state")).not.toBeNull();
+    expect(seriesStyles).not.toContain(".series-overview > .empty-state");
+  });
+
   it("renders ordered volumes, conservative hints, and continuation markers", () => {
     const entry = deriveSeriesEntries(seriesBooks())[0]!;
     const onRead = vi.fn();
