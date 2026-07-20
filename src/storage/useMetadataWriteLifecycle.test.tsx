@@ -82,6 +82,7 @@ describe("useMetadataWriteLifecycle", () => {
   afterEach(async () => {
     if (root) await act(async () => root.unmount());
     container?.remove();
+    vi.restoreAllMocks();
   });
 
   it("waits for progress and preference writes before allowing an archive transition", async () => {
@@ -108,8 +109,16 @@ describe("useMetadataWriteLifecycle", () => {
   });
 
   it("rejects the archive transition guard when either flush fails", async () => {
-    storageFlush.mockRejectedValue(new Error("disk full"));
+    const error = new Error("disk full");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    storageFlush.mockRejectedValue(error);
+
     await expect(guard()).resolves.toBe(false);
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "Pending metadata could not be flushed before changing archives",
+      error,
+    );
   });
 
   it("prevents close and destroys the window only after both flushes succeed", async () => {
@@ -131,11 +140,19 @@ describe("useMetadataWriteLifecycle", () => {
   });
 
   it("keeps the window open after a failed close flush", async () => {
-    storageFlush.mockRejectedValue(new Error("disk full"));
+    const error = new Error("disk full");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    storageFlush.mockRejectedValue(error);
     const preventDefault = vi.fn();
+
     await closeHandler({ preventDefault });
     expect(preventDefault).toHaveBeenCalledOnce();
     expect(mocks.destroy).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "Pending metadata could not be flushed before close",
+      error,
+    );
   });
 
   it("does not start duplicate flushes for repeated close requests", async () => {
