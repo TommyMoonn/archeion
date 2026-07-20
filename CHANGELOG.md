@@ -2,6 +2,48 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-07-20
+
+Archeion's responsiveness and interface-polish release for smoother large libraries, faster archive work, safer resource handling, and more reliable local persistence.
+
+### Added
+
+- Added windowed rendering for large Library grid and list collections so mounted books and covers remain proportional to the visible viewport while selection, keyboard access, focus restoration, and reader-return position continue to work across unmounted ranges.
+- Added one reusable in-memory library index for book lookup, folder membership, searchable fields, metadata facets, Smart Views, reading-state counts, and series derivation without introducing a database or changing archive formats.
+- Added viewport-aware AppSelect placement that can open above or below its trigger, stay inside the visible window, clamp its height and width, and scroll long option lists without taking scroll ownership away from dialogs.
+- Added Website, Documentation, and Source code destinations to the About dialog, together with a centralized runtime application-version fallback and the shared modal lifecycle and motion behavior.
+- Added explicit safety limits for oversized EPUB cover resources, extreme image dimensions or pixel counts, and active reader EPUB files above 256 MiB.
+
+### Changed
+
+- Made archive updates incremental for known add, remove, rename, move, folder, metadata, cover, favorite, progress, and bulk-operation outcomes, while retaining one safe full-scan fallback for ambiguous or externally changed state.
+- Improved cold archive scanning with a reusable scanner-cache signature index, bounded metadata parsing, deterministic publication order, cancellation checks, and typed watcher batching without adding unbounded filesystem concurrency.
+- Revised the non-reader typography scale for clearer navigation, metadata, controls, menus, dialogs, Settings, Archive Manager, Library, Folder, and Series surfaces while preserving reader publication typography and reader-specific controls.
+- Unified collection spacing across Library and Folder grid and list modes and replaced the cramped framed view selector with one shared accessible icon-only grid/list control.
+- Deduplicated concurrent same-cover work, moved stale cover cleanup out of the per-cover load path, and kept cache maintenance bounded without changing negative-cover cache behavior.
+- Tightened active reader file ownership so concurrent same-book opens share one frontend load, stale or cancelled results cannot replace the current book, and EPUB.js resources are released on replacement, failure, and reader teardown.
+- Streamlined startup by resolving preferences and the archive registry concurrently, beginning window restoration as soon as preferences are ready, preparing active storage once, and preserving remembered-reader restoration and Archive Manager startup behavior.
+- Coalesced rapid reading-progress and permitted preference updates into bounded latest-value writes, with explicit flushing on reader exits, archive transitions, and window close while immediate library, annotation, appearance, filesystem, and destructive writes remain immediate.
+- Consolidated the identical low-level temporary-file, flush, replacement, restoration, and cleanup mechanics used by archive metadata, scanner invalidation state, and global settings while preserving each format's existing validation, backup, recovery, and error policies.
+
+### Fixed
+
+- Preserved the active folder route, breadcrumb, sidebar state, focus, and collection scroll position when the current folder or one of its ancestors is renamed or moved.
+- Prevented select menus near viewport or dialog edges from opening off-screen, detaching from their trigger, or disabling the dialog panel's intended scrolling behavior.
+- Prevented duplicate cover extraction and decode work for concurrent requests and blocked oversized or pathological cover fallbacks from crossing the application boundary.
+- Prevented stale EPUB reads, reader sessions, startup results, archive operations, and queued metadata outcomes from publishing after their book, archive, window, or operation ownership changed.
+- Corrected the Archive Manager close lifecycle so startup resumes whether the close signal arrives before or after the manager screen commits, without duplicate storage preparation or a later obsolete startup result restoring the manager state.
+- Made failed coalesced progress writes roll back once to the last persisted progress fields without overwriting favorites, paths, source metadata, cover revisions, added books, removed books, or newer progress selections.
+- Kept explicit progress retries, concurrent flushes, superseded writes, and callback failures synchronized so a lifecycle flush cannot settle while owned metadata work continues in the background.
+- Preserved previous files and removed incomplete transaction files when an eligible atomic metadata or settings replacement fails.
+
+### Testing
+
+- Expanded large-library coverage for window ranges, mounted item counts, scrolling, selection, search, filters, sorting, folders, series, cover request bounds, and reader-return restoration.
+- Added representative 50, 500, and 2,000 EPUB scanner fixtures covering cold and warm scans, bounded parsing, deterministic results, cache reuse, watcher convergence, import suppression, cancellation, and archive switching.
+- Expanded interface coverage for semantic typography, collection spacing, accessible view controls, viewport-aware select placement, dialog scrolling, About links, motion, focus restoration, and reduced-motion behavior.
+- Added native and frontend coverage for cover request ownership, image and EPUB resource limits, cover cache maintenance, active EPUB byte lifetime, startup ordering, Archive Manager close races, folder path continuity, metadata coalescing, failure recovery, explicit retries, lifecycle flushes, and atomic replacement restoration.
+
 ## [0.6.0] - 2026-07-16
 
 Archeion's reader-fidelity release for footnotes, safe links, illustration viewing, and original-image export.
@@ -177,7 +219,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/TommyMoonn/archeion/compare/v0.3.0...v0.4.0
