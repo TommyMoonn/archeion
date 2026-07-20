@@ -16,6 +16,7 @@ type ReaderControlledTransitionOptions = {
   onTransitionIntent: () => void;
   sessionKey?: string;
   settle: () => Promise<boolean>;
+  settleArchiveTransition?: () => Promise<boolean>;
 };
 
 type ControlledExitOwnership = {
@@ -31,11 +32,13 @@ export function useReaderControlledTransitions({
   onTransitionIntent,
   sessionKey,
   settle,
+  settleArchiveTransition = settle,
 }: ReaderControlledTransitionOptions) {
   const mountedRef = useRef(true);
   const sessionKeyRef = useRef(sessionKey);
   const intentRef = useRef(onTransitionIntent);
   const settleRef = useRef(settle);
+  const archiveSettleRef = useRef(settleArchiveTransition);
   const requestSequenceRef = useRef(0);
   const controlledExitRef = useRef<ControlledExitOwnership | null>(null);
 
@@ -48,7 +51,8 @@ export function useReaderControlledTransitions({
     sessionKeyRef.current = sessionKey;
     intentRef.current = onTransitionIntent;
     settleRef.current = settle;
-  }, [onTransitionIntent, sessionKey, settle]);
+    archiveSettleRef.current = settleArchiveTransition;
+  }, [onTransitionIntent, sessionKey, settle, settleArchiveTransition]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -211,12 +215,10 @@ export function useReaderControlledTransitions({
     () =>
       archiveStore.registerTransitionGuard(async () => {
         const request = beginTransition();
-        return runAfterSettlement(
-          () => undefined,
-          () => ownsTransition(request),
-        );
+        const settled = await archiveSettleRef.current();
+        return settled && ownsTransition(request);
       }),
-    [beginTransition, ownsTransition, runAfterSettlement],
+    [beginTransition, ownsTransition],
   );
 
   return useMemo(

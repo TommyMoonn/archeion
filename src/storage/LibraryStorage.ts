@@ -123,6 +123,7 @@ export type BulkActionResult = {
 };
 
 export interface LibraryStorage {
+  flushPendingWrites(): Promise<void>;
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
   applyArchiveWatcherChanges(changeSet: ArchiveWatcherChangeSet): Promise<void>;

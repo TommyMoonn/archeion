@@ -1,5 +1,6 @@
 import type { Book, UpdateBookInput } from "../../types/book";
 import type { ArchivePathChange } from "../LibraryStorage";
+import type { ProgressMetadata } from "../metadataFiles";
 import {
   type ArchiveCommandScope,
   type StorageOperationHost,
@@ -9,6 +10,31 @@ import {
   requireAvailableBook,
   requireFolder,
 } from "./operationTypes";
+
+function projectBooksToProgressMetadata(
+  books: readonly Book[],
+  progressMetadata: Readonly<ProgressMetadata>,
+): readonly Book[] {
+  let changed = false;
+  const projected = books.map((book) => {
+    const progress = progressMetadata.progress[book.id];
+    if (
+      book.progressCfi === progress?.cfi &&
+      (book.progressPercent ?? 0) === (progress?.percent ?? 0) &&
+      book.lastOpenedAt === progress?.lastOpenedAt
+    ) {
+      return book;
+    }
+    changed = true;
+    return {
+      ...book,
+      lastOpenedAt: progress?.lastOpenedAt,
+      progressCfi: progress?.cfi,
+      progressPercent: progress?.percent ?? 0,
+    };
+  });
+  return changed ? projected : books;
+}
 
 export class BookOperations {
   private readonly filePromises = new Map<string, Promise<Blob>>();
@@ -200,19 +226,29 @@ export class BookOperations {
             libraryChanged: false,
             progressMetadata,
             progressChanged: false,
-            result: currentBook,
+            result: changesProgress
+              ? {
+                  ...currentBook,
+                  lastOpenedAt: nextLastOpenedAt,
+                  progressCfi: nextProgressCfi,
+                  progressPercent: nextProgressPercent,
+                }
+              : currentBook,
           };
         }
 
+        const baseBooks = progressChanged
+          ? projectBooksToProgressMetadata(books, progressMetadata)
+          : books;
         const nextBook: Book = {
-          ...currentBook,
+          ...baseBooks[index],
           isFavorite: nextFavorite,
           lastOpenedAt: nextLastOpenedAt,
           progressCfi: nextProgressCfi,
           progressPercent: nextProgressPercent,
           updatedAt: timestamp,
         };
-        const nextBooks = [...books];
+        const nextBooks = [...baseBooks];
         nextBooks[index] = nextBook;
 
         return {

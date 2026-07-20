@@ -409,7 +409,7 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
       expected: { progressPercent: 10 },
     },
   ] as const)(
-    "leaves books and metadata untouched when $command fails",
+    "restores books and metadata when $command fails",
     async ({ command: failingCommand, changes, expected }) => {
       const storage = await loadStorage();
       const before = await storage.listBooks();
@@ -423,9 +423,11 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
 
       await expect(storage.updateBook("book-1", changes)).rejects.toThrow("disk full");
 
-      expect(await storage.getBook("book-1")).toBe(bookBefore);
+      if (failingCommand === "save_library_metadata") {
+        expect(await storage.getBook("book-1")).toBe(bookBefore);
+      }
       await expect(storage.getBook("book-1")).resolves.toMatchObject(expected);
-      expect(emissions).toHaveLength(1);
+      expect(emissions).toHaveLength(failingCommand === "save_progress_metadata" ? 3 : 1);
     },
   );
 });

@@ -33,7 +33,6 @@ import {
 import type { Annotation } from "../../types/annotation";
 import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import { bookTitle } from "../../utils/bookDisplay";
-import { DebouncedTask } from "../../utils/DebouncedTask";
 import {
   normalizeReaderSettings,
   type ReaderNavigationState,
@@ -105,11 +104,6 @@ export function ReaderPage() {
   const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
-  const progressSaveQueue = useRef<Promise<unknown>>(Promise.resolve());
-  const progressWriter = useRef<DebouncedTask<{
-    bookId: string;
-    location: ReaderLocation;
-  }> | null>(null);
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
   const readerThemeSaveRevision = useRef(0);
@@ -243,10 +237,22 @@ export function ReaderPage() {
     storage,
     syncAnnotation: annotations.sync,
   });
+  const settleReaderPersistence = useCallback(async () => {
+    if (!(await settleNoteEditor())) return false;
+    try {
+      await storage.flushPendingWrites?.();
+      if (mountedRef.current) setProgressSaveFailed(false);
+      return true;
+    } catch {
+      if (mountedRef.current) setProgressSaveFailed(true);
+      return false;
+    }
+  }, [settleNoteEditor, storage]);
   const controlledTransitions = useReaderControlledTransitions({
     onTransitionIntent: invalidateOpenRequests,
     sessionKey: bookId,
-    settle: settleNoteEditor,
+    settle: settleReaderPersistence,
+    settleArchiveTransition: settleNoteEditor,
   });
   const revealSideSurfaceControls = useCallback(() => setControlsVisible(true), []);
   const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
@@ -302,10 +308,12 @@ export function ReaderPage() {
   }, [controlsVisible]);
 
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
-      progressWriter.current?.flush();
+      mountedRef.current = false;
+      void storage.flushPendingWrites?.().catch(() => undefined);
     };
-  }, [book?.id]);
+  }, [storage]);
 
   const movePrevious = useCallback(() => {
     void viewerRef.current?.previous();
@@ -531,52 +539,6 @@ export function ReaderPage() {
       });
   }, [bookId, isBookFileMissing, storage]);
 
-  const queueProgressSave = useCallback(
-    (bookId: string, nextLocation: ReaderLocation) => {
-      progressSaveQueue.current = progressSaveQueue.current
-        .catch(() => undefined)
-        .then(() =>
-          storage.updateBook(bookId, {
-            progressCfi: nextLocation.cfi,
-            progressPercent: nextLocation.percentage,
-          }),
-        )
-        .then(() => {
-          if (mountedRef.current) setProgressSaveFailed(false);
-        })
-        .catch(() => {
-          if (mountedRef.current) setProgressSaveFailed(true);
-        });
-    },
-    [storage],
-  );
-
-  useEffect(() => {
-    const writer = new DebouncedTask<{
-      bookId: string;
-      location: ReaderLocation;
-    }>(600, ({ bookId, location: nextLocation }) => {
-      queueProgressSave(bookId, nextLocation);
-    });
-
-    progressWriter.current = writer;
-
-    return () => {
-      writer.flush();
-      if (progressWriter.current === writer) {
-        progressWriter.current = null;
-      }
-    };
-  }, [queueProgressSave]);
-
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      progressWriter.current?.flush();
-      mountedRef.current = false;
-    };
-  }, []);
-
   const handleLocationChange = useCallback(
     (nextLocation: ReaderLocation) => {
       if (!bookId) {
@@ -585,12 +547,19 @@ export function ReaderPage() {
 
       handleAnnotationLocationChange(nextLocation);
       setLocation(nextLocation);
-      progressWriter.current?.schedule({
-        bookId,
-        location: nextLocation,
-      });
+      void storage
+        .updateBook(bookId, {
+          progressCfi: nextLocation.cfi,
+          progressPercent: nextLocation.percentage,
+        })
+        .then(() => {
+          if (mountedRef.current) setProgressSaveFailed(false);
+        })
+        .catch(() => {
+          if (mountedRef.current) setProgressSaveFailed(true);
+        });
     },
-    [bookId, handleAnnotationLocationChange],
+    [bookId, handleAnnotationLocationChange, storage],
   );
 
   const handleViewerError = useCallback(

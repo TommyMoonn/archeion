@@ -31,6 +31,8 @@ import {
   normalizeArchiveAppearanceSettings,
   normalizeArchiveImportSettings,
   normalizeSettingsMetadata,
+  type ProgressMetadata,
+  type ReadingProgress,
   type SettingsMetadata,
 } from "./metadataFiles";
 import { AnnotationRepository } from "./annotations/AnnotationRepository";
@@ -64,6 +66,7 @@ import { BookOperations } from "./tauri/bookOperations";
 import { BulkBookOperations } from "./tauri/bulkBookOperations";
 import { FolderOperations } from "./tauri/folderOperations";
 import { MaintenanceOperations } from "./tauri/maintenanceOperations";
+import { ProgressMetadataWriteQueue } from "./tauri/ProgressMetadataWriteQueue";
 import {
   ARCHIVE_CHANGED_ERROR_MESSAGE,
   ARCHIVE_DELTA_PERSISTENCE_ERROR_NAME,
@@ -76,6 +79,8 @@ import {
   reportArchiveCacheWarning,
 } from "./tauri/operationTypes";
 import { WritebackOperations } from "./tauri/writebackOperations";
+
+const PROGRESS_WRITE_DELAY_MS = 600;
 
 function reportImportOutcomeWarnings(
   report: (warning: ArchiveOperationWarning) => void,
@@ -111,6 +116,28 @@ function reportImportOutcomeWarnings(
   }
 }
 
+function patchProgressMetadata(
+  current: Readonly<ProgressMetadata>,
+  target: Readonly<ProgressMetadata>,
+  changedBookIds: ReadonlySet<string>,
+): ProgressMetadata {
+  const progress = { ...current.progress };
+  for (const id of changedBookIds) {
+    const entry = target.progress[id];
+    if (entry) progress[id] = { ...entry };
+    else delete progress[id];
+  }
+  return { version: 1, progress };
+}
+
+function bookProgressMatches(book: Readonly<Book>, progress?: Readonly<ReadingProgress>): boolean {
+  return (
+    book.progressCfi === progress?.cfi &&
+    (book.progressPercent ?? 0) === (progress?.percent ?? 0) &&
+    book.lastOpenedAt === progress?.lastOpenedAt
+  );
+}
+
 export class TauriArchiveLibraryStorage implements LibraryStorage {
   private books: Book[] = [];
   private missingBooks = new Map<string, Book>();
@@ -141,8 +168,10 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly maintenanceOperations: MaintenanceOperations;
   private readonly annotationRepository: AnnotationRepository;
   private readonly operationHost: StorageOperationHost;
+  private progressMetadataWrites: ProgressMetadataWriteQueue;
 
   constructor() {
+    this.progressMetadataWrites = this.createProgressMetadataWriteQueue(this.archiveRootPath);
     const host: StorageOperationHost = {
       commands: this.commands,
       createScope: () => this.createArchiveCommandScope(),
@@ -204,10 +233,15 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.libraryMetadata = createLibraryMetadata();
     this.progressMetadata = createProgressMetadata();
     this.settingsMetadata = createSettingsMetadata();
+    this.progressMetadataWrites = this.createProgressMetadataWriteQueue(this.archiveRootPath);
     this.annotationRepository.reset();
     this.setScanStatus({ status: "idle" });
     this.emitBooks();
     this.emitFolders();
+  }
+
+  flushPendingWrites(): Promise<void> {
+    return this.progressMetadataWrites.flush();
   }
 
   async rescan(options?: RescanOptions): Promise<void> {
@@ -837,6 +871,9 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     scan: ArchiveScan,
     replacementRelativePaths: readonly string[] = [],
   ): Promise<boolean> {
+    await this.progressMetadataWrites.flush();
+    this.assertCurrentArchiveScope(scope);
+
     const committed = await this.enqueueArchiveModelCommit(scope, async () => {
       const metadata = await this.commands.invoke(
         "load_archive_metadata",
@@ -896,6 +933,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
       this.libraryMetadata = next.libraryMetadata;
       this.progressMetadata = sanitizedProgress.metadata;
+      this.progressMetadataWrites.replacePersistedMetadata(sanitizedProgress.metadata);
       this.settingsMetadata = normalizeSettingsMetadata(metadata.settings);
       this.books = next.books;
       this.missingBooks = next.missingBooks;
@@ -1037,8 +1075,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       const next = mutation({
         books: this.books,
         libraryMetadata: this.libraryMetadata,
-        progressMetadata: this.progressMetadata,
+        progressMetadata: this.progressMetadataWrites.desiredOr(this.progressMetadata),
       });
+
+      if (next.libraryChanged && next.progressChanged) {
+        throw new Error("Library and reading progress metadata require separate mutations.");
+      }
 
       if (next.libraryChanged) {
         await this.commands.invoke(
@@ -1047,19 +1089,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
           scope.rootPath,
         );
         if (!this.isCurrentArchiveScope(scope)) {
-          return { committed: false as const };
+          return { committed: false as const, persistence: null, progressRollback: null };
         }
-      }
-      if (next.progressChanged) {
-        await this.commands.invoke(
-          "save_progress_metadata",
-          { metadata: structuredClone(next.progressMetadata) },
-          scope.rootPath,
-        );
       }
 
       if (!this.isCurrentArchiveScope(scope)) {
-        return { committed: false as const };
+        return { committed: false as const, persistence: null, progressRollback: null };
       }
       if (next.libraryChanged) {
         this.libraryMetadata = next.libraryMetadata;
@@ -1071,10 +1106,69 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         this.books = [...next.books];
         this.emitBooks();
       }
-      return { committed: true as const, result: next.result };
+      return {
+        committed: true as const,
+        persistence: next.progressChanged
+          ? this.progressMetadataWrites.schedule(structuredClone(next.progressMetadata))
+          : null,
+        result: next.result,
+      };
     });
 
-    return committed?.committed ? committed.result : undefined;
+    if (!committed?.committed) {
+      return undefined;
+    }
+    await committed.persistence;
+    return this.isCurrentArchiveScope(scope) ? committed.result : undefined;
+  }
+
+  private createProgressMetadataWriteQueue(rootPath: string | null): ProgressMetadataWriteQueue {
+    const generation = this.generation;
+    return new ProgressMetadataWriteQueue({
+      delayMs: PROGRESS_WRITE_DELAY_MS,
+      initialPersistedMetadata: this.progressMetadata,
+      onFailedBatch: ({ changedBookIds, isSuperseded, persistedBaseline }) =>
+        this.reconcileProgressOutcome(generation, persistedBaseline, changedBookIds, isSuperseded),
+      onRetriedBatchPersisted: ({ changedBookIds, isSuperseded, metadata }) =>
+        this.reconcileProgressOutcome(generation, metadata, changedBookIds, isSuperseded),
+      write: async (metadata) => {
+        await this.commands.invoke(
+          "save_progress_metadata",
+          { metadata: structuredClone(metadata) },
+          rootPath,
+        );
+      },
+    });
+  }
+
+  private async reconcileProgressOutcome(
+    generation: number,
+    target: Readonly<ProgressMetadata>,
+    changedBookIds: ReadonlySet<string>,
+    isSuperseded: () => boolean,
+  ): Promise<void> {
+    await this.enqueueMetadataIo(async () => {
+      if (this.generation !== generation || isSuperseded()) return;
+
+      this.progressMetadata = patchProgressMetadata(this.progressMetadata, target, changedBookIds);
+      let booksChanged = false;
+      const books = this.books.map((book) => {
+        if (!changedBookIds.has(book.id)) return book;
+        const progress = target.progress[book.id];
+        if (bookProgressMatches(book, progress)) return book;
+        booksChanged = true;
+        return {
+          ...book,
+          lastOpenedAt: progress?.lastOpenedAt,
+          progressCfi: progress?.cfi,
+          progressPercent: progress?.percent ?? 0,
+        };
+      });
+      if (booksChanged) {
+        this.books = books;
+        this.emitBooks();
+      }
+    }, generation);
   }
 
   private async loadSettingsMetadataOnly(

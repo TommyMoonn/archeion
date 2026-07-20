@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import { useMetadataWriteLifecycle } from "../../storage/useMetadataWriteLifecycle";
 import { createArchiveAppearanceSettingsSource } from "../../storage/archiveAppearanceSettingsSource";
 import { archiveStore } from "../../stores/archiveStore";
 import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
@@ -20,6 +21,7 @@ type ArchiveGateProps = {
 export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGateProps) {
   const state = useArchive();
   const storage = useLibraryStorage();
+  useMetadataWriteLifecycle(storage);
   const appearanceSettingsSource = useMemo(
     () => createArchiveAppearanceSettingsSource(storage),
     [storage],

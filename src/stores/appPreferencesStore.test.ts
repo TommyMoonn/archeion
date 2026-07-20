@@ -590,3 +590,45 @@ describe("app preferences", () => {
     restoreMatchMedia();
   });
 });
+
+describe("app preference write coalescing", () => {
+  it("persists rapid desktop updates as one trailing latest-value write", async () => {
+    vi.useFakeTimers();
+    const saveDesktop = vi.fn(async () => undefined);
+    const store = new AppPreferencesStore(createPersistence({ saveDesktop }));
+
+    try {
+      await store.initialize();
+      const first = store.update({ density: "compact" });
+      const second = store.update({ bookCardSize: "large" });
+
+      expect(saveDesktop).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(250);
+      await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+
+      expect(saveDesktop).toHaveBeenCalledOnce();
+      expect(saveDesktop).toHaveBeenCalledWith(
+        expect.objectContaining({ density: "compact", bookCardSize: "large" }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes a pending desktop update without waiting for the trailing delay", async () => {
+    vi.useFakeTimers();
+    const saveDesktop = vi.fn(async () => undefined);
+    const store = new AppPreferencesStore(createPersistence({ saveDesktop }));
+
+    try {
+      await store.initialize();
+      const pending = store.update({ density: "compact" });
+      await vi.advanceTimersByTimeAsync(0);
+      await store.flushPendingWrites();
+      await expect(pending).resolves.toMatchObject({ density: "compact" });
+      expect(saveDesktop).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

@@ -1,6 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
 
+import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
+
 import {
   defaultAppPreferences,
   type AppearanceSettings,
@@ -27,6 +29,7 @@ import type {
 } from "../types/settings";
 
 const LEGACY_STORAGE_KEY = "archeion:preferences";
+const APP_PREFERENCES_WRITE_DELAY_MS = 250;
 type Listener = () => void;
 
 type AppPreferencesCommand = "load_app_settings" | "save_app_settings";
@@ -359,10 +362,16 @@ export class AppPreferencesStore {
   private persistenceStatus: AppPreferencesPersistenceStatus = { status: "idle" };
   private loadPromise: Promise<void> | null = null;
   private mutationRevision = 0;
-  private saveQueue: Promise<unknown> = Promise.resolve();
+  private readonly desktopWrites: CoalescedWriteQueue<AppPreferences>;
 
   constructor(persistence = createDefaultPersistence()) {
     this.persistence = persistence;
+    this.desktopWrites = new CoalescedWriteQueue({
+      delayMs: APP_PREFERENCES_WRITE_DELAY_MS,
+      write: async (preferences) => {
+        await this.persistence.saveDesktop(preferences);
+      },
+    });
     this.apply();
   }
 
@@ -404,7 +413,15 @@ export class AppPreferencesStore {
     const next = mergeAppPreferences(this.preferences, changes);
     this.mutationRevision += 1;
     this.setPreferences(next);
-    return this.persist(next);
+    return this.persist(next, this.mutationRevision);
+  }
+
+  async flushPendingWrites(): Promise<void> {
+    if (!this.persistence.isDesktop()) return;
+    await this.desktopWrites.flush();
+    if (this.persistenceStatus.status !== "idle") {
+      this.setPersistenceStatus({ status: "saved" });
+    }
   }
 
   reset(changes: Partial<AppPreferences> = {}): Promise<AppPreferences> {
@@ -452,7 +469,10 @@ export class AppPreferencesStore {
     }
   }
 
-  private persist(preferences: AppPreferences): Promise<AppPreferences> {
+  private persist(
+    preferences: AppPreferences,
+    persistenceRevision: number,
+  ): Promise<AppPreferences> {
     this.setPersistenceStatus({ status: "saving" });
 
     if (!this.persistence.isDesktop()) {
@@ -467,21 +487,21 @@ export class AppPreferencesStore {
       }
     }
 
-    const saveTask = this.saveQueue
-      .catch(() => undefined)
-      .then(() => this.persistence.saveDesktop(preferences))
+    return this.desktopWrites
+      .schedule(structuredClone(preferences))
       .then(() => {
-        this.setPersistenceStatus({ status: "saved" });
+        if (this.mutationRevision === persistenceRevision) {
+          this.setPersistenceStatus({ status: "saved" });
+        }
         return preferences;
       })
       .catch((error) => {
         const message = `App settings could not be saved: ${errorMessage(error)}`;
-        this.setPersistenceStatus({ status: "error", error: message });
+        if (this.mutationRevision === persistenceRevision) {
+          this.setPersistenceStatus({ status: "error", error: message });
+        }
         throw new Error(message, { cause: error });
       });
-
-    this.saveQueue = saveTask;
-    return saveTask;
   }
 
   private setPreferences(preferences: AppPreferences) {
