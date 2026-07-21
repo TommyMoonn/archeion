@@ -8,7 +8,9 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Folder } from "../../types/folder";
 import {
+  contextMenuItemWithText,
   createStorage,
+  openControlledContextMenu,
   renderLibraryPage,
   setInputValue,
   setupLibraryPageTestSuite,
@@ -47,15 +49,9 @@ function createFolderObserver(initialFolders: Folder[]) {
 
 async function openRenameDialog(container: HTMLElement, name: string) {
   await import("../folders/FolderRenameDialog");
+  const menu = await openControlledContextMenu(container, `Actions for ${name}`);
   await act(async () => {
-    const summary = container.querySelector<HTMLElement>(
-      `summary[aria-label="Actions for ${name}"]`,
-    );
-    summary?.click();
-    const rename = Array.from(
-      summary?.closest("details")?.querySelectorAll<HTMLButtonElement>("button") ?? [],
-    ).find((button) => button.textContent === "Rename");
-    if (!rename) throw new Error("The folder rename action was not rendered.");
+    const rename = contextMenuItemWithText(menu, "Rename");
     rename.focus();
     rename.click();
     await Promise.resolve();
@@ -78,15 +74,9 @@ async function moveFolderThroughDialog(
   destinationLabel: string,
 ) {
   await import("../filesystem/MoveToFolderDialog");
+  const menu = await openControlledContextMenu(container, `Actions for ${folderName}`);
   await act(async () => {
-    const summary = container.querySelector<HTMLElement>(
-      `summary[aria-label="Actions for ${folderName}"]`,
-    );
-    summary?.click();
-    const move = Array.from(
-      summary?.closest("details")?.querySelectorAll<HTMLButtonElement>("button") ?? [],
-    ).find((button) => button.textContent === "Move");
-    if (!move) throw new Error("The folder move action was not rendered.");
+    const move = contextMenuItemWithText(menu, "Move");
     move.focus();
     move.click();
     await Promise.resolve();
@@ -389,15 +379,9 @@ describe("LibraryPage folder path continuity", () => {
     );
     suite.trackRoot(session.root);
 
+    const menu = await openControlledContextMenu(session.container, "Actions for Fiction");
     await act(async () => {
-      const summary = session.container.querySelector<HTMLElement>(
-        'summary[aria-label="Actions for Fiction"]',
-      );
-      summary?.click();
-      const deleteAction = Array.from(
-        summary?.closest("details")?.querySelectorAll<HTMLButtonElement>("button") ?? [],
-      ).find((button) => button.textContent === "Delete");
-      deleteAction?.click();
+      contextMenuItemWithText(menu, "Delete").click();
       await Promise.resolve();
       await Promise.resolve();
     });

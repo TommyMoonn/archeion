@@ -1,11 +1,21 @@
 import { Check, Heart, PencilSimple } from "@phosphor-icons/react";
-import { memo, useLayoutEffect, type MouseEvent } from "react";
+import {
+  memo,
+  useLayoutEffect,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
-import { useContextMenuController } from "../../components/contextMenuController";
+import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { formatMediumDate } from "../../utils/formatters";
-import { BookContextMenu } from "./BookContextMenu";
+import { BookContextMenu, MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
@@ -32,6 +42,7 @@ type BookListProps = {
   selectedBookIds: ReadonlySet<string>;
   selectionMode: boolean;
   returnFocusRequest?: LibraryReturnFocusRequest | null;
+  onContextMenuUnavailable?: (reason: string) => void;
 };
 
 type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
@@ -39,6 +50,8 @@ type BookRowProps = Omit<BookListProps, "books" | "selectedBookIds"> & {
   loadCoverImmediately?: boolean;
   collectionIndex?: number;
   selected: boolean;
+  contextMenuDisabledReason?: string;
+  onContextMenuUnavailable?: (reason: string) => void;
 };
 
 function BookRowComponent({
@@ -58,18 +71,44 @@ function BookRowComponent({
   selectionMode,
   loadCoverImmediately = false,
   collectionIndex,
+  contextMenuDisabledReason,
+  onContextMenuUnavailable,
 }: BookRowProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
   const contextMenu = useContextMenuController();
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
 
-  function activateBook(event: MouseEvent<HTMLButtonElement>) {
+  function activateBook(event: ReactMouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
       onSelectionChange(book, { range: event.shiftKey });
       return;
     }
 
     onSelect(book);
+  }
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
+    openContextMenuFromPointer(
+      contextMenu,
+      event,
+      primaryActionRef.current,
+      !contextMenuDisabledReason,
+      contextMenuDisabledReason
+        ? () => onContextMenuUnavailable?.(contextMenuDisabledReason)
+        : undefined,
+    );
+  }
+
+  function handlePrimaryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    openContextMenuFromKeyboard(
+      contextMenu,
+      event,
+      !contextMenuDisabledReason,
+      contextMenuDisabledReason
+        ? () => onContextMenuUnavailable?.(contextMenuDisabledReason)
+        : undefined,
+    );
   }
 
   return (
@@ -79,13 +118,16 @@ function BookRowComponent({
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
       data-selection-mode={selectionMode || undefined}
+      onContextMenu={handleContextMenu}
     >
       <button
         aria-label={selectionMode ? `${selected ? "Deselect" : "Select"} ${title}` : undefined}
         aria-pressed={selectionMode ? selected : undefined}
         className="book-row__select"
-        type="button"
         onClick={activateBook}
+        onKeyDown={handlePrimaryKeyDown}
+        ref={primaryActionRef}
+        type="button"
       >
         <BookCover book={book} className="book-cover--row" loadImmediately={loadCoverImmediately} />
         <span className="book-row__identity">
@@ -137,6 +179,7 @@ function BookRowComponent({
         placement="row"
         canDelete={canDelete}
         canManageFile={canManageFile}
+        disabledReason={contextMenuDisabledReason}
         showRenameFileAction={false}
       />
     </article>
@@ -153,6 +196,8 @@ const BookRow = memo(
     previous.selectionMode === next.selectionMode &&
     previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
+    previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
+    previous.onContextMenuUnavailable === next.onContextMenuUnavailable &&
     previous.onDelete === next.onDelete &&
     previous.onEditMetadata === next.onEditMetadata &&
     previous.onMove === next.onMove &&
@@ -176,6 +221,8 @@ export const BookList = memo(function BookList({
     returnFocusRequest?.index,
   );
   const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
+  const contextMenuDisabledReason =
+    selectedBookIds.size > 1 ? MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON : undefined;
 
   useLayoutEffect(() => {
     reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
@@ -202,6 +249,7 @@ export const BookList = memo(function BookList({
             selected={selectedBookIds.has(book.id)}
             loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
+            contextMenuDisabledReason={contextMenuDisabledReason}
             {...rowProps}
           />
         ))}

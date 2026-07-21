@@ -237,56 +237,93 @@ export function ContextMenuSurface({
       controller.close();
     }
 
+    function ownKeyboardEvent(event: KeyboardEvent, preventDefault = true) {
+      if (preventDefault) event.preventDefault();
+      event.stopImmediatePropagation();
+    }
+
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented) return;
+      if (activeMenu?.token !== token) return;
       const menu = menuRef.current;
       if (!menu) return;
 
       if (event.key === "Escape") {
-        event.preventDefault();
-        event.stopPropagation();
+        ownKeyboardEvent(event);
+        controller.close({ restoreFocus: true });
+        return;
+      }
+
+      if (event.key === "Tab") {
+        event.stopImmediatePropagation();
         controller.close({ restoreFocus: true });
         return;
       }
 
       const items = enabledMenuItems(menu);
-      if (items.length === 0) return;
       const target = event.target;
-      if (!(target instanceof HTMLElement) || !menu.contains(target)) return;
+      const targetItem =
+        target instanceof HTMLButtonElement && menu.contains(target) && items.includes(target)
+          ? target
+          : null;
 
       if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
-        const currentIndex = items.indexOf(document.activeElement as HTMLButtonElement);
+        ownKeyboardEvent(event);
+        if (items.length === 0) return;
+
+        const currentIndex = targetItem ? items.indexOf(targetItem) : -1;
         const nextIndex =
           event.key === "Home"
             ? 0
             : event.key === "End"
               ? items.length - 1
               : event.key === "ArrowDown"
-                ? (currentIndex + 1 + items.length) % items.length
-                : (currentIndex <= 0 ? items.length : currentIndex) - 1;
-        event.preventDefault();
-        event.stopPropagation();
+                ? currentIndex < 0
+                  ? 0
+                  : (currentIndex + 1) % items.length
+                : currentIndex < 0
+                  ? items.length - 1
+                  : (currentIndex <= 0 ? items.length : currentIndex) - 1;
         items[nextIndex]?.focus();
         return;
       }
 
-      if (
-        (event.key === "Enter" || event.key === " ") &&
-        items.includes(target as HTMLButtonElement)
-      ) {
-        event.preventDefault();
-        event.stopPropagation();
-        (target as HTMLButtonElement).click();
+      if ((event.key === "Enter" || event.key === " ") && targetItem) {
+        ownKeyboardEvent(event);
+        targetItem.click();
+        return;
       }
+
+      ownKeyboardEvent(event, event.key !== "Tab");
     }
 
     function closeWithoutFocus() {
       controller.close();
     }
 
+    function handleScroll(event: Event) {
+      const menu = menuRef.current;
+      const target = event.target;
+      if (target instanceof Node && menu?.contains(target)) return;
+
+      if (currentInvocation.anchor.type === "point") {
+        closeWithoutFocus();
+        return;
+      }
+
+      if (target === document || target === window) {
+        closeWithoutFocus();
+        return;
+      }
+
+      if (target instanceof Element && target.contains(currentInvocation.anchor.element)) {
+        closeWithoutFocus();
+      }
+    }
+
     document.addEventListener("pointerdown", handlePointerDown, true);
-    document.addEventListener("keydown", handleKeyDown);
-    document.addEventListener("scroll", closeWithoutFocus, true);
+    window.addEventListener("keydown", handleKeyDown, true);
+    document.addEventListener("scroll", handleScroll, true);
+    window.addEventListener("scroll", handleScroll, true);
     window.addEventListener("blur", closeWithoutFocus);
     window.addEventListener("resize", closeWithoutFocus);
     window.addEventListener("popstate", closeWithoutFocus);
@@ -299,8 +336,9 @@ export function ContextMenuSurface({
     return () => {
       if (activeMenu?.token === token) activeMenu = null;
       document.removeEventListener("pointerdown", handlePointerDown, true);
-      document.removeEventListener("keydown", handleKeyDown);
-      document.removeEventListener("scroll", closeWithoutFocus, true);
+      window.removeEventListener("keydown", handleKeyDown, true);
+      document.removeEventListener("scroll", handleScroll, true);
+      window.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("blur", closeWithoutFocus);
       window.removeEventListener("resize", closeWithoutFocus);
       window.removeEventListener("popstate", closeWithoutFocus);
@@ -326,6 +364,7 @@ export function ContextMenuSurface({
   return createPortal(
     <div
       aria-label={ariaLabel}
+      data-application-transient="context-menu"
       className={`context-menu menu-popover ${className}`.trim()}
       ref={menuRef}
       role="menu"

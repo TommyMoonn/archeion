@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { archiveStore } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import { MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import type { Folder } from "../../types/folder";
 import {
   buttonWithText,
@@ -337,6 +338,73 @@ describe("LibraryPage selection and bulk workflows", () => {
 
     expect(session.container.querySelector(".library-selection-bar")).toBeNull();
     expect(document.activeElement).toBe(selectButton);
+  });
+
+  it("lets the context menu own the first Escape before selection mode", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    await act(async () => clickBook(session.container, "Alpha", { ctrlKey: true }));
+    const card = session.container.querySelector<HTMLElement>('[data-reader-book-id="alpha"]')!;
+    act(() => {
+      card.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 24, clientY: 24 }),
+      );
+    });
+    expect(document.querySelector('[data-application-transient="context-menu"]')).not.toBeNull();
+
+    act(() => {
+      card.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    expect(document.querySelector('[data-application-transient="context-menu"]')).toBeNull();
+    expect(session.container.querySelector(".library-selection-bar")).not.toBeNull();
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+      await new Promise((resolve) => window.requestAnimationFrame(resolve));
+    });
+    expect(session.container.querySelector(".library-selection-bar")).toBeNull();
+  });
+
+  it("deduplicates multi-selection context-menu feedback across pointer and keyboard", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    await act(async () => {
+      clickBook(session.container, "Alpha", { ctrlKey: true });
+      clickBook(session.container, "Beta", { ctrlKey: true });
+    });
+    const card = session.container.querySelector<HTMLElement>('[data-reader-book-id="alpha"]')!;
+    const primary = card.querySelector<HTMLButtonElement>(".book-card__select")!;
+
+    act(() => {
+      card.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 24, clientY: 24 }),
+      );
+      primary.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "F10", shiftKey: true }),
+      );
+      primary.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
+    });
+
+    expect(document.querySelector('[data-application-transient="context-menu"]')).toBeNull();
+    expect(session.container.textContent).toContain(MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON);
+    expect(session.container.querySelectorAll(".library-feedback__token")).toHaveLength(1);
+    expect(
+      session.container.querySelector(".library-feedback__token")?.getAttribute("aria-live"),
+    ).toBe("polite");
+    expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
+      "2 selected",
+    );
+    expect(session.container.querySelectorAll('.book-card[data-selected="true"]')).toHaveLength(2);
   });
 
   it("uses the same selection model in list view", async () => {

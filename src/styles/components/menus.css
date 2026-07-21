@@ -42,8 +42,8 @@ details[open] > .menu-trigger,
 .context-menu {
   position: fixed;
   z-index: 1000;
-  top: var(--context-menu-top);
-  left: var(--context-menu-left);
+  top: var(--context-menu-top, 0px);
+  left: var(--context-menu-left, 0px);
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 16px);
   overflow-y: auto;

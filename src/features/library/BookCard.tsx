@@ -1,7 +1,16 @@
 import { Check, Heart } from "@phosphor-icons/react";
-import { memo, type MouseEvent } from "react";
+import {
+  memo,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
-import { useContextMenuController } from "../../components/contextMenuController";
+import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
@@ -27,6 +36,8 @@ type BookCardProps = {
   selectionMode: boolean;
   loadCoverImmediately?: boolean;
   collectionIndex?: number;
+  contextMenuDisabledReason?: string;
+  onContextMenuUnavailable?: (reason: string) => void;
 };
 
 function BookCardComponent({
@@ -46,18 +57,44 @@ function BookCardComponent({
   selectionMode,
   loadCoverImmediately = false,
   collectionIndex,
+  contextMenuDisabledReason,
+  onContextMenuUnavailable,
 }: BookCardProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
   const contextMenu = useContextMenuController();
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
 
-  function activateBook(event: MouseEvent<HTMLButtonElement>) {
+  function activateBook(event: ReactMouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
       onSelectionChange(book, { range: event.shiftKey });
       return;
     }
 
     onSelect(book);
+  }
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
+    openContextMenuFromPointer(
+      contextMenu,
+      event,
+      primaryActionRef.current,
+      !contextMenuDisabledReason,
+      contextMenuDisabledReason
+        ? () => onContextMenuUnavailable?.(contextMenuDisabledReason)
+        : undefined,
+    );
+  }
+
+  function handlePrimaryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    openContextMenuFromKeyboard(
+      contextMenu,
+      event,
+      !contextMenuDisabledReason,
+      contextMenuDisabledReason
+        ? () => onContextMenuUnavailable?.(contextMenuDisabledReason)
+        : undefined,
+    );
   }
 
   return (
@@ -67,6 +104,7 @@ function BookCardComponent({
       data-library-index={collectionIndex}
       data-selected={selected || undefined}
       data-selection-mode={selectionMode || undefined}
+      onContextMenu={handleContextMenu}
     >
       <button
         aria-label={
@@ -76,8 +114,10 @@ function BookCardComponent({
         }
         aria-pressed={selectionMode ? selected : undefined}
         className="book-card__select"
-        type="button"
         onClick={activateBook}
+        onKeyDown={handlePrimaryKeyDown}
+        ref={primaryActionRef}
+        type="button"
       >
         <BookCover book={book} loadImmediately={loadCoverImmediately} />
         <span className="book-card__copy">
@@ -119,6 +159,7 @@ function BookCardComponent({
         placement="card"
         canDelete={canDelete}
         canManageFile={canManageFile}
+        disabledReason={contextMenuDisabledReason}
       />
     </article>
   );
@@ -134,6 +175,8 @@ export const BookCard = memo(
     previous.selectionMode === next.selectionMode &&
     previous.loadCoverImmediately === next.loadCoverImmediately &&
     previous.collectionIndex === next.collectionIndex &&
+    previous.contextMenuDisabledReason === next.contextMenuDisabledReason &&
+    previous.onContextMenuUnavailable === next.onContextMenuUnavailable &&
     previous.onDelete === next.onDelete &&
     previous.onEditMetadata === next.onEditMetadata &&
     previous.onMove === next.onMove &&

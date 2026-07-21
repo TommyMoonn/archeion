@@ -179,6 +179,73 @@ describe("ArchiveManagerWindow", () => {
     act(() => root.unmount());
   });
 
+  it("opens archive actions on right-click without activating the archive", () => {
+    const switchArchive = vi.spyOn(archiveStore, "switchArchive");
+    const onArchiveChoiceComplete = vi.fn();
+    const { container, root } = renderInteractive({ onArchiveChoiceComplete });
+    const row = Array.from(container.querySelectorAll<HTMLElement>(".archive-row")).find((item) =>
+      item.textContent?.includes("Comics"),
+    );
+
+    act(() => {
+      row?.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 90, clientY: 70 }),
+      );
+    });
+
+    expect(switchArchive).not.toHaveBeenCalled();
+    expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
+    const pointerLabels = Array.from(
+      document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ).map((item) => item.textContent?.trim());
+    expect(pointerLabels).toEqual(["Rename", "Reveal in folder", "Forget"]);
+    expect(row?.getAttribute("data-context-menu-open")).toBe("true");
+
+    act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Actions for Comics"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+    );
+    expect(
+      Array.from(document.body.querySelectorAll<HTMLElement>('[role="menuitem"]')).map((item) =>
+        item.textContent?.trim(),
+      ),
+    ).toEqual(pointerLabels);
+
+    act(() => root.unmount());
+  });
+
+  it("opens archive actions from keyboard context keys and focuses the first action", () => {
+    const switchArchive = vi.spyOn(archiveStore, "switchArchive");
+    const { container, root } = renderInteractive();
+    const primary = Array.from(
+      container.querySelectorAll<HTMLButtonElement>(".archive-row__activate"),
+    ).find((button) => button.textContent?.includes("Comics"));
+    primary?.focus();
+
+    act(() => {
+      primary?.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "F10", shiftKey: true }),
+      );
+    });
+
+    expect(switchArchive).not.toHaveBeenCalled();
+    expect(document.activeElement?.textContent).toContain("Rename");
+
+    act(() =>
+      document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
+    );
+    expect(document.activeElement).toBe(primary);
+
+    act(() => {
+      primary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
+    });
+    expect(document.activeElement?.textContent).toContain("Rename");
+
+    act(() => root.unmount());
+  });
+
   it("keeps rename, reveal, and forget actions inside the manager", async () => {
     const revealArchive = vi.spyOn(archiveStore, "revealArchive").mockResolvedValue(true);
     const forgetArchive = vi.spyOn(archiveStore, "forgetArchive").mockResolvedValue(true);

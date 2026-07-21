@@ -53,6 +53,8 @@ import { startupTrace } from "../../app/startupTrace";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
+const BOOK_CONTEXT_MENU_UNAVAILABLE_FEEDBACK_ID = "book-context-menu-unavailable";
+
 function locationEmptyState(location: LibraryLocation, libraryTitle: string) {
   if (location.type === "favorites") {
     return { title: "No favorites yet", description: "Mark books as favorites to keep them here." };
@@ -109,6 +111,27 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     showRescanSuccess,
     tokens: feedbackTokens,
   } = useLibraryFeedback();
+  const contextMenuUnavailableFeedbackActiveRef = useRef(false);
+
+  useEffect(() => {
+    if (!feedbackTokens.some((token) => token.id === BOOK_CONTEXT_MENU_UNAVAILABLE_FEEDBACK_ID)) {
+      contextMenuUnavailableFeedbackActiveRef.current = false;
+    }
+  }, [feedbackTokens]);
+
+  const announceContextMenuUnavailable = useCallback(
+    (reason: string) => {
+      if (contextMenuUnavailableFeedbackActiveRef.current) return;
+      contextMenuUnavailableFeedbackActiveRef.current = true;
+      pushFeedback({
+        autoDismiss: true,
+        id: BOOK_CONTEXT_MENU_UNAVAILABLE_FEEDBACK_ID,
+        title: reason,
+        tone: "warning",
+      });
+    },
+    [pushFeedback],
+  );
 
   useEffect(
     () =>
@@ -533,6 +556,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onSelect: dialogActions.openBookDetails,
           onSelectionChange: changeBookSelection,
           onToggleFavorite: bookActions.toggleFavorite,
+          onContextMenuUnavailable: announceContextMenuUnavailable,
           selectedBookIds,
           selectionMode,
         }}

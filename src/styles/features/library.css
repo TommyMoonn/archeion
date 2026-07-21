@@ -435,10 +435,8 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 }
 
 .book-card[data-selection-mode] .book-favorite,
-.book-card[data-selection-mode] .book-menu,
 .book-row[data-selection-mode] .book-row__rename,
-.book-row[data-selection-mode] .book-row__favorite,
-.book-row[data-selection-mode] .book-menu {
+.book-row[data-selection-mode] .book-row__favorite {
   visibility: hidden;
   pointer-events: none;
 }

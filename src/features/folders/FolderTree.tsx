@@ -1,7 +1,16 @@
 import { Folder as FolderIcon } from "@phosphor-icons/react";
-import { useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useMemo,
+  useRef,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
-import { useContextMenuController } from "../../components/contextMenuController";
+import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
@@ -39,16 +48,28 @@ function FolderNode({
 }: FolderNodeProps) {
   const isSelected = location.type === "folder" && location.folderId === folder.id;
   const contextMenu = useContextMenuController();
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
   const menuDismissKey =
     location.type === "folder" || location.type === "series-detail"
       ? `${location.type}:${location.type === "folder" ? location.folderId : location.seriesKey}`
       : location.type;
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
+    if (!showActions) return;
+    openContextMenuFromPointer(contextMenu, event, primaryActionRef.current);
+  }
+
+  function handlePrimaryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!showActions) return;
+    openContextMenuFromKeyboard(contextMenu, event);
+  }
 
   return (
     <li>
       <div
         className="folder-tree__row"
         {...folderMutationOwnerAttributes(folder, "tree")}
+        data-context-menu-open={contextMenu.isOpen || undefined}
         data-has-actions={showActions ? "true" : undefined}
         data-import-drop-active={
           activeImportDropTargetId === `sidebar-folder:${folder.id}` || undefined
@@ -56,6 +77,7 @@ function FolderNode({
         data-import-drop-destination={folder.relativePath}
         data-import-drop-id={`sidebar-folder:${folder.id}`}
         data-import-drop-target={folder.relativePath ? "true" : undefined}
+        onContextMenu={handleContextMenu}
       >
         <button
           aria-current={isSelected ? "page" : undefined}
@@ -64,6 +86,8 @@ function FolderNode({
           data-library-folder-primary-action
           title={folder.name}
           onClick={() => onSelect(folder)}
+          onKeyDown={handlePrimaryKeyDown}
+          ref={primaryActionRef}
           type="button"
         >
           <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />

@@ -1,3 +1,4 @@
+import { ACTIVE_CONTEXT_MENU_SELECTOR } from "../../components/contextMenuController";
 import {
   effectiveKeyboardBinding,
   commandScopesOverlap,
@@ -99,6 +100,7 @@ function commandCanOwnEvent(
   context: KeyboardInteractionContext,
 ): boolean {
   if (command.canHandleEvent && !command.canHandleEvent(event, context)) return false;
+  if (context.applicationDocument.querySelector(ACTIVE_CONTEXT_MENU_SELECTOR)) return false;
 
   const target = eventTargetElement(event.target);
   const modalScope = activeApplicationModalScope(context.applicationDocument, target);

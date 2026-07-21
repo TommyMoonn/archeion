@@ -5,12 +5,15 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../settings/SettingsDialog";
+import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
+import { useContextMenuController } from "../../components/contextMenuController";
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
+import { commandDefinitions } from "./commandBindings";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionCommand, QuickActionsRegistry } from "./quickActions";
 
@@ -135,8 +138,17 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-function Harness({ onRun }: { onRun: () => void }) {
+function Harness({
+  onFocusSearch = () => undefined,
+  onReaderCommand = () => undefined,
+  onRun,
+}: {
+  onFocusSearch?: () => void;
+  onReaderCommand?: () => void;
+  onRun: () => void;
+}) {
   const { openPalette, openSettings } = useQuickActions();
+  const contextMenu = useContextMenuController();
   const commands = useMemo<QuickActionCommand[]>(
     () => [
       {
@@ -148,8 +160,18 @@ function Harness({ onRun }: { onRun: () => void }) {
         label: "Run test command",
         scope: "global",
       },
+      {
+        ...commandDefinitions.focusSearch,
+        execute: onFocusSearch,
+        scope: "library",
+      },
+      {
+        ...commandDefinitions.readerToc,
+        execute: onReaderCommand,
+        scope: "reader",
+      },
     ],
-    [onRun],
+    [onFocusSearch, onReaderCommand, onRun],
   );
   useRegisterQuickActions("test-harness", commands);
 
@@ -162,11 +184,22 @@ function Harness({ onRun }: { onRun: () => void }) {
         Open settings
       </button>
       <input aria-label="Text field" type="text" />
+      <ContextMenuTrigger controller={contextMenu} label="Open context actions">
+        Context actions
+      </ContextMenuTrigger>
+      <ContextMenuSurface
+        actions={[{ id: "menu-action", label: "Menu action", onSelect: () => undefined }]}
+        ariaLabel="Context actions"
+        controller={contextMenu}
+      />
     </div>
   );
 }
 
-async function renderProvider(onRun = vi.fn()) {
+async function renderProvider(
+  onRun = vi.fn(),
+  options: { onFocusSearch?: () => void; onReaderCommand?: () => void } = {},
+) {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -175,7 +208,7 @@ async function renderProvider(onRun = vi.fn()) {
     root?.render(
       <LibraryStorageContext value={createStorage()}>
         <QuickActionsProvider>
-          <Harness onRun={onRun} />
+          <Harness onRun={onRun} {...options} />
         </QuickActionsProvider>
       </LibraryStorageContext>,
     );
@@ -260,6 +293,43 @@ describe("QuickActionsProvider", () => {
     expect(document.querySelector(".quick-actions")).toBeNull();
     expect(document.activeElement).toBe(opener);
   }, 15_000);
+
+  it("keeps global, search, and reader commands beneath an open context menu", async () => {
+    const onFocusSearch = vi.fn();
+    const onReaderCommand = vi.fn();
+    const rendered = await renderProvider(vi.fn(), { onFocusSearch, onReaderCommand });
+    const contextTrigger = rendered.container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open context actions"]',
+    )!;
+    act(() => contextTrigger.click());
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+
+    for (const init of [
+      { ctrlKey: true, key: "P", shiftKey: true },
+      { ctrlKey: true, key: "," },
+      { ctrlKey: true, key: "f" },
+      { key: "t" },
+    ]) {
+      act(() => {
+        contextTrigger.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, cancelable: true, ...init }),
+        );
+      });
+    }
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+    expect(onFocusSearch).not.toHaveBeenCalled();
+    expect(onReaderCommand).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="menu"]')).not.toBeNull();
+
+    act(() => {
+      contextTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+  });
 
   it("does not open from a text-entry field", async () => {
     const rendered = await renderProvider();

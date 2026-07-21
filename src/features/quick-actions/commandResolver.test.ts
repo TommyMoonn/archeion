@@ -155,6 +155,45 @@ describe("keyboard command resolver", () => {
     ).toBeNull();
   });
 
+  it("blocks every lower command scope while a controlled context menu owns interaction", () => {
+    const menu = document.createElement("div");
+    menu.dataset.applicationTransient = "context-menu";
+    menu.setAttribute("role", "menu");
+    document.body.append(menu);
+    const target = document.createElement("button");
+    document.body.append(target);
+
+    for (const scope of [
+      "global",
+      "library",
+      "folders",
+      "reader",
+      "settings",
+      "transient-surface",
+    ] as const) {
+      expect(
+        resolveKeyboardCommand(
+          keyboardEvent(target),
+          [command(`command-${scope}`, scope)],
+          preferences,
+          context(),
+        ),
+      ).toBeNull();
+    }
+
+    const epubDocument = document.implementation.createHTMLDocument("EPUB");
+    const epubTarget = epubDocument.createElement("p");
+    epubDocument.body.append(epubTarget);
+    expect(
+      resolveKeyboardCommand(
+        keyboardEvent(epubTarget),
+        [command("reader-epub", "reader")],
+        preferences,
+        context(epubDocument),
+      ),
+    ).toBeNull();
+  });
+
   it("blocks EPUB-originating global and reader commands while a parent transient surface is open", () => {
     const dialog = document.createElement("dialog");
     dialog.className = "settings-dialog";

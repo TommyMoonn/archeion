@@ -206,6 +206,46 @@ export function createBooksLoadController() {
   };
 }
 
+export async function openControlledContextMenu(
+  container: HTMLElement,
+  label: string,
+): Promise<HTMLElement> {
+  const trigger = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+    (candidate) => candidate.getAttribute("aria-label") === label,
+  );
+
+  if (!trigger) {
+    throw new Error(`Context menu trigger ${label} was not rendered.`);
+  }
+
+  await act(async () => {
+    trigger.click();
+    await Promise.resolve();
+  });
+
+  const menu = Array.from(document.body.querySelectorAll<HTMLElement>('[role="menu"]')).find(
+    (candidate) => candidate.getAttribute("aria-label") === label,
+  );
+
+  if (!menu) {
+    throw new Error(`Context menu ${label} was not rendered.`);
+  }
+
+  return menu;
+}
+
+export function contextMenuItemWithText(menu: HTMLElement, text: string): HTMLButtonElement {
+  const item = Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
+    (candidate) => candidate.textContent === text,
+  );
+
+  if (!item) {
+    throw new Error(`Context menu action ${text} was not rendered.`);
+  }
+
+  return item;
+}
+
 export function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find(
     (candidate) => candidate.textContent === text,

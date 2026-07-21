@@ -80,7 +80,7 @@ describe("LibraryPage collection callback stability", () => {
     await act(async () => {
       clickBook(session.container, "Alpha");
     });
-    await waitForButtonWithText(session.container, "Read");
+    await waitForButtonWithText(session.container, "Read book");
 
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });

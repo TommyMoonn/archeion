@@ -3,6 +3,7 @@ import { memo, useLayoutEffect } from "react";
 import type { Book } from "../../types/book";
 import type { CollectionCardSize } from "../../types/library";
 import { BookCard } from "./BookCard";
+import { MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
 import type { LibrarySelectionIntent } from "./librarySelection";
 import {
   reportLibraryReturnTarget,
@@ -27,6 +28,7 @@ type BookGridProps = {
   selectedBookIds: ReadonlySet<string>;
   selectionMode: boolean;
   returnFocusRequest?: LibraryReturnFocusRequest | null;
+  onContextMenuUnavailable?: (reason: string) => void;
 };
 
 export const BookGrid = memo(function BookGrid({
@@ -46,6 +48,7 @@ export const BookGrid = memo(function BookGrid({
   selectedBookIds,
   selectionMode,
   returnFocusRequest,
+  onContextMenuUnavailable,
 }: BookGridProps) {
   const { collectionRef, range, windowed } = useLibraryCollectionWindow(
     books.length,
@@ -53,6 +56,8 @@ export const BookGrid = memo(function BookGrid({
     returnFocusRequest?.index,
   );
   const retainedBooks = windowed ? books.slice(range.start, range.end) : books;
+  const contextMenuDisabledReason =
+    selectedBookIds.size > 1 ? MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON : undefined;
 
   useLayoutEffect(() => {
     reportLibraryReturnTarget(collectionRef.current, returnFocusRequest);
@@ -92,6 +97,8 @@ export const BookGrid = memo(function BookGrid({
             selectionMode={selectionMode}
             loadCoverImmediately
             collectionIndex={range.start + retainedIndex}
+            contextMenuDisabledReason={contextMenuDisabledReason}
+            onContextMenuUnavailable={onContextMenuUnavailable}
           />
         ))}
       </div>

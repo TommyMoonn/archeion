@@ -1,11 +1,19 @@
 import { DotsThree, Plus } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 
 // Copied from src-tauri/icons/128x128.png so the frontend can load it through Vite.
 import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { Button } from "../../components/Button";
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
   useContextMenuController,
   type ContextMenuController,
 } from "../../components/contextMenuController";
@@ -101,6 +109,7 @@ function ArchiveRow({
 }: ArchiveRowProps) {
   const [isRenaming, setIsRenaming] = useState(false);
   const contextMenu = useContextMenuController();
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
   const [name, setName] = useState(archive.displayName);
   const [isBusy, setIsBusy] = useState(false);
   const isActive = archive.id === activeArchiveId;
@@ -163,6 +172,15 @@ function ArchiveRow({
     }
   }
 
+  function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
+    if (isRenaming) return;
+    openContextMenuFromPointer(contextMenu, event, primaryActionRef.current, !isBusy);
+  }
+
+  function handlePrimaryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    openContextMenuFromKeyboard(contextMenu, event, !isBusy);
+  }
+
   async function forgetArchive() {
     setIsBusy(true);
     setStatus(null);
@@ -181,6 +199,8 @@ function ArchiveRow({
       className={`archive-row${isBusy ? " archive-row--busy" : ""}${
         isMissing ? " archive-row--missing" : ""
       }`}
+      data-context-menu-open={contextMenu.isOpen || undefined}
+      onContextMenu={handleContextMenu}
     >
       <div className="archive-row__main">
         {isRenaming ? (
@@ -206,6 +226,8 @@ function ArchiveRow({
             className="archive-row__activate"
             disabled={isBusy}
             onClick={() => void activateArchive()}
+            onKeyDown={handlePrimaryKeyDown}
+            ref={primaryActionRef}
             type="button"
           >
             <span className="archive-row__title">{archive.displayName}</span>

@@ -7,6 +7,9 @@ import { bookTitle } from "../../utils/bookDisplay";
 import { createBookContextActions } from "./bookContextActions";
 import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
 
+export const MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON =
+  "Single-book actions are unavailable while multiple books are selected.";
+
 type BookContextMenuProps = {
   book: Book;
   controller: ContextMenuController;
@@ -20,6 +23,7 @@ type BookContextMenuProps = {
   placement: BookMenuPlacement;
   canDelete?: boolean;
   canManageFile?: boolean;
+  disabledReason?: string;
   dismissKey?: string;
   showRenameFileAction?: boolean;
 };
@@ -37,6 +41,7 @@ export function BookContextMenu({
   placement,
   canDelete = true,
   canManageFile = false,
+  disabledReason,
   dismissKey,
   showRenameFileAction = true,
 }: BookContextMenuProps) {
@@ -60,6 +65,8 @@ export function BookContextMenu({
       <span className={getBookMenuClassName(placement)} data-open={controller.isOpen || undefined}>
         <ContextMenuTrigger
           controller={controller}
+          disabled={Boolean(disabledReason)}
+          disabledReason={disabledReason}
           label={`Actions for ${title}`}
           title={`Actions for ${title}`}
         >

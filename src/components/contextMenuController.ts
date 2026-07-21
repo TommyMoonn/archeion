@@ -14,6 +14,8 @@ export type ContextMenuElementAnchor = {
 
 export type ContextMenuAnchor = ContextMenuPointAnchor | ContextMenuElementAnchor;
 
+export const ACTIVE_CONTEXT_MENU_SELECTOR = '[data-application-transient="context-menu"]';
+
 export type ContextMenuInvocation = {
   anchor: ContextMenuAnchor;
   focusTarget: "first" | "last" | null;
@@ -49,20 +51,18 @@ export function openContextMenuFromPointer(
   event: ContextMenuPointerEvent,
   fallbackFocusTarget: HTMLElement | null,
   enabled = true,
+  onUnavailable?: () => void,
 ): void {
   event.preventDefault();
   event.stopPropagation();
-  if (!enabled) return;
+  if (!enabled) {
+    onUnavailable?.();
+    return;
+  }
 
-  const activeElement = document.activeElement;
   controller.openAtPoint(
     { x: event.clientX, y: event.clientY },
-    {
-      restoreFocusTo:
-        activeElement instanceof HTMLElement && activeElement !== document.body
-          ? activeElement
-          : fallbackFocusTarget,
-    },
+    { restoreFocusTo: fallbackFocusTarget },
   );
 }
 
@@ -70,12 +70,16 @@ export function openContextMenuFromKeyboard(
   controller: ContextMenuController,
   event: ContextMenuKeyboardEvent,
   enabled = true,
+  onUnavailable?: () => void,
 ): boolean {
   if (!isContextMenuKey(event)) return false;
 
   event.preventDefault();
   event.stopPropagation();
-  if (!enabled) return true;
+  if (!enabled) {
+    onUnavailable?.();
+    return true;
+  }
 
   controller.openAtElement(event.currentTarget, {
     focusTarget: "first",
@@ -115,7 +119,9 @@ export function useContextMenuController(): ContextMenuController {
 
       if (options.restoreFocus) {
         flushSync(() => setInvocation(null));
-        if (invocation.restoreFocusTo?.isConnected) invocation.restoreFocusTo.focus();
+        if (invocation.restoreFocusTo?.isConnected) {
+          invocation.restoreFocusTo.focus({ preventScroll: true });
+        }
         return;
       }
 
@@ -161,10 +167,33 @@ export function useContextMenuController(): ContextMenuController {
     [],
   );
 
-  const runAction = useCallback((action: () => void) => {
-    flushSync(() => setInvocation(null));
-    action();
-  }, []);
+  const runAction = useCallback(
+    (action: () => void) => {
+      if (!invocation) return;
+
+      const restoreFocusTo = invocation.restoreFocusTo;
+      flushSync(() => setInvocation(null));
+      if (restoreFocusTo?.isConnected) {
+        restoreFocusTo.focus({ preventScroll: true });
+      }
+
+      try {
+        action();
+      } finally {
+        window.requestAnimationFrame(() => {
+          if (!restoreFocusTo?.isConnected) return;
+          const activeElement = document.activeElement;
+          const focusIsUnowned =
+            !(activeElement instanceof HTMLElement) ||
+            !activeElement.isConnected ||
+            activeElement === document.body ||
+            activeElement === document.documentElement;
+          if (focusIsUnowned) restoreFocusTo.focus({ preventScroll: true });
+        });
+      }
+    },
+    [invocation],
+  );
 
   return useMemo(
     () => ({

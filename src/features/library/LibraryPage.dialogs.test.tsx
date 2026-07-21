@@ -8,8 +8,10 @@ import type { Book } from "../../types/book";
 import {
   buttonWithText,
   clickBook,
+  contextMenuItemWithText,
   createFolderThroughDialog,
   createStorage,
+  openControlledContextMenu,
   renderLibraryPage,
   selectionBook,
   setupLibraryPageTestSuite,
@@ -44,7 +46,7 @@ describe("LibraryPage dialogs and book actions", () => {
       await Promise.resolve();
     });
 
-    expect(await waitForButtonWithText(session.container, "Read")).toBeInstanceOf(
+    expect(await waitForButtonWithText(session.container, "Read book")).toBeInstanceOf(
       HTMLButtonElement,
     );
     expect(session.container.querySelector(".library-selection-bar")).toBeNull();
@@ -56,11 +58,9 @@ describe("LibraryPage dialogs and book actions", () => {
     suite.trackRoot(session.root);
     await import("./BookAdvancedMetadataDialog");
 
+    const menu = await openControlledContextMenu(session.container, "Actions for Alpha");
     await act(async () => {
-      session.container
-        .querySelector<HTMLElement>('summary[aria-label="Actions for Alpha"]')
-        ?.click();
-      buttonWithText(session.container, "Edit metadata").click();
+      contextMenuItemWithText(menu, "Edit metadata").click();
       await Promise.resolve();
     });
 
@@ -121,11 +121,9 @@ describe("LibraryPage dialogs and book actions", () => {
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
 
+    const menu = await openControlledContextMenu(session.container, "Actions for Book");
     await act(async () => {
-      session.container
-        .querySelector<HTMLElement>('summary[aria-label="Actions for Book"]')
-        ?.click();
-      buttonWithText(session.container, "Delete EPUB").click();
+      contextMenuItemWithText(menu, "Delete EPUB").click();
     });
 
     expect(session.container.textContent).toContain("Delete EPUB file?");
@@ -147,11 +145,9 @@ describe("LibraryPage dialogs and book actions", () => {
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
 
+    const menu = await openControlledContextMenu(session.container, "Actions for Book");
     await act(async () => {
-      session.container
-        .querySelector<HTMLElement>('summary[aria-label="Actions for Book"]')
-        ?.click();
-      buttonWithText(session.container, "Delete EPUB").click();
+      contextMenuItemWithText(menu, "Delete EPUB").click();
     });
 
     expect(storage.deleteBook).toHaveBeenCalledWith("book-1");

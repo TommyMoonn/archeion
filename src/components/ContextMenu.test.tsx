@@ -5,7 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContextMenuSurface, ContextMenuTrigger, type ContextMenuAction } from "./ContextMenu";
-import { useContextMenuController } from "./contextMenuController";
+import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "./contextMenuController";
 
 const mountedRoots: Root[] = [];
 
@@ -59,6 +63,16 @@ function Harness({ dismissKey, onAction = () => undefined }: HarnessProps) {
       >
         Open at point
       </button>
+      <button
+        data-resource
+        onContextMenu={(event) =>
+          openContextMenuFromPointer(controller, event, event.currentTarget)
+        }
+        onKeyDown={(event) => openContextMenuFromKeyboard(controller, event)}
+        type="button"
+      >
+        Resource
+      </button>
       <button onClick={() => setExtraAction((current) => !current)} type="button">
         Toggle action
       </button>
@@ -70,6 +84,48 @@ function Harness({ dismissKey, onAction = () => undefined }: HarnessProps) {
         ariaLabel="Resource actions"
         controller={controller}
         dismissKey={dismissKey}
+      />
+    </div>
+  );
+}
+
+function DualHarness({ onFirst, onSecond }: { onFirst: () => void; onSecond: () => void }) {
+  const first = useContextMenuController();
+  const second = useContextMenuController();
+
+  return (
+    <div>
+      <button
+        onClick={(event) =>
+          first.openAtElement(event.currentTarget, {
+            focusTarget: "first",
+            restoreFocusTo: event.currentTarget,
+          })
+        }
+        type="button"
+      >
+        Open first
+      </button>
+      <button
+        onClick={(event) =>
+          second.openAtElement(event.currentTarget, {
+            focusTarget: "first",
+            restoreFocusTo: event.currentTarget,
+          })
+        }
+        type="button"
+      >
+        Open second
+      </button>
+      <ContextMenuSurface
+        actions={[{ id: "first", label: "First menu action", onSelect: onFirst }]}
+        ariaLabel="First menu"
+        controller={first}
+      />
+      <ContextMenuSurface
+        actions={[{ id: "second", label: "Second menu action", onSelect: onSecond }]}
+        ariaLabel="Second menu"
+        controller={second}
       />
     </div>
   );
@@ -93,6 +149,20 @@ function menu(): HTMLElement {
 function trigger(container: HTMLElement): HTMLButtonElement {
   const result = container.querySelector<HTMLButtonElement>('[aria-label="Open actions"]');
   if (!result) throw new Error("Context menu trigger was not rendered.");
+  return result;
+}
+
+function resource(container: HTMLElement): HTMLButtonElement {
+  const result = container.querySelector<HTMLButtonElement>("[data-resource]");
+  if (!result) throw new Error("Context menu resource was not rendered.");
+  return result;
+}
+
+function firstEnabledAction(): HTMLButtonElement {
+  const result = Array.from(menu().querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find(
+    (item) => !item.disabled && item.getAttribute("aria-disabled") !== "true",
+  );
+  if (!result) throw new Error("Enabled context menu action was not rendered.");
   return result;
 }
 
@@ -127,6 +197,10 @@ describe("ContextMenu", () => {
       if (this.matches('[aria-label="Open actions"]')) return rect(260, 190, 40, 30);
       return rect(0, 0, 0, 0);
     });
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
   });
 
   afterEach(() => {
@@ -156,6 +230,7 @@ describe("ContextMenu", () => {
     expect(menu().style.getPropertyValue("--context-menu-top")).toBe("132px");
 
     expect(menu().parentElement).toBe(document.body);
+    expect(menu().getAttribute("data-application-transient")).toBe("context-menu");
   });
 
   it("opens from the trigger with keyboard focus and traverses only enabled items", () => {
@@ -181,21 +256,79 @@ describe("ContextMenu", () => {
       items[2]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
     });
     expect(document.activeElement).toBe(items[1]);
+
+    act(() => {
+      items[1]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: " " }));
+    });
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 
-  it("closes before running an action", () => {
+  it("closes and restores the logical origin before running an action", () => {
+    let actionTrigger: HTMLButtonElement | null = null;
     const onAction = vi.fn(() => {
       expect(document.body.querySelector('[role="menu"]')).toBeNull();
+      expect(document.activeElement).toBe(actionTrigger);
     });
     const { container } = renderHarness({ onAction });
+    actionTrigger = trigger(container);
 
-    act(() => trigger(container).click());
+    act(() => actionTrigger?.click());
     const firstAction = Array.from(menu().querySelectorAll<HTMLButtonElement>("button")).find(
       (button) => button.textContent === "First action",
     )!;
     act(() => firstAction.click());
 
     expect(onAction).toHaveBeenCalledTimes(1);
+  });
+
+  it("restores the trigger after a non-modal action without overriding a new focus owner", () => {
+    const { container, root } = renderHarness();
+    const actionTrigger = trigger(container);
+
+    act(() => {
+      actionTrigger.focus();
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+    });
+    const firstAction = Array.from(menu().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "First action",
+    )!;
+    act(() => firstAction.click());
+    expect(document.activeElement).toBe(actionTrigger);
+
+    const focusedInput = document.createElement("input");
+    document.body.append(focusedInput);
+    act(() => root.render(<Harness onAction={() => focusedInput.focus()} />));
+    act(() => {
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+    });
+    const modalAction = Array.from(menu().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "First action",
+    )!;
+    act(() => modalAction.click());
+    expect(document.activeElement).toBe(focusedInput);
+  });
+
+  it("does not restore focus to a disconnected action origin", () => {
+    const { container } = renderHarness();
+    const actionTrigger = trigger(container);
+    act(() => {
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+    });
+    const firstAction = Array.from(menu().querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "First action",
+    )!;
+    actionTrigger.remove();
+
+    act(() => firstAction.click());
+
+    expect(actionTrigger.isConnected).toBe(false);
+    expect(document.activeElement).not.toBe(actionTrigger);
   });
 
   it("restores trigger focus on Escape and preserves outside pointer focus", async () => {
@@ -226,14 +359,167 @@ describe("ContextMenu", () => {
     outside.remove();
   });
 
-  it.each(["scroll", "resize", "blur", "popstate"])("closes on %s", (eventName) => {
+  it.each([
+    { keyLabel: "Tab", shiftKey: false },
+    { keyLabel: "Shift+Tab", shiftKey: true },
+  ])(
+    "$keyLabel closes the menu, restores the overflow trigger synchronously, and preserves default traversal",
+    ({ shiftKey }) => {
+      const { container } = renderHarness();
+      const actionTrigger = trigger(container);
+      const lowerListener = vi.fn();
+      document.addEventListener("keydown", lowerListener);
+
+      act(() => {
+        actionTrigger.focus();
+        actionTrigger.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+        );
+      });
+      expect(document.activeElement).toBe(firstEnabledAction());
+
+      const tabEvent = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Tab",
+        shiftKey,
+      });
+      act(() => document.activeElement?.dispatchEvent(tabEvent));
+      document.removeEventListener("keydown", lowerListener);
+
+      expect(tabEvent.defaultPrevented).toBe(false);
+      expect(lowerListener).not.toHaveBeenCalled();
+      expect(document.body.querySelector('[role="menu"]')).toBeNull();
+      expect(document.querySelector('[data-application-transient="context-menu"]')).toBeNull();
+      expect(document.activeElement).toBe(actionTrigger);
+    },
+  );
+
+  it("restores keyboard and pointer invocation origins before Tab traversal", () => {
+    const { container } = renderHarness();
+    const resourceControl = resource(container);
+
+    act(() => {
+      resourceControl.focus();
+      resourceControl.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }),
+      );
+    });
+    expect(document.activeElement).toBe(firstEnabledAction());
+    const keyboardTab = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    act(() => document.activeElement?.dispatchEvent(keyboardTab));
+    expect(keyboardTab.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(resourceControl);
+
+    act(() =>
+      resourceControl.dispatchEvent(
+        new MouseEvent("contextmenu", {
+          bubbles: true,
+          cancelable: true,
+          clientX: 80,
+          clientY: 90,
+        }),
+      ),
+    );
+    const pointerAction = firstEnabledAction();
+    act(() => pointerAction.focus());
+    const pointerTab = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+      shiftKey: true,
+    });
+    act(() => pointerAction.dispatchEvent(pointerTab));
+    expect(pointerTab.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(resourceControl);
+  });
+
+  it("leaves outside controls usable after Tab closes the active menu", () => {
+    const onAction = vi.fn();
+    const { container } = renderHarness({ onAction });
+    const actionTrigger = trigger(container);
+    const outside = document.createElement("button");
+    const onOutsideKeyDown = vi.fn();
+    outside.addEventListener("keydown", onOutsideKeyDown);
+    document.body.append(outside);
+
+    act(() => {
+      actionTrigger.focus();
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+    });
+    const tabEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    act(() => document.activeElement?.dispatchEvent(tabEvent));
+    expect(document.activeElement).toBe(actionTrigger);
+
+    act(() => {
+      outside.focus();
+      outside.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+      outside.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: " " }),
+      );
+    });
+
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+    expect(onOutsideKeyDown).toHaveBeenCalledTimes(2);
+    expect(onOutsideKeyDown.mock.calls.map(([event]) => event.key)).toEqual(["Enter", " "]);
+    expect(onAction).not.toHaveBeenCalled();
+
+    outside.remove();
+  });
+
+  it("keeps a scrollable menu open for internal scrolling and leaves its actions operable", () => {
+    const { container } = renderHarness();
+    act(() => trigger(container).click());
+    const openMenu = menu();
+    const lastAction = Array.from(openMenu.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Last action",
+    )!;
+
+    act(() => openMenu.dispatchEvent(new Event("scroll")));
+
+    expect(document.body.querySelector('[role="menu"]')).toBe(openMenu);
+    act(() => lastAction.click());
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("closes an element-anchored menu when an owning ancestor scrolls", () => {
     const { container } = renderHarness();
     act(() => trigger(container).click());
 
-    act(() => {
-      if (eventName === "scroll") document.dispatchEvent(new Event("scroll", { bubbles: true }));
-      else window.dispatchEvent(new Event(eventName));
-    });
+    act(() => container.dispatchEvent(new Event("scroll")));
+
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("closes a point-positioned menu on document scrolling", () => {
+    const { container } = renderHarness();
+    const anchor = container.querySelector<HTMLButtonElement>("[data-anchor]")!;
+    anchor.dataset.x = "40";
+    anchor.dataset.y = "40";
+    act(() => anchor.click());
+
+    act(() => document.dispatchEvent(new Event("scroll")));
+
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it.each(["resize", "blur", "popstate"])("closes on %s", (eventName) => {
+    const { container } = renderHarness();
+    act(() => trigger(container).click());
+
+    act(() => window.dispatchEvent(new Event(eventName)));
 
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
@@ -252,6 +538,33 @@ describe("ContextMenu", () => {
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 
+  it("closes the first controlled menu before the second owns keyboard input", () => {
+    const onFirst = vi.fn();
+    const onSecond = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    act(() => root.render(<DualHarness onFirst={onFirst} onSecond={onSecond} />));
+    const buttons = container.querySelectorAll<HTMLButtonElement>("button");
+
+    act(() => buttons[0]?.click());
+    expect(document.querySelector('[aria-label="First menu"]')).not.toBeNull();
+    act(() => buttons[1]?.click());
+
+    expect(document.querySelector('[aria-label="First menu"]')).toBeNull();
+    expect(document.querySelector('[aria-label="Second menu"]')).not.toBeNull();
+    const action = document.querySelector<HTMLButtonElement>(
+      '[aria-label="Second menu"] [role="menuitem"]',
+    )!;
+    act(() => {
+      action.focus();
+      action.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    });
+    expect(onFirst).not.toHaveBeenCalled();
+    expect(onSecond).toHaveBeenCalledTimes(1);
+  });
+
   it("repositions after conditional action content changes", () => {
     const getRect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
     let menuHeight = 80;
@@ -266,8 +579,8 @@ describe("ContextMenu", () => {
 
     menuHeight = 120;
     act(() => {
-      container
-        .querySelector<HTMLButtonElement>("button:nth-of-type(2)")
+      Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+        .find((button) => button.textContent === "Toggle action")
         ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     expect(menu().style.getPropertyValue("--context-menu-top")).toBe("66px");

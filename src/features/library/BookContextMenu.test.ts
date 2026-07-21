@@ -22,6 +22,11 @@ describe("book context menu placement", () => {
     expect(getBookMenuClassName("row")).toBe("book-menu book-menu--row");
   });
 
+  it("keeps the overflow trigger available so multi-selection can expose its disabled reason", () => {
+    expect(styles).not.toContain(".book-card[data-selection-mode] .book-menu,");
+    expect(styles).not.toContain(".book-row[data-selection-mode] .book-menu {");
+  });
+
   it("keeps row actions anchored to the right side of list rows", () => {
     const baseMenu = cssBlock(".book-menu");
     const rowMenu = cssBlock(".book-menu--row");

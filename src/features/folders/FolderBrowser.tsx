@@ -7,10 +7,22 @@ import {
   PencilSimple,
   X,
 } from "@phosphor-icons/react";
-import { useMemo, useState, type ReactNode, type Ref } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 
 import { AppSelect } from "../../components/AppSelect";
-import { useContextMenuController } from "../../components/contextMenuController";
+import {
+  openContextMenuFromKeyboard,
+  openContextMenuFromPointer,
+  useContextMenuController,
+} from "../../components/contextMenuController";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
@@ -76,6 +88,17 @@ function FolderBrowserItem({
   view,
 }: FolderBrowserItemProps) {
   const contextMenu = useContextMenuController();
+  const primaryActionRef = useRef<HTMLButtonElement>(null);
+
+  function handleContextMenu(event: ReactMouseEvent<HTMLElement>) {
+    if (!showFolderActions) return;
+    openContextMenuFromPointer(contextMenu, event, primaryActionRef.current);
+  }
+
+  function handlePrimaryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    if (!showFolderActions) return;
+    openContextMenuFromKeyboard(contextMenu, event);
+  }
 
   return (
     <article
@@ -86,12 +109,16 @@ function FolderBrowserItem({
       }
       data-import-drop-destination={folder.relativePath}
       data-import-drop-id={`folder-browser:${folder.id}`}
+      data-context-menu-open={contextMenu.isOpen || undefined}
       data-import-drop-target={folder.relativePath ? "true" : undefined}
+      onContextMenu={handleContextMenu}
     >
       <button
         className="folder-browser__open"
         data-library-folder-primary-action
         onClick={() => onOpen(folder)}
+        onKeyDown={handlePrimaryKeyDown}
+        ref={primaryActionRef}
         type="button"
       >
         <span className="folder-browser__icon" aria-hidden="true">
