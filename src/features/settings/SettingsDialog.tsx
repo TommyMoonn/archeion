@@ -96,7 +96,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     dataRequirements.has("archiveAppearanceSettings"),
   );
   const committedArchiveAppearance = useCommittedArchiveAppearance();
-  const modal = useModalDialogLifecycle({ dialogRef, onClose });
+  const modal = useModalDialogLifecycle({ dialogRef, onClose, surfaceKind: "settings" });
   const controller = useSettingsDialogController({
     committedArchiveAppearance,
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),

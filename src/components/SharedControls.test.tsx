@@ -5,6 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../utils/transientSurfaceOwnership";
 import { AppSelect } from "./AppSelect";
 import { Button } from "./Button";
 import { IconButton } from "./IconButton";
@@ -27,6 +31,7 @@ afterEach(() => {
     act(() => activeRoot?.unmount());
   }
   activeRoot = null;
+  resetTransientSurfaceOwnershipForTests();
   document.body.innerHTML = "";
 });
 
@@ -525,11 +530,14 @@ describe("AppSelect dismissal", () => {
     const { container } = renderSelectWithNeighbors();
     const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
     trigger.focus();
-    const topmostEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") event.preventDefault();
-    };
-    document.addEventListener("keydown", topmostEscape, true);
     pointerClick(trigger);
+    const newerSurface = document.body.appendChild(document.createElement("div"));
+    let unregisterNewer: () => void = () => undefined;
+    unregisterNewer = registerTransientSurface({
+      element: newerSurface,
+      kind: "popover",
+      onDismiss: () => unregisterNewer(),
+    });
 
     act(() =>
       document.dispatchEvent(
@@ -538,7 +546,6 @@ describe("AppSelect dismissal", () => {
     );
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
 
-    document.removeEventListener("keydown", topmostEscape, true);
     act(() =>
       document.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
@@ -546,5 +553,6 @@ describe("AppSelect dismissal", () => {
     );
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(trigger);
+    newerSurface.remove();
   });
 });

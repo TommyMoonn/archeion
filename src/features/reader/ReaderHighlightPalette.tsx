@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
 import {
   normalizeClientRect,
@@ -23,7 +24,7 @@ type ReaderHighlightPaletteProps = {
   hasAttachedNote?: boolean;
   noteActionLabel: "Add note" | "Edit note" | "Highlight and add note";
   onChoose: (choice: HighlightPaletteChoice) => void;
-  onDismiss: () => void;
+  onDismiss: (restoreFocus?: boolean) => void;
   onNote: () => void;
   selectedColor?: ReaderHighlightColor;
   viewportRect: ClientRect;
@@ -67,6 +68,14 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
       },
       [forwardedRef],
     );
+
+    useTransientSurfaceOwnership({
+      closeOnModalOpen: true,
+      dismissOnOutsidePointer: true,
+      elementRef,
+      kind: "popover",
+      onDismiss: (reason) => onDismiss(reason === "escape"),
+    });
 
     useLayoutEffect(() => {
       const element = elementRef.current;
@@ -121,12 +130,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         data-reader-ignore-shortcuts
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
-          if (moveMenuFocus(event)) return;
-          if (event.key === "Escape") {
-            event.preventDefault();
-            event.stopPropagation();
-            onDismiss();
-          }
+          moveMenuFocus(event);
         }}
         role="menu"
         style={{ left: position.left, top: position.top }}

@@ -1,15 +1,8 @@
 import { CaretDown, Check } from "@phosphor-icons/react";
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import type { ControlSize } from "./Button";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
+import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 
 export type AppSelectOption<TValue extends string> = {
   disabled?: boolean;
@@ -98,35 +91,19 @@ export function AppSelect<TValue extends string>({
     triggerRef: buttonRef,
   });
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-
-    function closeOnPointerDown(event: PointerEvent) {
-      if (!rootRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-
-    function closeOnEscape(event: globalThis.KeyboardEvent) {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      const activeElement = document.activeElement;
-      if (!activeElement || !rootRef.current?.contains(activeElement)) return;
-      event.preventDefault();
-      event.stopPropagation();
+  useTransientSurfaceOwnership({
+    active: open,
+    closeOnModalOpen: true,
+    dismissOnOutsidePointer: true,
+    elementRef: rootRef,
+    kind: "popover",
+    onDismiss: (reason) => {
       setOpen(false);
-      buttonRef.current?.focus();
-    }
-
-    document.addEventListener("pointerdown", closeOnPointerDown, true);
-    document.addEventListener("keydown", closeOnEscape, true);
-
-    return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown, true);
-      document.removeEventListener("keydown", closeOnEscape, true);
-    };
-  }, [open]);
+      if (reason === "escape") buttonRef.current?.focus();
+    },
+    originRef: buttonRef,
+    triggerRef: buttonRef,
+  });
 
   function chooseOption(option: AppSelectOption<TValue>) {
     if (option.disabled) {

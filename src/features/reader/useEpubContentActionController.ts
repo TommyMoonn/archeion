@@ -631,22 +631,6 @@ export function useEpubContentActionController({
     };
   }, [dismissFootnote, footnote, refreshFootnoteAnchor, viewerRef]);
 
-  useEffect(() => {
-    if (!footnote) return;
-    const dismissOutside = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Element &&
-        target.closest(".reader-footnote, .reader-external-link-dialog")
-      ) {
-        return;
-      }
-      dismissFootnote(false);
-    };
-    document.addEventListener("pointerdown", dismissOutside, true);
-    return () => document.removeEventListener("pointerdown", dismissOutside, true);
-  }, [dismissFootnote, footnote]);
-
   return {
     clearFeedback,
     confirmExternal,

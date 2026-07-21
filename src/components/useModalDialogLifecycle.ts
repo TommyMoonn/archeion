@@ -7,10 +7,19 @@ import {
   type SyntheticEvent,
 } from "react";
 
+import {
+  useTransientSurfaceOwnership,
+  type TransientSurfaceKind,
+} from "../utils/transientSurfaceOwnership";
+
 type UseModalDialogLifecycleOptions = {
   closeOnBackdropClick?: boolean;
   dialogRef: RefObject<HTMLDialogElement | null>;
   onClose: () => void;
+  surfaceKind?: Extract<
+    TransientSurfaceKind,
+    "app-dialog" | "drawer" | "quick-actions" | "settings"
+  >;
 };
 
 type ModalDialogLifecycle = {
@@ -23,6 +32,7 @@ export function useModalDialogLifecycle({
   closeOnBackdropClick = true,
   dialogRef,
   onClose,
+  surfaceKind = "app-dialog",
 }: UseModalDialogLifecycleOptions): ModalDialogLifecycle {
   const pointerStartedOnBackdropRef = useRef(false);
   const restoreFocusFrameRef = useRef<number | null>(null);
@@ -31,6 +41,16 @@ export function useModalDialogLifecycle({
       ? document.activeElement
       : null,
   );
+
+  useTransientSurfaceOwnership({
+    elementRef: dialogRef,
+    kind: surfaceKind,
+    modal: true,
+    onDismiss: (reason) => {
+      if (reason === "escape") onClose();
+    },
+    originRef: returnFocusRef,
+  });
 
   useEffect(() => {
     const dialog = dialogRef.current;

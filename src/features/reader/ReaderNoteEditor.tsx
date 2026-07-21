@@ -11,6 +11,7 @@ import { ArrowLeft, Trash } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { HighlightAnnotation } from "../../types/annotation";
 
 type ReaderNoteEditorProps = {
@@ -348,6 +349,19 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
       setConfirmingDelete(false);
     }
 
+    useTransientSurfaceOwnership({
+      elementRef: editorRef,
+      kind: "inline-editor",
+      onDismiss: (reason) => {
+        if (reason !== "escape" || deleting) return;
+        if (confirmingDelete) {
+          cancelDeleteConfirmation();
+          return;
+        }
+        void requestBack();
+      },
+    });
+
     return (
       <section
         ref={editorRef}
@@ -357,16 +371,6 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
         className="reader-toc reader-annotations reader-note-editor"
         data-reader-ignore-shortcuts
         id="reader-annotations"
-        onKeyDown={(event) => {
-          if (event.key !== "Escape" || deleting) return;
-          event.preventDefault();
-          event.stopPropagation();
-          if (confirmingDelete) {
-            cancelDeleteConfirmation();
-            return;
-          }
-          void requestBack();
-        }}
       >
         <header className="reader-note-editor__header">
           <IconButton

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { EpubFootnoteResolution } from "./epubFootnoteResolver";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
+import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import type { EpubSessionSnapshot } from "./useEpubSession";
@@ -46,7 +47,16 @@ function Harness({ getSession, navigateToTarget, onController, registry, viewer 
     viewerRef: { current: viewer },
   });
   useLayoutEffect(() => onController(controller), [controller, onController]);
-  return null;
+  return controller.footnote ? (
+    <ReaderFootnotePopover
+      anchorRect={controller.footnote.anchorRect}
+      content={controller.footnote.content}
+      message={controller.footnote.message}
+      onAction={controller.handleFootnoteAction}
+      onDismiss={controller.dismissFootnote}
+      viewportRect={controller.footnote.viewportRect}
+    />
+  ) : null;
 }
 
 function session(generation = 1): EpubSessionSnapshot {
@@ -167,6 +177,7 @@ describe("useEpubContentActionController", () => {
     const activeSession = { current: session() };
     const harness = renderController(activeSession);
     const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    const addListener = vi.spyOn(document, "addEventListener");
 
     act(() => {
       harness.latest().handleContentClick(clickFrom(link), {
@@ -175,6 +186,12 @@ describe("useEpubContentActionController", () => {
       });
     });
     await act(async () => Promise.resolve());
+
+    expect(
+      addListener.mock.calls.filter(
+        ([type, , options]) => type === "pointerdown" && options === true,
+      ),
+    ).toHaveLength(0);
 
     act(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
     expect(harness.latest().footnote).toBeNull();

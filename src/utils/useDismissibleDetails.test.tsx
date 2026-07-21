@@ -247,16 +247,18 @@ describe("useDismissibleDetails", () => {
     container.remove();
   });
 
-  it("removes the exact capture listener when the consumer unmounts", () => {
-    const addListener = vi.spyOn(document, "addEventListener");
-    const removeListener = vi.spyOn(document, "removeEventListener");
+  it("removes the shared capture listener when the last consumer unmounts", () => {
+    const addListener = vi.spyOn(window, "addEventListener");
+    const removeListener = vi.spyOn(window, "removeEventListener");
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
     act(() => root.render(<DetailsHarness />));
-    const registration = addListener.mock.calls.find(([type]) => type === "pointerdown");
+    const registration = addListener.mock.calls.find(
+      ([type, , options]) => type === "pointerdown" && options === true,
+    );
 
-    expect(registration?.[2]).toBe(true);
+    expect(registration).toBeDefined();
     act(() => root.unmount());
     expect(removeListener).toHaveBeenCalledWith("pointerdown", registration?.[1], true);
 

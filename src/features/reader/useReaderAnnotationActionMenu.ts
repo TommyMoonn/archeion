@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -66,27 +65,6 @@ export function useReaderAnnotationActionMenu({
     },
     [publishMenu],
   );
-
-  useEffect(() => {
-    if (!menu) return;
-    const trigger = menu.trigger;
-
-    function dismissMenu(event: PointerEvent) {
-      if (!(event.target instanceof Node)) return;
-      if (menuRef.current?.contains(event.target)) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest("[data-annotation-menu-trigger]")
-      ) {
-        return;
-      }
-      publishMenu(undefined);
-      trigger.focus();
-    }
-
-    document.addEventListener("pointerdown", dismissMenu, true);
-    return () => document.removeEventListener("pointerdown", dismissMenu, true);
-  }, [menu, publishMenu]);
 
   const open = useCallback(
     (event: ReactMouseEvent<HTMLButtonElement>, annotation: Annotation) => {

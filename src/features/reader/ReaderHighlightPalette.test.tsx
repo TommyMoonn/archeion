@@ -77,7 +77,33 @@ describe("ReaderHighlightPalette", () => {
         .querySelector<HTMLElement>('[aria-label="Highlight color"]')
         ?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
     );
-    expect(onDismiss).toHaveBeenCalledTimes(1);
+    expect(onDismiss).toHaveBeenCalledWith(true);
+  });
+
+  it("dismisses one parent outside pointer once without restoring EPUB focus", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onDismiss = vi.fn();
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy={false}
+          noteActionLabel="Add note"
+          onChoose={vi.fn()}
+          onDismiss={onDismiss}
+          onNote={vi.fn()}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    act(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+
+    expect(onDismiss).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledWith(false);
   });
 
   it("declines invalid geometry without writing non-finite styles", () => {

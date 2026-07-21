@@ -11,6 +11,7 @@ import {
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 
 import { MenuItem } from "../../components/MenuItem";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import {
   READER_HIGHLIGHT_COLORS,
@@ -58,6 +59,24 @@ export function ReaderAnnotationActionMenu({
   onRecolor,
   onRecover,
 }: ReaderAnnotationActionMenuProps) {
+  useTransientSurfaceOwnership({
+    active: Boolean(menu),
+    closeOnModalOpen: true,
+    dismissOnOutsidePointer: true,
+    elementRef: menuRef,
+    kind: "popover",
+    onDismiss: (reason) => {
+      if (reason === "escape") {
+        onEscape();
+      } else if (reason === "outside-pointer") {
+        onClose({ restoreFocus: true });
+      } else {
+        onClose();
+      }
+    },
+    trigger: menu?.trigger,
+  });
+
   if (!menu) return null;
 
   function runFromTrigger(action: (annotation: Annotation) => void) {
@@ -75,12 +94,7 @@ export function ReaderAnnotationActionMenu({
       className="menu-popover reader-annotations__menu-popover"
       data-placement={menu.placement}
       onKeyDown={(event) => {
-        if (moveMenuItemFocus(event)) return;
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          onEscape();
-        }
+        moveMenuItemFocus(event);
       }}
       ref={menuRef}
       role="menu"

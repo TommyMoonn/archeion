@@ -79,6 +79,31 @@ describe("ReaderFootnotePopover", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
       ),
     );
+    expect(onDismiss).toHaveBeenCalledWith(true);
+  });
+
+  it("dismisses a parent outside pointer once without restoring EPUB focus", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onDismiss = vi.fn();
+
+    act(() => {
+      root.render(
+        <ReaderFootnotePopover
+          anchorRect={{ bottom: 110, height: 20, left: 100, right: 140, top: 90, width: 40 }}
+          message="A note"
+          onAction={vi.fn()}
+          onDismiss={onDismiss}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    act(() => document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
+
     expect(onDismiss).toHaveBeenCalledOnce();
+    expect(onDismiss).toHaveBeenCalledWith(false);
   });
 });

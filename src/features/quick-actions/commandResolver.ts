@@ -1,4 +1,4 @@
-import { ACTIVE_CONTEXT_MENU_SELECTOR } from "../../components/contextMenuController";
+import { activeTransientSurfaceElement } from "../../utils/transientSurfaceOwnership";
 import {
   effectiveKeyboardBinding,
   commandScopesOverlap,
@@ -100,9 +100,23 @@ function commandCanOwnEvent(
   context: KeyboardInteractionContext,
 ): boolean {
   if (command.canHandleEvent && !command.canHandleEvent(event, context)) return false;
-  if (context.applicationDocument.querySelector(ACTIVE_CONTEXT_MENU_SELECTOR)) return false;
 
   const target = eventTargetElement(event.target);
+  const registeredTransient = activeTransientSurfaceElement();
+  const markedTransients = context.applicationDocument.querySelectorAll<HTMLElement>(
+    "[data-application-transient]",
+  );
+  const activeTransient =
+    registeredTransient?.ownerDocument === context.applicationDocument
+      ? registeredTransient
+      : markedTransients.item(markedTransients.length - 1);
+  if (activeTransient) {
+    const kind = activeTransient.dataset.applicationTransient;
+    const allowedScope =
+      kind === "settings" ? "settings" : kind === "reader-panel" ? "reader" : null;
+    if (!allowedScope || command.scope !== allowedScope) return false;
+  }
+
   const modalScope = activeApplicationModalScope(context.applicationDocument, target);
   if (modalScope && command.scope !== modalScope && command.scope !== "transient-surface") {
     return false;

@@ -6,6 +6,10 @@ import type { Ref } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import { defaultReaderSettings, type ReaderNavigationState } from "../../types/reader";
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
@@ -363,6 +367,7 @@ describe("EpubViewer navigation lifecycle", () => {
     activeRoot = null;
     activeContainer?.remove();
     activeContainer = null;
+    resetTransientSurfaceOwnershipForTests();
     vi.clearAllMocks();
   });
 
@@ -1868,17 +1873,37 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
 
     await act(async () => mark.click());
-    await act(async () =>
-      second.contentDocument!.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          bubbles: true,
-          cancelable: true,
-          key: "Escape",
-        }),
-      ),
-    );
+    const parentSurface = document.body.appendChild(document.createElement("div"));
+    const parentDismiss = vi.fn();
+    let unregisterParent: () => void = () => undefined;
+    unregisterParent = registerTransientSurface({
+      element: parentSurface,
+      kind: "popover",
+      onDismiss: (reason) => {
+        parentDismiss(reason);
+        unregisterParent();
+      },
+    });
+    const topmostEscape = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+    await act(async () => second.contentDocument!.dispatchEvent(topmostEscape));
+    expect(parentDismiss).toHaveBeenCalledWith("escape");
+    expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    expect(topmostEscape.defaultPrevented).toBe(true);
+
+    const paletteEscape = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+    await act(async () => second.contentDocument!.dispatchEvent(paletteEscape));
     expect(container.querySelector('[aria-label="Highlight color"]')).toBeNull();
+    expect(paletteEscape.defaultPrevented).toBe(true);
     expect(props.onKeyDown).not.toHaveBeenCalled();
+    parentSurface.remove();
   });
 
   it("gives host-document Escape priority without leaking or duplicating listeners", async () => {
@@ -1901,8 +1926,10 @@ describe("EpubViewer navigation lifecycle", () => {
     container.append(hostControl);
     const readerEscape = vi.fn();
     hostControl.addEventListener("keydown", readerEscape);
-    const addListener = vi.spyOn(document, "addEventListener");
-    const removeListener = vi.spyOn(document, "removeEventListener");
+    const documentAddListener = vi.spyOn(document, "addEventListener");
+    const documentRemoveListener = vi.spyOn(document, "removeEventListener");
+    const windowAddListener = vi.spyOn(window, "addEventListener");
+    const windowRemoveListener = vi.spyOn(window, "removeEventListener");
 
     await act(async () => mark.click());
     const firstEscape = new KeyboardEvent("keydown", {
@@ -1931,10 +1958,22 @@ describe("EpubViewer navigation lifecycle", () => {
       ),
     );
     expect(
-      addListener.mock.calls.filter(([type, , options]) => type === "keydown" && options === true),
+      documentAddListener.mock.calls.filter(
+        ([type, , options]) => type === "keydown" && options === true,
+      ),
+    ).toHaveLength(0);
+    expect(
+      documentRemoveListener.mock.calls.filter(
+        ([type, , options]) => type === "keydown" && options === true,
+      ),
+    ).toHaveLength(0);
+    expect(
+      windowAddListener.mock.calls.filter(
+        ([type, , options]) => type === "keydown" && options === true,
+      ),
     ).toHaveLength(2);
     expect(
-      removeListener.mock.calls.filter(
+      windowRemoveListener.mock.calls.filter(
         ([type, , options]) => type === "keydown" && options === true,
       ),
     ).toHaveLength(2);

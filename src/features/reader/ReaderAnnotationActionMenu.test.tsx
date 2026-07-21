@@ -4,6 +4,11 @@ import { act, useRef, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  activeTransientSurfaceKind,
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { ReaderAnnotationActionMenu } from "./ReaderAnnotationActionMenu";
 import { useReaderAnnotationActionMenu } from "./useReaderAnnotationActionMenu";
@@ -136,6 +141,8 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  resetTransientSurfaceOwnershipForTests();
+  document.body.replaceChildren();
   vi.restoreAllMocks();
 });
 
@@ -165,11 +172,17 @@ describe("ReaderAnnotationActionMenu", () => {
 
   it("dismisses outside pointers and Escape while restoring the exact trigger", () => {
     const target = mount(<Harness annotation={bookmark} menuProps={defaultMenuProps()} />);
+    const addListener = vi.spyOn(document, "addEventListener");
     const trigger = openMenu(
       target,
       rect({ bottom: 500, left: 0, right: 320, top: 0 }),
       rect({ bottom: 120, left: 260, right: 300, top: 90 }),
     );
+    expect(
+      addListener.mock.calls.filter(
+        ([type, , options]) => type === "pointerdown" && options === true,
+      ),
+    ).toHaveLength(0);
     const outside = document.body.appendChild(document.createElement("button"));
 
     act(() => outside.dispatchEvent(new Event("pointerdown", { bubbles: true })));
@@ -187,6 +200,97 @@ describe("ReaderAnnotationActionMenu", () => {
     expect(target.querySelector('[role="menu"]')).toBeNull();
     expect(document.activeElement).toBe(trigger);
     outside.remove();
+  });
+
+  it("closes the complete action menu when a modal opens without restoring focus behind it", () => {
+    const target = mount(<Harness annotation={bookmark} menuProps={defaultMenuProps()} />);
+    const trigger = openMenu(
+      target,
+      rect({ bottom: 500, left: 0, right: 320, top: 0 }),
+      rect({ bottom: 120, left: 260, right: 300, top: 90 }),
+    );
+    const modal = document.body.appendChild(document.createElement("div"));
+    modal.tabIndex = -1;
+    modal.focus();
+    let unregister: () => void = () => undefined;
+
+    act(() => {
+      unregister = registerTransientSurface({
+        element: modal,
+        kind: "app-dialog",
+        modal: true,
+        onDismiss: vi.fn(),
+      });
+    });
+
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+    expect(document.activeElement).toBe(modal);
+    expect(document.activeElement).not.toBe(trigger);
+    unregister();
+    modal.remove();
+  });
+
+  it("closes the complete color submenu when a modal opens", () => {
+    const target = mount(<Harness annotation={highlight} menuProps={defaultMenuProps()} />);
+    openMenu(
+      target,
+      rect({ bottom: 500, left: 0, right: 320, top: 0 }),
+      rect({ bottom: 120, left: 260, right: 300, top: 90 }),
+    );
+    act(() => textButton(target, "Recolor highlight").click());
+    expect(target.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
+    const modal = document.body.appendChild(document.createElement("div"));
+    let unregister: () => void = () => undefined;
+
+    act(() => {
+      unregister = registerTransientSurface({
+        element: modal,
+        kind: "app-dialog",
+        modal: true,
+        onDismiss: vi.fn(),
+      });
+    });
+
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+    expect(target.textContent).not.toContain("Go to location");
+    unregister();
+    modal.remove();
+  });
+
+  it("keeps Escape's color-submenu step-back behavior", () => {
+    const target = mount(<Harness annotation={highlight} menuProps={defaultMenuProps()} />);
+    const trigger = openMenu(
+      target,
+      rect({ bottom: 500, left: 0, right: 320, top: 0 }),
+      rect({ bottom: 120, left: 260, right: 300, top: 90 }),
+    );
+    act(() => textButton(target, "Recolor highlight").click());
+
+    act(() =>
+      target
+        .querySelector('[role="menu"]')
+        ?.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+        ),
+    );
+
+    expect(target.querySelector('[role="menu"]')).toBeInstanceOf(HTMLElement);
+    expect(textButton(target, "Recolor highlight")).toBe(document.activeElement);
+    expect(document.activeElement).not.toBe(trigger);
+  });
+
+  it("window blur closes the complete menu without leaving a registered surface", () => {
+    const target = mount(<Harness annotation={bookmark} menuProps={defaultMenuProps()} />);
+    openMenu(
+      target,
+      rect({ bottom: 500, left: 0, right: 320, top: 0 }),
+      rect({ bottom: 120, left: 260, right: 300, top: 90 }),
+    );
+
+    act(() => window.dispatchEvent(new Event("blur")));
+
+    expect(target.querySelector('[role="menu"]')).toBeNull();
+    expect(activeTransientSurfaceKind()).toBeNull();
   });
 
   it("keeps bookmark and highlight actions type-specific", () => {

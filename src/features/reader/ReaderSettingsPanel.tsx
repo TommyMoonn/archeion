@@ -8,6 +8,7 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { ReaderProgressPlacement, ReaderSettings } from "../../types/reader";
 import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
 
 type ReaderSettingsPanelProps = {
@@ -55,7 +56,16 @@ export function ReaderSettingsPanel({
   readerThemeSelection,
   settings,
 }: ReaderSettingsPanelProps) {
+  const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useTransientSurfaceOwnership({
+    elementRef: panelRef,
+    kind: "reader-panel",
+    onDismiss: (reason) => {
+      if (reason === "escape") onClose();
+    },
+  });
 
   useEffect(() => {
     closeButtonRef.current?.focus();
@@ -70,6 +80,7 @@ export function ReaderSettingsPanel({
       aria-label="Reader settings"
       className="reader-settings"
       onClick={(event) => event.stopPropagation()}
+      ref={panelRef}
     >
       <header className="reader-settings__header reader-panel-header">
         <div>

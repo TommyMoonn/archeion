@@ -15,6 +15,10 @@ import {
 import { createPortal } from "react-dom";
 
 import { MenuItem } from "./MenuItem";
+import {
+  isTopmostTransientSurface,
+  useTransientSurfaceOwnership,
+} from "../utils/transientSurfaceOwnership";
 import type {
   ContextMenuAnchor,
   ContextMenuController,
@@ -221,6 +225,19 @@ export function ContextMenuSurface({
     }
   });
 
+  useTransientSurfaceOwnership({
+    active: invocation !== null,
+    closeOnModalOpen: true,
+    dismissOnOutsidePointer: true,
+    elementRef: menuRef,
+    kind: "context-menu",
+    onDismiss: (reason) => {
+      controller.close({ restoreFocus: reason === "escape" });
+    },
+    origin: invocation?.restoreFocusTo ?? null,
+    trigger: invocation?.triggerElement ?? null,
+  });
+
   useEffect(() => {
     if (!invocation) return;
 
@@ -228,14 +245,6 @@ export function ContextMenuSurface({
     const token = menuTokenRef.current;
     if (activeMenu && activeMenu.token !== token) activeMenu.close();
     activeMenu = { close: controller.close, token };
-
-    function handlePointerDown(event: PointerEvent) {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (menuRef.current?.contains(target)) return;
-      if (currentInvocation.triggerElement?.contains(target)) return;
-      controller.close();
-    }
 
     function ownKeyboardEvent(event: KeyboardEvent, preventDefault = true) {
       if (preventDefault) event.preventDefault();
@@ -245,13 +254,7 @@ export function ContextMenuSurface({
     function handleKeyDown(event: KeyboardEvent) {
       if (activeMenu?.token !== token) return;
       const menu = menuRef.current;
-      if (!menu) return;
-
-      if (event.key === "Escape") {
-        ownKeyboardEvent(event);
-        controller.close({ restoreFocus: true });
-        return;
-      }
+      if (!menu || !isTopmostTransientSurface(menu)) return;
 
       if (event.key === "Tab") {
         event.stopImmediatePropagation();
@@ -320,11 +323,9 @@ export function ContextMenuSurface({
       }
     }
 
-    document.addEventListener("pointerdown", handlePointerDown, true);
     window.addEventListener("keydown", handleKeyDown, true);
     document.addEventListener("scroll", handleScroll, true);
     window.addEventListener("scroll", handleScroll, true);
-    window.addEventListener("blur", closeWithoutFocus);
     window.addEventListener("resize", closeWithoutFocus);
     window.addEventListener("popstate", closeWithoutFocus);
     window.addEventListener("hashchange", closeWithoutFocus);
@@ -335,11 +336,9 @@ export function ContextMenuSurface({
 
     return () => {
       if (activeMenu?.token === token) activeMenu = null;
-      document.removeEventListener("pointerdown", handlePointerDown, true);
       window.removeEventListener("keydown", handleKeyDown, true);
       document.removeEventListener("scroll", handleScroll, true);
       window.removeEventListener("scroll", handleScroll, true);
-      window.removeEventListener("blur", closeWithoutFocus);
       window.removeEventListener("resize", closeWithoutFocus);
       window.removeEventListener("popstate", closeWithoutFocus);
       window.removeEventListener("hashchange", closeWithoutFocus);
@@ -364,7 +363,6 @@ export function ContextMenuSurface({
   return createPortal(
     <div
       aria-label={ariaLabel}
-      data-application-transient="context-menu"
       className={`context-menu menu-popover ${className}`.trim()}
       ref={menuRef}
       role="menu"

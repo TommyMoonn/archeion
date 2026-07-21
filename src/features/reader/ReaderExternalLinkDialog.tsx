@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 
 type ReaderExternalLinkDialogProps = {
   error?: string;
@@ -22,14 +23,17 @@ export function ReaderExternalLinkDialog({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
 
+  const modal = useModalDialogLifecycle({
+    closeOnBackdropClick: !opening,
+    dialogRef,
+    onClose: () => {
+      if (!opening) onCancel();
+    },
+  });
+
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
     const frame = window.requestAnimationFrame(() => cancelRef.current?.focus());
-    return () => {
-      window.cancelAnimationFrame(frame);
-      if (dialog?.open) dialog.close();
-    };
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   return (
@@ -41,11 +45,10 @@ export function ReaderExternalLinkDialog({
       data-reader-ignore-shortcuts
       onCancel={(event) => {
         event.preventDefault();
-        if (!opening) onCancel();
+        if (!opening) modal.onCancel(event);
       }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget && !opening) onCancel();
-      }}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
     >
       <div className="dialog__panel">
         <div className="dialog__copy">

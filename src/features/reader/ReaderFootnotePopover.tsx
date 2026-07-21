@@ -2,6 +2,7 @@ import { X } from "@phosphor-icons/react";
 import { createElement, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { IconButton } from "../../components/IconButton";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { EpubContentAction } from "./epubContentActions";
 import type { EpubFootnoteNode, ResolvedEpubFootnote } from "./epubFootnoteResolver";
 import { placeReaderFootnote, type ReaderFootnotePlacement } from "./readerContentActionAnchor";
@@ -12,7 +13,7 @@ type ReaderFootnotePopoverProps = {
   content?: ResolvedEpubFootnote;
   message?: string;
   onAction: (action: Exclude<EpubContentAction, { kind: "unsupported" }>) => void;
-  onDismiss: () => void;
+  onDismiss: (restoreFocus?: boolean) => void;
   viewportRect: ClientRect;
 };
 
@@ -27,6 +28,14 @@ export function ReaderFootnotePopover({
   const popoverRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [size, setSize] = useState({ height: 180, width: 360 });
+
+  useTransientSurfaceOwnership({
+    closeOnModalOpen: true,
+    dismissOnOutsidePointer: true,
+    elementRef: popoverRef,
+    kind: "popover",
+    onDismiss: (reason) => onDismiss(reason === "escape"),
+  });
 
   useLayoutEffect(() => {
     const popover = popoverRef.current;
@@ -61,12 +70,6 @@ export function ReaderFootnotePopover({
       data-reader-ignore-shortcuts
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          onDismiss();
-          return;
-        }
         if (event.key === "Tab") trapPopoverFocus(event, popoverRef.current);
       }}
       onPointerDown={(event) => event.stopPropagation()}
@@ -75,7 +78,12 @@ export function ReaderFootnotePopover({
     >
       <header className="reader-footnote__header">
         <span>Footnote</span>
-        <IconButton label="Close footnote" onClick={onDismiss} ref={closeRef} size="compact">
+        <IconButton
+          label="Close footnote"
+          onClick={() => onDismiss()}
+          ref={closeRef}
+          size="compact"
+        >
           <X aria-hidden="true" />
         </IconButton>
       </header>

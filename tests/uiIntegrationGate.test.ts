@@ -126,7 +126,8 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(readerNoteSource).toContain('status === "empty"');
     expect(readerNoteSource).toMatch(/>\s*Retry\s*</);
     expect(readerNoteSource).toContain("Delete note");
-    expect(readerNoteSource).toContain('event.key !== "Escape"');
+    expect(readerNoteSource).toContain("useTransientSurfaceOwnership");
+    expect(readerNoteSource).toContain('kind: "inline-editor"');
   });
 
   it("preserves supported window contracts and adds no UI framework dependency", () => {

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "../../components/Button";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
 import type { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 
@@ -14,6 +15,7 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
     session.getSnapshot,
     session.getSnapshot,
   );
+  const surfaceRef = useRef<HTMLElement>(null);
   const revertButton = useRef<HTMLButtonElement>(null);
   const wasIdle = useRef(true);
 
@@ -22,16 +24,14 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
     wasIdle.current = snapshot.status === "idle";
   }, [snapshot.status]);
 
-  useEffect(() => {
-    if (snapshot.status === "idle" || snapshot.status === "keeping") return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      session.revert();
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [session, snapshot.status]);
+  useTransientSurfaceOwnership({
+    active: snapshot.status !== "idle" && snapshot.status !== "keeping",
+    elementRef: surfaceRef,
+    kind: "inline-editor",
+    onDismiss: (reason) => {
+      if (reason === "escape") session.revert();
+    },
+  });
 
   if (snapshot.status === "idle") return null;
 
@@ -40,7 +40,7 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
   const keepBlocked = hasWarnings && !snapshot.warningsAcknowledged;
 
   return (
-    <aside aria-label="Theme preview controls" className="theme-preview-controls">
+    <aside aria-label="Theme preview controls" className="theme-preview-controls" ref={surfaceRef}>
       <div className="theme-preview-controls__copy" aria-live="polite">
         <p>Theme preview</p>
         <strong>{snapshot.candidate.name}</strong>

@@ -1,5 +1,6 @@
 import type { Rendition } from "epubjs";
 
+import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
 
 export type EpubContent = {
@@ -79,10 +80,13 @@ export class ReaderContentDocumentRegistry {
     const keyOptions: AddEventListenerOptions = { capture: true };
 
     const onContentKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && this.options.onEscape?.()) {
-        event.preventDefault();
-        event.stopPropagation();
-        return;
+      if (event.key === "Escape") {
+        if (claimTransientSurfaceEscape(event) || event.defaultPrevented) return;
+        if (this.options.onEscape?.()) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
       }
       if (this.options.onContentKeyDown?.(event, context())) {
         event.preventDefault();

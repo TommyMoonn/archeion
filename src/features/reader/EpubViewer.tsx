@@ -546,7 +546,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           content={footnote.content}
           message={footnote.message}
           onAction={handleFootnoteAction}
-          onDismiss={() => dismissFootnote()}
+          onDismiss={dismissFootnote}
           viewportRect={footnote.viewportRect}
         />
       ) : null}
@@ -596,7 +596,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
               : "Highlight and add note"
           }
           onChoose={choosePaletteOption}
-          onDismiss={() => dismiss()}
+          onDismiss={dismiss}
           onNote={openNote}
           selectedColor={selectedHighlightColor(menu)}
           viewportRect={paletteViewport}

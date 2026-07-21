@@ -5,6 +5,7 @@ import type { CSSProperties, RefObject } from "react";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_TOC_SEARCH_THRESHOLD } from "./readerNavigation";
 
 type ReaderTocPanelProps = {
@@ -34,6 +35,14 @@ export function ReaderTocPanel({
     () => filterChapters(navigation.chapters, query),
     [navigation.chapters, query],
   );
+
+  useTransientSurfaceOwnership({
+    elementRef: panelRef,
+    kind: "reader-panel",
+    onDismiss: (reason) => {
+      if (reason === "escape") onClose();
+    },
+  });
 
   useEffect(() => {
     const focusTarget = showSearch
@@ -73,13 +82,6 @@ export function ReaderTocPanel({
       data-reader-ignore-shortcuts
       id="reader-table-of-contents"
       onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          event.stopPropagation();
-          onClose();
-        }
-      }}
       onPointerDown={(event) => event.stopPropagation()}
       ref={panelRef}
       tabIndex={-1}

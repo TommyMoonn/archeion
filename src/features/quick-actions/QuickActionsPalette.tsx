@@ -2,6 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSyncExternalStore } from "react";
 
 import { Input } from "../../components/Input";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import {
   effectiveKeyboardBinding,
   formatKeyboardBinding,
@@ -30,7 +31,6 @@ export function QuickActionsPalette({
 }: QuickActionsPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const pointerStartedOnBackdropRef = useRef(false);
   const listId = useId();
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -50,18 +50,14 @@ export function QuickActionsPalette({
   const boundedActiveIndex = results.length === 0 ? 0 : Math.min(activeIndex, results.length - 1);
   const activeCommand = results[boundedActiveIndex];
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
-    inputRef.current?.focus();
+  const modal = useModalDialogLifecycle({
+    dialogRef,
+    onClose,
+    surfaceKind: "quick-actions",
+  });
 
-    return () => {
-      if (dialog?.open) {
-        dialog.close();
-      }
-    };
+  useEffect(() => {
+    inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
@@ -92,19 +88,9 @@ export function QuickActionsPalette({
       aria-label="Quick Actions"
       className="quick-actions"
       data-reader-ignore-shortcuts
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (pointerStartedOnBackdropRef.current && event.target === event.currentTarget) {
-          onClose();
-        }
-        pointerStartedOnBackdropRef.current = false;
-      }}
-      onPointerDown={(event) => {
-        pointerStartedOnBackdropRef.current = event.target === event.currentTarget;
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
       ref={dialogRef}
     >
       <div className="quick-actions__panel">

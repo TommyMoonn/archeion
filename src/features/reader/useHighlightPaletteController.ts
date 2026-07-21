@@ -118,27 +118,6 @@ export function useHighlightPaletteController({
     return () => window.cancelAnimationFrame(frame);
   }, [menu?.anchor, paletteRef]);
 
-  useEffect(() => {
-    if (!menu?.anchor) return;
-    const dismissOutside = (event: PointerEvent) => {
-      if (!(event.target instanceof Node) || !paletteRef.current?.contains(event.target)) {
-        dismiss(false);
-      }
-    };
-    const dismissOnEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      dismiss();
-    };
-    document.addEventListener("pointerdown", dismissOutside, true);
-    document.addEventListener("keydown", dismissOnEscape, true);
-    return () => {
-      document.removeEventListener("pointerdown", dismissOutside, true);
-      document.removeEventListener("keydown", dismissOnEscape, true);
-    };
-  }, [dismiss, menu?.anchor, paletteRef]);
-
   useLayoutEffect(() => {
     const anchor = menu?.anchor;
     if (!anchor) return;

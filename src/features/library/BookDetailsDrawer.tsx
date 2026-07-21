@@ -15,10 +15,11 @@ import {
   WarningCircle,
   X,
 } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useMemo, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import type { Book } from "../../types/book";
 import { formatFileSize, formatLongDate } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
@@ -82,19 +83,11 @@ export function BookDetailsDrawer({
     [book.fileName, book.lastOpenedAt, book.relativePath, book.size],
   );
 
-  useEffect(() => {
-    const dialog = dialogRef.current;
-
-    if (dialog && !dialog.open) {
-      dialog.showModal();
-    }
-
-    return () => {
-      if (dialog?.open) {
-        dialog.close();
-      }
-    };
-  }, []);
+  const modal = useModalDialogLifecycle({
+    dialogRef,
+    onClose,
+    surfaceKind: "drawer",
+  });
 
   return (
     <dialog
@@ -102,15 +95,9 @@ export function BookDetailsDrawer({
       className="details-drawer"
       aria-labelledby="book-details-title"
       aria-modal="true"
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) {
-          onClose();
-        }
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
     >
       <div className="details-drawer__panel">
         <header className="details-drawer__header">

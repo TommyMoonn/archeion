@@ -2,6 +2,10 @@
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { createReaderContentTheme } from "./readerTheme";
@@ -19,8 +23,107 @@ function mountedFrame(): HTMLIFrameElement {
 
 describe("ReaderContentDocumentRegistry", () => {
   afterEach(() => {
+    resetTransientSurfaceOwnershipForTests();
     document.body.replaceChildren();
     vi.restoreAllMocks();
+  });
+
+  it("routes EPUB Escape through the topmost parent transient before reader-local fallbacks", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const lowerDismiss = vi.fn();
+    const topDismiss = vi.fn();
+    const localEscape = vi.fn(() => true);
+    const onContentKeyDown = vi.fn(() => true);
+    const onKeyDown = vi.fn();
+    registerTransientSurface({
+      element: document.body.appendChild(document.createElement("aside")),
+      kind: "reader-panel",
+      onDismiss: lowerDismiss,
+    });
+    registerTransientSurface({
+      element: document.body.appendChild(document.createElement("div")),
+      kind: "popover",
+      onDismiss: topDismiss,
+    });
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions({ onContentKeyDown, onEscape: localEscape, onKeyDown });
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+    const laterListener = vi.fn();
+    chapter.addEventListener("keydown", laterListener, true);
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+
+    chapter.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(topDismiss).toHaveBeenCalledOnce();
+    expect(lowerDismiss).not.toHaveBeenCalled();
+    expect(localEscape).not.toHaveBeenCalled();
+    expect(onContentKeyDown).not.toHaveBeenCalled();
+    expect(onKeyDown).not.toHaveBeenCalled();
+    expect(laterListener).not.toHaveBeenCalled();
+  });
+
+  it("uses the same surface order for EPUB and parent-document Escape", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const lowerDismiss = vi.fn();
+    const topDismiss = vi.fn();
+    let unregisterLower: () => void = () => undefined;
+    let unregisterTop: () => void = () => undefined;
+    unregisterLower = registerTransientSurface({
+      element: document.body.appendChild(document.createElement("aside")),
+      kind: "reader-panel",
+      onDismiss: (reason) => {
+        lowerDismiss(reason);
+        unregisterLower();
+      },
+    });
+    unregisterTop = registerTransientSurface({
+      element: document.body.appendChild(document.createElement("div")),
+      kind: "popover",
+      onDismiss: (reason) => {
+        topDismiss(reason);
+        unregisterTop();
+      },
+    });
+    const registry = new ReaderContentDocumentRegistry();
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+
+    chapter.dispatchEvent(
+      new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
+
+    expect(topDismiss).toHaveBeenCalledWith("escape");
+    expect(lowerDismiss).toHaveBeenCalledWith("escape");
+  });
+
+  it("retains the reader-local EPUB Escape fallback when no transient claims it", () => {
+    const frame = mountedFrame();
+    const chapter = frame.contentDocument!;
+    const onEscape = vi.fn(() => true);
+    const onContentKeyDown = vi.fn(() => true);
+    const onKeyDown = vi.fn();
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions({ onContentKeyDown, onEscape, onKeyDown });
+    registry.bind({ document: chapter, window: frame.contentWindow! });
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Escape",
+    });
+
+    chapter.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(onEscape).toHaveBeenCalledOnce();
+    expect(onContentKeyDown).not.toHaveBeenCalled();
+    expect(onKeyDown).not.toHaveBeenCalled();
   });
 
   it("binds an exact document once and removes every listener through one cleanup", () => {

@@ -19,6 +19,7 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
+import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { ReaderAnnotationActionMenu } from "./ReaderAnnotationActionMenu";
 import { ReaderAnnotationList, type ReaderAnnotationListHandle } from "./ReaderAnnotationList";
 import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
@@ -156,6 +157,29 @@ export function ReaderAnnotationsPanel({
     }
   }, [active, restoreFocusAnnotationId, searchInputRef]);
 
+  function handlePanelEscape() {
+    if (actionMenu.menu) {
+      actionMenu.handleEscape();
+    } else if (exportMenuRef.current?.open) {
+      closeExportMenu({ restoreFocus: true });
+    } else if (actions.editing) {
+      actions.cancelBookmarkRename(actions.editing.annotationId);
+    } else if (actions.pendingRemovalId) {
+      actions.cancelRemoval(actions.pendingRemovalId);
+    } else {
+      onClose();
+    }
+  }
+
+  useTransientSurfaceOwnership({
+    active,
+    elementRef: panelRef,
+    kind: "reader-panel",
+    onDismiss: (reason) => {
+      if (reason === "escape") handlePanelEscape();
+    },
+  });
+
   function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
     closeExportDetails(options);
     setExportMenuOpen(false);
@@ -195,22 +219,6 @@ export function ReaderAnnotationsPanel({
       hidden={!active}
       id={active ? "reader-annotations" : undefined}
       onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => {
-        if (event.key !== "Escape") return;
-        event.preventDefault();
-        event.stopPropagation();
-        if (actionMenu.menu) {
-          actionMenu.handleEscape();
-        } else if (exportMenuRef.current?.open) {
-          closeExportMenu({ restoreFocus: true });
-        } else if (actions.editing) {
-          actions.cancelBookmarkRename(actions.editing.annotationId);
-        } else if (actions.pendingRemovalId) {
-          actions.cancelRemoval(actions.pendingRemovalId);
-        } else {
-          onClose();
-        }
-      }}
       onPointerDown={(event) => event.stopPropagation()}
       ref={panelRef}
       tabIndex={-1}

@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
 import type { ReaderIllustrationExportState } from "./useReaderIllustrationExport";
 import { useReaderIllustrationInteraction } from "./useReaderIllustrationInteraction";
@@ -56,14 +57,11 @@ function ReaderIllustrationViewerInstance({
   const viewportRef = useRef<HTMLDivElement>(null);
   const interaction = useReaderIllustrationInteraction(resource, dialogRef, viewportRef);
 
+  const modal = useModalDialogLifecycle({ dialogRef, onClose });
+
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (dialog && !dialog.open) dialog.showModal();
     const frame = window.requestAnimationFrame(() => closeRef.current?.focus());
-    return () => {
-      window.cancelAnimationFrame(frame);
-      if (dialog?.open) dialog.close();
-    };
+    return () => window.cancelAnimationFrame(frame);
   }, []);
 
   return (
@@ -72,10 +70,9 @@ function ReaderIllustrationViewerInstance({
       aria-labelledby="reader-illustration-title"
       className="reader-illustration-viewer"
       data-reader-ignore-shortcuts
-      onCancel={(event) => {
-        event.preventDefault();
-        onClose();
-      }}
+      onCancel={modal.onCancel}
+      onClick={modal.onClick}
+      onPointerDown={modal.onPointerDown}
       onKeyDown={interaction.handleKeyDown}
     >
       <div className="reader-illustration-viewer__panel">
