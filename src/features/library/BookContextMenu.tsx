@@ -1,21 +1,15 @@
-import {
-  ArrowRight,
-  BookOpen,
-  DotsThree,
-  FolderOpen,
-  Heart,
-  Info,
-  PencilSimple,
-  Trash,
-} from "@phosphor-icons/react";
+import { DotsThree } from "@phosphor-icons/react";
+
+import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
+import type { ContextMenuController } from "../../components/contextMenuController";
 import type { Book } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
-import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
-import { MenuItem } from "../../components/MenuItem";
+import { createBookContextActions } from "./bookContextActions";
 import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
 
 type BookContextMenuProps = {
   book: Book;
+  controller: ContextMenuController;
   onDelete: (book: Book) => void;
   onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;
@@ -26,11 +20,13 @@ type BookContextMenuProps = {
   placement: BookMenuPlacement;
   canDelete?: boolean;
   canManageFile?: boolean;
+  dismissKey?: string;
   showRenameFileAction?: boolean;
 };
 
 export function BookContextMenu({
   book,
+  controller,
   onDelete,
   onEditMetadata,
   onMove,
@@ -41,73 +37,44 @@ export function BookContextMenu({
   placement,
   canDelete = true,
   canManageFile = false,
+  dismissKey,
   showRenameFileAction = true,
 }: BookContextMenuProps) {
-  const { closeDetails, detailsRef } = useDismissibleDetails();
-  const showFileActions = canManageFile && !book.isFileMissing;
-
-  function runAction(action: (book: Book) => void) {
-    closeDetails();
-    action(book);
-  }
+  const title = bookTitle(book);
+  const actions = createBookContextActions({
+    book,
+    canDelete,
+    canManageFile,
+    onDelete,
+    onEditMetadata,
+    onMove,
+    onRead,
+    onRenameFile,
+    onRevealFile,
+    onToggleFavorite,
+    showRenameFileAction,
+  });
 
   return (
-    <details
-      ref={detailsRef}
-      className={getBookMenuClassName(placement)}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <summary
-        aria-label={`Actions for ${bookTitle(book)}`}
-        className="menu-trigger"
-        title={`Actions for ${bookTitle(book)}`}
-      >
-        <span aria-hidden="true" className="icon-slot">
-          <DotsThree weight="bold" />
-        </span>
-      </summary>
-      <div className="book-menu__popover menu-popover" role="menu">
-        <MenuItem icon={<BookOpen weight="regular" />} onClick={() => runAction(onRead)}>
-          Read
-        </MenuItem>
-        <MenuItem
-          icon={<Heart weight={book.isFavorite ? "fill" : "regular"} />}
-          onClick={() => runAction(onToggleFavorite)}
+    <>
+      <span className={getBookMenuClassName(placement)} data-open={controller.isOpen || undefined}>
+        <ContextMenuTrigger
+          controller={controller}
+          label={`Actions for ${title}`}
+          title={`Actions for ${title}`}
         >
-          {book.isFavorite ? "Remove favorite" : "Add favorite"}
-        </MenuItem>
-        <MenuItem icon={<Info weight="regular" />} onClick={() => runAction(onEditMetadata)}>
-          Edit metadata
-        </MenuItem>
-        {showRenameFileAction && showFileActions && onRenameFile ? (
-          <MenuItem
-            icon={<PencilSimple weight="regular" />}
-            onClick={() => runAction(onRenameFile)}
-          >
-            Rename file
-          </MenuItem>
-        ) : null}
-        {showFileActions && onMove ? (
-          <MenuItem icon={<ArrowRight weight="regular" />} onClick={() => runAction(onMove)}>
-            Move to folder
-          </MenuItem>
-        ) : null}
-        {showFileActions && onRevealFile ? (
-          <MenuItem icon={<FolderOpen weight="regular" />} onClick={() => runAction(onRevealFile)}>
-            Reveal in folder
-          </MenuItem>
-        ) : null}
-        {canDelete ? (
-          <MenuItem
-            className="book-menu__danger"
-            danger
-            icon={<Trash weight="regular" />}
-            onClick={() => runAction(onDelete)}
-          >
-            {book.isFileMissing ? "Remove metadata" : "Delete EPUB"}
-          </MenuItem>
-        ) : null}
-      </div>
-    </details>
+          <span aria-hidden="true" className="icon-slot">
+            <DotsThree weight="bold" />
+          </span>
+        </ContextMenuTrigger>
+      </span>
+      <ContextMenuSurface
+        actions={actions}
+        ariaLabel={`Actions for ${title}`}
+        className="book-menu__popover"
+        controller={controller}
+        dismissKey={dismissKey}
+      />
+    </>
   );
 }

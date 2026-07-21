@@ -1,6 +1,7 @@
 import { Folder as FolderIcon } from "@phosphor-icons/react";
 import { useMemo, useRef, type KeyboardEvent as ReactKeyboardEvent } from "react";
 
+import { useContextMenuController } from "../../components/contextMenuController";
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
@@ -37,6 +38,11 @@ function FolderNode({
   showReveal = false,
 }: FolderNodeProps) {
   const isSelected = location.type === "folder" && location.folderId === folder.id;
+  const contextMenu = useContextMenuController();
+  const menuDismissKey =
+    location.type === "folder" || location.type === "series-detail"
+      ? `${location.type}:${location.type === "folder" ? location.folderId : location.seriesKey}`
+      : location.type;
 
   return (
     <li>
@@ -57,14 +63,16 @@ function FolderNode({
           data-active={isSelected || undefined}
           data-library-folder-primary-action
           title={folder.name}
-          type="button"
           onClick={() => onSelect(folder)}
+          type="button"
         >
           <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />
           <span>{folder.name}</span>
         </button>
         {showActions ? (
           <FolderActionsMenu
+            controller={contextMenu}
+            dismissKey={menuDismissKey}
             folder={folder}
             onDelete={onDelete}
             onMove={onMove}

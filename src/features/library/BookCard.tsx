@@ -1,6 +1,7 @@
 import { Check, Heart } from "@phosphor-icons/react";
 import { memo, type MouseEvent } from "react";
 
+import { useContextMenuController } from "../../components/contextMenuController";
 import { IconButton } from "../../components/IconButton";
 import type { Book } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
@@ -48,6 +49,7 @@ function BookCardComponent({
 }: BookCardProps) {
   const author = bookAuthor(book);
   const title = bookTitle(book);
+  const contextMenu = useContextMenuController();
 
   function activateBook(event: MouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -106,6 +108,7 @@ function BookCardComponent({
       </IconButton>
       <BookContextMenu
         book={book}
+        controller={contextMenu}
         onDelete={onDelete}
         onEditMetadata={onEditMetadata}
         onMove={onMove}

@@ -10,6 +10,7 @@ import {
 import { useMemo, useState, type ReactNode, type Ref } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
+import { useContextMenuController } from "../../components/contextMenuController";
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
@@ -23,6 +24,7 @@ import {
   createFolderBrowserEntries,
   filterFolderBrowserEntries,
   sortFolderBrowserEntries,
+  type FolderBrowserEntry,
 } from "./folderBrowserReadModel";
 import { folderSortOptions } from "./folderSortOptions";
 import { formatFolderBookCount } from "./folderTreeUtils";
@@ -47,6 +49,83 @@ type FolderBrowserProps = {
   searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
+
+type FolderBrowserItemProps = {
+  activeImportDropTargetId?: string | null;
+  canRevealFolders: boolean;
+  entry: FolderBrowserEntry;
+  onDelete?: (folder: Folder) => void;
+  onMove?: (folder: Folder) => void;
+  onOpen: (folder: Folder) => void;
+  onRename?: (folder: Folder) => void;
+  onReveal?: (folder: Folder) => void;
+  showFolderActions: boolean;
+  view: FolderBrowserView;
+};
+
+function FolderBrowserItem({
+  activeImportDropTargetId,
+  canRevealFolders,
+  entry: { bookCount, displayPath, folder },
+  onDelete,
+  onMove,
+  onOpen,
+  onRename,
+  onReveal,
+  showFolderActions,
+  view,
+}: FolderBrowserItemProps) {
+  const contextMenu = useContextMenuController();
+
+  return (
+    <article
+      className="folder-browser__item"
+      {...folderMutationOwnerAttributes(folder, "browser")}
+      data-import-drop-active={
+        activeImportDropTargetId === `folder-browser:${folder.id}` || undefined
+      }
+      data-import-drop-destination={folder.relativePath}
+      data-import-drop-id={`folder-browser:${folder.id}`}
+      data-import-drop-target={folder.relativePath ? "true" : undefined}
+    >
+      <button
+        className="folder-browser__open"
+        data-library-folder-primary-action
+        onClick={() => onOpen(folder)}
+        type="button"
+      >
+        <span className="folder-browser__icon" aria-hidden="true">
+          <FolderIcon size={view === "cards" ? 22 : 19} />
+        </span>
+        <span className="folder-browser__copy">
+          <strong>{folder.name}</strong>
+          {displayPath ? <small>{displayPath}</small> : null}
+        </span>
+        <span className="folder-browser__count">{formatFolderBookCount(bookCount)}</span>
+      </button>
+      {showFolderActions && onDelete && onMove && onRename ? (
+        <span className="folder-browser__item-actions">
+          <IconButton
+            className="folder-browser__rename"
+            label={`Rename ${folder.name}`}
+            onClick={() => onRename(folder)}
+          >
+            <PencilSimple aria-hidden="true" />
+          </IconButton>
+          <FolderActionsMenu
+            controller={contextMenu}
+            folder={folder}
+            onDelete={onDelete}
+            onMove={onMove}
+            onReveal={onReveal}
+            showRename={false}
+            showReveal={canRevealFolders}
+          />
+        </span>
+      ) : null}
+    </article>
+  );
+}
 
 const folderViewOptions: Array<{
   icon: ReactNode;
@@ -203,56 +282,21 @@ export function FolderBrowser({
           data-surface-state={surfaceState}
           key={surfaceKey}
         >
-          {visibleEntries.map(({ bookCount, displayPath, folder }) => {
-            return (
-              <article
-                className="folder-browser__item"
-                {...folderMutationOwnerAttributes(folder, "browser")}
-                data-import-drop-active={
-                  activeImportDropTargetId === `folder-browser:${folder.id}` || undefined
-                }
-                data-import-drop-destination={folder.relativePath}
-                data-import-drop-id={`folder-browser:${folder.id}`}
-                data-import-drop-target={folder.relativePath ? "true" : undefined}
-                key={folder.id}
-              >
-                <button
-                  className="folder-browser__open"
-                  data-library-folder-primary-action
-                  onClick={() => onOpen(folder)}
-                  type="button"
-                >
-                  <span className="folder-browser__icon" aria-hidden="true">
-                    <FolderIcon size={view === "cards" ? 22 : 19} />
-                  </span>
-                  <span className="folder-browser__copy">
-                    <strong>{folder.name}</strong>
-                    {displayPath ? <small>{displayPath}</small> : null}
-                  </span>
-                  <span className="folder-browser__count">{formatFolderBookCount(bookCount)}</span>
-                </button>
-                {showFolderActions && onDelete && onMove && onRename ? (
-                  <span className="folder-browser__item-actions">
-                    <IconButton
-                      className="folder-browser__rename"
-                      label={`Rename ${folder.name}`}
-                      onClick={() => onRename(folder)}
-                    >
-                      <PencilSimple aria-hidden="true" />
-                    </IconButton>
-                    <FolderActionsMenu
-                      folder={folder}
-                      onDelete={onDelete}
-                      onMove={onMove}
-                      onReveal={onReveal}
-                      showRename={false}
-                      showReveal={canRevealFolders}
-                    />
-                  </span>
-                ) : null}
-              </article>
-            );
-          })}
+          {visibleEntries.map((entry) => (
+            <FolderBrowserItem
+              activeImportDropTargetId={activeImportDropTargetId}
+              canRevealFolders={canRevealFolders}
+              entry={entry}
+              key={entry.folder.id}
+              onDelete={onDelete}
+              onMove={onMove}
+              onOpen={onOpen}
+              onRename={onRename}
+              onReveal={onReveal}
+              showFolderActions={showFolderActions}
+              view={view}
+            />
+          ))}
         </div>
       )}
     </section>

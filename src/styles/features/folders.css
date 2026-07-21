@@ -93,18 +93,21 @@ html[data-motion="on"] .folder-tree__children {
   right: 0;
 }
 
-.folder-menu[open] summary,
-.folder-menu summary:focus-visible,
-.folder-menu summary:hover {
+.folder-menu .menu-trigger {
+  transition:
+    opacity var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.folder-menu[data-open] .menu-trigger,
+.folder-menu .menu-trigger:focus-visible,
+.folder-menu .menu-trigger:hover {
   color: var(--text);
   background: var(--surface-raised);
 }
 
 .folder-menu__popover {
-  position: absolute;
-  z-index: 5;
-  top: 36px;
-  right: 0;
   width: 140px;
 }
 
@@ -173,7 +176,7 @@ html[data-motion="on"] .folder-browser > .empty-state {
   color: var(--muted);
 }
 
-.folder-browser__item:has(.folder-menu[open]) {
+.folder-browser__item:has(.folder-menu[data-open]) {
   z-index: 3;
 }
 
@@ -242,7 +245,7 @@ html[data-motion="on"] .folder-browser > .empty-state {
 
 .folder-browser__items--cards .folder-browser__open:hover,
 .folder-browser__items--cards .folder-browser__open:focus-visible,
-.folder-browser__item:has(.folder-menu[open]) .folder-browser__open {
+.folder-browser__item:has(.folder-menu[data-open]) .folder-browser__open {
   border-color: var(--line-strong);
   background: var(--surface);
 }
@@ -314,11 +317,6 @@ html[data-motion="on"] .folder-browser > .empty-state {
 
 .folder-browser__item-actions .folder-menu {
   position: static;
-}
-
-.folder-browser__item-actions .folder-menu__popover {
-  top: 34px;
-  right: 0;
 }
 
 @media (max-width: 820px) {

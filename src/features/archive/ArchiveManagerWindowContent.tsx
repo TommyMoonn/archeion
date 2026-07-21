@@ -1,16 +1,20 @@
-import { DotsThree, FolderOpen, PencilSimple, Plus, Trash } from "@phosphor-icons/react";
+import { DotsThree, Plus } from "@phosphor-icons/react";
 import { useMemo, useState } from "react";
 
 // Copied from src-tauri/icons/128x128.png so the frontend can load it through Vite.
 import archeionIcon from "../../assets/brand/archeion-icon-128.png";
 import { Button } from "../../components/Button";
+import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
+import {
+  useContextMenuController,
+  type ContextMenuController,
+} from "../../components/contextMenuController";
 import { Input } from "../../components/Input";
-import { MenuItem } from "../../components/MenuItem";
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
-import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { ArchiveCreateView } from "./ArchiveCreateView";
+import { createArchiveContextActions } from "./archiveContextActions";
 import { OpenArchiveButton } from "./OpenArchiveButton";
 
 type ArchiveManagerView = "manager" | "create";
@@ -31,6 +35,7 @@ type ArchiveRowProps = {
 
 type ArchiveRowActionsProps = {
   archive: KnownArchive;
+  controller: ContextMenuController;
   disabled: boolean;
   onForget: () => void;
   onReveal: () => void;
@@ -55,59 +60,35 @@ function sortArchives(archives: KnownArchive[]): KnownArchive[] {
 
 function ArchiveRowActions({
   archive,
+  controller,
   disabled,
   onForget,
   onReveal,
   onRename,
 }: ArchiveRowActionsProps) {
-  const { closeDetails, detailsRef } = useDismissibleDetails();
-
-  function runAction(action: () => void) {
-    closeDetails();
-    action();
-  }
+  const actions = createArchiveContextActions({ disabled, onForget, onReveal, onRename });
 
   return (
-    <details
-      className="archive-row-menu"
-      ref={detailsRef}
-      onClick={(event) => event.stopPropagation()}
-    >
-      <summary
-        aria-label={`Actions for ${archive.displayName}`}
-        className="menu-trigger"
-        title={`Actions for ${archive.displayName}`}
-      >
-        <span aria-hidden="true" className="icon-slot">
-          <DotsThree weight="bold" />
-        </span>
-      </summary>
-      <div className="archive-row-menu__popover menu-popover" role="menu">
-        <MenuItem
+    <>
+      <span className="archive-row-menu" data-open={controller.isOpen || undefined}>
+        <ContextMenuTrigger
+          controller={controller}
           disabled={disabled}
-          icon={<PencilSimple weight="regular" />}
-          onClick={() => runAction(onRename)}
+          label={`Actions for ${archive.displayName}`}
+          title={`Actions for ${archive.displayName}`}
         >
-          Rename
-        </MenuItem>
-        <MenuItem
-          disabled={disabled}
-          icon={<FolderOpen weight="regular" />}
-          onClick={() => runAction(onReveal)}
-        >
-          Reveal in folder
-        </MenuItem>
-        <MenuItem
-          className="archive-row-menu__danger"
-          danger
-          disabled={disabled}
-          icon={<Trash weight="regular" />}
-          onClick={() => runAction(onForget)}
-        >
-          Forget
-        </MenuItem>
-      </div>
-    </details>
+          <span aria-hidden="true" className="icon-slot">
+            <DotsThree weight="bold" />
+          </span>
+        </ContextMenuTrigger>
+      </span>
+      <ContextMenuSurface
+        actions={actions}
+        ariaLabel={`Actions for ${archive.displayName}`}
+        className="archive-row-menu__popover"
+        controller={controller}
+      />
+    </>
   );
 }
 
@@ -119,6 +100,7 @@ function ArchiveRow({
   setStatus,
 }: ArchiveRowProps) {
   const [isRenaming, setIsRenaming] = useState(false);
+  const contextMenu = useContextMenuController();
   const [name, setName] = useState(archive.displayName);
   const [isBusy, setIsBusy] = useState(false);
   const isActive = archive.id === activeArchiveId;
@@ -255,6 +237,7 @@ function ArchiveRow({
         ) : (
           <ArchiveRowActions
             archive={archive}
+            controller={contextMenu}
             disabled={isBusy}
             onForget={() => void forgetArchive()}
             onReveal={() => void revealArchive()}

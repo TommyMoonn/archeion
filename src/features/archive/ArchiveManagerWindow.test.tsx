@@ -63,7 +63,7 @@ function renderInteractive({
   return { container, root };
 }
 
-function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement {
+function buttonWithText(container: ParentNode, text: string): HTMLButtonElement {
   const button = Array.from(container.querySelectorAll("button")).find((candidate) =>
     candidate.textContent?.includes(text),
   );
@@ -110,9 +110,8 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).toContain("Start with a new local folder.");
     expect(markup).toContain("Open folder as archive");
     expect(markup).toContain("Use an existing folder.");
-    expect(markup).toContain("Rename");
-    expect(markup).toContain("Reveal in folder");
-    expect(markup).toContain("Forget");
+    expect(markup).toContain('aria-label="Actions for Books"');
+    expect(markup).toContain('aria-label="Actions for Comics"');
     expect(markup).not.toContain("archive-manager-window__chrome");
     expect(markup).not.toContain(">Archive Manager<");
     expect(markup).not.toContain("Active");
@@ -187,7 +186,14 @@ describe("ArchiveManagerWindow", () => {
     const { container, root } = renderInteractive({ onArchiveChoiceComplete });
 
     await act(async () => {
-      buttonWithText(container, "Rename").dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Actions for Books"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      buttonWithText(document.body, "Rename").dispatchEvent(
+        new MouseEvent("click", { bubbles: true }),
+      );
     });
 
     expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
@@ -196,7 +202,12 @@ describe("ArchiveManagerWindow", () => {
 
     const revealSession = renderInteractive({ onArchiveChoiceComplete });
     await act(async () => {
-      buttonWithText(revealSession.container, "Reveal in folder").dispatchEvent(
+      revealSession.container
+        .querySelector<HTMLButtonElement>('[aria-label="Actions for Books"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      buttonWithText(document.body, "Reveal in folder").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });
@@ -208,7 +219,12 @@ describe("ArchiveManagerWindow", () => {
 
     const forgetSession = renderInteractive({ onArchiveChoiceComplete });
     await act(async () => {
-      buttonWithText(forgetSession.container, "Forget").dispatchEvent(
+      forgetSession.container
+        .querySelector<HTMLButtonElement>('[aria-label="Actions for Books"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      buttonWithText(document.body, "Forget").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });

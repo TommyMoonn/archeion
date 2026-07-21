@@ -468,8 +468,8 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   left: 8px;
 }
 
-.book-card:has(.book-menu[open]),
-.book-row:has(.book-menu[open]) {
+.book-card:has(.book-menu[data-open]),
+.book-row:has(.book-menu[data-open]) {
   z-index: 3;
 }
 
@@ -618,7 +618,7 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   transform: translateY(-50%);
 }
 
-.book-menu summary {
+.book-menu .menu-trigger {
   border: 1px solid color-mix(in srgb, var(--text) 11%, transparent);
   color: var(--text);
   background: color-mix(in srgb, var(--canvas-deep) 88%, transparent);
@@ -628,21 +628,18 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
     background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
-.book-card:hover .book-menu summary,
-.book-menu[open] summary,
-.book-menu summary:focus-visible,
-.book-menu--row summary {
+.book-card:hover .book-menu .menu-trigger,
+.book-menu[data-open] .menu-trigger,
+.book-menu .menu-trigger:focus-visible,
+.book-menu--row .menu-trigger {
   opacity: 1;
 }
 
-.book-menu[open] summary {
+.book-menu[data-open] .menu-trigger {
   background: var(--surface-raised);
 }
 
 .book-menu__popover {
-  position: absolute;
-  top: 38px;
-  right: 0;
   width: 150px;
 }
 
@@ -1266,7 +1263,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 @media (hover: none) {
-  .book-card .book-menu summary,
+  .book-card .book-menu .menu-trigger,
   .book-card .book-favorite {
     opacity: 1;
   }
