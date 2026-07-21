@@ -74,7 +74,12 @@ export function LibrarySelectionBar({
     <div className="library-selection-bar" role="toolbar" aria-label="Book selection actions">
       <div className="library-selection-bar__primary">
         <div className="library-selection-bar__status" aria-live="polite">
-          <CheckSquare aria-hidden="true" size={15} weight={selectedCount ? "fill" : "regular"} />
+          <CheckSquare
+            aria-hidden="true"
+            className="library-selection-bar__status-icon"
+            size={20}
+            weight="bold"
+          />
           <strong>{selectedCount} selected</strong>
           <span className="sr-only">
             {hiddenSelectedCount > 0
@@ -83,20 +88,13 @@ export function LibrarySelectionBar({
           </span>
         </div>
         <div className="library-selection-bar__bulk-actions">
-          <Button
-            disabled={visibleCount === 0 || busy}
-            onClick={allVisibleSelected ? onDeselectVisible : onSelectVisible}
-            size="compact"
-            variant="secondary"
-          >
-            {allVisibleSelected ? "Deselect all" : "Select all"}
-          </Button>
           <IconButton
             className="library-selection-bar__icon-action"
             disabled={selectedCount === 0 || busy}
             disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Add selected books to favorites"
             onClick={() => onAction("favorite")}
+            size="compact"
           >
             <Heart aria-hidden="true" />
           </IconButton>
@@ -106,12 +104,13 @@ export function LibrarySelectionBar({
             disabledReason={busy ? "Wait for the current action to finish" : "Select a book first"}
             label="Move selected books"
             onClick={() => onAction("move")}
+            size="compact"
           >
             <ArrowRight aria-hidden="true" />
           </IconButton>
           <details className="library-selection-actions-menu" ref={detailsRef}>
             <summary
-              className="menu-trigger"
+              className="menu-trigger library-selection-bar__icon-action"
               aria-label="More bulk actions"
               title="More bulk actions"
             >
@@ -159,15 +158,17 @@ export function LibrarySelectionBar({
                 disabled={busy || selectedCount === 0}
                 icon={<DownloadSimple />}
                 onClick={() => runOverflowAction("annotations-markdown")}
+                title="Export annotations as Markdown"
               >
-                Export annotations as Markdown
+                Annotations (Markdown)
               </MenuItem>
               <MenuItem
                 disabled={busy || selectedCount === 0}
                 icon={<DownloadSimple />}
                 onClick={() => runOverflowAction("annotations-json")}
+                title="Export annotations as JSON"
               >
-                Export annotations as JSON
+                Annotations (JSON)
               </MenuItem>
               <MenuItem
                 className="danger"
@@ -183,6 +184,14 @@ export function LibrarySelectionBar({
         </div>
       </div>
       <div className="library-selection-bar__actions">
+        <Button
+          disabled={visibleCount === 0 || busy}
+          onClick={allVisibleSelected ? onDeselectVisible : onSelectVisible}
+          size="compact"
+          variant="secondary"
+        >
+          {allVisibleSelected ? "Deselect all" : "Select all"}
+        </Button>
         <Button
           disabled={selectedCount === 0 || busy}
           onClick={onClear}

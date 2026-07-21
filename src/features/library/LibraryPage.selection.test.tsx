@@ -200,7 +200,7 @@ describe("LibraryPage selection and bulk workflows", () => {
         ?.click();
     });
     await act(async () => {
-      buttonWithText(session.container, "Export annotations as JSON").click();
+      buttonWithText(session.container, "Annotations (JSON)").click();
       await Promise.resolve();
     });
 
@@ -247,7 +247,7 @@ describe("LibraryPage selection and bulk workflows", () => {
         ?.click();
     });
     await act(async () => {
-      buttonWithText(session.container, "Export annotations as Markdown").click();
+      buttonWithText(session.container, "Annotations (Markdown)").click();
       await Promise.resolve();
     });
 

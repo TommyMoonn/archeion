@@ -159,9 +159,9 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   min-height: 44px;
   padding: 5px 6px 5px 12px;
   margin: 0 auto 28px;
-  border: 1px solid var(--line-strong);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
-  background: var(--surface-raised);
+  background: var(--surface);
 }
 
 .library-selection-bar__status,
@@ -179,8 +179,12 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 
 .library-selection-bar__status {
   min-width: 0;
-  gap: 7px;
-  color: var(--accent);
+  gap: 8px;
+}
+
+.library-selection-bar__status-icon {
+  flex: none;
+  color: var(--text-strong);
 }
 
 .library-selection-bar__status strong {
@@ -191,11 +195,13 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 
 .library-selection-bar__actions {
   flex: none;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
 }
 
 .library-selection-bar__bulk-actions {
-  gap: 6px;
+  gap: 2px;
 }
 
 .library-selection-bar .button {
@@ -210,15 +216,19 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   position: relative;
 }
 
-.library-selection-actions-menu > summary {
-  border: 1px solid var(--line-strong);
+.library-selection-bar .library-selection-bar__icon-action {
+  border-color: transparent;
+  color: var(--muted);
+  background: transparent;
 }
 
 .library-selection-actions-menu[open] > summary,
-.library-selection-actions-menu > summary:hover,
-.library-selection-actions-menu > summary:focus-visible {
+.library-selection-bar
+  .library-selection-bar__icon-action:hover:not(:disabled):not([aria-disabled="true"]),
+.library-selection-bar .library-selection-bar__icon-action:focus-visible {
+  border-color: transparent;
   color: var(--text-strong);
-  background: var(--surface-raised);
+  background: var(--surface-hover);
 }
 
 .library-selection-actions-menu > div {
@@ -227,10 +237,6 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
   top: calc(100% + 7px);
   right: 0;
   min-width: 205px;
-}
-
-.library-selection-bar__icon-action {
-  border-color: var(--line-strong);
 }
 
 .library-content > .book-grid,

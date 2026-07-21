@@ -407,7 +407,7 @@ describe("theme token baseline", () => {
         ],
         [
           "src/styles/features/library.css",
-          /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface-raised\);/,
+          /\.library-selection-bar\s*{[^}]*background:\s*var\(--surface\);/,
         ],
         [
           "src/styles/features/settings.css",

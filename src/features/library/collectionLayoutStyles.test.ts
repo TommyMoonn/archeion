@@ -57,11 +57,11 @@ describe("collection content spacing ownership", () => {
     expect(pageShell).not.toContain("4.5vw");
   });
 
-  it("keeps the selection ribbon on the muted selected-control treatment", () => {
+  it("keeps the selection ribbon on the search-surface treatment", () => {
     const selectionBar = cssBlock(libraryStyles, "\n.library-selection-bar");
 
-    expect(selectionBar).toContain("border: 1px solid var(--line-strong);");
-    expect(selectionBar).toContain("background: var(--surface-raised);");
+    expect(selectionBar).toContain("border: var(--border-width) solid var(--line);");
+    expect(selectionBar).toContain("background: var(--surface);");
     expect(selectionBar).not.toContain("var(--accent-border)");
     expect(selectionBar).not.toContain("box-shadow");
   });
