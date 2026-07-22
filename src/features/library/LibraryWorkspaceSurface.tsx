@@ -2,6 +2,8 @@ import { BookOpenText } from "@phosphor-icons/react";
 import {
   Suspense,
   useLayoutEffect,
+  useMemo,
+  useRef,
   type ComponentProps,
   type ReactNode,
   type RefObject,
@@ -21,6 +23,7 @@ import { LibrarySelectionBar } from "./LibrarySelectionBar";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
+import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
 import type { LibraryReturnFocusRequest } from "./useLibraryWorkspaceNavigation";
 
@@ -49,6 +52,7 @@ type SharedBookCollectionProps = Omit<
 
 type LibraryWorkspaceSurfaceProps = {
   bookCardSize: CollectionCardSize;
+  bookFocusFallbackRef: RefObject<HTMLElement | null>;
   books: Book[] | undefined;
   bookCollectionProps: SharedBookCollectionProps;
   continuePreview: Book[];
@@ -61,6 +65,7 @@ type LibraryWorkspaceSurfaceProps = {
   isImporting: boolean;
   location: LibraryLocation;
   mainRef: RefObject<HTMLElement | null>;
+  focusOwnershipKey: string;
   onMountedReturnSurfaceReady: (surfaceKey: string) => void;
   returnFocusRequest: LibraryReturnFocusRequest | null;
   onClearFilters: () => void;
@@ -77,6 +82,7 @@ type LibraryWorkspaceSurfaceProps = {
 
 export function LibraryWorkspaceSurface({
   bookCardSize,
+  bookFocusFallbackRef,
   books,
   bookCollectionProps,
   continuePreview,
@@ -89,6 +95,7 @@ export function LibraryWorkspaceSurface({
   isImporting,
   location,
   mainRef,
+  focusOwnershipKey,
   onMountedReturnSurfaceReady,
   returnFocusRequest,
   onClearFilters,
@@ -110,6 +117,23 @@ export function LibraryWorkspaceSurface({
     visibleBooks,
   );
   const surfaceKey = `${libraryLocationKey(location)}:${view}:${surfaceState}`;
+  const bookCollectionRootRef = useRef<HTMLDivElement>(null);
+  const bookSurfaceActive =
+    location.type !== "folders" && location.type !== "series" && location.type !== "series-detail";
+  const bookFocusRevision = useMemo(
+    () => `${surfaceKey}:${bookCardSize}:${visibleBooks.map((book) => book.id).join("\u001f")}`,
+    [bookCardSize, surfaceKey, visibleBooks],
+  );
+  const preservedBookFocusRequest = useBookCollectionFocusPreservation({
+    active: bookSurfaceActive,
+    books: visibleBooks,
+    collectionRootRef: bookCollectionRootRef,
+    fallbackRef: bookFocusFallbackRef,
+    ownerKey: focusOwnershipKey,
+    revision: bookFocusRevision,
+    suspended: Boolean(returnFocusRequest),
+  });
+  const effectiveReturnFocusRequest = returnFocusRequest ?? preservedBookFocusRequest;
 
   return (
     <PageShell
@@ -156,6 +180,7 @@ export function LibraryWorkspaceSurface({
         <>
           <LibraryToolbar {...toolbarProps} />
           <div
+            ref={bookCollectionRootRef}
             className="collection-content library-content"
             data-surface-state={surfaceState}
             key={surfaceKey}
@@ -203,13 +228,13 @@ export function LibraryWorkspaceSurface({
               <BookGrid
                 books={visibleBooks}
                 cardSize={bookCardSize}
-                returnFocusRequest={returnFocusRequest}
+                returnFocusRequest={effectiveReturnFocusRequest}
                 {...bookCollectionProps}
               />
             ) : (
               <BookList
                 books={visibleBooks}
-                returnFocusRequest={returnFocusRequest}
+                returnFocusRequest={effectiveReturnFocusRequest}
                 {...bookCollectionProps}
               />
             )}

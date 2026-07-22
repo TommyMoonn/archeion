@@ -28,6 +28,7 @@ import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBin
 
 type SettingsDialogProps = {
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
 };
 
 function scrollSettingsContent(content: HTMLElement | null) {
@@ -66,7 +67,7 @@ function renderSettingsSection(
   }
 }
 
-export function SettingsDialog({ onClose }: SettingsDialogProps) {
+export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) {
   const contentRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -96,7 +97,12 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     dataRequirements.has("archiveAppearanceSettings"),
   );
   const committedArchiveAppearance = useCommittedArchiveAppearance();
-  const modal = useModalDialogLifecycle({ dialogRef, onClose, surfaceKind: "settings" });
+  const modal = useModalDialogLifecycle({
+    dialogRef,
+    onClose,
+    returnFocusTo,
+    surfaceKind: "settings",
+  });
   const controller = useSettingsDialogController({
     committedArchiveAppearance,
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),

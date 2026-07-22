@@ -4,7 +4,10 @@ import { act, useLayoutEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { resetTransientSurfaceOwnershipForTests } from "../../utils/transientSurfaceOwnership";
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
 import type { HighlightPaletteAnchor } from "./readerHighlightPaletteAnchor";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
@@ -86,10 +89,25 @@ function renderController(onDismiss: () => void) {
 
 function paletteAnchor(focusTarget: HTMLButtonElement): HighlightPaletteAnchor {
   return {
-    document,
+    document: focusTarget.ownerDocument,
     focusTarget,
     resolveRect: () => ({ bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 }),
   };
+}
+
+function embeddedPaletteTarget(): {
+  document: Document;
+  frame: HTMLIFrameElement;
+  target: HTMLButtonElement;
+} {
+  const frame = document.body.appendChild(document.createElement("iframe"));
+  Object.defineProperty(frame.contentWindow, "frameElement", {
+    configurable: true,
+    value: frame,
+  });
+  const ownerDocument = frame.contentDocument!;
+  const target = ownerDocument.body.appendChild(ownerDocument.createElement("button"));
+  return { document: ownerDocument, frame, target };
 }
 
 describe("useHighlightPaletteController", () => {
@@ -159,5 +177,101 @@ describe("useHighlightPaletteController", () => {
     expect(event.defaultPrevented).toBe(true);
     expect(onDismiss).toHaveBeenCalledOnce();
     expect(harness.latest().menu).toBeNull();
+  });
+
+  it("retains newer persistent parent focus after one restoration attempt", () => {
+    const frames: FrameRequestCallback[] = [];
+    const requestFrame = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    const onDismiss = vi.fn();
+    const harness = renderController(onDismiss);
+    const { target } = embeddedPaletteTarget();
+    const focus = vi.spyOn(target, "focus");
+
+    act(() => {
+      harness.latest().open({
+        anchor: paletteAnchor(target),
+        anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
+        selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
+      });
+    });
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    requestFrame.mockClear();
+
+    act(() => harness.latest().dismiss());
+    const toolbarButton = document.body.appendChild(document.createElement("button"));
+    toolbarButton.focus();
+
+    expect(requestFrame).toHaveBeenCalledOnce();
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    expect(document.activeElement).toBe(toolbarButton);
+    expect(focus).not.toHaveBeenCalled();
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("restores a highlight palette origin when parent focus is unowned", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const onDismiss = vi.fn();
+    const harness = renderController(onDismiss);
+    const { document: chapter, target } = embeddedPaletteTarget();
+
+    act(() => {
+      harness.latest().open({
+        anchor: paletteAnchor(target),
+        anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
+        selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
+      });
+    });
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    act(() => harness.latest().dismiss());
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+
+    expect(chapter.activeElement).toBe(target);
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it("does not restore an EPUB origin behind a newer parent modal", () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    const onDismiss = vi.fn();
+    const harness = renderController(onDismiss);
+    const { target } = embeddedPaletteTarget();
+
+    act(() => {
+      harness.latest().open({
+        anchor: paletteAnchor(target),
+        anchorRect: { bottom: 140, height: 20, left: 100, right: 180, top: 120, width: 80 },
+        selection: { cfiRange: "epubcfi(/6/2)", selectedText: "Selection" },
+      });
+    });
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    act(() => harness.latest().dismiss());
+
+    const modal = document.body.appendChild(document.createElement("dialog"));
+    modal.open = true;
+    const modalButton = modal.appendChild(document.createElement("button"));
+    modalButton.focus();
+    const unregister = registerTransientSurface({
+      element: modal,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+
+    expect(document.activeElement).toBe(modalButton);
+    expect(onDismiss).toHaveBeenCalledOnce();
+    unregister();
   });
 });

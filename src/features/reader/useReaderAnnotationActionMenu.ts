@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import type { Annotation } from "../../types/annotation";
+import { focusElementIfUsable } from "../../utils/focusRestoration";
 
 const ACTION_MENU_ESTIMATED_HEIGHT = 168;
 const ACTION_MENU_WIDTH = 184;
@@ -61,7 +62,7 @@ export function useReaderAnnotationActionMenu({
     (options: { restoreFocus?: boolean } = {}) => {
       const current = menuStateRef.current;
       publishMenu(undefined);
-      if (options.restoreFocus) current?.trigger.focus();
+      if (options.restoreFocus) focusElementIfUsable(current?.trigger);
     },
     [publishMenu],
   );

@@ -13,6 +13,7 @@ type MoveToFolderDialogProps = {
   folders: Folder[];
   onClose: () => void;
   onMove: (folderId: string | null) => Promise<void>;
+  returnFocusTo?: HTMLElement | null;
   title: string;
   disableUnchanged?: boolean;
 };
@@ -25,6 +26,7 @@ export function MoveToFolderDialog({
   folders,
   onClose,
   onMove,
+  returnFocusTo,
   title,
   disableUnchanged = true,
 }: MoveToFolderDialogProps) {
@@ -72,6 +74,7 @@ export function MoveToFolderDialog({
 
   return (
     <Dialog
+      returnFocusTo={returnFocusTo}
       title={title}
       onClose={() => {
         if (!isSaving) {

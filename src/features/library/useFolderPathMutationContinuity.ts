@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { Folder, UpdateFolderInput } from "../../types/folder";
+import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import {
   captureFolderMutationFocusContext,
   findFolderMutationFocusTarget,
@@ -17,6 +18,7 @@ type PendingFolderPathMutation = Readonly<{
   archiveId: string;
   focusContext: FolderMutationFocusContext | null;
   mapping: FolderPathMutationMapping;
+  routeKey: string;
   routePath: string | null;
   status: "pending" | "completed";
   token: number;
@@ -69,6 +71,7 @@ export function useFolderPathMutationContinuity({
         archiveId: activeArchiveId,
         focusContext,
         mapping,
+        routeKey: searchParamsRef.current.toString(),
         routePath: null,
         status: "pending",
         token,
@@ -94,6 +97,12 @@ export function useFolderPathMutationContinuity({
           newRelativePath: updatedFolder.relativePath,
         };
         const currentParams = searchParamsRef.current;
+        if (currentParams.toString() !== nextPending.routeKey) {
+          pendingRef.current = null;
+          focusContextRef.current = null;
+          setPending(null);
+          return updatedFolder;
+        }
         const routePath =
           currentParams.get("view") === "folder"
             ? rewriteFolderPathForMutation(
@@ -144,11 +153,16 @@ export function useFolderPathMutationContinuity({
     const frame = window.requestAnimationFrame(() => {
       if (pendingRef.current?.token !== activePending.token) return;
       if (activePending.focusContext) {
-        findFolderMutationFocusTarget(
-          document,
-          activePending.mapping.newRelativePath,
-          activePending.focusContext.surface,
-        )?.focus({ preventScroll: true });
+        focusElementIfRestorationOwned(
+          findFolderMutationFocusTarget(
+            document,
+            activePending.mapping.newRelativePath,
+            activePending.focusContext.surface,
+          ),
+          {
+            requestIsCurrent: () => pendingRef.current?.token === activePending.token,
+          },
+        );
       }
       pendingRef.current = null;
       setPending((current) => (current?.token === activePending.token ? null : current));
@@ -157,7 +171,7 @@ export function useFolderPathMutationContinuity({
     return () => window.cancelAnimationFrame(frame);
   }, [activePending, folders, searchParams]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     activeArchiveIdRef.current = activeArchiveId;
     searchParamsRef.current = searchParams;
   }, [activeArchiveId, searchParams]);

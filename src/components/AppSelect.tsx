@@ -2,6 +2,7 @@ import { CaretDown, Check } from "@phosphor-icons/react";
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import type { ControlSize } from "./Button";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
+import { focusElementIfUsable } from "../utils/focusRestoration";
 import { useTransientSurfaceOwnership } from "../utils/transientSurfaceOwnership";
 
 export type AppSelectOption<TValue extends string> = {
@@ -99,7 +100,7 @@ export function AppSelect<TValue extends string>({
     kind: "popover",
     onDismiss: (reason) => {
       setOpen(false);
-      if (reason === "escape") buttonRef.current?.focus();
+      if (reason === "escape") focusElementIfUsable(buttonRef.current);
     },
     originRef: buttonRef,
     triggerRef: buttonRef,
@@ -112,7 +113,7 @@ export function AppSelect<TValue extends string>({
 
     onChange(option.value);
     setOpen(false);
-    buttonRef.current?.focus();
+    focusElementIfUsable(buttonRef.current);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {

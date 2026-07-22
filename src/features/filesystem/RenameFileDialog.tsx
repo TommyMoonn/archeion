@@ -11,6 +11,7 @@ type RenameFileDialogProps = {
   book: Book;
   onClose: () => void;
   onRename: (fileName: string) => Promise<void>;
+  returnFocusTo?: HTMLElement | null;
 };
 
 function getEpubNameStem(fileName: string): string {
@@ -27,7 +28,12 @@ function normalizeEpubFileName(value: string): string {
   return validateArchiveItemName(`${trimmedStem}${EPUB_EXTENSION}`);
 }
 
-export function RenameFileDialog({ book, onClose, onRename }: RenameFileDialogProps) {
+export function RenameFileDialog({
+  book,
+  onClose,
+  onRename,
+  returnFocusTo,
+}: RenameFileDialogProps) {
   const [fileNameStem, setFileNameStem] = useState(getEpubNameStem(book.fileName));
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -66,6 +72,7 @@ export function RenameFileDialog({ book, onClose, onRename }: RenameFileDialogPr
 
   return (
     <Dialog
+      returnFocusTo={returnFocusTo}
       title="Rename EPUB file"
       onClose={() => {
         if (!isSaving) {

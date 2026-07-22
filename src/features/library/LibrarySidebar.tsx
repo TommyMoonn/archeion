@@ -171,6 +171,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         <button
           aria-current={location.type === "folders" ? "page" : undefined}
           className={`nav-item ${location.type === "folders" ? "active" : ""}`}
+          data-library-folder-collection-entry
           type="button"
           onClick={() => onLocationChange({ type: "folders" })}
         >

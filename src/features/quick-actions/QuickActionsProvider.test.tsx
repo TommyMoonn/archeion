@@ -19,25 +19,41 @@ import type { QuickActionCommand, QuickActionsRegistry } from "./quickActions";
 
 vi.mock("./QuickActionsPalette", async () => {
   const React = await import("react");
+  const { useModalDialogLifecycle } = await import("../../components/useModalDialogLifecycle");
 
   return {
     QuickActionsPalette({
       onClose,
       onExecute,
       registry,
+      returnFocusTo,
     }: {
       onClose: () => void;
       onExecute: (command: QuickActionCommand) => void;
       registry: QuickActionsRegistry;
+      returnFocusTo?: HTMLElement | null;
     }) {
+      const dialogRef = React.useRef<HTMLDialogElement>(null);
       const inputRef = React.useRef<HTMLInputElement>(null);
+      const modal = useModalDialogLifecycle({
+        dialogRef,
+        onClose,
+        returnFocusTo,
+        surfaceKind: "quick-actions",
+      });
 
       React.useEffect(() => {
         inputRef.current?.focus();
       }, []);
 
       return (
-        <div className="quick-actions">
+        <dialog
+          className="quick-actions"
+          onCancel={modal.onCancel}
+          onClick={modal.onClick}
+          onPointerDown={modal.onPointerDown}
+          ref={dialogRef}
+        >
           <input
             onKeyDown={(event) => {
               if (event.key === "Escape") {
@@ -48,11 +64,14 @@ vi.mock("./QuickActionsPalette", async () => {
               if (event.key === "Enter") {
                 const requestedCommandId = inputRef.current?.value.startsWith("Switch")
                   ? "archive.switch.archive-comics"
-                  : "test.run";
+                  : inputRef.current?.value.startsWith("Settings")
+                    ? commandDefinitions.settings.id
+                    : "test.run";
                 const command = registry
                   .getSnapshot()
                   .commands.find((candidate) => candidate.id === requestedCommandId);
                 if (command) {
+                  modal.suppressFocusRestoration();
                   onExecute(command);
                 }
               }
@@ -60,7 +79,7 @@ vi.mock("./QuickActionsPalette", async () => {
             ref={inputRef}
             type="search"
           />
-        </div>
+        </dialog>
       );
     },
   };
@@ -416,6 +435,33 @@ describe("QuickActionsProvider", () => {
     });
     expect(navigate).toHaveBeenCalledWith("/", { replace: true });
   });
+
+  it("restores the original caller after Quick Actions opens and closes Settings", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+    opener.focus();
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    act(() => setInputValue(search, "Settings"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    const settings = await waitForSettings();
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(document.activeElement).not.toBe(opener);
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+    expect(document.activeElement).toBe(opener);
+  }, 15_000);
 
   it("opens Settings with Ctrl+, by default", async () => {
     const rendered = await renderProvider();

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { focusElementIfUsable } from "./focusRestoration";
 import { useTransientSurfaceOwnership } from "./transientSurfaceOwnership";
 
 type CloseDetailsOptions = {
@@ -38,7 +39,7 @@ export function useDismissibleDetails() {
 
     details.removeAttribute("open");
     setIsOpen(false);
-    if (options.restoreFocus) details.querySelector("summary")?.focus();
+    if (options.restoreFocus) focusElementIfUsable(details.querySelector("summary"));
   }, []);
 
   useTransientSurfaceOwnership({

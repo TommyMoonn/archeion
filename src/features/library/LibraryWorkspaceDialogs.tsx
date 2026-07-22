@@ -154,6 +154,7 @@ export function LibraryWorkspaceDialogs({
       <Suspense fallback={<DialogLoadingFallback label="Opening book details" />}>
         <BookDetailsDrawer
           book={book}
+          initialFocus={dialog.initialFocus}
           canManageFile
           canRevealFile
           onClearProgress={onRequestClearProgress}
@@ -168,6 +169,7 @@ export function LibraryWorkspaceDialogs({
           onRevealFile={(target) => void onRevealBookFile(target)}
           onToggleFavorite={(target) => void onToggleFavorite(target)}
           onViewMetadata={dialogActions.openBookMetadata}
+          returnFocusTo={dialog.returnFocusTo}
         />
       </Suspense>
     );
@@ -182,6 +184,7 @@ export function LibraryWorkspaceDialogs({
           book={book}
           onClose={dialogActions.closeBookEditor}
           onWriteMetadata={onWriteBookMetadata}
+          returnFocusTo={dialog.returnFocusTo}
         />
       </Suspense>
     );
@@ -197,6 +200,7 @@ export function LibraryWorkspaceDialogs({
           onClose={dialogActions.closeBookEditor}
           onPrepareCover={onPrepareBookCover}
           onWriteCover={onWriteBookCover}
+          returnFocusTo={dialog.returnFocusTo}
         />
       </Suspense>
     );
@@ -209,6 +213,7 @@ export function LibraryWorkspaceDialogs({
           book={dialog.book}
           onClose={dialogActions.close}
           onRename={(fileName) => onRenameBookFile(dialog.book, fileName)}
+          returnFocusTo={dialog.returnFocusTo}
         />
       </Suspense>
     );
@@ -222,6 +227,7 @@ export function LibraryWorkspaceDialogs({
           folders={folders ?? []}
           onClose={dialogActions.close}
           onMove={(folderId) => onMoveBook(dialog.book, folderId)}
+          returnFocusTo={dialog.returnFocusTo}
           title="Move EPUB file"
         />
       </Suspense>
@@ -280,6 +286,7 @@ export function LibraryWorkspaceDialogs({
   if (dialog.type === "delete-book") {
     return (
       <Dialog
+        returnFocusTo={dialog.returnFocusTo}
         title={dialog.book.isFileMissing ? "Remove book metadata?" : "Delete EPUB file?"}
         description={
           dialog.book.isFileMissing
@@ -367,16 +374,18 @@ export function LibraryWorkspaceDialogs({
   if (dialog.type === "clear-progress") {
     return (
       <Dialog
+        returnFocusTo={dialog.returnFocusTo}
         title="Clear reading progress?"
         description={`This resets the saved reading position for “${bookTitle(dialog.book)}”. The EPUB file and last-opened date are not changed.`}
         onClose={() => {
-          if (!isClearingProgress) dialogActions.openBookDetailsById(dialog.book.id);
+          if (!isClearingProgress)
+            dialogActions.openBookDetailsById(dialog.book.id, "clear-progress");
         }}
         footer={
           <>
             <Button
               disabled={isClearingProgress}
-              onClick={() => dialogActions.openBookDetailsById(dialog.book.id)}
+              onClick={() => dialogActions.openBookDetailsById(dialog.book.id, "clear-progress")}
               variant="secondary"
             >
               Cancel

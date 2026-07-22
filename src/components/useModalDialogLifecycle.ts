@@ -11,11 +11,17 @@ import {
   useTransientSurfaceOwnership,
   type TransientSurfaceKind,
 } from "../utils/transientSurfaceOwnership";
+import {
+  currentFocusOrigin,
+  focusElementIfUsable,
+  shouldRestoreSurfaceFocus,
+} from "../utils/focusRestoration";
 
 type UseModalDialogLifecycleOptions = {
   closeOnBackdropClick?: boolean;
   dialogRef: RefObject<HTMLDialogElement | null>;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   surfaceKind?: Extract<
     TransientSurfaceKind,
     "app-dialog" | "drawer" | "quick-actions" | "settings"
@@ -23,6 +29,7 @@ type UseModalDialogLifecycleOptions = {
 };
 
 type ModalDialogLifecycle = {
+  suppressFocusRestoration: () => void;
   onCancel: (event: SyntheticEvent<HTMLDialogElement>) => void;
   onClick: (event: MouseEvent<HTMLDialogElement>) => void;
   onPointerDown: (event: PointerEvent<HTMLDialogElement>) => void;
@@ -32,14 +39,18 @@ export function useModalDialogLifecycle({
   closeOnBackdropClick = true,
   dialogRef,
   onClose,
+  returnFocusTo,
   surfaceKind = "app-dialog",
 }: UseModalDialogLifecycleOptions): ModalDialogLifecycle {
   const pointerStartedOnBackdropRef = useRef(false);
   const restoreFocusFrameRef = useRef<number | null>(null);
+  const restoreFocusRef = useRef(true);
   const returnFocusRef = useRef<HTMLElement | null>(
-    typeof document !== "undefined" && document.activeElement instanceof HTMLElement
-      ? document.activeElement
-      : null,
+    returnFocusTo !== undefined
+      ? returnFocusTo
+      : typeof document !== "undefined"
+        ? currentFocusOrigin(document)
+        : null,
   );
 
   useTransientSurfaceOwnership({
@@ -55,6 +66,8 @@ export function useModalDialogLifecycle({
   useEffect(() => {
     const dialog = dialogRef.current;
     const returnFocus = returnFocusRef.current;
+    const ownerDocument = dialog?.ownerDocument ?? document;
+    restoreFocusRef.current = true;
     if (restoreFocusFrameRef.current !== null) {
       window.cancelAnimationFrame(restoreFocusFrameRef.current);
       restoreFocusFrameRef.current = null;
@@ -70,14 +83,20 @@ export function useModalDialogLifecycle({
       }
       restoreFocusFrameRef.current = window.requestAnimationFrame(() => {
         restoreFocusFrameRef.current = null;
-        if (returnFocus?.isConnected) {
-          returnFocus.focus({ preventScroll: true });
+        if (
+          restoreFocusRef.current &&
+          shouldRestoreSurfaceFocus(dialog, returnFocus, ownerDocument)
+        ) {
+          focusElementIfUsable(returnFocus);
         }
       });
     };
   }, [dialogRef]);
 
   return {
+    suppressFocusRestoration: () => {
+      restoreFocusRef.current = false;
+    },
     onCancel: (event) => {
       event.preventDefault();
       onClose();

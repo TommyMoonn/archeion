@@ -8,6 +8,8 @@ import {
   type MutableRefObject,
 } from "react";
 
+import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
+import { activeTransientSurfaceElement } from "../../utils/transientSurfaceOwnership";
 import type { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 
 export type ReaderSideSurface = "annotations" | "settings" | "toc" | null;
@@ -103,6 +105,11 @@ export function useReaderSideSurface<NoteTarget>({
           next = { kind: "closed" };
         }
 
+        const activeSurface = activeTransientSurfaceElement();
+        const closingSurface =
+          nextSurface === null && activeSurface?.dataset.applicationTransient === "reader-panel"
+            ? activeSurface
+            : null;
         publishState(next);
         if (nextSurface === null && focusTarget) {
           const focusRestoration: PendingFocusRestoration = { frameId: null };
@@ -114,11 +121,15 @@ export function useReaderSideSurface<NoteTarget>({
             if (
               !ownsTransition(request) ||
               surfaceFromState(stateRef.current) !== null ||
-              !trigger?.isConnected
+              !trigger
             ) {
               return;
             }
-            trigger.focus();
+            focusElementIfRestorationOwned(trigger, {
+              closingSurface,
+              requestIsCurrent: () =>
+                ownsTransition(request) && surfaceFromState(stateRef.current) === null,
+            });
           });
           focusRestoration.frameId = frameId;
         }

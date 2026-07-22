@@ -26,14 +26,25 @@ import {
 import { isInsideFolder } from "./libraryFolderRelations";
 import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
 import type { RunFolderPathMutation } from "./useFolderPathMutationContinuity";
+import type { BookMutationFocusClaim, FolderDeletionFocusClaim } from "./useLibraryMutationFocus";
 
 type UseLibraryBookActionsInput = {
+  beginBookMutation: (bookId: string) => BookMutationFocusClaim | null;
+  beginFolderDeletion: (folderId: string) => FolderDeletionFocusClaim | null;
   changeLocation: (location: LibraryLocation) => void;
   confirmDestructiveFileActions: boolean;
   currentFolder: Folder | undefined;
   dialogs: LibraryWorkspaceDialogActions;
   dismissFeedback: (id: string) => void;
   location: LibraryLocation;
+  onBookMutationComplete: (
+    claim: BookMutationFocusClaim | null,
+    outcome: "deleted" | "updated",
+  ) => void;
+  onFolderDeletionComplete: (
+    claim: FolderDeletionFocusClaim | null,
+    restoreLocationKey?: string,
+  ) => void;
   pushFeedback: (feedback: LibraryFeedbackDraft) => string;
   runFolderPathMutation: RunFolderPathMutation;
   showLibraryError: (title: string, detail?: string) => void;
@@ -43,12 +54,16 @@ type UseLibraryBookActionsInput = {
 };
 
 export function useLibraryBookActions({
+  beginBookMutation,
+  beginFolderDeletion,
   changeLocation,
   confirmDestructiveFileActions,
   currentFolder,
   dialogs,
   dismissFeedback,
   location,
+  onBookMutationComplete,
+  onFolderDeletionComplete,
   pushFeedback,
   runFolderPathMutation,
   showLibraryError,
@@ -97,9 +112,11 @@ export function useLibraryBookActions({
       deleteLock.current = true;
       setIsDeleting(true);
       dismissFeedback("library-error");
+      const focusClaim = beginBookMutation(book.id);
 
       try {
         await storage.deleteBook(book.id);
+        onBookMutationComplete(focusClaim, "deleted");
         pushFeedback(
           createDeleteSuccessFeedbackToken(book.isFileMissing ? "metadataRemoved" : "bookDeleted"),
         );
@@ -115,7 +132,7 @@ export function useLibraryBookActions({
         setIsDeleting(false);
       }
     },
-    [dialogs, dismissFeedback, pushFeedback, storage],
+    [beginBookMutation, dialogs, dismissFeedback, onBookMutationComplete, pushFeedback, storage],
   );
 
   const requestDeleteBook = useCallback(
@@ -137,15 +154,15 @@ export function useLibraryBookActions({
       deleteLock.current = true;
       setIsDeleting(true);
       dismissFeedback("library-error");
+      const focusClaim = beginFolderDeletion(folder.id);
 
       try {
         await storage.deleteFolder(folder.id);
-        if (
+        const returnsToLibrary =
           location.type === "folder" &&
-          (location.folderId === folder.id || isInsideFolder(currentFolder?.relativePath, folder))
-        ) {
-          changeLocation({ type: "library" });
-        }
+          (location.folderId === folder.id || isInsideFolder(currentFolder?.relativePath, folder));
+        onFolderDeletionComplete(focusClaim, returnsToLibrary ? "library" : undefined);
+        if (returnsToLibrary) changeLocation({ type: "library" });
         pushFeedback(createDeleteSuccessFeedbackToken("folderDeleted"));
       } catch {
         pushFeedback(createDeleteErrorFeedbackToken("folderDeleteFailed"));
@@ -155,7 +172,17 @@ export function useLibraryBookActions({
         setIsDeleting(false);
       }
     },
-    [changeLocation, currentFolder, dialogs, dismissFeedback, location, pushFeedback, storage],
+    [
+      beginFolderDeletion,
+      changeLocation,
+      currentFolder,
+      dialogs,
+      dismissFeedback,
+      location,
+      onFolderDeletionComplete,
+      pushFeedback,
+      storage,
+    ],
   );
 
   const requestDeleteFolder = useCallback(
@@ -175,6 +202,7 @@ export function useLibraryBookActions({
 
       setIsClearingProgress(true);
       dismissFeedback("clear-progress");
+      const focusClaim = beginBookMutation(book.id);
       try {
         const updated = await storage.updateBook(book.id, {
           progressCfi: undefined,
@@ -183,6 +211,7 @@ export function useLibraryBookActions({
         if (!updated) {
           throw new Error("The active archive changed before progress was cleared.");
         }
+        onBookMutationComplete(focusClaim, "updated");
         pushFeedback({
           id: "clear-progress",
           tone: "success",
@@ -200,7 +229,15 @@ export function useLibraryBookActions({
         setIsClearingProgress(false);
       }
     },
-    [dialogs, dismissFeedback, isClearingProgress, pushFeedback, storage],
+    [
+      beginBookMutation,
+      dialogs,
+      dismissFeedback,
+      isClearingProgress,
+      onBookMutationComplete,
+      pushFeedback,
+      storage,
+    ],
   );
 
   const rescanLibrary = useCallback(async () => {
@@ -229,19 +266,25 @@ export function useLibraryBookActions({
   const toggleFavorite = useCallback(
     async (book: Book) => {
       dismissFeedback("library-error");
+      const focusClaim = beginBookMutation(book.id);
       try {
         await storage.updateBook(book.id, { isFavorite: !book.isFavorite });
+        onBookMutationComplete(focusClaim, "updated");
       } catch {
         showLibraryError("Favorite status could not be updated.");
       }
     },
-    [dismissFeedback, showLibraryError, storage],
+    [beginBookMutation, dismissFeedback, onBookMutationComplete, showLibraryError, storage],
   );
 
   const writeBookMetadata = useCallback(
-    (book: Book, metadata: EpubMetadataWritebackInput) =>
-      storage.writeBookMetadata(book.id, metadata),
-    [storage],
+    async (book: Book, metadata: EpubMetadataWritebackInput) => {
+      const focusClaim = beginBookMutation(book.id);
+      const result = await storage.writeBookMetadata(book.id, metadata);
+      onBookMutationComplete(focusClaim, "updated");
+      return result;
+    },
+    [beginBookMutation, onBookMutationComplete, storage],
   );
   const prepareBookCover = useCallback(
     (book: Book, imagePath: string, framing: EpubCoverFraming): Promise<EpubCoverPreparation> =>
@@ -249,24 +292,32 @@ export function useLibraryBookActions({
     [storage],
   );
   const writeBookCover = useCallback(
-    (book: Book, input: EpubCoverWritebackInput): Promise<EpubCoverWritebackResult> =>
-      storage.writeBookCover(book.id, input),
-    [storage],
+    async (book: Book, input: EpubCoverWritebackInput): Promise<EpubCoverWritebackResult> => {
+      const focusClaim = beginBookMutation(book.id);
+      const result = await storage.writeBookCover(book.id, input);
+      onBookMutationComplete(focusClaim, "updated");
+      return result;
+    },
+    [beginBookMutation, onBookMutationComplete, storage],
   );
 
   const renameBookFile = useCallback(
     async (book: Book, fileName: string) => {
       dismissFeedback("library-error");
+      const focusClaim = beginBookMutation(book.id);
       await storage.renameBookFile(book.id, fileName);
+      onBookMutationComplete(focusClaim, "updated");
     },
-    [dismissFeedback, storage],
+    [beginBookMutation, dismissFeedback, onBookMutationComplete, storage],
   );
   const moveBook = useCallback(
     async (book: Book, folderId: string | null) => {
       dismissFeedback("library-error");
+      const focusClaim = beginBookMutation(book.id);
       await storage.moveBookToFolder(book.id, folderId);
+      onBookMutationComplete(focusClaim, "updated");
     },
-    [dismissFeedback, storage],
+    [beginBookMutation, dismissFeedback, onBookMutationComplete, storage],
   );
   const createFolder = useCallback(
     async (name: string) => {

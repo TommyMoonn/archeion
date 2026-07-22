@@ -5,6 +5,10 @@ import { act, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import type { EpubFootnoteResolution } from "./epubFootnoteResolver";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
@@ -107,6 +111,7 @@ afterEach(() => {
   resolveEpubIllustration.mockReset();
   openExternalUrl.mockReset();
   openExternalUrl.mockResolvedValue(undefined);
+  resetTransientSurfaceOwnershipForTests();
   vi.restoreAllMocks();
 });
 
@@ -166,6 +171,118 @@ describe("useEpubContentActionController", () => {
     act(() => expect(harness.latest().handleEscape()).toBe(true));
     expect(release).toHaveBeenCalledOnce();
     expect(chapter.activeElement).toBe(link);
+  });
+
+  it("does not restore a footnote origin behind a newer parent modal", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    resolveEpubFootnote.mockResolvedValue({
+      kind: "resolved",
+      value: { nodes: [{ text: "A note", type: "text" }], release: vi.fn() },
+    } satisfies EpubFootnoteResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+
+    act(() => {
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      });
+    });
+    await act(async () => Promise.resolve());
+    act(() => harness.latest().dismissFootnote());
+
+    const modal = document.body.appendChild(document.createElement("dialog"));
+    modal.open = true;
+    const modalButton = modal.appendChild(document.createElement("button"));
+    modalButton.focus();
+    const unregister = registerTransientSurface({
+      element: modal,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+
+    expect(document.activeElement).toBe(modalButton);
+    expect(chapter.activeElement).not.toBe(link);
+    unregister();
+  });
+
+  it("does not restore a footnote origin over newer persistent parent focus", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    resolveEpubFootnote.mockResolvedValue({
+      kind: "resolved",
+      value: { nodes: [{ text: "A note", type: "text" }], release: vi.fn() },
+    } satisfies EpubFootnoteResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    const focus = vi.spyOn(link, "focus");
+
+    act(() => {
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      });
+    });
+    await act(async () => Promise.resolve());
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+
+    act(() => harness.latest().dismissFootnote());
+    const toolbarButton = document.body.appendChild(document.createElement("button"));
+    toolbarButton.focus();
+    expect(frames).toHaveLength(1);
+
+    act(() => frames.splice(0).forEach((frame) => frame(0)));
+    expect(document.activeElement).toBe(toolbarButton);
+    expect(focus).not.toHaveBeenCalled();
+    expect(harness.latest().footnote).toBeNull();
+
+    act(() => frames.splice(0).forEach((frame) => frame(16)));
+    expect(document.activeElement).toBe(toolbarButton);
+    expect(focus).not.toHaveBeenCalled();
+  });
+
+  it("does not restore a footnote origin after its iframe is removed", async () => {
+    const frames: FrameRequestCallback[] = [];
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      frames.push(callback);
+      return frames.length;
+    });
+    resolveEpubFootnote.mockResolvedValue({
+      kind: "resolved",
+      value: { nodes: [{ text: "A note", type: "text" }], release: vi.fn() },
+    } satisfies EpubFootnoteResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    const frame = chapter.defaultView?.frameElement;
+    const focus = vi.spyOn(link, "focus");
+
+    act(() => {
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      });
+    });
+    await act(async () => Promise.resolve());
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    act(() => harness.latest().dismissFootnote());
+    frame?.remove();
+    act(() => frames.splice(0).forEach((callback) => callback(0)));
+
+    expect(focus).not.toHaveBeenCalled();
+    expect(harness.latest().footnote).toBeNull();
   });
 
   it("dismisses an open footnote after an outside pointer interaction", async () => {

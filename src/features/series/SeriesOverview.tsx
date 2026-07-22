@@ -1,5 +1,5 @@
 import { CaretRight, GridFour, List, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
-import { useMemo, type ReactNode, type Ref } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -7,6 +7,7 @@ import { EmptyState } from "../../components/EmptyState";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { SegmentedControl } from "../../components/SegmentedControl";
+import { focusElementIfRestorationOwned, focusIsUnowned } from "../../utils/focusRestoration";
 import type { CollectionCardSize, LibraryView, SeriesSort } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
 import { BookCover } from "../library/BookCover";
@@ -22,14 +23,24 @@ type SeriesOverviewProps = {
   onClearSearch: () => void;
   onOpen: (entry: SeriesEntry) => void;
   onQueryChange: (query: string) => void;
+  onReturnFocusComplete?: () => void;
   onSortChange: (sort: SeriesSort) => void;
   onViewChange: (view: LibraryView) => void;
   query: string;
+  returnFocusKey?: string | null;
   sort: SeriesSort;
   view: LibraryView;
   searchAriaKeyShortcuts?: string;
   searchInputRef?: Ref<HTMLInputElement>;
 };
+
+function assignRef<T>(ref: Ref<T> | undefined, value: T | null): void {
+  if (typeof ref === "function") {
+    ref(value);
+  } else if (ref) {
+    ref.current = value;
+  }
+}
 
 const seriesViewOptions: Array<{
   icon: ReactNode;
@@ -55,9 +66,11 @@ export function SeriesOverview({
   onClearSearch,
   onOpen,
   onQueryChange,
+  onReturnFocusComplete,
   onSortChange,
   onViewChange,
   query,
+  returnFocusKey,
   sort,
   view,
   searchAriaKeyShortcuts,
@@ -74,9 +87,39 @@ export function SeriesOverview({
       : visibleEntries.length === 0
         ? "search-empty"
         : "results";
+  const overviewRef = useRef<HTMLElement>(null);
+  const seriesSearchRef = useRef<HTMLInputElement>(null);
+  const completedReturnFocusKeyRef = useRef<string | null>(null);
+  const setSeriesSearchRef = useCallback(
+    (element: HTMLInputElement | null) => {
+      seriesSearchRef.current = element;
+      assignRef(searchInputRef, element);
+    },
+    [searchInputRef],
+  );
+
+  useLayoutEffect(() => {
+    if (!returnFocusKey) {
+      completedReturnFocusKeyRef.current = null;
+      return;
+    }
+    if (isLoading || completedReturnFocusKeyRef.current === returnFocusKey) return;
+
+    const target = Array.from(
+      overviewRef.current?.querySelectorAll<HTMLButtonElement>("[data-library-series-key]") ?? [],
+    ).find((candidate) => candidate.dataset.librarySeriesKey === returnFocusKey);
+    if (target) {
+      if (focusIsUnowned()) focusElementIfRestorationOwned(target);
+    } else if (focusIsUnowned()) {
+      focusElementIfRestorationOwned(seriesSearchRef.current);
+    }
+
+    completedReturnFocusKeyRef.current = returnFocusKey;
+    onReturnFocusComplete?.();
+  }, [isLoading, onReturnFocusComplete, returnFocusKey, visibleEntries]);
 
   return (
-    <section aria-labelledby="series-overview-title" className="series-overview">
+    <section ref={overviewRef} aria-labelledby="series-overview-title" className="series-overview">
       <header className="library-header series-header">
         <div className="library-header__title">
           <p className="eyebrow">Your collection</p>
@@ -94,7 +137,7 @@ export function SeriesOverview({
               name="archeion-series-search"
               onChange={(event) => onQueryChange(event.currentTarget.value)}
               placeholder="Search series"
-              ref={searchInputRef}
+              ref={setSeriesSearchRef}
               size="standard"
               spellCheck={false}
               type="search"
@@ -175,6 +218,7 @@ export function SeriesOverview({
                   <button
                     aria-label={`Open ${entry.displayName}`}
                     className="series-card__open"
+                    data-library-series-key={entry.key}
                     onClick={() => onOpen(entry)}
                     type="button"
                   >

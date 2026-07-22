@@ -6,6 +6,9 @@ import {
   activeTransientSurfaceKind,
   claimTransientSurfaceEscape,
   registerTransientSurface,
+  subscribeTransientSurfaceOwnership,
+  transientSurfaceOriginatesFrom,
+  transientSurfaceOwnershipSnapshot,
   resetTransientSurfaceOwnershipForTests,
 } from "./transientSurfaceOwnership";
 
@@ -219,5 +222,31 @@ describe("transient surface ownership", () => {
     expect(removeListener.mock.calls.filter(([type]) => type === "pointerdown")).toHaveLength(1);
     expect(removeListener.mock.calls.filter(([type]) => type === "blur")).toHaveLength(1);
     expect(activeTransientSurfaceKind()).toBeNull();
+  });
+
+  it("publishes bounded ownership changes and retains a disconnected logical origin", () => {
+    const origin = document.body.appendChild(document.createElement("button"));
+    const element = surface("settings");
+    const snapshots: number[] = [];
+    const unsubscribe = subscribeTransientSurfaceOwnership(() => {
+      snapshots.push(transientSurfaceOwnershipSnapshot());
+    });
+
+    const unregister = registerTransientSurface({
+      element,
+      kind: "settings",
+      modal: true,
+      onDismiss: vi.fn(),
+      origin,
+    });
+    origin.remove();
+
+    expect(transientSurfaceOriginatesFrom(origin)).toBe(true);
+    expect(snapshots).toHaveLength(1);
+
+    unregister();
+    expect(transientSurfaceOriginatesFrom(origin)).toBe(false);
+    expect(snapshots).toHaveLength(2);
+    unsubscribe();
   });
 });

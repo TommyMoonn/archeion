@@ -1,5 +1,10 @@
-import { useEffect } from "react";
-import { useLocation, useNavigationType } from "react-router-dom";
+import { useEffect, useLayoutEffect } from "react";
+import {
+  useLocation,
+  useNavigate,
+  useNavigationType,
+  type NavigateFunction,
+} from "react-router-dom";
 
 export type LibraryPageRouteChange = Readonly<{
   navigationType: string;
@@ -17,5 +22,15 @@ export function LibraryPageRouteProbe({
   useEffect(() => {
     onChange({ navigationType, search: location.search });
   }, [location.search, navigationType, onChange]);
+  return null;
+}
+
+export function LibraryPageNavigateProbe({
+  onReady,
+}: {
+  onReady: (navigate: NavigateFunction) => void;
+}) {
+  const navigate = useNavigate();
+  useLayoutEffect(() => onReady(navigate), [navigate, onReady]);
   return null;
 }

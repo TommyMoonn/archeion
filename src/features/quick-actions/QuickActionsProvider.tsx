@@ -4,14 +4,15 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from "react";
+import { flushSync } from "react-dom";
 
 import { router } from "../../app/router";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
+import { currentFocusOrigin, focusElementIfUsable } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import {
@@ -38,9 +39,8 @@ const quickActionsRegistry = new QuickActionsRegistry();
 
 export function QuickActionsProvider({ children }: { children: ReactNode }) {
   const registry = quickActionsRegistry;
-  const openerRef = useRef<HTMLElement | null>(null);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [palette, setPalette] = useState<{ origin: HTMLElement | null } | null>(null);
+  const [settings, setSettings] = useState<{ origin: HTMLElement | null } | null>(null);
   const keyboard = useKeyboardPreferences();
   const archive = useSyncExternalStore(
     archiveStore.subscribe,
@@ -49,23 +49,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   );
 
   const openPalette = useCallback(() => {
-    const activeElement = document.activeElement;
-    openerRef.current = activeElement instanceof HTMLElement ? activeElement : null;
-    setPaletteOpen(true);
-  }, []);
-
-  const closePalette = useCallback((restoreFocus = true) => {
-    setPaletteOpen(false);
-    if (!restoreFocus) {
-      openerRef.current = null;
-      return;
-    }
-
-    const opener = openerRef.current;
-    openerRef.current = null;
-    window.requestAnimationFrame(() => {
-      if (opener?.isConnected) opener.focus({ preventScroll: true });
-    });
+    setPalette({ origin: currentFocusOrigin() });
   }, []);
 
   const preloadSettings = useCallback(() => {
@@ -74,7 +58,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
 
   const openSettings = useCallback(() => {
     preloadSettings();
-    setSettingsOpen(true);
+    setSettings({ origin: currentFocusOrigin() });
   }, [preloadSettings]);
 
   const executeCommand = useCallback(
@@ -162,7 +146,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       },
       {
         ...commandDefinitions.settings,
-        availability: settingsOpen
+        availability: settings
           ? { available: false, reason: "Settings are already open." }
           : { available: true },
         execute: openSettings,
@@ -197,7 +181,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
         scope: "global",
       },
     ];
-  }, [archive, openPalette, openSettings, settingsOpen]);
+  }, [archive, openPalette, openSettings, settings]);
 
   useEffect(() => registry.register("app", appCommands), [appCommands, registry]);
 
@@ -231,22 +215,25 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   return (
     <QuickActionsContext.Provider value={contextValue}>
       {children}
-      {paletteOpen ? (
+      {palette ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette
             keyboard={keyboard}
-            onClose={() => closePalette(true)}
+            onClose={() => setPalette(null)}
             onExecute={(command) => {
-              closePalette(false);
-              window.requestAnimationFrame(() => executeCommand(command));
+              const origin = palette.origin;
+              flushSync(() => setPalette(null));
+              focusElementIfUsable(origin);
+              executeCommand(command);
             }}
             registry={registry}
+            returnFocusTo={palette.origin}
           />
         </Suspense>
       ) : null}
-      {settingsOpen ? (
+      {settings ? (
         <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
-          <SettingsDialog onClose={() => setSettingsOpen(false)} />
+          <SettingsDialog onClose={() => setSettings(null)} returnFocusTo={settings.origin} />
         </Suspense>
       ) : null}
     </QuickActionsContext.Provider>

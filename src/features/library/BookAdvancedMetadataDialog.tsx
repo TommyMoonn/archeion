@@ -81,6 +81,7 @@ type MetadataFormState = Record<Exclude<EditableField, "subjects">, string> & {
 type BookAdvancedMetadataDialogProps = {
   book: Book;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   onWriteMetadata: (
     book: Book,
     metadata: EpubMetadataWritebackInput,
@@ -362,6 +363,7 @@ export function BookAdvancedMetadataDialog({
   book,
   onClose,
   onWriteMetadata,
+  returnFocusTo,
 }: BookAdvancedMetadataDialogProps) {
   const [committedMetadata, setCommittedMetadata] = useState(() =>
     normalizedSourceMetadata(book.sourceMetadata),
@@ -411,6 +413,7 @@ export function BookAdvancedMetadataDialog({
     <Dialog
       className="dialog--metadata-writeback"
       closeOnBackdropClick={false}
+      returnFocusTo={returnFocusTo}
       title="Edit EPUB metadata"
       onClose={onClose}
       footer={

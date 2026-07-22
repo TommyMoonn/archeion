@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import type { HighlightAnnotation } from "../../types/annotation";
+import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import {
   normalizeClientRect,
   type ClientRect,
@@ -73,17 +74,23 @@ export function useHighlightPaletteController({
 
   const dismiss = useCallback(
     (restoreFocus = true) => {
-      const focusTarget = restoreFocus ? menuRef.current?.anchor.focusTarget : undefined;
+      const dismissedMenu = menuRef.current;
+      const closingSurface = paletteRef.current;
+      const focusTarget = restoreFocus ? dismissedMenu?.anchor.focusTarget : undefined;
       onDismiss();
       menuRef.current = null;
       setMenu(null);
-      if (focusTarget?.isConnected) {
-        window.requestAnimationFrame(() => {
-          if (focusTarget.isConnected) focusTarget.focus();
-        });
+      if (focusTarget) {
+        window.requestAnimationFrame(() =>
+          focusElementIfRestorationOwned(focusTarget, {
+            closingSurface,
+            invalidatedOrigin: closingSurface,
+            requestIsCurrent: () => menuRef.current === null,
+          }),
+        );
       }
     },
-    [onDismiss],
+    [onDismiss, paletteRef],
   );
 
   const open = useCallback(

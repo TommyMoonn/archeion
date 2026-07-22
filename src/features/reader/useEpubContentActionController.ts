@@ -31,6 +31,8 @@ import type {
 } from "./readerContentDocumentRegistry";
 import type { ClientRect } from "./readerHighlightPaletteAnchor";
 import { openExternalUrl } from "../../app/openExternalUrl";
+import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
+import { activeTransientSurfaceElement } from "../../utils/transientSurfaceOwnership";
 
 export type ReaderFootnoteState = Readonly<{
   anchor: ReaderContentActionAnchor;
@@ -91,6 +93,11 @@ function eventTargetElement(target: EventTarget | null): Element | null {
     : null;
 }
 
+function activeReaderContentSurface(className: string): HTMLElement | null {
+  const surface = activeTransientSurfaceElement();
+  return surface?.classList.contains(className) ? surface : null;
+}
+
 export function useEpubContentActionController({
   getSession,
   navigateToTarget,
@@ -135,20 +142,29 @@ export function useEpubContentActionController({
     abortRef.current = null;
   }, []);
 
-  const restoreFocus = useCallback((anchor: ReaderContentActionAnchor | undefined) => {
-    const target = anchor?.focusTarget;
-    if (!target?.isConnected) return;
-    window.requestAnimationFrame(() => {
-      if (target.isConnected) target.focus({ preventScroll: true });
-    });
-  }, []);
+  const restoreFocus = useCallback(
+    (
+      anchor: ReaderContentActionAnchor | undefined,
+      requestIsCurrent: () => boolean,
+      closingSurface: HTMLElement | null,
+    ) => {
+      const target = anchor?.focusTarget;
+      if (!target) return;
+      window.requestAnimationFrame(() =>
+        focusElementIfRestorationOwned(target, { closingSurface, requestIsCurrent }),
+      );
+    },
+    [],
+  );
 
   const dismissFootnote = useCallback(
     (shouldRestoreFocus = true) => {
       const current = footnoteRef.current;
+      const closingSurface = activeReaderContentSurface("reader-footnote");
       cancelResolution();
       setFootnote(null);
-      if (shouldRestoreFocus) restoreFocus(current?.anchor);
+      if (shouldRestoreFocus)
+        restoreFocus(current?.anchor, () => footnoteRef.current === null, closingSurface);
     },
     [cancelResolution, restoreFocus, setFootnote],
   );
@@ -156,9 +172,11 @@ export function useEpubContentActionController({
   const dismissExternal = useCallback(
     (shouldRestoreFocus = true) => {
       const current = externalRef.current;
+      const closingSurface = activeReaderContentSurface("reader-external-link-dialog");
       if (current?.opening) return;
       setExternal(null);
-      if (shouldRestoreFocus) restoreFocus(current?.anchor);
+      if (shouldRestoreFocus)
+        restoreFocus(current?.anchor, () => externalRef.current === null, closingSurface);
     },
     [restoreFocus, setExternal],
   );
@@ -166,9 +184,11 @@ export function useEpubContentActionController({
   const dismissIllustration = useCallback(
     (shouldRestoreFocus = true) => {
       const current = illustrationRef.current;
+      const closingSurface = activeReaderContentSurface("reader-illustration-viewer");
       cancelResolution();
       setIllustration(null);
-      if (shouldRestoreFocus) restoreFocus(current?.anchor);
+      if (shouldRestoreFocus)
+        restoreFocus(current?.anchor, () => illustrationRef.current === null, closingSurface);
     },
     [cancelResolution, restoreFocus, setIllustration],
   );
@@ -575,8 +595,9 @@ export function useEpubContentActionController({
     void openExternalUrl(current.url).then(
       () => {
         if (!isCurrentOperation(operation, session) || externalRef.current !== opening) return;
+        const closingSurface = activeReaderContentSurface("reader-external-link-dialog");
         setExternal(null);
-        restoreFocus(current.anchor);
+        restoreFocus(current.anchor, () => externalRef.current === null, closingSurface);
       },
       () => {
         if (!isCurrentOperation(operation, session) || externalRef.current !== opening) return;

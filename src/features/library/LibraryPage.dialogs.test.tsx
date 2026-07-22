@@ -91,6 +91,44 @@ describe("LibraryPage dialogs and book actions", () => {
     expect(session.container.textContent).toContain("Write cover to EPUB");
   });
 
+  it("restores nested book editors to details before returning to the book", async () => {
+    const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    await Promise.all([import("./BookDetailsDrawer"), import("./BookAdvancedMetadataDialog")]);
+
+    const bookButton = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="View details for Alpha"]',
+    )!;
+    bookButton.focus();
+    act(() => bookButton.click());
+
+    const editMetadata = await waitForButtonWithText(session.container, "Edit metadata");
+    editMetadata.focus();
+    act(() => editMetadata.click());
+    const metadataDialog = session.container.querySelector<HTMLDialogElement>(
+      ".dialog--metadata-writeback",
+    );
+    expect(metadataDialog).toBeInstanceOf(HTMLDialogElement);
+
+    await act(async () => {
+      metadataDialog?.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    });
+
+    const restoredMetadata = await waitForButtonWithText(session.container, "Edit metadata");
+    expect(document.activeElement).toBe(restoredMetadata);
+
+    const details = session.container.querySelector<HTMLDialogElement>(".details-drawer");
+    await act(async () => {
+      details?.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+    });
+
+    expect(session.container.querySelector(".details-drawer")).toBeNull();
+    expect(document.activeElement).toBe(bookButton);
+  });
+
   it("does not show folder creation success feedback when creation fails", async () => {
     const storage = createStorage({
       createFolder: vi.fn().mockRejectedValue(new Error("create failed")),

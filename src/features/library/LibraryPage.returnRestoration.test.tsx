@@ -293,6 +293,32 @@ describe("mounted reader-return surfaces", () => {
     expect(document.activeElement).toBe(search);
   });
 
+  it("restores the originating series after returning from Series Detail", async () => {
+    const books = [
+      ...seriesBooks(),
+      {
+        ...selectionBook("moon-1", "Moonrise"),
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      },
+    ];
+    const session = await renderLibraryPage(createStorage({ books }), {
+      pathname: "/",
+      search: "?view=series",
+    });
+    suite.trackRoot(session.root);
+
+    const origin = await waitForButtonWithLabel(session.container, "Open Star Saga");
+    origin.focus();
+    act(() => origin.click());
+
+    const back = await waitForButtonWithText(session.container, "All series");
+    act(() => back.click());
+
+    const restored = await waitForButtonWithLabel(session.container, "Open Star Saga");
+    expect(restored).not.toBe(origin);
+    expect(document.activeElement).toBe(restored);
+  });
+
   it("falls back safely for an obsolete Series Overview reader target", async () => {
     const books = seriesBooks();
     const session = await renderLibraryPage(createStorage({ books }), {

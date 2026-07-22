@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { focusElementIfUsable, focusIsUnowned } from "../utils/focusRestoration";
+
 export type ContextMenuPointAnchor = {
   type: "point";
   x: number;
@@ -119,9 +121,7 @@ export function useContextMenuController(): ContextMenuController {
 
       if (options.restoreFocus) {
         flushSync(() => setInvocation(null));
-        if (invocation.restoreFocusTo?.isConnected) {
-          invocation.restoreFocusTo.focus({ preventScroll: true });
-        }
+        focusElementIfUsable(invocation.restoreFocusTo);
         return;
       }
 
@@ -173,22 +173,13 @@ export function useContextMenuController(): ContextMenuController {
 
       const restoreFocusTo = invocation.restoreFocusTo;
       flushSync(() => setInvocation(null));
-      if (restoreFocusTo?.isConnected) {
-        restoreFocusTo.focus({ preventScroll: true });
-      }
+      focusElementIfUsable(restoreFocusTo);
 
       try {
         action();
       } finally {
         window.requestAnimationFrame(() => {
-          if (!restoreFocusTo?.isConnected) return;
-          const activeElement = document.activeElement;
-          const focusIsUnowned =
-            !(activeElement instanceof HTMLElement) ||
-            !activeElement.isConnected ||
-            activeElement === document.body ||
-            activeElement === document.documentElement;
-          if (focusIsUnowned) restoreFocusTo.focus({ preventScroll: true });
+          if (focusIsUnowned()) focusElementIfUsable(restoreFocusTo);
         });
       }
     },

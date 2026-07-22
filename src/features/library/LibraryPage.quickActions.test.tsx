@@ -12,6 +12,7 @@ import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { LibraryPage } from "./LibraryPage";
 
@@ -51,7 +52,7 @@ const folder: Folder = {
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
-function createStorage(): LibraryStorage {
+function createStorage(books: Book[] = []): LibraryStorage {
   return {
     reset: vi.fn(),
     rescan: vi.fn().mockResolvedValue(undefined),
@@ -80,7 +81,7 @@ function createStorage(): LibraryStorage {
     bulkExportBooks: vi.fn(),
     bulkWriteBookMetadata: vi.fn(),
     observeBooks: vi.fn((observer) => {
-      observer.next([]);
+      observer.next(books);
       return () => undefined;
     }),
     createFolder: vi.fn(),
@@ -113,8 +114,8 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function renderLibrary(initialEntry = "/") {
-  const storage = createStorage();
+async function renderLibrary(initialEntry = "/", books: Book[] = []) {
+  const storage = createStorage(books);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -167,18 +168,109 @@ async function openPalette(): Promise<HTMLInputElement> {
 async function executeCommand(label: string): Promise<void> {
   const search = await openPalette();
   await act(async () => setInputValue(search, label));
+  await vi.waitFor(() => {
+    expect(document.querySelector('[role="option"]')?.textContent).toContain(label);
+  });
   await act(async () => {
     search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
     await Promise.resolve();
   });
 }
 
-beforeEach(() => {
+async function openSettingsWithShortcut(target: HTMLElement): Promise<void> {
+  await act(async () => {
+    target.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        key: ",",
+      }),
+    );
+    await Promise.resolve();
+  });
+}
+
+function libraryBook(id: string, title: string): Book {
+  return {
+    addedAt: "1",
+    fileName: `${title}.epub`,
+    id,
+    isFavorite: false,
+    originalTitle: title,
+    relativePath: `${title}.epub`,
+    updatedAt: "1",
+  };
+}
+
+async function waitForSettingsDialog(): Promise<HTMLDialogElement> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    const dialog = document.querySelector<HTMLDialogElement>(".settings-dialog");
+    if (dialog) return dialog;
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 10));
+    });
+  }
+  throw new Error("Settings dialog was not rendered.");
+}
+
+function bookActivationControl(root: HTMLElement, bookId: string): HTMLButtonElement | null {
+  return (
+    root
+      .querySelector<HTMLElement>(`[data-reader-book-id="${bookId}"]`)
+      ?.querySelector<HTMLButtonElement>("button") ?? null
+  );
+}
+
+function rect(top: number, height: number): DOMRect {
+  return {
+    bottom: top + height,
+    height,
+    left: 0,
+    right: 1_200,
+    top,
+    width: 1_200,
+    x: 0,
+    y: top,
+    toJSON: () => ({}),
+  } as DOMRect;
+}
+
+async function changeDefaultBookViewToList(settings: HTMLDialogElement): Promise<void> {
+  const librarySection = Array.from(settings.querySelectorAll<HTMLButtonElement>("button")).find(
+    (button) => button.textContent?.trim() === "Library",
+  );
+  if (!librarySection) throw new Error("Library settings section was not rendered.");
+  await act(async () => librarySection.click());
+  const viewControl = settings.querySelector<HTMLElement>(
+    '[role="radiogroup"][aria-label="Default book view"]',
+  );
+  const list = Array.from(viewControl?.querySelectorAll<HTMLButtonElement>("button") ?? []).find(
+    (button) => button.textContent?.trim() === "List",
+  );
+  if (!list) throw new Error("Default book List option was not rendered.");
+  await act(async () => {
+    list.click();
+    await Promise.resolve();
+  });
+}
+
+beforeEach(async () => {
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
     return 1;
+  });
+  const current = appPreferencesStore.getSnapshot();
+  await appPreferencesStore.update({
+    library: {
+      ...current.library,
+      collections: {
+        ...current.library.collections,
+        books: { ...current.library.collections.books, viewMode: "grid" },
+      },
+    },
   });
 });
 
@@ -347,4 +439,137 @@ describe("LibraryPage Quick Actions", () => {
       });
     }
   });
+
+  it.each(["direct", "quick-actions"] as const)(
+    "restores the same logical book after %s Settings replaces the Books view",
+    async (path) => {
+      const books = [libraryBook("alpha", "Alpha"), libraryBook("beta", "Beta")];
+      const rendered = await renderLibrary("/", books);
+      const original = bookActivationControl(rendered.container, "beta")!;
+      act(() => original.focus());
+
+      if (path === "direct") {
+        await openSettingsWithShortcut(original);
+      } else {
+        await executeCommand("Settings");
+      }
+
+      const settings = await waitForSettingsDialog();
+      const settingsClose = settings.querySelector<HTMLButtonElement>(
+        'button[aria-label="Close settings"]',
+      )!;
+      act(() => settingsClose.focus());
+      await changeDefaultBookViewToList(settings);
+      expect(original.isConnected).toBe(false);
+
+      await act(async () => {
+        settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+        await Promise.resolve();
+      });
+
+      await vi.waitFor(() => {
+        expect(document.activeElement).toBe(bookActivationControl(rendered.container, "beta"));
+      });
+    },
+    15_000,
+  );
+
+  it("uses the nearest visible book when Settings filters out the logical origin", async () => {
+    const books = [libraryBook("alpha", "Alpha"), libraryBook("beta", "Beta")];
+    const rendered = await renderLibrary("/", books);
+    const original = bookActivationControl(rendered.container, "beta")!;
+    act(() => original.focus());
+    await openSettingsWithShortcut(original);
+
+    const settings = await waitForSettingsDialog();
+    act(() =>
+      settings.querySelector<HTMLButtonElement>('button[aria-label="Close settings"]')!.focus(),
+    );
+    const search = rendered.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    )!;
+    await act(async () => {
+      setInputValue(search, "Alpha");
+      await new Promise((resolve) => window.setTimeout(resolve, 200));
+    });
+    await vi.waitFor(() => expect(original.isConnected).toBe(false));
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(bookActivationControl(rendered.container, "alpha"));
+    });
+  }, 15_000);
+
+  it("realizes and restores a virtualized book after Settings replaces the Books view", async () => {
+    let nextFrame = 1;
+    const frames = new Map<number, FrameRequestCallback>();
+    vi.mocked(window.requestAnimationFrame).mockImplementation((callback) => {
+      const handle = nextFrame++;
+      frames.set(handle, callback);
+      return handle;
+    });
+    vi.spyOn(window, "cancelAnimationFrame").mockImplementation((handle) => {
+      frames.delete(handle);
+    });
+    const defaultRect = HTMLElement.prototype.getBoundingClientRect;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+      this: HTMLElement,
+    ) {
+      if (this.classList.contains("page-shell")) {
+        return rect(0, 800);
+      }
+      if (this.classList.contains("book-grid") || this.classList.contains("book-list")) {
+        const scrollRoot = this.closest<HTMLElement>(".page-shell");
+        return rect(-(scrollRoot?.scrollTop ?? 0), 4_800);
+      }
+      return defaultRect.call(this);
+    });
+    const flushFrames = async () => {
+      for (let cycle = 0; cycle < 10 && frames.size > 0; cycle += 1) {
+        const callbacks = [...frames.values()];
+        frames.clear();
+        await act(async () => {
+          for (const callback of callbacks) callback(performance.now());
+          await Promise.resolve();
+        });
+      }
+    };
+    const books = Array.from({ length: 60 }, (_, index) =>
+      libraryBook(`book-${index}`, `Book ${index.toString().padStart(2, "0")}`),
+    );
+    const rendered = await renderLibrary("/", books);
+    await flushFrames();
+    const original = bookActivationControl(rendered.container, "book-20");
+    expect(original).toBeInstanceOf(HTMLButtonElement);
+    expect(rendered.container.querySelector<HTMLElement>(".book-grid")?.dataset.windowed).toBe(
+      "true",
+    );
+    act(() => original?.focus());
+    await openSettingsWithShortcut(original!);
+
+    const settings = await waitForSettingsDialog();
+    act(() =>
+      settings.querySelector<HTMLButtonElement>('button[aria-label="Close settings"]')!.focus(),
+    );
+    await changeDefaultBookViewToList(settings);
+    await flushFrames();
+    expect(original?.isConnected).toBe(false);
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+    await flushFrames();
+
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(bookActivationControl(rendered.container, "book-20"));
+    });
+    const list = rendered.container.querySelector<HTMLElement>(".book-list")!;
+    expect(Number(list.dataset.windowStart)).toBeLessThanOrEqual(20);
+    expect(Number(list.dataset.windowEnd)).toBeGreaterThan(20);
+  }, 15_000);
 });

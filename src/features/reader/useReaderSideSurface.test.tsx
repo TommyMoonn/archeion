@@ -4,6 +4,10 @@ import { act, useLayoutEffect, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  registerTransientSurface,
+  resetTransientSurfaceOwnershipForTests,
+} from "../../utils/transientSurfaceOwnership";
 import type { ReaderTransitionRequest } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 
@@ -129,6 +133,7 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  resetTransientSurfaceOwnershipForTests();
   vi.restoreAllMocks();
 });
 
@@ -299,5 +304,45 @@ describe("useReaderSideSurface", () => {
     expect(apiRef.current?.transition).toBe(first?.transition);
     expect(apiRef.current?.openToc).toBe(first?.openToc);
     expect(apiRef.current?.toggleAnnotations).toBe(first?.toggleAnnotations);
+  });
+
+  it.each([
+    ["TOC", (api: SideSurfaceApi) => api.openToc(), (api: SideSurfaceApi) => api.closeToc()],
+    [
+      "Reader Settings",
+      (api: SideSurfaceApi) => api.openSettings(),
+      (api: SideSurfaceApi) => api.closeSettings(),
+    ],
+  ])("does not restore %s focus behind a newer modal", async (_label, open, close) => {
+    const transitions = createTransitions(async () => true);
+    const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
+    await renderHarness(transitions, apiRef);
+    const api = apiRef.current!;
+
+    act(() => {
+      open(api);
+      close(api);
+    });
+
+    const modal = document.body.appendChild(document.createElement("dialog"));
+    modal.open = true;
+    const modalButton = modal.appendChild(document.createElement("button"));
+    modalButton.focus();
+    const unregister = registerTransientSurface({
+      element: modal,
+      kind: "app-dialog",
+      modal: true,
+      onDismiss: vi.fn(),
+    });
+
+    flushAnimationFrames();
+
+    expect(document.activeElement).toBe(modalButton);
+    unregister();
+    modal.remove();
+    flushAnimationFrames();
+    expect(document.activeElement).not.toBe(
+      container?.querySelector<HTMLButtonElement>("button:nth-of-type(2)"),
+    );
   });
 });

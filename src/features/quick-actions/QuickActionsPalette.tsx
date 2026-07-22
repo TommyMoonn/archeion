@@ -21,6 +21,7 @@ type QuickActionsPaletteProps = {
   onClose: () => void;
   onExecute: (command: QuickActionCommand) => void;
   registry: QuickActionsRegistry;
+  returnFocusTo?: HTMLElement | null;
 };
 
 export function QuickActionsPalette({
@@ -28,6 +29,7 @@ export function QuickActionsPalette({
   onClose,
   onExecute,
   registry,
+  returnFocusTo,
 }: QuickActionsPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -53,6 +55,7 @@ export function QuickActionsPalette({
   const modal = useModalDialogLifecycle({
     dialogRef,
     onClose,
+    returnFocusTo,
     surfaceKind: "quick-actions",
   });
 
@@ -80,6 +83,7 @@ export function QuickActionsPalette({
 
   function execute(command: QuickActionCommand | undefined): void {
     if (!command || !commandAvailability(command).available) return;
+    modal.suppressFocusRestoration();
     onExecute(command);
   }
 

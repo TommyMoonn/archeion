@@ -35,12 +35,24 @@ type RegisteredTransientSurface = Required<
   };
 
 const surfaceStack: RegisteredTransientSurface[] = [];
+const ownershipListeners = new Set<() => void>();
+let ownershipRevision = 0;
 let listenersInstalled = false;
 
+function publishOwnershipChange(): void {
+  ownershipRevision += 1;
+  for (const listener of ownershipListeners) listener();
+}
+
 function pruneDisconnectedSurfaces(): void {
+  let changed = false;
   for (let index = surfaceStack.length - 1; index >= 0; index -= 1) {
-    if (!surfaceStack[index]?.element.isConnected) surfaceStack.splice(index, 1);
+    if (!surfaceStack[index]?.element.isConnected) {
+      surfaceStack.splice(index, 1);
+      changed = true;
+    }
   }
+  if (changed) publishOwnershipChange();
   uninstallListenersWhenIdle();
 }
 
@@ -102,7 +114,10 @@ function uninstallListenersWhenIdle(): void {
 
 function unregister(token: object): void {
   const index = surfaceStack.findIndex((surface) => surface.token === token);
-  if (index >= 0) surfaceStack.splice(index, 1);
+  if (index >= 0) {
+    surfaceStack.splice(index, 1);
+    publishOwnershipChange();
+  }
   uninstallListenersWhenIdle();
 }
 
@@ -125,6 +140,7 @@ export function registerTransientSurface(registration: TransientSurfaceRegistrat
 
   surface.element.dataset.applicationTransient = surface.kind;
   surfaceStack.push(surface);
+  publishOwnershipChange();
   installListeners();
 
   return () => {
@@ -137,6 +153,28 @@ export function registerTransientSurface(registration: TransientSurfaceRegistrat
 
 export function isTopmostTransientSurface(element: HTMLElement): boolean {
   return topSurface()?.element === element;
+}
+
+export function subscribeTransientSurfaceOwnership(listener: () => void): () => void {
+  ownershipListeners.add(listener);
+  return () => ownershipListeners.delete(listener);
+}
+
+export function transientSurfaceOwnershipSnapshot(): number {
+  return ownershipRevision;
+}
+
+export function transientSurfaceOriginatesFrom(origin: Element | null | undefined): boolean {
+  if (!origin) return false;
+  return surfaceStack.some((surface) => {
+    if (!surface.element.isConnected) return false;
+    const candidates = [surface.origin, surface.trigger];
+    return candidates.some(
+      (candidate) =>
+        candidate === origin ||
+        Boolean(candidate && (origin.contains(candidate) || candidate.contains(origin))),
+    );
+  });
 }
 
 export function activeTransientSurfaceKind(): TransientSurfaceKind | null {
@@ -207,6 +245,8 @@ export function useTransientSurfaceOwnership({
 }
 
 export function resetTransientSurfaceOwnershipForTests(): void {
+  const hadSurfaces = surfaceStack.length > 0;
   surfaceStack.splice(0);
+  if (hadSurfaces) publishOwnershipChange();
   uninstallListenersWhenIdle();
 }

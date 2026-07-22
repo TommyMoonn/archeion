@@ -148,6 +148,187 @@ describe("series library surfaces", () => {
     expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ key: "star saga" }));
   });
 
+  it("restores the logical series after returning from detail", () => {
+    const entries = deriveSeriesEntries([
+      ...seriesBooks(),
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const onReturnFocusComplete = vi.fn();
+    const scope = mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReturnFocusComplete={onReturnFocusComplete}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query=""
+        returnFocusKey="star saga"
+        sort="title"
+        view="grid"
+      />,
+    );
+
+    const target = scope.querySelector<HTMLButtonElement>('[data-library-series-key="star saga"]');
+    expect(document.activeElement).toBe(target);
+    expect(onReturnFocusComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("retires a filtered return key and falls back to Series search when focus is unowned", () => {
+    const entries = deriveSeriesEntries([
+      ...seriesBooks(),
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const onReturnFocusComplete = vi.fn();
+    const renderOverview = (query: string) => (
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReturnFocusComplete={onReturnFocusComplete}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query={query}
+        returnFocusKey="star saga"
+        sort="title"
+        view="grid"
+      />
+    );
+    const scope = mount(renderOverview("moon"));
+
+    expect(document.activeElement).toBe(
+      scope.querySelector('input[name="archeion-series-search"]'),
+    );
+    expect(onReturnFocusComplete).toHaveBeenCalledTimes(1);
+
+    act(() => root?.render(renderOverview("")));
+
+    expect(document.activeElement).not.toBe(
+      scope.querySelector('[data-library-series-key="star saga"]'),
+    );
+    expect(onReturnFocusComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("retires a filtered return key without overwriting user focus", () => {
+    const entries = deriveSeriesEntries([
+      ...seriesBooks(),
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const outside = document.body.appendChild(document.createElement("button"));
+    outside.textContent = "Persistent owner";
+    outside.focus();
+    const onReturnFocusComplete = vi.fn();
+
+    mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReturnFocusComplete={onReturnFocusComplete}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query="moon"
+        returnFocusKey="star saga"
+        sort="title"
+        view="grid"
+      />,
+    );
+
+    expect(document.activeElement).toBe(outside);
+    expect(onReturnFocusComplete).toHaveBeenCalledTimes(1);
+    outside.remove();
+  });
+
+  it("uses the same safe fallback when the returned series no longer exists", () => {
+    const entries = deriveSeriesEntries([
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const onReturnFocusComplete = vi.fn();
+    const scope = mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onReturnFocusComplete={onReturnFocusComplete}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query=""
+        returnFocusKey="star saga"
+        sort="title"
+        view="grid"
+      />,
+    );
+
+    expect(document.activeElement).toBe(
+      scope.querySelector('input[name="archeion-series-search"]'),
+    );
+    expect(onReturnFocusComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the same focused series through sorting, view, and card-size changes", () => {
+    const entries = deriveSeriesEntries([
+      ...seriesBooks(),
+      createBook({
+        id: "moon-1",
+        sourceMetadata: { series: "Moon Tales", volume: "1" },
+      }),
+    ]);
+    const renderOverview = (
+      sort: "title" | "most-volumes",
+      view: "grid" | "list",
+      cardSize: "small" | "large",
+    ) => (
+      <SeriesOverview
+        cardSize={cardSize}
+        entries={entries}
+        isLoading={false}
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query=""
+        sort={sort}
+        view={view}
+      />
+    );
+    const scope = mount(renderOverview("title", "grid", "small"));
+    const target = scope.querySelector<HTMLButtonElement>(
+      '[data-library-series-key="moon tales"]',
+    )!;
+    target.focus();
+
+    act(() => root?.render(renderOverview("most-volumes", "list", "large")));
+
+    expect(document.activeElement).toBe(
+      scope.querySelector('[data-library-series-key="moon tales"]'),
+    );
+  });
+
   it("places the count on row two and switches the series collection between grid and list", () => {
     const entries = deriveSeriesEntries([
       ...seriesBooks(),

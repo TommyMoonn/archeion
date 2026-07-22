@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
+import type { NavigateFunction } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
 import type { StorageObserver } from "../../storage/LibraryStorage";
@@ -306,6 +307,66 @@ describe("LibraryPage folder path continuity", () => {
     expect(routeChanges[0]?.search).toContain("folderPath=Fiction");
   });
 
+  it("does not restore or rewrite folder focus after another route takes ownership", async () => {
+    const original = folder("Fiction");
+    const renamed = folder("Novels");
+    const folders = createFolderObserver([original]);
+    let resolveUpdate: ((folder: Folder) => void) | undefined;
+    const updateFolder = vi.fn(
+      () =>
+        new Promise<Folder>((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    const routeChanges: Array<{ navigationType: string; search: string }> = [];
+    let navigate: NavigateFunction | undefined;
+    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const session = await renderLibraryPage(
+      storage,
+      "/?archiveId=archive-books&view=folder&folderPath=Fiction",
+      (route) => routeChanges.push(route),
+      (nextNavigate) => {
+        navigate = nextNavigate;
+      },
+    );
+    suite.trackRoot(session.root);
+
+    const { input, save } = await openRenameDialog(session.container, "Fiction");
+    await act(async () => {
+      setInputValue(input, "Novels");
+      save.click();
+      await Promise.resolve();
+    });
+
+    const seriesNavigation = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent?.startsWith("Series"));
+    if (!seriesNavigation || !navigate) {
+      throw new Error("The Series navigation control was not rendered.");
+    }
+    const navigateToSeries = navigate;
+    await import("../series/SeriesOverview");
+    await act(async () => {
+      seriesNavigation.focus();
+      await navigateToSeries("/?archiveId=archive-books&view=series");
+    });
+    await vi.waitFor(() => {
+      expect(session.container.querySelector("#series-overview-title")?.textContent).toBe("Series");
+    });
+
+    await act(async () => {
+      folders.publish([renamed]);
+      resolveUpdate?.(renamed);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    await flushAnimationFrame();
+
+    expect(session.container.querySelector("#series-overview-title")?.textContent).toBe("Series");
+    expect(routeChanges.some((route) => route.search.includes("folderPath=Novels"))).toBe(false);
+    expect(document.activeElement).toBe(seriesNavigation);
+  });
+
   it("ignores a folder mutation completion after the active archive changes", async () => {
     const original = folder("Fiction");
     const renamed = folder("Novels");
@@ -369,9 +430,17 @@ describe("LibraryPage folder path continuity", () => {
   it("keeps the explicit active-folder deletion fallback to Library", async () => {
     await appPreferencesStore.update({ confirmDestructiveFileActions: false });
     const original = folder("Fiction");
+    const folders = createFolderObserver([original]);
     const routeChanges: Array<{ navigationType: string; search: string }> = [];
-    const deleteFolder = vi.fn().mockResolvedValue(true);
-    const storage = createStorage({ folders: [original], deleteFolder });
+    const deleteFolder = vi.fn(async () => {
+      folders.publish([]);
+      return true;
+    });
+    const storage = createStorage({
+      deleteFolder,
+      folders: [original],
+      observeFolders: folders.observe,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction",
@@ -386,7 +455,14 @@ describe("LibraryPage folder path continuity", () => {
       await Promise.resolve();
     });
 
+    await flushAnimationFrame();
+
     expect(deleteFolder).toHaveBeenCalledWith(original.id);
     expect(routeChanges.at(-1)?.search).toContain("view=library");
+    await vi.waitFor(() => {
+      expect(document.activeElement).toBe(
+        session.container.querySelector("[data-library-folder-collection-entry]"),
+      );
+    });
   });
 });

@@ -1,23 +1,32 @@
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { currentFocusOrigin } from "../../utils/focusRestoration";
 
 export type DroppedEpubImport = {
   destinationFolderPath?: string;
   sourcePaths: string[];
 };
 
+export type BookDetailsInitialFocus = "clear-progress" | "close" | "cover" | "metadata";
+
+type BookDialogOwnership = Readonly<{ returnFocusTo: HTMLElement | null }>;
+
 export type LibraryWorkspaceDialog =
   | { type: "none" }
   | { type: "add-epub"; droppedImport: DroppedEpubImport | null }
-  | { type: "book-details"; bookId: string }
-  | { type: "book-metadata"; bookId: string }
-  | { type: "book-cover"; bookId: string }
-  | { type: "rename-book"; book: Book }
-  | { type: "move-book"; book: Book }
-  | { type: "delete-book"; book: Book }
-  | { type: "clear-progress"; book: Book }
+  | (BookDialogOwnership & {
+      type: "book-details";
+      bookId: string;
+      initialFocus: BookDetailsInitialFocus;
+    })
+  | (BookDialogOwnership & { type: "book-metadata"; bookId: string })
+  | (BookDialogOwnership & { type: "book-cover"; bookId: string })
+  | (BookDialogOwnership & { type: "rename-book"; book: Book })
+  | (BookDialogOwnership & { type: "move-book"; book: Book })
+  | (BookDialogOwnership & { type: "delete-book"; book: Book })
+  | (BookDialogOwnership & { type: "clear-progress"; book: Book })
   | { type: "about" }
   | { type: "create-folder" }
   | { type: "rename-folder"; folder: Folder }
@@ -37,19 +46,39 @@ function dialogReducer(
   state: LibraryWorkspaceDialog,
   action: DialogAction,
 ): LibraryWorkspaceDialog {
-  if (action.type === "show") {
-    return action.dialog;
-  }
+  if (action.type === "show") return action.dialog;
   if (action.type === "close-book-editor") {
-    return state.type === "book-metadata" || state.type === "book-cover"
-      ? { type: "book-details", bookId: state.bookId }
-      : { type: "none" };
+    if (state.type === "book-metadata") {
+      return {
+        type: "book-details",
+        bookId: state.bookId,
+        initialFocus: "metadata",
+        returnFocusTo: state.returnFocusTo,
+      };
+    }
+    if (state.type === "book-cover") {
+      return {
+        type: "book-details",
+        bookId: state.bookId,
+        initialFocus: "cover",
+        returnFocusTo: state.returnFocusTo,
+      };
+    }
+    return { type: "none" };
   }
   return { type: "none" };
 }
 
+function existingBookOrigin(dialog: LibraryWorkspaceDialog): HTMLElement | null | undefined {
+  return "returnFocusTo" in dialog ? dialog.returnFocusTo : undefined;
+}
+
 export function useLibraryWorkspaceDialogs() {
   const [dialog, dispatch] = useReducer(dialogReducer, { type: "none" });
+  const dialogRef = useRef(dialog);
+  useLayoutEffect(() => {
+    dialogRef.current = dialog;
+  }, [dialog]);
 
   const close = useCallback(() => dispatch({ type: "close" }), []);
   const closeBookEditor = useCallback(() => dispatch({ type: "close-book-editor" }), []);
@@ -58,33 +87,63 @@ export function useLibraryWorkspaceDialogs() {
       dispatch({ type: "show", dialog: nextDialog }),
     [],
   );
+  const bookOrigin = useCallback(
+    () => existingBookOrigin(dialogRef.current) ?? currentFocusOrigin(),
+    [],
+  );
 
   const openAddEpub = useCallback(
     (droppedImport: DroppedEpubImport | null = null) => show({ type: "add-epub", droppedImport }),
     [show],
   );
   const openBookDetails = useCallback(
-    (book: Book) => show({ type: "book-details", bookId: book.id }),
+    (book: Book) =>
+      show({
+        type: "book-details",
+        bookId: book.id,
+        initialFocus: "close",
+        returnFocusTo: currentFocusOrigin(),
+      }),
     [show],
   );
   const openBookDetailsById = useCallback(
-    (bookId: string) => show({ type: "book-details", bookId }),
-    [show],
+    (bookId: string, initialFocus: BookDetailsInitialFocus = "close") =>
+      show({
+        type: "book-details",
+        bookId,
+        initialFocus,
+        returnFocusTo: bookOrigin(),
+      }),
+    [bookOrigin, show],
   );
   const openBookMetadata = useCallback(
-    (book: Book) => show({ type: "book-metadata", bookId: book.id }),
-    [show],
+    (book: Book) =>
+      show({
+        type: "book-metadata",
+        bookId: book.id,
+        returnFocusTo: bookOrigin(),
+      }),
+    [bookOrigin, show],
   );
   const openBookCover = useCallback(
-    (book: Book) => show({ type: "book-cover", bookId: book.id }),
-    [show],
+    (book: Book) => show({ type: "book-cover", bookId: book.id, returnFocusTo: bookOrigin() }),
+    [bookOrigin, show],
   );
-  const openRenameBook = useCallback((book: Book) => show({ type: "rename-book", book }), [show]);
-  const openMoveBook = useCallback((book: Book) => show({ type: "move-book", book }), [show]);
-  const openDeleteBook = useCallback((book: Book) => show({ type: "delete-book", book }), [show]);
+  const openRenameBook = useCallback(
+    (book: Book) => show({ type: "rename-book", book, returnFocusTo: bookOrigin() }),
+    [bookOrigin, show],
+  );
+  const openMoveBook = useCallback(
+    (book: Book) => show({ type: "move-book", book, returnFocusTo: bookOrigin() }),
+    [bookOrigin, show],
+  );
+  const openDeleteBook = useCallback(
+    (book: Book) => show({ type: "delete-book", book, returnFocusTo: bookOrigin() }),
+    [bookOrigin, show],
+  );
   const openClearProgress = useCallback(
-    (book: Book) => show({ type: "clear-progress", book }),
-    [show],
+    (book: Book) => show({ type: "clear-progress", book, returnFocusTo: bookOrigin() }),
+    [bookOrigin, show],
   );
   const openAbout = useCallback(() => show({ type: "about" }), [show]);
   const openCreateFolder = useCallback(() => show({ type: "create-folder" }), [show]);

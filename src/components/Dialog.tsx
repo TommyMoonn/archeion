@@ -9,6 +9,7 @@ type DialogProps = {
   footer?: ReactNode;
   closeOnBackdropClick?: boolean;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   title: string;
 };
 
@@ -19,12 +20,18 @@ export function Dialog({
   description,
   footer,
   onClose,
+  returnFocusTo,
   title,
 }: DialogProps) {
   const descriptionId = useId();
   const titleId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const modal = useModalDialogLifecycle({ closeOnBackdropClick, dialogRef, onClose });
+  const modal = useModalDialogLifecycle({
+    closeOnBackdropClick,
+    dialogRef,
+    onClose,
+    returnFocusTo,
+  });
 
   return (
     <dialog

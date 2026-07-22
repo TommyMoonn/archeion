@@ -10,6 +10,7 @@ import { archiveStore } from "../../stores/archiveStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
+import { focusElementIfUsable, isUsableFocusTarget } from "../../utils/focusRestoration";
 import { scrollElementToTop } from "../../utils/motion";
 import { requestsBookSearch } from "../quick-actions/quickActions";
 import {
@@ -267,7 +268,7 @@ export function useLibraryWorkspaceNavigationLifecycle({
         currentFocus !== document.body &&
         currentFocus !== main &&
         currentFocus !== focusAtRequestRef.current;
-      if (!userMovedFocus) (target ?? main)?.focus({ preventScroll: true });
+      if (!userMovedFocus) focusElementIfUsable(target ?? main);
       returnContextRestoredRef.current = true;
       pendingBookIdRef.current = null;
       setPendingBookId(null);
@@ -305,7 +306,7 @@ export function useLibraryWorkspaceNavigationLifecycle({
         pendingBookIdRef.current !== bookId ||
         pendingBookId !== bookId ||
         pendingCollectionIndex !== index ||
-        !target.isConnected ||
+        !isUsableFocusTarget(target) ||
         bookTarget?.dataset.readerBookId !== bookId ||
         Number(bookTarget.dataset.libraryIndex) !== index
       ) {
@@ -428,6 +429,6 @@ function locationUsesMountedReaderSurface(location: LibraryLocation): boolean {
 
 function isUsableReaderFocusTarget(target: HTMLElement): boolean {
   if (!target.matches(MOUNTED_READER_FOCUS_TARGET_SELECTOR)) return false;
-  if (target.matches(":disabled, [aria-disabled='true']")) return false;
-  return target.getAttribute("tabindex") !== "-1";
+  if (target.getAttribute("tabindex") === "-1") return false;
+  return isUsableFocusTarget(target);
 }

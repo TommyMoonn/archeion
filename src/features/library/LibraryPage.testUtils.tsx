@@ -2,7 +2,7 @@
 
 import { act, type ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, type NavigateFunction } from "react-router-dom";
 import { afterEach, beforeEach, vi } from "vitest";
 
 import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
@@ -15,6 +15,7 @@ import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { LibraryPage } from "./LibraryPage";
 import {
+  LibraryPageNavigateProbe,
   LibraryPageRouteProbe,
   type LibraryPageRouteChange,
 } from "./LibraryPageRouteProbe.testUtils";
@@ -342,6 +343,7 @@ export async function renderLibraryPage(
   storage: LibraryStorage,
   initialEntry: MemoryRouterInitialEntry = "/",
   onRouteChange?: (route: LibraryPageRouteChange) => void,
+  onNavigateReady?: (navigate: NavigateFunction) => void,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -351,6 +353,7 @@ export async function renderLibraryPage(
     root.render(
       <MemoryRouter initialEntries={[initialEntry]}>
         {onRouteChange ? <LibraryPageRouteProbe onChange={onRouteChange} /> : null}
+        {onNavigateReady ? <LibraryPageNavigateProbe onReady={onNavigateReady} /> : null}
         <LibraryStorageContext.Provider value={storage}>
           <LibraryPage />
         </LibraryStorageContext.Provider>

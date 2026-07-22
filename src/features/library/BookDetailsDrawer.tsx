@@ -24,9 +24,11 @@ import type { Book } from "../../types/book";
 import { formatFileSize, formatLongDate } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
+import type { BookDetailsInitialFocus } from "./useLibraryWorkspaceDialogs";
 
 type BookDetailsDrawerProps = {
   book: Book;
+  initialFocus?: BookDetailsInitialFocus;
   onClearProgress: (book: Book) => void;
   onClose: () => void;
   onDelete: (book: Book) => void;
@@ -39,6 +41,7 @@ type BookDetailsDrawerProps = {
   onRescan: () => void;
   onViewMetadata: (book: Book) => void;
   onToggleFavorite: (book: Book) => void;
+  returnFocusTo?: HTMLElement | null;
   canDeleteBook?: boolean;
   canManageFile?: boolean;
   canRevealFile?: boolean;
@@ -46,6 +49,7 @@ type BookDetailsDrawerProps = {
 
 export function BookDetailsDrawer({
   book,
+  initialFocus = "close",
   onClearProgress,
   onClose,
   onDelete,
@@ -58,6 +62,7 @@ export function BookDetailsDrawer({
   onRescan,
   onViewMetadata,
   onToggleFavorite,
+  returnFocusTo,
   canDeleteBook = true,
   canManageFile = false,
   canRevealFile = false,
@@ -86,6 +91,7 @@ export function BookDetailsDrawer({
   const modal = useModalDialogLifecycle({
     dialogRef,
     onClose,
+    returnFocusTo,
     surfaceKind: "drawer",
   });
 
@@ -111,7 +117,11 @@ export function BookDetailsDrawer({
             >
               <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
             </IconButton>
-            <IconButton label="Close book details" onClick={onClose} autoFocus>
+            <IconButton
+              autoFocus={initialFocus === "close"}
+              label="Close book details"
+              onClick={onClose}
+            >
               <X aria-hidden="true" weight="regular" />
             </IconButton>
           </div>
@@ -122,6 +132,7 @@ export function BookDetailsDrawer({
             <BookCover book={book} className="book-cover--details" />
             {!book.isFileMissing ? (
               <IconButton
+                autoFocus={initialFocus === "cover"}
                 className="details-cover__replace"
                 label="Replace cover"
                 onClick={() => onReplaceCover(book)}
@@ -144,6 +155,7 @@ export function BookDetailsDrawer({
                   </span>
                 ) : null}
                 <IconButton
+                  autoFocus={initialFocus === "clear-progress"}
                   className="details-clear-progress"
                   label="Clear reading progress"
                   onClick={() => onClearProgress(book)}
@@ -190,6 +202,7 @@ export function BookDetailsDrawer({
               ) : null}
               <div className="details-actions__secondary">
                 <Button
+                  autoFocus={initialFocus === "metadata"}
                   icon={<Info aria-hidden="true" />}
                   onClick={() => onViewMetadata(book)}
                   size="compact"

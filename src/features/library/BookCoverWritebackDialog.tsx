@@ -19,6 +19,7 @@ import { bookTitle } from "./libraryFilters";
 type BookCoverWritebackDialogProps = {
   book: Book;
   onClose: () => void;
+  returnFocusTo?: HTMLElement | null;
   onPrepareCover: (
     book: Book,
     imagePath: string,
@@ -47,6 +48,7 @@ export function BookCoverWritebackDialog({
   onClose,
   onPrepareCover,
   onWriteCover,
+  returnFocusTo,
 }: BookCoverWritebackDialogProps) {
   const [framing, setFraming] = useState<EpubCoverFraming>("crop");
   const [imagePath, setImagePath] = useState<string | null>(null);
@@ -187,6 +189,7 @@ export function BookCoverWritebackDialog({
   return (
     <Dialog
       className="dialog--cover-writeback"
+      returnFocusTo={returnFocusTo}
       closeOnBackdropClick={!isWriting}
       description="Review the final 2:3 cover frame, then confirm the EPUB modification. No separate app cover override is created."
       onClose={() => {
