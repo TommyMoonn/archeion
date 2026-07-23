@@ -89,6 +89,48 @@ function Harness({ dismissKey, onAction = () => undefined }: HarnessProps) {
   );
 }
 
+function ExplainedUnavailableHarness({
+  onEnabled,
+  onUnavailable,
+}: {
+  onEnabled: () => void;
+  onUnavailable: () => void;
+}) {
+  const controller = useContextMenuController();
+
+  return (
+    <>
+      <ContextMenuTrigger controller={controller} label="Open unavailable actions">
+        Actions
+      </ContextMenuTrigger>
+      <ContextMenuSurface
+        actions={[
+          {
+            disabled: true,
+            disabledReason: "The EPUB file is missing.",
+            id: "explained-unavailable",
+            label: "Read",
+            onSelect: onUnavailable,
+          },
+          {
+            disabled: true,
+            id: "native-disabled",
+            label: "Transiently unavailable",
+            onSelect: onUnavailable,
+          },
+          {
+            id: "enabled",
+            label: "Edit metadata",
+            onSelect: onEnabled,
+          },
+        ]}
+        ariaLabel="Unavailable action semantics"
+        controller={controller}
+      />
+    </>
+  );
+}
+
 function DualHarness({ onFirst, onSecond }: { onFirst: () => void; onSecond: () => void }) {
   const first = useContextMenuController();
   const second = useContextMenuController();
@@ -138,6 +180,21 @@ function renderHarness(props: HarnessProps = {}) {
   mountedRoots.push(root);
   act(() => root.render(<Harness {...props} />));
   return { container, root };
+}
+
+function renderExplainedUnavailableHarness() {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  mountedRoots.push(root);
+  const onEnabled = vi.fn();
+  const onUnavailable = vi.fn();
+  act(() =>
+    root.render(
+      <ExplainedUnavailableHarness onEnabled={onEnabled} onUnavailable={onUnavailable} />,
+    ),
+  );
+  return { container, onEnabled, onUnavailable };
 }
 
 function menu(): HTMLElement {
@@ -233,7 +290,7 @@ describe("ContextMenu", () => {
     expect(menu().getAttribute("data-application-transient")).toBe("context-menu");
   });
 
-  it("opens from the trigger with keyboard focus and traverses only enabled items", () => {
+  it("opens from the trigger with keyboard focus and skips native-disabled items", () => {
     const { container } = renderHarness();
     const actionTrigger = trigger(container);
 
@@ -261,6 +318,133 @@ describe("ContextMenu", () => {
       items[1]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: " " }));
     });
     expect(document.body.querySelector('[role="menu"]')).toBeNull();
+  });
+
+  it("focuses and traverses explained-unavailable items while skipping native-disabled items", () => {
+    const { container } = renderExplainedUnavailableHarness();
+    const actionTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open unavailable actions"]',
+    )!;
+
+    act(() => {
+      actionTrigger.focus();
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      );
+    });
+
+    const items = Array.from(menu().querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
+    const [explained, nativeDisabled, enabled] = items;
+    const reasonId = explained?.getAttribute("aria-describedby") ?? "";
+
+    expect(document.activeElement).toBe(explained);
+    expect(explained?.disabled).toBe(false);
+    expect(explained?.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(reasonId)?.textContent).toBe("The EPUB file is missing.");
+    expect(nativeDisabled?.disabled).toBe(true);
+
+    act(() =>
+      explained?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" })),
+    );
+    expect(document.activeElement).toBe(enabled);
+
+    act(() =>
+      enabled?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowUp" })),
+    );
+    expect(document.activeElement).toBe(explained);
+
+    act(() =>
+      explained?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" })),
+    );
+    expect(document.activeElement).toBe(enabled);
+
+    act(() => enabled?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" })));
+    expect(document.activeElement).toBe(explained);
+
+    act(() =>
+      explained?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
+    );
+    act(() =>
+      actionTrigger.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowUp" })),
+    );
+    expect(document.activeElement?.textContent).toBe("Edit metadata");
+  });
+
+  it("blocks every explained-unavailable activation path without closing the menu", () => {
+    const { container, onEnabled, onUnavailable } = renderExplainedUnavailableHarness();
+    const actionTrigger = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Open unavailable actions"]',
+    )!;
+
+    act(() =>
+      actionTrigger.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }),
+      ),
+    );
+    const explained = document.activeElement as HTMLButtonElement;
+
+    for (const key of ["Enter", " "]) {
+      act(() =>
+        explained.dispatchEvent(
+          new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key }),
+        ),
+      );
+      expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+      expect(document.activeElement).toBe(explained);
+    }
+
+    act(() =>
+      explained.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+      ),
+    );
+    act(() => explained.click());
+
+    expect(onUnavailable).not.toHaveBeenCalled();
+    expect(onEnabled).not.toHaveBeenCalled();
+    expect(document.body.querySelector('[role="menu"]')).not.toBeNull();
+  });
+
+  it("keeps unexplained disabled triggers native while explained triggers remain discoverable", () => {
+    function TriggerHarness() {
+      const controller = useContextMenuController();
+      return (
+        <>
+          <ContextMenuTrigger controller={controller} disabled label="Native disabled">
+            Native
+          </ContextMenuTrigger>
+          <ContextMenuTrigger
+            controller={controller}
+            disabled
+            disabledReason="Wait for the current action."
+            label="Explained disabled"
+          >
+            Explained
+          </ContextMenuTrigger>
+        </>
+      );
+    }
+
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    mountedRoots.push(root);
+    act(() => root.render(<TriggerHarness />));
+
+    const nativeDisabled = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Native disabled"]',
+    )!;
+    const explained = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Explained disabled"]',
+    )!;
+
+    expect(nativeDisabled.disabled).toBe(true);
+    expect(nativeDisabled.getAttribute("aria-disabled")).toBeNull();
+    expect(explained.disabled).toBe(false);
+    expect(explained.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(explained.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "Wait for the current action.",
+    );
   });
 
   it("closes and restores the logical origin before running an action", () => {

@@ -179,6 +179,7 @@ export function SeriesOverview({
       </header>
 
       <div
+        aria-busy={isLoading || undefined}
         className="collection-content series-overview__content"
         data-surface-state={surfaceState}
       >

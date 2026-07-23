@@ -1,6 +1,7 @@
 import { Check, Heart, PencilSimple } from "@phosphor-icons/react";
 import {
   memo,
+  useId,
   useLayoutEffect,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -78,6 +79,7 @@ function BookRowComponent({
   const title = bookTitle(book);
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
+  const missingFileDescriptionId = useId();
 
   function activateBook(event: ReactMouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -121,6 +123,7 @@ function BookRowComponent({
       onContextMenu={handleContextMenu}
     >
       <button
+        aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={selectionMode ? `${selected ? "Deselect" : "Select"} ${title}` : undefined}
         aria-pressed={selectionMode ? selected : undefined}
         className="book-row__select"
@@ -137,6 +140,11 @@ function BookRowComponent({
         <span className="book-row__file">{book.fileName}</span>
         <span className="book-row__date">{formatMediumDate(book.addedAt)}</span>
       </button>
+      {book.isFileMissing ? (
+        <span className="sr-only" id={missingFileDescriptionId}>
+          EPUB file missing. Reading and file actions are unavailable.
+        </span>
+      ) : null}
       {selectionMode || selected ? (
         <span
           aria-hidden="true"
@@ -156,6 +164,7 @@ function BookRowComponent({
         </IconButton>
       ) : null}
       <IconButton
+        aria-pressed={book.isFavorite}
         className="book-row__favorite"
         data-active={book.isFavorite || undefined}
         label={

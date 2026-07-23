@@ -13,7 +13,7 @@ const coverRenderCounts = vi.hoisted(() => new Map<string, number>());
 vi.mock("./BookCover", () => ({
   BookCover: ({ book }: { book: Book }) => {
     coverRenderCounts.set(book.id, (coverRenderCounts.get(book.id) ?? 0) + 1);
-    return <span data-cover-book-id={book.id} />;
+    return <span aria-hidden="true" data-cover-book-id={book.id} />;
   },
 }));
 
@@ -156,6 +156,44 @@ describe.each(["grid", "list"] as const)("%s selection rendering", (view) => {
     expect(mountedBooks.length).toBeGreaterThan(0);
     expect(mountedBooks.length).toBeLessThan(80);
     expect(container.querySelectorAll("[data-cover-book-id]")).toHaveLength(mountedBooks.length);
+  });
+
+  it("exposes selected, favorite, and missing-file state without naming decorative covers", async () => {
+    const missingFavorite = {
+      ...createBook("one"),
+      isFavorite: true,
+      isFileMissing: true,
+    };
+    const container = document.createElement("div");
+    document.body.append(container);
+    activeContainer = container;
+    activeRoot = createRoot(container);
+    const Collection = view === "grid" ? BookGrid : BookList;
+
+    await act(async () => {
+      activeRoot?.render(
+        <Collection
+          {...callbacks}
+          books={[missingFavorite]}
+          selectedBookIds={new Set(["one"])}
+          selectionMode
+        />,
+      );
+    });
+
+    const row = container.querySelector<HTMLElement>("[data-reader-book-id='one']")!;
+    const primary = row.querySelector<HTMLButtonElement>(
+      view === "grid" ? ".book-card__select" : ".book-row__select",
+    )!;
+    const favorite = row.querySelector<HTMLButtonElement>(
+      view === "grid" ? ".book-favorite" : ".book-row__favorite",
+    )!;
+    const descriptionId = primary.getAttribute("aria-describedby")!;
+
+    expect(primary.getAttribute("aria-pressed")).toBe("true");
+    expect(favorite.getAttribute("aria-pressed")).toBe("true");
+    expect(document.getElementById(descriptionId)?.textContent).toContain("EPUB file missing");
+    expect(row.querySelector("[data-cover-book-id]")?.getAttribute("aria-hidden")).toBe("true");
   });
 });
 

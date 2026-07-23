@@ -199,6 +199,34 @@ describe("shared control geometry", () => {
     expect(markup).toContain("menu-item__label");
     expect(markup).not.toContain("menu-item__icon");
   });
+
+  it("keeps an explained disabled menu item reachable while blocking activation", () => {
+    const onClick = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    activeRoot = createRoot(container);
+
+    act(() => {
+      activeRoot?.render(
+        <MenuItem disabled disabledReason="The EPUB file is missing." onClick={onClick}>
+          Read
+        </MenuItem>,
+      );
+    });
+
+    const item = container.querySelector<HTMLButtonElement>('[role="menuitem"]')!;
+    const reasonId = item.getAttribute("aria-describedby")!;
+    act(() => {
+      item.focus();
+      item.click();
+    });
+
+    expect(item.disabled).toBe(false);
+    expect(item.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(item);
+    expect(document.getElementById(reasonId)?.textContent).toBe("The EPUB file is missing.");
+    expect(onClick).not.toHaveBeenCalled();
+  });
 });
 
 function IconOnlySegmentedControlHarness() {

@@ -69,5 +69,9 @@ describe("createBookContextActions", () => {
       "Edit metadata",
       "Remove metadata",
     ]);
+    expect(actions[0]).toMatchObject({
+      disabled: true,
+      disabledReason: "The EPUB file is missing.",
+    });
   });
 });

@@ -289,13 +289,13 @@
     background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
-.series-volume__open:hover:not(:disabled),
+.series-volume__open:hover:not(:disabled):not([aria-disabled="true"]),
 .series-volume__open:focus-visible {
   border-color: var(--line-strong);
   background: var(--surface-raised);
 }
 
-.series-volume__open:disabled {
+.series-volume__open:is(:disabled, [aria-disabled="true"]) {
   opacity: 0.58;
   cursor: not-allowed;
 }

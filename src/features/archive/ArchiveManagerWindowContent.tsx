@@ -1,6 +1,7 @@
 import { DotsThree, Plus } from "@phosphor-icons/react";
 import {
   useMemo,
+  useId,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -113,6 +114,7 @@ function ArchiveRow({
   const [name, setName] = useState(archive.displayName);
   const [isBusy, setIsBusy] = useState(false);
   const isActive = archive.id === activeArchiveId;
+  const missingStateId = useId();
 
   async function activateArchive() {
     if (isBusy || isRenaming) {
@@ -196,6 +198,7 @@ function ArchiveRow({
 
   return (
     <div
+      aria-busy={isBusy || undefined}
       className={`archive-row${isBusy ? " archive-row--busy" : ""}${
         isMissing ? " archive-row--missing" : ""
       }`}
@@ -223,6 +226,8 @@ function ArchiveRow({
           />
         ) : (
           <button
+            aria-current={isActive ? "true" : undefined}
+            aria-describedby={isMissing ? missingStateId : undefined}
             className="archive-row__activate"
             disabled={isBusy}
             onClick={() => void activateArchive()}
@@ -240,7 +245,7 @@ function ArchiveRow({
 
       {isMissing ? (
         <div className="archive-row__meta" aria-label="Archive state">
-          <span className="archive-row__badge archive-row__badge--missing">
+          <span className="archive-row__badge archive-row__badge--missing" id={missingStateId}>
             Archive folder not found
           </span>
         </div>

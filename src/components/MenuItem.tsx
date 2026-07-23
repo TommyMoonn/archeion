@@ -1,4 +1,4 @@
-import { useId, type ButtonHTMLAttributes, type ReactNode } from "react";
+import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode } from "react";
 
 type MenuItemProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   children: ReactNode;
@@ -11,20 +11,34 @@ export function MenuItem({
   children,
   className = "",
   danger = false,
+  disabled = false,
   disabledReason,
   icon,
+  onClick,
   title,
   type = "button",
   ...props
 }: MenuItemProps) {
   const reasonId = useId();
-  const hasDisabledReason = Boolean(props.disabled && disabledReason);
+  const hasDisabledReason = disabled && Boolean(disabledReason);
+
+  function handleClick(event: MouseEvent<HTMLButtonElement>) {
+    if (disabled) {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    onClick?.(event);
+  }
 
   return (
     <>
       <button
         aria-describedby={hasDisabledReason ? reasonId : undefined}
+        aria-disabled={hasDisabledReason || undefined}
         className={`menu-item${danger ? " menu-item--danger" : ""}${icon ? "" : " menu-item--no-icon"} ${className}`.trim()}
+        disabled={disabled && !hasDisabledReason}
+        onClick={handleClick}
         role="menuitem"
         type={type}
         title={hasDisabledReason ? disabledReason : title}

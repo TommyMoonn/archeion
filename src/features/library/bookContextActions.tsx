@@ -41,6 +41,8 @@ export function createBookContextActions({
   const showFileActions = canManageFile && !book.isFileMissing;
   const actions: ContextMenuAction[] = [
     {
+      disabled: Boolean(book.isFileMissing),
+      disabledReason: book.isFileMissing ? "The EPUB file is missing." : undefined,
       icon: <BookOpen weight="regular" />,
       id: "read",
       label: "Read",

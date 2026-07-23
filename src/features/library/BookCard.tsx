@@ -1,6 +1,7 @@
 import { Check, Heart } from "@phosphor-icons/react";
 import {
   memo,
+  useId,
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -64,6 +65,7 @@ function BookCardComponent({
   const title = bookTitle(book);
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
+  const missingFileDescriptionId = useId();
 
   function activateBook(event: ReactMouseEvent<HTMLButtonElement>) {
     if (selectionMode || event.ctrlKey || event.metaKey || event.shiftKey) {
@@ -107,6 +109,7 @@ function BookCardComponent({
       onContextMenu={handleContextMenu}
     >
       <button
+        aria-describedby={book.isFileMissing ? missingFileDescriptionId : undefined}
         aria-label={
           selectionMode
             ? `${selected ? "Deselect" : "Select"} ${title}`
@@ -125,6 +128,11 @@ function BookCardComponent({
           {author ? <span>{author}</span> : null}
         </span>
       </button>
+      {book.isFileMissing ? (
+        <span className="sr-only" id={missingFileDescriptionId}>
+          EPUB file missing. Reading and file actions are unavailable.
+        </span>
+      ) : null}
       {selectionMode || selected ? (
         <span
           aria-hidden="true"
@@ -135,6 +143,7 @@ function BookCardComponent({
         </span>
       ) : null}
       <IconButton
+        aria-pressed={book.isFavorite}
         className="book-favorite"
         data-active={book.isFavorite || undefined}
         label={

@@ -430,6 +430,30 @@ describe("series library surfaces", () => {
     expect(seriesStyles).not.toContain(".series-overview > .empty-state");
   });
 
+  it("keeps loading and empty series states semantically distinct", () => {
+    const scope = mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={[]}
+        isLoading
+        onClearSearch={vi.fn()}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query=""
+        sort="title"
+        view="grid"
+      />,
+    );
+    const content = scope.querySelector(".collection-content.series-overview__content");
+
+    expect(content?.getAttribute("data-surface-state")).toBe("loading");
+    expect(content?.getAttribute("aria-busy")).toBe("true");
+    expect(content?.querySelector('[role="status"]')).not.toBeNull();
+    expect(content?.querySelector(".empty-state")).toBeNull();
+  });
+
   it("renders ordered volumes, conservative hints, and continuation markers", () => {
     const entry = deriveSeriesEntries(seriesBooks())[0]!;
     const onRead = vi.fn();
@@ -443,6 +467,12 @@ describe("series library surfaces", () => {
     expect(
       scope.querySelector('[data-marker="current"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Crossing");
+    expect(
+      scope
+        .querySelector('[data-marker="current"]')
+        ?.closest("button")
+        ?.getAttribute("aria-current"),
+    ).toBe("true");
     expect(
       scope.querySelector('[data-marker="unread"]')?.parentElement?.parentElement?.textContent,
     ).toContain("The Return");
@@ -467,11 +497,41 @@ describe("series library surfaces", () => {
     expect(scope.textContent).not.toContain("Open next unread");
   });
 
+  it("describes missing series actions without weakening current-volume state", () => {
+    const books = seriesBooks().map((book) =>
+      book.id === "volume-2" ? { ...book, isFileMissing: true } : book,
+    );
+    const entry = deriveSeriesEntries(books)[0]!;
+    const onRead = vi.fn();
+    const scope = mount(<SeriesDetail entry={entry} onBack={vi.fn()} onRead={onRead} />);
+    const continueButton = buttonWithText(scope, "Continue Series");
+    const currentVolume = scope.querySelector<HTMLButtonElement>(
+      ".series-volume__open[aria-current='true']",
+    )!;
+
+    expect(continueButton.disabled).toBe(false);
+    expect(continueButton.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(continueButton.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("The EPUB file is missing.");
+    expect(currentVolume.disabled).toBe(false);
+    expect(currentVolume.getAttribute("aria-disabled")).toBe("true");
+    expect(
+      document.getElementById(currentVolume.getAttribute("aria-describedby")!)?.textContent,
+    ).toContain("Reading is unavailable");
+    act(() => {
+      currentVolume.focus();
+      currentVolume.click();
+    });
+    expect(document.activeElement).toBe(currentVolume);
+    expect(onRead).not.toHaveBeenCalled();
+  });
+
   it("makes each series volume row a full-width interactive surface", () => {
     const openStyles = cssBlock(seriesStyles, ".series-volume__open");
     const hoverStyles = cssBlock(
       seriesStyles,
-      ".series-volume__open:hover:not(:disabled),\n.series-volume__open:focus-visible",
+      '.series-volume__open:hover:not(:disabled):not([aria-disabled="true"]),\n.series-volume__open:focus-visible',
     );
 
     expect(openStyles).toContain("width: 100%;");

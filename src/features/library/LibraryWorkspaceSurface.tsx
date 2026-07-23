@@ -180,6 +180,7 @@ export function LibraryWorkspaceSurface({
         <>
           <LibraryToolbar {...toolbarProps} />
           <div
+            aria-busy={surfaceState === "loading" || undefined}
             ref={bookCollectionRootRef}
             className="collection-content library-content"
             data-surface-state={surfaceState}

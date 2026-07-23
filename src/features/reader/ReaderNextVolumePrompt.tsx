@@ -21,6 +21,7 @@ export function ReaderNextVolumePrompt({ book, onOpen }: ReaderNextVolumePromptP
       </div>
       <Button
         disabled={Boolean(book.isFileMissing)}
+        disabledReason={book.isFileMissing ? "The EPUB file is missing." : undefined}
         icon={<ArrowRight aria-hidden="true" weight="bold" />}
         onClick={onOpen}
         size="standard"

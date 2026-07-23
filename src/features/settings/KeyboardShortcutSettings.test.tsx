@@ -207,6 +207,10 @@ describe("Keyboard settings", () => {
     expect(conflict).toContain("Ctrl+,");
     expect(conflict).toContain(commandDefinitions.quickActions.id);
     expect(conflict).toContain(commandDefinitions.settings.id);
+    expect(capture.getAttribute("aria-invalid")).toBe("true");
+    expect(
+      document.getElementById(capture.getAttribute("aria-describedby")!)?.textContent,
+    ).toContain("Ctrl+,");
     expect(textButton("Save shortcut").disabled).toBe(true);
 
     act(() => {
@@ -221,6 +225,10 @@ describe("Keyboard settings", () => {
       );
     });
     expect(document.body.textContent).toContain("Ctrl+Shift+K");
+    expect(capture.getAttribute("aria-invalid")).toBeNull();
+    expect(
+      document.getElementById(capture.getAttribute("aria-describedby")!)?.getAttribute("role"),
+    ).toBe("status");
 
     await act(async () => textButton("Save shortcut").click());
     expect(updateAppPreferences).toHaveBeenCalledWith(

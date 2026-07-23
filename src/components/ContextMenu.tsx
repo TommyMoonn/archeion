@@ -40,10 +40,14 @@ const VIEWPORT_MARGIN = 8;
 const ANCHOR_GAP = 4;
 let activeMenu: { close: () => void; token: object } | null = null;
 
-function enabledMenuItems(menu: HTMLElement): HTMLButtonElement[] {
+function navigableMenuItems(menu: HTMLElement): HTMLButtonElement[] {
   return Array.from(menu.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).filter(
-    (item) => !item.disabled && item.getAttribute("aria-disabled") !== "true",
+    (item) => !item.disabled,
   );
+}
+
+function isActivatableMenuItem(item: HTMLButtonElement): boolean {
+  return !item.disabled && item.getAttribute("aria-disabled") !== "true";
 }
 
 function exactPosition(
@@ -156,11 +160,12 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
       <>
         <button
           aria-describedby={hasDisabledReason ? reasonId : undefined}
-          aria-disabled={disabled || undefined}
+          aria-disabled={hasDisabledReason || undefined}
           aria-expanded={controller.isOpen}
           aria-haspopup="menu"
           aria-label={label}
           className={`menu-trigger ${className}`.trim()}
+          disabled={Boolean(disabled) && !hasDisabledReason}
           onClick={handleClick}
           onKeyDown={handleKeyDown}
           ref={assignRef}
@@ -219,7 +224,7 @@ export function ContextMenuSurface({
     if (!menu) return;
     if (focusedInvocationRef.current !== invocation) {
       focusedInvocationRef.current = invocation;
-      const items = enabledMenuItems(menu);
+      const items = navigableMenuItems(menu);
       const target = invocation.focusTarget === "last" ? items.at(-1) : items[0];
       if (invocation.focusTarget) target?.focus();
     }
@@ -262,7 +267,7 @@ export function ContextMenuSurface({
         return;
       }
 
-      const items = enabledMenuItems(menu);
+      const items = navigableMenuItems(menu);
       const target = event.target;
       const targetItem =
         target instanceof HTMLButtonElement && menu.contains(target) && items.includes(target)
@@ -292,7 +297,7 @@ export function ContextMenuSurface({
 
       if ((event.key === "Enter" || event.key === " ") && targetItem) {
         ownKeyboardEvent(event);
-        targetItem.click();
+        if (isActivatableMenuItem(targetItem)) targetItem.click();
         return;
       }
 

@@ -6,6 +6,7 @@ import {
   Stack,
   WarningCircle,
 } from "@phosphor-icons/react";
+import { useId } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
@@ -71,6 +72,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
             <Button
               data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
+              disabledReason={continueBook.isFileMissing ? "The EPUB file is missing." : undefined}
               icon={<Play aria-hidden="true" weight="fill" />}
               onClick={() => onRead(continueBook)}
               size="standard"
@@ -89,55 +91,87 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
       ) : null}
 
       <div aria-label="Series volumes" className="series-volumes" role="list">
-        {entry.books.map((book) => {
-          const isCurrent = book.id === entry.currentBookId;
-          const isFirstUnread = book.id === entry.firstUnreadBookId;
-          const status = bookReadingStatus(book);
-
-          return (
-            <article
-              className="series-volume"
-              data-reader-book-id={book.id}
-              data-current={isCurrent || undefined}
-              data-unread={isFirstUnread || undefined}
-              key={book.id}
-              role="listitem"
-            >
-              <button
-                aria-label={`${bookActionLabel(book)} ${bookTitle(book)}`}
-                className="series-volume__open"
-                disabled={Boolean(book.isFileMissing)}
-                onClick={() => onRead(book)}
-                type="button"
-              >
-                <BookCover book={book} className="book-cover--series-volume" />
-                <span className="series-volume__copy">
-                  <span className="series-volume__meta">
-                    <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
-                    {isCurrent ? <span data-marker="current">Current volume</span> : null}
-                    {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
-                  </span>
-                  <strong className="series-volume__title">{bookTitle(book)}</strong>
-                  {bookAuthor(book) ? (
-                    <span className="series-volume__author">{bookAuthor(book)}</span>
-                  ) : null}
-                  <span className="series-volume__progress">
-                    <span>{bookProgressLabel(book)}</span>
-                    {status === "completed" ? (
-                      <CheckCircle aria-hidden="true" size={14} weight="fill" />
-                    ) : null}
-                  </span>
-                </span>
-                <span className="series-volume__action">
-                  <span>{bookActionLabel(book)}</span>
-                  <CaretRight aria-hidden="true" size={16} weight="bold" />
-                </span>
-              </button>
-            </article>
-          );
-        })}
+        {entry.books.map((book) => (
+          <SeriesVolumeRow
+            book={book}
+            isCurrent={book.id === entry.currentBookId}
+            isFirstUnread={book.id === entry.firstUnreadBookId}
+            key={book.id}
+            onRead={onRead}
+          />
+        ))}
       </div>
     </section>
+  );
+}
+
+function SeriesVolumeRow({
+  book,
+  isCurrent,
+  isFirstUnread,
+  onRead,
+}: {
+  book: Book;
+  isCurrent: boolean;
+  isFirstUnread: boolean;
+  onRead: (book: Book) => void;
+}) {
+  const missingDescriptionId = useId();
+  const status = bookReadingStatus(book);
+
+  return (
+    <article
+      className="series-volume"
+      data-reader-book-id={book.id}
+      data-current={isCurrent || undefined}
+      data-unread={isFirstUnread || undefined}
+      role="listitem"
+    >
+      <button
+        aria-current={isCurrent ? "true" : undefined}
+        aria-describedby={book.isFileMissing ? missingDescriptionId : undefined}
+        aria-disabled={book.isFileMissing || undefined}
+        aria-label={`${bookActionLabel(book)} ${bookTitle(book)}`}
+        className="series-volume__open"
+        onClick={(event) => {
+          if (book.isFileMissing) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          onRead(book);
+        }}
+        type="button"
+      >
+        <BookCover book={book} className="book-cover--series-volume" />
+        <span className="series-volume__copy">
+          <span className="series-volume__meta">
+            <span>{book.sourceMetadata?.volume || "Volume unknown"}</span>
+            {isCurrent ? <span data-marker="current">Current volume</span> : null}
+            {isFirstUnread ? <span data-marker="unread">First unread</span> : null}
+          </span>
+          <strong className="series-volume__title">{bookTitle(book)}</strong>
+          {bookAuthor(book) ? (
+            <span className="series-volume__author">{bookAuthor(book)}</span>
+          ) : null}
+          <span className="series-volume__progress">
+            <span>{bookProgressLabel(book)}</span>
+            {status === "completed" ? (
+              <CheckCircle aria-hidden="true" size={14} weight="fill" />
+            ) : null}
+          </span>
+        </span>
+        <span className="series-volume__action">
+          <span>{bookActionLabel(book)}</span>
+          <CaretRight aria-hidden="true" size={16} weight="bold" />
+        </span>
+      </button>
+      {book.isFileMissing ? (
+        <span className="sr-only" id={missingDescriptionId}>
+          The EPUB file is missing. Reading is unavailable.
+        </span>
+      ) : null}
+    </article>
   );
 }
 

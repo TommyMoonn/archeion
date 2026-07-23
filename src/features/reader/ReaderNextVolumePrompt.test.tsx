@@ -59,8 +59,11 @@ describe("ReaderNextVolumePrompt", () => {
   it("keeps a known missing volume visible but unavailable", () => {
     const rendered = renderPrompt({ ...book, isFileMissing: true });
     const button = rendered.container.querySelector<HTMLButtonElement>("button");
+    const reasonId = button?.getAttribute("aria-describedby") ?? "";
 
-    expect(button?.disabled).toBe(true);
+    expect(button?.disabled).toBe(false);
+    expect(button?.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(reasonId)?.textContent).toBe("The EPUB file is missing.");
     expect(rendered.container.textContent).toContain("The Second Volume");
   });
 });

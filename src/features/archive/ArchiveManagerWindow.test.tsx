@@ -104,7 +104,7 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).toContain("D:\\Books");
     expect(markup).toContain("E:\\Comics");
     expect(markup).not.toContain("archive-row--active");
-    expect(markup).not.toContain('aria-current="page"');
+    expect(markup.match(/aria-current="true"/g)).toHaveLength(1);
     expect(markup).toContain("archive-manager-window__icon");
     expect(markup).toContain("Create empty archive");
     expect(markup).toContain("Start with a new local folder.");
@@ -145,6 +145,44 @@ describe("ArchiveManagerWindow", () => {
 
     expect(switchArchive).not.toHaveBeenCalled();
     expect(onArchiveChoiceComplete).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+  });
+
+  it("describes missing archives and exposes row-owned busy state", async () => {
+    let completeChoice: (() => void) | undefined;
+    const onArchiveChoiceComplete = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          completeChoice = resolve;
+        }),
+    );
+    const missingState: ArchiveState = {
+      status: "missing",
+      archive: activeArchive,
+      path: activeArchive.rootPath,
+      error: null,
+      archives: [activeArchive, savedArchive],
+    };
+    const { container, root } = renderInteractive({
+      onArchiveChoiceComplete,
+      state: missingState,
+    });
+    const activeButton = buttonWithText(container, "Books");
+    const missingDescriptionId = activeButton.getAttribute("aria-describedby")!;
+
+    expect(activeButton.getAttribute("aria-current")).toBe("true");
+    expect(document.getElementById(missingDescriptionId)?.textContent).toContain(
+      "Archive folder not found",
+    );
+
+    act(() => activeButton.click());
+    const busyRow = activeButton.closest(".archive-row");
+    expect(busyRow?.getAttribute("aria-busy")).toBe("true");
+    expect(activeButton.disabled).toBe(true);
+
+    await act(async () => completeChoice?.());
+    expect(busyRow?.getAttribute("aria-busy")).toBeNull();
 
     act(() => root.unmount());
   });

@@ -1,5 +1,5 @@
 import { ArrowCounterClockwise, X } from "@phosphor-icons/react";
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -175,6 +175,7 @@ function KeyboardShortcutCaptureDialog({
   const [candidate, setCandidate] = useState<KeyboardBinding>();
   const [captureError, setCaptureError] = useState<string>();
   const [saving, setSaving] = useState(false);
+  const validationMessageId = useId();
   const validation = useMemo(
     () =>
       captureError
@@ -212,6 +213,8 @@ function KeyboardShortcutCaptureDialog({
       title={`Change ${command.label}`}
     >
       <div
+        aria-describedby={validation ? validationMessageId : undefined}
+        aria-invalid={validation?.ok === false || undefined}
         autoFocus
         className="keyboard-shortcut-capture"
         onKeyDown={(event) => {
@@ -238,8 +241,16 @@ function KeyboardShortcutCaptureDialog({
         tabIndex={0}
       >
         <strong>{candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}</strong>
-        {validation?.ok === false ? <p role="alert">{validation.reason}</p> : null}
-        {validation?.ok === true ? <p>Shortcut available.</p> : null}
+        {validation?.ok === false ? (
+          <p id={validationMessageId} role="alert">
+            {validation.reason}
+          </p>
+        ) : null}
+        {validation?.ok === true ? (
+          <p id={validationMessageId} role="status">
+            Shortcut available.
+          </p>
+        ) : null}
       </div>
     </Dialog>
   );
