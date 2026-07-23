@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-07-24
+
+Archeion's accessible desktop interaction release for configurable shortcuts, persistent collection layouts, contextual actions, clearer feedback, and more resilient keyboard, scaling, and non-hover use.
+
+### Added
+
+- Added a searchable **Keyboard** section in Settings where supported shortcuts for Quick Actions, Settings, search, reader panels, and bookmarks can be changed, cleared, or reset with conflict and reserved-key feedback.
+- Added independent view, sort, and card-size preferences for Books, Folders, and Series, including persistent Folder and Series controls and matching defaults in Settings.
+- Added contextual action menus for books, folders, folder-tree entries, and archives through right-click, Shift+F10, the Context Menu key, and the existing visible overflow controls.
+- Added Windows forced-colors treatment for focus, selection, current items, disabled and unavailable actions, danger states, and visible errors.
+
+### Changed
+
+- Made Escape and outside-click dismissal close only the menu, dialog, drawer, or panel currently in front, including nested Quick Actions, Settings, and Reader surfaces.
+- Improved focus return after closing surfaces, changing routes, and completing or failing book and folder actions, while avoiding stale focus after an item or view disappears.
+- Made selected, current, favorite, busy, invalid, missing-file, and unavailable states clearer to assistive technology, with discoverable explanations when an action cannot run.
+- Kept persistent errors available until dismissed or superseded, paused temporary feedback while it is hovered or focused, and prevented independent operations from replacing one another's messages.
+- Coordinated archive rescans and scan-producing maintenance actions so every entry point shows the same busy state and each scan produces one result message.
+- Completed reduced-motion behavior for existing transitions and loading effects, and improved Settings, menus, feedback, collection controls, and Reader controls at constrained window sizes and increased display scaling.
+- Kept folder overflow actions visually quiet for precise mouse input while exposing them on focus, while their menu is open, and on touch-style or non-hover devices.
+
+### Fixed
+
+- Prevented stale or competing transient surfaces from handling the same dismissal event or restoring focus into an obsolete route.
+- Prevented duplicate import, rescan, maintenance, save, and mutation feedback, including older completions overwriting newer errors.
+- Kept unavailable menu actions and missing Series volumes keyboard reachable so their explanations can be read, without allowing the action to run.
+- Prevented long action labels, Settings values, feedback stacks, context menus, and dense Reader toolbar controls from becoming clipped or unreachable in constrained layouts.
+
 ## [0.7.0] - 2026-07-20
 
 Archeion's responsiveness and interface-polish release for smoother large libraries, faster archive work, safer resource handling, and more reliable local persistence.
@@ -219,7 +247,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/TommyMoonn/archeion/compare/v0.4.0...v0.5.0
