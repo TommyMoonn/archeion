@@ -40,6 +40,7 @@ details[open] > .menu-trigger,
 }
 
 .context-menu {
+  box-sizing: border-box;
   position: fixed;
   z-index: 1000;
   top: var(--context-menu-top, 0px);
@@ -52,7 +53,7 @@ details[open] > .menu-trigger,
 
 .menu-popover {
   display: grid;
-  min-width: 168px;
+  min-width: min(168px, calc(100vw - 16px));
   padding: 5px;
   border: var(--border-width) solid var(--line-strong);
   border-radius: var(--radius-menu);
@@ -67,7 +68,7 @@ details[open] > .menu-trigger,
   gap: 8px;
   width: 100%;
   min-height: var(--control-height-compact);
-  padding: 0 9px;
+  padding: 7px 9px;
   border: 0;
   border-radius: var(--radius-small);
   color: var(--text);
@@ -103,7 +104,7 @@ details[open] > .menu-trigger,
 }
 
 .menu-item__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }

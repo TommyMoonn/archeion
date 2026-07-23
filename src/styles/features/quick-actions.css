@@ -112,21 +112,17 @@ html[data-motion="on"] .quick-actions[open] {
 }
 
 .quick-actions__command-copy strong {
-  overflow: hidden;
   color: var(--text-strong);
   font-size: var(--type-body);
   font-weight: var(--font-weight-semibold);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .quick-actions__command-copy span {
-  overflow: hidden;
   color: var(--muted);
   font-size: var(--type-caption);
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .quick-actions__command[aria-disabled="true"] .quick-actions__command-copy strong {
@@ -210,6 +206,11 @@ html[data-motion="on"] .quick-actions[open] {
 }
 
 @media (max-width: 520px) {
+  .quick-actions__command {
+    align-items: flex-start;
+    gap: 10px;
+  }
+
   .quick-actions__footer {
     display: none;
   }

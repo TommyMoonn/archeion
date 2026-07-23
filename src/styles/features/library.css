@@ -2077,6 +2077,7 @@ html[data-motion="on"] .details-drawer[open] {
 }
 
 .library-feedback {
+  box-sizing: border-box;
   position: fixed;
   z-index: 12;
   top: 44px;
@@ -2084,7 +2085,11 @@ html[data-motion="on"] .details-drawer[open] {
   display: grid;
   gap: 9px;
   width: min(440px, calc(100vw - 44px));
-  pointer-events: none;
+  max-height: calc(100dvh - 60px);
+  padding: 2px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: auto;
 }
 
 .library-feedback__token {
@@ -2189,6 +2194,8 @@ html[data-motion="on"] .library-feedback__token {
     right: 16px;
     left: 16px;
     width: auto;
+    max-height: calc(100dvh - 80px);
+    pointer-events: auto;
   }
 }
 
@@ -2379,10 +2386,12 @@ html[data-motion="on"] .library-feedback__token {
 @media (max-width: 560px) {
   .library-controls {
     align-items: flex-start;
+    flex-wrap: wrap;
     gap: 10px;
   }
 
   .library-controls__display {
+    max-width: 100%;
     margin-left: auto;
   }
 

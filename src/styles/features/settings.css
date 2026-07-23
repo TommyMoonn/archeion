@@ -203,6 +203,7 @@ html[data-motion="on"] .settings-section {
 
 .settings-row__description {
   max-width: 54ch;
+  overflow-wrap: anywhere;
 }
 
 .settings-row__note {
@@ -257,6 +258,7 @@ html[data-motion="on"] .settings-section {
   box-shadow: 0 10px 28px color-mix(in srgb, var(--darkening) 22%, transparent);
   font-size: var(--type-meta);
   line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 html[data-motion="on"] .settings-status {
@@ -513,6 +515,12 @@ html[data-motion="on"] .settings-status {
 }
 
 @media (max-width: 760px) {
+  .settings-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+  }
+
   .settings-row__control {
     justify-content: stretch;
   }
@@ -527,6 +535,58 @@ html[data-motion="on"] .settings-status {
   .settings-theme-control {
     width: 100%;
     flex-wrap: wrap;
+  }
+
+  .settings-row code,
+  .settings-row__meta code {
+    max-width: 100%;
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 620px) {
+  .settings-dialog {
+    width: calc(100% - 20px);
+    height: calc(100% - 20px);
+  }
+
+  .settings-window {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .settings-sidebar {
+    gap: 12px;
+    padding: 14px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .settings-sidebar__header h1 {
+    margin-top: 2px;
+    font-size: var(--type-title);
+  }
+
+  .settings-sidebar nav {
+    display: flex;
+    gap: 4px;
+    padding-bottom: 2px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: auto;
+  }
+
+  .settings-sidebar nav button {
+    min-width: max-content;
+    flex: none;
+  }
+
+  .settings-content {
+    padding: 28px 20px 64px;
   }
 }
 
