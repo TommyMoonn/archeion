@@ -7,6 +7,7 @@ import {
   createDeleteSuccessFeedbackToken,
   createFolderSuccessFeedbackToken,
   createImportFeedbackToken,
+  createMutationSuccessFeedbackToken,
   limitLibraryFeedbackTokens,
   upsertLibraryFeedbackToken,
   type LibraryFeedbackToken,
@@ -45,18 +46,33 @@ describe("libraryFeedback", () => {
     expect(tokens[1]?.title).toBe("Updated");
   });
 
-  it("drops older auto-dismiss tokens before persistent errors", () => {
+  it("does not republish an identical same-id feedback transition", () => {
+    const existing = errorToken("same");
+    const tokens = [existing];
+
+    expect(upsertLibraryFeedbackToken(tokens, { ...existing })).toBe(tokens);
+  });
+
+  it("bounds transient tokens without removing persistent errors", () => {
     const tokens = limitLibraryFeedbackTokens([
       errorToken("first-error"),
-      successToken("old-success"),
+      successToken("first-success"),
       errorToken("second-error"),
+      successToken("second-success"),
+      successToken("third-success"),
       successToken("new-success"),
     ]);
 
-    expect(tokens.map((token) => token.id)).toEqual(["first-error", "second-error", "new-success"]);
+    expect(tokens.map((token) => token.id)).toEqual([
+      "first-error",
+      "second-error",
+      "second-success",
+      "third-success",
+      "new-success",
+    ]);
   });
 
-  it("drops the oldest token when all visible tokens are persistent", () => {
+  it("keeps four distinct persistent errors available until dismissal or resolution", () => {
     const tokens = limitLibraryFeedbackTokens([
       errorToken("first"),
       errorToken("second"),
@@ -64,7 +80,7 @@ describe("libraryFeedback", () => {
       errorToken("fourth"),
     ]);
 
-    expect(tokens.map((token) => token.id)).toEqual(["second", "third", "fourth"]);
+    expect(tokens.map((token) => token.id)).toEqual(["first", "second", "third", "fourth"]);
   });
 
   it("auto-dismisses routine scanner-cache rebuild warnings", () => {
@@ -137,17 +153,17 @@ describe("libraryFeedback", () => {
 
   it("creates persistent error tokens for failed delete operations", () => {
     expect(createDeleteErrorFeedbackToken("bookDeleteFailed")).toMatchObject({
-      id: "library-error",
+      id: "library-delete-book-error",
       tone: "error",
       title: "This book could not be deleted.",
     });
     expect(createDeleteErrorFeedbackToken("metadataRemoveFailed")).toMatchObject({
-      id: "library-error",
+      id: "library-delete-metadata-error",
       tone: "error",
       title: "The saved metadata could not be removed.",
     });
     expect(createDeleteErrorFeedbackToken("folderDeleteFailed")).toMatchObject({
-      id: "library-error",
+      id: "library-delete-folder-error",
       tone: "error",
       title: "This folder could not be deleted.",
     });
@@ -170,6 +186,29 @@ describe("libraryFeedback", () => {
       id: "library-delete-folder",
       tone: "success",
       title: "Folder deleted.",
+      autoDismiss: true,
+    });
+  });
+
+  it("creates distinct completion feedback for rename and move operations", () => {
+    expect(createMutationSuccessFeedbackToken("bookRenamed")).toMatchObject({
+      id: "library-rename-book",
+      title: "EPUB file renamed.",
+      autoDismiss: true,
+    });
+    expect(createMutationSuccessFeedbackToken("bookMoved")).toMatchObject({
+      id: "library-move-book",
+      title: "EPUB moved.",
+      autoDismiss: true,
+    });
+    expect(createMutationSuccessFeedbackToken("folderRenamed")).toMatchObject({
+      id: "library-rename-folder",
+      title: "Folder renamed.",
+      autoDismiss: true,
+    });
+    expect(createMutationSuccessFeedbackToken("folderMoved")).toMatchObject({
+      id: "library-move-folder",
+      title: "Folder moved.",
       autoDismiss: true,
     });
   });

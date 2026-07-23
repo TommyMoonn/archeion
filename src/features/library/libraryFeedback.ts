@@ -27,44 +27,75 @@ export type LibraryFeedbackDraft = Omit<LibraryFeedbackToken, "id"> & {
 };
 
 export const LIBRARY_FEEDBACK_AUTO_DISMISS_MS = 4_000;
-export const LIBRARY_FEEDBACK_MAX_TOKENS = 3;
+export const LIBRARY_FEEDBACK_MAX_AUTO_DISMISS_TOKENS = 3;
 
 export const LIBRARY_FOLDER_FEEDBACK_IDS = {
   created: "library-folder-created",
 } as const;
 
+export const LIBRARY_MUTATION_FEEDBACK_IDS = {
+  bookMoved: "library-move-book",
+  bookRenamed: "library-rename-book",
+  folderMoved: "library-move-folder",
+  folderRenamed: "library-rename-folder",
+} as const;
+
 export const LIBRARY_DELETE_FEEDBACK_IDS = {
   bookDeleted: "library-delete-book",
-  bookDeleteFailed: "library-error",
+  bookDeleteFailed: "library-delete-book-error",
   folderDeleted: "library-delete-folder",
-  folderDeleteFailed: "library-error",
+  folderDeleteFailed: "library-delete-folder-error",
   metadataRemoved: "library-delete-metadata",
-  metadataRemoveFailed: "library-error",
+  metadataRemoveFailed: "library-delete-metadata-error",
 } as const;
 
 export function limitLibraryFeedbackTokens(tokens: LibraryFeedbackToken[]): LibraryFeedbackToken[] {
-  if (tokens.length <= LIBRARY_FEEDBACK_MAX_TOKENS) {
-    return tokens;
-  }
+  const autoDismissIds = new Set(
+    tokens
+      .filter((token) => token.autoDismiss === true)
+      .slice(-LIBRARY_FEEDBACK_MAX_AUTO_DISMISS_TOKENS)
+      .map((token) => token.id),
+  );
 
-  const limitedTokens = [...tokens];
-
-  while (limitedTokens.length > LIBRARY_FEEDBACK_MAX_TOKENS) {
-    const oldestAutoDismissIndex = limitedTokens.findIndex((token) => token.autoDismiss === true);
-    limitedTokens.splice(oldestAutoDismissIndex >= 0 ? oldestAutoDismissIndex : 0, 1);
-  }
-
-  return limitedTokens;
+  return tokens.filter((token) => token.autoDismiss !== true || autoDismissIds.has(token.id));
 }
 
 export function upsertLibraryFeedbackToken(
   tokens: LibraryFeedbackToken[],
   token: LibraryFeedbackToken,
 ): LibraryFeedbackToken[] {
+  const existingToken = tokens.find((candidate) => candidate.id === token.id);
+  if (existingToken && libraryFeedbackTokensEqual(existingToken, token)) {
+    return tokens;
+  }
+
   return limitLibraryFeedbackTokens([
     ...tokens.filter((candidate) => candidate.id !== token.id),
     token,
   ]);
+}
+
+function libraryFeedbackTokensEqual(
+  left: LibraryFeedbackToken,
+  right: LibraryFeedbackToken,
+): boolean {
+  if (
+    left.id !== right.id ||
+    left.tone !== right.tone ||
+    left.title !== right.title ||
+    left.detail !== right.detail ||
+    left.autoDismiss !== right.autoDismiss ||
+    left.autoDismissMs !== right.autoDismissMs ||
+    left.details?.length !== right.details?.length
+  ) {
+    return false;
+  }
+
+  return (left.details ?? []).every(
+    (detail, index) =>
+      detail.label === right.details?.[index]?.label &&
+      detail.message === right.details[index]?.message,
+  );
 }
 
 export type LibraryDeleteSuccessFeedbackType = "bookDeleted" | "folderDeleted" | "metadataRemoved";
@@ -81,6 +112,15 @@ const DELETE_ERROR_TITLES: Record<LibraryDeleteErrorFeedbackType, string> = {
   bookDeleteFailed: "This book could not be deleted.",
   folderDeleteFailed: "This folder could not be deleted.",
   metadataRemoveFailed: "The saved metadata could not be removed.",
+};
+
+export type LibraryMutationSuccessFeedbackType = keyof typeof LIBRARY_MUTATION_FEEDBACK_IDS;
+
+const MUTATION_SUCCESS_TITLES: Record<LibraryMutationSuccessFeedbackType, string> = {
+  bookMoved: "EPUB moved.",
+  bookRenamed: "EPUB file renamed.",
+  folderMoved: "Folder moved.",
+  folderRenamed: "Folder renamed.",
 };
 
 export function createArchiveOperationWarningFeedbackToken(
@@ -119,9 +159,10 @@ export function createFolderSuccessFeedbackToken(): LibraryFeedbackToken {
 
 export function createDeleteSuccessFeedbackToken(
   type: LibraryDeleteSuccessFeedbackType,
+  id: string = LIBRARY_DELETE_FEEDBACK_IDS[type],
 ): LibraryFeedbackToken {
   return {
-    id: LIBRARY_DELETE_FEEDBACK_IDS[type],
+    id,
     tone: "success",
     title: DELETE_SUCCESS_TITLES[type],
     autoDismiss: true,
@@ -130,11 +171,23 @@ export function createDeleteSuccessFeedbackToken(
 
 export function createDeleteErrorFeedbackToken(
   type: LibraryDeleteErrorFeedbackType,
+  id: string = LIBRARY_DELETE_FEEDBACK_IDS[type],
 ): LibraryFeedbackToken {
   return {
-    id: LIBRARY_DELETE_FEEDBACK_IDS[type],
+    id,
     tone: "error",
     title: DELETE_ERROR_TITLES[type],
+  };
+}
+
+export function createMutationSuccessFeedbackToken(
+  type: LibraryMutationSuccessFeedbackType,
+): LibraryFeedbackToken {
+  return {
+    autoDismiss: true,
+    id: LIBRARY_MUTATION_FEEDBACK_IDS[type],
+    tone: "success",
+    title: MUTATION_SUCCESS_TITLES[type],
   };
 }
 

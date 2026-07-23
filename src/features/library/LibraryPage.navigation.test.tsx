@@ -442,7 +442,10 @@ describe("LibraryPage navigation and archive loading", () => {
     });
 
     expect(loadController.bookSubscriptions).toHaveLength(2);
-    expect(loadController.scanSubscriptions).toHaveLength(2);
+    expect(loadController.scanSubscriptions).toHaveLength(3);
+    expect(
+      loadController.scanSubscriptions.filter((subscription) => subscription.active),
+    ).toHaveLength(2);
 
     await act(async () => {
       archiveABooks?.observer.next([

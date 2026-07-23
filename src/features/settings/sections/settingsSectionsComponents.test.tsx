@@ -66,8 +66,8 @@ function renderAppearance() {
   return renderToStaticMarkup(<AppearanceSettingsSection context={createController()} />);
 }
 
-function renderStorage() {
-  return renderToStaticMarkup(<StorageSettingsSection context={createController()} />);
+function renderStorage(overrides: Partial<SettingsDialogController> = {}) {
+  return renderToStaticMarkup(<StorageSettingsSection context={createController(overrides)} />);
 }
 
 describe("settings section components", () => {
@@ -109,6 +109,13 @@ describe("settings section components", () => {
         markup.indexOf(`>${groups[index]}<`),
       );
     }
+  });
+
+  it("makes every Settings scan-producing action unavailable during archive scan activity", () => {
+    const markup = renderStorage({ archiveScanActive: true });
+
+    expect(markup.match(/aria-disabled="true"/g)).toHaveLength(3);
+    expect(markup).toContain("Wait for the archive scan to finish");
   });
 
   it("disables archive reveal when no archive path is available", () => {

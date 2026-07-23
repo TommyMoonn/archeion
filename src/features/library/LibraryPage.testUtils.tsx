@@ -70,6 +70,7 @@ export function createStorage({
   observeBooks,
   observeFolders,
   observeScanStatus,
+  renameBookFile = vi.fn(),
   updateBook = vi.fn(),
   updateFolder = vi.fn(),
 }: {
@@ -83,6 +84,7 @@ export function createStorage({
   observeBooks?: LibraryStorage["observeBooks"];
   observeFolders?: LibraryStorage["observeFolders"];
   observeScanStatus?: LibraryStorage["observeScanStatus"];
+  renameBookFile?: LibraryStorage["renameBookFile"];
   updateBook?: LibraryStorage["updateBook"];
   updateFolder?: LibraryStorage["updateFolder"];
 } = {}): LibraryStorage {
@@ -105,7 +107,7 @@ export function createStorage({
     updateBook,
     writeBookMetadata: vi.fn(),
     writeBookCover: vi.fn(),
-    renameBookFile: vi.fn(),
+    renameBookFile,
     moveBookToFolder: vi.fn(),
     deleteBook,
     bulkMoveBooksToFolder: vi.fn(),
@@ -182,6 +184,11 @@ export function createBooksLoadController() {
 
     throw new Error("No active storage observer subscription was found.");
   };
+  const publishScanStatus = (status: ScanStatus) => {
+    scanSubscriptions.forEach((subscription) => {
+      if (subscription.active) subscription.observer.next(status);
+    });
+  };
 
   return {
     bookSubscriptions,
@@ -189,7 +196,7 @@ export function createBooksLoadController() {
     observeScanStatus,
     scanSubscriptions,
     startLoading() {
-      latestActive(scanSubscriptions).observer.next({
+      publishScanStatus({
         status: "scanning",
         startedAt: "1",
       });
@@ -199,10 +206,10 @@ export function createBooksLoadController() {
     },
     fail(error = new Error("Archive failed to load")) {
       latestActive(bookSubscriptions).observer.error?.(error);
-      latestActive(scanSubscriptions).observer.next({ status: "idle" });
+      publishScanStatus({ status: "idle" });
     },
     finishLoading() {
-      latestActive(scanSubscriptions).observer.next({ status: "idle" });
+      publishScanStatus({ status: "idle" });
     },
   };
 }

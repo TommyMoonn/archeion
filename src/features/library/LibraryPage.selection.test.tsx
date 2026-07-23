@@ -398,9 +398,9 @@ describe("LibraryPage selection and bulk workflows", () => {
     expect(document.querySelector('[data-application-transient="context-menu"]')).toBeNull();
     expect(session.container.textContent).toContain(MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON);
     expect(session.container.querySelectorAll(".library-feedback__token")).toHaveLength(1);
-    expect(
-      session.container.querySelector(".library-feedback__token")?.getAttribute("aria-live"),
-    ).toBe("polite");
+    const feedback = session.container.querySelector(".library-feedback__token");
+    expect(feedback?.getAttribute("role")).toBe("status");
+    expect(feedback?.hasAttribute("aria-live")).toBe(false);
     expect(session.container.querySelector(".library-selection-bar")?.textContent).toContain(
       "2 selected",
     );

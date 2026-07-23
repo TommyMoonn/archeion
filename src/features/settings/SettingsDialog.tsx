@@ -181,6 +181,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
           )}
 
           <SettingsStatus
+            onDismiss={controller.dismissStatus}
             persistenceStatus={controller.persistenceStatus}
             status={
               controller.status ??
@@ -190,6 +191,8 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
         </main>
 
         <SettingsConfirmations
+          archiveScanActive={controller.archiveScanActive}
+          busyConfirmations={controller.busyConfirmations}
           confirmations={controller.confirmations}
           onClearCoverCache={controller.confirmClearCoverCache}
           onClearEpubWritebackBackups={controller.confirmClearEpubWritebackBackups}

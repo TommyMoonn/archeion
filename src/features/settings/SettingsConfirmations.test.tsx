@@ -12,9 +12,21 @@ const closedConfirmations: SettingsConfirmationState = {
   rescanArchive: false,
 };
 
-function renderConfirmations(confirmations: Partial<SettingsConfirmationState>) {
+function renderConfirmations(
+  confirmations: Partial<SettingsConfirmationState>,
+  archiveScanActive = false,
+) {
   return renderToStaticMarkup(
     <SettingsConfirmations
+      archiveScanActive={archiveScanActive}
+      busyConfirmations={{
+        clearCoverCache: false,
+        clearEpubWritebackBackups: false,
+        clearScannerCache: false,
+        reextractMetadata: false,
+        repairMetadata: false,
+        rescanArchive: false,
+      }}
       confirmations={{ ...closedConfirmations, ...confirmations }}
       onClearCoverCache={vi.fn()}
       onClearEpubWritebackBackups={vi.fn()}
@@ -75,4 +87,20 @@ describe("SettingsConfirmations", () => {
     expect(markup).toContain("EPUB files are not changed.");
     expect(markup).toContain("Rescan archive");
   });
+
+  it.each([
+    ["reextractMetadata", "Re-extract source metadata?"],
+    ["repairMetadata", "Repair archive metadata?"],
+    ["rescanArchive", "Rescan archive?"],
+  ] as const)(
+    "blocks the %s confirmation without presenting another busy owner during an external scan",
+    (confirmation, title) => {
+      const markup = renderConfirmations({ [confirmation]: true }, true);
+
+      expect(markup).toContain(title);
+      expect(markup).toContain('aria-disabled="true"');
+      expect(markup).toContain("Wait for the archive scan to finish");
+      expect(markup).not.toContain('aria-busy="true"');
+    },
+  );
 });

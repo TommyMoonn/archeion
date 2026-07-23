@@ -22,13 +22,16 @@ function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement
   return button;
 }
 
-async function renderDialog(confirmDestructiveFileActions: boolean) {
+async function renderDialog(
+  confirmDestructiveFileActions: boolean,
+  importAction: () => Promise<void> = async () => undefined,
+) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   activeRoot = root;
   const onClose = vi.fn();
-  const onImport = vi.fn(async () => undefined);
+  const onImport = vi.fn(importAction);
 
   await act(async () => {
     root.render(
@@ -88,6 +91,24 @@ describe("AddEpubDialog replacement confirmation", () => {
 
     expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
     expect(container.textContent).not.toContain("Replace existing EPUB files?");
+  });
+
+  it("keeps a rejected submission and its selected file in one dialog-owned alert", async () => {
+    const { container, onClose } = await renderDialog(false, async () => {
+      throw new Error("The archive is read-only.");
+    });
+
+    await act(async () => {
+      buttonWithText(container, "Add EPUB").click();
+      await Promise.resolve();
+    });
+
+    const alerts = container.querySelectorAll('[role="alert"]');
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0]?.textContent).toContain("The archive is read-only.");
+    expect(container.textContent).toContain("Book.epub");
+    expect(container.querySelector("dialog[open]")).not.toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it("prefills dropped EPUB paths and their target folder before confirmation", async () => {

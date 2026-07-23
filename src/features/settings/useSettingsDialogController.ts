@@ -20,6 +20,13 @@ import type {
   ArchiveImportSettings,
   ImportSettings,
 } from "../../types/settings";
+import {
+  isArchiveScanActive,
+  releaseArchiveScanOperation,
+  tryAcquireArchiveScanOperation,
+  useArchiveScanActivity,
+  type ArchiveScanOperationClaim,
+} from "../archive/useArchiveScanActivity";
 import { useArchive } from "../archive/useArchive";
 import {
   createArchiveDestinationOptions,
@@ -38,7 +45,20 @@ const initialConfirmations: SettingsConfirmationState = {
   rescanArchive: false,
 };
 
-const LOCAL_STATUS_AUTO_DISMISS_MS = 2500;
+const initialBusyConfirmations: SettingsConfirmationState = {
+  clearCoverCache: false,
+  clearEpubWritebackBackups: false,
+  clearScannerCache: false,
+  reextractMetadata: false,
+  repairMetadata: false,
+  rescanArchive: false,
+};
+
+const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
+  "reextractMetadata",
+  "repairMetadata",
+  "rescanArchive",
+]);
 
 export type SettingsDialogControllerOptions = {
   committedArchiveAppearance?: AppearancePreviewContext | null;
@@ -62,6 +82,7 @@ export function useSettingsDialogController({
   themeCatalogLoading = false,
 }: SettingsDialogControllerOptions = {}) {
   const storage = useLibraryStorage();
+  const archiveScanActive = useArchiveScanActivity(storage);
   const archive = useArchive();
   const preferences = useAppPreferences();
   const persistenceStatus = useAppPreferencesPersistenceStatus();
@@ -79,7 +100,6 @@ export function useSettingsDialogController({
     "loading" | "loaded" | "unavailable"
   >("loading");
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
-  const statusDismissTimerRef = useRef<number | null>(null);
   const archiveImportLoadedRef = useRef(false);
   const archiveImportLoadingRef = useRef(false);
   const coverCacheLoadedRef = useRef(false);
@@ -89,10 +109,13 @@ export function useSettingsDialogController({
   const foldersLoadedRef = useRef(false);
   const foldersLoadingRef = useRef(false);
   const dataLoadGenerationRef = useRef(0);
-  const statusRevisionRef = useRef(0);
   const appPreferenceSaveRevisionRef = useRef(0);
+  const statusOperationRevisionRef = useRef(0);
+  const confirmationOperationLocksRef = useRef(new Set<SettingsConfirmationKey>());
   const [confirmations, setConfirmations] =
     useState<SettingsConfirmationState>(initialConfirmations);
+  const [busyConfirmations, setBusyConfirmations] =
+    useState<SettingsConfirmationState>(initialBusyConfirmations);
 
   const importSettings: ImportSettings = {
     ...preferences.import,
@@ -113,55 +136,34 @@ export function useSettingsDialogController({
       ? committedArchiveAppearance.settings
       : null;
 
-  const clearStatusDismissTimer = useCallback(() => {
-    if (statusDismissTimerRef.current === null) return;
-    window.clearTimeout(statusDismissTimerRef.current);
-    statusDismissTimerRef.current = null;
-  }, []);
-
   const clearLocalStatus = useCallback(() => {
-    statusRevisionRef.current += 1;
-    clearStatusDismissTimer();
     setStatus(null);
-  }, [clearStatusDismissTimer]);
+  }, []);
 
   const setLocalStatus = useCallback(
     (message: string, tone: SettingsStatusTone, options?: { autoDismiss?: boolean }) => {
-      statusRevisionRef.current += 1;
-      const revision = statusRevisionRef.current;
       const autoDismiss = options?.autoDismiss ?? tone !== "error";
-
-      clearStatusDismissTimer();
-      setStatus({ message, tone });
-
-      if (!autoDismiss) return;
-
-      statusDismissTimerRef.current = window.setTimeout(() => {
-        if (statusRevisionRef.current !== revision) return;
-        statusDismissTimerRef.current = null;
-        setStatus(null);
-      }, LOCAL_STATUS_AUTO_DISMISS_MS);
+      setStatus({ autoDismiss, message, tone });
     },
-    [clearStatusDismissTimer],
+    [],
   );
 
-  const setNeutralStatus = useCallback(
-    (message: string, options?: { autoDismiss?: boolean }) => {
-      setLocalStatus(message, "neutral", options);
-    },
-    [setLocalStatus],
-  );
+  const beginStatusOperation = useCallback((): number => {
+    statusOperationRevisionRef.current += 1;
+    setStatus(null);
+    return statusOperationRevisionRef.current;
+  }, []);
 
-  const setSuccessStatus = useCallback(
-    (message: string) => {
-      setLocalStatus(message, "success");
-    },
-    [setLocalStatus],
-  );
-
-  const setErrorStatus = useCallback(
-    (message: string) => {
-      setLocalStatus(message, "error");
+  const publishStatusOperation = useCallback(
+    (
+      operationRevision: number,
+      message: string,
+      tone: SettingsStatusTone,
+      options?: { autoDismiss?: boolean },
+    ): boolean => {
+      if (statusOperationRevisionRef.current !== operationRevision) return false;
+      setLocalStatus(message, tone, options);
+      return true;
     },
     [setLocalStatus],
   );
@@ -169,9 +171,8 @@ export function useSettingsDialogController({
   useEffect(() => {
     return () => {
       dataLoadGenerationRef.current += 1;
-      clearStatusDismissTimer();
     };
-  }, [clearStatusDismissTimer]);
+  }, []);
 
   useEffect(() => {
     dataLoadGenerationRef.current += 1;
@@ -205,7 +206,7 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setErrorStatus("Settings could not be loaded.");
+          setLocalStatus("Settings could not be loaded.", "error");
         }
       })
       .finally(() => {
@@ -213,7 +214,7 @@ export function useSettingsDialogController({
           archiveImportLoadingRef.current = false;
         }
       });
-  }, [loadArchiveImportSettings, storage, setErrorStatus]);
+  }, [loadArchiveImportSettings, storage, setLocalStatus]);
 
   useEffect(() => {
     if (!loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
@@ -231,7 +232,7 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setErrorStatus("Settings could not be loaded.");
+          setLocalStatus("Settings could not be loaded.", "error");
         }
       })
       .finally(() => {
@@ -239,7 +240,7 @@ export function useSettingsDialogController({
           foldersLoadingRef.current = false;
         }
       });
-  }, [loadFolders, storage, setErrorStatus]);
+  }, [loadFolders, storage, setLocalStatus]);
 
   useEffect(() => {
     if (!loadCoverCacheStatus || coverCacheLoadedRef.current || coverCacheLoadingRef.current) {
@@ -257,7 +258,7 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setErrorStatus("Settings could not be loaded.");
+          setLocalStatus("Settings could not be loaded.", "error");
         }
       })
       .finally(() => {
@@ -265,7 +266,7 @@ export function useSettingsDialogController({
           coverCacheLoadingRef.current = false;
         }
       });
-  }, [loadCoverCacheStatus, storage, setErrorStatus]);
+  }, [loadCoverCacheStatus, storage, setLocalStatus]);
 
   useEffect(() => {
     if (
@@ -289,7 +290,7 @@ export function useSettingsDialogController({
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
           setEpubWritebackBackupStatusState("unavailable");
-          setErrorStatus("Settings could not be loaded.");
+          setLocalStatus("Settings could not be loaded.", "error");
         }
       })
       .finally(() => {
@@ -297,23 +298,52 @@ export function useSettingsDialogController({
           epubWritebackBackupStatusLoadingRef.current = false;
         }
       });
-  }, [loadEpubWritebackBackupStatus, storage, setErrorStatus]);
+  }, [loadEpubWritebackBackupStatus, storage, setLocalStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
+    if (archiveScanConfirmationKeys.has(confirmation) && isArchiveScanActive(storage)) return;
     setConfirmations((current) => ({ ...current, [confirmation]: true }));
   }
 
   function closeConfirmation(confirmation: SettingsConfirmationKey) {
+    if (confirmationOperationLocksRef.current.has(confirmation)) return;
     setConfirmations((current) => ({ ...current, [confirmation]: false }));
+  }
+
+  function beginConfirmationOperation(confirmation: SettingsConfirmationKey): number | null {
+    if (confirmationOperationLocksRef.current.has(confirmation)) return null;
+    confirmationOperationLocksRef.current.add(confirmation);
+    setBusyConfirmations((current) => ({ ...current, [confirmation]: true }));
+    return beginStatusOperation();
+  }
+
+  function finishConfirmationOperation(confirmation: SettingsConfirmationKey) {
+    confirmationOperationLocksRef.current.delete(confirmation);
+    setBusyConfirmations((current) => ({ ...current, [confirmation]: false }));
+    setConfirmations((current) => ({ ...current, [confirmation]: false }));
+  }
+
+  function beginArchiveScanOperation(
+    confirmation: SettingsConfirmationKey,
+  ): { claim: ArchiveScanOperationClaim; statusOperation: number } | null {
+    const claim = tryAcquireArchiveScanOperation(storage);
+    if (!claim) return null;
+
+    const statusOperation = beginConfirmationOperation(confirmation);
+    if (statusOperation === null) {
+      releaseArchiveScanOperation(claim);
+      return null;
+    }
+    return { claim, statusOperation };
   }
 
   async function persistAppPreferences(
     operation: () => Promise<AppPreferences>,
-    options?: { successMessage?: string | false },
+    options?: { statusOperation?: number; successMessage?: string | false },
   ): Promise<boolean> {
     appPreferenceSaveRevisionRef.current += 1;
     const saveRevision = appPreferenceSaveRevisionRef.current;
-    clearLocalStatus();
+    const statusOperation = options?.statusOperation ?? beginStatusOperation();
 
     try {
       await operation();
@@ -323,12 +353,16 @@ export function useSettingsDialogController({
 
       const successMessage = options?.successMessage ?? "Settings saved.";
       if (successMessage) {
-        setSuccessStatus(successMessage);
+        publishStatusOperation(statusOperation, successMessage, "success");
       }
       return true;
     } catch (error) {
       if (appPreferenceSaveRevisionRef.current === saveRevision) {
-        setErrorStatus(error instanceof Error ? error.message : "App settings could not be saved.");
+        publishStatusOperation(
+          statusOperation,
+          error instanceof Error ? error.message : "App settings could not be saved.",
+          "error",
+        );
       }
       return false;
     }
@@ -374,11 +408,11 @@ export function useSettingsDialogController({
 
   async function updateArchiveImport(changes: Partial<ArchiveImportSettings>): Promise<void> {
     const next = { ...archiveImport, ...changes };
-    clearLocalStatus();
+    const statusOperation = beginStatusOperation();
     try {
       setArchiveImport(await storage.saveArchiveImportSettings(next));
     } catch {
-      setErrorStatus("Import destination could not be saved.");
+      publishStatusOperation(statusOperation, "Import destination could not be saved.", "error");
     }
   }
 
@@ -391,140 +425,179 @@ export function useSettingsDialogController({
   async function updateArchiveAppearance(
     changes: Partial<ArchiveAppearanceSettings>,
   ): Promise<boolean> {
+    const statusOperation = beginStatusOperation();
     const previewContext = appearanceRuntime.getPreviewContext();
     if (
       !previewContext ||
       !selectedArchivePath ||
       previewContext.archive.rootPath !== selectedArchivePath
     ) {
-      setErrorStatus("Archive appearance is unavailable.");
+      publishStatusOperation(statusOperation, "Archive appearance is unavailable.", "error");
       return false;
     }
 
-    clearLocalStatus();
-
     try {
       await appearanceRuntime.updateArchiveAppearanceSettings(previewContext.archive, changes);
-      setSuccessStatus("Archive appearance saved.");
+      publishStatusOperation(statusOperation, "Archive appearance saved.", "success");
       return true;
     } catch (error) {
-      setErrorStatus(
+      publishStatusOperation(
+        statusOperation,
         error instanceof Error ? error.message : "Archive appearance could not be saved.",
+        "error",
       );
       return false;
     }
   }
 
   function openThemeManager() {
+    const statusOperation = beginStatusOperation();
     if (!selectedArchivePath || !onOpenThemeManager) {
-      setErrorStatus("Theme Manager requires an active archive.");
+      publishStatusOperation(statusOperation, "Theme Manager requires an active archive.", "error");
       return;
     }
     onOpenThemeManager();
   }
 
   async function openThemesFolder(): Promise<boolean> {
+    const statusOperation = beginStatusOperation();
     if (!selectedArchivePath) {
-      setErrorStatus("Themes require an active archive.");
+      publishStatusOperation(statusOperation, "Themes require an active archive.", "error");
       return false;
     }
-    clearLocalStatus();
     try {
       await new ArchiveThemeRepository(selectedArchivePath).revealThemesRoot();
       return true;
     } catch (error) {
-      setErrorStatus(error instanceof Error ? error.message : "The themes folder could not open.");
+      publishStatusOperation(
+        statusOperation,
+        error instanceof Error ? error.message : "The themes folder could not open.",
+        "error",
+      );
       return false;
     }
   }
 
   async function rescan() {
-    closeConfirmation("rescanArchive");
-    setNeutralStatus("Rescanning archive", { autoDismiss: false });
+    const operation = beginArchiveScanOperation("rescanArchive");
+    if (!operation) return;
+    const { claim, statusOperation } = operation;
+    publishStatusOperation(statusOperation, "Rescanning archive", "neutral", {
+      autoDismiss: false,
+    });
     try {
       await storage.rescan();
-      setSuccessStatus("Archive scan complete.");
+      publishStatusOperation(statusOperation, "Archive scan complete.", "success");
     } catch {
-      setErrorStatus("The archive could not be scanned.");
+      publishStatusOperation(statusOperation, "The archive could not be scanned.", "error");
+    } finally {
+      finishConfirmationOperation("rescanArchive");
+      releaseArchiveScanOperation(claim);
     }
   }
 
   async function openArchiveManager() {
-    clearLocalStatus();
+    const statusOperation = beginStatusOperation();
     const opened = await archiveStore.openArchiveManagerWindow();
-    if (!opened) setErrorStatus("Archive Manager could not be opened.");
+    if (!opened) {
+      publishStatusOperation(statusOperation, "Archive Manager could not be opened.", "error");
+    }
   }
 
   async function revealArchiveFolder() {
-    clearLocalStatus();
+    const statusOperation = beginStatusOperation();
     if (archive.status !== "ready") return;
     const revealed = await archiveStore.revealArchive(archive.archive.id);
-    if (!revealed) setErrorStatus("The archive folder could not be opened.");
+    if (!revealed) {
+      publishStatusOperation(statusOperation, "The archive folder could not be opened.", "error");
+    }
   }
 
   async function revealMetadata() {
-    clearLocalStatus();
+    const statusOperation = beginStatusOperation();
     try {
       await storage.revealMetadataFolder();
     } catch {
-      setErrorStatus("The .archeion folder could not be opened.");
+      publishStatusOperation(statusOperation, "The .archeion folder could not be opened.", "error");
     }
   }
 
   async function clearCache() {
+    const statusOperation = beginConfirmationOperation("clearCoverCache");
+    if (statusOperation === null) return;
     try {
       setCache(await storage.clearCoverCache());
-      setSuccessStatus("Cover cache cleared.");
+      publishStatusOperation(statusOperation, "Cover cache cleared.", "success");
     } catch {
-      setErrorStatus("The cover cache could not be cleared.");
+      publishStatusOperation(statusOperation, "The cover cache could not be cleared.", "error");
     } finally {
-      closeConfirmation("clearCoverCache");
+      finishConfirmationOperation("clearCoverCache");
     }
   }
 
   async function clearScannerCache() {
+    const statusOperation = beginConfirmationOperation("clearScannerCache");
+    if (statusOperation === null) return;
     try {
       await storage.clearScannerCache();
-      setSuccessStatus("Scanner cache cleared.");
+      publishStatusOperation(statusOperation, "Scanner cache cleared.", "success");
     } catch {
-      setErrorStatus("The scanner cache could not be cleared.");
+      publishStatusOperation(statusOperation, "The scanner cache could not be cleared.", "error");
     } finally {
-      closeConfirmation("clearScannerCache");
+      finishConfirmationOperation("clearScannerCache");
     }
   }
 
   async function clearEpubWritebackBackups() {
+    const statusOperation = beginConfirmationOperation("clearEpubWritebackBackups");
+    if (statusOperation === null) return;
     try {
       setEpubWritebackBackupStatus(await storage.clearEpubWritebackBackups());
       setEpubWritebackBackupStatusState("loaded");
-      setSuccessStatus("EPUB writeback backups cleared.");
+      publishStatusOperation(statusOperation, "EPUB writeback backups cleared.", "success");
     } catch {
-      setErrorStatus("EPUB writeback backups could not be cleared.");
+      publishStatusOperation(
+        statusOperation,
+        "EPUB writeback backups could not be cleared.",
+        "error",
+      );
     } finally {
-      closeConfirmation("clearEpubWritebackBackups");
+      finishConfirmationOperation("clearEpubWritebackBackups");
     }
   }
 
   async function reextractMetadata() {
+    const operation = beginArchiveScanOperation("reextractMetadata");
+    if (!operation) return;
+    const { claim, statusOperation } = operation;
     try {
       await storage.clearScannerCache();
       await storage.rescan();
-      setSuccessStatus("Source metadata re-extracted.");
+      publishStatusOperation(statusOperation, "Source metadata re-extracted.", "success");
     } catch {
-      setErrorStatus("Source metadata could not be re-extracted.");
+      publishStatusOperation(
+        statusOperation,
+        "Source metadata could not be re-extracted.",
+        "error",
+      );
     } finally {
-      closeConfirmation("reextractMetadata");
+      finishConfirmationOperation("reextractMetadata");
+      releaseArchiveScanOperation(claim);
     }
   }
 
   async function repairMetadata() {
+    const operation = beginArchiveScanOperation("repairMetadata");
+    if (!operation) return;
+    const { claim, statusOperation } = operation;
     try {
       await storage.repairArchiveMetadata();
-      setSuccessStatus("Archive metadata repaired.");
+      publishStatusOperation(statusOperation, "Archive metadata repaired.", "success");
     } catch {
-      setErrorStatus("Archive metadata could not be repaired.");
+      publishStatusOperation(statusOperation, "Archive metadata could not be repaired.", "error");
     } finally {
-      closeConfirmation("repairMetadata");
+      finishConfirmationOperation("repairMetadata");
+      releaseArchiveScanOperation(claim);
     }
   }
 
@@ -587,10 +660,11 @@ export function useSettingsDialogController({
   }
 
   async function resetImport() {
+    const statusOperation = beginStatusOperation();
     if (
-      !(await updateAppPreferences(
-        { import: defaultAppPreferences.import },
-        { successMessage: false },
+      !(await persistAppPreferences(
+        () => appPreferencesStore.update({ import: defaultAppPreferences.import }),
+        { statusOperation, successMessage: false },
       ))
     ) {
       return;
@@ -598,18 +672,21 @@ export function useSettingsDialogController({
 
     try {
       setArchiveImport(await storage.resetArchiveImportSettings());
-      setSuccessStatus("Import settings reset.");
+      publishStatusOperation(statusOperation, "Import settings reset.", "success");
     } catch {
-      setErrorStatus("Import destination could not be reset.");
+      publishStatusOperation(statusOperation, "Import destination could not be reset.", "error");
     }
   }
 
   return {
     archiveAppearance,
+    archiveScanActive,
     cache,
+    busyConfirmations,
     closeConfirmation,
     confirmations,
     destinationOptions,
+    dismissStatus: clearLocalStatus,
     epubWritebackBackupStatus,
     epubWritebackBackupStatusState,
     files,

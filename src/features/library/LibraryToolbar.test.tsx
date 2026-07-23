@@ -25,13 +25,13 @@ function renderToolbar() {
       filters={createDefaultLibraryFilters()}
       filterOptions={{ languages: [], publishers: [], series: [], subjects: [] }}
       isImporting={false}
+      isRescanning={false}
       onClearFilters={vi.fn()}
       onClearSearch={vi.fn()}
       onFilterChange={vi.fn()}
       onOpenAddEpub={vi.fn()}
       onQueryChange={vi.fn()}
-      onRescanError={vi.fn()}
-      onRescanSuccess={vi.fn()}
+      onRescan={vi.fn(async () => {})}
       onSortChange={vi.fn()}
       onToggleSelectionMode={vi.fn()}
       onViewChange={vi.fn()}
@@ -74,13 +74,13 @@ function renderInteractiveToolbar({
           subjects: ["Space Opera"],
         }}
         isImporting={false}
+        isRescanning={false}
         onClearFilters={onClearFilters}
         onClearSearch={onClearSearch}
         onFilterChange={onFilterChange}
         onOpenAddEpub={vi.fn()}
         onQueryChange={onQueryChange}
-        onRescanError={vi.fn()}
-        onRescanSuccess={vi.fn()}
+        onRescan={vi.fn(async () => {})}
         onSortChange={vi.fn()}
         onToggleSelectionMode={onToggleSelectionMode}
         onViewChange={vi.fn()}

@@ -112,6 +112,10 @@ function createStorage(): LibraryStorage {
       totalBytes: 2048,
     })),
     listFolders: vi.fn(async () => []),
+    observeScanStatus: vi.fn((observer) => {
+      observer.next({ status: "idle" });
+      return () => undefined;
+    }),
     repairArchiveMetadata: vi.fn(),
     rescan: vi.fn(),
     revealMetadataFolder: vi.fn(),

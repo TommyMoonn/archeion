@@ -113,6 +113,65 @@ describe("LibraryFeedbackStack", () => {
     expect(session.onDismiss).not.toHaveBeenCalledWith("import");
   });
 
+  it("pauses auto-dismiss while feedback is hovered", () => {
+    const session = renderStack();
+    activeRoot = session.root;
+    const success = session.container.querySelector<HTMLElement>(
+      '.library-feedback__token[data-tone="success"]',
+    )!;
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+      success.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(LIBRARY_FEEDBACK_AUTO_DISMISS_MS);
+    });
+
+    expect(session.onDismiss).not.toHaveBeenCalledWith("success");
+
+    act(() => {
+      success.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+      vi.advanceTimersByTime(LIBRARY_FEEDBACK_AUTO_DISMISS_MS - 1_001);
+    });
+    expect(session.onDismiss).not.toHaveBeenCalledWith("success");
+
+    act(() => vi.advanceTimersByTime(1));
+    expect(session.onDismiss).toHaveBeenCalledWith("success");
+  });
+
+  it("keeps auto-dismiss paused while feedback retains focus", () => {
+    const session = renderStack();
+    activeRoot = session.root;
+    const success = session.container.querySelector<HTMLElement>(
+      '.library-feedback__token[data-tone="success"]',
+    )!;
+    const dismiss = success.querySelector<HTMLButtonElement>("button")!;
+
+    act(() => {
+      vi.advanceTimersByTime(1_000);
+      dismiss.dispatchEvent(new FocusEvent("focusin", { bubbles: true }));
+      vi.advanceTimersByTime(LIBRARY_FEEDBACK_AUTO_DISMISS_MS);
+    });
+    expect(session.onDismiss).not.toHaveBeenCalledWith("success");
+
+    act(() => {
+      dismiss.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      vi.advanceTimersByTime(LIBRARY_FEEDBACK_AUTO_DISMISS_MS - 1_000);
+    });
+    expect(session.onDismiss).toHaveBeenCalledWith("success");
+  });
+
+  it("uses one live-region semantic per visible feedback token", () => {
+    const session = renderStack();
+    activeRoot = session.root;
+    const tokens = session.container.querySelectorAll<HTMLElement>(".library-feedback__token");
+
+    expect(tokens[0]?.getAttribute("role")).toBe("status");
+    expect(tokens[1]?.getAttribute("role")).toBe("alert");
+    expect(tokens[0]?.hasAttribute("aria-live")).toBe(false);
+    expect(tokens[1]?.hasAttribute("aria-live")).toBe(false);
+    expect(tokens[0]?.getAttribute("aria-atomic")).toBe("true");
+  });
+
   it("dismisses tokens from the close button", () => {
     const session = renderStack();
     activeRoot = session.root;

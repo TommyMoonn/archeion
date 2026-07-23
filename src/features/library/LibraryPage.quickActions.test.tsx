@@ -6,8 +6,9 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../series/SeriesOverview";
+import "../settings/SettingsDialog";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
-import type { LibraryStorage } from "../../storage/LibraryStorage";
+import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
@@ -51,14 +52,24 @@ const folder: Folder = {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+const scanStatusObservers = new Set<StorageObserver<ScanStatus>>();
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 function createStorage(books: Book[] = []): LibraryStorage {
   return {
     reset: vi.fn(),
     rescan: vi.fn().mockResolvedValue(undefined),
     observeScanStatus: vi.fn((observer) => {
+      scanStatusObservers.add(observer);
       observer.next({ status: "idle" });
-      return () => undefined;
+      return () => scanStatusObservers.delete(observer);
     }),
     addEpubFilesToArchive: vi.fn(),
     getBook: vi.fn(),
@@ -112,6 +123,10 @@ function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   setter?.call(input, value);
   input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function emitScanStatus(status: ScanStatus) {
+  scanStatusObservers.forEach((observer) => observer.next(status));
 }
 
 async function renderLibrary(initialEntry = "/", books: Book[] = []) {
@@ -281,6 +296,7 @@ afterEach(async () => {
   container?.remove();
   root = null;
   container = null;
+  scanStatusObservers.clear();
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
@@ -402,6 +418,111 @@ describe("LibraryPage Quick Actions", () => {
     });
 
     expect(rendered.storage.rescan).toHaveBeenCalledTimes(1);
+    expect(rendered.container.textContent).toContain("Archive refreshed.");
+  });
+
+  it("keeps a failed rescan visible as one persistent error", async () => {
+    const rendered = await renderLibrary();
+    vi.mocked(rendered.storage.rescan).mockRejectedValueOnce(new Error("scan failed"));
+
+    await executeCommand("Rescan archive");
+    const confirm = Array.from(rendered.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rescan archive",
+    );
+    await act(async () => {
+      confirm?.click();
+      await Promise.resolve();
+    });
+
+    const errors = Array.from(
+      rendered.container.querySelectorAll<HTMLElement>('.library-feedback__token[role="alert"]'),
+    );
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.textContent).toContain("The archive could not be scanned.");
+    expect(errors[0]?.querySelector('button[aria-label="Dismiss feedback"]')).not.toBeNull();
+  });
+
+  it("makes the toolbar rescan unavailable while a Quick Action scan owns the operation", async () => {
+    const rendered = await renderLibrary();
+    const pending = deferred<void>();
+    vi.mocked(rendered.storage.rescan).mockImplementation(() => pending.promise);
+
+    await executeCommand("Rescan archive");
+    const confirm = Array.from(rendered.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rescan archive",
+    )!;
+    act(() => confirm.click());
+
+    expect(rendered.storage.rescan).toHaveBeenCalledTimes(1);
+    expect(
+      rendered.container
+        .querySelector('button[aria-label="Scanning archive"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
+
+    await act(async () => {
+      pending.resolve();
+      await pending.promise;
+    });
+  });
+
+  it("blocks the Quick Action path while the toolbar owns the shared rescan", async () => {
+    const rendered = await renderLibrary();
+    const pending = deferred<void>();
+    vi.mocked(rendered.storage.rescan).mockImplementation(() => pending.promise);
+    const toolbarTrigger = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Rescan archive"]',
+    )!;
+
+    act(() => toolbarTrigger.click());
+    const confirm = Array.from(rendered.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Rescan archive",
+    )!;
+    act(() => confirm.click());
+
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Rescan archive"));
+    const command = document.querySelector<HTMLButtonElement>('[role="option"]')!;
+    expect(command.getAttribute("aria-disabled")).toBe("true");
+    expect(command.textContent).toContain("Wait for the archive scan to finish.");
+
+    act(() => command.click());
+    expect(rendered.storage.rescan).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      pending.resolve();
+      await pending.promise;
+    });
+  });
+
+  it("makes Library rescan entry points unavailable for an external scan owner", async () => {
+    const rendered = await renderLibrary();
+    const toolbarTrigger = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Rescan archive"]',
+    )!;
+    toolbarTrigger.focus();
+
+    act(() => {
+      emitScanStatus({ status: "scanning", startedAt: "settings-scan" });
+    });
+
+    expect(
+      rendered.container
+        .querySelector('button[aria-label="Scanning archive"]')
+        ?.getAttribute("aria-disabled"),
+    ).toBe("true");
+    expect(document.activeElement).toBe(toolbarTrigger);
+
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Rescan archive"));
+    const command = document.querySelector<HTMLButtonElement>('[role="option"]')!;
+    expect(command.getAttribute("aria-disabled")).toBe("true");
+    act(() => command.click());
+    expect(rendered.storage.rescan).not.toHaveBeenCalled();
+
+    act(() => emitScanStatus({ status: "idle" }));
+    expect(command.getAttribute("aria-disabled")).toBeNull();
+    expect(document.activeElement).toBe(search);
   });
 
   it("offers Continue navigation only while the In progress Smart View is visible", async () => {

@@ -24,10 +24,28 @@ const initialContext: AppearancePreviewContext = Object.freeze({
   }),
 });
 
-function createStorage(): LibraryStorage {
+function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage {
   return {
     getArchiveAppearanceSettings: vi.fn(async () => initialContext.settings),
+    clearScannerCache: vi.fn().mockResolvedValue(undefined),
+    observeScanStatus: vi.fn((observer) => {
+      observer.next({ status: "idle" });
+      return () => undefined;
+    }),
+    rescan: vi.fn().mockResolvedValue(undefined),
+    saveArchiveImportSettings: vi.fn(),
+    ...overrides,
   } as unknown as LibraryStorage;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
 
 let latest: SettingsDialogController;
@@ -147,5 +165,85 @@ describe("Settings committed appearance subscription", () => {
     await act(async () => expect(await latest.openThemesFolder()).toBe(true));
 
     expect(reveal).toHaveBeenCalledOnce();
+  });
+
+  it("does not let a slow rescan success overwrite a newer maintenance error", async () => {
+    const pendingRescan = deferred<void>();
+    storage = createStorage({
+      clearScannerCache: vi.fn().mockRejectedValue(new Error("cache failed")),
+      rescan: vi.fn(() => pendingRescan.promise),
+    });
+    await render(initialContext);
+
+    await act(async () => {
+      latest.confirmRescanArchive();
+      await Promise.resolve();
+      latest.confirmClearScannerCache();
+      await Promise.resolve();
+    });
+    expect(latest.status).toMatchObject({
+      message: "The scanner cache could not be cleared.",
+      tone: "error",
+    });
+
+    await act(async () => {
+      pendingRescan.resolve();
+      await pendingRescan.promise;
+      await Promise.resolve();
+    });
+
+    expect(latest.status).toMatchObject({
+      message: "The scanner cache could not be cleared.",
+      tone: "error",
+    });
+  });
+
+  it("does not let a stale archive-specific save replace a newer Settings result", async () => {
+    const pendingImportSave = deferred<never>();
+    storage = createStorage({
+      saveArchiveImportSettings: vi.fn(() => pendingImportSave.promise),
+    });
+    vi.spyOn(appearanceRuntime, "getPreviewContext").mockReturnValue(initialContext);
+    vi.spyOn(appearanceRuntime, "updateArchiveAppearanceSettings").mockRejectedValue(
+      new Error("Newer appearance failure."),
+    );
+    await render(initialContext);
+
+    act(() => latest.updateImportDestination("__archive_root__"));
+    await act(async () => {
+      await latest.updateArchiveAppearance({
+        appTheme: { kind: "builtin", id: "light" },
+      });
+    });
+    expect(latest.status?.message).toBe("Newer appearance failure.");
+
+    await act(async () => {
+      pendingImportSave.reject(new Error("old import failure"));
+      await pendingImportSave.promise.catch(() => undefined);
+      await Promise.resolve();
+    });
+
+    expect(latest.status?.message).toBe("Newer appearance failure.");
+  });
+
+  it("blocks repeated activation of the same expensive Settings operation", async () => {
+    const pendingRescan = deferred<void>();
+    const rescan = vi.fn(() => pendingRescan.promise);
+    storage = createStorage({ rescan });
+    await render(initialContext);
+
+    act(() => {
+      latest.confirmRescanArchive();
+      latest.confirmRescanArchive();
+    });
+    expect(rescan).toHaveBeenCalledTimes(1);
+    expect(latest.busyConfirmations.rescanArchive).toBe(true);
+
+    await act(async () => {
+      pendingRescan.resolve();
+      await pendingRescan.promise;
+      await Promise.resolve();
+    });
+    expect(latest.busyConfirmations.rescanArchive).toBe(false);
   });
 });

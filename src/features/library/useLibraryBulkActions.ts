@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
 import type { BulkActionResult, LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book, BulkMetadataEditInput } from "../../types/book";
@@ -8,13 +8,18 @@ import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExp
 import { bookTitle } from "./libraryFilters";
 import { createBulkActionFeedbackToken, type LibraryFeedbackDraft } from "./libraryFeedback";
 import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
+import type { LibraryFeedbackOperation } from "./useLibraryFeedback";
 
 type UseLibraryBulkActionsInput = {
+  beginFeedbackOperation: (owner: string) => LibraryFeedbackOperation;
   books: Book[] | undefined;
   dialogs: LibraryWorkspaceDialogActions;
   dismissFeedback: (id: string) => void;
   leaveSelectionMode: () => void;
-  pushFeedback: (feedback: LibraryFeedbackDraft) => string;
+  publishFeedbackOperation: (
+    operation: LibraryFeedbackOperation,
+    feedback: LibraryFeedbackDraft,
+  ) => boolean;
   retainSelection: (bookIds: ReadonlySet<string>) => void;
   selectedBookIds: ReadonlySet<string>;
   storage: LibraryStorage;
@@ -33,15 +38,17 @@ export type LibraryBulkAction =
   | "export";
 
 export function useLibraryBulkActions({
+  beginFeedbackOperation,
   books,
   dialogs,
   dismissFeedback,
   leaveSelectionMode,
-  pushFeedback,
+  publishFeedbackOperation,
   retainSelection,
   selectedBookIds,
   storage,
 }: UseLibraryBulkActionsInput) {
+  const bulkLockRef = useRef(false);
   const [isBulkRunning, setIsBulkRunning] = useState(false);
   const selectedBooks = useMemo(
     () => (books ?? []).filter((book) => selectedBookIds.has(book.id)),
@@ -50,15 +57,20 @@ export function useLibraryBulkActions({
 
   const runBulkAction = useCallback(
     async (label: string, action: (ids: readonly string[]) => Promise<BulkActionResult>) => {
-      if (isBulkRunning) return;
+      if (bulkLockRef.current) return;
 
       const ids = [...selectedBookIds];
       const labels = new Map((books ?? []).map((book) => [book.id, bookTitle(book)]));
+      const feedbackOperation = beginFeedbackOperation("bulk-action");
+      bulkLockRef.current = true;
       setIsBulkRunning(true);
       dismissFeedback("bulk-action");
       try {
         const result = await action(ids);
-        pushFeedback(createBulkActionFeedbackToken(label, result, labels));
+        publishFeedbackOperation(
+          feedbackOperation,
+          createBulkActionFeedbackToken(label, result, labels),
+        );
         const retryBookIds = new Set([
           ...result.failed.map(({ bookId }) => bookId),
           ...result.skipped.map(({ bookId }) => bookId),
@@ -69,22 +81,23 @@ export function useLibraryBulkActions({
           leaveSelectionMode();
         }
       } catch (error) {
-        pushFeedback({
+        publishFeedbackOperation(feedbackOperation, {
           id: "bulk-action",
           tone: "error",
           title: `${label} could not start.`,
           detail: error instanceof Error ? error.message : undefined,
         });
       } finally {
+        bulkLockRef.current = false;
         setIsBulkRunning(false);
       }
     },
     [
       books,
+      beginFeedbackOperation,
       dismissFeedback,
-      isBulkRunning,
       leaveSelectionMode,
-      pushFeedback,
+      publishFeedbackOperation,
       retainSelection,
       selectedBookIds,
     ],
@@ -92,7 +105,9 @@ export function useLibraryBulkActions({
 
   const runAnnotationExport = useCallback(
     async (format: ReaderAnnotationExportFormat) => {
-      if (isBulkRunning) return;
+      if (bulkLockRef.current) return;
+      const feedbackOperation = beginFeedbackOperation("annotation-export");
+      bulkLockRef.current = true;
       setIsBulkRunning(true);
       dismissFeedback("annotation-export");
       try {
@@ -107,14 +122,14 @@ export function useLibraryBulkActions({
         const result = await exportReaderAnnotationsToFile({ books: exportBooks, format });
         if (result.status === "cancelled") return;
         if (result.status === "empty") {
-          pushFeedback({
+          publishFeedbackOperation(feedbackOperation, {
             id: "annotation-export",
             tone: "warning",
             title: "No annotations to export.",
           });
           return;
         }
-        pushFeedback({
+        publishFeedbackOperation(feedbackOperation, {
           autoDismiss: true,
           detail: `${result.annotationCount} ${result.annotationCount === 1 ? "annotation" : "annotations"} from ${result.bookCount} ${result.bookCount === 1 ? "book" : "books"}.`,
           id: "annotation-export",
@@ -122,17 +137,18 @@ export function useLibraryBulkActions({
           title: "Annotations exported.",
         });
       } catch (error) {
-        pushFeedback({
+        publishFeedbackOperation(feedbackOperation, {
           detail: error instanceof Error ? error.message : undefined,
           id: "annotation-export",
           tone: "error",
           title: "Annotations could not be exported.",
         });
       } finally {
+        bulkLockRef.current = false;
         setIsBulkRunning(false);
       }
     },
-    [dismissFeedback, isBulkRunning, pushFeedback, selectedBooks, storage],
+    [beginFeedbackOperation, dismissFeedback, publishFeedbackOperation, selectedBooks, storage],
   );
 
   const handleBulkAction = useCallback(

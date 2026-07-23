@@ -47,6 +47,7 @@ type LibraryWorkspaceDialogsProps = {
   isClearingProgress: boolean;
   isDeleting: boolean;
   isImporting: boolean;
+  isRescanning: boolean;
   onConfirmClearProgress: (book: Book) => Promise<void>;
   onCreateFolder: (name: string) => Promise<void>;
   onDeleteBook: (book: Book) => Promise<void>;
@@ -99,6 +100,7 @@ export function LibraryWorkspaceDialogs({
   isClearingProgress,
   isDeleting,
   isImporting,
+  isRescanning,
   onConfirmClearProgress,
   onCreateFolder,
   onDeleteBook,
@@ -408,14 +410,18 @@ export function LibraryWorkspaceDialogs({
       <Dialog
         title="Rescan archive?"
         description="This refreshes book and missing-file records. EPUB files are not changed."
-        onClose={dialogActions.close}
+        onClose={() => {
+          if (!isRescanning) dialogActions.close();
+        }}
         footer={
           <>
-            <Button onClick={dialogActions.close} variant="secondary">
+            <Button disabled={isRescanning} onClick={dialogActions.close} variant="secondary">
               Cancel
             </Button>
             <Button
               autoFocus
+              busy={isRescanning}
+              disabled={isRescanning}
               onClick={() => {
                 dialogActions.close();
                 void onRescan();

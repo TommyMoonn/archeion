@@ -105,7 +105,11 @@ export function MoveToFolderDialog({
           options={options}
           value={destination}
         />
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </Dialog>
   );

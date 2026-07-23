@@ -17,13 +17,13 @@ type LibraryToolbarProps = {
   filters: LibraryFilterState;
   filterOptions: LibraryFilterOptions;
   isImporting: boolean;
+  isRescanning: boolean;
   onClearFilters: () => void;
   onClearSearch: () => void;
   onFilterChange: (filters: LibraryFilterState) => void;
   onOpenAddEpub: () => void;
   onQueryChange: (query: string) => void;
-  onRescanError: () => void;
-  onRescanSuccess: () => void;
+  onRescan: () => Promise<void>;
   onSortChange: (sort: LibrarySort) => void;
   onToggleSelectionMode: () => void;
   onViewChange: (view: LibraryView) => void;
@@ -58,13 +58,13 @@ export function LibraryToolbar({
   filters,
   filterOptions,
   isImporting,
+  isRescanning,
   onClearFilters,
   onClearSearch,
   onFilterChange,
   onOpenAddEpub,
   onQueryChange,
-  onRescanError,
-  onRescanSuccess,
+  onRescan,
   onSortChange,
   onToggleSelectionMode,
   onViewChange,
@@ -121,7 +121,7 @@ export function LibraryToolbar({
           >
             <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
           </IconButton>
-          <RescanArchiveButton onError={onRescanError} onSuccess={onRescanSuccess} />
+          <RescanArchiveButton isRescanning={isRescanning} onRescan={onRescan} />
         </div>
         <span aria-hidden="true" className="library-header__action-divider" />
         <Button

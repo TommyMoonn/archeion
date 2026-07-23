@@ -163,6 +163,7 @@ describe("LibraryPage folder path continuity", () => {
       navigationType: "REPLACE",
       search: "?archiveId=archive-books&view=folder&folderPath=Novels&keep=1",
     });
+    expect(session.container.textContent).toContain("Folder renamed.");
     expect(session.container.querySelector("dialog[open]")).toBeNull();
   });
 
@@ -193,6 +194,7 @@ describe("LibraryPage folder path continuity", () => {
       navigationType: "REPLACE",
       search: "?archiveId=archive-books&view=folder&folderPath=Archive%2FFiction",
     });
+    expect(session.container.textContent).toContain("Folder moved.");
     expect(document.activeElement).toBe(
       session.container.querySelector(
         '[data-library-folder-path="Archive/Fiction"] [data-library-folder-primary-action]',

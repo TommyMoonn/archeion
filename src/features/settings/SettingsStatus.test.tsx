@@ -5,7 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { PERSISTENCE_SAVING_STATUS_DELAY_MS, SettingsStatus } from "./SettingsStatus";
+import {
+  PERSISTENCE_SAVING_STATUS_DELAY_MS,
+  SETTINGS_STATUS_AUTO_DISMISS_MS,
+  SettingsStatus,
+} from "./SettingsStatus";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -123,6 +127,74 @@ describe("SettingsStatus persistence saving delay", () => {
     });
 
     expect(container.textContent).toBe("");
+  });
+
+  it("pauses local success dismissal while the message is hovered", () => {
+    const onDismiss = vi.fn();
+    renderStatus({
+      onDismiss,
+      persistenceStatus: { status: "idle" },
+      status: { autoDismiss: true, message: "Settings saved.", tone: "success" },
+    });
+    const status = container.querySelector<HTMLElement>(".settings-status")!;
+
+    act(() => {
+      vi.advanceTimersByTime(500);
+      status.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      vi.advanceTimersByTime(SETTINGS_STATUS_AUTO_DISMISS_MS);
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    act(() => {
+      status.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
+      vi.advanceTimersByTime(SETTINGS_STATUS_AUTO_DISMISS_MS - 500);
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("is keyboard focusable during auto-dismiss and resumes the remaining duration", () => {
+    const onDismiss = vi.fn();
+    const priorFocus = document.createElement("button");
+    document.body.append(priorFocus);
+    priorFocus.focus();
+    renderStatus({
+      onDismiss,
+      persistenceStatus: { status: "idle" },
+      status: { autoDismiss: true, message: "Settings saved.", tone: "success" },
+    });
+    const status = container.querySelector<HTMLElement>(".settings-status")!;
+
+    expect(status.tabIndex).toBe(0);
+    expect(document.activeElement).toBe(priorFocus);
+
+    act(() => {
+      vi.advanceTimersByTime(700);
+      status.focus();
+      vi.advanceTimersByTime(SETTINGS_STATUS_AUTO_DISMISS_MS);
+    });
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    act(() => {
+      priorFocus.focus();
+      vi.advanceTimersByTime(SETTINGS_STATUS_AUTO_DISMISS_MS - 700);
+    });
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+    priorFocus.remove();
+  });
+
+  it("does not auto-dismiss persistent errors", () => {
+    const onDismiss = vi.fn();
+    renderStatus({
+      onDismiss,
+      persistenceStatus: { status: "idle" },
+      status: { autoDismiss: false, message: "Settings could not be saved.", tone: "error" },
+    });
+
+    act(() => vi.advanceTimersByTime(SETTINGS_STATUS_AUTO_DISMISS_MS * 2));
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Settings could not be saved.");
+    expect(container.querySelector<HTMLElement>(".settings-status")?.tabIndex).toBe(-1);
   });
 
   it("lets local status override persistence saving", () => {

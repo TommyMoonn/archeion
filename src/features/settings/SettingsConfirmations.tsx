@@ -1,6 +1,8 @@
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 
+const archiveScanUnavailableReason = "Wait for the archive scan to finish";
+
 export type SettingsConfirmationKey =
   | "clearCoverCache"
   | "clearEpubWritebackBackups"
@@ -12,6 +14,8 @@ export type SettingsConfirmationKey =
 export type SettingsConfirmationState = Record<SettingsConfirmationKey, boolean>;
 
 type SettingsConfirmationsProps = {
+  archiveScanActive: boolean;
+  busyConfirmations: SettingsConfirmationState;
   confirmations: SettingsConfirmationState;
   onClearCoverCache: () => void;
   onClearEpubWritebackBackups: () => void;
@@ -23,6 +27,8 @@ type SettingsConfirmationsProps = {
 };
 
 export function SettingsConfirmations({
+  archiveScanActive,
+  busyConfirmations,
   confirmations,
   onClearCoverCache,
   onClearEpubWritebackBackups,
@@ -41,10 +47,19 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearCoverCache")}
           footer={
             <>
-              <Button variant="secondary" onClick={() => onClose("clearCoverCache")}>
+              <Button
+                disabled={busyConfirmations.clearCoverCache}
+                variant="secondary"
+                onClick={() => onClose("clearCoverCache")}
+              >
                 Cancel
               </Button>
-              <Button variant="danger" onClick={onClearCoverCache}>
+              <Button
+                busy={busyConfirmations.clearCoverCache}
+                disabled={busyConfirmations.clearCoverCache}
+                variant="danger"
+                onClick={onClearCoverCache}
+              >
                 Clear cover cache
               </Button>
             </>
@@ -58,10 +73,19 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearScannerCache")}
           footer={
             <>
-              <Button variant="secondary" onClick={() => onClose("clearScannerCache")}>
+              <Button
+                disabled={busyConfirmations.clearScannerCache}
+                variant="secondary"
+                onClick={() => onClose("clearScannerCache")}
+              >
                 Cancel
               </Button>
-              <Button variant="danger" onClick={onClearScannerCache}>
+              <Button
+                busy={busyConfirmations.clearScannerCache}
+                disabled={busyConfirmations.clearScannerCache}
+                variant="danger"
+                onClick={onClearScannerCache}
+              >
                 Clear scanner cache
               </Button>
             </>
@@ -75,10 +99,19 @@ export function SettingsConfirmations({
           onClose={() => onClose("clearEpubWritebackBackups")}
           footer={
             <>
-              <Button variant="secondary" onClick={() => onClose("clearEpubWritebackBackups")}>
+              <Button
+                disabled={busyConfirmations.clearEpubWritebackBackups}
+                variant="secondary"
+                onClick={() => onClose("clearEpubWritebackBackups")}
+              >
                 Cancel
               </Button>
-              <Button variant="danger" onClick={onClearEpubWritebackBackups}>
+              <Button
+                busy={busyConfirmations.clearEpubWritebackBackups}
+                disabled={busyConfirmations.clearEpubWritebackBackups}
+                variant="danger"
+                onClick={onClearEpubWritebackBackups}
+              >
                 Clear backups
               </Button>
             </>
@@ -92,10 +125,24 @@ export function SettingsConfirmations({
           onClose={() => onClose("reextractMetadata")}
           footer={
             <>
-              <Button variant="secondary" onClick={() => onClose("reextractMetadata")}>
+              <Button
+                disabled={busyConfirmations.reextractMetadata}
+                variant="secondary"
+                onClick={() => onClose("reextractMetadata")}
+              >
                 Cancel
               </Button>
-              <Button autoFocus onClick={onReextractMetadata}>
+              <Button
+                autoFocus
+                busy={busyConfirmations.reextractMetadata}
+                disabled={busyConfirmations.reextractMetadata || archiveScanActive}
+                disabledReason={
+                  archiveScanActive && !busyConfirmations.reextractMetadata
+                    ? archiveScanUnavailableReason
+                    : undefined
+                }
+                onClick={onReextractMetadata}
+              >
                 Re-extract
               </Button>
             </>
@@ -109,10 +156,24 @@ export function SettingsConfirmations({
           onClose={() => onClose("repairMetadata")}
           footer={
             <>
-              <Button variant="secondary" onClick={() => onClose("repairMetadata")}>
+              <Button
+                disabled={busyConfirmations.repairMetadata}
+                variant="secondary"
+                onClick={() => onClose("repairMetadata")}
+              >
                 Cancel
               </Button>
-              <Button autoFocus onClick={onRepairMetadata}>
+              <Button
+                autoFocus
+                busy={busyConfirmations.repairMetadata}
+                disabled={busyConfirmations.repairMetadata || archiveScanActive}
+                disabledReason={
+                  archiveScanActive && !busyConfirmations.repairMetadata
+                    ? archiveScanUnavailableReason
+                    : undefined
+                }
+                onClick={onRepairMetadata}
+              >
                 Repair metadata
               </Button>
             </>
@@ -126,10 +187,24 @@ export function SettingsConfirmations({
           onClose={() => onClose("rescanArchive")}
           footer={
             <>
-              <Button onClick={() => onClose("rescanArchive")} variant="secondary">
+              <Button
+                disabled={busyConfirmations.rescanArchive}
+                onClick={() => onClose("rescanArchive")}
+                variant="secondary"
+              >
                 Cancel
               </Button>
-              <Button autoFocus onClick={onRescanArchive}>
+              <Button
+                autoFocus
+                busy={busyConfirmations.rescanArchive}
+                disabled={busyConfirmations.rescanArchive || archiveScanActive}
+                disabledReason={
+                  archiveScanActive && !busyConfirmations.rescanArchive
+                    ? archiveScanUnavailableReason
+                    : undefined
+                }
+                onClick={onRescanArchive}
+              >
                 Rescan archive
               </Button>
             </>

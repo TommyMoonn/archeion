@@ -106,7 +106,11 @@ export function RenameFileDialog({
             </span>
           </span>
         </label>
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
     </Dialog>
   );

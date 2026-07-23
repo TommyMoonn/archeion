@@ -4,33 +4,23 @@ import { useState } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { IconButton } from "../../components/IconButton";
-import { useLibraryStorage } from "../../storage/useLibraryStorage";
 
 type RescanArchiveButtonProps = {
-  onError: () => void;
-  onSuccess: () => void;
+  isRescanning: boolean;
+  onRescan: () => Promise<void>;
 };
 
-export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonProps) {
-  const storage = useLibraryStorage();
-  const [isScanning, setIsScanning] = useState(false);
+export function RescanArchiveButton({ isRescanning, onRescan }: RescanArchiveButtonProps) {
   const [confirmationOpen, setConfirmationOpen] = useState(false);
 
   async function handleRescan() {
-    if (isScanning) {
+    if (isRescanning) {
       return;
     }
 
-    setIsScanning(true);
-    try {
-      await storage.rescan();
-      onSuccess();
-    } catch {
-      onError();
-    } finally {
-      setIsScanning(false);
-      setConfirmationOpen(false);
-    }
+    const rescan = onRescan();
+    setConfirmationOpen(false);
+    await rescan;
   }
 
   return (
@@ -39,9 +29,9 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
         aria-expanded={confirmationOpen}
         aria-haspopup="dialog"
         className="library-rescan-button"
-        disabled={isScanning}
+        disabled={isRescanning}
         disabledReason="Wait for the archive scan to finish"
-        label={isScanning ? "Scanning archive" : "Rescan archive"}
+        label={isRescanning ? "Scanning archive" : "Rescan archive"}
         onClick={() => setConfirmationOpen(true)}
       >
         <ArrowsClockwise aria-hidden="true" />
@@ -51,12 +41,12 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
           title="Rescan archive?"
           description="This refreshes book and missing-file records. EPUB files are not changed."
           onClose={() => {
-            if (!isScanning) setConfirmationOpen(false);
+            if (!isRescanning) setConfirmationOpen(false);
           }}
           footer={
             <>
               <Button
-                disabled={isScanning}
+                disabled={isRescanning}
                 onClick={() => setConfirmationOpen(false)}
                 variant="secondary"
               >
@@ -64,8 +54,8 @@ export function RescanArchiveButton({ onError, onSuccess }: RescanArchiveButtonP
               </Button>
               <Button
                 autoFocus
-                busy={isScanning}
-                disabled={isScanning}
+                busy={isRescanning}
+                disabled={isRescanning}
                 onClick={() => void handleRescan()}
               >
                 Rescan archive

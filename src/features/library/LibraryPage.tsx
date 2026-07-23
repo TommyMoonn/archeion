@@ -107,11 +107,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const confirmDestructiveFileActions = useConfirmDestructiveFileActionsPreference();
   const showContinueReading = useShowContinueReadingPreference();
   const {
+    beginOperation: beginFeedbackOperation,
     dismiss: dismissFeedback,
+    publishOperation: publishFeedbackOperation,
     push: pushFeedback,
     showError: showLibraryError,
-    showRescanError,
-    showRescanSuccess,
     tokens: feedbackTokens,
   } = useLibraryFeedback();
   const contextMenuUnavailableFeedbackActiveRef = useRef(false);
@@ -370,6 +370,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
 
   const bookActions = useLibraryBookActions({
     beginBookMutation,
+    beginFeedbackOperation,
     beginFolderDeletion,
     changeLocation,
     confirmDestructiveFileActions,
@@ -379,11 +380,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     location: navigation.location,
     onBookMutationComplete: completeBookMutation,
     onFolderDeletionComplete: completeFolderDeletion,
-    pushFeedback,
+    publishFeedbackOperation,
     runFolderPathMutation: navigation.runFolderPathMutation,
-    showLibraryError,
-    showRescanError,
-    showRescanSuccess,
     storage,
   });
   const openBookDetails = useCallback(
@@ -443,11 +441,12 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [selectedBookIds, visibleBooks],
   );
   const bulkActions = useLibraryBulkActions({
+    beginFeedbackOperation,
     books,
     dialogs: dialogActions,
     dismissFeedback,
     leaveSelectionMode,
-    pushFeedback,
+    publishFeedbackOperation,
     retainSelection,
     selectedBookIds,
     storage,
@@ -601,8 +600,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         scope: "library",
       },
       {
-        availability: bookActions.isImporting
-          ? { available: false, reason: "Wait for the current EPUB import to finish." }
+        availability: bookActions.isRescanning
+          ? { available: false, reason: "Wait for the archive scan to finish." }
           : { available: true },
         configuration: "unbound",
         execute: dialogActions.openRescan,
@@ -617,6 +616,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [
       activeSearchScope,
       bookActions.isImporting,
+      bookActions.isRescanning,
       changeLocation,
       dialogActions,
       focusActiveSearch,
@@ -767,13 +767,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           filterOptions,
           filters,
           isImporting: bookActions.isImporting,
+          isRescanning: bookActions.isRescanning,
           onClearFilters: clearFilters,
           onClearSearch: navigation.clearLibrarySearch,
           onFilterChange: changeFilters,
           onOpenAddEpub: () => dialogActions.openAddEpub(),
           onQueryChange: navigation.setQuery,
-          onRescanError: showRescanError,
-          onRescanSuccess: showRescanSuccess,
+          onRescan: bookActions.rescanLibrary,
           onSortChange: changeSort,
           onToggleSelectionMode: toggleSelectionMode,
           onViewChange: changeView,
@@ -803,6 +803,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         isClearingProgress={bookActions.isClearingProgress}
         isDeleting={bookActions.isDeleting}
         isImporting={bookActions.isImporting}
+        isRescanning={bookActions.isRescanning}
         onConfirmClearProgress={bookActions.confirmClearProgress}
         onCreateFolder={bookActions.createFolder}
         onDeleteBook={bookActions.deleteBook}

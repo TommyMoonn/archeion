@@ -73,7 +73,11 @@ export function FolderNameDialog({
             onChange={(event) => setName(event.currentTarget.value)}
           />
         </label>
-        {error ? <p className="form-error">{error}</p> : null}
+        {error ? (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
     </Dialog>
   );

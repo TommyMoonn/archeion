@@ -14,6 +14,7 @@ import {
   openControlledContextMenu,
   renderLibraryPage,
   selectionBook,
+  setInputValue,
   setupLibraryPageTestSuite,
   waitForButtonWithLabel,
   waitForButtonWithText,
@@ -142,7 +143,74 @@ describe("LibraryPage dialogs and book actions", () => {
     expect(session.container.textContent).toContain(
       "The folder could not be saved. Please try again.",
     );
+    expect(session.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "The folder could not be saved. Please try again.",
+    );
     expect(session.container.textContent).not.toContain("Folder created.");
+  });
+
+  it("announces one completed EPUB rename after the dialog closes", async () => {
+    const renameBookFile = vi.fn().mockResolvedValue(undefined);
+    const storage = createStorage({
+      books: [selectionBook("book-1", "Book")],
+      renameBookFile,
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    await import("../filesystem/RenameFileDialog");
+
+    const menu = await openControlledContextMenu(session.container, "Actions for Book");
+    await act(async () => {
+      contextMenuItemWithText(menu, "Rename file").click();
+      await Promise.resolve();
+    });
+    const input = session.container.querySelector<HTMLInputElement>(".epub-filename-field input")!;
+    const submit = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>("dialog .dialog__footer button"),
+    ).find((button) => button.textContent === "Rename file");
+    if (!submit) throw new Error("Rename confirmation was not rendered.");
+    act(() => setInputValue(input, "Renamed"));
+    await act(async () => {
+      submit.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(renameBookFile).toHaveBeenCalledWith("book-1", "Renamed.epub");
+    expect(session.container.querySelector("dialog[open]")).toBeNull();
+    expect(session.container.textContent).toContain("EPUB file renamed.");
+    expect(session.container.querySelectorAll(".library-feedback__token").length).toBe(1);
+  });
+
+  it("keeps a failed EPUB rename in the dialog instead of duplicating feedback", async () => {
+    const storage = createStorage({
+      books: [selectionBook("book-1", "Book")],
+      renameBookFile: vi.fn().mockRejectedValue(new Error("The file is locked.")),
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    await import("../filesystem/RenameFileDialog");
+
+    const menu = await openControlledContextMenu(session.container, "Actions for Book");
+    await act(async () => {
+      contextMenuItemWithText(menu, "Rename file").click();
+      await Promise.resolve();
+    });
+    const submit = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>("dialog .dialog__footer button"),
+    ).find((button) => button.textContent === "Rename file");
+    if (!submit) throw new Error("Rename confirmation was not rendered.");
+    await act(async () => {
+      submit.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(session.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "The file is locked.",
+    );
+    expect(session.container.querySelector("dialog[open]")).not.toBeNull();
+    expect(session.container.querySelector(".library-feedback__token")).toBeNull();
   });
 
   it("shows the EPUB delete dialog when destructive confirmations are enabled", async () => {

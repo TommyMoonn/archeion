@@ -6,6 +6,8 @@ import { SettingsRow } from "../SettingsRow";
 import type { SettingsItem } from "../settingsItemTypes";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
+const archiveScanUnavailableReason = "Wait for the archive scan to finish";
+
 export const storageSettingsItems = [
   {
     description: "Checks the active archive when it opens.",
@@ -56,6 +58,8 @@ export const storageSettingsItems = [
         label="Rescan archive"
       >
         <Button
+          disabled={context.archiveScanActive}
+          disabledReason={archiveScanUnavailableReason}
           icon={<ArrowsClockwise aria-hidden="true" />}
           onClick={() => context.openConfirmation("rescanArchive")}
           variant="secondary"
@@ -97,7 +101,12 @@ export const storageSettingsItems = [
         description="Rebuilds parsed EPUB title and author data."
         label="Re-extract EPUB source metadata"
       >
-        <Button onClick={() => context.openConfirmation("reextractMetadata")} variant="secondary">
+        <Button
+          disabled={context.archiveScanActive}
+          disabledReason={archiveScanUnavailableReason}
+          onClick={() => context.openConfirmation("reextractMetadata")}
+          variant="secondary"
+        >
           Re-extract source metadata
         </Button>
       </SettingsRow>
@@ -200,7 +209,12 @@ export const storageSettingsItems = [
         description="Rebuilds corrupted sidecar files without changing EPUB files."
         label="Repair archive metadata"
       >
-        <Button onClick={() => context.openConfirmation("repairMetadata")} variant="secondary">
+        <Button
+          disabled={context.archiveScanActive}
+          disabledReason={archiveScanUnavailableReason}
+          onClick={() => context.openConfirmation("repairMetadata")}
+          variant="secondary"
+        >
           Repair metadata
         </Button>
       </SettingsRow>
