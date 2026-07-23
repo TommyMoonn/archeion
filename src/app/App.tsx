@@ -303,7 +303,9 @@ function MainWindowApp() {
         <div className="window-app__content">
           <main className="reader-status-page">
             <h1>{startupState.message}</h1>
-            <p role="alert">Retry the startup window or quit Archeion.</p>
+            <p data-tone="error" role="alert">
+              Retry the startup window or quit Archeion.
+            </p>
             <div className="reader-status-page__actions">
               <Button
                 onClick={() => {

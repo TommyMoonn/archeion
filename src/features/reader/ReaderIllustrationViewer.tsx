@@ -105,7 +105,11 @@ function ReaderIllustrationViewerInstance({
         >
           <div className="reader-illustration-viewer__canvas" style={interaction.canvasStyle}>
             {loading ? <p role="status">Opening illustration…</p> : null}
-            {error ? <p role="alert">{error}</p> : null}
+            {error ? (
+              <p data-tone="error" role="alert">
+                {error}
+              </p>
+            ) : null}
             {resource ? (
               <img
                 alt="EPUB illustration"
@@ -164,6 +168,7 @@ function ReaderIllustrationViewerInstance({
           {saveState.message ? (
             <p
               className="reader-illustration-viewer__save-feedback"
+              data-tone={saveState.status === "error" ? "error" : undefined}
               role={saveState.status === "error" ? "alert" : "status"}
             >
               {saveState.message}

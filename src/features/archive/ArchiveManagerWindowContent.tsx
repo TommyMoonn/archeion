@@ -332,7 +332,7 @@ export function ArchiveManagerWindowContent({
               <h1 id="archive-manager-title">Archeion</h1>
               <p>Manage archives</p>
               {errorText ? (
-                <p className="archive-manager-window__status" role="alert">
+                <p className="archive-manager-window__status" data-tone="error" role="alert">
                   {errorText}
                 </p>
               ) : null}

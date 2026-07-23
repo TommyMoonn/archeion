@@ -33,7 +33,7 @@ export function ArchiveManagerFallback({ message }: { message: string }) {
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-fallback-title"
       >
-        <div className="archive-manager-window__fallback" role="alert">
+        <div className="archive-manager-window__fallback" data-tone="error" role="alert">
           <h1 id="archive-manager-fallback-title">Archive Manager</h1>
           <p>{message}</p>
         </div>

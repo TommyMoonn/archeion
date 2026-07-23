@@ -59,7 +59,7 @@ export function ReaderExternalLinkDialog({
         </div>
         <p className="reader-external-link-dialog__url">{url}</p>
         {error ? (
-          <p className="reader-external-link-dialog__error" role="alert">
+          <p className="reader-external-link-dialog__error" data-tone="error" role="alert">
             {error}
           </p>
         ) : null}

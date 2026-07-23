@@ -136,6 +136,11 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+.epub-filename-field:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .epub-filename-field input {
   min-width: 0;
   border: 0;

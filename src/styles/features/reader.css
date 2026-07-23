@@ -340,7 +340,9 @@
 }
 
 .epub-viewer__click-zone:focus-visible {
-  outline: 0;
+  outline: 2px solid var(--reader-focus);
+  outline-offset: -2px;
+  box-shadow: inset 0 0 0 4px var(--reader-bg);
 }
 
 .epub-viewer__click-zone--previous {
@@ -359,7 +361,9 @@
 }
 
 .epub-viewer__click-zone--previous:focus-visible {
-  box-shadow: inset 3px 0 color-mix(in srgb, var(--reader-focus) 72%, transparent);
+  box-shadow:
+    inset 0 0 0 4px var(--reader-bg),
+    inset 7px 0 var(--reader-focus);
 }
 
 .epub-viewer__click-zone--next {
@@ -378,7 +382,9 @@
 }
 
 .epub-viewer__click-zone--next:focus-visible {
-  box-shadow: inset -3px 0 color-mix(in srgb, var(--reader-focus) 72%, transparent);
+  box-shadow:
+    inset 0 0 0 4px var(--reader-bg),
+    inset -7px 0 var(--reader-focus);
 }
 
 .reader-loading {
@@ -595,7 +601,8 @@
 
 .reader-toc__chapter:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--reader-line));
-  outline: 0;
+  outline: 2px solid var(--reader-focus);
+  outline-offset: -2px;
   color: var(--reader-strong);
   background: var(--reader-surface);
 }
@@ -1103,7 +1110,8 @@
 }
 
 .reader-annotations__target:focus-visible {
-  outline: 0;
+  outline: 2px solid var(--reader-focus);
+  outline-offset: -2px;
   color: var(--reader-strong);
   background: color-mix(in srgb, var(--reader-focus) 10%, transparent);
   box-shadow: inset 0 0 0 2px var(--reader-focus);
@@ -1310,6 +1318,8 @@
 }
 
 .reader-annotations__rename input:focus-visible {
+  outline: 2px solid var(--reader-focus);
+  outline-offset: 2px;
   border-color: var(--reader-focus);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--reader-focus) 22%, transparent);
 }
@@ -1364,10 +1374,16 @@
   font-size: var(--type-caption);
 }
 
-.reader-annotations__show-more:hover,
+.reader-annotations__show-more:hover {
+  border-color: color-mix(in srgb, var(--reader-focus) 52%, var(--reader-line));
+  color: var(--reader-strong);
+  background: color-mix(in srgb, var(--reader-surface) 82%, var(--reader-bg));
+}
+
 .reader-annotations__show-more:focus-visible {
   border-color: color-mix(in srgb, var(--reader-focus) 52%, var(--reader-line));
-  outline: 0;
+  outline: 2px solid var(--reader-focus);
+  outline-offset: 2px;
   color: var(--reader-strong);
   background: color-mix(in srgb, var(--reader-surface) 82%, var(--reader-bg));
 }
@@ -1563,6 +1579,11 @@
 
 .reader-note-editor__field:focus-within {
   box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--reader-focus) 46%, transparent);
+}
+
+.reader-note-editor__field:has(textarea:focus-visible) {
+  outline: 2px solid var(--reader-focus);
+  outline-offset: -2px;
 }
 
 .reader-note-editor__status {

@@ -166,7 +166,7 @@ export function ReaderTocPanel({
       </div>
 
       {navigationFailed ? (
-        <p className="reader-toc__error" role="alert">
+        <p className="reader-toc__error" data-tone="error" role="alert">
           That chapter could not be opened.
         </p>
       ) : null}

@@ -29,3 +29,5 @@
 @import "./features/quick-actions.css";
 @import "./features/theme-preview.css";
 @import "./features/theme-manager.css";
+
+@import "./forced-colors.css";

@@ -27,6 +27,11 @@
   background: var(--surface-raised);
 }
 
+.input-shell:has(input:focus-visible) {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .input-shell:has(input:disabled) {
   cursor: not-allowed;
   opacity: 0.55;
@@ -83,6 +88,12 @@ select {
 .form-field select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.form-field input:focus-visible,
+.form-field select:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .form-error {

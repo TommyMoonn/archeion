@@ -108,7 +108,7 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
           </nav>
 
           {externalLinkError ? (
-            <p className="about-window__error" role="alert">
+            <p className="about-window__error" data-tone="error" role="alert">
               {externalLinkError}
             </p>
           ) : null}

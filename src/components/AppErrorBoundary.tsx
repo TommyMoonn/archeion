@@ -28,7 +28,7 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   render() {
     if (this.state.error) {
       return (
-        <main className="status-page" role="alert">
+        <main className="status-page" data-tone="error" role="alert">
           <p className="status-page__code">Error</p>
           <h1>Something went wrong</h1>
           <p>Restart Archeion or try loading this view again.</p>

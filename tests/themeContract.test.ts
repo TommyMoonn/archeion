@@ -385,6 +385,7 @@ describe("theme token baseline", () => {
       const packageDirectory = path.basename(path.dirname(relativePath));
       const manifest = assertRuntimeFixture(readJson(relativePath), packageDirectory);
       const resolved = resolveTheme(manifest);
+      expect(resolved.contrastWarnings, packageDirectory).toEqual([]);
       const appVariables = new Map(
         Object.entries(appThemeResolvedTokenRegistry).map(([token, definition]) => [
           definition.cssVariable,

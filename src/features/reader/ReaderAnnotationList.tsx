@@ -151,7 +151,7 @@ export const ReaderAnnotationList = forwardRef<
       {loadStatus === "loading" ? <AnnotationLoadingState /> : null}
 
       {loadStatus === "error" ? (
-        <div className="reader-annotations__load-error" role="alert">
+        <div className="reader-annotations__load-error" data-tone="error" role="alert">
           <p>Annotations could not be loaded.</p>
           <Button onClick={onReload} size="compact" variant="secondary">
             Retry

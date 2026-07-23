@@ -1,0 +1,138 @@
+@media (forced-colors: active) {
+  :where(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
+
+  :where(
+    .input-shell:has(input:focus-visible),
+    .epub-filename-field:has(input:focus-visible),
+    .reader-note-editor__field:has(textarea:focus-visible)
+  ) {
+    outline: 2px solid Highlight;
+  }
+
+  :where(
+    .input-shell input,
+    .epub-filename-field input,
+    .reader-note-editor__field textarea
+  ):focus-visible {
+    outline: 0 !important;
+  }
+
+  :where(
+    .dialog,
+    .quick-actions,
+    .menu-popover,
+    .app-select__menu,
+    .book-card,
+    .book-row,
+    .settings-window,
+    .reader-toc,
+    .reader-annotations
+  ) {
+    border-color: CanvasText;
+  }
+
+  :where(
+    [aria-current]:not([aria-current="false"]),
+    [aria-selected="true"],
+    [aria-checked="true"],
+    [aria-pressed="true"],
+    [data-selected]
+  ) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  :where(
+    .nav-item.active,
+    .folder-tree__select[data-active],
+    .settings-sidebar nav button[aria-current="page"],
+    .archive-switcher__current[aria-current="true"],
+    .theme-catalog-list__item[aria-current="true"],
+    .app-select__option[aria-selected="true"],
+    .app-select__option[data-active],
+    .menu-item[aria-selected="true"],
+    .segmented-control__option[aria-checked="true"],
+    .toggle-control[aria-checked="true"],
+    .quick-actions__command[data-active="true"]
+  ) {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  .toggle-control[aria-checked="true"] span {
+    background: HighlightText;
+  }
+
+  :where(.book-card[data-selected], .book-row[data-selected]) {
+    outline: 2px solid Highlight;
+    outline-offset: -2px;
+  }
+
+  .book-selection-control[data-selected] {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  :where(
+    button:disabled,
+    input:disabled,
+    select:disabled,
+    textarea:disabled,
+    [aria-disabled="true"]
+  ) {
+    border-color: GrayText;
+    color: GrayText;
+    opacity: 1;
+  }
+
+  :where(input, select, textarea)[aria-invalid="true"] {
+    border-color: Mark;
+    outline: 2px dashed Mark;
+    outline-offset: 2px;
+  }
+
+  .button--danger {
+    border-color: MarkText;
+    outline: 2px double MarkText;
+    outline-offset: -3px;
+    color: MarkText;
+    background: Mark;
+  }
+
+  .menu-item--danger {
+    border-left: 3px double Mark;
+    color: LinkText;
+  }
+
+  :where(
+    [data-tone="error"],
+    [data-status="error"],
+    [data-status="failed"],
+    [data-error],
+    [data-invalid="true"],
+    .form-error,
+    .reader-error
+  ) {
+    border-color: Mark;
+    color: MarkText;
+    background: Mark;
+  }
+
+  :where(.icon-slot, .segmented-control__icon, .reader-toc__current-icon) {
+    color: currentColor;
+    forced-color-adjust: auto;
+  }
+}

@@ -242,7 +242,7 @@ function KeyboardShortcutCaptureDialog({
       >
         <strong>{candidate ? formatKeyboardBinding(candidate) : "Press a shortcut"}</strong>
         {validation?.ok === false ? (
-          <p id={validationMessageId} role="alert">
+          <p data-tone="error" id={validationMessageId} role="alert">
             {validation.reason}
           </p>
         ) : null}

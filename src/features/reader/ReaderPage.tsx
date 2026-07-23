@@ -785,7 +785,7 @@ export function ReaderPage() {
           </button>
         </div>
         {recoveryStatus === "failed" ? (
-          <p className="reader-status-page__error" role="alert">
+          <p className="reader-status-page__error" data-tone="error" role="alert">
             The archive could not be scanned.
           </p>
         ) : null}
@@ -832,7 +832,7 @@ export function ReaderPage() {
           </button>
         </div>
         {recoveryStatus === "failed" ? (
-          <p className="reader-status-page__error" role="alert">
+          <p className="reader-status-page__error" data-tone="error" role="alert">
             The archive could not be scanned.
           </p>
         ) : null}
@@ -938,6 +938,7 @@ export function ReaderPage() {
         <div
           aria-atomic="true"
           className="reader-annotation-feedback"
+          data-tone={annotations.feedback.kind === "error" ? "error" : undefined}
           role={annotations.feedback.kind === "error" ? "alert" : "status"}
         >
           <span>{annotations.feedback.message}</span>
@@ -957,7 +958,11 @@ export function ReaderPage() {
       ) : null}
 
       {highlights.feedback ? (
-        <div className="reader-highlight-feedback" role="alert">
+        <div
+          className="reader-highlight-feedback"
+          data-tone={highlights.feedback.kind === "persistence" ? "error" : undefined}
+          role="alert"
+        >
           <span>{highlights.feedback.message}</span>
           <IconButton
             label="Dismiss highlight message"

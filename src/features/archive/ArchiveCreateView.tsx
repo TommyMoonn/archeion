@@ -167,13 +167,13 @@ export function ArchiveCreateView({
         ) : null}
 
         {nameError && archiveName ? (
-          <p className="archive-create-form__status" role="alert">
+          <p className="archive-create-form__status" data-tone="error" role="alert">
             {nameError}
           </p>
         ) : null}
 
         {status ? (
-          <p className="archive-create-form__status" role="alert">
+          <p className="archive-create-form__status" data-tone="error" role="alert">
             {status}
           </p>
         ) : null}

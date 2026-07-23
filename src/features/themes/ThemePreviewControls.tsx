@@ -44,7 +44,11 @@ export function ThemePreviewControls({ session = themePreviewSession }: ThemePre
       <div className="theme-preview-controls__copy" aria-live="polite">
         <p>Theme preview</p>
         <strong>{snapshot.candidate.name}</strong>
-        {snapshot.error ? <span role="alert">{snapshot.error}</span> : null}
+        {snapshot.error ? (
+          <span data-tone="error" role="alert">
+            {snapshot.error}
+          </span>
+        ) : null}
         {hasWarnings ? (
           <label className="theme-preview-controls__warning">
             <input

@@ -79,6 +79,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
   });
 
   it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {
+    const pageTurnFocus = cssBlock(".epub-viewer__click-zone:focus-visible", readerSource);
     const previousFocus = cssBlock(
       ".epub-viewer__click-zone--previous:focus-visible",
       readerSource,
@@ -88,8 +89,10 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     expect(cssSource).toMatch(
       /:where\(button, a, input, select, textarea, summary, \[tabindex\]:not\(\[tabindex="-1"\]\)\):focus-visible/,
     );
-    expect(previousFocus).toContain("box-shadow: inset 3px 0");
-    expect(nextFocus).toContain("box-shadow: inset -3px 0");
+    expect(pageTurnFocus).toContain("outline: 2px solid var(--reader-focus)");
+    expect(pageTurnFocus).toContain("inset 0 0 0 4px var(--reader-bg)");
+    expect(previousFocus).toContain("inset 7px 0 var(--reader-focus)");
+    expect(nextFocus).toContain("inset -7px 0 var(--reader-focus)");
     expect(previousFocus).toContain("var(--reader-focus)");
     expect(nextFocus).toContain("var(--reader-focus)");
   });
@@ -105,6 +108,7 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     );
 
     expect(annotationTargetFocus).toContain("box-shadow: inset 0 0 0 2px var(--reader-focus)");
+    expect(annotationTargetFocus).toContain("outline: 2px solid var(--reader-focus)");
     expect(annotationTargetFocus).toContain("background:");
     expect(currentAnnotation).toContain("border-color:");
     expect(readerPageSource).toContain('className="reader-annotation-feedback"');
@@ -119,10 +123,15 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
   it("keeps note autosave states geometrically stable and keyboard reachable", () => {
     const statusRow = cssBlock(".reader-note-editor__status", readerSource);
     const textareaFocus = cssBlock(".reader-note-editor__field:focus-within", readerSource);
+    const textareaFocusVisible = cssBlock(
+      ".reader-note-editor__field:has(textarea:focus-visible)",
+      readerSource,
+    );
 
     expect(statusRow).toContain("min-height: 28px");
     expect(textareaFocus).toContain("box-shadow:");
     expect(textareaFocus).toContain("var(--reader-focus)");
+    expect(textareaFocusVisible).toContain("outline: 2px solid var(--reader-focus)");
     expect(readerNoteSource).toContain('status === "empty"');
     expect(readerNoteSource).toMatch(/>\s*Retry\s*</);
     expect(readerNoteSource).toContain("Delete note");

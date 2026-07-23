@@ -159,7 +159,11 @@ export function ThemeManagerDialog({
           onClose={controller.cancelReplacement}
           title="Update existing theme?"
         >
-          {controller.error ? <p role="alert">{controller.error}</p> : null}
+          {controller.error ? (
+            <p data-tone="error" role="alert">
+              {controller.error}
+            </p>
+          ) : null}
         </Dialog>
       ) : null}
 

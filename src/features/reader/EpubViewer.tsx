@@ -571,7 +571,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         />
       ) : null}
       {contentActionFeedback ? (
-        <div className="reader-content-action-feedback" role="status">
+        <div className="reader-content-action-feedback" data-tone="error" role="status">
           <span>{contentActionFeedback}</span>
           <IconButton
             label="Dismiss link message"

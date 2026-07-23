@@ -190,6 +190,73 @@ describe("theme resolution", () => {
     expect(Object.isFrozen(resolved.contrastWarnings)).toBe(true);
   });
 
+  it("checks focus contrast against application and reader interaction surfaces", () => {
+    const manifest = validatedManifest({
+      app: {
+        focus: "#242427",
+        main: "#111112",
+        surfaceRaised: "#242427",
+      },
+      reader: {
+        base: "dark",
+        background: "#171717",
+        focus: "#242427",
+        surface: "#242427",
+      },
+    });
+    const resolved = resolveTheme(manifest);
+
+    expect(resolved.contrastWarnings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          foregroundPath: "$.app.focus",
+          backgroundPath: "$.app.surfaceRaised",
+        }),
+        expect.objectContaining({
+          foregroundPath: "$.reader.focus",
+          backgroundPath: "$.reader.surface",
+        }),
+      ]),
+    );
+  });
+
+  it("warns when a custom reader theme erases the page-turn focus contrast layer", () => {
+    const manifest = validatedManifest({
+      reader: {
+        base: "dark",
+        background: "#242427",
+        focus: "#242427",
+      },
+    });
+    const resolved = resolveTheme(manifest);
+
+    expect(resolved.contrastWarnings).toContainEqual(
+      expect.objectContaining({
+        foregroundPath: "$.reader.focus",
+        backgroundPath: "$.reader.background",
+        minimumRatio: 3,
+      }),
+    );
+  });
+
+  it.each(["dark", "light", "sepia"] as const)(
+    "keeps the built-in %s Reader page-turn token pair distinguishable",
+    (base) => {
+      const reader = resolveBuiltInReaderTheme(base);
+      const contrastBase = base === "dark" ? "dark" : "light";
+      const backdrop = base === "dark" ? "#000000" : "#ffffff";
+
+      expect(
+        themeColorContrastRatio(
+          reader.publicTokens.focus,
+          reader.publicTokens.background,
+          backdrop,
+          contrastBase,
+        ),
+      ).toBeGreaterThanOrEqual(3);
+    },
+  );
+
   it("composites reader selection over its background and its background over the base once", () => {
     const manifest = validatedManifest({
       reader: {

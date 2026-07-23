@@ -83,7 +83,7 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
       </div>
 
       {entry.origin === "custom" && entry.diagnostics.length ? (
-        <div className="theme-details__diagnostics" role="alert">
+        <div className="theme-details__diagnostics" data-tone="error" role="alert">
           <strong>Theme diagnostics</strong>
           <ul>
             {entry.diagnostics.map((diagnostic, index) => (
