@@ -1,12 +1,12 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 
-export type FolderTreeNode = Folder & {
+export type FolderTreeNode = ReadonlyFolder & {
   children: FolderTreeNode[];
 };
 
 const pathSeparatorPattern = /[/\\]+/;
 
-export function buildFolderTree(folders: readonly Folder[]): FolderTreeNode[] {
+export function buildFolderTree(folders: readonly ReadonlyFolder[]): FolderTreeNode[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: "base",
@@ -35,7 +35,7 @@ export function buildFolderTree(folders: readonly Folder[]): FolderTreeNode[] {
   return roots;
 }
 
-export function getFolderDisplayPath(folder: Folder): string | undefined {
+export function getFolderDisplayPath(folder: ReadonlyFolder): string | undefined {
   const relativePath = folder.relativePath?.trim();
   if (!relativePath) {
     return undefined;

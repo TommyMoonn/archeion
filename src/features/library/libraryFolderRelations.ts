@@ -1,6 +1,6 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 
-export function isInsideFolder(relativePath: string | undefined, folder: Folder): boolean {
+export function isInsideFolder(relativePath: string | undefined, folder: ReadonlyFolder): boolean {
   if (!relativePath || !folder.relativePath) {
     return false;
   }

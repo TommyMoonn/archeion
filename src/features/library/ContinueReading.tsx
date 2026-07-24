@@ -1,13 +1,13 @@
 import { ArrowRight } from "@phosphor-icons/react";
 import { memo, useId } from "react";
 
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
 type ContinueReadingProps = {
-  books: readonly Book[];
-  onContinue: (book: Book) => void;
+  books: readonly ReadonlyBook[];
+  onContinue: (book: ReadonlyBook) => void;
 };
 
 export const ContinueReading = memo(function ContinueReading({
@@ -37,8 +37,8 @@ function ContinueReadingBook({
   book,
   onContinue,
 }: {
-  book: Book;
-  onContinue: (book: Book) => void;
+  book: ReadonlyBook;
+  onContinue: (book: ReadonlyBook) => void;
 }) {
   const missingDescriptionId = useId();
   const missing = Boolean(book.isFileMissing);

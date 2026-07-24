@@ -1,4 +1,4 @@
-import type { Book } from "./book";
+import type { ReadonlyBook } from "./book";
 
 export type SeriesVolumeToken = {
   normalizedLabel?: string;
@@ -7,7 +7,7 @@ export type SeriesVolumeToken = {
 };
 
 export type SeriesEntry = {
-  books: Book[];
+  books: ReadonlyBook[];
   completedCount: number;
   currentBookId?: string;
   displayName: string;

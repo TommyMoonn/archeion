@@ -178,6 +178,12 @@ snapshots without advancing that model revision. A failed initial scan therefore
 loading model's revision; the first successful commit, including an empty archive, establishes the
 ready model revision.
 
+`LibrarySnapshot` uses a type-enforced ownership boundary. Snapshot Books expose read-only nested
+metadata and tag arrays, and snapshot Folders carry a compile-time-only ownership discriminant.
+Neither entry type can widen back to the mutable storage domain type without an explicit cast.
+Publication still shares storage-owned immutable-replacement entries, so status-only snapshots do
+not clone, traverse, or refreeze the archive and unchanged entry identity remains stable.
+
 Inspect them in the Tauri WebView2 developer tools after startup:
 
 ```js

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Book } from "../../types/book";
+import type { Book, ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
 import { readingStatusForProgress } from "../reading/readingProgress";
 import { deriveSeriesEntryForBook, seriesNextVolumeBook } from "../series/seriesDerivation";
@@ -18,7 +18,7 @@ export function useReaderSeriesContinuation({
   isReaderReady,
   progressPercent,
   storage,
-}: ReaderSeriesContinuationInput): Book | undefined {
+}: ReaderSeriesContinuationInput): ReadonlyBook | undefined {
   const [loadedSeries, setLoadedSeries] = useState<{
     bookId: string;
     entry: SeriesEntry | null;

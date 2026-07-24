@@ -2,16 +2,16 @@ import { DotsThree } from "@phosphor-icons/react";
 
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import type { ContextMenuController } from "../../components/contextMenuController";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import { createFolderContextActions } from "./folderContextActions";
 
 type FolderActionsMenuProps = {
   controller: ContextMenuController;
-  folder: Folder;
-  onDelete: (folder: Folder) => void;
-  onMove: (folder: Folder) => void;
-  onRename?: (folder: Folder) => void;
-  onReveal?: (folder: Folder) => void;
+  folder: ReadonlyFolder;
+  onDelete: (folder: ReadonlyFolder) => void;
+  onMove: (folder: ReadonlyFolder) => void;
+  onRename?: (folder: ReadonlyFolder) => void;
+  onReveal?: (folder: ReadonlyFolder) => void;
   dismissKey?: string;
   showRename?: boolean;
   showReveal?: boolean;

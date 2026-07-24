@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { Book } from "../types/book";
+import type { ReadonlyBook } from "../types/book";
 import type { LibraryMetadata, MetadataBundle, ProgressMetadata } from "./metadataFiles";
 import type { ArchiveEpubScan, ArchiveScan } from "./reconcileLibraryState";
 import { deferred, invokeMock, setupDefaultStorageMock } from "./tauri/storageTestSupport";
@@ -97,7 +97,7 @@ async function loadedStorage() {
   return { archive, storage };
 }
 
-function pathById(books: readonly Book[]): Record<string, string | undefined> {
+function pathById(books: readonly ReadonlyBook[]): Record<string, string | undefined> {
   return Object.fromEntries(books.map((book) => [book.id, book.relativePath]));
 }
 

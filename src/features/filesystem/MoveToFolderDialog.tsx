@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import { ARCHIVE_ROOT_DESTINATION } from "./archiveImport";
 
 type MoveToFolderDialogProps = {
   currentFolderId?: string | null;
   excludedFolderIds?: string[];
-  folders: readonly Folder[];
+  folders: readonly ReadonlyFolder[];
   onClose: () => void;
   onMove: (folderId: string | null) => Promise<void>;
   returnFocusTo?: HTMLElement | null;

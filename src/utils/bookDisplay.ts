@@ -1,4 +1,4 @@
-import type { Book } from "../types/book";
+import type { ReadonlyBook } from "../types/book";
 
 function fallbackTitleFromFileName(fileName: string): string {
   return (
@@ -9,7 +9,7 @@ function fallbackTitleFromFileName(fileName: string): string {
   );
 }
 
-export function bookTitle(book: Book): string {
+export function bookTitle(book: ReadonlyBook): string {
   return (
     book.sourceMetadata?.title?.trim() ||
     book.originalTitle?.trim() ||
@@ -17,14 +17,14 @@ export function bookTitle(book: Book): string {
   );
 }
 
-export function bookAuthor(book: Book): string {
+export function bookAuthor(book: ReadonlyBook): string {
   return book.sourceMetadata?.creator?.trim() || "";
 }
 
-export function bookSourceTitle(book: Book): string {
+export function bookSourceTitle(book: ReadonlyBook): string {
   return book.sourceMetadata?.title?.trim() || fallbackTitleFromFileName(book.fileName);
 }
 
-export function bookSourceAuthor(book: Book): string {
+export function bookSourceAuthor(book: ReadonlyBook): string {
   return book.sourceMetadata?.creator?.trim() || "Author unavailable";
 }

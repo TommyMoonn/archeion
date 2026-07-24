@@ -1,4 +1,4 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
 
 export type FolderMutationFocusSurface = "browser" | "tree";
@@ -14,7 +14,10 @@ export type FolderDeletionFocusContext = Readonly<{
   surface: FolderMutationFocusSurface;
 }>;
 
-export function folderMutationOwnerAttributes(folder: Folder, surface: FolderMutationFocusSurface) {
+export function folderMutationOwnerAttributes(
+  folder: ReadonlyFolder,
+  surface: FolderMutationFocusSurface,
+) {
   return {
     "data-library-folder-path": folder.relativePath,
     "data-library-folder-surface": surface,
@@ -23,7 +26,7 @@ export function folderMutationOwnerAttributes(folder: Folder, surface: FolderMut
 
 export function captureFolderMutationFocusContext(
   activeElement: Element | null,
-  folder: Folder,
+  folder: ReadonlyFolder,
 ): FolderMutationFocusContext | null {
   const owner = activeElement?.closest<HTMLElement>("[data-library-folder-path]");
   if (!owner || !sameFolderPath(owner.dataset.libraryFolderPath, folder.relativePath)) {
@@ -36,7 +39,7 @@ export function captureFolderMutationFocusContext(
 
 export function captureFolderDeletionFocusContext(
   activeElement: Element | null,
-  folder: Folder,
+  folder: ReadonlyFolder,
   root: ParentNode = document,
 ): FolderDeletionFocusContext | null {
   const deletedPath = folder.relativePath;

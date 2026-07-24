@@ -1,8 +1,9 @@
 import type {
-  Book,
   BulkMetadataEditInput,
   EpubMetadataWritebackInput,
   EpubSourceMetadata,
+  ReadonlyBook,
+  ReadonlyEpubSourceMetadata,
 } from "../types/book";
 
 export type BulkMetadataPreviewChange = {
@@ -13,7 +14,7 @@ export type BulkMetadataPreviewChange = {
 };
 
 export type BulkMetadataBookPreview = {
-  book: Book;
+  book: ReadonlyBook;
   changes: BulkMetadataPreviewChange[];
 };
 
@@ -65,7 +66,7 @@ function applyTagEdit(
 }
 
 export function metadataAfterBulkEdit(
-  metadata: EpubSourceMetadata | undefined,
+  metadata: ReadonlyEpubSourceMetadata | undefined,
   edits: BulkMetadataEditInput,
 ): EpubMetadataWritebackInput {
   const current: EpubMetadataWritebackInput = {
@@ -91,7 +92,7 @@ function displaySubjects(values: readonly string[] | undefined) {
 }
 
 export function previewBulkMetadataBookEdit(
-  book: Book,
+  book: ReadonlyBook,
   edits: BulkMetadataEditInput,
 ): BulkMetadataBookPreview {
   const current = book.sourceMetadata ?? {};
@@ -123,14 +124,14 @@ export function previewBulkMetadataBookEdit(
 }
 
 export function previewBulkMetadataEdit(
-  books: readonly Book[],
+  books: readonly ReadonlyBook[],
   edits: BulkMetadataEditInput,
 ): BulkMetadataBookPreview[] {
   return books.map((book) => previewBulkMetadataBookEdit(book, edits));
 }
 
 export function commonMetadataValue(
-  books: readonly Book[],
+  books: readonly ReadonlyBook[],
   field: "series" | "publisher" | "language",
 ): { mixed: boolean; value: string } {
   const values = books.map((book) => book.sourceMetadata?.[field]?.trim() ?? "");
@@ -138,7 +139,7 @@ export function commonMetadataValue(
   return { mixed: uniqueValues.size > 1, value: uniqueValues.size === 1 ? values[0] : "" };
 }
 
-export function commonTagsValue(books: readonly Book[]) {
+export function commonTagsValue(books: readonly ReadonlyBook[]) {
   const values = books.map((book) =>
     normalizeBulkMetadataTags(book.sourceMetadata?.subjects ?? []),
   );

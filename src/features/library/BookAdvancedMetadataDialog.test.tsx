@@ -9,6 +9,7 @@ import type {
   Book,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
+  ReadonlyBook,
 } from "../../types/book";
 import { BookAdvancedMetadataDialog } from "./BookAdvancedMetadataDialog";
 
@@ -43,7 +44,7 @@ const writebackFileStat = {
 let activeRoot: Root | null = null;
 
 type WriteMetadataHandler = (
-  book: Book,
+  book: ReadonlyBook,
   metadata: EpubMetadataWritebackInput,
 ) => Promise<EpubMetadataWritebackResult>;
 
@@ -218,7 +219,7 @@ describe("BookAdvancedMetadataDialog", () => {
       },
     };
     const onWriteMetadata = vi.fn(
-      async (submittedBook: Book, submittedMetadata: EpubMetadataWritebackInput) => {
+      async (submittedBook: ReadonlyBook, submittedMetadata: EpubMetadataWritebackInput) => {
         expect(submittedBook).toBe(identifierBook);
         expect(submittedMetadata).not.toHaveProperty("identifier");
         return {

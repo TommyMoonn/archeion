@@ -1,8 +1,8 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import { FolderNameDialog } from "./FolderNameDialog";
 
 type FolderRenameDialogProps = {
-  folder: Folder;
+  folder: ReadonlyFolder;
   onClose: () => void;
   onRename: (name: string) => Promise<void>;
 };

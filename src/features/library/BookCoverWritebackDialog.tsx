@@ -10,22 +10,25 @@ import type {
   EpubCoverPreparation,
   EpubCoverWritebackInput,
   EpubCoverWritebackResult,
-  Book,
+  ReadonlyBook,
 } from "../../types/book";
 import { formatFileSize } from "../../utils/formatters";
 import { BookCover } from "./BookCover";
 import { bookTitle } from "./libraryFilters";
 
 type BookCoverWritebackDialogProps = {
-  book: Book;
+  book: ReadonlyBook;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
   onPrepareCover: (
-    book: Book,
+    book: ReadonlyBook,
     imagePath: string,
     framing: EpubCoverFraming,
   ) => Promise<EpubCoverPreparation>;
-  onWriteCover: (book: Book, input: EpubCoverWritebackInput) => Promise<EpubCoverWritebackResult>;
+  onWriteCover: (
+    book: ReadonlyBook,
+    input: EpubCoverWritebackInput,
+  ) => Promise<EpubCoverWritebackResult>;
 };
 
 const framingOptions = [

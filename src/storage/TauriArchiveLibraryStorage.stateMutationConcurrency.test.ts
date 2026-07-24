@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import type { Book } from "../types/book";
+import type { ReadonlyBook } from "../types/book";
 import type { LibraryMetadata, MetadataBundle, ProgressMetadata } from "./metadataFiles";
 import type { ArchiveEpubScan, ArchiveScan } from "./reconcileLibraryState";
 import { deferred, invokeMock, setupDefaultStorageMock } from "./tauri/storageTestSupport";
@@ -87,7 +87,7 @@ async function loadStorage(archive = stateArchive()) {
   return storage;
 }
 
-function byId<T extends Book>(books: readonly T[], id: string): T {
+function byId<T extends ReadonlyBook>(books: readonly T[], id: string): T {
   const book = books.find((candidate) => candidate.id === id);
   if (!book) throw new Error(`Missing test book ${id}.`);
   return book;
@@ -347,7 +347,7 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
       return undefined;
     });
 
-    const emissions: Book[][] = [];
+    const emissions: ReadonlyBook[][] = [];
     storage.observeLibrarySnapshot({ next: (snapshot) => emissions.push([...snapshot.books]) });
     const favorite = storage.updateBook("book-1", { isFavorite: false });
     await favoriteSaveStarted.promise;
@@ -414,7 +414,7 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
       const storage = await loadStorage();
       const before = await storage.listBooks();
       const bookBefore = byId(before, "book-1");
-      const emissions: Book[][] = [];
+      const emissions: ReadonlyBook[][] = [];
       storage.observeLibrarySnapshot({ next: (snapshot) => emissions.push([...snapshot.books]) });
       invokeMock.mockImplementation(async (command) => {
         if (command === failingCommand) throw new Error("disk full");

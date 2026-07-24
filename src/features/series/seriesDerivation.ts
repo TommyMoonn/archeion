@@ -1,4 +1,4 @@
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import type { SeriesEntry, SeriesVolumeToken } from "../../types/series";
 import { bookTitle } from "../../utils/bookDisplay";
 import { bookReadingStatus, readingStatusForProgress } from "../reading/readingProgress";
@@ -39,7 +39,7 @@ export function deriveSeriesVolumeToken(rawValue: string | undefined): SeriesVol
   };
 }
 
-function compareSeriesBooks(left: Book, right: Book): number {
+function compareSeriesBooks(left: ReadonlyBook, right: ReadonlyBook): number {
   const leftToken = deriveSeriesVolumeToken(left.sourceMetadata?.volume);
   const rightToken = deriveSeriesVolumeToken(right.sourceMetadata?.volume);
   const leftKnown = leftToken.sortableValue !== undefined;
@@ -56,12 +56,12 @@ function compareSeriesBooks(left: Book, right: Book): number {
   return compareBookIdentity(left, right);
 }
 
-function sortSeriesBooks(books: readonly Book[]): Book[] {
+function sortSeriesBooks(books: readonly ReadonlyBook[]): ReadonlyBook[] {
   return [...books].sort(compareSeriesBooks);
 }
 
-export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
-  const groupedBooks = new Map<string, Book[]>();
+export function deriveSeriesEntries(books: readonly ReadonlyBook[]): SeriesEntry[] {
+  const groupedBooks = new Map<string, ReadonlyBook[]>();
 
   for (const book of books) {
     const key = normalizeSeriesKey(book.sourceMetadata?.series);
@@ -83,7 +83,7 @@ export function deriveSeriesEntries(books: readonly Book[]): SeriesEntry[] {
 }
 
 export function deriveSeriesEntriesFromGroups(
-  groupedBooks: ReadonlyMap<string, readonly Book[]>,
+  groupedBooks: ReadonlyMap<string, readonly ReadonlyBook[]>,
 ): SeriesEntry[] {
   return [...groupedBooks.entries()]
     .map(([key, groupedSeriesBooks]) => deriveSeriesEntry(key, groupedSeriesBooks))
@@ -91,7 +91,7 @@ export function deriveSeriesEntriesFromGroups(
 }
 
 export function deriveSeriesEntryForBook(
-  books: readonly Book[],
+  books: readonly ReadonlyBook[],
   bookId: string,
 ): SeriesEntry | undefined {
   const book = books.find((candidate) => candidate.id === bookId);
@@ -116,7 +116,7 @@ export function filterSeriesEntries(entries: readonly SeriesEntry[], query: stri
   );
 }
 
-export function seriesContinueBook(entry: SeriesEntry): Book | undefined {
+export function seriesContinueBook(entry: SeriesEntry): ReadonlyBook | undefined {
   const targetId = entry.currentBookId ?? entry.firstUnreadBookId;
   return targetId ? entry.books.find((book) => book.id === targetId) : undefined;
 }
@@ -125,7 +125,7 @@ export function seriesNextVolumeBook(
   entry: SeriesEntry,
   currentBookId: string,
   progressPercent?: number,
-): Book | undefined {
+): ReadonlyBook | undefined {
   const currentBook = entry.books.find((book) => book.id === currentBookId);
 
   if (!currentBook) {
@@ -143,7 +143,7 @@ export function seriesNextVolumeBook(
     return undefined;
   }
 
-  const booksByVolume = new Map<number, Book[]>();
+  const booksByVolume = new Map<number, ReadonlyBook[]>();
 
   for (const book of entry.books) {
     const sortableValue = deriveSeriesVolumeToken(book.sourceMetadata?.volume).sortableValue;
@@ -177,7 +177,7 @@ export function seriesNextVolumeBook(
   return nextVolumeBooks?.length === 1 ? nextVolumeBooks[0] : undefined;
 }
 
-function deriveSeriesProgress(books: readonly Book[]): {
+function deriveSeriesProgress(books: readonly ReadonlyBook[]): {
   completedCount: number;
   currentBookId?: string;
   firstUnreadBookId?: string;
@@ -200,7 +200,7 @@ function deriveSeriesProgress(books: readonly Book[]): {
   };
 }
 
-function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly Book[]): SeriesEntry {
+function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly ReadonlyBook[]): SeriesEntry {
   const sortedBooks = sortSeriesBooks(groupedSeriesBooks);
   const representative = [...groupedSeriesBooks].sort(compareBookIdentity)[0];
   const progress = deriveSeriesProgress(sortedBooks);
@@ -223,7 +223,7 @@ function deriveSeriesEntry(key: string, groupedSeriesBooks: readonly Book[]): Se
   };
 }
 
-function findDuplicateVolumeHints(books: readonly Book[]): string[] {
+function findDuplicateVolumeHints(books: readonly ReadonlyBook[]): string[] {
   const groups = new Map<string, { count: number; label: string }>();
 
   for (const book of books) {
@@ -254,7 +254,7 @@ function findDuplicateVolumeHints(books: readonly Book[]): string[] {
     .map((group) => `${group.label} appears ${group.count} times`);
 }
 
-function findMissingVolumeHints(books: readonly Book[]): string[] {
+function findMissingVolumeHints(books: readonly ReadonlyBook[]): string[] {
   const integerVolumes = [
     ...new Set(
       books
@@ -297,7 +297,7 @@ function compareSeriesEntries(left: SeriesEntry, right: SeriesEntry): number {
   );
 }
 
-function compareBookIdentity(left: Book, right: Book): number {
+function compareBookIdentity(left: ReadonlyBook, right: ReadonlyBook): number {
   const collator = getSeriesCollator();
   const leftTitle = bookTitle(left);
   const rightTitle = bookTitle(right);
@@ -313,7 +313,7 @@ function compareBookIdentity(left: Book, right: Book): number {
   );
 }
 
-function stableBookPath(book: Book): string {
+function stableBookPath(book: ReadonlyBook): string {
   return book.relativePath?.trim() || book.fileName;
 }
 

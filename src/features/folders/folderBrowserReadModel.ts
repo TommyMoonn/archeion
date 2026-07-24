@@ -1,4 +1,4 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import type { FolderSort } from "../../types/library";
 import { searchFolders } from "./folderSearch";
 import { getFolderDisplayPath } from "./folderTreeUtils";
@@ -6,7 +6,7 @@ import { getFolderDisplayPath } from "./folderTreeUtils";
 export type FolderBrowserEntry = {
   bookCount: number;
   displayPath?: string;
-  folder: Folder;
+  folder: ReadonlyFolder;
   sortKeys: {
     name: string;
     path: string;
@@ -29,7 +29,7 @@ function compareStableFolderIds(left: string, right: string): number {
 }
 
 export function createFolderBrowserEntries(
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
   bookCounts: ReadonlyMap<string, number>,
 ): FolderBrowserEntry[] {
   return folders.map((folder) => {

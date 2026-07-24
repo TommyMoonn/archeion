@@ -7,9 +7,10 @@ import type {
   EpubCoverWritebackResult,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
+  ReadonlyBook,
   UpdateBookInput,
 } from "../types/book";
-import type { CreateFolderInput, Folder, UpdateFolderInput } from "../types/folder";
+import type { CreateFolderInput, Folder, ReadonlyFolder, UpdateFolderInput } from "../types/folder";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../types/archiveImport";
 import type {
   Annotation,
@@ -38,8 +39,8 @@ export type ScanStatus = { status: "idle" } | { status: "scanning"; startedAt: s
 
 export type LibraryLoadState = "loading" | "ready" | "error";
 
-export type LibrarySnapshotBook = Book;
-export type LibrarySnapshotFolder = Folder;
+export type LibrarySnapshotBook = ReadonlyBook;
+export type LibrarySnapshotFolder = ReadonlyFolder;
 
 export type LibrarySnapshot = Readonly<{
   archiveGeneration: number;

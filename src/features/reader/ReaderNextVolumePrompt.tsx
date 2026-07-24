@@ -1,11 +1,11 @@
 import { ArrowRight } from "@phosphor-icons/react";
 
 import { Button } from "../../components/Button";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 
 type ReaderNextVolumePromptProps = {
-  book: Book;
+  book: ReadonlyBook;
   onOpen: () => void;
 };
 

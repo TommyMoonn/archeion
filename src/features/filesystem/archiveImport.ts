@@ -1,6 +1,6 @@
 import type { ArchiveImportResult } from "../../storage/LibraryStorage";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 
 export const ARCHIVE_ROOT_DESTINATION = "__archive-root__";
 
@@ -42,7 +42,7 @@ export function isEpubSourcePath(path: string): boolean {
 }
 
 export function createArchiveDestinationOptions(
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
 ): ArchiveImportDestination[] {
   return [
     { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },

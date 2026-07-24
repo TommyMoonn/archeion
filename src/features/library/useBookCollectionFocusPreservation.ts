@@ -7,7 +7,7 @@ import {
   type RefObject,
 } from "react";
 
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import {
   focusElementIfRestorationOwned,
   focusIsUnowned,
@@ -30,7 +30,7 @@ type CapturedCollectionFocus = Readonly<{
 
 type UseBookCollectionFocusPreservationInput = {
   active: boolean;
-  books: readonly Book[];
+  books: readonly ReadonlyBook[];
   collectionRootRef: RefObject<HTMLElement | null>;
   fallbackRef: RefObject<HTMLElement | null>;
   ownerKey: string;

@@ -1,5 +1,5 @@
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyBook } from "../../types/book";
+import type { ReadonlyFolder } from "../../types/folder";
 import type { LibrarySmartView } from "../../types/library";
 import { LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
@@ -18,7 +18,7 @@ import {
 } from "./libraryFilters";
 
 export type LibraryIndexEntry = Readonly<{
-  book: Book;
+  book: ReadonlyBook;
   identityKey: string;
   search: LibrarySearchIndexEntry;
   seriesKey?: string;
@@ -39,16 +39,16 @@ export type LibraryIndexCache = {
 
 export type LibraryIndex = Readonly<{
   version: number;
-  books: Book[];
+  books: ReadonlyBook[];
   entries: readonly LibraryIndexEntry[];
   searchEntries: LibrarySearchIndexEntry[];
-  bookById: ReadonlyMap<string, Book>;
-  booksByFolder: ReadonlyMap<string, readonly Book[]>;
+  bookById: ReadonlyMap<string, ReadonlyBook>;
+  booksByFolder: ReadonlyMap<string, readonly ReadonlyBook[]>;
   bookCountsByFolder: ReadonlyMap<string, number>;
-  folderById: ReadonlyMap<string, Folder>;
+  folderById: ReadonlyMap<string, ReadonlyFolder>;
   folderDescendantIds: ReadonlyMap<string, readonly string[]>;
   favoriteCount: number;
-  continueBooks: Book[];
+  continueBooks: ReadonlyBook[];
   filterOptions: LibraryFilterOptions;
   smartViewCounts: LibrarySmartViewCounts;
   seriesEntries: SeriesEntry[];
@@ -60,8 +60,8 @@ export function createLibraryIndexCache(): LibraryIndexCache {
 }
 
 export function createLibraryIndex(
-  books: readonly Book[],
-  folders: readonly Folder[],
+  books: readonly ReadonlyBook[],
+  folders: readonly ReadonlyFolder[],
   cache: LibraryIndexCache = createLibraryIndexCache(),
 ): LibraryIndex {
   const folderById = new Map(folders.map((folder) => [folder.id, folder]));
@@ -74,13 +74,13 @@ export function createLibraryIndex(
   const folderDescendantIds = deriveFolderDescendants(folders, folderById);
   const nextCache = new Map<string, CachedLibraryIndexEntry>();
   const entries: LibraryIndexEntry[] = [];
-  const canonicalBooks: Book[] = [];
+  const canonicalBooks: ReadonlyBook[] = [];
   const searchEntries: LibrarySearchIndexEntry[] = [];
-  const bookById = new Map<string, Book>();
-  const booksByFolder = new Map<string, Book[]>();
+  const bookById = new Map<string, ReadonlyBook>();
+  const booksByFolder = new Map<string, ReadonlyBook[]>();
   const bookCountsByFolder = new Map<string, number>();
-  const continueCandidates: Book[] = [];
-  const seriesGroups = new Map<string, Book[]>();
+  const continueCandidates: ReadonlyBook[] = [];
+  const seriesGroups = new Map<string, ReadonlyBook[]>();
   const filterValues = createLibraryFilterOptionAccumulator();
   const smartViewCounts = emptySmartViewCounts();
   let favoriteCount = 0;
@@ -158,8 +158,8 @@ export function createLibraryIndex(
 }
 
 function createIndexEntry(
-  book: Book,
-  folderById: Map<string, Folder>,
+  book: ReadonlyBook,
+  folderById: Map<string, ReadonlyFolder>,
   identityKey: string,
 ): LibraryIndexEntry {
   const seriesKey = normalizeSeriesKey(book.sourceMetadata?.series);
@@ -179,7 +179,7 @@ function createIndexEntry(
   });
 }
 
-function libraryIndexEntryIdentity(book: Book, folder: Folder | undefined): string {
+function libraryIndexEntryIdentity(book: ReadonlyBook, folder: ReadonlyFolder | undefined): string {
   return JSON.stringify([
     book.id,
     book.fileName,
@@ -207,8 +207,8 @@ function libraryIndexEntryIdentity(book: Book, folder: Folder | undefined): stri
 }
 
 function libraryIndexRevisionKey(
-  books: readonly Book[],
-  folders: readonly Folder[],
+  books: readonly ReadonlyBook[],
+  folders: readonly ReadonlyFolder[],
   identityKeys: readonly string[],
 ): string {
   return JSON.stringify([
@@ -226,8 +226,8 @@ function libraryIndexRevisionKey(
 }
 
 function deriveFolderDescendants(
-  folders: readonly Folder[],
-  folderById: ReadonlyMap<string, Folder>,
+  folders: readonly ReadonlyFolder[],
+  folderById: ReadonlyMap<string, ReadonlyFolder>,
 ): ReadonlyMap<string, readonly string[]> {
   const childIds = new Map<string, string[]>();
   for (const folder of folders) {

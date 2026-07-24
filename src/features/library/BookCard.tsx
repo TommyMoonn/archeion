@@ -13,7 +13,7 @@ import {
   useContextMenuController,
 } from "../../components/contextMenuController";
 import { IconButton } from "../../components/IconButton";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { BookContextMenu } from "./BookContextMenu";
 import { isBookRenderEquivalent } from "./bookRenderIdentity";
 import { BookCover } from "./BookCover";
@@ -21,16 +21,16 @@ import { bookAuthor, bookTitle } from "./libraryFilters";
 import type { LibrarySelectionIntent } from "./librarySelection";
 
 type BookCardProps = {
-  book: Book;
-  onDelete: (book: Book) => void;
-  onEditMetadata: (book: Book) => void;
-  onMove?: (book: Book) => void;
-  onRead: (book: Book) => void;
-  onRenameFile?: (book: Book) => void;
-  onRevealFile?: (book: Book) => void;
-  onSelect: (book: Book) => void;
-  onSelectionChange: (book: Book, intent: LibrarySelectionIntent) => void;
-  onToggleFavorite: (book: Book) => void;
+  book: ReadonlyBook;
+  onDelete: (book: ReadonlyBook) => void;
+  onEditMetadata: (book: ReadonlyBook) => void;
+  onMove?: (book: ReadonlyBook) => void;
+  onRead: (book: ReadonlyBook) => void;
+  onRenameFile?: (book: ReadonlyBook) => void;
+  onRevealFile?: (book: ReadonlyBook) => void;
+  onSelect: (book: ReadonlyBook) => void;
+  onSelectionChange: (book: ReadonlyBook, intent: LibrarySelectionIntent) => void;
+  onToggleFavorite: (book: ReadonlyBook) => void;
   canDelete?: boolean;
   canManageFile?: boolean;
   selected: boolean;

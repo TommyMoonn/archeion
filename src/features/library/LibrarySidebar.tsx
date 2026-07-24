@@ -22,7 +22,7 @@ import { memo, useCallback, useId, useState } from "react";
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
 import type { KnownArchive } from "../../types/archive";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import type {
   LibraryLocation,
   LibrarySmartView,
@@ -55,23 +55,23 @@ type LibrarySidebarProps = {
   archives: KnownArchive[];
   bookCount: number;
   favoriteCount: number;
-  folders: readonly Folder[];
+  folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
   seriesCount: number;
   smartViewCounts: LibrarySmartViewCounts;
   smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
-  onDeleteFolder: (folder: Folder) => void;
+  onDeleteFolder: (folder: ReadonlyFolder) => void;
   onManageArchives: () => void;
-  onMoveFolder: (folder: Folder) => void;
+  onMoveFolder: (folder: ReadonlyFolder) => void;
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
   onPreloadAbout?: () => void;
   onPreloadSettings?: () => void;
-  onRenameFolder: (folder: Folder) => void;
-  onRevealFolder?: (folder: Folder) => void;
+  onRenameFolder: (folder: ReadonlyFolder) => void;
+  onRevealFolder?: (folder: ReadonlyFolder) => void;
   onSwitchArchive: (archive: KnownArchive) => void;
   settingsAriaKeyShortcuts?: string;
   canRevealFolders?: boolean;

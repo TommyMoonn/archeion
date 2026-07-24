@@ -1,4 +1,4 @@
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -10,7 +10,7 @@ import {
 } from "../../utils/searchText";
 
 export type FolderSearchIndexEntry = {
-  folder: Folder;
+  folder: ReadonlyFolder;
   fields: {
     name: SearchTextVariants;
     relativePath: SearchTextVariants;
@@ -43,7 +43,9 @@ function scoreFolderSearchEntry(entry: FolderSearchIndexEntry, query: SearchQuer
   );
 }
 
-export function createFolderSearchIndex(folders: readonly Folder[]): FolderSearchIndexEntry[] {
+export function createFolderSearchIndex(
+  folders: readonly ReadonlyFolder[],
+): FolderSearchIndexEntry[] {
   return folders.map((folder) => ({
     folder,
     fields: {
@@ -54,7 +56,10 @@ export function createFolderSearchIndex(folders: readonly Folder[]): FolderSearc
   }));
 }
 
-export function searchFolderIndex(index: FolderSearchIndexEntry[], query: string): Folder[] {
+export function searchFolderIndex(
+  index: FolderSearchIndexEntry[],
+  query: string,
+): ReadonlyFolder[] {
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
@@ -72,6 +77,6 @@ export function searchFolderIndex(index: FolderSearchIndexEntry[], query: string
     .map(({ entry }) => entry.folder);
 }
 
-export function searchFolders(folders: readonly Folder[], query: string): Folder[] {
+export function searchFolders(folders: readonly ReadonlyFolder[], query: string): ReadonlyFolder[] {
   return searchFolderIndex(createFolderSearchIndex(folders), query);
 }

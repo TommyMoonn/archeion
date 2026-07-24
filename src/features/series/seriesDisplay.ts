@@ -1,4 +1,4 @@
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
 import { bookReadingStatus } from "../reading/readingProgress";
 
@@ -22,7 +22,7 @@ export function seriesProgressLabel(entry: SeriesEntry): string {
   return parts.join(" · ") || "Unread";
 }
 
-export function bookProgressLabel(book: Book): string {
+export function bookProgressLabel(book: ReadonlyBook): string {
   switch (bookReadingStatus(book)) {
     case "completed":
       return "Completed";

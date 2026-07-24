@@ -3,7 +3,7 @@ import {
   normalizeArchiveRelativePath,
   validateArchiveItemName,
 } from "../../storage/pathSafety";
-import type { Folder, UpdateFolderInput } from "../../types/folder";
+import type { ReadonlyFolder, UpdateFolderInput } from "../../types/folder";
 
 export type FolderPathMutationMapping = Readonly<{
   oldRelativePath: string;
@@ -11,9 +11,9 @@ export type FolderPathMutationMapping = Readonly<{
 }>;
 
 export function predictFolderPathMutation(
-  folder: Folder,
+  folder: ReadonlyFolder,
   changes: UpdateFolderInput,
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
 ): FolderPathMutationMapping {
   const oldRelativePath = requireFolderPath(folder.relativePath);
   const name = Object.hasOwn(changes, "name")

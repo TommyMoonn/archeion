@@ -1,6 +1,6 @@
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 
-export function isBookRenderEquivalent(left: Book, right: Book): boolean {
+export function isBookRenderEquivalent(left: ReadonlyBook, right: ReadonlyBook): boolean {
   return (
     left === right ||
     (left.id === right.id &&

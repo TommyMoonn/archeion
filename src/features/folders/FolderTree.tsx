@@ -11,20 +11,20 @@ import {
   openContextMenuFromPointer,
   useContextMenuController,
 } from "../../components/contextMenuController";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
 import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 
 type FolderTreeProps = {
-  folders: readonly Folder[];
+  folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
-  onDelete: (folder: Folder) => void;
-  onMove: (folder: Folder) => void;
-  onRename: (folder: Folder) => void;
-  onReveal?: (folder: Folder) => void;
-  onSelect: (folder: Folder) => void;
+  onDelete: (folder: ReadonlyFolder) => void;
+  onMove: (folder: ReadonlyFolder) => void;
+  onRename: (folder: ReadonlyFolder) => void;
+  onReveal?: (folder: ReadonlyFolder) => void;
+  onSelect: (folder: ReadonlyFolder) => void;
   activeImportDropTargetId?: string | null;
   showActions?: boolean;
   showReveal?: boolean;

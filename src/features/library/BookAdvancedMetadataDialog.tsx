@@ -3,10 +3,11 @@ import { useMemo, useState } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import type {
-  Book,
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
   EpubSourceMetadata,
+  ReadonlyBook,
+  ReadonlyEpubSourceMetadata,
 } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 
@@ -79,11 +80,11 @@ type MetadataFormState = Record<Exclude<EditableField, "subjects">, string> & {
 };
 
 type BookAdvancedMetadataDialogProps = {
-  book: Book;
+  book: ReadonlyBook;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
   onWriteMetadata: (
-    book: Book,
+    book: ReadonlyBook,
     metadata: EpubMetadataWritebackInput,
   ) => Promise<EpubMetadataWritebackResult>;
 };
@@ -116,7 +117,9 @@ function subjectsToFormValue(subjects: readonly string[] | undefined): string {
   return subjects?.join("\n") ?? "";
 }
 
-function formStateFromMetadata(metadata: EpubSourceMetadata | undefined): MetadataFormState {
+function formStateFromMetadata(
+  metadata: ReadonlyEpubSourceMetadata | undefined,
+): MetadataFormState {
   return {
     title: metadata?.title ?? "",
     creator: metadata?.creator ?? "",
@@ -152,7 +155,9 @@ function metadataFieldValue(metadata: EpubSourceMetadata, field: EditableField):
   return metadata[field] ?? "";
 }
 
-function normalizedSourceMetadata(metadata: EpubSourceMetadata | undefined): EpubSourceMetadata {
+function normalizedSourceMetadata(
+  metadata: ReadonlyEpubSourceMetadata | undefined,
+): EpubSourceMetadata {
   const form = formStateFromMetadata(metadata);
   return {
     ...metadataFromForm(form),
@@ -175,7 +180,7 @@ function textInputId(field: EditableField): string {
   return `metadata-${field}`;
 }
 
-function fieldPlaceholder(book: Book, field: EditableField): string | undefined {
+function fieldPlaceholder(book: ReadonlyBook, field: EditableField): string | undefined {
   if (field === "title") {
     return bookTitle(book);
   }
@@ -208,7 +213,7 @@ function MetadataFieldGroup({
   group,
   onFieldChange,
 }: {
-  book: Book;
+  book: ReadonlyBook;
   committedMetadata: EpubSourceMetadata;
   form: MetadataFormState;
   group: MetadataFieldGroupDefinition;
@@ -242,7 +247,7 @@ function MetadataFieldControl({
   form,
   onFieldChange,
 }: {
-  book: Book;
+  book: ReadonlyBook;
   committedMetadata: EpubSourceMetadata;
   field: MetadataField;
   form: MetadataFormState;

@@ -10,13 +10,13 @@ import {
   parseBulkMetadataSubjects,
   previewBulkMetadataEdit,
 } from "../../storage/bulkMetadata";
-import type { BulkMetadataEditInput, BulkMetadataTagMode, Book } from "../../types/book";
+import type { BulkMetadataEditInput, BulkMetadataTagMode, ReadonlyBook } from "../../types/book";
 import { bookTitle } from "./libraryFilters";
 
 type BulkMetadataField = "series" | "publisher" | "language" | "subjects";
 
 type BulkMetadataDialogProps = {
-  books: readonly Book[];
+  books: readonly ReadonlyBook[];
   isWriting?: boolean;
   onApply: (edits: BulkMetadataEditInput) => Promise<void>;
   onClose: () => void;

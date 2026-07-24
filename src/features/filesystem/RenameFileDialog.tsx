@@ -2,13 +2,13 @@ import { useId, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { validateArchiveItemName } from "../../storage/pathSafety";
 
 const EPUB_EXTENSION = ".epub";
 
 type RenameFileDialogProps = {
-  book: Book;
+  book: ReadonlyBook;
   onClose: () => void;
   onRename: (fileName: string) => Promise<void>;
   returnFocusTo?: HTMLElement | null;

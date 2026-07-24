@@ -1,14 +1,14 @@
 import { ArrowRight, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 
 type FolderContextActionOptions = {
-  folder: Folder;
-  onDelete: (folder: Folder) => void;
-  onMove: (folder: Folder) => void;
-  onRename?: (folder: Folder) => void;
-  onReveal?: (folder: Folder) => void;
+  folder: ReadonlyFolder;
+  onDelete: (folder: ReadonlyFolder) => void;
+  onMove: (folder: ReadonlyFolder) => void;
+  onRename?: (folder: ReadonlyFolder) => void;
+  onReveal?: (folder: ReadonlyFolder) => void;
   showRename: boolean;
   showReveal: boolean;
 };

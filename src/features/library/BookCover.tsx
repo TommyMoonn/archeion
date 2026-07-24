@@ -2,13 +2,13 @@ import { BookOpenText } from "@phosphor-icons/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { acquireCoverUrl, coverCacheKey } from "./coverUrlCache";
 import { useCoverUrlCacheScope } from "./coverUrlCacheScope";
 import { observeCoverVisibility } from "./coverVisibilityObserver";
 
 type BookCoverProps = {
-  book: Book;
+  book: ReadonlyBook;
   className?: string;
   loadImmediately?: boolean;
 };

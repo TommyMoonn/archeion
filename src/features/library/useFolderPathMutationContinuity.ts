@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import type { Folder, UpdateFolderInput } from "../../types/folder";
+import type { Folder, ReadonlyFolder, UpdateFolderInput } from "../../types/folder";
 import { focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import {
   captureFolderMutationFocusContext,
@@ -25,14 +25,14 @@ type PendingFolderPathMutation = Readonly<{
 }>;
 
 export type RunFolderPathMutation = (
-  folder: Folder,
+  folder: ReadonlyFolder,
   changes: UpdateFolderInput,
   operation: () => Promise<Folder | undefined>,
 ) => Promise<Folder | undefined>;
 
 type UseFolderPathMutationContinuityInput = {
   activeArchiveId: string;
-  folders: readonly Folder[] | undefined;
+  folders: readonly ReadonlyFolder[] | undefined;
   searchParams: URLSearchParams;
   setSearchParams: (params: URLSearchParams, options?: Readonly<{ replace?: boolean }>) => void;
 };
@@ -52,7 +52,7 @@ export function useFolderPathMutationContinuity({
   const [pending, setPending] = useState<PendingFolderPathMutation | null>(null);
   const activePending = pending?.archiveId === activeArchiveId ? pending : null;
 
-  const captureFocus = useCallback((folder: Folder) => {
+  const captureFocus = useCallback((folder: ReadonlyFolder) => {
     focusContextRef.current = captureFolderMutationFocusContext(document.activeElement, folder);
   }, []);
 

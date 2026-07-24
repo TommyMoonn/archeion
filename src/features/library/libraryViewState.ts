@@ -1,5 +1,5 @@
 import { normalizeArchiveRelativePath } from "../../storage/pathSafety";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
 import {
   isLibrarySmartView,
@@ -31,9 +31,9 @@ function normalizedFolderPathKey(path: string | undefined): string | null {
 }
 
 function folderByRelativePath(
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
   folderPath: string | null,
-): Folder | undefined {
+): ReadonlyFolder | undefined {
   if (!folderPath) {
     return undefined;
   }
@@ -43,7 +43,7 @@ function folderByRelativePath(
 
 function folderPathForLocation(
   location: LibraryLocation,
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
 ): string | null {
   if (location.type !== "folder") {
     return null;
@@ -54,7 +54,7 @@ function folderPathForLocation(
 
 export function libraryLocationFromSearchParams(
   searchParams: URLSearchParams,
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
   activeArchiveId?: string,
   smartViewPreferences?: LibrarySmartViewPreferences,
   pendingFolderPathMutation?: FolderPathMutationMapping | null,
@@ -115,7 +115,7 @@ export function libraryLocationFromSearchParams(
 export function searchParamsForLibraryLocation(
   currentParams: URLSearchParams,
   location: LibraryLocation,
-  folders: readonly Folder[],
+  folders: readonly ReadonlyFolder[],
   activeArchiveId?: string,
   smartViewPreferences?: LibrarySmartViewPreferences,
 ): URLSearchParams {

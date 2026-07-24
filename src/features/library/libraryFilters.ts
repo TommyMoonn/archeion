@@ -1,5 +1,5 @@
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyBook } from "../../types/book";
+import type { ReadonlyFolder } from "../../types/folder";
 import {
   createDefaultLibraryFilters,
   normalizeLibrarySort,
@@ -51,15 +51,15 @@ function hasText(value: string | undefined): boolean {
   return Boolean(value?.trim());
 }
 
-export function bookNeedsMetadata(book: Book): boolean {
+export function bookNeedsMetadata(book: ReadonlyBook): boolean {
   return !hasText(book.sourceMetadata?.title) || !hasText(book.sourceMetadata?.creator);
 }
 
-export function bookNeedsCover(book: Book): boolean {
+export function bookNeedsCover(book: ReadonlyBook): boolean {
   return !hasText(book.coverPath);
 }
 
-export function bookMatchesSmartView(book: Book, smartView: LibrarySmartView): boolean {
+export function bookMatchesSmartView(book: ReadonlyBook, smartView: LibrarySmartView): boolean {
   switch (smartView) {
     case "unread":
       return bookReadingStatus(book) === "unread";
@@ -75,7 +75,7 @@ export function bookMatchesSmartView(book: Book, smartView: LibrarySmartView): b
 }
 
 export function countBooksBySmartView(
-  books: Book[],
+  books: ReadonlyBook[],
   visibleSmartViews: readonly LibrarySmartView[] = LIBRARY_SMART_VIEWS,
 ): LibrarySmartViewCounts {
   const counts: LibrarySmartViewCounts = {
@@ -96,7 +96,7 @@ export function countBooksBySmartView(
   return counts;
 }
 
-export function deriveLibraryFilterOptions(books: Book[]): LibraryFilterOptions {
+export function deriveLibraryFilterOptions(books: ReadonlyBook[]): LibraryFilterOptions {
   const accumulator = createLibraryFilterOptionAccumulator();
   for (const book of books) collectLibraryFilterOptions(accumulator, book);
   return finalizeLibraryFilterOptions(accumulator);
@@ -113,7 +113,7 @@ export function createLibraryFilterOptionAccumulator(): LibraryFilterOptionAccum
 
 export function collectLibraryFilterOptions(
   accumulator: LibraryFilterOptionAccumulator,
-  book: Book,
+  book: ReadonlyBook,
 ): void {
   addFilterOption(accumulator.series, book.sourceMetadata?.series, normalizeSeriesKey);
   for (const subject of book.sourceMetadata?.subjects ?? []) {
@@ -161,7 +161,7 @@ function matchesSelectedSeries(value: string | undefined, selectedValues: string
   return selectedValues.some((selected) => normalizeSeriesKey(selected) === key);
 }
 
-function matchesSelectedSubjects(book: Book, selectedSubjects: string[]): boolean {
+function matchesSelectedSubjects(book: ReadonlyBook, selectedSubjects: string[]): boolean {
   if (selectedSubjects.length === 0) return true;
 
   const subjects = new Set(
@@ -240,7 +240,10 @@ export function countActiveLibraryFilters(filters: LibraryFilterState): number {
   );
 }
 
-export function bookMatchesLibraryFilters(book: Book, filters: LibraryFilterState): boolean {
+export function bookMatchesLibraryFilters(
+  book: ReadonlyBook,
+  filters: LibraryFilterState,
+): boolean {
   const readingStatus = bookReadingStatus(book);
 
   return (
@@ -266,7 +269,7 @@ function getLibrarySortCollator(): Intl.Collator {
   return librarySortCollator;
 }
 
-function foldersById(folders: Folder[]): Map<string, Folder> {
+function foldersById(folders: ReadonlyFolder[]): Map<string, ReadonlyFolder> {
   return new Map(folders.map((folder) => [folder.id, folder]));
 }
 
@@ -280,14 +283,14 @@ function folderPathName(folderPath: string | undefined): string {
   );
 }
 
-function bookFolder(book: Book, folderLookup: Map<string, Folder>): string[] {
+function bookFolder(book: ReadonlyBook, folderLookup: Map<string, ReadonlyFolder>): string[] {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
   return [book.folderPath, folder?.name, folder?.relativePath].filter((value): value is string =>
     Boolean(value),
   );
 }
 
-function bookFolderName(book: Book, folderLookup: Map<string, Folder>): string {
+function bookFolderName(book: ReadonlyBook, folderLookup: Map<string, ReadonlyFolder>): string {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
   return folder?.name?.trim() || folderPathName(book.folderPath);
 }
@@ -309,7 +312,7 @@ type BookSearchFields = {
 };
 
 export type LibrarySearchIndexEntry = {
-  book: Book;
+  book: ReadonlyBook;
   fields: BookSearchFields;
 };
 
@@ -364,8 +367,8 @@ function scoreBookSearchEntry(entry: LibrarySearchIndexEntry, query: SearchQuery
 }
 
 export function createLibrarySearchIndexEntry(
-  book: Book,
-  folderLookup: Map<string, Folder>,
+  book: ReadonlyBook,
+  folderLookup: Map<string, ReadonlyFolder>,
 ): LibrarySearchIndexEntry {
   const folderValues = bookFolder(book, folderLookup);
   const folderName = bookFolderName(book, folderLookup);
@@ -389,8 +392,8 @@ export function createLibrarySearchIndexEntry(
 }
 
 export function createLibrarySearchIndex(
-  books: Book[],
-  folders: Folder[] = [],
+  books: ReadonlyBook[],
+  folders: ReadonlyFolder[] = [],
 ): LibrarySearchIndexEntry[] {
   const folderLookup = foldersById(folders);
 
@@ -412,7 +415,10 @@ function rankBookSearchIndex(
     .map(({ entry }) => entry);
 }
 
-export function filterBookSearchIndex(index: LibrarySearchIndexEntry[], query: string): Book[] {
+export function filterBookSearchIndex(
+  index: LibrarySearchIndexEntry[],
+  query: string,
+): ReadonlyBook[] {
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
@@ -422,11 +428,15 @@ export function filterBookSearchIndex(index: LibrarySearchIndexEntry[], query: s
   return rankBookSearchIndex(index, searchQuery).map((entry) => entry.book);
 }
 
-export function filterBooks(books: Book[], query: string, folders: Folder[] = []): Book[] {
+export function filterBooks(
+  books: ReadonlyBook[],
+  query: string,
+  folders: ReadonlyFolder[] = [],
+): ReadonlyBook[] {
   return filterBookSearchIndex(createLibrarySearchIndex(books, folders), query);
 }
 
-function stablePath(book: Book): string {
+function stablePath(book: ReadonlyBook): string {
   return book.relativePath?.trim() || book.fileName;
 }
 
@@ -441,7 +451,7 @@ function compareOptionalTextLast(collator: Intl.Collator, left: string, right: s
   return collator.compare(left, right);
 }
 
-function compareRecentlyOpened(left: Book, right: Book): number {
+function compareRecentlyOpened(left: ReadonlyBook, right: ReadonlyBook): number {
   const leftOpened = left.lastOpenedAt ?? "";
   const rightOpened = right.lastOpenedAt ?? "";
 
@@ -455,14 +465,18 @@ function compareRecentlyOpened(left: Book, right: Book): number {
   return rightOpened.localeCompare(leftOpened);
 }
 
-function compareStablePath(collator: Intl.Collator, left: Book, right: Book): number {
+function compareStablePath(
+  collator: Intl.Collator,
+  left: ReadonlyBook,
+  right: ReadonlyBook,
+): number {
   return collator.compare(stablePath(left), stablePath(right));
 }
 
 function compareBooksBySort(
   collator: Intl.Collator,
-  left: Book,
-  right: Book,
+  left: ReadonlyBook,
+  right: ReadonlyBook,
   sort: LibrarySort,
 ): number {
   switch (normalizeLibrarySort(sort)) {
@@ -504,7 +518,7 @@ export function getEffectiveLibrarySort(
   return normalizeLibrarySort(selectedSort);
 }
 
-export function sortBooks(books: Book[], sort: LibrarySort): Book[] {
+export function sortBooks(books: ReadonlyBook[], sort: LibrarySort): ReadonlyBook[] {
   const normalizedSort = normalizeLibrarySort(sort);
   const collator = getLibrarySortCollator();
 
@@ -541,7 +555,7 @@ export function getVisibleBooksFromSearchIndex(
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
   filters: LibraryFilterState = createDefaultLibraryFilters(),
-): Book[] {
+): ReadonlyBook[] {
   const filteredIndex = filterSearchIndexByLocation(index, location).filter((entry) =>
     bookMatchesLibraryFilters(entry.book, filters),
   );
@@ -577,13 +591,13 @@ export function getVisibleBooksFromSearchIndex(
 }
 
 export function getVisibleBooks(
-  books: Book[],
+  books: ReadonlyBook[],
   query: string,
   sort: LibrarySort,
   location: LibraryLocation = { type: "library" },
-  folders: Folder[] = [],
+  folders: ReadonlyFolder[] = [],
   filters: LibraryFilterState = createDefaultLibraryFilters(),
-): Book[] {
+): ReadonlyBook[] {
   return getVisibleBooksFromSearchIndex(
     createLibrarySearchIndex(books, folders),
     query,

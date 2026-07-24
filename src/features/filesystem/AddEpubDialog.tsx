@@ -8,7 +8,7 @@ import { Dialog } from "../../components/Dialog";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import type { ArchiveImportConflictAction, ArchiveImportMode } from "../../types/archiveImport";
-import type { Folder } from "../../types/folder";
+import type { ReadonlyFolder } from "../../types/folder";
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { ImportSettings } from "../../types/settings";
 import {
@@ -24,7 +24,7 @@ import {
 import { shouldConfirmImportReplace } from "./destructiveActionPolicy";
 
 type AddEpubDialogProps = {
-  folders: readonly Folder[];
+  folders: readonly ReadonlyFolder[];
   confirmDestructiveFileActions?: boolean;
   importDefaults?: ImportSettings;
   initialFolderPath?: string;

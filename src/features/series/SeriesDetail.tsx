@@ -10,7 +10,7 @@ import { useId } from "react";
 
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { BookCover } from "../library/BookCover";
@@ -21,7 +21,7 @@ import { bookProgressLabel, seriesProgressLabel, volumeCountLabel } from "./seri
 type SeriesDetailProps = {
   entry?: SeriesEntry;
   onBack: () => void;
-  onRead: (book: Book) => void;
+  onRead: (book: ReadonlyBook) => void;
 };
 
 export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
@@ -111,10 +111,10 @@ function SeriesVolumeRow({
   isFirstUnread,
   onRead,
 }: {
-  book: Book;
+  book: ReadonlyBook;
   isCurrent: boolean;
   isFirstUnread: boolean;
-  onRead: (book: Book) => void;
+  onRead: (book: ReadonlyBook) => void;
 }) {
   const missingDescriptionId = useId();
   const status = bookReadingStatus(book);
@@ -195,7 +195,7 @@ function SeriesHintGroup({ hints, label }: { hints: string[]; label: string }) {
   );
 }
 
-function bookActionLabel(book: Book): string {
+function bookActionLabel(book: ReadonlyBook): string {
   switch (bookReadingStatus(book)) {
     case "completed":
       return "Open";

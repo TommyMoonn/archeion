@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { Book } from "../../types/book";
+import type { Book, ReadonlyBook } from "../../types/book";
 import { BookDetailsDrawer } from "./BookDetailsDrawer";
 
 vi.mock("./BookCover", () => ({
@@ -43,7 +43,7 @@ function installDialogPolyfill() {
   };
 }
 
-function drawerProps(renderedBook: Book, onClearProgress: (book: Book) => void = vi.fn()) {
+function drawerProps(renderedBook: Book, onClearProgress: (book: ReadonlyBook) => void = vi.fn()) {
   return {
     book: renderedBook,
     canManageFile: true,
@@ -78,7 +78,10 @@ function renderDetails(
   );
 }
 
-function renderInteractiveDetails(renderedBook: Book, onClearProgress: (book: Book) => void) {
+function renderInteractiveDetails(
+  renderedBook: Book,
+  onClearProgress: (book: ReadonlyBook) => void,
+) {
   installDialogPolyfill();
   activeContainer = document.createElement("div");
   document.body.appendChild(activeContainer);

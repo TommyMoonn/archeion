@@ -1,4 +1,4 @@
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 
 export const BOOK_COMPLETION_PERCENT = 99.5;
 
@@ -16,10 +16,10 @@ export function readingStatusForProgress(progressPercent: number | undefined): B
   return progressPercent >= BOOK_COMPLETION_PERCENT ? "completed" : "in-progress";
 }
 
-export function bookReadingStatus(book: Book): BookReadingStatus {
+export function bookReadingStatus(book: ReadonlyBook): BookReadingStatus {
   return readingStatusForProgress(book.progressPercent);
 }
 
-export function isBookInProgress(book: Book): boolean {
+export function isBookInProgress(book: ReadonlyBook): boolean {
   return bookReadingStatus(book) === "in-progress";
 }

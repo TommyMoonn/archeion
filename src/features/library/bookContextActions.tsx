@@ -9,19 +9,19 @@ import {
 } from "@phosphor-icons/react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 
 type BookContextActionOptions = {
-  book: Book;
+  book: ReadonlyBook;
   canDelete: boolean;
   canManageFile: boolean;
-  onDelete: (book: Book) => void;
-  onEditMetadata: (book: Book) => void;
-  onMove?: (book: Book) => void;
-  onRead: (book: Book) => void;
-  onRenameFile?: (book: Book) => void;
-  onRevealFile?: (book: Book) => void;
-  onToggleFavorite: (book: Book) => void;
+  onDelete: (book: ReadonlyBook) => void;
+  onEditMetadata: (book: ReadonlyBook) => void;
+  onMove?: (book: ReadonlyBook) => void;
+  onRead: (book: ReadonlyBook) => void;
+  onRenameFile?: (book: ReadonlyBook) => void;
+  onRevealFile?: (book: ReadonlyBook) => void;
+  onToggleFavorite: (book: ReadonlyBook) => void;
   showRenameFileAction: boolean;
 };
 

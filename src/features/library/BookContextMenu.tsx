@@ -2,7 +2,7 @@ import { DotsThree } from "@phosphor-icons/react";
 
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import type { ContextMenuController } from "../../components/contextMenuController";
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import { bookTitle } from "../../utils/bookDisplay";
 import { createBookContextActions } from "./bookContextActions";
 import { getBookMenuClassName, type BookMenuPlacement } from "./bookContextMenuPlacement";
@@ -11,15 +11,15 @@ export const MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON =
   "Single-book actions are unavailable while multiple books are selected.";
 
 type BookContextMenuProps = {
-  book: Book;
+  book: ReadonlyBook;
   controller: ContextMenuController;
-  onDelete: (book: Book) => void;
-  onEditMetadata: (book: Book) => void;
-  onMove?: (book: Book) => void;
-  onRead: (book: Book) => void;
-  onRenameFile?: (book: Book) => void;
-  onRevealFile?: (book: Book) => void;
-  onToggleFavorite: (book: Book) => void;
+  onDelete: (book: ReadonlyBook) => void;
+  onEditMetadata: (book: ReadonlyBook) => void;
+  onMove?: (book: ReadonlyBook) => void;
+  onRead: (book: ReadonlyBook) => void;
+  onRenameFile?: (book: ReadonlyBook) => void;
+  onRevealFile?: (book: ReadonlyBook) => void;
+  onToggleFavorite: (book: ReadonlyBook) => void;
   placement: BookMenuPlacement;
   canDelete?: boolean;
   canManageFile?: boolean;

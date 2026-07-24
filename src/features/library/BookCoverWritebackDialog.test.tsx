@@ -11,6 +11,7 @@ import type {
   EpubCoverPreparation,
   EpubCoverWritebackInput,
   EpubCoverWritebackResult,
+  ReadonlyBook,
 } from "../../types/book";
 import { BookCoverWritebackDialog } from "./BookCoverWritebackDialog";
 
@@ -24,11 +25,14 @@ vi.mock("./BookCover", () => ({
 
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 type PrepareCover = (
-  book: Book,
+  book: ReadonlyBook,
   imagePath: string,
   framing: EpubCoverFraming,
 ) => Promise<EpubCoverPreparation>;
-type WriteCover = (book: Book, input: EpubCoverWritebackInput) => Promise<EpubCoverWritebackResult>;
+type WriteCover = (
+  book: ReadonlyBook,
+  input: EpubCoverWritebackInput,
+) => Promise<EpubCoverWritebackResult>;
 
 const book: Book = {
   id: "book-1",

@@ -11,6 +11,12 @@ export type EpubSourceMetadata = {
   volume?: string;
 };
 
+export type ReadonlyEpubSourceMetadata = Readonly<
+  Omit<EpubSourceMetadata, "subjects"> & {
+    subjects?: readonly string[];
+  }
+>;
+
 export type EpubMetadataWritebackInput = Omit<EpubSourceMetadata, "identifier">;
 
 export type EpubCoverFraming = "crop" | "fit";
@@ -99,6 +105,12 @@ export type Book = {
   progressCfi?: string;
   progressPercent?: number;
 };
+
+export type ReadonlyBook = Readonly<
+  Omit<Book, "sourceMetadata"> & {
+    sourceMetadata?: ReadonlyEpubSourceMetadata;
+  }
+>;
 
 export type UpdateBookInput = Partial<
   Pick<Book, "isFavorite" | "lastOpenedAt" | "progressCfi" | "progressPercent">

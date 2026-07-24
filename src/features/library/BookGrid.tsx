@@ -1,6 +1,6 @@
 import { memo, useLayoutEffect } from "react";
 
-import type { Book } from "../../types/book";
+import type { ReadonlyBook } from "../../types/book";
 import type { CollectionCardSize } from "../../types/library";
 import { BookCard } from "./BookCard";
 import { MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON } from "./BookContextMenu";
@@ -12,17 +12,17 @@ import {
 } from "./useLibraryCollectionWindow";
 
 type BookGridProps = {
-  books: readonly Book[];
+  books: readonly ReadonlyBook[];
   cardSize?: CollectionCardSize;
-  onDelete: (book: Book) => void;
-  onEditMetadata: (book: Book) => void;
-  onMove?: (book: Book) => void;
-  onRead: (book: Book) => void;
-  onRenameFile?: (book: Book) => void;
-  onRevealFile?: (book: Book) => void;
-  onSelect: (book: Book) => void;
-  onSelectionChange: (book: Book, intent: LibrarySelectionIntent) => void;
-  onToggleFavorite: (book: Book) => void;
+  onDelete: (book: ReadonlyBook) => void;
+  onEditMetadata: (book: ReadonlyBook) => void;
+  onMove?: (book: ReadonlyBook) => void;
+  onRead: (book: ReadonlyBook) => void;
+  onRenameFile?: (book: ReadonlyBook) => void;
+  onRevealFile?: (book: ReadonlyBook) => void;
+  onSelect: (book: ReadonlyBook) => void;
+  onSelectionChange: (book: ReadonlyBook, intent: LibrarySelectionIntent) => void;
+  onToggleFavorite: (book: ReadonlyBook) => void;
   canDelete?: boolean;
   canManageFile?: boolean;
   selectedBookIds: ReadonlySet<string>;
