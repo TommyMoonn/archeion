@@ -36,6 +36,21 @@ export type RescanOptions = {
 
 export type ScanStatus = { status: "idle" } | { status: "scanning"; startedAt: string };
 
+export type LibraryLoadState = "loading" | "ready" | "error";
+
+export type LibrarySnapshotBook = Book;
+export type LibrarySnapshotFolder = Folder;
+
+export type LibrarySnapshot = Readonly<{
+  archiveGeneration: number;
+  archiveRootPath: string | null;
+  books: readonly LibrarySnapshotBook[];
+  folders: readonly LibrarySnapshotFolder[];
+  loadState: LibraryLoadState;
+  revision: number;
+  scanStatus: Readonly<ScanStatus>;
+}>;
+
 export type ArchiveWatcherChangeKind =
   "create" | "modify" | "remove" | "rename" | "metadata" | "unknown";
 
@@ -127,7 +142,8 @@ export interface LibraryStorage {
   reset(archiveRootPath?: string | null): void;
   rescan(options?: RescanOptions): Promise<void>;
   applyArchiveWatcherChanges(changeSet: ArchiveWatcherChangeSet): Promise<void>;
-  observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription;
+  getLibrarySnapshot(): LibrarySnapshot;
+  observeLibrarySnapshot(observer: StorageObserver<LibrarySnapshot>): StorageSubscription;
   observeOperationWarnings?(
     observer: StorageObserver<ArchiveOperationWarning>,
   ): StorageSubscription;
@@ -162,7 +178,6 @@ export interface LibraryStorage {
     ids: readonly string[],
     edits: BulkMetadataEditInput,
   ): Promise<BulkActionResult>;
-  observeBooks(observer: StorageObserver<Book[]>): StorageSubscription;
 
   listAnnotations(bookId: string): Promise<Annotation[]>;
   getAnnotation(bookId: string, annotationId: string): Promise<Annotation | undefined>;
@@ -195,7 +210,6 @@ export interface LibraryStorage {
   updateFolder(id: string, changes: UpdateFolderInput): Promise<Folder | undefined>;
   revealFolder(id: string): Promise<void>;
   deleteFolder(id: string): Promise<boolean>;
-  observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription;
 
   getArchiveImportSettings(): Promise<ArchiveImportSettings>;
   saveArchiveImportSettings(settings: ArchiveImportSettings): Promise<ArchiveImportSettings>;

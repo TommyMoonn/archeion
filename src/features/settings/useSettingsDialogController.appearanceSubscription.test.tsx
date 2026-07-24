@@ -28,10 +28,16 @@ function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage 
   return {
     getArchiveAppearanceSettings: vi.fn(async () => initialContext.settings),
     clearScannerCache: vi.fn().mockResolvedValue(undefined),
-    observeScanStatus: vi.fn((observer) => {
-      observer.next({ status: "idle" });
-      return () => undefined;
-    }),
+    getLibrarySnapshot: vi.fn(() => ({
+      archiveGeneration: 1,
+      archiveRootPath: "D:\\Books",
+      books: [],
+      folders: [],
+      loadState: "ready" as const,
+      revision: 1,
+      scanStatus: { status: "idle" as const },
+    })),
+    observeLibrarySnapshot: vi.fn(() => () => undefined),
     rescan: vi.fn().mockResolvedValue(undefined),
     saveArchiveImportSettings: vi.fn(),
     ...overrides,

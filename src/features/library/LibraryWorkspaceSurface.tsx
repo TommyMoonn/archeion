@@ -12,7 +12,7 @@ import {
 import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
-import type { Book } from "../../types/book";
+import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type { CollectionCardSize, LibraryLocation, LibraryView } from "../../types/library";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { BookGrid } from "./BookGrid";
@@ -30,11 +30,11 @@ import type { LibraryReturnFocusRequest } from "./useLibraryWorkspaceNavigation"
 type LibrarySurfaceState = "empty" | "filter-empty" | "loading" | "results" | "search-empty";
 
 function getLibrarySurfaceState(
-  books: Book[] | undefined,
+  books: readonly LibrarySnapshotBook[] | undefined,
   debouncedQuery: string,
   hasFilters: boolean,
   isImporting: boolean,
-  visibleBooks: Book[],
+  visibleBooks: readonly LibrarySnapshotBook[],
 ): LibrarySurfaceState {
   if (books === undefined || (isImporting && books.length === 0)) return "loading";
   if (visibleBooks.length > 0) return "results";
@@ -53,9 +53,9 @@ type SharedBookCollectionProps = Omit<
 type LibraryWorkspaceSurfaceProps = {
   bookCardSize: CollectionCardSize;
   bookFocusFallbackRef: RefObject<HTMLElement | null>;
-  books: Book[] | undefined;
+  books: readonly LibrarySnapshotBook[] | undefined;
   bookCollectionProps: SharedBookCollectionProps;
-  continuePreview: Book[];
+  continuePreview: readonly LibrarySnapshotBook[];
   debouncedQuery: string;
   emptyState: { title: string; description: string };
   feedbackProps: ComponentProps<typeof LibraryFeedbackStack>;
@@ -77,7 +77,7 @@ type LibraryWorkspaceSurfaceProps = {
   sidebarProps: ComponentProps<typeof LibrarySidebar>;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
-  visibleBooks: Book[];
+  visibleBooks: readonly LibrarySnapshotBook[];
 };
 
 export function LibraryWorkspaceSurface({

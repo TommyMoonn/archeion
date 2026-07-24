@@ -7,8 +7,7 @@ import {
   libraryRestoreContextFromState,
 } from "../../app/readerReturnContext";
 import { archiveStore } from "../../stores/archiveStore";
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import type { LibraryLocation, LibrarySmartViewPreferences } from "../../types/library";
 import { focusElementIfUsable, isUsableFocusTarget } from "../../utils/focusRestoration";
 import { scrollElementToTop } from "../../utils/motion";
@@ -31,7 +30,7 @@ export function libraryLocationKey(location: LibraryLocation): string {
 
 type UseLibraryWorkspaceNavigationInput = {
   activeArchiveId: string;
-  folders: Folder[] | undefined;
+  folders: readonly LibrarySnapshotFolder[] | undefined;
   beforeArchiveSwitch: () => void;
   smartViewPreferences: LibrarySmartViewPreferences;
 };
@@ -129,7 +128,7 @@ export function useLibraryWorkspaceNavigation({
   }, [changeLocation]);
 
   const openReader = useCallback(
-    (book: Book, returnLabel: string, fromBeginning = false) => {
+    (book: LibrarySnapshotBook, returnLabel: string, fromBeginning = false) => {
       const readerReturnContext = createReaderReturnContext({
         archiveId: activeArchiveId,
         focusBookId: book.id,
@@ -211,7 +210,7 @@ type UseLibraryWorkspaceNavigationLifecycleInput = {
   pageShellRef: React.RefObject<HTMLElement | null>;
   restoreContext: ReturnType<typeof libraryRestoreContextFromState>;
   returnContextRestoredRef: React.RefObject<boolean>;
-  visibleBooks: readonly Book[];
+  visibleBooks: readonly LibrarySnapshotBook[];
 };
 
 export type LibraryReturnRestoration = Readonly<{

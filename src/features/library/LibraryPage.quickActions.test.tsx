@@ -8,7 +8,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../series/SeriesOverview";
 import "../settings/SettingsDialog";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
-import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
+import type {
+  LibrarySnapshot,
+  LibraryStorage,
+  ScanStatus,
+  StorageObserver,
+} from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
@@ -52,7 +57,8 @@ const folder: Folder = {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
-const scanStatusObservers = new Set<StorageObserver<ScanStatus>>();
+const librarySnapshotObservers = new Set<StorageObserver<LibrarySnapshot>>();
+let currentLibrarySnapshot: LibrarySnapshot;
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -63,13 +69,22 @@ function deferred<T>() {
 }
 
 function createStorage(books: Book[] = []): LibraryStorage {
+  currentLibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: "D:\\Books",
+    books,
+    folders: [folder],
+    loadState: "ready",
+    revision: 1,
+    scanStatus: { status: "idle" },
+  };
   return {
     reset: vi.fn(),
     rescan: vi.fn().mockResolvedValue(undefined),
-    observeScanStatus: vi.fn((observer) => {
-      scanStatusObservers.add(observer);
-      observer.next({ status: "idle" });
-      return () => scanStatusObservers.delete(observer);
+    getLibrarySnapshot: vi.fn(() => currentLibrarySnapshot),
+    observeLibrarySnapshot: vi.fn((observer) => {
+      librarySnapshotObservers.add(observer);
+      return () => librarySnapshotObservers.delete(observer);
     }),
     addEpubFilesToArchive: vi.fn(),
     getBook: vi.fn(),
@@ -91,20 +106,12 @@ function createStorage(books: Book[] = []): LibraryStorage {
     bulkRegenerateCovers: vi.fn(),
     bulkExportBooks: vi.fn(),
     bulkWriteBookMetadata: vi.fn(),
-    observeBooks: vi.fn((observer) => {
-      observer.next(books);
-      return () => undefined;
-    }),
     createFolder: vi.fn(),
     getFolder: vi.fn(),
     listFolders: vi.fn(),
     updateFolder: vi.fn(),
     revealFolder: vi.fn(),
     deleteFolder: vi.fn(),
-    observeFolders: vi.fn((observer) => {
-      observer.next([folder]);
-      return () => undefined;
-    }),
     getArchiveImportSettings: vi.fn().mockResolvedValue(defaultArchiveImportSettings),
     saveArchiveImportSettings: vi.fn(),
     updateArchiveImportSettings: vi.fn(),
@@ -126,7 +133,8 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 }
 
 function emitScanStatus(status: ScanStatus) {
-  scanStatusObservers.forEach((observer) => observer.next(status));
+  currentLibrarySnapshot = { ...currentLibrarySnapshot, scanStatus: status };
+  librarySnapshotObservers.forEach((observer) => observer.next(currentLibrarySnapshot));
 }
 
 async function renderLibrary(initialEntry = "/", books: Book[] = []) {
@@ -296,7 +304,7 @@ afterEach(async () => {
   container?.remove();
   root = null;
   container = null;
-  scanStatusObservers.clear();
+  librarySnapshotObservers.clear();
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   await appPreferencesStore.update({ keyboard: { shortcuts: {} } });

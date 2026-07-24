@@ -55,6 +55,8 @@ import type {
   BulkActionResult,
   CoverCacheStatus,
   EpubWritebackBackupStatus,
+  LibraryLoadState,
+  LibrarySnapshot,
   LibraryStorage,
   RescanOptions,
   ScanStatus,
@@ -143,6 +145,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private missingBooks = new Map<string, Book>();
   private folders: Folder[] = [];
   private loaded = false;
+  private libraryModelCommitted = false;
   private generation = 0;
   private archiveRootPath: string | null = null;
   private scanPromise: Promise<void> | null = null;
@@ -151,10 +154,18 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private scanStatus: ScanStatus = { status: "idle" };
   private scanStatusVisible = false;
   private scanStatusStartedAt: string | null = null;
+  private libraryRevision = 0;
+  private librarySnapshot: LibrarySnapshot = Object.freeze({
+    archiveGeneration: 0,
+    archiveRootPath: null,
+    books: Object.freeze([]),
+    folders: Object.freeze([]),
+    loadState: "loading",
+    revision: 0,
+    scanStatus: Object.freeze({ status: "idle" }),
+  });
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
-  private readonly bookObservers = new Set<StorageObserver<Book[]>>();
-  private readonly folderObservers = new Set<StorageObserver<Folder[]>>();
-  private readonly scanStatusObservers = new Set<StorageObserver<ScanStatus>>();
+  private readonly librarySnapshotObservers = new Set<StorageObserver<LibrarySnapshot>>();
   private readonly operationWarningObservers = new Set<StorageObserver<ArchiveOperationWarning>>();
   private libraryMetadata = createLibraryMetadata();
   private progressMetadata = createProgressMetadata();
@@ -225,6 +236,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.missingBooks = new Map();
     this.folders = [];
     this.loaded = false;
+    this.libraryModelCommitted = false;
     this.scanPromise = null;
     this.followUpScanQueued = false;
     this.scanStatusVisible = false;
@@ -235,9 +247,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.settingsMetadata = createSettingsMetadata();
     this.progressMetadataWrites = this.createProgressMetadataWriteQueue(this.archiveRootPath);
     this.annotationRepository.reset();
-    this.setScanStatus({ status: "idle" });
-    this.emitBooks();
-    this.emitFolders();
+    this.scanStatus = { status: "idle" };
+    this.publishLibrarySnapshot({
+      booksChanged: true,
+      foldersChanged: true,
+      loadState: "loading",
+    });
   }
 
   flushPendingWrites(): Promise<void> {
@@ -261,10 +276,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.scanStatusVisible = shouldReportStatus;
     this.scanStatusStartedAt = new Date().toISOString();
     if (shouldReportStatus) {
-      this.setScanStatus({
-        status: "scanning",
-        startedAt: this.scanStatusStartedAt,
-      });
+      this.setScanStatus(
+        {
+          status: "scanning",
+          startedAt: this.scanStatusStartedAt,
+        },
+        "loading",
+      );
     }
     const scanPromise = this.performQueuedScans(generation);
     this.scanPromise = scanPromise;
@@ -282,10 +300,14 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
   }
 
-  observeScanStatus(observer: StorageObserver<ScanStatus>): StorageSubscription {
-    this.scanStatusObservers.add(observer);
-    observer.next(this.scanStatus);
-    return () => this.scanStatusObservers.delete(observer);
+  getLibrarySnapshot(): LibrarySnapshot {
+    return this.librarySnapshot;
+  }
+
+  observeLibrarySnapshot(observer: StorageObserver<LibrarySnapshot>): StorageSubscription {
+    this.librarySnapshotObservers.add(observer);
+    observer.next(this.librarySnapshot);
+    return () => this.librarySnapshotObservers.delete(observer);
   }
 
   observeOperationWarnings(
@@ -567,16 +589,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     return this.annotationRepository.delete(bookId, annotationId);
   }
 
-  observeBooks(observer: StorageObserver<Book[]>): StorageSubscription {
-    this.bookObservers.add(observer);
-    if (this.loaded) {
-      observer.next([...this.books]);
-    } else {
-      void this.rescan().catch(() => undefined);
-    }
-    return () => this.bookObservers.delete(observer);
-  }
-
   createFolder(input: CreateFolderInput): Promise<Folder> {
     return this.folderOperations.createFolder(input);
   }
@@ -599,16 +611,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
   deleteFolder(id: string): Promise<boolean> {
     return this.folderOperations.deleteFolder(id);
-  }
-
-  observeFolders(observer: StorageObserver<Folder[]>): StorageSubscription {
-    this.folderObservers.add(observer);
-    if (this.loaded) {
-      observer.next([...this.folders]);
-    } else {
-      void this.rescan().catch(() => undefined);
-    }
-    return () => this.folderObservers.delete(observer);
   }
 
   async getArchiveImportSettings(): Promise<ArchiveImportSettings> {
@@ -798,8 +800,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         this.books = next.books;
         this.missingBooks = next.missingBooks;
         this.folders = next.folders;
-        if (next.booksChanged) this.emitBooks();
-        if (next.foldersChanged) this.emitFolders();
+        if (next.booksChanged || next.foldersChanged) {
+          this.publishLibrarySnapshot({
+            booksChanged: next.booksChanged,
+            foldersChanged: next.foldersChanged,
+            loadState: "ready",
+          });
+        }
         return { kind: "committed" as const };
       });
 
@@ -860,10 +867,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
 
     this.scanStatusVisible = true;
     this.scanStatusStartedAt ??= new Date().toISOString();
-    this.setScanStatus({
-      status: "scanning",
-      startedAt: this.scanStatusStartedAt,
-    });
+    this.setScanStatus(
+      {
+        status: "scanning",
+        startedAt: this.scanStatusStartedAt,
+      },
+      "loading",
+    );
   }
 
   private async commitFullScan(
@@ -893,7 +903,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         metadata.progress,
         retirement.libraryMetadata,
       );
-      const wasLoaded = this.loaded;
+      const hadCommittedLibraryModel = this.libraryModelCommitted;
       const next = reconcileLibraryState({
         previousBooks: retirement.retiredBookIds.size
           ? this.books.filter((book) => !retirement.retiredBookIds.has(book.id))
@@ -939,8 +949,16 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       this.missingBooks = next.missingBooks;
       this.folders = next.folders;
       this.loaded = true;
-      if (!wasLoaded || next.booksChanged) this.emitBooks();
-      if (!wasLoaded || next.foldersChanged) this.emitFolders();
+      this.libraryModelCommitted = true;
+      if (this.scanStatusVisible && !this.followUpScanQueued) {
+        this.scanStatus = { status: "idle" };
+        this.scanStatusVisible = false;
+      }
+      this.publishLibrarySnapshot({
+        booksChanged: !hadCommittedLibraryModel || next.booksChanged,
+        foldersChanged: !hadCommittedLibraryModel || next.foldersChanged,
+        loadState: "ready",
+      });
       return true;
     });
 
@@ -969,13 +987,8 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       if (this.generation !== generation) {
         return;
       }
-      if (!this.loaded) {
-        this.loaded = true;
-        this.emitBooks();
-        this.emitFolders();
-      }
-      this.bookObservers.forEach((observer) => observer.error?.(error));
-      this.folderObservers.forEach((observer) => observer.error?.(error));
+      this.loaded = true;
+      this.publishLibrarySnapshot({ loadState: "error" });
       throw error;
     }
   }
@@ -1015,29 +1028,66 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.operationWarningObservers.forEach((observer) => observer.next(warning));
   }
 
-  private emitBooks(): void {
-    const books = [...this.books];
-    this.bookObservers.forEach((observer) => observer.next(books));
-  }
-
-  private emitFolders(): void {
-    const folders = [...this.folders];
-    this.folderObservers.forEach((observer) => observer.next(folders));
-  }
-
-  private setScanStatus(status: ScanStatus): void {
+  private setScanStatus(
+    status: ScanStatus,
+    loadState: LibraryLoadState = this.librarySnapshot.loadState,
+  ): void {
     const current = this.scanStatus;
     if (current.status === status.status) {
       if (current.status === "idle") {
-        return;
+        if (loadState === this.librarySnapshot.loadState) return;
       }
-      if (status.status === "scanning" && current.startedAt === status.startedAt) {
-        return;
+      if (
+        current.status === "scanning" &&
+        status.status === "scanning" &&
+        current.startedAt === status.startedAt
+      ) {
+        if (loadState === this.librarySnapshot.loadState) return;
       }
     }
 
     this.scanStatus = status;
-    this.scanStatusObservers.forEach((observer) => observer.next(status));
+    this.publishLibrarySnapshot({ loadState });
+  }
+
+  private publishLibrarySnapshot({
+    booksChanged = false,
+    foldersChanged = false,
+    loadState = this.librarySnapshot.loadState,
+  }: {
+    booksChanged?: boolean;
+    foldersChanged?: boolean;
+    loadState?: LibraryLoadState;
+  }): void {
+    const current = this.librarySnapshot;
+    const archiveChanged =
+      current.archiveGeneration !== this.generation ||
+      current.archiveRootPath !== this.archiveRootPath;
+    const modelChanged = booksChanged || foldersChanged || archiveChanged;
+    const nextScanStatus = this.scanStatus;
+    const scanStatusChanged =
+      current.scanStatus.status !== nextScanStatus.status ||
+      (current.scanStatus.status === "scanning" &&
+        nextScanStatus.status === "scanning" &&
+        current.scanStatus.startedAt !== nextScanStatus.startedAt);
+
+    if (!modelChanged && !scanStatusChanged && current.loadState === loadState) return;
+
+    // Archive identity and committed model replacements advance derived-model ownership.
+    // Loading, error, and scan-status transitions publish without changing that revision.
+    if (modelChanged) this.libraryRevision += 1;
+    const snapshot: LibrarySnapshot = Object.freeze({
+      archiveGeneration: this.generation,
+      archiveRootPath: this.archiveRootPath,
+      books: booksChanged || archiveChanged ? Object.freeze([...this.books]) : current.books,
+      folders:
+        foldersChanged || archiveChanged ? Object.freeze([...this.folders]) : current.folders,
+      loadState,
+      revision: this.libraryRevision,
+      scanStatus: Object.freeze({ ...nextScanStatus }),
+    });
+    this.librarySnapshot = snapshot;
+    this.librarySnapshotObservers.forEach((observer) => observer.next(snapshot));
   }
 
   private enqueueArchiveModelCommit<T>(
@@ -1104,7 +1154,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       }
       if (next.booksChanged) {
         this.books = [...next.books];
-        this.emitBooks();
+        this.publishLibrarySnapshot({ booksChanged: true, loadState: "ready" });
       }
       return {
         committed: true as const,
@@ -1166,7 +1216,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       });
       if (booksChanged) {
         this.books = books;
-        this.emitBooks();
+        this.publishLibrarySnapshot({ booksChanged: true, loadState: "ready" });
       }
     }, generation);
   }

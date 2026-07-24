@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import type { ArchiveState } from "../../stores/archiveStore";
 import { archiveStore } from "../../stores/archiveStore";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import {
   useBooksCollectionPreferences,
   useConfirmDestructiveFileActionsPreference,
@@ -12,8 +13,6 @@ import {
   useSeriesCollectionPreferences,
   useShowContinueReadingPreference,
 } from "../../stores/appPreferencesStore";
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
@@ -157,6 +156,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const { archiveImportSettings, books, booksLoadState, folders } = useLibraryWorkspaceData({
     archiveId: activeArchive.id,
+    archiveRootPath: activeArchive.rootPath,
     storage,
     watcherError: archive.watcherError,
     onArchiveLoadError: handleArchiveLoadError,
@@ -174,8 +174,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, [booksLoadState.status]);
 
   useLayoutEffect(() => {
-    // Books and Folders are separate streams with no shared revision. This is the first observed
-    // co-ready boundary, not proof that both values came from one atomic archive commit.
+    // The ready workspace data comes from one archive-scoped, versioned Library snapshot.
     if (
       booksLoadState.status === "ready" &&
       booksLoadState.archiveId === activeArchive.id &&
@@ -318,7 +317,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     enterSelectionMode();
   }, [enterSelectionMode, leaveSelectionMode, navigation.searchInputRef, selectionMode]);
   const changeBookSelection = useCallback(
-    (book: Book, intent: LibrarySelectionIntent) => {
+    (book: LibrarySnapshotBook, intent: LibrarySelectionIntent) => {
       if (!selectionMode) {
         selectionReturnFocusRef.current = currentFocusOrigin() ?? navigation.searchInputRef.current;
       }
@@ -359,22 +358,22 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           ? (activeSeries?.displayName ?? "Series")
           : libraryTitle;
   const readBook = useCallback(
-    (book: Book) => openReader(book, readerReturnLabel),
+    (book: LibrarySnapshotBook) => openReader(book, readerReturnLabel),
     [openReader, readerReturnLabel],
   );
   const readBookFromBeginning = useCallback(
-    (book: Book) => openReader(book, readerReturnLabel, true),
+    (book: LibrarySnapshotBook) => openReader(book, readerReturnLabel, true),
     [openReader, readerReturnLabel],
   );
   const openRenameFolder = useCallback(
-    (folder: Folder) => {
+    (folder: LibrarySnapshotFolder) => {
       navigation.captureFolderMutationFocus(folder);
       dialogActions.openRenameFolder(folder);
     },
     [dialogActions, navigation],
   );
   const openMoveFolder = useCallback(
-    (folder: Folder) => {
+    (folder: LibrarySnapshotFolder) => {
       navigation.captureFolderMutationFocus(folder);
       dialogActions.openMoveFolder(folder);
     },
@@ -398,28 +397,28 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     storage,
   });
   const openBookDetails = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       dialogActions.openBookDetails(book);
     },
     [captureBookMutationFocus, dialogActions],
   );
   const openBookMetadata = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       dialogActions.openBookMetadata(book);
     },
     [captureBookMutationFocus, dialogActions],
   );
   const openMoveBook = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       dialogActions.openMoveBook(book);
     },
     [captureBookMutationFocus, dialogActions],
   );
   const openRenameBook = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       dialogActions.openRenameBook(book);
     },
@@ -429,21 +428,21 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const toggleFavoriteAction = bookActions.toggleFavorite;
   const requestDeleteFolderAction = bookActions.requestDeleteFolder;
   const requestDeleteBook = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       requestDeleteBookAction(book);
     },
     [captureBookMutationFocus, requestDeleteBookAction],
   );
   const toggleFavorite = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       captureBookMutationFocus(book);
       return toggleFavoriteAction(book);
     },
     [captureBookMutationFocus, toggleFavoriteAction],
   );
   const requestDeleteFolder = useCallback(
-    (folder: Folder) => {
+    (folder: LibrarySnapshotFolder) => {
       captureFolderDeletion(folder);
       requestDeleteFolderAction(folder);
     },

@@ -4,7 +4,11 @@ import { act, useCallback, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
+import type {
+  LibrarySnapshot,
+  LibraryStorage,
+  StorageObserver,
+} from "../../storage/LibraryStorage";
 import {
   deferred,
   firstScan,
@@ -15,40 +19,15 @@ import {
 import { TauriArchiveLibraryStorage } from "../../storage/TauriArchiveLibraryStorage";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
-import type { ArchiveImportSettings } from "../../types/settings";
 import { createStorage } from "./LibraryPage.testUtils";
 import { useLibraryWorkspaceData, type ArchiveBooksLoadState } from "./useLibraryWorkspaceData";
 
 type WorkspaceCommit = {
   bookRevision: number | null;
   folderRevision: number | null;
+  libraryRevision: number | undefined;
   status: ArchiveBooksLoadState["status"];
 };
-
-type Stream<T> = {
-  emit: (value: T) => void;
-  observe: (observer: StorageObserver<T>) => () => void;
-  publications: () => number;
-};
-
-function controlledStream<T>(initial?: T): Stream<T> {
-  let activeObserver: StorageObserver<T> | undefined;
-  let publicationCount = 0;
-  return {
-    emit(value) {
-      publicationCount += 1;
-      activeObserver?.next(value);
-    },
-    observe(observer) {
-      activeObserver = observer;
-      if (initial !== undefined) observer.next(initial);
-      return () => {
-        if (activeObserver === observer) activeObserver = undefined;
-      };
-    },
-    publications: () => publicationCount,
-  };
-}
 
 function revisionBook(revision: number): Book {
   return {
@@ -78,10 +57,24 @@ function revisionFrom(value: string | undefined): number | null {
   return match ? Number(match[1]) : null;
 }
 
+function modelRevisionTransitions(
+  snapshots: readonly LibrarySnapshot[],
+  initialRevision: number,
+): LibrarySnapshot[] {
+  let previousRevision = initialRevision;
+  return snapshots.filter((snapshot) => {
+    if (snapshot.revision === previousRevision) return false;
+    previousRevision = snapshot.revision;
+    return true;
+  });
+}
+
 function WorkspaceProbe({
+  archiveRootPath,
   onCommit,
   storage,
 }: {
+  archiveRootPath: string;
   onCommit: (commit: WorkspaceCommit) => void;
   storage: LibraryStorage;
 }) {
@@ -89,6 +82,7 @@ function WorkspaceProbe({
   const handleWatcherError = useCallback(() => undefined, []);
   const state = useLibraryWorkspaceData({
     archiveId: "archive",
+    archiveRootPath,
     storage,
     watcherError: null,
     onArchiveLoadError: handleArchiveLoadError,
@@ -99,6 +93,7 @@ function WorkspaceProbe({
     onCommit({
       bookRevision: revisionFrom(state.books?.[0]?.originalTitle),
       folderRevision: revisionFrom(state.folders?.[0]?.name),
+      libraryRevision: state.libraryRevision,
       status: state.booksLoadState.status,
     });
   });
@@ -123,6 +118,7 @@ function ProductionWorkspaceProbe({
   const handleWatcherError = useCallback(() => undefined, []);
   const state = useLibraryWorkspaceData({
     archiveId: "archive",
+    archiveRootPath: "C:/Archive",
     storage,
     watcherError: null,
     onArchiveLoadError: handleArchiveLoadError,
@@ -141,6 +137,24 @@ function ProductionWorkspaceProbe({
   return null;
 }
 
+function controlledSnapshot(initial: LibrarySnapshot) {
+  let snapshot = initial;
+  let observer: StorageObserver<LibrarySnapshot> | undefined;
+  return {
+    emit(next: LibrarySnapshot) {
+      snapshot = next;
+      observer?.next(snapshot);
+    },
+    get: vi.fn(() => snapshot),
+    observe: vi.fn((nextObserver: StorageObserver<LibrarySnapshot>) => {
+      observer = nextObserver;
+      return () => {
+        if (observer === nextObserver) observer = undefined;
+      };
+    }),
+  };
+}
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
@@ -153,22 +167,15 @@ afterEach(() => {
   container = null;
 });
 
-describe("library publication performance evidence", () => {
-  it("records production full-scan start and completion commits across natural async boundaries", async () => {
+describe("library snapshot publication", () => {
+  it("renders one loading boundary and one coherent completion for a production full scan", async () => {
     const storage = new TauriArchiveLibraryStorage();
     storage.reset("C:/Archive");
     await storage.listBooks();
-    const bookPublications: Book[][] = [];
-    const folderPublications: Folder[][] = [];
-    const statusPublications: ScanStatus["status"][] = [];
-    const stopBooks = storage.observeBooks({
-      next: (books) => bookPublications.push(books),
-    });
-    const stopFolders = storage.observeFolders({
-      next: (folders) => folderPublications.push(folders),
-    });
-    const stopStatus = storage.observeScanStatus({
-      next: (status) => statusPublications.push(status.status),
+    const initialRevision = storage.getLibrarySnapshot().revision;
+    const snapshots: LibrarySnapshot[] = [];
+    const stop = storage.observeLibrarySnapshot({
+      next: (snapshot) => snapshots.push(snapshot),
     });
     const commits: ProductionWorkspaceCommit[] = [];
     container = document.createElement("div");
@@ -180,11 +187,8 @@ describe("library publication performance evidence", () => {
         <ProductionWorkspaceProbe storage={storage} onCommit={(commit) => commits.push(commit)} />,
       );
     });
-    await act(async () => Promise.resolve());
     commits.length = 0;
-    bookPublications.length = 0;
-    folderPublications.length = 0;
-    statusPublications.length = 0;
+    snapshots.length = 0;
 
     const changedScan = structuredClone(firstScan);
     changedScan.folders.push({
@@ -211,17 +215,13 @@ describe("library publication performance evidence", () => {
       await Promise.resolve();
     });
 
-    const scanStartCommits = commits.splice(0);
-    expect(scanStartCommits).toEqual([
+    expect(commits.splice(0)).toEqual([
       {
         bookFolderPath: "Author/Series",
         hasReplacementFolder: false,
         status: "loading",
       },
     ]);
-    expect(bookPublications).toHaveLength(0);
-    expect(folderPublications).toHaveLength(0);
-    expect(statusPublications).toEqual(["scanning"]);
 
     await act(async () => {
       scanResponse.resolve(changedScan);
@@ -229,9 +229,12 @@ describe("library publication performance evidence", () => {
     });
 
     const completionCommits = commits.splice(0);
-    expect(bookPublications).toHaveLength(1);
-    expect(folderPublications).toHaveLength(1);
-    expect(statusPublications).toEqual(["scanning", "idle"]);
+    const modelSnapshots = modelRevisionTransitions(snapshots, initialRevision);
+    expect(modelSnapshots).toHaveLength(1);
+    expect(modelSnapshots[0]?.books[0]?.folderPath).toBe("Replacement");
+    expect(modelSnapshots[0]?.folders.some((folder) => folder.relativePath === "Replacement")).toBe(
+      true,
+    );
     expect(completionCommits).toEqual([
       {
         bookFolderPath: "Replacement",
@@ -244,24 +247,23 @@ describe("library publication performance evidence", () => {
         (commit) => (commit.bookFolderPath === "Replacement") !== commit.hasReplacementFolder,
       ),
     ).toBe(false);
-
-    stopBooks();
-    stopFolders();
-    stopStatus();
+    stop();
   });
 
-  it("demonstrates susceptibility when the three production streams arrive in separate React turns", async () => {
-    const books = controlledStream<Book[]>();
-    const folders = controlledStream<Folder[]>();
-    const scanStatus = controlledStream<ScanStatus>({ status: "idle" });
-    const storage = createStorage({
-      observeBooks: books.observe,
-      observeFolders: folders.observe,
-      observeScanStatus: scanStatus.observe,
+  it("uses one subscription and cannot render mixed Book and Folder snapshot revisions", async () => {
+    const source = controlledSnapshot({
+      archiveGeneration: 1,
+      archiveRootPath: "C:/Archive",
+      books: [revisionBook(1)],
+      folders: [revisionFolder(1)],
+      loadState: "ready",
+      revision: 1,
+      scanStatus: { status: "idle" },
     });
-    storage.getArchiveImportSettings = vi.fn<() => Promise<ArchiveImportSettings>>(
-      () => new Promise<ArchiveImportSettings>(() => undefined),
-    );
+    const storage = createStorage({
+      getLibrarySnapshot: source.get,
+      observeLibrarySnapshot: source.observe,
+    });
     const commits: WorkspaceCommit[] = [];
     container = document.createElement("div");
     document.body.append(container);
@@ -269,52 +271,49 @@ describe("library publication performance evidence", () => {
 
     await act(async () => {
       root?.render(
-        <WorkspaceProbe storage={storage} onCommit={(commit) => commits.push(commit)} />,
+        <WorkspaceProbe
+          archiveRootPath="C:/Archive"
+          storage={storage}
+          onCommit={(commit) => commits.push(commit)}
+        />,
       );
     });
-    await act(async () => books.emit([revisionBook(1)]));
-    await act(async () => folders.emit([revisionFolder(1)]));
-    await act(async () => scanStatus.emit({ status: "idle" }));
     commits.length = 0;
-    const bookPublicationsBefore = books.publications();
-    const folderPublicationsBefore = folders.publications();
-    const statusPublicationsBefore = scanStatus.publications();
 
-    await act(async () =>
-      scanStatus.emit({ status: "scanning", startedAt: "2026-07-24T00:00:00.000Z" }),
-    );
-    await act(async () => books.emit([revisionBook(2)]));
-    await act(async () => folders.emit([revisionFolder(2)]));
-    await act(async () => scanStatus.emit({ status: "idle" }));
+    await act(async () => {
+      source.emit({
+        ...source.get(),
+        books: [revisionBook(2)],
+        folders: [revisionFolder(2)],
+        revision: 2,
+      });
+    });
 
-    expect(books.publications() - bookPublicationsBefore).toBe(1);
-    expect(folders.publications() - folderPublicationsBefore).toBe(1);
-    expect(scanStatus.publications() - statusPublicationsBefore).toBe(2);
-    expect(commits).toHaveLength(4);
-    expect(commits).toContainEqual({
-      bookRevision: 2,
-      folderRevision: 1,
-      status: "loading",
-    });
-    expect(commits.at(-1)).toEqual({
-      bookRevision: 2,
-      folderRevision: 2,
-      status: "ready",
-    });
+    expect(source.observe).toHaveBeenCalledTimes(1);
+    expect(commits).toEqual([
+      {
+        bookRevision: 2,
+        folderRevision: 2,
+        libraryRevision: 2,
+        status: "ready",
+      },
+    ]);
   });
 
-  it("records one React update for one Book-only or Folder-only publication", async () => {
-    const books = controlledStream<Book[]>();
-    const folders = controlledStream<Folder[]>();
-    const scanStatus = controlledStream<ScanStatus>({ status: "idle" });
-    const storage = createStorage({
-      observeBooks: books.observe,
-      observeFolders: folders.observe,
-      observeScanStatus: scanStatus.observe,
+  it("records one React update for one Book-only or Folder-only snapshot revision", async () => {
+    const source = controlledSnapshot({
+      archiveGeneration: 1,
+      archiveRootPath: "C:/Archive",
+      books: [revisionBook(1)],
+      folders: [revisionFolder(1)],
+      loadState: "ready",
+      revision: 1,
+      scanStatus: { status: "idle" },
     });
-    storage.getArchiveImportSettings = vi.fn<() => Promise<ArchiveImportSettings>>(
-      () => new Promise<ArchiveImportSettings>(() => undefined),
-    );
+    const storage = createStorage({
+      getLibrarySnapshot: source.get,
+      observeLibrarySnapshot: source.observe,
+    });
     const commits: WorkspaceCommit[] = [];
     container = document.createElement("div");
     document.body.append(container);
@@ -322,28 +321,44 @@ describe("library publication performance evidence", () => {
 
     await act(async () => {
       root?.render(
-        <WorkspaceProbe storage={storage} onCommit={(commit) => commits.push(commit)} />,
+        <WorkspaceProbe
+          archiveRootPath="C:/Archive"
+          storage={storage}
+          onCommit={(commit) => commits.push(commit)}
+        />,
       );
     });
-    await act(async () => books.emit([revisionBook(1)]));
-    await act(async () => folders.emit([revisionFolder(1)]));
     commits.length = 0;
 
-    await act(async () => books.emit([revisionBook(2)]));
+    await act(async () => {
+      source.emit({
+        ...source.get(),
+        books: [revisionBook(2)],
+        revision: 2,
+      });
+    });
     expect(commits).toEqual([
       {
         bookRevision: 2,
         folderRevision: 1,
+        libraryRevision: 2,
         status: "ready",
       },
     ]);
 
     commits.length = 0;
-    await act(async () => folders.emit([revisionFolder(2)]));
+    await act(async () => {
+      source.emit({
+        ...source.get(),
+        folders: [revisionFolder(2)],
+        revision: 3,
+      });
+    });
     expect(commits).toEqual([
       {
         bookRevision: 2,
         folderRevision: 2,
+        libraryRevision: 3,
         status: "ready",
       },
     ]);

@@ -6,11 +6,11 @@ import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type {
-  Book,
   EpubCoverFraming,
   EpubCoverPreparation,
   EpubCoverWritebackInput,
   EpubCoverWritebackResult,
+  Book,
 } from "../../types/book";
 import { formatFileSize } from "../../utils/formatters";
 import { BookCover } from "./BookCover";

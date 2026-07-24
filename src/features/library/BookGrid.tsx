@@ -12,7 +12,7 @@ import {
 } from "./useLibraryCollectionWindow";
 
 type BookGridProps = {
-  books: Book[];
+  books: readonly Book[];
   cardSize?: CollectionCardSize;
   onDelete: (book: Book) => void;
   onEditMetadata: (book: Book) => void;

@@ -34,13 +34,20 @@ function deferred<T>() {
 }
 
 function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage {
+  const snapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: "D:\\Books",
+    books: [],
+    folders: [],
+    loadState: "ready" as const,
+    revision: 1,
+    scanStatus: { status: "idle" as const },
+  };
   return {
     addEpubFilesToArchive: vi.fn().mockResolvedValue([]),
     deleteBook: vi.fn().mockResolvedValue(undefined),
-    observeScanStatus: vi.fn((observer) => {
-      observer.next({ status: "idle" });
-      return () => undefined;
-    }),
+    getLibrarySnapshot: vi.fn(() => snapshot),
+    observeLibrarySnapshot: vi.fn(() => () => undefined),
     rescan: vi.fn().mockResolvedValue(undefined),
     revealBookFile: vi.fn().mockResolvedValue(undefined),
     updateBook: vi.fn().mockResolvedValue(book),

@@ -43,7 +43,7 @@ function scoreFolderSearchEntry(entry: FolderSearchIndexEntry, query: SearchQuer
   );
 }
 
-export function createFolderSearchIndex(folders: Folder[]): FolderSearchIndexEntry[] {
+export function createFolderSearchIndex(folders: readonly Folder[]): FolderSearchIndexEntry[] {
   return folders.map((folder) => ({
     folder,
     fields: {
@@ -72,6 +72,6 @@ export function searchFolderIndex(index: FolderSearchIndexEntry[], query: string
     .map(({ entry }) => entry.folder);
 }
 
-export function searchFolders(folders: Folder[], query: string): Folder[] {
+export function searchFolders(folders: readonly Folder[], query: string): Folder[] {
   return searchFolderIndex(createFolderSearchIndex(folders), query);
 }

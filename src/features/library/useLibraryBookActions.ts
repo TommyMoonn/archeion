@@ -1,16 +1,18 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type {
-  Book,
+  AddArchiveEpubInput,
+  LibrarySnapshotBook,
+  LibrarySnapshotFolder,
+  LibraryStorage,
+} from "../../storage/LibraryStorage";
+import type {
   EpubCoverFraming,
   EpubCoverPreparation,
   EpubCoverWritebackInput,
   EpubCoverWritebackResult,
   EpubMetadataWritebackInput,
 } from "../../types/book";
-import type { Folder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import {
   releaseArchiveScanOperation,
@@ -41,7 +43,7 @@ type UseLibraryBookActionsInput = {
   beginFeedbackOperation: (owner: string) => LibraryFeedbackOperation;
   changeLocation: (location: LibraryLocation) => void;
   confirmDestructiveFileActions: boolean;
-  currentFolder: Folder | undefined;
+  currentFolder: LibrarySnapshotFolder | undefined;
   dialogs: LibraryWorkspaceDialogActions;
   dismissFeedback: (id: string) => void;
   location: LibraryLocation;
@@ -108,7 +110,7 @@ export function useLibraryBookActions({
   );
 
   const deleteBook = useCallback(
-    async (book: Book) => {
+    async (book: LibrarySnapshotBook) => {
       if (deleteLock.current) return;
 
       deleteLock.current = true;
@@ -154,7 +156,7 @@ export function useLibraryBookActions({
   );
 
   const requestDeleteBook = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       if (shouldConfirmBookDeletion(confirmDestructiveFileActions, Boolean(book.isFileMissing))) {
         dialogs.openDeleteBook(book);
       } else {
@@ -166,7 +168,7 @@ export function useLibraryBookActions({
   );
 
   const deleteFolder = useCallback(
-    async (folder: Folder) => {
+    async (folder: LibrarySnapshotFolder) => {
       if (deleteLock.current) return;
 
       deleteLock.current = true;
@@ -213,7 +215,7 @@ export function useLibraryBookActions({
   );
 
   const requestDeleteFolder = useCallback(
-    (folder: Folder) => {
+    (folder: LibrarySnapshotFolder) => {
       if (shouldConfirmFolderDeletion(confirmDestructiveFileActions)) {
         dialogs.openDeleteFolder(folder);
       } else {
@@ -224,7 +226,7 @@ export function useLibraryBookActions({
   );
 
   const confirmClearProgress = useCallback(
-    async (book: Book) => {
+    async (book: LibrarySnapshotBook) => {
       if (isClearingProgress) return;
 
       setIsClearingProgress(true);
@@ -300,7 +302,7 @@ export function useLibraryBookActions({
   }, [beginFeedbackOperation, dismissFeedback, publishFeedbackOperation, storage]);
 
   const revealBookFile = useCallback(
-    async (book: Book) => {
+    async (book: LibrarySnapshotBook) => {
       if (!book.relativePath) return;
       const feedbackId = `library-reveal-book:${book.id}`;
       const feedbackOperation = beginFeedbackOperation(`reveal-book:${book.id}`);
@@ -319,7 +321,7 @@ export function useLibraryBookActions({
   );
 
   const toggleFavorite = useCallback(
-    async (book: Book) => {
+    async (book: LibrarySnapshotBook) => {
       const feedbackId = `library-favorite:${book.id}`;
       const feedbackOperation = beginFeedbackOperation(`favorite:${book.id}`);
       dismissFeedback(feedbackId);
@@ -346,7 +348,7 @@ export function useLibraryBookActions({
   );
 
   const writeBookMetadata = useCallback(
-    async (book: Book, metadata: EpubMetadataWritebackInput) => {
+    async (book: LibrarySnapshotBook, metadata: EpubMetadataWritebackInput) => {
       const focusClaim = beginBookMutation(book.id);
       const result = await storage.writeBookMetadata(book.id, metadata);
       onBookMutationComplete(focusClaim, "updated");
@@ -355,12 +357,18 @@ export function useLibraryBookActions({
     [beginBookMutation, onBookMutationComplete, storage],
   );
   const prepareBookCover = useCallback(
-    (book: Book, imagePath: string, framing: EpubCoverFraming): Promise<EpubCoverPreparation> =>
-      storage.prepareBookCover(book.id, imagePath, framing),
+    (
+      book: LibrarySnapshotBook,
+      imagePath: string,
+      framing: EpubCoverFraming,
+    ): Promise<EpubCoverPreparation> => storage.prepareBookCover(book.id, imagePath, framing),
     [storage],
   );
   const writeBookCover = useCallback(
-    async (book: Book, input: EpubCoverWritebackInput): Promise<EpubCoverWritebackResult> => {
+    async (
+      book: LibrarySnapshotBook,
+      input: EpubCoverWritebackInput,
+    ): Promise<EpubCoverWritebackResult> => {
       const focusClaim = beginBookMutation(book.id);
       const result = await storage.writeBookCover(book.id, input);
       onBookMutationComplete(focusClaim, "updated");
@@ -370,7 +378,7 @@ export function useLibraryBookActions({
   );
 
   const renameBookFile = useCallback(
-    async (book: Book, fileName: string) => {
+    async (book: LibrarySnapshotBook, fileName: string) => {
       const feedbackOperation = beginFeedbackOperation(`rename-book:${book.id}`);
       const focusClaim = beginBookMutation(book.id);
       await storage.renameBookFile(book.id, fileName);
@@ -389,7 +397,7 @@ export function useLibraryBookActions({
     ],
   );
   const moveBook = useCallback(
-    async (book: Book, folderId: string | null) => {
+    async (book: LibrarySnapshotBook, folderId: string | null) => {
       const feedbackOperation = beginFeedbackOperation(`move-book:${book.id}`);
       const focusClaim = beginBookMutation(book.id);
       await storage.moveBookToFolder(book.id, folderId);
@@ -416,7 +424,7 @@ export function useLibraryBookActions({
     [beginFeedbackOperation, location, publishFeedbackOperation, storage],
   );
   const renameFolder = useCallback(
-    async (folder: Folder, name: string) => {
+    async (folder: LibrarySnapshotFolder, name: string) => {
       const feedbackOperation = beginFeedbackOperation(`rename-folder:${folder.id}`);
       await runFolderPathMutation(folder, { name }, () =>
         storage.updateFolder(folder.id, { name }),
@@ -429,7 +437,7 @@ export function useLibraryBookActions({
     [beginFeedbackOperation, publishFeedbackOperation, runFolderPathMutation, storage],
   );
   const moveFolder = useCallback(
-    async (folder: Folder, folderId: string | null) => {
+    async (folder: LibrarySnapshotFolder, folderId: string | null) => {
       const feedbackOperation = beginFeedbackOperation(`move-folder:${folder.id}`);
       await runFolderPathMutation(folder, { parentId: folderId }, () =>
         storage.updateFolder(folder.id, { parentId: folderId }),
@@ -442,7 +450,7 @@ export function useLibraryBookActions({
     [beginFeedbackOperation, publishFeedbackOperation, runFolderPathMutation, storage],
   );
   const revealFolder = useCallback(
-    async (folder: Folder) => {
+    async (folder: LibrarySnapshotFolder) => {
       const feedbackId = `library-reveal-folder:${folder.id}`;
       const feedbackOperation = beginFeedbackOperation(`reveal-folder:${folder.id}`);
       dismissFeedback(feedbackId);

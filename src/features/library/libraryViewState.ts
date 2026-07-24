@@ -30,7 +30,10 @@ function normalizedFolderPathKey(path: string | undefined): string | null {
   }
 }
 
-function folderByRelativePath(folders: Folder[], folderPath: string | null): Folder | undefined {
+function folderByRelativePath(
+  folders: readonly Folder[],
+  folderPath: string | null,
+): Folder | undefined {
   if (!folderPath) {
     return undefined;
   }
@@ -38,7 +41,10 @@ function folderByRelativePath(folders: Folder[], folderPath: string | null): Fol
   return folders.find((folder) => normalizedFolderPathKey(folder.relativePath) === folderPath);
 }
 
-function folderPathForLocation(location: LibraryLocation, folders: Folder[]): string | null {
+function folderPathForLocation(
+  location: LibraryLocation,
+  folders: readonly Folder[],
+): string | null {
   if (location.type !== "folder") {
     return null;
   }
@@ -48,7 +54,7 @@ function folderPathForLocation(location: LibraryLocation, folders: Folder[]): st
 
 export function libraryLocationFromSearchParams(
   searchParams: URLSearchParams,
-  folders: Folder[],
+  folders: readonly Folder[],
   activeArchiveId?: string,
   smartViewPreferences?: LibrarySmartViewPreferences,
   pendingFolderPathMutation?: FolderPathMutationMapping | null,
@@ -109,7 +115,7 @@ export function libraryLocationFromSearchParams(
 export function searchParamsForLibraryLocation(
   currentParams: URLSearchParams,
   location: LibraryLocation,
-  folders: Folder[],
+  folders: readonly Folder[],
   activeArchiveId?: string,
   smartViewPreferences?: LibrarySmartViewPreferences,
 ): URLSearchParams {

@@ -1,18 +1,26 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
-import type { LibraryStorage, ScanStatus } from "../../storage/LibraryStorage";
+import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type { ArchiveImportSettings } from "../../types/settings";
 
 export type ArchiveBooksLoadState =
-  | { status: "loading"; archiveId: string; books: Book[] | undefined }
-  | { status: "ready"; archiveId: string; books: Book[] }
-  | { status: "error"; archiveId: string; books: Book[] | undefined };
+  | {
+      status: "loading";
+      archiveId: string;
+      books: readonly LibrarySnapshotBook[] | undefined;
+    }
+  | { status: "ready"; archiveId: string; books: readonly LibrarySnapshotBook[] }
+  | {
+      status: "error";
+      archiveId: string;
+      books: readonly LibrarySnapshotBook[] | undefined;
+    };
 
 type UseLibraryWorkspaceDataInput = {
   archiveId: string;
+  archiveRootPath: string;
   storage: LibraryStorage;
   watcherError: string | null;
   onArchiveLoadError: () => void;
@@ -21,109 +29,55 @@ type UseLibraryWorkspaceDataInput = {
 
 export function useLibraryWorkspaceData({
   archiveId,
+  archiveRootPath,
   storage,
   watcherError,
   onArchiveLoadError,
   onWatcherError,
 }: UseLibraryWorkspaceDataInput) {
-  const [booksLoadState, setBooksLoadState] = useState<ArchiveBooksLoadState>({
-    status: "loading",
-    archiveId,
-    books: undefined,
-  });
-  const [folders, setFolders] = useState<Folder[] | undefined>();
+  const subscribe = useCallback(
+    (onStoreChange: () => void) =>
+      storage.observeLibrarySnapshot({
+        next: onStoreChange,
+      }),
+    [storage],
+  );
+  const getSnapshot = useCallback(() => storage.getLibrarySnapshot(), [storage]);
+  const snapshot = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const snapshotMatchesArchive = snapshot.archiveRootPath === archiveRootPath;
+  const books = snapshotMatchesArchive ? snapshot.books : undefined;
+  const folders = snapshotMatchesArchive ? snapshot.folders : undefined;
+  const booksLoadState = useMemo<ArchiveBooksLoadState>(() => {
+    if (!snapshotMatchesArchive) {
+      return { status: "loading", archiveId, books: undefined };
+    }
+    if (snapshot.loadState === "error") {
+      return { status: "error", archiveId, books };
+    }
+    if (snapshot.loadState === "loading") {
+      return { status: "loading", archiveId, books };
+    }
+    return { status: "ready", archiveId, books: books ?? [] };
+  }, [archiveId, books, snapshot.loadState, snapshotMatchesArchive]);
   const [archiveImportSettings, setArchiveImportSettings] = useState<ArchiveImportSettings>(
     defaultArchiveImportSettings,
   );
 
   useEffect(() => {
-    let active = true;
-    let currentScanStatus: ScanStatus["status"] = "idle";
-    let pendingBooks: Book[] | undefined;
-    let booksLoadFailed = false;
+    if (
+      snapshotMatchesArchive &&
+      snapshot.loadState === "loading" &&
+      snapshot.scanStatus.status === "idle"
+    ) {
+      void Promise.resolve(storage.rescan()).catch(() => undefined);
+    }
+  }, [snapshot.loadState, snapshot.scanStatus.status, snapshotMatchesArchive, storage]);
 
-    const publishReadyBooks = () => {
-      if (
-        !active ||
-        currentScanStatus !== "idle" ||
-        booksLoadFailed ||
-        pendingBooks === undefined
-      ) {
-        return;
-      }
-
-      setBooksLoadState({ status: "ready", archiveId, books: pendingBooks });
-    };
-    const handleLoadError = () => {
-      if (!active) return;
-      booksLoadFailed = true;
+  useEffect(() => {
+    if (snapshotMatchesArchive && snapshot.loadState === "error") {
       onArchiveLoadError();
-    };
-    const stopScanStatus = storage.observeScanStatus({
-      next: (status) => {
-        if (!active) return;
-
-        currentScanStatus = status.status;
-        if (status.status === "scanning") {
-          booksLoadFailed = false;
-          setBooksLoadState((currentState) => ({
-            status: "loading",
-            archiveId,
-            books: currentState.archiveId === archiveId ? currentState.books : undefined,
-          }));
-          return;
-        }
-
-        publishReadyBooks();
-      },
-      error: () => {
-        if (!active) return;
-        handleLoadError();
-        setBooksLoadState((currentState) => ({
-          status: "error",
-          archiveId,
-          books: currentState.archiveId === archiveId ? currentState.books : undefined,
-        }));
-      },
-    });
-    const stopBooks = storage.observeBooks({
-      next: (nextBooks) => {
-        if (!active) return;
-
-        pendingBooks = nextBooks;
-        booksLoadFailed = false;
-        setBooksLoadState({
-          status: currentScanStatus === "idle" ? "ready" : "loading",
-          archiveId,
-          books: nextBooks,
-        });
-      },
-      error: () => {
-        if (!active) return;
-        handleLoadError();
-        setBooksLoadState((currentState) => ({
-          status: "error",
-          archiveId,
-          books: currentState.archiveId === archiveId ? currentState.books : pendingBooks,
-        }));
-      },
-    });
-    const stopFolders = storage.observeFolders({
-      next: (nextFolders) => {
-        if (active) setFolders(nextFolders);
-      },
-      error: () => {
-        if (active) onArchiveLoadError();
-      },
-    });
-
-    return () => {
-      active = false;
-      stopScanStatus();
-      stopBooks();
-      stopFolders();
-    };
-  }, [archiveId, onArchiveLoadError, storage]);
+    }
+  }, [onArchiveLoadError, snapshot.loadState, snapshotMatchesArchive]);
 
   useEffect(() => {
     if (watcherError) {
@@ -148,8 +102,9 @@ export function useLibraryWorkspaceData({
 
   return {
     archiveImportSettings,
-    books: booksLoadState.books,
+    books,
     booksLoadState,
     folders,
+    libraryRevision: snapshotMatchesArchive ? snapshot.revision : undefined,
   };
 }

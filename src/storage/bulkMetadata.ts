@@ -68,7 +68,10 @@ export function metadataAfterBulkEdit(
   metadata: EpubSourceMetadata | undefined,
   edits: BulkMetadataEditInput,
 ): EpubMetadataWritebackInput {
-  const current: EpubMetadataWritebackInput = { ...metadata };
+  const current: EpubMetadataWritebackInput = {
+    ...metadata,
+    subjects: metadata?.subjects ? [...metadata.subjects] : undefined,
+  };
   delete (current as EpubSourceMetadata).identifier;
   const next: EpubMetadataWritebackInput = { ...current };
   if (Object.hasOwn(edits, "series")) next.series = cleanScalar(edits.series ?? null);

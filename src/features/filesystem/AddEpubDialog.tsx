@@ -24,7 +24,7 @@ import {
 import { shouldConfirmImportReplace } from "./destructiveActionPolicy";
 
 type AddEpubDialogProps = {
-  folders: Folder[];
+  folders: readonly Folder[];
   confirmDestructiveFileActions?: boolean;
   importDefaults?: ImportSettings;
   initialFolderPath?: string;

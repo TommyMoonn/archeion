@@ -10,7 +10,7 @@ import { ARCHIVE_ROOT_DESTINATION } from "./archiveImport";
 type MoveToFolderDialogProps = {
   currentFolderId?: string | null;
   excludedFolderIds?: string[];
-  folders: Folder[];
+  folders: readonly Folder[];
   onClose: () => void;
   onMove: (folderId: string | null) => Promise<void>;
   returnFocusTo?: HTMLElement | null;

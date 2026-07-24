@@ -112,7 +112,7 @@ function normalizeSubjects(value: string): string[] | undefined {
   return uniqueSubjects.length ? uniqueSubjects : undefined;
 }
 
-function subjectsToFormValue(subjects: string[] | undefined): string {
+function subjectsToFormValue(subjects: readonly string[] | undefined): string {
   return subjects?.join("\n") ?? "";
 }
 

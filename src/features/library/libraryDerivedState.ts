@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import type {
   LibraryFilterState,
   LibraryLocation,
@@ -21,10 +20,10 @@ import { createLibraryIndex, createLibraryIndexCache, type LibraryIndex } from "
 const CONTINUE_PREVIEW_LIMIT = 5;
 
 type LibraryDerivedStateInput = {
-  books: Book[] | undefined;
+  books: readonly LibrarySnapshotBook[] | undefined;
   debouncedQuery: string;
   filters: LibraryFilterState;
-  folders: Folder[] | undefined;
+  folders: readonly LibrarySnapshotFolder[] | undefined;
   location: LibraryLocation;
   smartViewPreferences: LibrarySmartViewPreferences;
   sort: LibrarySort;
@@ -33,16 +32,16 @@ type LibraryDerivedStateInput = {
 type LibraryDerivedState = {
   bookCount: number;
   bookCountsByFolder: ReadonlyMap<string, number>;
-  continueBooks: Book[];
-  continuePreview: Book[];
-  currentFolder: Folder | undefined;
+  continueBooks: LibrarySnapshotBook[];
+  continuePreview: LibrarySnapshotBook[];
+  currentFolder: LibrarySnapshotFolder | undefined;
   effectiveSort: LibrarySort;
   favoriteCount: number;
   filterOptions: LibraryFilterOptions;
   libraryTitle: string;
   index: LibraryIndex;
   smartViewCounts: LibrarySmartViewCounts;
-  visibleBooks: Book[];
+  visibleBooks: LibrarySnapshotBook[];
 };
 
 export function useLibraryDerivedState({

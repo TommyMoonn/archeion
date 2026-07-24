@@ -127,11 +127,11 @@ describe("LibraryPage navigation and archive loading", () => {
       },
     });
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
-    const loadController = createBooksLoadController();
+    const loadController = createBooksLoadController([folder]);
     const storage = createStorage({
       folders: [folder],
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(
       storage,
@@ -195,8 +195,8 @@ describe("LibraryPage navigation and archive loading", () => {
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
     const loadController = createBooksLoadController();
     const storage = createStorage({
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
@@ -250,8 +250,8 @@ describe("LibraryPage navigation and archive loading", () => {
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
     const loadController = createBooksLoadController();
     const storage = createStorage({
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
@@ -302,8 +302,8 @@ describe("LibraryPage navigation and archive loading", () => {
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
     const loadController = createBooksLoadController();
     const storage = createStorage({
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
@@ -339,8 +339,8 @@ describe("LibraryPage navigation and archive loading", () => {
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
     const loadController = createBooksLoadController();
     const storage = createStorage({
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
@@ -426,47 +426,44 @@ describe("LibraryPage navigation and archive loading", () => {
     const updatePreferences = vi.spyOn(appPreferencesStore, "update");
     const loadController = createBooksLoadController();
     const storage = createStorage({
-      observeBooks: loadController.observeBooks,
-      observeScanStatus: loadController.observeScanStatus,
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
-    const archiveABooks = loadController.bookSubscriptions[0];
-    const archiveAScan = loadController.scanSubscriptions[0];
+    const archiveASnapshot = loadController.currentSnapshot();
 
     await act(async () => {
       loadController.startLoading();
       currentArchive = archiveB;
       notifyArchiveChange?.();
+      loadController.replaceArchive(archiveB.archive.rootPath);
       await Promise.resolve();
     });
 
-    expect(loadController.bookSubscriptions).toHaveLength(2);
-    expect(loadController.scanSubscriptions).toHaveLength(3);
-    expect(
-      loadController.scanSubscriptions.filter((subscription) => subscription.active),
-    ).toHaveLength(2);
-
     await act(async () => {
-      archiveABooks?.observer.next([
-        {
-          addedAt: "1",
-          fileName: "Old.epub",
-          id: "old-book",
-          isFavorite: false,
-          originalTitle: "Old",
-          sourceMetadata: {
-            title: "Old",
-            creator: "Author",
-            series: "Old Series",
-            subjects: ["Old Subject"],
-            language: "fr",
-            publisher: "Old Press",
+      loadController.publishSnapshot({
+        ...archiveASnapshot,
+        books: [
+          {
+            addedAt: "1",
+            fileName: "Old.epub",
+            id: "old-book",
+            isFavorite: false,
+            originalTitle: "Old",
+            sourceMetadata: {
+              title: "Old",
+              creator: "Author",
+              series: "Old Series",
+              subjects: ["Old Subject"],
+              language: "fr",
+              publisher: "Old Press",
+            },
+            updatedAt: "1",
           },
-          updatedAt: "1",
-        },
-      ]);
-      archiveAScan?.observer.next({ status: "idle" });
+        ],
+        loadState: "ready",
+      });
       await Promise.resolve();
     });
 
@@ -567,11 +564,16 @@ describe("LibraryPage navigation and archive loading", () => {
       },
     });
 
+    const loadController = createBooksLoadController([folder], [book]);
     const session = await renderLibraryPage(
-      createStorage({ books: [book], folders: [folder] }),
+      createStorage({
+        getLibrarySnapshot: loadController.getLibrarySnapshot,
+        observeLibrarySnapshot: loadController.observeLibrarySnapshot,
+      }),
       "/?view=folders&archiveId=archive-books",
     );
     suite.trackRoot(session.root);
+    act(() => loadController.publishModel([book], [folder]));
 
     const sidebarButton = (label: string) => {
       const button = Array.from(
@@ -640,6 +642,8 @@ describe("LibraryPage navigation and archive loading", () => {
     currentArchive = archiveB;
     await act(async () => {
       notifyArchiveChange?.();
+      loadController.replaceArchive(archiveB.archive.rootPath);
+      loadController.publishModel([book], [folder]);
       await Promise.resolve();
     });
 

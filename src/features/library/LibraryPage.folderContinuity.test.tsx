@@ -4,7 +4,7 @@ import { act } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-import type { StorageObserver } from "../../storage/LibraryStorage";
+import type { LibrarySnapshot, StorageObserver } from "../../storage/LibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Folder } from "../../types/folder";
@@ -33,17 +33,27 @@ function folder(relativePath: string, parentPath: string | null = null): Folder 
 }
 
 function createFolderObserver(initialFolders: Folder[]) {
-  let observer: StorageObserver<Folder[]> | null = null;
+  let observer: StorageObserver<LibrarySnapshot> | null = null;
+  let snapshot: LibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: readyState.archive.rootPath,
+    books: [],
+    folders: initialFolders,
+    loadState: "ready",
+    revision: 1,
+    scanStatus: { status: "idle" },
+  };
   return {
-    observe: vi.fn((nextObserver: StorageObserver<Folder[]>) => {
+    getSnapshot: vi.fn(() => snapshot),
+    observe: vi.fn((nextObserver: StorageObserver<LibrarySnapshot>) => {
       observer = nextObserver;
-      nextObserver.next(initialFolders);
       return () => {
         observer = null;
       };
     }),
     publish(nextFolders: Folder[]) {
-      observer?.next(nextFolders);
+      snapshot = { ...snapshot, folders: nextFolders, revision: snapshot.revision + 1 };
+      observer?.next(snapshot);
     },
   };
 }
@@ -123,7 +133,8 @@ describe("LibraryPage folder path continuity", () => {
     });
     const storage = createStorage({
       folders: [original],
-      observeFolders: folders.observe,
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
       updateFolder,
     });
     const session = await renderLibraryPage(
@@ -177,7 +188,11 @@ describe("LibraryPage folder path continuity", () => {
       folders.publish([archive, moved]);
       return moved;
     });
-    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const storage = createStorage({
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
+      updateFolder,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction",
@@ -213,7 +228,11 @@ describe("LibraryPage folder path continuity", () => {
       folders.publish([renamedParent, renamedChild]);
       return renamedParent;
     });
-    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const storage = createStorage({
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
+      updateFolder,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction%2FClassics",
@@ -255,7 +274,8 @@ describe("LibraryPage folder path continuity", () => {
       return movedParent;
     });
     const storage = createStorage({
-      observeFolders: folders.observe,
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
       updateFolder,
     });
     const session = await renderLibraryPage(
@@ -285,7 +305,11 @@ describe("LibraryPage folder path continuity", () => {
     const folders = createFolderObserver([original]);
     const routeChanges: Array<{ navigationType: string; search: string }> = [];
     const updateFolder = vi.fn().mockRejectedValue(new Error("rename failed"));
-    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const storage = createStorage({
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
+      updateFolder,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction",
@@ -322,7 +346,11 @@ describe("LibraryPage folder path continuity", () => {
     );
     const routeChanges: Array<{ navigationType: string; search: string }> = [];
     let navigate: NavigateFunction | undefined;
-    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const storage = createStorage({
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
+      updateFolder,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction",
@@ -398,7 +426,11 @@ describe("LibraryPage folder path continuity", () => {
       return () => true;
     });
     const routeChanges: Array<{ navigationType: string; search: string }> = [];
-    const storage = createStorage({ observeFolders: folders.observe, updateFolder });
+    const storage = createStorage({
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
+      updateFolder,
+    });
     const session = await renderLibraryPage(
       storage,
       "/?archiveId=archive-books&view=folder&folderPath=Fiction",
@@ -441,7 +473,8 @@ describe("LibraryPage folder path continuity", () => {
     const storage = createStorage({
       deleteFolder,
       folders: [original],
-      observeFolders: folders.observe,
+      getLibrarySnapshot: folders.getSnapshot,
+      observeLibrarySnapshot: folders.observe,
     });
     const session = await renderLibraryPage(
       storage,

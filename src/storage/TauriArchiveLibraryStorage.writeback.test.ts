@@ -321,13 +321,14 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     const statuses: string[] = [];
-    storage.observeScanStatus({
-      next: (status) => statuses.push(status.status),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => statuses.push(snapshot.scanStatus.status),
     });
 
     await storage.writeBookMetadata("book-1", { title: "Edited Title" });
 
-    expect(statuses).toEqual(["idle"]);
+    expect(statuses).not.toContain("scanning");
+    expect(statuses.every((status) => status === "idle")).toBe(true);
   });
 
   it("does not emit books when targeted writeback result is equivalent", async () => {
@@ -356,8 +357,8 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     const emissions: unknown[] = [];
-    const unsubscribe = storage.observeBooks({
-      next: (books) => emissions.push(books),
+    const unsubscribe = storage.observeLibrarySnapshot({
+      next: (snapshot) => emissions.push(snapshot.books),
     });
 
     await storage.writeBookMetadata("book-1", { title: "" });

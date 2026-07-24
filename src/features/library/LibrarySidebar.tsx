@@ -55,7 +55,7 @@ type LibrarySidebarProps = {
   archives: KnownArchive[];
   bookCount: number;
   favoriteCount: number;
-  folders: Folder[];
+  folders: readonly Folder[];
   location: LibraryLocation;
   seriesCount: number;
   smartViewCounts: LibrarySmartViewCounts;

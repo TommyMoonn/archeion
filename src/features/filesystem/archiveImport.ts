@@ -41,7 +41,9 @@ export function isEpubSourcePath(path: string): boolean {
   return /\.epub$/i.test(getFileNameFromPath(path));
 }
 
-export function createArchiveDestinationOptions(folders: Folder[]): ArchiveImportDestination[] {
+export function createArchiveDestinationOptions(
+  folders: readonly Folder[],
+): ArchiveImportDestination[] {
   return [
     { label: "Archive root", value: ARCHIVE_ROOT_DESTINATION },
     ...[...folders]

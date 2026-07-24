@@ -169,9 +169,14 @@ archeion:startup-to-library-snapshot
 archeion:startup-to-usable-library
 ```
 
-`archeion:startup-to-library-snapshot` marks the first observed boundary where the current
-separate Books and Folders subscriptions are both ready. It does not prove that they share an
-authoritative archive revision; atomic revision consistency belongs to Phase 0.9.0.3.
+`archeion:startup-to-library-snapshot` marks the first ready, archive-scoped Library snapshot.
+Books and Folders at this boundary share the snapshot's authoritative Library revision.
+
+The Library revision advances when the active archive generation changes or a successful model
+commit replaces Books or Folders. Loading, error, and scan-status-only transitions publish updated
+snapshots without advancing that model revision. A failed initial scan therefore retains the empty
+loading model's revision; the first successful commit, including an empty archive, establishes the
+ready model revision.
 
 Inspect them in the Tauri WebView2 developer tools after startup:
 

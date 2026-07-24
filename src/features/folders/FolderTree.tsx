@@ -18,7 +18,7 @@ import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 
 type FolderTreeProps = {
-  folders: Folder[];
+  folders: readonly Folder[];
   location: LibraryLocation;
   onDelete: (folder: Folder) => void;
   onMove: (folder: Folder) => void;

@@ -1,7 +1,11 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 
-import type { BulkActionResult, LibraryStorage } from "../../storage/LibraryStorage";
-import type { Book, BulkMetadataEditInput } from "../../types/book";
+import type {
+  BulkActionResult,
+  LibrarySnapshotBook,
+  LibraryStorage,
+} from "../../storage/LibraryStorage";
+import type { BulkMetadataEditInput } from "../../types/book";
 import { bookAuthor } from "../../utils/bookDisplay";
 import { exportReaderAnnotationsToFile } from "../reader/readerAnnotationExportFile";
 import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
@@ -12,7 +16,7 @@ import type { LibraryFeedbackOperation } from "./useLibraryFeedback";
 
 type UseLibraryBulkActionsInput = {
   beginFeedbackOperation: (owner: string) => LibraryFeedbackOperation;
-  books: Book[] | undefined;
+  books: readonly LibrarySnapshotBook[] | undefined;
   dialogs: LibraryWorkspaceDialogActions;
   dismissFeedback: (id: string) => void;
   leaveSelectionMode: () => void;

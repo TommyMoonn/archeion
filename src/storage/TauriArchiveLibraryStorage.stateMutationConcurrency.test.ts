@@ -87,7 +87,7 @@ async function loadStorage(archive = stateArchive()) {
   return storage;
 }
 
-function byId(books: readonly Book[], id: string): Book {
+function byId<T extends Book>(books: readonly T[], id: string): T {
   const book = books.find((candidate) => candidate.id === id);
   if (!book) throw new Error(`Missing test book ${id}.`);
   return book;
@@ -348,7 +348,7 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
     });
 
     const emissions: Book[][] = [];
-    storage.observeBooks({ next: (books) => emissions.push(books) });
+    storage.observeLibrarySnapshot({ next: (snapshot) => emissions.push([...snapshot.books]) });
     const favorite = storage.updateBook("book-1", { isFavorite: false });
     await favoriteSaveStarted.promise;
     const progress = storage.updateBook("book-1", { progressPercent: 88 });
@@ -415,7 +415,7 @@ describe("TauriArchiveLibraryStorage serialized metadata-only mutations", () => 
       const before = await storage.listBooks();
       const bookBefore = byId(before, "book-1");
       const emissions: Book[][] = [];
-      storage.observeBooks({ next: (books) => emissions.push(books) });
+      storage.observeLibrarySnapshot({ next: (snapshot) => emissions.push([...snapshot.books]) });
       invokeMock.mockImplementation(async (command) => {
         if (command === failingCommand) throw new Error("disk full");
         return undefined;

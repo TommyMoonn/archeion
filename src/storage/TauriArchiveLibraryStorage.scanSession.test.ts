@@ -180,36 +180,41 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
   it("notifies observers after a scan", async () => {
     const storage = new TauriArchiveLibraryStorage();
     const observed = new Promise<number>((resolve, reject) => {
-      storage.observeBooks({
-        next: (books) => resolve(books.length),
+      storage.observeLibrarySnapshot({
+        next: (snapshot) => {
+          if (snapshot.loadState === "ready") resolve(snapshot.books.length);
+        },
         error: reject,
       });
     });
+    void storage.rescan();
 
     await expect(observed).resolves.toBe(1);
   });
 
-  it("does not notify observers when a rescan is unchanged", async () => {
+  it("does not publish a snapshot for an unchanged quiet rescan", async () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listBooks();
     const observer = vi.fn();
-    const stop = storage.observeBooks({ next: observer });
+    const stop = storage.observeLibrarySnapshot({ next: observer });
 
-    await storage.rescan();
+    await storage.rescan({ quiet: true });
 
     expect(observer).toHaveBeenCalledTimes(1);
     stop();
   });
 
-  it("does not notify folder observers when a rescan is unchanged", async () => {
+  it("keeps the model revision stable across an unchanged visible rescan", async () => {
     const storage = new TauriArchiveLibraryStorage();
     await storage.listFolders();
-    const observer = vi.fn();
-    const stop = storage.observeFolders({ next: observer });
+    const revisions: number[] = [];
+    const stop = storage.observeLibrarySnapshot({
+      next: (snapshot) => revisions.push(snapshot.revision),
+    });
 
     await storage.rescan();
 
-    expect(observer).toHaveBeenCalledTimes(1);
+    expect(new Set(revisions)).toEqual(new Set([revisions[0]]));
     stop();
   });
 
@@ -450,8 +455,8 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     });
 
     const emittedBookIds: string[][] = [];
-    const unsubscribe = storage.observeBooks({
-      next: (books) => emittedBookIds.push(books.map((book) => book.id)),
+    const unsubscribe = storage.observeLibrarySnapshot({
+      next: (snapshot) => emittedBookIds.push(snapshot.books.map((book) => book.id)),
     });
     emittedBookIds.length = 0;
 
@@ -527,8 +532,12 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     });
     const storage = new TauriArchiveLibraryStorage();
     const statuses: string[] = [];
-    storage.observeScanStatus({
-      next: (status) => statuses.push(status.status),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (statuses.at(-1) !== snapshot.scanStatus.status) {
+          statuses.push(snapshot.scanStatus.status);
+        }
+      },
     });
 
     const rescan = storage.rescan();
@@ -544,8 +553,12 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
   it("keeps quiet rescans out of scan status observers", async () => {
     const storage = new TauriArchiveLibraryStorage();
     const statuses: string[] = [];
-    storage.observeScanStatus({
-      next: (status) => statuses.push(status.status),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (statuses.at(-1) !== snapshot.scanStatus.status) {
+          statuses.push(snapshot.scanStatus.status);
+        }
+      },
     });
 
     await storage.rescan({ quiet: true });
@@ -569,8 +582,12 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     });
     const storage = new TauriArchiveLibraryStorage();
     const statuses: string[] = [];
-    storage.observeScanStatus({
-      next: (status) => statuses.push(status.status),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (statuses.at(-1) !== snapshot.scanStatus.status) {
+          statuses.push(snapshot.scanStatus.status);
+        }
+      },
     });
 
     const quietScan = storage.rescan({ quiet: true });
@@ -636,8 +653,12 @@ describe("TauriArchiveLibraryStorage scan and archive session", () => {
     storage.observeOperationWarnings({ next: (value) => surfaced.push(value) });
     await storage.listBooks();
     const statuses: string[] = [];
-    storage.observeScanStatus({
-      next: (status) => statuses.push(status.status),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (statuses.at(-1) !== snapshot.scanStatus.status) {
+          statuses.push(snapshot.scanStatus.status);
+        }
+      },
     });
     invokeMock.mockClear();
 

@@ -4,7 +4,12 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
+import type {
+  LibrarySnapshot,
+  LibraryStorage,
+  ScanStatus,
+  StorageObserver,
+} from "../../storage/LibraryStorage";
 import {
   isArchiveScanActive,
   releaseArchiveScanOperation,
@@ -16,19 +21,29 @@ import {
   true;
 
 function createScanStatusSource() {
-  let observer: StorageObserver<ScanStatus> | null = null;
+  let observer: StorageObserver<LibrarySnapshot> | null = null;
+  let snapshot: LibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: "D:\\Books",
+    books: [],
+    folders: [],
+    loadState: "ready",
+    revision: 1,
+    scanStatus: { status: "idle" },
+  };
   const unsubscribe = vi.fn();
   const storage = {
-    observeScanStatus: vi.fn((nextObserver: StorageObserver<ScanStatus>) => {
+    getLibrarySnapshot: vi.fn(() => snapshot),
+    observeLibrarySnapshot: vi.fn((nextObserver: StorageObserver<LibrarySnapshot>) => {
       observer = nextObserver;
-      nextObserver.next({ status: "idle" });
       return unsubscribe;
     }),
   } as unknown as LibraryStorage;
 
   return {
     emit(status: ScanStatus) {
-      observer?.next(status);
+      snapshot = { ...snapshot, scanStatus: status };
+      observer?.next(snapshot);
     },
     staleObserver() {
       return observer;
@@ -74,7 +89,7 @@ describe("useArchiveScanActivity", () => {
       source.emit({ status: "scanning", startedAt: "2026-07-23T00:00:00.000Z" });
     });
 
-    expect(source.storage.observeScanStatus).toHaveBeenCalledTimes(1);
+    expect(source.storage.observeLibrarySnapshot).toHaveBeenCalledTimes(1);
     expect(container.textContent).toContain("scanning");
     expect(isArchiveScanActive(source.storage)).toBe(true);
     expect(document.activeElement).toBe(focused);
@@ -146,11 +161,21 @@ describe("useArchiveScanActivity", () => {
     expect(container.textContent).toContain("idle");
     expect(isArchiveScanActive(first.storage)).toBe(true);
 
-    act(() => staleObserver?.next({ status: "scanning", startedAt: "stale" }));
+    act(() =>
+      staleObserver?.next({
+        ...first.storage.getLibrarySnapshot(),
+        scanStatus: { status: "scanning", startedAt: "stale" },
+      }),
+    );
     expect(container.textContent).toContain("idle");
     expect(isArchiveScanActive(second.storage)).toBe(false);
 
-    act(() => staleObserver?.next({ status: "idle" }));
+    act(() =>
+      staleObserver?.next({
+        ...first.storage.getLibrarySnapshot(),
+        scanStatus: { status: "idle" },
+      }),
+    );
     expect(first.unsubscribe).toHaveBeenCalledTimes(1);
     expect(isArchiveScanActive(first.storage)).toBe(false);
 

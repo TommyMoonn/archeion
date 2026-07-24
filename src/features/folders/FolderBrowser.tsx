@@ -46,7 +46,7 @@ type FolderBrowserProps = {
   cardSize: CollectionCardSize;
   canManageFolders?: boolean;
   canRevealFolders?: boolean;
-  folders: Folder[];
+  folders: readonly Folder[];
   onCreate?: () => void;
   onDelete?: (folder: Folder) => void;
   onMove?: (folder: Folder) => void;

@@ -3,9 +3,12 @@ import { Suspense } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
-import type { AddArchiveEpubInput } from "../../storage/LibraryStorage";
 import type {
-  Book,
+  AddArchiveEpubInput,
+  LibrarySnapshotBook,
+  LibrarySnapshotFolder,
+} from "../../storage/LibraryStorage";
+import type {
   BulkMetadataEditInput,
   EpubCoverFraming,
   EpubCoverPreparation,
@@ -14,7 +17,6 @@ import type {
   EpubMetadataWritebackInput,
   EpubMetadataWritebackResult,
 } from "../../types/book";
-import type { Folder } from "../../types/folder";
 import type { ImportSettings } from "../../types/settings";
 import { bookTitle } from "./libraryFilters";
 import { isInsideFolder } from "./libraryFolderRelations";
@@ -36,55 +38,58 @@ import type {
 } from "./useLibraryWorkspaceDialogs";
 
 type LibraryWorkspaceDialogsProps = {
-  books: Book[] | undefined;
+  books: readonly LibrarySnapshotBook[] | undefined;
   confirmDestructiveFileActions: boolean;
-  currentFolder: Folder | undefined;
+  currentFolder: LibrarySnapshotFolder | undefined;
   dialog: LibraryWorkspaceDialog;
   dialogActions: LibraryWorkspaceDialogActions;
-  folders: Folder[] | undefined;
+  folders: readonly LibrarySnapshotFolder[] | undefined;
   importDefaults: ImportSettings;
   isBulkRunning: boolean;
   isClearingProgress: boolean;
   isDeleting: boolean;
   isImporting: boolean;
   isRescanning: boolean;
-  onConfirmClearProgress: (book: Book) => Promise<void>;
+  onConfirmClearProgress: (book: LibrarySnapshotBook) => Promise<void>;
   onCreateFolder: (name: string) => Promise<void>;
-  onDeleteBook: (book: Book) => Promise<void>;
-  onDeleteFolder: (folder: Folder) => Promise<void>;
+  onDeleteBook: (book: LibrarySnapshotBook) => Promise<void>;
+  onDeleteFolder: (folder: LibrarySnapshotFolder) => Promise<void>;
   onDeleteSelectedBooks: () => Promise<void>;
   onImport: (input: AddArchiveEpubInput) => Promise<void>;
-  onMoveBook: (book: Book, folderId: string | null) => Promise<void>;
-  onMoveFolder: (folder: Folder, folderId: string | null) => Promise<void>;
+  onMoveBook: (book: LibrarySnapshotBook, folderId: string | null) => Promise<void>;
+  onMoveFolder: (folder: LibrarySnapshotFolder, folderId: string | null) => Promise<void>;
   onMoveSelectedBooks: (folderId: string | null) => Promise<void>;
   onPrepareBookCover: (
-    book: Book,
+    book: LibrarySnapshotBook,
     imagePath: string,
     framing: EpubCoverFraming,
   ) => Promise<EpubCoverPreparation>;
-  onReadBook: (book: Book) => void;
-  onReadBookFromBeginning: (book: Book) => void;
-  onRenameBookFile: (book: Book, fileName: string) => Promise<void>;
-  onRenameFolder: (folder: Folder, name: string) => Promise<void>;
-  onRequestClearProgress: (book: Book) => void;
-  onRequestDeleteBook: (book: Book) => void;
+  onReadBook: (book: LibrarySnapshotBook) => void;
+  onReadBookFromBeginning: (book: LibrarySnapshotBook) => void;
+  onRenameBookFile: (book: LibrarySnapshotBook, fileName: string) => Promise<void>;
+  onRenameFolder: (folder: LibrarySnapshotFolder, name: string) => Promise<void>;
+  onRequestClearProgress: (book: LibrarySnapshotBook) => void;
+  onRequestDeleteBook: (book: LibrarySnapshotBook) => void;
   onRescan: () => Promise<void>;
-  onRevealBookFile: (book: Book) => Promise<void>;
-  onToggleFavorite: (book: Book) => Promise<void>;
+  onRevealBookFile: (book: LibrarySnapshotBook) => Promise<void>;
+  onToggleFavorite: (book: LibrarySnapshotBook) => Promise<void>;
   onWriteBookCover: (
-    book: Book,
+    book: LibrarySnapshotBook,
     input: EpubCoverWritebackInput,
   ) => Promise<EpubCoverWritebackResult>;
   onWriteBookMetadata: (
-    book: Book,
+    book: LibrarySnapshotBook,
     metadata: EpubMetadataWritebackInput,
   ) => Promise<EpubMetadataWritebackResult>;
   onWriteSelectedBookMetadata: (edits: BulkMetadataEditInput) => Promise<void>;
   selectedBookIds: ReadonlySet<string>;
-  selectedBooks: Book[];
+  selectedBooks: LibrarySnapshotBook[];
 };
 
-function findBook(books: Book[] | undefined, bookId: string): Book | null {
+function findBook(
+  books: readonly LibrarySnapshotBook[] | undefined,
+  bookId: string,
+): LibrarySnapshotBook | null {
   return (books ?? []).find((book) => book.id === bookId) ?? null;
 }
 

@@ -5,7 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, type NavigateFunction } from "react-router-dom";
 import { afterEach, beforeEach, vi } from "vitest";
 
-import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
+import type {
+  LibrarySnapshot,
+  LibraryStorage,
+  StorageObserver,
+} from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
@@ -67,9 +71,8 @@ export function createStorage({
   deleteBook = vi.fn(),
   deleteFolder = vi.fn(),
   listAnnotations = vi.fn().mockResolvedValue([]),
-  observeBooks,
-  observeFolders,
-  observeScanStatus,
+  getLibrarySnapshot,
+  observeLibrarySnapshot,
   renameBookFile = vi.fn(),
   updateBook = vi.fn(),
   updateFolder = vi.fn(),
@@ -81,22 +84,26 @@ export function createStorage({
   deleteBook?: LibraryStorage["deleteBook"];
   deleteFolder?: LibraryStorage["deleteFolder"];
   listAnnotations?: LibraryStorage["listAnnotations"];
-  observeBooks?: LibraryStorage["observeBooks"];
-  observeFolders?: LibraryStorage["observeFolders"];
-  observeScanStatus?: LibraryStorage["observeScanStatus"];
+  getLibrarySnapshot?: LibraryStorage["getLibrarySnapshot"];
+  observeLibrarySnapshot?: LibraryStorage["observeLibrarySnapshot"];
   renameBookFile?: LibraryStorage["renameBookFile"];
   updateBook?: LibraryStorage["updateBook"];
   updateFolder?: LibraryStorage["updateFolder"];
 } = {}): LibraryStorage {
+  const initialSnapshot: LibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: readyState.archive.rootPath,
+    books,
+    folders,
+    loadState: "ready",
+    revision: 1,
+    scanStatus: { status: "idle" },
+  };
   return {
     reset: vi.fn(),
     rescan: vi.fn(),
-    observeScanStatus:
-      observeScanStatus ??
-      vi.fn((observer) => {
-        observer.next({ status: "idle" });
-        return () => undefined;
-      }),
+    getLibrarySnapshot: getLibrarySnapshot ?? vi.fn(() => initialSnapshot),
+    observeLibrarySnapshot: observeLibrarySnapshot ?? vi.fn(() => () => undefined),
     addEpubFilesToArchive: vi.fn(),
     getBook: vi.fn(),
     loadBookCover: vi.fn(),
@@ -117,12 +124,6 @@ export function createStorage({
     bulkRegenerateCovers: vi.fn(),
     bulkExportBooks: vi.fn(),
     bulkWriteBookMetadata: vi.fn(),
-    observeBooks:
-      observeBooks ??
-      vi.fn((observer) => {
-        observer.next(books);
-        return () => undefined;
-      }),
     listAnnotations,
     createFolder,
     getFolder: vi.fn(),
@@ -130,12 +131,6 @@ export function createStorage({
     updateFolder,
     revealFolder: vi.fn(),
     deleteFolder,
-    observeFolders:
-      observeFolders ??
-      vi.fn((observer) => {
-        observer.next(folders);
-        return () => undefined;
-      }),
     getArchiveImportSettings: vi.fn().mockResolvedValue(defaultArchiveImportSettings),
     saveArchiveImportSettings: vi.fn(),
     updateArchiveImportSettings: vi.fn(),
@@ -155,61 +150,93 @@ type ObserverSubscription<T> = {
   observer: StorageObserver<T>;
 };
 
-export function createBooksLoadController() {
-  const bookSubscriptions: ObserverSubscription<Book[]>[] = [];
-  const scanSubscriptions: ObserverSubscription<ScanStatus>[] = [];
-  const observeBooks = vi.fn<LibraryStorage["observeBooks"]>((observer) => {
-    const subscription = { active: true, observer };
-    bookSubscriptions.push(subscription);
-    return () => {
-      subscription.active = false;
-    };
-  });
-  const observeScanStatus = vi.fn<LibraryStorage["observeScanStatus"]>((observer) => {
-    const subscription = { active: true, observer };
-    scanSubscriptions.push(subscription);
-    observer.next({ status: "idle" });
-    return () => {
-      subscription.active = false;
-    };
-  });
-
-  const latestActive = <T,>(subscriptions: ObserverSubscription<T>[]) => {
-    for (let index = subscriptions.length - 1; index >= 0; index -= 1) {
-      const subscription = subscriptions[index];
-      if (subscription?.active) {
-        return subscription;
-      }
-    }
-
-    throw new Error("No active storage observer subscription was found.");
+export function createBooksLoadController(
+  initialFolders: readonly Folder[] = [],
+  initialBooks: readonly Book[] = [],
+) {
+  const snapshotSubscriptions: ObserverSubscription<LibrarySnapshot>[] = [];
+  let snapshot: LibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: readyState.archive.rootPath,
+    books: initialBooks,
+    folders: initialFolders,
+    loadState: "loading",
+    revision: 0,
+    scanStatus: { status: "idle" },
   };
-  const publishScanStatus = (status: ScanStatus) => {
-    scanSubscriptions.forEach((subscription) => {
-      if (subscription.active) subscription.observer.next(status);
+  const observeLibrarySnapshot = vi.fn<LibraryStorage["observeLibrarySnapshot"]>((observer) => {
+    const subscription = { active: true, observer };
+    snapshotSubscriptions.push(subscription);
+    observer.next(snapshot);
+    return () => {
+      subscription.active = false;
+    };
+  });
+
+  const publishSnapshot = () => {
+    snapshotSubscriptions.forEach((subscription) => {
+      if (subscription.active) subscription.observer.next(snapshot);
     });
   };
 
   return {
-    bookSubscriptions,
-    observeBooks,
-    observeScanStatus,
-    scanSubscriptions,
-    startLoading() {
-      publishScanStatus({
-        status: "scanning",
-        startedAt: "1",
+    getLibrarySnapshot: vi.fn(() => snapshot),
+    observeLibrarySnapshot,
+    snapshotSubscriptions,
+    currentSnapshot() {
+      return snapshot;
+    },
+    publishSnapshot(nextSnapshot: LibrarySnapshot) {
+      snapshotSubscriptions.forEach((subscription) => {
+        if (subscription.active) subscription.observer.next(nextSnapshot);
       });
     },
-    publishBooks(books: Book[]) {
-      latestActive(bookSubscriptions).observer.next(books);
+    replaceArchive(archiveRootPath: string) {
+      snapshot = {
+        archiveGeneration: snapshot.archiveGeneration + 1,
+        archiveRootPath,
+        books: [],
+        folders: [],
+        loadState: "loading",
+        revision: snapshot.revision + 1,
+        scanStatus: { status: "idle" },
+      };
+      publishSnapshot();
     },
-    fail(error = new Error("Archive failed to load")) {
-      latestActive(bookSubscriptions).observer.error?.(error);
-      publishScanStatus({ status: "idle" });
+    startLoading() {
+      snapshot = {
+        ...snapshot,
+        loadState: "loading",
+        scanStatus: { status: "scanning", startedAt: "1" },
+      };
+      publishSnapshot();
+    },
+    publishBooks(books: Book[]) {
+      snapshot = {
+        ...snapshot,
+        books,
+        loadState: "ready",
+        revision: snapshot.revision + 1,
+      };
+      publishSnapshot();
+    },
+    publishModel(books: Book[], folders: Folder[]) {
+      snapshot = {
+        ...snapshot,
+        books,
+        folders,
+        loadState: "ready",
+        revision: snapshot.revision + 1,
+      };
+      publishSnapshot();
+    },
+    fail() {
+      snapshot = { ...snapshot, loadState: "error", scanStatus: { status: "idle" } };
+      publishSnapshot();
     },
     finishLoading() {
-      publishScanStatus({ status: "idle" });
+      snapshot = { ...snapshot, scanStatus: { status: "idle" } };
+      publishSnapshot();
     },
   };
 }

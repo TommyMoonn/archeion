@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { Book } from "../../types/book";
+import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import {
   clearLibrarySelection,
   createLibrarySelectionState,
@@ -14,7 +14,7 @@ import {
   type LibrarySelectionIntent,
 } from "./librarySelection";
 
-export function useLibrarySelection(books: Book[] | undefined) {
+export function useLibrarySelection(books: readonly LibrarySnapshotBook[] | undefined) {
   const [state, setState] = useState(createLibrarySelectionState);
   const availableBookIds = useMemo(() => new Set((books ?? []).map((book) => book.id)), [books]);
   const reconciledState = useMemo(
@@ -32,7 +32,11 @@ export function useLibrarySelection(books: Book[] | undefined) {
     setState(clearLibrarySelection);
   }, []);
   const toggleBook = useCallback(
-    (book: Book, intent: LibrarySelectionIntent, visibleBooks: readonly Book[]) => {
+    (
+      book: LibrarySnapshotBook,
+      intent: LibrarySelectionIntent,
+      visibleBooks: readonly LibrarySnapshotBook[],
+    ) => {
       const orderedBookIds = visibleBooks.map((visibleBook) => visibleBook.id);
       setState((current) =>
         toggleLibraryBookSelection(
@@ -46,7 +50,7 @@ export function useLibrarySelection(books: Book[] | undefined) {
     [availableBookIds],
   );
   const selectVisible = useCallback(
-    (visibleBooks: readonly Book[]) => {
+    (visibleBooks: readonly LibrarySnapshotBook[]) => {
       setState((current) =>
         selectVisibleLibraryBooks(
           reconcileLibrarySelection(current, availableBookIds),
@@ -57,7 +61,7 @@ export function useLibrarySelection(books: Book[] | undefined) {
     [availableBookIds],
   );
   const deselectVisible = useCallback(
-    (visibleBooks: readonly Book[]) => {
+    (visibleBooks: readonly LibrarySnapshotBook[]) => {
       setState((current) =>
         deselectVisibleLibraryBooks(
           reconcileLibrarySelection(current, availableBookIds),

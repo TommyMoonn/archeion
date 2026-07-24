@@ -144,8 +144,12 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     const stableBook = before.find((book) => book.id === "book-3");
     const observerA: Array<Record<string, string | undefined>> = [];
     const observerB: Array<Record<string, string | undefined>> = [];
-    storage.observeBooks({ next: (books) => observerA.push(pathById(books)) });
-    storage.observeBooks({ next: (books) => observerB.push(pathById(books)) });
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => observerA.push(pathById([...snapshot.books])),
+    });
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => observerB.push(pathById([...snapshot.books])),
+    });
 
     const firstMove = storage.moveBookToFolder("book-1", "folder:DestA");
     const secondMove = storage.moveBookToFolder("book-2", "folder:DestB");

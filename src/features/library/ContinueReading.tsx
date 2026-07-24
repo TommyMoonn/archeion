@@ -6,7 +6,7 @@ import { BookCover } from "./BookCover";
 import { bookAuthor, bookTitle } from "./libraryFilters";
 
 type ContinueReadingProps = {
-  books: Book[];
+  books: readonly Book[];
   onContinue: (book: Book) => void;
 };
 

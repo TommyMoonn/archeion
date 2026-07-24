@@ -28,7 +28,7 @@ function getOrCreateStore(storage: LibraryStorage): ArchiveScanActivityStore {
   const store: ArchiveScanActivityStore = {
     claim: null,
     listeners: new Set(),
-    observedScanning: false,
+    observedScanning: storage.getLibrarySnapshot().scanStatus.status === "scanning",
     unsubscribe: null,
   };
   activityStores.set(storage, store);
@@ -67,12 +67,9 @@ function ensureStatusSubscription(storage: LibraryStorage, store: ArchiveScanAct
   if (store.unsubscribe) return;
 
   let active = true;
-  const unsubscribe = storage.observeScanStatus({
-    next: (status) => {
-      if (active) publishScanStatus(storage, store, status);
-    },
-    error: () => {
-      if (active) publishScanStatus(storage, store, { status: "idle" });
+  const unsubscribe = storage.observeLibrarySnapshot({
+    next: (snapshot) => {
+      if (active) publishScanStatus(storage, store, snapshot.scanStatus);
     },
   });
   store.unsubscribe = () => {

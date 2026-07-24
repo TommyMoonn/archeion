@@ -1,7 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useReducer, useRef } from "react";
 
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import { currentFocusOrigin } from "../../utils/focusRestoration";
 
 export type DroppedEpubImport = {
@@ -23,15 +22,15 @@ export type LibraryWorkspaceDialog =
     })
   | (BookDialogOwnership & { type: "book-metadata"; bookId: string })
   | (BookDialogOwnership & { type: "book-cover"; bookId: string })
-  | (BookDialogOwnership & { type: "rename-book"; book: Book })
-  | (BookDialogOwnership & { type: "move-book"; book: Book })
-  | (BookDialogOwnership & { type: "delete-book"; book: Book })
-  | (BookDialogOwnership & { type: "clear-progress"; book: Book })
+  | (BookDialogOwnership & { type: "rename-book"; book: LibrarySnapshotBook })
+  | (BookDialogOwnership & { type: "move-book"; book: LibrarySnapshotBook })
+  | (BookDialogOwnership & { type: "delete-book"; book: LibrarySnapshotBook })
+  | (BookDialogOwnership & { type: "clear-progress"; book: LibrarySnapshotBook })
   | { type: "about" }
   | { type: "create-folder" }
-  | { type: "rename-folder"; folder: Folder }
-  | { type: "move-folder"; folder: Folder }
-  | { type: "delete-folder"; folder: Folder }
+  | { type: "rename-folder"; folder: LibrarySnapshotFolder }
+  | { type: "move-folder"; folder: LibrarySnapshotFolder }
+  | { type: "delete-folder"; folder: LibrarySnapshotFolder }
   | { type: "rescan" }
   | { type: "bulk-move" }
   | { type: "bulk-delete" }
@@ -97,7 +96,7 @@ export function useLibraryWorkspaceDialogs() {
     [show],
   );
   const openBookDetails = useCallback(
-    (book: Book) =>
+    (book: LibrarySnapshotBook) =>
       show({
         type: "book-details",
         bookId: book.id,
@@ -117,7 +116,7 @@ export function useLibraryWorkspaceDialogs() {
     [bookOrigin, show],
   );
   const openBookMetadata = useCallback(
-    (book: Book) =>
+    (book: LibrarySnapshotBook) =>
       show({
         type: "book-metadata",
         bookId: book.id,
@@ -126,37 +125,39 @@ export function useLibraryWorkspaceDialogs() {
     [bookOrigin, show],
   );
   const openBookCover = useCallback(
-    (book: Book) => show({ type: "book-cover", bookId: book.id, returnFocusTo: bookOrigin() }),
+    (book: LibrarySnapshotBook) =>
+      show({ type: "book-cover", bookId: book.id, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
   const openRenameBook = useCallback(
-    (book: Book) => show({ type: "rename-book", book, returnFocusTo: bookOrigin() }),
+    (book: LibrarySnapshotBook) => show({ type: "rename-book", book, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
   const openMoveBook = useCallback(
-    (book: Book) => show({ type: "move-book", book, returnFocusTo: bookOrigin() }),
+    (book: LibrarySnapshotBook) => show({ type: "move-book", book, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
   const openDeleteBook = useCallback(
-    (book: Book) => show({ type: "delete-book", book, returnFocusTo: bookOrigin() }),
+    (book: LibrarySnapshotBook) => show({ type: "delete-book", book, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
   const openClearProgress = useCallback(
-    (book: Book) => show({ type: "clear-progress", book, returnFocusTo: bookOrigin() }),
+    (book: LibrarySnapshotBook) =>
+      show({ type: "clear-progress", book, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
   const openAbout = useCallback(() => show({ type: "about" }), [show]);
   const openCreateFolder = useCallback(() => show({ type: "create-folder" }), [show]);
   const openRenameFolder = useCallback(
-    (folder: Folder) => show({ type: "rename-folder", folder }),
+    (folder: LibrarySnapshotFolder) => show({ type: "rename-folder", folder }),
     [show],
   );
   const openMoveFolder = useCallback(
-    (folder: Folder) => show({ type: "move-folder", folder }),
+    (folder: LibrarySnapshotFolder) => show({ type: "move-folder", folder }),
     [show],
   );
   const openDeleteFolder = useCallback(
-    (folder: Folder) => show({ type: "delete-folder", folder }),
+    (folder: LibrarySnapshotFolder) => show({ type: "delete-folder", folder }),
     [show],
   );
   const openRescan = useCallback(() => show({ type: "rescan" }), [show]);

@@ -77,8 +77,8 @@ describe("TauriArchiveLibraryStorage progress failure ownership", () => {
   it("rolls a failed coalesced batch back once to the persisted baseline", async () => {
     const { storage } = await scopedStorage();
     const emissions: number[] = [];
-    storage.observeBooks({
-      next: (books) => emissions.push(books[0]?.progressPercent ?? 0),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => emissions.push(snapshot.books[0]?.progressPercent ?? 0),
     });
     invokeMock.mockImplementation(async (command) => {
       if (command === "save_progress_metadata") throw new Error("disk full");
@@ -250,8 +250,8 @@ describe("TauriArchiveLibraryStorage deferred progress outcome supersession", ()
     const favoriteSave = deferred<void>();
     const progressWrites: unknown[] = [];
     const emissions: number[] = [];
-    storage.observeBooks({
-      next: (books) => emissions.push(books[0]?.progressPercent ?? 0),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) => emissions.push(snapshot.books[0]?.progressPercent ?? 0),
     });
     invokeMock.mockImplementation(async (command, args) => {
       if (command === "save_progress_metadata") {
@@ -491,9 +491,9 @@ describe("TauriArchiveLibraryStorage concurrent progress flush ownership", () =>
     const newerWrite = deferred<void>();
     const progressPayloads: Array<Record<string, unknown>> = [];
     const emissions: number[] = [];
-    storage.observeBooks({
-      next: (books) =>
-        emissions.push(books.find(({ id }) => id === "book-1")?.progressPercent ?? 0),
+    storage.observeLibrarySnapshot({
+      next: (snapshot) =>
+        emissions.push(snapshot.books.find(({ id }) => id === "book-1")?.progressPercent ?? 0),
     });
     invokeMock.mockImplementation(async (command, args) => {
       if (command === "save_progress_metadata") {

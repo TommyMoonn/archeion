@@ -8,8 +8,7 @@ import {
   type RefObject,
 } from "react";
 
-import type { Book } from "../../types/book";
-import type { Folder } from "../../types/folder";
+import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
 import {
   focusElementIfRestorationOwned,
   focusIsUnowned,
@@ -61,9 +60,9 @@ type UseLibraryMutationFocusInput = {
   activeArchiveId: string;
   dialogOpen: boolean;
   fallbackRef: RefObject<HTMLElement | null>;
-  folders: readonly Folder[];
+  folders: readonly LibrarySnapshotFolder[];
   locationKey: string;
-  visibleBooks: readonly Book[];
+  visibleBooks: readonly LibrarySnapshotBook[];
 };
 
 export function useLibraryMutationFocus({
@@ -90,7 +89,7 @@ export function useLibraryMutationFocus({
   }, [activeArchiveId, locationKey, visibleBooks]);
 
   const captureBook = useCallback(
-    (book: Book) => {
+    (book: LibrarySnapshotBook) => {
       const owner = document.activeElement?.closest<HTMLElement>("[data-reader-book-id]");
       if (owner?.dataset.readerBookId !== book.id) {
         capturedBookRef.current = null;
@@ -144,7 +143,7 @@ export function useLibraryMutationFocus({
   );
 
   const captureFolderDeletion = useCallback(
-    (folder: Folder) => {
+    (folder: LibrarySnapshotFolder) => {
       const context = captureFolderDeletionFocusContext(document.activeElement, folder);
       capturedFolderRef.current = context
         ? {

@@ -4,7 +4,12 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { LibraryStorage, ScanStatus, StorageObserver } from "../../storage/LibraryStorage";
+import type {
+  LibrarySnapshot,
+  LibraryStorage,
+  ScanStatus,
+  StorageObserver,
+} from "../../storage/LibraryStorage";
 import { LibraryStorageContext, useLibraryStorage } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
 import type { LibraryWorkspaceDialogActions } from "../library/useLibraryWorkspaceDialogs";
@@ -29,14 +34,26 @@ function deferred<T>() {
 }
 
 function createScanStorage() {
-  const observers = new Set<StorageObserver<ScanStatus>>();
+  const observers = new Set<StorageObserver<LibrarySnapshot>>();
   const request = deferred<void>();
-  const emit = (status: ScanStatus) => observers.forEach((observer) => observer.next(status));
+  let snapshot: LibrarySnapshot = {
+    archiveGeneration: 1,
+    archiveRootPath: "D:\\Books",
+    books: [],
+    folders: [],
+    loadState: "ready",
+    revision: 1,
+    scanStatus: { status: "idle" },
+  };
+  const emit = (status: ScanStatus) => {
+    snapshot = { ...snapshot, scanStatus: status };
+    observers.forEach((observer) => observer.next(snapshot));
+  };
   const storage = {
     clearScannerCache: vi.fn().mockResolvedValue(undefined),
-    observeScanStatus: vi.fn((observer: StorageObserver<ScanStatus>) => {
+    getLibrarySnapshot: vi.fn(() => snapshot),
+    observeLibrarySnapshot: vi.fn((observer: StorageObserver<LibrarySnapshot>) => {
       observers.add(observer);
-      observer.next({ status: "idle" });
       return () => observers.delete(observer);
     }),
     repairArchiveMetadata: vi.fn().mockResolvedValue(undefined),

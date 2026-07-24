@@ -32,7 +32,7 @@ export type RunFolderPathMutation = (
 
 type UseFolderPathMutationContinuityInput = {
   activeArchiveId: string;
-  folders: Folder[] | undefined;
+  folders: readonly Folder[] | undefined;
   searchParams: URLSearchParams;
   setSearchParams: (params: URLSearchParams, options?: Readonly<{ replace?: boolean }>) => void;
 };

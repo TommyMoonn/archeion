@@ -28,7 +28,7 @@ import {
 } from "./useLibraryCollectionWindow";
 
 type BookListProps = {
-  books: Book[];
+  books: readonly Book[];
   onDelete: (book: Book) => void;
   onEditMetadata: (book: Book) => void;
   onMove?: (book: Book) => void;

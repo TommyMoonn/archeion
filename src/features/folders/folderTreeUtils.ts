@@ -6,7 +6,7 @@ export type FolderTreeNode = Folder & {
 
 const pathSeparatorPattern = /[/\\]+/;
 
-export function buildFolderTree(folders: Folder[]): FolderTreeNode[] {
+export function buildFolderTree(folders: readonly Folder[]): FolderTreeNode[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: "base",

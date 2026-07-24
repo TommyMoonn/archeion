@@ -34,8 +34,8 @@ describe("LibraryPage mutation focus", () => {
     });
     const storage = createStorage({
       deleteBook,
-      observeBooks: controller.observeBooks,
-      observeScanStatus: controller.observeScanStatus,
+      getLibrarySnapshot: controller.getLibrarySnapshot,
+      observeLibrarySnapshot: controller.observeLibrarySnapshot,
     });
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
