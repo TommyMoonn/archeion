@@ -2,9 +2,12 @@
 
 import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { useReaderFileLoad, type ReaderFileLoadResult } from "./useReaderFileLoad";
+
+const SOURCE_RELEASE_MARK = "archeion:reader-source-bytes-released";
+const SESSION_TEARDOWN_MEASURE = "archeion:reader-session-teardown";
 
 type Deferred<T> = {
   promise: Promise<T>;
@@ -68,11 +71,18 @@ async function render(
   return { container, root };
 }
 
+beforeEach(() => {
+  performance.clearMarks(SOURCE_RELEASE_MARK);
+  performance.clearMeasures(SESSION_TEARDOWN_MEASURE);
+});
+
 afterEach(() => {
   for (const root of roots.splice(0)) {
     act(() => root.unmount());
   }
   document.body.replaceChildren();
+  performance.clearMarks(SOURCE_RELEASE_MARK);
+  performance.clearMeasures(SESSION_TEARDOWN_MEASURE);
 });
 
 describe("useReaderFileLoad", () => {
@@ -95,6 +105,8 @@ describe("useReaderFileLoad", () => {
     expect(container.textContent).toContain("released");
     await act(async () => Promise.resolve());
     expect(loads).toBe(1);
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
+    expect(performance.getEntriesByName(SESSION_TEARDOWN_MEASURE, "measure")).toHaveLength(0);
   });
 
   it("releases an in-flight request without publishing or restarting its Blob", async () => {

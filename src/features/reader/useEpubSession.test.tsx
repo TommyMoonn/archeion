@@ -54,6 +54,8 @@ const roots: Root[] = [];
 const containers: HTMLDivElement[] = [];
 const originalRequestIdleCallback = window.requestIdleCallback;
 const originalCancelIdleCallback = window.cancelIdleCallback;
+const SOURCE_RELEASE_MARK = "archeion:reader-source-bytes-released";
+const SESSION_TEARDOWN_MEASURE = "archeion:reader-session-teardown";
 
 function deferred<T>(): Deferred<T> {
   let resolve!: (value: T) => void;
@@ -214,6 +216,8 @@ function relocation(): Location {
 
 beforeEach(() => {
   epubModuleMock.openBook.mockReset();
+  performance.clearMarks(SOURCE_RELEASE_MARK);
+  performance.clearMeasures(SESSION_TEARDOWN_MEASURE);
 });
 
 afterEach(() => {
@@ -225,9 +229,61 @@ afterEach(() => {
   window.requestIdleCallback = originalRequestIdleCallback;
   window.cancelIdleCallback = originalCancelIdleCallback;
   vi.restoreAllMocks();
+  performance.clearMarks(SOURCE_RELEASE_MARK);
+  performance.clearMeasures(SESSION_TEARDOWN_MEASURE);
 });
 
 describe("useEpubSession lifecycle", () => {
+  it("records source conversion, session construction, first display, and teardown as distinct stages", async () => {
+    const stages: string[] = [];
+    const session = createBookSession();
+    const fileBlob = new Blob(["book-a"]);
+    vi.spyOn(fileBlob, "arrayBuffer").mockImplementation(async () => {
+      stages.push("blob-to-array-buffer");
+      return new ArrayBuffer(6);
+    });
+    epubModuleMock.openBook.mockImplementation(() => {
+      stages.push("book-created");
+      return session.book;
+    });
+    session.book.renderTo = vi.fn(() => {
+      stages.push("rendition-created");
+      return session.rendition;
+    });
+    session.rendition.display.mockImplementation(async () => {
+      stages.push("first-location-displayed");
+    });
+    session.destroy.mockImplementation(() => {
+      stages.push("book-destroyed");
+    });
+    const bridge = createBridge({
+      onReady: vi.fn(() => stages.push("session-ready")),
+      onSessionCreated: vi.fn(() => stages.push("session-created")),
+      onSessionEnding: vi.fn(() => stages.push("session-ending")),
+    });
+    const { root } = await renderHarness({
+      bridgeRef: createBridgeRef(bridge),
+      fileBlob,
+      mode: "paged",
+    });
+    await waitForReady(session, bridge);
+
+    act(() => root.unmount());
+
+    expect(stages).toEqual([
+      "blob-to-array-buffer",
+      "book-created",
+      "rendition-created",
+      "session-created",
+      "first-location-displayed",
+      "session-ready",
+      "session-ending",
+      "book-destroyed",
+    ]);
+    expect(performance.getEntriesByName(SESSION_TEARDOWN_MEASURE, "measure")).toHaveLength(1);
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(0);
+  });
+
   it("creates one session, displays the initial CFI, and tears it down exactly once", async () => {
     const session = createBookSession();
     const bridge = createBridge();

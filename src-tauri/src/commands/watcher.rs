@@ -1192,6 +1192,26 @@ mod tests {
     }
 
     #[test]
+    fn records_the_independent_payload_count_for_a_two_thousand_event_watcher_burst() {
+        let root = Path::new(r"C:\Books\Archive");
+        let mut payload_count = 0;
+
+        for index in 0..2_000 {
+            let mut event = Event::new(EventKind::Modify(ModifyKind::Data(
+                notify::event::DataChange::Any,
+            )));
+            event.paths.push(PathBuf::from(format!(
+                r"C:\Books\Archive\Book-{index:04}.epub"
+            )));
+            let payload = watcher_event(root, &event).expect("EPUB change should be visible");
+            payload_count += 1;
+            assert_eq!(payload.relative_paths.len(), 1);
+        }
+
+        assert_eq!(payload_count, 2_000);
+    }
+
+    #[test]
     fn identifies_metadata_paths_but_ignores_scanner_cache_artifacts() {
         let root = PathBuf::from("/archive");
         let mut metadata = Event::new(EventKind::Modify(ModifyKind::Data(

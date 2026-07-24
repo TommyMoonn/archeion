@@ -8,9 +8,11 @@ export type StartupMilestone =
   | "scan"
   | "shell"
   | "library-render"
+  | "library-snapshot"
   | "library-usable";
 
 export const STARTUP_TO_SHELL_MEASURE = "archeion:startup-to-shell";
+export const STARTUP_TO_LIBRARY_SNAPSHOT_MEASURE = "archeion:startup-to-library-snapshot";
 export const STARTUP_TO_USABLE_LIBRARY_MEASURE = "archeion:startup-to-usable-library";
 
 type StartupPerformance = Pick<Performance, "mark" | "measure">;
@@ -42,6 +44,14 @@ export class StartupTrace {
         STARTUP_TO_SHELL_MEASURE,
         milestoneName("startup"),
         milestoneName("shell"),
+      );
+    }
+
+    if (milestone === "library-snapshot") {
+      this.runtime.measure(
+        STARTUP_TO_LIBRARY_SNAPSHOT_MEASURE,
+        milestoneName("startup"),
+        milestoneName("library-snapshot"),
       );
     }
 

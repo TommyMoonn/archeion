@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
 import type { ReaderNavigationState } from "../../types/reader";
+import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
 import type { ReaderLocation } from "./readerLocation";
 import { normalizeReaderLocation } from "./readerLocation";
 import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
@@ -237,21 +238,23 @@ export function useEpubSession({
       const owner = lifecycle;
       if (!owner || owner.snapshot !== session || owner.tornDown) return;
 
-      owner.tornDown = true;
-      const wasCurrent = sessionRef.current === session;
-      if (wasCurrent) sessionRef.current = null;
-      owner.cancelDeferredNavigation();
-      owner.cancelDeferredNavigation = () => undefined;
-      invalidateTurnOwner(session);
-      session.rendition.off("rendered", owner.onRendered);
-      session.rendition.off("relocated", owner.onRelocated);
-      session.rendition.off("selected", owner.onSelected);
-      if (wasCurrent) isNavigatingRef.current = false;
-      if (navigationControllerRef.current === navigationController) {
-        navigationControllerRef.current = null;
-      }
-      bridgeRef.current?.onSessionEnding(session);
-      destroyBookOnce();
+      measurePerformance("archeion:reader-session-teardown", () => {
+        owner.tornDown = true;
+        const wasCurrent = sessionRef.current === session;
+        if (wasCurrent) sessionRef.current = null;
+        owner.cancelDeferredNavigation();
+        owner.cancelDeferredNavigation = () => undefined;
+        invalidateTurnOwner(session);
+        session.rendition.off("rendered", owner.onRendered);
+        session.rendition.off("relocated", owner.onRelocated);
+        session.rendition.off("selected", owner.onSelected);
+        if (wasCurrent) isNavigatingRef.current = false;
+        if (navigationControllerRef.current === navigationController) {
+          navigationControllerRef.current = null;
+        }
+        bridgeRef.current?.onSessionEnding(session);
+        destroyBookOnce();
+      });
     };
 
     const loadNavigation = async (owner: EpubSessionLifecycle) => {
@@ -276,7 +279,10 @@ export function useEpubSession({
     const openBook = async () => {
       try {
         const epubModule = import("epubjs");
-        let fileContents: ArrayBuffer | null = await fileBlob.arrayBuffer();
+        let fileContents: ArrayBuffer | null = await measurePerformanceAsync(
+          "archeion:reader-blob-to-array-buffer",
+          () => fileBlob.arrayBuffer(),
+        );
         if (cancelled || !containerRef.current) {
           fileContents = null;
           void epubModule.catch(() => undefined);
@@ -288,7 +294,7 @@ export function useEpubSession({
           fileContents = null;
           return;
         }
-        book = ePub(fileContents);
+        book = measurePerformance("archeion:reader-epub-book-create", () => ePub(fileContents!));
         fileContents = null;
         await book.opened;
         if (cancelled || !containerRef.current) {
@@ -296,14 +302,16 @@ export function useEpubSession({
           return;
         }
 
-        const rendition = book.renderTo(containerRef.current, {
-          width: "100%",
-          height: "100%",
-          flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
-          manager: mode === "continuous" ? "continuous" : "default",
-          spread: "none",
-          allowScriptedContent: false,
-        });
+        const rendition = measurePerformance("archeion:reader-rendition-create", () =>
+          book!.renderTo(containerRef.current!, {
+            width: "100%",
+            height: "100%",
+            flow: mode === "continuous" ? "scrolled-continuous" : "paginated",
+            manager: mode === "continuous" ? "continuous" : "default",
+            spread: "none",
+            allowScriptedContent: false,
+          }),
+        );
         const session: EpubSessionSnapshot = { book, generation, rendition };
         const owner: EpubSessionLifecycle = {
           cancelDeferredNavigation: () => undefined,
@@ -344,12 +352,14 @@ export function useEpubSession({
         if (!ownsSession(session)) return;
         if (mode === "continuous") stabilizeContinuousRendition(rendition as RenditionWithManager);
 
-        try {
-          await rendition.display(displayCfi);
-        } catch {
-          if (!ownsSession(session)) return;
-          await rendition.display();
-        }
+        await measurePerformanceAsync("archeion:reader-first-location-display", async () => {
+          try {
+            await rendition.display(displayCfi);
+          } catch {
+            if (!ownsSession(session)) return;
+            await rendition.display();
+          }
+        });
         if (!ownsSession(session)) return;
 
         bridgeRef.current?.onDisplayed();

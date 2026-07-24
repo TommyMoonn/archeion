@@ -91,11 +91,25 @@ not hardware-dependent product guarantees.
 | ------- | -----------------------: | ------------------------------------: | ------------------------------------: | ---------------------------------------------: |
 | Medium  |                      500 |                                    48 |                                    28 |                                      499 / 500 |
 | Large   |                    2,000 |                                    48 |                                    28 |                                  1,999 / 2,000 |
+| Stress  |                   10,000 |                                    48 |                                    28 |                                 9,999 / 10,000 |
 
 Before windowing, each view mounted every result and its cover owner. The retained fixtures now
 mount only the calculated viewport and overscan range. `coverUrlCache.test.ts` also verifies that
 queued cover work released after leaving that range does not start; the recorded stale queued-load
 count is zero.
+
+The same evidence suite can emit opt-in, five-sample derivation measurements for the 50, 500, 2,000,
+and 10,000-book fixtures. It records the fixture hash with index creation, unchanged invalidation,
+localized invalidation, filter/sort, folder, and series timings:
+
+```powershell
+$env:ARCHEION_PERF_EVIDENCE = "1"
+npm test -- src/features/library/libraryPerformanceEvidence.test.ts --reporter=dot
+Remove-Item Env:ARCHEION_PERF_EVIDENCE
+```
+
+The measurements are diagnostic only. The default test run uses structural assertions and skips
+the machine-dependent timing output.
 
 Rust tests use the committed Cargo lockfile:
 
@@ -106,9 +120,9 @@ npm run rust:test
 ### Scanner measurements
 
 The ignored `measures_representative_scanner_fixtures` Rust test generates synthetic archives of
-50, 500, and 2,000 EPUBs. It reports five-run medians and ranges plus cache, metadata, cancellation,
-and bounded-parser diagnostics. Fixture generation is excluded from the measured interval. Run it
-explicitly with:
+50, 500, and 2,000 EPUBs. It reports five-run medians and ranges for cold, warm, targeted path-hit,
+and targeted signature-hit scans, plus cache, metadata, cancellation, and bounded-parser
+diagnostics. Fixture generation is excluded from the measured interval. Run it explicitly with:
 
 ```powershell
 cargo test --locked --manifest-path src-tauri/Cargo.toml measures_representative_scanner_fixtures -- --ignored --nocapture
@@ -147,12 +161,17 @@ before React mounts and records appearance runtime startup, preference initializ
 resolution, window restoration, active storage preparation, optional startup scan, the first
 Library render, and the first usable Library state.
 
-The two retained terminal measures are:
+The three retained terminal measures are:
 
 ```text
 archeion:startup-to-shell
+archeion:startup-to-library-snapshot
 archeion:startup-to-usable-library
 ```
+
+`archeion:startup-to-library-snapshot` marks the first observed boundary where the current
+separate Books and Folders subscriptions are both ready. It does not prove that they share an
+authoritative archive revision; atomic revision consistency belongs to Phase 0.9.0.3.
 
 Inspect them in the Tauri WebView2 developer tools after startup:
 
@@ -168,6 +187,27 @@ setting, archive fixture, and warm/cold filesystem state. Use representative sma
 large archives; the existing 50, 500, and 2,000 EPUB scanner fixtures are suitable when copied into
 normal development archives. These timings are diagnostic and machine-specific, not release
 guarantees.
+
+Development builds also retain bounded Reader lifecycle entries for the combined native/IPC file
+read, Blob creation, Blob-to-ArrayBuffer conversion, EPUB.js book and rendition creation, first
+location display, source-byte release, and session teardown. Source-byte release is a mark; the
+other timed stages are measures. The frontend cannot isolate transport time from the Tauri
+invocation, so the read entry intentionally reports those stages together:
+
+```js
+performance
+  .getEntries()
+  .filter((entry) => entry.name.startsWith("archeion:reader-"))
+  .map(({ name, entryType, startTime, duration }) => ({
+    name,
+    entryType,
+    startTime,
+    duration,
+  }));
+```
+
+The full Phase 0.9.0.1 structural and machine-specific baseline is recorded in
+`.project/v0.9.0/0.9.0.1/PERFORMANCE_ARCHITECTURE_BASELINE.md`.
 
 Release-tool integration tests invoke PowerShell, npm, and Cargo against temporary
 fixtures. They never modify the real project version files.

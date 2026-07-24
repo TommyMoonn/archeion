@@ -3,10 +3,13 @@
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ArchiveOperationWarning, StorageObserver } from "../../storage/LibraryStorage";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import {
   clickBook,
   createStorage,
+  openControlledContextMenu,
   renderLibraryPage,
   selectionBook,
   setupLibraryPageTestSuite,
@@ -81,6 +84,67 @@ describe("LibraryPage collection callback stability", () => {
       clickBook(session.container, "Alpha");
     });
     await waitForButtonWithText(session.container, "Read book");
+
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+  });
+
+  it("rerenders only the owning book when its context menu opens", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await openControlledContextMenu(session.container, "Actions for Alpha");
+
+    expect(gridCoverRenderCounts.get("alpha")).toBe(2);
+    expect(gridCoverRenderCounts.get("beta")).toBe(1);
+  });
+
+  it("does not rerender books when operation feedback is published", async () => {
+    let warningObserver: StorageObserver<ArchiveOperationWarning> | undefined;
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    storage.observeOperationWarnings = vi.fn((observer) => {
+      warningObserver = observer;
+      return () => {
+        if (warningObserver === observer) warningObserver = undefined;
+      };
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await act(async () => {
+      warningObserver?.next({
+        kind: "scanner-cache",
+        message: "The scanner cache will be rebuilt.",
+        repairRequired: false,
+      });
+    });
+
+    expect(session.container.textContent).toContain("The scanner cache will be rebuilt.");
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+  });
+
+  it("does not rerender books for an unrelated global Settings change", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    const current = appPreferencesStore.getSnapshot();
+    const nextFrameStyle = current.windowFrameStyle === "native" ? "hidden" : "native";
+
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await act(async () => {
+      await appPreferencesStore.update({ windowFrameStyle: nextFrameStyle });
+    });
 
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });

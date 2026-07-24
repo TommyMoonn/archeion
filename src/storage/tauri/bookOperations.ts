@@ -1,4 +1,5 @@
 import type { Book, UpdateBookInput } from "../../types/book";
+import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
 import type { ArchivePathChange } from "../LibraryStorage";
 import type { ProgressMetadata } from "../metadataFiles";
 import {
@@ -81,13 +82,18 @@ export class BookOperations {
     book: Book & { relativePath: string },
     scope: ArchiveCommandScope,
   ): Promise<Blob> {
-    const contents = await this.host.commands.invoke(
-      "read_epub_file",
-      { relativePath: book.relativePath },
-      scope.rootPath,
+    const contents = await measurePerformanceAsync("archeion:reader-native-and-ipc-read", () =>
+      this.host.commands.invoke(
+        "read_epub_file",
+        { relativePath: book.relativePath },
+        scope.rootPath,
+      ),
     );
     this.host.assertCurrentScope(scope);
-    return new Blob([contents], { type: "application/epub+zip" });
+    return measurePerformance(
+      "archeion:reader-blob-create",
+      () => new Blob([contents], { type: "application/epub+zip" }),
+    );
   }
 
   async loadBookCover(id: string): Promise<Blob | undefined> {

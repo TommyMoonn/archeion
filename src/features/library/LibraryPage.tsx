@@ -172,6 +172,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
   }, [booksLoadState.status]);
 
+  useLayoutEffect(() => {
+    // Books and Folders are separate streams with no shared revision. This is the first observed
+    // co-ready boundary, not proof that both values came from one atomic archive commit.
+    if (
+      booksLoadState.status === "ready" &&
+      booksLoadState.archiveId === activeArchive.id &&
+      folders !== undefined
+    ) {
+      startupTrace.mark("library-snapshot");
+    }
+  }, [activeArchive.id, booksLoadState, folders]);
+
   const {
     clear: clearSelection,
     deselectVisible,

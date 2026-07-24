@@ -130,33 +130,36 @@ describe.each(["grid", "list"] as const)("%s selection rendering", (view) => {
     expect(coverRenderCounts.get("two")).toBe(1);
   });
 
-  it("keeps mounted books proportional to the viewport for a large collection", async () => {
-    const books = Array.from({ length: 500 }, (_, index) => createBook(`book-${index}`));
-    const container = document.createElement("div");
-    document.body.append(container);
-    const root = createRoot(container);
-    activeRoot = root;
-    activeContainer = container;
-    const Collection = view === "grid" ? BookGrid : BookList;
+  it.each([500, 2_000])(
+    "keeps mounted books proportional to the viewport for a %i-book collection",
+    async (bookCount) => {
+      const books = Array.from({ length: bookCount }, (_, index) => createBook(`book-${index}`));
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      activeRoot = root;
+      activeContainer = container;
+      const Collection = view === "grid" ? BookGrid : BookList;
 
-    await act(async () => {
-      root.render(
-        <Collection
-          {...callbacks}
-          books={books}
-          selectedBookIds={new Set()}
-          selectionMode={false}
-        />,
-      );
-    });
+      await act(async () => {
+        root.render(
+          <Collection
+            {...callbacks}
+            books={books}
+            selectedBookIds={new Set()}
+            selectionMode={false}
+          />,
+        );
+      });
 
-    const collection = container.querySelector<HTMLElement>("[data-windowed='true']");
-    const mountedBooks = container.querySelectorAll("[data-reader-book-id]");
-    expect(collection?.dataset.windowTotal).toBe("500");
-    expect(mountedBooks.length).toBeGreaterThan(0);
-    expect(mountedBooks.length).toBeLessThan(80);
-    expect(container.querySelectorAll("[data-cover-book-id]")).toHaveLength(mountedBooks.length);
-  });
+      const collection = container.querySelector<HTMLElement>("[data-windowed='true']");
+      const mountedBooks = container.querySelectorAll("[data-reader-book-id]");
+      expect(collection?.dataset.windowTotal).toBe(String(bookCount));
+      expect(mountedBooks.length).toBeGreaterThan(0);
+      expect(mountedBooks.length).toBeLessThan(80);
+      expect(container.querySelectorAll("[data-cover-book-id]")).toHaveLength(mountedBooks.length);
+    },
+  );
 
   it("exposes selected, favorite, and missing-file state without naming decorative covers", async () => {
     const missingFavorite = {

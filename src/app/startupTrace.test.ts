@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  STARTUP_TO_LIBRARY_SNAPSHOT_MEASURE,
   STARTUP_TO_SHELL_MEASURE,
   STARTUP_TO_USABLE_LIBRARY_MEASURE,
   StartupTrace,
@@ -18,6 +19,8 @@ describe("startup trace", () => {
     trace.mark("shell");
     trace.mark("shell");
     trace.mark("library-render");
+    trace.mark("library-snapshot");
+    trace.mark("library-snapshot");
     trace.mark("library-usable");
 
     expect(mark.mock.calls.map(([name]) => name)).toEqual([
@@ -26,12 +29,18 @@ describe("startup trace", () => {
       "archeion:startup:archive",
       "archeion:startup:shell",
       "archeion:startup:library-render",
+      "archeion:startup:library-snapshot",
       "archeion:startup:library-usable",
     ]);
     expect(measure).toHaveBeenCalledWith(
       STARTUP_TO_SHELL_MEASURE,
       "archeion:startup:startup",
       "archeion:startup:shell",
+    );
+    expect(measure).toHaveBeenCalledWith(
+      STARTUP_TO_LIBRARY_SNAPSHOT_MEASURE,
+      "archeion:startup:startup",
+      "archeion:startup:library-snapshot",
     );
     expect(measure).toHaveBeenCalledWith(
       STARTUP_TO_USABLE_LIBRARY_MEASURE,

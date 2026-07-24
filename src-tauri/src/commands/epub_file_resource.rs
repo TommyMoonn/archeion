@@ -83,6 +83,18 @@ mod tests {
         }
     }
 
+    struct ChunkedReadCounter {
+        inner: Cursor<Vec<u8>>,
+        reads: usize,
+    }
+
+    impl Read for ChunkedReadCounter {
+        fn read(&mut self, buffer: &mut [u8]) -> std::io::Result<usize> {
+            self.reads += 1;
+            self.inner.read(buffer)
+        }
+    }
+
     #[test]
     fn reads_a_bounded_epub_without_changing_its_bytes() {
         let expected = b"PK\x03\x04reader".to_vec();
@@ -140,12 +152,32 @@ mod tests {
     }
 
     #[test]
-    fn rejects_a_stream_that_grows_beyond_its_declared_length() {
+    fn rejects_a_stream_that_exceeds_the_configured_bound_after_a_small_declaration() {
         let mut reader = std::io::repeat(1).take(9);
 
         let error = read_bounded_epub_bytes_with_limit(&mut reader, 0, 8)
             .expect_err("changing oversized stream should be rejected");
 
         assert_eq!(error, "This EPUB exceeds Archeion's 256 MiB reader limit.");
+    }
+
+    #[test]
+    fn records_bounded_chunk_and_probe_work_for_a_representative_epub_read() {
+        const FIXTURE_BYTES: usize = 128 * 1024;
+        let expected = vec![7_u8; FIXTURE_BYTES];
+        let mut reader = ChunkedReadCounter {
+            inner: Cursor::new(expected.clone()),
+            reads: 0,
+        };
+
+        let bytes = read_bounded_epub_bytes_with_limit(
+            &mut reader,
+            FIXTURE_BYTES as u64,
+            FIXTURE_BYTES as u64,
+        )
+        .expect("bounded fixture should load");
+
+        assert_eq!(bytes, expected);
+        assert_eq!(reader.reads, 3);
     }
 }

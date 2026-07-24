@@ -780,27 +780,66 @@ fn discover_targeted_epubs(
 }
 
 fn scan_epub_paths(root: PathBuf, relative_paths: Vec<String>) -> Result<ArchiveEpubScan, String> {
+    scan_epub_paths_internal(root, relative_paths, None)
+}
+
+#[cfg(test)]
+fn scan_epub_paths_with_measurement(
+    root: PathBuf,
+    relative_paths: Vec<String>,
+    measurement: &mut ScannerMeasurement,
+) -> Result<ArchiveEpubScan, String> {
+    scan_epub_paths_internal(root, relative_paths, Some(measurement))
+}
+
+fn scan_epub_paths_internal(
+    root: PathBuf,
+    relative_paths: Vec<String>,
+    mut measurement: Option<&mut ScannerMeasurement>,
+) -> Result<ArchiveEpubScan, String> {
     if !root.is_dir() {
         return Err("The saved archive folder is unavailable.".to_string());
     }
 
     let mut warnings = Vec::new();
+    let cache_load_started = measurement.as_ref().map(|_| Instant::now());
     let loaded_cache = load_scanner_cache(&root, &mut warnings);
+    if let (Some(measurement), Some(started)) = (measurement.as_deref_mut(), cache_load_started) {
+        measurement.cache_load_duration = started.elapsed();
+    }
     let cache = loaded_cache.snapshot.cache();
+    let signature_index_started = measurement.as_ref().map(|_| Instant::now());
     let signature_lookup = build_signature_lookup(cache);
+    if let (Some(measurement), Some(started)) =
+        (measurement.as_deref_mut(), signature_index_started)
+    {
+        measurement.signature_index_duration = started.elapsed();
+    }
     let TargetedEpubDiscovery {
         mut discovered,
         missing_relative_paths,
         normalized_relative_paths,
     } = discover_targeted_epubs(&root, relative_paths)?;
     discovered.sort_by(|left, right| left.relative_path.cmp(&right.relative_path));
+    let metadata_resolution_started = measurement.as_ref().map(|_| Instant::now());
     let resolutions = resolve_metadata(
         &discovered,
         cache,
         &signature_lookup,
         ScanCancellation::never(),
-        false,
+        measurement.is_some(),
     )?;
+    if let (Some(measurement), Some(started)) =
+        (measurement.as_deref_mut(), metadata_resolution_started)
+    {
+        measurement.metadata_resolution_duration = started.elapsed();
+        measurement.uncached_metadata_jobs = resolutions.metrics.uncached_jobs;
+        measurement.cache_path_hits = resolutions.metrics.path_hits;
+        measurement.signature_hits = resolutions.metrics.signature_hits;
+        measurement.max_active_parse_workers = resolutions.metrics.max_active_parse_workers;
+        measurement.approximate_parser_owned_open_epubs =
+            resolutions.metrics.max_active_parse_workers;
+    }
     drop(signature_lookup);
 
     let requested_paths = normalized_relative_paths
@@ -817,6 +856,7 @@ fn scan_epub_paths(root: PathBuf, relative_paths: Vec<String>) -> Result<Archive
         &mut next_cache.entries,
         &mut warnings,
     );
+    let cache_publication_started = measurement.as_ref().map(|_| Instant::now());
     append_cache_maintenance_warning(
         &mut warnings,
         scanner_cache::publish_snapshot(
@@ -826,6 +866,10 @@ fn scan_epub_paths(root: PathBuf, relative_paths: Vec<String>) -> Result<Archive
             scanner_cache::ScannerCachePublicationScope::Paths(&normalized_relative_paths),
         ),
     );
+    if let (Some(measurement), Some(started)) = (measurement, cache_publication_started) {
+        measurement.cache_publication_duration = started.elapsed();
+        measurement.cancellation_result = "completed";
+    }
 
     Ok(ArchiveEpubScan {
         books,
@@ -972,7 +1016,17 @@ mod tests {
 
             let mut cold_runs = Vec::new();
             let mut warm_runs = Vec::new();
+            let mut targeted_path_runs = Vec::new();
+            let mut targeted_signature_runs = Vec::new();
             let mut payload_bytes = 0;
+            let mut targeted_path_payload_bytes = 0;
+            let mut targeted_signature_payload_bytes = 0;
+            let targeted_path = "Shelf-01/Series-01/Book-0001.epub";
+            let signature_source = root.join("Shelf-00/Series-00/Book-0000.epub");
+            let signature_target_directory = root.join("Targeted");
+            let signature_target = signature_target_directory.join("Book-0000.epub");
+            fs::create_dir_all(&signature_target_directory)
+                .expect("targeted measurement folder should be created");
             for _ in 0..5 {
                 scanner_cache::clear(&root).expect("measurement cache should clear");
                 let mut cold_details = super::ScannerMeasurement::default();
@@ -995,20 +1049,75 @@ mod tests {
                     &mut warm_details,
                 )
                 .expect("warm measurement scan should succeed");
+                let warm_elapsed = warm_started.elapsed();
+
+                let mut targeted_path_details = super::ScannerMeasurement::default();
+                let targeted_path_started = Instant::now();
+                let targeted_path_scan = super::scan_epub_paths_with_measurement(
+                    root.clone(),
+                    vec![targeted_path.to_string()],
+                    &mut targeted_path_details,
+                )
+                .expect("targeted path-hit measurement should succeed");
+                let targeted_path_elapsed = targeted_path_started.elapsed();
+                targeted_path_payload_bytes = serde_json::to_vec(&targeted_path_scan)
+                    .expect("targeted path-hit scan should serialize")
+                    .len();
+
+                fs::rename(&signature_source, &signature_target)
+                    .expect("signature-hit measurement EPUB should move");
+                let mut targeted_signature_details = super::ScannerMeasurement::default();
+                let targeted_signature_started = Instant::now();
+                let targeted_signature_scan = super::scan_epub_paths_with_measurement(
+                    root.clone(),
+                    vec!["Targeted/Book-0000.epub".to_string()],
+                    &mut targeted_signature_details,
+                )
+                .expect("targeted signature-hit measurement should succeed");
+                let targeted_signature_elapsed = targeted_signature_started.elapsed();
+                targeted_signature_payload_bytes = serde_json::to_vec(&targeted_signature_scan)
+                    .expect("targeted signature-hit scan should serialize")
+                    .len();
+                fs::rename(&signature_target, &signature_source)
+                    .expect("signature-hit measurement EPUB should be restored");
 
                 assert_eq!(cold.books.len(), book_count);
                 assert_eq!(warm.books.len(), book_count);
+                assert_eq!(targeted_path_scan.books.len(), 1);
+                assert_eq!(targeted_path_details.cache_path_hits, 1);
+                assert_eq!(targeted_signature_scan.books.len(), 1);
+                assert_eq!(targeted_signature_details.signature_hits, 1);
                 cold_runs.push(MeasurementRun {
                     details: cold_details,
                     elapsed: cold_elapsed,
                 });
                 warm_runs.push(MeasurementRun {
                     details: warm_details,
-                    elapsed: warm_started.elapsed(),
+                    elapsed: warm_elapsed,
+                });
+                targeted_path_runs.push(MeasurementRun {
+                    details: targeted_path_details,
+                    elapsed: targeted_path_elapsed,
+                });
+                targeted_signature_runs.push(MeasurementRun {
+                    details: targeted_signature_details,
+                    elapsed: targeted_signature_elapsed,
                 });
             }
             print_median(book_count, "cold", payload_bytes, cold_runs);
             print_median(book_count, "warm", payload_bytes, warm_runs);
+            print_median(
+                book_count,
+                "targeted-path-hit",
+                targeted_path_payload_bytes,
+                targeted_path_runs,
+            );
+            print_median(
+                book_count,
+                "targeted-signature-hit",
+                targeted_signature_payload_bytes,
+                targeted_signature_runs,
+            );
 
             fs::remove_dir_all(root).expect("measurement archive should be removed");
         }

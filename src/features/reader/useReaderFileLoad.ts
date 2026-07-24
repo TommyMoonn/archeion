@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
+import { markPerformance } from "../../utils/measurePerformance";
+
 type ReaderFileLoadState =
   | { requestKey: string | null; status: "loading" }
   | { blob: Blob; requestKey: string; status: "ready" }
@@ -49,6 +51,7 @@ export function useReaderFileLoad({
       if (!requestKey || current.requestKey !== requestKey || current.status === "released") {
         return current;
       }
+      markPerformance("archeion:reader-source-bytes-released");
       return { requestKey: current.requestKey, status: "released" };
     });
   }, [requestKey]);
