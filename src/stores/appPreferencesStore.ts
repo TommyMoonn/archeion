@@ -1,7 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { useSyncExternalStore } from "react";
 
-import { normalizeKeyboardPreferences } from "../features/quick-actions/commandBindings";
+import { normalizeKeyboardPreferences } from "../features/commands/commandBindings";
 import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
 import {
   defaultAppPreferences,

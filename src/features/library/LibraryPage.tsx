@@ -26,9 +26,10 @@ import {
   destinationValueToFolderPath,
 } from "../filesystem/archiveImport";
 import { useExternalEpubDrop } from "../filesystem/useExternalEpubDrop";
+import type { AppCommand } from "../commands/appCommands";
+import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
-import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBindings";
-import type { QuickActionCommand } from "../quick-actions/quickActions";
+import type { QuickActionRegistration } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import { hasActiveLibraryFilters } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
@@ -504,9 +505,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
     openBookSearch();
   }, [navigation.location.type, openBookSearch]);
-  const activeSearchScope: QuickActionCommand["scope"] =
+  const activeSearchScope: AppCommand["scope"] =
     navigation.location.type === "folders" ? "folders" : "library";
-  const quickActionCommands = useMemo<QuickActionCommand[]>(
+  const quickActionCommands = useMemo<QuickActionRegistration[]>(
     () => [
       {
         ...commandDefinitions.focusSearch,

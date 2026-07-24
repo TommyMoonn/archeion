@@ -15,17 +15,17 @@ import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { currentFocusOrigin, focusElementIfUsable } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
+import type { AppCommand, KeyboardInteractionContext } from "../commands/appCommands";
 import {
   commandDefinitions,
   effectiveKeyboardBinding,
   getConfigurableCommandDefinition,
-} from "./commandBindings";
+} from "../commands/commandBindings";
 import {
   createKeyboardInteractionContext,
   resolveKeyboardCommand,
-  type KeyboardInteractionContext,
-} from "./commandResolver";
-import { QuickActionsRegistry, type QuickActionCommand } from "./quickActions";
+} from "../commands/commandResolver";
+import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 
 const loadQuickActionsPalette = () =>
@@ -62,7 +62,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   }, [preloadSettings]);
 
   const executeCommand = useCallback(
-    (command: QuickActionCommand) => {
+    (command: AppCommand) => {
       registry.recordRecent(command.id);
       void Promise.resolve(command.execute()).catch((error) => {
         console.error(`Command failed: ${command.id}`, error);
@@ -95,17 +95,17 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   }, [handleKeyboardEvent]);
 
   const registerCommands = useCallback(
-    (sourceId: string, commands: readonly QuickActionCommand[]) =>
+    (sourceId: string, commands: readonly QuickActionRegistration[]) =>
       registry.register(sourceId, commands),
     [registry],
   );
 
-  const appCommands = useMemo<QuickActionCommand[]>(() => {
+  const appCommands = useMemo<QuickActionRegistration[]>(() => {
     const activeArchive = archive.status === "ready" ? archive.archive : null;
     const switchTargets = archive.archives.filter(
       (candidate) => candidate.id !== activeArchive?.id,
     );
-    const switchCommands: QuickActionCommand[] =
+    const switchCommands: QuickActionRegistration[] =
       switchTargets.length === 0
         ? [
             {

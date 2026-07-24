@@ -11,8 +11,8 @@ import {
   activeTransientSurfaceKind,
   resetTransientSurfaceOwnershipForTests,
 } from "../../utils/transientSurfaceOwnership";
-import { resolveKeyboardCommand } from "../quick-actions/commandResolver";
-import type { QuickActionCommand } from "../quick-actions/quickActions";
+import type { AppCommand } from "../commands/appCommands";
+import { resolveKeyboardCommand } from "../commands/commandResolver";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
 
@@ -129,7 +129,7 @@ function mountedFrame(): HTMLIFrameElement {
   return frame;
 }
 
-function command(id: string, scope: QuickActionCommand["scope"]): QuickActionCommand {
+function command(id: string, scope: AppCommand["scope"]): AppCommand {
   return {
     configuration: "configurable",
     defaultBinding: { alt: false, key: "k", primary: true, shift: false },

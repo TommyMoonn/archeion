@@ -4,7 +4,7 @@ import {
   ResetKeyboardShortcutsRow,
 } from "../KeyboardShortcutSettings";
 import { keyboardFixedDocumentation } from "../keyboardShortcutDocumentation";
-import { configurableCommandDefinitions } from "../../quick-actions/commandBindings";
+import { configurableCommandDefinitions } from "../../commands/commandBindings";
 import type { SettingsItem } from "../settingsItemTypes";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 

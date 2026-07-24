@@ -10,7 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { KeyboardPreferences } from "../../types/keyboard";
-import { commandDefinitions } from "../quick-actions/commandBindings";
+import { commandDefinitions } from "../commands/commandBindings";
 import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
 import { KeyboardShortcutRow, ResetKeyboardShortcutsRow } from "./KeyboardShortcutSettings";
 import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";

@@ -12,10 +12,11 @@ import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
+import type { AppCommand } from "../commands/appCommands";
+import { commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
-import { commandDefinitions } from "./commandBindings";
 import { QuickActionsProvider } from "./QuickActionsProvider";
-import type { QuickActionCommand, QuickActionsRegistry } from "./quickActions";
+import type { QuickActionRegistration, QuickActionsRegistry } from "./quickActions";
 
 vi.mock("./QuickActionsPalette", async () => {
   const React = await import("react");
@@ -29,7 +30,7 @@ vi.mock("./QuickActionsPalette", async () => {
       returnFocusTo,
     }: {
       onClose: () => void;
-      onExecute: (command: QuickActionCommand) => void;
+      onExecute: (command: AppCommand) => void;
       registry: QuickActionsRegistry;
       returnFocusTo?: HTMLElement | null;
     }) {
@@ -172,7 +173,7 @@ function Harness({
 }) {
   const { openPalette, openSettings } = useQuickActions();
   const contextMenu = useContextMenuController();
-  const commands = useMemo<QuickActionCommand[]>(
+  const commands = useMemo<QuickActionRegistration[]>(
     () => [
       {
         configuration: "unbound",

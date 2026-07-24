@@ -59,12 +59,12 @@ import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery"
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
 
+import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import {
   QUICK_ACTION_SEARCH_BOOKS_REQUEST,
-  type QuickActionCommand,
+  type QuickActionRegistration,
 } from "../quick-actions/quickActions";
-import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBindings";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import {
@@ -392,7 +392,7 @@ export function ReaderPage() {
     toggleCurrent: toggleCurrentBookmark,
     toggleDisabledReason: bookmarkToggleDisabledReason,
   } = annotations;
-  const quickActionCommands = useMemo<QuickActionCommand[]>(() => {
+  const quickActionCommands = useMemo<QuickActionRegistration[]>(() => {
     const tocDisabledReason =
       navigationState.status === "loading"
         ? "The table of contents is still loading."
@@ -407,7 +407,7 @@ export function ReaderPage() {
         };
     const canHandleReaderCommand = (event: KeyboardEvent) => isReaderKeyboardCommandEligible(event);
 
-    const commands: QuickActionCommand[] = [
+    const commands: QuickActionRegistration[] = [
       {
         configuration: "unbound",
         execute: () => navigateToLibraryView("library", true),
@@ -532,7 +532,7 @@ export function ReaderPage() {
       },
     ];
 
-    const pagedReaderCommands: QuickActionCommand[] =
+    const pagedReaderCommands: QuickActionRegistration[] =
       settings.mode === "continuous"
         ? []
         : [

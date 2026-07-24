@@ -3,23 +3,23 @@ import { useSyncExternalStore } from "react";
 
 import { Input } from "../../components/Input";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
+import type { AppCommand } from "../commands/appCommands";
 import {
   effectiveKeyboardBinding,
   formatKeyboardBinding,
   type KeyboardPreferences,
-} from "./commandBindings";
-import { commandAvailability } from "./commandResolver";
+} from "../commands/commandBindings";
+import { commandAvailability } from "../commands/commandResolver";
 import {
   createQuickActionIndex,
   searchQuickActions,
-  type QuickActionCommand,
   type QuickActionsRegistry,
 } from "./quickActions";
 
 type QuickActionsPaletteProps = {
   keyboard: KeyboardPreferences;
   onClose: () => void;
-  onExecute: (command: QuickActionCommand) => void;
+  onExecute: (command: AppCommand) => void;
   registry: QuickActionsRegistry;
   returnFocusTo?: HTMLElement | null;
 };
@@ -81,7 +81,7 @@ export function QuickActionsPalette({
     setActiveIndex((current) => (current + offset + results.length) % results.length);
   }
 
-  function execute(command: QuickActionCommand | undefined): void {
+  function execute(command: AppCommand | undefined): void {
     if (!command || !commandAvailability(command).available) return;
     modal.suppressFocusRestoration();
     onExecute(command);

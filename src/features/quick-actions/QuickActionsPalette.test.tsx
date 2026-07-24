@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsPalette } from "./QuickActionsPalette";
-import { QuickActionsRegistry, type QuickActionCommand } from "./quickActions";
+import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -19,8 +19,8 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 function createCommand(
   id: string,
   label: string,
-  overrides: Partial<QuickActionCommand> = {},
-): QuickActionCommand {
+  overrides: Partial<QuickActionRegistration> = {},
+): QuickActionRegistration {
   return {
     configuration: "unbound",
     execute: vi.fn(),
@@ -32,7 +32,7 @@ function createCommand(
   };
 }
 
-async function renderPalette(commands: QuickActionCommand[]) {
+async function renderPalette(commands: QuickActionRegistration[]) {
   const registry = new QuickActionsRegistry();
   registry.register("test", commands);
   const onClose = vi.fn();

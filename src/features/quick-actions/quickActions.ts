@@ -5,12 +5,7 @@ import {
   searchFieldsMatchQuery,
   type SearchTextVariants,
 } from "../../utils/searchText";
-import type {
-  CommandConfigurationPolicy,
-  CommandRepeatPolicy,
-  CommandScope,
-  KeyboardBinding,
-} from "./commandBindings";
+import type { AppCommand } from "../commands/appCommands";
 
 export const QUICK_ACTION_SEARCH_BOOKS_REQUEST = "search-books";
 
@@ -23,47 +18,19 @@ export function requestsBookSearch(state: unknown): boolean {
   );
 }
 
-export type QuickActionCommandAvailability =
-  { available: true } | { available: false; reason: string };
-
-export type QuickActionCommand = {
-  allowInTextEntry?: boolean;
-  allowWithSelection?: boolean;
-  availability?: QuickActionCommandAvailability;
-  canHandleEvent?: (
-    event: KeyboardEvent,
-    context: import("./commandResolver").KeyboardInteractionContext,
-  ) => boolean;
-  configuration: CommandConfigurationPolicy;
-  defaultBinding?: KeyboardBinding;
-  execute: () => Promise<void> | void;
-  group:
-    | "Archive"
-    | "General"
-    | "Library"
-    | "Library and Folders"
-    | "Navigate"
-    | "Reader"
-    | "System"
-    | "Fixed Interaction Keys";
-  id: string;
+export type QuickActionRegistration = AppCommand & {
   keywords?: readonly string[];
-  label: string;
   order?: number;
-  priority?: number;
-  repeatPolicy?: CommandRepeatPolicy;
-  scope: CommandScope;
   showInPalette?: boolean;
-  visibleControlOwner?: string;
 };
 
 export type QuickActionsSnapshot = {
-  commands: readonly QuickActionCommand[];
+  commands: readonly QuickActionRegistration[];
   recentCommandIds: readonly string[];
 };
 
 type Registration = {
-  commands: readonly QuickActionCommand[];
+  commands: readonly QuickActionRegistration[];
   token: symbol;
 };
 
@@ -87,7 +54,7 @@ export class QuickActionsRegistry {
     return () => this.listeners.delete(listener);
   };
 
-  register(sourceId: string, commands: readonly QuickActionCommand[]): () => void {
+  register(sourceId: string, commands: readonly QuickActionRegistration[]): () => void {
     const token = Symbol(sourceId);
     const previousRegistration = this.registrations.get(sourceId);
     this.registrations.set(sourceId, { commands: [...commands], token });
@@ -143,7 +110,7 @@ export class QuickActionsRegistry {
 }
 
 type IndexedQuickAction = {
-  command: QuickActionCommand;
+  command: QuickActionRegistration;
   disabledReason: SearchTextVariants;
   group: SearchTextVariants;
   keywords: SearchTextVariants;
@@ -151,7 +118,7 @@ type IndexedQuickAction = {
 };
 
 export function createQuickActionIndex(
-  commands: readonly QuickActionCommand[],
+  commands: readonly QuickActionRegistration[],
 ): readonly IndexedQuickAction[] {
   return commands
     .filter((command) => command.showInPalette !== false)
@@ -173,7 +140,7 @@ export function searchQuickActions(
   index: readonly IndexedQuickAction[],
   queryValue: string,
   recentCommandIds: readonly string[],
-): QuickActionCommand[] {
+): QuickActionRegistration[] {
   const query = createSearchQuery(queryValue);
   const recentRank = new Map(recentCommandIds.map((commandId, position) => [commandId, position]));
 
@@ -196,7 +163,7 @@ export function searchQuickActions(
       (
         entry,
       ): entry is {
-        command: QuickActionCommand;
+        command: QuickActionRegistration;
         recentScore: number;
         searchScore: number;
       } => entry !== null,
@@ -211,65 +178,4 @@ export function searchQuickActions(
       return left.command.label.localeCompare(right.command.label);
     })
     .map((entry) => entry.command);
-}
-
-const NON_TEXT_INPUT_TYPES = new Set([
-  "button",
-  "checkbox",
-  "color",
-  "file",
-  "hidden",
-  "image",
-  "radio",
-  "range",
-  "reset",
-  "submit",
-]);
-
-const TEXT_CONTENTEDITABLE_VALUES = new Set(["", "plaintext-only", "true"]);
-
-function eventTargetElement(target: EventTarget | null): Element | null {
-  if (!target || typeof target !== "object") return null;
-
-  const candidate = target as Element;
-  const elementConstructor = candidate.ownerDocument?.defaultView?.Element;
-  if (typeof elementConstructor === "function" && candidate instanceof elementConstructor) {
-    return candidate;
-  }
-
-  return candidate.nodeType === 1 &&
-    typeof candidate.localName === "string" &&
-    typeof candidate.getAttribute === "function"
-    ? candidate
-    : null;
-}
-
-function normalizedAttribute(element: Element, name: string): string | null {
-  const value = element.getAttribute(name);
-  return value === null ? null : value.trim().toLocaleLowerCase();
-}
-
-export function isTextEntryTarget(target: EventTarget | null): boolean {
-  let element = eventTargetElement(target);
-
-  while (element) {
-    const tagName = element.localName.toLocaleLowerCase();
-
-    if (tagName === "input") {
-      const inputType = normalizedAttribute(element, "type") || "text";
-      return !NON_TEXT_INPUT_TYPES.has(inputType);
-    }
-
-    if (tagName === "textarea") return true;
-
-    const contentEditable = normalizedAttribute(element, "contenteditable");
-    if (contentEditable === "false") return false;
-    if (contentEditable !== null && TEXT_CONTENTEDITABLE_VALUES.has(contentEditable)) return true;
-    if (normalizedAttribute(element, "role") === "textbox") return true;
-    if (tagName === "button") return false;
-
-    element = element.parentElement;
-  }
-
-  return false;
 }

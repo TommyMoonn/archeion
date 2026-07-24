@@ -24,7 +24,7 @@ import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogE
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
-import { ariaKeyShortcut, commandDefinitions } from "../quick-actions/commandBindings";
+import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 
 type SettingsDialogProps = {
   onClose: () => void;

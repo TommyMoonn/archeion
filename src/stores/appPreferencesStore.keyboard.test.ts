@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { commandDefinitions } from "../features/quick-actions/commandBindings";
+import { commandDefinitions } from "../features/commands/commandBindings";
 import { AppPreferencesStore } from "./appPreferencesStore";
 
 const legacyCustomBinding = {

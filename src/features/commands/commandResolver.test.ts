@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { KeyboardBinding, KeyboardPreferences } from "../../types/keyboard";
 import { isReaderKeyboardCommandEligible } from "../reader/readerNavigation";
-import { resolveKeyboardCommand, type KeyboardInteractionContext } from "./commandResolver";
-import type { QuickActionCommand } from "./quickActions";
+import type { AppCommand, KeyboardInteractionContext } from "./appCommands";
+import { resolveKeyboardCommand } from "./commandResolver";
 
 const preferences: KeyboardPreferences = { shortcuts: {} };
 const primaryK: KeyboardBinding = { alt: false, key: "k", primary: true, shift: false };
@@ -17,9 +17,9 @@ afterEach(() => {
 
 function command(
   id: string,
-  scope: QuickActionCommand["scope"],
-  overrides: Partial<QuickActionCommand> = {},
-): QuickActionCommand {
+  scope: AppCommand["scope"],
+  overrides: Partial<AppCommand> = {},
+): AppCommand {
   return {
     configuration: "configurable",
     defaultBinding: primaryK,

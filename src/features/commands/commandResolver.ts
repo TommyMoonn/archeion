@@ -5,14 +5,14 @@ import {
   keyboardBindingFromEvent,
   keyboardBindingsEqual,
   type CommandScope,
-  type KeyboardPlatform,
   type KeyboardPreferences,
 } from "./commandBindings";
 import {
   isTextEntryTarget,
-  type QuickActionCommand,
-  type QuickActionCommandAvailability,
-} from "./quickActions";
+  type AppCommand,
+  type AppCommandAvailability,
+  type KeyboardInteractionContext,
+} from "./appCommands";
 
 const SCOPE_PRIORITY: Record<CommandScope, number> = {
   "transient-surface": 600,
@@ -23,15 +23,9 @@ const SCOPE_PRIORITY: Record<CommandScope, number> = {
   global: 100,
 };
 
-export type KeyboardInteractionContext = {
-  applicationDocument: Document;
-  platform?: KeyboardPlatform;
-  sourceDocument: Document;
-};
-
 export type ResolvedKeyboardCommand = {
-  availability: QuickActionCommandAvailability;
-  command: QuickActionCommand;
+  availability: AppCommandAvailability;
+  command: AppCommand;
 };
 
 export function createKeyboardInteractionContext(
@@ -46,7 +40,7 @@ export function createKeyboardInteractionContext(
 
 export function resolveKeyboardCommand(
   event: KeyboardEvent,
-  commands: readonly QuickActionCommand[],
+  commands: readonly AppCommand[],
   preferences: KeyboardPreferences,
   context: KeyboardInteractionContext = createKeyboardInteractionContext(event),
 ): ResolvedKeyboardCommand | null {
@@ -89,13 +83,13 @@ export function resolveKeyboardCommand(
 }
 
 export function commandAvailability(
-  command: Pick<QuickActionCommand, "availability">,
-): QuickActionCommandAvailability {
+  command: Pick<AppCommand, "availability">,
+): AppCommandAvailability {
   return command.availability ?? { available: true };
 }
 
 function commandCanOwnEvent(
-  command: QuickActionCommand,
+  command: AppCommand,
   event: KeyboardEvent,
   context: KeyboardInteractionContext,
 ): boolean {

@@ -1,5 +1,5 @@
 import type { KeyboardBinding } from "../../types/keyboard";
-import { commandDefinitions } from "../quick-actions/commandBindings";
+import { commandDefinitions } from "../commands/commandBindings";
 
 const key = (value: string, shift = false): KeyboardBinding => ({
   alt: false,

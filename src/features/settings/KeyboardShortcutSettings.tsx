@@ -15,7 +15,7 @@ import {
   validateKeyboardBinding,
   type CommandDefinition,
   type ConfigurableCommandId,
-} from "../quick-actions/commandBindings";
+} from "../commands/commandBindings";
 import { SettingsRow } from "./SettingsRow";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
