@@ -10,7 +10,7 @@
 }
 
 .window-app--main-shell {
-  --window-titlebar-height: 40px;
+  --window-titlebar-height: 38px;
 }
 
 .window-app__content {
@@ -61,6 +61,41 @@
   align-self: stretch;
   align-items: center;
   min-width: 0;
+}
+
+.window-titlebar__app-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: var(--window-titlebar-height);
+  padding: 0 2px 0 10px;
+}
+
+.window-titlebar__app-actions:empty {
+  display: none;
+}
+
+.sidebar__frame-control {
+  color: var(--muted);
+  background: transparent;
+}
+
+.sidebar__frame-control .icon-slot {
+  --icon-slot-size: 18px;
+  --icon-glyph-size: 18px;
+}
+
+.sidebar__frame-control-icon {
+  transform: translateY(1px);
+}
+
+.sidebar__frame-control:hover {
+  color: var(--text-strong);
+  background: var(--surface-shell-hover);
+}
+
+.sidebar__frame-control[data-sidebar-direction="expand-right"] .sidebar__frame-control-icon {
+  transform: translateY(1px) scaleX(-1);
 }
 
 .window-titlebar__controls {

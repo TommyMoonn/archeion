@@ -20,6 +20,36 @@ import {
 
 describe("LibraryPage navigation and archive loading", () => {
   const suite = setupLibraryPageTestSuite();
+
+  it("keeps the session-local sidebar state across Library-owned routes", async () => {
+    const session = await renderLibraryPage(createStorage());
+    suite.trackRoot(session.root);
+
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')?.click();
+    });
+
+    expect(
+      session.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
+    ).toBe("true");
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Folders"]')?.click();
+    });
+
+    expect(
+      session.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Folders"]')
+        ?.getAttribute("aria-current"),
+    ).toBe("page");
+    expect(
+      session.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
+    ).toBe("true");
+    expect(
+      document.querySelector<HTMLButtonElement>('button[aria-label="Expand sidebar"]'),
+    ).not.toBeNull();
+  });
+
   it("preserves the selected folder and search query when filters change", async () => {
     const folder: Folder = {
       id: "folder-fiction",

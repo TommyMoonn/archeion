@@ -1,10 +1,46 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "@phosphor-icons/react";
+import { useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 type WindowTitlebarProps = {
   canMaximize: boolean;
 };
+
+let appActionsHost: Element | null = null;
+const appActionsHostListeners = new Set<() => void>();
+
+function setAppActionsHost(host: Element | null): void {
+  if (appActionsHost === host) return;
+  appActionsHost = host;
+  appActionsHostListeners.forEach((listener) => listener());
+}
+
+function subscribeToAppActionsHost(listener: () => void): () => void {
+  appActionsHostListeners.add(listener);
+  return () => appActionsHostListeners.delete(listener);
+}
+
+export function WindowTitlebarAppActions({ children }: { children: ReactNode }) {
+  const host = useSyncExternalStore(
+    subscribeToAppActionsHost,
+    () => appActionsHost,
+    () => null,
+  );
+
+  return host ? createPortal(children, host) : null;
+}
+
+export function WindowTitlebarAppActionsHost() {
+  return (
+    <div
+      className="window-titlebar__app-actions"
+      data-window-titlebar-app-actions
+      ref={setAppActionsHost}
+    />
+  );
+}
 
 export function WindowTitlebar({ canMaximize }: WindowTitlebarProps) {
   if (!isTauri()) {
@@ -15,6 +51,7 @@ export function WindowTitlebar({ canMaximize }: WindowTitlebarProps) {
 
   return (
     <header aria-label="Window titlebar" className="window-titlebar">
+      <WindowTitlebarAppActionsHost />
       <div className="window-titlebar__drag-region" data-tauri-drag-region />
       <div className="window-titlebar__controls" role="group" aria-label="Window controls">
         <button

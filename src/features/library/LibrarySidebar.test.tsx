@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -12,6 +12,7 @@ import type { KnownArchive } from "../../types/archive";
 import type { Folder } from "../../types/folder";
 import type { LibrarySmartViewPreferences } from "../../types/library";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import { LibrarySidebar } from "./LibrarySidebar";
 
 (
@@ -48,10 +49,13 @@ function sidebarProps(
   return {
     activeArchive,
     archives: [activeArchive, savedArchive],
+    collapseAvailable: true,
+    collapsed: false,
     folders,
     location,
     smartViewPreferences,
     onCreateFolder: vi.fn(),
+    onCollapsedChange: vi.fn(),
     onDeleteFolder: vi.fn(),
     onLocationChange,
     onManageArchives: vi.fn(),
@@ -89,6 +93,36 @@ function renderInteractiveSidebar(
   });
 
   return { container, onLocationChange, root };
+}
+
+function renderCollapsibleSidebar(folders: Folder[] = []) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+
+  function Harness() {
+    const [collapsed, setCollapsed] = useState(false);
+
+    return (
+      <>
+        <div className="window-titlebar">
+          <WindowTitlebarAppActionsHost />
+          <div data-tauri-drag-region />
+        </div>
+        <LibrarySidebar
+          {...sidebarProps(folders)}
+          collapsed={collapsed}
+          onCollapsedChange={setCollapsed}
+        />
+      </>
+    );
+  }
+
+  act(() => {
+    root.render(<Harness />);
+  });
+
+  return { container, root };
 }
 
 function smartViewsDisclosure(container: HTMLElement): HTMLButtonElement {
@@ -131,6 +165,92 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain('aria-label="Settings"');
     expect(markup.indexOf("archive-switcher")).toBeLessThan(markup.indexOf("About Archeion"));
     expect(markup.indexOf("About Archeion")).toBeLessThan(markup.indexOf('aria-label="Settings"'));
+  });
+
+  it("renders the collapse action in the window frame with the requested panel icon", () => {
+    const session = renderCollapsibleSidebar();
+    activeRoot = session.root;
+    const control = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Collapse sidebar"]',
+    );
+
+    expect(control?.title).toBe("Collapse sidebar");
+    expect(control?.closest(".window-titlebar__app-actions")).not.toBeNull();
+    expect(control?.closest("[data-tauri-drag-region]")).toBeNull();
+    expect(control?.querySelector(".sidebar__frame-control-icon")).not.toBeNull();
+    expect(control?.getAttribute("data-sidebar-direction")).toBe("collapse-left");
+  });
+
+  it("keeps primary and footer destinations reachable in the collapsed rail", () => {
+    const session = renderCollapsibleSidebar([
+      {
+        id: "folder-black-saint",
+        name: "Black Saint",
+        relativePath: "Black Saint",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ]);
+    activeRoot = session.root;
+
+    act(() => {
+      session.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')
+        ?.click();
+    });
+
+    const sidebar = session.container.querySelector(".sidebar");
+    const expand = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Expand sidebar"]',
+    );
+
+    expect(sidebar?.getAttribute("data-collapsed")).toBe("true");
+    expect(expand?.title).toBe("Expand sidebar");
+    expect(expand?.getAttribute("data-sidebar-direction")).toBe("expand-right");
+    for (const destination of ["Library", "Series", "Favorites", "Folders"]) {
+      expect(
+        session.container.querySelector(`.sidebar__nav [aria-label="${destination}"]`),
+      ).not.toBeNull();
+    }
+    expect(session.container.textContent).not.toContain("Smart views");
+    expect(session.container.textContent).not.toContain("Black Saint");
+    expect(session.container.querySelector(".sidebar__folder-scroll")).toBeNull();
+    expect(session.container.querySelector('[aria-label="Current archive: Books"]')).not.toBeNull();
+    expect(
+      session.container.querySelector('[aria-label="About Archeion"]')?.getAttribute("title"),
+    ).toBe("About Archeion");
+    expect(session.container.querySelector('[aria-label="Settings"]')?.getAttribute("title")).toBe(
+      "Settings",
+    );
+  });
+
+  it("moves focus to the frame control before hiding focused sidebar content", () => {
+    const session = renderCollapsibleSidebar();
+    activeRoot = session.root;
+    const createFolder = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Create folder"]',
+    );
+    const collapse = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Collapse sidebar"]',
+    );
+
+    act(() => createFolder?.focus());
+    expect(document.activeElement).toBe(createFolder);
+
+    act(() => collapse?.click());
+
+    const expand = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Expand sidebar"]',
+    );
+    expect(document.activeElement).toBe(expand);
+
+    act(() => expand?.click());
+
+    expect(document.activeElement).toBe(
+      session.container.querySelector('button[aria-label="Collapse sidebar"]'),
+    );
   });
 
   it("removes the obsolete Quick Actions sidebar API without adding a toolbar replacement", () => {

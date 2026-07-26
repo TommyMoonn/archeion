@@ -14,13 +14,15 @@ import {
   Heart,
   Plus,
   Question,
+  SidebarSimple,
   Stack,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { memo, useCallback, useId, useState } from "react";
+import { memo, useCallback, useId, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
+import { WindowTitlebarAppActions } from "../../components/WindowTitlebar";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
 import type {
@@ -52,11 +54,14 @@ function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView
 type LibrarySidebarProps = {
   activeArchive: KnownArchive;
   archives: KnownArchive[];
+  collapseAvailable: boolean;
+  collapsed: boolean;
   folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
   smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
+  onCollapsedChange: (collapsed: boolean) => void;
   onDeleteFolder: (folder: ReadonlyFolder) => void;
   onManageArchives: () => void;
   onMoveFolder: (folder: ReadonlyFolder) => void;
@@ -76,11 +81,14 @@ type LibrarySidebarProps = {
 export const LibrarySidebar = memo(function LibrarySidebar({
   activeArchive,
   archives,
+  collapseAvailable,
+  collapsed,
   folders,
   location,
   smartViewPreferences,
   canManageFolders = true,
   onCreateFolder,
+  onCollapsedChange,
   onDeleteFolder,
   onManageArchives,
   onMoveFolder,
@@ -96,12 +104,27 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   canRevealFolders = false,
   activeImportDropTargetId,
 }: LibrarySidebarProps) {
+  const sidebarRef = useRef<HTMLElement>(null);
+  const expandedContentRef = useRef<HTMLDivElement>(null);
+  const collapseControlRef = useRef<HTMLButtonElement>(null);
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
   const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
   const smartViewsContentId = useId();
   const activeSmartView = activeSmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
+  const isCollapsed = collapsed && collapseAvailable;
+
+  const toggleCollapsed = useCallback(() => {
+    const nextCollapsed = !isCollapsed;
+    if (
+      nextCollapsed &&
+      expandedContentRef.current?.contains(sidebarRef.current?.ownerDocument.activeElement ?? null)
+    ) {
+      collapseControlRef.current?.focus({ preventScroll: true });
+    }
+    onCollapsedChange(nextCollapsed);
+  }, [isCollapsed, onCollapsedChange]);
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher();
@@ -117,15 +140,35 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   );
 
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" data-collapsed={isCollapsed || undefined} ref={sidebarRef}>
+      {collapseAvailable ? (
+        <WindowTitlebarAppActions>
+          <IconButton
+            className="sidebar__frame-control"
+            data-sidebar-direction={isCollapsed ? "expand-right" : "collapse-left"}
+            label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            onClick={toggleCollapsed}
+            ref={collapseControlRef}
+            size="standard"
+          >
+            <SidebarSimple
+              aria-hidden="true"
+              className="sidebar__frame-control-icon"
+              weight="regular"
+            />
+          </IconButton>
+        </WindowTitlebarAppActions>
+      ) : null}
       <nav className="sidebar__nav" aria-label="Library navigation">
         <button
+          aria-label="Library"
           aria-current={location.type === "library" ? "page" : undefined}
           className={`nav-item ${location.type === "library" ? "active" : ""}`}
           data-import-drop-active={activeImportDropTargetId === "sidebar-library-root" || undefined}
           data-import-drop-destination={ARCHIVE_ROOT_DESTINATION}
           data-import-drop-id="sidebar-library-root"
           data-import-drop-target="true"
+          title="Library"
           type="button"
           onClick={() => onLocationChange({ type: "library" })}
         >
@@ -133,10 +176,12 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <span>Library</span>
         </button>
         <button
+          aria-label="Series"
           aria-current={
             location.type === "series" || location.type === "series-detail" ? "page" : undefined
           }
           className={`nav-item ${location.type === "series" || location.type === "series-detail" ? "active" : ""}`}
+          title="Series"
           type="button"
           onClick={() => onLocationChange({ type: "series" })}
         >
@@ -144,8 +189,10 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <span>Series</span>
         </button>
         <button
+          aria-label="Favorites"
           aria-current={location.type === "favorites" ? "page" : undefined}
           className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
+          title="Favorites"
           type="button"
           onClick={() => onLocationChange({ type: "favorites" })}
         >
@@ -157,9 +204,11 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <span>Favorites</span>
         </button>
         <button
+          aria-label="Folders"
           aria-current={location.type === "folders" ? "page" : undefined}
           className={`nav-item ${location.type === "folders" ? "active" : ""}`}
           data-library-folder-collection-entry
+          title="Folders"
           type="button"
           onClick={() => onLocationChange({ type: "folders" })}
         >
@@ -168,105 +217,110 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         </button>
       </nav>
 
-      {smartViewPreferences.enabled ? (
-        <div className="sidebar__smart-views">
-          <button
-            aria-controls={smartViewsContentId}
-            aria-expanded={smartViewsExpanded}
-            className="sidebar__smart-views-disclosure"
-            type="button"
-            onClick={() => setSmartViewsExpanded((expanded) => !expanded)}
-          >
-            <span className="sidebar__smart-views-title">
-              <span className="section-label">Smart views</span>
-              {!smartViewsExpanded && activeSmartView ? (
-                <span className="sidebar__smart-views-active">
-                  · {librarySmartViewLabel(activeSmartView)}
+      {!isCollapsed ? (
+        <div className="sidebar__expanded-content" ref={expandedContentRef}>
+          {smartViewPreferences.enabled ? (
+            <div className="sidebar__smart-views">
+              <button
+                aria-controls={smartViewsContentId}
+                aria-expanded={smartViewsExpanded}
+                className="sidebar__smart-views-disclosure"
+                type="button"
+                onClick={() => setSmartViewsExpanded((expanded) => !expanded)}
+              >
+                <span className="sidebar__smart-views-title">
+                  <span className="section-label">Smart views</span>
+                  {!smartViewsExpanded && activeSmartView ? (
+                    <span className="sidebar__smart-views-active">
+                      · {librarySmartViewLabel(activeSmartView)}
+                    </span>
+                  ) : null}
                 </span>
+                <CaretRight
+                  aria-hidden="true"
+                  className="sidebar__smart-views-chevron"
+                  data-expanded={smartViewsExpanded ? "true" : "false"}
+                  size={13}
+                  weight="bold"
+                />
+              </button>
+              <div
+                className="sidebar__smart-views-list"
+                hidden={!smartViewsExpanded}
+                id={smartViewsContentId}
+              >
+                <span className="sr-only" id={`${smartViewsContentId}-needs-metadata-description`}>
+                  Missing title or author
+                </span>
+                {visibleSmartViews.map(({ id: view }) => {
+                  const SmartViewIcon = smartViewIcons[view];
+                  const isActive = activeSmartView === view;
+                  return (
+                    <button
+                      aria-current={isActive ? "page" : undefined}
+                      aria-describedby={
+                        view === "needs-metadata"
+                          ? `${smartViewsContentId}-needs-metadata-description`
+                          : undefined
+                      }
+                      className={`nav-item ${isActive ? "active" : ""}`}
+                      key={view}
+                      title={view === "needs-metadata" ? "Missing title or author" : undefined}
+                      type="button"
+                      onClick={() =>
+                        onLocationChange(
+                          view === "in-progress"
+                            ? { type: "continue" }
+                            : { type: "smart-view", smartView: view },
+                        )
+                      }
+                    >
+                      <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
+                      <span>{librarySmartViewLabel(view)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : null}
+
+          <div className="sidebar__section">
+            <div className="sidebar__section-heading">
+              <div className="section-label">Folders</div>
+              {canManageFolders ? (
+                <IconButton label="Create folder" onClick={onCreateFolder}>
+                  <Plus aria-hidden="true" weight="regular" />
+                </IconButton>
               ) : null}
-            </span>
-            <CaretRight
-              aria-hidden="true"
-              className="sidebar__smart-views-chevron"
-              data-expanded={smartViewsExpanded ? "true" : "false"}
-              size={13}
-              weight="bold"
-            />
-          </button>
-          <div
-            className="sidebar__smart-views-list"
-            hidden={!smartViewsExpanded}
-            id={smartViewsContentId}
-          >
-            <span className="sr-only" id={`${smartViewsContentId}-needs-metadata-description`}>
-              Missing title or author
-            </span>
-            {visibleSmartViews.map(({ id: view }) => {
-              const SmartViewIcon = smartViewIcons[view];
-              const isActive = activeSmartView === view;
-              return (
-                <button
-                  aria-current={isActive ? "page" : undefined}
-                  aria-describedby={
-                    view === "needs-metadata"
-                      ? `${smartViewsContentId}-needs-metadata-description`
-                      : undefined
-                  }
-                  className={`nav-item ${isActive ? "active" : ""}`}
-                  key={view}
-                  title={view === "needs-metadata" ? "Missing title or author" : undefined}
-                  type="button"
-                  onClick={() =>
-                    onLocationChange(
-                      view === "in-progress"
-                        ? { type: "continue" }
-                        : { type: "smart-view", smartView: view },
-                    )
-                  }
-                >
-                  <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
-                  <span>{librarySmartViewLabel(view)}</span>
-                </button>
-              );
-            })}
+            </div>
+            <div className="sidebar__folder-scroll">
+              {folders.length > 0 ? (
+                <FolderTree
+                  folders={folders}
+                  location={location}
+                  activeImportDropTargetId={activeImportDropTargetId}
+                  onDelete={onDeleteFolder}
+                  onMove={onMoveFolder}
+                  onRename={onRenameFolder}
+                  onReveal={onRevealFolder}
+                  showActions={canManageFolders}
+                  showReveal={canRevealFolders}
+                  onSelect={(folder) => onLocationChange({ type: "folder", folderId: folder.id })}
+                />
+              ) : (
+                <p className="folder-placeholder">No folders found</p>
+              )}
+            </div>
           </div>
         </div>
       ) : null}
-
-      <div className="sidebar__section">
-        <div className="sidebar__section-heading">
-          <div className="section-label">Folders</div>
-          {canManageFolders ? (
-            <IconButton label="Create folder" onClick={onCreateFolder}>
-              <Plus aria-hidden="true" weight="regular" />
-            </IconButton>
-          ) : null}
-        </div>
-        <div className="sidebar__folder-scroll">
-          {folders.length > 0 ? (
-            <FolderTree
-              folders={folders}
-              location={location}
-              activeImportDropTargetId={activeImportDropTargetId}
-              onDelete={onDeleteFolder}
-              onMove={onMoveFolder}
-              onRename={onRenameFolder}
-              onReveal={onRevealFolder}
-              showActions={canManageFolders}
-              showReveal={canRevealFolders}
-              onSelect={(folder) => onLocationChange({ type: "folder", folderId: folder.id })}
-            />
-          ) : (
-            <p className="folder-placeholder">No folders found</p>
-          )}
-        </div>
-      </div>
 
       <div className="sidebar-footer">
         <details className="archive-switcher" ref={archiveSwitcherRef}>
           <summary
             aria-label={`Current archive: ${activeArchive.displayName}`}
             className="menu-trigger menu-trigger--disclosure"
+            title={`Current archive: ${activeArchive.displayName}`}
           >
             <span aria-hidden="true" className="icon-slot icon-slot--compact">
               <CaretUpDown weight="bold" />

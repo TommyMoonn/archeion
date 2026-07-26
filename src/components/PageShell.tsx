@@ -10,11 +10,18 @@ type PageShellProps = {
   };
   mainRef?: Ref<HTMLElement>;
   sidebar: ReactNode;
+  sidebarCollapsed?: boolean;
 };
 
-export function PageShell({ children, importDropTarget, mainRef, sidebar }: PageShellProps) {
+export function PageShell({
+  children,
+  importDropTarget,
+  mainRef,
+  sidebar,
+  sidebarCollapsed = false,
+}: PageShellProps) {
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-sidebar-collapsed={sidebarCollapsed || undefined}>
       {sidebar}
       <main
         className="page-shell"

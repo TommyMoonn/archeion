@@ -24,6 +24,7 @@ import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
+import { useLibrarySidebarState } from "./useLibrarySidebarState";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
 import type { LibraryReturnFocusRequest } from "./useLibraryWorkspaceNavigation";
 
@@ -74,7 +75,10 @@ type LibraryWorkspaceSurfaceProps = {
   seriesDetailProps: ComponentProps<typeof SeriesDetail>;
   seriesOverviewProps: ComponentProps<typeof SeriesOverview>;
   showContinueReading: boolean;
-  sidebarProps: ComponentProps<typeof LibrarySidebar>;
+  sidebarProps: Omit<
+    ComponentProps<typeof LibrarySidebar>,
+    "collapseAvailable" | "collapsed" | "onCollapsedChange"
+  >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
   visibleBooks: readonly LibrarySnapshotBook[];
@@ -109,6 +113,7 @@ export function LibraryWorkspaceSurface({
   view,
   visibleBooks,
 }: LibraryWorkspaceSurfaceProps) {
+  const sidebarState = useLibrarySidebarState();
   const surfaceState = getLibrarySurfaceState(
     books,
     debouncedQuery,
@@ -139,7 +144,15 @@ export function LibraryWorkspaceSurface({
     <PageShell
       importDropTarget={importDropTarget}
       mainRef={mainRef}
-      sidebar={<LibrarySidebar {...sidebarProps} />}
+      sidebar={
+        <LibrarySidebar
+          {...sidebarProps}
+          collapseAvailable={sidebarState.collapseAvailable}
+          collapsed={sidebarState.collapsed}
+          onCollapsedChange={sidebarState.setCollapsed}
+        />
+      }
+      sidebarCollapsed={sidebarState.collapsed}
     >
       {selectionBarProps ? <LibrarySelectionBar {...selectionBarProps} /> : null}
       {location.type === "folders" ? (

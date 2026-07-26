@@ -63,8 +63,8 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
       /windowMode === "archive-manager"[\s\S]*?<div className="window-app">[\s\S]*?<WindowTitlebar canMaximize=\{false\} \/>/,
     );
     expect(baseWindow).toContain("--window-titlebar-height: 32px");
-    expect(baseWindow).not.toContain("--window-titlebar-height: 40px");
-    expect(mainWindow).toContain("--window-titlebar-height: 40px");
+    expect(baseWindow).not.toContain("--window-titlebar-height: 38px");
+    expect(mainWindow).toContain("--window-titlebar-height: 38px");
   });
 
   it("floats one softly separated workspace inside a continuous frame and sidebar surface", () => {

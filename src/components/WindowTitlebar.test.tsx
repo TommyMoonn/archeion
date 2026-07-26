@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { WindowTitlebar } from "./WindowTitlebar";
+import { WindowTitlebar, WindowTitlebarAppActions } from "./WindowTitlebar";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -28,14 +28,23 @@ vi.mock("@tauri-apps/api/window", () => ({
 
 const mountedRoots: Root[] = [];
 
-function renderTitlebar(canMaximize: boolean) {
+function renderTitlebar(canMaximize: boolean, withAppAction = false) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
   mountedRoots.push(root);
 
   act(() => {
-    root.render(<WindowTitlebar canMaximize={canMaximize} />);
+    root.render(
+      <>
+        <WindowTitlebar canMaximize={canMaximize} />
+        {withAppAction ? (
+          <WindowTitlebarAppActions>
+            <button aria-label="Library frame action" type="button" />
+          </WindowTitlebarAppActions>
+        ) : null}
+      </>,
+    );
   });
 
   return container;
@@ -115,6 +124,14 @@ describe("WindowTitlebar", () => {
 
     expect(mocks.close).toHaveBeenCalledOnce();
     expect(mocks.toggleMaximize).not.toHaveBeenCalled();
+  });
+
+  it("hosts Library-owned actions on the frame outside the native drag region", () => {
+    const container = renderTitlebar(true, true);
+    const action = button(container, "Library frame action");
+
+    expect(action.closest(".window-titlebar__app-actions")).not.toBeNull();
+    expect(action.closest("[data-tauri-drag-region]")).toBeNull();
   });
 
   it("does not render or reserve titlebar content in browser development mode", () => {

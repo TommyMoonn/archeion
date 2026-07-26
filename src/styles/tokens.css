@@ -103,6 +103,7 @@
   --backdrop-soft: color-mix(in srgb, var(--darkening) 62%, transparent);
 
   --sidebar-width: 248px;
+  --sidebar-collapsed-width: 56px;
   --shell-edge-inset: 4px;
   --collection-content-offset: 20px;
 

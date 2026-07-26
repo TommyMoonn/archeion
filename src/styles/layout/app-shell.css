@@ -7,6 +7,10 @@
   background: var(--surface-app-frame);
 }
 
+.app-shell[data-sidebar-collapsed="true"] {
+  grid-template-columns: var(--sidebar-collapsed-width) minmax(0, 1fr);
+}
+
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -16,6 +20,14 @@
   padding: 12px 4px 12px 12px;
   border-right: 0;
   background: var(--surface-sidebar);
+}
+
+.sidebar__expanded-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .sidebar :where(button, a, summary):focus-visible {
@@ -179,6 +191,54 @@
   background: var(--surface-border);
 }
 
+.sidebar[data-collapsed="true"] {
+  overflow: visible;
+  padding: 12px 6px;
+}
+
+.sidebar[data-collapsed="true"] .sidebar__nav {
+  width: 100%;
+  padding: 0;
+}
+
+.sidebar[data-collapsed="true"] .nav-item {
+  grid-template-columns: 1fr;
+  place-items: center;
+  width: 100%;
+  padding: 0;
+}
+
+.sidebar[data-collapsed="true"] .nav-item > span {
+  display: none;
+}
+
+.sidebar[data-collapsed="true"] .sidebar-footer {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  width: 100%;
+  padding: 10px 0 0;
+}
+
+.sidebar[data-collapsed="true"] .archive-switcher,
+.sidebar[data-collapsed="true"] .archive-switcher summary {
+  width: var(--control-height-standard);
+}
+
+.sidebar[data-collapsed="true"] .archive-switcher summary {
+  min-height: var(--control-height-standard);
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar[data-collapsed="true"] .archive-switcher__trigger-label {
+  display: none;
+}
+
+.sidebar[data-collapsed="true"] .archive-switcher__menu {
+  bottom: 0;
+  left: calc(100% + 7px);
+}
+
 .page-shell {
   min-width: 0;
   height: auto;
@@ -252,6 +312,10 @@ html[data-density="compact"] .nav-item {
     grid-template-rows: auto minmax(0, 1fr);
   }
 
+  .app-shell[data-sidebar-collapsed="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .sidebar {
     position: static;
     display: grid;
@@ -264,6 +328,10 @@ html[data-density="compact"] .nav-item {
     padding: 11px 16px;
     border-right: 0;
     border-bottom: 0;
+  }
+
+  .sidebar__expanded-content {
+    display: contents;
   }
 
   .sidebar__nav {

@@ -131,6 +131,25 @@ describe("LibraryPage collection callback stability", () => {
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });
 
+  it("does not rerender books when the Library sidebar changes width", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')?.click();
+    });
+
+    expect(
+      session.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
+    ).toBe("true");
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+  });
+
   it("does not rerender books for an unrelated global Settings change", async () => {
     const storage = createStorage({
       books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],

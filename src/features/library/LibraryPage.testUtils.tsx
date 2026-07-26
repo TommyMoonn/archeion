@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, type NavigateFunction } from "react-router-dom";
 import { afterEach, beforeEach, vi } from "vitest";
 
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import type {
   LibrarySnapshot,
   LibraryStorage,
@@ -385,13 +386,16 @@ export async function renderLibraryPage(
 
   await act(async () => {
     root.render(
-      <MemoryRouter initialEntries={[initialEntry]}>
-        {onRouteChange ? <LibraryPageRouteProbe onChange={onRouteChange} /> : null}
-        {onNavigateReady ? <LibraryPageNavigateProbe onReady={onNavigateReady} /> : null}
-        <LibraryStorageContext.Provider value={storage}>
-          <LibraryPage />
-        </LibraryStorageContext.Provider>
-      </MemoryRouter>,
+      <>
+        <WindowTitlebarAppActionsHost />
+        <MemoryRouter initialEntries={[initialEntry]}>
+          {onRouteChange ? <LibraryPageRouteProbe onChange={onRouteChange} /> : null}
+          {onNavigateReady ? <LibraryPageNavigateProbe onReady={onNavigateReady} /> : null}
+          <LibraryStorageContext.Provider value={storage}>
+            <LibraryPage />
+          </LibraryStorageContext.Provider>
+        </MemoryRouter>
+      </>,
     );
   });
 
