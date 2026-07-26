@@ -34,6 +34,7 @@
     .menu-popover,
     .app-select__menu,
     .page-shell,
+    .archive-manager-window__main,
     .book-card,
     .book-row,
     .settings-window,
@@ -45,6 +46,22 @@
 
   .page-shell {
     border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .archive-manager-window__main {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+  }
+
+  .archive-row[data-active="true"] {
+    border-color: Highlight;
+    color: HighlightText;
+    background: Highlight;
+  }
+
+  .archive-row--missing {
+    border-left: 3px double Mark;
     box-shadow: none;
   }
 

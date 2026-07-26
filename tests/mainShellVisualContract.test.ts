@@ -60,7 +60,7 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
       /window-app window-app--main-shell[\s\S]*?<WindowTitlebar canMaximize \/>[\s\S]*?<LibraryStorageProvider/,
     );
     expect(appSource).toMatch(
-      /windowMode === "archive-manager"[\s\S]*?<div className="window-app">[\s\S]*?<WindowTitlebar canMaximize=\{false\} \/>/,
+      /windowMode === "archive-manager"[\s\S]*?<div className="window-app window-app--archive-manager">[\s\S]*?<WindowTitlebar canMaximize=\{false\} \/>/,
     );
     expect(baseWindow).toContain("--window-titlebar-height: 32px");
     expect(baseWindow).not.toContain("--window-titlebar-height: 38px");

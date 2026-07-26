@@ -104,6 +104,7 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).toContain("D:\\Books");
     expect(markup).toContain("E:\\Comics");
     expect(markup).not.toContain("archive-row--active");
+    expect(markup.match(/data-active="true"/g)).toHaveLength(1);
     expect(markup.match(/aria-current="true"/g)).toHaveLength(1);
     expect(markup).toContain("archive-manager-window__icon");
     expect(markup).toContain("Create empty archive");
@@ -132,6 +133,50 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).toContain("Archive Manager");
     expect(markup).toContain("Manager failed to initialize.");
     expect(markup).toContain('role="alert"');
+    expect(markup).toContain("archive-manager-window__sidebar--fallback");
+    expect(markup).toContain("archive-manager-window__main");
+  });
+
+  it("distinguishes registry loading from a ready empty archive list", () => {
+    const loadingMarkup = renderManager({
+      status: "loading",
+      path: null,
+      error: null,
+      archives: [],
+    });
+    const emptyMarkup = renderManager({
+      status: "setup",
+      path: null,
+      error: null,
+      archives: [],
+    });
+
+    expect(loadingMarkup).toContain('aria-busy="true"');
+    expect(loadingMarkup).toContain('data-loading="true"');
+    expect(loadingMarkup).toContain('role="status"');
+    expect(loadingMarkup).toContain("Loading archives");
+    expect(loadingMarkup).not.toContain("No saved archives");
+    expect(emptyMarkup).not.toContain('aria-busy="true"');
+    expect(emptyMarkup).toContain('data-empty="true"');
+    expect(emptyMarkup).toContain("No saved archives");
+    expect(emptyMarkup).toContain("Create empty archive");
+    expect(emptyMarkup).toContain("Open folder as archive");
+  });
+
+  it("keeps recoverable registry errors visible without removing manager actions", () => {
+    const markup = renderManager({
+      status: "error",
+      path: null,
+      error: "The archive registry could not be read.",
+      archives: [savedArchive],
+    });
+
+    expect(markup).toContain("The archive registry could not be read.");
+    expect(markup).toContain('data-tone="error"');
+    expect(markup).toContain('role="alert"');
+    expect(markup).toContain("Comics");
+    expect(markup).toContain("Create empty archive");
+    expect(markup).toContain("Open folder as archive");
   });
 
   it("treats the current archive as a close-and-focus action", async () => {

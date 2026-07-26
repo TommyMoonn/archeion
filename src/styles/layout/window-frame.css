@@ -24,6 +24,10 @@
   background: var(--surface-app-frame);
 }
 
+.window-app--archive-manager .window-app__content {
+  background: var(--surface-app-frame);
+}
+
 .window-app__content .app-shell,
 .window-app__content .reader-page {
   height: 100%;
@@ -144,5 +148,9 @@
 }
 
 .window-app--main-shell .window-titlebar {
+  border-bottom: 0;
+}
+
+.window-app--archive-manager .window-titlebar {
   border-bottom: 0;
 }

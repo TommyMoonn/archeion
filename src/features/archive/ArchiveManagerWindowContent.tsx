@@ -202,6 +202,7 @@ function ArchiveRow({
       className={`archive-row${isBusy ? " archive-row--busy" : ""}${
         isMissing ? " archive-row--missing" : ""
       }`}
+      data-active={isActive || undefined}
       data-context-menu-open={contextMenu.isOpen || undefined}
       onContextMenu={handleContextMenu}
     >
@@ -293,6 +294,7 @@ export function ArchiveManagerWindowContent({
   const missingArchiveId = state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(() => sortArchives(state.archives), [state.archives]);
   const errorText = state.status === "error" ? state.error : null;
+  const isLoading = state.status === "loading";
 
   function resetCreateForm() {
     setArchiveName("");
@@ -305,9 +307,15 @@ export function ArchiveManagerWindowContent({
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-title"
+        aria-busy={isLoading || undefined}
       >
         <div className="archive-manager-window__body">
-          <aside className="archive-manager-window__sidebar" aria-label="Archives">
+          <aside
+            className="archive-manager-window__sidebar"
+            aria-label="Archives"
+            data-empty={!isLoading && sortedArchives.length === 0 ? true : undefined}
+            data-loading={isLoading || undefined}
+          >
             {sortedArchives.length > 0 ? (
               <div className="archive-list">
                 {sortedArchives.map((archive) => (
@@ -321,7 +329,13 @@ export function ArchiveManagerWindowContent({
                   />
                 ))}
               </div>
-            ) : null}
+            ) : isLoading ? (
+              <p className="archive-list__empty" role="status">
+                Loading archives
+              </p>
+            ) : (
+              <p className="archive-list__empty">No saved archives</p>
+            )}
           </aside>
 
           <section className="archive-manager-window__main">
@@ -337,7 +351,7 @@ export function ArchiveManagerWindowContent({
                 </p>
               ) : null}
               {status ? (
-                <p className="archive-manager-window__status" role="status">
+                <p className="archive-manager-window__status" data-tone="error" role="status">
                   {status}
                 </p>
               ) : null}

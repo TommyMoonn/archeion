@@ -421,7 +421,7 @@ describe("theme token baseline", () => {
         ],
         [
           "src/styles/features/archive.css",
-          /\.archive-manager-window\s*{[^}]*background:\s*var\(--canvas\);/,
+          /\.archive-manager-window__main\s*{[^}]*background:\s*var\(--surface-main\);/,
         ],
         [
           "src/styles/features/archive.css",

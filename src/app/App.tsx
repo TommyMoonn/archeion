@@ -44,7 +44,7 @@ export function App() {
 
   if (windowMode === "archive-manager") {
     return (
-      <div className="window-app">
+      <div className="window-app window-app--archive-manager">
         <WindowTitlebar canMaximize={false} />
         <div className="window-app__content">
           <AppErrorBoundary>
