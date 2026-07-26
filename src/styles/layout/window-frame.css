@@ -6,8 +6,7 @@
   overflow: hidden;
   background: var(--surface-app-frame);
 
-  --window-titlebar-archeion-height: 36px;
-  --window-titlebar-hidden-height: 32px;
+  --window-titlebar-height: 32px;
 }
 
 .window-app__content {
@@ -40,18 +39,12 @@
   flex: none;
   align-items: center;
   justify-content: space-between;
-  height: var(--window-titlebar-archeion-height);
-  padding-left: 14px;
+  height: var(--window-titlebar-height);
+  padding-left: 0;
   color: var(--muted);
   background: var(--surface-app-frame);
   border-bottom: 1px solid var(--surface-border);
   user-select: none;
-}
-
-.window-titlebar[data-mode="hidden"] {
-  height: var(--window-titlebar-hidden-height);
-  padding-left: 0;
-  background: transparent;
 }
 
 .window-titlebar__drag-region {
@@ -62,26 +55,6 @@
   min-width: 0;
 }
 
-.window-titlebar__identity {
-  display: grid;
-  grid-template-columns: var(--icon-slot-standard) minmax(0, 1fr);
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  color: var(--text-strong);
-  font-size: var(--type-meta);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.01em;
-  pointer-events: none;
-}
-
-.window-titlebar__icon {
-  display: block;
-  width: var(--icon-glyph-standard);
-  height: var(--icon-glyph-standard);
-  object-fit: contain;
-}
-
 .window-titlebar__controls {
   display: flex;
   align-self: stretch;
@@ -89,7 +62,7 @@
 
 .window-titlebar__controls button {
   display: grid;
-  width: 44px;
+  width: 42px;
   height: 100%;
   padding: 0;
   place-items: center;
@@ -98,10 +71,6 @@
   color: var(--muted);
   background: transparent;
   cursor: pointer;
-}
-
-.window-titlebar[data-mode="hidden"] .window-titlebar__controls button {
-  width: 42px;
 }
 
 .window-titlebar__controls button:hover {

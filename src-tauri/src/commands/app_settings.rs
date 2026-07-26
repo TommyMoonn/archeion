@@ -267,7 +267,6 @@ pub struct AppPreferences {
     pub show_continue_reading: bool,
     pub startup_behavior: String,
     pub window: Option<PersistedWindowState>,
-    pub window_frame_style: String,
 }
 
 #[derive(Deserialize)]
@@ -304,8 +303,6 @@ struct AppPreferencesWire {
     startup_behavior: String,
     #[serde(default)]
     window: Option<PersistedWindowState>,
-    #[serde(default = "default_window_frame_style")]
-    window_frame_style: String,
 }
 
 impl<'de> Deserialize<'de> for AppPreferences {
@@ -330,7 +327,6 @@ impl<'de> Deserialize<'de> for AppPreferences {
             show_continue_reading: wire.show_continue_reading,
             startup_behavior: wire.startup_behavior,
             window: wire.window,
-            window_frame_style: wire.window_frame_style,
         })
     }
 }
@@ -407,10 +403,6 @@ fn default_true() -> bool {
 fn is_false(value: &bool) -> bool {
     !*value
 }
-fn default_window_frame_style() -> String {
-    "hidden".to_string()
-}
-
 fn normalize_setting(value: Option<String>, supported: &[&str], fallback: &str) -> String {
     value
         .filter(|candidate| supported.contains(&candidate.as_str()))
@@ -581,7 +573,6 @@ impl Default for AppPreferences {
             show_continue_reading: true,
             startup_behavior: default_startup_behavior(),
             window: None,
-            window_frame_style: default_window_frame_style(),
         }
     }
 }
@@ -709,7 +700,7 @@ mod tests {
     };
 
     #[test]
-    fn app_preferences_accept_missing_new_fields() {
+    fn app_preferences_ignore_legacy_frame_style_without_losing_neighboring_settings() {
         let parsed: AppPreferences = serde_json::from_value(serde_json::json!({
             "density": "compact",
             "bookCardSize": "large",
@@ -725,7 +716,6 @@ mod tests {
         assert_eq!(parsed.density, "compact");
         assert_eq!(parsed.library.collections.books.card_size, "large");
         assert!(!parsed.show_continue_reading);
-        assert_eq!(parsed.window_frame_style, "native");
         assert_eq!(parsed.startup_behavior, "open-last-archive");
         assert!(!parsed.appearance.animations_enabled);
         assert!(parsed.confirm_destructive_file_actions);
@@ -752,6 +742,9 @@ mod tests {
         assert!(!parsed.files_and_metadata.keep_epub_writeback_backup);
         assert!(parsed.keyboard.shortcuts.is_empty());
         assert!(parsed.window.is_none());
+
+        let serialized = serde_json::to_value(parsed).expect("preferences should serialize");
+        assert!(serialized.get("windowFrameStyle").is_none());
     }
 
     #[test]
@@ -948,7 +941,7 @@ mod tests {
             ..AppPreferences::default()
         };
         let second = AppPreferences {
-            window_frame_style: "native".to_string(),
+            restore_last_reader: true,
             ..AppPreferences::default()
         };
 

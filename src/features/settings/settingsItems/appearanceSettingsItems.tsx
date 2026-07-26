@@ -5,7 +5,7 @@ import { Button } from "../../../components/Button";
 import { IconButton } from "../../../components/IconButton";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
-import type { InterfaceDensity, WindowFrameStyle } from "../../../types/appSettings";
+import type { InterfaceDensity } from "../../../types/appSettings";
 import { ArchiveReaderThemeSelect } from "../../themes/ArchiveReaderThemeSelect";
 import {
   applicationThemeOptions,
@@ -13,7 +13,7 @@ import {
   decodeApplicationTheme,
 } from "../../themes/archiveThemeSelectionOptions";
 import { SettingsRow } from "../SettingsRow";
-import { densityOptions, frameOptions } from "../settingsOptions";
+import { densityOptions } from "../settingsOptions";
 import type { SettingsItem } from "../settingsItemTypes";
 
 export const appearanceSettingsItems = [
@@ -126,24 +126,6 @@ export const appearanceSettingsItems = [
       </SettingsRow>
     ),
     searchTerms: ["density", "comfortable", "compact", "app appearance"],
-    sectionId: "appearance",
-  },
-  {
-    description: "Controls the desktop window chrome.",
-    groupLabel: "Window behavior",
-    id: "appearance.window-frame-style",
-    label: "Window frame style",
-    render: (context) => (
-      <SettingsRow description="Controls the desktop window chrome." label="Window frame style">
-        <AppSelect<WindowFrameStyle>
-          ariaLabel="Window frame style"
-          onChange={(windowFrameStyle) => void context.updateAppPreferences({ windowFrameStyle })}
-          options={frameOptions}
-          value={context.preferences.windowFrameStyle}
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["window", "frame", "chrome", "hidden", "archeion", "native"],
     sectionId: "appearance",
   },
   {

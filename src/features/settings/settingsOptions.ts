@@ -1,9 +1,4 @@
-import type {
-  AppThemePreset,
-  InterfaceDensity,
-  StartupBehavior,
-  WindowFrameStyle,
-} from "../../types/appSettings";
+import type { AppThemePreset, InterfaceDensity, StartupBehavior } from "../../types/appSettings";
 import type { CollectionCardSize, FolderBrowserView, LibrarySort } from "../../types/library";
 import type { ReaderProgressPlacement, ReaderTheme } from "../../types/reader";
 import { readerTypefaceOptions } from "../reader/readerFonts";
@@ -38,12 +33,6 @@ export const cardSizeOptions = [
   { label: "Medium", value: "medium" },
   { label: "Large", value: "large" },
 ] satisfies Array<SettingsOption<CollectionCardSize>>;
-
-export const frameOptions = [
-  { label: "Hidden", value: "hidden" },
-  { label: "Archeion", value: "archeion" },
-  { label: "Native", value: "native" },
-] satisfies Array<SettingsOption<WindowFrameStyle>>;
 
 export const startupOptions = [
   { label: "Open last archive", value: "open-last-archive" },

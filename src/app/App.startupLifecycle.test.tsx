@@ -54,7 +54,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("../components/AppErrorBoundary", () => ({
   AppErrorBoundary: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("../components/WindowFrame", () => ({ WindowFrame: () => null }));
+vi.mock("../components/WindowTitlebar", () => ({ WindowTitlebar: () => null }));
 vi.mock("../features/archive/ArchiveGate", () => ({
   ArchiveGate: ({
     children,

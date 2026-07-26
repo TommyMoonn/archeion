@@ -138,12 +138,11 @@ describe("LibraryPage collection callback stability", () => {
     const session = await renderLibraryPage(storage);
     suite.trackRoot(session.root);
     const current = appPreferencesStore.getSnapshot();
-    const nextFrameStyle = current.windowFrameStyle === "native" ? "hidden" : "native";
 
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
 
     await act(async () => {
-      await appPreferencesStore.update({ windowFrameStyle: nextFrameStyle });
+      await appPreferencesStore.update({ restoreLastReader: !current.restoreLastReader });
     });
 
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });

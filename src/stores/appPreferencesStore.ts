@@ -335,10 +335,6 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
         ? "show-archive-manager"
         : defaultAppPreferences.startupBehavior,
     window: normalizePersistedWindowState(value.window),
-    windowFrameStyle:
-      value.windowFrameStyle === "archeion" || value.windowFrameStyle === "native"
-        ? value.windowFrameStyle
-        : defaultAppPreferences.windowFrameStyle,
   };
 }
 
@@ -469,8 +465,6 @@ export class AppPreferencesStore {
   getConfirmDestructiveFileActionsSnapshot = () => this.preferences.confirmDestructiveFileActions;
 
   getShowContinueReadingSnapshot = () => this.preferences.showContinueReading;
-
-  getWindowFrameStyleSnapshot = () => this.preferences.windowFrameStyle;
 
   subscribe = (listener: Listener) => {
     this.listeners.add(listener);
@@ -637,7 +631,6 @@ export class AppPreferencesStore {
 
     document.documentElement.dataset.motion = getEffectiveMotionState(this.preferences);
     document.documentElement.dataset.density = this.preferences.density;
-    document.documentElement.dataset.windowFrame = this.preferences.windowFrameStyle;
   }
 }
 
@@ -708,13 +701,6 @@ export function useShowContinueReadingPreference() {
   return useSyncExternalStore(
     appPreferencesStore.subscribe,
     appPreferencesStore.getShowContinueReadingSnapshot,
-  );
-}
-
-export function useWindowFrameStylePreference() {
-  return useSyncExternalStore(
-    appPreferencesStore.subscribe,
-    appPreferencesStore.getWindowFrameStyleSnapshot,
   );
 }
 

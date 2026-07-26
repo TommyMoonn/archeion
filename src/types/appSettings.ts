@@ -14,7 +14,6 @@ import type { ReaderSettings } from "./reader";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "./librarySmartViews";
 
 export type InterfaceDensity = "comfortable" | "compact";
-export type WindowFrameStyle = "hidden" | "archeion" | "native";
 export type StartupBehavior = "open-last-archive" | "show-archive-manager";
 export type AppThemePreset = "system" | "dark" | "light";
 
@@ -52,7 +51,6 @@ export type AppPreferences = {
   showContinueReading: boolean;
   startupBehavior: StartupBehavior;
   window: PersistedWindowState | null;
-  windowFrameStyle: WindowFrameStyle;
 };
 
 export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
@@ -98,5 +96,4 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   showContinueReading: true,
   startupBehavior: "open-last-archive",
   window: null,
-  windowFrameStyle: "hidden",
 });

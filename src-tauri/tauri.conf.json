@@ -20,6 +20,9 @@
         "center": true,
         "decorations": false,
         "resizable": true,
+        "minimizable": true,
+        "maximizable": true,
+        "closable": true,
         "fullscreen": false,
         "visible": false
       }

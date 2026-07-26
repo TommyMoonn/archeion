@@ -3,7 +3,7 @@ import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
-import { WindowFrame } from "../components/WindowFrame";
+import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
 import {
   hideMainWindowForStartup,
@@ -45,7 +45,7 @@ export function App() {
   if (windowMode === "archive-manager") {
     return (
       <div className="window-app">
-        <WindowFrame frameStyleOverride="hidden" />
+        <WindowTitlebar canMaximize={false} />
         <div className="window-app__content">
           <AppErrorBoundary>
             <Suspense fallback={null}>
@@ -299,7 +299,7 @@ function MainWindowApp() {
   if (startupState.status === "error") {
     return (
       <div className="window-app">
-        <WindowFrame />
+        <WindowTitlebar canMaximize />
         <div className="window-app__content">
           <main className="reader-status-page">
             <h1>{startupState.message}</h1>
@@ -336,7 +336,7 @@ function MainWindowApp() {
 
   return (
     <div className="window-app">
-      <WindowFrame />
+      <WindowTitlebar canMaximize />
       <div className="window-app__content">
         <AppErrorBoundary>
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>

@@ -110,7 +110,6 @@ describe("app preferences", () => {
       density: "comfortable",
       showContinueReading: true,
       startupBehavior: "open-last-archive",
-      windowFrameStyle: "hidden",
       library: {
         collections: {
           books: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
@@ -151,7 +150,6 @@ describe("app preferences", () => {
       },
       density: "comfortable",
       startupBehavior: "open-last-archive",
-      windowFrameStyle: "hidden",
       library: {
         collections: {
           books: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
@@ -273,8 +271,42 @@ describe("app preferences", () => {
       showContinueReading: false,
       startupBehavior: "show-archive-manager",
       window: null,
-      windowFrameStyle: "native",
     });
+  });
+
+  it("ignores a legacy frame style and omits it from the next save", async () => {
+    const saveDesktop = vi.fn(async (preferences: unknown) => {
+      void preferences;
+    });
+    const store = new AppPreferencesStore(
+      createPersistence({
+        loadDesktop: async () => ({
+          density: "compact",
+          showContinueReading: false,
+          windowFrameStyle: "native",
+        }),
+        saveDesktop,
+      }),
+    );
+
+    await store.initialize();
+
+    expect(store.getSnapshot()).toMatchObject({
+      density: "compact",
+      showContinueReading: false,
+    });
+    expect(store.getSnapshot()).not.toHaveProperty("windowFrameStyle");
+
+    await store.update({ restoreLastReader: true });
+
+    expect(saveDesktop).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        density: "compact",
+        restoreLastReader: true,
+        showContinueReading: false,
+      }),
+    );
+    expect(saveDesktop.mock.lastCall?.[0]).not.toHaveProperty("windowFrameStyle");
   });
 
   it("normalizes invalid collection fields without discarding valid siblings", () => {

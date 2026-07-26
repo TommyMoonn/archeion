@@ -55,7 +55,6 @@ describe("appearanceSettingsItems", () => {
       "appearance.app-themes",
       "appearance.animations",
       "appearance.display-density",
-      "appearance.window-frame-style",
       "appearance.remember-window-state",
       "appearance.reset-appearance",
       "appearance.reset-window",

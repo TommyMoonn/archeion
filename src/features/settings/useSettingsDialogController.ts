@@ -644,7 +644,6 @@ export function useSettingsDialogController({
     await updateAppPreferences(
       {
         rememberWindowState: defaultAppPreferences.rememberWindowState,
-        windowFrameStyle: defaultAppPreferences.windowFrameStyle,
       },
       { successMessage: "Window settings reset." },
     );
