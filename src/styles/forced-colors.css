@@ -48,6 +48,12 @@
     box-shadow: none;
   }
 
+  .icon-button__tooltip {
+    border-color: CanvasText;
+    color: CanvasText;
+    background: Canvas;
+  }
+
   :where(
     [aria-current]:not([aria-current="false"]),
     [aria-selected="true"],

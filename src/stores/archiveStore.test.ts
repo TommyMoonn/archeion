@@ -440,6 +440,68 @@ describe("ArchiveStore", () => {
     });
   });
 
+  it("reveals only the archive identity that is currently active", async () => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") return registry(booksArchive.id);
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    await expect(store.revealActiveArchive(booksArchive)).resolves.toBe(true);
+
+    expect(invokeMock).toHaveBeenCalledWith("reveal_archive", {
+      archiveId: booksArchive.id,
+    });
+  });
+
+  it.each([
+    ["archive ID", comicsArchive],
+    ["archive root", { ...booksArchive, rootPath: "E:\\Moved Books" }],
+  ])("rejects a stale reveal after the active %s is replaced", async (_identity, replacement) => {
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") return registry(booksArchive.id);
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+
+    registryEventHandler?.({
+      payload: registry(replacement.id, [replacement]),
+    });
+    await vi.waitFor(() => {
+      expect(store.getSnapshot()).toMatchObject({
+        status: "ready",
+        archive: replacement,
+      });
+    });
+    invokeMock.mockClear();
+
+    await expect(store.revealActiveArchive(booksArchive)).resolves.toBe(false);
+
+    expect(invokeMock).not.toHaveBeenCalledWith("reveal_archive", expect.anything());
+  });
+
+  it("does not invoke native reveal for an unavailable active root", async () => {
+    const unavailableArchive = { ...booksArchive, rootPath: " " };
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "load_archive_registry") {
+        return registry(unavailableArchive.id, [unavailableArchive]);
+      }
+      if (command === "validate_archive_path") return true;
+      return undefined;
+    });
+    const store = new ArchiveStore();
+    await store.initialize();
+    invokeMock.mockClear();
+
+    await expect(store.revealActiveArchive(unavailableArchive)).resolves.toBe(false);
+
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
   it("opens the separate archive manager window through Tauri", async () => {
     const store = new ArchiveStore();
     await store.initialize();

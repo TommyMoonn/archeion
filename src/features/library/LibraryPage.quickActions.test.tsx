@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import "../series/SeriesOverview";
 import "../settings/SettingsDialog";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import type {
   LibrarySnapshot,
   LibraryStorage,
@@ -146,6 +147,7 @@ async function renderLibrary(initialEntry = "/", books: Book[] = []) {
   await act(async () => {
     root?.render(
       <MemoryRouter initialEntries={[initialEntry]}>
+        <WindowTitlebarAppActionsHost />
         <LibraryStorageContext.Provider value={storage}>
           <QuickActionsProvider>
             <LibraryPage />
@@ -311,6 +313,46 @@ afterEach(async () => {
 });
 
 describe("LibraryPage Quick Actions", () => {
+  it("opens the existing Quick Actions surface once from the titlebar control", async () => {
+    const rendered = await renderLibrary();
+    const trigger = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open Quick Actions"]',
+    )!;
+
+    expect(trigger.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
+    await act(async () => {
+      trigger.click();
+      await Promise.resolve();
+    });
+
+    await vi.waitFor(() => {
+      expect(
+        document.querySelectorAll('.quick-actions input[placeholder="Type a command"]'),
+      ).toHaveLength(1);
+    });
+    expect(document.querySelectorAll(".quick-actions")).toHaveLength(1);
+    expect(
+      document.querySelectorAll('.quick-actions input[placeholder="Type a command"]'),
+    ).toHaveLength(1);
+  });
+
+  it("reveals the active archive through the validated archive owner", async () => {
+    const revealActiveArchive = vi
+      .spyOn(archiveStore, "revealActiveArchive")
+      .mockResolvedValue(true);
+    const rendered = await renderLibrary();
+
+    await act(async () => {
+      rendered.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Reveal active archive folder"]')
+        ?.click();
+      await Promise.resolve();
+    });
+
+    expect(revealActiveArchive).toHaveBeenCalledOnce();
+    expect(revealActiveArchive).toHaveBeenCalledWith(readyArchive.archive);
+  });
+
   it("routes Search books through the existing library navigation and focuses search", async () => {
     const rendered = await renderLibrary("/?view=folders&archiveId=archive-books");
     expect(rendered.container.textContent).toContain("Folders");

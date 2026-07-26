@@ -46,7 +46,7 @@ export const commandDefinitions = {
     id: "system.quick-actions",
     label: "Open Quick Actions",
     scopes: ["global"],
-    visibleControlOwner: "Reader navigation",
+    visibleControlOwner: "Main titlebar and Reader navigation",
   },
   settings: {
     configuration: "configurable",

@@ -1,11 +1,18 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
+import { createRoot } from "react-dom/client";
+import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import type { ArchiveOperationWarning, StorageObserver } from "../../storage/LibraryStorage";
+import { LibraryStorageContext } from "../../storage/useLibraryStorage";
+import { archiveStore } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
+import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { LibraryPage } from "./LibraryPage";
 import {
   clickBook,
   createStorage,
@@ -147,6 +154,55 @@ describe("LibraryPage collection callback stability", () => {
     expect(
       session.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
     ).toBe("true");
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+  });
+
+  it("does not rerender books when titlebar actions open Quick Actions or reveal the archive", async () => {
+    const storage = createStorage({
+      books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+    });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    suite.trackRoot(root);
+    const revealActiveArchive = vi
+      .spyOn(archiveStore, "revealActiveArchive")
+      .mockResolvedValue(true);
+
+    await act(async () => {
+      root.render(
+        <>
+          <WindowTitlebarAppActionsHost />
+          <MemoryRouter>
+            <LibraryStorageContext.Provider value={storage}>
+              <QuickActionsProvider>
+                <LibraryPage />
+              </QuickActionsProvider>
+            </LibraryStorageContext.Provider>
+          </MemoryRouter>
+        </>,
+      );
+    });
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Reveal active archive folder"]')
+        ?.click();
+      await Promise.resolve();
+    });
+    expect(revealActiveArchive).toHaveBeenCalledTimes(1);
+    expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Open Quick Actions"]')
+        ?.click();
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => {
+      expect(document.querySelector('dialog[aria-label="Quick Actions"]')).not.toBeNull();
+    });
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });
 

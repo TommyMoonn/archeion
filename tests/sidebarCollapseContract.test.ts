@@ -27,6 +27,8 @@ function cssBlock(source: string, header: string): string {
 }
 
 const sidebarSource = read("src/features/library/LibrarySidebar.tsx");
+const titlebarActionsSource = read("src/features/library/LibraryTitlebarActions.tsx");
+const workspaceSurfaceSource = read("src/features/library/LibraryWorkspaceSurface.tsx");
 const sidebarStateSource = read("src/features/library/useLibrarySidebarState.ts");
 const shellStyles = read("src/styles/layout/app-shell.css");
 const windowTitlebarSource = read("src/components/WindowTitlebar.tsx");
@@ -37,10 +39,10 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
   it("places the one Library collapse action on the native frame outside its drag region", () => {
     expect(windowTitlebarSource).toContain("data-window-titlebar-app-actions");
     expect(windowTitlebarSource).toContain("data-tauri-drag-region");
-    expect(sidebarSource).toContain("<WindowTitlebarAppActions>");
-    expect(sidebarSource).toContain("<SidebarSimple");
-    expect(sidebarSource).not.toMatch(/CaretDouble(?:Left|Right)/);
-    expect(sidebarSource).not.toMatch(/data-tauri-drag-region/);
+    expect(titlebarActionsSource).toContain("<WindowTitlebarAppActions>");
+    expect(titlebarActionsSource).toContain("<SidebarSimple");
+    expect(titlebarActionsSource).not.toMatch(/CaretDouble(?:Left|Right)/);
+    expect(`${sidebarSource}\n${titlebarActionsSource}`).not.toMatch(/data-tauri-drag-region/);
     expect(cssBlock(windowStyles, ".window-titlebar__app-actions")).toContain(
       "height: var(--window-titlebar-height)",
     );
@@ -49,7 +51,7 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
   it("uses one session-local owner without adding persisted shell state", () => {
     expect(sidebarStateSource).toContain("useState(false)");
     expect(sidebarStateSource).toContain("useSyncExternalStore");
-    expect(`${sidebarStateSource}\n${sidebarSource}`).not.toMatch(
+    expect(`${sidebarStateSource}\n${sidebarSource}\n${titlebarActionsSource}`).not.toMatch(
       /localStorage|sessionStorage|AppPreferences|save|persist/i,
     );
   });
@@ -74,6 +76,7 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     );
     expect(constrained).toMatch(/\.sidebar__expanded-content\s*\{[^}]*display:\s*contents;/s);
     expect(sidebarSource).toMatch(/!isCollapsed[\s\S]*sidebar__expanded-content/);
+    expect(workspaceSurfaceSource).toContain("collapseAvailable={sidebarState.collapseAvailable}");
   });
 
   it("retains normal and forced-colors focus and active-state geometry", () => {

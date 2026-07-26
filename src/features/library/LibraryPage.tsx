@@ -95,7 +95,7 @@ export function LibraryPage() {
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const activeArchive = archive.archive;
   const storage = useLibraryStorage();
-  const { getCommandBinding, openSettings, preloadSettings } = useQuickActions();
+  const { getCommandBinding, openPalette, openSettings, preloadSettings } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
@@ -486,6 +486,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
 
   const openArchiveManager = useCallback(() => void archiveStore.openArchiveManagerWindow(), []);
+  const revealActiveArchive = useCallback(
+    () => void archiveStore.revealActiveArchive(activeArchive),
+    [activeArchive],
+  );
   const folderSearchInputRef = useRef<HTMLInputElement>(null);
   const seriesSearchInputRef = useRef<HTMLInputElement>(null);
   const searchSurfaceAvailable = navigation.location.type !== "series-detail";
@@ -766,6 +770,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRevealFolder: (folder) => void bookActions.revealFolder(folder),
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           smartViewPreferences,
+        }}
+        titlebarActionsProps={{
+          onOpenQuickActions: openPalette,
+          onRevealArchive: revealActiveArchive,
+          quickActionsAriaKeyShortcuts: ariaKeyShortcut(
+            getCommandBinding(commandDefinitions.quickActions.id),
+          ),
+          revealArchiveDisabledReason: activeArchive.rootPath.trim()
+            ? undefined
+            : "The active archive folder is unavailable.",
         }}
         toolbarProps={{
           filterOptions,

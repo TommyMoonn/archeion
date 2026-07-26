@@ -258,6 +258,22 @@ export class ArchiveStore {
     }
   }
 
+  async revealActiveArchive(
+    expectedArchive: Pick<KnownArchive, "id" | "rootPath">,
+  ): Promise<boolean> {
+    const current = this.state;
+    if (
+      current.status !== "ready" ||
+      current.archive.id !== expectedArchive.id ||
+      current.archive.rootPath !== expectedArchive.rootPath ||
+      !current.archive.rootPath.trim()
+    ) {
+      return false;
+    }
+
+    return this.revealArchive(current.archive.id);
+  }
+
   async openArchiveManagerWindow(): Promise<boolean> {
     if (!isTauri()) {
       return false;

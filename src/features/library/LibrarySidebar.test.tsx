@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-import { act, useState } from "react";
+import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import type { LibrarySmartViewPreferences } from "../../types/library";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import { LibrarySidebar } from "./LibrarySidebar";
+import { LibraryTitlebarActions } from "./LibraryTitlebarActions";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -49,13 +50,12 @@ function sidebarProps(
   return {
     activeArchive,
     archives: [activeArchive, savedArchive],
-    collapseAvailable: true,
     collapsed: false,
+    expandedContentRef: { current: null },
     folders,
     location,
     smartViewPreferences,
     onCreateFolder: vi.fn(),
-    onCollapsedChange: vi.fn(),
     onDeleteFolder: vi.fn(),
     onLocationChange,
     onManageArchives: vi.fn(),
@@ -102,6 +102,7 @@ function renderCollapsibleSidebar(folders: Folder[] = []) {
 
   function Harness() {
     const [collapsed, setCollapsed] = useState(false);
+    const expandedContentRef = useRef<HTMLDivElement>(null);
 
     return (
       <>
@@ -109,10 +110,18 @@ function renderCollapsibleSidebar(folders: Folder[] = []) {
           <WindowTitlebarAppActionsHost />
           <div data-tauri-drag-region />
         </div>
+        <LibraryTitlebarActions
+          collapseAvailable
+          collapsed={collapsed}
+          expandedSidebarContentRef={expandedContentRef}
+          onCollapsedChange={setCollapsed}
+          onOpenQuickActions={vi.fn()}
+          onRevealArchive={vi.fn()}
+        />
         <LibrarySidebar
           {...sidebarProps(folders)}
           collapsed={collapsed}
-          onCollapsedChange={setCollapsed}
+          expandedContentRef={expandedContentRef}
         />
       </>
     );
@@ -158,7 +167,7 @@ describe("LibrarySidebar", () => {
     expect(markup).not.toContain('aria-label="Quick Actions"');
   });
 
-  it("keeps Quick Actions out of the library UI and preserves footer ordering", () => {
+  it("keeps Quick Actions out of sidebar navigation and preserves footer ordering", () => {
     const markup = renderSidebar();
 
     expect(markup).not.toContain('aria-label="Quick Actions"');
@@ -174,10 +183,12 @@ describe("LibrarySidebar", () => {
       'button[aria-label="Collapse sidebar"]',
     );
 
-    expect(control?.title).toBe("Collapse sidebar");
+    expect(
+      session.container.querySelector(`#${control?.getAttribute("aria-describedby")}`)?.textContent,
+    ).toBe("Collapse sidebar");
     expect(control?.closest(".window-titlebar__app-actions")).not.toBeNull();
     expect(control?.closest("[data-tauri-drag-region]")).toBeNull();
-    expect(control?.querySelector(".sidebar__frame-control-icon")).not.toBeNull();
+    expect(control?.querySelector(".library-titlebar-actions__sidebar-icon")).not.toBeNull();
     expect(control?.getAttribute("data-sidebar-direction")).toBe("collapse-left");
   });
 
@@ -207,7 +218,9 @@ describe("LibrarySidebar", () => {
     );
 
     expect(sidebar?.getAttribute("data-collapsed")).toBe("true");
-    expect(expand?.title).toBe("Expand sidebar");
+    expect(
+      session.container.querySelector(`#${expand?.getAttribute("aria-describedby")}`)?.textContent,
+    ).toBe("Expand sidebar");
     expect(expand?.getAttribute("data-sidebar-direction")).toBe("expand-right");
     for (const destination of ["Library", "Series", "Favorites", "Folders"]) {
       expect(
@@ -253,13 +266,13 @@ describe("LibrarySidebar", () => {
     );
   });
 
-  it("removes the obsolete Quick Actions sidebar API without adding a toolbar replacement", () => {
+  it("keeps titlebar actions out of the sidebar and toolbar owners", () => {
     const sidebarSource = readFileSync(
       resolve(process.cwd(), "src/features/library/LibrarySidebar.tsx"),
       "utf8",
     );
-    const pageSource = readFileSync(
-      resolve(process.cwd(), "src/features/library/LibraryPage.tsx"),
+    const titlebarActionsSource = readFileSync(
+      resolve(process.cwd(), "src/features/library/LibraryTitlebarActions.tsx"),
       "utf8",
     );
     const toolbarSource = readFileSync(
@@ -267,11 +280,12 @@ describe("LibrarySidebar", () => {
       "utf8",
     );
 
-    for (const source of [sidebarSource, pageSource]) {
-      expect(source).not.toContain("onOpenQuickActions");
-      expect(source).not.toContain("quickActionsAriaKeyShortcuts");
-    }
+    expect(sidebarSource).not.toContain("onOpenQuickActions");
+    expect(sidebarSource).not.toContain("quickActionsAriaKeyShortcuts");
     expect(sidebarSource).not.toContain("Lightning");
+    expect(titlebarActionsSource).toContain("onOpenQuickActions");
+    expect(titlebarActionsSource).toContain("quickActionsAriaKeyShortcuts");
+    expect(titlebarActionsSource).toContain("Lightning");
     expect(toolbarSource).not.toContain("Quick Actions");
   });
 

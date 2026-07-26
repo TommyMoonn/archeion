@@ -21,6 +21,7 @@ import { ContinueReading } from "./ContinueReading";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import { LibrarySelectionBar } from "./LibrarySelectionBar";
 import { LibrarySidebar } from "./LibrarySidebar";
+import { LibraryTitlebarActions } from "./LibraryTitlebarActions";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
@@ -75,9 +76,10 @@ type LibraryWorkspaceSurfaceProps = {
   seriesDetailProps: ComponentProps<typeof SeriesDetail>;
   seriesOverviewProps: ComponentProps<typeof SeriesOverview>;
   showContinueReading: boolean;
-  sidebarProps: Omit<
-    ComponentProps<typeof LibrarySidebar>,
-    "collapseAvailable" | "collapsed" | "onCollapsedChange"
+  sidebarProps: Omit<ComponentProps<typeof LibrarySidebar>, "collapsed" | "expandedContentRef">;
+  titlebarActionsProps: Omit<
+    ComponentProps<typeof LibraryTitlebarActions>,
+    "collapseAvailable" | "collapsed" | "expandedSidebarContentRef" | "onCollapsedChange"
   >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
   view: LibraryView;
@@ -109,11 +111,13 @@ export function LibraryWorkspaceSurface({
   seriesOverviewProps,
   showContinueReading,
   sidebarProps,
+  titlebarActionsProps,
   toolbarProps,
   view,
   visibleBooks,
 }: LibraryWorkspaceSurfaceProps) {
   const sidebarState = useLibrarySidebarState();
+  const expandedSidebarContentRef = useRef<HTMLDivElement>(null);
   const surfaceState = getLibrarySurfaceState(
     books,
     debouncedQuery,
@@ -145,12 +149,20 @@ export function LibraryWorkspaceSurface({
       importDropTarget={importDropTarget}
       mainRef={mainRef}
       sidebar={
-        <LibrarySidebar
-          {...sidebarProps}
-          collapseAvailable={sidebarState.collapseAvailable}
-          collapsed={sidebarState.collapsed}
-          onCollapsedChange={sidebarState.setCollapsed}
-        />
+        <>
+          <LibraryTitlebarActions
+            {...titlebarActionsProps}
+            collapseAvailable={sidebarState.collapseAvailable}
+            collapsed={sidebarState.collapsed}
+            expandedSidebarContentRef={expandedSidebarContentRef}
+            onCollapsedChange={sidebarState.setCollapsed}
+          />
+          <LibrarySidebar
+            {...sidebarProps}
+            collapsed={sidebarState.collapsed}
+            expandedContentRef={expandedSidebarContentRef}
+          />
+        </>
       }
       sidebarCollapsed={sidebarState.collapsed}
     >

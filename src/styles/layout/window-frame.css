@@ -75,26 +75,37 @@
   display: none;
 }
 
-.sidebar__frame-control {
+.library-titlebar-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.library-titlebar-actions__button {
   color: var(--muted);
   background: transparent;
 }
 
-.sidebar__frame-control .icon-slot {
+.library-titlebar-actions__button .icon-slot {
   --icon-slot-size: 18px;
   --icon-glyph-size: 18px;
 }
 
-.sidebar__frame-control-icon {
+.library-titlebar-actions__quick-action .icon-slot {
+  --icon-glyph-size: 16px;
+}
+
+.library-titlebar-actions__sidebar-icon {
   transform: translateY(1px);
 }
 
-.sidebar__frame-control:hover {
+.library-titlebar-actions__button:hover {
   color: var(--text-strong);
   background: var(--surface-shell-hover);
 }
 
-.sidebar__frame-control[data-sidebar-direction="expand-right"] .sidebar__frame-control-icon {
+.library-titlebar-actions__button[data-sidebar-direction="expand-right"]
+  .library-titlebar-actions__sidebar-icon {
   transform: translateY(1px) scaleX(-1);
 }
 

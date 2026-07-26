@@ -14,15 +14,13 @@ import {
   Heart,
   Plus,
   Question,
-  SidebarSimple,
   Stack,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { memo, useCallback, useId, useRef, useState } from "react";
+import { memo, useCallback, useId, useState, type RefObject } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
-import { WindowTitlebarAppActions } from "../../components/WindowTitlebar";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
 import type {
@@ -54,14 +52,13 @@ function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView
 type LibrarySidebarProps = {
   activeArchive: KnownArchive;
   archives: KnownArchive[];
-  collapseAvailable: boolean;
   collapsed: boolean;
+  expandedContentRef: RefObject<HTMLDivElement | null>;
   folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
   smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
-  onCollapsedChange: (collapsed: boolean) => void;
   onDeleteFolder: (folder: ReadonlyFolder) => void;
   onManageArchives: () => void;
   onMoveFolder: (folder: ReadonlyFolder) => void;
@@ -81,14 +78,13 @@ type LibrarySidebarProps = {
 export const LibrarySidebar = memo(function LibrarySidebar({
   activeArchive,
   archives,
-  collapseAvailable,
   collapsed,
+  expandedContentRef,
   folders,
   location,
   smartViewPreferences,
   canManageFolders = true,
   onCreateFolder,
-  onCollapsedChange,
   onDeleteFolder,
   onManageArchives,
   onMoveFolder,
@@ -104,27 +100,13 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   canRevealFolders = false,
   activeImportDropTargetId,
 }: LibrarySidebarProps) {
-  const sidebarRef = useRef<HTMLElement>(null);
-  const expandedContentRef = useRef<HTMLDivElement>(null);
-  const collapseControlRef = useRef<HTMLButtonElement>(null);
   const { closeDetails: closeArchiveSwitcher, detailsRef: archiveSwitcherRef } =
     useDismissibleDetails();
   const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
   const smartViewsContentId = useId();
   const activeSmartView = activeSmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
-  const isCollapsed = collapsed && collapseAvailable;
-
-  const toggleCollapsed = useCallback(() => {
-    const nextCollapsed = !isCollapsed;
-    if (
-      nextCollapsed &&
-      expandedContentRef.current?.contains(sidebarRef.current?.ownerDocument.activeElement ?? null)
-    ) {
-      collapseControlRef.current?.focus({ preventScroll: true });
-    }
-    onCollapsedChange(nextCollapsed);
-  }, [isCollapsed, onCollapsedChange]);
+  const isCollapsed = collapsed;
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher();
@@ -140,25 +122,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   );
 
   return (
-    <aside className="sidebar" data-collapsed={isCollapsed || undefined} ref={sidebarRef}>
-      {collapseAvailable ? (
-        <WindowTitlebarAppActions>
-          <IconButton
-            className="sidebar__frame-control"
-            data-sidebar-direction={isCollapsed ? "expand-right" : "collapse-left"}
-            label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            onClick={toggleCollapsed}
-            ref={collapseControlRef}
-            size="standard"
-          >
-            <SidebarSimple
-              aria-hidden="true"
-              className="sidebar__frame-control-icon"
-              weight="regular"
-            />
-          </IconButton>
-        </WindowTitlebarAppActions>
-      ) : null}
+    <aside className="sidebar" data-collapsed={isCollapsed || undefined}>
       <nav className="sidebar__nav" aria-label="Library navigation">
         <button
           aria-label="Library"

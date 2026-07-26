@@ -127,6 +127,66 @@ describe("shared control geometry", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("provides an opt-in shared tooltip associated with pointer and keyboard triggers", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <IconButton label="Open actions" tooltip>
+          <span>+</span>
+        </IconButton>,
+      );
+    });
+
+    const button = container.querySelector("button")!;
+    const tooltip = container.querySelector<HTMLElement>('[role="tooltip"]')!;
+
+    expect(button.title).toBe("");
+    expect(button.getAttribute("aria-describedby")).toBe(tooltip.id);
+    expect(tooltip.textContent).toBe("Open actions");
+    expect(button.classList.contains("icon-button--has-tooltip")).toBe(true);
+    act(() => button.focus());
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("uses an unavailable reason as the shared tooltip without weakening activation guards", () => {
+    const onClick = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <IconButton
+          disabled
+          disabledReason="Choose an archive first"
+          label="Reveal archive"
+          onClick={onClick}
+          tooltip
+        >
+          <span>↗</span>
+        </IconButton>,
+      );
+    });
+
+    const button = container.querySelector("button")!;
+    const tooltip = container.querySelector<HTMLElement>('[role="tooltip"]')!;
+    act(() => {
+      button.focus();
+      button.click();
+    });
+
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.getAttribute("aria-describedby")).toBe(tooltip.id);
+    expect(tooltip.textContent).toBe("Choose an archive first");
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   it("keeps an explained disabled button focusable while blocking click, parent, and form activation", () => {
     const onClick = vi.fn();
     const onParentClick = vi.fn();
