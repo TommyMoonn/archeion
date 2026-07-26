@@ -10,6 +10,7 @@ describe("FolderBrowser", () => {
         bookCounts={new Map()}
         cardSize="medium"
         folders={[]}
+        isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
         onViewChange={vi.fn()}
@@ -44,6 +45,7 @@ describe("FolderBrowser", () => {
             updatedAt: "1",
           },
         ]}
+        isLoading={false}
         onCreate={vi.fn()}
         onDelete={vi.fn()}
         onMove={vi.fn()}
@@ -69,6 +71,7 @@ describe("FolderBrowser", () => {
         bookCounts={new Map()}
         cardSize="medium"
         folders={[]}
+        isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
         onViewChange={vi.fn()}
@@ -81,12 +84,37 @@ describe("FolderBrowser", () => {
     expect(markup).toContain('aria-checked="true" aria-label="Cards"');
   });
 
+  it("keeps true-empty folders in the shared collection state geometry", () => {
+    const markup = renderToStaticMarkup(
+      <FolderBrowser
+        bookCounts={new Map()}
+        cardSize="medium"
+        canManageFolders
+        folders={[]}
+        isLoading={false}
+        onCreate={vi.fn()}
+        onOpen={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        sort="name"
+        view="list"
+      />,
+    );
+
+    expect(markup).toContain(
+      'class="collection-content folder-browser__content" data-surface-state="empty"',
+    );
+    expect(markup).toContain("No folders");
+    expect(markup).toContain("Add Folder");
+  });
+
   it("disables native autofill on the folder search field", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
         bookCounts={new Map()}
         cardSize="medium"
         folders={[]}
+        isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
         onViewChange={vi.fn()}
@@ -119,6 +147,7 @@ describe("FolderBrowser", () => {
             updatedAt: "1",
           },
         ]}
+        isLoading={false}
         activeImportDropTargetId="folder-browser:folder-fiction"
         cardSize="medium"
         onOpen={vi.fn()}

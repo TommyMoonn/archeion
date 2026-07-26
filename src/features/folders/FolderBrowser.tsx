@@ -47,6 +47,7 @@ type FolderBrowserProps = {
   canManageFolders?: boolean;
   canRevealFolders?: boolean;
   folders: readonly ReadonlyFolder[];
+  isLoading: boolean;
   onCreate?: () => void;
   onDelete?: (folder: ReadonlyFolder) => void;
   onMove?: (folder: ReadonlyFolder) => void;
@@ -177,6 +178,7 @@ export function FolderBrowser({
   canManageFolders = false,
   canRevealFolders = false,
   folders,
+  isLoading,
   onCreate,
   onDelete,
   onMove,
@@ -201,7 +203,14 @@ export function FolderBrowser({
     [entries, query, sort],
   );
   const showFolderActions = Boolean(canManageFolders && onDelete && onMove && onRename);
-  const surfaceState = visibleEntries.length > 0 ? "results" : query ? "search-empty" : "empty";
+  const surfaceState =
+    visibleEntries.length > 0
+      ? "results"
+      : isLoading && entries.length === 0
+        ? "loading"
+        : query
+          ? "search-empty"
+          : "empty";
   const surfaceKey = `${view}:${sort}:${cardSize}:${surfaceState}`;
 
   return (
@@ -282,50 +291,60 @@ export function FolderBrowser({
         </div>
       </header>
 
-      {visibleEntries.length === 0 ? (
-        <EmptyState
-          key={surfaceKey}
-          action={
-            query ? (
-              <Button variant="secondary" onClick={() => setQuery("")}>
-                Clear search
-              </Button>
-            ) : canManageFolders && onCreate ? (
-              <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
-                Add Folder
-              </Button>
-            ) : undefined
-          }
-          description={
-            query ? "No folder matches that search." : "Folders from this library will appear here."
-          }
-          icon={<FolderIcon size={40} weight="thin" />}
-          title={query ? "No folders found" : "No folders"}
-        />
-      ) : (
-        <div
-          className={`folder-browser__items folder-browser__items--${view}`}
-          data-folder-card-size={cardSize}
-          data-surface-state={surfaceState}
-          key={surfaceKey}
-        >
-          {visibleEntries.map((entry) => (
-            <FolderBrowserItem
-              activeImportDropTargetId={activeImportDropTargetId}
-              canRevealFolders={canRevealFolders}
-              entry={entry}
-              key={entry.folder.id}
-              onDelete={onDelete}
-              onMove={onMove}
-              onOpen={onOpen}
-              onRename={onRename}
-              onReveal={onReveal}
-              showFolderActions={showFolderActions}
-              view={view}
-            />
-          ))}
-        </div>
-      )}
+      <div
+        aria-busy={surfaceState === "loading" || undefined}
+        className="collection-content folder-browser__content"
+        data-surface-state={surfaceState}
+        key={surfaceKey}
+      >
+        {surfaceState === "loading" ? (
+          <div className="collection-content__loading library-loading" role="status">
+            Loading folders
+          </div>
+        ) : visibleEntries.length === 0 ? (
+          <EmptyState
+            action={
+              query ? (
+                <Button variant="secondary" onClick={() => setQuery("")}>
+                  Clear search
+                </Button>
+              ) : canManageFolders && onCreate ? (
+                <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
+                  Add Folder
+                </Button>
+              ) : undefined
+            }
+            description={
+              query
+                ? "No folder matches that search."
+                : "Folders from this library will appear here."
+            }
+            icon={<FolderIcon size={40} weight="thin" />}
+            title={query ? "No folders found" : "No folders"}
+          />
+        ) : (
+          <div
+            className={`folder-browser__items folder-browser__items--${view}`}
+            data-folder-card-size={cardSize}
+          >
+            {visibleEntries.map((entry) => (
+              <FolderBrowserItem
+                activeImportDropTargetId={activeImportDropTargetId}
+                canRevealFolders={canRevealFolders}
+                entry={entry}
+                key={entry.folder.id}
+                onDelete={onDelete}
+                onMove={onMove}
+                onOpen={onOpen}
+                onRename={onRename}
+                onReveal={onReveal}
+                showFolderActions={showFolderActions}
+                view={view}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

@@ -80,13 +80,14 @@ export function SeriesOverview({
     () => sortSeriesEntries(filterSeriesEntries(entries, query), sort),
     [entries, query, sort],
   );
-  const surfaceState = isLoading
-    ? "loading"
-    : entries.length === 0
-      ? "empty"
-      : visibleEntries.length === 0
+  const surfaceState =
+    visibleEntries.length > 0
+      ? "results"
+      : entries.length > 0
         ? "search-empty"
-        : "results";
+        : isLoading
+          ? "loading"
+          : "empty";
   const overviewRef = useRef<HTMLElement>(null);
   const seriesSearchRef = useRef<HTMLInputElement>(null);
   const completedReturnFocusKeyRef = useRef<string | null>(null);
@@ -103,7 +104,7 @@ export function SeriesOverview({
       completedReturnFocusKeyRef.current = null;
       return;
     }
-    if (isLoading || completedReturnFocusKeyRef.current === returnFocusKey) return;
+    if (surfaceState === "loading" || completedReturnFocusKeyRef.current === returnFocusKey) return;
 
     const target = Array.from(
       overviewRef.current?.querySelectorAll<HTMLButtonElement>("[data-library-series-key]") ?? [],
@@ -116,7 +117,7 @@ export function SeriesOverview({
 
     completedReturnFocusKeyRef.current = returnFocusKey;
     onReturnFocusComplete?.();
-  }, [isLoading, onReturnFocusComplete, returnFocusKey, visibleEntries]);
+  }, [onReturnFocusComplete, returnFocusKey, surfaceState, visibleEntries]);
 
   return (
     <section ref={overviewRef} aria-labelledby="series-overview-title" className="series-overview">
@@ -157,7 +158,7 @@ export function SeriesOverview({
 
         <div className="library-controls series-overview__controls">
           <span className="library-result-count" aria-live="polite">
-            {isLoading ? "Loading series" : `${visibleEntries.length} series`}
+            {surfaceState === "loading" ? "Loading series" : `${visibleEntries.length} series`}
           </span>
           <div className="library-controls__display">
             <AppSelect
@@ -179,11 +180,11 @@ export function SeriesOverview({
       </header>
 
       <div
-        aria-busy={isLoading || undefined}
+        aria-busy={surfaceState === "loading" || undefined}
         className="collection-content series-overview__content"
         data-surface-state={surfaceState}
       >
-        {isLoading ? (
+        {surfaceState === "loading" ? (
           <div aria-label="Loading series" className="series-loading" role="status">
             <span />
             <span />

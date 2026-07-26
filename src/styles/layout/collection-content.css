@@ -12,10 +12,20 @@
   padding-top: var(--collection-content-offset);
 }
 
+.collection-content:is(
+  [data-surface-state="empty"],
+  [data-surface-state="filter-empty"],
+  [data-surface-state="loading"],
+  [data-surface-state="search-empty"]
+) {
+  align-content: center;
+  padding-block: clamp(24px, 6vh, 72px);
+}
+
 .collection-content > .empty-state,
 .collection-content > .collection-content__loading {
   justify-self: center;
-  margin-top: clamp(48px, 10vh, 110px);
+  margin: 0;
 }
 
 html[data-motion="on"] .collection-content {

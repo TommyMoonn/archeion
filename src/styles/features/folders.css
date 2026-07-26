@@ -167,12 +167,12 @@ html[data-motion="on"] .folder-tree__children {
   border-radius: var(--radius-control);
 }
 
-.folder-browser__items {
-  padding-top: var(--collection-content-offset);
+.folder-browser__content {
+  width: 100%;
 }
 
 html[data-motion="on"] .folder-browser__items,
-html[data-motion="on"] .folder-browser > .empty-state {
+html[data-motion="on"] .folder-browser__content > .empty-state {
   animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
 }
 

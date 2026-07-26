@@ -87,6 +87,7 @@ describe("collection content spacing ownership", () => {
     expect(seriesOverviewSource).toContain(
       'className="collection-content series-overview__content"',
     );
+    expect(folderStyles).toContain(".folder-browser__content");
   });
 
   it("starts Library grid and list results from the shared parent-owned offset", () => {
@@ -99,12 +100,8 @@ describe("collection content spacing ownership", () => {
   });
 
   it("uses the same offset for Folder cards and list results", () => {
-    expect(folderStyles).toMatch(
-      /\.folder-browser__items\s*\{[^}]*padding-top:\s*var\(--collection-content-offset\);/s,
-    );
-    expect(folderStyles).not.toMatch(
-      /\.folder-browser__items--(?:cards|list)\s*\{[^}]*padding-top:/s,
-    );
+    expect(folderStyles).toMatch(/\.folder-browser__content\s*\{[^}]*width:\s*100%;/s);
+    expect(folderStyles).not.toMatch(/\.folder-browser__items[^{]*\{[^}]*padding-top:/s);
   });
 
   it("scopes collection card sizes to their owning result surfaces", () => {
@@ -124,7 +121,11 @@ describe("collection content spacing ownership", () => {
       /\.collection-content\s*\{[^}]*padding-top:\s*26px;[^}]*\}/s,
     );
     expect(collectionContentStyles).toMatch(
-      /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin-top:\s*clamp\(48px, 10vh, 110px\);/s,
+      /\.collection-content:is\([\s\S]*?\[data-surface-state="empty"\],[\s\S]*?\[data-surface-state="filter-empty"\],[\s\S]*?\[data-surface-state="loading"\],[\s\S]*?\[data-surface-state="search-empty"\][\s\S]*?\)\s*\{[^}]*align-content:\s*center;[^}]*padding-block:\s*clamp\(24px, 6vh, 72px\);/s,
     );
+    expect(collectionContentStyles).toMatch(
+      /\.collection-content > \.empty-state,\s*\.collection-content > \.collection-content__loading\s*\{[^}]*justify-self:\s*center;[^}]*margin:\s*0;/s,
+    );
+    expect(collectionContentStyles).not.toContain("margin-top: clamp(48px, 10vh, 110px)");
   });
 });

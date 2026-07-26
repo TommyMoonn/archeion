@@ -52,6 +52,7 @@ describe("folder contextual invocation", () => {
         canRevealFolders
         cardSize="medium"
         folders={[folder]}
+        isLoading={false}
         onDelete={vi.fn()}
         onMove={vi.fn()}
         onOpen={onOpen}

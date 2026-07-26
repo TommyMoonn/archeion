@@ -36,9 +36,10 @@ function getLibrarySurfaceState(
   debouncedQuery: string,
   hasFilters: boolean,
   isImporting: boolean,
+  isLoading: boolean,
   visibleBooks: readonly LibrarySnapshotBook[],
 ): LibrarySurfaceState {
-  if (books === undefined || (isImporting && books.length === 0)) return "loading";
+  if (books === undefined || ((isLoading || isImporting) && books.length === 0)) return "loading";
   if (visibleBooks.length > 0) return "results";
   if (debouncedQuery) return "search-empty";
   return hasFilters ? "filter-empty" : "empty";
@@ -65,6 +66,7 @@ type LibraryWorkspaceSurfaceProps = {
   hasFilters: boolean;
   importDropTarget: NonNullable<ComponentProps<typeof PageShell>["importDropTarget"]>;
   isImporting: boolean;
+  isLoading: boolean;
   location: LibraryLocation;
   mainRef: RefObject<HTMLElement | null>;
   focusOwnershipKey: string;
@@ -99,6 +101,7 @@ export function LibraryWorkspaceSurface({
   hasFilters,
   importDropTarget,
   isImporting,
+  isLoading,
   location,
   mainRef,
   focusOwnershipKey,
@@ -123,6 +126,7 @@ export function LibraryWorkspaceSurface({
     debouncedQuery,
     hasFilters,
     isImporting,
+    isLoading,
     visibleBooks,
   );
   const surfaceKey = `${libraryLocationKey(location)}:${view}:${surfaceState}`;
@@ -172,8 +176,14 @@ export function LibraryWorkspaceSurface({
       ) : location.type === "series" ? (
         <Suspense
           fallback={
-            <div className="library-loading" role="status">
-              Loading series
+            <div
+              aria-busy="true"
+              className="collection-content library-content"
+              data-surface-state="loading"
+            >
+              <div className="collection-content__loading library-loading" role="status">
+                Loading series
+              </div>
             </div>
           }
         >
@@ -188,8 +198,14 @@ export function LibraryWorkspaceSurface({
       ) : location.type === "series-detail" ? (
         <Suspense
           fallback={
-            <div className="library-loading" role="status">
-              Loading series
+            <div
+              aria-busy="true"
+              className="collection-content library-content"
+              data-surface-state="loading"
+            >
+              <div className="collection-content__loading library-loading" role="status">
+                Loading series
+              </div>
             </div>
           }
         >
@@ -217,7 +233,7 @@ export function LibraryWorkspaceSurface({
             showContinueReading ? (
               <ContinueReading books={continuePreview} onContinue={bookCollectionProps.onRead} />
             ) : null}
-            {books === undefined || (isImporting && books.length === 0) ? (
+            {books === undefined || ((isLoading || isImporting) && books.length === 0) ? (
               <div className="collection-content__loading library-loading" role="status">
                 <span className="library-loading__cover" />
                 <span>{isImporting ? "Adding EPUB files" : "Loading library"}</span>

@@ -349,10 +349,10 @@ html[data-density="compact"] .page-shell:has(> .library-selection-bar) {
 
 .page-shell[data-import-drop-active="true"]::after {
   content: "Add to " attr(data-import-drop-label);
-  position: fixed;
+  position: absolute;
   z-index: 9;
-  top: 18px;
-  right: 22px;
+  top: 14px;
+  right: 14px;
   padding: 7px 10px;
   border: 1px solid var(--accent-border);
   border-radius: var(--radius-pill);

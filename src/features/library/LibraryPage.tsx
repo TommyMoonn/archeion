@@ -673,6 +673,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           canManageFolders: true,
           canRevealFolders: true,
           folders: folders ?? [],
+          isLoading: booksLoadState.status === "loading",
           onCreate: dialogActions.openCreateFolder,
           onDelete: requestDeleteFolder,
           onMove: openMoveFolder,
@@ -695,6 +696,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           label: currentFolder?.name ?? "Archive root",
         }}
         isImporting={bookActions.isImporting}
+        isLoading={booksLoadState.status === "loading"}
         location={navigation.location}
         mainRef={navigation.pageShellRef}
         focusOwnershipKey={`${activeArchive.id}:${libraryLocationKey(navigation.location)}`}
@@ -727,7 +729,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         }}
         seriesOverviewProps={{
           entries: seriesEntries,
-          isLoading: books === undefined,
+          isLoading: booksLoadState.status === "loading",
           onClearSearch: () => navigation.setSeriesQuery(""),
           onOpen: (entry) => {
             setSeriesReturnFocusKey(entry.key);

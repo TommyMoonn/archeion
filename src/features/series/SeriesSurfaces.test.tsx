@@ -430,6 +430,33 @@ describe("series library surfaces", () => {
     expect(seriesStyles).not.toContain(".series-overview > .empty-state");
   });
 
+  it("preserves the Series search-empty recovery action", () => {
+    const onClearSearch = vi.fn();
+    const scope = mount(
+      <SeriesOverview
+        cardSize="medium"
+        entries={deriveSeriesEntries(seriesBooks())}
+        isLoading={false}
+        onClearSearch={onClearSearch}
+        onOpen={vi.fn()}
+        onQueryChange={vi.fn()}
+        onSortChange={vi.fn()}
+        onViewChange={vi.fn()}
+        query="missing"
+        sort="title"
+        view="grid"
+      />,
+    );
+    const content = scope.querySelector(".collection-content.series-overview__content");
+
+    expect(content?.getAttribute("data-surface-state")).toBe("search-empty");
+    expect(content?.textContent).toContain("No matching series");
+
+    act(() => buttonWithText(scope, "Clear search").click());
+
+    expect(onClearSearch).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps loading and empty series states semantically distinct", () => {
     const scope = mount(
       <SeriesOverview

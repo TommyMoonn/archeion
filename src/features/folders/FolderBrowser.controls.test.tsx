@@ -37,6 +37,7 @@ function mount(overrides: Partial<React.ComponentProps<typeof FolderBrowser>> = 
     bookCounts: new Map([["folder-a", 3]]),
     cardSize: "small",
     folders,
+    isLoading: false,
     onOpen: vi.fn(),
     onSortChange: vi.fn(),
     onViewChange: vi.fn(),
@@ -72,5 +73,33 @@ describe("FolderBrowser display controls", () => {
     expect(
       container.querySelector(".folder-browser__items")?.getAttribute("data-folder-card-size"),
     ).toBe("small");
+  });
+
+  it("preserves the search-empty recovery action", () => {
+    const { container } = mount();
+    const search = container.querySelector<HTMLInputElement>(
+      'input[name="archeion-folder-search"]',
+    );
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+
+    act(() => {
+      valueSetter?.call(search, "missing");
+      search?.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(
+      container.querySelector(".folder-browser__content")?.getAttribute("data-surface-state"),
+    ).toBe("search-empty");
+    expect(container.textContent).toContain("No folders found");
+
+    const clear = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent === "Clear search",
+    );
+    act(() => clear?.click());
+
+    expect(
+      container.querySelector(".folder-browser__content")?.getAttribute("data-surface-state"),
+    ).toBe("results");
+    expect(container.querySelector(".folder-browser__open")).not.toBeNull();
   });
 });
