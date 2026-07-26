@@ -230,16 +230,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...archiveImportSettings,
   };
   const {
-    bookCount,
     bookCountsByFolder,
     continuePreview,
     currentFolder,
     effectiveSort,
-    favoriteCount,
     filterOptions,
     index,
     libraryTitle,
-    smartViewCounts,
     visibleBooks,
   } = useLibraryDerivedState({
     books,
@@ -250,11 +247,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     smartViewPreferences,
     sort,
   });
-  const {
-    activeSeries,
-    entries: seriesEntries,
-    seriesCount,
-  } = useLibrarySeriesState(index, navigation.location);
+  const { activeSeries, entries: seriesEntries } = useLibrarySeriesState(
+    index,
+    navigation.location,
+  );
   const returnRestoration = useLibraryWorkspaceNavigationLifecycle({
     activeSeriesExists: Boolean(activeSeries),
     booksReady: booksLoadState.status === "ready",
@@ -750,10 +746,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           activeArchive,
           activeImportDropTargetId: activeImportDropTarget?.id,
           archives: archive.archives,
-          bookCount,
           canManageFolders: true,
           canRevealFolders: true,
-          favoriteCount,
           folders: folders ?? [],
           location: navigation.location,
           onCreateFolder: dialogActions.openCreateFolder,
@@ -771,8 +765,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onRenameFolder: openRenameFolder,
           onRevealFolder: (folder) => void bookActions.revealFolder(folder),
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
-          seriesCount,
-          smartViewCounts,
           smartViewPreferences,
         }}
         toolbarProps={{

@@ -34,13 +34,6 @@ const savedArchive: KnownArchive = {
   lastOpenedAt: "1",
 };
 
-const defaultSmartViewCounts: Parameters<typeof LibrarySidebar>[0]["smartViewCounts"] = {
-  unread: 0,
-  "in-progress": 0,
-  completed: 0,
-  "needs-metadata": 0,
-  "needs-cover": 0,
-};
 const enabledSmartViews: LibrarySmartViewPreferences = {
   enabled: true,
   visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
@@ -49,19 +42,14 @@ const enabledSmartViews: LibrarySmartViewPreferences = {
 function sidebarProps(
   folders: Folder[] = [],
   location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
-  smartViewCounts = defaultSmartViewCounts,
   onLocationChange: Parameters<typeof LibrarySidebar>[0]["onLocationChange"] = vi.fn(),
   smartViewPreferences = enabledSmartViews,
 ): Parameters<typeof LibrarySidebar>[0] {
   return {
     activeArchive,
     archives: [activeArchive, savedArchive],
-    bookCount: 0,
-    favoriteCount: 0,
     folders,
     location,
-    seriesCount: 3,
-    smartViewCounts,
     smartViewPreferences,
     onCreateFolder: vi.fn(),
     onDeleteFolder: vi.fn(),
@@ -78,19 +66,15 @@ function sidebarProps(
 function renderSidebar(
   folders: Folder[] = [],
   location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
-  smartViewCounts = defaultSmartViewCounts,
   smartViewPreferences = enabledSmartViews,
 ) {
   return renderToStaticMarkup(
-    <LibrarySidebar
-      {...sidebarProps(folders, location, smartViewCounts, vi.fn(), smartViewPreferences)}
-    />,
+    <LibrarySidebar {...sidebarProps(folders, location, vi.fn(), smartViewPreferences)} />,
   );
 }
 
 function renderInteractiveSidebar(
   location: Parameters<typeof LibrarySidebar>[0]["location"] = { type: "library" },
-  smartViewCounts = defaultSmartViewCounts,
   onLocationChange = vi.fn(),
   smartViewPreferences = enabledSmartViews,
 ) {
@@ -100,9 +84,7 @@ function renderInteractiveSidebar(
 
   act(() => {
     root.render(
-      <LibrarySidebar
-        {...sidebarProps([], location, smartViewCounts, onLocationChange, smartViewPreferences)}
-      />,
+      <LibrarySidebar {...sidebarProps([], location, onLocationChange, smartViewPreferences)} />,
     );
   });
 
@@ -245,21 +227,25 @@ describe("LibrarySidebar", () => {
     const markup = renderSidebar([], { type: "series-detail", seriesKey: "star saga" });
 
     expect(markup).toContain("Series");
-    expect(markup).toMatch(/aria-current="page"[\s\S]*?>Series<[\s\S]*?>3</);
+    expect(markup).toMatch(/aria-current="page"[\s\S]*?>Series</);
   });
 
   it("omits the complete Smart Views section when disabled", () => {
-    const markup = renderSidebar([], { type: "library" }, defaultSmartViewCounts, {
-      enabled: false,
-      visible: ["unread", "completed"],
-    });
+    const markup = renderSidebar(
+      [],
+      { type: "library" },
+      {
+        enabled: false,
+        visible: ["unread", "completed"],
+      },
+    );
 
     expect(markup).not.toContain("Smart views");
     expect(markup).not.toContain("sidebar__smart-views");
   });
 
   it("renders only selected Smart Views in canonical order", () => {
-    const session = renderInteractiveSidebar({ type: "library" }, defaultSmartViewCounts, vi.fn(), {
+    const session = renderInteractiveSidebar({ type: "library" }, vi.fn(), {
       enabled: true,
       visible: ["needs-cover", "unread"],
     });
@@ -267,7 +253,7 @@ describe("LibrarySidebar", () => {
 
     act(() => smartViewsDisclosure(session.container).click());
 
-    expect(session.container.textContent).toMatch(/Unread0[\s\S]*Needs cover0/);
+    expect(session.container.textContent).toMatch(/Unread[\s\S]*Needs cover/);
     expect(session.container.textContent).not.toContain("In progress");
     expect(session.container.textContent).not.toContain("Completed");
   });
@@ -301,16 +287,7 @@ describe("LibrarySidebar", () => {
   });
 
   it("indicates the active smart view compactly while collapsed", () => {
-    const session = renderInteractiveSidebar(
-      { type: "smart-view", smartView: "completed" },
-      {
-        unread: 4,
-        "in-progress": 3,
-        completed: 2,
-        "needs-metadata": 1,
-        "needs-cover": 5,
-      },
-    );
+    const session = renderInteractiveSidebar({ type: "smart-view", smartView: "completed" });
     activeRoot = session.root;
     const disclosure = smartViewsDisclosure(session.container);
 
@@ -325,17 +302,8 @@ describe("LibrarySidebar", () => {
     expect(disclosure.textContent).not.toContain("2");
   });
 
-  it("shows fixed smart-view rows, counts, and metadata guidance when expanded", () => {
-    const session = renderInteractiveSidebar(
-      { type: "smart-view", smartView: "completed" },
-      {
-        unread: 4,
-        "in-progress": 3,
-        completed: 2,
-        "needs-metadata": 1,
-        "needs-cover": 5,
-      },
-    );
+  it("shows fixed smart-view rows without counts and preserves metadata guidance", () => {
+    const session = renderInteractiveSidebar({ type: "smart-view", smartView: "completed" });
     activeRoot = session.root;
 
     act(() => smartViewsDisclosure(session.container).click());
@@ -345,11 +313,12 @@ describe("LibrarySidebar", () => {
       button.textContent?.includes("Needs metadata"),
     );
 
-    expect(markup).toMatch(/>Unread<[\s\S]*?>4</);
-    expect(markup).toMatch(/>In progress<[\s\S]*?>3</);
-    expect(markup).toMatch(/aria-current="page"[\s\S]*?>Completed<[\s\S]*?>2</);
-    expect(markup).toMatch(/>Needs metadata<[\s\S]*?>1</);
-    expect(markup).toMatch(/>Needs cover<[\s\S]*?>5</);
+    expect(markup).toContain(">Unread</span>");
+    expect(markup).toContain(">In progress</span>");
+    expect(markup).toMatch(/aria-current="page"[\s\S]*?>Completed<\/span>/);
+    expect(markup).toContain(">Needs metadata</span>");
+    expect(markup).toContain(">Needs cover</span>");
+    expect(markup).not.toContain("nav-item__count");
     expect(needsMetadata?.getAttribute("title")).toBe("Missing title or author");
     expect(
       session.container.querySelector(
@@ -360,20 +329,16 @@ describe("LibrarySidebar", () => {
 
   it("keeps Smart Views expanded after navigation and preserves existing routes", () => {
     const onLocationChange = vi.fn();
-    const session = renderInteractiveSidebar(
-      { type: "library" },
-      defaultSmartViewCounts,
-      onLocationChange,
-    );
+    const session = renderInteractiveSidebar({ type: "library" }, onLocationChange);
     activeRoot = session.root;
     const disclosure = smartViewsDisclosure(session.container);
 
     act(() => disclosure.click());
     const completed = Array.from(session.container.querySelectorAll("button")).find(
-      (button) => button.textContent === "Completed0",
+      (button) => button.textContent === "Completed",
     );
     const inProgress = Array.from(session.container.querySelectorAll("button")).find(
-      (button) => button.textContent === "In progress0",
+      (button) => button.textContent === "In progress",
     );
 
     act(() => completed?.click());

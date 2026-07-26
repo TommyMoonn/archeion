@@ -33,6 +33,7 @@
     .quick-actions,
     .menu-popover,
     .app-select__menu,
+    .page-shell,
     .book-card,
     .book-row,
     .settings-window,
@@ -40,6 +41,11 @@
     .reader-annotations
   ) {
     border-color: CanvasText;
+  }
+
+  .page-shell {
+    border: 1px solid CanvasText;
+    box-shadow: none;
   }
 
   :where(

@@ -335,7 +335,7 @@ function MainWindowApp() {
   }
 
   return (
-    <div className="window-app">
+    <div className="window-app window-app--main-shell">
       <WindowTitlebar canMaximize />
       <div className="window-app__content">
         <AppErrorBoundary>

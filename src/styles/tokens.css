@@ -83,16 +83,17 @@
   --danger-soft: var(--error-soft);
   --danger-border: var(--error-border);
 
-  --surface-app-frame: #202023;
-  --surface-sidebar: #202023;
-  --surface-main: #151516;
-  --surface-main-raised: #1d1d20;
+  --surface-app-frame: #151516;
+  --surface-sidebar: #151516;
+  --surface-main: #1b1b1d;
+  --surface-main-raised: #222225;
   --surface-border: var(--line);
   --surface-border-strong: var(--line-strong);
   --surface-shell-hover: rgb(255 255 255 / 5.5%);
   --surface-shell-active: rgb(255 255 255 / 8%);
 
   --shadow-card: 0 8px 24px rgb(5 8 12 / 11%);
+  --shadow-workspace: -2px 2px 16px rgb(5 8 12 / 16%);
   --shadow-popover: 0 18px 50px rgb(0 0 0 / 38%);
   --shadow-dialog: 0 28px 90px rgb(0 0 0 / 52%);
   --shadow-drawer: -24px 0 70px rgb(5 8 12 / 32%);
@@ -102,6 +103,7 @@
   --backdrop-soft: color-mix(in srgb, var(--darkening) 62%, transparent);
 
   --sidebar-width: 248px;
+  --shell-edge-inset: 4px;
   --collection-content-offset: 20px;
 
   --motion-duration-fast: 0ms;
@@ -174,6 +176,7 @@ html[data-app-theme="light"] {
   --surface-shell-active: rgb(30 26 23 / 8%);
 
   --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+  --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
   --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
   --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
   --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
@@ -225,6 +228,7 @@ html[data-app-theme="light"] {
     --surface-shell-active: rgb(30 26 23 / 8%);
 
     --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+    --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
     --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
     --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
     --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);

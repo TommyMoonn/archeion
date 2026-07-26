@@ -86,7 +86,9 @@ describe("single frameless window contract", () => {
     expect(titlebar.match(/appWindow\.toggleMaximize\(\)/g)).toHaveLength(1);
     expect(titlebar).not.toMatch(/data-mode|setDecorations|window frame style/i);
     expect(titlebar).not.toMatch(/archeion-icon|window-titlebar__identity/);
-    expect(styles).toContain("--window-titlebar-height: 32px");
+    expect(styles).toMatch(
+      /\.window-titlebar__controls button\s*\{[^}]*height:\s*var\(--window-titlebar-height\);/s,
+    );
     expect(styles).not.toMatch(/\[data-mode=|window-titlebar__identity|window-titlebar__icon/);
   });
 });

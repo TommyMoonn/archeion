@@ -9,11 +9,19 @@
   --window-titlebar-height: 32px;
 }
 
+.window-app--main-shell {
+  --window-titlebar-height: 40px;
+}
+
 .window-app__content {
   flex: 1;
   min-height: 0;
   overflow: hidden;
   background: var(--surface-main);
+}
+
+.window-app--main-shell .window-app__content {
+  background: var(--surface-app-frame);
 }
 
 .window-app__content .app-shell,
@@ -57,13 +65,14 @@
 
 .window-titlebar__controls {
   display: flex;
+  height: var(--window-titlebar-height);
   align-self: stretch;
 }
 
 .window-titlebar__controls button {
   display: grid;
   width: 42px;
-  height: 100%;
+  height: var(--window-titlebar-height);
   padding: 0;
   place-items: center;
   border: 0;
@@ -86,4 +95,8 @@
 .window-titlebar__controls .window-titlebar__close:hover {
   color: #fff;
   background: #c42b3a;
+}
+
+.window-app--main-shell .window-titlebar {
+  border-bottom: 0;
 }

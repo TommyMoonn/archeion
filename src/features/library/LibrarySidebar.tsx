@@ -35,7 +35,6 @@ import {
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
 import { ARCHIVE_ROOT_DESTINATION } from "../filesystem/archiveImport";
-import type { LibrarySmartViewCounts } from "./libraryFilters";
 
 const smartViewIcons: Record<LibrarySmartView, Icon> = {
   unread: BookOpenText,
@@ -53,12 +52,8 @@ function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView
 type LibrarySidebarProps = {
   activeArchive: KnownArchive;
   archives: KnownArchive[];
-  bookCount: number;
-  favoriteCount: number;
   folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
-  seriesCount: number;
-  smartViewCounts: LibrarySmartViewCounts;
   smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
   onCreateFolder: () => void;
@@ -81,12 +76,8 @@ type LibrarySidebarProps = {
 export const LibrarySidebar = memo(function LibrarySidebar({
   activeArchive,
   archives,
-  bookCount,
-  favoriteCount,
   folders,
   location,
-  seriesCount,
-  smartViewCounts,
   smartViewPreferences,
   canManageFolders = true,
   onCreateFolder,
@@ -140,7 +131,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         >
           <Books aria-hidden="true" size={19} weight="regular" />
           <span>Library</span>
-          <span className="nav-item__count">{bookCount}</span>
         </button>
         <button
           aria-current={
@@ -152,7 +142,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         >
           <Stack aria-hidden="true" size={19} weight="regular" />
           <span>Series</span>
-          <span className="nav-item__count">{seriesCount}</span>
         </button>
         <button
           aria-current={location.type === "favorites" ? "page" : undefined}
@@ -166,7 +155,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             weight={location.type === "favorites" ? "fill" : "regular"}
           />
           <span>Favorites</span>
-          <span className="nav-item__count">{favoriteCount}</span>
         </button>
         <button
           aria-current={location.type === "folders" ? "page" : undefined}
@@ -177,7 +165,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         >
           <Folders aria-hidden="true" size={19} weight="regular" />
           <span>Folders</span>
-          <span className="nav-item__count">{folders.length}</span>
         </button>
       </nav>
 
@@ -239,7 +226,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                 >
                   <SmartViewIcon aria-hidden="true" size={18} weight="regular" />
                   <span>{librarySmartViewLabel(view)}</span>
-                  <span className="nav-item__count">{smartViewCounts[view]}</span>
                 </button>
               );
             })}
