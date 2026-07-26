@@ -94,9 +94,11 @@ function Resolve-SafeProjectPath {
 function Add-TrackedChanges {
     param(
         [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$CopyPaths,
 
         [Parameter(Mandatory)]
+        [AllowEmptyCollection()]
         [System.Collections.Generic.HashSet[string]]$DeletePaths
     )
 
@@ -157,39 +159,6 @@ if ($insideWorkTree -ne "true") {
 
 [void](Invoke-GitRaw -Arguments @("rev-parse", "--verify", "HEAD"))
 
-$copyPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-$deletePaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
-Add-TrackedChanges -CopyPaths $copyPaths -DeletePaths $deletePaths
-
-if (-not $ExcludeUntracked) {
-    $untrackedRaw = Invoke-GitRaw -Arguments @("ls-files", "--others", "--exclude-standard", "-z")
-    $untrackedPaths = $untrackedRaw.Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)
-
-    foreach ($path in $untrackedPaths) {
-        [void]$copyPaths.Add($path)
-    }
-}
-
-foreach ($path in @($copyPaths)) {
-    $sourcePath = Resolve-SafeProjectPath -RelativePath $path
-
-    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
-        [void]$copyPaths.Remove($path)
-    }
-}
-
-foreach ($path in @($deletePaths)) {
-    $targetPath = Resolve-SafeProjectPath -RelativePath $path
-
-    if (Test-Path -LiteralPath $targetPath) {
-        [void]$deletePaths.Remove($path)
-    }
-}
-
-if ($copyPaths.Count -eq 0 -and $deletePaths.Count -eq 0) {
-    throw "No changed files were found."
-}
-
 $projectName = Split-Path $ProjectRoot -Leaf
 $cleanName = $Name.Trim()
 $cleanName = $cleanName -replace '\.zip$', ''
@@ -207,9 +176,47 @@ if ([string]::IsNullOrWhiteSpace($OutputPath)) {
 else {
     $OutputPath = [System.IO.Path]::GetFullPath($OutputPath)
 
-    if ([System.IO.Path]::GetExtension($OutputPath) -ne ".zip") {
+    if (-not [System.IO.Path]::GetExtension($OutputPath).Equals(".zip", [System.StringComparison]::OrdinalIgnoreCase)) {
         $OutputPath = "$OutputPath.zip"
     }
+}
+
+$copyPaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$deletePaths = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+Add-TrackedChanges -CopyPaths $copyPaths -DeletePaths $deletePaths
+
+if (-not $ExcludeUntracked) {
+    $untrackedRaw = Invoke-GitRaw -Arguments @("ls-files", "--others", "--exclude-standard", "-z")
+    $untrackedPaths = $untrackedRaw.Split([char]0, [System.StringSplitOptions]::RemoveEmptyEntries)
+
+    foreach ($path in $untrackedPaths) {
+        [void]$copyPaths.Add($path)
+    }
+}
+
+foreach ($path in @($copyPaths)) {
+    $sourcePath = Resolve-SafeProjectPath -RelativePath $path
+
+    if ($sourcePath.Equals($OutputPath, $PathComparison)) {
+        [void]$copyPaths.Remove($path)
+        continue
+    }
+
+    if (-not (Test-Path -LiteralPath $sourcePath -PathType Leaf)) {
+        [void]$copyPaths.Remove($path)
+    }
+}
+
+foreach ($path in @($deletePaths)) {
+    $targetPath = Resolve-SafeProjectPath -RelativePath $path
+
+    if (Test-Path -LiteralPath $targetPath) {
+        [void]$deletePaths.Remove($path)
+    }
+}
+
+if ($copyPaths.Count -eq 0 -and $deletePaths.Count -eq 0) {
+    throw "No changed files were found."
 }
 
 if (Test-Path -LiteralPath $OutputPath) {
