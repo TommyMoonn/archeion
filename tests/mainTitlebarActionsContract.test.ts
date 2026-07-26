@@ -40,8 +40,6 @@ describe("Phase 0.9.0.7 main titlebar actions contract", () => {
     );
     const actions = read("src/features/library/LibraryTitlebarActions.tsx");
     const styles = read("src/styles/layout/window-frame.css");
-    const buttonStyles = read("src/styles/components/buttons.css");
-    const forcedColors = read("src/styles/forced-colors.css");
 
     expect(owners.map((filePath) => path.relative(projectRoot, filePath))).toEqual([
       path.join("src", "features", "library", "LibraryWorkspaceSurface.tsx"),
@@ -55,11 +53,9 @@ describe("Phase 0.9.0.7 main titlebar actions contract", () => {
     expect(styles).toMatch(
       /\.library-titlebar-actions__quick-action \.icon-slot\s*\{[^}]*--icon-glyph-size:\s*16px;/s,
     );
-    expect(buttonStyles).toMatch(
-      /\.icon-button-tooltip-anchor:hover > \.icon-button__tooltip,\s*\.icon-button:focus-visible \+ \.icon-button__tooltip\s*\{[^}]*visibility:\s*visible;[^}]*opacity:\s*1;/s,
-    );
-    expect(forcedColors).toMatch(
-      /\.icon-button__tooltip\s*\{[^}]*border-color:\s*CanvasText;[^}]*color:\s*CanvasText;[^}]*background:\s*Canvas;/s,
+    expect(actions).not.toMatch(/\stooltip(?:\s|=|>)/);
+    expect(read("src/styles/components/buttons.css")).not.toMatch(
+      /\.icon-button(?:__tooltip|-tooltip-anchor)/,
     );
   });
 

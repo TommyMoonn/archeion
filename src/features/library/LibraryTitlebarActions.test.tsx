@@ -91,11 +91,8 @@ describe("LibraryTitlebarActions", () => {
     expect(actionGroup?.closest("[data-tauri-drag-region]")).toBeNull();
     for (const action of actionGroup?.querySelectorAll("button") ?? []) {
       expect(action.closest("[data-tauri-drag-region]")).toBeNull();
-      const tooltipId = action.getAttribute("aria-describedby");
-      expect(container.querySelector(`#${tooltipId}`)?.getAttribute("role")).toBe("tooltip");
-      expect(container.querySelector(`#${tooltipId}`)?.textContent).toBe(
-        action.getAttribute("aria-label"),
-      );
+      expect(action.title).toBe(action.getAttribute("aria-label"));
+      expect(action.getAttribute("aria-describedby")).toBeNull();
     }
   });
 
@@ -123,19 +120,15 @@ describe("LibraryTitlebarActions", () => {
     );
   });
 
-  it("opens Quick Actions exactly once and exposes its shortcut and tooltip", () => {
+  it("opens Quick Actions exactly once and exposes its shortcut and native tooltip", () => {
     const onOpenQuickActions = vi.fn();
     const { container } = renderActions({ onOpenQuickActions });
     const action = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Open Quick Actions"]',
     )!;
 
-    const tooltip = container.querySelector<HTMLElement>(
-      `#${action.getAttribute("aria-describedby")}`,
-    )!;
-    expect(action.title).toBe("");
-    expect(action.getAttribute("aria-describedby")).toBe(tooltip.id);
-    expect(tooltip.textContent).toBe("Open Quick Actions");
+    expect(action.title).toBe("Open Quick Actions");
+    expect(action.getAttribute("aria-describedby")).toBeNull();
     expect(action.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
     act(() => action.focus());
     expect(document.activeElement).toBe(action);
@@ -158,8 +151,8 @@ describe("LibraryTitlebarActions", () => {
     expect(action.getAttribute("aria-disabled")).toBe("true");
     expect(action.disabled).toBe(false);
     expect(descriptionId).toBeTruthy();
-    expect(container.querySelector(`#${descriptionId}`)?.getAttribute("role")).toBe("tooltip");
-    expect(container.querySelector(`#${descriptionId}`)?.textContent).toBe(reason);
+    expect(action.title).toBe(reason);
+    expect(document.getElementById(descriptionId!)?.textContent).toBe(reason);
     act(() => action.focus());
     expect(document.activeElement).toBe(action);
     act(() => action.click());

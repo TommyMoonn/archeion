@@ -183,9 +183,8 @@ describe("LibrarySidebar", () => {
       'button[aria-label="Collapse sidebar"]',
     );
 
-    expect(
-      session.container.querySelector(`#${control?.getAttribute("aria-describedby")}`)?.textContent,
-    ).toBe("Collapse sidebar");
+    expect(control?.title).toBe("Collapse sidebar");
+    expect(control?.getAttribute("aria-describedby")).toBeNull();
     expect(control?.closest(".window-titlebar__app-actions")).not.toBeNull();
     expect(control?.closest("[data-tauri-drag-region]")).toBeNull();
     expect(control?.querySelector(".library-titlebar-actions__sidebar-icon")).not.toBeNull();
@@ -218,9 +217,8 @@ describe("LibrarySidebar", () => {
     );
 
     expect(sidebar?.getAttribute("data-collapsed")).toBe("true");
-    expect(
-      session.container.querySelector(`#${expand?.getAttribute("aria-describedby")}`)?.textContent,
-    ).toBe("Expand sidebar");
+    expect(expand?.title).toBe("Expand sidebar");
+    expect(expand?.getAttribute("aria-describedby")).toBeNull();
     expect(expand?.getAttribute("data-sidebar-direction")).toBe("expand-right");
     for (const destination of ["Library", "Series", "Favorites", "Folders"]) {
       expect(

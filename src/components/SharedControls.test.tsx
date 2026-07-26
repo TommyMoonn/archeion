@@ -127,7 +127,7 @@ describe("shared control geometry", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("provides an opt-in shared tooltip associated with pointer and keyboard triggers", () => {
+  it("uses the native title tooltip for icon-only controls", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -135,24 +135,21 @@ describe("shared control geometry", () => {
 
     act(() => {
       root.render(
-        <IconButton label="Open actions" tooltip>
+        <IconButton label="Open actions">
           <span>+</span>
         </IconButton>,
       );
     });
 
     const button = container.querySelector("button")!;
-    const tooltip = container.querySelector<HTMLElement>('[role="tooltip"]')!;
-
-    expect(button.title).toBe("");
-    expect(button.getAttribute("aria-describedby")).toBe(tooltip.id);
-    expect(tooltip.textContent).toBe("Open actions");
-    expect(button.classList.contains("icon-button--has-tooltip")).toBe(true);
+    expect(button.title).toBe("Open actions");
+    expect(button.getAttribute("aria-describedby")).toBeNull();
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
     act(() => button.focus());
     expect(document.activeElement).toBe(button);
   });
 
-  it("uses an unavailable reason as the shared tooltip without weakening activation guards", () => {
+  it("uses an unavailable reason as the native tooltip without weakening activation guards", () => {
     const onClick = vi.fn();
     const container = document.createElement("div");
     document.body.append(container);
@@ -166,7 +163,6 @@ describe("shared control geometry", () => {
           disabledReason="Choose an archive first"
           label="Reveal archive"
           onClick={onClick}
-          tooltip
         >
           <span>↗</span>
         </IconButton>,
@@ -174,7 +170,7 @@ describe("shared control geometry", () => {
     });
 
     const button = container.querySelector("button")!;
-    const tooltip = container.querySelector<HTMLElement>('[role="tooltip"]')!;
+    const reasonId = button.getAttribute("aria-describedby")!;
     act(() => {
       button.focus();
       button.click();
@@ -182,8 +178,8 @@ describe("shared control geometry", () => {
 
     expect(button.disabled).toBe(false);
     expect(button.getAttribute("aria-disabled")).toBe("true");
-    expect(button.getAttribute("aria-describedby")).toBe(tooltip.id);
-    expect(tooltip.textContent).toBe("Choose an archive first");
+    expect(button.title).toBe("Choose an archive first");
+    expect(document.getElementById(reasonId)?.textContent).toBe("Choose an archive first");
     expect(onClick).not.toHaveBeenCalled();
   });
 

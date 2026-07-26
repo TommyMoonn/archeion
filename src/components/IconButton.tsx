@@ -7,7 +7,6 @@ type IconButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   disabledReason?: string;
   label: string;
   size?: ControlSize;
-  tooltip?: boolean;
 };
 
 export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(function IconButton(
@@ -20,7 +19,6 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     onClick,
     size = "standard",
     title,
-    tooltip = false,
     type = "button",
     "aria-describedby": ariaDescribedBy,
     ...props
@@ -28,24 +26,17 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   ref,
 ) {
   const reasonId = useId();
-  const tooltipId = useId();
   const hasAccessibleDisabledReason = Boolean(disabled && disabledReason);
   const tooltipText = disabled && disabledReason ? disabledReason : (title ?? label);
-  const ownedDescriptionId = tooltip ? tooltipId : hasAccessibleDisabledReason ? reasonId : null;
-  const descriptionIds = [ariaDescribedBy, ownedDescriptionId].filter(Boolean).join(" ");
+  const descriptionIds = [ariaDescribedBy, hasAccessibleDisabledReason ? reasonId : null]
+    .filter(Boolean)
+    .join(" ");
   const button = (
     <button
       aria-describedby={descriptionIds || undefined}
       aria-disabled={disabled || undefined}
       aria-label={label}
-      className={[
-        "icon-button",
-        `icon-button--${size}`,
-        tooltip ? "icon-button--has-tooltip" : "",
-        className,
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className={["icon-button", `icon-button--${size}`, className].filter(Boolean).join(" ")}
       disabled={disabled && !hasAccessibleDisabledReason}
       onClick={(event) => {
         if (disabled) {
@@ -56,7 +47,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         onClick?.(event);
       }}
       ref={ref}
-      title={tooltip ? undefined : tooltipText}
+      title={tooltipText}
       type={type}
       {...props}
     >
@@ -66,21 +57,10 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     </button>
   );
 
-  if (tooltip) {
-    return (
-      <span className="icon-button-tooltip-anchor">
-        {button}
-        <span className="icon-button__tooltip" id={tooltipId} role="tooltip">
-          {tooltipText}
-        </span>
-      </span>
-    );
-  }
-
   return (
     <>
       {button}
-      {hasAccessibleDisabledReason && !tooltip ? (
+      {hasAccessibleDisabledReason ? (
         <span className="sr-only" id={reasonId}>
           {disabledReason}
         </span>

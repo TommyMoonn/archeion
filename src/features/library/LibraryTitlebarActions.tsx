@@ -50,7 +50,6 @@ export function LibraryTitlebarActions({
             onClick={toggleSidebar}
             ref={collapseControlRef}
             size="standard"
-            tooltip
           >
             <SidebarSimple
               aria-hidden="true"
@@ -65,7 +64,6 @@ export function LibraryTitlebarActions({
           label="Open Quick Actions"
           onClick={onOpenQuickActions}
           size="standard"
-          tooltip
         >
           <Lightning aria-hidden="true" weight="regular" />
         </IconButton>
@@ -76,7 +74,6 @@ export function LibraryTitlebarActions({
           label="Reveal active archive folder"
           onClick={onRevealArchive}
           size="standard"
-          tooltip
         >
           <FolderOpen aria-hidden="true" weight="regular" />
         </IconButton>
