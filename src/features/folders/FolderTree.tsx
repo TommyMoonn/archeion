@@ -12,6 +12,7 @@ import {
   openContextMenuFromPointer,
   useContextMenuController,
 } from "../../components/contextMenuController";
+import { Tooltip } from "../../components/Tooltip";
 import type { ReadonlyFolder } from "../../types/folder";
 import type { LibraryLocation } from "../../types/library";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
@@ -80,20 +81,21 @@ function FolderNode({
         data-import-drop-target={folder.relativePath ? "true" : undefined}
         onContextMenu={handleContextMenu}
       >
-        <button
-          aria-current={isSelected ? "page" : undefined}
-          className="folder-tree__select"
-          data-active={isSelected || undefined}
-          data-library-folder-primary-action
-          title={folder.name}
-          onClick={() => onSelect(folder)}
-          onKeyDown={handlePrimaryKeyDown}
-          ref={primaryActionRef}
-          type="button"
-        >
-          <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />
-          <span>{folder.name}</span>
-        </button>
+        <Tooltip content={folder.name} onlyWhenTruncated="span" placement="right">
+          <button
+            aria-current={isSelected ? "page" : undefined}
+            className="folder-tree__select"
+            data-active={isSelected || undefined}
+            data-library-folder-primary-action
+            onClick={() => onSelect(folder)}
+            onKeyDown={handlePrimaryKeyDown}
+            ref={primaryActionRef}
+            type="button"
+          >
+            <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />
+            <span>{folder.name}</span>
+          </button>
+        </Tooltip>
         {showActions ? (
           <FolderActionsMenu
             controller={contextMenu}

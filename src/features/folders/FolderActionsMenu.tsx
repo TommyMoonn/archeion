@@ -44,7 +44,7 @@ export function FolderActionsMenu({
         <ContextMenuTrigger
           controller={controller}
           label={`Actions for ${folder.name}`}
-          title={`Actions for ${folder.name}`}
+          tooltip={`Actions for ${folder.name}`}
         >
           <span aria-hidden="true" className="icon-slot">
             <DotsThree weight="bold" />

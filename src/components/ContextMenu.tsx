@@ -16,6 +16,8 @@ import { createPortal } from "react-dom";
 
 import { inputModalityRuntime } from "../app/inputModality";
 import { MenuItem } from "./MenuItem";
+import { Tooltip, type TooltipPlacement } from "./Tooltip";
+import { useOwnedTooltipAvailable } from "./tooltipStore";
 import {
   isTopmostTransientSurface,
   useTransientSurfaceOwnership,
@@ -94,6 +96,8 @@ type ContextMenuTriggerProps = Omit<
   controller: ContextMenuController;
   disabledReason?: string;
   label: string;
+  tooltip?: string;
+  tooltipPlacement?: TooltipPlacement;
 };
 
 export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTriggerProps>(
@@ -107,6 +111,8 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
       label,
       onKeyDown,
       title,
+      tooltip,
+      tooltipPlacement,
       type = "button",
       ...props
     },
@@ -157,27 +163,42 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
     }
 
     const hasDisabledReason = Boolean(disabled && disabledReason);
+    const ownedTooltipAvailable = useOwnedTooltipAvailable();
+    const tooltipText = hasDisabledReason ? disabledReason : tooltip;
+    const usesOwnedDisabledDescription = Boolean(
+      ownedTooltipAvailable && hasDisabledReason && tooltipText,
+    );
+    const button = (
+      <button
+        aria-describedby={hasDisabledReason && !usesOwnedDisabledDescription ? reasonId : undefined}
+        aria-disabled={hasDisabledReason || undefined}
+        aria-expanded={controller.isOpen}
+        aria-haspopup="menu"
+        aria-label={label}
+        className={`menu-trigger ${className}`.trim()}
+        disabled={Boolean(disabled) && !hasDisabledReason}
+        onClick={handleClick}
+        onKeyDown={handleKeyDown}
+        ref={assignRef}
+        title={tooltipText ? undefined : title}
+        type={type}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+    const trigger = ownedTooltipAvailable ? (
+      <Tooltip content={tooltipText ?? ""} placement={tooltipPlacement}>
+        {button}
+      </Tooltip>
+    ) : (
+      button
+    );
 
     return (
       <>
-        <button
-          aria-describedby={hasDisabledReason ? reasonId : undefined}
-          aria-disabled={hasDisabledReason || undefined}
-          aria-expanded={controller.isOpen}
-          aria-haspopup="menu"
-          aria-label={label}
-          className={`menu-trigger ${className}`.trim()}
-          disabled={Boolean(disabled) && !hasDisabledReason}
-          onClick={handleClick}
-          onKeyDown={handleKeyDown}
-          ref={assignRef}
-          title={hasDisabledReason ? disabledReason : (title ?? label)}
-          type={type}
-          {...props}
-        >
-          {children}
-        </button>
-        {hasDisabledReason ? (
+        {trigger}
+        {hasDisabledReason && !usesOwnedDisabledDescription ? (
           <span className="sr-only" id={reasonId}>
             {disabledReason}
           </span>

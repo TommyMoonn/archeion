@@ -1,0 +1,39 @@
+.app-tooltip {
+  position: fixed;
+  z-index: 1200;
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px 8px;
+  color: var(--text-strong);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  text-align: center;
+  pointer-events: none;
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-small);
+  box-shadow: var(--shadow-popover);
+}
+
+html[data-motion="on"] .app-tooltip {
+  animation: app-tooltip-enter var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+@keyframes app-tooltip-enter {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-distance-small) / 2));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion="on"] .app-tooltip {
+    animation: none;
+  }
+}

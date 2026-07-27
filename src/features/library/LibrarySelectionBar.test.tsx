@@ -7,6 +7,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "../../components/Tooltip";
 import { LibrarySelectionBar } from "./LibrarySelectionBar";
 
 (
@@ -30,16 +31,18 @@ function renderSelectionBar({
 
   act(() => {
     root.render(
-      <LibrarySelectionBar
-        onAction={onAction}
-        onClear={vi.fn()}
-        onDeselectVisible={vi.fn()}
-        onExit={vi.fn()}
-        onSelectVisible={vi.fn()}
-        selectedCount={selectedCount}
-        visibleCount={visibleCount}
-        visibleSelectedCount={visibleSelectedCount}
-      />,
+      <TooltipProvider>
+        <LibrarySelectionBar
+          onAction={onAction}
+          onClear={vi.fn()}
+          onDeselectVisible={vi.fn()}
+          onExit={vi.fn()}
+          onSelectVisible={vi.fn()}
+          selectedCount={selectedCount}
+          visibleCount={visibleCount}
+          visibleSelectedCount={visibleSelectedCount}
+        />
+      </TooltipProvider>,
     );
   });
 
@@ -106,12 +109,19 @@ describe("LibrarySelectionBar", () => {
 
     expect(statusIcon?.getAttribute("width")).toBe("20");
     expect(statusIcon?.getAttribute("height")).toBe("20");
-    expect(favorite?.title).toBe("Add selected books to favorites");
-    expect(move?.title).toBe("Move selected books");
-    expect(more?.title).toBe("More bulk actions");
+    for (const [control, label] of [
+      [favorite, "Add selected books to favorites"],
+      [move, "Move selected books"],
+      [more, "More bulk actions"],
+    ] as const) {
+      expect(control?.getAttribute("title")).toBeNull();
+      expect(
+        document.getElementById(control?.getAttribute("aria-describedby") ?? "")?.textContent,
+      ).toBe(label);
+    }
   });
 
-  it("uses concise annotation export labels while preserving full hover tooltips", () => {
+  it("uses concise visible annotation export labels without redundant tooltips", () => {
     const onAction = vi.fn();
     const session = renderSelectionBar({ onAction });
     activeRoot = session.root;
@@ -123,8 +133,10 @@ describe("LibrarySelectionBar", () => {
       session.container.querySelectorAll<HTMLButtonElement>(".menu-item"),
     ).find((button) => button.textContent === "Annotations (JSON)");
 
-    expect(markdown?.title).toBe("Export annotations as Markdown");
-    expect(json?.title).toBe("Export annotations as JSON");
+    expect(markdown?.title).toBe("");
+    expect(json?.title).toBe("");
+    expect(markdown?.getAttribute("aria-describedby")).toBeNull();
+    expect(json?.getAttribute("aria-describedby")).toBeNull();
 
     act(() => json?.click());
     expect(onAction).toHaveBeenCalledWith("annotations-json");

@@ -1,4 +1,11 @@
 @media (forced-colors: active) {
+  .app-tooltip {
+    color: CanvasText;
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+
   :root[data-input-modality="keyboard"]
     :where(
       button,

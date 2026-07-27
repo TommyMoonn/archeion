@@ -84,7 +84,7 @@ function ArchiveRowActions({
           controller={controller}
           disabled={disabled}
           label={`Actions for ${archive.displayName}`}
-          title={`Actions for ${archive.displayName}`}
+          tooltip={`Actions for ${archive.displayName}`}
         >
           <span aria-hidden="true" className="icon-slot">
             <DotsThree weight="bold" />

@@ -104,7 +104,6 @@ export function ReaderToolbar({
         aria-label={backLabel}
         className="reader-toolbar__back"
         onClick={onBack}
-        title={backLabel}
         type="button"
       >
         <span aria-hidden="true" className="icon-slot">
@@ -120,6 +119,8 @@ export function ReaderToolbar({
             label="Previous chapter"
             onClick={onPreviousChapter}
             size="compact"
+            tooltip={previousChapterDisabled ? "You are at the first chapter" : "Previous chapter"}
+            tooltipPlacement="bottom"
           >
             <CaretDoubleLeft aria-hidden="true" weight="bold" />
           </IconButton>
@@ -141,6 +142,8 @@ export function ReaderToolbar({
             label="Next chapter"
             onClick={onNextChapter}
             size="compact"
+            tooltip={nextChapterDisabled ? "You are at the final chapter" : "Next chapter"}
+            tooltipPlacement="bottom"
           >
             <CaretDoubleRight aria-hidden="true" weight="bold" />
           </IconButton>
@@ -157,6 +160,8 @@ export function ReaderToolbar({
           onClick={onToc}
           ref={tocButtonRef}
           size="compact"
+          tooltip="Table of contents"
+          tooltipPlacement="bottom"
         >
           <ListBullets aria-hidden="true" weight="regular" />
         </IconButton>
@@ -168,6 +173,8 @@ export function ReaderToolbar({
           onClick={onAnnotations}
           ref={annotationButtonRef}
           size="compact"
+          tooltip="Annotations"
+          tooltipPlacement="bottom"
         >
           <BookmarksSimple aria-hidden="true" weight="regular" />
         </IconButton>
@@ -180,6 +187,10 @@ export function ReaderToolbar({
           label={bookmarkActive ? "Remove bookmark" : "Add bookmark"}
           onClick={onToggleBookmark}
           size="compact"
+          tooltip={
+            bookmarkToggleDisabledReason ?? (bookmarkActive ? "Remove bookmark" : "Add bookmark")
+          }
+          tooltipPlacement="bottom"
         >
           <BookmarkSimple aria-hidden="true" weight={bookmarkActive ? "fill" : "regular"} />
         </IconButton>
@@ -192,6 +203,16 @@ export function ReaderToolbar({
           }
           onClick={onPrevious}
           size="compact"
+          tooltip={
+            atStart
+              ? mode === "continuous"
+                ? "You are at the top"
+                : "You are on the first page"
+              : mode === "continuous"
+                ? "Scroll up"
+                : "Previous page"
+          }
+          tooltipPlacement="bottom"
         >
           <CaretLeft aria-hidden="true" weight="bold" />
         </IconButton>
@@ -203,6 +224,16 @@ export function ReaderToolbar({
           }
           onClick={onNext}
           size="compact"
+          tooltip={
+            atEnd
+              ? mode === "continuous"
+                ? "You are at the end"
+                : "You are on the final page"
+              : mode === "continuous"
+                ? "Scroll down"
+                : "Next page"
+          }
+          tooltipPlacement="bottom"
         >
           <CaretRight aria-hidden="true" weight="bold" />
         </IconButton>
@@ -212,6 +243,8 @@ export function ReaderToolbar({
           label="Quick Actions"
           onClick={onQuickActions}
           size="compact"
+          tooltip="Quick Actions"
+          tooltipPlacement="bottom"
         >
           <Lightning aria-hidden="true" weight="regular" />
         </IconButton>
@@ -221,6 +254,8 @@ export function ReaderToolbar({
           onClick={onSettings}
           ref={settingsButtonRef}
           size="compact"
+          tooltip="Reader settings"
+          tooltipPlacement="bottom"
         >
           <TextAa aria-hidden="true" weight="regular" />
         </IconButton>

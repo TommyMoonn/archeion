@@ -14,6 +14,7 @@ import {
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
+import { Tooltip } from "../../components/Tooltip";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 
 type LibrarySelectionBarProps = {
@@ -95,6 +96,13 @@ export function LibrarySelectionBar({
             label="Add selected books to favorites"
             onClick={() => onAction("favorite")}
             size="compact"
+            tooltip={
+              busy
+                ? "Wait for the current action to finish"
+                : selectedCount === 0
+                  ? "Select a book first"
+                  : "Add selected books to favorites"
+            }
           >
             <Heart aria-hidden="true" />
           </IconButton>
@@ -105,19 +113,27 @@ export function LibrarySelectionBar({
             label="Move selected books"
             onClick={() => onAction("move")}
             size="compact"
+            tooltip={
+              busy
+                ? "Wait for the current action to finish"
+                : selectedCount === 0
+                  ? "Select a book first"
+                  : "Move selected books"
+            }
           >
             <ArrowRight aria-hidden="true" />
           </IconButton>
           <details className="library-selection-actions-menu" ref={detailsRef}>
-            <summary
-              className="menu-trigger library-selection-bar__icon-action"
-              aria-label="More bulk actions"
-              title="More bulk actions"
-            >
-              <span aria-hidden="true" className="icon-slot">
-                <DotsThree weight="bold" />
-              </span>
-            </summary>
+            <Tooltip content="More bulk actions">
+              <summary
+                className="menu-trigger library-selection-bar__icon-action"
+                aria-label="More bulk actions"
+              >
+                <span aria-hidden="true" className="icon-slot">
+                  <DotsThree weight="bold" />
+                </span>
+              </summary>
+            </Tooltip>
             <div className="menu-popover" role="menu">
               <MenuItem
                 disabled={busy || selectedCount === 0}
@@ -158,7 +174,6 @@ export function LibrarySelectionBar({
                 disabled={busy || selectedCount === 0}
                 icon={<DownloadSimple />}
                 onClick={() => runOverflowAction("annotations-markdown")}
-                title="Export annotations as Markdown"
               >
                 Annotations (Markdown)
               </MenuItem>
@@ -166,7 +181,6 @@ export function LibrarySelectionBar({
                 disabled={busy || selectedCount === 0}
                 icon={<DownloadSimple />}
                 onClick={() => runOverflowAction("annotations-json")}
-                title="Export annotations as JSON"
               >
                 Annotations (JSON)
               </MenuItem>

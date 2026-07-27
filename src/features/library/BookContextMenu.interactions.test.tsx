@@ -4,6 +4,7 @@ import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { TooltipProvider } from "../../components/Tooltip";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 
 import type { Book } from "../../types/book";
@@ -85,11 +86,13 @@ function mount(node: React.ReactNode) {
   root = createRoot(container);
   act(() =>
     root?.render(
-      <LibraryStorageContext.Provider
-        value={{ loadBookCover: vi.fn(() => new Promise(() => undefined)) } as never}
-      >
-        {node}
-      </LibraryStorageContext.Provider>,
+      <TooltipProvider>
+        <LibraryStorageContext.Provider
+          value={{ loadBookCover: vi.fn(() => new Promise(() => undefined)) } as never}
+        >
+          {node}
+        </LibraryStorageContext.Provider>
+      </TooltipProvider>,
     ),
   );
   return container;
@@ -115,6 +118,10 @@ describe("book contextual invocation", () => {
       />,
     );
     const card = view.querySelector<HTMLElement>(".book-card");
+    const actionTrigger = view.querySelector<HTMLButtonElement>('[aria-label="Actions for Book"]')!;
+    expect(
+      document.getElementById(actionTrigger.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("Actions for Book");
 
     act(() => {
       card?.dispatchEvent(
@@ -296,7 +303,10 @@ describe("book contextual invocation", () => {
     const trigger = card?.querySelector<HTMLButtonElement>('[aria-label="Actions for Book"]');
 
     expect(trigger?.getAttribute("aria-disabled")).toBe("true");
-    expect(trigger?.getAttribute("title")).toBe(MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON);
+    expect(trigger?.getAttribute("title")).toBeNull();
+    expect(
+      document.getElementById(trigger?.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe(MULTI_SELECTION_CONTEXT_MENU_DISABLED_REASON);
 
     act(() => {
       card?.dispatchEvent(

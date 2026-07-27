@@ -1,4 +1,6 @@
 import { useId, type ButtonHTMLAttributes, type MouseEvent, type ReactNode, type Ref } from "react";
+import { Tooltip } from "./Tooltip";
+import { useOwnedTooltipAvailable } from "./tooltipStore";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ControlSize = "compact" | "standard" | "prominent";
@@ -31,6 +33,8 @@ export function Button({
   const generatedId = useId();
   const hasExplainedDisabledState = disabled && Boolean(disabledReason);
   const reasonId = hasExplainedDisabledState ? `button-reason-${generatedId}` : undefined;
+  const ownedTooltipAvailable = useOwnedTooltipAvailable();
+  const usesOwnedDisabledDescription = Boolean(ownedTooltipAvailable && hasExplainedDisabledState);
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     if (disabled) {
@@ -41,28 +45,37 @@ export function Button({
     onClick?.(event);
   }
 
+  const button = (
+    <button
+      aria-busy={busy || undefined}
+      aria-describedby={!usesOwnedDisabledDescription ? reasonId : undefined}
+      aria-disabled={hasExplainedDisabledState || undefined}
+      className={`button button--${variant} button--${size} ${className}`.trim()}
+      disabled={disabled && !hasExplainedDisabledState}
+      onClick={handleClick}
+      ref={ref}
+      title={hasExplainedDisabledState ? undefined : title}
+      type={type}
+      {...props}
+    >
+      {icon ? (
+        <span aria-hidden="true" className="button__icon icon-slot">
+          {icon}
+        </span>
+      ) : null}
+      <span className="button__label">{children}</span>
+    </button>
+  );
+  const control = ownedTooltipAvailable ? (
+    <Tooltip content={hasExplainedDisabledState ? (disabledReason ?? "") : ""}>{button}</Tooltip>
+  ) : (
+    button
+  );
+
   return (
     <>
-      <button
-        aria-busy={busy || undefined}
-        aria-describedby={reasonId}
-        aria-disabled={hasExplainedDisabledState || undefined}
-        className={`button button--${variant} button--${size} ${className}`.trim()}
-        disabled={disabled && !hasExplainedDisabledState}
-        onClick={handleClick}
-        ref={ref}
-        title={hasExplainedDisabledState ? disabledReason : title}
-        type={type}
-        {...props}
-      >
-        {icon ? (
-          <span aria-hidden="true" className="button__icon icon-slot">
-            {icon}
-          </span>
-        ) : null}
-        <span className="button__label">{children}</span>
-      </button>
-      {reasonId ? (
+      {control}
+      {reasonId && !usesOwnedDisabledDescription ? (
         <span className="sr-only" id={reasonId}>
           {disabledReason}
         </span>

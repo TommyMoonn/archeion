@@ -17,6 +17,7 @@
 @import "./components/empty-state.css";
 @import "./components/status-page.css";
 @import "./components/status-tokens.css";
+@import "./components/tooltips.css";
 
 @import "./features/archive.css";
 @import "./features/library.css";

@@ -41,7 +41,7 @@ export function MenuItem({
         onClick={handleClick}
         role="menuitem"
         type={type}
-        title={hasDisabledReason ? disabledReason : title}
+        title={title}
         {...props}
       >
         {icon ? (

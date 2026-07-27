@@ -110,6 +110,7 @@ vi.mock("./router", () => ({
   router: {
     navigate: mocks.navigate,
     state: { location: { pathname: "/" } },
+    subscribe: vi.fn(() => () => undefined),
   },
 }));
 vi.mock("./startupController", async (importOriginal) => {

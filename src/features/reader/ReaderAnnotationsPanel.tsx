@@ -16,6 +16,7 @@ import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { MenuItem } from "../../components/MenuItem";
 import { SegmentedControl } from "../../components/SegmentedControl";
+import { Tooltip } from "../../components/Tooltip";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
@@ -234,16 +235,17 @@ export function ReaderAnnotationsPanel({
             onToggle={(event) => setExportMenuOpen(event.currentTarget.open)}
             ref={exportMenuRef}
           >
-            <summary
-              aria-haspopup="menu"
-              aria-label="Export annotations"
-              className="menu-trigger"
-              title="Export annotations"
-            >
-              <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                <DownloadSimple />
-              </span>
-            </summary>
+            <Tooltip content="Export annotations">
+              <summary
+                aria-haspopup="menu"
+                aria-label="Export annotations"
+                className="menu-trigger"
+              >
+                <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                  <DownloadSimple />
+                </span>
+              </summary>
+            </Tooltip>
             <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
               <MenuItem
                 disabled={actions.exportState?.status === "exporting"}

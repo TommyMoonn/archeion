@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
+import { TooltipProvider } from "../../components/Tooltip";
 import { LibraryTitlebarActions } from "./LibraryTitlebarActions";
 
 (
@@ -57,7 +58,13 @@ function renderActions({
     );
   }
 
-  act(() => root?.render(<Harness />));
+  act(() =>
+    root?.render(
+      <TooltipProvider>
+        <Harness />
+      </TooltipProvider>,
+    ),
+  );
   return { container, onOpenQuickActions, onRevealArchive };
 }
 
@@ -91,8 +98,12 @@ describe("LibraryTitlebarActions", () => {
     expect(actionGroup?.closest("[data-tauri-drag-region]")).toBeNull();
     for (const action of actionGroup?.querySelectorAll("button") ?? []) {
       expect(action.closest("[data-tauri-drag-region]")).toBeNull();
-      expect(action.title).toBe(action.getAttribute("aria-label"));
-      expect(action.getAttribute("aria-describedby")).toBeNull();
+      expect(action.title).toBe("");
+      const descriptionId = action.getAttribute("aria-describedby");
+      expect(descriptionId).toBeTruthy();
+      expect(document.getElementById(descriptionId!)?.textContent).toBe(
+        action.getAttribute("aria-label"),
+      );
     }
   });
 
@@ -120,15 +131,16 @@ describe("LibraryTitlebarActions", () => {
     );
   });
 
-  it("opens Quick Actions exactly once and exposes its shortcut and native tooltip", () => {
+  it("opens Quick Actions exactly once and exposes its shortcut and owned tooltip", () => {
     const onOpenQuickActions = vi.fn();
     const { container } = renderActions({ onOpenQuickActions });
     const action = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Open Quick Actions"]',
     )!;
 
-    expect(action.title).toBe("Open Quick Actions");
-    expect(action.getAttribute("aria-describedby")).toBeNull();
+    expect(action.title).toBe("");
+    const descriptionId = action.getAttribute("aria-describedby");
+    expect(document.getElementById(descriptionId!)?.textContent).toBe("Open Quick Actions");
     expect(action.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
     act(() => action.focus());
     expect(document.activeElement).toBe(action);
@@ -151,7 +163,7 @@ describe("LibraryTitlebarActions", () => {
     expect(action.getAttribute("aria-disabled")).toBe("true");
     expect(action.disabled).toBe(false);
     expect(descriptionId).toBeTruthy();
-    expect(action.title).toBe(reason);
+    expect(action.title).toBe("");
     expect(document.getElementById(descriptionId!)?.textContent).toBe(reason);
     act(() => action.focus());
     expect(document.activeElement).toBe(action);

@@ -118,6 +118,8 @@ export function LibraryToolbar({
             className="library-select-button"
             label={selectionMode ? "Finish selecting books" : "Select books"}
             onClick={onToggleSelectionMode}
+            tooltip={selectionMode ? "Finish selecting books" : "Select books"}
+            tooltipPlacement="bottom"
           >
             <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
           </IconButton>

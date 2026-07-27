@@ -15,6 +15,7 @@ import { IconButton } from "./IconButton";
 import { Input } from "./Input";
 import { MenuItem } from "./MenuItem";
 import { SegmentedControl } from "./SegmentedControl";
+import { TooltipProvider } from "./Tooltip";
 import { Toggle } from "./Toggle";
 
 let activeRoot: Root | null = null;
@@ -27,6 +28,7 @@ function pointerClick(target: HTMLElement) {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   if (activeRoot) {
     act(() => activeRoot?.unmount());
   }
@@ -61,7 +63,7 @@ describe("shared control geometry", () => {
     expect(markup).toContain('aria-busy="true"');
     expect(markup).toContain("Save changes");
     expect(markup).toContain("icon-button--prominent");
-    expect(markup).toContain('title="Finish saving first"');
+    expect(markup).not.toContain('title="Finish saving first"');
     expect(markup).toContain("input-shell--standard");
     expect(markup).toContain("segmented-control--standard");
     expect(markup).toContain("toggle-control--compact");
@@ -127,7 +129,7 @@ describe("shared control geometry", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
-  it("uses the native title tooltip for icon-only controls", () => {
+  it("does not infer a tooltip for an icon-only control without explicit adoption", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
@@ -142,14 +144,14 @@ describe("shared control geometry", () => {
     });
 
     const button = container.querySelector("button")!;
-    expect(button.title).toBe("Open actions");
+    expect(button.title).toBe("");
     expect(button.getAttribute("aria-describedby")).toBeNull();
     expect(document.querySelector('[role="tooltip"]')).toBeNull();
     act(() => button.focus());
     expect(document.activeElement).toBe(button);
   });
 
-  it("uses an unavailable reason as the native tooltip without weakening activation guards", () => {
+  it("keeps an unavailable reason accessible without a native tooltip", () => {
     const onClick = vi.fn();
     const container = document.createElement("div");
     document.body.append(container);
@@ -178,9 +180,86 @@ describe("shared control geometry", () => {
 
     expect(button.disabled).toBe(false);
     expect(button.getAttribute("aria-disabled")).toBe("true");
-    expect(button.title).toBe("Choose an archive first");
+    expect(button.title).toBe("");
     expect(document.getElementById(reasonId)?.textContent).toBe("Choose an archive first");
     expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it("lets an unavailable reason override an icon control's normal tooltip", () => {
+    vi.useFakeTimers();
+    const onEnabledClick = vi.fn();
+    const onUnavailableClick = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <TooltipProvider>
+          <IconButton label="Open archive" onClick={onEnabledClick} tooltip="Open archive">
+            <span>↗</span>
+          </IconButton>
+          <IconButton
+            disabled
+            disabledReason="Choose an archive first"
+            label="Reveal archive"
+            onClick={onUnavailableClick}
+            tooltip="Reveal archive"
+          >
+            <span>↗</span>
+          </IconButton>
+        </TooltipProvider>,
+      );
+    });
+
+    const [enabled, unavailable] = container.querySelectorAll("button");
+    const enabledDescriptionId = enabled?.getAttribute("aria-describedby") ?? "";
+    const unavailableDescriptionId = unavailable?.getAttribute("aria-describedby") ?? "";
+    expect(document.getElementById(enabledDescriptionId)?.textContent).toBe("Open archive");
+    expect(document.getElementById(unavailableDescriptionId)?.getAttribute("role")).toBe("tooltip");
+    expect(document.getElementById(unavailableDescriptionId)?.textContent).toBe(
+      "Choose an archive first",
+    );
+    expect(unavailable?.disabled).toBe(false);
+    expect(unavailable?.getAttribute("aria-disabled")).toBe("true");
+
+    act(() => {
+      enabled?.click();
+      unavailable?.focus();
+      unavailable?.click();
+      const pointerEnter = new Event("pointerover", { bubbles: true });
+      Object.defineProperty(pointerEnter, "pointerType", { value: "mouse" });
+      unavailable?.dispatchEvent(pointerEnter);
+      vi.advanceTimersByTime(500);
+    });
+
+    expect(document.querySelector(".app-tooltip")?.textContent).toBe("Choose an archive first");
+    expect(onEnabledClick).toHaveBeenCalledOnce();
+    expect(onUnavailableClick).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("does not add redundant tooltips to clear visible text controls", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <TooltipProvider>
+          <Button>Save changes</Button>
+          <MenuItem>Edit metadata</MenuItem>
+        </TooltipProvider>,
+      );
+    });
+
+    for (const control of container.querySelectorAll("button")) {
+      expect(control.getAttribute("title")).toBeNull();
+      expect(control.getAttribute("aria-describedby")).toBeNull();
+    }
+    expect(document.querySelector('[role="tooltip"]')).toBeNull();
   });
 
   it("keeps an explained disabled button focusable while blocking click, parent, and form activation", () => {

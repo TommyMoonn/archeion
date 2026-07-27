@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Minus, Square, X } from "@phosphor-icons/react";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { Tooltip } from "./Tooltip";
 
 type WindowTitlebarProps = {
   canMaximize: boolean;
@@ -54,39 +55,42 @@ export function WindowTitlebar({ canMaximize }: WindowTitlebarProps) {
       <WindowTitlebarAppActionsHost />
       <div className="window-titlebar__drag-region" data-tauri-drag-region />
       <div className="window-titlebar__controls" role="group" aria-label="Window controls">
-        <button
-          aria-label="Minimize window"
-          title="Minimize window"
-          onClick={() => void appWindow.minimize()}
-          type="button"
-        >
-          <span aria-hidden="true" className="icon-slot icon-slot--compact">
-            <Minus />
-          </span>
-        </button>
-        {canMaximize ? (
+        <Tooltip content="Minimize window" placement="bottom">
           <button
-            aria-label="Maximize or restore window"
-            title="Maximize or restore window"
-            onClick={() => void appWindow.toggleMaximize()}
+            aria-label="Minimize window"
+            onClick={() => void appWindow.minimize()}
             type="button"
           >
             <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <Square />
+              <Minus />
             </span>
           </button>
+        </Tooltip>
+        {canMaximize ? (
+          <Tooltip content="Maximize or restore window" placement="bottom">
+            <button
+              aria-label="Maximize or restore window"
+              onClick={() => void appWindow.toggleMaximize()}
+              type="button"
+            >
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <Square />
+              </span>
+            </button>
+          </Tooltip>
         ) : null}
-        <button
-          aria-label="Close window"
-          title="Close window"
-          className="window-titlebar__close"
-          onClick={() => void appWindow.close()}
-          type="button"
-        >
-          <span aria-hidden="true" className="icon-slot icon-slot--compact">
-            <X />
-          </span>
-        </button>
+        <Tooltip content="Close window" placement="bottom">
+          <button
+            aria-label="Close window"
+            className="window-titlebar__close"
+            onClick={() => void appWindow.close()}
+            type="button"
+          >
+            <span aria-hidden="true" className="icon-slot icon-slot--compact">
+              <X />
+            </span>
+          </button>
+        </Tooltip>
       </div>
     </header>
   );

@@ -68,7 +68,7 @@ export function BookContextMenu({
           disabled={Boolean(disabledReason)}
           disabledReason={disabledReason}
           label={`Actions for ${title}`}
-          title={`Actions for ${title}`}
+          tooltip={`Actions for ${title}`}
         >
           <span aria-hidden="true" className="icon-slot">
             <DotsThree weight="bold" />

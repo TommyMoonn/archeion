@@ -8,6 +8,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
+import { Tooltip } from "../../components/Tooltip";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
 import {
@@ -135,36 +136,40 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
         role="menu"
         style={{ left: position.left, top: position.top }}
       >
-        {PALETTE_OPTIONS.map((choice) => (
-          <button
-            aria-checked={choice === selectedColor}
-            aria-label={paletteChoiceLabel(choice, hasAttachedNote, existingHighlight)}
-            className={`reader-highlight-menu__color${
-              choice === "none" ? " reader-highlight-menu__color--none" : ""
-            }`}
-            data-color={choice}
-            disabled={busy}
-            key={choice}
-            onClick={() => onChoose(choice)}
-            role="menuitemradio"
-            title={paletteChoiceLabel(choice, hasAttachedNote, existingHighlight)}
-            type="button"
-          />
-        ))}
+        {PALETTE_OPTIONS.map((choice) => {
+          const choiceLabel = paletteChoiceLabel(choice, hasAttachedNote, existingHighlight);
+          return (
+            <Tooltip content={choiceLabel} key={choice}>
+              <button
+                aria-checked={choice === selectedColor}
+                aria-label={choiceLabel}
+                className={`reader-highlight-menu__color${
+                  choice === "none" ? " reader-highlight-menu__color--none" : ""
+                }`}
+                data-color={choice}
+                disabled={busy}
+                onClick={() => onChoose(choice)}
+                role="menuitemradio"
+                type="button"
+              />
+            </Tooltip>
+          );
+        })}
         <span aria-hidden="true" className="reader-highlight-menu__divider" />
-        <button
-          aria-label={noteActionLabel}
-          className="reader-highlight-menu__note"
-          disabled={busy}
-          onClick={onNote}
-          role="menuitem"
-          title={noteActionLabel}
-          type="button"
-        >
-          <span aria-hidden="true" className="icon-slot">
-            <NotePencil />
-          </span>
-        </button>
+        <Tooltip content={noteActionLabel}>
+          <button
+            aria-label={noteActionLabel}
+            className="reader-highlight-menu__note"
+            disabled={busy}
+            onClick={onNote}
+            role="menuitem"
+            type="button"
+          >
+            <span aria-hidden="true" className="icon-slot">
+              <NotePencil />
+            </span>
+          </button>
+        </Tooltip>
       </div>
     );
   },

@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WindowTitlebar, WindowTitlebarAppActions } from "./WindowTitlebar";
+import { TooltipProvider } from "./Tooltip";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -36,14 +37,14 @@ function renderTitlebar(canMaximize: boolean, withAppAction = false) {
 
   act(() => {
     root.render(
-      <>
+      <TooltipProvider>
         <WindowTitlebar canMaximize={canMaximize} />
         {withAppAction ? (
           <WindowTitlebarAppActions>
             <button aria-label="Library frame action" type="button" />
           </WindowTitlebarAppActions>
         ) : null}
-      </>,
+      </TooltipProvider>,
     );
   });
 
@@ -85,6 +86,13 @@ describe("WindowTitlebar", () => {
       "Window titlebar",
     );
     expect(dragRegion?.hasAttribute("data-tauri-drag-region")).toBe(true);
+    for (const label of ["Minimize window", "Maximize or restore window", "Close window"]) {
+      const control = button(container, label);
+      expect(control.title).toBe("");
+      expect(document.getElementById(control.getAttribute("aria-describedby")!)?.textContent).toBe(
+        label,
+      );
+    }
 
     act(() => button(container, "Minimize window").click());
     act(() => button(container, "Maximize or restore window").click());

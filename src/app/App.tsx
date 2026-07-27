@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
+import { TooltipProvider } from "../components/Tooltip";
 import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
 import {
@@ -34,6 +35,10 @@ const ArchiveManagerWindow = lazy(() =>
   })),
 );
 
+function subscribeToRouteChanges(listener: () => void): () => void {
+  return router.subscribe(listener);
+}
+
 export function App() {
   const windowMode = resolveWindowMode();
 
@@ -47,20 +52,26 @@ export function App() {
 
   if (windowMode === "archive-manager") {
     return (
-      <div className="window-app window-app--archive-manager">
-        <WindowTitlebar canMaximize={false} />
-        <div className="window-app__content">
-          <AppErrorBoundary>
-            <Suspense fallback={null}>
-              <ArchiveManagerWindow />
-            </Suspense>
-          </AppErrorBoundary>
+      <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
+        <div className="window-app window-app--archive-manager">
+          <WindowTitlebar canMaximize={false} />
+          <div className="window-app__content">
+            <AppErrorBoundary>
+              <Suspense fallback={null}>
+                <ArchiveManagerWindow />
+              </Suspense>
+            </AppErrorBoundary>
+          </div>
         </div>
-      </div>
+      </TooltipProvider>
     );
   }
 
-  return <MainWindowApp />;
+  return (
+    <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
+      <MainWindowApp />
+    </TooltipProvider>
+  );
 }
 
 type MainWindowStartupState =

@@ -17,10 +17,11 @@ import {
   Stack,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { memo, useCallback, useId, useState, type RefObject } from "react";
+import { memo, useCallback, useId, useState, type ReactElement, type RefObject } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
+import { Tooltip } from "../../components/Tooltip";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
 import type {
@@ -43,6 +44,22 @@ const smartViewIcons: Record<LibrarySmartView, Icon> = {
   "needs-metadata": NotePencil,
   "needs-cover": ImageBroken,
 };
+
+function CollapsedSidebarTooltip({
+  children,
+  collapsed,
+  content,
+}: {
+  children: ReactElement;
+  collapsed: boolean;
+  content: string;
+}) {
+  return (
+    <Tooltip content={collapsed ? content : ""} placement="right">
+      {children}
+    </Tooltip>
+  );
+}
 
 function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView | null {
   if (location.type === "continue") return "in-progress";
@@ -124,61 +141,67 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   return (
     <aside className="sidebar" data-collapsed={isCollapsed || undefined}>
       <nav className="sidebar__nav" aria-label="Library navigation">
-        <button
-          aria-label="Library"
-          aria-current={location.type === "library" ? "page" : undefined}
-          className={`nav-item ${location.type === "library" ? "active" : ""}`}
-          data-import-drop-active={activeImportDropTargetId === "sidebar-library-root" || undefined}
-          data-import-drop-destination={ARCHIVE_ROOT_DESTINATION}
-          data-import-drop-id="sidebar-library-root"
-          data-import-drop-target="true"
-          title="Library"
-          type="button"
-          onClick={() => onLocationChange({ type: "library" })}
-        >
-          <Books aria-hidden="true" size={19} weight="regular" />
-          <span>Library</span>
-        </button>
-        <button
-          aria-label="Series"
-          aria-current={
-            location.type === "series" || location.type === "series-detail" ? "page" : undefined
-          }
-          className={`nav-item ${location.type === "series" || location.type === "series-detail" ? "active" : ""}`}
-          title="Series"
-          type="button"
-          onClick={() => onLocationChange({ type: "series" })}
-        >
-          <Stack aria-hidden="true" size={19} weight="regular" />
-          <span>Series</span>
-        </button>
-        <button
-          aria-label="Favorites"
-          aria-current={location.type === "favorites" ? "page" : undefined}
-          className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
-          title="Favorites"
-          type="button"
-          onClick={() => onLocationChange({ type: "favorites" })}
-        >
-          <Heart
-            aria-hidden="true"
-            size={19}
-            weight={location.type === "favorites" ? "fill" : "regular"}
-          />
-          <span>Favorites</span>
-        </button>
-        <button
-          aria-label="Folders"
-          aria-current={location.type === "folders" ? "page" : undefined}
-          className={`nav-item ${location.type === "folders" ? "active" : ""}`}
-          data-library-folder-collection-entry
-          title="Folders"
-          type="button"
-          onClick={() => onLocationChange({ type: "folders" })}
-        >
-          <Folders aria-hidden="true" size={19} weight="regular" />
-          <span>Folders</span>
-        </button>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Library">
+          <button
+            aria-label="Library"
+            aria-current={location.type === "library" ? "page" : undefined}
+            className={`nav-item ${location.type === "library" ? "active" : ""}`}
+            data-import-drop-active={
+              activeImportDropTargetId === "sidebar-library-root" || undefined
+            }
+            data-import-drop-destination={ARCHIVE_ROOT_DESTINATION}
+            data-import-drop-id="sidebar-library-root"
+            data-import-drop-target="true"
+            type="button"
+            onClick={() => onLocationChange({ type: "library" })}
+          >
+            <Books aria-hidden="true" size={19} weight="regular" />
+            <span>Library</span>
+          </button>
+        </CollapsedSidebarTooltip>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Series">
+          <button
+            aria-label="Series"
+            aria-current={
+              location.type === "series" || location.type === "series-detail" ? "page" : undefined
+            }
+            className={`nav-item ${location.type === "series" || location.type === "series-detail" ? "active" : ""}`}
+            type="button"
+            onClick={() => onLocationChange({ type: "series" })}
+          >
+            <Stack aria-hidden="true" size={19} weight="regular" />
+            <span>Series</span>
+          </button>
+        </CollapsedSidebarTooltip>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Favorites">
+          <button
+            aria-label="Favorites"
+            aria-current={location.type === "favorites" ? "page" : undefined}
+            className={`nav-item ${location.type === "favorites" ? "active" : ""}`}
+            type="button"
+            onClick={() => onLocationChange({ type: "favorites" })}
+          >
+            <Heart
+              aria-hidden="true"
+              size={19}
+              weight={location.type === "favorites" ? "fill" : "regular"}
+            />
+            <span>Favorites</span>
+          </button>
+        </CollapsedSidebarTooltip>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Folders">
+          <button
+            aria-label="Folders"
+            aria-current={location.type === "folders" ? "page" : undefined}
+            className={`nav-item ${location.type === "folders" ? "active" : ""}`}
+            data-library-folder-collection-entry
+            type="button"
+            onClick={() => onLocationChange({ type: "folders" })}
+          >
+            <Folders aria-hidden="true" size={19} weight="regular" />
+            <span>Folders</span>
+          </button>
+        </CollapsedSidebarTooltip>
       </nav>
 
       {!isCollapsed ? (
@@ -229,7 +252,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                       }
                       className={`nav-item ${isActive ? "active" : ""}`}
                       key={view}
-                      title={view === "needs-metadata" ? "Missing title or author" : undefined}
                       type="button"
                       onClick={() =>
                         onLocationChange(
@@ -281,16 +303,20 @@ export const LibrarySidebar = memo(function LibrarySidebar({
 
       <div className="sidebar-footer">
         <details className="archive-switcher" ref={archiveSwitcherRef}>
-          <summary
-            aria-label={`Current archive: ${activeArchive.displayName}`}
-            className="menu-trigger menu-trigger--disclosure"
-            title={`Current archive: ${activeArchive.displayName}`}
+          <CollapsedSidebarTooltip
+            collapsed={isCollapsed}
+            content={`Current archive: ${activeArchive.displayName}`}
           >
-            <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <CaretUpDown weight="bold" />
-            </span>
-            <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
-          </summary>
+            <summary
+              aria-label={`Current archive: ${activeArchive.displayName}`}
+              className="menu-trigger menu-trigger--disclosure"
+            >
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <CaretUpDown weight="bold" />
+              </span>
+              <span className="archive-switcher__trigger-label">{activeArchive.displayName}</span>
+            </summary>
+          </CollapsedSidebarTooltip>
           <div className="archive-switcher__menu menu-popover" role="menu">
             <div
               aria-current="true"
@@ -330,6 +356,8 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           onClick={onOpenAbout}
           onFocus={onPreloadAbout}
           onPointerEnter={onPreloadAbout}
+          tooltip="About Archeion"
+          tooltipPlacement="top"
         >
           <Question aria-hidden="true" weight="bold" />
         </IconButton>
@@ -339,6 +367,8 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           onClick={onOpenSettings}
           onFocus={onPreloadSettings}
           onPointerEnter={onPreloadSettings}
+          tooltip="Settings"
+          tooltipPlacement="top"
         >
           <GearSix aria-hidden="true" />
         </IconButton>

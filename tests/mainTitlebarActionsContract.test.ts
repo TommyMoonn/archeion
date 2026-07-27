@@ -53,7 +53,8 @@ describe("Phase 0.9.0.7 main titlebar actions contract", () => {
     expect(styles).toMatch(
       /\.library-titlebar-actions__quick-action \.icon-slot\s*\{[^}]*--icon-glyph-size:\s*16px;/s,
     );
-    expect(actions).not.toMatch(/\stooltip(?:\s|=|>)/);
+    expect(actions.match(/\stooltip=/g)).toHaveLength(3);
+    expect(actions.match(/\stooltipPlacement="bottom"/g)).toHaveLength(3);
     expect(read("src/styles/components/buttons.css")).not.toMatch(
       /\.icon-button(?:__tooltip|-tooltip-anchor)/,
     );

@@ -13,6 +13,7 @@ import type { Folder } from "../../types/folder";
 import type { LibrarySmartViewPreferences } from "../../types/library";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
+import { TooltipProvider } from "../../components/Tooltip";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryTitlebarActions } from "./LibraryTitlebarActions";
 
@@ -88,7 +89,9 @@ function renderInteractiveSidebar(
 
   act(() => {
     root.render(
-      <LibrarySidebar {...sidebarProps([], location, onLocationChange, smartViewPreferences)} />,
+      <TooltipProvider>
+        <LibrarySidebar {...sidebarProps([], location, onLocationChange, smartViewPreferences)} />
+      </TooltipProvider>,
     );
   });
 
@@ -128,7 +131,11 @@ function renderCollapsibleSidebar(folders: Folder[] = []) {
   }
 
   act(() => {
-    root.render(<Harness />);
+    root.render(
+      <TooltipProvider>
+        <Harness />
+      </TooltipProvider>,
+    );
   });
 
   return { container, root };
@@ -183,8 +190,10 @@ describe("LibrarySidebar", () => {
       'button[aria-label="Collapse sidebar"]',
     );
 
-    expect(control?.title).toBe("Collapse sidebar");
-    expect(control?.getAttribute("aria-describedby")).toBeNull();
+    expect(control?.title).toBe("");
+    expect(
+      document.getElementById(control?.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe("Collapse sidebar");
     expect(control?.closest(".window-titlebar__app-actions")).not.toBeNull();
     expect(control?.closest("[data-tauri-drag-region]")).toBeNull();
     expect(control?.querySelector(".library-titlebar-actions__sidebar-icon")).not.toBeNull();
@@ -217,8 +226,10 @@ describe("LibrarySidebar", () => {
     );
 
     expect(sidebar?.getAttribute("data-collapsed")).toBe("true");
-    expect(expand?.title).toBe("Expand sidebar");
-    expect(expand?.getAttribute("aria-describedby")).toBeNull();
+    expect(expand?.title).toBe("");
+    expect(
+      document.getElementById(expand?.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe("Expand sidebar");
     expect(expand?.getAttribute("data-sidebar-direction")).toBe("expand-right");
     for (const destination of ["Library", "Series", "Favorites", "Folders"]) {
       expect(
@@ -229,12 +240,13 @@ describe("LibrarySidebar", () => {
     expect(session.container.textContent).not.toContain("Black Saint");
     expect(session.container.querySelector(".sidebar__folder-scroll")).toBeNull();
     expect(session.container.querySelector('[aria-label="Current archive: Books"]')).not.toBeNull();
-    expect(
-      session.container.querySelector('[aria-label="About Archeion"]')?.getAttribute("title"),
-    ).toBe("About Archeion");
-    expect(session.container.querySelector('[aria-label="Settings"]')?.getAttribute("title")).toBe(
-      "Settings",
-    );
+    for (const label of ["About Archeion", "Settings"]) {
+      const control = session.container.querySelector(`[aria-label="${label}"]`);
+      expect(control?.getAttribute("title")).toBeNull();
+      expect(
+        document.getElementById(control?.getAttribute("aria-describedby") ?? "")?.textContent,
+      ).toBe(label);
+    }
   });
 
   it("moves focus to the frame control before hiding focused sidebar content", () => {
@@ -329,9 +341,9 @@ describe("LibrarySidebar", () => {
     );
   });
 
-  it("exposes each truncated folder name through its native hover title", () => {
+  it("exposes each potentially truncated folder name without a native title", () => {
     const folderName = "Come Barefoot Tomorrow Through the Long Summer";
-    const markup = renderSidebar([
+    const session = renderCollapsibleSidebar([
       {
         id: "folder-long-name",
         name: folderName,
@@ -342,8 +354,13 @@ describe("LibrarySidebar", () => {
         updatedAt: "1",
       },
     ]);
+    activeRoot = session.root;
+    const folder = session.container.querySelector<HTMLButtonElement>(".folder-tree__select");
 
-    expect(markup).toContain(`title="${folderName}"`);
+    expect(folder?.getAttribute("title")).toBeNull();
+    expect(
+      document.getElementById(folder?.getAttribute("aria-describedby") ?? "")?.textContent,
+    ).toBe(folderName);
   });
 
   it("places the folder scrollbar at the sidebar edge without moving the section heading", () => {
@@ -451,7 +468,7 @@ describe("LibrarySidebar", () => {
     expect(markup).toContain(">Needs metadata</span>");
     expect(markup).toContain(">Needs cover</span>");
     expect(markup).not.toContain("nav-item__count");
-    expect(needsMetadata?.getAttribute("title")).toBe("Missing title or author");
+    expect(needsMetadata?.getAttribute("title")).toBeNull();
     expect(
       session.container.querySelector(
         `#${needsMetadata?.getAttribute("aria-describedby") ?? "missing"}`,

@@ -7,6 +7,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ReaderToolbar } from "./ReaderToolbar";
+import { TooltipProvider } from "../../components/Tooltip";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -38,29 +39,31 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
   act(() => {
     root?.render(
       <MemoryRouter>
-        <ReaderToolbar
-          atEnd={false}
-          atStart={false}
-          backLabel="Back to Library"
-          chapterProgress={38}
-          chapterTitle="A Very Long Current Chapter Title"
-          hasChapterNavigation
-          bookmarkActive={false}
-          bookmarkBusy={false}
-          bookmarkToggleDisabled={false}
-          annotationsOpen={false}
-          nextChapterDisabled={false}
-          percentage={45.7}
-          previousChapterDisabled
-          progressSaveFailed={false}
-          title="Book Title"
-          mode="paged"
-          tocOpen={false}
-          onAnnotations={vi.fn()}
-          onToggleBookmark={vi.fn()}
-          {...callbacks}
-          {...overrides}
-        />
+        <TooltipProvider>
+          <ReaderToolbar
+            atEnd={false}
+            atStart={false}
+            backLabel="Back to Library"
+            chapterProgress={38}
+            chapterTitle="A Very Long Current Chapter Title"
+            hasChapterNavigation
+            bookmarkActive={false}
+            bookmarkBusy={false}
+            bookmarkToggleDisabled={false}
+            annotationsOpen={false}
+            nextChapterDisabled={false}
+            percentage={45.7}
+            previousChapterDisabled
+            progressSaveFailed={false}
+            title="Book Title"
+            mode="paged"
+            tocOpen={false}
+            onAnnotations={vi.fn()}
+            onToggleBookmark={vi.fn()}
+            {...callbacks}
+            {...overrides}
+          />
+        </TooltipProvider>
       </MemoryRouter>,
     );
   });
@@ -104,7 +107,10 @@ describe("ReaderToolbar", () => {
 
     expect(previousChapter.disabled).toBe(false);
     expect(previousChapter.getAttribute("aria-disabled")).toBe("true");
-    expect(previousChapter.title).toBe("You are at the first chapter");
+    expect(previousChapter.title).toBe("");
+    expect(
+      document.getElementById(previousChapter.getAttribute("aria-describedby")!)?.textContent,
+    ).toBe("You are at the first chapter");
     expect(nextChapter.disabled).toBe(false);
     expect(button(container, "Previous page").disabled).toBe(false);
     expect(button(container, "Next page").disabled).toBe(false);
@@ -148,7 +154,7 @@ describe("ReaderToolbar", () => {
     const reasonId = toggle.getAttribute("aria-describedby");
     expect(toggle.disabled).toBe(false);
     expect(toggle.getAttribute("aria-disabled")).toBe("true");
-    expect(toggle.title).toBe("Current reading location is still loading.");
+    expect(toggle.title).toBe("");
     expect(reasonId ? document.getElementById(reasonId)?.textContent : undefined).toBe(
       "Current reading location is still loading.",
     );

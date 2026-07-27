@@ -33,6 +33,8 @@ export function RescanArchiveButton({ isRescanning, onRescan }: RescanArchiveBut
         disabledReason="Wait for the archive scan to finish"
         label={isRescanning ? "Scanning archive" : "Rescan archive"}
         onClick={() => setConfirmationOpen(true)}
+        tooltip={isRescanning ? "Wait for the archive scan to finish" : "Rescan archive"}
+        tooltipPlacement="bottom"
       >
         <ArrowsClockwise aria-hidden="true" />
       </IconButton>

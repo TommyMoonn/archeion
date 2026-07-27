@@ -11,6 +11,7 @@ import {
   openContextMenuFromPointer,
   useContextMenuController,
 } from "./contextMenuController";
+import { TooltipProvider } from "./Tooltip";
 
 const mountedRoots: Root[] = [];
 let stopInputModality: (() => void) | null = null;
@@ -424,8 +425,16 @@ describe("ContextMenu", () => {
             disabled
             disabledReason="Wait for the current action."
             label="Explained disabled"
+            tooltip="Open explained actions"
           >
             Explained
+          </ContextMenuTrigger>
+          <ContextMenuTrigger
+            controller={controller}
+            label="Enabled trigger"
+            tooltip="Open enabled actions"
+          >
+            Enabled
           </ContextMenuTrigger>
         </>
       );
@@ -435,7 +444,13 @@ describe("ContextMenu", () => {
     document.body.append(container);
     const root = createRoot(container);
     mountedRoots.push(root);
-    act(() => root.render(<TriggerHarness />));
+    act(() =>
+      root.render(
+        <TooltipProvider>
+          <TriggerHarness />
+        </TooltipProvider>,
+      ),
+    );
 
     const nativeDisabled = container.querySelector<HTMLButtonElement>(
       '[aria-label="Native disabled"]',
@@ -443,14 +458,38 @@ describe("ContextMenu", () => {
     const explained = container.querySelector<HTMLButtonElement>(
       '[aria-label="Explained disabled"]',
     )!;
+    const enabled = container.querySelector<HTMLButtonElement>('[aria-label="Enabled trigger"]')!;
 
     expect(nativeDisabled.disabled).toBe(true);
     expect(nativeDisabled.getAttribute("aria-disabled")).toBeNull();
+    expect(nativeDisabled.getAttribute("aria-describedby")).toBeNull();
     expect(explained.disabled).toBe(false);
     expect(explained.getAttribute("aria-disabled")).toBe("true");
+    expect(explained.title).toBe("");
     expect(document.getElementById(explained.getAttribute("aria-describedby")!)?.textContent).toBe(
       "Wait for the current action.",
     );
+    expect(document.getElementById(enabled.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "Open enabled actions",
+    );
+
+    act(() => {
+      explained.focus();
+      explained.click();
+      explained.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      );
+      explained.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+      explained.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: " " }),
+      );
+    });
+
+    expect(document.activeElement).toBe(explained);
+    expect(explained.getAttribute("aria-expanded")).toBe("false");
+    expect(document.body.querySelector('[role="menu"]')).toBeNull();
   });
 
   it("closes and restores the logical origin before running an action", () => {
