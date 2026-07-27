@@ -339,7 +339,7 @@
   transform: translateX(0);
 }
 
-.epub-viewer__click-zone:focus-visible {
+:root[data-input-modality="keyboard"] .epub-viewer__click-zone:focus-visible {
   outline: 2px solid var(--reader-focus);
   outline-offset: -2px;
   box-shadow: inset 0 0 0 4px var(--reader-bg);
@@ -360,7 +360,7 @@
   transform: translateX(0);
 }
 
-.epub-viewer__click-zone--previous:focus-visible {
+:root[data-input-modality="keyboard"] .epub-viewer__click-zone--previous:focus-visible {
   box-shadow:
     inset 0 0 0 4px var(--reader-bg),
     inset 7px 0 var(--reader-focus);
@@ -381,7 +381,7 @@
   transform: translateX(0);
 }
 
-.epub-viewer__click-zone--next:focus-visible {
+:root[data-input-modality="keyboard"] .epub-viewer__click-zone--next:focus-visible {
   box-shadow:
     inset 0 0 0 4px var(--reader-bg),
     inset -7px 0 var(--reader-focus);
@@ -606,7 +606,7 @@ html[data-motion="on"] .reader-toc {
   background: color-mix(in srgb, var(--reader-surface) 72%, transparent);
 }
 
-.reader-toc__chapter:focus-visible {
+:root[data-input-modality="keyboard"] .reader-toc__chapter:focus-visible {
   border-color: color-mix(in srgb, var(--accent) 62%, var(--reader-line));
   outline: 2px solid var(--reader-focus);
   outline-offset: -2px;
@@ -1115,7 +1115,7 @@ html[data-motion="on"] .reader-toc {
   background: color-mix(in srgb, var(--reader-focus) 7%, transparent);
 }
 
-.reader-annotations__target:focus-visible {
+:root[data-input-modality="keyboard"] .reader-annotations__target:focus-visible {
   outline: 2px solid var(--reader-focus);
   outline-offset: -2px;
   color: var(--reader-strong);
@@ -1323,7 +1323,7 @@ html[data-motion="on"] .reader-toc {
   font-size: var(--type-meta);
 }
 
-.reader-annotations__rename input:focus-visible {
+:root[data-input-modality="keyboard"] .reader-annotations__rename input:focus-visible {
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;
   border-color: var(--reader-focus);
@@ -1386,7 +1386,7 @@ html[data-motion="on"] .reader-toc {
   background: color-mix(in srgb, var(--reader-surface) 82%, var(--reader-bg));
 }
 
-.reader-annotations__show-more:focus-visible {
+:root[data-input-modality="keyboard"] .reader-annotations__show-more:focus-visible {
   border-color: color-mix(in srgb, var(--reader-focus) 52%, var(--reader-line));
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;
@@ -1501,7 +1501,7 @@ html[data-motion="on"] .reader-toc {
   border-color: var(--danger);
 }
 
-.reader-highlight-menu__color:focus-visible {
+:root[data-input-modality="keyboard"] .reader-highlight-menu__color:focus-visible {
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;
 }
@@ -1531,7 +1531,7 @@ html[data-motion="on"] .reader-toc {
   background: color-mix(in srgb, var(--reader-strong) 8%, transparent);
 }
 
-.reader-highlight-menu__note:focus-visible {
+:root[data-input-modality="keyboard"] .reader-highlight-menu__note:focus-visible {
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;
 }
@@ -1584,12 +1584,16 @@ html[data-motion="on"] .reader-toc {
 }
 
 .reader-note-editor__field:focus-within {
-  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--reader-focus) 46%, transparent);
+  background: color-mix(in srgb, var(--reader-focus) 7%, transparent);
 }
 
-.reader-note-editor__field:has(textarea:focus-visible) {
+:root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible) {
   outline: 2px solid var(--reader-focus);
   outline-offset: -2px;
+}
+
+:root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible {
+  outline: 0;
 }
 
 .reader-note-editor__status {

@@ -11,6 +11,7 @@ import {
 import { flushSync } from "react-dom";
 
 import { router } from "../../app/router";
+import { inputModalityRuntime } from "../../app/inputModality";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { currentFocusOrigin, focusElementIfUsable } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
@@ -81,6 +82,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       );
       if (!resolved) return false;
 
+      inputModalityRuntime.markKeyboard();
       event.preventDefault();
       event.stopPropagation();
       if (resolved.availability.available) executeCommand(resolved.command);

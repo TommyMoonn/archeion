@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { inputModalityRuntime } from "../../app/inputModality";
 import { AboutDialog } from "./AboutDialog";
 
 const resolveApplicationVersion = vi.hoisted(() => vi.fn(async () => "9.9.9"));
@@ -23,6 +24,7 @@ vi.mock("../../app/openExternalUrl", () => ({ openExternalUrl }));
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 
 const roots: Root[] = [];
+let stopInputModality: (() => void) | null = null;
 
 function renderDialog(onClose = vi.fn()) {
   const container = document.createElement("div");
@@ -34,6 +36,7 @@ function renderDialog(onClose = vi.fn()) {
 }
 
 beforeEach(() => {
+  stopInputModality = inputModalityRuntime.start(document);
   HTMLDialogElement.prototype.showModal = function showModal() {
     (this as DialogElementWithOpen).open = true;
   };
@@ -51,6 +54,8 @@ afterEach(() => {
     for (const root of roots.splice(0)) root.unmount();
   });
   document.body.replaceChildren();
+  stopInputModality?.();
+  stopInputModality = null;
   vi.restoreAllMocks();
 });
 
@@ -129,7 +134,7 @@ describe("AboutDialog", () => {
     expect(onClose).toHaveBeenCalledTimes(2);
   });
 
-  it("returns focus to its opener after unmount despite the autofocus close button", () => {
+  it("explicitly focuses Close and returns focus to its opener after unmount", () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
       callback(0);
       return 1;
@@ -139,10 +144,38 @@ describe("AboutDialog", () => {
     opener.focus();
     const { root } = renderDialog();
 
-    expect(document.activeElement).not.toBe(opener);
+    expect(document.activeElement).toBe(document.querySelector('button[aria-label="Close About"]'));
+    expect(document.documentElement.dataset.inputModality).toBe("pointer");
     act(() => root.unmount());
     roots.splice(roots.indexOf(root), 1);
 
     expect(document.activeElement).toBe(opener);
+    expect(document.documentElement.dataset.inputModality).toBe("pointer");
+  });
+
+  it("preserves keyboard modality through initial and restored About focus", () => {
+    vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const opener = document.createElement("button");
+    document.body.append(opener);
+    opener.focus();
+    opener.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Enter",
+      }),
+    );
+
+    const { root } = renderDialog();
+    expect(document.activeElement).toBe(document.querySelector('button[aria-label="Close About"]'));
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+
+    act(() => root.unmount());
+    roots.splice(roots.indexOf(root), 1);
+    expect(document.activeElement).toBe(opener);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
   });
 });

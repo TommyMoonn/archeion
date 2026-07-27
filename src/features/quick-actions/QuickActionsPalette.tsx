@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSyncExternalStore } from "react";
 
+import { inputModalityRuntime } from "../../app/inputModality";
 import { Input } from "../../components/Input";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import type { AppCommand } from "../commands/appCommands";
@@ -116,30 +117,35 @@ export function QuickActionsPalette({
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
+                inputModalityRuntime.markKeyboard();
                 moveSelection(1);
                 return;
               }
 
               if (event.key === "ArrowUp") {
                 event.preventDefault();
+                inputModalityRuntime.markKeyboard();
                 moveSelection(-1);
                 return;
               }
 
               if (event.key === "Home") {
                 event.preventDefault();
+                inputModalityRuntime.markKeyboard();
                 setActiveIndex(0);
                 return;
               }
 
               if (event.key === "End") {
                 event.preventDefault();
+                inputModalityRuntime.markKeyboard();
                 setActiveIndex(Math.max(0, results.length - 1));
                 return;
               }
 
               if (event.key === "Enter") {
                 event.preventDefault();
+                inputModalityRuntime.markKeyboard();
                 execute(activeCommand);
                 return;
               }

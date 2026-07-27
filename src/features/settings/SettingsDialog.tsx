@@ -71,6 +71,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   const contentRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -99,6 +100,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   const committedArchiveAppearance = useCommittedArchiveAppearance();
   const modal = useModalDialogLifecycle({
     dialogRef,
+    initialFocusRef: closeButtonRef,
     onClose,
     returnFocusTo,
     surfaceKind: "settings",
@@ -164,7 +166,12 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
           selectedSection={selectedSection}
         />
 
-        <IconButton autoFocus className="settings-close" label="Close settings" onClick={onClose}>
+        <IconButton
+          className="settings-close"
+          label="Close settings"
+          onClick={onClose}
+          ref={closeButtonRef}
+        >
           <X aria-hidden="true" />
         </IconButton>
 

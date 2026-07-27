@@ -1385,8 +1385,8 @@ html[data-motion="on"] .details-drawer[open] {
   line-height: 1.45;
 }
 
-.bulk-metadata-field > input:focus-visible,
-.bulk-metadata-field > textarea:focus-visible {
+:root[data-input-modality="keyboard"] .bulk-metadata-field > input:focus-visible,
+:root[data-input-modality="keyboard"] .bulk-metadata-field > textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-color: var(--accent);
@@ -1682,8 +1682,8 @@ html[data-motion="on"] .details-drawer[open] {
   overflow-wrap: anywhere;
 }
 
-.metadata-writeback__field input:focus-visible,
-.metadata-writeback__field textarea:focus-visible {
+:root[data-input-modality="keyboard"] .metadata-writeback__field input:focus-visible,
+:root[data-input-modality="keyboard"] .metadata-writeback__field textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-color: color-mix(in srgb, var(--accent) 58%, var(--line));

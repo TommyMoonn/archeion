@@ -14,7 +14,12 @@ type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 
 function Harness() {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const modal = useModalDialogLifecycle({ dialogRef, onClose: vi.fn() });
+  const initialFocusRef = useRef<HTMLButtonElement>(null);
+  const modal = useModalDialogLifecycle({
+    dialogRef,
+    initialFocusRef,
+    onClose: vi.fn(),
+  });
   return (
     <dialog
       onCancel={modal.onCancel}
@@ -22,7 +27,7 @@ function Harness() {
       onPointerDown={modal.onPointerDown}
       ref={dialogRef}
     >
-      <button autoFocus type="button">
+      <button ref={initialFocusRef} type="button">
         Close
       </button>
     </dialog>
@@ -69,6 +74,7 @@ describe("useModalDialogLifecycle", () => {
         </StrictMode>,
       ),
     );
+    expect(document.activeElement?.textContent).toBe("Close");
     for (const [frame, callback] of [...frames]) {
       frames.delete(frame);
       callback(0);

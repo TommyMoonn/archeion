@@ -135,6 +135,10 @@ describe("SettingsDialog responsiveness", () => {
     const { container } = track(renderDialog());
 
     expect(container.querySelector(".settings-window.modal-surface")).not.toBeNull();
+    expect(document.activeElement).toBe(
+      container.querySelector('button[aria-label="Close settings"]'),
+    );
+    expect(document.activeElement).not.toBe(container.querySelector('input[type="search"]'));
     expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();

@@ -8,6 +8,7 @@ import {
 } from "../../utils/transientSurfaceOwnership";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
+import { inputModalityRuntime } from "../../app/inputModality";
 import { createReaderContentTheme } from "./readerTheme";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 
@@ -146,6 +147,38 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(registry.remove(chapter)).toBe(false);
     expect(removeListener.mock.calls.filter(([type]) => type === "keydown")).toHaveLength(1);
     expect(onRemoved).toHaveBeenCalledOnce();
+  });
+
+  it("reports EPUB pointer and owned keyboard intent without styling publisher content", () => {
+    const stopInputModality = inputModalityRuntime.start(document);
+    try {
+      const frame = mountedFrame();
+      const chapter = frame.contentDocument!;
+      const registry = new ReaderContentDocumentRegistry();
+      registry.updateOptions({
+        onContentKeyDown: (event) => event.key === "ArrowRight",
+      });
+      registry.bind({ document: chapter, window: frame.contentWindow! });
+
+      inputModalityRuntime.markKeyboard();
+      chapter.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      expect(document.documentElement.dataset.inputModality).toBe("pointer");
+      expect(chapter.documentElement.hasAttribute("data-input-modality")).toBe(false);
+
+      chapter.body.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "ArrowRight",
+        }),
+      );
+      expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+      expect(chapter.documentElement.hasAttribute("data-input-modality")).toBe(false);
+
+      registry.clear();
+    } finally {
+      stopInputModality();
+    }
   });
 
   it("uses current callbacks without rebinding the document", () => {

@@ -1,30 +1,27 @@
 @media (forced-colors: active) {
-  :where(
-    button,
-    a,
-    input,
-    select,
-    textarea,
-    summary,
-    [tabindex]:not([tabindex="-1"])
-  ):focus-visible {
+  :root[data-input-modality="keyboard"]
+    :where(
+      button,
+      a,
+      input,
+      select,
+      textarea,
+      summary,
+      [tabindex]:not([tabindex="-1"])
+    ):focus-visible {
     outline: 2px solid Highlight !important;
     outline-offset: 2px;
   }
 
-  :where(
-    .input-shell:has(input:focus-visible),
-    .epub-filename-field:has(input:focus-visible),
-    .reader-note-editor__field:has(textarea:focus-visible)
-  ) {
+  :root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible),
+  :root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible),
+  :root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible) {
     outline: 2px solid Highlight;
   }
 
-  :where(
-    .input-shell input,
-    .epub-filename-field input,
-    .reader-note-editor__field textarea
-  ):focus-visible {
+  :root[data-input-modality="keyboard"] .input-shell input:focus-visible,
+  :root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible,
+  :root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible {
     outline: 0 !important;
   }
 

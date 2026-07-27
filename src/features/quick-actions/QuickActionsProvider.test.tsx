@@ -14,6 +14,7 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
 import type { AppCommand } from "../commands/appCommands";
 import { commandDefinitions } from "../commands/commandBindings";
+import { inputModalityRuntime } from "../../app/inputModality";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionRegistration, QuickActionsRegistry } from "./quickActions";
@@ -161,6 +162,7 @@ const readyArchive: ArchiveState = {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let stopInputModality: (() => void) | null = null;
 
 function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -273,6 +275,7 @@ async function waitForSettings(): Promise<HTMLDialogElement> {
 }
 
 beforeEach(() => {
+  stopInputModality = inputModalityRuntime.start(document);
   installDialogPolyfill();
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
@@ -289,6 +292,8 @@ afterEach(async () => {
   container?.remove();
   root = null;
   container = null;
+  stopInputModality?.();
+  stopInputModality = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
@@ -315,6 +320,7 @@ describe("QuickActionsProvider", () => {
     const palette = await waitForPalette();
     const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
     expect(document.activeElement).toBe(search);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
 
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
@@ -322,6 +328,7 @@ describe("QuickActionsProvider", () => {
 
     expect(document.querySelector(".quick-actions")).toBeNull();
     expect(document.activeElement).toBe(opener);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
   }, 15_000);
 
   it("keeps global, search, and reader commands beneath an open context menu", async () => {
@@ -489,7 +496,36 @@ describe("QuickActionsProvider", () => {
       );
     });
 
-    expect(await waitForSettings()).toBeTruthy();
+    const settings = await waitForSettings();
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.activeElement).toBe(
+      settings.querySelector('button[aria-label="Close settings"]'),
+    );
+    expect(document.activeElement).not.toBe(settings.querySelector('input[type="search"]'));
+  });
+
+  it("keeps pointer-open Settings and its restored opener in pointer modality", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!;
+    opener.focus();
+
+    act(() => {
+      opener.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      opener.click();
+    });
+    const settings = await waitForSettings();
+    expect(document.documentElement.dataset.inputModality).toBe("pointer");
+    expect(document.activeElement).toBe(
+      settings.querySelector('button[aria-label="Close settings"]'),
+    );
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(document.activeElement).toBe(opener);
+    expect(document.documentElement.dataset.inputModality).toBe("pointer");
   });
 
   it("focuses Settings search with Ctrl+F while Settings owns the modal scope", async () => {
@@ -516,6 +552,7 @@ describe("QuickActionsProvider", () => {
     });
 
     expect(document.activeElement).toBe(search);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
   });
 
   it("uses a remapped Settings binding and stops matching the default", async () => {

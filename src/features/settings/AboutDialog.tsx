@@ -36,8 +36,9 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
   const [version, setVersion] = useState(APPLICATION_VERSION_FALLBACK);
   const [externalLinkError, setExternalLinkError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const linkOperationRef = useRef(0);
-  const modal = useModalDialogLifecycle({ dialogRef, onClose });
+  const modal = useModalDialogLifecycle({ dialogRef, initialFocusRef: closeButtonRef, onClose });
 
   useEffect(() => {
     let active = true;
@@ -73,7 +74,12 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
       ref={dialogRef}
     >
       <section className="about-window modal-surface">
-        <IconButton autoFocus className="about-window__close" label="Close About" onClick={onClose}>
+        <IconButton
+          className="about-window__close"
+          label="Close About"
+          onClick={onClose}
+          ref={closeButtonRef}
+        >
           <X aria-hidden="true" />
         </IconButton>
 

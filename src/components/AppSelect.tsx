@@ -1,5 +1,6 @@
 import { CaretDown, Check } from "@phosphor-icons/react";
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { inputModalityRuntime } from "../app/inputModality";
 import type { ControlSize } from "./Button";
 import { useAppSelectPlacement } from "./useAppSelectPlacement";
 import { focusElementIfUsable } from "../utils/focusRestoration";
@@ -130,6 +131,7 @@ export function AppSelect<TValue extends string>({
       const nextIndex = getNextEnabledIndex(options, startIndex, direction);
 
       if (nextIndex >= 0) {
+        inputModalityRuntime.markKeyboard();
         setActiveIndex(nextIndex);
         setOpen(true);
       }
@@ -142,6 +144,7 @@ export function AppSelect<TValue extends string>({
       const direction = event.key === "Home" ? 1 : -1;
       const nextIndex = getNextEnabledIndex(options, startIndex, direction);
       if (nextIndex >= 0) {
+        inputModalityRuntime.markKeyboard();
         setActiveIndex(nextIndex);
         setOpen(true);
       }
@@ -150,6 +153,7 @@ export function AppSelect<TValue extends string>({
 
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      inputModalityRuntime.markKeyboard();
       if (!open) {
         setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
         setOpen(true);

@@ -2,8 +2,9 @@
 
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { inputModalityRuntime } from "../../app/inputModality";
 import type { Folder } from "../../types/folder";
 import { FolderBrowser } from "./FolderBrowser";
 import { FolderTree } from "./FolderTree";
@@ -20,12 +21,19 @@ const folder: Folder = {
 
 let root: ReturnType<typeof createRoot> | null = null;
 let container: HTMLDivElement | null = null;
+let stopInputModality: (() => void) | null = null;
+
+beforeEach(() => {
+  stopInputModality = inputModalityRuntime.start(document);
+});
 
 afterEach(() => {
   act(() => root?.unmount());
   document.body.innerHTML = "";
   root = null;
   container = null;
+  stopInputModality?.();
+  stopInputModality = null;
 });
 
 function mount(node: React.ReactNode) {
@@ -76,6 +84,7 @@ describe("folder contextual invocation", () => {
     expect(pointerLabels).toEqual(["Move", "Reveal", "Delete"]);
     expect(onOpen).not.toHaveBeenCalled();
     expect(item?.getAttribute("data-context-menu-open")).toBe("true");
+    expect(document.documentElement.dataset.inputModality).toBe("pointer");
 
     act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
     act(() =>
@@ -112,6 +121,7 @@ describe("folder contextual invocation", () => {
     expect(onSelect).not.toHaveBeenCalled();
     expect(document.activeElement?.textContent).toContain("Rename");
     expect(menuLabels()).toEqual(["Rename", "Move", "Reveal", "Delete"]);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
 
     act(() =>
       document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
@@ -122,5 +132,39 @@ describe("folder contextual invocation", () => {
       primary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
     });
     expect(document.activeElement?.textContent).toContain("Rename");
+  });
+
+  it("promotes owned FolderTree directional focus movement to keyboard modality", () => {
+    const secondFolder: Folder = {
+      ...folder,
+      id: "folder-2",
+      name: "Nonfiction",
+      relativePath: "Nonfiction",
+    };
+    const view = mount(
+      <FolderTree
+        folders={[folder, secondFolder]}
+        location={{ type: "library" }}
+        onDelete={vi.fn()}
+        onMove={vi.fn()}
+        onRename={vi.fn()}
+        onSelect={vi.fn()}
+      />,
+    );
+    const items = view.querySelectorAll<HTMLButtonElement>(".folder-tree__select");
+    items[0]?.focus();
+
+    act(() => {
+      items[0]?.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "ArrowDown",
+        }),
+      );
+    });
+
+    expect(document.activeElement).toBe(items[1]);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
   });
 });

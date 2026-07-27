@@ -29,7 +29,16 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-:where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+:root[data-input-modality="keyboard"]
+  :where(
+    button,
+    a,
+    input,
+    select,
+    textarea,
+    summary,
+    [tabindex]:not([tabindex="-1"])
+  ):focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 3px;
 }

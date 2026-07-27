@@ -20,6 +20,7 @@ import {
 type UseModalDialogLifecycleOptions = {
   closeOnBackdropClick?: boolean;
   dialogRef: RefObject<HTMLDialogElement | null>;
+  initialFocusRef?: RefObject<HTMLElement | null>;
   onClose: () => void;
   returnFocusTo?: HTMLElement | null;
   surfaceKind?: Extract<
@@ -38,6 +39,7 @@ type ModalDialogLifecycle = {
 export function useModalDialogLifecycle({
   closeOnBackdropClick = true,
   dialogRef,
+  initialFocusRef,
   onClose,
   returnFocusTo,
   surfaceKind = "app-dialog",
@@ -76,6 +78,7 @@ export function useModalDialogLifecycle({
     if (dialog && !dialog.open) {
       dialog.showModal();
     }
+    focusElementIfUsable(initialFocusRef?.current);
 
     return () => {
       if (dialog?.open) {
@@ -91,7 +94,7 @@ export function useModalDialogLifecycle({
         }
       });
     };
-  }, [dialogRef]);
+  }, [dialogRef, initialFocusRef]);
 
   return {
     suppressFocusRestoration: () => {

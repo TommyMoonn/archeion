@@ -8,6 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { inputModalityRuntime } from "../../app/inputModality";
 import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { LibraryToolbar } from "./LibraryToolbar";
 
@@ -159,6 +160,39 @@ describe("LibraryToolbar", () => {
     expect(markup).toContain('autoCapitalize="none"');
     expect(markup).toContain('name="archeion-library-search"');
     expect(markup).toContain('spellCheck="false"');
+  });
+
+  it("keeps pointer-focused Library Search calm until keyboard navigation begins", () => {
+    const stopInputModality = inputModalityRuntime.start(document);
+    try {
+      const session = renderInteractiveToolbar();
+      activeRoot = session.root;
+      document.body.append(session.container);
+      const search = session.container.querySelector<HTMLInputElement>(
+        'input[name="archeion-library-search"]',
+      )!;
+
+      act(() => {
+        search.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+        search.focus();
+        search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "a" }));
+      });
+      expect(document.activeElement).toBe(search);
+      expect(document.documentElement.dataset.inputModality).toBe("pointer");
+
+      act(() => {
+        search.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "Tab",
+          }),
+        );
+      });
+      expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    } finally {
+      stopInputModality();
+    }
   });
 
   it("keeps search clearing separate from search typing", () => {

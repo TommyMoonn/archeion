@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { inputModalityRuntime } from "../app/inputModality";
 import { focusElementIfUsable, focusIsUnowned } from "../utils/focusRestoration";
 
 export type ContextMenuPointAnchor = {
@@ -55,6 +56,7 @@ export function openContextMenuFromPointer(
   enabled = true,
   onUnavailable?: () => void,
 ): void {
+  inputModalityRuntime.markPointer();
   event.preventDefault();
   event.stopPropagation();
   if (!enabled) {
@@ -76,6 +78,7 @@ export function openContextMenuFromKeyboard(
 ): boolean {
   if (!isContextMenuKey(event)) return false;
 
+  inputModalityRuntime.markKeyboard();
   event.preventDefault();
   event.stopPropagation();
   if (!enabled) {

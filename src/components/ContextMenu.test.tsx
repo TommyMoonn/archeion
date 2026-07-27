@@ -4,6 +4,7 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { inputModalityRuntime } from "../app/inputModality";
 import { ContextMenuSurface, ContextMenuTrigger, type ContextMenuAction } from "./ContextMenu";
 import {
   openContextMenuFromKeyboard,
@@ -12,6 +13,7 @@ import {
 } from "./contextMenuController";
 
 const mountedRoots: Root[] = [];
+let stopInputModality: (() => void) | null = null;
 
 type HarnessProps = {
   dismissKey?: string;
@@ -239,6 +241,7 @@ function rect(left: number, top: number, width: number, height: number): DOMRect
 
 describe("ContextMenu", () => {
   beforeEach(() => {
+    stopInputModality = inputModalityRuntime.start(document);
     Object.defineProperty(document.documentElement, "clientWidth", {
       configurable: true,
       value: 320,
@@ -267,6 +270,8 @@ describe("ContextMenu", () => {
     }
     vi.restoreAllMocks();
     document.body.innerHTML = "";
+    stopInputModality?.();
+    stopInputModality = null;
   });
 
   it("renders through document.body and clamps pointer coordinates at every viewport edge", () => {
@@ -303,6 +308,7 @@ describe("ContextMenu", () => {
 
     const items = Array.from(menu().querySelectorAll<HTMLButtonElement>('[role="menuitem"]'));
     expect(document.activeElement).toBe(items[1]);
+    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
 
     act(() => {
       items[1]?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "End" }));

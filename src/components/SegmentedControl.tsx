@@ -1,4 +1,5 @@
 import { type KeyboardEvent, type ReactNode, useRef } from "react";
+import { inputModalityRuntime } from "../app/inputModality";
 import type { ControlSize } from "./Button";
 
 export type SegmentedControlOption<TValue extends string> = {
@@ -58,6 +59,7 @@ export function SegmentedControl<TValue extends string>({
     }
 
     onChange(option.value);
+    inputModalityRuntime.markKeyboard();
     buttonRefs.current[nextIndex]?.focus();
   }
 

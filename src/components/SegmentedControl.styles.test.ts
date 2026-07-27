@@ -33,6 +33,13 @@ describe("icon-only SegmentedControl appearance", () => {
   });
 
   it("keeps hover, selected, disabled, and focus-visible states distinguishable", () => {
+    const normalizedBaseStyles = baseStyles
+      .replace(/\s+/g, " ")
+      .replace(/\(\s+/g, "(")
+      .replace(/\s+\)/g, ")");
+    const focusableControls =
+      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+
     expect(segmentedControlStyles).toMatch(
       /\.segmented-control--icon-only \.segmented-control__option:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--surface-hover\);/s,
     );
@@ -40,7 +47,8 @@ describe("icon-only SegmentedControl appearance", () => {
       /\.segmented-control--icon-only \.segmented-control__option\[aria-checked="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-raised\);/s,
     );
     expect(baseStyles).toMatch(/button:disabled[^}]*opacity:\s*0\.55;/s);
-    expect(baseStyles).toMatch(/:where\(button,[^}]*:focus-visible\s*\{[^}]*outline:/s);
+    expect(normalizedBaseStyles).toContain(`${focusableControls}:focus-visible { outline:`);
+    expect(normalizedBaseStyles).not.toContain(`${focusableControls} :focus-visible`);
   });
 
   it("leaves collection-specific toggle styling out of Library and Folder CSS", () => {

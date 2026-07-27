@@ -27,9 +27,13 @@
   background: var(--surface-raised);
 }
 
-.input-shell:has(input:focus-visible) {
+:root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
+}
+
+:root[data-input-modality="keyboard"] .input-shell input:focus-visible {
+  outline: 0;
 }
 
 .input-shell:has(input:disabled) {
@@ -90,8 +94,8 @@ select {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-.form-field input:focus-visible,
-.form-field select:focus-visible {
+:root[data-input-modality="keyboard"] .form-field input:focus-visible,
+:root[data-input-modality="keyboard"] .form-field select:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

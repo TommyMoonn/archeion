@@ -79,6 +79,12 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
   });
 
   it("keeps explicit focus-visible treatment on global controls and reader page-turn zones", () => {
+    const normalizedCssSource = cssSource
+      .replace(/\s+/g, " ")
+      .replace(/\(\s+/g, "(")
+      .replace(/\s+\)/g, ")");
+    const globalFocusableSelector =
+      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
     const pageTurnFocus = cssBlock(".epub-viewer__click-zone:focus-visible", readerSource);
     const previousFocus = cssBlock(
       ".epub-viewer__click-zone--previous:focus-visible",
@@ -86,9 +92,8 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     );
     const nextFocus = cssBlock(".epub-viewer__click-zone--next:focus-visible", readerSource);
 
-    expect(cssSource).toMatch(
-      /:where\(button, a, input, select, textarea, summary, \[tabindex\]:not\(\[tabindex="-1"\]\)\):focus-visible/,
-    );
+    expect(normalizedCssSource).toContain(`${globalFocusableSelector}:focus-visible`);
+    expect(normalizedCssSource).not.toContain(`${globalFocusableSelector} :focus-visible`);
     expect(pageTurnFocus).toContain("outline: 2px solid var(--reader-focus)");
     expect(pageTurnFocus).toContain("inset 0 0 0 4px var(--reader-bg)");
     expect(previousFocus).toContain("inset 7px 0 var(--reader-focus)");
@@ -129,8 +134,8 @@ describe("Phase 0.4.0.6 UI integration gate", () => {
     );
 
     expect(statusRow).toContain("min-height: 28px");
-    expect(textareaFocus).toContain("box-shadow:");
-    expect(textareaFocus).toContain("var(--reader-focus)");
+    expect(textareaFocus).toContain("background:");
+    expect(textareaFocus).not.toContain("outline:");
     expect(textareaFocusVisible).toContain("outline: 2px solid var(--reader-focus)");
     expect(readerNoteSource).toContain('status === "empty"');
     expect(readerNoteSource).toMatch(/>\s*Retry\s*</);

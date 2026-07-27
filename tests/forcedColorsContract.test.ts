@@ -38,6 +38,10 @@ function cssBlock(header: string, source: string): string {
   throw new Error(`CSS block is malformed: ${header}`);
 }
 
+function normalizeSelectorWhitespace(source: string): string {
+  return source.replace(/\s+/g, " ").replace(/\(\s+/g, "(").replace(/\s+\)/g, ")");
+}
+
 const forcedColorsSource = read("src/styles/forced-colors.css");
 const forcedColorsBlock = cssBlock("@media (forced-colors: active)", forcedColorsSource);
 const formsSource = read("src/styles/components/forms.css");
@@ -224,34 +228,45 @@ describe("forced-colors and focus visibility contract", () => {
   });
 
   it("keeps wrapper focus singular while standalone native controls retain the global ring", () => {
-    const wrapperFocus = cssBlock(
-      ":where(\n    .input-shell:has(input:focus-visible),\n    .epub-filename-field:has(input:focus-visible),\n    .reader-note-editor__field:has(textarea:focus-visible)\n  )",
-      forcedColorsSource,
-    );
-    const wrappedChildFocus = cssBlock(
-      ":where(\n    .input-shell input,\n    .epub-filename-field input,\n    .reader-note-editor__field textarea\n  ):focus-visible",
-      forcedColorsSource,
-    );
+    const normalizedForcedColors = normalizeSelectorWhitespace(forcedColorsSource);
+    const wrapperSelectors = [
+      ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
+      ':root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible)',
+      ':root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible)',
+    ].join(", ");
+    const wrappedChildSelectors = [
+      ':root[data-input-modality="keyboard"] .input-shell input:focus-visible',
+      ':root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible',
+      ':root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible',
+    ].join(", ");
+    const wrapperFocus = cssBlock(wrapperSelectors, normalizedForcedColors);
+    const wrappedChildFocus = cssBlock(wrappedChildSelectors, normalizedForcedColors);
 
     expect(wrapperFocus).toContain("outline: 2px solid Highlight");
+    expect(wrapperSelectors).not.toContain(":where(");
     expect(wrappedChildFocus).toContain("outline: 0 !important");
     expect(forcedColorsBlock).toMatch(
       /:where\(\s*button,\s*a,\s*input,\s*select,\s*textarea,[\s\S]*?\):focus-visible\s*{[\s\S]*?outline: 2px solid Highlight !important;/,
     );
-    expect(wrappedChildFocus).not.toMatch(/(^|,)\s*(?:input|select|textarea)\s*($|,)/);
+    expect(wrappedChildSelectors).not.toMatch(
+      /(^|,)\s*:root\[data-input-modality="keyboard"\]\s+(?:input|select|textarea):/,
+    );
   });
 
   it("keeps wrapper-owned and reader focus visible without shadow-only treatment", () => {
     const focusContracts = [
       cssBlock(".input-shell:has(input:focus-visible)", formsSource),
-      cssBlock(".form-field input:focus-visible,\n.form-field select:focus-visible", formsSource),
+      cssBlock(
+        ':root[data-input-modality="keyboard"] .form-field input:focus-visible,\n:root[data-input-modality="keyboard"] .form-field select:focus-visible',
+        formsSource,
+      ),
       cssBlock(".epub-filename-field:has(input:focus-visible)", filesystemSource),
       cssBlock(
-        ".bulk-metadata-field > input:focus-visible,\n.bulk-metadata-field > textarea:focus-visible",
+        ':root[data-input-modality="keyboard"] .bulk-metadata-field > input:focus-visible,\n:root[data-input-modality="keyboard"] .bulk-metadata-field > textarea:focus-visible',
         librarySource,
       ),
       cssBlock(
-        ".metadata-writeback__field input:focus-visible,\n.metadata-writeback__field textarea:focus-visible",
+        ':root[data-input-modality="keyboard"] .metadata-writeback__field input:focus-visible,\n:root[data-input-modality="keyboard"] .metadata-writeback__field textarea:focus-visible',
         librarySource,
       ),
     ];
