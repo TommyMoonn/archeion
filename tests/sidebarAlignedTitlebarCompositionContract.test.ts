@@ -71,7 +71,7 @@ describe("Phase 0.9.0.12 sidebar-aligned titlebar composition contract", () => {
     expect(composition.match(/tooltipPlacement="bottom"/g)).toHaveLength(3);
   });
 
-  it("matches expanded and collapsed sidebar tokens without adding collapse motion", () => {
+  it("matches expanded and collapsed sidebar tokens with one width transition", () => {
     const styles = read("src/styles/layout/window-frame.css");
     const expanded = cssBlock(styles, ".library-titlebar-composition");
     const wordmark = cssBlock(styles, ".library-titlebar-composition__wordmark");
@@ -93,7 +93,10 @@ describe("Phase 0.9.0.12 sidebar-aligned titlebar composition contract", () => {
     expect(collapsed).toContain("width: var(--sidebar-collapsed-width)");
     expect(constrained).toContain("width: auto");
     expect(constrained).toContain("padding-left: 12px");
-    expect(`${expanded}\n${collapsed}\n${constrained}`).not.toMatch(/transition|animation/);
+    expect(expanded).toContain("transition: width var(--motion-duration-standard)");
+    expect(expanded).toContain("var(--motion-ease-standard)");
+    expect(collapsed).not.toMatch(/transition|animation/);
+    expect(constrained).toContain("transition: none");
   });
 
   it("keeps native control geometry and Archive Manager composition unchanged", () => {

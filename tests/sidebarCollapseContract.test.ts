@@ -56,7 +56,7 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     );
   });
 
-  it("switches to a narrow icon rail without animating shell geometry", () => {
+  it("switches to a narrow icon rail with only the phase-owned shell track transition", () => {
     const collapsedShell = cssBlock(shellStyles, '.app-shell[data-sidebar-collapsed="true"]');
     const collapsedNavigation = cssBlock(shellStyles, '.sidebar[data-collapsed="true"] .nav-item');
     const appShell = cssBlock(shellStyles, ".app-shell");
@@ -65,7 +65,9 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     expect(collapsedShell).toContain("var(--sidebar-collapsed-width)");
     expect(collapsedNavigation).toContain("grid-template-columns: 1fr");
     expect(collapsedNavigation).toContain("place-items: center");
-    expect(`${appShell}\n${sidebar}\n${collapsedShell}`).not.toMatch(/transition|animation/);
+    expect(appShell).toContain("transition: grid-template-columns var(--motion-duration-standard)");
+    expect(appShell).toContain("var(--motion-ease-standard)");
+    expect(`${sidebar}\n${collapsedShell}`).not.toMatch(/transition|animation/);
   });
 
   it("keeps the constrained top layout authoritative and hides expanded-only content", () => {

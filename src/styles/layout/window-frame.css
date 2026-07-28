@@ -87,6 +87,7 @@
   padding: 0 3px 0 21px;
   color: var(--muted);
   background: var(--surface-sidebar);
+  transition: width var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .library-titlebar-composition[data-collapse-available="false"] {
@@ -94,6 +95,7 @@
   width: auto;
   column-gap: 8px;
   padding-left: 12px;
+  transition: none;
 }
 
 .library-titlebar-composition[data-sidebar-collapsed="true"] {

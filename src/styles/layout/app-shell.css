@@ -5,6 +5,7 @@
   min-height: 0;
   overflow: hidden;
   background: var(--surface-app-frame);
+  transition: grid-template-columns var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .app-shell[data-sidebar-collapsed="true"] {
@@ -311,6 +312,7 @@ html[data-density="compact"] .nav-item {
   .app-shell {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
+    transition: none;
   }
 
   .app-shell[data-sidebar-collapsed="true"] {
