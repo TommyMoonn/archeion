@@ -14,6 +14,7 @@ import type { LibrarySmartViewPreferences } from "../../types/library";
 import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import { TooltipProvider } from "../../components/Tooltip";
+import { createFolderBrowserEntries } from "../folders/folderBrowserReadModel";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { LibraryTitlebarComposition } from "./LibraryTitlebarComposition";
 
@@ -53,11 +54,16 @@ function sidebarProps(
     archives: [activeArchive, savedArchive],
     collapsed: false,
     expandedContentRef: { current: null },
-    folders,
+    folderEntries: createFolderBrowserEntries(
+      folders,
+      new Map(folders.map((folder, index) => [folder.id, index + 1])),
+    ),
+    folderSort: "name",
     location,
     smartViewPreferences,
     onCreateFolder: vi.fn(),
     onDeleteFolder: vi.fn(),
+    onFolderSortChange: vi.fn(),
     onLocationChange,
     onManageArchives: vi.fn(),
     onMoveFolder: vi.fn(),
@@ -198,6 +204,83 @@ describe("LibrarySidebar", () => {
     expect(control?.closest("[data-tauri-drag-region]")).toBeNull();
     expect(control?.querySelector(".library-titlebar-composition__sidebar-icon")).not.toBeNull();
     expect(control?.getAttribute("data-sidebar-direction")).toBe("collapse-left");
+  });
+
+  it("uses a ghost icon select for the shared sidebar Folder sort preference", () => {
+    const onFolderSortChange = vi.fn();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+
+    act(() => {
+      root.render(
+        <LibrarySidebar
+          {...sidebarProps([
+            {
+              id: "folder-alpha",
+              name: "Alpha",
+              relativePath: "Alpha",
+              parentId: null,
+              parentPath: null,
+              createdAt: "1",
+              updatedAt: "1",
+            },
+          ])}
+          onFolderSortChange={onFolderSortChange}
+        />,
+      );
+    });
+
+    const sort = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Sort sidebar folders"]',
+    );
+    expect(sort?.closest(".app-select--icon-only")).not.toBeNull();
+    expect(sort?.querySelector(".app-select__trigger-icon")).not.toBeNull();
+    expect(sort?.querySelector(".app-select__value")).toBeNull();
+
+    act(() => sort?.click());
+    const mostBooks = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ).find((option) => option.textContent?.includes("Most books"));
+    act(() => mostBooks?.click());
+
+    expect(onFolderSortChange).toHaveBeenCalledWith("most-books");
+
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
+    expect(styles).toMatch(
+      /\.sidebar__folder-sort \.app-select__trigger\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;/s,
+    );
+    expect(styles).toMatch(
+      /\.sidebar__folder-sort \.app-select__trigger:hover,[\s\S]*?\{[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--surface-raised\);/s,
+    );
+  });
+
+  it("orders the sidebar Folder tree with the shared Folder sort preference", () => {
+    const folders: Folder[] = [
+      {
+        id: "folder-alpha",
+        name: "Alpha",
+        relativePath: "Alpha",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+      {
+        id: "folder-zeta",
+        name: "Zeta",
+        relativePath: "Zeta",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ];
+    const props = sidebarProps(folders);
+    const markup = renderToStaticMarkup(<LibrarySidebar {...props} folderSort="most-books" />);
+
+    expect(markup.indexOf(">Zeta</span>")).toBeLessThan(markup.indexOf(">Alpha</span>"));
   });
 
   it("keeps primary and footer destinations reachable in the collapsed rail", () => {

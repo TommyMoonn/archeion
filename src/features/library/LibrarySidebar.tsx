@@ -14,17 +14,28 @@ import {
   Heart,
   Plus,
   Question,
+  SortAscending,
   Stack,
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
-import { memo, useCallback, useId, useState, type ReactElement, type RefObject } from "react";
+import {
+  memo,
+  useCallback,
+  useId,
+  useMemo,
+  useState,
+  type ReactElement,
+  type RefObject,
+} from "react";
 
+import { AppSelect } from "../../components/AppSelect";
 import { IconButton } from "../../components/IconButton";
 import { MenuItem } from "../../components/MenuItem";
 import { Tooltip } from "../../components/Tooltip";
 import type { KnownArchive } from "../../types/archive";
 import type { ReadonlyFolder } from "../../types/folder";
 import type {
+  FolderSort,
   LibraryLocation,
   LibrarySmartView,
   LibrarySmartViewPreferences,
@@ -35,6 +46,11 @@ import {
 } from "../../types/librarySmartViews";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
 import { FolderTree } from "../folders/FolderTree";
+import {
+  sortFolderBrowserEntries,
+  type FolderBrowserEntry,
+} from "../folders/folderBrowserReadModel";
+import { folderSortOptions } from "../folders/folderSortOptions";
 import { ARCHIVE_ROOT_DESTINATION } from "../filesystem/archiveImport";
 
 const smartViewIcons: Record<LibrarySmartView, Icon> = {
@@ -71,7 +87,7 @@ type LibrarySidebarProps = {
   archives: KnownArchive[];
   collapsed: boolean;
   expandedContentRef: RefObject<HTMLDivElement | null>;
-  folders: readonly ReadonlyFolder[];
+  folderEntries: readonly FolderBrowserEntry[];
   location: LibraryLocation;
   smartViewPreferences: LibrarySmartViewPreferences;
   canManageFolders?: boolean;
@@ -86,6 +102,8 @@ type LibrarySidebarProps = {
   onPreloadSettings?: () => void;
   onRenameFolder: (folder: ReadonlyFolder) => void;
   onRevealFolder?: (folder: ReadonlyFolder) => void;
+  folderSort: FolderSort;
+  onFolderSortChange: (sort: FolderSort) => void;
   onSwitchArchive: (archive: KnownArchive) => void;
   settingsAriaKeyShortcuts?: string;
   canRevealFolders?: boolean;
@@ -97,7 +115,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   archives,
   collapsed,
   expandedContentRef,
-  folders,
+  folderEntries,
   location,
   smartViewPreferences,
   canManageFolders = true,
@@ -112,6 +130,8 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onPreloadSettings,
   onRenameFolder,
   onRevealFolder,
+  folderSort,
+  onFolderSortChange,
   onSwitchArchive,
   settingsAriaKeyShortcuts,
   canRevealFolders = false,
@@ -124,6 +144,18 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   const activeSmartView = activeSmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
   const isCollapsed = collapsed;
+  const sortedFolderEntries = useMemo(
+    () => sortFolderBrowserEntries(folderEntries, folderSort),
+    [folderEntries, folderSort],
+  );
+  const sortedFolders = useMemo(
+    () => sortedFolderEntries.map((entry) => entry.folder),
+    [sortedFolderEntries],
+  );
+  const folderOrder = useMemo(
+    () => new Map(sortedFolderEntries.map((entry, index) => [entry.folder.id, index])),
+    [sortedFolderEntries],
+  );
 
   const manageArchives = useCallback(() => {
     closeArchiveSwitcher();
@@ -273,16 +305,29 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           <div className="sidebar__section">
             <div className="sidebar__section-heading">
               <div className="section-label">Folders</div>
-              {canManageFolders ? (
-                <IconButton label="Create folder" onClick={onCreateFolder}>
-                  <Plus aria-hidden="true" weight="regular" />
-                </IconButton>
-              ) : null}
+              <div className="sidebar__section-heading-actions">
+                <AppSelect
+                  appearance="icon-only"
+                  ariaLabel="Sort sidebar folders"
+                  className="sidebar__folder-sort"
+                  onChange={onFolderSortChange}
+                  options={folderSortOptions}
+                  size="compact"
+                  triggerIcon={<SortAscending weight="regular" />}
+                  value={folderSort}
+                />
+                {canManageFolders ? (
+                  <IconButton label="Create folder" onClick={onCreateFolder}>
+                    <Plus aria-hidden="true" weight="regular" />
+                  </IconButton>
+                ) : null}
+              </div>
             </div>
             <div className="sidebar__folder-scroll">
-              {folders.length > 0 ? (
+              {sortedFolderEntries.length > 0 ? (
                 <FolderTree
-                  folders={folders}
+                  folderOrder={folderOrder}
+                  folders={sortedFolders}
                   location={location}
                   activeImportDropTargetId={activeImportDropTargetId}
                   onDelete={onDeleteFolder}

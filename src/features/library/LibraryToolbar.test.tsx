@@ -127,13 +127,13 @@ describe("LibraryToolbar", () => {
     );
 
     expect(styles).toMatch(
-      /\.library-header__utilities\s*\{[^}]*--library-utility-group-inset:\s*2px;[^}]*--library-utility-child-radius:\s*calc\([^)]*var\(--radius-control\)[^)]*var\(--library-utility-group-inset\)[^)]*var\(--border-width\)[^)]*\);[^}]*padding:\s*var\(--library-utility-group-inset\);[^}]*border:\s*var\(--border-width\) solid var\(--line\);[^}]*border-radius:\s*var\(--radius-control\);[^}]*background:\s*var\(--surface\);/s,
+      /\.library-header__utilities\s*\{[^}]*--library-utility-group-inset:\s*var\(--collection-header-utility-inset\);[^}]*--library-utility-child-radius:\s*calc\([^)]*var\(--radius-control\)[^)]*var\(--library-utility-group-inset\)[^)]*var\(--border-width\)[^)]*\);[^}]*min-height:\s*var\(--collection-header-control-height\);[^}]*padding:\s*var\(--library-utility-group-inset\);[^}]*border:\s*var\(--border-width\) solid var\(--line\);[^}]*border-radius:\s*var\(--radius-control\);[^}]*background:\s*var\(--surface\);/s,
     );
     expect(styles).not.toMatch(
       /\.library-header__utilities\s*\{[^}]*(?:box-shadow|overflow:\s*hidden|padding:\s*0\s)/s,
     );
     expect(styles).toMatch(
-      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*border-radius:\s*var\(--library-utility-child-radius\);[^}]*\}/s,
+      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*var\(--control-height-compact\);[^}]*height:\s*var\(--control-height-compact\);[^}]*border-radius:\s*var\(--library-utility-child-radius\);[^}]*\}/s,
     );
     expect(styles).toMatch(
       /\.library-select-button \.icon-slot,\s*\.library-rescan-button \.icon-slot\s*\{[^}]*--icon-slot-size:\s*18px;[^}]*--icon-glyph-size:\s*18px;/s,
@@ -154,6 +154,31 @@ describe("LibraryToolbar", () => {
       /\.library-header__utilities\s*\{[^}]*border-color:\s*CanvasText;/s,
     );
     expect(styles).not.toMatch(/\.library-select-button\[aria-pressed="true"\][^}]*var\(--accent/s);
+  });
+
+  it("shares the utility-group height with collection search and primary actions", () => {
+    const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
+    const folderSource = readFileSync(
+      resolve(process.cwd(), "src/features/folders/FolderBrowser.tsx"),
+      "utf8",
+    );
+    const seriesSource = readFileSync(
+      resolve(process.cwd(), "src/features/series/SeriesOverview.tsx"),
+      "utf8",
+    );
+
+    expect(styles).toMatch(
+      /\.library-header__actions\s*\{[^}]*--collection-header-utility-inset:\s*1px;[^}]*--collection-header-control-height:\s*var\(--control-height-standard\);/,
+    );
+    expect(styles).toMatch(
+      /\.library-header__actions \.input-shell,\s*\.library-header__actions > \.button\s*\{[^}]*min-height:\s*var\(--collection-header-control-height\);/s,
+    );
+    expect(folderSource).toContain(
+      'className="library-header__actions library-header__actions--primary-only folder-browser__actions"',
+    );
+    expect(seriesSource).toContain(
+      'className="library-header__actions library-header__actions--search-only series-header__actions"',
+    );
   });
 
   it("groups utility actions before a divider and the primary action", () => {

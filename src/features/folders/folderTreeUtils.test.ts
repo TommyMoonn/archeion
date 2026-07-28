@@ -38,6 +38,26 @@ describe("folder tree utilities", () => {
     expect(tree.map((folder) => folder.id)).toEqual(["orphan"]);
   });
 
+  it("applies an explicit Folder view order within each tree level", () => {
+    const tree = buildFolderTree(
+      [
+        createFolder("alpha", "Alpha"),
+        createFolder("beta", "Beta"),
+        createFolder("alpha-child", "Alpha child", "alpha"),
+        createFolder("beta-child", "Beta child", "alpha"),
+      ],
+      new Map([
+        ["beta", 0],
+        ["beta-child", 1],
+        ["alpha", 2],
+        ["alpha-child", 3],
+      ]),
+    );
+
+    expect(tree.map((folder) => folder.id)).toEqual(["beta", "alpha"]);
+    expect(tree[1].children.map((folder) => folder.id)).toEqual(["beta-child", "alpha-child"]);
+  });
+
   it("hides folder paths that repeat the folder name", () => {
     expect(getFolderDisplayPath(createFolder("root", "Manga", null, "Manga"))).toBeUndefined();
   });

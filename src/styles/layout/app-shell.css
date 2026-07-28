@@ -100,12 +100,43 @@
   align-items: center;
   justify-content: space-between;
   min-height: 32px;
-  padding: 0 5px 0 10px;
+  padding: 0 0 0 10px;
 }
 
-.sidebar__section-heading .icon-button {
+.sidebar__section-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sidebar__section-heading:hover .sidebar__section-heading-actions,
+.sidebar__section-heading:focus-within .sidebar__section-heading-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar__section-heading-actions .icon-button {
   width: var(--control-height-compact);
   height: var(--control-height-compact);
+}
+
+.sidebar__folder-sort .app-select__trigger-icon {
+  --icon-slot-size: 17px;
+  --icon-glyph-size: 17px;
+}
+
+.sidebar__folder-sort .app-select__trigger {
+  border-color: transparent;
+  background: transparent;
+}
+
+.sidebar__folder-sort .app-select__trigger:hover,
+.sidebar__folder-sort .app-select__trigger[aria-expanded="true"] {
+  border-color: transparent;
+  color: var(--text-strong);
+  background: var(--surface-raised);
 }
 
 .sidebar__folder-scroll {

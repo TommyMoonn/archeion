@@ -108,26 +108,20 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .folder-tree__row > .folder-menu .menu-trigger,
-  .folder-browser__item .folder-menu .menu-trigger {
+  .folder-tree__row > .folder-menu .menu-trigger {
     opacity: 0;
   }
 
   .folder-tree__row:hover > .folder-menu .menu-trigger,
   .folder-tree__row:focus-within > .folder-menu .menu-trigger,
   .folder-tree__row[data-context-menu-open] > .folder-menu .menu-trigger,
-  .folder-tree__row > .folder-menu[data-open] .menu-trigger,
-  .folder-browser__item:hover .folder-menu .menu-trigger,
-  .folder-browser__item:focus-within .folder-menu .menu-trigger,
-  .folder-browser__item[data-context-menu-open] .folder-menu .menu-trigger,
-  .folder-browser__item .folder-menu[data-open] .menu-trigger {
+  .folder-tree__row > .folder-menu[data-open] .menu-trigger {
     opacity: 1;
   }
 }
 
 @media (hover: none), (pointer: coarse) {
-  .folder-tree__row > .folder-menu .menu-trigger,
-  .folder-browser__item .folder-menu .menu-trigger {
+  .folder-tree__row > .folder-menu .menu-trigger {
     opacity: 1;
   }
 }

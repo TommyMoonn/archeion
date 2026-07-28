@@ -20,6 +20,7 @@ import { buildFolderTree, type FolderTreeNode } from "./folderTreeUtils";
 import { FolderActionsMenu } from "./FolderActionsMenu";
 
 type FolderTreeProps = {
+  folderOrder?: ReadonlyMap<string, number>;
   folders: readonly ReadonlyFolder[];
   location: LibraryLocation;
   onDelete: (folder: ReadonlyFolder) => void;
@@ -133,6 +134,7 @@ function FolderNode({
 }
 
 export function FolderTree({
+  folderOrder,
   folders,
   location,
   onDelete,
@@ -144,7 +146,7 @@ export function FolderTree({
   showActions = true,
   showReveal = false,
 }: FolderTreeProps) {
-  const tree = useMemo(() => buildFolderTree(folders), [folders]);
+  const tree = useMemo(() => buildFolderTree(folders, folderOrder), [folderOrder, folders]);
   const treeRef = useRef<HTMLUListElement>(null);
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLUListElement>) {

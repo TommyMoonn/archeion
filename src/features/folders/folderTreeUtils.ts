@@ -6,7 +6,10 @@ export type FolderTreeNode = ReadonlyFolder & {
 
 const pathSeparatorPattern = /[/\\]+/;
 
-export function buildFolderTree(folders: readonly ReadonlyFolder[]): FolderTreeNode[] {
+export function buildFolderTree(
+  folders: readonly ReadonlyFolder[],
+  folderOrder?: ReadonlyMap<string, number>,
+): FolderTreeNode[] {
   const collator = new Intl.Collator(undefined, {
     numeric: true,
     sensitivity: "base",
@@ -27,7 +30,12 @@ export function buildFolderTree(folders: readonly ReadonlyFolder[]): FolderTreeN
   }
 
   function sortNodes(items: FolderTreeNode[]) {
-    items.sort((left, right) => collator.compare(left.name, right.name));
+    items.sort((left, right) =>
+      folderOrder
+        ? (folderOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER) -
+          (folderOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER)
+        : collator.compare(left.name, right.name),
+    );
     items.forEach((item) => sortNodes(item.children));
   }
 

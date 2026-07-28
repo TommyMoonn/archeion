@@ -1,4 +1,4 @@
-import { FolderOpen, Lightning, SidebarSimple } from "@phosphor-icons/react";
+import { FolderOpen, Lightning, Sidebar } from "@phosphor-icons/react";
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -140,7 +140,7 @@ export function LibraryTitlebarComposition({
               tooltip={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               tooltipPlacement="bottom"
             >
-              <SidebarSimple
+              <Sidebar
                 aria-hidden="true"
                 className="library-titlebar-composition__sidebar-icon"
                 weight="regular"

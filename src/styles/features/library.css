@@ -40,11 +40,19 @@ html[data-density="compact"] .book-grid {
 }
 
 .library-header__actions {
+  --collection-header-utility-inset: 1px;
+  --collection-header-control-height: var(--control-height-standard);
+
   display: grid;
   grid-template-columns: minmax(240px, 1fr) auto 1px auto;
   align-items: center;
   gap: 8px;
   width: min(680px, 58vw);
+}
+
+.library-header__actions .input-shell,
+.library-header__actions > .button {
+  min-height: var(--collection-header-control-height);
 }
 
 .library-header__actions--primary-only {
@@ -56,14 +64,16 @@ html[data-density="compact"] .book-grid {
 }
 
 .library-header__utilities {
-  --library-utility-group-inset: 2px;
+  --library-utility-group-inset: var(--collection-header-utility-inset);
   --library-utility-child-radius: calc(
     var(--radius-control) - var(--library-utility-group-inset) - var(--border-width)
   );
 
   display: inline-flex;
+  box-sizing: border-box;
   align-items: center;
   gap: 2px;
+  min-height: var(--collection-header-control-height);
   padding: var(--library-utility-group-inset);
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-control);
@@ -115,8 +125,8 @@ html[data-density="compact"] .book-grid {
 
 .library-select-button,
 .library-rescan-button {
-  width: 36px;
-  height: 36px;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   border-radius: var(--library-utility-child-radius);
 }
 

@@ -76,6 +76,14 @@ describe("AppSelect placement style ownership", () => {
     );
   });
 
+  it("supports a compact icon-only trigger without narrowing the shared menu", () => {
+    expect(dropdownStyles).toMatch(/\.app-select--icon-only\s*\{[^}]*min-width:\s*0;/s);
+    expect(dropdownStyles).toMatch(
+      /\.app-select--icon-only \.app-select__trigger\s*\{[^}]*width:\s*var\(--app-select-height,\s*var\(--control-height-standard\)\);[^}]*justify-content:\s*center;[^}]*padding:\s*0;/s,
+    );
+    expect(dropdownStyles).toMatch(/\.app-select__menu\s*\{[^}]*position:\s*fixed;/s);
+  });
+
   it("keeps shared consumers on the common tone while preserving Reader-owned contrast", () => {
     for (const styles of [
       filesystemStyles,

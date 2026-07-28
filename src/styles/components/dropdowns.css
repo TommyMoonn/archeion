@@ -38,6 +38,16 @@
   --app-select-height: var(--control-height-compact);
 }
 
+.app-select--icon-only {
+  min-width: 0;
+}
+
+.app-select--icon-only .app-select__trigger {
+  width: var(--app-select-height, var(--control-height-standard));
+  justify-content: center;
+  padding: 0;
+}
+
 .app-select--standard {
   --app-select-height: var(--control-height-standard);
 }

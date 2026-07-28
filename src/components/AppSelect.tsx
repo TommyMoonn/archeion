@@ -12,7 +12,17 @@ export type AppSelectOption<TValue extends string> = {
   value: TValue;
 };
 
-type AppSelectProps<TValue extends string> = {
+type AppSelectAppearance =
+  | {
+      appearance?: "default";
+      triggerIcon?: ReactNode;
+    }
+  | {
+      appearance: "icon-only";
+      triggerIcon: ReactNode;
+    };
+
+type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   ariaLabel?: string;
   className?: string;
   id?: string;
@@ -54,6 +64,7 @@ function getSelectedOrFirstEnabledIndex<TValue extends string>(
 }
 
 export function AppSelect<TValue extends string>({
+  appearance = "default",
   ariaLabel,
   className = "",
   id,
@@ -61,6 +72,7 @@ export function AppSelect<TValue extends string>({
   onChange,
   options,
   size = "standard",
+  triggerIcon,
   value,
 }: AppSelectProps<TValue>) {
   const generatedId = useId();
@@ -169,7 +181,7 @@ export function AppSelect<TValue extends string>({
 
   return (
     <div
-      className={`app-select app-select--${size} ${className}`.trim()}
+      className={`app-select app-select--${size} app-select--${appearance} ${className}`.trim()}
       onBlur={(event) => {
         const nextTarget = event.relatedTarget;
         if (!(nextTarget instanceof Node) || !event.currentTarget.contains(nextTarget)) {
@@ -202,10 +214,19 @@ export function AppSelect<TValue extends string>({
         role="combobox"
         type="button"
       >
-        <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
-        <span aria-hidden="true" className="icon-slot icon-slot--compact">
-          <CaretDown weight="bold" />
-        </span>
+        {triggerIcon ? (
+          <span aria-hidden="true" className="app-select__trigger-icon icon-slot">
+            {triggerIcon}
+          </span>
+        ) : null}
+        {appearance === "default" ? (
+          <>
+            <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
+            <span aria-hidden="true" className="icon-slot icon-slot--compact">
+              <CaretDown weight="bold" />
+            </span>
+          </>
+        ) : null}
       </button>
       {open ? (
         <div
