@@ -70,46 +70,88 @@
 .window-titlebar__app-actions {
   display: flex;
   flex: none;
-  align-items: center;
+  align-items: stretch;
   height: var(--window-titlebar-height);
-  padding: 0 2px 0 10px;
 }
 
 .window-titlebar__app-actions:empty {
   display: none;
 }
 
-.library-titlebar-actions {
-  display: flex;
+.library-titlebar-composition {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2px;
+  width: var(--sidebar-width);
+  height: 100%;
+  padding: 0 3px 0 21px;
+  color: var(--muted);
+  background: var(--surface-sidebar);
 }
 
-.library-titlebar-actions__button {
+.library-titlebar-composition[data-collapse-available="false"] {
+  grid-template-columns: auto auto;
+  width: auto;
+  column-gap: 8px;
+  padding-left: 12px;
+}
+
+.library-titlebar-composition[data-sidebar-collapsed="true"] {
+  grid-template-columns: minmax(0, 1fr);
+  width: var(--sidebar-collapsed-width);
+  padding-inline: 0;
+}
+
+.library-titlebar-composition__wordmark {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--type-title);
+  font-weight: var(--font-weight-regular);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-titlebar-composition__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 1px;
+}
+
+.library-titlebar-composition[data-sidebar-collapsed="true"]
+  .library-titlebar-composition__actions {
+  justify-content: center;
+}
+
+.library-titlebar-composition__button {
   color: var(--muted);
   background: transparent;
 }
 
-.library-titlebar-actions__button .icon-slot {
+.library-titlebar-composition__button .icon-slot {
   --icon-slot-size: 18px;
   --icon-glyph-size: 18px;
 }
 
-.library-titlebar-actions__quick-action .icon-slot {
+.library-titlebar-composition__quick-action .icon-slot {
   --icon-glyph-size: 16px;
 }
 
-.library-titlebar-actions__sidebar-icon {
+.library-titlebar-composition__sidebar-icon {
   transform: translateY(1px);
 }
 
-.library-titlebar-actions__button:hover {
+.library-titlebar-composition__button:hover {
   color: var(--text-strong);
   background: var(--surface-shell-hover);
 }
 
-.library-titlebar-actions__button[data-sidebar-direction="expand-right"]
-  .library-titlebar-actions__sidebar-icon {
+.library-titlebar-composition__button[data-sidebar-direction="expand-right"]
+  .library-titlebar-composition__sidebar-icon {
   transform: translateY(1px) scaleX(-1);
 }
 

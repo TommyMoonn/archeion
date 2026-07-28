@@ -43,7 +43,7 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(appSource).toMatch(
       /windowMode === "archive-manager"[\s\S]*?window-app window-app--archive-manager[\s\S]*?<WindowTitlebar canMaximize=\{false\} \/>/,
     );
-    expect(managerSource).not.toMatch(/PageShell|LibrarySidebar|LibraryTitlebarActions/);
+    expect(managerSource).not.toMatch(/PageShell|LibrarySidebar|LibraryTitlebarComposition/);
     expect(managerSource).toContain('className="archive-manager-shell"');
     expect(managerSource).toContain('className="archive-manager-window__sidebar"');
     expect(managerSource).toContain('className="archive-manager-window__main"');

@@ -773,7 +773,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           smartViewPreferences,
         }}
-        titlebarActionsProps={{
+        titlebarCompositionProps={{
           onOpenQuickActions: openPalette,
           onRevealArchive: revealActiveArchive,
           quickActionsAriaKeyShortcuts: ariaKeyShortcut(

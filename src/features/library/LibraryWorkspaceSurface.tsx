@@ -21,7 +21,7 @@ import { ContinueReading } from "./ContinueReading";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import { LibrarySelectionBar } from "./LibrarySelectionBar";
 import { LibrarySidebar } from "./LibrarySidebar";
-import { LibraryTitlebarActions } from "./LibraryTitlebarActions";
+import { LibraryTitlebarComposition } from "./LibraryTitlebarComposition";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
@@ -79,8 +79,8 @@ type LibraryWorkspaceSurfaceProps = {
   seriesOverviewProps: ComponentProps<typeof SeriesOverview>;
   showContinueReading: boolean;
   sidebarProps: Omit<ComponentProps<typeof LibrarySidebar>, "collapsed" | "expandedContentRef">;
-  titlebarActionsProps: Omit<
-    ComponentProps<typeof LibraryTitlebarActions>,
+  titlebarCompositionProps: Omit<
+    ComponentProps<typeof LibraryTitlebarComposition>,
     "collapseAvailable" | "collapsed" | "expandedSidebarContentRef" | "onCollapsedChange"
   >;
   toolbarProps: ComponentProps<typeof LibraryToolbar>;
@@ -114,7 +114,7 @@ export function LibraryWorkspaceSurface({
   seriesOverviewProps,
   showContinueReading,
   sidebarProps,
-  titlebarActionsProps,
+  titlebarCompositionProps,
   toolbarProps,
   view,
   visibleBooks,
@@ -154,8 +154,8 @@ export function LibraryWorkspaceSurface({
       mainRef={mainRef}
       sidebar={
         <>
-          <LibraryTitlebarActions
-            {...titlebarActionsProps}
+          <LibraryTitlebarComposition
+            {...titlebarCompositionProps}
             collapseAvailable={sidebarState.collapseAvailable}
             collapsed={sidebarState.collapsed}
             expandedSidebarContentRef={expandedSidebarContentRef}

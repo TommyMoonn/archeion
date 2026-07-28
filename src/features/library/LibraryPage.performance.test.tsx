@@ -12,6 +12,7 @@ import { archiveStore } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
+import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
 import { LibraryPage } from "./LibraryPage";
 import {
   clickBook,
@@ -157,6 +158,36 @@ describe("LibraryPage collection callback stability", () => {
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });
 
+  it("does not rerender books when responsive layout restores the requested sidebar state", async () => {
+    const media = installLibrarySidebarMedia(false);
+
+    try {
+      const storage = createStorage({
+        books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
+      });
+      const session = await renderLibraryPage(storage);
+      suite.trackRoot(session.root);
+
+      expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+
+      act(() =>
+        document.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]')?.click(),
+      );
+      act(() => media.setMatches(true));
+      expect(
+        document.querySelector<HTMLButtonElement>('button[aria-label="Collapse sidebar"]'),
+      ).toBeNull();
+
+      act(() => media.setMatches(false));
+      expect(
+        document.querySelector<HTMLButtonElement>('button[aria-label="Expand sidebar"]'),
+      ).not.toBeNull();
+      expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
+    } finally {
+      media.restore();
+    }
+  });
+
   it("does not rerender books when titlebar actions open Quick Actions or reveal the archive", async () => {
     const storage = createStorage({
       books: [selectionBook("alpha", "Alpha"), selectionBook("beta", "Beta")],
@@ -198,7 +229,7 @@ describe("LibraryPage collection callback stability", () => {
       container
         .querySelector<HTMLButtonElement>('button[aria-label="Open Quick Actions"]')
         ?.click();
-      await Promise.resolve();
+      await vi.dynamicImportSettled();
     });
     await vi.waitFor(() => {
       expect(document.querySelector('dialog[aria-label="Quick Actions"]')).not.toBeNull();

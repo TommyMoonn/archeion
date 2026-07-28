@@ -322,7 +322,7 @@ describe("LibraryPage Quick Actions", () => {
     expect(trigger.getAttribute("aria-keyshortcuts")).toBe("Control+Shift+P");
     await act(async () => {
       trigger.click();
-      await Promise.resolve();
+      await vi.dynamicImportSettled();
     });
 
     await vi.waitFor(() => {

@@ -4,40 +4,15 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { LIBRARY_SIDEBAR_TOP_LAYOUT_QUERY, useLibrarySidebarState } from "./useLibrarySidebarState";
+import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
+import { useLibrarySidebarState } from "./useLibrarySidebarState";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const roots: Root[] = [];
-const originalMatchMedia = Object.getOwnPropertyDescriptor(window, "matchMedia");
-
-function installMatchMedia(initialMatches: boolean) {
-  let matches = initialMatches;
-  const listeners = new Set<() => void>();
-  const query = {
-    addEventListener: vi.fn((_type: string, listener: () => void) => listeners.add(listener)),
-    get matches() {
-      return matches;
-    },
-    media: LIBRARY_SIDEBAR_TOP_LAYOUT_QUERY,
-    removeEventListener: vi.fn((_type: string, listener: () => void) => listeners.delete(listener)),
-  } as unknown as MediaQueryList;
-
-  Object.defineProperty(window, "matchMedia", {
-    configurable: true,
-    value: vi.fn(() => query),
-  });
-
-  return {
-    listeners,
-    setMatches(nextMatches: boolean) {
-      matches = nextMatches;
-      listeners.forEach((listener) => listener());
-    },
-  };
-}
+let media: ReturnType<typeof installLibrarySidebarMedia> | null = null;
 
 function renderHarness() {
   const container = document.createElement("div");
@@ -74,15 +49,13 @@ describe("useLibrarySidebarState", () => {
       roots.splice(0).forEach((root) => root.unmount());
     });
     document.body.innerHTML = "";
-    if (originalMatchMedia) {
-      Object.defineProperty(window, "matchMedia", originalMatchMedia);
-    } else {
-      Reflect.deleteProperty(window, "matchMedia");
-    }
+    media?.restore();
+    media = null;
   });
 
   it("lets the constrained top layout override a requested desktop rail", () => {
-    const media = installMatchMedia(false);
+    const installedMedia = installLibrarySidebarMedia(false);
+    media = installedMedia;
     const container = renderHarness();
     const state = () => container.querySelector<HTMLElement>("[data-collapsed]");
 
@@ -93,28 +66,29 @@ describe("useLibrarySidebarState", () => {
     expect(state()?.dataset.collapseAvailable).toBe("true");
     expect(state()?.dataset.collapsed).toBe("true");
 
-    act(() => media.setMatches(true));
+    act(() => installedMedia.setMatches(true));
 
     expect(state()?.dataset.collapseAvailable).toBe("false");
     expect(state()?.dataset.collapsed).toBe("false");
 
-    act(() => media.setMatches(false));
+    act(() => installedMedia.setMatches(false));
 
     expect(state()?.dataset.collapseAvailable).toBe("true");
     expect(state()?.dataset.collapsed).toBe("true");
   });
 
   it("unsubscribes on unmount and starts a later Library session expanded", () => {
-    const media = installMatchMedia(false);
+    const installedMedia = installLibrarySidebarMedia(false);
+    media = installedMedia;
     const first = renderHarness();
 
     act(() => first.querySelector<HTMLButtonElement>("button")?.click());
     expect(first.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
-    expect(media.listeners.size).toBe(1);
+    expect(installedMedia.listeners.size).toBe(1);
 
     act(() => roots.shift()?.unmount());
 
-    expect(media.listeners.size).toBe(0);
+    expect(installedMedia.listeners.size).toBe(0);
 
     const second = renderHarness();
 
