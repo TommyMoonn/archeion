@@ -19,23 +19,31 @@ import {
 
 export type LibraryIndexEntry = Readonly<{
   book: ReadonlyBook;
-  identityKey: string;
   search: LibrarySearchIndexEntry;
   seriesKey?: string;
   smartViews: readonly LibrarySmartView[];
 }>;
 
 type CachedLibraryIndexEntry = Readonly<{
+  book: ReadonlyBook;
   entry: LibraryIndexEntry;
-  identityKey: string;
+  folder: ReadonlyFolder | undefined;
 }>;
 
 export type LibraryIndexCache = {
+  archiveGeneration?: number;
   entries: Map<string, CachedLibraryIndexEntry>;
   index?: LibraryIndex;
-  revisionKey?: string;
+  revision?: number;
   version: number;
 };
+
+export type LibraryIndexSource = Readonly<{
+  archiveGeneration: number;
+  books: readonly ReadonlyBook[];
+  folders: readonly ReadonlyFolder[];
+  revision: number;
+}>;
 
 export type LibraryIndex = Readonly<{
   version: number;
@@ -60,18 +68,20 @@ export function createLibraryIndexCache(): LibraryIndexCache {
 }
 
 export function createLibraryIndex(
-  books: readonly ReadonlyBook[],
-  folders: readonly ReadonlyFolder[],
+  source: LibraryIndexSource,
   cache: LibraryIndexCache = createLibraryIndexCache(),
 ): LibraryIndex {
-  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
-  const identityKeys = books.map((book) =>
-    libraryIndexEntryIdentity(book, book.folderId ? folderById.get(book.folderId) : undefined),
-  );
-  const revisionKey = libraryIndexRevisionKey(books, folders, identityKeys);
-  if (cache.revisionKey === revisionKey && cache.index) return cache.index;
+  const { archiveGeneration, books, folders, revision } = source;
+  if (cache.archiveGeneration === archiveGeneration && cache.revision === revision && cache.index) {
+    return cache.index;
+  }
 
+  const folderById = new Map(folders.map((folder) => [folder.id, folder]));
   const folderDescendantIds = deriveFolderDescendants(folders, folderById);
+  // The versioned snapshot owns whole-index invalidation. Storage reducers replace every changed
+  // read-model entry and preserve unaffected references, so Book plus assigned-Folder identity
+  // safely bounds entry reconstruction without inspecting or serializing the complete archive.
+  const canReuseEntries = cache.archiveGeneration === archiveGeneration;
   const nextCache = new Map<string, CachedLibraryIndexEntry>();
   const entries: LibraryIndexEntry[] = [];
   const canonicalBooks: ReadonlyBook[] = [];
@@ -85,16 +95,16 @@ export function createLibraryIndex(
   const smartViewCounts = emptySmartViewCounts();
   let favoriteCount = 0;
 
-  for (const [bookIndex, sourceBook] of books.entries()) {
-    const identityKey = identityKeys[bookIndex]!;
-    const cached = cache.entries.get(sourceBook.id);
+  for (const sourceBook of books) {
+    const folder = sourceBook.folderId ? folderById.get(sourceBook.folderId) : undefined;
+    const cached = canReuseEntries ? cache.entries.get(sourceBook.id) : undefined;
     const entry =
-      cached?.identityKey === identityKey
+      cached?.book === sourceBook && cached.folder === folder
         ? cached.entry
-        : createIndexEntry(sourceBook, folderById, identityKey);
+        : createIndexEntry(sourceBook, folderById);
     const book = entry.book;
 
-    nextCache.set(book.id, { entry, identityKey });
+    nextCache.set(book.id, { book: sourceBook, entry, folder });
     entries.push(entry);
     canonicalBooks.push(book);
     searchEntries.push(entry.search);
@@ -152,7 +162,8 @@ export function createLibraryIndex(
     seriesCount: seriesEntries.length,
   };
 
-  cache.revisionKey = revisionKey;
+  cache.archiveGeneration = archiveGeneration;
+  cache.revision = revision;
   cache.index = Object.freeze(index);
   return cache.index;
 }
@@ -160,7 +171,6 @@ export function createLibraryIndex(
 function createIndexEntry(
   book: ReadonlyBook,
   folderById: Map<string, ReadonlyFolder>,
-  identityKey: string,
 ): LibraryIndexEntry {
   const seriesKey = normalizeSeriesKey(book.sourceMetadata?.series);
   const smartViews = LIBRARY_SMART_VIEWS.filter((smartView) =>
@@ -172,57 +182,10 @@ function createIndexEntry(
 
   return Object.freeze({
     book,
-    identityKey,
     search,
     ...(seriesKey ? { seriesKey } : {}),
     smartViews: Object.freeze(smartViews),
   });
-}
-
-function libraryIndexEntryIdentity(book: ReadonlyBook, folder: ReadonlyFolder | undefined): string {
-  return JSON.stringify([
-    book.id,
-    book.fileName,
-    book.relativePath,
-    book.folderPath,
-    book.size,
-    book.modifiedAt,
-    book.originalTitle,
-    book.originalAuthor,
-    book.sourceMetadata,
-    book.coverPath,
-    book.coverRevision,
-    book.isFileMissing,
-    book.folderId,
-    book.isFavorite,
-    book.addedAt,
-    book.updatedAt,
-    book.lastOpenedAt,
-    book.progressCfi,
-    book.progressPercent,
-    folder?.name,
-    folder?.relativePath,
-    folder?.parentPath,
-  ]);
-}
-
-function libraryIndexRevisionKey(
-  books: readonly ReadonlyBook[],
-  folders: readonly ReadonlyFolder[],
-  identityKeys: readonly string[],
-): string {
-  return JSON.stringify([
-    books.map((book, index) => [book.id, identityKeys[index]]),
-    folders.map((folder) => [
-      folder.id,
-      folder.name,
-      folder.parentId,
-      folder.relativePath,
-      folder.parentPath,
-      folder.createdAt,
-      folder.updatedAt,
-    ]),
-  ]);
 }
 
 function deriveFolderDescendants(

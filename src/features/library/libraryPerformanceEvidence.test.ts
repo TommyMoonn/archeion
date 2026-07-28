@@ -13,7 +13,11 @@ import {
 import { filterSeriesEntries } from "../series/seriesDerivation";
 import { sortSeriesEntries } from "../series/seriesSorting";
 import { getVisibleBooksFromSearchIndex } from "./libraryFilters";
-import { createLibraryIndex, createLibraryIndexCache } from "./libraryIndex";
+import {
+  createLibraryIndex,
+  createLibraryIndexCache,
+  type LibraryIndexSource,
+} from "./libraryIndex";
 import { calculateLibraryWindowRange } from "./useLibraryCollectionWindow";
 
 const retainedRangeFixtureSizes = [500, 2_000, 10_000] as const;
@@ -56,6 +60,15 @@ function createFolders(count: number): Folder[] {
   });
 }
 
+function createSource(
+  books: readonly Book[],
+  folders: readonly Folder[],
+  revision = 1,
+  archiveGeneration = 1,
+): LibraryIndexSource {
+  return { archiveGeneration, books, folders, revision };
+}
+
 function captureJsonSerialization(task: () => void): number[] {
   const originalStringify = JSON.stringify.bind(JSON);
   const serializedLengths: number[] = [];
@@ -96,12 +109,12 @@ describe.each(retainedRangeFixtureSizes)(
     it("reuses every unchanged index entry after one favorite changes", () => {
       const cache = createLibraryIndexCache();
       const books = createBooks(bookCount);
-      const first = createLibraryIndex(books, [], cache);
+      const first = createLibraryIndex(createSource(books, [], 1), cache);
       const changedIndex = Math.floor(bookCount / 2);
       const nextBooks = books.map((book, index) =>
-        index === changedIndex ? { ...book, isFavorite: true } : { ...book },
+        index === changedIndex ? { ...book, isFavorite: true } : book,
       );
-      const second = createLibraryIndex(nextBooks, [], cache);
+      const second = createLibraryIndex(createSource(nextBooks, [], 2), cache);
       const reusedEntries = second.entries.filter((entry, index) => entry === first.entries[index]);
 
       expect(reusedEntries).toHaveLength(bookCount - 1);
@@ -111,23 +124,25 @@ describe.each(retainedRangeFixtureSizes)(
 );
 
 describe.each(indexFixtureSizes)("library index invalidation evidence: %i books", (bookCount) => {
-  it("records the current per-book and complete aggregate serialization work", () => {
+  it("performs no JSON identity serialization for unchanged or localized input", () => {
     const cache = createLibraryIndexCache();
     const books = createBooks(bookCount);
-    const first = createLibraryIndex(books, [], cache);
-    let second = first;
+    const source = createSource(books, [], 1);
+    const first = createLibraryIndex(source, cache);
+    let unchanged = first;
+    let changed = first;
+    const changedIndex = Math.floor(bookCount / 2);
+    const nextBooks = [...books];
+    nextBooks[changedIndex] = { ...books[changedIndex]!, isFavorite: true };
 
     const serializedLengths = captureJsonSerialization(() => {
-      second = createLibraryIndex(
-        books.map((book) => ({ ...book })),
-        [],
-        cache,
-      );
+      unchanged = createLibraryIndex(source, cache);
+      changed = createLibraryIndex(createSource(nextBooks, [], 2), cache);
     });
 
-    expect(second).toBe(first);
-    expect(serializedLengths).toHaveLength(bookCount + 1);
-    expect(serializedLengths.at(-1)).toBeGreaterThan(Math.max(...serializedLengths.slice(0, -1)));
+    expect(unchanged).toBe(first);
+    expect(changed.entries[changedIndex]).not.toBe(first.entries[changedIndex]);
+    expect(serializedLengths).toEqual([]);
   });
 });
 
@@ -145,11 +160,11 @@ describe("localized library index invalidation evidence", () => {
   ] as const)("replaces one entry for one Book %s change", (_label, change) => {
     const books = createBooks(2_000);
     const cache = createLibraryIndexCache();
-    const first = createLibraryIndex(books, [], cache);
+    const first = createLibraryIndex(createSource(books, [], 1), cache);
     const changedIndex = 1_111;
     const nextBooks = [...books];
     nextBooks[changedIndex] = change(books[changedIndex]!);
-    const second = createLibraryIndex(nextBooks, [], cache);
+    const second = createLibraryIndex(createSource(nextBooks, [], 2), cache);
 
     expect(second.entries.filter((entry, index) => entry === first.entries[index])).toHaveLength(
       1_999,
@@ -160,7 +175,7 @@ describe("localized library index invalidation evidence", () => {
     const folders = createFolders(100);
     const books = createBooks(2_000, folders.length);
     const cache = createLibraryIndexCache();
-    const first = createLibraryIndex(books, folders, cache);
+    const first = createLibraryIndex(createSource(books, folders, 1), cache);
     const renamed = folders.map((folder, index) =>
       index === 42
         ? {
@@ -171,7 +186,7 @@ describe("localized library index invalidation evidence", () => {
           }
         : folder,
     );
-    const second = createLibraryIndex(books, renamed, cache);
+    const second = createLibraryIndex(createSource(books, renamed, 2), cache);
 
     expect(second.entries.filter((entry, index) => entry === first.entries[index])).toHaveLength(
       1_980,
@@ -183,7 +198,7 @@ describe("collection derivation evidence", () => {
   it("retains deterministic Book, Folder, and Series read-model fixtures", () => {
     const folders = createFolders(100);
     const books = createBooks(2_000, folders.length, 200);
-    const index = createLibraryIndex(books, folders);
+    const index = createLibraryIndex(createSource(books, folders));
     const visibleBooks = getVisibleBooksFromSearchIndex(
       index.searchEntries,
       "",
@@ -233,19 +248,18 @@ performanceMeasurement(
         )
         .digest("hex");
       const creation = sampleMilliseconds(() => {
-        createLibraryIndex(books, folders, createLibraryIndexCache());
+        createLibraryIndex(createSource(books, folders), createLibraryIndexCache());
       });
       const unchangedCache = createLibraryIndexCache();
-      createLibraryIndex(books, folders, unchangedCache);
-      const equivalentBooks = books.map((book) => ({ ...book }));
-      const equivalentFolders = folders.map((folder) => ({ ...folder }));
+      const unchangedSource = createSource(books, folders);
+      createLibraryIndex(unchangedSource, unchangedCache);
       const unchanged = sampleMilliseconds(() => {
-        createLibraryIndex(equivalentBooks, equivalentFolders, unchangedCache);
+        createLibraryIndex(unchangedSource, unchangedCache);
       });
       const localizedChange = samplePreparedMilliseconds(
         () => {
           const cache = createLibraryIndexCache();
-          createLibraryIndex(books, folders, cache);
+          createLibraryIndex(createSource(books, folders, 1), cache);
           const nextBooks = [...books];
           const changedIndex = Math.floor(bookCount / 2);
           nextBooks[changedIndex] = {
@@ -255,10 +269,10 @@ performanceMeasurement(
           return { cache, nextBooks };
         },
         ({ cache, nextBooks }) => {
-          createLibraryIndex(nextBooks, folders, cache);
+          createLibraryIndex(createSource(nextBooks, folders, 2), cache);
         },
       );
-      const index = createLibraryIndex(books, folders);
+      const index = createLibraryIndex(createSource(books, folders));
       const filterAndSort = sampleMilliseconds(() => {
         getVisibleBooksFromSearchIndex(
           index.searchEntries,

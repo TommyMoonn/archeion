@@ -154,7 +154,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [pushFeedback],
   );
-  const { archiveImportSettings, books, booksLoadState, folders } = useLibraryWorkspaceData({
+  const {
+    archiveImportSettings,
+    books,
+    booksLoadState,
+    folders,
+    libraryArchiveGeneration,
+    libraryRevision,
+  } = useLibraryWorkspaceData({
     archiveId: activeArchive.id,
     archiveRootPath: activeArchive.rootPath,
     storage,
@@ -239,11 +246,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     libraryTitle,
     visibleBooks,
   } = useLibraryDerivedState({
+    archiveGeneration: libraryArchiveGeneration,
     books,
     debouncedQuery,
     filters,
     folders,
     location: navigation.location,
+    libraryRevision,
     smartViewPreferences,
     sort,
   });

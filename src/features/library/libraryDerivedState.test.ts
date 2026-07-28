@@ -64,7 +64,12 @@ describe("library derived state helpers", () => {
       lastOpenedAt: "2026-07-01T00:00:00.000Z",
     });
 
-    const summary = createLibraryIndex([older, favorite, createBook({ id: "root" })], []);
+    const summary = createLibraryIndex({
+      archiveGeneration: 1,
+      books: [older, favorite, createBook({ id: "root" })],
+      folders: [],
+      revision: 1,
+    });
 
     expect(Object.fromEntries(summary.bookCountsByFolder)).toEqual({ "folder-a": 2 });
     expect(summary.favoriteCount).toBe(1);
@@ -81,11 +86,13 @@ describe("library derived state helpers", () => {
       }),
     );
     const input: Parameters<typeof useLibraryDerivedState>[0] = {
+      archiveGeneration: 1,
       books,
       debouncedQuery: "",
       filters: createDefaultLibraryFilters(),
       folders: [],
       location: { type: "library" },
+      libraryRevision: 1,
       smartViewPreferences: {
         enabled: true,
         visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],

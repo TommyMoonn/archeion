@@ -3,8 +3,12 @@ import { describe, expect, it } from "vitest";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
-import { getVisibleBooks, getVisibleBooksFromSearchIndex } from "./libraryFilters";
-import { createLibraryIndex, createLibraryIndexCache } from "./libraryIndex";
+import { getVisibleBooks, getVisibleBooksFromSearchIndex, sortBooks } from "./libraryFilters";
+import {
+  createLibraryIndex,
+  createLibraryIndexCache,
+  type LibraryIndexSource,
+} from "./libraryIndex";
 
 function createBook(id: string, overrides: Partial<Book> = {}): Book {
   return {
@@ -26,6 +30,15 @@ function createFolder(id: string, parentId: string | null = null): Folder {
     createdAt: "2026-07-01T00:00:00.000Z",
     updatedAt: "2026-07-01T00:00:00.000Z",
   };
+}
+
+function createSource(
+  books: readonly Book[],
+  folders: readonly Folder[],
+  revision = 1,
+  archiveGeneration = 1,
+): LibraryIndexSource {
+  return { archiveGeneration, books, folders, revision };
 }
 
 describe("library index", () => {
@@ -53,7 +66,7 @@ describe("library index", () => {
       }),
     ];
 
-    const index = createLibraryIndex(books, folders);
+    const index = createLibraryIndex(createSource(books, folders));
 
     expect(index.bookById.get("one")).toBe(books[0]);
     expect(index.booksByFolder.get("child")?.map((book) => book.id)).toEqual(["one"]);
@@ -76,15 +89,15 @@ describe("library index", () => {
     expect(Object.isFrozen(index.entries)).toBe(true);
   });
 
-  it("reuses unchanged per-book entries and replaces only changed identities", () => {
+  it("reuses unchanged per-book entries and replaces only changed Book references", () => {
     const cache = createLibraryIndexCache();
     const firstBooks = [createBook("one"), createBook("two")];
-    const first = createLibraryIndex(firstBooks, [], cache);
+    const first = createLibraryIndex(createSource(firstBooks, [], 1), cache);
     const secondBooks = [
-      { ...firstBooks[0]! },
+      firstBooks[0]!,
       { ...firstBooks[1]!, isFavorite: true, updatedAt: "2026-07-02T00:00:00.000Z" },
     ];
-    const second = createLibraryIndex(secondBooks, [], cache);
+    const second = createLibraryIndex(createSource(secondBooks, [], 2), cache);
 
     expect(second.entries[0]).toBe(first.entries[0]);
     expect(second.books[0]).toBe(first.books[0]);
@@ -93,30 +106,112 @@ describe("library index", () => {
     expect(second.version).toBe(first.version + 1);
   });
 
-  it("reuses the complete index for an equivalent books and folders revision", () => {
+  it("returns the existing index for the unchanged versioned snapshot", () => {
     const cache = createLibraryIndexCache();
     const books = [createBook("one")];
     const folders = [createFolder("folder")];
-    const first = createLibraryIndex(books, folders, cache);
-    const second = createLibraryIndex(
-      books.map((book) => ({ ...book })),
-      folders.map((folder) => ({ ...folder })),
-      cache,
-    );
+    const source = createSource(books, folders);
+    const first = createLibraryIndex(source, cache);
+    const second = createLibraryIndex(source, cache);
 
     expect(second).toBe(first);
     expect(second.version).toBe(first.version);
   });
 
-  it("updates folder-backed search entries when folder metadata changes", () => {
+  it("does not reuse entries across archive generations", () => {
     const cache = createLibraryIndexCache();
+    const books = [createBook("one")];
+    const folders = [createFolder("folder")];
+    const first = createLibraryIndex(createSource(books, folders, 1, 1), cache);
+    const second = createLibraryIndex(createSource(books, folders, 1, 2), cache);
+
+    expect(second).not.toBe(first);
+    expect(second.entries[0]).not.toBe(first.entries[0]);
+    expect(second.version).toBe(first.version + 1);
+  });
+
+  it("updates folder-backed search and hierarchy data after Folder replacement", () => {
+    const cache = createLibraryIndexCache();
+    const root = createFolder("root");
+    const other = createFolder("other");
+    const folder = createFolder("folder", "root");
     const book = createBook("one", { folderId: "folder" });
-    const first = createLibraryIndex([book], [createFolder("folder")], cache);
-    const renamedFolder = { ...createFolder("folder"), name: "Renamed" };
-    const second = createLibraryIndex([book], [renamedFolder], cache);
+    const first = createLibraryIndex(createSource([book], [root, other, folder], 1), cache);
+    const movedFolder = {
+      ...folder,
+      name: "Renamed",
+      parentId: "other",
+      relativePath: "other/Renamed",
+    };
+    const second = createLibraryIndex(createSource([book], [root, other, movedFolder], 2), cache);
 
     expect(second.entries[0]).not.toBe(first.entries[0]);
     expect(second.searchEntries[0]?.fields.folderName.normalized).toContain("renamed");
+    expect(second.folderDescendantIds.get("root")).toEqual([]);
+    expect(second.folderDescendantIds.get("other")).toEqual(["folder"]);
+  });
+
+  it("invalidates all Book-derived search, sort, filter, aggregate, and membership facts", () => {
+    const cache = createLibraryIndexCache();
+    const folders = [createFolder("left"), createFolder("right")];
+    const unchanged = createBook("unchanged", {
+      sourceMetadata: { title: "Middle", creator: "Writer" },
+    });
+    const original = createBook("changed", {
+      coverPath: "cover.png",
+      folderId: "left",
+      sourceMetadata: {
+        title: "Zulu",
+        creator: "Writer",
+        language: "en",
+        publisher: "Old Press",
+        series: "Old Series",
+        subjects: ["Old Subject"],
+      },
+    });
+    const first = createLibraryIndex(createSource([original, unchanged], folders, 1), cache);
+    const changed = {
+      ...original,
+      coverPath: undefined,
+      folderId: "right",
+      isFavorite: true,
+      isFileMissing: true,
+      lastOpenedAt: "2026-07-03T00:00:00.000Z",
+      progressPercent: 50,
+      sourceMetadata: {
+        title: "Alpha",
+        creator: undefined,
+        language: "fr",
+        publisher: "New Press",
+        series: "New Series",
+        subjects: ["New Subject"],
+      },
+      updatedAt: "2026-07-03T00:00:00.000Z",
+    };
+    const second = createLibraryIndex(createSource([changed, unchanged], folders, 2), cache);
+
+    expect(second.entries[0]).not.toBe(first.entries[0]);
+    expect(second.entries[1]).toBe(first.entries[1]);
+    expect(second.searchEntries[0]?.fields.resolvedTitle.normalized).toContain("alpha");
+    expect(sortBooks(second.books, "title").map((book) => book.id)).toEqual([
+      "changed",
+      "unchanged",
+    ]);
+    expect(second.filterOptions).toEqual({
+      languages: ["fr"],
+      publishers: ["New Press"],
+      series: ["New Series"],
+      subjects: ["New Subject"],
+    });
+    expect(second.smartViewCounts["in-progress"]).toBe(1);
+    expect(second.smartViewCounts["needs-cover"]).toBe(2);
+    expect(second.smartViewCounts["needs-metadata"]).toBe(1);
+    expect(second.favoriteCount).toBe(1);
+    expect(second.continueBooks).toEqual([changed]);
+    expect(second.seriesEntries.map((entry) => entry.displayName)).toEqual(["New Series"]);
+    expect(second.bookById.get("changed")?.isFileMissing).toBe(true);
+    expect(second.booksByFolder.get("left")).toBeUndefined();
+    expect(second.booksByFolder.get("right")).toEqual([changed]);
   });
 
   it("preserves existing search, filter, location, and sort results", () => {
@@ -130,7 +225,7 @@ describe("library index", () => {
       createBook("alpha", { sourceMetadata: { title: "Alpha Archive", creator: "Mira" } }),
       createBook("other", { sourceMetadata: { title: "Other", creator: "Else" } }),
     ];
-    const index = createLibraryIndex(books, folders);
+    const index = createLibraryIndex(createSource(books, folders));
     const filters = { ...createDefaultLibraryFilters(), favoritesOnly: true };
 
     expect(

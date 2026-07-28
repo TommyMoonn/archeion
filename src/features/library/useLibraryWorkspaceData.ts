@@ -105,6 +105,7 @@ export function useLibraryWorkspaceData({
     books,
     booksLoadState,
     folders,
+    libraryArchiveGeneration: snapshotMatchesArchive ? snapshot.archiveGeneration : undefined,
     libraryRevision: snapshotMatchesArchive ? snapshot.revision : undefined,
   };
 }

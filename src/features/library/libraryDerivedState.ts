@@ -20,11 +20,13 @@ import { createLibraryIndex, createLibraryIndexCache, type LibraryIndex } from "
 const CONTINUE_PREVIEW_LIMIT = 5;
 
 type LibraryDerivedStateInput = {
+  archiveGeneration: number | undefined;
   books: readonly LibrarySnapshotBook[] | undefined;
   debouncedQuery: string;
   filters: LibraryFilterState;
   folders: readonly LibrarySnapshotFolder[] | undefined;
   location: LibraryLocation;
+  libraryRevision: number | undefined;
   smartViewPreferences: LibrarySmartViewPreferences;
   sort: LibrarySort;
 };
@@ -45,11 +47,13 @@ type LibraryDerivedState = {
 };
 
 export function useLibraryDerivedState({
+  archiveGeneration,
   books,
   debouncedQuery,
   filters,
   folders,
   location,
+  libraryRevision,
   smartViewPreferences,
   sort,
 }: LibraryDerivedStateInput): LibraryDerivedState {
@@ -59,9 +63,17 @@ export function useLibraryDerivedState({
   const index = useMemo(
     () =>
       measurePerformance("archeion:create-library-index", () =>
-        createLibraryIndex(currentBooks, currentFolders, indexCache),
+        createLibraryIndex(
+          {
+            archiveGeneration: archiveGeneration ?? -1,
+            books: currentBooks,
+            folders: currentFolders,
+            revision: libraryRevision ?? -1,
+          },
+          indexCache,
+        ),
       ),
-    [currentBooks, currentFolders, indexCache],
+    [archiveGeneration, currentBooks, currentFolders, indexCache, libraryRevision],
   );
   const effectiveSort = useMemo(() => getEffectiveLibrarySort(location, sort), [location, sort]);
   const visibleBooks = useMemo(

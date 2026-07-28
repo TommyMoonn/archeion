@@ -25,6 +25,7 @@ import { useLibraryWorkspaceData, type ArchiveBooksLoadState } from "./useLibrar
 type WorkspaceCommit = {
   bookRevision: number | null;
   folderRevision: number | null;
+  libraryArchiveGeneration: number | undefined;
   libraryRevision: number | undefined;
   status: ArchiveBooksLoadState["status"];
 };
@@ -93,6 +94,7 @@ function WorkspaceProbe({
     onCommit({
       bookRevision: revisionFrom(state.books?.[0]?.originalTitle),
       folderRevision: revisionFrom(state.folders?.[0]?.name),
+      libraryArchiveGeneration: state.libraryArchiveGeneration,
       libraryRevision: state.libraryRevision,
       status: state.booksLoadState.status,
     });
@@ -294,6 +296,7 @@ describe("library snapshot publication", () => {
       {
         bookRevision: 2,
         folderRevision: 2,
+        libraryArchiveGeneration: 1,
         libraryRevision: 2,
         status: "ready",
       },
@@ -341,6 +344,7 @@ describe("library snapshot publication", () => {
       {
         bookRevision: 2,
         folderRevision: 1,
+        libraryArchiveGeneration: 1,
         libraryRevision: 2,
         status: "ready",
       },
@@ -358,6 +362,7 @@ describe("library snapshot publication", () => {
       {
         bookRevision: 2,
         folderRevision: 2,
+        libraryArchiveGeneration: 1,
         libraryRevision: 3,
         status: "ready",
       },
