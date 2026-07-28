@@ -794,7 +794,7 @@ export function ReaderPage() {
   }
 
   const title = bookTitle(book);
-  const fileBlob = readerFile.status === "ready" ? readerFile.blob : undefined;
+  const fileLease = readerFile.status === "ready" ? readerFile.lease : undefined;
   const isFileLoading = readerFile.status === "loading";
 
   if (!error && isFileLoading) {
@@ -807,7 +807,7 @@ export function ReaderPage() {
     );
   }
 
-  if (!error && (readerFile.status === "error" || !fileBlob)) {
+  if (!error && (readerFile.status === "error" || !fileLease)) {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
@@ -910,10 +910,10 @@ export function ReaderPage() {
             Back
           </button>
         </section>
-      ) : fileBlob ? (
+      ) : fileLease ? (
         <EpubViewer
           ref={viewerRef}
-          fileBlob={fileBlob}
+          fileLease={fileLease}
           highlights={highlights.highlights}
           initialCfi={readerSession.initialCfi}
           onError={handleViewerError}

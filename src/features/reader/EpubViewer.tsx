@@ -43,6 +43,7 @@ import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery"
 import type { ReaderLocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
+import type { ReaderFileLease } from "./readerFileLease";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
@@ -58,7 +59,7 @@ export type EpubViewerHandle = {
 };
 
 type EpubViewerProps = {
-  fileBlob: Blob;
+  fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
   onError: (message: string) => void;
@@ -96,7 +97,7 @@ function sessionErrorMessage(error: EpubSessionError): string {
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
-    fileBlob,
+    fileLease,
     highlights = [],
     initialCfi,
     onError,
@@ -223,7 +224,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   } = useEpubSession({
     bridgeRef,
     containerRef,
-    fileBlob,
+    fileLease,
     initialCfi,
     mode: settings.mode,
   });
@@ -608,7 +609,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
 function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProps): boolean {
   return (
-    previous.fileBlob === next.fileBlob &&
+    previous.fileLease === next.fileLease &&
     previous.highlights === next.highlights &&
     previous.initialCfi === next.initialCfi &&
     previous.onError === next.onError &&

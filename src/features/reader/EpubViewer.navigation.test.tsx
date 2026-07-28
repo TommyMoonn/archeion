@@ -14,6 +14,7 @@ import { defaultReaderSettings, type ReaderNavigationState } from "../../types/r
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
+import { createReaderFileLease } from "./readerFileLease";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 
@@ -115,6 +116,7 @@ function createMockRendition(): MockRendition {
 }
 
 function createBookSession(chapterId: string, chapterHref: string) {
+  const bookListeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const navigation = deferred<MockNavigation>();
   const rendition = createMockRendition();
   const chapterDocument = document.implementation.createHTMLDocument(chapterId);
@@ -175,6 +177,14 @@ function createBookSession(chapterId: string, chapterHref: string) {
     },
     renderTo,
     locations: { generate },
+    off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+      bookListeners.get(event)?.delete(callback);
+    }),
+    on: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
+      const listeners = bookListeners.get(event) ?? new Set();
+      listeners.add(callback);
+      bookListeners.set(event, listeners);
+    }),
     destroy,
   };
 
@@ -288,7 +298,11 @@ function realClientRect(left: number, top: number, width: number, height: number
 
 function defaultViewerProps(fileBlob: Blob) {
   return {
-    fileBlob,
+    fileLease: createReaderFileLease({
+      initialBlob: fileBlob,
+      load: async () => fileBlob,
+      requestKey: `test-reader-file:${fileBlob.size}`,
+    }),
     highlights: [] as readonly HighlightAnnotation[],
     onError: vi.fn(),
     onHighlightInteractionClear: vi.fn(),
@@ -1281,7 +1295,11 @@ describe("EpubViewer navigation lifecycle", () => {
     });
     await rerenderViewer(root, {
       ...firstProps,
-      fileBlob: new Blob(["book-two"]),
+      fileLease: createReaderFileLease({
+        initialBlob: new Blob(["book-two"]),
+        load: async () => new Blob(["book-two"]),
+        requestKey: "test-reader-file:book-two",
+      }),
     });
     const staleRange = firstSession.chapterDocument.createRange();
     staleRange.selectNodeContents(firstSession.chapterDocument.body);
@@ -1355,7 +1373,11 @@ describe("EpubViewer navigation lifecycle", () => {
     const navigationChanges = firstProps.onNavigationChange;
     await rerenderViewer(root, {
       ...firstProps,
-      fileBlob: new Blob(["book-two"]),
+      fileLease: createReaderFileLease({
+        initialBlob: new Blob(["book-two"]),
+        load: async () => new Blob(["book-two"]),
+        requestKey: "test-reader-file:book-two",
+      }),
     });
     await waitForActiveRendition(secondSession);
     await resolveNavigation(secondSession);

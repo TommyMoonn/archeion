@@ -4,6 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import type { ReaderFileLease } from "./readerFileLease";
 import { useReaderFileLoad, type ReaderFileLoadResult } from "./useReaderFileLoad";
 
 const SOURCE_RELEASE_MARK = "archeion:reader-source-bytes-released";
@@ -29,10 +30,12 @@ const roots: Root[] = [];
 
 function Harness({
   load,
+  onLease,
   onRelease,
   requestKey,
 }: {
   load: () => Promise<Blob>;
+  onLease?: (lease: ReaderFileLease) => void;
   onRelease?: (release: () => void) => void;
   requestKey: string | null;
 }) {
@@ -41,11 +44,14 @@ function Harness({
   useEffect(() => {
     onRelease?.(release);
   }, [onRelease, release]);
+  useEffect(() => {
+    if (result.status === "ready") onLease?.(result.lease);
+  }, [onLease, result]);
   return (
     <>
       <output
         data-error={result.status === "error" ? result.error : undefined}
-        data-size={result.status === "ready" ? result.blob.size : undefined}
+        data-request-key={result.status === "ready" ? result.lease.requestKey : undefined}
       >
         {result.status}
       </output>
@@ -95,11 +101,11 @@ describe("useReaderFileLoad", () => {
     const { container } = await render(load, '["archive-a","book-1"]');
 
     expect(container.textContent).toContain("ready");
-    expect(container.querySelector("output")?.dataset.size).toBe("5");
+    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-1"]');
 
     await act(async () => container.querySelector("button")?.click());
     expect(container.textContent).toContain("released");
-    expect(container.querySelector("output")?.dataset.size).toBeUndefined();
+    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
 
     await act(async () => container.querySelector("button")?.click());
     expect(container.textContent).toContain("released");
@@ -107,6 +113,38 @@ describe("useReaderFileLoad", () => {
     expect(loads).toBe(1);
     expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
     expect(performance.getEntriesByName(SESSION_TEARDOWN_MEASURE, "measure")).toHaveLength(0);
+  });
+
+  it("keeps the ready file owner mounted after a session releases its source handoff", async () => {
+    const blobs = [new Blob(["initial"]), new Blob(["replacement"])];
+    let loadIndex = 0;
+    const load = () => Promise.resolve(blobs[loadIndex++]!);
+    let lease: ReaderFileLease | undefined;
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    roots.push(root);
+    await act(async () => {
+      root.render(
+        <Harness
+          load={load}
+          onLease={(currentLease) => {
+            lease = currentLease;
+          }}
+          requestKey='["archive-a","book-1"]'
+        />,
+      );
+    });
+
+    const firstHandoff = await lease!.acquire();
+    firstHandoff.release();
+    expect(container.querySelector("output")?.textContent).toBe("ready");
+
+    const replacementHandoff = await lease!.acquire();
+    expect(replacementHandoff.blob).toBe(blobs[1]);
+    expect(container.querySelector("output")?.textContent).toBe("ready");
+    expect(loadIndex).toBe(2);
+    replacementHandoff.release();
   });
 
   it("releases an in-flight request without publishing or restarting its Blob", async () => {
@@ -123,7 +161,7 @@ describe("useReaderFileLoad", () => {
     await act(async () => pending.resolve(new Blob(["late"])));
 
     expect(container.textContent).toContain("released");
-    expect(container.querySelector("output")?.dataset.size).toBeUndefined();
+    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
     expect(loads).toBe(1);
   });
 
@@ -142,7 +180,7 @@ describe("useReaderFileLoad", () => {
     });
 
     expect(container.textContent).toContain("ready");
-    expect(container.querySelector("output")?.dataset.size).toBe(String(secondBlob.size));
+    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-2"]');
   });
 
   it("does not let an older request release the current owner", async () => {
@@ -168,7 +206,7 @@ describe("useReaderFileLoad", () => {
 
     await act(async () => oldRelease?.());
     expect(container.querySelector("output")?.textContent).toBe("ready");
-    expect(container.querySelector("output")?.dataset.size).toBe("7");
+    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-2"]');
   });
 
   it("prevents a superseded book result from becoming active", async () => {
@@ -188,7 +226,7 @@ describe("useReaderFileLoad", () => {
     const secondBlob = new Blob(["second"]);
     await act(async () => second.resolve(secondBlob));
     expect(container.querySelector("output")?.textContent).toBe("ready");
-    expect(container.querySelector("output")?.dataset.size).toBe(String(secondBlob.size));
+    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-b"]');
   });
 
   it("releases the previous active blob as soon as archive ownership changes", async () => {
@@ -205,7 +243,7 @@ describe("useReaderFileLoad", () => {
     });
 
     expect(container.querySelector("output")?.textContent).toBe("loading");
-    expect(container.querySelector("output")?.dataset.size).toBeUndefined();
+    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
   });
 
   it("does not publish a cancelled result after reader teardown", async () => {

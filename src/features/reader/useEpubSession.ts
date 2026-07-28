@@ -13,6 +13,7 @@ import {
 } from "./readerNavigationState";
 import type { EpubContent } from "./readerContentDocumentRegistry";
 import type { ReaderNavigationIntent } from "./readerNavigation";
+import type { ReaderFileLease, ReaderSourceHandoff } from "./readerFileLease";
 
 export type EpubSessionError = { kind: "open-failed" };
 
@@ -45,6 +46,18 @@ type RenditionWithContentHook = Rendition & {
   };
 };
 
+type EpubBookOpenEventListener = (error: unknown) => void;
+
+type EpubBookWithOpenEvents = EpubBook & {
+  off: (event: "openFailed", listener: EpubBookOpenEventListener) => unknown;
+  on: (event: "openFailed", listener: EpubBookOpenEventListener) => unknown;
+};
+
+type EpubBookOpenBoundary = Readonly<{
+  cancel: () => void;
+  result: Promise<"cancelled" | "opened">;
+}>;
+
 type IdleWindow = Window & {
   cancelIdleCallback?: (handle: number) => void;
   requestIdleCallback?: (callback: () => void, options?: { timeout?: number }) => number;
@@ -65,10 +78,48 @@ type EpubSessionLifecycle = {
   tornDown: boolean;
 };
 
+function createEpubBookOpenBoundary(book: EpubBook): EpubBookOpenBoundary {
+  const eventBook = book as EpubBookWithOpenEvents;
+  let settled = false;
+  let resolveResult!: (result: "cancelled" | "opened") => void;
+  let rejectResult!: (error: unknown) => void;
+  const result = new Promise<"cancelled" | "opened">((resolve, reject) => {
+    resolveResult = resolve;
+    rejectResult = reject;
+  });
+
+  const removeListener = () => {
+    eventBook.off("openFailed", onOpenFailed);
+  };
+  const settle = (
+    outcome: { kind: "cancelled" | "opened" } | { error: unknown; kind: "failed" },
+  ) => {
+    if (settled) return;
+    settled = true;
+    removeListener();
+    if (outcome.kind === "failed") rejectResult(outcome.error);
+    else resolveResult(outcome.kind);
+  };
+  const onOpenFailed: EpubBookOpenEventListener = (error) => {
+    settle({ error, kind: "failed" });
+  };
+
+  eventBook.on("openFailed", onOpenFailed);
+  void book.opened.then(
+    () => settle({ kind: "opened" }),
+    (error: unknown) => settle({ error, kind: "failed" }),
+  );
+
+  return Object.freeze({
+    cancel: () => settle({ kind: "cancelled" }),
+    result,
+  });
+}
+
 export type UseEpubSessionOptions = {
   bridgeRef: RefObject<EpubSessionBridge>;
   containerRef: RefObject<HTMLDivElement | null>;
-  fileBlob: Blob;
+  fileLease: ReaderFileLease;
   initialCfi?: string;
   mode: "continuous" | "paged";
 };
@@ -87,7 +138,7 @@ export type EpubSessionFacade = {
 export function useEpubSession({
   bridgeRef,
   containerRef,
-  fileBlob,
+  fileLease,
   initialCfi,
   mode,
 }: UseEpubSessionOptions): EpubSessionFacade {
@@ -96,10 +147,10 @@ export function useEpubSession({
   const navigationControllerRef = useRef<ReaderNavigationStateController | null>(null);
   const generationRef = useRef(0);
   const canonicalCfiRef = useRef(initialCfi);
-  const canonicalCfiFileRef = useRef<Blob | null>(null);
+  const canonicalCfiFileRef = useRef<ReaderFileLease | null>(null);
   const isNavigatingRef = useRef(false);
   const turnOwnerRef = useRef<EpubTurnOwner | null>(null);
-  const sessionKey = useMemo(() => ({ fileBlob, mode }), [fileBlob, mode]);
+  const sessionKey = useMemo(() => ({ fileLease, mode }), [fileLease, mode]);
   const [settledSessionKey, setSettledSessionKey] = useState<typeof sessionKey | null>(null);
 
   useEffect(() => {
@@ -208,14 +259,15 @@ export function useEpubSession({
     let book: EpubBook | null = null;
     let bookDestroyed = false;
     let lifecycle: EpubSessionLifecycle | null = null;
+    let cancelPendingBookOpen: () => void = () => undefined;
     const generation = ++generationRef.current;
     const navigationController = createReaderNavigationStateController((state) =>
       bridgeRef.current?.onNavigationChange(state),
     );
     navigationControllerRef.current = navigationController;
     const displayCfi =
-      canonicalCfiFileRef.current === fileBlob ? canonicalCfiRef.current : initialCfiRef.current;
-    canonicalCfiFileRef.current = fileBlob;
+      canonicalCfiFileRef.current === fileLease ? canonicalCfiRef.current : initialCfiRef.current;
+    canonicalCfiFileRef.current = fileLease;
     canonicalCfiRef.current = displayCfi;
     isNavigatingRef.current = false;
     invalidateTurnOwner();
@@ -277,11 +329,17 @@ export function useEpubSession({
     };
 
     const openBook = async () => {
+      let sourceHandoff: ReaderSourceHandoff | null = null;
       try {
         const epubModule = import("epubjs");
+        sourceHandoff = await fileLease.acquire();
+        if (cancelled || !containerRef.current) {
+          void epubModule.catch(() => undefined);
+          return;
+        }
         let fileContents: ArrayBuffer | null = await measurePerformanceAsync(
           "archeion:reader-blob-to-array-buffer",
-          () => fileBlob.arrayBuffer(),
+          () => sourceHandoff!.blob.arrayBuffer(),
         );
         if (cancelled || !containerRef.current) {
           fileContents = null;
@@ -295,9 +353,14 @@ export function useEpubSession({
           return;
         }
         book = measurePerformance("archeion:reader-epub-book-create", () => ePub(fileContents!));
+        const openBoundary = createEpubBookOpenBoundary(book);
+        cancelPendingBookOpen = openBoundary.cancel;
         fileContents = null;
-        await book.opened;
-        if (cancelled || !containerRef.current) {
+        sourceHandoff.release();
+        sourceHandoff = null;
+        const openResult = await openBoundary.result;
+        cancelPendingBookOpen = () => undefined;
+        if (openResult === "cancelled" || cancelled || !containerRef.current) {
           destroyBookOnce();
           return;
         }
@@ -377,6 +440,8 @@ export function useEpubSession({
           setSettledSessionKey(sessionKey);
           bridgeRef.current?.onError({ kind: "open-failed" });
         }
+      } finally {
+        sourceHandoff?.release();
       }
     };
 
@@ -384,6 +449,8 @@ export function useEpubSession({
 
     return () => {
       cancelled = true;
+      cancelPendingBookOpen();
+      cancelPendingBookOpen = () => undefined;
       const endingSession = lifecycle?.snapshot;
       if (endingSession) teardownSession(endingSession);
       else destroyBookOnce();
@@ -393,7 +460,7 @@ export function useEpubSession({
         navigationControllerRef.current = null;
       }
     };
-  }, [bridgeRef, containerRef, fileBlob, invalidateTurnOwner, mode, sessionKey]);
+  }, [bridgeRef, containerRef, fileLease, invalidateTurnOwner, mode, sessionKey]);
 
   const getNavigationState = useCallback(
     () =>

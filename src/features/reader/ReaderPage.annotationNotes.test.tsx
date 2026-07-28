@@ -12,6 +12,7 @@ import type { Book } from "../../types/book";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { archiveStore, type ArchiveTransitionGuard } from "../../stores/archiveStore";
 import { ReaderRoute } from "./ReaderPage";
+import type { ReaderFileLease } from "./readerFileLease";
 
 type TextSelection = {
   cfiRange: string;
@@ -20,7 +21,7 @@ type TextSelection = {
 };
 
 type MockViewerProps = {
-  fileBlob: Blob;
+  fileLease: ReaderFileLease;
   highlights: readonly HighlightAnnotation[];
   onNavigationChange?: (navigation: {
     chapters: Array<{ depth: number; href: string; id: string; label: string }>;

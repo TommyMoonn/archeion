@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { markPerformance } from "../../utils/measurePerformance";
+import { createReaderFileLease, type ReaderFileLease } from "./readerFileLease";
 
 type ReaderFileLoadState =
   | { requestKey: string | null; status: "loading" }
-  | { blob: Blob; requestKey: string; status: "ready" }
+  | { lease: ReaderFileLease; requestKey: string; status: "ready" }
   | { error: string; requestKey: string; status: "error" }
   | { requestKey: string; status: "released" };
 
@@ -15,7 +15,7 @@ type UseReaderFileLoadOptions = {
 
 export type ReaderFileLoadResult =
   | { status: "loading" }
-  | { blob: Blob; status: "ready" }
+  | { lease: ReaderFileLease; status: "ready" }
   | { error: string; status: "error" }
   | { status: "released" };
 
@@ -41,19 +41,28 @@ export function useReaderFileLoad({
   requestKey,
 }: UseReaderFileLoadOptions): ReaderFileLoadOwner {
   const [state, setState] = useState<ReaderFileLoadState>({ requestKey, status: "loading" });
+  const ownerRef = useRef<ReaderFileLease | null>(null);
+  const stateRef = useRef(state);
 
   if (state.requestKey !== requestKey) {
     setState({ requestKey, status: "loading" });
   }
 
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const release = useCallback(() => {
-    setState((current) => {
-      if (!requestKey || current.requestKey !== requestKey || current.status === "released") {
-        return current;
-      }
-      markPerformance("archeion:reader-source-bytes-released");
-      return { requestKey: current.requestKey, status: "released" };
-    });
+    const owner = ownerRef.current;
+    if (owner?.requestKey === requestKey) {
+      owner.dispose();
+      ownerRef.current = null;
+    }
+    const current = stateRef.current;
+    if (!requestKey || current.requestKey !== requestKey || current.status === "released") return;
+    const releasedState = { requestKey: current.requestKey, status: "released" } as const;
+    stateRef.current = releasedState;
+    setState(releasedState);
   }, [requestKey]);
 
   const released = state.requestKey === requestKey && state.status === "released";
@@ -66,27 +75,48 @@ export function useReaderFileLoad({
     let cancelled = false;
     void load().then(
       (blob) => {
-        if (!cancelled) {
-          setState((current) =>
-            current.requestKey === requestKey && current.status !== "released"
-              ? { blob, requestKey, status: "ready" }
-              : current,
-          );
+        const lease = createReaderFileLease({
+          initialBlob: blob,
+          load,
+          requestKey,
+        });
+        if (cancelled) {
+          lease.dispose();
+          return;
         }
+        const current = stateRef.current;
+        if (current.requestKey !== requestKey || current.status === "released") {
+          lease.dispose();
+          return;
+        }
+        ownerRef.current = lease;
+        const readyState = { lease, requestKey, status: "ready" } as const;
+        stateRef.current = readyState;
+        setState(readyState);
       },
       (error: unknown) => {
         if (!cancelled) {
-          setState((current) =>
-            current.requestKey === requestKey && current.status !== "released"
-              ? { error: readerFileErrorMessage(error), requestKey, status: "error" }
-              : current,
-          );
+          const current = stateRef.current;
+          if (current.requestKey === requestKey && current.status !== "released") {
+            const errorState = {
+              error: readerFileErrorMessage(error),
+              requestKey,
+              status: "error",
+            } as const;
+            stateRef.current = errorState;
+            setState(errorState);
+          }
         }
       },
     );
 
     return () => {
       cancelled = true;
+      const owner = ownerRef.current;
+      if (owner?.requestKey === requestKey) {
+        owner.dispose();
+        ownerRef.current = null;
+      }
     };
   }, [load, released, requestKey]);
 
@@ -94,7 +124,7 @@ export function useReaderFileLoad({
   if (!requestKey || state.requestKey !== requestKey) {
     result = { status: "loading" };
   } else if (state.status === "ready") {
-    result = { blob: state.blob, status: "ready" };
+    result = { lease: state.lease, status: "ready" };
   } else if (state.status === "error") {
     result = { error: state.error, status: "error" };
   } else if (state.status === "released") {
