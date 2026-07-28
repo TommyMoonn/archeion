@@ -28,7 +28,7 @@
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-control);
   color: var(--text);
-  background: var(--canvas-deep);
+  background: var(--surface);
   font-size: var(--type-meta);
   text-align: left;
   cursor: pointer;
@@ -45,7 +45,7 @@
 .app-select__trigger:hover,
 .app-select__trigger[aria-expanded="true"] {
   border-color: var(--line-strong);
-  background: var(--surface);
+  background: var(--surface-hover);
 }
 
 .app-select__value {

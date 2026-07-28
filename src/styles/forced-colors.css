@@ -58,6 +58,10 @@
     box-shadow: none;
   }
 
+  .library-header__utilities {
+    border-color: CanvasText;
+  }
+
   .archive-row[data-active="true"] {
     border-color: Highlight;
     color: HighlightText;

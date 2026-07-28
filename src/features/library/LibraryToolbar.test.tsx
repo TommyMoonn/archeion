@@ -119,20 +119,39 @@ describe("LibraryToolbar", () => {
     expect(markup).not.toContain("library-view-toggle");
   });
 
-  it("keeps selection and rescan actions on the shared ghost-button treatment", () => {
+  it("contains selection and rescan states within one bordered utility group", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/features/library.css"), "utf8");
+    const forcedColorsStyles = readFileSync(
+      resolve(process.cwd(), "src/styles/forced-colors.css"),
+      "utf8",
+    );
 
     expect(styles).toMatch(
-      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*\}/s,
+      /\.library-header__utilities\s*\{[^}]*--library-utility-group-inset:\s*2px;[^}]*--library-utility-child-radius:\s*calc\([^)]*var\(--radius-control\)[^)]*var\(--library-utility-group-inset\)[^)]*var\(--border-width\)[^)]*\);[^}]*padding:\s*var\(--library-utility-group-inset\);[^}]*border:\s*var\(--border-width\) solid var\(--line\);[^}]*border-radius:\s*var\(--radius-control\);[^}]*background:\s*var\(--surface\);/s,
     );
     expect(styles).not.toMatch(
-      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*border(?:-color)?:/s,
+      /\.library-header__utilities\s*\{[^}]*(?:box-shadow|overflow:\s*hidden|padding:\s*0\s)/s,
+    );
+    expect(styles).toMatch(
+      /\.library-select-button,\s*\.library-rescan-button\s*\{[^}]*width:\s*36px;[^}]*height:\s*36px;[^}]*border-radius:\s*var\(--library-utility-child-radius\);[^}]*\}/s,
     );
     expect(styles).toMatch(
       /\.library-select-button \.icon-slot,\s*\.library-rescan-button \.icon-slot\s*\{[^}]*--icon-slot-size:\s*18px;[^}]*--icon-glyph-size:\s*18px;/s,
     );
     expect(styles).toMatch(
-      /\.library-select-button\[aria-pressed="true"\],\s*\.library-rescan-button\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*color:\s*var\(--text-strong\);[^}]*background:\s*var\(--surface-raised\);/s,
+      /\.library-select-button\[aria-pressed="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-raised\);/s,
+    );
+    expect(styles).toMatch(
+      /\.library-rescan-button\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-hover\);/s,
+    );
+    expect(styles).toMatch(
+      /:root\[data-input-modality="keyboard"\][^{]*\.library-header__utilities[^{]*\.icon-button:focus-visible\s*\{[^}]*outline-offset:\s*-2px;/s,
+    );
+    expect(styles).not.toMatch(
+      /html\[data-density="compact"\][^{]*(?:library-header__utilities|library-select-button|library-rescan-button)/,
+    );
+    expect(forcedColorsStyles).toMatch(
+      /\.library-header__utilities\s*\{[^}]*border-color:\s*CanvasText;/s,
     );
     expect(styles).not.toMatch(/\.library-select-button\[aria-pressed="true"\][^}]*var\(--accent/s);
   });

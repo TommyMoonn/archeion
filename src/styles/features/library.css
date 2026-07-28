@@ -56,14 +56,18 @@ html[data-density="compact"] .book-grid {
 }
 
 .library-header__utilities {
+  --library-utility-group-inset: 2px;
+  --library-utility-child-radius: calc(
+    var(--radius-control) - var(--library-utility-group-inset) - var(--border-width)
+  );
+
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  padding: 0 2px;
-  border: 0;
+  padding: var(--library-utility-group-inset);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-control);
-  background: color-mix(in srgb, var(--surface) 54%, transparent);
-  box-shadow: inset 0 0 0 var(--border-width) var(--line);
+  background: var(--surface);
 }
 
 .library-header__action-divider {
@@ -113,6 +117,7 @@ html[data-density="compact"] .book-grid {
 .library-rescan-button {
   width: 36px;
   height: 36px;
+  border-radius: var(--library-utility-child-radius);
 }
 
 .library-select-button .icon-slot,
@@ -121,11 +126,20 @@ html[data-density="compact"] .book-grid {
   --icon-glyph-size: 18px;
 }
 
-.library-select-button[aria-pressed="true"],
-.library-rescan-button[aria-expanded="true"] {
+.library-select-button[aria-pressed="true"] {
   border-color: var(--line-strong);
   color: var(--text-strong);
   background: var(--surface-raised);
+}
+
+.library-rescan-button[aria-expanded="true"] {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: var(--surface-hover);
+}
+
+:root[data-input-modality="keyboard"] .library-header__utilities .icon-button:focus-visible {
+  outline-offset: -2px;
 }
 
 .library-add-button {

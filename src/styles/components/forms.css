@@ -55,10 +55,6 @@
   color: var(--muted);
 }
 
-select {
-  color-scheme: dark;
-}
-
 .form-field {
   display: grid;
   gap: 7px;
