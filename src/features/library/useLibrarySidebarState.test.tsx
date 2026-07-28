@@ -31,6 +31,9 @@ function renderHarness() {
         <button type="button" onClick={() => state.setCollapsed(true)}>
           Collapse
         </button>
+        <button type="button" onClick={() => state.setCollapsed(false)}>
+          Expand
+        </button>
       </div>
     );
   }
@@ -42,6 +45,7 @@ function renderHarness() {
 describe("useLibrarySidebarState", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -77,13 +81,14 @@ describe("useLibrarySidebarState", () => {
     expect(state()?.dataset.collapsed).toBe("true");
   });
 
-  it("unsubscribes on unmount and starts a later Library session expanded", () => {
+  it("retains the requested state when returning from an unmounted Reader route", () => {
     const installedMedia = installLibrarySidebarMedia(false);
     media = installedMedia;
     const first = renderHarness();
 
     act(() => first.querySelector<HTMLButtonElement>("button")?.click());
     expect(first.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+    expect(window.sessionStorage.getItem("archeion:library-sidebar-collapsed")).toBe("true");
     expect(installedMedia.listeners.size).toBe(1);
 
     act(() => roots.shift()?.unmount());
@@ -92,6 +97,33 @@ describe("useLibrarySidebarState", () => {
 
     const second = renderHarness();
 
+    expect(second.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("true");
+  });
+
+  it("restores a collapsed request from the current window session after reload", () => {
+    media = installLibrarySidebarMedia(false);
+    window.sessionStorage.setItem("archeion:library-sidebar-collapsed", "true");
+
+    const container = renderHarness();
+
+    expect(container.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe(
+      "true",
+    );
+  });
+
+  it("clears the session request when the sidebar is expanded", () => {
+    media = installLibrarySidebarMedia(false);
+    const first = renderHarness();
+    const buttons = first.querySelectorAll<HTMLButtonElement>("button");
+
+    act(() => buttons[0]?.click());
+    act(() => buttons[1]?.click());
+
+    expect(first.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("false");
+    expect(window.sessionStorage.getItem("archeion:library-sidebar-collapsed")).toBeNull();
+
+    act(() => roots.shift()?.unmount());
+    const second = renderHarness();
     expect(second.querySelector<HTMLElement>("[data-collapsed]")?.dataset.collapsed).toBe("false");
   });
 });

@@ -57,6 +57,7 @@
   font-weight: var(--font-weight-regular);
   text-align: left;
   text-decoration: none;
+  cursor: pointer;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard);

@@ -433,6 +433,7 @@ export function setupLibraryPageTestSuite() {
   let activeRoot: Root | null = null;
 
   beforeEach(async () => {
+    window.sessionStorage.clear();
     vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyState);
     vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
     const currentPreferences = appPreferencesStore.getSnapshot();

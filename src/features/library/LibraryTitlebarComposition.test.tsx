@@ -2,7 +2,7 @@
 
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import { TooltipProvider } from "../../components/Tooltip";
@@ -117,6 +117,10 @@ function actionLabels(container: HTMLElement): Array<string | null> {
 }
 
 describe("LibraryTitlebarComposition", () => {
+  beforeEach(() => {
+    window.sessionStorage.clear();
+  });
+
   afterEach(() => {
     if (root) {
       act(() => root?.unmount());

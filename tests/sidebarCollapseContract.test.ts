@@ -48,11 +48,13 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     );
   });
 
-  it("uses one session-local owner without adding persisted shell state", () => {
-    expect(sidebarStateSource).toContain("useState(false)");
+  it("retains requested collapse only for the current window session", () => {
+    expect(sidebarStateSource).toContain("useState(readRequestedCollapsed)");
     expect(sidebarStateSource).toContain("useSyncExternalStore");
+    expect(sidebarStateSource).toContain("window.sessionStorage");
+    expect(sidebarStateSource).toContain("LIBRARY_SIDEBAR_COLLAPSED_SESSION_KEY");
     expect(`${sidebarStateSource}\n${sidebarSource}\n${titlebarCompositionSource}`).not.toMatch(
-      /localStorage|sessionStorage|AppPreferences|save|persist/i,
+      /localStorage|AppPreferences/i,
     );
   });
 
@@ -65,6 +67,7 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     expect(collapsedShell).toContain("var(--sidebar-collapsed-width)");
     expect(collapsedNavigation).toContain("grid-template-columns: 1fr");
     expect(collapsedNavigation).toContain("place-items: center");
+    expect(cssBlock(shellStyles, ".nav-item")).toContain("cursor: pointer");
     expect(appShell).toContain("transition: grid-template-columns var(--motion-duration-standard)");
     expect(appShell).toContain("var(--motion-ease-standard)");
     expect(`${sidebar}\n${collapsedShell}`).not.toMatch(/transition|animation/);
