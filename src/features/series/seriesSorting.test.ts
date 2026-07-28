@@ -104,4 +104,8 @@ describe("series sorting", () => {
       "zeta-alpha",
     ]);
   });
+
+  it("reuses the canonical entries when search is empty", () => {
+    expect(filterSeriesEntries(entries, "")).toBe(entries);
+  });
 });

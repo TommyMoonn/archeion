@@ -13,6 +13,7 @@ import { SeriesDetail } from "./SeriesDetail";
 import { SeriesOverview } from "./SeriesOverview";
 
 const seriesStyles = readFileSync(resolve(process.cwd(), "src/styles/features/series.css"), "utf8");
+const seriesCoverRenderCounts = vi.hoisted(() => new Map<string, number>());
 
 function cssBlock(source: string, selector: string): string {
   const selectorIndex = source.indexOf(selector);
@@ -32,9 +33,12 @@ function cssBlock(source: string, selector: string): string {
 }
 
 vi.mock("../library/BookCover", () => ({
-  BookCover: ({ book, className = "" }: { book: Book; className?: string }) => (
-    <div className={className} data-cover-book={book.id} />
-  ),
+  BookCover: ({ book, className = "" }: { book: Book; className?: string }) => {
+    if (className === "book-cover--series") {
+      seriesCoverRenderCounts.set(book.id, (seriesCoverRenderCounts.get(book.id) ?? 0) + 1);
+    }
+    return <div className={className} data-cover-book={book.id} />;
+  },
 }));
 
 let root: Root | null = null;
@@ -47,6 +51,7 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
+  seriesCoverRenderCounts.clear();
 });
 
 function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
@@ -104,6 +109,48 @@ function buttonWithText(scope: HTMLElement, text: string): HTMLButtonElement {
 }
 
 describe("series library surfaces", () => {
+  it("does not commit an unchanged Series card when another Series entry changes", () => {
+    const alpha = createBook({
+      id: "alpha-1",
+      sourceMetadata: { series: "Alpha", volume: "1" },
+    });
+    const beta = createBook({
+      id: "beta-1",
+      sourceMetadata: { series: "Beta", volume: "1" },
+    });
+    const initialEntries = deriveSeriesEntries([alpha, beta]);
+    const nextAlphaEntry = deriveSeriesEntries([{ ...alpha, progressPercent: 50 }])[0]!;
+    const nextEntries = initialEntries.map((entry) =>
+      entry.key === nextAlphaEntry.key ? nextAlphaEntry : entry,
+    );
+    const onClearSearch = vi.fn();
+    const onOpen = vi.fn();
+    const onQueryChange = vi.fn();
+    const onSortChange = vi.fn();
+    const onViewChange = vi.fn();
+    const renderOverview = (entries: ReturnType<typeof deriveSeriesEntries>) => (
+      <SeriesOverview
+        cardSize="medium"
+        entries={entries}
+        isLoading={false}
+        onClearSearch={onClearSearch}
+        onOpen={onOpen}
+        onQueryChange={onQueryChange}
+        onSortChange={onSortChange}
+        onViewChange={onViewChange}
+        query=""
+        sort="title"
+        view="grid"
+      />
+    );
+
+    mount(renderOverview(initialEntries));
+    act(() => root?.render(renderOverview(nextEntries)));
+
+    expect(seriesCoverRenderCounts.get("alpha-1")).toBe(2);
+    expect(seriesCoverRenderCounts.get("beta-1")).toBe(1);
+  });
+
   it("makes each searchable series summary one complete open target", () => {
     const entries = deriveSeriesEntries([
       ...seriesBooks(),

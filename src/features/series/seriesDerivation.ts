@@ -104,11 +104,14 @@ export function deriveSeriesEntryForBook(
   return deriveSeriesEntry(key, seriesBooks);
 }
 
-export function filterSeriesEntries(entries: readonly SeriesEntry[], query: string): SeriesEntry[] {
+export function filterSeriesEntries(
+  entries: readonly SeriesEntry[],
+  query: string,
+): readonly SeriesEntry[] {
   const normalizedQuery = normalizeSeriesKey(query);
 
   if (!normalizedQuery) {
-    return [...entries];
+    return entries;
   }
 
   return entries.filter((entry) =>

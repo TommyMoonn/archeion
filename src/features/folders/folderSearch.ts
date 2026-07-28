@@ -46,35 +46,67 @@ function scoreFolderSearchEntry(entry: FolderSearchIndexEntry, query: SearchQuer
 export function createFolderSearchIndex(
   folders: readonly ReadonlyFolder[],
 ): FolderSearchIndexEntry[] {
-  return folders.map((folder) => ({
+  return folders.map(createFolderSearchIndexEntry);
+}
+
+export function createFolderSearchIndexEntry(folder: ReadonlyFolder): FolderSearchIndexEntry {
+  return {
     folder,
     fields: {
       name: createSearchTextVariants(folder.name),
       relativePath: createSearchTextVariants(folder.relativePath),
       parentPath: createSearchTextVariants(folder.parentPath),
     },
-  }));
+  };
 }
 
-export function searchFolderIndex(
-  index: FolderSearchIndexEntry[],
+export function filterFolderSearchIndexEntries<T extends FolderSearchIndexEntry>(
+  index: readonly T[],
   query: string,
-): ReadonlyFolder[] {
+): readonly T[] {
   const searchQuery = createSearchQuery(query);
 
   if (isEmptySearchQuery(searchQuery)) {
-    return index.map((entry) => entry.folder);
+    return index;
   }
 
-  return index
-    .map((entry, indexOrder) => ({
+  const matches: T[] = [];
+  for (const entry of index) {
+    if (searchFieldsMatchQuery(searchableFolderFields(entry), searchQuery)) matches.push(entry);
+  }
+  return matches;
+}
+
+export function searchFolderIndexEntries<T extends FolderSearchIndexEntry>(
+  index: readonly T[],
+  query: string,
+): readonly T[] {
+  const searchQuery = createSearchQuery(query);
+
+  if (isEmptySearchQuery(searchQuery)) {
+    return index;
+  }
+
+  const matches: Array<{ entry: T; indexOrder: number; score: number }> = [];
+  for (const [indexOrder, entry] of index.entries()) {
+    if (!searchFieldsMatchQuery(searchableFolderFields(entry), searchQuery)) continue;
+    matches.push({
       entry,
       indexOrder,
       score: scoreFolderSearchEntry(entry, searchQuery),
-    }))
-    .filter(({ entry }) => searchFieldsMatchQuery(searchableFolderFields(entry), searchQuery))
+    });
+  }
+
+  return matches
     .sort((left, right) => right.score - left.score || left.indexOrder - right.indexOrder)
-    .map(({ entry }) => entry.folder);
+    .map(({ entry }) => entry);
+}
+
+export function searchFolderIndex(
+  index: readonly FolderSearchIndexEntry[],
+  query: string,
+): ReadonlyFolder[] {
+  return searchFolderIndexEntries(index, query).map((entry) => entry.folder);
 }
 
 export function searchFolders(folders: readonly ReadonlyFolder[], query: string): ReadonlyFolder[] {

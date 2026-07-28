@@ -283,14 +283,20 @@ function folderPathName(folderPath: string | undefined): string {
   );
 }
 
-function bookFolder(book: ReadonlyBook, folderLookup: Map<string, ReadonlyFolder>): string[] {
+function bookFolder(
+  book: ReadonlyBook,
+  folderLookup: ReadonlyMap<string, ReadonlyFolder>,
+): string[] {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
   return [book.folderPath, folder?.name, folder?.relativePath].filter((value): value is string =>
     Boolean(value),
   );
 }
 
-function bookFolderName(book: ReadonlyBook, folderLookup: Map<string, ReadonlyFolder>): string {
+function bookFolderName(
+  book: ReadonlyBook,
+  folderLookup: ReadonlyMap<string, ReadonlyFolder>,
+): string {
   const folder = book.folderId ? folderLookup.get(book.folderId) : undefined;
   return folder?.name?.trim() || folderPathName(book.folderPath);
 }
@@ -368,7 +374,7 @@ function scoreBookSearchEntry(entry: LibrarySearchIndexEntry, query: SearchQuery
 
 export function createLibrarySearchIndexEntry(
   book: ReadonlyBook,
-  folderLookup: Map<string, ReadonlyFolder>,
+  folderLookup: ReadonlyMap<string, ReadonlyFolder>,
 ): LibrarySearchIndexEntry {
   const folderValues = bookFolder(book, folderLookup);
   const folderName = bookFolderName(book, folderLookup);

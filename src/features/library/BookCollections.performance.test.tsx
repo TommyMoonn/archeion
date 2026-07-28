@@ -130,6 +130,33 @@ describe.each(["grid", "list"] as const)("%s selection rendering", (view) => {
     expect(coverRenderCounts.get("two")).toBe(1);
   });
 
+  it("does not commit an unaffected book when one cover revision changes", async () => {
+    const books = [createBook("one"), createBook("two")];
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    activeContainer = container;
+    const Collection = view === "grid" ? BookGrid : BookList;
+    const render = (nextBooks: Book[]) =>
+      root.render(
+        <Collection
+          {...callbacks}
+          books={nextBooks}
+          selectedBookIds={new Set()}
+          selectionMode={false}
+        />,
+      );
+
+    await act(async () => render(books));
+    await act(async () =>
+      render([{ ...books[0]!, coverPath: "covers/one.jpg", coverRevision: "1" }, books[1]!]),
+    );
+
+    expect(coverRenderCounts.get("one")).toBe(2);
+    expect(coverRenderCounts.get("two")).toBe(1);
+  });
+
   it.each([500, 2_000])(
     "keeps mounted books proportional to the viewport for a %i-book collection",
     async (bookCount) => {

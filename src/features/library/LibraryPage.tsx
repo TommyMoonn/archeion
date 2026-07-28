@@ -16,6 +16,7 @@ import {
 import type { LibraryLocation } from "../../types/library";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
+import type { SeriesEntry } from "../../types/series";
 import type { ImportSettings } from "../../types/settings";
 import { currentFocusOrigin, focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
@@ -237,11 +238,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     ...archiveImportSettings,
   };
   const {
-    bookCountsByFolder,
     continuePreview,
     currentFolder,
     effectiveSort,
     filterOptions,
+    folderEntries,
     index,
     libraryTitle,
     visibleBooks,
@@ -370,19 +371,20 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     (book: LibrarySnapshotBook) => openReader(book, readerReturnLabel, true),
     [openReader, readerReturnLabel],
   );
+  const captureFolderMutationFocus = navigation.captureFolderMutationFocus;
   const openRenameFolder = useCallback(
     (folder: LibrarySnapshotFolder) => {
-      navigation.captureFolderMutationFocus(folder);
+      captureFolderMutationFocus(folder);
       dialogActions.openRenameFolder(folder);
     },
-    [dialogActions, navigation],
+    [captureFolderMutationFocus, dialogActions],
   );
   const openMoveFolder = useCallback(
     (folder: LibrarySnapshotFolder) => {
-      navigation.captureFolderMutationFocus(folder);
+      captureFolderMutationFocus(folder);
       dialogActions.openMoveFolder(folder);
     },
-    [dialogActions, navigation],
+    [captureFolderMutationFocus, dialogActions],
   );
 
   const bookActions = useLibraryBookActions({
@@ -453,6 +455,29 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [captureFolderDeletion, requestDeleteFolderAction],
   );
+  const openFolder = useCallback(
+    (folder: LibrarySnapshotFolder) => changeLocation({ type: "folder", folderId: folder.id }),
+    [changeLocation],
+  );
+  const revealFolderAction = bookActions.revealFolder;
+  const revealFolder = useCallback(
+    (folder: LibrarySnapshotFolder) => void revealFolderAction(folder),
+    [revealFolderAction],
+  );
+  const setSeriesQuery = navigation.setSeriesQuery;
+  const clearSeriesSearch = useCallback(() => setSeriesQuery(""), [setSeriesQuery]);
+  const openSeries = useCallback(
+    (entry: SeriesEntry) => {
+      setSeriesReturnFocusKey(entry.key);
+      changeLocation({ type: "series-detail", seriesKey: entry.key });
+    },
+    [changeLocation],
+  );
+  const completeSeriesReturnFocus = useCallback(() => setSeriesReturnFocusKey(null), []);
+  const returnToSeriesOverview = useCallback(() => {
+    setSeriesReturnFocusKey(activeSeries?.key ?? null);
+    changeLocation({ type: "series" });
+  }, [activeSeries?.key, changeLocation]);
   const visibleSelectedCount = useMemo(
     () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
     [selectedBookIds, visibleBooks],
@@ -678,17 +703,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         feedbackProps={{ onDismiss: dismissFeedback, tokens: feedbackTokens }}
         folderBrowserProps={{
           activeImportDropTargetId: activeImportDropTarget?.id,
-          bookCounts: bookCountsByFolder,
           canManageFolders: true,
           canRevealFolders: true,
-          folders: folders ?? [],
+          entries: folderEntries,
           isLoading: booksLoadState.status === "loading",
           onCreate: dialogActions.openCreateFolder,
           onDelete: requestDeleteFolder,
           onMove: openMoveFolder,
-          onOpen: (folder) => changeLocation({ type: "folder", folderId: folder.id }),
+          onOpen: openFolder,
           onRename: openRenameFolder,
-          onReveal: (folder) => void bookActions.revealFolder(folder),
+          onReveal: revealFolder,
           cardSize: foldersDisplayPreferences.cardSize,
           onSortChange: changeFolderSort,
           onViewChange: changeFolderView,
@@ -730,24 +754,18 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         }
         seriesDetailProps={{
           entry: activeSeries,
-          onBack: () => {
-            setSeriesReturnFocusKey(activeSeries?.key ?? null);
-            changeLocation({ type: "series" });
-          },
+          onBack: returnToSeriesOverview,
           onRead: readBook,
         }}
         seriesOverviewProps={{
           entries: seriesEntries,
           isLoading: booksLoadState.status === "loading",
-          onClearSearch: () => navigation.setSeriesQuery(""),
-          onOpen: (entry) => {
-            setSeriesReturnFocusKey(entry.key);
-            changeLocation({ type: "series-detail", seriesKey: entry.key });
-          },
-          onReturnFocusComplete: () => setSeriesReturnFocusKey(null),
+          onClearSearch: clearSeriesSearch,
+          onOpen: openSeries,
+          onReturnFocusComplete: completeSeriesReturnFocus,
           returnFocusKey: seriesReturnFocusKey,
           cardSize: seriesDisplayPreferences.cardSize,
-          onQueryChange: navigation.setSeriesQuery,
+          onQueryChange: setSeriesQuery,
           onSortChange: changeSeriesSort,
           onViewChange: changeSeriesView,
           query: navigation.seriesQuery,
@@ -778,7 +796,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             getCommandBinding(commandDefinitions.settings.id),
           ),
           onRenameFolder: openRenameFolder,
-          onRevealFolder: (folder) => void bookActions.revealFolder(folder),
+          onRevealFolder: revealFolder,
           onSwitchArchive: (knownArchive) => void navigation.switchArchive(knownArchive.id),
           smartViewPreferences,
         }}

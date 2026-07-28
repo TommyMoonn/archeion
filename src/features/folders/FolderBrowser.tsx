@@ -8,6 +8,7 @@ import {
   X,
 } from "@phosphor-icons/react";
 import {
+  memo,
   useMemo,
   useRef,
   useState,
@@ -33,7 +34,6 @@ import type { CollectionCardSize, FolderBrowserView, FolderSort } from "../../ty
 import { FolderActionsMenu } from "./FolderActionsMenu";
 import { folderMutationOwnerAttributes } from "./folderMutationFocus";
 import {
-  createFolderBrowserEntries,
   filterFolderBrowserEntries,
   sortFolderBrowserEntries,
   type FolderBrowserEntry,
@@ -42,11 +42,10 @@ import { folderSortOptions } from "./folderSortOptions";
 import { formatFolderBookCount } from "./folderTreeUtils";
 
 type FolderBrowserProps = {
-  bookCounts: ReadonlyMap<string, number>;
   cardSize: CollectionCardSize;
   canManageFolders?: boolean;
   canRevealFolders?: boolean;
-  folders: readonly ReadonlyFolder[];
+  entries: readonly FolderBrowserEntry[];
   isLoading: boolean;
   onCreate?: () => void;
   onDelete?: (folder: ReadonlyFolder) => void;
@@ -76,7 +75,7 @@ type FolderBrowserItemProps = {
   view: FolderBrowserView;
 };
 
-function FolderBrowserItem({
+const FolderBrowserItem = memo(function FolderBrowserItem({
   activeImportDropTargetId,
   canRevealFolders,
   entry: { bookCount, displayPath, folder },
@@ -153,7 +152,7 @@ function FolderBrowserItem({
       ) : null}
     </article>
   );
-}
+});
 
 const folderViewOptions: Array<{
   icon: ReactNode;
@@ -172,12 +171,11 @@ const folderViewOptions: Array<{
   },
 ];
 
-export function FolderBrowser({
-  bookCounts,
+export const FolderBrowser = memo(function FolderBrowser({
   cardSize,
   canManageFolders = false,
   canRevealFolders = false,
-  folders,
+  entries,
   isLoading,
   onCreate,
   onDelete,
@@ -194,10 +192,6 @@ export function FolderBrowser({
   searchInputRef,
 }: FolderBrowserProps) {
   const [query, setQuery] = useState("");
-  const entries = useMemo(
-    () => createFolderBrowserEntries(folders, bookCounts),
-    [bookCounts, folders],
-  );
   const visibleEntries = useMemo(
     () => sortFolderBrowserEntries(filterFolderBrowserEntries(entries, query), sort),
     [entries, query, sort],
@@ -347,4 +341,4 @@ export function FolderBrowser({
       </div>
     </section>
   );
-}
+});

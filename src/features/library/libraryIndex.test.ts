@@ -151,6 +151,62 @@ describe("library index", () => {
     expect(second.folderDescendantIds.get("other")).toEqual(["folder"]);
   });
 
+  it("keeps Folder structure and unrelated Series entries stable for localized Book changes", () => {
+    const cache = createLibraryIndexCache();
+    const folders = [createFolder("root"), createFolder("child", "root")];
+    const firstBooks = [
+      createBook("one", {
+        folderId: "child",
+        sourceMetadata: { series: "Alpha", title: "One", volume: "1" },
+      }),
+      createBook("two", {
+        folderId: "root",
+        sourceMetadata: { series: "Beta", title: "Two", volume: "1" },
+      }),
+    ];
+    const first = createLibraryIndex(createSource(firstBooks, folders, 1), cache);
+    const progressBooks = [{ ...firstBooks[0]!, progressPercent: 35 }, firstBooks[1]!];
+    const progress = createLibraryIndex(createSource(progressBooks, folders, 2), cache);
+
+    expect(progress.folderById).toBe(first.folderById);
+    expect(progress.folderDescendantIds).toBe(first.folderDescendantIds);
+    expect(progress.bookCountsByFolder).toBe(first.bookCountsByFolder);
+    expect(progress.folderEntries).toBe(first.folderEntries);
+    expect(progress.searchEntries[0]?.fields).toBe(first.searchEntries[0]?.fields);
+    expect(progress.seriesEntries.find((entry) => entry.key === "alpha")).not.toBe(
+      first.seriesEntries.find((entry) => entry.key === "alpha"),
+    );
+    expect(progress.seriesEntries.find((entry) => entry.key === "beta")).toBe(
+      first.seriesEntries.find((entry) => entry.key === "beta"),
+    );
+
+    const coverBooks = [{ ...progressBooks[0]!, coverRevision: "cover:2" }, progressBooks[1]!];
+    const cover = createLibraryIndex(createSource(coverBooks, folders, 3), cache);
+
+    expect(cover.searchEntries[0]?.fields).toBe(progress.searchEntries[0]?.fields);
+    expect(cover.folderEntries).toBe(progress.folderEntries);
+    expect(cover.seriesEntries.find((entry) => entry.key === "beta")).toBe(
+      progress.seriesEntries.find((entry) => entry.key === "beta"),
+    );
+  });
+
+  it("replaces only Folder entries whose count or Folder identity changes", () => {
+    const cache = createLibraryIndexCache();
+    const folders = [createFolder("left"), createFolder("right")];
+    const firstBook = createBook("one", { folderId: "left" });
+    const first = createLibraryIndex(createSource([firstBook], folders, 1), cache);
+    const secondBook = createBook("two", { folderId: "right" });
+    const second = createLibraryIndex(createSource([firstBook, secondBook], folders, 2), cache);
+
+    expect(second.folderEntries.find((entry) => entry.folder.id === "left")).toBe(
+      first.folderEntries.find((entry) => entry.folder.id === "left"),
+    );
+    expect(second.folderEntries.find((entry) => entry.folder.id === "right")).not.toBe(
+      first.folderEntries.find((entry) => entry.folder.id === "right"),
+    );
+    expect(second.folderEntries.find((entry) => entry.folder.id === "right")?.bookCount).toBe(1);
+  });
+
   it("invalidates all Book-derived search, sort, filter, aggregate, and membership facts", () => {
     const cache = createLibraryIndexCache();
     const folders = [createFolder("left"), createFolder("right")];

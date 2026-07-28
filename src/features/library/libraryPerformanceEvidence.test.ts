@@ -6,12 +6,10 @@ import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
 import {
-  createFolderBrowserEntries,
   filterFolderBrowserEntries,
   sortFolderBrowserEntries,
 } from "../folders/folderBrowserReadModel";
-import { filterSeriesEntries } from "../series/seriesDerivation";
-import { sortSeriesEntries } from "../series/seriesSorting";
+import { deriveSeriesOverviewEntries } from "../series/seriesOverviewReadModel";
 import { getVisibleBooksFromSearchIndex } from "./libraryFilters";
 import {
   createLibraryIndex,
@@ -192,6 +190,21 @@ describe("localized library index invalidation evidence", () => {
       1_980,
     );
   });
+
+  it("preserves Folder entries and unrelated Series entries after one progress change", () => {
+    const folders = createFolders(100);
+    const books = createBooks(2_000, folders.length, 200);
+    const cache = createLibraryIndexCache();
+    const first = createLibraryIndex(createSource(books, folders, 1), cache);
+    const nextBooks = [...books];
+    nextBooks[1_111] = { ...books[1_111]!, progressPercent: 42 };
+    const second = createLibraryIndex(createSource(nextBooks, folders, 2), cache);
+
+    expect(second.folderEntries).toBe(first.folderEntries);
+    expect(
+      second.seriesEntries.filter((entry, index) => entry === first.seriesEntries[index]),
+    ).toHaveLength(199);
+  });
 });
 
 describe("collection derivation evidence", () => {
@@ -210,16 +223,10 @@ describe("collection derivation evidence", () => {
       },
     );
     const folderEntries = sortFolderBrowserEntries(
-      filterFolderBrowserEntries(
-        createFolderBrowserEntries(folders, index.bookCountsByFolder),
-        "Shelf 099",
-      ),
+      filterFolderBrowserEntries(index.folderEntries, "Shelf 099"),
       "most-books",
     );
-    const seriesEntries = sortSeriesEntries(
-      filterSeriesEntries(index.seriesEntries, "Series 042"),
-      "most-volumes",
-    );
+    const seriesEntries = deriveSeriesOverviewEntries(index.seriesEntries, "Series 042", "title");
 
     expect(visibleBooks).toHaveLength(10);
     expect(folderEntries.map((entry) => entry.folder.id)).toEqual(["folder-99"]);
@@ -284,15 +291,15 @@ performanceMeasurement(
       });
       const folderReadModel = sampleMilliseconds(() => {
         sortFolderBrowserEntries(
-          filterFolderBrowserEntries(
-            createFolderBrowserEntries(folders, index.bookCountsByFolder),
-            "Shelf",
-          ),
+          filterFolderBrowserEntries(index.folderEntries, "Shelf"),
           "most-books",
         );
       });
-      const seriesReadModel = sampleMilliseconds(() => {
-        sortSeriesEntries(filterSeriesEntries(index.seriesEntries, "Series"), "most-volumes");
+      const seriesTitleReadModel = sampleMilliseconds(() => {
+        deriveSeriesOverviewEntries(index.seriesEntries, "Series", "title");
+      });
+      const seriesAlternateReadModel = sampleMilliseconds(() => {
+        deriveSeriesOverviewEntries(index.seriesEntries, "Series", "most-volumes");
       });
 
       console.log(
@@ -304,7 +311,8 @@ performanceMeasurement(
           localizedChange,
           filterAndSort,
           folderReadModel,
-          seriesReadModel,
+          seriesTitleReadModel,
+          seriesAlternateReadModel,
         })}`,
       );
     }

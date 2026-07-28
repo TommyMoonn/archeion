@@ -1,5 +1,13 @@
 import { CaretRight, GridFour, List, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
-import { useCallback, useLayoutEffect, useMemo, useRef, type ReactNode, type Ref } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+  type Ref,
+} from "react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -11,10 +19,9 @@ import { focusElementIfRestorationOwned, focusIsUnowned } from "../../utils/focu
 import type { CollectionCardSize, LibraryView, SeriesSort } from "../../types/library";
 import type { SeriesEntry } from "../../types/series";
 import { BookCover } from "../library/BookCover";
-import { filterSeriesEntries } from "./seriesDerivation";
 import { seriesProgressLabel, volumeCountLabel } from "./seriesDisplay";
+import { deriveSeriesOverviewEntries } from "./seriesOverviewReadModel";
 import { seriesSortOptions } from "./seriesSortOptions";
-import { sortSeriesEntries } from "./seriesSorting";
 
 type SeriesOverviewProps = {
   cardSize: CollectionCardSize;
@@ -59,7 +66,38 @@ const seriesViewOptions: Array<{
   },
 ];
 
-export function SeriesOverview({
+const SeriesOverviewCard = memo(function SeriesOverviewCard({
+  entry,
+  onOpen,
+}: {
+  entry: SeriesEntry;
+  onOpen: (entry: SeriesEntry) => void;
+}) {
+  const representative = entry.books[0];
+  if (!representative) return null;
+
+  return (
+    <article className="series-card">
+      <button
+        aria-label={`Open ${entry.displayName}`}
+        className="series-card__open"
+        data-library-series-key={entry.key}
+        onClick={() => onOpen(entry)}
+        type="button"
+      >
+        <BookCover book={representative} className="book-cover--series" />
+        <span className="series-card__copy">
+          <strong>{entry.displayName}</strong>
+          <span>{volumeCountLabel(entry.books.length)}</span>
+          <span className="series-card__status">{seriesProgressLabel(entry)}</span>
+        </span>
+        <CaretRight aria-hidden="true" size={17} weight="bold" />
+      </button>
+    </article>
+  );
+});
+
+export const SeriesOverview = memo(function SeriesOverview({
   cardSize,
   entries,
   isLoading,
@@ -77,7 +115,7 @@ export function SeriesOverview({
   searchInputRef,
 }: SeriesOverviewProps) {
   const visibleEntries = useMemo(
-    () => sortSeriesEntries(filterSeriesEntries(entries, query), sort),
+    () => deriveSeriesOverviewEntries(entries, query, sort),
     [entries, query, sort],
   );
   const surfaceState =
@@ -208,36 +246,12 @@ export function SeriesOverview({
           />
         ) : (
           <div className={`series-grid series-grid--${view}`} data-series-card-size={cardSize}>
-            {visibleEntries.map((entry) => {
-              const representative = entry.books[0];
-
-              if (!representative) {
-                return null;
-              }
-
-              return (
-                <article className="series-card" key={entry.key}>
-                  <button
-                    aria-label={`Open ${entry.displayName}`}
-                    className="series-card__open"
-                    data-library-series-key={entry.key}
-                    onClick={() => onOpen(entry)}
-                    type="button"
-                  >
-                    <BookCover book={representative} className="book-cover--series" />
-                    <span className="series-card__copy">
-                      <strong>{entry.displayName}</strong>
-                      <span>{volumeCountLabel(entry.books.length)}</span>
-                      <span className="series-card__status">{seriesProgressLabel(entry)}</span>
-                    </span>
-                    <CaretRight aria-hidden="true" size={17} weight="bold" />
-                  </button>
-                </article>
-              );
-            })}
+            {visibleEntries.map((entry) => (
+              <SeriesOverviewCard entry={entry} key={entry.key} onOpen={onOpen} />
+            ))}
           </div>
         )}
       </div>
     </section>
   );
-}
+});

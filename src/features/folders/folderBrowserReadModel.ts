@@ -1,12 +1,15 @@
 import type { ReadonlyFolder } from "../../types/folder";
 import type { FolderSort } from "../../types/library";
-import { searchFolders } from "./folderSearch";
+import {
+  createFolderSearchIndexEntry,
+  filterFolderSearchIndexEntries,
+  type FolderSearchIndexEntry,
+} from "./folderSearch";
 import { getFolderDisplayPath } from "./folderTreeUtils";
 
-export type FolderBrowserEntry = {
+export type FolderBrowserEntry = FolderSearchIndexEntry & {
   bookCount: number;
   displayPath?: string;
-  folder: ReadonlyFolder;
   sortKeys: {
     name: string;
     path: string;
@@ -32,37 +35,32 @@ export function createFolderBrowserEntries(
   folders: readonly ReadonlyFolder[],
   bookCounts: ReadonlyMap<string, number>,
 ): FolderBrowserEntry[] {
-  return folders.map((folder) => {
-    const displayPath = getFolderDisplayPath(folder);
-    const path = folder.relativePath?.trim() || folder.name.trim();
+  return folders.map((folder) => createFolderBrowserEntry(folder, bookCounts.get(folder.id) ?? 0));
+}
 
-    return {
-      bookCount: bookCounts.get(folder.id) ?? 0,
-      ...(displayPath ? { displayPath } : {}),
-      folder,
-      sortKeys: {
-        name: folder.name.trim(),
-        path,
-      },
-    };
-  });
+export function createFolderBrowserEntry(
+  folder: ReadonlyFolder,
+  bookCount: number,
+): FolderBrowserEntry {
+  const displayPath = getFolderDisplayPath(folder);
+  const path = folder.relativePath?.trim() || folder.name.trim();
+
+  return {
+    ...createFolderSearchIndexEntry(folder),
+    bookCount,
+    ...(displayPath ? { displayPath } : {}),
+    sortKeys: {
+      name: folder.name.trim(),
+      path,
+    },
+  };
 }
 
 export function filterFolderBrowserEntries(
   entries: readonly FolderBrowserEntry[],
   query: string,
-): FolderBrowserEntry[] {
-  if (!query.trim()) {
-    return [...entries];
-  }
-
-  const matchingIds = new Set(
-    searchFolders(
-      entries.map((entry) => entry.folder),
-      query,
-    ).map((folder) => folder.id),
-  );
-  return entries.filter((entry) => matchingIds.has(entry.folder.id));
+): readonly FolderBrowserEntry[] {
+  return filterFolderSearchIndexEntries(entries, query);
 }
 
 export function sortFolderBrowserEntries(

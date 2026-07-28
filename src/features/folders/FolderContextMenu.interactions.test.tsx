@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { inputModalityRuntime } from "../../app/inputModality";
 import type { Folder } from "../../types/folder";
 import { FolderBrowser } from "./FolderBrowser";
+import { createFolderBrowserEntries } from "./folderBrowserReadModel";
 import { FolderTree } from "./FolderTree";
 
 const folder: Folder = {
@@ -55,11 +56,10 @@ describe("folder contextual invocation", () => {
     const onOpen = vi.fn();
     const view = mount(
       <FolderBrowser
-        bookCounts={new Map([[folder.id, 2]])}
         canManageFolders
         canRevealFolders
         cardSize="medium"
-        folders={[folder]}
+        entries={createFolderBrowserEntries([folder], new Map([[folder.id, 2]]))}
         isLoading={false}
         onDelete={vi.fn()}
         onMove={vi.fn()}

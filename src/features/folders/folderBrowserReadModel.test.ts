@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Folder } from "../../types/folder";
 import {
@@ -32,6 +32,10 @@ const counts = new Map([
   ["beta", 7],
   ["gamma", 1],
 ]);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("folder browser read model", () => {
   it("sorts by name with path and id tie-breakers", () => {
@@ -127,5 +131,55 @@ describe("folder browser read model", () => {
     const sorted = sortFolderBrowserEntries(filtered, "most-books");
 
     expect(sorted.map((entry) => entry.folder.id)).toEqual(["zeta"]);
+  });
+
+  it("scans the canonical Folder entries once before sorting search matches", () => {
+    const entries = createFolderBrowserEntries(folders, counts);
+    let entryReads = 0;
+    const observedEntries = new Proxy(entries, {
+      get(target, property, receiver) {
+        if (typeof property === "string" && /^\d+$/u.test(property)) entryReads += 1;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    const filtered = filterFolderBrowserEntries(observedEntries, "alpha");
+    const sorted = sortFolderBrowserEntries(filtered, "most-books");
+
+    expect(entryReads).toBe(entries.length);
+    expect(filtered.map((entry) => entry.folder.id)).toEqual(["zeta", "alpha", "beta"]);
+    expect(filtered[0]).toBe(entries[0]);
+    expect(filtered[1]).toBe(entries[1]);
+    expect(filtered[2]).toBe(entries[2]);
+    expect(sorted.map((entry) => entry.folder.id)).toEqual(["beta", "alpha", "zeta"]);
+  });
+
+  it("filters a non-empty query without sorting relevance matches", () => {
+    const entries = createFolderBrowserEntries(folders, counts);
+    const sort = vi.spyOn(Array.prototype, "sort");
+
+    const filtered = filterFolderBrowserEntries(entries, "alpha");
+
+    expect(filtered.map((entry) => entry.folder.id)).toEqual(["zeta", "alpha", "beta"]);
+    expect(sort).not.toHaveBeenCalled();
+  });
+
+  it("performs exactly one result sort for the complete non-empty browser derivation", () => {
+    const entries = createFolderBrowserEntries(folders, counts);
+    const sort = vi.spyOn(Array.prototype, "sort");
+
+    const visibleEntries = sortFolderBrowserEntries(
+      filterFolderBrowserEntries(entries, "alpha"),
+      "most-books",
+    );
+
+    expect(visibleEntries.map((entry) => entry.folder.id)).toEqual(["beta", "alpha", "zeta"]);
+    expect(sort).toHaveBeenCalledTimes(1);
+  });
+
+  it("reuses the canonical Folder entry array when search is empty", () => {
+    const entries = createFolderBrowserEntries(folders, counts);
+
+    expect(filterFolderBrowserEntries(entries, "")).toBe(entries);
   });
 });

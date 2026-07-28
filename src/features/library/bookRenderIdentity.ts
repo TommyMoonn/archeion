@@ -5,6 +5,8 @@ export function isBookRenderEquivalent(left: ReadonlyBook, right: ReadonlyBook):
     left === right ||
     (left.id === right.id &&
       left.addedAt === right.addedAt &&
+      left.coverPath === right.coverPath &&
+      left.coverRevision === right.coverRevision &&
       left.fileName === right.fileName &&
       left.folderId === right.folderId &&
       left.folderPath === right.folderPath &&

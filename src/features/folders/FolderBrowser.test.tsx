@@ -1,15 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import type { Folder } from "../../types/folder";
 import { FolderBrowser } from "./FolderBrowser";
+import { createFolderBrowserEntries } from "./folderBrowserReadModel";
+
+function entries(folders: readonly Folder[], counts = new Map<string, number>()) {
+  return createFolderBrowserEntries(folders, counts);
+}
 
 describe("FolderBrowser", () => {
   it("uses the shared accessible icon-only collection view control", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
         cardSize="medium"
-        folders={[]}
+        entries={[]}
         isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
@@ -29,22 +34,22 @@ describe("FolderBrowser", () => {
   });
 
   it("keeps the result count on row two and matches the rectangular primary action", () => {
+    const folders: Folder[] = [
+      {
+        id: "folder-fiction",
+        name: "Fiction",
+        relativePath: "Fiction",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ];
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
         cardSize="medium"
         canManageFolders
-        folders={[
-          {
-            id: "folder-fiction",
-            name: "Fiction",
-            relativePath: "Fiction",
-            parentId: null,
-            parentPath: null,
-            createdAt: "1",
-            updatedAt: "1",
-          },
-        ]}
+        entries={entries(folders)}
         isLoading={false}
         onCreate={vi.fn()}
         onDelete={vi.fn()}
@@ -68,9 +73,8 @@ describe("FolderBrowser", () => {
   it("marks Cards selected when the controlled folder view is cards", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
         cardSize="medium"
-        folders={[]}
+        entries={[]}
         isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
@@ -87,10 +91,9 @@ describe("FolderBrowser", () => {
   it("keeps true-empty folders in the shared collection state geometry", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
         cardSize="medium"
         canManageFolders
-        folders={[]}
+        entries={[]}
         isLoading={false}
         onCreate={vi.fn()}
         onOpen={vi.fn()}
@@ -111,9 +114,8 @@ describe("FolderBrowser", () => {
   it("disables native autofill on the folder search field", () => {
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
         cardSize="medium"
-        folders={[]}
+        entries={[]}
         isLoading={false}
         onOpen={vi.fn()}
         onSortChange={vi.fn()}
@@ -133,20 +135,20 @@ describe("FolderBrowser", () => {
   });
 
   it("marks folder rows and cards as explicit import targets", () => {
+    const folders: Folder[] = [
+      {
+        id: "folder-fiction",
+        name: "Fiction",
+        relativePath: "Fiction",
+        parentId: null,
+        parentPath: null,
+        createdAt: "1",
+        updatedAt: "1",
+      },
+    ];
     const markup = renderToStaticMarkup(
       <FolderBrowser
-        bookCounts={new Map()}
-        folders={[
-          {
-            id: "folder-fiction",
-            name: "Fiction",
-            relativePath: "Fiction",
-            parentId: null,
-            parentPath: null,
-            createdAt: "1",
-            updatedAt: "1",
-          },
-        ]}
+        entries={entries(folders)}
         isLoading={false}
         activeImportDropTargetId="folder-browser:folder-fiction"
         cardSize="medium"

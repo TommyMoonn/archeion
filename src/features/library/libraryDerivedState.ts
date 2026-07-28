@@ -8,6 +8,7 @@ import type {
   LibrarySort,
 } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
+import type { FolderBrowserEntry } from "../folders/folderBrowserReadModel";
 import {
   getEffectiveLibrarySort,
   getVisibleBooksFromSearchIndex,
@@ -33,13 +34,13 @@ type LibraryDerivedStateInput = {
 
 type LibraryDerivedState = {
   bookCount: number;
-  bookCountsByFolder: ReadonlyMap<string, number>;
   continueBooks: LibrarySnapshotBook[];
   continuePreview: LibrarySnapshotBook[];
   currentFolder: LibrarySnapshotFolder | undefined;
   effectiveSort: LibrarySort;
   favoriteCount: number;
   filterOptions: LibraryFilterOptions;
+  folderEntries: readonly FolderBrowserEntry[];
   libraryTitle: string;
   index: LibraryIndex;
   smartViewCounts: LibrarySmartViewCounts;
@@ -110,13 +111,13 @@ export function useLibraryDerivedState({
 
   return {
     bookCount: index.books.length,
-    bookCountsByFolder: index.bookCountsByFolder,
     continueBooks: index.continueBooks,
     continuePreview,
     currentFolder,
     effectiveSort,
     favoriteCount: index.favoriteCount,
     filterOptions: index.filterOptions,
+    folderEntries: index.folderEntries,
     index,
     libraryTitle,
     smartViewCounts,

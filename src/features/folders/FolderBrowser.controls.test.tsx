@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Folder } from "../../types/folder";
 import { FolderBrowser } from "./FolderBrowser";
+import { createFolderBrowserEntries } from "./folderBrowserReadModel";
 
 const folders: Folder[] = [
   {
@@ -34,9 +35,8 @@ function mount(overrides: Partial<React.ComponentProps<typeof FolderBrowser>> = 
   document.body.append(container);
   root = createRoot(container);
   const props: React.ComponentProps<typeof FolderBrowser> = {
-    bookCounts: new Map([["folder-a", 3]]),
     cardSize: "small",
-    folders,
+    entries: createFolderBrowserEntries(folders, new Map([["folder-a", 3]])),
     isLoading: false,
     onOpen: vi.fn(),
     onSortChange: vi.fn(),
