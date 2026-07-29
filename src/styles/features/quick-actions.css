@@ -91,7 +91,7 @@ html[data-motion="on"] .quick-actions[open] {
   border-radius: var(--radius-control);
   color: var(--text);
   background: transparent;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 

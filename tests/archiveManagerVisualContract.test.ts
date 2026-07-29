@@ -66,7 +66,8 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(window).toContain("background: var(--surface-app-frame)");
     expect(window).toContain("box-shadow: none");
     expect(sidebar).toContain("background: var(--surface-sidebar)");
-    expect(sidebar).toContain("border-right: 0");
+    expect(sidebar).toContain("border-inline-end: 0");
+    expect(sidebar).not.toMatch(/border-(?:left|right)/);
     expect(sidebar).toContain("padding: 12px");
     expect(archiveList).not.toContain("scrollbar-gutter: stable");
     expect(main).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");

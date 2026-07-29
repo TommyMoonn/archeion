@@ -109,7 +109,7 @@ describe("Phase 0.8.0.9 reduced motion and constrained input contracts", () => {
   });
 
   it("stacks Settings rows and preserves navigation at scaled narrow widths", () => {
-    const settingsRows = cssBlock(settingsStyles, "@media (max-width: 760px)");
+    const settingsRows = cssBlock(settingsStyles, "@container settings-section (max-width: 560px)");
     const constrainedSettings = cssBlock(settingsStyles, "@media (max-width: 620px)");
 
     expect(settingsRows).toMatch(

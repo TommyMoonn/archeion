@@ -14,7 +14,7 @@
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--canvas-deep);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -164,7 +164,7 @@
   align-items: center;
   align-self: stretch;
   padding: 0 11px;
-  border-left: 1px solid var(--line);
+  border-inline-start: 1px solid var(--line);
   color: var(--muted);
   background: color-mix(in srgb, var(--text) 4%, transparent);
   font-size: var(--type-body);
@@ -174,6 +174,6 @@
 }
 
 .epub-filename-field:focus-within .epub-filename-field__extension {
-  border-left-color: var(--accent-border);
+  border-inline-start-color: var(--accent-border);
   color: var(--text);
 }

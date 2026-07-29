@@ -121,7 +121,7 @@
   }
 
   .archive-row--missing {
-    border-left: 3px double Mark;
+    border-inline-start: 3px double Mark;
     box-shadow: none;
   }
 
@@ -217,7 +217,7 @@
   }
 
   .menu-item--danger {
-    border-left: 3px double Mark;
+    border-inline-start: 3px double Mark;
     color: LinkText;
   }
 

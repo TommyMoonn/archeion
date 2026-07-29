@@ -449,9 +449,12 @@ describe("LibrarySidebar", () => {
   it("places the folder scrollbar at the sidebar edge without moving the section heading", () => {
     const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
 
-    expect(styles).toMatch(/\.sidebar__section\s*\{[^}]*padding-right:\s*4px;[^}]*\}/s);
+    expect(styles).toMatch(/\.sidebar__section\s*\{[^}]*padding-inline-end:\s*4px;[^}]*\}/s);
     expect(styles).toMatch(
-      /\.sidebar__folder-scroll\s*\{[^}]*scrollbar-gutter:\s*stable;[^}]*padding-right:\s*4px;[^}]*margin-right:\s*-4px;[^}]*\}/s,
+      /\.sidebar__folder-scroll\s*\{[^}]*scrollbar-gutter:\s*stable;[^}]*padding-inline-end:\s*4px;[^}]*margin-inline-end:\s*-4px;[^}]*\}/s,
+    );
+    expect(styles).not.toMatch(
+      /\.sidebar__(?:section|folder-scroll)\s*\{[^}]*(?:padding|margin)-right:/s,
     );
   });
 

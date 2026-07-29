@@ -39,6 +39,7 @@
   color: var(--muted);
   font-size: var(--type-body-large);
   line-height: 1.6;
+  overflow-wrap: anywhere;
 }
 
 .status-page {
@@ -79,4 +80,5 @@
 
 .reader-status-page__error {
   color: var(--danger);
+  overflow-wrap: anywhere;
 }

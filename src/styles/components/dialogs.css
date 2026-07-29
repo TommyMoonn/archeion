@@ -25,6 +25,8 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 }
 
 .dialog__panel {
+  container-name: dialog-panel;
+  container-type: inline-size;
   box-sizing: border-box;
   max-height: calc(100dvh - 34px);
   padding: 24px;
@@ -86,7 +88,22 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 }
 
 .dialog__footer > .button--ghost:first-child {
-  margin-right: auto;
+  margin-inline-end: auto;
+}
+
+@container dialog-panel (max-width: 320px) {
+  .dialog__footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dialog__footer > .button,
+  .dialog__footer > .button--ghost:first-child {
+    width: 100%;
+    min-width: 0;
+    margin-inline-end: 0;
+    white-space: normal;
+  }
 }
 
 .dialog-loading-fallback {

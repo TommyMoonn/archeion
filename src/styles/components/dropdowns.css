@@ -30,7 +30,7 @@
   color: var(--text);
   background: var(--surface);
   font-size: var(--type-meta);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -115,7 +115,7 @@
   color: var(--muted);
   background: transparent;
   font-size: var(--type-meta);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 

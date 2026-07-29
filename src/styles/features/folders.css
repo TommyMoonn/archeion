@@ -19,7 +19,7 @@
 }
 
 .folder-tree__children {
-  padding-left: 11px;
+  padding-inline-start: 11px;
 }
 
 html[data-motion="on"] .folder-tree__children {
@@ -31,7 +31,7 @@ html[data-motion="on"] .folder-tree__children {
 }
 
 .folder-tree__row:not([data-has-actions="true"]) .folder-tree__select {
-  padding-right: 9px;
+  padding-inline-end: 9px;
 }
 
 .folder-tree__select {
@@ -47,7 +47,7 @@ html[data-motion="on"] .folder-tree__children {
   color: var(--muted);
   background: transparent;
   font-size: var(--type-body);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -90,7 +90,7 @@ html[data-motion="on"] .folder-tree__children {
 .folder-menu {
   position: absolute;
   top: 4px;
-  right: 0;
+  inset-inline-end: 0;
 }
 
 .folder-menu .menu-trigger {
@@ -212,7 +212,7 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
   border: 0;
   color: inherit;
   background: transparent;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -222,14 +222,16 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
 
 .folder-browser__items--list .folder-browser__open {
   min-height: 58px;
-  padding: 0 88px 0 10px;
+  padding-block: 0;
+  padding-inline: 10px 88px;
 }
 
 .folder-browser__items--cards .folder-browser__open {
   grid-template-columns: auto minmax(0, 1fr);
   min-height: 116px;
   align-content: start;
-  padding: 17px 82px 17px 17px;
+  padding-block: 17px;
+  padding-inline: 17px 82px;
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   background: color-mix(in srgb, var(--text-strong) 1.8%, transparent);
@@ -238,13 +240,13 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
 .folder-browser__items--cards[data-folder-card-size="small"] .folder-browser__open {
   min-height: 100px;
   padding-block: 13px;
-  padding-left: 13px;
+  padding-inline-start: 13px;
 }
 
 .folder-browser__items--cards[data-folder-card-size="large"] .folder-browser__open {
   min-height: 136px;
   padding-block: 21px;
-  padding-left: 21px;
+  padding-inline-start: 21px;
 }
 
 .folder-browser__open:hover,
@@ -320,7 +322,7 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
 .folder-browser__item-actions {
   position: absolute;
   top: 50%;
-  right: 8px;
+  inset-inline-end: 8px;
   z-index: 2;
   display: flex;
   align-items: center;
@@ -330,7 +332,7 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
 
 .folder-browser__items--cards .folder-browser__item-actions {
   top: 9px;
-  right: 9px;
+  inset-inline-end: 9px;
   transform: none;
 }
 

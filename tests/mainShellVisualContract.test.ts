@@ -77,8 +77,10 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
 
     expect(appShell).toContain("background: var(--surface-app-frame)");
     expect(sidebar).toContain("background: var(--surface-sidebar)");
-    expect(sidebar).toContain("padding: 12px 4px 12px 12px");
-    expect(sidebar).toContain("border-right: 0");
+    expect(sidebar).toContain("padding-block: 12px");
+    expect(sidebar).toContain("padding-inline: 12px 4px");
+    expect(sidebar).toContain("border-inline-end: 0");
+    expect(sidebar).not.toMatch(/padding-(?:left|right)|border-(?:left|right)/);
     expect(activeNavigation).toContain("background: var(--surface-shell-active)");
     expect(activeNavigation).not.toMatch(/accent|box-shadow/);
     expect(workspace).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");

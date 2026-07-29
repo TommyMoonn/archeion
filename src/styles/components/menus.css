@@ -87,7 +87,7 @@ details[open] > .menu-trigger {
   font-size: var(--type-meta);
   font-weight: var(--font-weight-regular);
   line-height: 1.25;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 

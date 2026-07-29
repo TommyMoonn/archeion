@@ -27,13 +27,14 @@ describe("book context menu placement", () => {
     expect(styles).not.toContain(".book-row[data-selection-mode] .book-menu {");
   });
 
-  it("keeps row actions anchored to the right side of list rows", () => {
+  it("anchors row actions to the trailing edge while preserving physical cover placement", () => {
     const baseMenu = cssBlock(".book-menu");
     const rowMenu = cssBlock(".book-menu--row");
     const cardMenu = cssBlock(".book-menu--card");
 
     expect(baseMenu).not.toContain("left:");
-    expect(rowMenu).toContain("right: 10px;");
+    expect(rowMenu).toContain("inset-inline-end: 10px;");
+    expect(rowMenu).not.toContain("right:");
     expect(rowMenu).not.toContain("left:");
     expect(cardMenu).toContain("right: 8px;");
     expect(styles).not.toContain(".book-row .book-menu {");

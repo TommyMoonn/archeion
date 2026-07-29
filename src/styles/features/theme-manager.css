@@ -10,7 +10,7 @@
 }
 
 .theme-manager-dialog .dialog__copy {
-  padding-right: 40px;
+  padding-inline-end: 40px;
 }
 
 .theme-manager-dialog .dialog__copy + .theme-manager__toolbar {
@@ -21,7 +21,7 @@
   position: absolute;
   z-index: 2;
   top: 18px;
-  right: 18px;
+  inset-inline-end: 18px;
 }
 
 .theme-manager__toolbar {
@@ -41,7 +41,7 @@
 }
 
 .theme-manager__toolbar-actions {
-  margin-left: auto;
+  margin-inline-start: auto;
 }
 
 .theme-manager__toolbar-links {
@@ -92,8 +92,8 @@
 
 .theme-catalog-list {
   min-width: 0;
-  padding-right: 14px;
-  border-right: 1px solid var(--line);
+  padding-inline-end: 14px;
+  border-inline-end: 1px solid var(--line);
   overflow-y: auto;
 }
 
@@ -111,7 +111,7 @@
   border-radius: var(--radius-control);
   color: var(--text);
   background: transparent;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -214,7 +214,7 @@
 
 .theme-details__diagnostics ul {
   margin: 8px 0 0;
-  padding-left: 20px;
+  padding-inline-start: 20px;
 }
 
 .theme-details__diagnostics code {
@@ -280,7 +280,7 @@
 
   .theme-manager__toolbar-actions {
     width: 100%;
-    margin-left: 0;
+    margin-inline-start: 0;
     justify-content: flex-end;
   }
 
@@ -291,7 +291,7 @@
   .theme-catalog-list {
     max-height: 180px;
     padding: 0 0 14px;
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--line);
   }
 

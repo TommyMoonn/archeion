@@ -35,7 +35,7 @@
   gap: 20px;
   min-height: 0;
   padding: 24px 18px;
-  border-right: 1px solid var(--line);
+  border-inline-end: 1px solid var(--line);
   background: var(--canvas-deep);
 }
 
@@ -64,7 +64,7 @@
   gap: 3px;
   min-height: 0;
   overflow-y: auto;
-  padding-right: 2px;
+  padding-inline-end: 2px;
 }
 
 .settings-search {
@@ -89,7 +89,7 @@
   color: var(--muted);
   background: transparent;
   font-size: var(--type-body);
-  text-align: left;
+  text-align: start;
   text-decoration: none;
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -119,11 +119,13 @@
   position: absolute;
   z-index: 2;
   top: 14px;
-  right: 16px;
+  inset-inline-end: 16px;
   background: var(--canvas);
 }
 
 .settings-section {
+  container-name: settings-section;
+  container-type: inline-size;
   width: min(100%, 760px);
   padding-top: 8px;
   margin: 0 auto;
@@ -220,7 +222,8 @@ html[data-motion="on"] .settings-section {
 .settings-row select {
   min-width: 150px;
   min-height: 36px;
-  padding: 0 34px 0 11px;
+  padding-block: 0;
+  padding-inline: 11px 34px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-control);
   color: var(--text);
@@ -241,7 +244,7 @@ html[data-motion="on"] .settings-section {
 
 .settings-status {
   position: absolute;
-  right: 18px;
+  inset-inline-end: 18px;
   bottom: 16px;
   max-width: min(360px, calc(100% - 36px));
   padding: 7px 11px;
@@ -290,7 +293,7 @@ html[data-motion="on"] .settings-status {
   position: absolute;
   z-index: 2;
   top: 10px;
-  right: 10px;
+  inset-inline-end: 10px;
 }
 
 .about-window__content {
@@ -361,7 +364,7 @@ html[data-motion="on"] .settings-status {
   border-radius: var(--radius-control);
   color: var(--text);
   background: var(--surface);
-  text-align: left;
+  text-align: start;
   text-decoration: none;
   transition:
     border-color var(--motion-duration-standard) var(--motion-ease-standard),
@@ -509,7 +512,7 @@ html[data-motion="on"] .settings-status {
   }
 }
 
-@media (max-width: 760px) {
+@container settings-section (max-width: 560px) {
   .settings-row {
     grid-template-columns: minmax(0, 1fr);
     align-items: start;
@@ -517,6 +520,8 @@ html[data-motion="on"] .settings-status {
   }
 
   .settings-row__control {
+    min-width: 0;
+    flex-wrap: wrap;
     justify-content: stretch;
   }
 
@@ -540,6 +545,30 @@ html[data-motion="on"] .settings-status {
     text-overflow: clip;
     white-space: normal;
   }
+
+  .settings-search-results__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .settings-search-results__header .button {
+    align-self: start;
+    white-space: normal;
+  }
+
+  .settings-section :where(.keyboard-shortcut-row__controls, .keyboard-shortcut-binding-control) {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .keyboard-shortcut-binding kbd,
+  .keyboard-shortcut-keycaps kbd {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
 }
 
 @media (max-width: 620px) {
@@ -556,7 +585,7 @@ html[data-motion="on"] .settings-status {
   .settings-sidebar {
     gap: 12px;
     padding: 14px;
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--line);
   }
 
