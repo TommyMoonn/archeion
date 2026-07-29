@@ -48,7 +48,7 @@ export class MaintenanceOperations {
       await this.host.commands.invoke("clear_scanner_cache", undefined, scope.rootPath);
     });
     this.host.assertCurrentScope(scope);
-    await this.host.rescan();
+    await this.host.rescan({ followUpIfRunning: true });
   }
 
   revealMetadataFolder(): Promise<void> {

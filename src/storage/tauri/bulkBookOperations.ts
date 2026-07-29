@@ -391,33 +391,41 @@ export class BulkBookOperations {
 
     try {
       const relativePaths = eligible.map((book) => book.relativePath);
-      await this.host.commands.invoke(
-        "invalidate_scanner_cache_entries",
-        { relativePaths },
-        scope.rootPath,
-      );
-      this.host.assertCurrentScope(scope);
-      const targeted = await this.host.commands.invoke(
-        "scan_archive_epub_paths",
-        { relativePaths },
-        scope.rootPath,
-      );
-      this.host.assertCurrentScope(scope);
-      const commit = await this.host.applyArchiveDelta(
+      const scanResult = await this.host.runTargetedScan(
         scope,
-        {
-          kind: "scanned-books",
-          books: targeted.books,
-          removedRelativePaths: targeted.missingRelativePaths,
-          warnings: targeted.warnings,
+        relativePaths,
+        async (targeted) => {
+          const commit = await this.host.applyScanDelta(
+            scope,
+            {
+              kind: "scanned-books",
+              books: targeted.books,
+              removedRelativePaths: targeted.missingRelativePaths,
+              warnings: targeted.warnings,
+            },
+            {
+              targetedScan: {
+                presenceRule: "represented",
+                requestedRelativePaths: relativePaths,
+              },
+            },
+          );
+          return { commit, targeted };
         },
-        {
-          targetedScan: {
-            presenceRule: "represented",
-            requestedRelativePaths: relativePaths,
-          },
+        async () => {
+          await this.host.commands.invoke(
+            "invalidate_scanner_cache_entries",
+            { relativePaths },
+            scope.rootPath,
+          );
+          this.host.assertCurrentScope(scope);
         },
       );
+      this.host.assertCurrentScope(scope);
+      if (!scanResult) {
+        return result;
+      }
+      const { commit, targeted } = scanResult;
 
       if (commit.fallbackUsed) {
         result.failed.push(

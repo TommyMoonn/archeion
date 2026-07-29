@@ -2,6 +2,7 @@ import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import type { ArchiveModelDelta } from "../archiveModelReducer";
 import type { LibraryMetadata, ProgressMetadata } from "../metadataFiles";
+import type { ArchiveEpubScan } from "../reconcileLibraryState";
 import type {
   ArchiveCacheWarning,
   ArchiveOperationWarning,
@@ -72,7 +73,18 @@ export interface StorageOperationHost {
   ): Promise<T | undefined>;
   runMetadataIo<T>(scope: ArchiveCommandScope, operation: () => Promise<T>): Promise<T | undefined>;
   rescan(options?: RescanOptions): Promise<void>;
+  runTargetedScan<T>(
+    scope: ArchiveCommandScope,
+    relativePaths: readonly string[],
+    apply: (scan: ArchiveEpubScan) => Promise<T>,
+    prepare?: () => Promise<void>,
+  ): Promise<T | undefined>;
   applyArchiveDelta(
+    scope: ArchiveCommandScope,
+    delta: ArchiveModelDelta,
+    options?: ArchiveModelCommitOptions,
+  ): Promise<ArchiveModelCommitResult>;
+  applyScanDelta(
     scope: ArchiveCommandScope,
     delta: ArchiveModelDelta,
     options?: ArchiveModelCommitOptions,

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   deferred,
@@ -257,6 +257,172 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
     expect(
       invokeMock.mock.calls.find(([command]) => command === "scan_archive")?.[1],
     ).toMatchObject({ rootPath });
+  });
+
+  it("waits for one post-maintenance follow-up when a full scan is already active", async () => {
+    const originalScan = deferred<typeof firstScan>();
+    const postMaintenanceScan = deferred<typeof firstScan>();
+    const scannerCacheCleared = deferred<void>();
+    let scanCount = 0;
+    const storage = new TauriArchiveLibraryStorage();
+    const rootPath = "C:/ArchiveA";
+    storage.reset(rootPath);
+    await storage.listBooks();
+    invokeMock.mockClear();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        scanCount += 1;
+        return scanCount === 1 ? originalScan.promise : postMaintenanceScan.promise;
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "cleanup_archive_import_artifacts") {
+        return { removedCount: 0, failures: [] };
+      }
+      if (command === "clear_scanner_cache") scannerCacheCleared.resolve();
+      return undefined;
+    });
+    const statuses: string[] = [];
+    const stop = storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (statuses.at(-1) !== snapshot.scanStatus.status) {
+          statuses.push(snapshot.scanStatus.status);
+        }
+      },
+    });
+    const rescan = vi.spyOn(storage, "rescan");
+
+    const activeScan = storage.rescan();
+    await vi.waitFor(() => expect(scanCount).toBe(1));
+    let repairSettled = false;
+    const repair = storage.repairArchiveMetadata();
+    void repair.then(
+      () => {
+        repairSettled = true;
+      },
+      () => {
+        repairSettled = true;
+      },
+    );
+    await scannerCacheCleared.promise;
+    await vi.waitFor(() => expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true }));
+
+    expect(repairSettled).toBe(false);
+    expect(scanCount).toBe(1);
+
+    originalScan.resolve(structuredClone(firstScan));
+    await vi.waitFor(() => expect(scanCount).toBe(2));
+    expect(repairSettled).toBe(false);
+
+    postMaintenanceScan.resolve(structuredClone(firstScan));
+    await Promise.all([activeScan, repair]);
+
+    expect(repairSettled).toBe(true);
+    expect(scanCount).toBe(2);
+    expect(statuses).toEqual(["idle", "scanning", "idle"]);
+    expect(
+      invokeMock.mock.calls
+        .filter(([command]) => command === "scan_archive")
+        .map(([, args]) => args),
+    ).toEqual([{ rootPath }, { rootPath }]);
+    stop();
+  });
+
+  it("queues one additional pass when repair begins during a follow-up scan", async () => {
+    const scans = [
+      deferred<typeof firstScan>(),
+      deferred<typeof firstScan>(),
+      deferred<typeof firstScan>(),
+    ];
+    const scannerCacheCleared = deferred<void>();
+    let scanCount = 0;
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") {
+        const scan = scans[scanCount];
+        scanCount += 1;
+        return scan.promise;
+      }
+      if (command === "load_archive_metadata") return structuredClone(metadata);
+      if (command === "cleanup_archive_import_artifacts") {
+        return { removedCount: 0, failures: [] };
+      }
+      if (command === "clear_scanner_cache") scannerCacheCleared.resolve();
+      return undefined;
+    });
+    const rescan = vi.spyOn(storage, "rescan");
+
+    const activeScan = storage.rescan({ quiet: true });
+    const initialFollowUp = storage.rescan({ followUpIfRunning: true, quiet: true });
+    scans[0].resolve(structuredClone(firstScan));
+    await vi.waitFor(() => expect(scanCount).toBe(2));
+
+    let repairSettled = false;
+    const repair = storage.repairArchiveMetadata();
+    void repair.then(
+      () => {
+        repairSettled = true;
+      },
+      () => {
+        repairSettled = true;
+      },
+    );
+    await scannerCacheCleared.promise;
+    await vi.waitFor(() => expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true }));
+    const duplicateFollowUp = storage.rescan({ followUpIfRunning: true, quiet: true });
+
+    scans[1].resolve(structuredClone(firstScan));
+    await vi.waitFor(() => expect(scanCount).toBe(3));
+    expect(repairSettled).toBe(false);
+
+    scans[2].resolve(structuredClone(firstScan));
+    await Promise.all([activeScan, initialFollowUp, duplicateFollowUp, repair]);
+
+    expect(scanCount).toBe(3);
+    expect(repairSettled).toBe(true);
+  });
+
+  it("does not let repair or its active scan publish after an archive reset", async () => {
+    const staleScan = deferred<typeof firstScan>();
+    const scannerCacheCleared = deferred<void>();
+    const storage = new TauriArchiveLibraryStorage();
+    storage.reset("C:/ArchiveA");
+    await storage.listBooks();
+    invokeMock.mockClear();
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "scan_archive") return staleScan.promise;
+      if (command === "cleanup_archive_import_artifacts") {
+        return { removedCount: 0, failures: [] };
+      }
+      if (command === "clear_scanner_cache") scannerCacheCleared.resolve();
+      return undefined;
+    });
+    const rescan = vi.spyOn(storage, "rescan");
+
+    const activeScan = storage.rescan();
+    const repair = storage.repairArchiveMetadata();
+    await scannerCacheCleared.promise;
+    await vi.waitFor(() => expect(rescan).toHaveBeenCalledWith({ followUpIfRunning: true }));
+
+    storage.reset("C:/ArchiveB");
+    const resetSnapshot = storage.getLibrarySnapshot();
+    const publications = vi.fn();
+    const stop = storage.observeLibrarySnapshot({ next: publications });
+    staleScan.resolve(structuredClone(firstScan));
+    await Promise.all([activeScan, repair]);
+
+    expect(storage.getLibrarySnapshot()).toBe(resetSnapshot);
+    expect(resetSnapshot).toMatchObject({
+      archiveRootPath: "C:/ArchiveB",
+      books: [],
+      folders: [],
+      loadState: "loading",
+      scanStatus: { status: "idle" },
+    });
+    expect(publications).toHaveBeenCalledTimes(1);
+    stop();
   });
 
   it("waits for the complete cover-cache maintenance session before clearing scanner state", async () => {

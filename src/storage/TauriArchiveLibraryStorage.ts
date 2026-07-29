@@ -37,13 +37,10 @@ import {
 } from "./metadataFiles";
 import { AnnotationRepository } from "./annotations/AnnotationRepository";
 import { reduceArchiveModel, type ArchiveModelDelta } from "./archiveModelReducer";
+import { ArchiveScanSession, isArchiveScanCommandError } from "./archiveScanSession";
 import { planArchiveWatcherChanges } from "./archiveWatcherChangePlan";
 import { validateTargetedArchiveScan } from "./targetedArchiveScanValidation";
-import {
-  reconcileLibraryState,
-  type ArchiveEpubScan,
-  type ArchiveScan,
-} from "./reconcileLibraryState";
+import { reconcileLibraryState, type ArchiveScan } from "./reconcileLibraryState";
 import { sanitizeProgressMetadataForLibrary } from "./progressMetadataSanitization";
 import { retireReplacementPathIdentities } from "./replacementIdentityRetirement";
 import { collectImportOutcomePaths } from "./archiveImportOutcomePaths";
@@ -59,7 +56,6 @@ import type {
   LibrarySnapshot,
   LibraryStorage,
   RescanOptions,
-  ScanStatus,
   StorageObserver,
   StorageSubscription,
 } from "./LibraryStorage";
@@ -148,12 +144,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private libraryModelCommitted = false;
   private generation = 0;
   private archiveRootPath: string | null = null;
-  private scanPromise: Promise<void> | null = null;
-  private followUpScanQueued = false;
   private archiveStateQueue: Promise<void> = Promise.resolve();
-  private scanStatus: ScanStatus = { status: "idle" };
-  private scanStatusVisible = false;
-  private scanStatusStartedAt: string | null = null;
   private libraryRevision = 0;
   private librarySnapshot: LibrarySnapshot = Object.freeze({
     archiveGeneration: 0,
@@ -179,10 +170,30 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly maintenanceOperations: MaintenanceOperations;
   private readonly annotationRepository: AnnotationRepository;
   private readonly operationHost: StorageOperationHost;
+  private readonly scanSession: ArchiveScanSession;
   private progressMetadataWrites: ProgressMetadataWriteQueue;
 
   constructor() {
     this.progressMetadataWrites = this.createProgressMetadataWriteQueue(this.archiveRootPath);
+    this.scanSession = new ArchiveScanSession({
+      commands: this.commands,
+      createScope: () => this.createArchiveCommandScope(),
+      isCurrentScope: (scope) => this.isCurrentArchiveScope(scope),
+      applyFullScan: (scope, scan, replacementRelativePaths, completion) =>
+        this.commitFullScan(
+          scope,
+          scan,
+          replacementRelativePaths,
+          completion.settleStatusForPublication,
+        ),
+      publishFullScanFailure: (scope) => {
+        if (!this.isCurrentArchiveScope(scope)) return;
+        this.loaded = true;
+        this.publishLibrarySnapshot({ loadState: "error" });
+      },
+      publishStatusChange: (loadState) =>
+        this.publishLibrarySnapshot(loadState ? { loadState } : {}),
+    });
     const host: StorageOperationHost = {
       commands: this.commands,
       createScope: () => this.createArchiveCommandScope(),
@@ -196,7 +207,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         this.commitArchiveStateMutation(scope, mutation),
       runMetadataIo: (scope, operation) => this.enqueueMetadataIo(operation, scope.generation),
       rescan: (options) => this.rescan(options),
+      runTargetedScan: (scope, relativePaths, apply, prepare) =>
+        this.scanSession.runTargetedScan({ scope, relativePaths, apply, prepare }),
       applyArchiveDelta: (scope, delta, options) => this.commitArchiveDelta(scope, delta, options),
+      applyScanDelta: (scope, delta, options) =>
+        this.commitArchiveDelta(scope, delta, options, false),
       getCoverPromise: (key) => this.coverPromises.get(key),
       setCoverPromise: (key, promise) => {
         this.coverPromises.set(key, promise);
@@ -237,17 +252,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.folders = [];
     this.loaded = false;
     this.libraryModelCommitted = false;
-    this.scanPromise = null;
-    this.followUpScanQueued = false;
-    this.scanStatusVisible = false;
-    this.scanStatusStartedAt = null;
+    this.scanSession.reset();
     this.coverPromises.clear();
     this.libraryMetadata = createLibraryMetadata();
     this.progressMetadata = createProgressMetadata();
     this.settingsMetadata = createSettingsMetadata();
     this.progressMetadataWrites = this.createProgressMetadataWriteQueue(this.archiveRootPath);
     this.annotationRepository.reset();
-    this.scanStatus = { status: "idle" };
     this.publishLibrarySnapshot({
       booksChanged: true,
       foldersChanged: true,
@@ -260,44 +271,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   }
 
   async rescan(options?: RescanOptions): Promise<void> {
-    const shouldReportStatus = options?.quiet !== true;
-
-    if (this.scanPromise) {
-      if (options?.followUpIfRunning) {
-        this.followUpScanQueued = true;
-      }
-      if (shouldReportStatus) {
-        this.showActiveScanStatus();
-      }
-      return this.scanPromise;
-    }
-
-    const generation = this.generation;
-    this.scanStatusVisible = shouldReportStatus;
-    this.scanStatusStartedAt = new Date().toISOString();
-    if (shouldReportStatus) {
-      this.setScanStatus(
-        {
-          status: "scanning",
-          startedAt: this.scanStatusStartedAt,
-        },
-        "loading",
-      );
-    }
-    const scanPromise = this.performQueuedScans(generation);
-    this.scanPromise = scanPromise;
-    try {
-      await scanPromise;
-    } finally {
-      if (this.scanPromise === scanPromise) {
-        this.scanPromise = null;
-        this.scanStatusStartedAt = null;
-        if (this.scanStatusVisible) {
-          this.setScanStatus({ status: "idle" });
-        }
-        this.scanStatusVisible = false;
-      }
-    }
+    return this.scanSession.rescan(options);
   }
 
   getLibrarySnapshot(): LibrarySnapshot {
@@ -345,46 +319,40 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       return results;
     }
 
-    let targeted: ArchiveEpubScan;
     try {
-      targeted = await this.commands.invoke(
-        "scan_archive_epub_paths",
-        { relativePaths: scanPaths },
-        scope.rootPath,
-      );
+      await this.scanSession.runTargetedScan({
+        scope,
+        relativePaths: scanPaths,
+        apply: (targeted) =>
+          this.commitArchiveDelta(
+            scope,
+            {
+              kind: "scanned-books",
+              books: targeted.books,
+              removedRelativePaths: targeted.missingRelativePaths,
+              warnings: targeted.warnings,
+              replacementRelativePaths: replacementPaths,
+            },
+            {
+              targetedScan: {
+                presenceRule: "scanned-book-required",
+                requiredPresentRelativePaths: requiredPresentPaths,
+                requestedRelativePaths: scanPaths,
+              },
+            },
+            false,
+          ),
+      });
     } catch (error) {
       if (!this.isCurrentArchiveScope(scope)) {
         return results;
       }
-      await this.refreshAfterReplacementImport(scope, replacementPaths).catch((rescanError) => {
-        throw new Error("The EPUB files were imported, but the library could not refresh them.", {
-          cause: rescanError ?? error,
+      if (isArchiveScanCommandError(error)) {
+        await this.refreshAfterReplacementImport(scope, replacementPaths).catch((rescanError) => {
+          throw new Error("The EPUB files were imported, but the library could not refresh them.", {
+            cause: rescanError ?? error.cause,
+          });
         });
-      });
-      return results;
-    }
-
-    this.assertCurrentArchiveScope(scope);
-    try {
-      await this.commitArchiveDelta(
-        scope,
-        {
-          kind: "scanned-books",
-          books: targeted.books,
-          removedRelativePaths: targeted.missingRelativePaths,
-          warnings: targeted.warnings,
-          replacementRelativePaths: replacementPaths,
-        },
-        {
-          targetedScan: {
-            presenceRule: "scanned-book-required",
-            requiredPresentRelativePaths: requiredPresentPaths,
-            requestedRelativePaths: scanPaths,
-          },
-        },
-      );
-    } catch (error) {
-      if (!this.isCurrentArchiveScope(scope)) {
         return results;
       }
       throw new Error("The EPUB files were imported, but the library could not refresh them.", {
@@ -400,52 +368,41 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     const loading = this.ensureLoadedOrPromise(scope);
     if (loading) await loading;
 
-    if (this.scanPromise) {
-      await this.rescan({ followUpIfRunning: true, quiet: true });
-      return;
-    }
-
     const plan = planArchiveWatcherChanges(changeSet);
     if (plan.kind === "full-scan") {
       await this.rescan({ followUpIfRunning: true, quiet: true });
       return;
     }
 
-    let targeted: ArchiveEpubScan;
     try {
-      targeted = await this.commands.invoke(
-        "scan_archive_epub_paths",
-        { relativePaths: plan.relativePaths },
-        scope.rootPath,
-      );
-    } catch {
-      if (this.isCurrentArchiveScope(scope)) {
-        await this.rescan({ followUpIfRunning: true, quiet: true });
-      }
-      return;
-    }
-
-    if (!this.isCurrentArchiveScope(scope)) {
-      return;
-    }
-    try {
-      await this.commitArchiveDelta(
+      await this.scanSession.runTargetedScan({
         scope,
-        {
-          kind: "scanned-books",
-          books: targeted.books,
-          removedRelativePaths: targeted.missingRelativePaths,
-          warnings: targeted.warnings,
-        },
-        {
-          targetedScan: {
-            presenceRule: "represented",
-            requestedRelativePaths: plan.relativePaths,
-          },
-        },
-      );
+        relativePaths: plan.relativePaths,
+        followUpFullScanIfRunning: true,
+        apply: (targeted) =>
+          this.commitArchiveDelta(
+            scope,
+            {
+              kind: "scanned-books",
+              books: targeted.books,
+              removedRelativePaths: targeted.missingRelativePaths,
+              warnings: targeted.warnings,
+            },
+            {
+              targetedScan: {
+                presenceRule: "represented",
+                requestedRelativePaths: plan.relativePaths,
+              },
+            },
+            false,
+          ),
+      });
     } catch (error) {
       if (!this.isCurrentArchiveScope(scope)) {
+        return;
+      }
+      if (isArchiveScanCommandError(error)) {
+        await this.rescan({ followUpIfRunning: true, quiet: true });
         return;
       }
       throw error;
@@ -713,11 +670,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     scope: ArchiveCommandScope,
     delta: ArchiveModelDelta,
     options: ArchiveModelCommitOptions = {},
+    waitForScanSession = true,
   ): Promise<ArchiveModelCommitResult> {
     this.assertCurrentArchiveScope(scope);
-    const activeScan = this.scanPromise;
-    if (activeScan) {
-      await activeScan.catch(() => undefined);
+    if (waitForScanSession) {
+      await this.scanSession.waitForCurrentWork(scope);
       this.assertCurrentArchiveScope(scope);
     }
 
@@ -834,7 +791,13 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
         const replacementPaths =
           delta.kind === "scanned-books" ? (delta.replacementRelativePaths ?? []) : [];
         if (replacementPaths.length) {
-          await this.refreshAfterReplacementImport(scope, replacementPaths);
+          if (waitForScanSession) {
+            await this.refreshAfterReplacementImport(scope, replacementPaths);
+          } else {
+            await this.scanSession.runFallbackFullScan(scope, replacementPaths);
+          }
+        } else if (!waitForScanSession) {
+          await this.scanSession.runFallbackFullScan(scope);
         } else {
           await this.rescan({ quiet: true });
         }
@@ -853,33 +816,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     throw new Error("Archive delta commit exhausted its recovery attempts.");
   }
 
-  private async performQueuedScans(generation: number): Promise<void> {
-    do {
-      this.followUpScanQueued = false;
-      await this.performScan(generation);
-    } while (this.generation === generation && this.followUpScanQueued);
-  }
-
-  private showActiveScanStatus(): void {
-    if (this.scanStatusVisible) {
-      return;
-    }
-
-    this.scanStatusVisible = true;
-    this.scanStatusStartedAt ??= new Date().toISOString();
-    this.setScanStatus(
-      {
-        status: "scanning",
-        startedAt: this.scanStatusStartedAt,
-      },
-      "loading",
-    );
-  }
-
   private async commitFullScan(
     scope: ArchiveCommandScope,
     scan: ArchiveScan,
     replacementRelativePaths: readonly string[] = [],
+    settleStatusForPublication: () => void = () => undefined,
   ): Promise<boolean> {
     await this.progressMetadataWrites.flush();
     this.assertCurrentArchiveScope(scope);
@@ -950,10 +891,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       this.folders = next.folders;
       this.loaded = true;
       this.libraryModelCommitted = true;
-      if (this.scanStatusVisible && !this.followUpScanQueued) {
-        this.scanStatus = { status: "idle" };
-        this.scanStatusVisible = false;
-      }
+      settleStatusForPublication();
       this.publishLibrarySnapshot({
         booksChanged: !hadCommittedLibraryModel || next.booksChanged,
         foldersChanged: !hadCommittedLibraryModel || next.foldersChanged,
@@ -970,26 +908,12 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     replacementRelativePaths: readonly string[],
   ): Promise<void> {
     this.assertCurrentArchiveScope(scope);
-    const scan = await this.commands.invoke("scan_archive", undefined, scope.rootPath);
-    const committed = await this.commitFullScan(scope, scan, replacementRelativePaths);
+    const committed = await this.scanSession.runReplacementFullScan(
+      scope,
+      replacementRelativePaths,
+    );
     if (!committed) {
       throw new Error(ARCHIVE_CHANGED_ERROR_MESSAGE);
-    }
-  }
-
-  private async performScan(generation: number): Promise<void> {
-    const rootPath = this.archiveRootPath;
-    const scope: ArchiveCommandScope = { generation, rootPath };
-    try {
-      const scan = await this.commands.invoke("scan_archive", undefined, rootPath);
-      await this.commitFullScan(scope, scan);
-    } catch (error) {
-      if (this.generation !== generation) {
-        return;
-      }
-      this.loaded = true;
-      this.publishLibrarySnapshot({ loadState: "error" });
-      throw error;
     }
   }
 
@@ -1028,28 +952,6 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.operationWarningObservers.forEach((observer) => observer.next(warning));
   }
 
-  private setScanStatus(
-    status: ScanStatus,
-    loadState: LibraryLoadState = this.librarySnapshot.loadState,
-  ): void {
-    const current = this.scanStatus;
-    if (current.status === status.status) {
-      if (current.status === "idle") {
-        if (loadState === this.librarySnapshot.loadState) return;
-      }
-      if (
-        current.status === "scanning" &&
-        status.status === "scanning" &&
-        current.startedAt === status.startedAt
-      ) {
-        if (loadState === this.librarySnapshot.loadState) return;
-      }
-    }
-
-    this.scanStatus = status;
-    this.publishLibrarySnapshot({ loadState });
-  }
-
   private publishLibrarySnapshot({
     booksChanged = false,
     foldersChanged = false,
@@ -1064,7 +966,7 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
       current.archiveGeneration !== this.generation ||
       current.archiveRootPath !== this.archiveRootPath;
     const modelChanged = booksChanged || foldersChanged || archiveChanged;
-    const nextScanStatus = this.scanStatus;
+    const nextScanStatus = this.scanSession.status;
     const scanStatusChanged =
       current.scanStatus.status !== nextScanStatus.status ||
       (current.scanStatus.status === "scanning" &&
