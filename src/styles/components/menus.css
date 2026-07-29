@@ -85,8 +85,8 @@ details[open] > .menu-trigger {
   color: var(--text);
   background: transparent;
   font-size: var(--type-meta);
-  font-weight: var(--font-weight-regular);
-  line-height: 1.25;
+  font-weight: var(--type-meta-weight);
+  line-height: var(--type-meta-line-height);
   text-align: start;
   cursor: pointer;
 }

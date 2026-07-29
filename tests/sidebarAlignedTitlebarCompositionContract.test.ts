@@ -88,8 +88,10 @@ describe("Phase 0.9.0.12 sidebar-aligned titlebar composition contract", () => {
     expect(expanded).toContain("background: var(--surface-sidebar)");
     expect(expanded).toContain("padding: 0 3px 0 21px");
     expect(expanded).not.toContain("border-right");
-    expect(wordmark).toContain("font-size: var(--type-title)");
-    expect(wordmark).toContain("font-weight: var(--font-weight-regular)");
+    expect(wordmark).toContain("font-size: var(--type-application-title)");
+    expect(wordmark).toContain("font-weight: var(--type-application-title-weight)");
+    expect(wordmark).toContain("line-height: var(--type-application-title-line-height)");
+    expect(wordmark).toContain("letter-spacing: var(--type-application-title-letter-spacing)");
     expect(collapsed).toContain("width: var(--sidebar-collapsed-width)");
     expect(constrained).toContain("width: auto");
     expect(constrained).toContain("padding-left: 12px");

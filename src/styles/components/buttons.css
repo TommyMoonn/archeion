@@ -6,9 +6,9 @@
   min-height: var(--button-height, var(--control-height-prominent));
   padding: 0 var(--button-padding-inline, 17px);
   border-radius: var(--radius-pill);
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
-  line-height: 1;
+  font-size: var(--type-control-label);
+  font-weight: var(--type-control-label-weight);
+  line-height: var(--type-control-label-line-height);
   white-space: nowrap;
   transition:
     scale var(--motion-duration-fast) var(--motion-ease-standard),

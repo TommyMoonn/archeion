@@ -56,7 +56,9 @@
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-page-title);
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--type-page-title-weight);
+  line-height: var(--type-page-title-line-height);
+  letter-spacing: var(--type-page-title-letter-spacing);
 }
 
 .settings-sidebar nav {
@@ -144,7 +146,8 @@ html[data-motion="on"] .settings-section {
   margin: 0;
   color: var(--text-strong);
   font-size: var(--type-title-small);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-title-small-weight);
+  line-height: var(--type-title-small-line-height);
 }
 
 .settings-section__group {
@@ -185,16 +188,17 @@ html[data-motion="on"] .settings-section {
 .settings-row strong,
 .settings-row legend {
   color: var(--text);
-  font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-size: var(--type-control-label);
+  font-weight: var(--type-control-label-weight);
+  line-height: var(--type-control-label-line-height);
 }
 
 .settings-row span,
-.settings-row small,
-.settings-row code {
+.settings-row small {
   color: var(--muted);
-  font-size: var(--type-caption);
-  line-height: 1.45;
+  font-size: var(--type-body-supporting);
+  font-weight: var(--type-body-supporting-weight);
+  line-height: var(--type-body-supporting-line-height);
   font-style: normal;
 }
 
@@ -208,9 +212,13 @@ html[data-motion="on"] .settings-section {
 }
 
 .settings-row code {
+  color: var(--muted);
   overflow: hidden;
   max-width: 54ch;
   font-family: var(--font-mono);
+  font-size: var(--type-code);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line-height);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -336,8 +344,9 @@ html[data-motion="on"] .settings-status {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-page-title);
-  font-weight: var(--font-weight-regular);
-  letter-spacing: -0.02em;
+  font-weight: var(--type-page-title-weight);
+  line-height: var(--type-page-title-line-height);
+  letter-spacing: var(--type-page-title-letter-spacing);
 }
 
 .about-window__version {
@@ -592,6 +601,9 @@ html[data-motion="on"] .settings-status {
   .settings-sidebar__header h1 {
     margin-top: 2px;
     font-size: var(--type-title);
+    font-weight: var(--type-title-weight);
+    line-height: var(--type-title-line-height);
+    letter-spacing: normal;
   }
 
   .settings-sidebar nav {
@@ -795,6 +807,8 @@ html[data-motion="on"] .settings-status {
   color: var(--text);
   font-family: var(--font-mono);
   font-size: var(--type-title-small);
+  font-weight: var(--type-title-small-weight);
+  line-height: var(--type-title-small-line-height);
   overflow-wrap: anywhere;
 }
 

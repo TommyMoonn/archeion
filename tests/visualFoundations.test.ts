@@ -190,15 +190,16 @@ describe("visual foundations", () => {
       ]),
     );
     expect(
-      declarations("font-weight").every((value) =>
-        [
-          "400",
-          "600",
-          "700",
-          "var(--font-weight-regular)",
-          "var(--font-weight-semibold)",
-          "var(--font-weight-bold)",
-        ].includes(value),
+      declarations("font-weight").every(
+        (value) =>
+          [
+            "400",
+            "600",
+            "700",
+            "var(--font-weight-regular)",
+            "var(--font-weight-semibold)",
+            "var(--font-weight-bold)",
+          ].includes(value) || /^var\(--type-[\w-]+-weight\)$/.test(value),
       ),
     ).toBe(true);
   });
@@ -269,18 +270,18 @@ describe("visual foundations", () => {
 
   it("uses the readable application small-text scale without changing reader chrome", () => {
     const applicationScale = {
-      "--type-caption": "12px",
-      "--type-meta": "13px",
-      "--type-body": "14px",
-      "--type-body-large": "15px",
-      "--type-title-small": "16px",
+      "--type-caption": "0.75rem",
+      "--type-meta": "0.8125rem",
+      "--type-body": "0.875rem",
+      "--type-body-large": "0.9375rem",
+      "--type-title-small": "1rem",
     } as const;
     const readerScale = {
-      "--type-caption": "11px",
-      "--type-meta": "12px",
-      "--type-body": "13px",
-      "--type-body-large": "14px",
-      "--type-title-small": "15px",
+      "--type-caption": "0.6875rem",
+      "--type-meta": "0.75rem",
+      "--type-body": "0.8125rem",
+      "--type-body-large": "0.875rem",
+      "--type-title-small": "0.9375rem",
     } as const;
     const readerRoot = readerSource.match(
       /\.reader-page,\s*\.reader-status-page\s*{([\s\S]*?)}/,

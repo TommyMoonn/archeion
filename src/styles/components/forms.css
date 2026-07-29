@@ -49,6 +49,8 @@
   color: var(--text);
   background: transparent;
   font-size: var(--type-body);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
 }
 
 .input-shell input::placeholder {
@@ -64,6 +66,7 @@
   color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
+  line-height: var(--type-caption-line-height);
   letter-spacing: 0.04em;
 }
 
@@ -78,6 +81,8 @@
   color: var(--text);
   background: var(--canvas-deep);
   font-size: var(--type-body);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
 }
 
 .form-field input::placeholder {
@@ -99,6 +104,7 @@
 .form-error {
   margin: 0;
   color: var(--error-strong);
-  font-size: var(--type-meta);
-  line-height: 1.45;
+  font-size: var(--type-body-supporting);
+  font-weight: var(--type-body-supporting-weight);
+  line-height: var(--type-body-supporting-line-height);
 }

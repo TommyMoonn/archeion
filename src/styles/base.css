@@ -2,6 +2,8 @@ html {
   min-width: 320px;
   height: 100%;
   background: var(--surface-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -10,6 +12,9 @@ body {
   height: 100%;
   margin: 0;
   color: var(--text);
+  font-size: var(--type-body);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
   background:
     radial-gradient(
       circle at 78% 4%,
@@ -20,7 +25,9 @@ body {
 }
 
 button,
-input {
+input,
+select,
+textarea {
   font: inherit;
 }
 

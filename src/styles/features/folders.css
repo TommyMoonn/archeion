@@ -144,9 +144,9 @@ html[data-motion="on"] .folder-tree__children {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-display-compact);
-  font-weight: var(--font-weight-regular);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-line-height);
+  letter-spacing: var(--type-display-letter-spacing);
 }
 
 .folder-browser__search {

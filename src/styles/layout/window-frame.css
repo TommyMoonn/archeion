@@ -109,10 +109,10 @@
   overflow: hidden;
   color: var(--text);
   font-family: var(--font-display);
-  font-size: var(--type-title);
-  font-weight: var(--font-weight-regular);
-  line-height: 1;
-  letter-spacing: 0.01em;
+  font-size: var(--type-application-title);
+  font-weight: var(--type-application-title-weight);
+  line-height: var(--type-application-title-line-height);
+  letter-spacing: var(--type-application-title-letter-spacing);
   text-overflow: ellipsis;
   white-space: nowrap;
 }

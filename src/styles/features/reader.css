@@ -1,10 +1,10 @@
 .reader-page,
 .reader-status-page {
-  --type-caption: 11px;
-  --type-meta: 12px;
-  --type-body: 13px;
-  --type-body-large: 14px;
-  --type-title-small: 15px;
+  --type-caption: 0.6875rem;
+  --type-meta: 0.75rem;
+  --type-body: 0.8125rem;
+  --type-body-large: 0.875rem;
+  --type-title-small: 0.9375rem;
 }
 
 .reader-page {
@@ -552,7 +552,8 @@ html[data-motion="on"] .reader-toc {
   color: var(--reader-strong);
   font-family: var(--font-display);
   font-size: var(--type-heading);
-  font-weight: var(--font-weight-regular);
+  font-weight: var(--type-heading-weight);
+  line-height: var(--type-heading-line-height);
 }
 
 .reader-toc .icon-button {
@@ -672,6 +673,8 @@ html[data-motion="on"] .reader-toc {
   color: var(--reader-strong);
   font-family: var(--font-display);
   font-size: var(--type-title);
+  font-weight: var(--type-title-weight);
+  line-height: var(--type-title-line-height);
 }
 
 .reader-toc__empty span {

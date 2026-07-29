@@ -27,9 +27,9 @@ html[data-density="compact"] .book-grid {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-display-compact);
-  font-weight: var(--font-weight-regular);
-  line-height: 1.05;
-  letter-spacing: -0.03em;
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-line-height);
+  letter-spacing: var(--type-display-letter-spacing);
 }
 
 .eyebrow {
@@ -936,9 +936,9 @@ html[data-motion="on"] .details-drawer[open] {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-section-title);
-  font-weight: var(--font-weight-regular);
-  line-height: 1.2;
-  letter-spacing: -0.025em;
+  font-weight: var(--type-section-title-weight);
+  line-height: var(--type-section-title-line-height);
+  letter-spacing: var(--type-section-title-letter-spacing);
 }
 
 .details-drawer__title p {

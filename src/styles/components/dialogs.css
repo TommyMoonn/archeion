@@ -38,8 +38,9 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   color: var(--text-strong);
   font-family: var(--font-display);
   font-size: var(--type-dialog-title);
-  font-weight: var(--font-weight-regular);
-  letter-spacing: -0.02em;
+  font-weight: var(--type-dialog-title-weight);
+  line-height: var(--type-dialog-title-line-height);
+  letter-spacing: var(--type-dialog-title-letter-spacing);
 }
 
 .dialog__copy {
@@ -49,10 +50,12 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 }
 
 .dialog__copy p {
+  max-width: 65ch;
   margin: 0;
   color: var(--muted);
   font-size: var(--type-body);
-  line-height: 1.5;
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
 }
 
 .dialog__footer {

@@ -8,17 +8,19 @@ Inter is Archeion's bundled default application UI font. The application does no
 
 The canonical `@font-face` declarations live in `src/styles/fonts.css`. Their three static WOFF2 sources come from the exact pinned `inter-ui@4.1.1` development package and are verified against the approved Inter v4.1 hashes in `scripts/inter-font-manifest.json`. Vite emits only those selected faces into the application bundle. The assets are owned by the Inter Project Authors, and their notice is stored at `public/licenses/fonts/Inter-OFL-1.1.txt`.
 
-The application small-text scale is deliberately compact but readable:
+The application type scale is deliberately compact but readable. Sizes use `rem` so browser and system text scaling can enlarge the interface without changing its default 16px-root appearance:
 
-| Role                 | Size   | Typical use                            |
-| -------------------- | ------ | -------------------------------------- |
-| `--type-caption`     | `12px` | secondary labels and compact metadata  |
-| `--type-meta`        | `13px` | standard metadata and compact controls |
-| `--type-body`        | `14px` | primary UI copy and navigation         |
-| `--type-body-large`  | `15px` | emphasized body copy                   |
-| `--type-title-small` | `16px` | local titles                           |
+| Role                 | Size        | Default size | Typical use                            |
+| -------------------- | ----------- | ------------ | -------------------------------------- |
+| `--type-caption`     | `0.75rem`   | 12px         | secondary labels and compact metadata  |
+| `--type-meta`        | `0.8125rem` | 13px         | standard metadata and compact controls |
+| `--type-body`        | `0.875rem`  | 14px         | primary UI copy and navigation         |
+| `--type-body-large`  | `0.9375rem` | 15px         | emphasized body copy                   |
+| `--type-title-small` | `1rem`      | 16px         | local titles                           |
 
-These values apply to application surfaces such as the shell, library, archive and settings workflows, dialogs, menus, forms, empty states, and feedback. Normal and compact density may change spacing and control geometry, but they share this readable type scale.
+Every canonical text role owns a size, line height, and default weight. Display roles also own their justified tracking. Semantic aliases identify application titles, control labels, supporting body text, and code or path content without introducing additional size steps.
+
+These values apply to application surfaces such as the shell, library, archive and settings workflows, dialogs, menus, forms, empty states, and feedback. Normal and compact density may change spacing and control geometry, but they share the same type roles. Application-root font smoothing is intentionally not injected into EPUB publication documents.
 
 Reader typography has separate ownership. `.reader-page` and `.reader-status-page` retain the established reader-control scale through scoped overrides, while reader-selected typefaces, sizes, and bundled reading fonts continue to apply only inside EPUB publication content. Application typography changes must not alter reader chrome or publication layout.
 
@@ -27,8 +29,13 @@ Use the named text roles from `tokens.css`:
 - `--type-caption` for secondary labels and compact metadata
 - `--type-meta` for standard metadata and supporting text
 - `--type-body` and `--type-body-large` for primary UI copy
+- `--type-control-label` for actionable labels and `--type-body-supporting` for explanatory copy
+- `--type-code` for paths, identifiers, and code-like values
+- `--type-application-title` for the mounted application wordmark
 - `--type-title-small`, `--type-title`, and `--type-heading` for local hierarchy
 - the dialog, section, page, and display roles for large headings
+
+Consume the matching `-line-height`, `-weight`, and, where defined, `-letter-spacing` companion instead of rebuilding a role selector by selector.
 
 Interactive labels, navigation, important status text, and primary metadata must not drop below `--type-caption`. Caption is the smallest application role and should remain reserved for genuinely secondary information.
 

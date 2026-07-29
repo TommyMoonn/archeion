@@ -6,7 +6,7 @@
   color: var(--text-strong);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
-  line-height: 1.35;
+  line-height: var(--type-caption-line-height);
   overflow-wrap: anywhere;
   text-align: center;
   pointer-events: none;
