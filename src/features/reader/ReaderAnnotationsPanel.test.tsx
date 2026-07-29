@@ -333,7 +333,7 @@ describe("ReaderAnnotationsPanel", () => {
       await Promise.resolve();
     });
     expect(container.querySelector('[role="alert"]')?.textContent).toContain(
-      "The export drive is unavailable.",
+      "Annotations could not be exported. Try again.",
     );
 
     await act(async () => {

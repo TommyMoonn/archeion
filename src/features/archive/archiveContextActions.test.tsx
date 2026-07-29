@@ -14,7 +14,11 @@ describe("createArchiveContextActions", () => {
       onRename,
     });
 
-    expect(actions.map((action) => action.label)).toEqual(["Rename", "Reveal in folder", "Forget"]);
+    expect(actions.map((action) => action.label)).toEqual([
+      "Rename archive",
+      "Reveal archive folder",
+      "Forget archive",
+    ]);
     expect(actions.every((action) => action.disabled)).toBe(true);
     expect(actions.at(-1)?.danger).toBe(true);
 

@@ -67,7 +67,7 @@ describe("FolderBrowser", () => {
     expect(markup).toContain('aria-label="1 folder shown"');
     expect(markup).toContain("1 folder");
     expect(markup).toContain("button--standard folder-browser__add-button");
-    expect(markup).toContain("Add Folder");
+    expect(markup).toContain("Add folder");
   });
 
   it("marks Cards selected when the controlled folder view is cards", () => {
@@ -107,8 +107,8 @@ describe("FolderBrowser", () => {
     expect(markup).toContain(
       'class="collection-content folder-browser__content" data-surface-state="empty"',
     );
-    expect(markup).toContain("No folders");
-    expect(markup).toContain("Add Folder");
+    expect(markup).toContain("No folders yet");
+    expect(markup).toContain("Add folder");
   });
 
   it("disables native autofill on the folder search field", () => {

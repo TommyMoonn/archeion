@@ -24,15 +24,14 @@ export type ReaderFileLoadOwner = {
   result: ReaderFileLoadResult;
 };
 
-const DEFAULT_READER_FILE_ERROR = "The EPUB file may have been moved or deleted.";
+const EPUB_SIZE_LIMIT_ERROR = "This EPUB exceeds Archeion's 256 MiB reader limit.";
+const DEFAULT_READER_FILE_ERROR =
+  "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.";
 
 function readerFileErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-  if (typeof error === "string" && error.trim()) {
-    return error;
-  }
+  const message =
+    error instanceof Error ? error.message.trim() : typeof error === "string" ? error.trim() : "";
+  if (message === EPUB_SIZE_LIMIT_ERROR) return message;
   return DEFAULT_READER_FILE_ERROR;
 }
 

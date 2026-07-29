@@ -91,7 +91,7 @@ function renderedSectionHref(section: unknown): string | undefined {
 function sessionErrorMessage(error: EpubSessionError): string {
   switch (error.kind) {
     case "open-failed":
-      return "This EPUB could not be opened.";
+      return "This EPUB could not be opened. Return to the Library and try another file.";
   }
 }
 

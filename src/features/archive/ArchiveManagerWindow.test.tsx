@@ -137,6 +137,21 @@ describe("ArchiveManagerWindow", () => {
     expect(markup).toContain("archive-manager-window__main");
   });
 
+  it("keeps archive loading errors actionable without exposing internal details", () => {
+    const markup = renderManager({
+      archives: [],
+      error: "Access denied at C:\\Private\\archives.json",
+      path: null,
+      status: "error",
+    });
+
+    expect(markup).toContain(
+      "Archives could not be loaded. Close and reopen Archive Manager to try again.",
+    );
+    expect(markup).not.toContain("C:\\Private");
+    expect(markup).toContain("No saved archives");
+  });
+
   it("distinguishes registry loading from a ready empty archive list", () => {
     const loadingMarkup = renderManager({
       status: "loading",
@@ -171,7 +186,10 @@ describe("ArchiveManagerWindow", () => {
       archives: [savedArchive],
     });
 
-    expect(markup).toContain("The archive registry could not be read.");
+    expect(markup).toContain(
+      "Archives could not be loaded. Close and reopen Archive Manager to try again.",
+    );
+    expect(markup).not.toContain("The archive registry could not be read.");
     expect(markup).toContain('data-tone="error"');
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("Comics");
@@ -257,7 +275,9 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(onArchiveChoiceComplete).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Archive folder not found.");
+    expect(container.textContent).toContain(
+      "Archive folder not found. Choose another archive or restore the folder.",
+    );
 
     act(() => root.unmount());
   });
@@ -281,7 +301,7 @@ describe("ArchiveManagerWindow", () => {
     const pointerLabels = Array.from(
       document.body.querySelectorAll<HTMLElement>('[role="menuitem"]'),
     ).map((item) => item.textContent?.trim());
-    expect(pointerLabels).toEqual(["Rename", "Reveal in folder", "Forget"]);
+    expect(pointerLabels).toEqual(["Rename archive", "Reveal archive folder", "Forget archive"]);
     expect(row?.getAttribute("data-context-menu-open")).toBe("true");
 
     act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
@@ -314,7 +334,7 @@ describe("ArchiveManagerWindow", () => {
     });
 
     expect(switchArchive).not.toHaveBeenCalled();
-    expect(document.activeElement?.textContent).toContain("Rename");
+    expect(document.activeElement?.textContent).toContain("Rename archive");
 
     act(() =>
       document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
@@ -324,7 +344,7 @@ describe("ArchiveManagerWindow", () => {
     act(() => {
       primary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
     });
-    expect(document.activeElement?.textContent).toContain("Rename");
+    expect(document.activeElement?.textContent).toContain("Rename archive");
 
     act(() => root.unmount());
   });
@@ -341,7 +361,7 @@ describe("ArchiveManagerWindow", () => {
         ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await act(async () => {
-      buttonWithText(document.body, "Rename").dispatchEvent(
+      buttonWithText(document.body, "Rename archive").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });
@@ -357,7 +377,7 @@ describe("ArchiveManagerWindow", () => {
         ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await act(async () => {
-      buttonWithText(document.body, "Reveal in folder").dispatchEvent(
+      buttonWithText(document.body, "Reveal archive folder").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });
@@ -374,7 +394,7 @@ describe("ArchiveManagerWindow", () => {
         ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
     await act(async () => {
-      buttonWithText(document.body, "Forget").dispatchEvent(
+      buttonWithText(document.body, "Forget archive").dispatchEvent(
         new MouseEvent("click", { bubbles: true }),
       );
     });

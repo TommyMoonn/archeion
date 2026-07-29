@@ -370,7 +370,7 @@ export function LibraryWorkspaceDialogs({
               onClick={() => void onDeleteSelectedBooks()}
               variant="danger"
             >
-              {isBulkRunning ? "Deleting" : "Delete selected"}
+              {isBulkRunning ? "Deleting" : "Delete selected books"}
             </Button>
           </>
         }
@@ -445,7 +445,7 @@ export function LibraryWorkspaceDialogs({
   ).length;
   return (
     <Dialog
-      title="Delete this folder?"
+      title={`Delete “${dialog.folder.name}” folder?`}
       description={`The “${dialog.folder.name}” folder and ${deleteFolderBookCount} contained EPUB ${
         deleteFolderBookCount === 1 ? "file" : "files"
       } will be moved to Trash when available.`}

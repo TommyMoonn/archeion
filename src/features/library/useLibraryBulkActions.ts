@@ -10,7 +10,11 @@ import { bookAuthor } from "../../utils/bookDisplay";
 import { exportReaderAnnotationsToFile } from "../reader/readerAnnotationExportFile";
 import type { ReaderAnnotationExportFormat } from "../reader/readerAnnotationExport";
 import { bookTitle } from "./libraryFilters";
-import { createBulkActionFeedbackToken, type LibraryFeedbackDraft } from "./libraryFeedback";
+import {
+  createBulkActionFeedbackToken,
+  type LibraryBulkFeedbackAction,
+  type LibraryFeedbackDraft,
+} from "./libraryFeedback";
 import type { LibraryWorkspaceDialogActions } from "./useLibraryWorkspaceDialogs";
 import type { LibraryFeedbackOperation } from "./useLibraryFeedback";
 
@@ -60,7 +64,10 @@ export function useLibraryBulkActions({
   );
 
   const runBulkAction = useCallback(
-    async (label: string, action: (ids: readonly string[]) => Promise<BulkActionResult>) => {
+    async (
+      label: LibraryBulkFeedbackAction,
+      action: (ids: readonly string[]) => Promise<BulkActionResult>,
+    ) => {
       if (bulkLockRef.current) return;
 
       const ids = [...selectedBookIds];
@@ -84,12 +91,12 @@ export function useLibraryBulkActions({
         } else {
           leaveSelectionMode();
         }
-      } catch (error) {
+      } catch {
         publishFeedbackOperation(feedbackOperation, {
           id: "bulk-action",
           tone: "error",
           title: `${label} could not start.`,
-          detail: error instanceof Error ? error.message : undefined,
+          detail: "Try the action again. If it continues to fail, rescan the Library.",
         });
       } finally {
         bulkLockRef.current = false;
@@ -140,9 +147,9 @@ export function useLibraryBulkActions({
           tone: "success",
           title: "Annotations exported.",
         });
-      } catch (error) {
+      } catch {
         publishFeedbackOperation(feedbackOperation, {
-          detail: error instanceof Error ? error.message : undefined,
+          detail: "Try exporting the annotations again.",
           id: "annotation-export",
           tone: "error",
           title: "Annotations could not be exported.",

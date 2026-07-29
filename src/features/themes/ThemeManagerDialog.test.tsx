@@ -232,7 +232,7 @@ describe("ThemeManagerDialog", () => {
     const dialogs = container.querySelectorAll("dialog");
     expect(dialogs).toHaveLength(2);
     expect(dialogs[0]?.contains(dialogs[1] ?? null)).toBe(true);
-    expect(dialogs[1]?.textContent).toContain("Remove theme?");
+    expect(dialogs[1]?.textContent).toContain("Remove “Moon Ink” theme?");
     expect(dialogs[1]?.textContent).toContain("active archive");
   });
 });

@@ -68,13 +68,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object";
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error
-    ? error.message
-    : typeof error === "string"
-      ? error
-      : "App settings could not be saved.";
-}
+const APP_SETTINGS_LOAD_ERROR = "App settings could not be loaded. Restart Archeion to try again.";
+const APP_SETTINGS_SAVE_ERROR =
+  "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.";
 
 function readLegacyPreferences(): unknown {
   if (typeof window === "undefined") {
@@ -565,7 +561,7 @@ export class AppPreferencesStore {
         this.setPersistenceStatus({ status: "idle" });
       }
     } catch (error) {
-      const message = `App settings could not be loaded: ${errorMessage(error)}`;
+      const message = APP_SETTINGS_LOAD_ERROR;
       if (this.mutationRevision === loadRevision && legacyPreferences) {
         this.setPreferences(legacyPreferences);
       }
@@ -586,9 +582,9 @@ export class AppPreferencesStore {
         this.setPersistenceStatus({ status: "saved" });
         return Promise.resolve(preferences);
       } catch (error) {
-        const message = `App settings could not be saved: ${errorMessage(error)}`;
+        const message = APP_SETTINGS_SAVE_ERROR;
         this.setPersistenceStatus({ status: "error", error: message });
-        return Promise.reject(new Error(message));
+        return Promise.reject(new Error(message, { cause: error }));
       }
     }
 
@@ -601,7 +597,7 @@ export class AppPreferencesStore {
         return preferences;
       })
       .catch((error) => {
-        const message = `App settings could not be saved: ${errorMessage(error)}`;
+        const message = APP_SETTINGS_SAVE_ERROR;
         if (this.mutationRevision === persistenceRevision) {
           this.setPersistenceStatus({ status: "error", error: message });
         }

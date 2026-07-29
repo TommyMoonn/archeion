@@ -81,7 +81,7 @@ describe("folder contextual invocation", () => {
     });
 
     const pointerLabels = menuLabels();
-    expect(pointerLabels).toEqual(["Move", "Reveal", "Delete"]);
+    expect(pointerLabels).toEqual(["Move folder", "Reveal folder", "Delete folder"]);
     expect(onOpen).not.toHaveBeenCalled();
     expect(item?.getAttribute("data-context-menu-open")).toBe("true");
     expect(document.documentElement.dataset.inputModality).toBe("pointer");
@@ -119,8 +119,13 @@ describe("folder contextual invocation", () => {
     });
 
     expect(onSelect).not.toHaveBeenCalled();
-    expect(document.activeElement?.textContent).toContain("Rename");
-    expect(menuLabels()).toEqual(["Rename", "Move", "Reveal", "Delete"]);
+    expect(document.activeElement?.textContent).toContain("Rename folder");
+    expect(menuLabels()).toEqual([
+      "Rename folder",
+      "Move folder",
+      "Reveal folder",
+      "Delete folder",
+    ]);
     expect(document.documentElement.dataset.inputModality).toBe("keyboard");
 
     act(() =>
@@ -131,7 +136,7 @@ describe("folder contextual invocation", () => {
     act(() => {
       primary?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ContextMenu" }));
     });
-    expect(document.activeElement?.textContent).toContain("Rename");
+    expect(document.activeElement?.textContent).toContain("Rename folder");
   });
 
   it("promotes owned FolderTree directional focus movement to keyboard modality", () => {

@@ -44,7 +44,9 @@ export function LibraryStorageProvider({ children, storage }: LibraryStorageProv
     return (
       <main className="archive-setup" aria-busy={!didStorageFail}>
         <p className="archive-loading">
-          {didStorageFail ? "The active archive could not be loaded." : "Opening archive"}
+          {didStorageFail
+            ? "The active archive could not be loaded. Restart Archeion and open it again."
+            : "Opening archive"}
         </p>
       </main>
     );

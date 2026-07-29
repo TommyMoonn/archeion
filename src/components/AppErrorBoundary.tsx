@@ -30,10 +30,10 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
       return (
         <main className="status-page" data-tone="error" role="alert">
           <p className="status-page__code">Error</p>
-          <h1>Something went wrong</h1>
-          <p>Restart Archeion or try loading this view again.</p>
+          <h1>Archeion could not load this view</h1>
+          <p>Reload the view. If it still fails, restart Archeion.</p>
           <Button onClick={this.retry} variant="secondary">
-            Try again
+            Reload view
           </Button>
         </main>
       );

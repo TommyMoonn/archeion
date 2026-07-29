@@ -62,7 +62,7 @@ async function openRenameDialog(container: HTMLElement, name: string) {
   await import("../folders/FolderRenameDialog");
   const menu = await openControlledContextMenu(container, `Actions for ${name}`);
   await act(async () => {
-    const rename = contextMenuItemWithText(menu, "Rename");
+    const rename = contextMenuItemWithText(menu, "Rename folder");
     rename.focus();
     rename.click();
     await Promise.resolve();
@@ -87,7 +87,7 @@ async function moveFolderThroughDialog(
   await import("../filesystem/MoveToFolderDialog");
   const menu = await openControlledContextMenu(container, `Actions for ${folderName}`);
   await act(async () => {
-    const move = contextMenuItemWithText(menu, "Move");
+    const move = contextMenuItemWithText(menu, "Move folder");
     move.focus();
     move.click();
     await Promise.resolve();
@@ -485,7 +485,7 @@ describe("LibraryPage folder path continuity", () => {
 
     const menu = await openControlledContextMenu(session.container, "Actions for Fiction");
     await act(async () => {
-      contextMenuItemWithText(menu, "Delete").click();
+      contextMenuItemWithText(menu, "Delete folder").click();
       await Promise.resolve();
       await Promise.resolve();
     });

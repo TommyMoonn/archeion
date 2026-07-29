@@ -239,7 +239,7 @@ describe("useReaderAnnotationPanelActions", () => {
     await act(async () => apiRef.current?.exportAnnotations("json"));
     expect(apiRef.current?.exportState).toEqual({
       format: "json",
-      message: "Export unavailable",
+      message: "Annotations could not be exported. Try again.",
       status: "error",
     });
 

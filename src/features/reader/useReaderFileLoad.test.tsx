@@ -267,4 +267,16 @@ describe("useReaderFileLoad", () => {
       "This EPUB exceeds Archeion's 256 MiB reader limit.",
     );
   });
+
+  it("does not expose an unexpected native file error", async () => {
+    const { container } = await render(
+      () => Promise.reject(new Error("Access denied at C:\\Private\\Books\\Novel.epub")),
+      '["archive-a","book-1"]',
+    );
+
+    expect(container.querySelector("output")?.dataset.error).toBe(
+      "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.",
+    );
+    expect(container.textContent).not.toContain("C:\\Private");
+  });
 });

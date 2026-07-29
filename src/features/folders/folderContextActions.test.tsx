@@ -26,7 +26,12 @@ describe("createFolderContextActions", () => {
       showReveal: true,
     });
 
-    expect(actions.map((action) => action.label)).toEqual(["Rename", "Move", "Reveal", "Delete"]);
+    expect(actions.map((action) => action.label)).toEqual([
+      "Rename folder",
+      "Move folder",
+      "Reveal folder",
+      "Delete folder",
+    ]);
     for (const action of actions) action.onSelect();
     expect(onRename).toHaveBeenCalledWith(folder);
     expect(onMove).toHaveBeenCalledWith(folder);
@@ -44,6 +49,6 @@ describe("createFolderContextActions", () => {
       showReveal: false,
     });
 
-    expect(actions.map((action) => action.label)).toEqual(["Move", "Delete"]);
+    expect(actions.map((action) => action.label)).toEqual(["Move folder", "Delete folder"]);
   });
 });

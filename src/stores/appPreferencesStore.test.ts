@@ -620,10 +620,32 @@ describe("app preferences", () => {
     );
     await store.initialize();
 
-    await expect(store.update({ density: "compact" })).rejects.toThrow(/disk full/);
+    await expect(store.update({ density: "compact" })).rejects.toThrow(
+      "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
+    );
     expect(store.getPersistenceSnapshot()).toEqual({
       status: "error",
-      error: expect.stringContaining("disk full"),
+      error:
+        "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
+    });
+    expect(store.getSnapshot().density).toBe("compact");
+  });
+
+  it("keeps app settings load failures specific without exposing internal details", async () => {
+    const store = new AppPreferencesStore(
+      createPersistence({
+        loadDesktop: vi.fn(async () => {
+          throw new Error("Access denied at C:\\Users\\Private\\app-settings.json");
+        }),
+      }),
+    );
+
+    await expect(store.initialize()).rejects.toThrow(
+      "App settings could not be loaded. Restart Archeion to try again.",
+    );
+    expect(store.getPersistenceSnapshot()).toEqual({
+      status: "error",
+      error: "App settings could not be loaded. Restart Archeion to try again.",
     });
   });
 

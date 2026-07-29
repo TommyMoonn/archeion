@@ -36,13 +36,10 @@ export function useArchiveThemeCatalogEntries(enabled: boolean) {
       () => {
         if (active) setFailure(null);
       },
-      (reason) => {
+      () => {
         if (!active) return;
         setFailure({
-          message:
-            reason instanceof Error && reason.message.trim()
-              ? reason.message
-              : "Custom themes could not be listed.",
+          message: "Custom themes could not be listed. Reopen Settings to try again.",
           rootPath: archiveRootPath,
         });
       },

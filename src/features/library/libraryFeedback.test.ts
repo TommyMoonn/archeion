@@ -112,6 +112,7 @@ describe("libraryFeedback", () => {
       autoDismiss: false,
     });
     expect(token.detail).toContain("Run Archive metadata repair");
+    expect(token.detail).not.toContain("Restart safety could not be established.");
   });
 
   it("keeps archive metadata recovery warnings persistent with an accurate action", () => {
@@ -127,8 +128,29 @@ describe("libraryFeedback", () => {
       title: "Archive metadata cleanup is required.",
       autoDismiss: false,
     });
-    expect(token.detail).toContain("Resolve archive write access");
-    expect(token.detail).toContain("remove the missing metadata entry");
+    expect(token.detail).toContain("archive metadata cleanup is still required");
+    expect(token.detail).toContain("Run Archive metadata repair");
+    expect(token.detail).not.toContain("library metadata could not be saved");
+  });
+
+  it("identifies source cleanup without presenting archive diagnostics", () => {
+    const token = createArchiveOperationWarningFeedbackToken({
+      kind: "archive-metadata",
+      message: "Access denied at C:\\Users\\Private\\Novel.epub",
+      repairRequired: false,
+    });
+
+    expect(token).toMatchObject({
+      id: "archive-metadata-warning",
+      tone: "warning",
+      title: "The original EPUB could not be removed.",
+      autoDismiss: true,
+    });
+    expect(token.title.toLowerCase()).not.toContain("cache");
+    expect(token.title.toLowerCase()).not.toContain("rebuilt");
+    expect(token.detail).toContain("Check the original file");
+    expect(token.detail).not.toContain("Access denied");
+    expect(token.detail).not.toContain("C:\\Users\\Private");
   });
 
   it("summarizes aggregated cache warnings in one token", () => {
@@ -242,7 +264,12 @@ describe("libraryFeedback", () => {
       tone: "warning",
       title: "Some EPUBs were skipped.",
       detail: "1 added. 1 skipped.",
-      details: [{ label: "B.epub", message: "Already exists." }],
+      details: [
+        {
+          label: "B.epub",
+          message: "EPUB was skipped because of the selected conflict setting.",
+        },
+      ],
     });
   });
 
@@ -261,7 +288,13 @@ describe("libraryFeedback", () => {
       tone: "error",
       title: "Some EPUBs could not be added.",
       detail: "1 added. 1 failed.",
-      details: [{ label: "B.epub", message: "Invalid EPUB." }],
+      details: [
+        {
+          label: "B.epub",
+          message:
+            "EPUB could not be added. Check that the source file is available and the archive is writable, then try again.",
+        },
+      ],
     });
   });
 });

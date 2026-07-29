@@ -133,7 +133,7 @@ function ArchiveRow({
       if (changed) {
         await onArchiveChoiceComplete?.();
       } else {
-        setStatus("Archive folder not found.");
+        setStatus("Archive folder not found. Choose another archive or restore the folder.");
       }
     } finally {
       setIsBusy(false);
@@ -154,7 +154,7 @@ function ArchiveRow({
       if (renamed) {
         setIsRenaming(false);
       } else {
-        setStatus("Archive name could not be saved.");
+        setStatus("Archive name could not be saved. Try another name.");
       }
     } finally {
       setIsBusy(false);
@@ -167,7 +167,7 @@ function ArchiveRow({
     try {
       const revealed = await archiveStore.revealArchive(archive.id);
       if (!revealed) {
-        setStatus("Archive folder could not be revealed.");
+        setStatus("Archive folder could not be opened. Check that the folder still exists.");
       }
     } finally {
       setIsBusy(false);
@@ -189,7 +189,7 @@ function ArchiveRow({
     try {
       const forgotten = await archiveStore.forgetArchive(archive.id);
       if (!forgotten) {
-        setStatus("Archive could not be forgotten.");
+        setStatus("Archive could not be forgotten. Try again.");
       }
     } finally {
       setIsBusy(false);
@@ -293,7 +293,10 @@ export function ArchiveManagerWindowContent({
   const activeArchiveId = activeArchiveIdForState(state);
   const missingArchiveId = state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(() => sortArchives(state.archives), [state.archives]);
-  const errorText = state.status === "error" ? state.error : null;
+  const errorText =
+    state.status === "error"
+      ? "Archives could not be loaded. Close and reopen Archive Manager to try again."
+      : null;
   const isLoading = state.status === "loading";
 
   function resetCreateForm() {

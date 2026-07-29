@@ -28,7 +28,7 @@ export function createFolderContextActions({
     actions.push({
       icon: <PencilSimple weight="regular" />,
       id: "rename",
-      label: "Rename",
+      label: "Rename folder",
       onSelect: () => onRename(folder),
     });
   }
@@ -36,7 +36,7 @@ export function createFolderContextActions({
   actions.push({
     icon: <ArrowRight weight="regular" />,
     id: "move",
-    label: "Move",
+    label: "Move folder",
     onSelect: () => onMove(folder),
   });
 
@@ -44,7 +44,7 @@ export function createFolderContextActions({
     actions.push({
       icon: <FolderOpen weight="regular" />,
       id: "reveal",
-      label: "Reveal",
+      label: "Reveal folder",
       onSelect: () => onReveal(folder),
     });
   }
@@ -54,7 +54,7 @@ export function createFolderContextActions({
     danger: true,
     icon: <Trash weight="regular" />,
     id: "delete",
-    label: "Delete",
+    label: "Delete folder",
     onSelect: () => onDelete(folder),
   });
 

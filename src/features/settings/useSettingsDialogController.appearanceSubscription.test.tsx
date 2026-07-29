@@ -188,7 +188,7 @@ describe("Settings committed appearance subscription", () => {
       await Promise.resolve();
     });
     expect(latest.status).toMatchObject({
-      message: "The scanner cache could not be cleared.",
+      message: "The scanner cache could not be cleared. Try again.",
       tone: "error",
     });
 
@@ -199,7 +199,7 @@ describe("Settings committed appearance subscription", () => {
     });
 
     expect(latest.status).toMatchObject({
-      message: "The scanner cache could not be cleared.",
+      message: "The scanner cache could not be cleared. Try again.",
       tone: "error",
     });
   });
@@ -221,7 +221,9 @@ describe("Settings committed appearance subscription", () => {
         appTheme: { kind: "builtin", id: "light" },
       });
     });
-    expect(latest.status?.message).toBe("Newer appearance failure.");
+    expect(latest.status?.message).toBe(
+      "Archive appearance could not be saved. Try changing the appearance again.",
+    );
 
     await act(async () => {
       pendingImportSave.reject(new Error("old import failure"));
@@ -229,7 +231,9 @@ describe("Settings committed appearance subscription", () => {
       await Promise.resolve();
     });
 
-    expect(latest.status?.message).toBe("Newer appearance failure.");
+    expect(latest.status?.message).toBe(
+      "Archive appearance could not be saved. Try changing the appearance again.",
+    );
   });
 
   it("blocks repeated activation of the same expensive Settings operation", async () => {

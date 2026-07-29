@@ -206,7 +206,10 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setLocalStatus("Settings could not be loaded.", "error");
+          setLocalStatus(
+            "Import settings could not be loaded. Close and reopen Settings to try again.",
+            "error",
+          );
         }
       })
       .finally(() => {
@@ -232,7 +235,10 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setLocalStatus("Settings could not be loaded.", "error");
+          setLocalStatus(
+            "Folder destinations could not be loaded. Close and reopen Settings to try again.",
+            "error",
+          );
         }
       })
       .finally(() => {
@@ -258,7 +264,10 @@ export function useSettingsDialogController({
       })
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
-          setLocalStatus("Settings could not be loaded.", "error");
+          setLocalStatus(
+            "Cover cache status is unavailable. Close and reopen Settings to try again.",
+            "error",
+          );
         }
       })
       .finally(() => {
@@ -290,7 +299,10 @@ export function useSettingsDialogController({
       .catch(() => {
         if (dataLoadGenerationRef.current === generation) {
           setEpubWritebackBackupStatusState("unavailable");
-          setLocalStatus("Settings could not be loaded.", "error");
+          setLocalStatus(
+            "Backup status is unavailable. Close and reopen Settings to try again.",
+            "error",
+          );
         }
       })
       .finally(() => {
@@ -356,11 +368,11 @@ export function useSettingsDialogController({
         publishStatusOperation(statusOperation, successMessage, "success");
       }
       return true;
-    } catch (error) {
+    } catch {
       if (appPreferenceSaveRevisionRef.current === saveRevision) {
         publishStatusOperation(
           statusOperation,
-          error instanceof Error ? error.message : "App settings could not be saved.",
+          "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
           "error",
         );
       }
@@ -412,7 +424,11 @@ export function useSettingsDialogController({
     try {
       setArchiveImport(await storage.saveArchiveImportSettings(next));
     } catch {
-      publishStatusOperation(statusOperation, "Import destination could not be saved.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Import destination could not be saved. The previous destination is unchanged. Try again.",
+        "error",
+      );
     }
   }
 
@@ -432,7 +448,11 @@ export function useSettingsDialogController({
       !selectedArchivePath ||
       previewContext.archive.rootPath !== selectedArchivePath
     ) {
-      publishStatusOperation(statusOperation, "Archive appearance is unavailable.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Archive appearance is unavailable. Reopen Settings from an active archive.",
+        "error",
+      );
       return false;
     }
 
@@ -440,10 +460,10 @@ export function useSettingsDialogController({
       await appearanceRuntime.updateArchiveAppearanceSettings(previewContext.archive, changes);
       publishStatusOperation(statusOperation, "Archive appearance saved.", "success");
       return true;
-    } catch (error) {
+    } catch {
       publishStatusOperation(
         statusOperation,
-        error instanceof Error ? error.message : "Archive appearance could not be saved.",
+        "Archive appearance could not be saved. Try changing the appearance again.",
         "error",
       );
       return false;
@@ -453,7 +473,11 @@ export function useSettingsDialogController({
   function openThemeManager() {
     const statusOperation = beginStatusOperation();
     if (!selectedArchivePath || !onOpenThemeManager) {
-      publishStatusOperation(statusOperation, "Theme Manager requires an active archive.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Theme Manager requires an active archive. Open an archive, then try again.",
+        "error",
+      );
       return;
     }
     onOpenThemeManager();
@@ -462,16 +486,20 @@ export function useSettingsDialogController({
   async function openThemesFolder(): Promise<boolean> {
     const statusOperation = beginStatusOperation();
     if (!selectedArchivePath) {
-      publishStatusOperation(statusOperation, "Themes require an active archive.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Themes require an active archive. Open an archive, then try again.",
+        "error",
+      );
       return false;
     }
     try {
       await new ArchiveThemeRepository(selectedArchivePath).revealThemesRoot();
       return true;
-    } catch (error) {
+    } catch {
       publishStatusOperation(
         statusOperation,
-        error instanceof Error ? error.message : "The themes folder could not open.",
+        "The themes folder could not be opened. Check that the archive is available and try again.",
         "error",
       );
       return false;
@@ -489,7 +517,11 @@ export function useSettingsDialogController({
       await storage.rescan();
       publishStatusOperation(statusOperation, "Archive scan complete.", "success");
     } catch {
-      publishStatusOperation(statusOperation, "The archive could not be scanned.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "The archive could not be scanned. Try again.",
+        "error",
+      );
     } finally {
       finishConfirmationOperation("rescanArchive");
       releaseArchiveScanOperation(claim);
@@ -500,7 +532,11 @@ export function useSettingsDialogController({
     const statusOperation = beginStatusOperation();
     const opened = await archiveStore.openArchiveManagerWindow();
     if (!opened) {
-      publishStatusOperation(statusOperation, "Archive Manager could not be opened.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Archive Manager could not be opened. Try again.",
+        "error",
+      );
     }
   }
 
@@ -509,7 +545,11 @@ export function useSettingsDialogController({
     if (archive.status !== "ready") return;
     const revealed = await archiveStore.revealArchive(archive.archive.id);
     if (!revealed) {
-      publishStatusOperation(statusOperation, "The archive folder could not be opened.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "The archive folder could not be opened. Check that the folder still exists.",
+        "error",
+      );
     }
   }
 
@@ -518,7 +558,11 @@ export function useSettingsDialogController({
     try {
       await storage.revealMetadataFolder();
     } catch {
-      publishStatusOperation(statusOperation, "The .archeion folder could not be opened.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "The .archeion folder could not be opened. Check that the archive is available.",
+        "error",
+      );
     }
   }
 
@@ -529,7 +573,11 @@ export function useSettingsDialogController({
       setCache(await storage.clearCoverCache());
       publishStatusOperation(statusOperation, "Cover cache cleared.", "success");
     } catch {
-      publishStatusOperation(statusOperation, "The cover cache could not be cleared.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "The cover cache could not be cleared. EPUB files are unchanged. Try again.",
+        "error",
+      );
     } finally {
       finishConfirmationOperation("clearCoverCache");
     }
@@ -542,7 +590,11 @@ export function useSettingsDialogController({
       await storage.clearScannerCache();
       publishStatusOperation(statusOperation, "Scanner cache cleared.", "success");
     } catch {
-      publishStatusOperation(statusOperation, "The scanner cache could not be cleared.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "The scanner cache could not be cleared. Try again.",
+        "error",
+      );
     } finally {
       finishConfirmationOperation("clearScannerCache");
     }
@@ -558,7 +610,7 @@ export function useSettingsDialogController({
     } catch {
       publishStatusOperation(
         statusOperation,
-        "EPUB writeback backups could not be cleared.",
+        "EPUB writeback backups could not be cleared. EPUB files are unchanged. Try again.",
         "error",
       );
     } finally {
@@ -577,7 +629,7 @@ export function useSettingsDialogController({
     } catch {
       publishStatusOperation(
         statusOperation,
-        "Source metadata could not be re-extracted.",
+        "Source metadata could not be re-extracted. Try again.",
         "error",
       );
     } finally {
@@ -594,7 +646,11 @@ export function useSettingsDialogController({
       await storage.repairArchiveMetadata();
       publishStatusOperation(statusOperation, "Archive metadata repaired.", "success");
     } catch {
-      publishStatusOperation(statusOperation, "Archive metadata could not be repaired.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Archive metadata could not be repaired. Try again.",
+        "error",
+      );
     } finally {
       finishConfirmationOperation("repairMetadata");
       releaseArchiveScanOperation(claim);
@@ -673,7 +729,11 @@ export function useSettingsDialogController({
       setArchiveImport(await storage.resetArchiveImportSettings());
       publishStatusOperation(statusOperation, "Import settings reset.", "success");
     } catch {
-      publishStatusOperation(statusOperation, "Import destination could not be reset.", "error");
+      publishStatusOperation(
+        statusOperation,
+        "Import destination could not be reset. The previous destination is unchanged. Try again.",
+        "error",
+      );
     }
   }
 

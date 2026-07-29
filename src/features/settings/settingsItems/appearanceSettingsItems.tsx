@@ -83,7 +83,7 @@ export const appearanceSettingsItems = [
             size="standard"
             variant="secondary"
           >
-            Manage
+            Manage themes
           </Button>
         </div>
       </SettingsRow>
@@ -158,7 +158,7 @@ export const appearanceSettingsItems = [
     render: (context) => (
       <SettingsRow label="Reset appearance settings">
         <Button onClick={() => void context.resetAppearance()} variant="secondary">
-          Reset
+          Reset appearance
         </Button>
       </SettingsRow>
     ),
@@ -173,7 +173,7 @@ export const appearanceSettingsItems = [
     render: (context) => (
       <SettingsRow label="Reset window settings">
         <Button onClick={() => void context.resetWindow()} variant="secondary">
-          Reset
+          Reset window
         </Button>
       </SettingsRow>
     ),

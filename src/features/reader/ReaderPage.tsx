@@ -778,7 +778,7 @@ export function ReaderPage() {
             size="standard"
             variant="secondary"
           >
-            Rescan library
+            Rescan Library
           </Button>
           <button className="text-link" onClick={returnToOrigin} type="button">
             Back
@@ -786,7 +786,7 @@ export function ReaderPage() {
         </div>
         {recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" data-tone="error" role="alert">
-            The archive could not be scanned.
+            The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
       </main>
@@ -811,11 +811,11 @@ export function ReaderPage() {
     return (
       <main className="reader-status-page">
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
-        <h1>Unable to open book</h1>
+        <h1>EPUB could not be opened</h1>
         <p>
           {readerFile.status === "error"
             ? readerFile.error
-            : "The EPUB file may have been moved or deleted."}
+            : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
         </p>
         <div className="reader-status-page__actions">
           <Button
@@ -825,7 +825,7 @@ export function ReaderPage() {
             size="standard"
             variant="secondary"
           >
-            Rescan library
+            Rescan Library
           </Button>
           <button className="text-link" onClick={returnToOrigin} type="button">
             Back
@@ -833,7 +833,7 @@ export function ReaderPage() {
         </div>
         {recoveryStatus === "failed" ? (
           <p className="reader-status-page__error" data-tone="error" role="alert">
-            The archive could not be scanned.
+            The archive could not be scanned. Try again or return to the Library.
           </p>
         ) : null}
       </main>
@@ -904,7 +904,7 @@ export function ReaderPage() {
       {error ? (
         <section className="reader-error" role="alert">
           <BookOpenText aria-hidden="true" size={38} weight="thin" />
-          <h1>Unable to open book</h1>
+          <h1>EPUB could not be opened</h1>
           <p>{error}</p>
           <button className="text-link" onClick={returnToOrigin} type="button">
             Back

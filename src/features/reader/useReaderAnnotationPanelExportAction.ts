@@ -52,11 +52,11 @@ export function useReaderAnnotationPanelExportAction(
             status: "success",
           });
         }
-      } catch (error) {
+      } catch {
         if (mountedRef.current && exportRef.current === request) {
           setExportState({
             format,
-            message: error instanceof Error ? error.message : "Annotations could not be exported.",
+            message: "Annotations could not be exported. Try again.",
             status: "error",
           });
         }

@@ -20,14 +20,14 @@ export function createArchiveContextActions({
       disabled,
       icon: <PencilSimple weight="regular" />,
       id: "rename",
-      label: "Rename",
+      label: "Rename archive",
       onSelect: onRename,
     },
     {
       disabled,
       icon: <FolderOpen weight="regular" />,
       id: "reveal",
-      label: "Reveal in folder",
+      label: "Reveal archive folder",
       onSelect: onReveal,
     },
     {
@@ -36,7 +36,7 @@ export function createArchiveContextActions({
       disabled,
       icon: <Trash weight="regular" />,
       id: "forget",
-      label: "Forget",
+      label: "Forget archive",
       onSelect: onForget,
     },
   ];

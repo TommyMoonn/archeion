@@ -123,7 +123,7 @@ describe("settings section components", () => {
 
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
-    expect(markup).toContain("Reveal in folder");
+    expect(markup).toContain("Reveal archive folder");
   });
 
   it("renders Smart Views as one accessible Library settings group", () => {

@@ -115,6 +115,15 @@ const DELETE_ERROR_TITLES: Record<LibraryDeleteErrorFeedbackType, string> = {
 };
 
 export type LibraryMutationSuccessFeedbackType = keyof typeof LIBRARY_MUTATION_FEEDBACK_IDS;
+export type LibraryBulkFeedbackAction =
+  | "Add to favorites"
+  | "Remove from favorites"
+  | "Move"
+  | "Delete"
+  | "Metadata update"
+  | "Metadata re-extraction"
+  | "Cover regeneration"
+  | "Export";
 
 const MUTATION_SUCCESS_TITLES: Record<LibraryMutationSuccessFeedbackType, string> = {
   bookMoved: "EPUB moved.",
@@ -123,26 +132,84 @@ const MUTATION_SUCCESS_TITLES: Record<LibraryMutationSuccessFeedbackType, string
   folderRenamed: "Folder renamed.",
 };
 
+type LibraryBulkFeedbackCopy = Readonly<{
+  failed: string;
+  skipped: string;
+}>;
+
+const BULK_FEEDBACK_COPY: Record<LibraryBulkFeedbackAction, LibraryBulkFeedbackCopy> = {
+  "Add to favorites": {
+    failed: "This book could not be added to Favorites. Try again.",
+    skipped: "This book was not added to Favorites. Try again.",
+  },
+  "Remove from favorites": {
+    failed: "This book could not be removed from Favorites. Try again.",
+    skipped: "This book was not removed from Favorites. Try again.",
+  },
+  Move: {
+    failed: "This EPUB could not be moved. Check that the archive is writable, then try again.",
+    skipped: "This EPUB was not moved. Check that it is available, then try again.",
+  },
+  Delete: {
+    failed: "This EPUB could not be deleted. Check that the file is available, then try again.",
+    skipped: "This EPUB was not deleted. Check that the file is available, then try again.",
+  },
+  "Metadata update": {
+    failed: "Metadata could not be updated for this book. Try again.",
+    skipped: "Metadata was not updated for this book. Try again.",
+  },
+  "Metadata re-extraction": {
+    failed: "Metadata could not be re-extracted for this book. Try again.",
+    skipped: "Metadata was not re-extracted for this book. Try again.",
+  },
+  "Cover regeneration": {
+    failed: "The cover could not be regenerated for this book. Try again.",
+    skipped: "The cover was not regenerated for this book. Try again.",
+  },
+  Export: {
+    failed: "This EPUB could not be exported. Check the destination folder and try again.",
+    skipped: "This EPUB was not exported. Check the destination folder and try again.",
+  },
+};
+
+const BULK_SKIP_REASON_COPY: Readonly<Record<string, string>> = {
+  "The book is no longer in the library.": "This book is no longer in the Library.",
+  "The EPUB file is unavailable.": "This EPUB is unavailable. Rescan the Library to update it.",
+  "The book is already in this folder.": "This EPUB is already in the selected folder.",
+  "Already a favorite.": "This book is already in Favorites.",
+  "Not a favorite.": "This book is not in Favorites.",
+  "The selected metadata is already applied.": "The selected metadata is already applied.",
+};
+
+const MISSING_BOOK_LABEL = "Book no longer in Library";
+
 export function createArchiveOperationWarningFeedbackToken(
   warning: ArchiveOperationWarning,
 ): LibraryFeedbackToken {
   const occurrences = warning.occurrences ?? 1;
   const isArchiveMetadataRecovery = warning.kind === "archive-metadata";
-  const detail = warning.repairRequired
-    ? isArchiveMetadataRecovery
-      ? `${warning.message} Resolve archive write access, then remove the missing metadata entry or repeat the operation.`
-      : `${warning.message} Run Archive metadata repair from Settings before restarting Archeion.`
-    : occurrences > 1
-      ? `${occurrences} operations reported degraded scanner-cache maintenance. The cache will rebuild automatically.`
-      : `${warning.message} The cache will rebuild automatically.`;
+  const detail = isArchiveMetadataRecovery
+    ? warning.repairRequired
+      ? "A file operation completed, but archive metadata cleanup is still required. Run Archive metadata repair from Settings."
+      : "A file operation completed with a cleanup warning. Check the original file if the operation used Move."
+    : warning.repairRequired
+      ? "Scanner-cache maintenance was delayed. Run Archive metadata repair from Settings."
+      : occurrences > 1
+        ? `Scanner-cache maintenance was delayed for ${occurrences} operations. The cache will rebuild automatically.`
+        : "Scanner-cache maintenance was delayed. The cache will rebuild automatically.";
+  const title = isArchiveMetadataRecovery
+    ? warning.repairRequired
+      ? "Archive metadata cleanup is required."
+      : occurrences > 1
+        ? "Some original EPUBs could not be removed."
+        : "The original EPUB could not be removed."
+    : warning.repairRequired
+      ? "Archive metadata repair is required."
+      : "Archive cache will be rebuilt.";
   return {
     id: isArchiveMetadataRecovery ? "archive-metadata-warning" : "scanner-cache-warning",
     tone: "warning",
-    title: warning.repairRequired
-      ? isArchiveMetadataRecovery
-        ? "Archive metadata cleanup is required."
-        : "Archive metadata repair is required."
-      : "Archive cache will be rebuilt.",
+    title,
     detail,
     autoDismiss: !warning.repairRequired,
   };
@@ -205,7 +272,10 @@ export function createImportFeedbackToken(
     .filter((result) => result.status !== "imported")
     .map((result) => ({
       label: result.fileName,
-      message: result.message ?? (result.status === "skipped" ? "Skipped." : "Failed."),
+      message:
+        result.status === "skipped"
+          ? "EPUB was skipped because of the selected conflict setting."
+          : "EPUB could not be added. Check that the source file is available and the archive is writable, then try again.",
     }));
 
   if (summary.failed > 0) {
@@ -238,19 +308,20 @@ export function createImportFeedbackToken(
 }
 
 export function createBulkActionFeedbackToken(
-  action: string,
+  action: LibraryBulkFeedbackAction,
   result: BulkActionResult,
   bookLabels: ReadonlyMap<string, string>,
 ): LibraryFeedbackToken {
+  const copy = BULK_FEEDBACK_COPY[action];
   const detail = `${result.succeeded.length} succeeded, ${result.failed.length} failed, ${result.skipped.length} skipped.`;
   const details = [
-    ...result.failed.map(({ bookId, message }) => ({
-      label: bookLabels.get(bookId) ?? bookId,
-      message,
+    ...result.failed.map(({ bookId }) => ({
+      label: bookLabels.get(bookId) ?? MISSING_BOOK_LABEL,
+      message: copy.failed,
     })),
     ...result.skipped.map(({ bookId, reason }) => ({
-      label: bookLabels.get(bookId) ?? bookId,
-      message: `Skipped: ${reason}`,
+      label: bookLabels.get(bookId) ?? MISSING_BOOK_LABEL,
+      message: BULK_SKIP_REASON_COPY[reason] ?? copy.skipped,
     })),
   ];
   return {

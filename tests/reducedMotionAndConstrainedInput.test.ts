@@ -167,7 +167,7 @@ describe("Phase 0.8.0.9 reduced motion and constrained input contracts", () => {
     expect(tokenStyles).toContain("--control-height-standard: 36px");
     expect(tokenStyles).toContain("--control-height-prominent: 40px");
     expect(libraryToolbarSource).toContain("Add EPUB");
-    expect(folderBrowserSource).toContain("Add Folder");
+    expect(folderBrowserSource).toContain("Add folder");
     expect(folderActionsSource).toContain("<ContextMenuTrigger");
   });
 });

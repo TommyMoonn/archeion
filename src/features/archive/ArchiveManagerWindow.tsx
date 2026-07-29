@@ -14,17 +14,8 @@ type ArchiveManagerErrorBoundaryState = {
   error: string | null;
 };
 
-function messageFromError(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-
-  if (typeof error === "string" && error.trim()) {
-    return error;
-  }
-
-  return "Archive Manager could not be initialized.";
-}
+const ARCHIVE_MANAGER_OPEN_ERROR =
+  "Archive Manager could not open. Close this window and open Archive Manager again.";
 
 export function ArchiveManagerFallback({ message }: { message: string }) {
   return (
@@ -56,8 +47,8 @@ class ArchiveManagerErrorBoundary extends Component<
 > {
   state: ArchiveManagerErrorBoundaryState = { error: null };
 
-  static getDerivedStateFromError(error: unknown): ArchiveManagerErrorBoundaryState {
-    return { error: messageFromError(error) };
+  static getDerivedStateFromError(): ArchiveManagerErrorBoundaryState {
+    return { error: ARCHIVE_MANAGER_OPEN_ERROR };
   }
 
   componentDidCatch(error: unknown, errorInfo: ErrorInfo) {
@@ -84,7 +75,7 @@ export function ArchiveManagerWindow() {
 
     void initializeArchiveManagerStartup().catch((error) => {
       if (!cancelled) {
-        setInitializationError(messageFromError(error));
+        setInitializationError(ARCHIVE_MANAGER_OPEN_ERROR);
       }
       console.error("Archive Manager initialization failed", error);
     });

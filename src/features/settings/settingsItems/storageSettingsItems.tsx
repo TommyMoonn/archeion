@@ -253,7 +253,7 @@ export const storageSettingsItems = [
         label="Reset storage preferences"
       >
         <Button onClick={() => void context.resetStorage()} variant="secondary">
-          Reset
+          Reset storage
         </Button>
       </SettingsRow>
     ),

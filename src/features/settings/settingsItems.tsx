@@ -120,7 +120,7 @@ export const settingsItems: readonly SettingsItem[] = [
     render: (context) => (
       <SettingsRow label="Reset general settings">
         <Button onClick={() => void context.resetGeneral()} variant="secondary">
-          Reset
+          Reset general
         </Button>
       </SettingsRow>
     ),
@@ -390,7 +390,7 @@ export const settingsItems: readonly SettingsItem[] = [
     render: (context) => (
       <SettingsRow label="Reset library display settings">
         <Button onClick={() => void context.resetLibrary()} variant="secondary">
-          Reset
+          Reset Library
         </Button>
       </SettingsRow>
     ),
@@ -493,7 +493,7 @@ export const settingsItems: readonly SettingsItem[] = [
     render: (context) => (
       <SettingsRow label="Reset reader settings">
         <Button onClick={() => void context.resetReader()} variant="secondary">
-          Reset
+          Reset Reader
         </Button>
       </SettingsRow>
     ),
@@ -522,7 +522,7 @@ export const settingsItems: readonly SettingsItem[] = [
           onClick={() => void context.revealArchiveFolder()}
           variant="secondary"
         >
-          Reveal in folder
+          Reveal archive folder
         </Button>
       </SettingsRow>
     ),
@@ -613,7 +613,7 @@ export const settingsItems: readonly SettingsItem[] = [
     render: (context) => (
       <SettingsRow label="Reset import settings">
         <Button onClick={() => void context.resetImport()} variant="secondary">
-          Reset
+          Reset import
         </Button>
       </SettingsRow>
     ),

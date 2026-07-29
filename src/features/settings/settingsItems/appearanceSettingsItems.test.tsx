@@ -101,7 +101,7 @@ describe("appearanceSettingsItems", () => {
       'button[aria-label="Open themes folder"]',
     )!;
     const manage = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Manage",
+      (button) => button.textContent === "Manage themes",
     )!;
     expect(manage.classList).toContain("settings-theme-control__manage");
     expect(manage.classList).toContain("button--standard");

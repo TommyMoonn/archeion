@@ -46,8 +46,11 @@ describe("AppErrorBoundary", () => {
       );
     });
 
-    expect(container.textContent).toContain("Something went wrong");
-    expect(container.textContent).toContain("Try again");
+    expect(container.textContent).toContain("Archeion could not load this view");
+    expect(container.textContent).toContain(
+      "Reload the view. If it still fails, restart Archeion.",
+    );
+    expect(container.textContent).toContain("Reload view");
   });
 
   it("can retry rendering the child tree", () => {

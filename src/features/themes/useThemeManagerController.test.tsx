@@ -295,7 +295,9 @@ describe("useThemeManagerController", () => {
       ).toBe(false);
     });
 
-    expect(latest.error).toBe("appearance refresh failed");
+    expect(latest.error).toBe(
+      "Theme was imported, but Theme Manager could not refresh. Reload themes to update the list.",
+    );
     expect(latest.entries.some((entry) => entry.id === "paper-sky")).toBe(true);
   });
 });

@@ -104,7 +104,15 @@ export function useThemeManagerController({
                 : "No custom themes are stored in this archive yet.",
             );
           }),
-        (reason) => finishOperation(revision, () => setError(errorMessage(reason))),
+        (reason) =>
+          finishOperation(revision, () =>
+            setError(
+              themeOperationError(
+                reason,
+                "Custom themes could not be loaded. Reload themes to try again.",
+              ),
+            ),
+          ),
       );
     }
 
@@ -173,7 +181,9 @@ export function useThemeManagerController({
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(themeOperationError(reason, "Themes could not be reloaded. Try again.")),
+      );
       return false;
     }
   }
@@ -181,13 +191,18 @@ export function useThemeManagerController({
   async function importFile(file: File): Promise<boolean> {
     if (busyAction || previewActive) return false;
     const revision = beginOperation("import");
+    let imported = false;
     try {
       const manifest = await validatedFile(file);
       assertArchiveCurrent();
       const builtInConflict = snapshot.entries.some(
         (entry) => entry.origin === "builtin" && entry.id === manifest.id,
       );
-      if (builtInConflict) throw new Error(`Theme id "${manifest.id}" is reserved by a built-in.`);
+      if (builtInConflict) {
+        throw new ThemeManagerUserError(
+          `Theme ID "${manifest.id}" is reserved by a built-in theme.`,
+        );
+      }
       const existing = snapshot.entries.find(
         (entry) => entry.origin === "custom" && entry.packageId === manifest.id,
       );
@@ -199,6 +214,7 @@ export function useThemeManagerController({
         return false;
       }
       await repository.storeManifest(manifest);
+      imported = true;
       assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
@@ -207,7 +223,16 @@ export function useThemeManagerController({
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(
+          themeOperationError(
+            reason,
+            imported
+              ? "Theme was imported, but Theme Manager could not refresh. Reload themes to update the list."
+              : "Theme could not be imported. Check the file and try again.",
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -216,9 +241,11 @@ export function useThemeManagerController({
     const pending = pendingReplacement;
     if (!pending || busyAction || previewActive) return false;
     const revision = beginOperation("replace");
+    let updated = false;
     try {
       assertArchiveCurrent();
       await repository.replaceManifest(pending.manifest);
+      updated = true;
       assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
@@ -228,7 +255,16 @@ export function useThemeManagerController({
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(
+          themeOperationError(
+            reason,
+            updated
+              ? "Theme was updated, but Theme Manager could not refresh. Reload themes to update the list."
+              : "Theme could not be updated. The existing theme remains available. Try again.",
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -238,9 +274,11 @@ export function useThemeManagerController({
     const entry = snapshot.entries.find((candidate) => entryKey(candidate) === key);
     if (!entry || entry.origin !== "custom" || busyAction || previewActive) return false;
     const revision = beginOperation("delete");
+    let removed = false;
     try {
       assertArchiveCurrent();
       await repository.deletePackage(entry.packageId);
+      removed = true;
       assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
@@ -249,7 +287,16 @@ export function useThemeManagerController({
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(
+          themeOperationError(
+            reason,
+            removed
+              ? "Theme was removed, but Theme Manager could not refresh. Reload themes to update the list."
+              : "Theme could not be removed. It remains available. Try again.",
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -282,7 +329,14 @@ export function useThemeManagerController({
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(
+          themeOperationError(
+            reason,
+            "Theme could not be selected. The previous appearance remains active. Try again.",
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -300,10 +354,12 @@ export function useThemeManagerController({
       assertArchiveCurrent();
       const context = runtime.getPreviewContext();
       if (!context || !isManagerArchive(context.archive)) {
-        throw new Error("The active archive changed before the theme operation completed.");
+        throw new ThemeManagerUserError(
+          "The active archive changed. Reopen Theme Manager to continue.",
+        );
       }
     } catch (reason) {
-      setError(errorMessage(reason));
+      setError(themeOperationError(reason, "This theme could not be previewed. Try again."));
       return false;
     }
     previewHandleRef.current?.dispose();
@@ -328,7 +384,14 @@ export function useThemeManagerController({
       finishOperation(revision, () => undefined);
       return operationRevisionRef.current === revision;
     } catch (reason) {
-      finishOperation(revision, () => setError(errorMessage(reason)));
+      finishOperation(revision, () =>
+        setError(
+          themeOperationError(
+            reason,
+            "The themes folder could not be opened. Check that the archive is available.",
+          ),
+        ),
+      );
       return false;
     }
   }
@@ -354,7 +417,9 @@ export function useThemeManagerController({
   function assertArchiveCurrent(): void {
     const scope = catalog.getSnapshot().archive;
     if (!scope || scope.rootPath !== archiveRootPath || scope.generation !== archiveGeneration) {
-      throw new Error("The active archive changed before the theme operation completed.");
+      throw new ThemeManagerUserError(
+        "The active archive changed. Reopen Theme Manager to continue.",
+      );
     }
   }
 
@@ -424,9 +489,13 @@ function initialSelectedKey(
 
 async function validatedFile(file: File): Promise<ThemeManifestV1> {
   const parsed = parseThemeJson(await file.text());
-  if (!parsed.ok) throw new Error(parsed.diagnostics.map(formatDiagnostic).join(" "));
+  if (!parsed.ok) {
+    throw new ThemeManagerUserError(parsed.diagnostics.map(formatDiagnostic).join(" "));
+  }
   const validated = validateThemeManifest(parsed.value);
-  if (!validated.ok) throw new Error(validated.diagnostics.map(formatDiagnostic).join(" "));
+  if (!validated.ok) {
+    throw new ThemeManagerUserError(validated.diagnostics.map(formatDiagnostic).join(" "));
+  }
   return validated.manifest;
 }
 
@@ -434,8 +503,10 @@ function formatDiagnostic(diagnostic: Readonly<{ message: string; path: string }
   return `${diagnostic.path}: ${diagnostic.message}`;
 }
 
-function errorMessage(reason: unknown): string {
-  if (reason instanceof Error && reason.message.trim()) return reason.message;
-  if (typeof reason === "string" && reason.trim()) return reason;
-  return "The theme operation could not be completed.";
+class ThemeManagerUserError extends Error {}
+
+function themeOperationError(reason: unknown, fallback: string): string {
+  return reason instanceof ThemeManagerUserError && reason.message.trim()
+    ? reason.message
+    : fallback;
 }

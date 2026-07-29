@@ -258,7 +258,7 @@ describe("archive scan feedback ownership", () => {
 
     expect(latest.settings.status).toMatchObject({
       autoDismiss: false,
-      message: "The archive could not be scanned.",
+      message: "The archive could not be scanned. Try again.",
       tone: "error",
     });
     expect(latest.libraryFeedback).toEqual([]);
@@ -359,7 +359,7 @@ describe("archive scan feedback ownership", () => {
     expect(reextractScan.storage.rescan).not.toHaveBeenCalled();
     expect(latest.settings.status).toMatchObject({
       autoDismiss: false,
-      message: "Source metadata could not be re-extracted.",
+      message: "Source metadata could not be re-extracted. Try again.",
       tone: "error",
     });
     expect(latest.settings.archiveScanActive).toBe(false);
@@ -376,7 +376,7 @@ describe("archive scan feedback ownership", () => {
     });
     expect(latest.settings.status).toMatchObject({
       autoDismiss: false,
-      message: "Archive metadata could not be repaired.",
+      message: "Archive metadata could not be repaired. Try again.",
       tone: "error",
     });
     expect(latest.settings.archiveScanActive).toBe(false);

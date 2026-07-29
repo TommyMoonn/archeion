@@ -163,7 +163,7 @@ describe("SettingsDialog responsiveness", () => {
       const { container } = track(renderDialog());
       clickButton(container, "Library");
       await act(async () => Promise.resolve());
-      clickButton(container, "Reset");
+      clickButton(container, "Reset Library");
       await act(async () => Promise.resolve());
 
       expect(appPreferencesStore.getSnapshot().library).toEqual(defaultAppPreferences.library);

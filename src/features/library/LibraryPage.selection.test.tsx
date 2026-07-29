@@ -254,7 +254,8 @@ describe("LibraryPage selection and bulk workflows", () => {
     expect(save).not.toHaveBeenCalled();
     expect(invoke).not.toHaveBeenCalled();
     expect(session.container.textContent).toContain("Annotations could not be exported.");
-    expect(session.container.textContent).toContain("Beta annotations are unavailable.");
+    expect(session.container.textContent).toContain("Try exporting the annotations again.");
+    expect(session.container.textContent).not.toContain("Beta annotations are unavailable.");
     expect(session.container.querySelector(".library-selection-bar")).not.toBeNull();
   });
 
@@ -318,7 +319,10 @@ describe("LibraryPage selection and bulk workflows", () => {
     expect(
       session.container.querySelector('.book-card[data-selected="true"]')?.textContent,
     ).toContain("Beta");
-    expect(session.container.textContent).toContain("File is locked.");
+    expect(session.container.textContent).toContain(
+      "This book could not be added to Favorites. Try again.",
+    );
+    expect(session.container.textContent).not.toContain("File is locked.");
   });
 
   it("exits selection with Escape and restores the entry control", async () => {

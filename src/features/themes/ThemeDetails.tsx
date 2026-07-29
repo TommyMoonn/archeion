@@ -126,7 +126,7 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
             </>
           }
           onClose={controller.cancelDelete}
-          title="Remove theme?"
+          title={`Remove “${entry.name ?? entry.id}” theme?`}
         />
       ) : null}
     </section>

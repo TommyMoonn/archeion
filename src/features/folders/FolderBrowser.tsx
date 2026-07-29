@@ -252,7 +252,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 onClick={onCreate}
                 size="standard"
               >
-                Add Folder
+                Add folder
               </Button>
             </>
           ) : null}
@@ -304,7 +304,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 </Button>
               ) : canManageFolders && onCreate ? (
                 <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
-                  Add Folder
+                  Add folder
                 </Button>
               ) : undefined
             }
@@ -314,7 +314,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 : "Folders from this library will appear here."
             }
             icon={<FolderIcon size={40} weight="thin" />}
-            title={query ? "No folders found" : "No folders"}
+            title={query ? "No folders found" : "No folders yet"}
           />
         ) : (
           <div

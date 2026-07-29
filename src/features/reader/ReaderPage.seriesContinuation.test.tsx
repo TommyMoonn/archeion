@@ -185,7 +185,7 @@ describe("ReaderPage series continuation", () => {
     );
 
     expect(rendered.container.textContent).toContain("Book file missing");
-    expect(rendered.container.textContent).toContain("Rescan library");
+    expect(rendered.container.textContent).toContain("Rescan Library");
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
     expect(rendered.storage.loadBookFile).not.toHaveBeenCalled();
   });
@@ -200,8 +200,11 @@ describe("ReaderPage series continuation", () => {
     );
 
     expect(loadBookFile).toHaveBeenCalledWith("unreadable-book");
-    expect(rendered.container.textContent).toContain("Unable to open book");
-    expect(rendered.container.textContent).toContain("Unreadable EPUB");
+    expect(rendered.container.textContent).toContain("EPUB could not be opened");
+    expect(rendered.container.textContent).toContain(
+      "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.",
+    );
+    expect(rendered.container.textContent).not.toContain("Unreadable EPUB");
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
   });
 
@@ -239,7 +242,7 @@ describe("ReaderPage series continuation", () => {
     act(() => reportError?.("The EPUB package is invalid."));
 
     const alert = rendered.container.querySelector<HTMLElement>('[role="alert"]');
-    expect(alert?.textContent).toContain("Unable to open book");
+    expect(alert?.textContent).toContain("EPUB could not be opened");
     expect(alert?.textContent).toContain("The EPUB package is invalid.");
     expect(fileOwnerMock.release).toHaveBeenCalledTimes(1);
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
