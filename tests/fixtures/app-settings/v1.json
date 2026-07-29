@@ -1,0 +1,1070 @@
+{
+  "version": 1,
+  "defaults": {
+    "appThemePreset": "dark",
+    "appearance": {
+      "animationsEnabled": false
+    },
+    "confirmDestructiveFileActions": true,
+    "density": "comfortable",
+    "filesAndMetadata": {
+      "keepEpubWritebackBackup": false,
+      "liveWatcherEnabled": true,
+      "scanOnStartup": true
+    },
+    "import": {
+      "defaultConflictAction": "keepBoth",
+      "defaultMode": "copy"
+    },
+    "keyboard": {
+      "shortcuts": {}
+    },
+    "library": {
+      "collections": {
+        "books": {
+          "cardSize": "medium",
+          "sortBy": "title",
+          "viewMode": "grid"
+        },
+        "folders": {
+          "cardSize": "medium",
+          "sortBy": "name",
+          "viewMode": "list"
+        },
+        "series": {
+          "cardSize": "medium",
+          "sortBy": "title",
+          "viewMode": "grid"
+        }
+      },
+      "filters": {
+        "series": [],
+        "subjects": [],
+        "languages": [],
+        "publishers": [],
+        "readingStatuses": [],
+        "favoritesOnly": false,
+        "missingMetadata": false,
+        "missingCover": false
+      },
+      "smartViews": {
+        "enabled": false,
+        "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
+      }
+    },
+    "navigation": null,
+    "reader": {
+      "fontSize": 18.0,
+      "fontFamily": "serif",
+      "lineHeight": 1.6,
+      "margin": 48.0,
+      "theme": "dark",
+      "progressPlacement": "top",
+      "mode": "paged"
+    },
+    "rememberWindowState": false,
+    "restoreLastReader": false,
+    "showContinueReading": true,
+    "startupBehavior": "open-last-archive",
+    "window": null
+  },
+  "cases": [
+    {
+      "name": "missing fields use current defaults",
+      "input": {},
+      "expectedPatch": {}
+    },
+    {
+      "name": "current settings preserve every supported field",
+      "input": {
+        "appThemePreset": "light",
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "confirmDestructiveFileActions": false,
+        "density": "compact",
+        "filesAndMetadata": {
+          "keepEpubWritebackBackup": true,
+          "liveWatcherEnabled": false,
+          "scanOnStartup": false
+        },
+        "import": {
+          "defaultConflictAction": "replace",
+          "defaultMode": "move"
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            }
+          }
+        },
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": "large",
+              "sortBy": "author",
+              "viewMode": "list"
+            },
+            "folders": {
+              "cardSize": "small",
+              "sortBy": "path",
+              "viewMode": "cards"
+            },
+            "series": {
+              "cardSize": "large",
+              "sortBy": "recently-opened",
+              "viewMode": "list"
+            }
+          },
+          "filters": {
+            "series": [" Star Saga ", "star saga"],
+            "subjects": ["Space Opera"],
+            "languages": ["en"],
+            "publishers": ["North Press"],
+            "readingStatuses": ["UNREAD", "completed", "invalid"],
+            "favoritesOnly": true,
+            "missingMetadata": true,
+            "missingCover": true
+          },
+          "smartViews": {
+            "enabled": true,
+            "visible": ["needs-cover", "unread", "needs-cover", "unknown"]
+          }
+        },
+        "navigation": {
+          "archiveId": " archive-1 ",
+          "bookId": " book-1 ",
+          "lastRoute": " /reader/book-1?chapter=4 "
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "fontFamily": "literata",
+          "lineHeight": 1.8,
+          "margin": 64.0,
+          "theme": "sepia",
+          "progressPlacement": "side",
+          "mode": "continuous"
+        },
+        "rememberWindowState": true,
+        "restoreLastReader": true,
+        "showContinueReading": false,
+        "startupBehavior": "show-archive-manager",
+        "window": {
+          "height": 700.4,
+          "maximized": true,
+          "width": 1000.6,
+          "x": -120.2,
+          "y": 40.7
+        }
+      },
+      "expectedPatch": {
+        "appThemePreset": "light",
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "confirmDestructiveFileActions": false,
+        "density": "compact",
+        "filesAndMetadata": {
+          "keepEpubWritebackBackup": true,
+          "liveWatcherEnabled": false,
+          "scanOnStartup": false
+        },
+        "import": {
+          "defaultConflictAction": "replace",
+          "defaultMode": "move"
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            }
+          }
+        },
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": "large",
+              "sortBy": "author",
+              "viewMode": "list"
+            },
+            "folders": {
+              "cardSize": "small",
+              "sortBy": "path",
+              "viewMode": "cards"
+            },
+            "series": {
+              "cardSize": "large",
+              "sortBy": "recently-opened",
+              "viewMode": "list"
+            }
+          },
+          "filters": {
+            "series": ["Star Saga"],
+            "subjects": ["Space Opera"],
+            "languages": ["en"],
+            "publishers": ["North Press"],
+            "readingStatuses": ["unread", "completed"],
+            "favoritesOnly": true,
+            "missingMetadata": true,
+            "missingCover": true
+          },
+          "smartViews": {
+            "enabled": true,
+            "visible": ["unread", "needs-cover"]
+          }
+        },
+        "navigation": {
+          "archiveId": "archive-1",
+          "bookId": "book-1",
+          "lastRoute": "/reader/book-1?chapter=4"
+        },
+        "reader": {
+          "fontSize": 22.0,
+          "fontFamily": "literata",
+          "lineHeight": 1.8,
+          "margin": 64.0,
+          "theme": "sepia",
+          "progressPlacement": "side",
+          "mode": "continuous"
+        },
+        "rememberWindowState": true,
+        "restoreLastReader": true,
+        "showContinueReading": false,
+        "startupBehavior": "show-archive-manager",
+        "window": {
+          "height": 700.0,
+          "maximized": true,
+          "width": 1001.0,
+          "x": -120.0,
+          "y": 41.0
+        }
+      }
+    },
+    {
+      "name": "legacy Library values migrate without sibling loss",
+      "input": {
+        "bookCardSize": "large",
+        "library": {
+          "sortBy": "author",
+          "viewMode": "list",
+          "filters": {
+            "languages": ["ja"],
+            "favoritesOnly": true
+          },
+          "collections": {
+            "folders": {
+              "sortBy": "most-books"
+            }
+          }
+        },
+        "showContinueReading": false
+      },
+      "expectedPatch": {
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": "large",
+              "sortBy": "author",
+              "viewMode": "list"
+            },
+            "folders": {
+              "cardSize": "medium",
+              "sortBy": "most-books",
+              "viewMode": "list"
+            },
+            "series": {
+              "cardSize": "medium",
+              "sortBy": "title",
+              "viewMode": "grid"
+            }
+          },
+          "filters": {
+            "series": [],
+            "subjects": [],
+            "languages": ["ja"],
+            "publishers": [],
+            "readingStatuses": [],
+            "favoritesOnly": true,
+            "missingMetadata": false,
+            "missingCover": false
+          },
+          "smartViews": {
+            "enabled": false,
+            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
+          }
+        },
+        "showContinueReading": false
+      }
+    },
+    {
+      "name": "invalid collection enums fall back independently",
+      "input": {
+        "bookCardSize": "large",
+        "library": {
+          "sortBy": "author",
+          "viewMode": "list",
+          "collections": {
+            "books": {
+              "cardSize": "invalid",
+              "sortBy": "recently-opened",
+              "viewMode": "invalid"
+            },
+            "folders": {
+              "cardSize": "small",
+              "sortBy": "invalid",
+              "viewMode": "cards"
+            },
+            "series": {
+              "cardSize": "large",
+              "sortBy": "most-volumes",
+              "viewMode": "invalid"
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": "large",
+              "sortBy": "recently-opened",
+              "viewMode": "list"
+            },
+            "folders": {
+              "cardSize": "small",
+              "sortBy": "name",
+              "viewMode": "cards"
+            },
+            "series": {
+              "cardSize": "large",
+              "sortBy": "most-volumes",
+              "viewMode": "grid"
+            }
+          },
+          "filters": {
+            "series": [],
+            "subjects": [],
+            "languages": [],
+            "publishers": [],
+            "readingStatuses": [],
+            "favoritesOnly": false,
+            "missingMetadata": false,
+            "missingCover": false
+          },
+          "smartViews": {
+            "enabled": false,
+            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
+          }
+        }
+      }
+    },
+    {
+      "name": "invalid Reader fields fall back independently",
+      "input": {
+        "reader": {
+          "fontSize": 200.0,
+          "fontFamily": "unknown",
+          "lineHeight": 0.5,
+          "margin": -10.0,
+          "theme": "paper",
+          "progressPlacement": "bottom",
+          "mode": "scroll"
+        }
+      },
+      "expectedPatch": {}
+    },
+    {
+      "name": "invalid field types do not reset valid neighbors",
+      "input": {
+        "appThemePreset": 42,
+        "appearance": {
+          "animationsEnabled": "yes"
+        },
+        "confirmDestructiveFileActions": "no",
+        "density": ["compact"],
+        "filesAndMetadata": {
+          "keepEpubWritebackBackup": true,
+          "liveWatcherEnabled": "no",
+          "scanOnStartup": false
+        },
+        "import": {
+          "defaultConflictAction": "skip",
+          "defaultMode": false
+        },
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": false,
+              "sortBy": "author",
+              "viewMode": 12
+            }
+          },
+          "filters": {
+            "languages": [" en ", 42, "EN", null],
+            "readingStatuses": ["completed", false],
+            "favoritesOnly": true
+          }
+        },
+        "navigation": {
+          "archiveId": 5,
+          "bookId": "book-1",
+          "lastRoute": "/reader/book-1"
+        },
+        "reader": {
+          "fontSize": "22",
+          "fontFamily": "atkinson",
+          "lineHeight": null,
+          "margin": 56.0,
+          "theme": true,
+          "progressPlacement": "side",
+          "mode": "continuous"
+        },
+        "rememberWindowState": true,
+        "restoreLastReader": "yes",
+        "showContinueReading": "no",
+        "startupBehavior": "show-archive-manager",
+        "window": {
+          "height": 700.0,
+          "maximized": true,
+          "width": "1000",
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "expectedPatch": {
+        "filesAndMetadata": {
+          "keepEpubWritebackBackup": true,
+          "liveWatcherEnabled": true,
+          "scanOnStartup": false
+        },
+        "import": {
+          "defaultConflictAction": "skip",
+          "defaultMode": "copy"
+        },
+        "library": {
+          "collections": {
+            "books": {
+              "cardSize": "medium",
+              "sortBy": "author",
+              "viewMode": "grid"
+            },
+            "folders": {
+              "cardSize": "medium",
+              "sortBy": "name",
+              "viewMode": "list"
+            },
+            "series": {
+              "cardSize": "medium",
+              "sortBy": "title",
+              "viewMode": "grid"
+            }
+          },
+          "filters": {
+            "series": [],
+            "subjects": [],
+            "languages": ["en"],
+            "publishers": [],
+            "readingStatuses": ["completed"],
+            "favoritesOnly": true,
+            "missingMetadata": false,
+            "missingCover": false
+          },
+          "smartViews": {
+            "enabled": false,
+            "visible": ["unread", "in-progress", "completed", "needs-metadata", "needs-cover"]
+          }
+        },
+        "reader": {
+          "fontSize": 18.0,
+          "fontFamily": "atkinson",
+          "lineHeight": 1.6,
+          "margin": 56.0,
+          "theme": "dark",
+          "progressPlacement": "side",
+          "mode": "continuous"
+        },
+        "rememberWindowState": true,
+        "startupBehavior": "show-archive-manager"
+      }
+    },
+    {
+      "name": "legacy keyboard modifiers and disabled commands normalize",
+      "input": {
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "ctrl": true,
+                "key": " K ",
+                "shift": true
+              }
+            },
+            "system.open-settings": {
+              "disabled": true
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": "G",
+                "meta": true
+              }
+            },
+            "reader.open-annotations": {
+              "binding": {
+                "key": "a"
+              }
+            },
+            "future.unknown-command": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "system.open-settings": {
+              "disabled": true
+            },
+            "reader.open-toc": {
+              "binding": {
+                "alt": false,
+                "key": "g",
+                "primary": true,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "keyboard ownership violations are discarded independently",
+      "input": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": true,
+                "key": "k",
+                "primary": true
+              }
+            },
+            "system.open-settings": {
+              "binding": {
+                "key": "escape",
+                "primary": true
+              }
+            },
+            "surface.focus-search": {
+              "binding": {
+                "key": "f12",
+                "primary": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": ";"
+              }
+            },
+            "reader.open-annotations": {
+              "binding": {
+                "key": "q"
+              }
+            },
+            "reader.toggle-bookmark": {
+              "binding": {
+                "key": "r",
+                "primary": true
+              }
+            },
+            "reader.open-reading-settings": {
+              "binding": {
+                "key": "c",
+                "primary": true
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "reader.open-annotations": {
+              "binding": {
+                "alt": false,
+                "key": "q",
+                "primary": false,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "non Reader ownership and disabled shortcuts preserve valid siblings",
+      "input": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "key": "k"
+              }
+            },
+            "system.open-settings": {
+              "disabled": true
+            },
+            "surface.focus-search": {
+              "binding": {
+                "key": "g",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": "7"
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "disabled": true
+            },
+            "surface.focus-search": {
+              "binding": {
+                "alt": false,
+                "key": "g",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "alt": false,
+                "key": "7",
+                "primary": false,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "conflicting overrides resolve in authoritative command order",
+      "input": {
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "binding": {
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "reader.open-reading-settings": {
+              "disabled": true
+            },
+            "system.quick-actions": {
+              "binding": {
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            }
+          }
+        },
+        "showContinueReading": false
+      },
+      "expectedPatch": {
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "reader.open-reading-settings": {
+              "disabled": true
+            }
+          }
+        },
+        "showContinueReading": false
+      }
+    },
+    {
+      "name": "a command may use the default binding of a later disabled command",
+      "input": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "key": "f",
+                "primary": true
+              }
+            },
+            "surface.focus-search": {
+              "disabled": true
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "f",
+                "primary": true,
+                "shift": false
+              }
+            },
+            "surface.focus-search": {
+              "disabled": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a command may use the freed default of a later overridden command",
+      "input": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "surface.focus-search": {
+              "binding": {
+                "key": "g",
+                "primary": true
+              }
+            },
+            "system.quick-actions": {
+              "binding": {
+                "key": "f",
+                "primary": true
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "f",
+                "primary": true,
+                "shift": false
+              }
+            },
+            "surface.focus-search": {
+              "binding": {
+                "alt": false,
+                "key": "g",
+                "primary": true,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "a later command may use the freed default of an earlier overridden command",
+      "input": {
+        "keyboard": {
+          "shortcuts": {
+            "system.open-settings": {
+              "binding": {
+                "key": "p",
+                "primary": true,
+                "shift": true
+              }
+            },
+            "system.quick-actions": {
+              "binding": {
+                "key": "k",
+                "primary": true
+              }
+            }
+          }
+        },
+        "showContinueReading": false
+      },
+      "expectedPatch": {
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": false
+              }
+            },
+            "system.open-settings": {
+              "binding": {
+                "alt": false,
+                "key": "p",
+                "primary": true,
+                "shift": true
+              }
+            }
+          }
+        },
+        "showContinueReading": false
+      }
+    },
+    {
+      "name": "override conflicting with another command default is discarded",
+      "input": {
+        "import": {
+          "defaultConflictAction": "skip"
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "key": "f",
+                "primary": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": "6"
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "import": {
+          "defaultConflictAction": "skip",
+          "defaultMode": "copy"
+        },
+        "keyboard": {
+          "shortcuts": {
+            "reader.open-toc": {
+              "binding": {
+                "alt": false,
+                "key": "6",
+                "primary": false,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "malformed explicit primary does not use legacy Ctrl fallback",
+      "input": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "key": "k",
+                "primary": "invalid",
+                "ctrl": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": "7"
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "keyboard": {
+          "shortcuts": {
+            "reader.open-toc": {
+              "binding": {
+                "alt": false,
+                "key": "7",
+                "primary": false,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "primary field presence controls legacy modifier migration",
+      "input": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "key": "k",
+                "ctrl": true
+              }
+            },
+            "system.open-settings": {
+              "binding": {
+                "key": "o",
+                "meta": true
+              }
+            },
+            "surface.focus-search": {
+              "binding": {
+                "key": "g",
+                "primary": false,
+                "ctrl": true
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "key": "7",
+                "primary": false,
+                "ctrl": true
+              }
+            },
+            "reader.open-annotations": {
+              "binding": {
+                "key": "q",
+                "primary": null,
+                "meta": true
+              }
+            }
+          }
+        }
+      },
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "keyboard": {
+          "shortcuts": {
+            "system.quick-actions": {
+              "binding": {
+                "alt": false,
+                "key": "k",
+                "primary": true,
+                "shift": false
+              }
+            },
+            "system.open-settings": {
+              "binding": {
+                "alt": false,
+                "key": "o",
+                "primary": true,
+                "shift": false
+              }
+            },
+            "reader.open-toc": {
+              "binding": {
+                "alt": false,
+                "key": "7",
+                "primary": false,
+                "shift": false
+              }
+            },
+            "reader.open-annotations": {
+              "binding": {
+                "alt": false,
+                "key": "q",
+                "primary": false,
+                "shift": false
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "invalid navigation and window state do not affect neighbors",
+      "input": {
+        "density": "compact",
+        "navigation": {
+          "archiveId": "archive-1",
+          "bookId": "book-1",
+          "lastRoute": "/reader/book-1?start=beginning"
+        },
+        "rememberWindowState": true,
+        "window": {
+          "height": -1.0,
+          "maximized": true,
+          "width": 1000.0,
+          "x": 0.0,
+          "y": 0.0
+        }
+      },
+      "expectedPatch": {
+        "density": "compact",
+        "rememberWindowState": true
+      }
+    },
+    {
+      "name": "obsolete and future fields are ignored",
+      "input": {
+        "appearance": {
+          "animationsEnabled": true,
+          "futureMotionPolicy": "adaptive"
+        },
+        "futureSchemaField": {
+          "enabled": true
+        },
+        "startupBehavior": "show-archive-manager",
+        "windowFrameStyle": "native"
+      },
+      "expectedPatch": {
+        "appearance": {
+          "animationsEnabled": true
+        },
+        "startupBehavior": "show-archive-manager"
+      }
+    }
+  ]
+}

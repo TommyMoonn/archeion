@@ -6,6 +6,7 @@ use std::{
 };
 
 use serde::{Deserialize, Serialize};
+use serde_json::{Map, Value};
 
 use crate::atomic_file::{
     transaction_path, AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
@@ -104,37 +105,6 @@ pub struct LibraryDisplaySettings {
     pub smart_views: LibrarySmartViewSettings,
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CollectionDisplaySettingsWire {
-    card_size: Option<String>,
-    sort_by: Option<String>,
-    view_mode: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LibraryCollectionDisplaySettingsWire {
-    #[serde(default)]
-    books: CollectionDisplaySettingsWire,
-    #[serde(default)]
-    folders: CollectionDisplaySettingsWire,
-    #[serde(default)]
-    series: CollectionDisplaySettingsWire,
-}
-
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct LibraryDisplaySettingsWire {
-    collections: Option<LibraryCollectionDisplaySettingsWire>,
-    #[serde(default)]
-    filters: LibraryFilterSettings,
-    #[serde(default)]
-    smart_views: LibrarySmartViewSettings,
-    sort_by: Option<String>,
-    view_mode: Option<String>,
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ReaderSettings {
@@ -150,6 +120,8 @@ pub struct ReaderSettings {
     pub theme: String,
     #[serde(default = "default_reader_progress_placement")]
     pub progress_placement: String,
+    #[serde(default = "default_reader_mode")]
+    pub mode: String,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
@@ -269,65 +241,13 @@ pub struct AppPreferences {
     pub window: Option<PersistedWindowState>,
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct AppPreferencesWire {
-    #[serde(default = "default_app_theme_preset")]
-    app_theme_preset: String,
-    #[serde(default)]
-    appearance: AppearanceSettings,
-    book_card_size: Option<String>,
-    #[serde(default = "default_true")]
-    confirm_destructive_file_actions: bool,
-    #[serde(default = "default_density")]
-    density: String,
-    #[serde(default)]
-    files_and_metadata: FilesAndMetadataSettings,
-    #[serde(default)]
-    import: GlobalImportSettings,
-    #[serde(default)]
-    keyboard: KeyboardPreferences,
-    #[serde(default)]
-    library: LibraryDisplaySettingsWire,
-    #[serde(default)]
-    navigation: Option<RememberedNavigationState>,
-    #[serde(default)]
-    reader: ReaderSettings,
-    #[serde(default)]
-    remember_window_state: bool,
-    #[serde(default)]
-    restore_last_reader: bool,
-    #[serde(default = "default_true")]
-    show_continue_reading: bool,
-    #[serde(default = "default_startup_behavior")]
-    startup_behavior: String,
-    #[serde(default)]
-    window: Option<PersistedWindowState>,
-}
-
 impl<'de> Deserialize<'de> for AppPreferences {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
     {
-        let wire = AppPreferencesWire::deserialize(deserializer)?;
-        Ok(Self {
-            app_theme_preset: wire.app_theme_preset,
-            appearance: wire.appearance,
-            confirm_destructive_file_actions: wire.confirm_destructive_file_actions,
-            density: wire.density,
-            files_and_metadata: wire.files_and_metadata,
-            import: wire.import,
-            keyboard: wire.keyboard,
-            library: LibraryDisplaySettings::from_wire(wire.library, wire.book_card_size),
-            navigation: wire.navigation,
-            reader: wire.reader,
-            remember_window_state: wire.remember_window_state,
-            restore_last_reader: wire.restore_last_reader,
-            show_continue_reading: wire.show_continue_reading,
-            startup_behavior: wire.startup_behavior,
-            window: wire.window,
-        })
+        let value = Value::deserialize(deserializer)?;
+        Ok(normalize_app_preferences_value(&value))
     }
 }
 
@@ -388,6 +308,9 @@ fn default_reader_line_height() -> f64 {
 fn default_reader_margin() -> f64 {
     48.0
 }
+fn default_reader_mode() -> String {
+    "paged".to_string()
+}
 fn default_reader_progress_placement() -> String {
     "top".to_string()
 }
@@ -407,6 +330,596 @@ fn normalize_setting(value: Option<String>, supported: &[&str], fallback: &str) 
     value
         .filter(|candidate| supported.contains(&candidate.as_str()))
         .unwrap_or_else(|| fallback.to_string())
+}
+
+fn object_field<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Map<String, Value>> {
+    object.get(key).and_then(Value::as_object)
+}
+
+fn string_field(object: &Map<String, Value>, key: &str) -> Option<String> {
+    object.get(key).and_then(Value::as_str).map(str::to_string)
+}
+
+fn true_field(object: &Map<String, Value>, key: &str) -> bool {
+    object.get(key).and_then(Value::as_bool) == Some(true)
+}
+
+fn false_field(object: &Map<String, Value>, key: &str) -> bool {
+    object.get(key).and_then(Value::as_bool) == Some(false)
+}
+
+fn number_field(object: &Map<String, Value>, key: &str) -> Option<f64> {
+    object.get(key).and_then(Value::as_f64)
+}
+
+fn normalize_filter_values(values: Option<&Value>) -> Vec<String> {
+    let mut normalized = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for value in values.and_then(Value::as_array).into_iter().flatten() {
+        let Some(value) = value.as_str() else {
+            continue;
+        };
+        let display_value = value.trim();
+        let key = display_value.to_lowercase();
+        if !display_value.is_empty() && seen.insert(key) {
+            normalized.push(display_value.to_string());
+        }
+    }
+
+    normalized
+}
+
+fn normalize_library_filters(filters: Option<&Map<String, Value>>) -> LibraryFilterSettings {
+    LibraryFilterSettings {
+        series: normalize_filter_values(filters.and_then(|value| value.get("series"))),
+        subjects: normalize_filter_values(filters.and_then(|value| value.get("subjects"))),
+        languages: normalize_filter_values(filters.and_then(|value| value.get("languages"))),
+        publishers: normalize_filter_values(filters.and_then(|value| value.get("publishers"))),
+        reading_statuses: normalize_filter_values(
+            filters.and_then(|value| value.get("readingStatuses")),
+        )
+        .into_iter()
+        .map(|status| status.to_lowercase())
+        .filter(|status| ["unread", "in-progress", "completed"].contains(&status.as_str()))
+        .collect(),
+        favorites_only: filters.is_some_and(|value| true_field(value, "favoritesOnly")),
+        missing_metadata: filters.is_some_and(|value| true_field(value, "missingMetadata")),
+        missing_cover: filters.is_some_and(|value| true_field(value, "missingCover")),
+    }
+}
+
+fn normalize_smart_views(settings: Option<&Map<String, Value>>) -> LibrarySmartViewSettings {
+    let requested: std::collections::HashSet<_> =
+        normalize_filter_values(settings.and_then(|value| value.get("visible")))
+            .into_iter()
+            .collect();
+    let visible: Vec<_> = default_visible_smart_views()
+        .into_iter()
+        .filter(|smart_view| requested.contains(smart_view))
+        .collect();
+
+    LibrarySmartViewSettings {
+        enabled: settings.is_some_and(|value| true_field(value, "enabled")),
+        visible: if visible.is_empty() {
+            default_visible_smart_views()
+        } else {
+            visible
+        },
+    }
+}
+
+fn normalize_import_settings(settings: Option<&Map<String, Value>>) -> GlobalImportSettings {
+    GlobalImportSettings {
+        default_conflict_action: normalize_setting(
+            settings.and_then(|value| string_field(value, "defaultConflictAction")),
+            &["skip", "replace", "keepBoth"],
+            "keepBoth",
+        ),
+        default_mode: normalize_setting(
+            settings.and_then(|value| string_field(value, "defaultMode")),
+            &["copy", "move"],
+            "copy",
+        ),
+    }
+}
+
+fn normalize_binding_key(value: String) -> String {
+    if value == " " {
+        return "space".to_string();
+    }
+
+    match value.trim().to_lowercase().as_str() {
+        "spacebar" => "space".to_string(),
+        "esc" => "escape".to_string(),
+        normalized => normalized.to_string(),
+    }
+}
+
+#[derive(Clone, Copy)]
+struct PersistedCommandDefinition {
+    default_key: &'static str,
+    default_primary: bool,
+    default_shift: bool,
+    id: &'static str,
+    reader_only: bool,
+}
+
+const PERSISTED_COMMAND_DEFINITIONS: [PersistedCommandDefinition; 7] = [
+    PersistedCommandDefinition {
+        default_key: "p",
+        default_primary: true,
+        default_shift: true,
+        id: "system.quick-actions",
+        reader_only: false,
+    },
+    PersistedCommandDefinition {
+        default_key: ",",
+        default_primary: true,
+        default_shift: false,
+        id: "system.open-settings",
+        reader_only: false,
+    },
+    PersistedCommandDefinition {
+        default_key: "f",
+        default_primary: true,
+        default_shift: false,
+        id: "surface.focus-search",
+        reader_only: false,
+    },
+    PersistedCommandDefinition {
+        default_key: "t",
+        default_primary: false,
+        default_shift: false,
+        id: "reader.open-toc",
+        reader_only: true,
+    },
+    PersistedCommandDefinition {
+        default_key: "a",
+        default_primary: false,
+        default_shift: false,
+        id: "reader.open-annotations",
+        reader_only: true,
+    },
+    PersistedCommandDefinition {
+        default_key: "b",
+        default_primary: false,
+        default_shift: false,
+        id: "reader.toggle-bookmark",
+        reader_only: true,
+    },
+    PersistedCommandDefinition {
+        default_key: "s",
+        default_primary: false,
+        default_shift: false,
+        id: "reader.open-reading-settings",
+        reader_only: true,
+    },
+];
+
+fn default_keyboard_binding(definition: PersistedCommandDefinition) -> KeyboardBinding {
+    KeyboardBinding {
+        alt: false,
+        key: definition.default_key.to_string(),
+        primary: definition.default_primary,
+        shift: definition.default_shift,
+    }
+}
+
+fn keyboard_bindings_equal(left: &KeyboardBinding, right: &KeyboardBinding) -> bool {
+    left.alt == right.alt
+        && left.key == right.key
+        && left.primary == right.primary
+        && left.shift == right.shift
+}
+
+fn keyboard_binding_signature(binding: &KeyboardBinding) -> String {
+    let mut parts = Vec::new();
+    if binding.primary {
+        parts.push("primary");
+    }
+    if binding.alt {
+        parts.push("alt");
+    }
+    if binding.shift {
+        parts.push("shift");
+    }
+    parts.push(&binding.key);
+    parts.join("+")
+}
+
+fn is_function_key(key: &str) -> bool {
+    key.strip_prefix('f').is_some_and(|digits| {
+        (1..=2).contains(&digits.len()) && digits.bytes().all(|byte| byte.is_ascii_digit())
+    })
+}
+
+fn keyboard_binding_violates_ownership(
+    definition: PersistedCommandDefinition,
+    binding: &KeyboardBinding,
+) -> bool {
+    const FIXED_INTERACTION_KEYS: [&str; 15] = [
+        "arrowdown",
+        "arrowleft",
+        "arrowright",
+        "arrowup",
+        "contextmenu",
+        "delete",
+        "end",
+        "enter",
+        "escape",
+        "f2",
+        "home",
+        "pagedown",
+        "pageup",
+        "space",
+        "tab",
+    ];
+    const RESERVED_PRIMARY_BINDINGS: [&str; 8] = [
+        "primary+l",
+        "primary+n",
+        "primary+p",
+        "primary+r",
+        "primary+t",
+        "primary+w",
+        "primary+shift+i",
+        "primary+shift+r",
+    ];
+    const RESERVED_EDITING_BINDINGS: [&str; 9] = [
+        "primary+a",
+        "primary+c",
+        "primary+v",
+        "primary+x",
+        "primary+y",
+        "primary+z",
+        "primary+shift+z",
+        "primary+backspace",
+        "primary+delete",
+    ];
+
+    if binding.alt
+        || FIXED_INTERACTION_KEYS.contains(&binding.key.as_str())
+        || is_function_key(&binding.key)
+        || (!binding.primary && !definition.reader_only)
+        || (!binding.primary
+            && definition.reader_only
+            && !(binding.key.len() == 1
+                && binding
+                    .key
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())))
+    {
+        return true;
+    }
+
+    let signature = keyboard_binding_signature(binding);
+    RESERVED_PRIMARY_BINDINGS.contains(&signature.as_str())
+        || RESERVED_EDITING_BINDINGS.contains(&signature.as_str())
+}
+
+fn parse_persisted_keyboard_binding(shortcut: &Map<String, Value>) -> Option<KeyboardBinding> {
+    let stored_binding = object_field(shortcut, "binding")?;
+    let key = normalize_binding_key(string_field(stored_binding, "key")?);
+    if key.is_empty() {
+        return None;
+    }
+
+    let primary = match stored_binding.get("primary") {
+        None => true_field(stored_binding, "ctrl") || true_field(stored_binding, "meta"),
+        Some(Value::Bool(value)) => *value,
+        Some(_) => false,
+    };
+    Some(KeyboardBinding {
+        alt: true_field(stored_binding, "alt"),
+        key,
+        primary,
+        shift: true_field(stored_binding, "shift"),
+    })
+}
+
+enum PersistedKeyboardCandidate {
+    Default,
+    Disabled,
+    Override(KeyboardBinding),
+}
+
+fn effective_persisted_candidate_binding(
+    definition: PersistedCommandDefinition,
+    candidate: &PersistedKeyboardCandidate,
+) -> Option<KeyboardBinding> {
+    match candidate {
+        PersistedKeyboardCandidate::Default => Some(default_keyboard_binding(definition)),
+        PersistedKeyboardCandidate::Disabled => None,
+        PersistedKeyboardCandidate::Override(binding) => Some(binding.clone()),
+    }
+}
+
+fn find_persisted_candidate_conflict(
+    candidates: &[PersistedKeyboardCandidate],
+) -> Option<(usize, usize)> {
+    for left_index in 0..PERSISTED_COMMAND_DEFINITIONS.len() {
+        let Some(left_binding) = effective_persisted_candidate_binding(
+            PERSISTED_COMMAND_DEFINITIONS[left_index],
+            &candidates[left_index],
+        ) else {
+            continue;
+        };
+
+        for right_index in (left_index + 1)..PERSISTED_COMMAND_DEFINITIONS.len() {
+            let Some(right_binding) = effective_persisted_candidate_binding(
+                PERSISTED_COMMAND_DEFINITIONS[right_index],
+                &candidates[right_index],
+            ) else {
+                continue;
+            };
+            if keyboard_bindings_equal(&left_binding, &right_binding) {
+                return Some((left_index, right_index));
+            }
+        }
+    }
+
+    None
+}
+
+fn resolve_persisted_keyboard_candidates(candidates: &mut [PersistedKeyboardCandidate]) {
+    for _ in 0..=PERSISTED_COMMAND_DEFINITIONS.len() {
+        let Some((left_index, right_index)) = find_persisted_candidate_conflict(candidates) else {
+            return;
+        };
+
+        let discard_index = match (&candidates[left_index], &candidates[right_index]) {
+            (PersistedKeyboardCandidate::Override(_), PersistedKeyboardCandidate::Override(_)) => {
+                right_index
+            }
+            (PersistedKeyboardCandidate::Override(_), PersistedKeyboardCandidate::Default) => {
+                left_index
+            }
+            (PersistedKeyboardCandidate::Default, PersistedKeyboardCandidate::Override(_)) => {
+                right_index
+            }
+            (PersistedKeyboardCandidate::Default, PersistedKeyboardCandidate::Default) => {
+                panic!("configurable command defaults must not conflict")
+            }
+            _ => unreachable!("disabled commands have no effective binding"),
+        };
+        candidates[discard_index] = PersistedKeyboardCandidate::Default;
+    }
+
+    panic!("persisted keyboard conflict resolution exceeded the command bound")
+}
+
+fn normalize_keyboard_preferences(preferences: Option<&Map<String, Value>>) -> KeyboardPreferences {
+    let stored_shortcuts = preferences.and_then(|value| object_field(value, "shortcuts"));
+    let mut candidates: Vec<_> = PERSISTED_COMMAND_DEFINITIONS
+        .into_iter()
+        .map(|definition| {
+            let Some(shortcut) = stored_shortcuts
+                .and_then(|stored| stored.get(definition.id))
+                .and_then(Value::as_object)
+            else {
+                return PersistedKeyboardCandidate::Default;
+            };
+
+            if true_field(shortcut, "disabled") {
+                return PersistedKeyboardCandidate::Disabled;
+            }
+
+            let Some(binding) = parse_persisted_keyboard_binding(shortcut) else {
+                return PersistedKeyboardCandidate::Default;
+            };
+            if keyboard_binding_violates_ownership(definition, &binding)
+                || keyboard_bindings_equal(&binding, &default_keyboard_binding(definition))
+            {
+                return PersistedKeyboardCandidate::Default;
+            }
+
+            PersistedKeyboardCandidate::Override(binding)
+        })
+        .collect();
+    resolve_persisted_keyboard_candidates(&mut candidates);
+
+    let mut shortcuts = HashMap::new();
+    for (definition, candidate) in PERSISTED_COMMAND_DEFINITIONS.into_iter().zip(candidates) {
+        let shortcut = match candidate {
+            PersistedKeyboardCandidate::Default => continue,
+            PersistedKeyboardCandidate::Disabled => KeyboardShortcutOverride {
+                binding: None,
+                disabled: true,
+            },
+            PersistedKeyboardCandidate::Override(binding) => KeyboardShortcutOverride {
+                binding: Some(binding),
+                disabled: false,
+            },
+        };
+        shortcuts.insert(definition.id.to_string(), shortcut);
+    }
+
+    assert!(find_persisted_candidate_conflict(
+        &PERSISTED_COMMAND_DEFINITIONS
+            .into_iter()
+            .map(|definition| match shortcuts.get(definition.id) {
+                Some(shortcut) if shortcut.disabled => PersistedKeyboardCandidate::Disabled,
+                Some(shortcut) => PersistedKeyboardCandidate::Override(
+                    shortcut
+                        .binding
+                        .clone()
+                        .expect("enabled override has a binding"),
+                ),
+                None => PersistedKeyboardCandidate::Default,
+            })
+            .collect::<Vec<_>>()
+    )
+    .is_none());
+
+    KeyboardPreferences { shortcuts }
+}
+
+fn normalize_navigation(
+    navigation: Option<&Map<String, Value>>,
+) -> Option<RememberedNavigationState> {
+    let navigation = navigation?;
+    let archive_id = string_field(navigation, "archiveId")?;
+    let book_id = string_field(navigation, "bookId")?;
+    let last_route = string_field(navigation, "lastRoute")?;
+    let archive_id = archive_id.trim();
+    let book_id = book_id.trim();
+    let last_route = last_route.trim();
+    let starts_at_beginning = last_route
+        .split_once('?')
+        .map(|(_, query)| query.split('&').any(|part| part == "start=beginning"))
+        .unwrap_or(false);
+
+    if archive_id.is_empty()
+        || book_id.is_empty()
+        || !last_route.starts_with("/reader/")
+        || starts_at_beginning
+    {
+        return None;
+    }
+
+    Some(RememberedNavigationState {
+        archive_id: archive_id.to_string(),
+        book_id: book_id.to_string(),
+        last_route: last_route.to_string(),
+    })
+}
+
+fn number_in_range_or_default(value: f64, minimum: f64, maximum: f64, fallback: f64) -> f64 {
+    if value.is_finite() && value >= minimum && value <= maximum {
+        value
+    } else {
+        fallback
+    }
+}
+
+fn normalize_reader_settings(settings: Option<&Map<String, Value>>) -> ReaderSettings {
+    ReaderSettings {
+        font_size: number_in_range_or_default(
+            settings
+                .and_then(|value| number_field(value, "fontSize"))
+                .unwrap_or_else(default_reader_font_size),
+            14.0,
+            28.0,
+            default_reader_font_size(),
+        ),
+        font_family: normalize_setting(
+            settings.and_then(|value| string_field(value, "fontFamily")),
+            &["serif", "sans", "system", "literata", "atkinson"],
+            "serif",
+        ),
+        line_height: number_in_range_or_default(
+            settings
+                .and_then(|value| number_field(value, "lineHeight"))
+                .unwrap_or_else(default_reader_line_height),
+            1.4,
+            2.0,
+            default_reader_line_height(),
+        ),
+        margin: number_in_range_or_default(
+            settings
+                .and_then(|value| number_field(value, "margin"))
+                .unwrap_or_else(default_reader_margin),
+            24.0,
+            72.0,
+            default_reader_margin(),
+        ),
+        theme: normalize_setting(
+            settings.and_then(|value| string_field(value, "theme")),
+            &["light", "dark", "sepia"],
+            "dark",
+        ),
+        progress_placement: normalize_setting(
+            settings.and_then(|value| string_field(value, "progressPlacement")),
+            &["top", "side"],
+            "top",
+        ),
+        mode: normalize_setting(
+            settings.and_then(|value| string_field(value, "mode")),
+            &["paged", "continuous"],
+            "paged",
+        ),
+    }
+}
+
+fn normalize_window_state(window: Option<&Map<String, Value>>) -> Option<PersistedWindowState> {
+    let window = window?;
+    let width = number_field(window, "width")?;
+    let height = number_field(window, "height")?;
+    let x = number_field(window, "x")?;
+    let y = number_field(window, "y")?;
+    if !width.is_finite()
+        || !height.is_finite()
+        || !x.is_finite()
+        || !y.is_finite()
+        || width <= 0.0
+        || height <= 0.0
+        || width > 100_000.0
+        || height > 100_000.0
+        || x.abs() > 1_000_000.0
+        || y.abs() > 1_000_000.0
+    {
+        return None;
+    }
+
+    Some(PersistedWindowState {
+        height: (height + 0.5).floor(),
+        maximized: true_field(window, "maximized"),
+        width: (width + 0.5).floor(),
+        x: (x + 0.5).floor(),
+        y: (y + 0.5).floor(),
+    })
+}
+
+fn normalize_app_preferences_value(value: &Value) -> AppPreferences {
+    let Some(settings) = value.as_object() else {
+        return AppPreferences::default();
+    };
+
+    let appearance = object_field(settings, "appearance");
+    let files_and_metadata = object_field(settings, "filesAndMetadata");
+
+    AppPreferences {
+        app_theme_preset: normalize_setting(
+            string_field(settings, "appThemePreset"),
+            &["system", "dark", "light"],
+            "dark",
+        ),
+        appearance: AppearanceSettings {
+            animations_enabled: appearance
+                .is_some_and(|value| true_field(value, "animationsEnabled")),
+        },
+        confirm_destructive_file_actions: !false_field(settings, "confirmDestructiveFileActions"),
+        density: normalize_setting(
+            string_field(settings, "density"),
+            &["comfortable", "compact"],
+            "comfortable",
+        ),
+        files_and_metadata: FilesAndMetadataSettings {
+            keep_epub_writeback_backup: files_and_metadata
+                .is_some_and(|value| true_field(value, "keepEpubWritebackBackup")),
+            live_watcher_enabled: files_and_metadata
+                .is_none_or(|value| !false_field(value, "liveWatcherEnabled")),
+            scan_on_startup: files_and_metadata
+                .is_none_or(|value| !false_field(value, "scanOnStartup")),
+        },
+        import: normalize_import_settings(object_field(settings, "import")),
+        keyboard: normalize_keyboard_preferences(object_field(settings, "keyboard")),
+        library: LibraryDisplaySettings::from_value(
+            settings.get("library"),
+            settings.get("bookCardSize"),
+        ),
+        navigation: normalize_navigation(object_field(settings, "navigation")),
+        reader: normalize_reader_settings(object_field(settings, "reader")),
+        remember_window_state: true_field(settings, "rememberWindowState"),
+        restore_last_reader: true_field(settings, "restoreLastReader"),
+        show_continue_reading: !false_field(settings, "showContinueReading"),
+        startup_behavior: normalize_setting(
+            string_field(settings, "startupBehavior"),
+            &["open-last-archive", "show-archive-manager"],
+            "open-last-archive",
+        ),
+        window: normalize_window_state(object_field(settings, "window")),
+    }
 }
 
 impl Default for BookCollectionDisplaySettings {
@@ -440,76 +953,90 @@ impl Default for SeriesCollectionDisplaySettings {
 }
 
 impl LibraryDisplaySettings {
-    fn from_wire(wire: LibraryDisplaySettingsWire, legacy_book_card_size: Option<String>) -> Self {
-        let legacy_view = normalize_setting(wire.view_mode, &["grid", "list"], "grid");
+    fn from_value(value: Option<&Value>, legacy_book_card_size: Option<&Value>) -> Self {
+        let settings = value.and_then(Value::as_object);
+        let collections = settings.and_then(|value| object_field(value, "collections"));
+        let books = collections.and_then(|value| object_field(value, "books"));
+        let folders = collections.and_then(|value| object_field(value, "folders"));
+        let series = collections.and_then(|value| object_field(value, "series"));
+        let legacy_view = normalize_setting(
+            settings.and_then(|value| string_field(value, "viewMode")),
+            &["grid", "list"],
+            "grid",
+        );
         let legacy_sort = normalize_setting(
-            wire.sort_by,
+            settings.and_then(|value| string_field(value, "sortBy")),
             &["title", "author", "recently-opened"],
             "title",
         );
         let legacy_card_size = normalize_setting(
-            legacy_book_card_size,
+            legacy_book_card_size
+                .and_then(Value::as_str)
+                .map(str::to_string),
             &["small", "medium", "large"],
             "medium",
         );
-        let collections = wire.collections.unwrap_or_default();
 
         Self {
             collections: LibraryCollectionDisplaySettings {
                 books: BookCollectionDisplaySettings {
                     card_size: normalize_setting(
-                        collections.books.card_size,
+                        books.and_then(|value| string_field(value, "cardSize")),
                         &["small", "medium", "large"],
                         &legacy_card_size,
                     ),
                     sort_by: normalize_setting(
-                        collections.books.sort_by,
+                        books.and_then(|value| string_field(value, "sortBy")),
                         &["title", "author", "recently-opened"],
                         &legacy_sort,
                     ),
                     view_mode: normalize_setting(
-                        collections.books.view_mode,
+                        books.and_then(|value| string_field(value, "viewMode")),
                         &["grid", "list"],
                         &legacy_view,
                     ),
                 },
                 folders: FolderCollectionDisplaySettings {
                     card_size: normalize_setting(
-                        collections.folders.card_size,
+                        folders.and_then(|value| string_field(value, "cardSize")),
                         &["small", "medium", "large"],
                         "medium",
                     ),
                     sort_by: normalize_setting(
-                        collections.folders.sort_by,
+                        folders.and_then(|value| string_field(value, "sortBy")),
                         &["name", "path", "most-books"],
                         "name",
                     ),
                     view_mode: normalize_setting(
-                        collections.folders.view_mode,
+                        folders.and_then(|value| string_field(value, "viewMode")),
                         &["cards", "list"],
                         "list",
                     ),
                 },
                 series: SeriesCollectionDisplaySettings {
                     card_size: normalize_setting(
-                        collections.series.card_size,
+                        series.and_then(|value| string_field(value, "cardSize")),
                         &["small", "medium", "large"],
                         "medium",
                     ),
                     sort_by: normalize_setting(
-                        collections.series.sort_by,
+                        series.and_then(|value| string_field(value, "sortBy")),
                         &["title", "recently-opened", "most-volumes"],
                         "title",
                     ),
                     view_mode: normalize_setting(
-                        collections.series.view_mode,
+                        series.and_then(|value| string_field(value, "viewMode")),
                         &["grid", "list"],
                         "grid",
                     ),
                 },
             },
-            filters: wire.filters,
-            smart_views: wire.smart_views,
+            filters: normalize_library_filters(
+                settings.and_then(|value| object_field(value, "filters")),
+            ),
+            smart_views: normalize_smart_views(
+                settings.and_then(|value| object_field(value, "smartViews")),
+            ),
         }
     }
 }
@@ -532,6 +1059,7 @@ impl Default for ReaderSettings {
             margin: default_reader_margin(),
             theme: default_reader_theme(),
             progress_placement: default_reader_progress_placement(),
+            mode: default_reader_mode(),
         }
     }
 }
@@ -694,10 +1222,140 @@ pub fn save_app_settings(
 
 #[cfg(test)]
 mod tests {
+    use serde_json::Value;
+
     use super::{
         read_settings, write_settings, AppPreferences, AppearanceSettings, KeyboardBinding,
         KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
     };
+
+    fn merge_expected(base: &mut Value, patch: &Value) {
+        match (base, patch) {
+            (Value::Object(base), Value::Object(patch)) => {
+                for (key, value) in patch {
+                    if let Some(existing) = base.get_mut(key) {
+                        merge_expected(existing, value);
+                    } else {
+                        base.insert(key.clone(), value.clone());
+                    }
+                }
+            }
+            (base, patch) => *base = patch.clone(),
+        }
+    }
+
+    #[test]
+    fn app_preferences_match_the_shared_cross_language_fixture_corpus() {
+        let corpus: Value =
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v1.json"))
+                .expect("shared app settings fixtures should parse");
+        assert_eq!(corpus["version"], 1);
+
+        for fixture in corpus["cases"]
+            .as_array()
+            .expect("fixture cases should be an array")
+        {
+            let name = fixture["name"]
+                .as_str()
+                .expect("fixture should have a name");
+            let mut expected = corpus["defaults"].clone();
+            merge_expected(&mut expected, &fixture["expectedPatch"]);
+
+            let normalized: AppPreferences = serde_json::from_value(fixture["input"].clone())
+                .unwrap_or_else(|error| panic!("{name} should normalize: {error}"));
+            let serialized = serde_json::to_value(&normalized)
+                .unwrap_or_else(|error| panic!("{name} should serialize: {error}"));
+            assert_eq!(serialized, expected, "{name}");
+
+            let round_tripped: AppPreferences = serde_json::from_value(serialized)
+                .unwrap_or_else(|error| panic!("{name} should round trip: {error}"));
+            assert_eq!(round_tripped, normalized, "{name}");
+        }
+    }
+
+    #[test]
+    fn keyboard_normalization_uses_the_complete_intended_effective_state() {
+        let disabled_later: AppPreferences = serde_json::from_value(serde_json::json!({
+            "keyboard": {
+                "shortcuts": {
+                    "system.quick-actions": {
+                        "binding": {
+                            "key": "f",
+                            "primary": true
+                        }
+                    },
+                    "surface.focus-search": {
+                        "disabled": true
+                    }
+                }
+            }
+        }))
+        .expect("disabled later command should normalize");
+        assert_eq!(
+            serde_json::to_value(&disabled_later.keyboard)
+                .expect("disabled keyboard state should serialize"),
+            serde_json::json!({
+                "shortcuts": {
+                    "system.quick-actions": {
+                        "binding": {
+                            "alt": false,
+                            "key": "f",
+                            "primary": true,
+                            "shift": false
+                        }
+                    },
+                    "surface.focus-search": {
+                        "disabled": true
+                    }
+                }
+            })
+        );
+
+        let moved_later: AppPreferences = serde_json::from_str(
+            r#"{
+                "keyboard": {
+                    "shortcuts": {
+                        "surface.focus-search": {
+                            "binding": { "key": "g", "primary": true }
+                        },
+                        "system.quick-actions": {
+                            "binding": { "key": "f", "primary": true }
+                        }
+                    }
+                }
+            }"#,
+        )
+        .expect("reversed property order should normalize");
+        assert_eq!(
+            moved_later.keyboard.shortcuts.get("system.quick-actions"),
+            Some(&KeyboardShortcutOverride {
+                binding: Some(KeyboardBinding {
+                    alt: false,
+                    key: "f".to_string(),
+                    primary: true,
+                    shift: false,
+                }),
+                disabled: false,
+            })
+        );
+        assert_eq!(
+            moved_later.keyboard.shortcuts.get("surface.focus-search"),
+            Some(&KeyboardShortcutOverride {
+                binding: Some(KeyboardBinding {
+                    alt: false,
+                    key: "g".to_string(),
+                    primary: true,
+                    shift: false,
+                }),
+                disabled: false,
+            })
+        );
+
+        let round_tripped: AppPreferences =
+            serde_json::from_value(serde_json::to_value(&moved_later).expect("should serialize"))
+                .expect("normalized preferences should round trip");
+        assert_eq!(round_tripped, moved_later);
+    }
 
     #[test]
     fn app_preferences_ignore_legacy_frame_style_without_losing_neighboring_settings() {
@@ -804,7 +1462,7 @@ mod tests {
                         "binding": {
                             "alt": false,
                             "ctrl": true,
-                            "key": "p",
+                            "key": "k",
                             "meta": false,
                             "shift": true
                         }
@@ -821,13 +1479,74 @@ mod tests {
             .and_then(|shortcut| shortcut.binding.as_ref())
             .expect("binding should be preserved");
         assert!(binding.primary);
-        assert_eq!(binding.key, "p");
+        assert_eq!(binding.key, "k");
 
         let serialized = serde_json::to_value(parsed).expect("preferences should serialize");
         let binding = &serialized["keyboard"]["shortcuts"]["system.quick-actions"]["binding"];
         assert_eq!(binding["primary"], true);
         assert!(binding.get("ctrl").is_none());
         assert!(binding.get("meta").is_none());
+    }
+
+    #[test]
+    fn malformed_explicit_primary_does_not_use_legacy_modifier_fallback() {
+        let parsed: AppPreferences = serde_json::from_value(serde_json::json!({
+            "keyboard": {
+                "shortcuts": {
+                    "system.quick-actions": {
+                        "binding": {
+                            "ctrl": true,
+                            "key": "k",
+                            "primary": "invalid"
+                        }
+                    },
+                    "system.open-settings": {
+                        "binding": {
+                            "key": "o",
+                            "meta": true,
+                            "primary": null
+                        }
+                    },
+                    "reader.open-toc": {
+                        "binding": {
+                            "ctrl": true,
+                            "key": "7",
+                            "primary": false
+                        }
+                    },
+                    "reader.open-annotations": {
+                        "binding": {
+                            "key": "q",
+                            "meta": true
+                        }
+                    }
+                }
+            }
+        }))
+        .expect("primary presence cases should normalize");
+
+        assert!(!parsed
+            .keyboard
+            .shortcuts
+            .contains_key("system.quick-actions"));
+        assert!(!parsed
+            .keyboard
+            .shortcuts
+            .contains_key("system.open-settings"));
+        assert!(
+            !parsed.keyboard.shortcuts["reader.open-toc"]
+                .binding
+                .as_ref()
+                .expect("explicit false Reader binding should survive")
+                .primary
+        );
+        assert!(
+            parsed.keyboard.shortcuts["reader.open-annotations"]
+                .binding
+                .as_ref()
+                .expect("missing primary should use legacy Meta")
+                .primary
+        );
     }
 
     #[test]
@@ -888,8 +1607,12 @@ mod tests {
                 },
                 smart_views: LibrarySmartViewSettings {
                     enabled: true,
-                    visible: vec!["needs-cover".to_string(), "unread".to_string()],
+                    visible: vec!["unread".to_string(), "needs-cover".to_string()],
                 },
+            },
+            reader: super::ReaderSettings {
+                mode: "continuous".to_string(),
+                ..super::ReaderSettings::default()
             },
             ..AppPreferences::default()
         };
@@ -899,6 +1622,7 @@ mod tests {
         let _ = std::fs::remove_file(&path);
 
         assert_eq!(loaded, preferences);
+        assert_eq!(loaded.reader.mode, "continuous");
     }
 
     #[test]
@@ -907,12 +1631,12 @@ mod tests {
             (
                 "enabled",
                 true,
-                vec!["completed".to_string(), "unread".to_string()],
+                vec!["unread".to_string(), "completed".to_string()],
             ),
             (
                 "disabled",
                 false,
-                vec!["needs-metadata".to_string(), "in-progress".to_string()],
+                vec!["in-progress".to_string(), "needs-metadata".to_string()],
             ),
         ] {
             let path = temporary_settings_path(label);

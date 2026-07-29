@@ -109,6 +109,32 @@ describe("keyboard command bindings", () => {
     });
   });
 
+  it("uses legacy primary modifiers only when the explicit primary field is absent", () => {
+    expect(
+      normalizeKeyboardPreferences({
+        shortcuts: {
+          "system.quick-actions": {
+            binding: { ctrl: true, key: "k", primary: "invalid" },
+          },
+          "system.open-settings": {
+            binding: { key: "o", meta: true, primary: null },
+          },
+          "reader.open-toc": {
+            binding: { ctrl: true, key: "7", primary: false },
+          },
+          "reader.open-annotations": {
+            binding: { ctrl: true, key: "q" },
+          },
+        },
+      }),
+    ).toEqual({
+      shortcuts: {
+        "reader.open-toc": { binding: plain("7") },
+        "reader.open-annotations": { binding: primary("q") },
+      },
+    });
+  });
+
   it("canonicalizes a stored default binding back to no override", () => {
     expect(
       normalizeKeyboardPreferences({
@@ -138,17 +164,51 @@ describe("keyboard command bindings", () => {
     });
   });
 
-  it("rejects conflicting persisted preferences with both command ids and the binding", () => {
-    expect(() =>
+  it("keeps the first valid persisted override in authoritative command order", () => {
+    expect(
       normalizeKeyboardPreferences({
         shortcuts: {
-          "system.quick-actions": { binding: primary("k") },
           "system.open-settings": { binding: primary("k") },
+          "system.quick-actions": { binding: primary("k") },
         },
       }),
-    ).toThrow(
-      /Ctrl\+K conflicts between (system\.quick-actions and system\.open-settings|system\.open-settings and system\.quick-actions)/,
-    );
+    ).toEqual({
+      shortcuts: {
+        "system.quick-actions": { binding: primary("k") },
+      },
+    });
+  });
+
+  it("allows an earlier command to use the default binding of a later disabled command", () => {
+    expect(
+      normalizeKeyboardPreferences({
+        shortcuts: {
+          "system.quick-actions": { binding: primary("f") },
+          "surface.focus-search": { disabled: true },
+        },
+      }),
+    ).toEqual({
+      shortcuts: {
+        "system.quick-actions": { binding: primary("f") },
+        "surface.focus-search": { disabled: true },
+      },
+    });
+  });
+
+  it("allows an earlier command to use a later command's freed default binding", () => {
+    expect(
+      normalizeKeyboardPreferences({
+        shortcuts: {
+          "surface.focus-search": { binding: primary("g") },
+          "system.quick-actions": { binding: primary("f") },
+        },
+      }),
+    ).toEqual({
+      shortcuts: {
+        "system.quick-actions": { binding: primary("f") },
+        "surface.focus-search": { binding: primary("g") },
+      },
+    });
   });
 
   it("uses the shared scope-overlap implementation for conflict detection", () => {

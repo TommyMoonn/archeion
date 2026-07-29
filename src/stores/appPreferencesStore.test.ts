@@ -61,6 +61,124 @@ describe("app preferences", () => {
     expect(store.getSnapshot().density).toBe("compact");
   });
 
+  it("loads malformed persisted shortcuts without rejecting valid preference siblings", async () => {
+    const store = new AppPreferencesStore(
+      createPersistence({
+        loadDesktop: async () => ({
+          appearance: { animationsEnabled: true },
+          density: "compact",
+          keyboard: {
+            shortcuts: {
+              "system.open-settings": {
+                binding: { key: "k", primary: true, shift: true },
+              },
+              "surface.focus-search": {
+                binding: { alt: true, key: "g", primary: true },
+              },
+              "reader.open-annotations": {
+                binding: { key: "q" },
+              },
+              "reader.open-reading-settings": {
+                disabled: true,
+              },
+              "system.quick-actions": {
+                binding: { key: "k", primary: true, shift: true },
+              },
+            },
+          },
+        }),
+      }),
+    );
+
+    await expect(store.initialize()).resolves.toBeUndefined();
+
+    expect(store.getPersistenceSnapshot()).toEqual({ status: "idle" });
+    expect(store.getSnapshot()).toMatchObject({
+      appearance: { animationsEnabled: true },
+      density: "compact",
+      keyboard: {
+        shortcuts: {
+          "system.quick-actions": {
+            binding: {
+              alt: false,
+              key: "k",
+              primary: true,
+              shift: true,
+            },
+          },
+          "reader.open-annotations": {
+            binding: {
+              alt: false,
+              key: "q",
+              primary: false,
+              shift: false,
+            },
+          },
+          "reader.open-reading-settings": {
+            disabled: true,
+          },
+        },
+      },
+    });
+    expect(store.getSnapshot().keyboard.shortcuts).not.toHaveProperty("system.open-settings");
+    expect(store.getSnapshot().keyboard.shortcuts).not.toHaveProperty("surface.focus-search");
+  });
+
+  it("preserves valid effective keyboard states through an unrelated preference update", async () => {
+    const saveDesktop = vi.fn(async () => undefined);
+    const store = new AppPreferencesStore(
+      createPersistence({
+        loadDesktop: async () => ({
+          keyboard: {
+            shortcuts: {
+              "surface.focus-search": {
+                binding: { key: "g", primary: true },
+              },
+              "system.quick-actions": {
+                binding: { key: "f", primary: true },
+              },
+            },
+          },
+        }),
+        saveDesktop,
+      }),
+    );
+
+    await store.initialize();
+
+    const expectedKeyboard = {
+      shortcuts: {
+        "system.quick-actions": {
+          binding: {
+            alt: false,
+            key: "f",
+            primary: true,
+            shift: false,
+          },
+        },
+        "surface.focus-search": {
+          binding: {
+            alt: false,
+            key: "g",
+            primary: true,
+            shift: false,
+          },
+        },
+      },
+    };
+    expect(store.getSnapshot().keyboard).toEqual(expectedKeyboard);
+
+    await store.update({ density: "compact" });
+
+    expect(store.getSnapshot().keyboard).toEqual(expectedKeyboard);
+    expect(saveDesktop).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        density: "compact",
+        keyboard: expectedKeyboard,
+      }),
+    );
+  });
+
   it("does not rerender a narrow preference consumer for unrelated UI changes", async () => {
     const original = appPreferencesStore.getSnapshot();
     const container = document.createElement("div");

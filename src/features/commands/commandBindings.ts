@@ -467,35 +467,108 @@ export function validateKeyboardBinding(
   return { ok: true };
 }
 
-export function normalizeKeyboardPreferences(value: unknown): KeyboardPreferences {
-  const candidate = isRecord(value) && isRecord(value.shortcuts) ? value.shortcuts : {};
-  let normalized: KeyboardPreferences = { shortcuts: {} };
+type PersistedKeyboardCandidate =
+  { kind: "default" } | { kind: "disabled" } | { binding: KeyboardBinding; kind: "override" };
 
-  for (const definition of configurableCommandDefinitions) {
-    const stored = candidate[definition.id];
-    if (!isRecord(stored)) continue;
+function effectivePersistedCandidateBinding(
+  definition: CommandDefinition,
+  candidate: PersistedKeyboardCandidate,
+): KeyboardBinding | undefined {
+  if (candidate.kind === "disabled") return undefined;
+  return candidate.kind === "override" ? candidate.binding : definition.defaultBinding;
+}
 
-    if (stored.disabled === true) {
-      normalized = setKeyboardShortcutOverride(normalized, definition.id as ConfigurableCommandId, {
-        disabled: true,
-      });
+function findPersistedCandidateConflict(
+  candidates: readonly PersistedKeyboardCandidate[],
+): readonly [number, number] | null {
+  for (let leftIndex = 0; leftIndex < configurableCommandDefinitions.length; leftIndex += 1) {
+    const leftDefinition = configurableCommandDefinitions[leftIndex];
+    const leftBinding = effectivePersistedCandidateBinding(leftDefinition, candidates[leftIndex]);
+    if (!leftBinding) continue;
+
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < configurableCommandDefinitions.length;
+      rightIndex += 1
+    ) {
+      const rightDefinition = configurableCommandDefinitions[rightIndex];
+      if (!commandScopesOverlap(leftDefinition.scopes, rightDefinition.scopes)) continue;
+
+      const rightBinding = effectivePersistedCandidateBinding(
+        rightDefinition,
+        candidates[rightIndex],
+      );
+      if (keyboardBindingsEqual(leftBinding, rightBinding)) {
+        return [leftIndex, rightIndex];
+      }
+    }
+  }
+
+  return null;
+}
+
+function resolvePersistedKeyboardCandidates(
+  candidates: PersistedKeyboardCandidate[],
+): PersistedKeyboardCandidate[] {
+  for (let attempt = 0; attempt <= configurableCommandDefinitions.length; attempt += 1) {
+    const conflict = findPersistedCandidateConflict(candidates);
+    if (!conflict) return candidates;
+
+    const [leftIndex, rightIndex] = conflict;
+    const left = candidates[leftIndex];
+    const right = candidates[rightIndex];
+
+    if (left.kind === "override" && right.kind === "override") {
+      candidates[rightIndex] = { kind: "default" };
+      continue;
+    }
+    if (left.kind === "override" && right.kind === "default") {
+      candidates[leftIndex] = { kind: "default" };
+      continue;
+    }
+    if (left.kind === "default" && right.kind === "override") {
+      candidates[rightIndex] = { kind: "default" };
       continue;
     }
 
-    const storedBinding = normalizeKeyboardBinding(stored.binding);
-    if (!storedBinding || keyboardOwnershipError(definition, storedBinding)) continue;
-    if (keyboardBindingsEqual(storedBinding, definition.defaultBinding)) continue;
-
-    const tentative = setKeyboardShortcutOverride(
-      normalized,
-      definition.id as ConfigurableCommandId,
-      { binding: storedBinding },
-    );
-    const conflict = findKeyboardBindingConflict(definition.id, storedBinding, tentative);
-    if (conflict) throw new Error(conflictReason(conflict));
-    normalized = tentative;
+    throw new Error("Configurable command defaults must not conflict.");
   }
 
+  throw new Error("Persisted keyboard conflict resolution exceeded the command bound.");
+}
+
+export function normalizeKeyboardPreferences(value: unknown): KeyboardPreferences {
+  const storedShortcuts = isRecord(value) && isRecord(value.shortcuts) ? value.shortcuts : {};
+  const candidates = configurableCommandDefinitions.map<PersistedKeyboardCandidate>(
+    (definition) => {
+      const stored = storedShortcuts[definition.id];
+      if (!isRecord(stored)) return { kind: "default" };
+
+      if (stored.disabled === true) return { kind: "disabled" };
+
+      const storedBinding = normalizeKeyboardBinding(stored.binding);
+      if (!storedBinding || keyboardOwnershipError(definition, storedBinding)) {
+        return { kind: "default" };
+      }
+      if (keyboardBindingsEqual(storedBinding, definition.defaultBinding)) {
+        return { kind: "default" };
+      }
+
+      return { binding: storedBinding, kind: "override" };
+    },
+  );
+  const resolved = resolvePersistedKeyboardCandidates(candidates);
+  let normalized: KeyboardPreferences = { shortcuts: {} };
+
+  for (const [index, definition] of configurableCommandDefinitions.entries()) {
+    const candidate = resolved[index];
+    if (candidate.kind === "default") continue;
+    normalized = setKeyboardShortcutOverride(
+      normalized,
+      definition.id as ConfigurableCommandId,
+      candidate.kind === "disabled" ? { disabled: true } : { binding: candidate.binding },
+    );
+  }
   assertKeyboardPreferencesHaveNoConflicts(normalized);
   return normalized;
 }

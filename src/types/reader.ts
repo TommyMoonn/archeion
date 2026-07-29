@@ -44,10 +44,15 @@ type ReaderSettingsInput = Partial<Record<keyof ReaderSettings, unknown>>;
 
 export function normalizeReaderSettings(settings?: ReaderSettingsInput): ReaderSettings {
   return {
-    fontSize: numberOrDefault(settings?.fontSize, defaultReaderSettings.fontSize),
+    fontSize: numberInRangeOrDefault(settings?.fontSize, 14, 28, defaultReaderSettings.fontSize),
     fontFamily: normalizeReaderFontFamily(settings?.fontFamily),
-    lineHeight: numberOrDefault(settings?.lineHeight, defaultReaderSettings.lineHeight),
-    margin: numberOrDefault(settings?.margin, defaultReaderSettings.margin),
+    lineHeight: numberInRangeOrDefault(
+      settings?.lineHeight,
+      1.4,
+      2,
+      defaultReaderSettings.lineHeight,
+    ),
+    margin: numberInRangeOrDefault(settings?.margin, 24, 72, defaultReaderSettings.margin),
     theme: isReaderTheme(settings?.theme) ? settings.theme : defaultReaderSettings.theme,
     progressPlacement: isReaderProgressPlacement(settings?.progressPlacement)
       ? settings.progressPlacement
@@ -60,8 +65,15 @@ function isReaderMode(value: unknown): value is ReaderMode {
   return value === "paged" || value === "continuous";
 }
 
-function numberOrDefault(value: unknown, fallback: number): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+function numberInRangeOrDefault(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+  fallback: number,
+): number {
+  return typeof value === "number" && Number.isFinite(value) && value >= minimum && value <= maximum
+    ? value
+    : fallback;
 }
 
 export function isReaderFontFamily(value: unknown): value is ReaderFontFamily {
