@@ -369,6 +369,44 @@ describe("TauriArchiveLibraryStorage archive-model commit serialization", () => 
     });
   });
 
+  it("bounds delta persistence recovery and never publishes the unpersisted model", async () => {
+    const { storage } = await loadedStorage();
+    const initial = storage.getLibrarySnapshot();
+    const snapshots: (typeof initial)[] = [];
+    const stop = storage.observeLibrarySnapshot({
+      next: (snapshot) => {
+        if (snapshot !== initial) snapshots.push(snapshot);
+      },
+    });
+    let saveAttempts = 0;
+    invokeMock.mockImplementation(async (command) => {
+      if (command === "move_archive_epub_file") {
+        return {
+          oldRelativePath: "Source/One.epub",
+          newRelativePath: "DestA/One.epub",
+        };
+      }
+      if (command === "save_library_metadata") {
+        saveAttempts += 1;
+        throw new Error("disk unavailable");
+      }
+      return undefined;
+    });
+
+    const move = storage.moveBookToFolder("book-1", "folder:DestA");
+
+    await expect(move).rejects.toMatchObject({
+      name: "ArchiveDeltaPersistenceError",
+    });
+    expect(saveAttempts).toBe(2);
+    expect(snapshots).toEqual([]);
+    expect(storage.getLibrarySnapshot()).toBe(initial);
+    await expect(storage.getBook("book-1")).resolves.toMatchObject({
+      relativePath: "Source/One.epub",
+    });
+    stop();
+  });
+
   it("discards queued Archive A commits before they can affect Archive B", async () => {
     const { storage } = await loadedStorage();
     const firstSaveStarted = deferred<void>();

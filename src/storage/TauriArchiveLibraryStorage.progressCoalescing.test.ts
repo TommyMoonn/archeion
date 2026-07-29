@@ -593,15 +593,17 @@ describe("TauriArchiveLibraryStorage callback-failure drain ownership", () => {
     const newerWrite = deferred<void>();
     const progressPayloads: Array<Record<string, unknown>> = [];
     const storageInternals = storage as unknown as {
-      reconcileProgressOutcome: (
-        generation: number,
-        target: unknown,
-        changedBookIds: ReadonlySet<string>,
-        isSuperseded: () => boolean,
-      ) => Promise<void>;
+      mutationCoordinator: {
+        reconcileProgressOutcome: (
+          generation: number,
+          target: unknown,
+          changedBookIds: ReadonlySet<string>,
+          isSuperseded: () => boolean,
+        ) => Promise<void>;
+      };
     };
     const reconcileProgressOutcome = vi
-      .spyOn(storageInternals, "reconcileProgressOutcome")
+      .spyOn(storageInternals.mutationCoordinator, "reconcileProgressOutcome")
       .mockImplementationOnce(() => rollback.promise);
 
     invokeMock.mockImplementation(async (command, args) => {
