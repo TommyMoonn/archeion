@@ -125,6 +125,16 @@
     box-shadow: none;
   }
 
+  :where(button, [role="button"]):active:not(:disabled):not([aria-disabled="true"]):not(
+      .button--danger
+    ):not(.menu-item--danger):not([aria-current]:not([aria-current="false"])):not(
+      [aria-selected="true"]
+    ):not([aria-checked="true"]):not([aria-pressed="true"]):not([data-selected]) {
+    border-color: Highlight;
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
   :where(
     [aria-current]:not([aria-current="false"]),
     [aria-selected="true"],
@@ -134,6 +144,17 @@
   ) {
     outline: 2px solid Highlight;
     outline-offset: -2px;
+  }
+
+  :where(button, a[href], summary, [role="button"]):hover:not(:disabled):not(
+      [aria-disabled="true"]
+    ) {
+    color: LinkText;
+  }
+
+  :where([aria-expanded="true"], details[open] > .menu-trigger) {
+    border-color: Highlight;
+    color: CanvasText;
   }
 
   :where(

@@ -9,6 +9,9 @@
   border-radius: var(--radius-pill);
   background: var(--canvas-deep);
   cursor: pointer;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .toggle-control--compact {
@@ -43,6 +46,26 @@
 .toggle-control[aria-checked="true"] span {
   background: var(--accent-strong);
   transform: translateX(var(--toggle-travel, 16px));
+}
+
+.toggle-control:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--line-strong);
+  background: var(--surface-hover);
+}
+
+.toggle-control:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--line-strong);
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
+}
+
+.toggle-control[aria-checked="true"]:hover:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 86%, var(--accent) 14%);
+}
+
+.toggle-control[aria-checked="true"]:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-soft) 76%, var(--accent) 24%);
 }
 
 .toggle-control:disabled,

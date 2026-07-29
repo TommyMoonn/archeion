@@ -109,10 +109,6 @@ html[data-density="compact"] .book-grid {
   transform: translateY(-50%);
 }
 
-.library-search__clear:active:not(:disabled) {
-  transform: translateY(calc(-50% + 1px));
-}
-
 .library-controls {
   grid-column: 1 / -1;
   display: flex;

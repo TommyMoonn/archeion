@@ -73,7 +73,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
               disabledReason={continueBook.isFileMissing ? "The EPUB file is missing." : undefined}
-              icon={<Play aria-hidden="true" weight="fill" />}
+              icon={<Play aria-hidden="true" weight="bold" />}
               onClick={() => onRead(continueBook)}
               size="standard"
             >

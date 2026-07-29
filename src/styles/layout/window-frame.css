@@ -152,6 +152,11 @@
   background: var(--surface-shell-hover);
 }
 
+.library-titlebar-composition__button:active:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--text-strong);
+  background: var(--surface-shell-active);
+}
+
 .library-titlebar-composition__button[data-sidebar-direction="expand-right"]
   .library-titlebar-composition__sidebar-icon {
   transform: translateY(1px) scaleX(-1);

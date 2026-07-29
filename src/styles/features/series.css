@@ -36,10 +36,6 @@
   transform: translateY(-50%);
 }
 
-.series-search__clear:active:not(:disabled) {
-  transform: translateY(calc(-50% + 1px));
-}
-
 .series-overview__controls {
   max-width: none;
 }

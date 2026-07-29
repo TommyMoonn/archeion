@@ -11,7 +11,7 @@
   line-height: 1;
   white-space: nowrap;
   transition:
-    transform var(--motion-duration-fast) var(--motion-ease-standard),
+    scale var(--motion-duration-fast) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard),
     border-color var(--motion-duration-standard) var(--motion-ease-standard);
 }
@@ -38,9 +38,10 @@
   cursor: progress;
 }
 
-.button:active:not(:disabled):not([aria-disabled="true"]),
-.icon-button:active:not(:disabled):not([aria-disabled="true"]) {
-  transform: translateY(1px);
+html[data-motion="on"] .button--compact:active:not(:disabled):not([aria-disabled="true"]),
+html[data-motion="on"] .button--standard:active:not(:disabled):not([aria-disabled="true"]),
+html[data-motion="on"] .icon-button:active:not(:disabled):not([aria-disabled="true"]) {
+  scale: 0.98;
 }
 
 .button--primary {
@@ -54,6 +55,11 @@
   background: var(--accent-strong);
 }
 
+.button--primary:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-strong) 88%, var(--canvas-deep));
+}
+
 .button--secondary {
   border: var(--border-width) solid var(--line-strong);
   color: var(--text);
@@ -65,6 +71,13 @@
   border-color: var(--line-strong);
   color: var(--text-strong);
   background: var(--surface-hover);
+}
+
+.button--secondary:active:not(:disabled):not([aria-disabled="true"]),
+.button--ghost:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
 }
 
 .button--ghost {
@@ -84,6 +97,11 @@
   background: var(--danger-strong);
 }
 
+.button--danger:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--danger-strong);
+  background: color-mix(in srgb, var(--danger-strong) 88%, var(--canvas-deep));
+}
+
 .icon-button {
   display: inline-grid;
   flex: none;
@@ -99,7 +117,7 @@
   transition:
     color var(--motion-duration-standard) var(--motion-ease-standard),
     background var(--motion-duration-standard) var(--motion-ease-standard),
-    transform var(--motion-duration-fast) var(--motion-ease-standard);
+    scale var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .icon-button--compact {
@@ -116,5 +134,18 @@
 
 .icon-button:hover:not(:disabled):not([aria-disabled="true"]) {
   color: var(--text-strong);
-  background: var(--surface-raised);
+  background: var(--surface-hover);
+}
+
+.icon-button:active:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion="on"] .button--compact:active:not(:disabled):not([aria-disabled="true"]),
+  html[data-motion="on"] .button--standard:active:not(:disabled):not([aria-disabled="true"]),
+  html[data-motion="on"] .icon-button:active:not(:disabled):not([aria-disabled="true"]) {
+    scale: 1;
+  }
 }

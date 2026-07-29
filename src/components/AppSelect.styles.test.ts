@@ -66,7 +66,10 @@ describe("AppSelect placement style ownership", () => {
       /\.app-select__trigger\s*\{[^}]*background:\s*var\(--surface\);/s,
     );
     expect(dropdownStyles).toMatch(
-      /\.app-select__trigger:hover,\s*\.app-select__trigger\[aria-expanded="true"\]\s*\{[^}]*background:\s*var\(--surface-hover\);/s,
+      /\.app-select__trigger:hover\s*\{[^}]*background:\s*var\(--surface-hover\);/s,
+    );
+    expect(dropdownStyles).toMatch(
+      /\.app-select__trigger\[aria-expanded="true"\]\s*\{[^}]*background:\s*var\(--surface-raised\);/s,
     );
     expect(dropdownStyles).toMatch(
       /\.app-select__menu\s*\{[^}]*background:\s*var\(--surface-raised\);[^}]*box-shadow:\s*var\(--shadow-popover\);/s,

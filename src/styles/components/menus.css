@@ -32,11 +32,22 @@
   font-weight: var(--font-weight-regular);
 }
 
-details[open] > .menu-trigger,
 .menu-trigger:hover {
   border-color: var(--line-strong);
   color: var(--text-strong);
   background: var(--surface-hover);
+}
+
+details[open] > .menu-trigger {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: var(--surface-raised);
+}
+
+.menu-trigger:active:not(:disabled):not([aria-disabled="true"]) {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
 }
 
 .context-menu {
@@ -81,10 +92,19 @@ details[open] > .menu-trigger,
 }
 
 .menu-item:hover:not(:disabled),
-.menu-item:focus-visible,
-.menu-item[aria-selected="true"] {
+.menu-item:focus-visible {
   color: var(--text-strong);
   background: var(--surface-hover);
+}
+
+.menu-item[aria-selected="true"] {
+  color: var(--text-strong);
+  background: var(--surface-raised);
+}
+
+.menu-item:active:not(:disabled) {
+  color: var(--text-strong);
+  background: color-mix(in srgb, var(--surface-hover) 88%, var(--text) 12%);
 }
 
 .menu-item:focus-visible {
