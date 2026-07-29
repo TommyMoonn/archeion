@@ -5,6 +5,11 @@
   margin: 0 auto;
 }
 
+.series-detail {
+  display: grid;
+  gap: 20px;
+}
+
 .series-header {
   max-width: none;
 }
@@ -188,7 +193,7 @@
   align-items: end;
   justify-content: space-between;
   gap: 30px;
-  padding: 20px 0 24px;
+  padding: 0 0 24px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -220,7 +225,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 20px;
 }
 
 .series-hint-group {
@@ -259,7 +263,7 @@
 .series-volumes {
   display: grid;
   gap: 8px;
-  padding: 22px 0 36px;
+  padding: 0 0 36px;
 }
 
 .series-volume {

@@ -343,18 +343,20 @@ export function ArchiveManagerWindowContent({
               <div className="archive-manager-window__mark" aria-hidden="true">
                 <img className="archive-manager-window__icon" src={archeionIcon} alt="" />
               </div>
-              <h1 id="archive-manager-title">Archeion</h1>
-              <p>Manage archives</p>
-              {errorText ? (
-                <p className="archive-manager-window__status" data-tone="error" role="alert">
-                  {errorText}
-                </p>
-              ) : null}
-              {status ? (
-                <p className="archive-manager-window__status" data-tone="error" role="status">
-                  {status}
-                </p>
-              ) : null}
+              <div className="archive-manager-window__identity-copy">
+                <h1 id="archive-manager-title">Archeion</h1>
+                <p>Manage archives</p>
+                {errorText ? (
+                  <p className="archive-manager-window__status" data-tone="error" role="alert">
+                    {errorText}
+                  </p>
+                ) : null}
+                {status ? (
+                  <p className="archive-manager-window__status" data-tone="error" role="status">
+                    {status}
+                  </p>
+                ) : null}
+              </div>
             </div>
 
             <div

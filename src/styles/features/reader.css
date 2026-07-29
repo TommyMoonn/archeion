@@ -452,6 +452,8 @@ html[data-motion="on"] .reader-toc__loading span {
 }
 
 .reader-toc {
+  --reader-panel-inset: 14px;
+
   position: absolute;
   z-index: 7;
   top: 52px;
@@ -479,7 +481,7 @@ html[data-motion="on"] .reader-toc {
   justify-content: space-between;
   flex: none;
   min-height: 64px;
-  padding: 14px 16px;
+  padding: 14px var(--reader-panel-inset, 14px);
   border-bottom: 1px solid var(--reader-line);
 }
 
@@ -517,7 +519,7 @@ html[data-motion="on"] .reader-toc {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px var(--reader-panel-inset, 14px);
   border-bottom: 1px solid var(--reader-line);
   color: var(--reader-muted);
   font-size: var(--type-caption);
@@ -565,7 +567,7 @@ html[data-motion="on"] .reader-toc {
 .reader-toc__search.input-shell {
   width: auto;
   flex: none;
-  margin: 12px 16px 3px;
+  margin: 12px var(--reader-panel-inset) 4px;
   border-color: var(--reader-line);
   border-radius: var(--radius-control);
   color: var(--reader-muted);
@@ -590,7 +592,7 @@ html[data-motion="on"] .reader-toc {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 10px 8px 18px;
+  padding: 10px 2px 18px;
   scrollbar-gutter: stable;
 }
 
@@ -736,6 +738,8 @@ html[data-motion="on"] .reader-toc {
 }
 
 .reader-settings {
+  --reader-panel-inset: 18px;
+
   position: absolute;
   z-index: 1;
   top: 64px;
@@ -755,7 +759,7 @@ html[data-motion="on"] .reader-toc {
 }
 
 .reader-settings__header {
-  margin: 0 -18px;
+  margin: 0 calc(var(--reader-panel-inset) * -1);
 }
 
 .reader-setting {
@@ -970,6 +974,8 @@ html[data-motion="on"] .reader-toc {
   }
 
   .reader-settings {
+    --reader-panel-inset: 19px;
+
     top: 64px;
     right: 9px;
     bottom: 9px;
@@ -989,6 +995,8 @@ html[data-motion="on"] .reader-toc {
 }
 
 .reader-annotations {
+  --reader-panel-inset: 14px;
+
   width: min(430px, calc(100vw - 36px));
 }
 
@@ -996,7 +1004,7 @@ html[data-motion="on"] .reader-toc {
   display: grid;
   flex: none;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 12px var(--reader-panel-inset);
   border-bottom: 1px solid var(--reader-line);
 }
 

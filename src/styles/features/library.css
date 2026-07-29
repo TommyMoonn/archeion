@@ -115,8 +115,13 @@ html[data-density="compact"] .book-grid {
   align-items: center;
   justify-content: space-between;
   min-height: 48px;
-  margin-top: 6px;
   border-bottom: 1px solid var(--line);
+}
+
+.library-header__control-group {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 10px;
 }
 
 .library-select-button,
@@ -1184,7 +1189,8 @@ html[data-motion="on"] .details-drawer[open] {
     width: 100%;
   }
 
-  .library-controls {
+  .library-header > .library-controls,
+  .library-header__control-group {
     grid-row: 3;
   }
 
@@ -2378,11 +2384,9 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .library-filter-tokens {
-  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-  margin-top: -12px;
 }
 
 .library-filter-token {

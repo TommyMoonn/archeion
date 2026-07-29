@@ -102,7 +102,7 @@
 .archive-manager-window__identity {
   display: grid;
   justify-items: center;
-  gap: 7px;
+  gap: 14px;
   text-align: center;
 }
 
@@ -110,8 +110,13 @@
   display: grid;
   width: 78px;
   height: 78px;
-  margin-bottom: 6px;
   place-items: center;
+}
+
+.archive-manager-window__identity-copy {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
 }
 
 .archive-manager-window__icon {
@@ -141,7 +146,6 @@
 
 .archive-manager-window__identity .archive-manager-window__status {
   max-width: 360px;
-  margin-top: 4px;
   padding: 7px 10px;
   border: 1px solid var(--error-border);
   border-radius: var(--radius-control);
@@ -154,10 +158,6 @@
   width: min(100%, 440px);
   min-width: 0;
   justify-self: center;
-}
-
-.archive-manager-window__content-area[data-view="manager"] {
-  padding-top: 44px;
 }
 
 .archive-manager-window__content-panel {

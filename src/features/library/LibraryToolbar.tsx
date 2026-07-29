@@ -138,40 +138,42 @@ export function LibraryToolbar({
         </Button>
       </div>
 
-      <div className="library-controls">
-        <div className="library-controls__filters">
-          <LibraryFilterPopover
-            filters={filters}
-            onChange={onFilterChange}
-            onClear={onClearFilters}
-            options={filterOptions}
-          />
-          <span
-            className="library-result-count"
-            aria-label={`${resultCount} ${resultCount === 1 ? "book" : "books"} shown`}
-            aria-live="polite"
-          >
-            {resultCount} {resultCount === 1 ? "book" : "books"}
-          </span>
+      <div className="library-header__control-group">
+        <div className="library-controls">
+          <div className="library-controls__filters">
+            <LibraryFilterPopover
+              filters={filters}
+              onChange={onFilterChange}
+              onClear={onClearFilters}
+              options={filterOptions}
+            />
+            <span
+              className="library-result-count"
+              aria-label={`${resultCount} ${resultCount === 1 ? "book" : "books"} shown`}
+              aria-live="polite"
+            >
+              {resultCount} {resultCount === 1 ? "book" : "books"}
+            </span>
+          </div>
+          <div className="library-controls__display">
+            <AppSelect
+              ariaLabel="Sort library"
+              className="library-sort-select"
+              onChange={onSortChange}
+              options={librarySortOptions}
+              value={sort}
+            />
+            <SegmentedControl
+              appearance="icon-only"
+              label="Library view"
+              onChange={onViewChange}
+              options={viewOptions}
+              value={view}
+            />
+          </div>
         </div>
-        <div className="library-controls__display">
-          <AppSelect
-            ariaLabel="Sort library"
-            className="library-sort-select"
-            onChange={onSortChange}
-            options={librarySortOptions}
-            value={sort}
-          />
-          <SegmentedControl
-            appearance="icon-only"
-            label="Library view"
-            onChange={onViewChange}
-            options={viewOptions}
-            value={view}
-          />
-        </div>
+        <LibraryFilterTokens filters={filters} onChange={onFilterChange} />
       </div>
-      <LibraryFilterTokens filters={filters} onChange={onFilterChange} />
     </header>
   );
 }
