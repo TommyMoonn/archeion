@@ -171,7 +171,7 @@
   max-height: none;
   padding: 0;
   border: 1px solid var(--reader-line);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-dialog);
   color: var(--reader-text);
   background: var(--reader-bg);
   box-shadow: var(--shadow-dialog);

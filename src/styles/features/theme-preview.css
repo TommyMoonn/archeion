@@ -6,11 +6,11 @@
   gap: 22px;
   margin-top: 18px;
   padding: 14px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius-card);
   color: var(--text);
   background: var(--surface);
-  box-shadow: var(--shadow-popover);
+  box-shadow: var(--shadow-card);
 }
 
 .theme-preview-controls__copy {

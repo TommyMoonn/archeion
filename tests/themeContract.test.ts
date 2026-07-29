@@ -284,6 +284,7 @@ describe("theme token baseline", () => {
       "shellHover",
       "shellActive",
       "cardShadow",
+      "tooltipShadow",
       "popoverShadow",
       "dialogShadow",
       "drawerShadow",

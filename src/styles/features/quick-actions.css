@@ -3,8 +3,8 @@
   max-width: none;
   margin: min(15vh, 132px) auto auto;
   padding: 0;
-  border: 1px solid var(--line-strong);
-  border-radius: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-dialog);
   color: var(--text);
   background: var(--surface);
   box-shadow: var(--shadow-dialog);
@@ -58,7 +58,7 @@ html[data-motion="on"] .quick-actions[open] {
 .quick-actions__footer kbd {
   border: 1px solid var(--line);
   border-bottom-color: var(--line-strong);
-  border-radius: 5px;
+  border-radius: var(--radius-small);
   color: var(--muted);
   background: var(--surface-raised);
   box-shadow: 0 1px 0 var(--line-strong);
@@ -88,7 +88,7 @@ html[data-motion="on"] .quick-actions[open] {
   gap: 18px;
   padding: 9px 11px;
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   color: var(--text);
   background: transparent;
   text-align: left;

@@ -663,7 +663,7 @@ html[data-motion="on"] .reader-toc {
   min-height: 32px;
   padding: 0 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-small);
   color: var(--reader-muted);
   background: transparent;
   font-size: var(--type-caption);
@@ -686,7 +686,7 @@ html[data-motion="on"] .reader-toc {
 .reader-toc__loading span {
   display: block;
   height: 40px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background:
     linear-gradient(
       100deg,

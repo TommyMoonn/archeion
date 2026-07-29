@@ -8,3 +8,6 @@ src-tauri/gen/
 .eslintcache
 .vite/
 .agents/
+.agent-work/
+.planning/
+.project/

@@ -111,7 +111,7 @@
 
 .book-cover--series {
   width: 72px;
-  border-radius: 7px;
+  border-radius: var(--radius-small);
 }
 
 .series-grid--grid[data-series-card-size="small"] .book-cover--series {
@@ -164,7 +164,7 @@
 .series-loading span {
   min-height: 136px;
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: var(--radius-card);
   background: var(--surface);
 }
 
@@ -233,7 +233,7 @@
   gap: 10px;
   padding: 13px 14px;
   border: 1px solid color-mix(in srgb, var(--accent) 24%, var(--line));
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   color: var(--muted);
   background: color-mix(in srgb, var(--accent) 5%, transparent);
 }
@@ -302,7 +302,7 @@
 
 .book-cover--series-volume {
   width: 54px;
-  border-radius: 5px;
+  border-radius: var(--radius-small);
 }
 
 .series-volume__copy {
@@ -326,7 +326,7 @@
 .series-volume__meta [data-marker] {
   padding: 2px 6px;
   border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--accent-strong);
   background: var(--accent-soft);
   letter-spacing: 0;

@@ -44,7 +44,8 @@
   --radius-small: 6px;
   --radius-control: 8px;
   --radius-menu: 10px;
-  --radius-card: 16px;
+  --radius-card: 12px;
+  --radius-dialog: 16px;
   --radius-pill: 999px;
 
   font-family: var(--font-ui);
@@ -92,10 +93,11 @@
   --surface-shell-hover: rgb(255 255 255 / 5.5%);
   --surface-shell-active: rgb(255 255 255 / 8%);
 
-  --shadow-card: 0 8px 24px rgb(5 8 12 / 11%);
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(5 8 12 / 11%);
   --shadow-workspace: -2px 2px 16px rgb(5 8 12 / 16%);
-  --shadow-popover: 0 18px 50px rgb(0 0 0 / 38%);
-  --shadow-dialog: 0 28px 90px rgb(0 0 0 / 52%);
+  --shadow-tooltip: 0 0 0 1px rgb(255 255 255 / 7%), 0 6px 18px rgb(0 0 0 / 28%);
+  --shadow-popover: 0 0 0 1px rgb(255 255 255 / 7%), 0 18px 50px rgb(0 0 0 / 38%);
+  --shadow-dialog: 0 0 0 1px rgb(255 255 255 / 8%), 0 28px 90px rgb(0 0 0 / 52%);
   --shadow-drawer: -24px 0 70px rgb(5 8 12 / 32%);
 
   --backdrop: color-mix(in srgb, var(--darkening) 66%, transparent);
@@ -176,10 +178,11 @@ html[data-app-theme="light"] {
   --surface-shell-hover: rgb(30 26 23 / 5.5%);
   --surface-shell-active: rgb(30 26 23 / 8%);
 
-  --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+  --shadow-card: 0 0 0 1px rgb(80 68 52 / 7%), 0 8px 24px rgb(80 68 52 / 10%);
   --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
-  --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
-  --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
+  --shadow-tooltip: 0 0 0 1px rgb(80 68 52 / 10%), 0 6px 18px rgb(80 68 52 / 14%);
+  --shadow-popover: 0 0 0 1px rgb(80 68 52 / 10%), 0 18px 50px rgb(80 68 52 / 18%);
+  --shadow-dialog: 0 0 0 1px rgb(80 68 52 / 12%), 0 28px 90px rgb(80 68 52 / 24%);
   --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
 }
 
@@ -228,10 +231,11 @@ html[data-app-theme="light"] {
     --surface-shell-hover: rgb(30 26 23 / 5.5%);
     --surface-shell-active: rgb(30 26 23 / 8%);
 
-    --shadow-card: 0 8px 24px rgb(80 68 52 / 10%);
+    --shadow-card: 0 0 0 1px rgb(80 68 52 / 7%), 0 8px 24px rgb(80 68 52 / 10%);
     --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
-    --shadow-popover: 0 18px 50px rgb(80 68 52 / 18%);
-    --shadow-dialog: 0 28px 90px rgb(80 68 52 / 24%);
+    --shadow-tooltip: 0 0 0 1px rgb(80 68 52 / 10%), 0 6px 18px rgb(80 68 52 / 14%);
+    --shadow-popover: 0 0 0 1px rgb(80 68 52 / 10%), 0 18px 50px rgb(80 68 52 / 18%);
+    --shadow-dialog: 0 0 0 1px rgb(80 68 52 / 12%), 0 28px 90px rgb(80 68 52 / 24%);
     --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
   }
 }

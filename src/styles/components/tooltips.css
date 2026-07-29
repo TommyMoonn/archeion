@@ -11,9 +11,9 @@
   text-align: center;
   pointer-events: none;
   background: var(--surface-raised);
-  border: var(--border-width) solid var(--line-strong);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-small);
-  box-shadow: var(--shadow-popover);
+  box-shadow: var(--shadow-tooltip);
 }
 
 html[data-motion="on"] .app-tooltip {

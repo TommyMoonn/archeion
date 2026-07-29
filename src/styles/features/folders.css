@@ -274,7 +274,7 @@ html[data-motion="on"] .folder-browser__content > .empty-state {
   width: 30px;
   height: 30px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--accent);
   background: var(--accent-soft);
 }

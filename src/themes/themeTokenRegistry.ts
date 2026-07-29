@@ -111,6 +111,10 @@ export const appThemeDerivedTokenRegistry = defineTokenRegistry({
     description: "Window frame and sidebar active treatment.",
   },
   cardShadow: { cssVariable: "--shadow-card", description: "Card elevation shadow." },
+  tooltipShadow: {
+    cssVariable: "--shadow-tooltip",
+    description: "Compact supplemental overlay shadow.",
+  },
   popoverShadow: {
     cssVariable: "--shadow-popover",
     description: "Menu and popover elevation shadow.",

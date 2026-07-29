@@ -23,8 +23,8 @@
   height: 100%;
   min-height: 0;
   overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-dialog);
   background: var(--canvas);
   box-shadow: var(--shadow-dialog);
 }
@@ -255,7 +255,7 @@ html[data-motion="on"] .settings-section {
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: color-mix(in srgb, var(--surface-raised) 86%, var(--canvas));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--darkening) 22%, transparent);
+  box-shadow: var(--shadow-tooltip);
   font-size: var(--type-meta);
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -284,8 +284,8 @@ html[data-motion="on"] .settings-status {
   position: relative;
   max-height: calc(100dvh - 32px);
   overflow: hidden;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-dialog);
   background: var(--canvas);
   box-shadow: var(--shadow-dialog);
   text-align: center;

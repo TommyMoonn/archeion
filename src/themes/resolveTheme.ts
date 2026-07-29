@@ -104,6 +104,11 @@ export function resolveAppTheme(
     dialog: deriveColor(publicTokens, recipe.shadows.dialog),
     drawer: deriveColor(publicTokens, recipe.shadows.drawer),
   };
+  const shadowRingColors = {
+    card: base === "dark" ? neutralOverlay : shadowColors.card,
+    dialog: base === "dark" ? neutralOverlay : shadowColors.dialog,
+    popover: base === "dark" ? neutralOverlay : shadowColors.popover,
+  };
   const errorStrong = adjustThemeColorChannels(publicTokens.error, recipe.errorStrong);
   const errorSoft = themeColorWithOpacity(publicTokens.error, base === "dark" ? 0.07 : 0.08);
   const errorBorder = themeColorWithOpacity(publicTokens.error, base === "dark" ? 0.28 : 0.24);
@@ -132,9 +137,10 @@ export function resolveAppTheme(
     dangerBorder: errorBorder,
     shellHover: themeColorWithOpacity(neutralOverlay, 0.055),
     shellActive: themeColorWithOpacity(neutralOverlay, 0.08),
-    cardShadow: `0 8px 24px ${themeColorWithOpacity(shadowColors.card, base === "dark" ? 0.11 : 0.1)}`,
-    popoverShadow: `0 18px 50px ${themeColorWithOpacity(shadowColors.popover, base === "dark" ? 0.38 : 0.18)}`,
-    dialogShadow: `0 28px 90px ${themeColorWithOpacity(shadowColors.dialog, base === "dark" ? 0.52 : 0.24)}`,
+    cardShadow: `0 0 0 1px ${themeColorWithOpacity(shadowRingColors.card, base === "dark" ? 0.04 : 0.07)}, 0 8px 24px ${themeColorWithOpacity(shadowColors.card, base === "dark" ? 0.11 : 0.1)}`,
+    tooltipShadow: `0 0 0 1px ${themeColorWithOpacity(shadowRingColors.popover, base === "dark" ? 0.07 : 0.1)}, 0 6px 18px ${themeColorWithOpacity(shadowColors.popover, base === "dark" ? 0.28 : 0.14)}`,
+    popoverShadow: `0 0 0 1px ${themeColorWithOpacity(shadowRingColors.popover, base === "dark" ? 0.07 : 0.1)}, 0 18px 50px ${themeColorWithOpacity(shadowColors.popover, base === "dark" ? 0.38 : 0.18)}`,
+    dialogShadow: `0 0 0 1px ${themeColorWithOpacity(shadowRingColors.dialog, base === "dark" ? 0.08 : 0.12)}, 0 28px 90px ${themeColorWithOpacity(shadowColors.dialog, base === "dark" ? 0.52 : 0.24)}`,
     drawerShadow: `-24px 0 70px ${themeColorWithOpacity(shadowColors.drawer, base === "dark" ? 0.32 : 0.18)}`,
   });
   return Object.freeze({ base, publicTokens, tokens });

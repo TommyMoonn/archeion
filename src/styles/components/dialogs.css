@@ -4,7 +4,7 @@
   max-height: calc(100dvh - 32px);
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  border-radius: var(--radius-dialog);
   color: var(--text);
   background: var(--surface);
   box-shadow: var(--shadow-dialog);
@@ -101,7 +101,7 @@ html[data-motion="on"] dialog[open] > .modal-surface {
   gap: 10px;
   min-height: 42px;
   padding: 0 15px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--muted);
   background: var(--surface-raised);
@@ -112,7 +112,7 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 .dialog-loading-fallback__indicator {
   width: 8px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--accent);
 }
 

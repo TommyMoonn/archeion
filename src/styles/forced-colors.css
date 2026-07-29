@@ -34,6 +34,7 @@
 
   :where(
     .dialog,
+    .dialog-loading-fallback__panel,
     .quick-actions,
     .menu-popover,
     .app-select__menu,
@@ -41,11 +42,62 @@
     .archive-manager-window__main,
     .book-card,
     .book-row,
+    .book-cover,
+    .details-cover__replace,
+    .details-drawer,
+    .cover-writeback__preview,
+    .settings-status,
     .settings-window,
+    .about-window,
+    .reader-illustration-viewer,
+    .reader-next-volume,
+    .reader-settings,
     .reader-toc,
-    .reader-annotations
+    .reader-annotations,
+    .reader-footnote,
+    .reader-content-action-feedback,
+    .reader-annotation-feedback,
+    .reader-highlight-feedback,
+    .reader-note-feedback,
+    .theme-preview-controls,
+    .empty-state__glow,
+    .page-shell[data-import-drop-active="true"]::after,
+    .library-filter__popover,
+    .library-feedback__token
   ) {
     border-color: CanvasText;
+  }
+
+  :where(
+    .dialog,
+    .dialog-loading-fallback__panel,
+    .quick-actions,
+    .menu-popover,
+    .app-select__menu,
+    .book-cover,
+    .details-cover__replace,
+    .details-drawer,
+    .cover-writeback__preview,
+    .settings-status,
+    .settings-window,
+    .about-window,
+    .reader-illustration-viewer,
+    .reader-next-volume,
+    .reader-settings,
+    .reader-toc,
+    .reader-annotations,
+    .reader-footnote,
+    .reader-content-action-feedback,
+    .reader-annotation-feedback,
+    .reader-highlight-feedback,
+    .reader-note-feedback,
+    .theme-preview-controls,
+    .empty-state__glow,
+    .page-shell[data-import-drop-active="true"]::after,
+    .library-filter__popover,
+    .library-feedback__token
+  ) {
+    box-shadow: none;
   }
 
   .page-shell {

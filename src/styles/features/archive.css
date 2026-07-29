@@ -193,7 +193,7 @@ html[data-motion="on"]
   min-height: 58px;
   padding-inline: 14px;
   border-color: transparent;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   color: var(--text-strong);
   background: transparent;
   font-size: var(--type-body);
@@ -294,7 +294,7 @@ html[data-motion="on"]
   min-height: 48px;
   padding: 7px 4px 7px 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   background: transparent;
 }
 
@@ -379,7 +379,7 @@ html[data-motion="on"]
   min-height: 18px;
   padding: 0 6px;
   border: 1px solid var(--accent-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--accent);
   background: var(--accent-soft);
   font-size: var(--type-caption);
@@ -405,13 +405,13 @@ html[data-motion="on"]
 .archive-row__input.input-shell {
   width: 100%;
   min-height: 34px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .archive-row__save.button {
   min-height: 30px;
   padding-inline: 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-small);
   font-size: var(--type-caption);
   cursor: pointer;
 }
@@ -473,7 +473,7 @@ html[data-motion="on"]
   min-height: 32px;
   padding: 0 9px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   color: var(--muted);
   background: transparent;
   font-size: var(--type-meta);
@@ -565,7 +565,7 @@ html[data-motion="on"]
 .archive-create-form__browse.button {
   min-height: 34px;
   padding-inline: 12px;
-  border-radius: 9px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -605,7 +605,7 @@ html[data-motion="on"]
   min-height: 36px;
   min-width: 96px;
   padding-inline: 16px;
-  border-radius: 10px;
+  border-radius: var(--radius-menu);
   cursor: pointer;
 }
 

@@ -55,7 +55,7 @@ details[open] > .menu-trigger,
   display: grid;
   min-width: min(168px, calc(100vw - 16px));
   padding: 5px;
-  border: var(--border-width) solid var(--line-strong);
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-menu);
   background: var(--surface-raised);
   box-shadow: var(--shadow-popover);

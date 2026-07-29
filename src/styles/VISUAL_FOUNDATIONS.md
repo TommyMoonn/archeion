@@ -38,6 +38,30 @@ Use `.icon-slot` around SVG glyphs. The slot owns layout stability while the gly
 
 Recurring controls should consume the compact, standard, or prominent control-height tokens. Use the shared border, radius, danger, error, and elevation tokens before introducing a feature-specific value.
 
+Surface geometry follows semantic roles rather than local numeric values:
+
+| Role              | Token              | Typical use                                       |
+| ----------------- | ------------------ | ------------------------------------------------- |
+| Small nested item | `--radius-small`   | menu rows, compact covers, and shortcut caps      |
+| Control           | `--radius-control` | buttons, fields, selectors, and compact utilities |
+| Floating menu     | `--radius-menu`    | menus, popovers, and supplemental panels          |
+| Inline card       | `--radius-card`    | collection cards, grouped content, and callouts   |
+| Modal dialog      | `--radius-dialog`  | dialogs and other blocking raised surfaces        |
+| Capsule           | `--radius-pill`    | badges, tags, and progress tracks                 |
+
+Nested surfaces must remain concentric. An inner item should use a smaller radius than its containing surface after accounting for the container padding.
+
+Elevation also follows surface ownership:
+
+- `--shadow-card` gives inline cards and raised artwork restrained separation.
+- `--shadow-tooltip` is reserved for compact supplemental overlays.
+- `--shadow-popover` identifies menus, popovers, transient feedback, and floating panels.
+- `--shadow-dialog` identifies blocking modal surfaces.
+- `--shadow-drawer` identifies edge-attached drawers.
+- `--shadow-workspace` remains owned by the main workspace shell.
+
+Borders communicate structure. Shadows communicate overlap and elevation. Raised surfaces use the quiet structural border and the matching elevation token rather than pairing a strong border with a strong shadow. Forced-colors mode removes authored shadows and restores system-color borders, so geometry remains legible without relying on elevation.
+
 ## Owner Visual Review
 
 The automated checks protect token resolution and static geometry, but the final acceptance remains a Windows Tauri WebView review.

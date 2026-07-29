@@ -33,7 +33,7 @@
       transparent 50%
     ),
     var(--surface);
-  box-shadow: 0 20px 60px color-mix(in srgb, var(--darkening) 20%, transparent);
+  box-shadow: var(--shadow-card);
 }
 
 .empty-state__glow::after {
