@@ -284,12 +284,14 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0;
+  margin: 0;
   padding: 42px clamp(20px, 2.5vw, 40px) 36px;
-  border: 0;
-  border-radius: var(--radius-menu);
+  border: var(--border-width) solid var(--line-subtle);
+  border-inline-end: 0;
+  border-block-end: 0;
+  border-radius: var(--radius-dialog) 0 0 0;
   background: var(--surface-main);
-  box-shadow: var(--shadow-workspace);
+  box-shadow: none;
 }
 
 html[data-density="compact"] .sidebar {
@@ -412,8 +414,10 @@ html[data-density="compact"] .nav-item {
 
   .page-shell {
     height: auto;
-    margin: 0 var(--shell-edge-inset) var(--shell-edge-inset);
+    margin: 0;
     padding: 34px 18px 28px;
+    border-inline-end: var(--border-width) solid var(--line-subtle);
+    border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
   }
 }
 

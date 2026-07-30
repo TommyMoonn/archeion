@@ -114,7 +114,7 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(settings).not.toMatch(/\.settings-section__group--actions\s*\{[^}]*margin/s);
   });
 
-  it("separates Archive Manager groups without altering accepted shell geometry", () => {
+  it("separates Archive Manager groups without altering the attached shell geometry", () => {
     const body = cssBlock(archive, ".archive-manager-window__body");
     const sidebar = cssBlock(archive, ".archive-manager-window__sidebar");
     const main = cssBlock(archive, ".archive-manager-window__main");
@@ -125,7 +125,7 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(body).toContain("grid-template-columns: 286px minmax(0, 1fr)");
     expect(sidebar).toContain("padding: 12px");
     expect(main).toContain("gap: 20px");
-    expect(main).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");
+    expect(main).toContain("margin: 0");
     expect(identity).toContain("gap: 14px");
     expect(identityCopy).toContain("gap: 7px");
     expect(mark).not.toContain("margin");
@@ -184,13 +184,13 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(readerActions).toContain("margin-top: 24px");
   });
 
-  it("preserves the accepted application shell inset and collection geometry", () => {
+  it("preserves the attached application shell and collection geometry", () => {
     const pageShell = cssBlock(shell, ".page-shell");
     const collection = cssBlock(collectionContent, ".collection-content");
 
-    expect(pageShell).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");
+    expect(pageShell).toContain("margin: 0");
     expect(pageShell).toContain("padding: 42px clamp(20px, 2.5vw, 40px) 36px");
-    expect(pageShell).toContain("border-radius: var(--radius-menu)");
+    expect(pageShell).toContain("border-radius: var(--radius-dialog) 0 0 0");
     expect(collection).toContain("max-width: 1440px");
     expect(collection).toContain("margin: 0 auto");
   });

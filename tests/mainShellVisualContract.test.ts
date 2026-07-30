@@ -47,6 +47,7 @@ function luminance(color: `#${string}`): number {
 const appSource = read("src/app/App.tsx");
 const pageShellSource = read("src/components/PageShell.tsx");
 const shellStyles = read("src/styles/layout/app-shell.css");
+const tokenStyles = read("src/styles/tokens.css");
 const windowStyles = read("src/styles/layout/window-frame.css");
 const forcedColorsStyles = read("src/styles/forced-colors.css");
 
@@ -67,7 +68,7 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
     expect(mainWindow).toContain("--window-titlebar-height: 38px");
   });
 
-  it("floats one softly separated workspace inside a continuous frame and sidebar surface", () => {
+  it("attaches one softly bounded workspace to the continuous frame and sidebar surface", () => {
     const appShell = cssBlock(shellStyles, ".app-shell");
     const sidebar = cssBlock(shellStyles, ".sidebar");
     const activeNavigation = cssBlock(shellStyles, ".nav-item.active");
@@ -83,11 +84,15 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
     expect(sidebar).not.toMatch(/padding-(?:left|right)|border-(?:left|right)/);
     expect(activeNavigation).toContain("background: var(--surface-shell-active)");
     expect(activeNavigation).not.toMatch(/accent|box-shadow/);
-    expect(workspace).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");
-    expect(workspace).toContain("border: 0");
-    expect(workspace).toContain("border-radius: var(--radius-menu)");
+    expect(workspace).toContain("margin: 0");
+    expect(workspace).toContain("border: var(--border-width) solid var(--line-subtle)");
+    expect(workspace).toContain("border-inline-end: 0");
+    expect(workspace).toContain("border-block-end: 0");
+    expect(workspace).toContain("border-radius: var(--radius-dialog) 0 0 0");
     expect(workspace).toContain("background: var(--surface-main)");
-    expect(workspace).toContain("box-shadow: var(--shadow-workspace)");
+    expect(workspace).toContain("box-shadow: none");
+    expect(tokenStyles).not.toContain("--shell-edge-inset");
+    expect(tokenStyles).not.toContain("--shadow-workspace");
     expect(mainContent).toContain("background: var(--surface-app-frame)");
     expect(mainTitlebar).toContain("border-bottom: 0");
   });
@@ -151,7 +156,7 @@ describe("Phase 0.9.0.5 integrated main shell contract", () => {
       /\.sidebar\s*\{[^}]*max-height:\s*min\(42dvh, 240px\);[^}]*overflow-y:\s*auto/s,
     );
     expect(constrained).toMatch(
-      /\.page-shell\s*\{[^}]*margin:\s*0 var\(--shell-edge-inset\) var\(--shell-edge-inset\);/s,
+      /\.page-shell\s*\{[^}]*margin:\s*0;[^}]*border-inline-end:\s*var\(--border-width\) solid var\(--line-subtle\);[^}]*border-radius:\s*var\(--radius-dialog\) var\(--radius-dialog\) 0 0;/s,
     );
     expect(`${shellStyles}\n${windowStyles}`).not.toMatch(
       /(?:backdrop-filter|(?:linear|radial)-gradient|filter:\s*blur)/,

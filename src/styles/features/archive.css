@@ -62,11 +62,14 @@
   min-height: 0;
   align-content: start;
   gap: 20px;
-  margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0;
+  margin: 0;
   padding: clamp(24px, 4vw, 36px) clamp(28px, 5vw, 44px);
-  border-radius: var(--radius-menu);
+  border: var(--border-width) solid var(--line-subtle);
+  border-inline-end: 0;
+  border-block-end: 0;
+  border-radius: var(--radius-dialog) 0 0 0;
   background: var(--surface-main);
-  box-shadow: var(--shadow-workspace);
+  box-shadow: none;
 }
 
 .archive-manager-window__fallback {
@@ -475,7 +478,8 @@ html[data-motion="on"]
 
   .archive-manager-window__main {
     align-content: start;
-    margin-left: var(--shell-edge-inset);
+    border-inline-end: var(--border-width) solid var(--line-subtle);
+    border-radius: var(--radius-dialog) var(--radius-dialog) 0 0;
   }
 }
 

@@ -76,10 +76,13 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(sidebar).not.toMatch(/border-(?:left|right)/);
     expect(sidebar).toContain("padding: 12px");
     expect(archiveList).not.toContain("scrollbar-gutter: stable");
-    expect(main).toContain("margin: 0 var(--shell-edge-inset) var(--shell-edge-inset) 0");
-    expect(main).toContain("border-radius: var(--radius-menu)");
+    expect(main).toContain("margin: 0");
+    expect(main).toContain("border: var(--border-width) solid var(--line-subtle)");
+    expect(main).toContain("border-inline-end: 0");
+    expect(main).toContain("border-block-end: 0");
+    expect(main).toContain("border-radius: var(--radius-dialog) 0 0 0");
     expect(main).toContain("background: var(--surface-main)");
-    expect(main).toContain("box-shadow: var(--shadow-workspace)");
+    expect(main).toContain("box-shadow: none");
     expect(actions).toContain("background: var(--surface-main-raised)");
     expect(renameField).toContain("position: relative");
     expect(renameInput).toContain("padding-inline-end: 58px");
@@ -133,7 +136,10 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(constrained).toContain("grid-template-columns: 1fr");
     expect(constrained).toContain("overflow-y: auto");
     expect(constrained).toContain("border-bottom: 0");
-    expect(constrained).toContain("margin-left: var(--shell-edge-inset)");
+    expect(constrained).toContain(
+      "border-inline-end: var(--border-width) solid var(--line-subtle)",
+    );
+    expect(constrained).toContain("border-radius: var(--radius-dialog) var(--radius-dialog) 0 0");
     expect(constrained).toMatch(
       /\.archive-manager-window__sidebar--fallback\s*{\s*display:\s*none;/,
     );

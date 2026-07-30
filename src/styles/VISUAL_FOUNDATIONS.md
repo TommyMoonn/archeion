@@ -65,7 +65,8 @@ Elevation also follows surface ownership:
 - `--shadow-popover` identifies menus, popovers, transient feedback, and floating panels.
 - `--shadow-dialog` identifies blocking modal surfaces.
 - `--shadow-drawer` identifies edge-attached drawers.
-- `--shadow-workspace` remains owned by the main workspace shell.
+
+The primary workspace is attached to the application frame rather than elevated above it. Its open right and bottom edges, rounded leading corner, and quiet structural border establish the boundary without a shadow or outer inset.
 
 Borders communicate structure. Shadows communicate overlap and elevation. Raised surfaces use the quiet structural border and the matching elevation token rather than pairing a strong border with a strong shadow. Forced-colors mode removes authored shadows and restores system-color borders, so geometry remains legible without relying on elevation.
 
