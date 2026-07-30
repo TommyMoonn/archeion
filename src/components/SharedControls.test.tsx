@@ -93,6 +93,24 @@ describe("shared control geometry", () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it("forwards an owned description to a composite control", () => {
+    const markup = renderToStaticMarkup(
+      <>
+        <p id="view-help">Choose how books are displayed.</p>
+        <SegmentedControl
+          ariaDescribedBy="view-help"
+          label="View"
+          onChange={() => undefined}
+          options={[{ label: "Grid", value: "grid" }]}
+          value="grid"
+        />
+      </>,
+    );
+
+    expect(markup).toContain('role="radiogroup"');
+    expect(markup).toContain('aria-describedby="view-help"');
+  });
+
   it("keeps a disabled icon-button reason keyboard and assistive-technology reachable", () => {
     const onClick = vi.fn();
     const container = document.createElement("div");

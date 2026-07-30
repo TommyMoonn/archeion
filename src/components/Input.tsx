@@ -14,10 +14,11 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 ) {
   const generatedId = useId();
   const inputId = id ?? `input-${generatedId}`;
+  const externallyLabelled = Boolean(props["aria-labelledby"]);
 
   return (
     <label className={`input-shell input-shell--${size} ${className}`.trim()} htmlFor={inputId}>
-      <span className="sr-only">{label}</span>
+      {externallyLabelled ? null : <span className="sr-only">{label}</span>}
       {icon ? (
         <span aria-hidden="true" className="input-shell__icon icon-slot">
           {icon}

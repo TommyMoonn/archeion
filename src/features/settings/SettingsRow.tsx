@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 type SettingsRowProps = {
   children: ReactNode;
@@ -8,12 +8,31 @@ type SettingsRowProps = {
 };
 
 export function SettingsRow({ children, description, label, note }: SettingsRowProps) {
+  const generatedId = useId();
+  const labelId = `settings-row-label-${generatedId}`;
+  const descriptionId = description ? `settings-row-description-${generatedId}` : undefined;
+  const noteId = note ? `settings-row-note-${generatedId}` : undefined;
+  const describedBy = [descriptionId, noteId].filter(Boolean).join(" ") || undefined;
+
   return (
-    <div className="settings-row">
+    <div
+      aria-describedby={describedBy}
+      aria-labelledby={labelId}
+      className="settings-row"
+      role="group"
+    >
       <div className="settings-row__meta">
-        <strong>{label}</strong>
-        {description ? <span className="settings-row__description">{description}</span> : null}
-        {note ? <span className="settings-row__note">{note}</span> : null}
+        <strong id={labelId}>{label}</strong>
+        {description ? (
+          <span className="settings-row__description" id={descriptionId}>
+            {description}
+          </span>
+        ) : null}
+        {note ? (
+          <span className="settings-row__note" id={noteId}>
+            {note}
+          </span>
+        ) : null}
       </div>
       <div className="settings-row__control">{children}</div>
     </div>

@@ -250,15 +250,21 @@ export function BookCoverWritebackDialog({
               {imagePath ? "Choose another image" : "Choose image"}
             </Button>
 
-            <div className="cover-writeback__framing">
-              <span>Framing</span>
+            <div
+              aria-describedby="cover-writeback-framing-help"
+              aria-labelledby="cover-writeback-framing-label"
+              className="cover-writeback__framing"
+              role="group"
+            >
+              <span id="cover-writeback-framing-label">Framing</span>
               <SegmentedControl
+                ariaDescribedBy="cover-writeback-framing-help"
                 label="Cover framing"
                 onChange={changeFraming}
                 options={framingOptions}
                 value={framing}
               />
-              <p>
+              <p id="cover-writeback-framing-help">
                 {framing === "crop"
                   ? "Fills the cover frame and crops evenly from the center."
                   : "Keeps the full image and adds transparent or white padding."}

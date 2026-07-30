@@ -245,35 +245,40 @@ export function BulkMetadataDialog({
         }
       >
         <div className="bulk-metadata-editor">
-          {scalarFields.map(({ field, label, placeholder }) => (
-            <section className="bulk-metadata-field" data-enabled={enabled[field]} key={field}>
-              <label className="bulk-metadata-field__toggle">
+          {scalarFields.map(({ field, label, placeholder }) => {
+            const helpId = `bulk-metadata-${field}-help`;
+
+            return (
+              <section className="bulk-metadata-field" data-enabled={enabled[field]} key={field}>
+                <label className="bulk-metadata-field__toggle">
+                  <input
+                    checked={enabled[field]}
+                    onChange={() => toggleField(field)}
+                    type="checkbox"
+                  />
+                  <span>{label}</span>
+                  <small>
+                    {common[field].mixed ? "Mixed values" : common[field].value || "Not set"}
+                  </small>
+                </label>
                 <input
-                  checked={enabled[field]}
-                  onChange={() => toggleField(field)}
-                  type="checkbox"
+                  aria-describedby={enabled[field] ? helpId : undefined}
+                  aria-label={`New ${label.toLocaleLowerCase()}`}
+                  disabled={!enabled[field]}
+                  onChange={(event) =>
+                    setValues((current) => ({ ...current, [field]: event.target.value }))
+                  }
+                  placeholder={
+                    common[field].mixed
+                      ? `Mixed — enter a new ${label.toLocaleLowerCase()}`
+                      : placeholder
+                  }
+                  value={values[field]}
                 />
-                <span>{label}</span>
-                <small>
-                  {common[field].mixed ? "Mixed values" : common[field].value || "Not set"}
-                </small>
-              </label>
-              <input
-                aria-label={`New ${label.toLocaleLowerCase()}`}
-                disabled={!enabled[field]}
-                onChange={(event) =>
-                  setValues((current) => ({ ...current, [field]: event.target.value }))
-                }
-                placeholder={
-                  common[field].mixed
-                    ? `Mixed — enter a new ${label.toLocaleLowerCase()}`
-                    : placeholder
-                }
-                value={values[field]}
-              />
-              {enabled[field] ? <p>Leave blank to clear this field.</p> : null}
-            </section>
-          ))}
+                {enabled[field] ? <p id={helpId}>Leave blank to clear this field.</p> : null}
+              </section>
+            );
+          })}
 
           <section
             className="bulk-metadata-field bulk-metadata-field--tags"
@@ -293,6 +298,7 @@ export function BulkMetadataDialog({
               </small>
             </label>
             <SegmentedControl
+              ariaDescribedBy="bulk-metadata-subjects-help"
               className="bulk-metadata-field__tag-mode"
               label="Tag operation"
               onChange={(mode) => {
@@ -309,6 +315,7 @@ export function BulkMetadataDialog({
               value={tagMode}
             />
             <textarea
+              aria-describedby="bulk-metadata-subjects-help"
               aria-label="Tags to apply"
               disabled={!enabled.subjects}
               onChange={(event) =>
@@ -318,7 +325,7 @@ export function BulkMetadataDialog({
               rows={3}
               value={values.subjects}
             />
-            <p>
+            <p id="bulk-metadata-subjects-help">
               Use one tag per line. Commas remain part of the tag. Replace with an empty list to
               clear all tags.
             </p>

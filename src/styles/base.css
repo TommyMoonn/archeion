@@ -36,6 +36,10 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+:where(button, a, summary) {
+  touch-action: manipulation;
+}
+
 :root[data-input-modality="keyboard"]
   :where(
     button,

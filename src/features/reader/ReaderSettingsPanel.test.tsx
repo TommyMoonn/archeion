@@ -187,6 +187,19 @@ describe("ReaderSettingsPanel", () => {
     expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
   });
 
+  it("associates each visible setting label with its control group", () => {
+    const rendered = renderPanel();
+    const groups = [...rendered.container.querySelectorAll<HTMLElement>(".reader-setting")];
+
+    expect(groups.length).toBeGreaterThan(0);
+    for (const group of groups) {
+      expect(group.getAttribute("role")).toBe("group");
+      const labelId = group.getAttribute("aria-labelledby");
+      expect(labelId).toBeTruthy();
+      expect(document.getElementById(labelId!)?.textContent?.trim()).not.toBe("");
+    }
+  });
+
   it("registers the rendered aside as one reader-panel and removes ownership on unmount", () => {
     const rendered = renderPanel();
     const panel = rendered.container.querySelector<HTMLElement>(

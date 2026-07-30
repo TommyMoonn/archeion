@@ -1,5 +1,5 @@
 import { Minus, Plus, X } from "@phosphor-icons/react";
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useId, useRef } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { readerTypefaceOptions } from "./readerFonts";
@@ -46,6 +46,27 @@ const readerModes = [
   { label: "Paged", value: "paged" },
   { label: "Continuous", value: "continuous" },
 ] as const;
+
+function ReaderSetting({
+  children,
+  className = "",
+  label,
+}: {
+  children: ReactNode;
+  className?: string;
+  label: string;
+}) {
+  const labelId = `reader-setting-label-${useId()}`;
+
+  return (
+    <div aria-labelledby={labelId} className={`reader-setting ${className}`.trim()} role="group">
+      <span className="reader-setting__label" id={labelId}>
+        {label}
+      </span>
+      {children}
+    </div>
+  );
+}
 
 export function ReaderSettingsPanel({
   onChange,
@@ -97,8 +118,7 @@ export function ReaderSettingsPanel({
         </IconButton>
       </header>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Reading mode</span>
+      <ReaderSetting label="Reading mode">
         <SegmentedControl
           className="reader-control"
           label="Reader mode"
@@ -107,10 +127,9 @@ export function ReaderSettingsPanel({
           size="standard"
           value={settings.mode}
         />
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Reader theme</span>
+      <ReaderSetting label="Reader theme">
         {readerThemeSelection ? (
           <ArchiveReaderThemeSelect
             entries={readerThemeEntries}
@@ -121,10 +140,9 @@ export function ReaderSettingsPanel({
         ) : (
           <span className="reader-setting__unavailable">Unavailable</span>
         )}
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Typeface</span>
+      <ReaderSetting label="Typeface">
         <AppSelect
           ariaLabel="Reader typeface"
           id="reader-font-family"
@@ -133,10 +151,9 @@ export function ReaderSettingsPanel({
           size="standard"
           value={settings.fontFamily}
         />
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting reader-setting--inline">
-        <span className="reader-setting__label">Text size</span>
+      <ReaderSetting className="reader-setting--inline" label="Text size">
         <div className="reader-stepper">
           <IconButton
             disabled={settings.fontSize <= 14}
@@ -156,10 +173,9 @@ export function ReaderSettingsPanel({
             <Plus aria-hidden="true" />
           </IconButton>
         </div>
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Line spacing</span>
+      <ReaderSetting label="Line spacing">
         <SegmentedControl
           className="reader-control"
           label="Reader line spacing"
@@ -168,10 +184,9 @@ export function ReaderSettingsPanel({
           size="standard"
           value={String(settings.lineHeight)}
         />
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Page width</span>
+      <ReaderSetting label="Page width">
         <SegmentedControl
           className="reader-control"
           label="Reader page width"
@@ -180,10 +195,9 @@ export function ReaderSettingsPanel({
           size="standard"
           value={String(settings.margin)}
         />
-      </div>
+      </ReaderSetting>
 
-      <div className="reader-setting">
-        <span className="reader-setting__label">Progress bar</span>
+      <ReaderSetting label="Progress bar">
         <SegmentedControl
           className="reader-control"
           label="Reader progress bar placement"
@@ -192,7 +206,7 @@ export function ReaderSettingsPanel({
           size="standard"
           value={settings.progressPlacement}
         />
-      </div>
+      </ReaderSetting>
 
       <p
         aria-live="polite"

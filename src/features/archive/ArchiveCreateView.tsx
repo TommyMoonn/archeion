@@ -1,5 +1,5 @@
 import { ArrowLeft, FolderOpen } from "@phosphor-icons/react";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Input } from "../../components/Input";
@@ -30,11 +30,23 @@ export function ArchiveCreateView({
   onLocationChange,
 }: ArchiveCreateViewProps) {
   const [status, setStatus] = useState<string | null>(null);
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const [isBrowsing, setIsBrowsing] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const nameInputRef = useRef<HTMLInputElement | null>(null);
+  const browseButtonRef = useRef<HTMLButtonElement | null>(null);
+  const generatedId = useId();
+  const nameLabelId = `archive-create-name-label-${generatedId}`;
+  const nameDescriptionId = `archive-create-name-description-${generatedId}`;
+  const nameErrorId = `archive-create-name-error-${generatedId}`;
+  const locationLabelId = `archive-create-location-label-${generatedId}`;
+  const locationDescriptionId = `archive-create-location-description-${generatedId}`;
+  const locationErrorId = `archive-create-location-error-${generatedId}`;
   const normalizedName = normalizeArchiveName(archiveName);
   const nameError = validateArchiveName(archiveName);
+  const visibleNameError = validationAttempted || archiveName ? nameError : null;
+  const locationError =
+    validationAttempted && !locationPath ? "Choose a location for the archive." : null;
   const finalPath = useMemo(
     () => deriveArchivePath(locationPath, archiveName),
     [archiveName, locationPath],
@@ -63,8 +75,16 @@ export function ArchiveCreateView({
   }
 
   async function createArchive() {
+    setValidationAttempted(true);
+    if (nameError) {
+      nameInputRef.current?.focus();
+      return;
+    }
+    if (!locationPath) {
+      browseButtonRef.current?.focus();
+      return;
+    }
     if (!canCreate) {
-      setStatus(nameError ?? "Choose a location for the archive.");
       return;
     }
 
@@ -113,14 +133,23 @@ export function ArchiveCreateView({
         <h2 id="archive-create-title">Create archive</h2>
       </div>
 
-      <form className="archive-create-form" onSubmit={submitForm}>
+      <form className="archive-create-form" noValidate onSubmit={submitForm}>
         <div className="archive-create-form__card">
           <div className="archive-create-form__row archive-create-form__row--input">
             <div className="archive-create-form__label-block">
-              <label htmlFor="archive-create-name">Archive name</label>
-              <span>Creates a folder with this name.</span>
+              <label htmlFor="archive-create-name" id={nameLabelId}>
+                Archive name <span className="form-required">Required</span>
+              </label>
+              <span id={nameDescriptionId}>Creates a folder with this name.</span>
             </div>
             <Input
+              aria-describedby={
+                [nameDescriptionId, visibleNameError ? nameErrorId : undefined]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+              aria-invalid={visibleNameError ? true : undefined}
+              aria-labelledby={nameLabelId}
               autoCapitalize="off"
               autoComplete="off"
               autoCorrect="off"
@@ -133,16 +162,30 @@ export function ArchiveCreateView({
               }}
               placeholder="Light novels"
               ref={nameInputRef}
+              required
               spellCheck={false}
               value={archiveName}
             />
           </div>
 
-          <div className="archive-create-form__row">
+          <div
+            aria-describedby={
+              [locationDescriptionId, locationError ? locationErrorId : undefined]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
+            aria-invalid={locationError ? true : undefined}
+            aria-labelledby={locationLabelId}
+            className="archive-create-form__row"
+            role="group"
+          >
             <div className="archive-create-form__row-copy">
-              <span className="archive-create-form__row-label">Location</span>
+              <span className="archive-create-form__row-label" id={locationLabelId}>
+                Location <span className="form-required">Required</span>
+              </span>
               <span
                 className="archive-create-form__row-description"
+                id={locationDescriptionId}
                 title={locationPath || undefined}
               >
                 {locationPath || "Choose a parent folder"}
@@ -153,6 +196,7 @@ export function ArchiveCreateView({
               disabled={isBrowsing || isCreating}
               icon={<FolderOpen aria-hidden="true" />}
               onClick={() => void browseLocation()}
+              ref={browseButtonRef}
               variant="secondary"
             >
               {isBrowsing ? "Browsing" : "Browse"}
@@ -166,9 +210,25 @@ export function ArchiveCreateView({
           </p>
         ) : null}
 
-        {nameError && archiveName ? (
-          <p className="archive-create-form__status" data-tone="error" role="alert">
-            {nameError}
+        {visibleNameError ? (
+          <p
+            className="archive-create-form__status"
+            data-tone="error"
+            id={nameErrorId}
+            role="alert"
+          >
+            {visibleNameError}
+          </p>
+        ) : null}
+
+        {locationError ? (
+          <p
+            className="archive-create-form__status"
+            data-tone="error"
+            id={locationErrorId}
+            role="alert"
+          >
+            {locationError}
           </p>
         ) : null}
 
@@ -179,7 +239,7 @@ export function ArchiveCreateView({
         ) : null}
 
         <div className="archive-create-form__footer">
-          <Button disabled={!canCreate} type="submit" variant="primary">
+          <Button disabled={isCreating} type="submit" variant="primary">
             {isCreating ? "Creating" : "Create"}
           </Button>
         </div>

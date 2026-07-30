@@ -11,6 +11,7 @@ export type SegmentedControlOption<TValue extends string> = {
 
 type SegmentedControlProps<TValue extends string> = {
   appearance?: "default" | "icon-only";
+  ariaDescribedBy?: string;
   className?: string;
   label: string;
   onChange: (value: TValue) => void;
@@ -41,6 +42,7 @@ function nextEnabledIndex<TValue extends string>(
 
 export function SegmentedControl<TValue extends string>({
   appearance = "default",
+  ariaDescribedBy,
   className = "",
   label,
   onChange,
@@ -90,6 +92,7 @@ export function SegmentedControl<TValue extends string>({
 
   return (
     <div
+      aria-describedby={ariaDescribedBy}
       aria-label={label}
       className={`segmented-control segmented-control--${size} ${iconOnly ? "segmented-control--icon-only" : ""} ${className}`.trim()}
       onKeyDown={handleKeyDown}

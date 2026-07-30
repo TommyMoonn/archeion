@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -17,9 +17,13 @@ export function FolderNameDialog({
   onSubmit,
 }: FolderNameDialogProps) {
   const [name, setName] = useState(initialName);
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const generatedId = useId();
   const formId = `${mode}-folder-form`;
+  const validationErrorId = `${mode}-folder-name-error-${generatedId}`;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,18 +31,21 @@ export function FolderNameDialog({
     const normalizedName = name.trim();
 
     if (!normalizedName) {
-      setError("Enter a folder name.");
+      setValidationError("Enter a folder name.");
+      setOperationError(null);
+      nameInputRef.current?.focus();
       return;
     }
 
     setIsSaving(true);
-    setError(null);
+    setValidationError(null);
+    setOperationError(null);
 
     try {
       await onSubmit(normalizedName);
       onClose();
     } catch {
-      setError("The folder could not be saved. Please try again.");
+      setOperationError("The folder could not be saved. Please try again.");
     } finally {
       setIsSaving(false);
     }
@@ -63,19 +70,34 @@ export function FolderNameDialog({
         </>
       }
     >
-      <form id={formId} className="dialog-form" onSubmit={handleSubmit}>
+      <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
         <label className="form-field">
-          <span>Name</span>
+          <span>
+            Name <span className="form-required">Required</span>
+          </span>
           <input
+            aria-describedby={validationError ? validationErrorId : undefined}
+            aria-invalid={validationError ? true : undefined}
             autoFocus
             maxLength={80}
+            onChange={(event) => {
+              setName(event.currentTarget.value);
+              setValidationError(null);
+              setOperationError(null);
+            }}
+            ref={nameInputRef}
+            required
             value={name}
-            onChange={(event) => setName(event.currentTarget.value)}
           />
         </label>
-        {error ? (
+        {validationError ? (
+          <p className="form-error" id={validationErrorId} role="alert">
+            {validationError}
+          </p>
+        ) : null}
+        {operationError ? (
           <p className="form-error" role="alert">
-            {error}
+            {operationError}
           </p>
         ) : null}
       </form>

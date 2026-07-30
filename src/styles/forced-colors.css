@@ -209,7 +209,9 @@
     opacity: 1;
   }
 
-  :where(input, select, textarea)[aria-invalid="true"] {
+  :where(input, select, textarea, [role="group"])[aria-invalid="true"],
+  .input-shell:has(input[aria-invalid="true"]),
+  .epub-filename-field:has(input[aria-invalid="true"]) {
     border-color: Mark;
     outline: 2px dashed Mark;
     outline-offset: 2px;

@@ -105,6 +105,11 @@ describe("BulkMetadataDialog", () => {
       seriesToggle.click();
       setInputValue(seriesInput, "Shared Series");
     });
+    const seriesHelpId = seriesInput.getAttribute("aria-describedby");
+    expect(seriesHelpId).toBe("bulk-metadata-series-help");
+    expect(document.getElementById(seriesHelpId!)?.textContent).toBe(
+      "Leave blank to clear this field.",
+    );
     act(() => button(container, "Review changes").click());
 
     expect(container.textContent).toContain("First");
@@ -143,6 +148,12 @@ describe("BulkMetadataDialog", () => {
     const textarea = container.querySelector<HTMLTextAreaElement>(
       'textarea[aria-label="Tags to apply"]',
     )!;
+    expect(textarea.getAttribute("aria-describedby")).toBe("bulk-metadata-subjects-help");
+    expect(
+      container
+        .querySelector('[role="radiogroup"][aria-label="Tag operation"]')
+        ?.getAttribute("aria-describedby"),
+    ).toBe("bulk-metadata-subjects-help");
     act(() => {
       tagToggle.click();
       setTextareaValue(textarea, "Science\r\nTechnology");

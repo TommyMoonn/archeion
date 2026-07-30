@@ -41,6 +41,7 @@ type ArchiveRowProps = {
   isMissing: boolean;
   onArchiveChoiceComplete?: () => void | Promise<unknown>;
   setStatus: (status: string | null) => void;
+  statusId: string;
 };
 
 type ArchiveRowActionsProps = {
@@ -108,10 +109,13 @@ function ArchiveRow({
   isMissing,
   onArchiveChoiceComplete,
   setStatus,
+  statusId,
 }: ArchiveRowProps) {
   const [isRenaming, setIsRenaming] = useState(false);
+  const [renameInvalid, setRenameInvalid] = useState(false);
   const contextMenu = useContextMenuController();
   const primaryActionRef = useRef<HTMLButtonElement>(null);
+  const renameInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(archive.displayName);
   const [isBusy, setIsBusy] = useState(false);
   const isActive = archive.id === activeArchiveId;
@@ -144,7 +148,9 @@ function ArchiveRow({
   async function renameArchive() {
     const nextName = name.trim();
     if (!nextName) {
+      setRenameInvalid(true);
       setStatus("Archive names cannot be empty.");
+      renameInputRef.current?.focus();
       return;
     }
 
@@ -153,9 +159,12 @@ function ArchiveRow({
     try {
       const renamed = await archiveStore.renameArchive(archive.id, nextName);
       if (renamed) {
+        setRenameInvalid(false);
         setIsRenaming(false);
       } else {
+        setRenameInvalid(true);
         setStatus("Archive name could not be saved. Try another name.");
+        renameInputRef.current?.focus();
       }
     } finally {
       setIsBusy(false);
@@ -209,23 +218,37 @@ function ArchiveRow({
     >
       <div className="archive-row__main">
         {isRenaming ? (
-          <Input
-            autoFocus
-            className="archive-row__input"
-            label="Archive display name"
-            onChange={(event) => setName(event.currentTarget.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                void renameArchive();
-              }
-              if (event.key === "Escape") {
-                setName(archive.displayName);
-                setIsRenaming(false);
-              }
-            }}
-            value={name}
-          />
+          <div className="archive-row__rename-field">
+            <Input
+              aria-describedby={renameInvalid ? statusId : undefined}
+              aria-invalid={renameInvalid || undefined}
+              autoFocus
+              className="archive-row__input"
+              label="Archive display name"
+              onChange={(event) => {
+                setName(event.currentTarget.value);
+                setRenameInvalid(false);
+                setStatus(null);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void renameArchive();
+                }
+                if (event.key === "Escape") {
+                  setName(archive.displayName);
+                  setRenameInvalid(false);
+                  setIsRenaming(false);
+                }
+              }}
+              ref={renameInputRef}
+              required
+              value={name}
+            />
+            <span aria-hidden="true" className="archive-row__required">
+              Required
+            </span>
+          </div>
         ) : (
           <button
             aria-current={isActive ? "true" : undefined}
@@ -272,6 +295,8 @@ function ArchiveRow({
             onReveal={() => void revealArchive()}
             onRename={() => {
               setName(archive.displayName);
+              setRenameInvalid(false);
+              setStatus(null);
               setIsRenaming(true);
             }}
           />
@@ -291,6 +316,7 @@ export function ArchiveManagerWindowContent({
     useState<ArchiveManagerTransitionDirection>("forward");
   const [archiveName, setArchiveName] = useState("");
   const [locationPath, setLocationPath] = useState("");
+  const statusId = "archive-manager-operation-status";
   const activeArchiveId = activeArchiveIdForState(state);
   const missingArchiveId = state.status === "missing" ? (state.archive?.id ?? null) : null;
   const sortedArchives = useMemo(() => sortArchives(state.archives), [state.archives]);
@@ -330,6 +356,7 @@ export function ArchiveManagerWindowContent({
                     key={archive.id}
                     onArchiveChoiceComplete={onArchiveChoiceComplete}
                     setStatus={setStatus}
+                    statusId={statusId}
                   />
                 ))}
               </div>
@@ -356,7 +383,12 @@ export function ArchiveManagerWindowContent({
                   </p>
                 ) : null}
                 {status ? (
-                  <p className="archive-manager-window__status" data-tone="error" role="status">
+                  <p
+                    className="archive-manager-window__status"
+                    data-tone="error"
+                    id={statusId}
+                    role="status"
+                  >
                     {status}
                   </p>
                 ) : null}

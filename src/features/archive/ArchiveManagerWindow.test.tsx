@@ -441,6 +441,40 @@ describe("ArchiveManagerWindow", () => {
     act(() => forgetSession.root.unmount());
   });
 
+  it("associates an invalid inline rename and returns focus to its input", async () => {
+    const { container, root } = renderInteractive();
+
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>('[aria-label="Actions for Books"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    act(() => {
+      buttonWithText(document.body, "Rename archive").click();
+    });
+
+    const input = container.querySelector<HTMLInputElement>(".archive-row__input input")!;
+    const requiredIndicator = container.querySelector<HTMLElement>(".archive-row__required")!;
+    expect(input.required).toBe(true);
+    expect(requiredIndicator.textContent?.trim()).toBe("Required");
+    expect(requiredIndicator.getAttribute("aria-hidden")).toBe("true");
+
+    act(() => setInputValue(input, "   "));
+    act(() => {
+      input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    });
+
+    const statusId = input.getAttribute("aria-describedby");
+    expect(input.getAttribute("aria-invalid")).toBe("true");
+    expect(statusId).toBe("archive-manager-operation-status");
+    expect(document.getElementById(statusId!)?.textContent).toContain(
+      "Archive names cannot be empty.",
+    );
+    expect(document.activeElement).toBe(input);
+
+    act(() => root.unmount());
+  });
+
   it("keeps Open folder as archive on the existing folder picker flow", async () => {
     const chooseArchive = vi
       .spyOn(archiveStore, "chooseArchive")
@@ -600,7 +634,18 @@ describe("ArchiveManagerWindow", () => {
       buttonWithText(container, "Browse").dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(buttonWithText(container, "Create").disabled).toBe(true);
+    const createButton = buttonWithText(container, "Create");
+    expect(createButton.disabled).toBe(false);
+    await act(async () => {
+      createButton.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+
+    const errorId = nameInput.getAttribute("aria-describedby")?.split(" ").at(-1);
+    expect(nameInput.getAttribute("aria-invalid")).toBe("true");
+    expect(document.getElementById(errorId!)?.textContent).toBe(
+      "Archive name is reserved on Windows.",
+    );
+    expect(document.activeElement).toBe(nameInput);
     expect(container.textContent).toContain("Archive name is reserved on Windows.");
     expect(createEmptyArchive).not.toHaveBeenCalled();
 

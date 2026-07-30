@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -35,10 +35,13 @@ export function RenameFileDialog({
   returnFocusTo,
 }: RenameFileDialogProps) {
   const [fileNameStem, setFileNameStem] = useState(getEpubNameStem(book.fileName));
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const formId = "rename-epub-file-form";
   const suffixId = useId();
+  const validationErrorId = useId();
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -46,21 +49,26 @@ export function RenameFileDialog({
     let normalizedFileName: string;
     try {
       normalizedFileName = normalizeEpubFileName(fileNameStem);
-    } catch (validationError) {
-      setError(
-        validationError instanceof Error ? validationError.message : "Enter a valid EPUB filename.",
+    } catch (validationFailure) {
+      setValidationError(
+        validationFailure instanceof Error
+          ? validationFailure.message
+          : "Enter a valid EPUB filename.",
       );
+      setOperationError(null);
+      nameInputRef.current?.focus();
       return;
     }
 
     setIsSaving(true);
-    setError(null);
+    setValidationError(null);
+    setOperationError(null);
 
     try {
       await onRename(normalizedFileName);
       onClose();
     } catch (renameError) {
-      setError(
+      setOperationError(
         renameError instanceof Error && renameError.message
           ? renameError.message
           : "The EPUB file could not be renamed.",
@@ -90,25 +98,39 @@ export function RenameFileDialog({
         </>
       }
     >
-      <form id={formId} className="dialog-form" onSubmit={handleSubmit}>
+      <form id={formId} className="dialog-form" noValidate onSubmit={handleSubmit}>
         <label className="form-field">
-          <span>Filename</span>
+          <span>
+            Filename <span className="form-required">Required</span>
+          </span>
           <span className="epub-filename-field">
             <input
-              aria-describedby={suffixId}
+              aria-describedby={`${suffixId}${validationError ? ` ${validationErrorId}` : ""}`}
+              aria-invalid={validationError ? true : undefined}
               autoFocus
               maxLength={115}
+              onChange={(event) => {
+                setFileNameStem(event.currentTarget.value);
+                setValidationError(null);
+                setOperationError(null);
+              }}
+              ref={nameInputRef}
+              required
               value={fileNameStem}
-              onChange={(event) => setFileNameStem(event.currentTarget.value)}
             />
             <span id={suffixId} className="epub-filename-field__extension">
               {EPUB_EXTENSION}
             </span>
           </span>
         </label>
-        {error ? (
+        {validationError ? (
+          <p className="form-error" id={validationErrorId} role="alert">
+            {validationError}
+          </p>
+        ) : null}
+        {operationError ? (
           <p className="form-error" role="alert">
-            {error}
+            {operationError}
           </p>
         ) : null}
       </form>

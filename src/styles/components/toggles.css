@@ -14,6 +14,13 @@
     background var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
+.toggle-control::after {
+  position: absolute;
+  inset-block: -2px;
+  inset-inline: 0;
+  content: "";
+}
+
 .toggle-control--compact {
   --toggle-width: 34px;
   --toggle-height: 20px;
@@ -72,4 +79,10 @@
 .toggle-control[aria-disabled="true"] {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+@media (pointer: coarse) {
+  .toggle-control::after {
+    inset-block: -6px;
+  }
 }

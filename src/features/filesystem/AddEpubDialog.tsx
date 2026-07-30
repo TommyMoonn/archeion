@@ -226,8 +226,12 @@ export function AddEpubDialog({
           value={conflictAction}
         />
 
-        <div className="add-epub-dialog__field">
-          <span>Operation</span>
+        <div
+          aria-labelledby="add-epub-operation-label"
+          className="add-epub-dialog__field"
+          role="group"
+        >
+          <span id="add-epub-operation-label">Operation</span>
           <SegmentedControl
             label="Import operation"
             onChange={setMode}

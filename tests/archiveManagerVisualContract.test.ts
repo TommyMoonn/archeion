@@ -56,6 +56,12 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     const main = cssBlock(managerStyles, ".archive-manager-window__main");
     const actions = cssBlock(managerStyles, ".archive-manager-window__actions");
     const archiveList = cssBlock(managerStyles, ".archive-list");
+    const renameField = cssBlock(managerStyles, ".archive-row__rename-field");
+    const renameInput = cssBlock(
+      managerStyles,
+      ".archive-row__rename-field .archive-row__input input",
+    );
+    const requiredIndicator = cssBlock(managerStyles, ".archive-row__required");
     const managerContent = cssBlock(
       windowStyles,
       ".window-app--archive-manager .window-app__content",
@@ -75,6 +81,10 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(main).toContain("background: var(--surface-main)");
     expect(main).toContain("box-shadow: var(--shadow-workspace)");
     expect(actions).toContain("background: var(--surface-main-raised)");
+    expect(renameField).toContain("position: relative");
+    expect(renameInput).toContain("padding-inline-end: 58px");
+    expect(requiredIndicator).toContain("position: absolute");
+    expect(requiredIndicator).toContain("pointer-events: none");
     expect(managerContent).toContain("background: var(--surface-app-frame)");
   });
 
@@ -99,7 +109,7 @@ describe("Phase 0.9.0.9 Archive Manager surface contract", () => {
     expect(managerSource).toContain("No saved archives");
     expect(managerSource).toContain("archive-row--missing");
     expect(managerSource).toMatch(
-      /className="archive-manager-window__status"\s+data-tone="error"\s+role="status"/,
+      /className="archive-manager-window__status"\s+data-tone="error"\s+id=\{statusId\}\s+role="status"/,
     );
   });
 

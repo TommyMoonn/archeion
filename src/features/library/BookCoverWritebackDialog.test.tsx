@@ -140,6 +140,17 @@ describe("BookCoverWritebackDialog", () => {
   it("prepares the selected image and requires explicit confirmation before writeback", async () => {
     vi.mocked(open).mockResolvedValue("C:/covers/replacement.png");
     const { onPrepareCover, onWriteCover } = renderDialog();
+    const framingGroup = container?.querySelector<HTMLElement>(
+      '.cover-writeback__framing[role="group"]',
+    );
+    const framingHelpId = framingGroup?.getAttribute("aria-describedby");
+
+    expect(framingGroup?.getAttribute("aria-labelledby")).toBe("cover-writeback-framing-label");
+    expect(framingHelpId).toBe("cover-writeback-framing-help");
+    expect(document.getElementById(framingHelpId!)?.textContent).toContain("Fills the cover frame");
+    expect(
+      framingGroup?.querySelector('[role="radiogroup"]')?.getAttribute("aria-describedby"),
+    ).toBe(framingHelpId);
 
     await act(async () => {
       buttonByText("Choose image")?.click();

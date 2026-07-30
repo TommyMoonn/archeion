@@ -119,6 +119,7 @@ export function ThemeManagerDialog({
       </IconButton>
       <input
         accept=".json,application/json"
+        aria-label="Import theme file"
         className="sr-only"
         onChange={(event) => void readChosenFile(event, controller.importFile)}
         ref={importInputRef}

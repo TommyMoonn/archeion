@@ -409,6 +409,27 @@ html[data-motion="on"]
   border-radius: var(--radius-control);
 }
 
+.archive-row__rename-field {
+  position: relative;
+  min-width: 0;
+}
+
+.archive-row__rename-field .archive-row__input input {
+  padding-inline-end: 58px;
+}
+
+.archive-row__required {
+  position: absolute;
+  top: 50%;
+  inset-inline-end: 10px;
+  color: var(--muted);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
 .archive-row__save.button {
   min-height: 30px;
   padding-inline: 10px;
@@ -553,6 +574,14 @@ html[data-motion="on"]
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.archive-create-form .form-required {
+  margin-inline-start: 4px;
+  color: var(--error-strong);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: normal;
 }
 
 .archive-create-form__row .input-shell {

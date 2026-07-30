@@ -134,6 +134,9 @@ describe("ThemeManagerDialog", () => {
     expect(container.textContent).not.toContain("Import Themes");
     expect(container.querySelector('button[aria-label="Reload themes"]')).not.toBeNull();
     expect(container.querySelector('button[aria-label="Open themes folder"]')).not.toBeNull();
+    expect(
+      container.querySelector<HTMLInputElement>('input[type="file"]')?.getAttribute("aria-label"),
+    ).toBe("Import theme file");
     expect(container.textContent).toContain("Theme guide");
     expect(container.textContent).toContain("Public schema");
     expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");

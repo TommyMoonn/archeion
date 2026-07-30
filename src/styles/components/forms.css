@@ -27,6 +27,12 @@
   background: var(--surface-raised);
 }
 
+.input-shell:has(input[aria-invalid="true"]) {
+  border-color: var(--error-strong);
+  outline: 2px dashed var(--error-strong);
+  outline-offset: 2px;
+}
+
 :root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
@@ -89,6 +95,13 @@
   color: var(--muted-soft);
 }
 
+.form-field :where(input, select, textarea)[aria-invalid="true"],
+[role="group"][aria-invalid="true"] {
+  border-color: var(--error-strong);
+  outline: 2px dashed var(--error-strong);
+  outline-offset: 2px;
+}
+
 .form-field input:focus,
 .form-field select:focus {
   border-color: var(--accent);
@@ -107,4 +120,13 @@
   font-size: var(--type-body-supporting);
   font-weight: var(--type-body-supporting-weight);
   line-height: var(--type-body-supporting-line-height);
+  overflow-wrap: anywhere;
+}
+
+.form-required {
+  margin-inline-start: 4px;
+  color: var(--error-strong);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: normal;
 }
