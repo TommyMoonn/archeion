@@ -29,7 +29,8 @@
 }
 
 html[data-motion="on"] .collection-content {
-  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
+  animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view)
+    var(--motion-delay-view-content) backwards;
 }
 
 @media (max-height: 640px) {

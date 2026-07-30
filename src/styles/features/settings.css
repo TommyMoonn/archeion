@@ -135,7 +135,8 @@
 }
 
 html[data-motion="on"] .settings-section {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view)
+    var(--motion-delay-view-content) backwards;
 }
 
 .settings-section > header {
@@ -268,7 +269,7 @@ html[data-motion="on"] .settings-section {
 }
 
 html[data-motion="on"] .settings-status {
-  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
+  animation: app-motion-notice-in var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .about-dialog {

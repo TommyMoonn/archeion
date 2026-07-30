@@ -12,11 +12,11 @@
 }
 
 html[data-motion="on"] .dialog[open] {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 html[data-motion="on"] dialog[open] > .modal-surface {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .dialog::backdrop {
@@ -141,6 +141,6 @@ html[data-motion="on"] dialog[open] > .modal-surface {
 }
 
 html[data-motion="on"] .dialog-loading-fallback__indicator {
-  animation: app-motion-enter var(--motion-duration-slow) var(--motion-ease-standard) infinite
+  animation: app-motion-pulse var(--motion-duration-loop) var(--motion-ease-standard) infinite
     alternate;
 }

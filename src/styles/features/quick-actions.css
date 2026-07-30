@@ -12,7 +12,7 @@
 }
 
 html[data-motion="on"] .quick-actions[open] {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .quick-actions::backdrop {

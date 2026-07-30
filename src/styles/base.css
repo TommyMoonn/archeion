@@ -138,15 +138,63 @@ a {
   }
 }
 
-@keyframes app-motion-enter {
+@keyframes app-motion-view-header-in {
   from {
     opacity: 0;
-    transform: translateY(var(--motion-distance-small));
+    transform: translateY(-6px);
   }
 
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: none;
+  }
+}
+
+@keyframes app-motion-view-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-motion-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-motion-notice-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes app-motion-disclosure-in {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--motion-distance-small) * -0.66));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -159,6 +207,18 @@ a {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes app-motion-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 

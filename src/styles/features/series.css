@@ -381,11 +381,6 @@
   color: var(--muted-soft);
 }
 
-html[data-motion="on"] .series-grid,
-html[data-motion="on"] .series-detail {
-  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
-}
-
 @media (max-width: 900px) {
   .series-grid {
     grid-template-columns: 1fr;

@@ -150,7 +150,12 @@
   --motion-duration-fast: 0ms;
   --motion-duration-standard: 0ms;
   --motion-duration-slow: 0ms;
+  --motion-duration-emphasized: 0ms;
+  --motion-duration-view: 0ms;
+  --motion-duration-loop: 0ms;
+  --motion-delay-view-content: 0ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-view: cubic-bezier(0.16, 1, 0.3, 1);
   --motion-distance-small: 6px;
 }
 
@@ -162,6 +167,10 @@ html[data-motion="on"] {
   --motion-duration-fast: 120ms;
   --motion-duration-standard: 150ms;
   --motion-duration-slow: 160ms;
+  --motion-duration-emphasized: 180ms;
+  --motion-duration-view: 200ms;
+  --motion-duration-loop: 900ms;
+  --motion-delay-view-content: 42ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -169,6 +178,10 @@ html[data-motion="on"] {
     --motion-duration-fast: 0ms;
     --motion-duration-standard: 0ms;
     --motion-duration-slow: 0ms;
+    --motion-duration-emphasized: 0ms;
+    --motion-duration-view: 0ms;
+    --motion-duration-loop: 0ms;
+    --motion-delay-view-content: 0ms;
   }
 }
 

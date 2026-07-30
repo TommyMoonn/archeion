@@ -209,6 +209,7 @@ export function Tooltip({ children, content, onlyWhenTruncated, placement = "top
               <div
                 className="app-tooltip"
                 data-placement={position?.placement ?? placement}
+                data-positioned={position ? "true" : undefined}
                 ref={tooltipRef}
                 role="tooltip"
                 id={tooltipId}

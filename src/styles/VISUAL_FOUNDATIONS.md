@@ -70,6 +70,27 @@ The primary workspace is attached to the application frame rather than elevated 
 
 Borders communicate structure. Shadows communicate overlap and elevation. Raised surfaces use the quiet structural border and the matching elevation token rather than pairing a strong border with a strong shadow. Forced-colors mode removes authored shadows and restores system-color borders, so geometry remains legible without relying on elevation.
 
+## Motion
+
+Application motion is opt-in. The appearance runtime sets `html[data-motion="on"]` only when the user enables animations and the operating system does not request reduced motion. Motion durations remain `0ms` at the root and return to `0ms` under `prefers-reduced-motion: reduce`, so feature styles must not place animation declarations outside the effective-motion selector.
+
+The shared motion language assigns movement by purpose instead of applying one vertical entrance everywhere:
+
+| Role                   | Primitive                             | Typical use                                                                               |
+| ---------------------- | ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| View frame             | `app-motion-view-header-in`           | Library, Folder, and Series headers                                                       |
+| View content           | `app-motion-view-content-in`          | Library, Folder, Series, and Settings content                                             |
+| Raised overlay         | `app-motion-scale-in`                 | Dialogs and Quick Actions                                                                 |
+| Transient notice       | `app-motion-notice-in`                | Settings status and Library feedback                                                      |
+| Hierarchy disclosure   | `app-motion-disclosure-in`            | Nested folder children                                                                    |
+| Spatial panel          | directional slide                     | Details drawers, Reader table of contents, and Archive Manager forward or back navigation |
+| Supplemental hint      | `app-tooltip-bounce-in`               | Tooltips, with a restrained placement-aware scale overshoot                               |
+| Indeterminate activity | `app-motion-pulse` or `loading-sheen` | Loading indicators that remain visible while work is active                               |
+
+Collection-facing views use a restrained split settle rather than an opacity-only fade. The header drops into place by 6px, then the content rises by 8px after a 42ms delay. Both movements resolve directly with no overshoot, scale, or blur, so text stays at its native raster size instead of appearing soft while the view settles. Nested grids and empty states do not run a second entrance animation. Larger directional translation remains reserved for edge-attached panels or navigation where movement communicates where the surface came from. Tooltip bounce is intentionally compact and must not be reused for routine controls.
+
+Keep one-shot entrance keyframes brief. Interactive state changes continue to use interruptible transitions. Never add a generic `transition: all`, and never rely on motion as the only indication of state.
+
 ## Owner Visual Review
 
 The automated checks protect token resolution and static geometry, but the final acceptance remains a Windows Tauri WebView review.

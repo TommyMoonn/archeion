@@ -15,7 +15,7 @@ const tokens = readFileSync(new URL("../../styles/tokens.css", import.meta.url),
 describe("shared modal surface presentation", () => {
   it("gives direct modal surfaces one shared entrance owner", () => {
     expect(dialogStyles).toMatch(
-      /html\[data-motion="on"\] dialog\[open\] > \.modal-surface\s*\{[^}]*animation:\s*app-motion-enter var\(--motion-duration-standard\) var\(--motion-ease-standard\);/s,
+      /html\[data-motion="on"\] dialog\[open\] > \.modal-surface\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\) var\(--motion-ease-standard\);/s,
     );
     expect(settingsStyles).not.toMatch(
       /(?:settings-dialog|about-dialog)\[open\][^{]*\{[^}]*animation:/s,
@@ -27,7 +27,10 @@ describe("shared modal surface presentation", () => {
       /html\[data-motion="on"\]\s*\{[^}]*--motion-duration-standard:\s*150ms;/s,
     );
     expect(tokens).toMatch(
-      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?--motion-duration-standard:\s*0ms;/,
+      /html\[data-motion="on"\]\s*\{[^}]*--motion-duration-emphasized:\s*180ms;/s,
+    );
+    expect(tokens).toMatch(
+      /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?--motion-duration-standard:\s*0ms;[\s\S]*?--motion-duration-emphasized:\s*0ms;/,
     );
   });
 

@@ -84,6 +84,8 @@ describe("Tooltip", () => {
 
     act(() => vi.advanceTimersByTime(1));
     expect(visibleTooltip()?.textContent).toBe("Open archive actions");
+    expect(visibleTooltip()?.dataset.positioned).toBe("true");
+    expect(visibleTooltip()?.style.visibility).toBe("visible");
     expect(document.querySelectorAll(".app-tooltip")).toHaveLength(1);
 
     act(() => trigger.dispatchEvent(pointerEvent("pointerout")));

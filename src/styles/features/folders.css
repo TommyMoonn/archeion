@@ -23,7 +23,7 @@
 }
 
 html[data-motion="on"] .folder-tree__children {
-  animation: app-motion-enter var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: app-motion-disclosure-in var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .folder-tree__row {
@@ -163,11 +163,6 @@ html[data-motion="on"] .folder-tree__children {
 
 .folder-browser__content {
   width: 100%;
-}
-
-html[data-motion="on"] .folder-browser__items,
-html[data-motion="on"] .folder-browser__content > .empty-state {
-  animation: app-motion-enter var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .folder-browser__items--list {
