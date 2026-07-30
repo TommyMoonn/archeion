@@ -120,46 +120,46 @@ describe("theme resolution", () => {
     expect(resolved.tokens.drawerShadow).toBe(baseline.tokens.drawerShadow);
   });
 
-  it("derives a deterministic custom error and danger family", () => {
+  it("derives a deterministic perceptual custom error and danger family", () => {
     const dark = resolveAppTheme("dark", { error: "#204060" });
 
-    expect(dark.tokens.errorStrong).toBe("#2c5a78");
+    expect(dark.tokens.errorStrong).toBe("#2d4c6c");
     expect(dark.tokens.errorSoft).toBe("#20406012");
     expect(dark.tokens.errorBorder).toBe("#20406047");
     expect(dark.tokens.danger).toBe("#204060");
-    expect(dark.tokens.dangerStrong).toBe("#2c5a78");
+    expect(dark.tokens.dangerStrong).toBe("#2d4c6c");
     expect(dark.tokens.dangerSoft).toBe("#20406012");
     expect(dark.tokens.dangerBorder).toBe("#20406047");
 
     const light = resolveAppTheme("light", { error: "#204060" });
-    expect(light.tokens.errorStrong).toBe("#043150");
+    expect(light.tokens.errorStrong).toBe("#0f3050");
     expect(light.tokens.danger).toBe("#204060");
-    expect(light.tokens.dangerStrong).toBe("#043150");
+    expect(light.tokens.dangerStrong).toBe("#0f3050");
     expect(light.tokens.dangerSoft).toBe(light.tokens.errorSoft);
     expect(light.tokens.dangerBorder).toBe(light.tokens.errorBorder);
   });
 
-  it("derives dark shadows from canvas and light shadows from strong text", () => {
+  it("derives hue-stable dark shadows from canvas and light shadows from strong text", () => {
     const dark = resolveAppTheme("dark", { canvasDeep: "#202020" });
-    expect(dark.tokens.darkening).toBe("#141516");
-    expect(dark.tokens.cardShadow).toBe("0 0 0 1px #ffffff0a, 0 8px 24px #1316191c");
-    expect(dark.tokens.tooltipShadow).toBe("0 0 0 1px #ffffff12, 0 6px 18px #0e0e0d47");
-    expect(dark.tokens.popoverShadow).toBe("0 0 0 1px #ffffff12, 0 18px 50px #0e0e0d61");
-    expect(dark.tokens.dialogShadow).toBe("0 0 0 1px #ffffff14, 0 28px 90px #0e0e0d85");
-    expect(dark.tokens.drawerShadow).toBe("-24px 0 70px #13161952");
+    expect(dark.tokens.darkening).toBe("#0c0c0c");
+    expect(dark.tokens.cardShadow).toBe("0 0 0 1px #ffffff0a, 0 8px 24px #1313131c");
+    expect(dark.tokens.tooltipShadow).toBe("0 0 0 1px #ffffff12, 0 6px 18px #0c0c0c47");
+    expect(dark.tokens.popoverShadow).toBe("0 0 0 1px #ffffff12, 0 18px 50px #0c0c0c61");
+    expect(dark.tokens.dialogShadow).toBe("0 0 0 1px #ffffff14, 0 28px 90px #0c0c0c85");
+    expect(dark.tokens.drawerShadow).toBe("-24px 0 70px #13131352");
 
     const light = resolveAppTheme("light", { textStrong: "#202020" });
-    expect(light.tokens.darkening).toBe("#080d12");
-    expect(light.tokens.cardShadow).toBe("0 0 0 1px #524a3d12, 0 8px 24px #524a3d1a");
-    expect(light.tokens.tooltipShadow).toBe("0 0 0 1px #524a3d1a, 0 6px 18px #524a3d24");
-    expect(light.tokens.popoverShadow).toBe("0 0 0 1px #524a3d1a, 0 18px 50px #524a3d2e");
-    expect(light.tokens.dialogShadow).toBe("0 0 0 1px #524a3d1f, 0 28px 90px #524a3d3d");
-    expect(light.tokens.drawerShadow).toBe("-24px 0 70px #524a3d2e");
+    expect(light.tokens.darkening).toBe("#0a0a0a");
+    expect(light.tokens.cardShadow).toBe("0 0 0 1px #4e4e4e12, 0 8px 24px #4e4e4e1a");
+    expect(light.tokens.tooltipShadow).toBe("0 0 0 1px #4e4e4e1a, 0 6px 18px #4e4e4e24");
+    expect(light.tokens.popoverShadow).toBe("0 0 0 1px #4e4e4e1a, 0 18px 50px #4e4e4e2e");
+    expect(light.tokens.dialogShadow).toBe("0 0 0 1px #4e4e4e1f, 0 28px 90px #4e4e4e3d");
+    expect(light.tokens.drawerShadow).toBe("-24px 0 70px #4e4e4e2e");
   });
 
-  it("preserves the accepted built-in darkening neutral", () => {
-    expect(resolveBuiltInAppTheme("dark").tokens.darkening).toBe("#060709");
-    expect(resolveBuiltInAppTheme("light").tokens.darkening).toBe("#060709");
+  it("derives stable built-in darkening neutrals from each appearance source", () => {
+    expect(resolveBuiltInAppTheme("dark").tokens.darkening).toBe("#030303");
+    expect(resolveBuiltInAppTheme("light").tokens.darkening).toBe("#080504");
   });
 
   it("multiplies alpha while deriving tokens from translucent overrides", () => {
@@ -167,6 +167,21 @@ describe("theme resolution", () => {
 
     expect(resolved.publicTokens.accent).toBe("#33669980");
     expect(resolved.tokens.accentSoft).toBe("#3366990d");
+  });
+
+  it("derives Reader quotation and visited-link roles perceptually", () => {
+    expect(resolveBuiltInReaderTheme("dark").tokens).toMatchObject({
+      quotation: "#939197",
+      visitedLink: "#c0d8e8",
+    });
+    expect(resolveBuiltInReaderTheme("light").tokens).toMatchObject({
+      quotation: "#8e8a85",
+      visitedLink: "#2b4b63",
+    });
+    expect(resolveBuiltInReaderTheme("sepia").tokens).toMatchObject({
+      quotation: "#8c7963",
+      visitedLink: "#554029",
+    });
   });
 
   it("keeps contrast warnings separate from schema validity", () => {

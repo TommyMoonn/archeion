@@ -13,9 +13,9 @@
   --reader-line: #303034;
   --reader-text: #d6d3d9;
   --reader-strong: #ebe8ef;
-  --reader-muted: #929096;
+  --reader-muted: #b8b5bb;
   --reader-focus: #c9c4ef;
-  --reader-danger: #e58a96;
+  --reader-danger: #e77f8c;
   --focus: var(--reader-focus);
 
   position: relative;
@@ -36,7 +36,7 @@
   --reader-strong: #171615;
   --reader-muted: #77736e;
   --reader-focus: #386f99;
-  --reader-danger: #8e3440;
+  --reader-danger: #972f3f;
 }
 
 .reader-page[data-reader-theme="sepia"] {
@@ -45,7 +45,7 @@
   --reader-line: #d1c2a7;
   --reader-text: #4b4033;
   --reader-strong: #2e271f;
-  --reader-muted: #806f5b;
+  --reader-muted: #76624e;
   --reader-focus: #765f43;
   --reader-danger: #8f3f47;
 }

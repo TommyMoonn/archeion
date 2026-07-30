@@ -99,11 +99,11 @@
   --surface-hover: #29292d;
   --line: #303034;
   --line-subtle: rgb(255 255 255 / 6%);
-  --darkening: #060709;
+  --darkening: #030303;
   --line-strong: #414147;
   --text: #d6d3d9;
   --text-strong: #ebe8ef;
-  --muted: #929096;
+  --muted: #b8b5bb;
   --muted-soft: #6f6d73;
   --accent: #8fc1e3;
   --accent-strong: #b8d9ef;
@@ -114,9 +114,9 @@
   --success-soft: rgb(160 205 176 / 8%);
   --success-border: rgb(160 205 176 / 24%);
   --warning: #d1ad68;
-  --info: #8fc1e3;
+  --info: #83bdc9;
   --error: #d9707e;
-  --error-strong: #e58a96;
+  --error-strong: #e77f8c;
   --error-soft: rgb(217 112 126 / 7%);
   --error-border: rgb(217 112 126 / 28%);
   --danger: var(--error);
@@ -133,12 +133,12 @@
   --surface-shell-hover: rgb(255 255 255 / 5.5%);
   --surface-shell-active: rgb(255 255 255 / 8%);
 
-  --shadow-card: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(5 8 12 / 11%);
-  --shadow-workspace: -2px 2px 16px rgb(5 8 12 / 16%);
-  --shadow-tooltip: 0 0 0 1px rgb(255 255 255 / 7%), 0 6px 18px rgb(0 0 0 / 28%);
-  --shadow-popover: 0 0 0 1px rgb(255 255 255 / 7%), 0 18px 50px rgb(0 0 0 / 38%);
-  --shadow-dialog: 0 0 0 1px rgb(255 255 255 / 8%), 0 28px 90px rgb(0 0 0 / 52%);
-  --shadow-drawer: -24px 0 70px rgb(5 8 12 / 32%);
+  --shadow-card: 0 0 0 1px rgb(255 255 255 / 4%), 0 8px 24px rgb(7 7 7 / 11%);
+  --shadow-workspace: -2px 2px 16px rgb(7 7 7 / 16%);
+  --shadow-tooltip: 0 0 0 1px rgb(255 255 255 / 7%), 0 6px 18px rgb(3 3 3 / 28%);
+  --shadow-popover: 0 0 0 1px rgb(255 255 255 / 7%), 0 18px 50px rgb(3 3 3 / 38%);
+  --shadow-dialog: 0 0 0 1px rgb(255 255 255 / 8%), 0 28px 90px rgb(3 3 3 / 52%);
+  --shadow-drawer: -24px 0 70px rgb(7 7 7 / 32%);
 
   --backdrop: color-mix(in srgb, var(--darkening) 66%, transparent);
   --backdrop-strong: color-mix(in srgb, var(--darkening) 72%, transparent);
@@ -184,7 +184,7 @@ html[data-app-theme="light"] {
   --surface-hover: #f2ece2;
   --line: #ddd4c8;
   --line-subtle: rgb(30 26 23 / 7%);
-  --darkening: #060709;
+  --darkening: #080504;
   --line-strong: #cabeae;
   --text: #403b34;
   --text-strong: #1e1a17;
@@ -199,9 +199,9 @@ html[data-app-theme="light"] {
   --success-soft: rgb(70 122 85 / 9%);
   --success-border: rgb(70 122 85 / 24%);
   --warning: #8a641f;
-  --info: #386f99;
+  --info: #2f7182;
   --error: #aa4350;
-  --error-strong: #8e3440;
+  --error-strong: #972f3f;
   --error-soft: rgb(170 67 80 / 8%);
   --error-border: rgb(170 67 80 / 24%);
   --danger: var(--error);
@@ -218,12 +218,12 @@ html[data-app-theme="light"] {
   --surface-shell-hover: rgb(30 26 23 / 5.5%);
   --surface-shell-active: rgb(30 26 23 / 8%);
 
-  --shadow-card: 0 0 0 1px rgb(80 68 52 / 7%), 0 8px 24px rgb(80 68 52 / 10%);
-  --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
-  --shadow-tooltip: 0 0 0 1px rgb(80 68 52 / 10%), 0 6px 18px rgb(80 68 52 / 14%);
-  --shadow-popover: 0 0 0 1px rgb(80 68 52 / 10%), 0 18px 50px rgb(80 68 52 / 18%);
-  --shadow-dialog: 0 0 0 1px rgb(80 68 52 / 12%), 0 28px 90px rgb(80 68 52 / 24%);
-  --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
+  --shadow-card: 0 0 0 1px rgb(75 71 68 / 7%), 0 8px 24px rgb(75 71 68 / 10%);
+  --shadow-workspace: -2px 2px 16px rgb(75 71 68 / 12%);
+  --shadow-tooltip: 0 0 0 1px rgb(75 71 68 / 10%), 0 6px 18px rgb(75 71 68 / 14%);
+  --shadow-popover: 0 0 0 1px rgb(75 71 68 / 10%), 0 18px 50px rgb(75 71 68 / 18%);
+  --shadow-dialog: 0 0 0 1px rgb(75 71 68 / 12%), 0 28px 90px rgb(75 71 68 / 24%);
+  --shadow-drawer: -24px 0 70px rgb(75 71 68 / 18%);
 }
 
 @media (prefers-color-scheme: light) {
@@ -237,7 +237,7 @@ html[data-app-theme="light"] {
     --surface-hover: #f2ece2;
     --line: #ddd4c8;
     --line-subtle: rgb(30 26 23 / 7%);
-    --darkening: #060709;
+    --darkening: #080504;
     --line-strong: #cabeae;
     --text: #403b34;
     --text-strong: #1e1a17;
@@ -252,9 +252,9 @@ html[data-app-theme="light"] {
     --success-soft: rgb(70 122 85 / 9%);
     --success-border: rgb(70 122 85 / 24%);
     --warning: #8a641f;
-    --info: #386f99;
+    --info: #2f7182;
     --error: #aa4350;
-    --error-strong: #8e3440;
+    --error-strong: #972f3f;
     --error-soft: rgb(170 67 80 / 8%);
     --error-border: rgb(170 67 80 / 24%);
     --danger: var(--error);
@@ -271,11 +271,11 @@ html[data-app-theme="light"] {
     --surface-shell-hover: rgb(30 26 23 / 5.5%);
     --surface-shell-active: rgb(30 26 23 / 8%);
 
-    --shadow-card: 0 0 0 1px rgb(80 68 52 / 7%), 0 8px 24px rgb(80 68 52 / 10%);
-    --shadow-workspace: -2px 2px 16px rgb(80 68 52 / 12%);
-    --shadow-tooltip: 0 0 0 1px rgb(80 68 52 / 10%), 0 6px 18px rgb(80 68 52 / 14%);
-    --shadow-popover: 0 0 0 1px rgb(80 68 52 / 10%), 0 18px 50px rgb(80 68 52 / 18%);
-    --shadow-dialog: 0 0 0 1px rgb(80 68 52 / 12%), 0 28px 90px rgb(80 68 52 / 24%);
-    --shadow-drawer: -24px 0 70px rgb(80 68 52 / 18%);
+    --shadow-card: 0 0 0 1px rgb(75 71 68 / 7%), 0 8px 24px rgb(75 71 68 / 10%);
+    --shadow-workspace: -2px 2px 16px rgb(75 71 68 / 12%);
+    --shadow-tooltip: 0 0 0 1px rgb(75 71 68 / 10%), 0 6px 18px rgb(75 71 68 / 14%);
+    --shadow-popover: 0 0 0 1px rgb(75 71 68 / 10%), 0 18px 50px rgb(75 71 68 / 18%);
+    --shadow-dialog: 0 0 0 1px rgb(75 71 68 / 12%), 0 28px 90px rgb(75 71 68 / 24%);
+    --shadow-drawer: -24px 0 70px rgb(75 71 68 / 18%);
   }
 }

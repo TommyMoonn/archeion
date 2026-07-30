@@ -159,6 +159,9 @@ describe("forced-colors and focus visibility contract", () => {
     expect(indexSource.endsWith('@import "./forced-colors.css";')).toBe(true);
     expect(forcedColorsSource.trimStart()).toMatch(/^@media \(forced-colors: active\)/);
     expect(forcedColorsSource).not.toContain("forced-color-adjust: none");
+    expect(forcedColorsBlock).not.toMatch(
+      /(?:#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklab|oklch|color-mix)\(|var\(--)/i,
+    );
   });
 
   it("uses system colors and non-color geometry for focus and semantic states", () => {

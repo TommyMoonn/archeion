@@ -7,10 +7,11 @@ import type {
 } from "./domain";
 import { themeContrastWarnings } from "./themeContrast";
 import {
-  adjustThemeColorChannels,
+  adjustThemeColorPerceptually,
   mixThemeColors,
   normalizeThemeColor,
   themeColorWithOpacity,
+  type PerceptualThemeColorAdjustment,
 } from "./themeColor";
 import {
   appThemePublicTokenRegistry,
@@ -25,16 +26,14 @@ import {
   type ThemeColor,
 } from "./themeTokenRegistry";
 
-type ColorChannelAdjustment = Readonly<{ blue: number; green: number; red: number }>;
-
 type ColorDerivation = Readonly<{
-  adjustment: ColorChannelAdjustment;
+  adjustment: PerceptualThemeColorAdjustment;
   source: AppThemePublicToken;
 }>;
 
 type AppDerivationRecipe = Readonly<{
   darkening: ColorDerivation;
-  errorStrong: ColorChannelAdjustment;
+  errorStrong: PerceptualThemeColorAdjustment;
   shadows: Readonly<{
     card: ColorDerivation;
     dialog: ColorDerivation;
@@ -45,23 +44,23 @@ type AppDerivationRecipe = Readonly<{
 
 const APP_DERIVATION_RECIPES: Readonly<Record<AppThemeBase, AppDerivationRecipe>> = Object.freeze({
   dark: Object.freeze({
-    darkening: colorDerivation("canvasDeep", -12, -11, -10),
-    errorStrong: Object.freeze({ red: 12, green: 26, blue: 24 }),
+    darkening: colorDerivation("canvasDeep", -0.09, 0.85),
+    errorStrong: Object.freeze({ lightnessDelta: 0.045, chromaScale: 0.98 }),
     shadows: Object.freeze({
-      card: colorDerivation("canvasDeep", -13, -10, -7),
-      popover: colorDerivation("canvasDeep", -18, -18, -19),
-      dialog: colorDerivation("canvasDeep", -18, -18, -19),
-      drawer: colorDerivation("canvasDeep", -13, -10, -7),
+      card: colorDerivation("canvasDeep", -0.055, 0.8),
+      popover: colorDerivation("canvasDeep", -0.09, 0.7),
+      dialog: colorDerivation("canvasDeep", -0.09, 0.7),
+      drawer: colorDerivation("canvasDeep", -0.055, 0.8),
     }),
   }),
   light: Object.freeze({
-    darkening: colorDerivation("textStrong", -24, -19, -14),
-    errorStrong: Object.freeze({ red: -28, green: -15, blue: -16 }),
+    darkening: colorDerivation("textStrong", -0.1, 0.85),
+    errorStrong: Object.freeze({ lightnessDelta: -0.06, chromaScale: 1.02 }),
     shadows: Object.freeze({
-      card: colorDerivation("textStrong", 50, 42, 29),
-      popover: colorDerivation("textStrong", 50, 42, 29),
-      dialog: colorDerivation("textStrong", 50, 42, 29),
-      drawer: colorDerivation("textStrong", 50, 42, 29),
+      card: colorDerivation("textStrong", 0.18, 0.9),
+      popover: colorDerivation("textStrong", 0.18, 0.9),
+      dialog: colorDerivation("textStrong", 0.18, 0.9),
+      drawer: colorDerivation("textStrong", 0.18, 0.9),
     }),
   }),
 });
@@ -109,7 +108,7 @@ export function resolveAppTheme(
     dialog: base === "dark" ? neutralOverlay : shadowColors.dialog,
     popover: base === "dark" ? neutralOverlay : shadowColors.popover,
   };
-  const errorStrong = adjustThemeColorChannels(publicTokens.error, recipe.errorStrong);
+  const errorStrong = adjustThemeColorPerceptually(publicTokens.error, recipe.errorStrong);
   const errorSoft = themeColorWithOpacity(publicTokens.error, base === "dark" ? 0.07 : 0.08);
   const errorBorder = themeColorWithOpacity(publicTokens.error, base === "dark" ? 0.28 : 0.24);
   const tokens: ResolvedAppThemeTokens = Object.freeze({
@@ -183,16 +182,18 @@ function objectKeys<ObjectType extends object>(value: ObjectType): Array<keyof O
 
 function colorDerivation(
   source: AppThemePublicToken,
-  red: number,
-  green: number,
-  blue: number,
+  lightnessDelta: number,
+  chromaScale: number,
 ): ColorDerivation {
-  return Object.freeze({ source, adjustment: Object.freeze({ red, green, blue }) });
+  return Object.freeze({
+    source,
+    adjustment: Object.freeze({ lightnessDelta, chromaScale }),
+  });
 }
 
 function deriveColor(
   publicTokens: Readonly<Record<AppThemePublicToken, ThemeColor>>,
   derivation: ColorDerivation,
 ): ThemeColor {
-  return adjustThemeColorChannels(publicTokens[derivation.source], derivation.adjustment);
+  return adjustThemeColorPerceptually(publicTokens[derivation.source], derivation.adjustment);
 }
