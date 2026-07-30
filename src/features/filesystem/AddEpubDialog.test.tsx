@@ -67,7 +67,7 @@ describe("AddEpubDialog replacement confirmation", () => {
   });
 
   it("requires an explicit confirmation before replacement when enabled", async () => {
-    const { container, onImport } = await renderDialog(true);
+    const { container, onClose, onImport } = await renderDialog(true);
 
     await act(async () => {
       buttonWithText(container, "Add EPUB").click();
@@ -80,10 +80,11 @@ describe("AddEpubDialog replacement confirmation", () => {
       buttonWithText(container, "Replace and add").click();
     });
     expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it("uses the selected Replace action directly when confirmations are disabled", async () => {
-    const { container, onImport } = await renderDialog(false);
+    const { container, onClose, onImport } = await renderDialog(false);
 
     const operationGroup = container.querySelector<HTMLElement>(
       '.add-epub-dialog__field[role="group"]',
@@ -96,6 +97,7 @@ describe("AddEpubDialog replacement confirmation", () => {
     });
 
     expect(onImport).toHaveBeenCalledWith(expect.objectContaining({ conflictAction: "replace" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
     expect(container.textContent).not.toContain("Replace existing EPUB files?");
   });
 

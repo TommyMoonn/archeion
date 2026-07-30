@@ -9,7 +9,8 @@ use std::{
 };
 
 use notify::{
-    event::ModifyKind, Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
+    event::{ModifyKind, RenameMode},
+    Config, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use serde::Serialize;
 use tauri::{Emitter, State};
@@ -927,6 +928,8 @@ fn event_kind_for_payload(event: &Event, relative_paths: &[String]) -> &'static 
 
     match &event.kind {
         EventKind::Create(_) => "create",
+        EventKind::Modify(ModifyKind::Name(RenameMode::From)) => "remove",
+        EventKind::Modify(ModifyKind::Name(RenameMode::To)) => "create",
         EventKind::Modify(ModifyKind::Name(_)) => "rename",
         EventKind::Modify(_) => "modify",
         EventKind::Remove(_) => "remove",
@@ -1088,7 +1091,10 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use notify::{event::ModifyKind, Event, EventKind};
+    use notify::{
+        event::{ModifyKind, RenameMode},
+        Event, EventKind,
+    };
 
     use super::{
         archive_relative_path, path_may_affect_archive, watcher_event,
@@ -1096,9 +1102,11 @@ mod tests {
     };
 
     fn rename_event(paths: &[&str]) -> Event {
-        let mut event = Event::new(EventKind::Modify(ModifyKind::Name(
-            notify::event::RenameMode::Both,
-        )));
+        rename_event_with_mode(RenameMode::Both, paths)
+    }
+
+    fn rename_event_with_mode(mode: RenameMode, paths: &[&str]) -> Event {
+        let mut event = Event::new(EventKind::Modify(ModifyKind::Name(mode)));
         event
             .paths
             .extend(paths.iter().map(|path| PathBuf::from(*path)));
@@ -1430,6 +1438,77 @@ mod tests {
             assert!(watcher_event_with_suppression(root, event, Some(&owner), now).is_none());
         }
         assert!(guard.finish_at(now + Duration::from_millis(1)).is_empty());
+    }
+
+    #[test]
+    fn folds_split_new_import_rename_as_create() {
+        let root = Path::new(r"C:\Books\Archive");
+        let owner = ArchiveWatcherSuppressionOwner::default();
+        let now = Instant::now();
+        let mut guard = owner
+            .begin_at(root, &["Novel.epub".to_string()], now)
+            .unwrap();
+        let temporary_from = rename_event_with_mode(
+            RenameMode::From,
+            &[r"C:\Books\Archive\Novel.epub.tmp-import-456-45"],
+        );
+        let destination_to =
+            rename_event_with_mode(RenameMode::To, &[r"C:\Books\Archive\Novel.epub"]);
+
+        for event in [&temporary_from, &destination_to] {
+            assert!(watcher_event_with_suppression(root, event, Some(&owner), now).is_none());
+        }
+        assert_eq!(
+            guard.finish_at(now + Duration::from_millis(1)),
+            [super::SuppressedWatcherChange {
+                kind: "create",
+                relative_paths: vec!["Novel.epub".to_string()],
+            }]
+        );
+    }
+
+    #[test]
+    fn folds_split_replacement_renames_as_remove_then_create() {
+        let root = Path::new(r"C:\Books\Archive");
+        let owner = ArchiveWatcherSuppressionOwner::default();
+        let now = Instant::now();
+        let mut guard = owner
+            .begin_at(root, &["Novel.epub".to_string()], now)
+            .unwrap();
+        let destination_from =
+            rename_event_with_mode(RenameMode::From, &[r"C:\Books\Archive\Novel.epub"]);
+        let backup_to = rename_event_with_mode(
+            RenameMode::To,
+            &[r"C:\Books\Archive\Novel.epub.replace-backup-123-45"],
+        );
+        let temporary_from = rename_event_with_mode(
+            RenameMode::From,
+            &[r"C:\Books\Archive\Novel.epub.tmp-import-456-45"],
+        );
+        let destination_to =
+            rename_event_with_mode(RenameMode::To, &[r"C:\Books\Archive\Novel.epub"]);
+
+        for event in [
+            &destination_from,
+            &backup_to,
+            &temporary_from,
+            &destination_to,
+        ] {
+            assert!(watcher_event_with_suppression(root, event, Some(&owner), now).is_none());
+        }
+        assert_eq!(
+            guard.finish_at(now + Duration::from_millis(1)),
+            [
+                super::SuppressedWatcherChange {
+                    kind: "remove",
+                    relative_paths: vec!["Novel.epub".to_string()],
+                },
+                super::SuppressedWatcherChange {
+                    kind: "create",
+                    relative_paths: vec!["Novel.epub".to_string()],
+                },
+            ]
+        );
     }
 
     #[test]
