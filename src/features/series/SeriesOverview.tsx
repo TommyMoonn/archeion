@@ -147,10 +147,15 @@ export const SeriesOverview = memo(function SeriesOverview({
     const target = Array.from(
       overviewRef.current?.querySelectorAll<HTMLButtonElement>("[data-library-series-key]") ?? [],
     ).find((candidate) => candidate.dataset.librarySeriesKey === returnFocusKey);
+    const routeEntry = overviewRef.current?.closest("main") ?? null;
     if (target) {
-      if (focusIsUnowned()) focusElementIfRestorationOwned(target);
-    } else if (focusIsUnowned()) {
-      focusElementIfRestorationOwned(seriesSearchRef.current);
+      if (focusIsUnowned() || document.activeElement === routeEntry) {
+        focusElementIfRestorationOwned(target, { invalidatedOrigin: routeEntry });
+      }
+    } else if (focusIsUnowned() || document.activeElement === routeEntry) {
+      focusElementIfRestorationOwned(seriesSearchRef.current, {
+        invalidatedOrigin: routeEntry,
+      });
     }
 
     completedReturnFocusKeyRef.current = returnFocusKey;
@@ -165,7 +170,7 @@ export const SeriesOverview = memo(function SeriesOverview({
           <h1 id="series-overview-title">Series</h1>
         </div>
         <div className="library-header__actions library-header__actions--search-only series-header__actions">
-          <div className="series-search">
+          <div aria-label="Series search" className="series-search" role="search">
             <Input
               aria-keyshortcuts={searchAriaKeyShortcuts}
               autoCapitalize="none"

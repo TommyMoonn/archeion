@@ -139,6 +139,12 @@ describe("SettingsDialog responsiveness", () => {
       container.querySelector('button[aria-label="Close settings"]'),
     );
     expect(document.activeElement).not.toBe(container.querySelector('input[type="search"]'));
+    expect(container.querySelector("main")).toBeNull();
+    expect(
+      container.querySelector('section.settings-content[aria-label="Settings content"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('nav[aria-label="Settings sections"]')).not.toBeNull();
+    expect(container.querySelector('[role="search"][aria-label="Settings search"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();

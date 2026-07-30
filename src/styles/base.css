@@ -60,6 +60,26 @@ a {
   color: inherit;
 }
 
+.skip-link {
+  position: fixed;
+  z-index: 1300;
+  inset-block-start: 6px;
+  inset-inline-start: 8px;
+  padding: 7px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  color: var(--text-strong);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-popover);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  transform: translateY(calc(-100% - 12px));
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
 .icon-slot {
   --icon-slot-size: var(--icon-slot-standard);
   --icon-glyph-size: var(--icon-glyph-standard);

@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 
+import { MAIN_CONTENT_ID } from "../components/SkipLink";
 import type { LibraryStorage } from "./LibraryStorage";
 import { getLibraryStorage } from "./defaultLibraryStorage";
 import { LibraryStorageContext } from "./useLibraryStorage";
@@ -42,7 +43,12 @@ export function LibraryStorageProvider({ children, storage }: LibraryStorageProv
 
   if (!resolvedStorage) {
     return (
-      <main className="archive-setup" aria-busy={!didStorageFail}>
+      <main
+        className="archive-setup"
+        aria-busy={!didStorageFail}
+        id={MAIN_CONTENT_ID}
+        tabIndex={-1}
+      >
         <p className="archive-loading">
           {didStorageFail
             ? "The active archive could not be loaded. Restart Archeion and open it again."

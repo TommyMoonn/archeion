@@ -5,10 +5,12 @@ import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ARCHIVE_MANAGER_MAIN_CONTENT_ID, SkipLink } from "../../components/SkipLink";
 import { archiveStore } from "../../stores/archiveStore";
 import type { ArchiveState } from "../../stores/archiveStore";
 import { ArchiveManagerFallback } from "./ArchiveManagerWindow";
 import { ArchiveManagerWindowContent } from "./ArchiveManagerWindowContent";
+import { ArchiveManagerWindowLoading } from "./ArchiveManagerWindowLoading";
 import { completeArchiveManagerAction } from "./archiveManagerCompletion";
 
 const activeArchive = {
@@ -94,6 +96,9 @@ describe("ArchiveManagerWindow", () => {
     const markup = renderManager();
 
     expect(markup).toContain("archive-manager-shell");
+    expect(markup).toContain(`id="${ARCHIVE_MANAGER_MAIN_CONTENT_ID}"`);
+    expect(markup).toContain('tabindex="-1"');
+    expect(markup.match(/<main/g)).toHaveLength(1);
     expect(markup).not.toContain("archive-manager-shell--standalone");
     expect(markup).toContain("Manage archives");
     expect(markup).toContain('aria-label="Archives"');
@@ -131,10 +136,41 @@ describe("ArchiveManagerWindow", () => {
     );
 
     expect(markup).toContain("Archive Manager");
+    expect(markup).toContain(`id="${ARCHIVE_MANAGER_MAIN_CONTENT_ID}"`);
+    expect(markup.match(/<main/g)).toHaveLength(1);
     expect(markup).toContain("Manager failed to initialize.");
     expect(markup).toContain('role="alert"');
     expect(markup).toContain("archive-manager-window__sidebar--fallback");
     expect(markup).toContain("archive-manager-window__main");
+  });
+
+  it("keeps the window-local main and skip target available while the lazy manager is pending", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+
+    act(() => {
+      root.render(
+        <>
+          <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
+          <ArchiveManagerWindowLoading />
+        </>,
+      );
+    });
+
+    const main = container.querySelector("main");
+    const skipLink = container.querySelector<HTMLAnchorElement>(".skip-link");
+
+    expect(container.querySelectorAll("main")).toHaveLength(1);
+    expect(main?.id).toBe(ARCHIVE_MANAGER_MAIN_CONTENT_ID);
+    expect(main?.tabIndex).toBe(-1);
+    expect(main?.getAttribute("aria-busy")).toBe("true");
+    expect(skipLink?.hash).toBe(`#${ARCHIVE_MANAGER_MAIN_CONTENT_ID}`);
+
+    act(() => skipLink?.click());
+    expect(document.activeElement).toBe(main);
+
+    act(() => root.unmount());
   });
 
   it("keeps archive loading errors actionable without exposing internal details", () => {

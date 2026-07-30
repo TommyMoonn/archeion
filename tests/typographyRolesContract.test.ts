@@ -171,7 +171,7 @@ describe("Phase 0.9.0.26 typography roles and text resilience", () => {
     );
     for (const [source, selector] of [
       [libraryStyles, ".library-header__title h1"],
-      [folderStyles, ".folder-browser__title h2"],
+      [folderStyles, ".folder-browser__title h1"],
       [seriesStyles, ".series-detail__header h1"],
     ] as const) {
       const heading = cssBlock(source, selector);

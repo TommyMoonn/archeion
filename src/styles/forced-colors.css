@@ -6,6 +6,13 @@
     box-shadow: none;
   }
 
+  .skip-link {
+    border-color: CanvasText;
+    color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
   :root[data-input-modality="keyboard"]
     :where(
       button,

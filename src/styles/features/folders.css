@@ -139,7 +139,7 @@ html[data-motion="on"] .folder-tree__children {
   max-width: none;
 }
 
-.folder-browser__title h2 {
+.folder-browser__title h1 {
   margin: 2px 0 0;
   color: var(--text-strong);
   font-family: var(--font-display);

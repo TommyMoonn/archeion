@@ -218,6 +218,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     scrollMainContentToTop,
   } = navigation;
   const [seriesReturnFocusKey, setSeriesReturnFocusKey] = useState<string | null>(null);
+  const pendingEntryFocusKeyRef = useRef<string | null>(null);
   const changeLocation = useCallback(
     (nextLocation: LibraryLocation) => {
       const preservesSeriesOrigin =
@@ -228,6 +229,27 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     },
     [navigateToLocation, navigation.location.type],
   );
+  const enterLocation = useCallback(
+    (nextLocation: LibraryLocation) => {
+      const returnsToSeriesOrigin =
+        navigation.location.type === "series-detail" && nextLocation.type === "series";
+      if (
+        !returnsToSeriesOrigin &&
+        libraryLocationKey(navigation.location) !== libraryLocationKey(nextLocation)
+      ) {
+        pendingEntryFocusKeyRef.current = libraryLocationKey(nextLocation);
+      }
+      changeLocation(nextLocation);
+    },
+    [changeLocation, navigation.location],
+  );
+  useLayoutEffect(() => {
+    const locationKey = libraryLocationKey(navigation.location);
+    if (pendingEntryFocusKeyRef.current !== locationKey) return;
+
+    pendingEntryFocusKeyRef.current = null;
+    navigation.pageShellRef.current?.focus({ preventScroll: true });
+  }, [navigation.location, navigation.pageShellRef]);
   const debouncedQuery = useDebouncedValue(navigation.query, 150);
   const filters = libraryPreferences.filters;
   const sort = booksDisplayPreferences.sortBy;
@@ -456,8 +478,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     [captureFolderDeletion, requestDeleteFolderAction],
   );
   const openFolder = useCallback(
-    (folder: LibrarySnapshotFolder) => changeLocation({ type: "folder", folderId: folder.id }),
-    [changeLocation],
+    (folder: LibrarySnapshotFolder) => enterLocation({ type: "folder", folderId: folder.id }),
+    [enterLocation],
   );
   const revealFolderAction = bookActions.revealFolder;
   const revealFolder = useCallback(
@@ -469,15 +491,15 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const openSeries = useCallback(
     (entry: SeriesEntry) => {
       setSeriesReturnFocusKey(entry.key);
-      changeLocation({ type: "series-detail", seriesKey: entry.key });
+      enterLocation({ type: "series-detail", seriesKey: entry.key });
     },
-    [changeLocation],
+    [enterLocation],
   );
   const completeSeriesReturnFocus = useCallback(() => setSeriesReturnFocusKey(null), []);
   const returnToSeriesOverview = useCallback(() => {
     setSeriesReturnFocusKey(activeSeries?.key ?? null);
-    changeLocation({ type: "series" });
-  }, [activeSeries?.key, changeLocation]);
+    enterLocation({ type: "series" });
+  }, [activeSeries?.key, enterLocation]);
   const visibleSelectedCount = useMemo(
     () => visibleBooks.reduce((count, book) => count + Number(selectedBookIds.has(book.id)), 0),
     [selectedBookIds, visibleBooks],
@@ -570,7 +592,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         : []),
       {
         configuration: "unbound",
-        execute: () => changeLocation({ type: "library" }),
+        execute: () => enterLocation({ type: "library" }),
         group: "Navigate",
         id: "navigate.library",
         keywords: ["go to collection", "home"],
@@ -582,7 +604,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         ? [
             {
               configuration: "unbound" as const,
-              execute: () => changeLocation({ type: "continue" }),
+              execute: () => enterLocation({ type: "continue" }),
               group: "Navigate" as const,
               id: "navigate.continue",
               keywords: ["in progress", "continue reading"],
@@ -594,7 +616,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         : []),
       {
         configuration: "unbound",
-        execute: () => changeLocation({ type: "favorites" }),
+        execute: () => enterLocation({ type: "favorites" }),
         group: "Navigate",
         id: "navigate.favorites",
         keywords: ["favorite books", "starred"],
@@ -604,7 +626,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       },
       {
         configuration: "unbound",
-        execute: () => changeLocation({ type: "folders" }),
+        execute: () => enterLocation({ type: "folders" }),
         group: "Navigate",
         id: "navigate.folders",
         keywords: ["browse folders", "organization"],
@@ -614,7 +636,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       },
       {
         configuration: "unbound",
-        execute: () => changeLocation({ type: "series" }),
+        execute: () => enterLocation({ type: "series" }),
         group: "Navigate",
         id: "navigate.series",
         keywords: ["browse series", "collections"],
@@ -663,8 +685,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       activeSearchScope,
       bookActions.isImporting,
       bookActions.isRescanning,
-      changeLocation,
       dialogActions,
+      enterLocation,
       focusActiveSearch,
       navigation.location.type,
       openBookSearch,
@@ -787,7 +809,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onCreateFolder: dialogActions.openCreateFolder,
           onDeleteFolder: requestDeleteFolder,
           onFolderSortChange: changeFolderSort,
-          onLocationChange: changeLocation,
+          onLocationChange: enterLocation,
           onManageArchives: openArchiveManager,
           onMoveFolder: openMoveFolder,
           onOpenAbout: dialogActions.openAbout,

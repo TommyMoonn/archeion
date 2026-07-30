@@ -85,7 +85,7 @@ export function LibraryToolbar({
       </div>
 
       <div className="library-header__actions">
-        <div className="library-search">
+        <div aria-label="Library search" className="library-search" role="search">
           <Input
             aria-keyshortcuts={searchAriaKeyShortcuts}
             icon={<MagnifyingGlass aria-hidden="true" weight="regular" />}

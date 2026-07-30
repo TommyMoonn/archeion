@@ -12,6 +12,7 @@ import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { startupTrace } from "../../app/startupTrace";
+import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -133,7 +134,7 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
 
   if (state.status === "loading") {
     return (
-      <main className="archive-setup" aria-busy="true">
+      <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
         <p className="archive-loading">Opening archive</p>
       </main>
     );
@@ -143,7 +144,7 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
 
   if (replacingReadyArchive) {
     return (
-      <main className="archive-setup" aria-busy="true">
+      <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
         <p className="archive-loading">Opening archive</p>
       </main>
     );

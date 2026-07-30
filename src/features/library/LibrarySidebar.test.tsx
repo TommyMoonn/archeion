@@ -170,6 +170,18 @@ describe("LibrarySidebar", () => {
     document.body.innerHTML = "";
   });
 
+  it("names the complementary sidebar and its primary navigation in expanded and collapsed modes", () => {
+    const expanded = renderSidebar();
+    const collapsed = renderToStaticMarkup(
+      <LibrarySidebar {...sidebarProps()} collapsed expandedContentRef={{ current: null }} />,
+    );
+
+    for (const markup of [expanded, collapsed]) {
+      expect(markup).toContain('<aside aria-label="Library sidebar"');
+      expect(markup).toContain('<nav class="sidebar__nav" aria-label="Library navigation"');
+    }
+  });
+
   it("exposes only the effective Settings shortcut on the existing Settings control", () => {
     const markup = renderToStaticMarkup(
       <LibrarySidebar {...sidebarProps()} settingsAriaKeyShortcuts="Control+," />,

@@ -8,6 +8,7 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
+import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import {
   createBooksLoadController,
   createStorage,
@@ -48,6 +49,40 @@ describe("LibraryPage navigation and archive loading", () => {
     expect(
       document.querySelector<HTMLButtonElement>('button[aria-label="Expand sidebar"]'),
     ).not.toBeNull();
+  });
+
+  it("enters main content for explicit navigation without moving focus on background refresh", async () => {
+    const loadController = createBooksLoadController();
+    const storage = createStorage({
+      getLibrarySnapshot: loadController.getLibrarySnapshot,
+      observeLibrarySnapshot: loadController.observeLibrarySnapshot,
+    });
+    const session = await renderLibraryPage(storage);
+    suite.trackRoot(session.root);
+    const search = session.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    );
+    const main = session.container.querySelector<HTMLElement>(`main#${MAIN_CONTENT_ID}`);
+
+    expect(session.container.querySelectorAll("main")).toHaveLength(1);
+    act(() => search?.focus());
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      loadController.startLoading();
+      loadController.publishBooks([]);
+      loadController.finishLoading();
+      await Promise.resolve();
+    });
+
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      session.container.querySelector<HTMLButtonElement>('button[aria-label="Folders"]')?.click();
+    });
+
+    expect(document.activeElement).toBe(main);
+    expect(main?.querySelector("h1")?.textContent).toBe("Folders");
   });
 
   it("preserves the selected folder and search query when filters change", async () => {

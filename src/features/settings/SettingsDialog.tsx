@@ -175,7 +175,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
           <X aria-hidden="true" />
         </IconButton>
 
-        <main className="settings-content" ref={contentRef}>
+        <section aria-label="Settings content" className="settings-content" ref={contentRef}>
           {searchActive ? (
             <SettingsSearchResults
               key={trimmedQuery}
@@ -195,7 +195,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
               (themeCatalog.error ? { message: themeCatalog.error, tone: "error" } : null)
             }
           />
-        </main>
+        </section>
 
         <SettingsConfirmations
           archiveScanActive={controller.archiveScanActive}

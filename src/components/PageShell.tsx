@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from "react";
+import { MAIN_CONTENT_ID } from "./SkipLink";
 
 type PageShellProps = {
   children: ReactNode;
@@ -30,6 +31,7 @@ export function PageShell({
         data-import-drop-id={importDropTarget?.id}
         data-import-drop-label={importDropTarget?.label}
         data-import-drop-target={importDropTarget ? "true" : undefined}
+        id={MAIN_CONTENT_ID}
         ref={mainRef}
         tabIndex={-1}
       >

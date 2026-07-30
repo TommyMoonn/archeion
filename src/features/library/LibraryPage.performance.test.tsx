@@ -153,7 +153,7 @@ describe("LibraryPage collection callback stability", () => {
       });
     });
 
-    expect(session.container.textContent).toContain("The scanner cache will be rebuilt.");
+    expect(session.container.textContent).toContain("Archive cache will be rebuilt.");
     expect(Object.fromEntries(gridCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });
 
@@ -194,7 +194,7 @@ describe("LibraryPage collection callback stability", () => {
       });
     });
 
-    expect(session.container.textContent).toContain("The scanner cache will be rebuilt.");
+    expect(session.container.textContent).toContain("Archive cache will be rebuilt.");
     expect(Object.fromEntries(seriesCoverRenderCounts)).toEqual({ alpha: 1, beta: 1 });
   });
 
@@ -247,7 +247,7 @@ describe("LibraryPage collection callback stability", () => {
       });
     });
 
-    expect(session.container.textContent).toContain("The scanner cache will be rebuilt.");
+    expect(session.container.textContent).toContain("Archive cache will be rebuilt.");
     expect(Object.fromEntries(folderItemRenderCounts)).toEqual(renderCountsBeforeFeedback);
   });
 

@@ -20,6 +20,7 @@ import {
 } from "../../components/contextMenuController";
 import { Input } from "../../components/Input";
 import type { ArchiveState } from "../../stores/archiveStore";
+import { ARCHIVE_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLink";
 import { archiveStore } from "../../stores/archiveStore";
 import type { KnownArchive } from "../../types/archive";
 import { ArchiveCreateView } from "./ArchiveCreateView";
@@ -306,7 +307,7 @@ export function ArchiveManagerWindowContent({
   }
 
   return (
-    <main className="archive-manager-shell">
+    <main className="archive-manager-shell" id={ARCHIVE_MANAGER_MAIN_CONTENT_ID} tabIndex={-1}>
       <section
         className="archive-manager-window archive-manager-window--manager"
         aria-labelledby="archive-manager-title"

@@ -78,10 +78,10 @@ describe("Phase 0.9.0.8 main shell state integration", () => {
     expect(readerSource).not.toContain("LibrarySidebar");
     expect(readerSource).not.toContain("<PageShell");
     expect(appSource).toMatch(
-      /startupState\.status === "error"[\s\S]*?<main className="reader-status-page">[\s\S]*?<Button[\s\S]*?>\s*Retry\s*<\/Button>[\s\S]*?<Button[\s\S]*?>\s*Quit\s*<\/Button>/,
+      /startupState\.status === "error"[\s\S]*?<main[\s\S]*?className="reader-status-page"[\s\S]*?<Button[\s\S]*?>\s*Retry\s*<\/Button>[\s\S]*?<Button[\s\S]*?>\s*Quit\s*<\/Button>/,
     );
     expect(appErrorBoundarySource).toMatch(
-      /<main className="status-page"[\s\S]*?<Button onClick=\{this\.retry\}[\s\S]*?>\s*Reload view\s*<\/Button>/,
+      /<main[\s\S]*?className="status-page"[\s\S]*?<Button onClick=\{this\.retry\}[\s\S]*?>\s*Reload view\s*<\/Button>/,
     );
   });
 });

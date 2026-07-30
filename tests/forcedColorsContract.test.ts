@@ -53,7 +53,7 @@ const auditedErrorSources = [
   [
     "application error boundary",
     "src/components/AppErrorBoundary.tsx",
-    /className="status-page" data-tone="error" role="alert"/,
+    /aria-live="assertive"[\s\S]*className="status-page"[\s\S]*data-tone="error"/,
   ],
   [
     "archive creation",

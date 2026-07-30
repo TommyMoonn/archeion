@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AppErrorBoundary } from "./AppErrorBoundary";
+import { MAIN_CONTENT_ID } from "./SkipLink";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -51,6 +52,24 @@ describe("AppErrorBoundary", () => {
       "Reload the view. If it still fails, restart Archeion.",
     );
     expect(container.textContent).toContain("Reload view");
+    const main = container.querySelector("main");
+    expect(container.querySelectorAll("main")).toHaveLength(1);
+    expect(main?.id).toBe(MAIN_CONTENT_ID);
+    expect(main?.tabIndex).toBe(-1);
+    expect(main?.getAttribute("aria-live")).toBe("assertive");
+    expect(main?.hasAttribute("role")).toBe(false);
+  });
+
+  it("uses the independently mounted window target supplied by its owner", () => {
+    act(() => {
+      root.render(
+        <AppErrorBoundary mainContentId="secondary-window-main">
+          <ThrowingView shouldThrow />
+        </AppErrorBoundary>,
+      );
+    });
+
+    expect(container.querySelector("main")?.id).toBe("secondary-window-main");
   });
 
   it("can retry rendering the child tree", () => {

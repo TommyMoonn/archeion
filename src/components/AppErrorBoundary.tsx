@@ -1,9 +1,11 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
 import { Button } from "./Button";
+import { MAIN_CONTENT_ID } from "./SkipLink";
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
+  mainContentId?: string;
 };
 
 type AppErrorBoundaryState = {
@@ -27,8 +29,16 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
   render() {
     if (this.state.error) {
+      const mainContentId = this.props.mainContentId ?? MAIN_CONTENT_ID;
       return (
-        <main className="status-page" data-tone="error" role="alert">
+        <main
+          aria-atomic="true"
+          aria-live="assertive"
+          className="status-page"
+          data-tone="error"
+          id={mainContentId}
+          tabIndex={-1}
+        >
           <p className="status-page__code">Error</p>
           <h1>Archeion could not load this view</h1>
           <p>Reload the view. If it still fails, restart Archeion.</p>

@@ -312,6 +312,7 @@ describe("mounted reader-return surfaces", () => {
     act(() => origin.click());
 
     const back = await waitForButtonWithText(session.container, "All series");
+    expect(document.activeElement).toBe(session.container.querySelector(".page-shell"));
     act(() => back.click());
 
     const restored = await waitForButtonWithLabel(session.container, "Open Star Saga");

@@ -3,9 +3,11 @@ import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
+import { ARCHIVE_MANAGER_MAIN_CONTENT_ID, MAIN_CONTENT_ID, SkipLink } from "../components/SkipLink";
 import { TooltipProvider } from "../components/Tooltip";
 import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
+import { ArchiveManagerWindowLoading } from "../features/archive/ArchiveManagerWindowLoading";
 import {
   hideMainWindowForStartup,
   listenForArchiveManagerClosed,
@@ -54,10 +56,11 @@ export function App() {
     return (
       <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
         <div className="window-app window-app--archive-manager">
+          <SkipLink targetId={ARCHIVE_MANAGER_MAIN_CONTENT_ID} />
           <WindowTitlebar canMaximize={false} />
           <div className="window-app__content">
-            <AppErrorBoundary>
-              <Suspense fallback={null}>
+            <AppErrorBoundary mainContentId={ARCHIVE_MANAGER_MAIN_CONTENT_ID}>
+              <Suspense fallback={<ArchiveManagerWindowLoading />}>
                 <ArchiveManagerWindow />
               </Suspense>
             </AppErrorBoundary>
@@ -98,8 +101,9 @@ type InitialStartupAttempt = {
 function StartupLoading() {
   return (
     <div className="window-app">
+      <SkipLink targetId={MAIN_CONTENT_ID} />
       <div className="window-app__content">
-        <main className="archive-setup" aria-busy="true">
+        <main className="archive-setup" aria-busy="true" id={MAIN_CONTENT_ID} tabIndex={-1}>
           <p className="archive-loading">Opening Archeion</p>
         </main>
       </div>
@@ -313,9 +317,10 @@ function MainWindowApp() {
   if (startupState.status === "error") {
     return (
       <div className="window-app">
+        <SkipLink targetId={MAIN_CONTENT_ID} />
         <WindowTitlebar canMaximize />
         <div className="window-app__content">
-          <main className="reader-status-page">
+          <main className="reader-status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
             <h1>{startupState.message}</h1>
             <p data-tone="error" role="alert">
               Retry the startup window or quit Archeion.
@@ -350,6 +355,7 @@ function MainWindowApp() {
 
   return (
     <div className="window-app window-app--main-shell">
+      <SkipLink targetId={MAIN_CONTENT_ID} />
       <WindowTitlebar canMaximize />
       <div className="window-app__content">
         <AppErrorBoundary>

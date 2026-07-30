@@ -171,7 +171,11 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   );
 
   return (
-    <aside className="sidebar" data-collapsed={isCollapsed || undefined}>
+    <aside
+      aria-label="Library sidebar"
+      className="sidebar"
+      data-collapsed={isCollapsed || undefined}
+    >
       <nav className="sidebar__nav" aria-label="Library navigation">
         <CollapsedSidebarTooltip collapsed={isCollapsed} content="Library">
           <button

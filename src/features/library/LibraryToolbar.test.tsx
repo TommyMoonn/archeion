@@ -204,6 +204,8 @@ describe("LibraryToolbar", () => {
     expect(markup).toContain('autoCapitalize="none"');
     expect(markup).toContain('name="archeion-library-search"');
     expect(markup).toContain('spellCheck="false"');
+    expect(markup).toContain('aria-label="Library search"');
+    expect(markup).toContain('role="search"');
   });
 
   it("keeps pointer-focused Library Search calm until keyboard navigation begins", () => {

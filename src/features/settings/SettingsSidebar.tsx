@@ -60,27 +60,29 @@ export function SettingsSidebar({
   selectedSection,
 }: SettingsSidebarProps) {
   return (
-    <aside className="settings-sidebar">
+    <aside aria-label="Settings navigation" className="settings-sidebar">
       <div className="settings-sidebar__header">
         <p>Archeion</p>
         <h1 id="settings-title">Settings</h1>
       </div>
-      <Input
-        className="settings-search"
-        icon={<MagnifyingGlass aria-hidden="true" />}
-        aria-keyshortcuts={searchAriaKeyShortcuts}
-        autoCapitalize="none"
-        autoComplete="off"
-        autoCorrect="off"
-        label="Search settings"
-        ref={searchInputRef}
-        name="archeion-settings-search"
-        onChange={(event) => onQueryChange(event.currentTarget.value)}
-        placeholder="Search settings"
-        spellCheck={false}
-        type="search"
-        value={query}
-      />
+      <div aria-label="Settings search" className="settings-search-landmark" role="search">
+        <Input
+          className="settings-search"
+          icon={<MagnifyingGlass aria-hidden="true" />}
+          aria-keyshortcuts={searchAriaKeyShortcuts}
+          autoCapitalize="none"
+          autoComplete="off"
+          autoCorrect="off"
+          label="Search settings"
+          ref={searchInputRef}
+          name="archeion-settings-search"
+          onChange={(event) => onQueryChange(event.currentTarget.value)}
+          placeholder="Search settings"
+          spellCheck={false}
+          type="search"
+          value={query}
+        />
+      </div>
       <nav aria-label="Settings sections">
         {sections.map((section) => (
           <button

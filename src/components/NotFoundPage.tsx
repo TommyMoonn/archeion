@@ -1,9 +1,10 @@
 import { ArrowLeft } from "@phosphor-icons/react";
 import { Link } from "react-router-dom";
+import { MAIN_CONTENT_ID } from "./SkipLink";
 
 export function NotFoundPage() {
   return (
-    <main className="status-page">
+    <main className="status-page" id={MAIN_CONTENT_ID} tabIndex={-1}>
       <p className="status-page__code">404</p>
       <h1>Page not found</h1>
       <p>This page is not part of your archive.</p>

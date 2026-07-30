@@ -17,6 +17,7 @@ import type {
   HighlightAnnotation,
 } from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
+import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 
 const viewerMock = vi.hoisted(() => ({
   navigateToLocation: vi.fn().mockResolvedValue(true),
@@ -321,6 +322,16 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("focuses the Reader main landmark when the explicit route mounts", async () => {
+    const rendered = await renderReader();
+    const main = rendered.container.querySelector<HTMLElement>(`main#${MAIN_CONTENT_ID}`);
+
+    expect(rendered.container.querySelectorAll("main")).toHaveLength(1);
+    expect(main).not.toBeNull();
+    expect(main?.tabIndex).toBe(-1);
+    expect(document.activeElement).toBe(main);
+  });
+
   it("falls back to Library when its saved Smart View return destination becomes hidden", async () => {
     const original = appPreferencesStore.getSnapshot();
 

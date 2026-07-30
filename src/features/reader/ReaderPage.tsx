@@ -10,6 +10,7 @@ import {
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
+import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 
 import { canonicalReaderRoute } from "../../app/navigationState";
 import {
@@ -110,6 +111,7 @@ export function ReaderPage() {
   const libraryPreferences = useLibraryPreferences();
   const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
+  const readerMainRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
   const readerThemeSaveRevision = useRef(0);
@@ -127,6 +129,10 @@ export function ReaderPage() {
   const controlsVisibleRef = useRef(controlsVisible);
   const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
   const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
+
+  useLayoutEffect(() => {
+    readerMainRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
@@ -766,7 +772,7 @@ export function ReaderPage() {
 
   if (!book || book.isFileMissing) {
     return (
-      <main className="reader-status-page">
+      <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
@@ -799,7 +805,13 @@ export function ReaderPage() {
 
   if (!error && isFileLoading) {
     return (
-      <main className="reader-status-page" aria-busy="true">
+      <main
+        className="reader-status-page"
+        aria-busy="true"
+        id={MAIN_CONTENT_ID}
+        ref={readerMainRef}
+        tabIndex={-1}
+      >
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>Loading EPUB</h1>
         <p>{title}</p>
@@ -809,7 +821,7 @@ export function ReaderPage() {
 
   if (!error && (readerFile.status === "error" || !fileLease)) {
     return (
-      <main className="reader-status-page">
+      <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
         <BookOpenText aria-hidden="true" size={38} weight="thin" />
         <h1>EPUB could not be opened</h1>
         <p>
@@ -844,9 +856,12 @@ export function ReaderPage() {
     <main
       className="reader-page"
       data-reader-theme={readerTheme.base}
+      id={MAIN_CONTENT_ID}
       onFocusCapture={revealControls}
       onPointerMove={revealControls}
+      ref={readerMainRef}
       style={readerThemeStyle}
+      tabIndex={-1}
     >
       <div
         className="reader-controls"

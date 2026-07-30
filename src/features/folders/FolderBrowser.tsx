@@ -208,15 +208,19 @@ export const FolderBrowser = memo(function FolderBrowser({
   const surfaceKey = `${view}:${sort}:${cardSize}:${surfaceState}`;
 
   return (
-    <section className="folder-browser">
+    <section aria-labelledby="folder-browser-title" className="folder-browser">
       <header className="library-header folder-browser__header">
         <div className="library-header__title folder-browser__title">
           <p className="eyebrow">Library folders</p>
-          <h2>Folders</h2>
+          <h1 id="folder-browser-title">Folders</h1>
         </div>
 
         <div className="library-header__actions library-header__actions--primary-only folder-browser__actions">
-          <div className="library-search folder-browser__search">
+          <div
+            aria-label="Folder search"
+            className="library-search folder-browser__search"
+            role="search"
+          >
             <Input
               icon={<MagnifyingGlass aria-hidden="true" />}
               aria-keyshortcuts={searchAriaKeyShortcuts}
