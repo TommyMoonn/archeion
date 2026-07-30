@@ -87,6 +87,8 @@ The shared motion language assigns movement by purpose instead of applying one v
 | Supplemental hint      | `app-tooltip-bounce-in`               | Tooltips, with a restrained placement-aware scale overshoot                               |
 | Indeterminate activity | `app-motion-pulse` or `loading-sheen` | Loading indicators that remain visible while work is active                               |
 
+Transient code-split surfaces use `DeferredTransientFallback`. The current application surface remains available for waits shorter than 600ms, while a sustained lazy load reveals the existing accessible status feedback. Operation-owned progress is not deferred: imports, bulk metadata writes, deletion, rescans, and similar work remain visible inside their already-loaded surface as soon as the operation starts.
+
 Collection-facing views use a restrained split settle rather than an opacity-only fade. The header drops into place by 6px, then the content rises by 8px after a 42ms delay. Both movements resolve directly with no overshoot, scale, or blur, so text stays at its native raster size instead of appearing soft while the view settles. Nested grids and empty states do not run a second entrance animation. Larger directional translation remains reserved for edge-attached panels or navigation where movement communicates where the surface came from. Tooltip bounce is intentionally compact and must not be reused for routine controls.
 
 Keep one-shot entrance keyframes brief. Interactive state changes continue to use interruptible transitions. Never add a generic `transition: all`, and never rely on motion as the only indication of state.

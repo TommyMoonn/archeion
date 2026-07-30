@@ -119,6 +119,36 @@ describe("AddEpubDialog replacement confirmation", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("keeps sustained import progress inside the loaded dialog", async () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    const onClose = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <AddEpubDialog
+          folders={[]}
+          initialSourcePaths={["D:\\Incoming\\Book.epub"]}
+          isImporting
+          onClose={onClose}
+          onImport={vi.fn(async () => undefined)}
+        />,
+      );
+    });
+
+    const adding = buttonWithText(container, "Adding");
+    const cancel = buttonWithText(container, "Cancel");
+
+    expect(container.querySelector("dialog[open]")).not.toBeNull();
+    expect(container.querySelector(".dialog-loading-fallback")).toBeNull();
+    expect(adding.disabled).toBe(true);
+    expect(cancel.disabled).toBe(true);
+    act(() => cancel.click());
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("prefills dropped EPUB paths and their target folder before confirmation", async () => {
     const container = document.createElement("div");
     document.body.append(container);

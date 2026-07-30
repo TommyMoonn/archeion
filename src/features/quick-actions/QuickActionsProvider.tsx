@@ -12,6 +12,7 @@ import { flushSync } from "react-dom";
 
 import { router } from "../../app/router";
 import { inputModalityRuntime } from "../../app/inputModality";
+import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { currentFocusOrigin, focusElementIfUsable } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
@@ -244,8 +245,10 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
 
 function QuickActionsLoadingFallback() {
   return (
-    <div className="quick-actions-loading" role="status">
-      <span>Opening Quick Actions</span>
-    </div>
+    <DeferredTransientFallback>
+      <div className="quick-actions-loading" role="status">
+        <span>Opening Quick Actions</span>
+      </div>
+    </DeferredTransientFallback>
   );
 }

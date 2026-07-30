@@ -166,6 +166,45 @@ describe("BulkMetadataDialog", () => {
     expect(previewValues).toEqual(["“Science, Technology”", "“Science”\n“Technology”"]);
   });
 
+  it("keeps sustained writes inside the loaded review dialog", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    root = createRoot(container);
+    const onApply = vi.fn(async () => undefined);
+    const books = [createBook("One", "First")];
+
+    act(() => {
+      root?.render(<BulkMetadataDialog books={books} onApply={onApply} onClose={vi.fn()} />);
+    });
+
+    const seriesToggle = container.querySelector<HTMLInputElement>(
+      '.bulk-metadata-field input[type="checkbox"]',
+    )!;
+    const seriesInput = container.querySelector<HTMLInputElement>(
+      'input[aria-label="New series"]',
+    )!;
+    act(() => {
+      seriesToggle.click();
+      setInputValue(seriesInput, "Shared Series");
+    });
+    act(() => button(container, "Review changes").click());
+
+    act(() => {
+      root?.render(
+        <BulkMetadataDialog books={books} isWriting onApply={onApply} onClose={vi.fn()} />,
+      );
+    });
+
+    const writing = button(container, "Writing metadata");
+    const back = button(container, "Back");
+    expect(container.querySelector("dialog[open]")).not.toBeNull();
+    expect(container.querySelector(".dialog-loading-fallback")).toBeNull();
+    expect(writing.disabled).toBe(true);
+    expect(back.disabled).toBe(true);
+    act(() => writing.click());
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it("confirms before discarding actual field intent", () => {
     const container = document.createElement("div");
     document.body.append(container);
