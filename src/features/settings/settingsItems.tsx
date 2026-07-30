@@ -1,4 +1,4 @@
-import { FolderOpen } from "@phosphor-icons/react";
+import { FolderOpen } from "lucide-react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";

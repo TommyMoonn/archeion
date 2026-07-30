@@ -1,4 +1,4 @@
-import { ArrowLeft, FolderOpen } from "@phosphor-icons/react";
+import { ArrowLeft, FolderOpen } from "lucide-react";
 import { FormEvent, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { Button } from "../../components/Button";

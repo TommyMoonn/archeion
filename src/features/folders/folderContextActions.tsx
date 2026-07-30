@@ -1,4 +1,4 @@
-import { ArrowRight, FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
+import { ArrowRight, FolderOpen, Pencil, Trash2 } from "lucide-react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
 import type { ReadonlyFolder } from "../../types/folder";
@@ -26,7 +26,7 @@ export function createFolderContextActions({
 
   if (showRename && onRename) {
     actions.push({
-      icon: <PencilSimple weight="regular" />,
+      icon: <Pencil />,
       id: "rename",
       label: "Rename folder",
       onSelect: () => onRename(folder),
@@ -34,7 +34,7 @@ export function createFolderContextActions({
   }
 
   actions.push({
-    icon: <ArrowRight weight="regular" />,
+    icon: <ArrowRight />,
     id: "move",
     label: "Move folder",
     onSelect: () => onMove(folder),
@@ -42,7 +42,7 @@ export function createFolderContextActions({
 
   if (showReveal && onReveal) {
     actions.push({
-      icon: <FolderOpen weight="regular" />,
+      icon: <FolderOpen />,
       id: "reveal",
       label: "Reveal folder",
       onSelect: () => onReveal(folder),
@@ -52,7 +52,7 @@ export function createFolderContextActions({
   actions.push({
     className: "folder-menu__danger",
     danger: true,
-    icon: <Trash weight="regular" />,
+    icon: <Trash2 />,
     id: "delete",
     label: "Delete folder",
     onSelect: () => onDelete(folder),

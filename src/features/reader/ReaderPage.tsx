@@ -1,4 +1,4 @@
-import { BookOpenText, X } from "@phosphor-icons/react";
+import { BookOpenText, X } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   useLoaderData,
@@ -773,7 +773,7 @@ export function ReaderPage() {
   if (!book || book.isFileMissing) {
     return (
       <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
-        <BookOpenText aria-hidden="true" size={38} weight="thin" />
+        <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>Book file missing</h1>
         <p>This EPUB is no longer in the archive folder.</p>
         <div className="reader-status-page__actions">
@@ -812,7 +812,7 @@ export function ReaderPage() {
         ref={readerMainRef}
         tabIndex={-1}
       >
-        <BookOpenText aria-hidden="true" size={38} weight="thin" />
+        <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>Loading EPUB</h1>
         <p>{title}</p>
       </main>
@@ -822,7 +822,7 @@ export function ReaderPage() {
   if (!error && (readerFile.status === "error" || !fileLease)) {
     return (
       <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
-        <BookOpenText aria-hidden="true" size={38} weight="thin" />
+        <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>EPUB could not be opened</h1>
         <p>
           {readerFile.status === "error"
@@ -918,7 +918,7 @@ export function ReaderPage() {
 
       {error ? (
         <section className="reader-error" role="alert">
-          <BookOpenText aria-hidden="true" size={38} weight="thin" />
+          <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
           <h1>EPUB could not be opened</h1>
           <p>{error}</p>
           <button className="text-link" onClick={returnToOrigin} type="button">

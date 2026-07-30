@@ -1,6 +1,6 @@
 import type { ReactNode, Ref } from "react";
 
-import { CheckSquare, GridFour, List, Plus, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { SquareCheckBig, Grid2x2, List, Plus, Search, X } from "lucide-react";
 
 import { AppSelect } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
@@ -43,12 +43,12 @@ const viewOptions: Array<{
   value: LibraryView;
 }> = [
   {
-    icon: <GridFour aria-hidden="true" weight="regular" />,
+    icon: <Grid2x2 aria-hidden="true" />,
     label: "Grid",
     value: "grid",
   },
   {
-    icon: <List aria-hidden="true" weight="regular" />,
+    icon: <List aria-hidden="true" />,
     label: "List",
     value: "list",
   },
@@ -88,7 +88,7 @@ export function LibraryToolbar({
         <div aria-label="Library search" className="library-search" role="search">
           <Input
             aria-keyshortcuts={searchAriaKeyShortcuts}
-            icon={<MagnifyingGlass aria-hidden="true" weight="regular" />}
+            icon={<Search aria-hidden="true" />}
             autoCapitalize="none"
             autoComplete="off"
             autoCorrect="off"
@@ -108,7 +108,7 @@ export function LibraryToolbar({
               label="Clear search"
               onClick={onClearSearch}
             >
-              <X aria-hidden="true" weight="bold" />
+              <X aria-hidden="true" strokeWidth={2.25} />
             </IconButton>
           ) : null}
         </div>
@@ -121,7 +121,7 @@ export function LibraryToolbar({
             tooltip={selectionMode ? "Finish selecting books" : "Select books"}
             tooltipPlacement="bottom"
           >
-            <CheckSquare aria-hidden="true" weight={selectionMode ? "fill" : "regular"} />
+            <SquareCheckBig aria-hidden="true" />
           </IconButton>
           <RescanArchiveButton isRescanning={isRescanning} onRescan={onRescan} />
         </div>
@@ -130,7 +130,7 @@ export function LibraryToolbar({
           busy={isImporting}
           className="library-add-button"
           disabled={isImporting}
-          icon={<Plus aria-hidden="true" weight="bold" />}
+          icon={<Plus aria-hidden="true" strokeWidth={2.25} />}
           onClick={onOpenAddEpub}
           size="standard"
         >

@@ -1,4 +1,4 @@
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight } from "lucide-react";
 import { memo, useId } from "react";
 
 import type { ReadonlyBook } from "../../types/book";

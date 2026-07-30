@@ -1,4 +1,4 @@
-import { FolderOpen, PencilSimple, Trash } from "@phosphor-icons/react";
+import { FolderOpen, Pencil, Trash2 } from "lucide-react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
 
@@ -18,14 +18,14 @@ export function createArchiveContextActions({
   return [
     {
       disabled,
-      icon: <PencilSimple weight="regular" />,
+      icon: <Pencil />,
       id: "rename",
       label: "Rename archive",
       onSelect: onRename,
     },
     {
       disabled,
-      icon: <FolderOpen weight="regular" />,
+      icon: <FolderOpen />,
       id: "reveal",
       label: "Reveal archive folder",
       onSelect: onReveal,
@@ -34,7 +34,7 @@ export function createArchiveContextActions({
       className: "archive-row-menu__danger",
       danger: true,
       disabled,
-      icon: <Trash weight="regular" />,
+      icon: <Trash2 />,
       id: "forget",
       label: "Forget archive",
       onSelect: onForget,

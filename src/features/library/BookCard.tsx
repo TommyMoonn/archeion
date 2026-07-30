@@ -1,4 +1,4 @@
-import { Check, Heart } from "@phosphor-icons/react";
+import { Check, Heart } from "lucide-react";
 import {
   memo,
   useId,
@@ -139,7 +139,7 @@ function BookCardComponent({
           className="book-selection-control book-selection-control--card"
           data-selected={selected || undefined}
         >
-          {selected ? <Check aria-hidden="true" size={15} weight="bold" /> : null}
+          {selected ? <Check aria-hidden="true" size={15} strokeWidth={2.25} /> : null}
         </span>
       ) : null}
       <IconButton
@@ -153,7 +153,7 @@ function BookCardComponent({
         }
         onClick={() => onToggleFavorite(book)}
       >
-        <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
+        <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />
       </IconButton>
       <BookContextMenu
         book={book}

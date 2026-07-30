@@ -1,4 +1,4 @@
-import { CheckCircle, ImageSquare, UploadSimple, WarningCircle } from "@phosphor-icons/react";
+import { CircleCheck, Image, Upload, CircleAlert } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState } from "react";
 
@@ -232,7 +232,7 @@ export function BookCoverWritebackDialog({
               {previewUrl ? <img alt="Final replacement cover preview" src={previewUrl} /> : null}
               {!previewUrl ? (
                 <div className="cover-writeback__preview-empty">
-                  <ImageSquare aria-hidden="true" size={34} weight="thin" />
+                  <Image aria-hidden="true" size={34} strokeWidth={1.5} />
                   <span>{isPreparing ? "Preparing preview" : "Choose a cover image"}</span>
                 </div>
               ) : null}
@@ -243,7 +243,7 @@ export function BookCoverWritebackDialog({
           <div className="cover-writeback__controls" ref={recoveryControlsRef}>
             <Button
               disabled={isPreparing || isWriting || book.isFileMissing}
-              icon={<UploadSimple aria-hidden="true" />}
+              icon={<Upload aria-hidden="true" />}
               onClick={() => void chooseImage()}
               variant="secondary"
             >
@@ -325,25 +325,25 @@ export function BookCoverWritebackDialog({
 
         {book.isFileMissing ? (
           <p className="cover-writeback__status" data-tone="error" role="alert">
-            <WarningCircle aria-hidden="true" size={17} />
+            <CircleAlert aria-hidden="true" size={17} />
             The EPUB file is missing. Cover writeback is unavailable.
           </p>
         ) : null}
         {error ? (
           <p className="cover-writeback__status" data-tone="error" role="alert">
-            <WarningCircle aria-hidden="true" size={17} />
+            <CircleAlert aria-hidden="true" size={17} />
             {error}
           </p>
         ) : null}
         {success ? (
           <p className="cover-writeback__status" data-tone="success" role="status">
-            <CheckCircle aria-hidden="true" size={17} weight="fill" />
+            <CircleCheck aria-hidden="true" size={17} />
             Cover written to EPUB.
           </p>
         ) : null}
         {warning ? (
           <p className="cover-writeback__status" data-tone="warning" role="status">
-            <WarningCircle aria-hidden="true" size={17} />
+            <CircleAlert aria-hidden="true" size={17} />
             {warning}
           </p>
         ) : null}

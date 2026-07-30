@@ -1,4 +1,4 @@
-import { Funnel, X } from "@phosphor-icons/react";
+import { Filter, X } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -156,7 +156,7 @@ export function LibraryFilterPopover({
   return (
     <details className="library-filter" ref={detailsRef}>
       <summary aria-label="Filter library">
-        <Funnel aria-hidden="true" size={16} weight="regular" />
+        <Filter aria-hidden="true" size={16} />
         <span>Filters</span>
         {activeCount > 0 ? <span className="library-filter__count">{activeCount}</span> : null}
       </summary>
@@ -265,7 +265,7 @@ export function LibraryFilterTokens({
             label={`Remove ${token.label} filter`}
             onClick={() => onChange(token.remove(filters))}
           >
-            <X aria-hidden="true" weight="bold" />
+            <X aria-hidden="true" strokeWidth={2.25} />
           </IconButton>
         </span>
       ))}

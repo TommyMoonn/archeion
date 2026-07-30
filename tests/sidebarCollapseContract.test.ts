@@ -40,9 +40,9 @@ describe("Phase 0.9.0.6 sidebar collapse contract", () => {
     expect(windowTitlebarSource).toContain("data-window-titlebar-app-actions");
     expect(windowTitlebarSource).toContain("data-tauri-drag-region");
     expect(titlebarCompositionSource).toContain("<WindowTitlebarAppActions>");
-    expect(titlebarCompositionSource).toContain("<Sidebar");
-    expect(titlebarCompositionSource).not.toContain("<SidebarSimple");
-    expect(titlebarCompositionSource).not.toMatch(/CaretDouble(?:Left|Right)/);
+    expect(titlebarCompositionSource).toContain("<PanelLeft");
+    expect(titlebarCompositionSource).not.toContain("<PanelLeftOpen");
+    expect(titlebarCompositionSource).not.toMatch(/Chevrons(?:Left|Right)/);
     expect(`${sidebarSource}\n${titlebarCompositionSource}`).not.toMatch(/data-tauri-drag-region/);
     expect(cssBlock(windowStyles, ".window-titlebar__app-actions")).toContain(
       "height: var(--window-titlebar-height)",

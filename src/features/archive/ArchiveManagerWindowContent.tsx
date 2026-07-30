@@ -1,4 +1,4 @@
-import { DotsThree, Plus } from "@phosphor-icons/react";
+import { Ellipsis, Plus } from "lucide-react";
 import {
   useMemo,
   useId,
@@ -89,7 +89,7 @@ function ArchiveRowActions({
           tooltip={`Actions for ${archive.displayName}`}
         >
           <span aria-hidden="true" className="icon-slot">
-            <DotsThree weight="bold" />
+            <Ellipsis strokeWidth={2.25} />
           </span>
         </ContextMenuTrigger>
       </span>

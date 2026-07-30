@@ -1,4 +1,4 @@
-import { CheckCircle, WarningCircle, X } from "@phosphor-icons/react";
+import { CircleCheck, CircleAlert, X } from "lucide-react";
 
 import { IconButton } from "../../components/IconButton";
 import { usePausableAutoDismiss } from "../../components/usePausableAutoDismiss";
@@ -11,14 +11,14 @@ type LibraryFeedbackStackProps = {
 
 function feedbackIcon(tone: LibraryFeedbackToken["tone"]) {
   if (tone === "success") {
-    return <CheckCircle aria-hidden="true" size={19} weight="regular" />;
+    return <CircleCheck aria-hidden="true" size={19} />;
   }
 
   if (tone === "error") {
-    return <WarningCircle aria-hidden="true" size={19} weight="regular" />;
+    return <CircleAlert aria-hidden="true" size={19} />;
   }
 
-  return <WarningCircle aria-hidden="true" size={19} weight="regular" />;
+  return <CircleAlert aria-hidden="true" size={19} />;
 }
 
 type LibraryFeedbackItemProps = {
@@ -68,7 +68,7 @@ function LibraryFeedbackItem({ onDismiss, token }: LibraryFeedbackItemProps) {
         label="Dismiss feedback"
         onClick={() => onDismiss(token.id)}
       >
-        <X aria-hidden="true" weight="bold" />
+        <X aria-hidden="true" strokeWidth={2.25} />
       </IconButton>
     </section>
   );

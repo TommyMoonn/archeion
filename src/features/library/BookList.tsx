@@ -1,4 +1,4 @@
-import { Check, Heart, PencilSimple } from "@phosphor-icons/react";
+import { Check, Heart, Pencil } from "lucide-react";
 import {
   memo,
   useId,
@@ -151,7 +151,7 @@ function BookRowComponent({
           className="book-selection-control book-selection-control--row"
           data-selected={selected || undefined}
         >
-          {selected ? <Check aria-hidden="true" size={14} weight="bold" /> : null}
+          {selected ? <Check aria-hidden="true" size={14} strokeWidth={2.25} /> : null}
         </span>
       ) : null}
       {canManageFile && !book.isFileMissing && onRenameFile ? (
@@ -160,7 +160,7 @@ function BookRowComponent({
           label={`Rename file for ${bookTitle(book)}`}
           onClick={() => onRenameFile(book)}
         >
-          <PencilSimple aria-hidden="true" weight="regular" />
+          <Pencil aria-hidden="true" />
         </IconButton>
       ) : null}
       <IconButton
@@ -174,7 +174,7 @@ function BookRowComponent({
         }
         onClick={() => onToggleFavorite(book)}
       >
-        <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
+        <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />
       </IconButton>
       <BookContextMenu
         book={book}

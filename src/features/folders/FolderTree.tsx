@@ -1,4 +1,4 @@
-import { Folder as FolderIcon } from "@phosphor-icons/react";
+import { Folder as FolderIcon } from "lucide-react";
 import {
   useMemo,
   useRef,
@@ -93,7 +93,7 @@ function FolderNode({
             ref={primaryActionRef}
             type="button"
           >
-            <FolderIcon aria-hidden="true" size={17} weight={isSelected ? "fill" : "regular"} />
+            <FolderIcon aria-hidden="true" size={17} fill={isSelected ? "currentColor" : "none"} />
             <span>{folder.name}</span>
           </button>
         </Tooltip>

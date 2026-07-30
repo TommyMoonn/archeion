@@ -1,12 +1,4 @@
-import {
-  ArrowRight,
-  BookOpen,
-  FolderOpen,
-  Heart,
-  Info,
-  PencilSimple,
-  Trash,
-} from "@phosphor-icons/react";
+import { ArrowRight, BookOpen, FolderOpen, Heart, Info, Pencil, Trash2 } from "lucide-react";
 
 import type { ContextMenuAction } from "../../components/ContextMenu";
 import type { ReadonlyBook } from "../../types/book";
@@ -43,19 +35,19 @@ export function createBookContextActions({
     {
       disabled: Boolean(book.isFileMissing),
       disabledReason: book.isFileMissing ? "The EPUB file is missing." : undefined,
-      icon: <BookOpen weight="regular" />,
+      icon: <BookOpen />,
       id: "read",
       label: "Read",
       onSelect: () => onRead(book),
     },
     {
-      icon: <Heart weight={book.isFavorite ? "fill" : "regular"} />,
+      icon: <Heart fill={book.isFavorite ? "currentColor" : "none"} />,
       id: "favorite",
       label: book.isFavorite ? "Remove favorite" : "Add favorite",
       onSelect: () => onToggleFavorite(book),
     },
     {
-      icon: <Info weight="regular" />,
+      icon: <Info />,
       id: "edit-metadata",
       label: "Edit metadata",
       onSelect: () => onEditMetadata(book),
@@ -64,7 +56,7 @@ export function createBookContextActions({
 
   if (showRenameFileAction && showFileActions && onRenameFile) {
     actions.push({
-      icon: <PencilSimple weight="regular" />,
+      icon: <Pencil />,
       id: "rename-file",
       label: "Rename file",
       onSelect: () => onRenameFile(book),
@@ -73,7 +65,7 @@ export function createBookContextActions({
 
   if (showFileActions && onMove) {
     actions.push({
-      icon: <ArrowRight weight="regular" />,
+      icon: <ArrowRight />,
       id: "move",
       label: "Move to folder",
       onSelect: () => onMove(book),
@@ -82,7 +74,7 @@ export function createBookContextActions({
 
   if (showFileActions && onRevealFile) {
     actions.push({
-      icon: <FolderOpen weight="regular" />,
+      icon: <FolderOpen />,
       id: "reveal",
       label: "Reveal in folder",
       onSelect: () => onRevealFile(book),
@@ -93,7 +85,7 @@ export function createBookContextActions({
     actions.push({
       className: "book-menu__danger",
       danger: true,
-      icon: <Trash weight="regular" />,
+      icon: <Trash2 />,
       id: "delete",
       label: book.isFileMissing ? "Remove metadata" : "Delete EPUB",
       onSelect: () => onDelete(book),

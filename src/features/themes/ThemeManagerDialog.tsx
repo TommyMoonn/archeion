@@ -1,4 +1,4 @@
-import { ArrowsClockwise, FilePlus, FolderOpen, X } from "@phosphor-icons/react";
+import { RefreshCw, FilePlus, FolderOpen, X } from "lucide-react";
 import { useMemo, useRef, type ChangeEvent } from "react";
 
 import { Button } from "../../components/Button";
@@ -87,7 +87,7 @@ export function ThemeManagerDialog({
             onClick={() => void controller.reload()}
             size="standard"
           >
-            <ArrowsClockwise aria-hidden="true" />
+            <RefreshCw aria-hidden="true" />
           </IconButton>
           <IconButton
             disabled={busy || controller.previewActive}
@@ -115,7 +115,7 @@ export function ThemeManagerDialog({
         onClick={close}
         size="compact"
       >
-        <X aria-hidden="true" weight="bold" />
+        <X aria-hidden="true" strokeWidth={2.25} />
       </IconButton>
       <input
         accept=".json,application/json"

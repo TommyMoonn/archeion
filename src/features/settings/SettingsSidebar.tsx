@@ -1,14 +1,14 @@
 import {
   Archive,
   BookOpenText,
-  Broom,
+  BrushCleaning,
   Database,
-  DownloadSimple,
+  Download,
   Keyboard,
-  MagnifyingGlass,
+  Search,
   Palette,
   SlidersHorizontal,
-} from "@phosphor-icons/react";
+} from "lucide-react";
 
 import { Input } from "../../components/Input";
 import type { Ref } from "react";
@@ -44,9 +44,9 @@ function SectionIcon({ section }: { section: SettingsSection }) {
     case "archives":
       return <Archive aria-hidden="true" size={16} />;
     case "storage":
-      return <Broom aria-hidden="true" size={16} />;
+      return <BrushCleaning aria-hidden="true" size={16} />;
     case "import":
-      return <DownloadSimple aria-hidden="true" size={16} />;
+      return <Download aria-hidden="true" size={16} />;
   }
 }
 
@@ -68,7 +68,7 @@ export function SettingsSidebar({
       <div aria-label="Settings search" className="settings-search-landmark" role="search">
         <Input
           className="settings-search"
-          icon={<MagnifyingGlass aria-hidden="true" />}
+          icon={<Search aria-hidden="true" />}
           aria-keyshortcuts={searchAriaKeyShortcuts}
           autoCapitalize="none"
           autoComplete="off"

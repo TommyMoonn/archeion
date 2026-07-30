@@ -1,4 +1,4 @@
-import { FolderOpen, Lightning, Sidebar } from "@phosphor-icons/react";
+import { FolderOpen, Zap, PanelLeft } from "lucide-react";
 import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -112,7 +112,7 @@ export function LibraryTitlebarComposition({
                 tooltip="Reveal active archive folder"
                 tooltipPlacement="bottom"
               >
-                <FolderOpen aria-hidden="true" weight="regular" />
+                <FolderOpen aria-hidden="true" />
               </IconButton>
               <IconButton
                 aria-keyshortcuts={quickActionsAriaKeyShortcuts}
@@ -124,7 +124,7 @@ export function LibraryTitlebarComposition({
                 tooltip="Open Quick Actions"
                 tooltipPlacement="bottom"
               >
-                <Lightning aria-hidden="true" weight="regular" />
+                <Zap aria-hidden="true" />
               </IconButton>
             </>
           ) : null}
@@ -140,10 +140,9 @@ export function LibraryTitlebarComposition({
               tooltip={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               tooltipPlacement="bottom"
             >
-              <Sidebar
+              <PanelLeft
                 aria-hidden="true"
                 className="library-titlebar-composition__sidebar-icon"
-                weight="regular"
               />
             </IconButton>
           ) : null}

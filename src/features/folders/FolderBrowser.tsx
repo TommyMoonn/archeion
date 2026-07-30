@@ -1,12 +1,4 @@
-import {
-  Folder as FolderIcon,
-  FolderPlus,
-  GridFour,
-  List,
-  MagnifyingGlass,
-  PencilSimple,
-  X,
-} from "@phosphor-icons/react";
+import { Folder as FolderIcon, FolderPlus, Grid2x2, List, Search, Pencil, X } from "lucide-react";
 import {
   memo,
   useMemo,
@@ -137,7 +129,7 @@ const FolderBrowserItem = memo(function FolderBrowserItem({
             label={`Rename ${folder.name}`}
             onClick={() => onRename(folder)}
           >
-            <PencilSimple aria-hidden="true" />
+            <Pencil aria-hidden="true" />
           </IconButton>
           <FolderActionsMenu
             controller={contextMenu}
@@ -160,12 +152,12 @@ const folderViewOptions: Array<{
   value: FolderBrowserView;
 }> = [
   {
-    icon: <GridFour aria-hidden="true" weight="regular" />,
+    icon: <Grid2x2 aria-hidden="true" />,
     label: "Cards",
     value: "cards",
   },
   {
-    icon: <List aria-hidden="true" weight="regular" />,
+    icon: <List aria-hidden="true" />,
     label: "List",
     value: "list",
   },
@@ -222,7 +214,7 @@ export const FolderBrowser = memo(function FolderBrowser({
             role="search"
           >
             <Input
-              icon={<MagnifyingGlass aria-hidden="true" />}
+              icon={<Search aria-hidden="true" />}
               aria-keyshortcuts={searchAriaKeyShortcuts}
               autoCapitalize="none"
               autoComplete="off"
@@ -243,7 +235,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 label="Clear folder search"
                 onClick={() => setQuery("")}
               >
-                <X aria-hidden="true" weight="bold" />
+                <X aria-hidden="true" strokeWidth={2.25} />
               </IconButton>
             ) : null}
           </div>
@@ -252,7 +244,7 @@ export const FolderBrowser = memo(function FolderBrowser({
               <span aria-hidden="true" className="library-header__action-divider" />
               <Button
                 className="folder-browser__add-button"
-                icon={<FolderPlus aria-hidden="true" weight="bold" />}
+                icon={<FolderPlus aria-hidden="true" strokeWidth={2.25} />}
                 onClick={onCreate}
                 size="standard"
               >
@@ -307,7 +299,10 @@ export const FolderBrowser = memo(function FolderBrowser({
                   Clear search
                 </Button>
               ) : canManageFolders && onCreate ? (
-                <Button icon={<FolderPlus aria-hidden="true" weight="bold" />} onClick={onCreate}>
+                <Button
+                  icon={<FolderPlus aria-hidden="true" strokeWidth={2.25} />}
+                  onClick={onCreate}
+                >
                   Add folder
                 </Button>
               ) : undefined
@@ -317,7 +312,7 @@ export const FolderBrowser = memo(function FolderBrowser({
                 ? "No folder matches that search."
                 : "Folders from this library will appear here."
             }
-            icon={<FolderIcon size={40} weight="thin" />}
+            icon={<FolderIcon size={40} strokeWidth={1.5} />}
             title={query ? "No folders found" : "No folders yet"}
           />
         ) : (

@@ -1,4 +1,4 @@
-import { ArrowSquareOut, BookOpenText, GithubLogo, Globe, X } from "@phosphor-icons/react";
+import { ExternalLink, BookOpenText, GitFork, Globe, X } from "lucide-react";
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 
 import { APPLICATION_VERSION_FALLBACK, resolveApplicationVersion } from "../../app/appVersion";
@@ -22,7 +22,7 @@ const ABOUT_DESTINATIONS = [
   },
   {
     href: "https://github.com/TommyMoonn/archeion",
-    icon: GithubLogo,
+    icon: GitFork,
     label: "Source code",
     location: "github.com/TommyMoonn/archeion",
   },
@@ -103,12 +103,12 @@ export function AboutDialog({ onClose }: AboutDialogProps) {
                 rel="noreferrer"
                 target="_blank"
               >
-                <DestinationIcon aria-hidden="true" size={20} weight="regular" />
+                <DestinationIcon aria-hidden="true" size={20} />
                 <span className="about-window__link-copy">
                   <strong>{label}</strong>
                   <small>{location}</small>
                 </span>
-                <ArrowSquareOut aria-hidden="true" size={18} weight="bold" />
+                <ExternalLink aria-hidden="true" size={18} strokeWidth={2.25} />
               </a>
             ))}
           </nav>

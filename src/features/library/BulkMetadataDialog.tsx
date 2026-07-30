@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, WarningCircle } from "@phosphor-icons/react";
+import { ArrowLeft, Check, CircleAlert } from "lucide-react";
 import { useDeferredValue, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -185,7 +185,7 @@ export function BulkMetadataDialog({
                   <strong>{bookTitle(book)}</strong>
                   {book.isFileMissing ? (
                     <span className="bulk-metadata-preview__unavailable">
-                      <WarningCircle aria-hidden="true" size={14} /> File unavailable
+                      <CircleAlert aria-hidden="true" size={14} /> File unavailable
                     </span>
                   ) : changes.length === 0 ? (
                     <span>No changes</span>

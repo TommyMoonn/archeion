@@ -1,4 +1,4 @@
-import { DownloadSimple, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { Download, Search, X } from "lucide-react";
 import {
   useCallback,
   useDeferredValue,
@@ -242,7 +242,7 @@ export function ReaderAnnotationsPanel({
                 className="menu-trigger"
               >
                 <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                  <DownloadSimple />
+                  <Download />
                 </span>
               </summary>
             </Tooltip>
@@ -308,7 +308,7 @@ export function ReaderAnnotationsPanel({
           <Input
             aria-keyshortcuts={searchAriaKeyShortcuts}
             className="reader-annotations__search"
-            icon={<MagnifyingGlass aria-hidden="true" />}
+            icon={<Search aria-hidden="true" />}
             label="Search annotations"
             onChange={(event) => changeQuery(event.currentTarget.value)}
             placeholder="Search annotations"

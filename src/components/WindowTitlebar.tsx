@@ -1,6 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Minus, Square, X } from "@phosphor-icons/react";
+import { Minus, Square, X } from "lucide-react";
 import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Tooltip } from "./Tooltip";

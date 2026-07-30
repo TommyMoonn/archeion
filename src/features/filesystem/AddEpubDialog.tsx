@@ -1,5 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { FilePlus, Files, Folder as FolderIcon, WarningCircle } from "@phosphor-icons/react";
+import { FilePlus, Files, Folder as FolderIcon, CircleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
@@ -177,7 +177,7 @@ export function AddEpubDialog({
           </Button>
           <Button
             disabled={isImporting || sourcePaths.length === 0}
-            icon={<FilePlus aria-hidden="true" weight="bold" />}
+            icon={<FilePlus aria-hidden="true" strokeWidth={2.25} />}
             onClick={submit}
           >
             {isImporting ? "Adding" : "Add EPUB"}
@@ -192,7 +192,7 @@ export function AddEpubDialog({
           onClick={() => void chooseFiles()}
           type="button"
         >
-          <Files aria-hidden="true" size={20} weight="regular" />
+          <Files aria-hidden="true" size={20} />
           <span>{selectedLabel}</span>
         </button>
 
@@ -242,7 +242,7 @@ export function AddEpubDialog({
 
         {error ? (
           <p className="form-error add-epub-dialog__error" role="alert">
-            <WarningCircle aria-hidden="true" size={15} weight="regular" />
+            <CircleAlert aria-hidden="true" size={15} />
             {error}
           </p>
         ) : null}

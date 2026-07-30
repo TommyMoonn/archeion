@@ -1,6 +1,6 @@
 import {
-  ArrowCounterClockwise,
-  ArrowsClockwise,
+  RotateCcw,
+  RefreshCw,
   BookOpen,
   Clock,
   Eraser,
@@ -8,13 +8,13 @@ import {
   FolderOpen,
   Heart,
   Info,
-  ImageSquare,
-  PencilSimple,
+  Image,
+  Pencil,
   ArrowRight,
-  Trash,
-  WarningCircle,
+  Trash2,
+  CircleAlert,
   X,
-} from "@phosphor-icons/react";
+} from "lucide-react";
 import { useMemo, useRef } from "react";
 
 import { Button } from "../../components/Button";
@@ -115,14 +115,14 @@ export function BookDetailsDrawer({
               label={book.isFavorite ? "Remove from favorites" : "Add to favorites"}
               onClick={() => onToggleFavorite(book)}
             >
-              <Heart aria-hidden="true" weight={book.isFavorite ? "fill" : "regular"} />
+              <Heart aria-hidden="true" fill={book.isFavorite ? "currentColor" : "none"} />
             </IconButton>
             <IconButton
               autoFocus={initialFocus === "close"}
               label="Close book details"
               onClick={onClose}
             >
-              <X aria-hidden="true" weight="regular" />
+              <X aria-hidden="true" />
             </IconButton>
           </div>
         </header>
@@ -137,7 +137,7 @@ export function BookDetailsDrawer({
                 label="Replace cover"
                 onClick={() => onReplaceCover(book)}
               >
-                <ImageSquare aria-hidden="true" />
+                <Image aria-hidden="true" />
               </IconButton>
             ) : null}
           </div>
@@ -168,14 +168,14 @@ export function BookDetailsDrawer({
 
           {book.isFileMissing ? (
             <section className="details-missing" role="status">
-              <WarningCircle aria-hidden="true" size={19} />
+              <CircleAlert aria-hidden="true" size={19} />
               <div>
                 <strong>Book file missing</strong>
                 <p>This book was not found in the archive folder.</p>
               </div>
               <div>
                 <Button
-                  icon={<ArrowsClockwise aria-hidden="true" />}
+                  icon={<RefreshCw aria-hidden="true" />}
                   onClick={onRescan}
                   variant="secondary"
                 >
@@ -193,7 +193,7 @@ export function BookDetailsDrawer({
               </Button>
               {progressDetails.hasSavedPosition ? (
                 <Button
-                  icon={<ArrowCounterClockwise aria-hidden="true" />}
+                  icon={<RotateCcw aria-hidden="true" />}
                   onClick={() => onReadFromBeginning(book)}
                   variant="secondary"
                 >
@@ -232,7 +232,7 @@ export function BookDetailsDrawer({
                       Move file
                     </Button>
                     <Button
-                      icon={<PencilSimple aria-hidden="true" />}
+                      icon={<Pencil aria-hidden="true" />}
                       onClick={() => onRenameFile(book)}
                       size="compact"
                       variant="ghost"
@@ -248,7 +248,7 @@ export function BookDetailsDrawer({
           <dl className="book-metadata book-metadata--compact">
             <div>
               <dt>
-                <File aria-hidden="true" size={16} weight="regular" />
+                <File aria-hidden="true" size={16} />
                 File
               </dt>
               <dd>
@@ -274,7 +274,7 @@ export function BookDetailsDrawer({
           <footer className="details-drawer__footer">
             <Button
               variant="danger"
-              icon={<Trash aria-hidden="true" weight="regular" />}
+              icon={<Trash2 aria-hidden="true" />}
               onClick={() => onDelete(book)}
             >
               Delete EPUB

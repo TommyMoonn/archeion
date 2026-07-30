@@ -44,7 +44,7 @@ describe("Phase 0.9.0.12 sidebar-aligned titlebar composition contract", () => {
 
     expect(titlebar).toContain("data-window-titlebar-app-actions");
     expect(titlebar).toContain("data-tauri-drag-region");
-    expect(titlebar).not.toMatch(/Library|QuickActions|archiveStore|FolderOpen|Sidebar(?:Simple)?/);
+    expect(titlebar).not.toMatch(/Library|QuickActions|archiveStore|FolderOpen|PanelLeft/);
     expect(composition).toContain("<WindowTitlebarAppActions>");
     expect(composition).not.toContain("data-tauri-drag-region");
   });

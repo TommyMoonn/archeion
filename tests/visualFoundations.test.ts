@@ -371,8 +371,8 @@ describe("visual foundations", () => {
     expect(cssSource).not.toMatch(/border(?:-[\w-]+)?:\s*1\.5px/);
     expect(readerSource).not.toContain("rotate(-45deg)");
     expect(readerSource).not.toContain("rotate(45deg)");
-    expect(epubViewerSource).toContain("CaretLeft");
-    expect(epubViewerSource).toContain("CaretRight");
+    expect(epubViewerSource).toContain("ChevronLeft");
+    expect(epubViewerSource).toContain("ChevronRight");
   });
 
   it("keeps explicit and system light themes semantically complete", () => {

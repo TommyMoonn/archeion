@@ -1,4 +1,4 @@
-import { Folder as FolderIcon } from "@phosphor-icons/react";
+import { Folder as FolderIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AppSelect } from "../../components/AppSelect";

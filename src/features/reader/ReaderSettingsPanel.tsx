@@ -1,4 +1,4 @@
-import { Minus, Plus, X } from "@phosphor-icons/react";
+import { Minus, Plus, X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 import { AppSelect } from "../../components/AppSelect";

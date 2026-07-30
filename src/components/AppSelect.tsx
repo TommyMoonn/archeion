@@ -1,4 +1,4 @@
-import { CaretDown, Check } from "@phosphor-icons/react";
+import { ChevronDown, Check } from "lucide-react";
 import { type KeyboardEvent, type ReactNode, useId, useMemo, useRef, useState } from "react";
 import { inputModalityRuntime } from "../app/inputModality";
 import type { ControlSize } from "./Button";
@@ -223,7 +223,7 @@ export function AppSelect<TValue extends string>({
           <>
             <span className="app-select__value">{selectedOption?.label ?? "Select"}</span>
             <span aria-hidden="true" className="icon-slot icon-slot--compact">
-              <CaretDown weight="bold" />
+              <ChevronDown strokeWidth={2.25} />
             </span>
           </>
         ) : null}
@@ -269,7 +269,7 @@ export function AppSelect<TValue extends string>({
               <span>{option.label}</span>
               {option.value === value ? (
                 <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                  <Check weight="bold" />
+                  <Check strokeWidth={2.25} />
                 </span>
               ) : null}
             </button>

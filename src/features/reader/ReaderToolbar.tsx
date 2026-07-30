@@ -1,15 +1,15 @@
 import {
   ArrowLeft,
-  BookmarkSimple,
-  BookmarksSimple,
-  CaretDoubleLeft,
-  CaretDoubleRight,
-  CaretLeft,
-  CaretRight,
-  Lightning,
-  ListBullets,
-  TextAa,
-} from "@phosphor-icons/react";
+  Bookmark,
+  BookMarked,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronLeft,
+  ChevronRight,
+  Zap,
+  ListTree,
+  ALargeSmall,
+} from "lucide-react";
 import type { Ref } from "react";
 
 import { IconButton } from "../../components/IconButton";
@@ -107,7 +107,7 @@ export function ReaderToolbar({
         type="button"
       >
         <span aria-hidden="true" className="icon-slot">
-          <ArrowLeft weight="regular" />
+          <ArrowLeft />
         </span>
         <span>Back</span>
       </button>
@@ -122,7 +122,7 @@ export function ReaderToolbar({
             tooltip={previousChapterDisabled ? "You are at the first chapter" : "Previous chapter"}
             tooltipPlacement="bottom"
           >
-            <CaretDoubleLeft aria-hidden="true" weight="bold" />
+            <ChevronsLeft aria-hidden="true" strokeWidth={2.25} />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -145,7 +145,7 @@ export function ReaderToolbar({
             tooltip={nextChapterDisabled ? "You are at the final chapter" : "Next chapter"}
             tooltipPlacement="bottom"
           >
-            <CaretDoubleRight aria-hidden="true" weight="bold" />
+            <ChevronsRight aria-hidden="true" strokeWidth={2.25} />
           </IconButton>
         ) : (
           <span aria-hidden="true" className="reader-toolbar__chapter-spacer" />
@@ -163,7 +163,7 @@ export function ReaderToolbar({
           tooltip="Table of contents"
           tooltipPlacement="bottom"
         >
-          <ListBullets aria-hidden="true" weight="regular" />
+          <ListTree aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-controls="reader-annotations"
@@ -176,7 +176,7 @@ export function ReaderToolbar({
           tooltip="Annotations"
           tooltipPlacement="bottom"
         >
-          <BookmarksSimple aria-hidden="true" weight="regular" />
+          <BookMarked aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-keyshortcuts={bookmarkAriaKeyShortcuts}
@@ -192,7 +192,7 @@ export function ReaderToolbar({
           }
           tooltipPlacement="bottom"
         >
-          <BookmarkSimple aria-hidden="true" weight={bookmarkActive ? "fill" : "regular"} />
+          <Bookmark aria-hidden="true" fill={bookmarkActive ? "currentColor" : "none"} />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton
@@ -214,7 +214,7 @@ export function ReaderToolbar({
           }
           tooltipPlacement="bottom"
         >
-          <CaretLeft aria-hidden="true" weight="bold" />
+          <ChevronLeft aria-hidden="true" strokeWidth={2.25} />
         </IconButton>
         <IconButton
           label={mode === "continuous" ? "Scroll down" : "Next page"}
@@ -235,7 +235,7 @@ export function ReaderToolbar({
           }
           tooltipPlacement="bottom"
         >
-          <CaretRight aria-hidden="true" weight="bold" />
+          <ChevronRight aria-hidden="true" strokeWidth={2.25} />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton
@@ -246,7 +246,7 @@ export function ReaderToolbar({
           tooltip="Quick Actions"
           tooltipPlacement="bottom"
         >
-          <Lightning aria-hidden="true" weight="regular" />
+          <Zap aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}
@@ -257,7 +257,7 @@ export function ReaderToolbar({
           tooltip="Reader settings"
           tooltipPlacement="bottom"
         >
-          <TextAa aria-hidden="true" weight="regular" />
+          <ALargeSmall aria-hidden="true" />
         </IconButton>
       </div>
     </header>

@@ -190,7 +190,7 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
     (component) => {
       expect(
         violationsForFixture(
-          `<${component} icon={<X weight="bold" size={16} />}>Label</${component}>`,
+          `<${component} icon={<X strokeWidth={2.25} size={16} />}>Label</${component}>`,
         ),
       ).not.toEqual([]);
     },
@@ -212,7 +212,7 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
 
   it("allows intentionally sized decorative icons outside shared slots", () => {
     expect(
-      violationsForFixture(`<EmptyState icon={<BookOpenText size={42} weight="thin" />} />`),
+      violationsForFixture(`<EmptyState icon={<BookOpenText size={42} strokeWidth={1.5} />} />`),
     ).toEqual([]);
   });
 

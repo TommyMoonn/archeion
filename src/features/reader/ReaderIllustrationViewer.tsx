@@ -1,10 +1,4 @@
-import {
-  ArrowsOutSimple,
-  DownloadSimple,
-  MagnifyingGlassMinus,
-  MagnifyingGlassPlus,
-  X,
-} from "@phosphor-icons/react";
+import { Maximize2, Download, ZoomOut, ZoomIn, X } from "lucide-react";
 import { useEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
@@ -128,7 +122,7 @@ function ReaderIllustrationViewerInstance({
               label="Zoom out"
               onClick={interaction.zoomOut}
             >
-              <MagnifyingGlassMinus aria-hidden="true" />
+              <ZoomOut aria-hidden="true" />
             </IconButton>
             <output aria-live="polite">{interaction.zoomLabel}</output>
             <IconButton
@@ -136,14 +130,14 @@ function ReaderIllustrationViewerInstance({
               label="Zoom in"
               onClick={interaction.zoomIn}
             >
-              <MagnifyingGlassPlus aria-hidden="true" />
+              <ZoomIn aria-hidden="true" />
             </IconButton>
           </div>
           <div className="reader-illustration-viewer__size-controls">
             {resource && onSaveImage ? (
               <Button
                 disabled={saveState.status === "saving"}
-                icon={<DownloadSimple aria-hidden="true" />}
+                icon={<Download aria-hidden="true" />}
                 onClick={onSaveImage}
                 variant="primary"
               >
@@ -155,7 +149,7 @@ function ReaderIllustrationViewerInstance({
             </Button>
             <Button
               disabled={!resource}
-              icon={<ArrowsOutSimple aria-hidden="true" />}
+              icon={<Maximize2 aria-hidden="true" />}
               onClick={interaction.showActualSize}
               variant="secondary"
             >

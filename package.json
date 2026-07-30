@@ -71,10 +71,10 @@
     "zip": "pwsh -NoProfile -ExecutionPolicy Bypass -File scripts/zip-project.ps1"
   },
   "dependencies": {
-    "@phosphor-icons/react": "^2.1.10",
     "@tauri-apps/api": "^2.11.1",
     "@tauri-apps/plugin-dialog": "^2.7.1",
     "epubjs": "^0.3.93",
+    "lucide-react": "^1.27.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.1"

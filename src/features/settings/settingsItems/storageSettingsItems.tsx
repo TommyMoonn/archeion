@@ -1,4 +1,4 @@
-import { ArrowsClockwise, Broom } from "@phosphor-icons/react";
+import { RefreshCw, BrushCleaning } from "lucide-react";
 
 import { Button } from "../../../components/Button";
 import { Toggle } from "../../../components/Toggle";
@@ -60,7 +60,7 @@ export const storageSettingsItems = [
         <Button
           disabled={context.archiveScanActive}
           disabledReason={archiveScanUnavailableReason}
-          icon={<ArrowsClockwise aria-hidden="true" />}
+          icon={<RefreshCw aria-hidden="true" />}
           onClick={() => context.openConfirmation("rescanArchive")}
           variant="secondary"
         >
@@ -132,7 +132,7 @@ export const storageSettingsItems = [
         }
       >
         <Button
-          icon={<Broom aria-hidden="true" />}
+          icon={<BrushCleaning aria-hidden="true" />}
           onClick={() => context.openConfirmation("clearCoverCache")}
           variant="secondary"
         >

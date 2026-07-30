@@ -1,4 +1,4 @@
-import { BookOpenText } from "@phosphor-icons/react";
+import { BookOpenText } from "lucide-react";
 import {
   Suspense,
   useLayoutEffect,
@@ -246,13 +246,13 @@ export function LibraryWorkspaceSurface({
                   </Button>
                 }
                 description="Remove one or more filters to broaden this view."
-                icon={<BookOpenText size={42} weight="thin" />}
+                icon={<BookOpenText size={42} strokeWidth={1.5} />}
                 title="No matching books"
               />
             ) : visibleBooks.length === 0 && !debouncedQuery ? (
               <EmptyState
                 description={emptyState.description}
-                icon={<BookOpenText size={42} weight="thin" />}
+                icon={<BookOpenText size={42} strokeWidth={1.5} />}
                 title={emptyState.title}
               />
             ) : visibleBooks.length === 0 ? (
@@ -263,7 +263,7 @@ export function LibraryWorkspaceSurface({
                   </Button>
                 }
                 description="Try another title, author, or folder name."
-                icon={<BookOpenText size={42} weight="thin" />}
+                icon={<BookOpenText size={42} strokeWidth={1.5} />}
                 title="No search results"
               />
             ) : view === "grid" ? (

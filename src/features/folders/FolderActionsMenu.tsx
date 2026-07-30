@@ -1,4 +1,4 @@
-import { DotsThree } from "@phosphor-icons/react";
+import { Ellipsis } from "lucide-react";
 
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import type { ContextMenuController } from "../../components/contextMenuController";
@@ -47,7 +47,7 @@ export function FolderActionsMenu({
           tooltip={`Actions for ${folder.name}`}
         >
           <span aria-hidden="true" className="icon-slot">
-            <DotsThree weight="bold" />
+            <Ellipsis strokeWidth={2.25} />
           </span>
         </ContextMenuTrigger>
       </span>

@@ -1,15 +1,15 @@
 import {
   ArrowRight,
-  ArrowsClockwise,
-  CheckSquare,
-  DotsThree,
-  DownloadSimple,
+  RefreshCw,
+  SquareCheckBig,
+  Ellipsis,
+  Download,
   FolderOpen,
   Heart,
-  ImageBroken,
-  NotePencil,
-  Trash,
-} from "@phosphor-icons/react";
+  ImageOff,
+  NotebookPen,
+  Trash2,
+} from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -75,11 +75,11 @@ export function LibrarySelectionBar({
     <div className="library-selection-bar" role="toolbar" aria-label="Book selection actions">
       <div className="library-selection-bar__primary">
         <div className="library-selection-bar__status" aria-live="polite">
-          <CheckSquare
+          <SquareCheckBig
             aria-hidden="true"
             className="library-selection-bar__status-icon"
             size={20}
-            weight="bold"
+            strokeWidth={2.25}
           />
           <strong>{selectedCount} selected</strong>
           <span className="sr-only">
@@ -130,14 +130,14 @@ export function LibrarySelectionBar({
                 aria-label="More bulk actions"
               >
                 <span aria-hidden="true" className="icon-slot">
-                  <DotsThree weight="bold" />
+                  <Ellipsis strokeWidth={2.25} />
                 </span>
               </summary>
             </Tooltip>
             <div className="menu-popover" role="menu">
               <MenuItem
                 disabled={busy || selectedCount === 0}
-                icon={<NotePencil />}
+                icon={<NotebookPen />}
                 onClick={() => runOverflowAction("edit-metadata")}
               >
                 Edit metadata
@@ -151,14 +151,14 @@ export function LibrarySelectionBar({
               </MenuItem>
               <MenuItem
                 disabled={busy || selectedCount === 0}
-                icon={<ArrowsClockwise />}
+                icon={<RefreshCw />}
                 onClick={() => runOverflowAction("metadata")}
               >
                 Re-extract metadata
               </MenuItem>
               <MenuItem
                 disabled={busy || selectedCount === 0}
-                icon={<ImageBroken />}
+                icon={<ImageOff />}
                 onClick={() => runOverflowAction("covers")}
               >
                 Regenerate covers
@@ -172,14 +172,14 @@ export function LibrarySelectionBar({
               </MenuItem>
               <MenuItem
                 disabled={busy || selectedCount === 0}
-                icon={<DownloadSimple />}
+                icon={<Download />}
                 onClick={() => runOverflowAction("annotations-markdown")}
               >
                 Annotations (Markdown)
               </MenuItem>
               <MenuItem
                 disabled={busy || selectedCount === 0}
-                icon={<DownloadSimple />}
+                icon={<Download />}
                 onClick={() => runOverflowAction("annotations-json")}
               >
                 Annotations (JSON)
@@ -188,7 +188,7 @@ export function LibrarySelectionBar({
                 className="danger"
                 danger
                 disabled={busy || selectedCount === 0}
-                icon={<Trash />}
+                icon={<Trash2 />}
                 onClick={() => runOverflowAction("delete")}
               >
                 Delete to Recycle Bin

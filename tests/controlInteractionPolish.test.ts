@@ -145,27 +145,32 @@ describe("Phase 0.9.0.23 control and icon interaction polish", () => {
     );
   });
 
-  it("reserves filled action icons for persistent state or status", () => {
-    const literalFillOwners = collectFiles(path.join(projectRoot, "src"), ".tsx")
+  it("reserves filled Lucide icons for persistent state", () => {
+    const filledIconOwners = collectFiles(path.join(projectRoot, "src"), ".tsx")
       .filter((filePath) => !filePath.endsWith(".test.tsx"))
       .flatMap((filePath) => {
         const source = fs.readFileSync(filePath, "utf8");
-        return source.includes('weight="fill"')
+        return /fill=(?:"currentColor"|\{[^}]*"currentColor"[^}]*\})/.test(source)
           ? [path.relative(projectRoot, filePath).replaceAll("\\", "/")]
           : [];
       })
       .sort();
 
-    expect(literalFillOwners).toEqual([
-      "src/features/library/BookCoverWritebackDialog.tsx",
+    expect(filledIconOwners).toEqual([
+      "src/features/folders/FolderTree.tsx",
+      "src/features/library/BookCard.tsx",
+      "src/features/library/BookDetailsDrawer.tsx",
+      "src/features/library/BookList.tsx",
+      "src/features/library/LibrarySidebar.tsx",
+      "src/features/library/bookContextActions.tsx",
       "src/features/reader/ReaderAnnotationList.tsx",
-      "src/features/series/SeriesDetail.tsx",
+      "src/features/reader/ReaderToolbar.tsx",
     ]);
     expect(readProjectFile("src/features/series/SeriesDetail.tsx")).toContain(
-      '<Play aria-hidden="true" weight="bold" />',
+      '<Play aria-hidden="true" strokeWidth={2.25} />',
     );
     expect(readProjectFile("src/features/folders/FolderTree.tsx")).toContain(
-      'weight={isSelected ? "fill" : "regular"}',
+      'fill={isSelected ? "currentColor" : "none"}',
     );
     for (const projectPath of [
       "src/features/library/BookCard.tsx",
@@ -174,8 +179,23 @@ describe("Phase 0.9.0.23 control and icon interaction polish", () => {
       "src/features/library/bookContextActions.tsx",
     ]) {
       expect(readProjectFile(projectPath)).toContain(
-        'weight={book.isFavorite ? "fill" : "regular"}',
+        'fill={book.isFavorite ? "currentColor" : "none"}',
       );
+    }
+    expect(readProjectFile("src/features/library/LibrarySidebar.tsx")).toContain(
+      'fill={location.type === "favorites" ? "currentColor" : "none"}',
+    );
+    expect(readProjectFile("src/features/reader/ReaderToolbar.tsx")).toContain(
+      'fill={bookmarkActive ? "currentColor" : "none"}',
+    );
+    expect(readProjectFile("src/features/reader/ReaderAnnotationList.tsx")).toContain(
+      '<Bookmark fill="currentColor" />',
+    );
+    for (const projectPath of [
+      "src/features/library/BookCoverWritebackDialog.tsx",
+      "src/features/series/SeriesDetail.tsx",
+    ]) {
+      expect(readProjectFile(projectPath)).not.toMatch(/<(?:CircleCheck|CircleAlert)[^>]*\bfill=/);
     }
   });
 

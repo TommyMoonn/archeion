@@ -1,4 +1,4 @@
-import { ArrowCounterClockwise, X } from "@phosphor-icons/react";
+import { RotateCcw, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -91,7 +91,7 @@ export function KeyboardShortcutRow({
                 onClick={() => void clearShortcut()}
                 size="compact"
               >
-                <X aria-hidden="true" weight="bold" />
+                <X aria-hidden="true" strokeWidth={2.25} />
               </IconButton>
             ) : null}
           </div>
@@ -102,7 +102,7 @@ export function KeyboardShortcutRow({
               onClick={() => void resetShortcut()}
               size="compact"
             >
-              <ArrowCounterClockwise aria-hidden="true" />
+              <RotateCcw aria-hidden="true" />
             </IconButton>
           ) : null}
         </div>

@@ -10,7 +10,7 @@ import {
   useState,
   type CSSProperties,
 } from "react";
-import { CaretLeft, CaretRight, X } from "@phosphor-icons/react";
+import { ChevronLeft, ChevronRight, X } from "lucide-react";
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState, ReaderSettings } from "../../types/reader";
@@ -508,7 +508,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
             aria-hidden="true"
             className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
           >
-            <CaretLeft weight="bold" />
+            <ChevronLeft strokeWidth={2.25} />
           </span>
         </button>
       ) : null}
@@ -530,7 +530,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
             aria-hidden="true"
             className="epub-viewer__click-zone-icon icon-slot icon-slot--prominent"
           >
-            <CaretRight weight="bold" />
+            <ChevronRight strokeWidth={2.25} />
           </span>
         </button>
       ) : null}

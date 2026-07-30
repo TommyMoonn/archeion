@@ -1,11 +1,4 @@
-import {
-  ArrowLeft,
-  CaretRight,
-  CheckCircle,
-  Play,
-  Stack,
-  WarningCircle,
-} from "@phosphor-icons/react";
+import { ArrowLeft, ChevronRight, CircleCheck, Play, Layers, CircleAlert } from "lucide-react";
 import { useId } from "react";
 
 import { Button } from "../../components/Button";
@@ -43,7 +36,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
             </Button>
           }
           description="Its metadata may have changed since this page was opened."
-          icon={<Stack size={42} weight="thin" />}
+          icon={<Layers size={42} strokeWidth={1.5} />}
           title="Series not found"
         />
       </section>
@@ -73,7 +66,7 @@ export function SeriesDetail({ entry, onBack, onRead }: SeriesDetailProps) {
               data-reader-book-id={continueBook.id}
               disabled={Boolean(continueBook.isFileMissing)}
               disabledReason={continueBook.isFileMissing ? "The EPUB file is missing." : undefined}
-              icon={<Play aria-hidden="true" weight="bold" />}
+              icon={<Play aria-hidden="true" strokeWidth={2.25} />}
               onClick={() => onRead(continueBook)}
               size="standard"
             >
@@ -156,14 +149,12 @@ function SeriesVolumeRow({
           ) : null}
           <span className="series-volume__progress">
             <span>{bookProgressLabel(book)}</span>
-            {status === "completed" ? (
-              <CheckCircle aria-hidden="true" size={14} weight="fill" />
-            ) : null}
+            {status === "completed" ? <CircleCheck aria-hidden="true" size={14} /> : null}
           </span>
         </span>
         <span className="series-volume__action">
           <span>{bookActionLabel(book)}</span>
-          <CaretRight aria-hidden="true" size={16} weight="bold" />
+          <ChevronRight aria-hidden="true" size={16} strokeWidth={2.25} />
         </span>
       </button>
       {book.isFileMissing ? (
@@ -182,7 +173,7 @@ function SeriesHintGroup({ hints, label }: { hints: string[]; label: string }) {
 
   return (
     <section className="series-hint-group">
-      <WarningCircle aria-hidden="true" size={17} />
+      <CircleAlert aria-hidden="true" size={17} />
       <div>
         <h2>{label}</h2>
         <ul>

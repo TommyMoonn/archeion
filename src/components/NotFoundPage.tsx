@@ -1,4 +1,4 @@
-import { ArrowLeft } from "@phosphor-icons/react";
+import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
 import { MAIN_CONTENT_ID } from "./SkipLink";
 
@@ -9,7 +9,7 @@ export function NotFoundPage() {
       <h1>Page not found</h1>
       <p>This page is not part of your archive.</p>
       <Link className="text-link" to="/">
-        <ArrowLeft aria-hidden="true" size={18} weight="regular" />
+        <ArrowLeft aria-hidden="true" size={18} />
         Return to library
       </Link>
     </main>

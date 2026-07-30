@@ -387,10 +387,10 @@ describe("LibrarySidebar", () => {
 
     expect(sidebarSource).not.toContain("onOpenQuickActions");
     expect(sidebarSource).not.toContain("quickActionsAriaKeyShortcuts");
-    expect(sidebarSource).not.toContain("Lightning");
+    expect(sidebarSource).not.toContain("Zap");
     expect(titlebarCompositionSource).toContain("onOpenQuickActions");
     expect(titlebarCompositionSource).toContain("quickActionsAriaKeyShortcuts");
-    expect(titlebarCompositionSource).toContain("Lightning");
+    expect(titlebarCompositionSource).toContain("Zap");
     expect(toolbarSource).not.toContain("Quick Actions");
   });
 

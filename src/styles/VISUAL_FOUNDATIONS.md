@@ -43,6 +43,8 @@ Interactive labels, navigation, important status text, and primary metadata must
 
 Use `.icon-slot` around SVG glyphs. The slot owns layout stability while the glyph role owns visible size. Compact, standard, and prominent roles are available. Do not restore fractional borders or rotated CSS shapes for static icons when an SVG exists.
 
+Application interface icons come from `lucide-react`. Import named icons directly, let them inherit `currentColor`, and use the default outline treatment unless a filled glyph communicates a persistent state such as favorite, bookmark, or selected folder. Use `strokeWidth={2.25}` only for actions that require stronger emphasis and `strokeWidth={1.5}` for intentionally light decorative artwork. Do not reintroduce a second icon library or Lucide dynamic icon loading into application surfaces.
+
 Recurring controls should consume the compact, standard, or prominent control-height tokens. Use the shared border, radius, danger, error, and elevation tokens before introducing a feature-specific value.
 
 Surface geometry follows semantic roles rather than local numeric values:

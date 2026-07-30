@@ -1,4 +1,4 @@
-import { BookOpenText } from "@phosphor-icons/react";
+import { BookOpenText } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
@@ -82,7 +82,7 @@ export const BookCover = memo(function BookCover({
       title={state === "unavailable" ? "Cover unavailable" : undefined}
     >
       {coverUrl ? <img alt="" decoding="async" loading="lazy" src={coverUrl} /> : null}
-      {state === "unavailable" ? <BookOpenText size={30} weight="thin" /> : null}
+      {state === "unavailable" ? <BookOpenText size={30} strokeWidth={1.5} /> : null}
       {state === "loading" ? <span className="book-cover__loading" /> : null}
     </div>
   );

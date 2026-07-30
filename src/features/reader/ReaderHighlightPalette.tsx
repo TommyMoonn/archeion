@@ -1,4 +1,4 @@
-import { NotePencil } from "@phosphor-icons/react";
+import { NotebookPen } from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -166,7 +166,7 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
             type="button"
           >
             <span aria-hidden="true" className="icon-slot">
-              <NotePencil />
+              <NotebookPen />
             </span>
           </button>
         </Tooltip>

@@ -1,4 +1,4 @@
-import { CaretRight, GridFour, List, MagnifyingGlass, Stack, X } from "@phosphor-icons/react";
+import { ChevronRight, Grid2x2, List, Search, Layers, X } from "lucide-react";
 import {
   memo,
   useCallback,
@@ -55,12 +55,12 @@ const seriesViewOptions: Array<{
   value: LibraryView;
 }> = [
   {
-    icon: <GridFour aria-hidden="true" weight="regular" />,
+    icon: <Grid2x2 aria-hidden="true" />,
     label: "Grid",
     value: "grid",
   },
   {
-    icon: <List aria-hidden="true" weight="regular" />,
+    icon: <List aria-hidden="true" />,
     label: "List",
     value: "list",
   },
@@ -91,7 +91,7 @@ const SeriesOverviewCard = memo(function SeriesOverviewCard({
           <span>{volumeCountLabel(entry.books.length)}</span>
           <span className="series-card__status">{seriesProgressLabel(entry)}</span>
         </span>
-        <CaretRight aria-hidden="true" size={17} weight="bold" />
+        <ChevronRight aria-hidden="true" size={17} strokeWidth={2.25} />
       </button>
     </article>
   );
@@ -176,7 +176,7 @@ export const SeriesOverview = memo(function SeriesOverview({
               autoCapitalize="none"
               autoComplete="off"
               autoCorrect="off"
-              icon={<MagnifyingGlass aria-hidden="true" />}
+              icon={<Search aria-hidden="true" />}
               label="Search series"
               name="archeion-series-search"
               onChange={(event) => onQueryChange(event.currentTarget.value)}
@@ -193,7 +193,7 @@ export const SeriesOverview = memo(function SeriesOverview({
                 label="Clear series search"
                 onClick={onClearSearch}
               >
-                <X aria-hidden="true" weight="bold" />
+                <X aria-hidden="true" strokeWidth={2.25} />
               </IconButton>
             ) : null}
           </div>
@@ -235,7 +235,7 @@ export const SeriesOverview = memo(function SeriesOverview({
         ) : entries.length === 0 ? (
           <EmptyState
             description="Add series metadata to EPUBs to group their volumes here."
-            icon={<Stack size={42} weight="thin" />}
+            icon={<Layers size={42} strokeWidth={1.5} />}
             title="No series metadata"
           />
         ) : visibleEntries.length === 0 ? (
@@ -246,7 +246,7 @@ export const SeriesOverview = memo(function SeriesOverview({
               </Button>
             }
             description="Try another series name."
-            icon={<Stack size={42} weight="thin" />}
+            icon={<Layers size={42} strokeWidth={1.5} />}
             title="No matching series"
           />
         ) : (

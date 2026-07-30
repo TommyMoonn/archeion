@@ -1,13 +1,13 @@
 import {
-  ArrowSquareOut,
+  ExternalLink,
   Check,
   Copy,
   Highlighter,
-  MagnifyingGlass,
-  NotePencil,
-  PencilSimple,
-  Trash,
-} from "@phosphor-icons/react";
+  Search,
+  NotebookPen,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, RefObject } from "react";
 
 import { MenuItem } from "../../components/MenuItem";
@@ -146,38 +146,28 @@ export function ReaderAnnotationActionMenu({
             disabled={
               menu.annotation.anchorStatus === "detached" || !menu.annotation.cfiRange?.trim()
             }
-            icon={<ArrowSquareOut weight="regular" />}
+            icon={<ExternalLink />}
             onClick={() => runFromTrigger(onNavigate)}
           >
             Go to location
           </MenuItem>
           {menu.annotation.anchorStatus === "detached" ? (
             <>
-              <MenuItem
-                icon={<MagnifyingGlass weight="regular" />}
-                onClick={() => runFromTrigger(onRecover)}
-              >
+              <MenuItem icon={<Search />} onClick={() => runFromTrigger(onRecover)}>
                 Attempt to locate
               </MenuItem>
-              <MenuItem
-                icon={<Copy weight="regular" />}
-                onClick={() => runFromTrigger(onCopyDetached)}
-              >
+              <MenuItem icon={<Copy />} onClick={() => runFromTrigger(onCopyDetached)}>
                 Copy annotation
               </MenuItem>
             </>
           ) : null}
           {menu.annotation.type === "highlight" ? (
             <>
-              <MenuItem
-                data-recolor-highlight
-                icon={<Highlighter weight="regular" />}
-                onClick={onOpenColors}
-              >
+              <MenuItem data-recolor-highlight icon={<Highlighter />} onClick={onOpenColors}>
                 Recolor highlight
               </MenuItem>
               <MenuItem
-                icon={<NotePencil weight="regular" />}
+                icon={<NotebookPen />}
                 onClick={() =>
                   runFromTrigger((annotation) => {
                     if (annotation.type === "highlight") onEditNote(annotation);
@@ -190,7 +180,7 @@ export function ReaderAnnotationActionMenu({
           ) : null}
           {menu.annotation.type === "bookmark" ? (
             <MenuItem
-              icon={<PencilSimple weight="regular" />}
+              icon={<Pencil />}
               onClick={() =>
                 beginInlineAction((annotation) => {
                   if (annotation.type === "bookmark") onBeginBookmarkRename(annotation);
@@ -200,11 +190,7 @@ export function ReaderAnnotationActionMenu({
               Rename bookmark
             </MenuItem>
           ) : null}
-          <MenuItem
-            danger
-            icon={<Trash weight="regular" />}
-            onClick={() => beginInlineAction(onBeginRemoval)}
-          >
+          <MenuItem danger icon={<Trash2 />} onClick={() => beginInlineAction(onBeginRemoval)}>
             {readerAnnotationRemoveLabel(menu.annotation)}
           </MenuItem>
         </>

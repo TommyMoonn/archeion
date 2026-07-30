@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { ArrowLeft, Trash } from "@phosphor-icons/react";
+import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
@@ -440,7 +440,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
             <Button
               data-delete-note-trigger
               disabled={!canDelete || deleting}
-              icon={<Trash aria-hidden="true" />}
+              icon={<Trash2 aria-hidden="true" />}
               onClick={() => setConfirmingDelete(true)}
               size="compact"
               variant="ghost"

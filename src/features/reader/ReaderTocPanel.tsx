@@ -1,4 +1,4 @@
-import { BookOpenText, Check, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { BookOpenText, Check, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
@@ -100,7 +100,7 @@ export function ReaderTocPanel({
         <Input
           aria-keyshortcuts={searchAriaKeyShortcuts}
           className="reader-toc__search"
-          icon={<MagnifyingGlass aria-hidden="true" />}
+          icon={<Search aria-hidden="true" />}
           label="Search chapters"
           onChange={(event) => setQuery(event.currentTarget.value)}
           placeholder="Search chapters"
@@ -116,7 +116,7 @@ export function ReaderTocPanel({
 
         {navigation.status === "ready" && navigation.chapters.length === 0 ? (
           <div className="reader-toc__empty">
-            <BookOpenText aria-hidden="true" size={28} weight="thin" />
+            <BookOpenText aria-hidden="true" size={28} strokeWidth={1.5} />
             <p>No table of contents</p>
             <span>This book does not include usable chapter navigation.</span>
           </div>

@@ -1,4 +1,4 @@
-import { ArrowsClockwise } from "@phosphor-icons/react";
+import { RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "../../components/Button";
@@ -36,7 +36,7 @@ export function RescanArchiveButton({ isRescanning, onRescan }: RescanArchiveBut
         tooltip={isRescanning ? "Wait for the archive scan to finish" : "Rescan archive"}
         tooltipPlacement="bottom"
       >
-        <ArrowsClockwise aria-hidden="true" />
+        <RefreshCw aria-hidden="true" />
       </IconButton>
       {confirmationOpen ? (
         <Dialog

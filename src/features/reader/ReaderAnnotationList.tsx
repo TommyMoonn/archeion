@@ -1,11 +1,4 @@
-import {
-  BookmarkSimple,
-  Check,
-  DotsThree,
-  Highlighter,
-  NotePencil,
-  X,
-} from "@phosphor-icons/react";
+import { Bookmark, Check, Ellipsis, Highlighter, NotebookPen, X } from "lucide-react";
 import {
   forwardRef,
   useImperativeHandle,
@@ -295,7 +288,7 @@ export const ReaderAnnotationList = forwardRef<
                               type="button"
                             >
                               <span aria-hidden="true" className="icon-slot">
-                                <DotsThree weight="bold" />
+                                <Ellipsis strokeWidth={2.25} />
                               </span>
                             </button>
                           </>
@@ -411,11 +404,7 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
     <>
       <span className="reader-annotations__type">
         <span aria-hidden="true" className="icon-slot icon-slot--compact">
-          {annotation.type === "bookmark" ? (
-            <BookmarkSimple weight="fill" />
-          ) : (
-            <Highlighter weight="regular" />
-          )}
+          {annotation.type === "bookmark" ? <Bookmark fill="currentColor" /> : <Highlighter />}
         </span>
         <span>{label}</span>
         {annotation.type === "highlight" ? (
@@ -443,7 +432,7 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
 function AnnotationEmptyState({ children, label }: { children: string; label: string }) {
   return (
     <div className="reader-toc__empty reader-annotations__empty">
-      <NotePencil aria-hidden="true" size={28} weight="thin" />
+      <NotebookPen aria-hidden="true" size={28} strokeWidth={1.5} />
       <p>{label}</p>
       <span>{children}</span>
     </div>

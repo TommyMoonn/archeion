@@ -1,4 +1,4 @@
-import { ArrowRight } from "@phosphor-icons/react";
+import { ArrowRight } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import type { ReadonlyBook } from "../../types/book";
@@ -22,7 +22,7 @@ export function ReaderNextVolumePrompt({ book, onOpen }: ReaderNextVolumePromptP
       <Button
         disabled={Boolean(book.isFileMissing)}
         disabledReason={book.isFileMissing ? "The EPUB file is missing." : undefined}
-        icon={<ArrowRight aria-hidden="true" weight="bold" />}
+        icon={<ArrowRight aria-hidden="true" strokeWidth={2.25} />}
         onClick={onOpen}
         size="standard"
         variant="secondary"
