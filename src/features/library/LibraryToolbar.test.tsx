@@ -263,22 +263,41 @@ describe("LibraryToolbar", () => {
     const session = renderInteractiveToolbar({ onFilterChange });
     activeRoot = session.root;
 
-    const seriesSelect = session.container.querySelector<HTMLSelectElement>(
-      'select[aria-label="Add series filter"]',
+    const seriesSelect = session.container.querySelector<HTMLButtonElement>(
+      'button[role="combobox"][aria-label="Add series filter"]',
     );
 
     expect(seriesSelect).not.toBeNull();
-    act(() => {
-      if (seriesSelect) {
-        seriesSelect.value = "Star Saga";
-        seriesSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      }
-    });
+    expect(session.container.querySelector("select")).toBeNull();
+    act(() => seriesSelect?.click());
+
+    const seriesOption = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ).find((option) => option.textContent?.trim() === "Star Saga");
+    act(() => seriesOption?.click());
 
     expect(onFilterChange).toHaveBeenCalledWith({
       ...createDefaultLibraryFilters(),
       series: ["Star Saga"],
     });
+  });
+
+  it("disables metadata selectors when no unused values remain", () => {
+    const session = renderInteractiveToolbar({
+      filters: {
+        ...createDefaultLibraryFilters(),
+        series: ["Star Saga"],
+      },
+    });
+    activeRoot = session.root;
+
+    const seriesSelect = session.container.querySelector<HTMLButtonElement>(
+      'button[role="combobox"][aria-label="Add series filter"]',
+    );
+
+    expect(seriesSelect?.disabled).toBe(true);
+    expect(seriesSelect?.textContent).toContain("No more options");
+    expect(seriesSelect?.getAttribute("aria-expanded")).toBe("false");
   });
 
   it("shows active filter controls only when deliberate filters are active", () => {

@@ -1,5 +1,6 @@
 import { Filter, X } from "lucide-react";
 
+import { AppSelect, type AppSelectOption } from "../../components/AppSelect";
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import type { LibraryFilterState, LibraryReadingStatus } from "../../types/library";
@@ -121,26 +122,30 @@ function MetadataFilterSelect({
   options: string[];
 }) {
   const availableOptions = options.filter((option) => !filters[filterKey].includes(option));
+  const selectOptions: Array<AppSelectOption<string>> = [
+    {
+      label: availableOptions.length > 0 ? "Any" : "No more options",
+      value: "",
+    },
+    ...availableOptions.map((option) => ({ label: option, value: option })),
+  ];
 
   return (
-    <label className="library-filter-field">
+    <div className="library-filter-field">
       <span>{metadataFilterLabels[filterKey]}</span>
-      <select
-        aria-label={`Add ${metadataFilterLabels[filterKey].toLowerCase()} filter`}
+      <AppSelect
+        ariaLabel={`Add ${metadataFilterLabels[filterKey].toLowerCase()} filter`}
         disabled={availableOptions.length === 0}
-        value=""
-        onChange={(event) => {
-          onChange(addMetadataFilter(filters, filterKey, event.currentTarget.value));
+        onChange={(value) => {
+          if (value) {
+            onChange(addMetadataFilter(filters, filterKey, value));
+          }
         }}
-      >
-        <option value="">{availableOptions.length ? "Any" : "No more options"}</option>
-        {availableOptions.map((option) => (
-          <option key={option} value={option}>
-            {option}
-          </option>
-        ))}
-      </select>
-    </label>
+        options={selectOptions}
+        size="compact"
+        value=""
+      />
+    </div>
   );
 }
 

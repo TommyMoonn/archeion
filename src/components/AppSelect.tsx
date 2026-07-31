@@ -25,6 +25,7 @@ type AppSelectAppearance =
 type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   ariaLabel?: string;
   className?: string;
+  disabled?: boolean;
   id?: string;
   label?: ReactNode;
   onChange: (value: TValue) => void;
@@ -67,6 +68,7 @@ export function AppSelect<TValue extends string>({
   appearance = "default",
   ariaLabel,
   className = "",
+  disabled = false,
   id,
   label,
   onChange,
@@ -78,6 +80,13 @@ export function AppSelect<TValue extends string>({
   const generatedId = useId();
   const controlId = id ?? `app-select-${generatedId}`;
   const [open, setOpen] = useState(false);
+  const [previousDisabled, setPreviousDisabled] = useState(disabled);
+
+  if (previousDisabled !== disabled) {
+    setPreviousDisabled(disabled);
+    setOpen(false);
+  }
+
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -92,8 +101,9 @@ export function AppSelect<TValue extends string>({
     [options, value],
   );
   const optionId = (index: number) => `${controlId}-option-${index}`;
+  const isOpen = previousDisabled === disabled && open && !disabled;
   const activeOptionId =
-    open && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
+    isOpen && resolvedActiveIndex >= 0 ? optionId(resolvedActiveIndex) : undefined;
   const contentRevision = options
     .map((option) => `${option.value}\u0000${option.label}\u0000${option.disabled ? "1" : "0"}`)
     .join("\u0001");
@@ -101,12 +111,12 @@ export function AppSelect<TValue extends string>({
     activeOptionId,
     contentRevision,
     menuRef,
-    open,
+    open: isOpen,
     triggerRef: buttonRef,
   });
 
   useTransientSurfaceOwnership({
-    active: open,
+    active: isOpen,
     closeOnModalOpen: true,
     dismissOnOutsidePointer: true,
     elementRef: rootRef,
@@ -133,7 +143,7 @@ export function AppSelect<TValue extends string>({
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const direction = event.key === "ArrowDown" ? 1 : -1;
-      const startIndex = open
+      const startIndex = isOpen
         ? resolvedActiveIndex
         : selectedIndex >= 0
           ? selectedIndex
@@ -166,7 +176,7 @@ export function AppSelect<TValue extends string>({
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
       inputModalityRuntime.markKeyboard();
-      if (!open) {
+      if (!isOpen) {
         setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
         setOpen(true);
         return;
@@ -199,11 +209,12 @@ export function AppSelect<TValue extends string>({
         aria-activedescendant={activeOptionId}
         aria-autocomplete="none"
         aria-controls={`${controlId}-menu`}
-        aria-expanded={open}
+        aria-expanded={isOpen}
         aria-haspopup="listbox"
         aria-label={ariaLabel}
         aria-labelledby={label ? `${controlId}-label ${controlId}-button` : undefined}
         className="app-select__trigger"
+        disabled={disabled}
         id={`${controlId}-button`}
         onClick={() => {
           setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
@@ -228,7 +239,7 @@ export function AppSelect<TValue extends string>({
           </>
         ) : null}
       </button>
-      {open ? (
+      {isOpen ? (
         <div
           className="app-select__menu"
           data-placement={menuPlacement?.placement}

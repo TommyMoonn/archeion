@@ -2304,6 +2304,7 @@ html[data-motion="on"] .library-feedback__token {
   display: grid;
   gap: 5px;
   min-width: 0;
+  width: 100%;
   color: var(--muted);
   font-size: var(--type-caption);
   font-weight: var(--font-weight-semibold);
@@ -2311,16 +2312,16 @@ html[data-motion="on"] .library-feedback__token {
   text-transform: uppercase;
 }
 
-.library-filter-field select {
+.library-filter-field .app-select {
   min-width: 0;
   width: 100%;
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.library-filter-field .app-select__trigger {
   min-height: 34px;
-  padding: 0 28px 0 9px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-control);
-  color: var(--text);
-  background: var(--surface);
-  font: inherit;
+  padding-inline: 9px;
   font-size: var(--type-caption);
   letter-spacing: normal;
   text-transform: none;

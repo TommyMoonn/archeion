@@ -126,16 +126,22 @@ describe("LibraryPage navigation and archive loading", () => {
       if (search) setInputValue(search, "Dune");
     });
 
-    const seriesSelect = session.container.querySelector<HTMLSelectElement>(
-      'select[aria-label="Add series filter"]',
+    const seriesSelect = session.container.querySelector<HTMLButtonElement>(
+      'button[role="combobox"][aria-label="Add series filter"]',
     );
     expect(seriesSelect).not.toBeNull();
 
     await act(async () => {
-      if (seriesSelect) {
-        seriesSelect.value = "Dune";
-        seriesSelect.dispatchEvent(new Event("change", { bubbles: true }));
-      }
+      seriesSelect?.click();
+      await Promise.resolve();
+    });
+
+    const seriesOption = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ).find((option) => option.textContent?.trim() === "Dune");
+
+    await act(async () => {
+      seriesOption?.click();
       await Promise.resolve();
     });
 

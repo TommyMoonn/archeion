@@ -102,13 +102,16 @@ describe("Phase 0.9.0.23 control and icon interaction polish", () => {
 
   it("separates hover, selected, open, pressed, and unavailable states", () => {
     expect(dropdownStyles).toMatch(
-      /\.app-select__trigger:hover\s*\{[^}]*background:\s*var\(--surface-hover\);/s,
+      /\.app-select__trigger:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--surface-hover\);/s,
     );
     expect(dropdownStyles).toMatch(
       /\.app-select__trigger\[aria-expanded="true"\]\s*\{[^}]*background:\s*var\(--surface-raised\);/s,
     );
     expect(dropdownStyles).toMatch(
       /\.app-select__option\[aria-selected="true"\]\s*\{[^}]*background:\s*var\(--surface-raised\);/s,
+    );
+    expect(dropdownStyles).toMatch(
+      /\.app-select__trigger:disabled\s*\{[^}]*cursor:\s*not-allowed;[^}]*opacity:\s*0\.55;/s,
     );
     expect(menuStyles).toMatch(
       /details\[open\] > \.menu-trigger\s*\{[^}]*background:\s*var\(--surface-raised\);/s,

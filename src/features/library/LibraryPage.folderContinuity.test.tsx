@@ -380,8 +380,12 @@ describe("LibraryPage folder path continuity", () => {
       seriesNavigation.focus();
       await navigateToSeries("/?archiveId=archive-books&view=series");
     });
-    await vi.waitFor(() => {
-      expect(session.container.querySelector("#series-overview-title")?.textContent).toBe("Series");
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(session.container.querySelector("#series-overview-title")?.textContent).toBe(
+          "Series",
+        );
+      });
     });
 
     await act(async () => {

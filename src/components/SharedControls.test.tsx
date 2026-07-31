@@ -533,6 +533,43 @@ describe("AppSelect dismissal", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it("closes and stays closed when it becomes disabled", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    const renderSelect = (disabled: boolean) => {
+      act(() => {
+        root.render(
+          <AppSelect
+            ariaLabel="Sort books"
+            disabled={disabled}
+            onChange={vi.fn()}
+            options={[
+              { label: "Title", value: "title" },
+              { label: "Author", value: "author" },
+            ]}
+            value="title"
+          />,
+        );
+      });
+    };
+
+    renderSelect(false);
+    const trigger = container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+    act(() => trigger.click());
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+
+    renderSelect(true);
+    expect(trigger.disabled).toBe(true);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector('[role="listbox"]')).toBeNull();
+
+    renderSelect(false);
+    expect(trigger.disabled).toBe(false);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
   it("observes outside pointer presses before stopped propagation without blocking the target", () => {
     const onOutsideClick = vi.fn();
     const container = document.createElement("div");
