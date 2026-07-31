@@ -66,7 +66,7 @@ export const BookGrid = memo(function BookGrid({
   return (
     <section
       ref={collectionRef}
-      className="book-grid"
+      className="book-grid collection-content__items"
       data-book-card-size={cardSize}
       aria-label="Books"
       data-windowed={windowed || undefined}

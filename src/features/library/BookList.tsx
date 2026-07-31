@@ -240,7 +240,7 @@ export const BookList = memo(function BookList({
   return (
     <section
       ref={collectionRef}
-      className="book-list"
+      className="book-list collection-content__items"
       aria-label="Books"
       data-windowed={windowed || undefined}
       data-window-start={range.start}

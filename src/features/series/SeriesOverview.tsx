@@ -250,7 +250,10 @@ export const SeriesOverview = memo(function SeriesOverview({
             title="No matching series"
           />
         ) : (
-          <div className={`series-grid series-grid--${view}`} data-series-card-size={cardSize}>
+          <div
+            className={`series-grid series-grid--${view} collection-content__items`}
+            data-series-card-size={cardSize}
+          >
             {visibleEntries.map((entry) => (
               <SeriesOverviewCard entry={entry} key={entry.key} onOpen={onOpen} />
             ))}

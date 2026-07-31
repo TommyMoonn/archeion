@@ -134,9 +134,12 @@
   scroll-margin-top: 32px;
 }
 
-html[data-motion="on"] .settings-section {
-  animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view)
-    var(--motion-delay-view-content) backwards;
+.settings-section-transition {
+  width: 100%;
+}
+
+html[data-motion="on"] .settings-section-transition[data-transition="section-change"] {
+  animation: app-motion-settings-section-in var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .settings-section > header {

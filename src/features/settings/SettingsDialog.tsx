@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
-import { getProgrammaticScrollBehavior } from "../../utils/motion";
+import { getProgrammaticScrollBehavior, isAppMotionEnabled } from "../../utils/motion";
 import { ThemeManagerDialog } from "../themes/ThemeManagerDialog";
 import { SettingsConfirmations } from "./SettingsConfirmations";
 import { SettingsSearchResults } from "./SettingsSearchResults";
@@ -73,6 +73,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [animateSectionChange, setAnimateSectionChange] = useState(false);
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const { getCommandBinding } = useQuickActions();
@@ -132,11 +133,20 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   );
 
   function showSection(section: SettingsSection) {
+    const sectionChanged = section !== selectedSection;
+
+    setAnimateSectionChange(sectionChanged && isAppMotionEnabled());
     setActiveSection(section);
     scrollSettingsContent(contentRef.current);
   }
 
+  function updateQuery(nextQuery: string) {
+    setAnimateSectionChange(false);
+    setQuery(nextQuery);
+  }
+
   function clearSearch() {
+    setAnimateSectionChange(false);
     setQuery("");
     scrollSettingsContent(contentRef.current);
   }
@@ -157,7 +167,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
     >
       <div className="settings-window modal-surface">
         <SettingsSidebar
-          onQueryChange={setQuery}
+          onQueryChange={updateQuery}
           searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
           onSectionChange={showSection}
           query={query}
@@ -184,7 +194,18 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
               query={trimmedQuery}
             />
           ) : (
-            renderSettingsSection(selectedSection, controller)
+            <div
+              className="settings-section-transition"
+              data-transition={animateSectionChange ? "section-change" : undefined}
+              key={selectedSection}
+              onAnimationEnd={(event) => {
+                if (event.currentTarget === event.target) {
+                  setAnimateSectionChange(false);
+                }
+              }}
+            >
+              {renderSettingsSection(selectedSection, controller)}
+            </div>
           )}
 
           <SettingsStatus

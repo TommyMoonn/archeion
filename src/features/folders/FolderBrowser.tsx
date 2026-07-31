@@ -317,7 +317,7 @@ export const FolderBrowser = memo(function FolderBrowser({
           />
         ) : (
           <div
-            className={`folder-browser__items folder-browser__items--${view}`}
+            className={`folder-browser__items folder-browser__items--${view} collection-content__items`}
             data-folder-card-size={cardSize}
           >
             {visibleEntries.map((entry) => (

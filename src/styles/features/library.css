@@ -22,10 +22,6 @@ html[data-density="compact"] .book-grid {
   margin: 0 auto;
 }
 
-html[data-motion="on"] .library-header {
-  animation: app-motion-view-header-in var(--motion-duration-view) var(--motion-ease-view);
-}
-
 .library-header__title h1 {
   margin: 2px 0 0;
   color: var(--text-strong);

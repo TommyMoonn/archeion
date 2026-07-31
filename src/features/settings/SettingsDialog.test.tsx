@@ -181,7 +181,7 @@ describe("SettingsDialog responsiveness", () => {
     }
   });
 
-  it("uses instant section scrolling when app motion is disabled", async () => {
+  it("uses instant section scrolling without adding section motion when app motion is disabled", async () => {
     const { container } = track(renderDialog());
 
     clickButton(container, "Storage");
@@ -193,21 +193,35 @@ describe("SettingsDialog responsiveness", () => {
       top: 0,
       behavior: "auto",
     });
+    expect(
+      container.querySelector(".settings-section-transition")?.hasAttribute("data-transition"),
+    ).toBe(false);
   });
 
-  it("uses smooth section scrolling only when app motion is enabled", async () => {
+  it("keeps initial Settings content static and animates only later section switches", async () => {
     document.documentElement.dataset.motion = "on";
     const { container } = track(renderDialog());
+    const initialSection = container.querySelector(".settings-section-transition");
+
+    expect(initialSection?.hasAttribute("data-transition")).toBe(false);
 
     clickButton(container, "Storage");
     await act(async () => {
       await Promise.resolve();
     });
 
+    const switchedSection = container.querySelector<HTMLElement>(".settings-section-transition");
     expect(scrollToMock()).toHaveBeenLastCalledWith({
       top: 0,
       behavior: "smooth",
     });
+    expect(switchedSection?.dataset.transition).toBe("section-change");
+
+    act(() => {
+      switchedSection?.dispatchEvent(new Event("animationend", { bubbles: true }));
+    });
+
+    expect(switchedSection?.hasAttribute("data-transition")).toBe(false);
   });
 
   it("does not request deferred Storage or Import data on initial open", async () => {

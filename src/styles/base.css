@@ -138,18 +138,6 @@ a {
   }
 }
 
-@keyframes app-motion-view-header-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 @keyframes app-motion-view-content-in {
   from {
     opacity: 0;
@@ -159,6 +147,16 @@ a {
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes app-motion-settings-section-in {
+  from {
+    opacity: 0.86;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 

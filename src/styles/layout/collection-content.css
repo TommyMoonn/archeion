@@ -28,9 +28,8 @@
   margin: 0;
 }
 
-html[data-motion="on"] .collection-content {
-  animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view)
-    var(--motion-delay-view-content) backwards;
+html[data-motion="on"] .collection-content__items {
+  animation: app-motion-view-content-in var(--motion-duration-view) var(--motion-ease-view);
 }
 
 @media (max-height: 640px) {
