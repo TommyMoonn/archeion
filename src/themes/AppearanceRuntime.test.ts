@@ -862,6 +862,107 @@ describe("AppearanceRuntime", () => {
     expect(runtime.getPreviewContext()?.settings).toEqual(latestSettings);
   });
 
+  it("shares concurrent same-archive refresh reconciliation and allows a later refresh", async () => {
+    const preferences = createPreferencesSource();
+    const initial = appearanceSettings({ kind: "inherit" }, { kind: "inherit" });
+    const refreshed = appearanceSettings(
+      { kind: "builtin", id: "light" },
+      { kind: "builtin", id: "sepia" },
+    );
+    const later = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "light" },
+    );
+    let persisted = refreshed;
+    const firstRefreshRead = deferred<ArchiveAppearanceSettings>();
+    const getArchiveAppearanceSettings = vi
+      .fn<() => Promise<ArchiveAppearanceSettings>>()
+      .mockResolvedValueOnce(initial)
+      .mockImplementationOnce(() => firstRefreshRead.promise)
+      .mockImplementation(async () => persisted);
+    const catalog = new ArchiveThemeCatalog();
+    const loadSelected = vi.spyOn(catalog, "loadSelected");
+    const runtime = new AppearanceRuntime({
+      catalog,
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings,
+        saveArchiveAppearanceSettings: async (settings) => settings,
+      },
+    );
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active appearance context");
+
+    const first = runtime.refreshArchiveAppearance(context.archive);
+    const shared = runtime.refreshArchiveAppearance(context.archive);
+    await vi.waitFor(() => expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2));
+    expect(loadSelected).toHaveBeenCalledOnce();
+    firstRefreshRead.resolve(refreshed);
+
+    await expect(first).resolves.toEqual(refreshed);
+    await expect(shared).resolves.toEqual(refreshed);
+    expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2);
+    expect(loadSelected).toHaveBeenCalledTimes(2);
+    expect(runtime.getPreviewContext()?.settings).toEqual(refreshed);
+
+    persisted = later;
+    await expect(runtime.refreshArchiveAppearance(context.archive)).resolves.toEqual(later);
+    expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(3);
+    expect(loadSelected).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps a newer appearance write authoritative over an older shared refresh", async () => {
+    const preferences = createPreferencesSource();
+    const initial = appearanceSettings({ kind: "inherit" }, { kind: "inherit" });
+    const staleRefresh = appearanceSettings({ kind: "builtin", id: "light" }, { kind: "inherit" });
+    const newerWrite = appearanceSettings(
+      { kind: "builtin", id: "dark" },
+      { kind: "builtin", id: "sepia" },
+    );
+    let persisted = initial;
+    const refreshRead = deferred<ArchiveAppearanceSettings>();
+    const getArchiveAppearanceSettings = vi
+      .fn<() => Promise<ArchiveAppearanceSettings>>()
+      .mockResolvedValueOnce(initial)
+      .mockImplementationOnce(() => refreshRead.promise)
+      .mockImplementation(async () => persisted);
+    const saveArchiveAppearanceSettings = vi.fn(async (settings: ArchiveAppearanceSettings) => {
+      persisted = settings;
+      return settings;
+    });
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      { getArchiveAppearanceSettings, saveArchiveAppearanceSettings },
+    );
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active appearance context");
+
+    const refreshing = runtime.refreshArchiveAppearance(context.archive);
+    const sharedRefresh = runtime.refreshArchiveAppearance(context.archive);
+    await vi.waitFor(() => expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2));
+    const saving = runtime.saveArchiveAppearanceSettings(context.archive, newerWrite);
+    refreshRead.resolve(staleRefresh);
+
+    await expect(refreshing).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(sharedRefresh).rejects.toBeInstanceOf(AppearanceRuntimeSettingsChangedError);
+    await expect(saving).resolves.toEqual(newerWrite);
+    expect(runtime.getPreviewContext()?.settings).toEqual(newerWrite);
+
+    await expect(runtime.refreshArchiveAppearance(context.archive)).resolves.toEqual(newerWrite);
+    expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(3);
+    expect(runtime.getPreviewContext()?.settings).toEqual(newerWrite);
+  });
+
   it("serializes refresh behind an in-flight write and publishes authoritative disk state", async () => {
     const preferences = createPreferencesSource();
     const initial = appearanceSettings({ kind: "inherit" }, { kind: "inherit" });
@@ -1138,7 +1239,7 @@ describe("AppearanceRuntime", () => {
     unsubscribe();
   });
 
-  it("retries fallback resolution once after a concurrent same-archive catalog reload", async () => {
+  it("retries fallback resolution once after a concurrent same-archive catalog refresh", async () => {
     const scenario = await pendingCustomFallback();
 
     await scenario.catalog.reload();

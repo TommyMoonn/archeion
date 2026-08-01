@@ -49,9 +49,11 @@ type CatalogContext = {
   cache: Map<string, CustomThemeCatalogEntry>;
   catalogDiagnostics: Map<string, readonly ThemeCatalogDiagnostic[]>;
   enumeration: Promise<ArchiveThemeCatalogSnapshot> | null;
+  enumerationRereadsPackages: boolean;
   fullyEnumerated: boolean;
   pending: Map<string, Promise<CustomThemeCatalogEntry>>;
   reader: ThemePackageReader;
+  revision: number;
   scope: ArchiveThemeCatalogScope;
 };
 
@@ -103,6 +105,10 @@ export class ArchiveThemeCatalog {
     settings: Readonly<ArchiveAppearanceSettings>,
   ): Promise<ArchiveThemeSelectionResolution> {
     const context = this.requireContext();
+    const activeRefresh = context.enumerationRereadsPackages ? context.enumeration : null;
+    if (activeRefresh) await activeRefresh;
+    this.assertCurrent(context);
+    const revision = context.revision;
     const appSelection = freezeSelection(settings.appTheme);
     const readerSelection = freezeSelection(settings.readerTheme);
     const customIds = new Set<string>();
@@ -110,8 +116,14 @@ export class ArchiveThemeCatalog {
     if (readerSelection.kind === "custom") customIds.add(readerSelection.id);
     const entries = await Promise.all([...customIds].map((id) => this.loadPackage(context, id)));
     this.assertCurrent(context);
-    for (const entry of entries) context.cache.set(entry.packageId, entry);
-    this.publish();
+    if (context.revision !== revision) throw new ArchiveThemeCatalogChangedError();
+    let cacheChanged = false;
+    for (const entry of entries) {
+      if (context.cache.get(entry.packageId) === entry) continue;
+      context.cache.set(entry.packageId, entry);
+      cacheChanged = true;
+    }
+    if (cacheChanged) this.publish();
 
     return Object.freeze({
       app: resolveAppSelection(context, appSelection),
@@ -124,16 +136,48 @@ export class ArchiveThemeCatalog {
     const context = this.requireContext();
     if (context.fullyEnumerated) return Promise.resolve(this.snapshot);
     if (context.enumeration) return context.enumeration;
-    const operation = this.enumerateContext(context);
+    const operation = this.enumerateContext(context, false);
     context.enumeration = operation;
+    context.enumerationRereadsPackages = false;
     const clearEnumeration = () => {
-      if (context.enumeration === operation) context.enumeration = null;
+      if (context.enumeration === operation) {
+        context.enumeration = null;
+        context.enumerationRereadsPackages = false;
+      }
     };
     void operation.then(clearEnumeration, clearEnumeration);
     return operation;
   }
 
-  private async enumerateContext(context: CatalogContext): Promise<ArchiveThemeCatalogSnapshot> {
+  refreshPackages(): Promise<ArchiveThemeCatalogSnapshot> {
+    const context = this.requireContext();
+    if (context.enumerationRereadsPackages && context.enumeration) return context.enumeration;
+    const activeEnumeration = context.enumeration;
+    context.pending = new Map();
+    context.revision += 1;
+    const beginRefresh = () => {
+      this.assertCurrent(context);
+      return this.enumerateContext(context, true);
+    };
+    const operation = activeEnumeration
+      ? activeEnumeration.then(beginRefresh, beginRefresh)
+      : beginRefresh();
+    context.enumeration = operation;
+    context.enumerationRereadsPackages = true;
+    const clearEnumeration = () => {
+      if (context.enumeration === operation) {
+        context.enumeration = null;
+        context.enumerationRereadsPackages = false;
+      }
+    };
+    void operation.then(clearEnumeration, clearEnumeration);
+    return operation;
+  }
+
+  private async enumerateContext(
+    context: CatalogContext,
+    rereadPackages: boolean,
+  ): Promise<ArchiveThemeCatalogSnapshot> {
     let packageIds: readonly string[];
     try {
       packageIds = await context.reader.listPackageDirectories();
@@ -148,7 +192,14 @@ export class ArchiveThemeCatalog {
       left.localeCompare(right),
     );
     const entries = await Promise.all(
-      uniquePackageIds.map((packageId) => this.loadPackage(context, packageId)),
+      uniquePackageIds.map((packageId) =>
+        rereadPackages
+          ? this.readPackage(context, packageId).then((entry) => {
+              this.assertCurrent(context);
+              return entry;
+            })
+          : this.loadPackage(context, packageId),
+      ),
     );
     this.assertCurrent(context);
 
@@ -161,10 +212,7 @@ export class ArchiveThemeCatalog {
   }
 
   async reload(): Promise<ArchiveThemeCatalogSnapshot> {
-    const context = this.requireContext();
-    this.context = createContext(context.scope, context.reader);
-    this.publish();
-    return this.enumeratePackages();
+    return this.refreshPackages();
   }
 
   invalidatePackage(packageId: string): void {
@@ -275,9 +323,11 @@ function createContext(
     cache: new Map(),
     catalogDiagnostics: new Map(),
     enumeration: null,
+    enumerationRereadsPackages: false,
     fullyEnumerated: false,
     pending: new Map(),
     reader,
+    revision: 0,
     scope,
   };
 }

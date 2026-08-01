@@ -29,6 +29,7 @@ export const appearanceSettingsItems = [
             entries={context.themeCatalogEntries}
             fallback={context.reader.theme}
             onChange={(readerTheme) => void context.updateArchiveAppearance({ readerTheme })}
+            onOpen={() => void context.refreshThemeCatalog()}
             selection={context.archiveAppearance.readerTheme}
           />
         ) : (
@@ -64,6 +65,7 @@ export const appearanceSettingsItems = [
                   appTheme: decodeApplicationTheme(value),
                 })
               }
+              onOpen={() => void context.refreshThemeCatalog()}
               options={applicationThemeOptions(
                 context.themeCatalogEntries,
                 context.archiveAppearance.appTheme,

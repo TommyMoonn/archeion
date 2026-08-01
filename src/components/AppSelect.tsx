@@ -29,6 +29,7 @@ type AppSelectProps<TValue extends string> = AppSelectAppearance & {
   id?: string;
   label?: ReactNode;
   onChange: (value: TValue) => void;
+  onOpen?: () => void;
   options: Array<AppSelectOption<TValue>>;
   size?: Exclude<ControlSize, "prominent">;
   value: TValue;
@@ -72,6 +73,7 @@ export function AppSelect<TValue extends string>({
   id,
   label,
   onChange,
+  onOpen,
   options,
   size = "standard",
   triggerIcon,
@@ -139,6 +141,13 @@ export function AppSelect<TValue extends string>({
     focusElementIfUsable(buttonRef.current);
   }
 
+  function openListbox(nextActiveIndex: number): void {
+    setActiveIndex(nextActiveIndex);
+    if (isOpen) return;
+    setOpen(true);
+    onOpen?.();
+  }
+
   function handleKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -154,8 +163,7 @@ export function AppSelect<TValue extends string>({
 
       if (nextIndex >= 0) {
         inputModalityRuntime.markKeyboard();
-        setActiveIndex(nextIndex);
-        setOpen(true);
+        openListbox(nextIndex);
       }
       return;
     }
@@ -167,8 +175,7 @@ export function AppSelect<TValue extends string>({
       const nextIndex = getNextEnabledIndex(options, startIndex, direction);
       if (nextIndex >= 0) {
         inputModalityRuntime.markKeyboard();
-        setActiveIndex(nextIndex);
-        setOpen(true);
+        openListbox(nextIndex);
       }
       return;
     }
@@ -177,8 +184,7 @@ export function AppSelect<TValue extends string>({
       event.preventDefault();
       inputModalityRuntime.markKeyboard();
       if (!isOpen) {
-        setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
-        setOpen(true);
+        openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
         return;
       }
 
@@ -217,8 +223,11 @@ export function AppSelect<TValue extends string>({
         disabled={disabled}
         id={`${controlId}-button`}
         onClick={() => {
-          setActiveIndex(getSelectedOrFirstEnabledIndex(options, selectedIndex));
-          setOpen((current) => !current);
+          if (isOpen) {
+            setOpen(false);
+            return;
+          }
+          openListbox(getSelectedOrFirstEnabledIndex(options, selectedIndex));
         }}
         onKeyDown={handleKeyDown}
         ref={buttonRef}

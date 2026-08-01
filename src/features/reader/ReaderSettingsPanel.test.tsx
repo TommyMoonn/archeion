@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { Dialog } from "../../components/Dialog";
 import type { KeyboardPreferences } from "../../types/keyboard";
 import { defaultReaderSettings, type ReaderSettings } from "../../types/reader";
+import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import {
   activeTransientSurfaceKind,
   resetTransientSurfaceOwnershipForTests,
@@ -24,7 +25,9 @@ const keyboardPreferences: KeyboardPreferences = { shortcuts: {} };
 const basePanelProps = {
   onChange: vi.fn(),
   onReaderThemeChange: vi.fn(),
+  onReaderThemeOpen: vi.fn(),
   persistenceFailed: false,
+  readerThemeCatalogError: null,
   readerThemeEntries: [],
   readerThemeSelection: { kind: "builtin", id: "dark" } as const,
   settings: { ...defaultReaderSettings },
@@ -173,6 +176,28 @@ describe("ReaderSettingsPanel", () => {
     );
   });
 
+  it("keeps appearance-save feedback authoritative over background theme refresh feedback", () => {
+    const host = createContainer();
+
+    act(() => {
+      root?.render(
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={vi.fn()}
+          persistenceFailed
+          readerThemeCatalogError="Themes were refreshed, but the active appearance could not be updated."
+        />,
+      );
+    });
+
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Settings could not be saved",
+    );
+    expect(host.querySelector('[role="alert"]')?.textContent).not.toContain(
+      "Themes were refreshed",
+    );
+  });
+
   it("uses the shared archive reader-theme selection", () => {
     const rendered = renderPanel();
     const select = rendered.container.querySelector<HTMLButtonElement>('[role="combobox"]')!;
@@ -185,6 +210,65 @@ describe("ReaderSettingsPanel", () => {
 
     expect(rendered.onReaderThemeChange).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
     expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
+  });
+
+  it("requests freshness on reader-theme entry and preserves the open selection while options update", () => {
+    const host = createContainer();
+    const onReaderThemeOpen = vi.fn();
+    const render = (
+      entries: readonly ThemeCatalogEntry[] = basePanelProps.readerThemeEntries,
+      readerThemeCatalogError: string | null = null,
+    ) => {
+      act(() => {
+        root?.render(
+          <ReaderSettingsPanel
+            {...basePanelProps}
+            onClose={vi.fn()}
+            onReaderThemeOpen={onReaderThemeOpen}
+            readerThemeCatalogError={readerThemeCatalogError}
+            readerThemeEntries={entries}
+          />,
+        );
+      });
+    };
+    render();
+    const select = host.querySelector<HTMLButtonElement>('button[aria-label="Reader theme"]')!;
+
+    act(() => select.click());
+    expect(onReaderThemeOpen).toHaveBeenCalledOnce();
+    expect(select.getAttribute("aria-expanded")).toBe("true");
+
+    render([
+      {
+        applicable: true,
+        capabilities: { application: true, reader: true },
+        diagnostics: [],
+        id: "moon-ink",
+        manifest: {
+          app: { accent: "#8fc1e3" },
+          base: "dark",
+          id: "moon-ink",
+          name: "Moon Ink",
+          reader: { base: "sepia", link: "#765b34" },
+          schemaVersion: 1,
+        },
+        name: "Moon Ink",
+        origin: "custom",
+        packageId: "moon-ink",
+        status: "valid",
+      },
+    ]);
+
+    expect(select.getAttribute("aria-expanded")).toBe("true");
+    expect(host.textContent).toContain("Moon Ink");
+    expect(select.textContent).toContain("Dark");
+
+    render([], "Themes could not be refreshed. Reload themes to try again.");
+    expect(select.getAttribute("aria-expanded")).toBe("true");
+    expect(select.textContent).toContain("Dark");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Themes could not be refreshed",
+    );
   });
 
   it("associates each visible setting label with its control group", () => {

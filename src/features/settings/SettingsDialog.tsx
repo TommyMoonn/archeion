@@ -97,6 +97,7 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   );
   const themeCatalog = useArchiveThemeCatalogEntries(
     dataRequirements.has("archiveAppearanceSettings"),
+    { reportRefreshFailure: !themeManagerOpen },
   );
   const committedArchiveAppearance = useCommittedArchiveAppearance();
   const modal = useModalDialogLifecycle({
@@ -112,7 +113,11 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
     loadFolders: dataRequirements.has("folders"),
-    onOpenThemeManager: () => setThemeManagerOpen(true),
+    onOpenThemeManager: () => {
+      themeCatalog.retireRefreshFailure();
+      setThemeManagerOpen(true);
+    },
+    refreshThemeCatalog: themeCatalog.refresh,
     themeCatalogEntries: themeCatalog.entries,
     themeCatalogLoading: themeCatalog.loading,
   });

@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import type { ArchiveAppearanceSettings } from "../../types/settings";
-import type {
-  ActiveAppearanceArchive,
-  AppearancePreviewContext,
+import {
+  AppearanceRuntimeSettingsChangedError,
+  type ActiveAppearanceArchive,
+  type AppearancePreviewContext,
 } from "../../themes/AppearanceRuntime";
-import type { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
-import type { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
-import type { ThemeManifestV1 } from "../../themes/domain";
-import { parseThemeJson } from "../../themes/parseThemeJson";
 import type {
   ArchiveThemeCatalogSnapshot,
   ThemeCatalogEntry,
 } from "../../themes/themeCatalogReadModel";
+import type { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
+import type { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
+import type { ThemeManifestV1 } from "../../themes/domain";
+import { parseThemeJson } from "../../themes/parseThemeJson";
 import type { ThemePreviewHandle, ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { validateThemeManifest } from "../../themes/validateThemeManifest";
 
@@ -85,6 +86,36 @@ export function useThemeManagerController({
     previewSession.getSnapshot,
     previewSession.getSnapshot,
   );
+  const assertArchiveCurrent = useCallback((): void => {
+    const scope = catalog.getSnapshot().archive;
+    if (!scope || scope.rootPath !== archiveRootPath || scope.generation !== archiveGeneration) {
+      throw new ThemeManagerUserError(
+        "The active archive changed. Reopen Theme Manager to continue.",
+      );
+    }
+  }, [archiveGeneration, archiveRootPath, catalog]);
+  const refreshRuntimeAppearance = useCallback(async (): Promise<void> => {
+    const context = runtime.getPreviewContext();
+    if (!context || context.archive.rootPath !== archiveRootPath) return;
+    await runtime.refreshArchiveAppearance(context.archive);
+  }, [archiveRootPath, runtime]);
+  const reconcileCatalogEntryAppearance = useCallback(async (): Promise<void> => {
+    try {
+      await refreshRuntimeAppearance();
+    } catch (reason) {
+      if (!(reason instanceof AppearanceRuntimeSettingsChangedError)) throw reason;
+      const context = runtime.getPreviewContext();
+      if (
+        !context ||
+        context.archive.rootPath !== archiveRootPath ||
+        context.archive.generation !== archiveGeneration
+      ) {
+        throw new ThemeManagerUserError(
+          "The active archive changed. Reopen Theme Manager to continue.",
+        );
+      }
+    }
+  }, [archiveGeneration, archiveRootPath, refreshRuntimeAppearance, runtime]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -95,7 +126,15 @@ export function useThemeManagerController({
         setError("Theme Manager is unavailable for the active archive.");
       });
     } else {
-      void catalog.enumeratePackages().then(
+      let catalogRefreshed = false;
+      void (async () => {
+        const next = await catalog.refreshPackages();
+        catalogRefreshed = true;
+        assertArchiveCurrent();
+        await reconcileCatalogEntryAppearance();
+        assertArchiveCurrent();
+        return next;
+      })().then(
         (next) =>
           finishOperation(revision, () => {
             setMessage(
@@ -109,7 +148,9 @@ export function useThemeManagerController({
             setError(
               themeOperationError(
                 reason,
-                "Custom themes could not be loaded. Reload themes to try again.",
+                catalogRefreshed
+                  ? "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again."
+                  : "Custom themes could not be loaded. Reload themes to try again.",
               ),
             ),
           ),
@@ -122,7 +163,13 @@ export function useThemeManagerController({
       previewHandleRef.current?.dispose();
       previewHandleRef.current = null;
     };
-  }, [archiveGeneration, archiveRootPath, catalog]);
+  }, [
+    archiveGeneration,
+    archiveRootPath,
+    assertArchiveCurrent,
+    catalog,
+    reconcileCatalogEntryAppearance,
+  ]);
 
   useEffect(() => {
     if (scopeValid || invalidatedRef.current) return;
@@ -171,18 +218,27 @@ export function useThemeManagerController({
   async function reload(): Promise<boolean> {
     if (busyAction || previewActive) return false;
     const revision = beginOperation("reload");
+    let catalogRefreshed = false;
     try {
       assertArchiveCurrent();
-      await catalog.reload();
+      await catalog.refreshPackages();
+      catalogRefreshed = true;
       assertArchiveCurrent();
-      await refreshRuntimeAppearance();
+      await reconcileCatalogEntryAppearance();
       finishOperation(revision, () => {
         setMessage("Theme packages reloaded.");
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
       finishOperation(revision, () =>
-        setError(themeOperationError(reason, "Themes could not be reloaded. Try again.")),
+        setError(
+          themeOperationError(
+            reason,
+            catalogRefreshed
+              ? "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again."
+              : "Themes could not be reloaded. Try again.",
+          ),
+        ),
       );
       return false;
     }
@@ -398,29 +454,14 @@ export function useThemeManagerController({
 
   async function reloadAfterMutation(): Promise<void> {
     assertArchiveCurrent();
-    await catalog.reload();
+    await catalog.refreshPackages();
     assertArchiveCurrent();
     await refreshRuntimeAppearance();
-  }
-
-  async function refreshRuntimeAppearance(): Promise<void> {
-    const context = runtime.getPreviewContext();
-    if (!context || context.archive.rootPath !== archiveRootPath) return;
-    await runtime.refreshArchiveAppearance(context.archive);
   }
 
   function disposePreview(): void {
     previewHandleRef.current?.dispose();
     previewHandleRef.current = null;
-  }
-
-  function assertArchiveCurrent(): void {
-    const scope = catalog.getSnapshot().archive;
-    if (!scope || scope.rootPath !== archiveRootPath || scope.generation !== archiveGeneration) {
-      throw new ThemeManagerUserError(
-        "The active archive changed. Reopen Theme Manager to continue.",
-      );
-    }
   }
 
   function isManagerArchive(archive: ActiveAppearanceArchive): boolean {

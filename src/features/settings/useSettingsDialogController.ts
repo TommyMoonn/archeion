@@ -67,6 +67,7 @@ export type SettingsDialogControllerOptions = {
   loadEpubWritebackBackupStatus?: boolean;
   loadFolders?: boolean;
   onOpenThemeManager?: () => void;
+  refreshThemeCatalog?: () => Promise<boolean>;
   themeCatalogEntries?: readonly ThemeCatalogEntry[];
   themeCatalogLoading?: boolean;
 };
@@ -78,6 +79,7 @@ export function useSettingsDialogController({
   loadEpubWritebackBackupStatus = false,
   loadFolders = false,
   onOpenThemeManager,
+  refreshThemeCatalog = async () => false,
   themeCatalogEntries = [],
   themeCatalogLoading = false,
 }: SettingsDialogControllerOptions = {}) {
@@ -767,6 +769,7 @@ export function useSettingsDialogController({
     resetWindow,
     revealArchiveFolder,
     revealMetadata,
+    refreshThemeCatalog,
     safeImportDestinationValue,
     selectedArchivePath,
     status,

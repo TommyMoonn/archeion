@@ -12,6 +12,16 @@ type TestReader = {
   readManifest: ReturnType<typeof vi.fn<(id: string) => Promise<string>>>;
 };
 
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<Value>((settle, fail) => {
+    resolve = settle;
+    reject = fail;
+  });
+  return { promise, reject, resolve };
+}
+
 const inheritedSettings: ArchiveAppearanceSettings = {
   appTheme: { kind: "inherit" },
   readerTheme: { kind: "inherit" },
@@ -468,6 +478,209 @@ describe("ArchiveThemeCatalog", () => {
       entry: { name: "Replacement" },
     });
     expect(customEntries(reloaded.entries)[0]).toMatchObject({ name: "Reloaded" });
+  });
+
+  it("keeps cached enumeration stale until an intentional refresh rereads added, edited, removed, and invalid packages", async () => {
+    let packageIds = ["moon-ink"];
+    const sources = new Map<string, string>([
+      ["moon-ink", manifest("moon-ink", { name: "Moon Ink" })],
+    ]);
+    const archiveReader: TestReader = {
+      listPackageDirectories: vi.fn(async () => packageIds),
+      readManifest: vi.fn(async (id) => sources.get(id) ?? "{invalid"),
+    };
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const initial = await catalog.enumeratePackages();
+
+    packageIds = ["moon-ink", "new-theme", "broken-theme"];
+    sources.set("moon-ink", manifest("moon-ink", { name: "Edited Moon Ink" }));
+    sources.set("new-theme", manifest("new-theme", { name: "New Theme" }));
+
+    expect(await catalog.enumeratePackages()).toBe(initial);
+    expect(customEntries(catalog.getSnapshot().entries).map((entry) => entry.packageId)).toEqual([
+      "moon-ink",
+    ]);
+
+    const refreshed = await catalog.refreshPackages();
+    expect(customEntries(refreshed.entries)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ packageId: "moon-ink", name: "Edited Moon Ink" }),
+        expect.objectContaining({ packageId: "new-theme", name: "New Theme" }),
+        expect.objectContaining({ packageId: "broken-theme", status: "invalid" }),
+      ]),
+    );
+
+    packageIds = ["new-theme"];
+    const afterRemoval = await catalog.refreshPackages();
+    expect(customEntries(afterRemoval.entries).map((entry) => entry.packageId)).toEqual([
+      "new-theme",
+    ]);
+  });
+
+  it("coalesces concurrent intentional refreshes and permits a later refresh", async () => {
+    let listing = deferred<readonly string[]>();
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink") });
+    archiveReader.listPackageDirectories.mockImplementation(() => listing.promise);
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+
+    const first = catalog.refreshPackages();
+    const shared = catalog.refreshPackages();
+    expect(shared).toBe(first);
+    listing.resolve(["moon-ink"]);
+    await first;
+    expect(archiveReader.listPackageDirectories).toHaveBeenCalledOnce();
+
+    listing = deferred<readonly string[]>();
+    const second = catalog.refreshPackages();
+    expect(second).not.toBe(first);
+    await vi.waitFor(() => expect(archiveReader.listPackageDirectories).toHaveBeenCalledTimes(2));
+    listing.resolve(["moon-ink"]);
+    await second;
+  });
+
+  it("queues intentional rereading behind a cache-aware initial enumeration", async () => {
+    let source = manifest("moon-ink", { name: "Original" });
+    const listing = deferred<readonly string[]>();
+    const archiveReader = reader({ "moon-ink": source });
+    archiveReader.readManifest.mockImplementation(async () => source);
+    archiveReader.listPackageDirectories
+      .mockImplementationOnce(() => listing.promise)
+      .mockImplementation(async () => ["moon-ink"]);
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    await catalog.loadSelected({
+      appTheme: { kind: "custom", id: "moon-ink" },
+      readerTheme: { kind: "inherit" },
+    });
+    source = manifest("moon-ink", { name: "Externally Edited" });
+
+    const initialEnumeration = catalog.enumeratePackages();
+    const refresh = catalog.refreshPackages();
+    expect(refresh).not.toBe(initialEnumeration);
+    listing.resolve(["moon-ink"]);
+
+    await initialEnumeration;
+    const refreshed = await refresh;
+    expect(archiveReader.listPackageDirectories).toHaveBeenCalledTimes(2);
+    expect(archiveReader.readManifest).toHaveBeenCalledTimes(2);
+    expect(customEntries(refreshed.entries)).toEqual([
+      expect.objectContaining({ name: "Externally Edited" }),
+    ]);
+  });
+
+  it("runs a queued intentional refresh after a failed initial enumeration settles", async () => {
+    const initialListing = deferred<readonly string[]>();
+    const initialFailure = new Error("initial enumeration failed");
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink", { name: "Moon Ink" }) });
+    archiveReader.listPackageDirectories
+      .mockImplementationOnce(() => initialListing.promise)
+      .mockImplementation(async () => ["moon-ink"]);
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+
+    const initialEnumeration = catalog.enumeratePackages();
+    const refresh = catalog.refreshPackages();
+    const sharedRefresh = catalog.refreshPackages();
+    expect(sharedRefresh).toBe(refresh);
+    const rejectedInitial = expect(initialEnumeration).rejects.toBe(initialFailure);
+    initialListing.reject(initialFailure);
+
+    await rejectedInitial;
+    const refreshed = await refresh;
+    expect(archiveReader.listPackageDirectories).toHaveBeenCalledTimes(2);
+    expect(archiveReader.readManifest).toHaveBeenCalledOnce();
+    expect(customEntries(refreshed.entries)).toEqual([
+      expect.objectContaining({ packageId: "moon-ink", name: "Moon Ink" }),
+    ]);
+  });
+
+  it("does not enumerate through a retired reader when archive generation changes while refresh waits", async () => {
+    const initialListing = deferred<readonly string[]>();
+    const archiveA = reader({ "moon-ink": manifest("moon-ink") });
+    archiveA.listPackageDirectories.mockImplementation(() => initialListing.promise);
+    const archiveB = reader({ "paper-light": manifest("paper-light") });
+    const catalog = catalogWithReaders({
+      "C:/ArchiveA": archiveA,
+      "C:/ArchiveB": archiveB,
+    });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const initialEnumeration = catalog.enumeratePackages();
+    const refresh = catalog.refreshPackages();
+
+    catalog.activateArchive({ generation: 2, rootPath: "C:/ArchiveB" });
+    initialListing.resolve(["moon-ink"]);
+
+    await expect(initialEnumeration).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    await expect(refresh).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    expect(archiveA.listPackageDirectories).toHaveBeenCalledOnce();
+    expect(archiveA.readManifest).not.toHaveBeenCalled();
+    expect(archiveB.listPackageDirectories).not.toHaveBeenCalled();
+  });
+
+  it("retires stale refresh publication after an archive generation change", async () => {
+    const listing = deferred<readonly string[]>();
+    const archiveA = reader({ "moon-ink": manifest("moon-ink") });
+    archiveA.listPackageDirectories.mockImplementation(() => listing.promise);
+    const archiveB = reader({ "paper-light": manifest("paper-light") });
+    const catalog = catalogWithReaders({
+      "C:/ArchiveA": archiveA,
+      "C:/ArchiveB": archiveB,
+    });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const stale = catalog.refreshPackages();
+    await vi.waitFor(() => expect(archiveA.listPackageDirectories).toHaveBeenCalledOnce());
+
+    catalog.activateArchive({ generation: 2, rootPath: "C:/ArchiveB" });
+    listing.resolve(["moon-ink"]);
+
+    await expect(stale).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    expect(catalog.getSnapshot()).toMatchObject({
+      archive: { generation: 2, rootPath: "C:/ArchiveB" },
+      fullyEnumerated: false,
+    });
+    expect(customEntries(catalog.getSnapshot().entries)).toEqual([]);
+  });
+
+  it("prevents a selected-package read started before refresh from overwriting refreshed data", async () => {
+    const staleManifest = deferred<string>();
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink") });
+    archiveReader.readManifest
+      .mockImplementationOnce(() => staleManifest.promise)
+      .mockImplementation(async () => manifest("moon-ink", { name: "Refreshed Moon Ink" }));
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const staleSelection = catalog.loadSelected({
+      appTheme: { kind: "custom", id: "moon-ink" },
+      readerTheme: { kind: "inherit" },
+    });
+    await vi.waitFor(() => expect(archiveReader.readManifest).toHaveBeenCalledOnce());
+
+    const refreshed = await catalog.refreshPackages();
+    staleManifest.resolve(manifest("moon-ink", { name: "Stale Moon Ink" }));
+
+    await expect(staleSelection).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    expect(customEntries(refreshed.entries)).toEqual([
+      expect.objectContaining({ name: "Refreshed Moon Ink" }),
+    ]);
+    expect(customEntries(catalog.getSnapshot().entries)).toEqual([
+      expect.objectContaining({ name: "Refreshed Moon Ink" }),
+    ]);
+  });
+
+  it("preserves the previous usable snapshot when intentional refresh enumeration fails", async () => {
+    const archiveReader = reader({ "moon-ink": manifest("moon-ink") });
+    const catalog = catalogWithReaders({ "C:/ArchiveA": archiveReader });
+    catalog.activateArchive({ generation: 1, rootPath: "C:/ArchiveA" });
+    const previous = await catalog.enumeratePackages();
+    archiveReader.listPackageDirectories.mockRejectedValueOnce(new Error("themes unavailable"));
+
+    await expect(catalog.refreshPackages()).rejects.toThrow("themes unavailable");
+    expect(catalog.getSnapshot()).toBe(previous);
+    expect(customEntries(catalog.getSnapshot().entries)).toEqual([
+      expect.objectContaining({ packageId: "moon-ink" }),
+    ]);
   });
 
   it("clears prior-archive packages and rejects stale completions after a generation switch", async () => {

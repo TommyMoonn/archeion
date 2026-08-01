@@ -19,6 +19,7 @@ function controller(): SettingsDialogController {
     openThemeManager: vi.fn(),
     openThemesFolder: vi.fn(async () => true),
     preferences,
+    refreshThemeCatalog: vi.fn(async () => true),
     reader: preferences.reader,
     selectedArchivePath: "D:\\Archive",
     themeCatalogLoading: false,
@@ -128,6 +129,7 @@ describe("appearanceSettingsItems", () => {
 
     expect(context.openThemesFolder).toHaveBeenCalledOnce();
     expect(context.openThemeManager).toHaveBeenCalledOnce();
+    expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);
     expect(context.updateArchiveAppearance).toHaveBeenNthCalledWith(1, {
       readerTheme: { kind: "custom", id: "moon-ink" },
     });

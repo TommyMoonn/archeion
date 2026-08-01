@@ -1047,7 +1047,9 @@ export function ReaderPage() {
             onChange={changeSettings}
             onClose={closeSettings}
             onReaderThemeChange={changeReaderTheme}
+            onReaderThemeOpen={() => void themeCatalog.refresh()}
             persistenceFailed={settingsPersistenceFailed}
+            readerThemeCatalogError={themeCatalog.error}
             readerThemeEntries={themeCatalog.entries}
             readerThemeSelection={readerThemeSelection}
             settings={settings}

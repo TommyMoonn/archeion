@@ -55,10 +55,16 @@ export type AppearanceRuntimeOptions = Readonly<{
 
 type AppearancePersistenceCoordinator = {
   desiredSettings: Readonly<ArchiveAppearanceSettings> | null;
+  inFlightRefresh: InFlightAppearanceRefresh | null;
   lastPersistedSettings: Readonly<ArchiveAppearanceSettings> | null;
   latestOperation: number;
   tail: Promise<void>;
 };
+
+type InFlightAppearanceRefresh = Readonly<{
+  operation: number;
+  promise: Promise<Readonly<ArchiveAppearanceSettings>>;
+}>;
 
 type ActiveArchiveContext = ActiveAppearanceArchive &
   Readonly<{
@@ -206,8 +212,12 @@ export class AppearanceRuntime {
       throw new Error("End the active theme preview before reloading archive appearance.");
     }
 
+    const inFlight = context.persistence.inFlightRefresh;
+    if (inFlight && context.persistence.latestOperation === inFlight.operation) {
+      return inFlight.promise;
+    }
     const operation = this.nextPersistenceOperation(context);
-    return this.enqueuePersistence(context, async () => {
+    const promise = this.enqueuePersistence(context, async () => {
       this.assertPersistenceOperationCurrent(context, operation);
       let settings: Readonly<ArchiveAppearanceSettings>;
       try {
@@ -226,6 +236,15 @@ export class AppearanceRuntime {
       this.assertPersistenceOperationCurrent(context, operation);
       return this.resolveAndPublishAppearance(context, settings, operation, false);
     });
+    const ownedRefresh = Object.freeze({ operation, promise });
+    context.persistence.inFlightRefresh = ownedRefresh;
+    const clearRefresh = () => {
+      if (context.persistence.inFlightRefresh === ownedRefresh) {
+        context.persistence.inFlightRefresh = null;
+      }
+    };
+    void promise.then(clearRefresh, clearRefresh);
+    return promise;
   }
 
   subscribe = (listener: Listener): (() => void) => {
@@ -261,6 +280,7 @@ export class AppearanceRuntime {
       id: archive.id,
       persistence: {
         desiredSettings: null,
+        inFlightRefresh: null,
         lastPersistedSettings: null,
         latestOperation: 0,
         tail: Promise.resolve(),

@@ -15,7 +15,9 @@ type ReaderSettingsPanelProps = {
   onChange: (settings: ReaderSettings) => void;
   onClose: () => void;
   onReaderThemeChange: (selection: ArchiveReaderThemeSelection) => void;
+  onReaderThemeOpen: () => void;
   persistenceFailed: boolean;
+  readerThemeCatalogError: string | null;
   readerThemeEntries: readonly ThemeCatalogEntry[];
   readerThemeSelection: ArchiveReaderThemeSelection | null;
   settings: ReaderSettings;
@@ -72,7 +74,9 @@ export function ReaderSettingsPanel({
   onChange,
   onClose,
   onReaderThemeChange,
+  onReaderThemeOpen,
   persistenceFailed,
+  readerThemeCatalogError,
   readerThemeEntries,
   readerThemeSelection,
   settings,
@@ -135,6 +139,7 @@ export function ReaderSettingsPanel({
             entries={readerThemeEntries}
             fallback={settings.theme}
             onChange={onReaderThemeChange}
+            onOpen={onReaderThemeOpen}
             selection={readerThemeSelection}
           />
         ) : (
@@ -211,10 +216,12 @@ export function ReaderSettingsPanel({
       <p
         aria-live="polite"
         className="reader-settings__status"
-        data-error={persistenceFailed || undefined}
-        role={persistenceFailed ? "alert" : "status"}
+        data-error={persistenceFailed || Boolean(readerThemeCatalogError) || undefined}
+        role={persistenceFailed || readerThemeCatalogError ? "alert" : "status"}
       >
-        {persistenceFailed ? "Settings could not be saved" : "Saved automatically"}
+        {persistenceFailed
+          ? "Settings could not be saved"
+          : (readerThemeCatalogError ?? "Saved automatically")}
       </p>
     </aside>
   );

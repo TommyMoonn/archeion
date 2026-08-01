@@ -13,6 +13,7 @@ type ArchiveReaderThemeSelectProps = Readonly<{
   entries: readonly ThemeCatalogEntry[];
   fallback: ReaderTheme;
   onChange: (selection: ArchiveReaderThemeSelection) => void;
+  onOpen?: () => void;
   selection: ArchiveReaderThemeSelection;
 }>;
 
@@ -21,12 +22,14 @@ export function ArchiveReaderThemeSelect({
   entries,
   fallback,
   onChange,
+  onOpen,
   selection,
 }: ArchiveReaderThemeSelectProps) {
   return (
     <AppSelect
       ariaLabel={ariaLabel}
       onChange={(value) => onChange(decodeReaderTheme(value))}
+      onOpen={onOpen}
       options={readerThemeOptions(entries, selection)}
       value={readerThemeValue(selection, fallback)}
     />

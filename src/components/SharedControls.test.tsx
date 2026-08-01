@@ -454,6 +454,67 @@ describe("icon-only SegmentedControl", () => {
   });
 });
 
+describe("AppSelect open notifications", () => {
+  function renderSelect(onOpen: () => void) {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    activeRoot = root;
+    act(() => {
+      root.render(
+        <AppSelect
+          ariaLabel="Sort books"
+          onChange={vi.fn()}
+          onOpen={onOpen}
+          options={[
+            { label: "Title", value: "title" },
+            { label: "Author", value: "author" },
+          ]}
+          value="title"
+        />,
+      );
+    });
+    return container.querySelector<HTMLButtonElement>(".app-select__trigger")!;
+  }
+
+  it("reports each pointer closed-to-open transition once without reporting close", () => {
+    const onOpen = vi.fn();
+    const trigger = renderSelect(onOpen);
+
+    pointerClick(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(onOpen).toHaveBeenCalledOnce();
+
+    pointerClick(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(onOpen).toHaveBeenCalledOnce();
+
+    pointerClick(trigger);
+    expect(onOpen).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["Enter", " ", "ArrowDown", "ArrowUp", "Home", "End"])(
+    "reports one immediate open for the %j keyboard path without repeating during navigation",
+    (key) => {
+      const onOpen = vi.fn();
+      const trigger = renderSelect(onOpen);
+
+      act(() => {
+        trigger.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key }));
+      });
+
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+      expect(onOpen).toHaveBeenCalledOnce();
+
+      act(() => {
+        trigger.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+        trigger.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Home" }));
+      });
+      expect(onOpen).toHaveBeenCalledOnce();
+    },
+  );
+});
+
 describe("AppSelect dismissal", () => {
   function renderSelectWithNeighbors() {
     const container = document.createElement("div");
