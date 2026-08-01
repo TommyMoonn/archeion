@@ -12,13 +12,12 @@ use crate::atomic_file::{
     RealAtomicFileSystem,
 };
 
-use super::{archive_root, epub_metadata};
+use super::{
+    archive_backup::{ArchiveBackupLayout, MetadataDocument},
+    archive_root, epub_metadata,
+};
 
 pub(crate) const METADATA_DIRECTORY: &str = ".archeion";
-const LIBRARY_FILE: &str = "library.json";
-const PROGRESS_FILE: &str = "progress.json";
-const SETTINGS_FILE: &str = "settings.json";
-const ANNOTATIONS_FILE: &str = "annotations.json";
 pub(crate) const SCANNER_CACHE_FILE: &str = "scanner-cache.json";
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -228,78 +227,41 @@ fn timestamp_suffix() -> u128 {
         .unwrap_or_default()
 }
 
-fn timestamped_metadata_path(path: &Path, marker: &str) -> PathBuf {
-    let file_name = path
-        .file_name()
-        .map(|name| name.to_string_lossy())
-        .unwrap_or_default();
-    path.with_file_name(format!("{file_name}.{marker}-{}.bak", timestamp_suffix()))
-}
-
-fn corruption_backup_path(path: &Path) -> PathBuf {
-    timestamped_metadata_path(path, "corrupt")
-}
-
-fn stable_backup_path(path: &Path) -> PathBuf {
-    path.with_extension("json.bak")
-}
-
-fn timestamped_backup_path(path: &Path) -> PathBuf {
-    timestamped_metadata_path(path, "backup")
-}
-
-fn timestamped_backup_prefix(path: &Path, marker: &str) -> Option<String> {
-    path.file_name()
-        .map(|name| format!("{}.{marker}-", name.to_string_lossy()))
-}
-
-fn prune_timestamped_backups(path: &Path, marker: &str, max_backups: usize) -> Result<(), String> {
-    let Some(parent) = path.parent() else {
-        return Ok(());
-    };
-    let Some(prefix) = timestamped_backup_prefix(path, marker) else {
-        return Ok(());
-    };
-
-    let mut backups = Vec::new();
-    for entry in fs::read_dir(parent).map_err(|error| error.to_string())? {
-        let entry = entry.map_err(|error| error.to_string())?;
-        let file_name = entry.file_name().to_string_lossy().to_string();
-        if !file_name.starts_with(&prefix) || !file_name.ends_with(".bak") {
-            continue;
-        }
-        if entry
-            .file_type()
-            .map_err(|error| error.to_string())?
-            .is_file()
-        {
-            backups.push((file_name, entry.path()));
-        }
-    }
-
-    backups.sort_by(|left, right| left.0.cmp(&right.0));
-    let stale_count = backups.len().saturating_sub(max_backups);
-    for (_, backup_path) in backups.into_iter().take(stale_count) {
-        fs::remove_file(backup_path).map_err(|error| error.to_string())?;
-    }
-    Ok(())
-}
-
-fn backup_existing_json(path: &Path) -> Result<(), String> {
+fn backup_existing_json(root: &Path, document: MetadataDocument) -> Result<(), String> {
+    let layout = ArchiveBackupLayout::new(root);
+    let path = layout.active_document_path(document);
     if !path.exists() {
         return Ok(());
     }
 
-    let existing_contents = fs::read(path).map_err(|error| error.to_string())?;
+    let existing_contents = fs::read(&path).map_err(|error| error.to_string())?;
     if serde_json::from_slice::<serde_json::Value>(&existing_contents).is_err() {
-        fs::rename(path, corruption_backup_path(path)).map_err(|error| error.to_string())?;
-        prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
+        let corrupt_path =
+            layout.timestamped_backup_path(document, "corrupt", timestamp_suffix())?;
+        fs::rename(&path, corrupt_path).map_err(|error| error.to_string())?;
+        layout.prune_timestamped_backups(document, "corrupt", MAX_METADATA_BACKUPS)?;
         return Ok(());
     }
 
-    fs::copy(path, stable_backup_path(path)).map_err(|error| error.to_string())?;
-    fs::copy(path, timestamped_backup_path(path)).map_err(|error| error.to_string())?;
-    prune_timestamped_backups(path, "backup", MAX_METADATA_BACKUPS)
+    let stable_backup = layout.stable_backup_path(document)?;
+    let stable_contents = stable_backup
+        .exists()
+        .then(|| fs::read(&stable_backup).map_err(|error| error.to_string()))
+        .transpose()?;
+    if let Some(stable_contents) = stable_contents.as_deref() {
+        if stable_contents != existing_contents
+            && !layout.timestamped_backup_contains(document, "backup", stable_contents)?
+        {
+            let migrated_history =
+                layout.timestamped_backup_path(document, "backup", timestamp_suffix())?;
+            fs::copy(&stable_backup, migrated_history).map_err(|error| error.to_string())?;
+        }
+    }
+    let timestamped_backup =
+        layout.timestamped_backup_path(document, "backup", timestamp_suffix())?;
+    fs::copy(&path, stable_backup).map_err(|error| error.to_string())?;
+    fs::copy(&path, timestamped_backup).map_err(|error| error.to_string())?;
+    layout.prune_timestamped_backups(document, "backup", MAX_METADATA_BACKUPS)
 }
 
 fn metadata_replace_error(error: AtomicReplaceError) -> String {
@@ -318,11 +280,15 @@ fn metadata_replace_error(error: AtomicReplaceError) -> String {
 }
 
 fn write_json_with_fs<T: Serialize>(
-    path: &Path,
+    root: &Path,
+    document: MetadataDocument,
     value: &T,
     backup: bool,
     fs_ops: &impl AtomicFileSystem,
 ) -> Result<(), String> {
+    let layout = ArchiveBackupLayout::new(root);
+    layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+    let path = layout.active_document_path(document);
     let parent = path
         .parent()
         .ok_or_else(|| "Metadata directory is unavailable.".to_string())?;
@@ -331,66 +297,41 @@ fn write_json_with_fs<T: Serialize>(
     serde_json::from_slice::<serde_json::Value>(&contents)
         .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
 
-    let temporary = PreparedAtomicFile::write(transaction_path(path, "tmp-write"), &contents)
+    let temporary = PreparedAtomicFile::write(transaction_path(&path, "tmp-write"), &contents)
         .map_err(|error| error.into_source().to_string())?;
     let temporary_contents = fs::read(temporary.path()).map_err(|error| error.to_string())?;
     serde_json::from_slice::<serde_json::Value>(&temporary_contents)
         .map_err(|error| format!("Metadata JSON could not be validated: {error}"))?;
 
     if backup {
-        backup_existing_json(path)?;
+        backup_existing_json(root, document)?;
     }
 
-    let transaction_backup = transaction_path(path, "write-backup");
+    let transaction_backup = transaction_path(&path, "write-backup");
     temporary
-        .replace(path, &transaction_backup, BackupCleanup::Required, fs_ops)
+        .replace(&path, &transaction_backup, BackupCleanup::Required, fs_ops)
         .map_err(metadata_replace_error)
 }
 
-fn write_json<T: Serialize>(path: &Path, value: &T, backup: bool) -> Result<(), String> {
-    write_json_with_fs(path, value, backup, &RealAtomicFileSystem)
+fn write_json<T: Serialize>(
+    root: &Path,
+    document: MetadataDocument,
+    value: &T,
+    backup: bool,
+) -> Result<(), String> {
+    write_json_with_fs(root, document, value, backup, &RealAtomicFileSystem)
 }
 
-fn backup_candidates(path: &Path) -> Vec<PathBuf> {
-    let mut candidates = Vec::new();
-    let stable = stable_backup_path(path);
-    if stable.exists() {
-        candidates.push(stable);
-    }
-
-    let Some(parent) = path.parent() else {
-        return candidates;
-    };
-    let Some(prefix) = timestamped_backup_prefix(path, "backup") else {
-        return candidates;
-    };
-
-    let Ok(entries) = fs::read_dir(parent) else {
-        return candidates;
-    };
-
-    let mut timestamped = entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| {
-            let file_name = entry.file_name().to_string_lossy().to_string();
-            (file_name.starts_with(&prefix) && file_name.ends_with(".bak"))
-                .then_some((file_name, entry.path()))
-        })
-        .collect::<Vec<_>>();
-    timestamped.sort_by(|left, right| right.0.cmp(&left.0));
-    candidates.extend(timestamped.into_iter().map(|(_, path)| path));
-    candidates
-}
-
-fn recover_json_from_backup<T>(path: &Path) -> Option<T>
+fn recover_json_from_backup<T>(root: &Path, document: MetadataDocument) -> Result<Option<T>, String>
 where
     T: DeserializeOwned,
 {
-    backup_candidates(path).into_iter().find_map(|backup_path| {
-        fs::read(backup_path)
+    let candidates = ArchiveBackupLayout::new(root).metadata_backup_candidates(document)?;
+    Ok(candidates.into_iter().find_map(|backup_path| {
+        fs::read(&backup_path)
             .ok()
             .and_then(|contents| serde_json::from_slice(&contents).ok())
-    })
+    }))
 }
 
 struct JsonReadResult<T> {
@@ -398,31 +339,42 @@ struct JsonReadResult<T> {
     recovered: bool,
 }
 
-fn read_json_with_recovery<T>(path: &Path) -> Result<JsonReadResult<T>, String>
+fn read_json_with_recovery<T>(
+    root: &Path,
+    document: MetadataDocument,
+) -> Result<JsonReadResult<T>, String>
 where
     T: Default + DeserializeOwned + Serialize,
 {
+    let layout = ArchiveBackupLayout::new(root);
+    let path = layout.checked_active_document_path(document)?;
     if !path.exists() {
+        layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
         let value = T::default();
-        write_json(path, &value, false)?;
+        write_json(root, document, &value, false)?;
         return Ok(JsonReadResult {
             value,
             recovered: false,
         });
     }
 
-    let contents = fs::read(path).map_err(|error| error.to_string())?;
+    let contents = fs::read(&path).map_err(|error| error.to_string())?;
     match serde_json::from_slice(&contents) {
-        Ok(value) => Ok(JsonReadResult {
-            value,
-            recovered: false,
-        }),
+        Ok(value) => {
+            layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+            Ok(JsonReadResult {
+                value,
+                recovered: false,
+            })
+        }
         Err(_) => {
-            let corrupt_path = corruption_backup_path(path);
-            fs::rename(path, &corrupt_path).map_err(|error| error.to_string())?;
-            prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
-            let value = recover_json_from_backup(path).unwrap_or_default();
-            write_json(path, &value, false)?;
+            let corrupt_path =
+                layout.timestamped_backup_path(document, "corrupt", timestamp_suffix())?;
+            fs::rename(&path, corrupt_path).map_err(|error| error.to_string())?;
+            layout.prune_timestamped_backups(document, "corrupt", MAX_METADATA_BACKUPS)?;
+            let value = recover_json_from_backup(root, document)?.unwrap_or_default();
+            layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+            write_json(root, document, &value, false)?;
             Ok(JsonReadResult {
                 value,
                 recovered: true,
@@ -431,30 +383,42 @@ where
     }
 }
 
-fn read_json<T>(path: &Path) -> Result<T, String>
+fn read_json<T>(root: &Path, document: MetadataDocument) -> Result<T, String>
 where
     T: Default + DeserializeOwned + Serialize,
 {
-    read_json_with_recovery(path).map(|result| result.value)
+    read_json_with_recovery(root, document).map(|result| result.value)
 }
 
-fn read_optional_json_with_recovery<T>(path: &Path, default_value: T) -> Result<T, String>
+fn read_optional_json_with_recovery<T>(
+    root: &Path,
+    document: MetadataDocument,
+    default_value: T,
+) -> Result<T, String>
 where
     T: Clone + DeserializeOwned + Serialize,
 {
+    let layout = ArchiveBackupLayout::new(root);
+    let path = layout.checked_active_document_path(document)?;
     if !path.exists() {
+        layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
         return Ok(default_value);
     }
 
-    let contents = fs::read(path).map_err(|error| error.to_string())?;
+    let contents = fs::read(&path).map_err(|error| error.to_string())?;
     match serde_json::from_slice(&contents) {
-        Ok(value) => Ok(value),
+        Ok(value) => {
+            layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+            Ok(value)
+        }
         Err(_) => {
-            let corrupt_path = corruption_backup_path(path);
-            fs::rename(path, &corrupt_path).map_err(|error| error.to_string())?;
-            prune_timestamped_backups(path, "corrupt", MAX_METADATA_BACKUPS)?;
-            let value = recover_json_from_backup(path).unwrap_or(default_value);
-            write_json(path, &value, false)?;
+            let corrupt_path =
+                layout.timestamped_backup_path(document, "corrupt", timestamp_suffix())?;
+            fs::rename(&path, corrupt_path).map_err(|error| error.to_string())?;
+            layout.prune_timestamped_backups(document, "corrupt", MAX_METADATA_BACKUPS)?;
+            let value = recover_json_from_backup(root, document)?.unwrap_or(default_value);
+            layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+            write_json(root, document, &value, false)?;
             Ok(value)
         }
     }
@@ -473,14 +437,14 @@ pub(crate) fn load_annotations_at(root: &Path) -> Result<serde_json::Value, Stri
     }
 
     read_optional_json_with_recovery(
-        &metadata_path(root).join(ANNOTATIONS_FILE),
+        root,
+        MetadataDocument::Annotations,
         default_annotations_metadata(),
     )
 }
 
 pub(crate) fn save_annotations_at(root: &Path, metadata: &serde_json::Value) -> Result<(), String> {
-    let path = metadata_path(root).join(ANNOTATIONS_FILE);
-    write_json(&path, metadata, true)
+    write_json(root, MetadataDocument::Annotations, metadata, true)
 }
 
 pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
@@ -488,11 +452,15 @@ pub(crate) fn initialize_at(root: &Path) -> Result<(), String> {
         return Err("The selected archive folder is unavailable.".to_string());
     }
 
+    let layout = ArchiveBackupLayout::new(root);
+    for document in MetadataDocument::ALL {
+        layout.migrate_metadata_document(document, MAX_METADATA_BACKUPS)?;
+    }
     let directory = metadata_path(root);
     fs::create_dir_all(directory.join("covers")).map_err(|error| error.to_string())?;
-    read_json::<LibraryMetadata>(&directory.join(LIBRARY_FILE))?;
-    read_json::<ProgressMetadata>(&directory.join(PROGRESS_FILE))?;
-    read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))?;
+    read_json::<LibraryMetadata>(root, MetadataDocument::Library)?;
+    read_json::<ProgressMetadata>(root, MetadataDocument::Progress)?;
+    read_json::<SettingsMetadata>(root, MetadataDocument::Settings)?;
     Ok(())
 }
 
@@ -501,28 +469,28 @@ pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> 
         return Err("The selected archive folder is unavailable.".to_string());
     }
 
-    let directory = metadata_path(root);
-    fs::create_dir_all(&directory).map_err(|error| error.to_string())?;
-    read_json::<SettingsMetadata>(&directory.join(SETTINGS_FILE))
+    read_json::<SettingsMetadata>(root, MetadataDocument::Settings)
 }
 
 #[cfg(test)]
 pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
-    read_json(&metadata_path(root).join(SCANNER_CACHE_FILE))
+    read_json(root, MetadataDocument::ScannerCache)
 }
 
 pub(crate) fn load_scanner_cache_with_recovery_at(
     root: &Path,
 ) -> Result<(ScannerCache, bool), String> {
-    let result = read_json_with_recovery(&metadata_path(root).join(SCANNER_CACHE_FILE))?;
+    let result = read_json_with_recovery(root, MetadataDocument::ScannerCache)?;
     Ok((result.value, result.recovered))
 }
 
 pub(crate) fn save_scanner_cache_at(root: &Path, cache: &ScannerCache) -> Result<(), String> {
-    write_json(&metadata_path(root).join(SCANNER_CACHE_FILE), cache, false)
+    write_json(root, MetadataDocument::ScannerCache, cache, false)
 }
 
 pub(crate) fn clear_scanner_cache_at(root: &Path) -> Result<(), String> {
+    ArchiveBackupLayout::new(root)
+        .migrate_metadata_document(MetadataDocument::ScannerCache, MAX_METADATA_BACKUPS)?;
     let path = metadata_path(root).join(SCANNER_CACHE_FILE);
     if path.exists() {
         fs::remove_file(path).map_err(|error| error.to_string())?;
@@ -552,12 +520,10 @@ pub fn load_archive_metadata(
 ) -> Result<MetadataBundle, String> {
     let root = resolve_command_archive_root(&app, root_path)?;
     initialize_at(&root)?;
-    let directory = metadata_path(&root);
-
     let metadata = MetadataBundle {
-        library: read_json(&directory.join(LIBRARY_FILE))?,
-        progress: read_json(&directory.join(PROGRESS_FILE))?,
-        settings: read_json(&directory.join(SETTINGS_FILE))?,
+        library: read_json(&root, MetadataDocument::Library)?,
+        progress: read_json(&root, MetadataDocument::Progress)?,
+        settings: read_json(&root, MetadataDocument::Settings)?,
     };
     Ok(metadata)
 }
@@ -578,8 +544,8 @@ pub fn save_library_metadata(
     root_path: Option<String>,
     metadata: LibraryMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(LIBRARY_FILE);
-    write_json(&path, &metadata, true)
+    let root = resolve_command_archive_root(&app, root_path)?;
+    write_json(&root, MetadataDocument::Library, &metadata, true)
 }
 
 #[tauri::command]
@@ -588,8 +554,8 @@ pub fn save_progress_metadata(
     root_path: Option<String>,
     metadata: ProgressMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(PROGRESS_FILE);
-    write_json(&path, &metadata, true)
+    let root = resolve_command_archive_root(&app, root_path)?;
+    write_json(&root, MetadataDocument::Progress, &metadata, true)
 }
 
 #[tauri::command]
@@ -598,8 +564,8 @@ pub fn save_settings_metadata(
     root_path: Option<String>,
     metadata: SettingsMetadata,
 ) -> Result<(), String> {
-    let path = metadata_path(&resolve_command_archive_root(&app, root_path)?).join(SETTINGS_FILE);
-    write_json(&path, &metadata, true)
+    let root = resolve_command_archive_root(&app, root_path)?;
+    write_json(&root, MetadataDocument::Settings, &metadata, true)
 }
 
 #[tauri::command]
@@ -627,11 +593,13 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_annotations_at, load_settings_at, metadata_path, read_json,
-        save_annotations_at, write_json, write_json_with_fs, ArchiveAppThemeSelection,
-        ArchiveReaderThemeSelection, BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata,
-        SettingsMetadata,
+        initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, load_settings_at,
+        metadata_path, read_json, save_annotations_at, write_json, write_json_with_fs,
+        ArchiveAppThemeSelection, ArchiveReaderThemeSelection, BuiltInReaderThemeId,
+        LibraryBookMetadata, LibraryMetadata, SettingsMetadata, MAX_METADATA_BACKUPS,
+        SCANNER_CACHE_FILE,
     };
+    use crate::commands::archive_backup::{ArchiveBackupLayout, MetadataDocument};
 
     fn test_root(label: &str) -> std::path::PathBuf {
         let nonce = SystemTime::now()
@@ -690,6 +658,84 @@ mod tests {
         assert_eq!(settings["appearance"]["readerTheme"]["kind"], "inherit");
         assert!(!metadata.join("scanner-cache.json").exists());
         assert!(metadata.join("covers").is_dir());
+        assert!(!metadata.join("backups").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn retained_metadata_documents_use_independent_backup_categories() {
+        let root = test_root("document-categories");
+        fs::create_dir_all(&root).expect("test archive should be created");
+
+        for (document, category) in [
+            (MetadataDocument::Library, "library"),
+            (MetadataDocument::Progress, "progress"),
+            (MetadataDocument::Settings, "settings"),
+            (MetadataDocument::Annotations, "annotations"),
+        ] {
+            write_json(&root, document, &serde_json::json!({ "version": 1 }), false)
+                .expect("initial metadata should save");
+            write_json(&root, document, &serde_json::json!({ "version": 2 }), true)
+                .expect("updated metadata should save");
+
+            let category_directory = metadata_path(&root).join("backups").join(category);
+            assert!(category_directory
+                .join(format!("{}.bak", document.file_name()))
+                .is_file());
+            assert!(category_directory
+                .read_dir()
+                .expect("backup category should be readable")
+                .filter_map(Result::ok)
+                .any(|entry| entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(&format!("{}.backup-", document.file_name()))));
+        }
+
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn metadata_backup_retention_is_bounded_per_document() {
+        let root = test_root("independent-retention");
+        fs::create_dir_all(&root).expect("test archive should be created");
+
+        for document in [MetadataDocument::Library, MetadataDocument::Settings] {
+            write_json(&root, document, &serde_json::json!({ "version": 1 }), false)
+                .expect("initial metadata should save");
+        }
+        for revision in 0..8 {
+            write_json(
+                &root,
+                MetadataDocument::Library,
+                &serde_json::json!({ "version": revision }),
+                true,
+            )
+            .expect("library metadata should save");
+        }
+        for revision in 0..3 {
+            write_json(
+                &root,
+                MetadataDocument::Settings,
+                &serde_json::json!({ "version": revision }),
+                true,
+            )
+            .expect("settings metadata should save");
+        }
+
+        let count_history = |category: &str, prefix: &str| {
+            metadata_path(&root)
+                .join("backups")
+                .join(category)
+                .read_dir()
+                .expect("backup category should be readable")
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_name().to_string_lossy().starts_with(prefix))
+                .count()
+        };
+        assert_eq!(count_history("library", "library.json.backup-"), 5);
+        assert_eq!(count_history("settings", "settings.json.backup-"), 3);
+
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -735,7 +781,9 @@ mod tests {
             load_annotations_at(&root).expect("annotations should reload"),
             second
         );
-        assert!(metadata_path(&root).join("annotations.json.bak").is_file());
+        assert!(metadata_path(&root)
+            .join("backups/annotations/annotations.json.bak")
+            .is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -755,13 +803,44 @@ mod tests {
         let recovered = load_annotations_at(&root).expect("annotations should recover");
 
         assert_eq!(recovered, annotations);
-        assert!(fs::read_dir(metadata_path(&root))
-            .expect("metadata directory should be readable")
-            .filter_map(Result::ok)
-            .any(|entry| entry
-                .file_name()
-                .to_string_lossy()
-                .contains("annotations.json.corrupt-")));
+        assert!(
+            fs::read_dir(metadata_path(&root).join("backups/annotations"))
+                .expect("metadata directory should be readable")
+                .filter_map(Result::ok)
+                .any(|entry| entry
+                    .file_name()
+                    .to_string_lossy()
+                    .contains("annotations.json.corrupt-"))
+        );
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn annotation_loading_migrates_and_recovers_independently() {
+        let root = test_root("annotations-legacy-recovery");
+        let directory = metadata_path(&root);
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        let recovered = serde_json::json!({
+            "version": 1,
+            "books": { "book-1": { "annotations": [] } }
+        });
+        fs::write(directory.join("annotations.json"), b"{invalid")
+            .expect("active annotations should be written");
+        fs::write(
+            directory.join("annotations.json.bak"),
+            serde_json::to_vec(&recovered).expect("annotations should serialize"),
+        )
+        .expect("legacy annotations backup should be written");
+
+        let annotations = load_annotations_at(&root).expect("annotations should recover");
+
+        assert_eq!(annotations, recovered);
+        assert!(directory
+            .join("backups/annotations/annotations.json.bak")
+            .is_file());
+        assert!(!directory.join("annotations.json.bak").exists());
+        assert!(!directory.join("library.json").exists());
+        assert!(!directory.join("progress.json").exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -799,6 +878,34 @@ mod tests {
         );
         assert!(!metadata_path(&root).join("library.json").exists());
         assert!(!metadata_path(&root).join("progress.json").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn settings_only_loading_migrates_and_recovers_legacy_backup() {
+        let root = test_root("settings-legacy-recovery");
+        let directory = metadata_path(&root);
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        fs::write(directory.join("settings.json"), b"{invalid")
+            .expect("active settings should be written");
+        fs::write(
+            directory.join("settings.json.bak"),
+            br#"{"version":2,"import":{"defaultDestinationFolderPath":"Recovered"},"appearance":{"appTheme":{"kind":"inherit"},"readerTheme":{"kind":"inherit"}}}"#,
+        )
+        .expect("legacy settings backup should be written");
+
+        let settings = load_settings_at(&root).expect("settings should recover");
+
+        assert_eq!(
+            settings.import.default_destination_folder_path.as_deref(),
+            Some("Recovered")
+        );
+        assert!(directory
+            .join("backups/settings/settings.json.bak")
+            .is_file());
+        assert!(!directory.join("settings.json.bak").exists());
+        assert!(!directory.join("library.json").exists());
+        assert!(!directory.join("progress.json").exists());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -880,7 +987,8 @@ mod tests {
             }
         );
 
-        write_json(&settings_path, &settings, true).expect("settings should save");
+        write_json(&root, MetadataDocument::Settings, &settings, true)
+            .expect("settings should save");
         let serialized: serde_json::Value = serde_json::from_slice(
             &fs::read(&settings_path).expect("settings should remain readable"),
         )
@@ -893,7 +1001,9 @@ mod tests {
         assert_eq!(serialized["appearance"]["appTheme"]["kind"], "custom");
         assert_eq!(serialized["appearance"]["appTheme"]["id"], "moon-ink");
         assert_eq!(serialized["appearance"]["readerTheme"]["id"], "sepia");
-        assert!(settings_path.with_extension("json.bak").is_file());
+        assert!(metadata_path(&root)
+            .join("backups/settings/settings.json.bak")
+            .is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -901,12 +1011,25 @@ mod tests {
     fn backs_up_existing_metadata_before_writing() {
         let root = test_root("backup");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
-        write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            false,
+        )
+        .expect("initial write should work");
 
-        write_json(&path, &LibraryMetadata::default(), true).expect("second write should work");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            true,
+        )
+        .expect("second write should work");
 
-        assert!(root.join("library.json.bak").is_file());
+        assert!(metadata_path(&root)
+            .join("backups/library/library.json.bak")
+            .is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -914,13 +1037,19 @@ mod tests {
     fn removes_temporary_file_when_metadata_write_fails() {
         let root = test_root("failed-write-cleanup");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
+        let path = metadata_path(&root).join("library.json");
+        fs::create_dir_all(metadata_path(&root)).expect("metadata directory should be created");
         fs::create_dir_all(&path).expect("conflicting directory should be created");
 
-        let result = write_json(&path, &LibraryMetadata::default(), false);
+        let result = write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            false,
+        );
 
         assert!(result.is_err());
-        assert!(!root
+        assert!(!metadata_path(&root)
             .read_dir()
             .expect("metadata directory should be readable")
             .filter_map(Result::ok)
@@ -933,7 +1062,8 @@ mod tests {
     fn metadata_replace_restores_active_file_when_final_rename_fails() {
         let root = test_root("transaction-restore");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
+        let path = metadata_path(&root).join("library.json");
+        fs::create_dir_all(metadata_path(&root)).expect("metadata directory should be created");
         fs::write(&path, br#"{"version":1,"books":{}}"#)
             .expect("active metadata should be written");
         let mut replacement = LibraryMetadata::default();
@@ -950,15 +1080,20 @@ mod tests {
                 updated_at: "now".to_string(),
             },
         );
-        let result =
-            write_json_with_fs(&path, &replacement, false, &FailingMetadataRenameFileSystem);
+        let result = write_json_with_fs(
+            &root,
+            MetadataDocument::Library,
+            &replacement,
+            false,
+            &FailingMetadataRenameFileSystem,
+        );
 
         assert!(result.is_err());
         assert_eq!(
             fs::read_to_string(&path).expect("active metadata should remain readable"),
             r#"{"version":1,"books":{}}"#
         );
-        assert!(!root
+        assert!(!metadata_path(&root)
             .read_dir()
             .expect("metadata directory should be readable")
             .filter_map(Result::ok)
@@ -970,11 +1105,22 @@ mod tests {
     fn successful_metadata_write_removes_transaction_backup() {
         let root = test_root("transaction-cleanup");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
-        write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
-        write_json(&path, &LibraryMetadata::default(), true).expect("second write should work");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            false,
+        )
+        .expect("initial write should work");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            true,
+        )
+        .expect("second write should work");
 
-        assert!(!root
+        assert!(!metadata_path(&root)
             .read_dir()
             .expect("metadata directory should be readable")
             .filter_map(Result::ok)
@@ -986,13 +1132,16 @@ mod tests {
     fn preserves_corrupted_json_and_recovers_defaults() {
         let root = test_root("corrupt");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
+        let path = metadata_path(&root).join("library.json");
+        fs::create_dir_all(metadata_path(&root)).expect("metadata directory should be created");
         fs::write(&path, b"{not-json").expect("corrupt file should be written");
 
-        let recovered: LibraryMetadata = read_json(&path).expect("metadata should recover");
+        let recovered: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("metadata should recover");
 
         assert_eq!(recovered.version, 1);
-        assert!(root
+        assert!(metadata_path(&root)
+            .join("backups/library")
             .read_dir()
             .expect("directory should be readable")
             .filter_map(Result::ok)
@@ -1004,7 +1153,7 @@ mod tests {
     fn recovers_corrupted_json_from_valid_backup() {
         let root = test_root("backup-recovery");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
+        let path = metadata_path(&root).join("library.json");
         let mut library = LibraryMetadata::default();
         library.books.insert(
             "book-1".to_string(),
@@ -1019,11 +1168,14 @@ mod tests {
                 updated_at: "2026-07-01T00:00:00.000Z".to_string(),
             },
         );
-        write_json(&path, &library, false).expect("initial write should work");
-        write_json(&path, &library, true).expect("backup write should work");
+        write_json(&root, MetadataDocument::Library, &library, false)
+            .expect("initial write should work");
+        write_json(&root, MetadataDocument::Library, &library, true)
+            .expect("backup write should work");
         fs::write(&path, b"{not-json").expect("corrupt file should be written");
 
-        let recovered: LibraryMetadata = read_json(&path).expect("metadata should recover");
+        let recovered: LibraryMetadata =
+            read_json(&root, MetadataDocument::Library).expect("metadata should recover");
 
         let book = recovered
             .books
@@ -1031,8 +1183,11 @@ mod tests {
             .expect("book should be restored from backup");
         assert_eq!(book.relative_path, "Books/Recovered.epub");
         assert!(book.is_favorite);
-        assert!(root.join("library.json.bak").is_file());
-        assert!(root
+        assert!(metadata_path(&root)
+            .join("backups/library/library.json.bak")
+            .is_file());
+        assert!(metadata_path(&root)
+            .join("backups/library")
             .read_dir()
             .expect("directory should be readable")
             .filter_map(Result::ok)
@@ -1041,17 +1196,287 @@ mod tests {
     }
 
     #[test]
+    fn recovery_skips_malformed_candidates_in_documented_layout_order() {
+        let root = test_root("recovery-order");
+        let directory = metadata_path(&root);
+        let backup_directory = directory.join("backups/library");
+        fs::create_dir_all(&backup_directory).expect("backup category should be created");
+        fs::write(directory.join("library.json"), b"{invalid")
+            .expect("active metadata should be corrupted");
+        fs::write(
+            backup_directory.join("library.json.bak"),
+            b"{invalid-stable",
+        )
+        .expect("new stable backup should be malformed");
+        fs::write(
+            backup_directory.join("library.json.backup-200.bak"),
+            b"{invalid-newest",
+        )
+        .expect("newest history should be malformed");
+        fs::write(
+            backup_directory.join("library.json.backup-100.bak"),
+            br#"{"version":1,"books":{"new-layout":{"relativePath":"New.epub","isFavorite":false,"addedAt":"now","updatedAt":"now"}}}"#,
+        )
+        .expect("older new-layout backup should be valid");
+        fs::write(
+            directory.join("library.json.bak"),
+            br#"{"version":1,"books":{"legacy":{"relativePath":"Legacy.epub","isFavorite":false,"addedAt":"now","updatedAt":"now"}}}"#,
+        )
+        .expect("legacy stable backup should be valid");
+
+        let recovered: LibraryMetadata = read_json(&root, MetadataDocument::Library)
+            .expect("metadata should recover from the next valid candidate");
+
+        assert!(recovered.books.contains_key("new-layout"));
+        assert!(!recovered.books.contains_key("legacy"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn legacy_metadata_migration_is_collision_safe_idempotent_and_complete() {
+        let root = test_root("legacy-collisions");
+        let directory = metadata_path(&root);
+        let backup_directory = directory.join("backups/library");
+        fs::create_dir_all(&backup_directory).expect("backup category should be created");
+        fs::write(backup_directory.join("library.json.bak"), b"new-stable")
+            .expect("new stable backup should be written");
+        fs::write(directory.join("library.json.bak"), b"legacy-stable")
+            .expect("legacy stable backup should be written");
+        fs::write(
+            backup_directory.join("library.json.backup-100.bak"),
+            b"new-history",
+        )
+        .expect("new history backup should be written");
+        fs::write(
+            directory.join("library.json.backup-100.bak"),
+            b"legacy-history",
+        )
+        .expect("legacy history backup should be written");
+        fs::write(
+            directory.join("library.json.corrupt-100.bak"),
+            b"legacy-corrupt",
+        )
+        .expect("legacy corruption backup should be written");
+
+        ArchiveBackupLayout::new(&root)
+            .migrate_metadata_document(MetadataDocument::Library, MAX_METADATA_BACKUPS)
+            .expect("legacy backups should migrate");
+        let first_entries = backup_directory
+            .read_dir()
+            .expect("backup category should be readable")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .collect::<Vec<_>>();
+        ArchiveBackupLayout::new(&root)
+            .migrate_metadata_document(MetadataDocument::Library, MAX_METADATA_BACKUPS)
+            .expect("repeated migration should be safe");
+        let second_entries = backup_directory
+            .read_dir()
+            .expect("backup category should be readable")
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name())
+            .collect::<Vec<_>>();
+
+        assert_eq!(first_entries.len(), second_entries.len());
+        let migrated_contents = backup_directory
+            .read_dir()
+            .expect("backup category should be readable")
+            .filter_map(Result::ok)
+            .map(|entry| fs::read(entry.path()).expect("backup should be readable"))
+            .collect::<Vec<_>>();
+        for expected in [
+            b"new-stable".as_slice(),
+            b"legacy-stable".as_slice(),
+            b"new-history".as_slice(),
+            b"legacy-history".as_slice(),
+            b"legacy-corrupt".as_slice(),
+        ] {
+            assert!(migrated_contents
+                .iter()
+                .any(|contents| contents == expected));
+        }
+        assert!(!directory
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| {
+                let name = entry.file_name().to_string_lossy().to_string();
+                name.starts_with("library.json.backup-")
+                    || name.starts_with("library.json.corrupt-")
+                    || name == "library.json.bak"
+            }));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn saving_after_migration_preserves_a_different_legacy_stable_backup_as_history() {
+        let root = test_root("legacy-stable-save");
+        let directory = metadata_path(&root);
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        fs::write(
+            directory.join("library.json"),
+            br#"{"version":1,"books":{}}"#,
+        )
+        .expect("active library should be written");
+        let legacy_backup = br#"{"version":1,"books":{"legacy":{"relativePath":"Legacy.epub","isFavorite":false,"addedAt":"now","updatedAt":"now"}}}"#;
+        fs::write(directory.join("library.json.bak"), legacy_backup)
+            .expect("legacy stable backup should be written");
+
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            true,
+        )
+        .expect("library metadata should save");
+
+        let backup_directory = directory.join("backups/library");
+        assert!(backup_directory
+            .read_dir()
+            .expect("backup category should be readable")
+            .filter_map(Result::ok)
+            .filter(|entry| {
+                entry
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with("library.json.backup-")
+            })
+            .any(|entry| fs::read(entry.path()).is_ok_and(|contents| contents == legacy_backup)));
+        assert!(!directory.join("library.json.bak").exists());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn archive_initialization_removes_all_recognized_legacy_backup_names_from_metadata_root() {
+        let root = test_root("complete-legacy-migration");
+        let directory = metadata_path(&root);
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        for file_name in [
+            "library.json.bak",
+            "library.json.backup-1.bak",
+            "library.json.corrupt-1.bak",
+            "progress.json.bak",
+            "progress.json.backup-1.bak",
+            "progress.json.corrupt-1.bak",
+            "settings.json.bak",
+            "settings.json.backup-1.bak",
+            "settings.json.corrupt-1.bak",
+            "annotations.json.bak",
+            "annotations.json.backup-1.bak",
+            "annotations.json.corrupt-1.bak",
+            "scanner-cache.json.corrupt-1.bak",
+        ] {
+            fs::write(directory.join(file_name), file_name.as_bytes())
+                .expect("legacy backup should be written");
+        }
+
+        initialize_at(&root).expect("archive metadata should initialize and migrate");
+
+        let root_file_names = directory
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|file_type| file_type.is_file()))
+            .map(|entry| entry.file_name().to_string_lossy().to_string())
+            .collect::<Vec<_>>();
+        assert!(!root_file_names.iter().any(|name| name.ends_with(".bak")));
+        for category in [
+            "library",
+            "progress",
+            "settings",
+            "annotations",
+            "scanner-cache",
+        ] {
+            assert!(directory.join("backups").join(category).is_dir());
+        }
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn metadata_backup_category_symlink_outside_archive_is_rejected() {
+        let root = test_root("category-symlink");
+        let outside = test_root("category-symlink-outside");
+        let backup_root = metadata_path(&root).join("backups");
+        fs::create_dir_all(&backup_root).expect("backup root should be created");
+        fs::create_dir_all(&outside).expect("outside directory should be created");
+        fs::write(
+            metadata_path(&root).join("library.json"),
+            br#"{"version":1,"books":{}}"#,
+        )
+        .expect("active metadata should be written");
+        std::os::unix::fs::symlink(&outside, backup_root.join("library"))
+            .expect("backup category symlink should be created");
+
+        let error = write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            true,
+        )
+        .expect_err("symlinked backup category should be rejected");
+
+        assert!(error.contains("symbolic link"));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+        fs::remove_dir_all(outside).expect("outside directory should be removed");
+    }
+
+    #[test]
+    fn scanner_cache_corruption_is_preserved_only_in_its_backup_category() {
+        let root = test_root("scanner-corruption");
+        let directory = metadata_path(&root);
+        fs::create_dir_all(&directory).expect("metadata directory should be created");
+        fs::write(directory.join(SCANNER_CACHE_FILE), b"{invalid")
+            .expect("scanner cache should be corrupted");
+
+        let (_, recovered) =
+            load_scanner_cache_with_recovery_at(&root).expect("scanner cache should recover");
+
+        assert!(recovered);
+        assert!(directory
+            .join("backups/scanner-cache")
+            .read_dir()
+            .expect("scanner backup category should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("scanner-cache.json.corrupt-")));
+        assert!(!directory
+            .read_dir()
+            .expect("metadata directory should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("scanner-cache.json.corrupt-")));
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
     fn keeps_metadata_backup_history_bounded() {
         let root = test_root("bounded-backups");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
 
-        write_json(&path, &LibraryMetadata::default(), false).expect("initial write should work");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            false,
+        )
+        .expect("initial write should work");
         for _ in 0..8 {
-            write_json(&path, &LibraryMetadata::default(), true).expect("backup write should work");
+            write_json(
+                &root,
+                MetadataDocument::Library,
+                &LibraryMetadata::default(),
+                true,
+            )
+            .expect("backup write should work");
         }
 
-        let timestamped_backups = root
+        let backup_directory = metadata_path(&root).join("backups/library");
+        let timestamped_backups = backup_directory
             .read_dir()
             .expect("directory should be readable")
             .filter_map(Result::ok)
@@ -1061,7 +1486,7 @@ mod tests {
             })
             .count();
         assert!(timestamped_backups <= 5);
-        assert!(root.join("library.json.bak").is_file());
+        assert!(backup_directory.join("library.json.bak").is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1069,7 +1494,7 @@ mod tests {
     fn write_backup_does_not_replace_valid_backup_with_corrupted_active_file() {
         let root = test_root("corrupt-active-backup");
         fs::create_dir_all(&root).expect("test archive should be created");
-        let path = root.join("library.json");
+        let path = metadata_path(&root).join("library.json");
         let mut library = LibraryMetadata::default();
         library.books.insert(
             "book-1".to_string(),
@@ -1084,18 +1509,27 @@ mod tests {
                 updated_at: "2026-07-01T00:00:00.000Z".to_string(),
             },
         );
-        write_json(&path, &library, false).expect("initial write should work");
-        write_json(&path, &library, true).expect("valid backup should be created");
+        write_json(&root, MetadataDocument::Library, &library, false)
+            .expect("initial write should work");
+        write_json(&root, MetadataDocument::Library, &library, true)
+            .expect("valid backup should be created");
         fs::write(&path, b"{not-json").expect("corrupt active file should be written");
 
-        write_json(&path, &LibraryMetadata::default(), true).expect("write should recover safely");
+        write_json(
+            &root,
+            MetadataDocument::Library,
+            &LibraryMetadata::default(),
+            true,
+        )
+        .expect("write should recover safely");
 
-        let backup_contents = fs::read(root.join("library.json.bak"))
+        let backup_directory = metadata_path(&root).join("backups/library");
+        let backup_contents = fs::read(backup_directory.join("library.json.bak"))
             .expect("stable backup should still be readable");
         let backup: LibraryMetadata = serde_json::from_slice(&backup_contents)
             .expect("stable backup should remain valid JSON");
         assert!(backup.books.contains_key("book-1"));
-        assert!(root
+        assert!(backup_directory
             .read_dir()
             .expect("directory should be readable")
             .filter_map(Result::ok)

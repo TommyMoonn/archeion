@@ -251,7 +251,7 @@ fn cover_restore_failure_keeps_recovery_backup_and_reports_its_location() {
     assert!(error.contains("EPUB cover write failed"), "{error}");
     assert!(error.contains("automatic restore failed"), "{error}");
     assert!(error.contains("Backup is available at"), "{error}");
-    let backup_dir = root.join(".archeion/backups");
+    let backup_dir = root.join(".archeion/backups/epub-writeback");
     let backups = fs::read_dir(&backup_dir)
         .expect("backup directory should remain")
         .map(|entry| entry.expect("backup entry should read").path())

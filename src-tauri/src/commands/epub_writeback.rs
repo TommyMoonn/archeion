@@ -8,7 +8,10 @@ use std::{
 use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
-use super::{archive_root, epub, epub_metadata, filesystem, metadata, scanner_cache};
+use super::{
+    archive_backup::ArchiveBackupLayout, archive_root, epub, epub_metadata, filesystem, metadata,
+    scanner_cache,
+};
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -48,7 +51,6 @@ const LEGACY_WRITEBACK_BACKUP_MARKER: &str = ".metadata-writeback-";
 const TRANSACTION_WRITEBACK_BACKUP_MARKER: &str = ".metadata-writeback-transaction-";
 const RETAINED_WRITEBACK_BACKUP_MARKER: &str = ".metadata-writeback-retained-";
 const WRITEBACK_BACKUP_EXTENSION: &str = ".epub.bak";
-const BACKUP_DIRECTORY: &str = "backups";
 
 fn clean_optional(value: Option<String>) -> Option<String> {
     value
@@ -128,25 +130,8 @@ fn create_epub_transaction_backup_path(
     root: &Path,
     relative_path: &str,
 ) -> Result<PathBuf, String> {
-    let backup_dir = match safe_existing_backup_directory(root)? {
-        Some(existing_backup_dir) => existing_backup_dir,
-        None => {
-            let backup_dir = backup_directory(root);
-            fs::create_dir_all(&backup_dir).map_err(|error| error.to_string())?;
-            let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
-            let canonical_backup_dir =
-                fs::canonicalize(&backup_dir).map_err(|error| error.to_string())?;
-            let expected_backup_dir = canonical_root
-                .join(metadata::METADATA_DIRECTORY)
-                .join(BACKUP_DIRECTORY);
-            if canonical_backup_dir != expected_backup_dir {
-                return Err(
-                    "EPUB writeback backup folder is outside the active archive.".to_string(),
-                );
-            }
-            canonical_backup_dir
-        }
-    };
+    migrate_legacy_epub_writeback_backups(root)?;
+    let backup_dir = ArchiveBackupLayout::new(root).ensure_epub_writeback_directory()?;
 
     Ok(backup_dir.join(backup_file_name(relative_path)))
 }
@@ -216,9 +201,7 @@ fn prune_previous_retained_backups(
 }
 
 fn retain_epub_writeback_backup_at(root: &Path, backup_path: &Path) -> Result<PathBuf, String> {
-    let backup_dir = root
-        .join(metadata::METADATA_DIRECTORY)
-        .join(BACKUP_DIRECTORY);
+    let backup_dir = ArchiveBackupLayout::new(root).ensure_epub_writeback_directory()?;
     let transaction_name = backup_path
         .file_name()
         .ok_or_else(|| "The EPUB writeback backup is unavailable.".to_string())?
@@ -313,8 +296,12 @@ where
 {
     if keep_successful_backup {
         return match retain(root, backup_path) {
-            Ok(retained_path) => match filesystem::path_relative_to(root, &retained_path) {
-                Ok(path) => Some(path),
+            Ok(retained_path) => match fs::canonicalize(root)
+                .map_err(|error| error.to_string())
+                .and_then(|canonical_root| {
+                    filesystem::path_relative_to(&canonical_root, &retained_path)
+                }) {
+                Ok(relative_path) => Some(relative_path),
                 Err(error) => {
                     eprintln!(
                         "EPUB writeback backup path could not be reported after successful write: {error}"
@@ -342,31 +329,20 @@ where
     None
 }
 
-fn backup_directory(root: &Path) -> PathBuf {
-    root.join(metadata::METADATA_DIRECTORY)
-        .join(BACKUP_DIRECTORY)
+fn is_recognized_epub_writeback_backup_name(file_name: &str) -> bool {
+    is_transaction_epub_writeback_backup_name(file_name)
+        || is_retained_epub_writeback_backup_name(file_name)
 }
 
-fn safe_existing_backup_directory(root: &Path) -> Result<Option<PathBuf>, String> {
-    let backup_dir = backup_directory(root);
-    if !backup_dir.exists() {
-        return Ok(None);
-    }
-
-    let canonical_root = fs::canonicalize(root).map_err(|error| error.to_string())?;
-    let canonical_backup_dir = fs::canonicalize(&backup_dir).map_err(|error| error.to_string())?;
-    let expected_backup_dir = canonical_root
-        .join(metadata::METADATA_DIRECTORY)
-        .join(BACKUP_DIRECTORY);
-    if canonical_backup_dir != expected_backup_dir {
-        return Err("EPUB writeback backup folder is outside the active archive.".to_string());
-    }
-
-    Ok(Some(canonical_backup_dir))
+fn migrate_legacy_epub_writeback_backups(root: &Path) -> Result<(), String> {
+    ArchiveBackupLayout::new(root)
+        .migrate_epub_writeback_files(is_recognized_epub_writeback_backup_name)
 }
 
 fn epub_writeback_backup_status_at(root: &Path) -> Result<EpubWritebackBackupStatus, String> {
-    let Some(backup_dir) = safe_existing_backup_directory(root)? else {
+    migrate_legacy_epub_writeback_backups(root)?;
+    let Some(backup_dir) = ArchiveBackupLayout::new(root).existing_epub_writeback_directory()?
+    else {
         return Ok(EpubWritebackBackupStatus {
             file_count: 0,
             total_bytes: 0,
@@ -397,7 +373,9 @@ fn epub_writeback_backup_status_at(root: &Path) -> Result<EpubWritebackBackupSta
 }
 
 fn clear_epub_writeback_backups_at(root: &Path) -> Result<EpubWritebackBackupStatus, String> {
-    let Some(backup_dir) = safe_existing_backup_directory(root)? else {
+    migrate_legacy_epub_writeback_backups(root)?;
+    let Some(backup_dir) = ArchiveBackupLayout::new(root).existing_epub_writeback_directory()?
+    else {
         return epub_writeback_backup_status_at(root);
     };
 
@@ -975,7 +953,10 @@ mod tests {
     }
 
     fn backup_file_names(root: &Path) -> Vec<String> {
-        let backup_dir = root.join(".archeion").join("backups");
+        let backup_dir = root
+            .join(".archeion")
+            .join("backups")
+            .join("epub-writeback");
         if !backup_dir.exists() {
             return Vec::new();
         }
@@ -1215,6 +1196,8 @@ mod tests {
         let second_backup_path = second
             .backup_path
             .expect("second retained backup path should be returned");
+        assert!(first_backup_path.starts_with(".archeion/backups/epub-writeback/"));
+        assert!(second_backup_path.starts_with(".archeion/backups/epub-writeback/"));
         assert!(first_backup_path.contains("metadata-writeback-retained"));
         assert!(second_backup_path.contains("metadata-writeback-retained"));
         assert_eq!(status.file_count, 1);
@@ -1238,10 +1221,48 @@ mod tests {
         let status =
             clear_epub_writeback_backups_at(&root).expect("retained backups should be cleared");
 
+        let migrated_backup_dir = backup_dir.join("epub-writeback");
+
         assert_eq!(status.file_count, 0);
         assert!(!retained.exists());
-        assert!(transaction.is_file());
+        assert!(migrated_backup_dir
+            .join("book.metadata-writeback-transaction-2.epub.bak")
+            .is_file());
         assert!(manual.is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+    }
+
+    #[test]
+    fn legacy_writeback_migration_preserves_collisions_and_is_idempotent() {
+        let root = test_root();
+        let legacy_root = root.join(".archeion").join("backups");
+        let writeback_directory = legacy_root.join("epub-writeback");
+        fs::create_dir_all(&writeback_directory)
+            .expect("writeback backup directory should be created");
+        let file_name = "book.metadata-writeback-retained-1.epub.bak";
+        fs::write(legacy_root.join(file_name), b"legacy")
+            .expect("legacy retained backup should be written");
+        fs::write(writeback_directory.join(file_name), b"current")
+            .expect("current retained backup should be written");
+        fs::write(legacy_root.join("manual.epub.bak"), b"manual")
+            .expect("manual backup should be written");
+
+        let first = epub_writeback_backup_status_at(&root).expect("legacy backups should migrate");
+        let second = epub_writeback_backup_status_at(&root)
+            .expect("repeated migration should remain stable");
+
+        assert_eq!(first.file_count, 2);
+        assert_eq!(second, first);
+        assert!(!legacy_root.join(file_name).exists());
+        assert!(legacy_root.join("manual.epub.bak").is_file());
+        let contents = writeback_directory
+            .read_dir()
+            .expect("writeback directory should be readable")
+            .filter_map(Result::ok)
+            .map(|entry| fs::read(entry.path()).expect("backup should be readable"))
+            .collect::<Vec<_>>();
+        assert!(contents.iter().any(|contents| contents == b"legacy"));
+        assert!(contents.iter().any(|contents| contents == b"current"));
         fs::remove_dir_all(root).expect("test archive should be removed");
     }
 
@@ -1263,7 +1284,29 @@ mod tests {
         let error = clear_epub_writeback_backups_at(&root)
             .expect_err("symlinked backup directory should be rejected");
 
-        assert!(error.contains("outside the active archive"));
+        assert!(error.contains("symbolic link"));
+        assert!(outside_backup.is_file());
+        fs::remove_dir_all(root).expect("test archive should be removed");
+        fs::remove_dir_all(outside).expect("outside directory should be removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn backup_status_rejects_writeback_category_symlink_outside_archive() {
+        let root = test_root();
+        let outside = test_root();
+        let backup_root = root.join(".archeion").join("backups");
+        fs::create_dir_all(&backup_root).expect("backup root should be created");
+        fs::create_dir_all(&outside).expect("outside directory should be created");
+        let outside_backup = outside.join("book.metadata-writeback-retained-1.epub.bak");
+        fs::write(&outside_backup, b"outside").expect("outside backup should be written");
+        std::os::unix::fs::symlink(&outside, backup_root.join("epub-writeback"))
+            .expect("writeback category symlink should be created");
+
+        let error = epub_writeback_backup_status_at(&root)
+            .expect_err("symlinked writeback category should be rejected");
+
+        assert!(error.contains("symbolic link"));
         assert!(outside_backup.is_file());
         fs::remove_dir_all(root).expect("test archive should be removed");
         fs::remove_dir_all(outside).expect("outside directory should be removed");

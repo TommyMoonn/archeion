@@ -301,6 +301,12 @@
     ├── settings.json
     ├── covers/
     ├── backups/
+    │   ├── annotations/
+    │   ├── epub-writeback/
+    │   ├── library/
+    │   ├── progress/
+    │   ├── scanner-cache/
+    │   └── settings/
     └── themes/</code></pre>
 
           <h3 id="epub-files">EPUB files and folders</h3>
@@ -345,7 +351,21 @@
                 </tr>
                 <tr>
                   <td><code>backups/</code></td>
-                  <td>Backups created before supported book file changes.</td>
+                  <td>
+                    Recovery copies grouped by metadata domain. Active JSON files remain directly
+                    under <code>.archeion</code>.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>backups/&lt;category&gt;/</code></td>
+                  <td>
+                    Stable, timestamped, and corruption-recovery copies for Library, progress,
+                    settings, annotations, and the rebuildable scanner cache.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>backups/epub-writeback/</code></td>
+                  <td>Retained recovery copies created before supported EPUB file changes.</td>
                 </tr>
                 <tr>
                   <td><code>themes/</code></td>
@@ -359,8 +379,9 @@
           <h3 id="backup">Back up an archive</h3>
           <p>
             Copy the complete archive folder, including hidden files. The EPUB files contain the
-            books. The <code>.archeion</code> folder contains progress, annotations, settings,
-            covers, backups, and themes.
+            books. The <code>.archeion</code> folder contains active metadata, progress,
+            annotations, settings, covers, categorized recovery backups, and themes. Copying only
+            the visible EPUB files omits this recovery and application data.
           </p>
 
           <h3 id="move">Move an archive</h3>

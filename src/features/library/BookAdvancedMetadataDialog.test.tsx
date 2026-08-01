@@ -51,7 +51,7 @@ type WriteMetadataHandler = (
 function renderDialog(
   renderedBook: Book,
   onWriteMetadata: WriteMetadataHandler = vi.fn(async () => ({
-    backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+    backupPath: ".archeion/backups/epub-writeback/book.metadata-writeback-1.epub.bak",
     sourceMetadata: renderedBook.sourceMetadata ?? {},
     fileStat: writebackFileStat,
   })),
@@ -223,7 +223,7 @@ describe("BookAdvancedMetadataDialog", () => {
         expect(submittedBook).toBe(identifierBook);
         expect(submittedMetadata).not.toHaveProperty("identifier");
         return {
-          backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+          backupPath: ".archeion/backups/epub-writeback/book.metadata-writeback-1.epub.bak",
           sourceMetadata: {
             ...identifierBook.sourceMetadata,
             title: "New Title",
@@ -279,7 +279,7 @@ describe("BookAdvancedMetadataDialog", () => {
       },
     };
     const onWriteMetadata = vi.fn(async () => ({
-      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+      backupPath: ".archeion/backups/epub-writeback/book.metadata-writeback-1.epub.bak",
       sourceMetadata: { title: "Volume 01" },
       fileStat: writebackFileStat,
     }));
@@ -320,7 +320,7 @@ describe("BookAdvancedMetadataDialog", () => {
 
   it("keeps the editor state mounted across parent book updates after writeback", async () => {
     const onWriteMetadata = vi.fn(async () => ({
-      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+      backupPath: ".archeion/backups/epub-writeback/book.metadata-writeback-1.epub.bak",
       sourceMetadata: {
         ...book.sourceMetadata,
         title: "New Title",
@@ -368,7 +368,7 @@ describe("BookAdvancedMetadataDialog", () => {
 
   it("shows concise in-dialog success and clears pending changes after writeback", async () => {
     const onWriteMetadata = vi.fn(async () => ({
-      backupPath: ".archeion/backups/book.metadata-writeback-1.epub.bak",
+      backupPath: ".archeion/backups/epub-writeback/book.metadata-writeback-1.epub.bak",
       sourceMetadata: {
         ...book.sourceMetadata,
         title: "New Title",

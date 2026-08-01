@@ -514,7 +514,8 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
           },
         });
         return {
-          backupPath: ".archeion/backups/Volume_01.metadata-writeback-retained-1.epub.bak",
+          backupPath:
+            ".archeion/backups/epub-writeback/Volume_01.metadata-writeback-retained-1.epub.bak",
           sourceMetadata: { title: "Edited Title" },
           fileStat: editedFileStat,
         };
@@ -528,7 +529,9 @@ describe("TauriArchiveLibraryStorage metadata and cover writeback", () => {
       title: "Edited Title",
     });
 
-    expect(result.backupPath ?? "").toContain("metadata-writeback-retained");
+    expect(result.backupPath).toBe(
+      ".archeion/backups/epub-writeback/Volume_01.metadata-writeback-retained-1.epub.bak",
+    );
     getSnapshot.mockRestore();
   });
 

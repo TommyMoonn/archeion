@@ -75,7 +75,18 @@ Your Archive/
     settings.json
     covers/
     backups/
+      annotations/
+      epub-writeback/
+      library/
+      progress/
+      scanner-cache/
+      settings/
 ```
+
+Active metadata stays directly under `.archeion`. Recovery copies are grouped under
+`.archeion/backups/<category>/`, while retained EPUB writeback backups are stored under
+`.archeion/backups/epub-writeback/`. Back up the complete archive folder, including the
+hidden `.archeion` directory, so books and their recovery data remain together.
 
 ## Project documentation
 

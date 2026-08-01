@@ -1,5 +1,6 @@
 pub mod app_settings;
 pub mod archive;
+pub(crate) mod archive_backup;
 pub mod archive_import;
 pub mod archive_import_artifacts;
 pub mod archive_import_transaction;

@@ -1491,6 +1491,7 @@ mod tests {
         assert_eq!(metadata.title.as_deref(), Some("Recovered Title"));
         assert!(metadata_dir.join("scanner-cache.json").is_file());
         assert!(metadata_dir
+            .join("backups/scanner-cache")
             .read_dir()
             .expect("metadata directory should be readable")
             .filter_map(Result::ok)
