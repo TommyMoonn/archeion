@@ -1,6 +1,6 @@
 import type { Rendition } from "epubjs";
 
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { claimTransientSurfaceEscape } from "../../utils/transientSurfaceOwnership";
 import { applyReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
 
@@ -81,7 +81,7 @@ export class ReaderContentDocumentRegistry {
     const keyOptions: AddEventListenerOptions = { capture: true };
 
     const onContentKeyDown = (event: KeyboardEvent) => {
-      inputModalityRuntime.reportKeyDown(event);
+      focusPresentationRuntime.reportKeyDown(event);
       if (event.key === "Escape") {
         if (claimTransientSurfaceEscape(event) || event.defaultPrevented) return;
         if (this.options.onEscape?.()) {
@@ -92,7 +92,6 @@ export class ReaderContentDocumentRegistry {
       }
       if (this.options.onContentKeyDown?.(event, context())) {
         event.preventDefault();
-        inputModalityRuntime.reportKeyDown(event);
         event.stopPropagation();
         return;
       }
@@ -112,7 +111,7 @@ export class ReaderContentDocumentRegistry {
     };
     const onContentInteraction = () => this.options.onInteraction?.();
     const onContentPointerDown = (event: PointerEvent) => {
-      inputModalityRuntime.markPointer();
+      focusPresentationRuntime.markPointer();
       if (this.options.onContentPointerDown?.(event, context())) return;
       this.options.onPointerDown?.();
     };

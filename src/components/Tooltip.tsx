@@ -62,7 +62,7 @@ function pointerCanOpenTooltip(event: ReactPointerEvent<HTMLElement>): boolean {
 }
 
 function keyboardFocusCanOpenTooltip(element: HTMLElement): boolean {
-  return element.ownerDocument.documentElement.dataset.inputModality === "keyboard";
+  return element.ownerDocument.documentElement.dataset.focusPresentation === "keyboard-navigation";
 }
 
 function tooltipTargetIsTruncated(

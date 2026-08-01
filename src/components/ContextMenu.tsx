@@ -14,7 +14,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
-import { inputModalityRuntime } from "../app/inputModality";
+import { focusPresentationRuntime } from "../app/inputModality";
 import { MenuItem } from "./MenuItem";
 import { Tooltip, type TooltipPlacement } from "./Tooltip";
 import { useOwnedTooltipAvailable } from "./tooltipStore";
@@ -157,7 +157,7 @@ export const ContextMenuTrigger = forwardRef<HTMLButtonElement, ContextMenuTrigg
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
         event.stopPropagation();
-        inputModalityRuntime.markKeyboard();
+        focusPresentationRuntime.markKeyboardNavigation();
         openFromTrigger(event.key === "ArrowDown" ? "first" : "last");
       }
     }
@@ -285,7 +285,7 @@ export function ContextMenuSurface({
       if (!menu || !isTopmostTransientSurface(menu)) return;
 
       if (event.key === "Tab") {
-        inputModalityRuntime.markKeyboard();
+        focusPresentationRuntime.markKeyboardNavigation();
         event.stopImmediatePropagation();
         controller.close({ restoreFocus: true });
         return;
@@ -302,7 +302,7 @@ export function ContextMenuSurface({
         ownKeyboardEvent(event);
         if (items.length === 0) return;
 
-        inputModalityRuntime.markKeyboard();
+        focusPresentationRuntime.markKeyboardNavigation();
         const currentIndex = targetItem ? items.indexOf(targetItem) : -1;
         const nextIndex =
           event.key === "Home"
@@ -322,7 +322,7 @@ export function ContextMenuSurface({
 
       if ((event.key === "Enter" || event.key === " ") && targetItem) {
         ownKeyboardEvent(event);
-        inputModalityRuntime.markKeyboard();
+        focusPresentationRuntime.markKeyboardNavigation();
         if (isActivatableMenuItem(targetItem)) targetItem.click();
         return;
       }

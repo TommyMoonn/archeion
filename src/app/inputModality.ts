@@ -1,14 +1,7 @@
-export type InputModality = "keyboard" | "pointer";
+export type FocusPresentationIntent =
+  "keyboard-command" | "keyboard-navigation" | "pointer" | "programmatic";
 
-const MODALITY_ATTRIBUTE = "data-input-modality";
-const DIRECTIONAL_NAVIGATION_KEYS = new Set([
-  "ArrowDown",
-  "ArrowLeft",
-  "ArrowRight",
-  "ArrowUp",
-  "End",
-  "Home",
-]);
+const PRESENTATION_ATTRIBUTE = "data-focus-presentation";
 const TEXT_ENTRY_INPUT_TYPES = new Set([
   "date",
   "datetime-local",
@@ -49,19 +42,19 @@ function isApplicationControl(target: EventTarget | null): boolean {
   );
 }
 
-export class InputModalityRuntime {
+export class FocusPresentationRuntime {
   private applicationDocument: Document | null = null;
-  private modality: InputModality = "pointer";
+  private intent: FocusPresentationIntent = "pointer";
   private subscriberCount = 0;
 
   start(applicationDocument: Document): () => void {
     if (this.applicationDocument && this.applicationDocument !== applicationDocument) {
-      throw new Error("Input modality already belongs to another application document.");
+      throw new Error("Focus presentation already belongs to another application document.");
     }
 
     if (!this.applicationDocument) {
       this.applicationDocument = applicationDocument;
-      this.modality = "pointer";
+      this.intent = "pointer";
       this.publish();
       applicationDocument.addEventListener("pointerdown", this.handlePointerDown, true);
       applicationDocument.addEventListener("keydown", this.handleKeyDown);
@@ -77,36 +70,39 @@ export class InputModalityRuntime {
 
       applicationDocument.removeEventListener("pointerdown", this.handlePointerDown, true);
       applicationDocument.removeEventListener("keydown", this.handleKeyDown);
-      applicationDocument.documentElement.removeAttribute(MODALITY_ATTRIBUTE);
+      applicationDocument.documentElement.removeAttribute(PRESENTATION_ATTRIBUTE);
       this.applicationDocument = null;
     };
   }
 
-  getModality(): InputModality {
-    return this.modality;
+  getIntent(): FocusPresentationIntent {
+    return this.intent;
   }
 
-  markKeyboard(): void {
-    this.setModality("keyboard");
+  markKeyboardCommand(): void {
+    this.setIntent("keyboard-command");
+  }
+
+  markKeyboardNavigation(): void {
+    this.setIntent("keyboard-navigation");
   }
 
   markPointer(): void {
-    this.setModality("pointer");
+    this.setIntent("pointer");
+  }
+
+  markProgrammatic(): void {
+    this.setIntent("programmatic");
   }
 
   reportKeyDown(event: KeyboardEvent): void {
     if (event.key === "Tab") {
-      this.markKeyboard();
+      this.markKeyboardNavigation();
       return;
     }
 
     if ((event.key === "Enter" || event.key === " ") && isApplicationControl(event.target)) {
-      this.markKeyboard();
-      return;
-    }
-
-    if (event.defaultPrevented && DIRECTIONAL_NAVIGATION_KEYS.has(event.key)) {
-      this.markKeyboard();
+      this.markKeyboardNavigation();
     }
   }
 
@@ -119,14 +115,14 @@ export class InputModalityRuntime {
   };
 
   private publish(): void {
-    this.applicationDocument?.documentElement.setAttribute(MODALITY_ATTRIBUTE, this.modality);
+    this.applicationDocument?.documentElement.setAttribute(PRESENTATION_ATTRIBUTE, this.intent);
   }
 
-  private setModality(modality: InputModality): void {
-    if (!this.applicationDocument || this.modality === modality) return;
-    this.modality = modality;
+  private setIntent(intent: FocusPresentationIntent): void {
+    if (!this.applicationDocument || this.intent === intent) return;
+    this.intent = intent;
     this.publish();
   }
 }
 
-export const inputModalityRuntime = new InputModalityRuntime();
+export const focusPresentationRuntime = new FocusPresentationRuntime();

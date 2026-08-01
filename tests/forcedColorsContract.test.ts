@@ -233,14 +233,14 @@ describe("forced-colors and focus visibility contract", () => {
   it("keeps wrapper focus singular while standalone native controls retain the global ring", () => {
     const normalizedForcedColors = normalizeSelectorWhitespace(forcedColorsSource);
     const wrapperSelectors = [
-      ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
-      ':root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible)',
-      ':root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible)',
+      ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
+      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
+      ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
     ].join(", ");
     const wrappedChildSelectors = [
-      ':root[data-input-modality="keyboard"] .input-shell input:focus-visible',
-      ':root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible',
-      ':root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ].join(", ");
     const wrapperFocus = cssBlock(wrapperSelectors, normalizedForcedColors);
     const wrappedChildFocus = cssBlock(wrappedChildSelectors, normalizedForcedColors);
@@ -252,34 +252,37 @@ describe("forced-colors and focus visibility contract", () => {
       /:where\(\s*button,\s*a,\s*input,\s*select,\s*textarea,[\s\S]*?\):focus-visible\s*{[\s\S]*?outline: 2px solid Highlight !important;/,
     );
     expect(wrappedChildSelectors).not.toMatch(
-      /(^|,)\s*:root\[data-input-modality="keyboard"\]\s+(?:input|select|textarea):/,
+      /(^|,)\s*:root\[data-focus-presentation="keyboard-navigation"\]\s+(?:input|select|textarea):/,
     );
   });
 
   it("keeps wrapper-owned and reader focus visible without shadow-only treatment", () => {
+    const normalizedReaderSource = normalizeSelectorWhitespace(readerSource);
     const focusContracts = [
       cssBlock(".input-shell:has(input:focus-visible)", formsSource),
       cssBlock(
-        ':root[data-input-modality="keyboard"] .form-field input:focus-visible,\n:root[data-input-modality="keyboard"] .form-field select:focus-visible',
+        ':root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible',
         formsSource,
       ),
       cssBlock(".epub-filename-field:has(input:focus-visible)", filesystemSource),
       cssBlock(
-        ':root[data-input-modality="keyboard"] .bulk-metadata-field > input:focus-visible,\n:root[data-input-modality="keyboard"] .bulk-metadata-field > textarea:focus-visible',
+        ':root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > input:focus-visible,\n:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > textarea:focus-visible',
         librarySource,
       ),
       cssBlock(
-        ':root[data-input-modality="keyboard"] .metadata-writeback__field input:focus-visible,\n:root[data-input-modality="keyboard"] .metadata-writeback__field textarea:focus-visible',
-        librarySource,
+        normalizeSelectorWhitespace(
+          ':root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field input:focus-visible, :root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field textarea:focus-visible',
+        ),
+        normalizeSelectorWhitespace(librarySource),
       ),
     ];
     const readerFocusContracts = [
-      cssBlock(".epub-viewer__click-zone:focus-visible", readerSource),
-      cssBlock(".reader-toc__chapter:focus-visible", readerSource),
-      cssBlock(".reader-annotations__target:focus-visible", readerSource),
-      cssBlock(".reader-annotations__rename input:focus-visible", readerSource),
-      cssBlock(".reader-annotations__show-more:focus-visible", readerSource),
-      cssBlock(".reader-note-editor__field:has(textarea:focus-visible)", readerSource),
+      cssBlock(".epub-viewer__click-zone:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-toc__chapter:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-annotations__target:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-annotations__rename input:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-annotations__show-more:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-note-editor__field:has(textarea:focus-visible)", normalizedReaderSource),
     ];
 
     for (const contract of focusContracts) {

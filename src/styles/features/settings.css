@@ -419,7 +419,7 @@ html[data-motion="on"] .settings-status {
   background: color-mix(in srgb, var(--surface) 84%, var(--accent-soft));
 }
 
-:root[data-input-modality="keyboard"] .about-window__link:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .about-window__link:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }

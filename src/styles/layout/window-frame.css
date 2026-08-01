@@ -186,7 +186,9 @@
   background: var(--surface-shell-hover);
 }
 
-:root[data-input-modality="keyboard"] .window-titlebar__controls button:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"]
+  .window-titlebar__controls
+  button:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: -2px;
 }

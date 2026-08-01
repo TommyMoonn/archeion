@@ -208,7 +208,7 @@ describe("Phase 0.9.0.23 control and icon interaction polish", () => {
       .replace(/\(\s+/g, "(")
       .replace(/\s+\)/g, ")");
     const globalFocusableSelector =
-      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
 
     expect(normalizedBaseStyles).toContain(`${globalFocusableSelector}:focus-visible { outline:`);
     expect(interactionStyles).not.toMatch(
@@ -256,7 +256,7 @@ describe("Phase 0.9.0.23 control and icon interaction polish", () => {
     expect(activeStateIndex).toBeLessThan(disabledStateIndex);
     expect(activeStateIndex).toBeLessThan(dangerStateIndex);
     expect(forcedColorsStyles).toMatch(
-      /:root\[data-input-modality="keyboard"\][\s\S]*:focus-visible\s*\{[^}]*outline:\s*2px solid Highlight !important;/,
+      /:root\[data-focus-presentation="keyboard-navigation"\][\s\S]*:focus-visible\s*\{[^}]*outline:\s*2px solid Highlight !important;/,
     );
   });
 });

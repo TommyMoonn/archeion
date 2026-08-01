@@ -14,7 +14,7 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
 import type { AppCommand } from "../commands/appCommands";
 import { commandDefinitions } from "../commands/commandBindings";
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionRegistration, QuickActionsRegistry } from "./quickActions";
@@ -25,22 +25,22 @@ vi.mock("./QuickActionsPalette", async () => {
 
   return {
     QuickActionsPalette({
+      focusReturn,
       onClose,
       onExecute,
       registry,
-      returnFocusTo,
     }: {
+      focusReturn?: import("../../utils/focusRestoration").FocusReturnRecord;
       onClose: () => void;
       onExecute: (command: AppCommand) => void;
       registry: QuickActionsRegistry;
-      returnFocusTo?: HTMLElement | null;
     }) {
       const dialogRef = React.useRef<HTMLDialogElement>(null);
       const inputRef = React.useRef<HTMLInputElement>(null);
       const modal = useModalDialogLifecycle({
         dialogRef,
+        focusReturn,
         onClose,
-        returnFocusTo,
         surfaceKind: "quick-actions",
       });
 
@@ -162,7 +162,7 @@ const readyArchive: ArchiveState = {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
-let stopInputModality: (() => void) | null = null;
+let stopFocusPresentation: (() => void) | null = null;
 
 function setInputValue(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
@@ -275,7 +275,7 @@ async function waitForSettings(): Promise<HTMLDialogElement> {
 }
 
 beforeEach(() => {
-  stopInputModality = inputModalityRuntime.start(document);
+  stopFocusPresentation = focusPresentationRuntime.start(document);
   installDialogPolyfill();
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
@@ -292,8 +292,8 @@ afterEach(async () => {
   container?.remove();
   root = null;
   container = null;
-  stopInputModality?.();
-  stopInputModality = null;
+  stopFocusPresentation?.();
+  stopFocusPresentation = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
@@ -320,7 +320,7 @@ describe("QuickActionsProvider", () => {
     const palette = await waitForPalette();
     const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
     expect(document.activeElement).toBe(search);
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
 
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
@@ -328,7 +328,50 @@ describe("QuickActionsProvider", () => {
 
     expect(document.querySelector(".quick-actions")).toBeNull();
     expect(document.activeElement).toBe(opener);
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
+  }, 15_000);
+
+  it("does not restore Quick Actions to a generic page or unrelated controls", async () => {
+    const rendered = await renderProvider();
+    const page = document.body.appendChild(document.createElement("main"));
+    page.className = "page-shell";
+    page.tabIndex = -1;
+    const titlebarAction = document.body.appendChild(document.createElement("button"));
+    const sidebarAction = document.body.appendChild(document.createElement("button"));
+    page.focus();
+
+    await act(async () => {
+      page.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "P",
+          shiftKey: true,
+        }),
+      );
+    });
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
+    });
+
+    expect(document.activeElement).not.toBe(page);
+    expect(document.activeElement).not.toBe(titlebarAction);
+    expect(document.activeElement).not.toBe(sidebarAction);
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
+
+    act(() => {
+      document.body.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }));
+    });
+    expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-navigation");
+    page.remove();
+    titlebarAction.remove();
+    sidebarAction.remove();
+    expect(rendered.container.isConnected).toBe(true);
   }, 15_000);
 
   it("keeps global, search, and reader commands beneath an open context menu", async () => {
@@ -497,14 +540,14 @@ describe("QuickActionsProvider", () => {
     });
 
     const settings = await waitForSettings();
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
     expect(document.activeElement).toBe(
       settings.querySelector('button[aria-label="Close settings"]'),
     );
     expect(document.activeElement).not.toBe(settings.querySelector('input[type="search"]'));
   });
 
-  it("keeps pointer-open Settings and its restored opener in pointer modality", async () => {
+  it("keeps pointer-open Settings restoration out of keyboard-navigation presentation", async () => {
     const rendered = await renderProvider();
     const opener = rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!;
     opener.focus();
@@ -514,7 +557,7 @@ describe("QuickActionsProvider", () => {
       opener.click();
     });
     const settings = await waitForSettings();
-    expect(document.documentElement.dataset.inputModality).toBe("pointer");
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
     expect(document.activeElement).toBe(
       settings.querySelector('button[aria-label="Close settings"]'),
     );
@@ -525,7 +568,28 @@ describe("QuickActionsProvider", () => {
     });
 
     expect(document.activeElement).toBe(opener);
-    expect(document.documentElement.dataset.inputModality).toBe("pointer");
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
+  });
+
+  it("restores a keyboard-navigation Settings trigger with its strong-ring intent", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!;
+    opener.focus();
+
+    act(() => {
+      opener.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      opener.click();
+    });
+    const settings = await waitForSettings();
+    expect(document.documentElement.dataset.focusPresentation).toBe("programmatic");
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(document.activeElement).toBe(opener);
+    expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-navigation");
   });
 
   it("focuses Settings search with Ctrl+F while Settings owns the modal scope", async () => {
@@ -552,7 +616,7 @@ describe("QuickActionsProvider", () => {
     });
 
     expect(document.activeElement).toBe(search);
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-command");
   });
 
   it("uses a remapped Settings binding and stops matching the default", async () => {

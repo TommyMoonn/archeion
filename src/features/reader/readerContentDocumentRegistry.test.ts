@@ -8,7 +8,7 @@ import {
 } from "../../utils/transientSurfaceOwnership";
 import { defaultReaderSettings } from "../../types/reader";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { createReaderContentTheme } from "./readerTheme";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 
@@ -149,8 +149,8 @@ describe("ReaderContentDocumentRegistry", () => {
     expect(onRemoved).toHaveBeenCalledOnce();
   });
 
-  it("reports EPUB pointer and owned keyboard intent without styling publisher content", () => {
-    const stopInputModality = inputModalityRuntime.start(document);
+  it("keeps prevented focus-stationary EPUB navigation in pointer presentation", () => {
+    const stopFocusPresentation = focusPresentationRuntime.start(document);
     try {
       const frame = mountedFrame();
       const chapter = frame.contentDocument!;
@@ -160,10 +160,10 @@ describe("ReaderContentDocumentRegistry", () => {
       });
       registry.bind({ document: chapter, window: frame.contentWindow! });
 
-      inputModalityRuntime.markKeyboard();
+      focusPresentationRuntime.markKeyboardNavigation();
       chapter.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
-      expect(document.documentElement.dataset.inputModality).toBe("pointer");
-      expect(chapter.documentElement.hasAttribute("data-input-modality")).toBe(false);
+      expect(document.documentElement.dataset.focusPresentation).toBe("pointer");
+      expect(chapter.documentElement.hasAttribute("data-focus-presentation")).toBe(false);
 
       chapter.body.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -172,12 +172,12 @@ describe("ReaderContentDocumentRegistry", () => {
           key: "ArrowRight",
         }),
       );
-      expect(document.documentElement.dataset.inputModality).toBe("keyboard");
-      expect(chapter.documentElement.hasAttribute("data-input-modality")).toBe(false);
+      expect(document.documentElement.dataset.focusPresentation).toBe("pointer");
+      expect(chapter.documentElement.hasAttribute("data-focus-presentation")).toBe(false);
 
       registry.clear();
     } finally {
-      stopInputModality();
+      stopFocusPresentation();
     }
   });
 

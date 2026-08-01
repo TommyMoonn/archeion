@@ -45,7 +45,7 @@ function visibleTooltip(): HTMLElement | null {
 
 beforeEach(() => {
   vi.useFakeTimers();
-  document.documentElement.dataset.inputModality = "pointer";
+  document.documentElement.dataset.focusPresentation = "pointer";
   Object.defineProperty(window, "matchMedia", {
     configurable: true,
     value: vi.fn().mockReturnValue({
@@ -64,7 +64,7 @@ afterEach(() => {
   container?.remove();
   container = null;
   document.querySelectorAll('[role="tooltip"]').forEach((tooltip) => tooltip.remove());
-  delete document.documentElement.dataset.inputModality;
+  delete document.documentElement.dataset.focusPresentation;
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -94,7 +94,7 @@ describe("Tooltip", () => {
 
   it("uses the shorter keyboard delay and dismisses on blur, pointer down, and Escape", () => {
     const trigger = renderTooltip();
-    document.documentElement.dataset.inputModality = "keyboard";
+    document.documentElement.dataset.focusPresentation = "keyboard-navigation";
 
     act(() => trigger.focus());
     act(() => vi.advanceTimersByTime(TOOLTIP_FOCUS_OPEN_DELAY_MS));
@@ -110,7 +110,7 @@ describe("Tooltip", () => {
     });
     expect(visibleTooltip()).toBeNull();
 
-    document.documentElement.dataset.inputModality = "keyboard";
+    document.documentElement.dataset.focusPresentation = "keyboard-navigation";
     act(() => {
       trigger.focus();
       vi.advanceTimersByTime(TOOLTIP_FOCUS_OPEN_DELAY_MS);

@@ -13,7 +13,7 @@
     box-shadow: none;
   }
 
-  :root[data-input-modality="keyboard"]
+  :root[data-focus-presentation="keyboard-navigation"]
     :where(
       button,
       a,
@@ -27,15 +27,19 @@
     outline-offset: 2px;
   }
 
-  :root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible),
-  :root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible),
-  :root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible) {
+  :root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible),
+  :root[data-focus-presentation="keyboard-navigation"]
+    .epub-filename-field:has(input:focus-visible),
+  :root[data-focus-presentation="keyboard-navigation"]
+    .reader-note-editor__field:has(textarea:focus-visible) {
     outline: 2px solid Highlight;
   }
 
-  :root[data-input-modality="keyboard"] .input-shell input:focus-visible,
-  :root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible,
-  :root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible {
+  :root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible,
+  :root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible,
+  :root[data-focus-presentation="keyboard-navigation"]
+    .reader-note-editor__field
+    textarea:focus-visible {
     outline: 0 !important;
   }
 

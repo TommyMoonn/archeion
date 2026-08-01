@@ -151,7 +151,9 @@ html[data-density="compact"] .book-grid {
   background: var(--surface-hover);
 }
 
-:root[data-input-modality="keyboard"] .library-header__utilities .icon-button:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"]
+  .library-header__utilities
+  .icon-button:focus-visible {
   outline-offset: -2px;
 }
 
@@ -1388,8 +1390,8 @@ html[data-motion="on"] .details-drawer[open] {
   line-height: 1.45;
 }
 
-:root[data-input-modality="keyboard"] .bulk-metadata-field > input:focus-visible,
-:root[data-input-modality="keyboard"] .bulk-metadata-field > textarea:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > input:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .bulk-metadata-field > textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-color: var(--accent);
@@ -1685,8 +1687,10 @@ html[data-motion="on"] .details-drawer[open] {
   overflow-wrap: anywhere;
 }
 
-:root[data-input-modality="keyboard"] .metadata-writeback__field input:focus-visible,
-:root[data-input-modality="keyboard"] .metadata-writeback__field textarea:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .metadata-writeback__field input:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"]
+  .metadata-writeback__field
+  textarea:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
   border-color: color-mix(in srgb, var(--accent) 58%, var(--line));

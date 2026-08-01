@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsPalette } from "./QuickActionsPalette";
 import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
+import { focusPresentationRuntime } from "../../app/inputModality";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -86,6 +87,32 @@ describe("QuickActionsPalette", () => {
 
     expect(rendered.onExecute).toHaveBeenCalledWith(second);
   });
+
+  it.each(["ArrowUp", "ArrowDown", "Home", "End"])(
+    "keeps search focus and pointer presentation for %s active-command movement",
+    async (key) => {
+      const rendered = await renderPalette([
+        createCommand("first", "First action", { order: 1 }),
+        createCommand("second", "Second action", { order: 2 }),
+      ]);
+      const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+      const stopPresentation = focusPresentationRuntime.start(document);
+      focusPresentationRuntime.markPointer();
+
+      try {
+        await act(async () => {
+          input.dispatchEvent(
+            new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key }),
+          );
+        });
+
+        expect(document.activeElement).toBe(input);
+        expect(focusPresentationRuntime.getIntent()).toBe("pointer");
+      } finally {
+        stopPresentation();
+      }
+    },
+  );
 
   it("keeps disabled commands visible with a reason and does not execute them", async () => {
     const disabled = createCommand("disabled", "Open reader TOC", {

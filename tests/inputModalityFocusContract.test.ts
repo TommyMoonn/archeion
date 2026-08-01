@@ -36,7 +36,7 @@ function classLikeSpecificityUnits(selector: string): number {
   return withoutWhere.match(/\.[\w-]+|\[[^\]]+\]|:(?!:)[\w-]+(?:\([^)]*\))?/g)?.length ?? 0;
 }
 
-describe("input modality focus presentation contract", () => {
+describe("focus presentation contract", () => {
   const allCss = collectCss(stylesRoot)
     .map((file) => fs.readFileSync(file, "utf8"))
     .join("\n");
@@ -45,15 +45,18 @@ describe("input modality focus presentation contract", () => {
     const app = read("src/app/App.tsx");
     const runtime = read("src/app/inputModality.ts");
 
-    expect(app).toContain("inputModalityRuntime.start(document)");
-    expect(runtime).toContain('type InputModality = "keyboard" | "pointer"');
-    expect(runtime).toContain('"data-input-modality"');
+    expect(app).toContain("focusPresentationRuntime.start(document)");
+    for (const intent of ["pointer", "keyboard-navigation", "keyboard-command", "programmatic"]) {
+      expect(runtime).toContain(`"${intent}"`);
+    }
+    expect(runtime).toContain('"data-focus-presentation"');
+    expect(allCss).not.toContain("data-input-modality");
     expect(runtime).not.toMatch(
       /localStorage|sessionStorage|AppPreferences|useState|useSyncExternalStore/,
     );
   });
 
-  it("gates every authored strong focus-visible geometry on keyboard modality", () => {
+  it("gates every authored strong focus-visible geometry on keyboard-navigation intent", () => {
     const rules = [...allCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)];
     const strongFocusRules = rules.filter(([, selector, declarations]) => {
       if (!selector?.includes(":focus-visible")) return false;
@@ -72,7 +75,7 @@ describe("input modality focus presentation contract", () => {
     expect(strongFocusRules.length).toBeGreaterThan(8);
     for (const [, selector] of strongFocusRules) {
       expect(selector, `Ungated strong focus selector: ${selector?.trim()}`).toContain(
-        '[data-input-modality="keyboard"]',
+        '[data-focus-presentation="keyboard-navigation"]',
       );
     }
   });
@@ -82,39 +85,43 @@ describe("input modality focus presentation contract", () => {
       ':where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
     const base = normalizeSelectorWhitespace(read("src/styles/base.css"));
     const forcedColors = normalizeSelectorWhitespace(read("src/styles/forced-colors.css"));
-    const gatedCompoundSelector = `:root[data-input-modality="keyboard"] ${focusableControls}:focus-visible`;
+    const gatedCompoundSelector = `:root[data-focus-presentation="keyboard-navigation"] ${focusableControls}:focus-visible`;
     const malformedDescendantSelector = `${focusableControls} :focus-visible`;
 
     expect(base).toContain(gatedCompoundSelector);
     expect(base).not.toContain(malformedDescendantSelector);
     expect(forcedColors).toContain(gatedCompoundSelector);
     expect(forcedColors).not.toContain(malformedDescendantSelector);
+    expect(base).toContain(
+      `:root:not([data-focus-presentation="keyboard-navigation"]) ${focusableControls}:focus`,
+    );
   });
 
   it("gives each composite wrapper singular keyboard focus geometry", () => {
     const globalSelector =
-      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
     const globalSpecificity = classLikeSpecificityUnits(globalSelector);
     const contracts = [
       {
-        innerSelector: ':root[data-input-modality="keyboard"] .input-shell input:focus-visible',
+        innerSelector:
+          ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
         source: normalizeSelectorWhitespace(read("src/styles/components/forms.css")),
         wrapperSelector:
-          ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
       },
       {
         innerSelector:
-          ':root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible',
+          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
         source: normalizeSelectorWhitespace(read("src/styles/features/filesystem.css")),
         wrapperSelector:
-          ':root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
       },
       {
         innerSelector:
-          ':root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible',
+          ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
         source: normalizeSelectorWhitespace(read("src/styles/features/reader.css")),
         wrapperSelector:
-          ':root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
       },
     ];
 
@@ -131,35 +138,35 @@ describe("input modality focus presentation contract", () => {
     const forcedColors = normalizeSelectorWhitespace(read("src/styles/forced-colors.css"));
     const styleIndex = read("src/styles/index.css");
     const globalSelector =
-      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible';
     const wrapperContracts = [
       {
         forcedSelector:
-          ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
         normalSource: normalizeSelectorWhitespace(read("src/styles/components/forms.css")),
         normalSelector:
-          ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
       },
       {
         forcedSelector:
-          ':root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
         normalSource: normalizeSelectorWhitespace(read("src/styles/features/filesystem.css")),
         normalSelector:
-          ':root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible)',
       },
       {
         forcedSelector:
-          ':root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
         normalSource: normalizeSelectorWhitespace(read("src/styles/features/reader.css")),
         normalSelector:
-          ':root[data-input-modality="keyboard"] .reader-note-editor__field:has(textarea:focus-visible)',
+          ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field:has(textarea:focus-visible)',
       },
     ];
     const wrapperSelectors = wrapperContracts.map(({ forcedSelector }) => forcedSelector);
     const innerSelectors = [
-      ':root[data-input-modality="keyboard"] .input-shell input:focus-visible',
-      ':root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible',
-      ':root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ];
     const innerRule = cssBlock(innerSelectors.join(", "), forcedColors);
     const globalSpecificity = classLikeSpecificityUnits(globalSelector);
@@ -179,7 +186,9 @@ describe("input modality focus presentation contract", () => {
       const normalSpecificity = classLikeSpecificityUnits(contract.normalSelector);
       expect(forcedSpecificity).toBeGreaterThanOrEqual(normalSpecificity);
       expect(forcedSpecificity).toBe(4);
-      expect(contract.forcedSelector).toContain(':root[data-input-modality="keyboard"]');
+      expect(contract.forcedSelector).toContain(
+        ':root[data-focus-presentation="keyboard-navigation"]',
+      );
     }
     const forcedColorsImport = styleIndex.indexOf('@import "./forced-colors.css";');
     for (const normalImport of [
@@ -192,10 +201,10 @@ describe("input modality focus presentation contract", () => {
     expect(innerRule).toContain("outline: 0 !important");
     for (const selector of innerSelectors) {
       expect(classLikeSpecificityUnits(selector)).toBeGreaterThan(globalSpecificity);
-      expect(selector).toContain(':root[data-input-modality="keyboard"]');
+      expect(selector).toContain(':root[data-focus-presentation="keyboard-navigation"]');
     }
     expect(forcedColors).not.toMatch(
-      /:root\[data-input-modality="keyboard"\]\s+(?:input|textarea|select):focus-visible\s*{[^}]*outline:\s*0/,
+      /:root\[data-focus-presentation="keyboard-navigation"\]\s+(?:input|textarea|select):focus-visible\s*{[^}]*outline:\s*0/,
     );
   });
 
@@ -207,7 +216,7 @@ describe("input modality focus presentation contract", () => {
     expect(cssBlock(".input-shell:focus-within", forms)).toMatch(/border-color:[\s\S]*background:/);
     expect(
       cssBlock(
-        ':root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible)',
+        ':root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible)',
         forms,
       ),
     ).toContain("outline: 2px solid var(--focus)");
@@ -222,16 +231,16 @@ describe("input modality focus presentation contract", () => {
     const forcedColors = read("src/styles/forced-colors.css");
     const normalizedForcedColors = normalizeSelectorWhitespace(forcedColors);
     const innerSelectors = [
-      ':root[data-input-modality="keyboard"] .input-shell input:focus-visible',
-      ':root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible',
-      ':root[data-input-modality="keyboard"] .reader-note-editor__field textarea:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible',
+      ':root[data-focus-presentation="keyboard-navigation"] .reader-note-editor__field textarea:focus-visible',
     ].join(", ");
 
     expect(forcedColors).toMatch(
-      /:root\[data-input-modality="keyboard"\][\s\S]*?:where\([\s\S]*?button,[\s\S]*?\):focus-visible\s*{[\s\S]*?outline: 2px solid Highlight !important;/,
+      /:root\[data-focus-presentation="keyboard-navigation"\][\s\S]*?:where\([\s\S]*?button,[\s\S]*?\):focus-visible\s*{[\s\S]*?outline: 2px solid Highlight !important;/,
     );
     expect(forcedColors).toMatch(
-      /:root\[data-input-modality="keyboard"\][\s\S]*?\.input-shell:has\(input:focus-visible\)[\s\S]*?outline: 2px solid Highlight;/,
+      /:root\[data-focus-presentation="keyboard-navigation"\][\s\S]*?\.input-shell:has\(input:focus-visible\)[\s\S]*?outline: 2px solid Highlight;/,
     );
     expect(cssBlock(innerSelectors, normalizedForcedColors)).toContain("outline: 0 !important");
     expect(forcedColors).not.toContain("forced-color-adjust: none");
@@ -251,9 +260,27 @@ describe("input modality focus presentation contract", () => {
     const registry = read("src/features/reader/readerContentDocumentRegistry.ts");
     const readerTheme = read("src/features/reader/readerTheme.ts");
 
-    expect(registry).toContain("inputModalityRuntime.reportKeyDown(event)");
-    expect(registry).toContain("inputModalityRuntime.markPointer()");
-    expect(readerTheme).not.toContain("data-input-modality");
+    expect(registry).toContain("focusPresentationRuntime.reportKeyDown(event)");
+    expect(registry.match(/focusPresentationRuntime\.reportKeyDown\(event\)/g)).toHaveLength(1);
+    expect(registry).toContain("focusPresentationRuntime.markPointer()");
+    expect(readerTheme).not.toContain("data-focus-presentation");
     expect(readerTheme).not.toContain("focus-visible");
+  });
+
+  it("keeps directional presentation marking with verified DOM-focus owners", () => {
+    const runtime = read("src/app/inputModality.ts");
+    const appSelect = read("src/components/AppSelect.tsx");
+    const quickActions = read("src/features/quick-actions/QuickActionsPalette.tsx");
+    const contextMenu = read("src/components/ContextMenu.tsx");
+    const segmentedControl = read("src/components/SegmentedControl.tsx");
+    const folderTree = read("src/features/folders/FolderTree.tsx");
+
+    expect(runtime).not.toContain("DIRECTIONAL_NAVIGATION_KEYS");
+    expect(runtime).not.toContain("event.defaultPrevented &&");
+    expect(appSelect).not.toContain("markKeyboardNavigation");
+    expect(quickActions).not.toContain("markKeyboardNavigation");
+    expect(contextMenu).toContain("markKeyboardNavigation");
+    expect(segmentedControl).toContain("markKeyboardNavigation");
+    expect(folderTree).toContain("markKeyboardNavigation");
   });
 });

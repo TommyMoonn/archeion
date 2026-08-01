@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -11,10 +12,10 @@ import {
 import { flushSync } from "react-dom";
 
 import { router } from "../../app/router";
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
-import { currentFocusOrigin, focusElementIfUsable } from "../../utils/focusRestoration";
+import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import type { AppCommand, KeyboardInteractionContext } from "../commands/appCommands";
@@ -41,8 +42,9 @@ const quickActionsRegistry = new QuickActionsRegistry();
 
 export function QuickActionsProvider({ children }: { children: ReactNode }) {
   const registry = quickActionsRegistry;
-  const [palette, setPalette] = useState<{ origin: HTMLElement | null } | null>(null);
-  const [settings, setSettings] = useState<{ origin: HTMLElement | null } | null>(null);
+  const [palette, setPalette] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
+  const [settings, setSettings] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
+  const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const keyboard = useKeyboardPreferences();
   const archive = useSyncExternalStore(
     archiveStore.subscribe,
@@ -51,7 +53,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   );
 
   const openPalette = useCallback(() => {
-    setPalette({ origin: currentFocusOrigin() });
+    setPalette({ focusReturn: commandFocusReturnRef.current ?? captureFocusReturn() });
   }, []);
 
   const preloadSettings = useCallback(() => {
@@ -60,13 +62,20 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
 
   const openSettings = useCallback(() => {
     preloadSettings();
-    setSettings({ origin: currentFocusOrigin() });
+    setSettings({ focusReturn: commandFocusReturnRef.current ?? captureFocusReturn() });
   }, [preloadSettings]);
 
   const executeCommand = useCallback(
-    (command: AppCommand) => {
+    (command: AppCommand, focusReturn?: FocusReturnRecord) => {
       registry.recordRecent(command.id);
-      void Promise.resolve(command.execute()).catch((error) => {
+      commandFocusReturnRef.current = focusReturn ?? null;
+      let result: void | Promise<void>;
+      try {
+        result = command.execute();
+      } finally {
+        commandFocusReturnRef.current = null;
+      }
+      void Promise.resolve(result).catch((error) => {
         console.error(`Command failed: ${command.id}`, error);
       });
     },
@@ -83,7 +92,7 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       );
       if (!resolved) return false;
 
-      inputModalityRuntime.markKeyboard();
+      focusPresentationRuntime.markKeyboardCommand();
       event.preventDefault();
       event.stopPropagation();
       if (resolved.availability.available) executeCommand(resolved.command);
@@ -221,22 +230,20 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       {palette ? (
         <Suspense fallback={<QuickActionsLoadingFallback />}>
           <QuickActionsPalette
+            focusReturn={palette.focusReturn}
             keyboard={keyboard}
             onClose={() => setPalette(null)}
             onExecute={(command) => {
-              const origin = palette.origin;
               flushSync(() => setPalette(null));
-              focusElementIfUsable(origin);
-              executeCommand(command);
+              executeCommand(command, palette.focusReturn);
             }}
             registry={registry}
-            returnFocusTo={palette.origin}
           />
         </Suspense>
       ) : null}
       {settings ? (
         <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
-          <SettingsDialog onClose={() => setSettings(null)} returnFocusTo={settings.origin} />
+          <SettingsDialog focusReturn={settings.focusReturn} onClose={() => setSettings(null)} />
         </Suspense>
       ) : null}
     </QuickActionsContext.Provider>

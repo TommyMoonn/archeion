@@ -25,10 +25,11 @@ import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppe
 import { useSettingsDialogController } from "./useSettingsDialogController";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
+import type { FocusReturnRecord } from "../../utils/focusRestoration";
 
 type SettingsDialogProps = {
+  focusReturn?: FocusReturnRecord;
   onClose: () => void;
-  returnFocusTo?: HTMLElement | null;
 };
 
 function scrollSettingsContent(content: HTMLElement | null) {
@@ -67,7 +68,7 @@ function renderSettingsSection(
   }
 }
 
-export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) {
+export function SettingsDialog({ focusReturn, onClose }: SettingsDialogProps) {
   const contentRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -102,9 +103,9 @@ export function SettingsDialog({ onClose, returnFocusTo }: SettingsDialogProps) 
   const committedArchiveAppearance = useCommittedArchiveAppearance();
   const modal = useModalDialogLifecycle({
     dialogRef,
+    focusReturn,
     initialFocusRef: closeButtonRef,
     onClose,
-    returnFocusTo,
     surfaceKind: "settings",
   });
   const controller = useSettingsDialogController({

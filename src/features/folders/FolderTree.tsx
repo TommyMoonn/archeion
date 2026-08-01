@@ -6,7 +6,7 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import {
   openContextMenuFromKeyboard,
   openContextMenuFromPointer,
@@ -192,7 +192,7 @@ export function FolderTree({
 
     event.preventDefault();
     if (next) {
-      inputModalityRuntime.markKeyboard();
+      focusPresentationRuntime.markKeyboardNavigation();
       next.focus();
     }
   }

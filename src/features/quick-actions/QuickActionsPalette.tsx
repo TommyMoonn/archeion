@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSyncExternalStore } from "react";
 
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { Input } from "../../components/Input";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import type { AppCommand } from "../commands/appCommands";
@@ -11,6 +11,7 @@ import {
   type KeyboardPreferences,
 } from "../commands/commandBindings";
 import { commandAvailability } from "../commands/commandResolver";
+import type { FocusReturnRecord } from "../../utils/focusRestoration";
 import {
   createQuickActionIndex,
   searchQuickActions,
@@ -19,18 +20,18 @@ import {
 
 type QuickActionsPaletteProps = {
   keyboard: KeyboardPreferences;
+  focusReturn?: FocusReturnRecord;
   onClose: () => void;
   onExecute: (command: AppCommand) => void;
   registry: QuickActionsRegistry;
-  returnFocusTo?: HTMLElement | null;
 };
 
 export function QuickActionsPalette({
+  focusReturn,
   keyboard,
   onClose,
   onExecute,
   registry,
-  returnFocusTo,
 }: QuickActionsPaletteProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -55,8 +56,8 @@ export function QuickActionsPalette({
 
   const modal = useModalDialogLifecycle({
     dialogRef,
+    focusReturn,
     onClose,
-    returnFocusTo,
     surfaceKind: "quick-actions",
   });
 
@@ -117,35 +118,31 @@ export function QuickActionsPalette({
             onKeyDown={(event) => {
               if (event.key === "ArrowDown") {
                 event.preventDefault();
-                inputModalityRuntime.markKeyboard();
                 moveSelection(1);
                 return;
               }
 
               if (event.key === "ArrowUp") {
                 event.preventDefault();
-                inputModalityRuntime.markKeyboard();
                 moveSelection(-1);
                 return;
               }
 
               if (event.key === "Home") {
                 event.preventDefault();
-                inputModalityRuntime.markKeyboard();
                 setActiveIndex(0);
                 return;
               }
 
               if (event.key === "End") {
                 event.preventDefault();
-                inputModalityRuntime.markKeyboard();
                 setActiveIndex(Math.max(0, results.length - 1));
                 return;
               }
 
               if (event.key === "Enter") {
                 event.preventDefault();
-                inputModalityRuntime.markKeyboard();
+                focusPresentationRuntime.markKeyboardCommand();
                 execute(activeCommand);
                 return;
               }

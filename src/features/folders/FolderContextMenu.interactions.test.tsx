@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import type { Folder } from "../../types/folder";
 import { FolderBrowser } from "./FolderBrowser";
 import { createFolderBrowserEntries } from "./folderBrowserReadModel";
@@ -22,10 +22,10 @@ const folder: Folder = {
 
 let root: ReturnType<typeof createRoot> | null = null;
 let container: HTMLDivElement | null = null;
-let stopInputModality: (() => void) | null = null;
+let stopFocusPresentation: (() => void) | null = null;
 
 beforeEach(() => {
-  stopInputModality = inputModalityRuntime.start(document);
+  stopFocusPresentation = focusPresentationRuntime.start(document);
 });
 
 afterEach(() => {
@@ -33,8 +33,8 @@ afterEach(() => {
   document.body.innerHTML = "";
   root = null;
   container = null;
-  stopInputModality?.();
-  stopInputModality = null;
+  stopFocusPresentation?.();
+  stopFocusPresentation = null;
 });
 
 function mount(node: React.ReactNode) {
@@ -84,7 +84,7 @@ describe("folder contextual invocation", () => {
     expect(pointerLabels).toEqual(["Move folder", "Reveal folder", "Delete folder"]);
     expect(onOpen).not.toHaveBeenCalled();
     expect(item?.getAttribute("data-context-menu-open")).toBe("true");
-    expect(document.documentElement.dataset.inputModality).toBe("pointer");
+    expect(document.documentElement.dataset.focusPresentation).toBe("pointer");
 
     act(() => document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })));
     act(() =>
@@ -126,7 +126,7 @@ describe("folder contextual invocation", () => {
       "Reveal folder",
       "Delete folder",
     ]);
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-navigation");
 
     act(() =>
       document.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" })),
@@ -139,7 +139,7 @@ describe("folder contextual invocation", () => {
     expect(document.activeElement?.textContent).toContain("Rename folder");
   });
 
-  it("promotes owned FolderTree directional focus movement to keyboard modality", () => {
+  it("promotes owned FolderTree directional focus movement to keyboard navigation", () => {
     const secondFolder: Folder = {
       ...folder,
       id: "folder-2",
@@ -170,6 +170,6 @@ describe("folder contextual invocation", () => {
     });
 
     expect(document.activeElement).toBe(items[1]);
-    expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+    expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-navigation");
   });
 });

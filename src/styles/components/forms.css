@@ -33,12 +33,12 @@
   outline-offset: 2px;
 }
 
-:root[data-input-modality="keyboard"] .input-shell:has(input:focus-visible) {
+:root[data-focus-presentation="keyboard-navigation"] .input-shell:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
-:root[data-input-modality="keyboard"] .input-shell input:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .input-shell input:focus-visible {
   outline: 0;
 }
 
@@ -108,8 +108,8 @@
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
-:root[data-input-modality="keyboard"] .form-field input:focus-visible,
-:root[data-input-modality="keyboard"] .form-field select:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .form-field input:focus-visible,
+:root[data-focus-presentation="keyboard-navigation"] .form-field select:focus-visible {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }

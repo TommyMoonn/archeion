@@ -1,6 +1,10 @@
 import { activeTransientSurfaceElement } from "./transientSurfaceOwnership";
+import { focusPresentationRuntime, type FocusPresentationIntent } from "../app/inputModality";
 
 const FOCUSABLE_DISABLED_SELECTOR = ":disabled, [aria-disabled='true']";
+const INTERACTIVE_FOCUS_TARGET_SELECTOR =
+  "button, a[href], iframe, input, select, summary, textarea, [contenteditable]:not([contenteditable='false']), [role='button'], [role='checkbox'], [role='combobox'], [role='link'], [role='menuitem'], [role='option'], [role='radio'], [role='switch'], [role='tab'], [tabindex]:not([tabindex='-1'])";
+const GENERIC_PAGE_FOCUS_TARGET_SELECTOR = "main[tabindex='-1']";
 
 function isHtmlElement(target: Element | null | undefined): target is HTMLElement {
   if (!target) return false;
@@ -68,9 +72,104 @@ export function currentFocusOrigin(ownerDocument: Document = document): HTMLElem
   const activeElement = ownerDocument.activeElement;
   return isHtmlElement(activeElement) &&
     !focusIsUnowned(ownerDocument) &&
-    isUsableFocusTarget(activeElement)
+    isUsableFocusTarget(activeElement) &&
+    isInteractiveFocusTarget(activeElement)
     ? activeElement
     : null;
+}
+
+export function isInteractiveFocusTarget(
+  target: Element | null | undefined,
+): target is HTMLElement {
+  return isHtmlElement(target) && target.matches(INTERACTIVE_FOCUS_TARGET_SELECTOR);
+}
+
+export function isGenericPageFocusTarget(target: Element | null | undefined): boolean {
+  return isHtmlElement(target) && target.matches(GENERIC_PAGE_FOCUS_TARGET_SELECTOR);
+}
+
+export type FocusReturnRecord = {
+  readonly activeDocument: Document;
+  readonly candidate: HTMLElement | null;
+  readonly candidateIsGenericPage: boolean;
+  readonly candidateIsInteractive: boolean;
+  readonly openingIntent: FocusPresentationIntent;
+  readonly request: { active: boolean };
+  surface: HTMLElement | null;
+};
+
+export function captureFocusReturn(
+  candidate: HTMLElement | null | undefined = undefined,
+  ownerDocument: Document = document,
+): FocusReturnRecord {
+  const activeCandidate =
+    candidate === undefined
+      ? isHtmlElement(ownerDocument.activeElement) &&
+        isUsableFocusTarget(ownerDocument.activeElement)
+        ? ownerDocument.activeElement
+        : null
+      : candidate;
+
+  return {
+    activeDocument: ownerDocument,
+    candidate: activeCandidate,
+    candidateIsGenericPage: isGenericPageFocusTarget(activeCandidate),
+    candidateIsInteractive: isInteractiveFocusTarget(activeCandidate),
+    openingIntent: focusPresentationRuntime.getIntent(),
+    request: { active: true },
+    surface: null,
+  };
+}
+
+export function claimFocusReturnSurface(
+  record: FocusReturnRecord,
+  surface: HTMLElement | null,
+): void {
+  record.surface = surface;
+}
+
+export function focusCapturedReturn(
+  record: FocusReturnRecord,
+  options: Omit<OwnedFocusRestorationOptions, "closingSurface" | "ownerDocument"> = {},
+): boolean {
+  if (!record.request.active || !record.surface) return false;
+
+  record.request.active = false;
+  if (!record.candidateIsInteractive || record.candidateIsGenericPage) {
+    if (
+      record.candidateIsGenericPage &&
+      record.candidate &&
+      record.activeDocument.activeElement === record.candidate
+    ) {
+      record.candidate.blur();
+    }
+    return false;
+  }
+
+  const closingIntent = focusPresentationRuntime.getIntent();
+  const restored = focusElementIfRestorationOwned(record.candidate, {
+    ...options,
+    closingSurface: record.surface,
+    ownerDocument: record.activeDocument,
+  });
+  if (restored) {
+    const restorationIntent = resolveFocusRestorationIntent(record.openingIntent, closingIntent);
+    if (restorationIntent === "keyboard-navigation") {
+      focusPresentationRuntime.markKeyboardNavigation();
+    } else {
+      focusPresentationRuntime.markProgrammatic();
+    }
+  }
+  return restored;
+}
+
+export function resolveFocusRestorationIntent(
+  openingIntent: FocusPresentationIntent,
+  latestIntent: FocusPresentationIntent,
+): Extract<FocusPresentationIntent, "keyboard-navigation" | "programmatic"> {
+  if (latestIntent === "pointer") return "programmatic";
+  if (latestIntent === "keyboard-navigation") return "keyboard-navigation";
+  return openingIntent === "keyboard-navigation" ? "keyboard-navigation" : "programmatic";
 }
 
 export function focusElementIfUsable(
@@ -189,24 +288,4 @@ export function focusIsUnowned(ownerDocument: Document = document): boolean {
     activeElement === ownerDocument.documentElement ||
     !isUsableFocusTarget(activeElement)
   );
-}
-
-export function shouldRestoreSurfaceFocus(
-  closingSurface: HTMLElement | null,
-  returnFocusTo: HTMLElement | null,
-  ownerDocument: Document = document,
-): boolean {
-  const activeSurface = activeTransientSurfaceElement();
-  if (
-    activeSurface &&
-    activeSurface !== closingSurface &&
-    (!returnFocusTo || !activeSurface.contains(returnFocusTo))
-  ) {
-    return false;
-  }
-
-  const activeElement = ownerDocument.activeElement;
-  if (surfaceContainsActiveElement(closingSurface, activeElement)) return true;
-
-  return focusIsUnowned(ownerDocument);
 }

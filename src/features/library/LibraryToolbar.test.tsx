@@ -8,7 +8,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { inputModalityRuntime } from "../../app/inputModality";
+import { focusPresentationRuntime } from "../../app/inputModality";
 import { createDefaultLibraryFilters, type LibraryFilterState } from "../../types/library";
 import { LibraryToolbar } from "./LibraryToolbar";
 
@@ -145,7 +145,7 @@ describe("LibraryToolbar", () => {
       /\.library-rescan-button\[aria-expanded="true"\]\s*\{[^}]*border-color:\s*var\(--line-strong\);[^}]*background:\s*var\(--surface-hover\);/s,
     );
     expect(styles).toMatch(
-      /:root\[data-input-modality="keyboard"\][^{]*\.library-header__utilities[^{]*\.icon-button:focus-visible\s*\{[^}]*outline-offset:\s*-2px;/s,
+      /:root\[data-focus-presentation="keyboard-navigation"\][^{]*\.library-header__utilities[^{]*\.icon-button:focus-visible\s*\{[^}]*outline-offset:\s*-2px;/s,
     );
     expect(styles).not.toMatch(
       /html\[data-density="compact"\][^{]*(?:library-header__utilities|library-select-button|library-rescan-button)/,
@@ -209,7 +209,7 @@ describe("LibraryToolbar", () => {
   });
 
   it("keeps pointer-focused Library Search calm until keyboard navigation begins", () => {
-    const stopInputModality = inputModalityRuntime.start(document);
+    const stopFocusPresentation = focusPresentationRuntime.start(document);
     try {
       const session = renderInteractiveToolbar();
       activeRoot = session.root;
@@ -224,7 +224,7 @@ describe("LibraryToolbar", () => {
         search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "a" }));
       });
       expect(document.activeElement).toBe(search);
-      expect(document.documentElement.dataset.inputModality).toBe("pointer");
+      expect(document.documentElement.dataset.focusPresentation).toBe("pointer");
 
       act(() => {
         search.dispatchEvent(
@@ -235,9 +235,9 @@ describe("LibraryToolbar", () => {
           }),
         );
       });
-      expect(document.documentElement.dataset.inputModality).toBe("keyboard");
+      expect(document.documentElement.dataset.focusPresentation).toBe("keyboard-navigation");
     } finally {
-      stopInputModality();
+      stopFocusPresentation();
     }
   });
 

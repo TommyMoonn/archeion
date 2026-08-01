@@ -17,6 +17,7 @@ import { MenuItem } from "./MenuItem";
 import { SegmentedControl } from "./SegmentedControl";
 import { TooltipProvider } from "./Tooltip";
 import { Toggle } from "./Toggle";
+import { focusPresentationRuntime } from "../app/inputModality";
 
 let activeRoot: Root | null = null;
 
@@ -513,6 +514,32 @@ describe("AppSelect open notifications", () => {
       expect(onOpen).toHaveBeenCalledOnce();
     },
   );
+
+  it("keeps pointer presentation when directional keys only change the active option", () => {
+    const stopPresentation = focusPresentationRuntime.start(document);
+    const trigger = renderSelect(vi.fn());
+
+    try {
+      trigger.focus();
+      pointerClick(trigger);
+      const initialActiveOption = trigger.getAttribute("aria-activedescendant");
+      act(() => {
+        trigger.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "ArrowDown",
+          }),
+        );
+      });
+
+      expect(document.activeElement).toBe(trigger);
+      expect(trigger.getAttribute("aria-activedescendant")).not.toBe(initialActiveOption);
+      expect(focusPresentationRuntime.getIntent()).toBe("pointer");
+    } finally {
+      stopPresentation();
+    }
+  });
 });
 
 describe("AppSelect dismissal", () => {

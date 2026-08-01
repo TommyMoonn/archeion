@@ -89,7 +89,7 @@
   text-underline-offset: 0.16em;
 }
 
-:root[data-input-modality="keyboard"] .reader-footnote__link:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .reader-footnote__link:focus-visible {
   border-radius: 2px;
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;

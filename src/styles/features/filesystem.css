@@ -142,7 +142,7 @@
   outline-offset: 2px;
 }
 
-:root[data-input-modality="keyboard"] .epub-filename-field:has(input:focus-visible) {
+:root[data-focus-presentation="keyboard-navigation"] .epub-filename-field:has(input:focus-visible) {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
@@ -160,7 +160,7 @@
   box-shadow: none;
 }
 
-:root[data-input-modality="keyboard"] .epub-filename-field input:focus-visible {
+:root[data-focus-presentation="keyboard-navigation"] .epub-filename-field input:focus-visible {
   outline: 0;
   box-shadow: none;
 }

@@ -3,12 +3,17 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  captureFocusReturn,
+  claimFocusReturnSurface,
   currentFocusOrigin,
+  focusCapturedReturn,
   focusElementIfRestorationOwned,
   focusElementIfUsable,
   focusIsUnowned,
   isUsableFocusTarget,
+  resolveFocusRestorationIntent,
 } from "./focusRestoration";
+import { focusPresentationRuntime } from "../app/inputModality";
 import {
   registerTransientSurface,
   resetTransientSurfaceOwnershipForTests,
@@ -37,6 +42,21 @@ function embeddedButton(parentDocument: Document = document): {
 }
 
 describe("focus restoration targets", () => {
+  it.each([
+    ["pointer", "pointer", "programmatic"],
+    ["keyboard-command", "pointer", "programmatic"],
+    ["keyboard-navigation", "pointer", "programmatic"],
+    ["pointer", "keyboard-navigation", "keyboard-navigation"],
+    ["keyboard-command", "keyboard-navigation", "keyboard-navigation"],
+    ["keyboard-navigation", "programmatic", "keyboard-navigation"],
+    ["keyboard-command", "programmatic", "programmatic"],
+  ] as const)(
+    "resolves %s opening and %s latest intent to %s restoration",
+    (openingIntent, latestIntent, expected) => {
+      expect(resolveFocusRestorationIntent(openingIntent, latestIntent)).toBe(expected);
+    },
+  );
+
   it("focuses a connected, visible, enabled target", () => {
     const button = document.createElement("button");
     document.body.append(button);
@@ -108,6 +128,116 @@ describe("focus restoration targets", () => {
 
     button.disabled = true;
     expect(currentFocusOrigin()).toBeNull();
+
+    const page = document.createElement("main");
+    page.className = "page-shell";
+    page.tabIndex = -1;
+    document.body.append(page);
+    page.focus();
+    expect(currentFocusOrigin()).toBeNull();
+  });
+
+  it("captures opening intent and restores only interactive ordinary origins", () => {
+    const stop = focusPresentationRuntime.start(document);
+    const opener = document.body.appendChild(document.createElement("button"));
+    opener.focus();
+    focusPresentationRuntime.markKeyboardNavigation();
+    const record = captureFocusReturn();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.open = true;
+    const close = dialog.appendChild(document.createElement("button"));
+    claimFocusReturnSurface(record, dialog);
+    focusPresentationRuntime.markProgrammatic();
+    close.focus();
+    dialog.open = false;
+
+    expect(record.candidate).toBe(opener);
+    expect(record.candidateIsInteractive).toBe(true);
+    expect(record.candidateIsGenericPage).toBe(false);
+    expect(record.activeDocument).toBe(document);
+    expect(record.surface).toBe(dialog);
+    expect(focusCapturedReturn(record)).toBe(true);
+    expect(document.activeElement).toBe(opener);
+    expect(focusPresentationRuntime.getIntent()).toBe("keyboard-navigation");
+    expect(focusCapturedReturn(record)).toBe(false);
+    stop();
+  });
+
+  it("preserves navigation performed after a pointer-opened surface", () => {
+    const stop = focusPresentationRuntime.start(document);
+    const opener = document.body.appendChild(document.createElement("button"));
+    opener.focus();
+    focusPresentationRuntime.markPointer();
+    const record = captureFocusReturn();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.open = true;
+    claimFocusReturnSurface(record, dialog);
+    dialog.appendChild(document.createElement("button")).focus();
+    focusPresentationRuntime.markKeyboardNavigation();
+    dialog.open = false;
+
+    expect(focusCapturedReturn(record)).toBe(true);
+    expect(document.activeElement).toBe(opener);
+    expect(focusPresentationRuntime.getIntent()).toBe("keyboard-navigation");
+    stop();
+  });
+
+  it("lets pointer interaction override a keyboard-navigation opening", () => {
+    const stop = focusPresentationRuntime.start(document);
+    const opener = document.body.appendChild(document.createElement("button"));
+    opener.focus();
+    focusPresentationRuntime.markKeyboardNavigation();
+    const record = captureFocusReturn();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.open = true;
+    claimFocusReturnSurface(record, dialog);
+    dialog.appendChild(document.createElement("button")).focus();
+    focusPresentationRuntime.markPointer();
+    dialog.open = false;
+
+    expect(focusCapturedReturn(record)).toBe(true);
+    expect(document.activeElement).toBe(opener);
+    expect(focusPresentationRuntime.getIntent()).toBe("programmatic");
+    stop();
+  });
+
+  it("keeps generic page origins out of ordinary captured restoration", () => {
+    const page = document.body.appendChild(document.createElement("main"));
+    page.className = "reader-page";
+    page.tabIndex = -1;
+    page.focus();
+    const record = captureFocusReturn();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.open = true;
+    claimFocusReturnSurface(record, dialog);
+    dialog.appendChild(document.createElement("button")).focus();
+    dialog.open = false;
+    page.focus();
+
+    expect(record.candidateIsGenericPage).toBe(true);
+    expect(focusCapturedReturn(record)).toBe(false);
+    expect(focusIsUnowned()).toBe(true);
+    expect(record.request.active).toBe(false);
+  });
+
+  it("leaves a missing return target unowned and lets the next Tab establish navigation", () => {
+    const stop = focusPresentationRuntime.start(document);
+    const record = captureFocusReturn();
+    const dialog = document.body.appendChild(document.createElement("dialog"));
+    dialog.open = true;
+    claimFocusReturnSurface(record, dialog);
+    dialog.appendChild(document.createElement("button")).focus();
+    dialog.open = false;
+
+    expect(record.candidate).toBe(document.body);
+    expect(record.candidateIsInteractive).toBe(false);
+    expect(focusCapturedReturn(record)).toBe(false);
+    expect(record.request.active).toBe(false);
+    expect(focusIsUnowned()).toBe(true);
+
+    document.body.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Tab" }));
+    expect(focusPresentationRuntime.getIntent()).toBe("keyboard-navigation");
+    stop();
   });
 
   it("treats focus inside an unusable closing surface as unowned", () => {
@@ -142,6 +272,9 @@ describe("focus restoration targets", () => {
 
     expect(isUsableFocusTarget(target)).toBe(true);
     expect(currentFocusOrigin(epubDocument)).toBe(target);
+    frame.focus();
+    expect(currentFocusOrigin(document)).toBe(frame);
+    target.focus();
     frame.hidden = true;
     expect(isUsableFocusTarget(target)).toBe(false);
     frame.hidden = false;

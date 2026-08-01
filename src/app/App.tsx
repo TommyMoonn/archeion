@@ -29,7 +29,7 @@ import { MainWindowStateController } from "./windowState";
 import { resolveWindowMode } from "./windowMode";
 import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
-import { inputModalityRuntime } from "./inputModality";
+import { focusPresentationRuntime } from "./inputModality";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -50,7 +50,7 @@ export function App() {
     return stop;
   }, []);
 
-  useEffect(() => inputModalityRuntime.start(document), []);
+  useEffect(() => focusPresentationRuntime.start(document), []);
 
   if (windowMode === "archive-manager") {
     return (

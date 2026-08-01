@@ -38,7 +38,7 @@ describe("icon-only SegmentedControl appearance", () => {
       .replace(/\(\s+/g, "(")
       .replace(/\s+\)/g, ")");
     const focusableControls =
-      ':root[data-input-modality="keyboard"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
+      ':root[data-focus-presentation="keyboard-navigation"] :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"]))';
 
     expect(segmentedControlStyles).toMatch(
       /\.segmented-control--icon-only \.segmented-control__option:hover:not\(:disabled\)\s*\{[^}]*background:\s*var\(--surface-hover\);/s,

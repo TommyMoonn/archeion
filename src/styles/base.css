@@ -40,7 +40,12 @@ a {
   touch-action: manipulation;
 }
 
-:root[data-input-modality="keyboard"]
+:root:not([data-focus-presentation="keyboard-navigation"])
+  :where(button, a, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus {
+  outline: none;
+}
+
+:root[data-focus-presentation="keyboard-navigation"]
   :where(
     button,
     a,
