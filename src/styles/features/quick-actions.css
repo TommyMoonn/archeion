@@ -31,6 +31,15 @@ html[data-motion="on"] .quick-actions[open] {
   border-bottom: 1px solid var(--line);
 }
 
+.quick-actions__mode-heading {
+  margin: 0;
+  padding-inline: 4px;
+  color: var(--muted);
+  font-size: var(--type-caption);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
 .quick-actions__search .input-shell {
   width: 100%;
   min-width: 0;
@@ -76,6 +85,21 @@ html[data-motion="on"] .quick-actions[open] {
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
+}
+
+.quick-actions__mode-feedback {
+  margin: 3px 5px 5px;
+  padding: 7px 9px;
+  border-radius: var(--radius-small);
+  color: var(--muted);
+  background: var(--surface);
+  font-size: var(--type-caption);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.quick-actions__mode-feedback[role="alert"] {
+  color: var(--danger);
 }
 
 .quick-actions__command {

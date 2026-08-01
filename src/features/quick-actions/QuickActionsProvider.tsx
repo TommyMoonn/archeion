@@ -17,7 +17,7 @@ import { DeferredTransientFallback } from "../../components/DeferredTransientFal
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
 import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
-import { archiveStore } from "../../stores/archiveStore";
+import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { AppCommand, KeyboardInteractionContext } from "../commands/appCommands";
 import {
   commandDefinitions,
@@ -29,6 +29,7 @@ import {
   resolveKeyboardCommand,
 } from "../commands/commandResolver";
 import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
+import { QuickActionChildModeSession, type QuickActionPaletteOutcome } from "./quickActionModes";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 
 const loadQuickActionsPalette = () =>
@@ -42,7 +43,10 @@ const quickActionsRegistry = new QuickActionsRegistry();
 
 export function QuickActionsProvider({ children }: { children: ReactNode }) {
   const registry = quickActionsRegistry;
-  const [palette, setPalette] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
+  const [palette, setPalette] = useState<{
+    archiveId: string | null;
+    focusReturn: FocusReturnRecord;
+  } | null>(null);
   const [settings, setSettings] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const keyboard = useKeyboardPreferences();
@@ -53,8 +57,11 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
   );
 
   const openPalette = useCallback(() => {
-    setPalette({ focusReturn: commandFocusReturnRef.current ?? captureFocusReturn() });
-  }, []);
+    setPalette({
+      archiveId: archive.status === "ready" ? archive.archive.id : null,
+      focusReturn: commandFocusReturnRef.current ?? captureFocusReturn(),
+    });
+  }, [archive]);
 
   const preloadSettings = useCallback(() => {
     void loadSettingsDialog();
@@ -106,6 +113,25 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener("keydown", handleKeyboardEvent, true);
   }, [handleKeyboardEvent]);
 
+  useEffect(() => {
+    const unsubscribe = archiveStore.subscribe(() => {
+      const nextArchive = archiveStore.getSnapshot();
+      setPalette((currentPalette) => {
+        if (
+          currentPalette?.archiveId &&
+          nextArchive.status === "ready" &&
+          nextArchive.archive.id !== currentPalette.archiveId
+        ) {
+          return null;
+        }
+        return currentPalette;
+      });
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   const registerCommands = useCallback(
     (sourceId: string, commands: readonly QuickActionRegistration[]) =>
       registry.register(sourceId, commands),
@@ -114,40 +140,6 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
 
   const appCommands = useMemo<QuickActionRegistration[]>(() => {
     const activeArchive = archive.status === "ready" ? archive.archive : null;
-    const switchTargets = archive.archives.filter(
-      (candidate) => candidate.id !== activeArchive?.id,
-    );
-    const switchCommands: QuickActionRegistration[] =
-      switchTargets.length === 0
-        ? [
-            {
-              availability: {
-                available: false,
-                reason: "No other known archives are available.",
-              },
-              configuration: "unbound",
-              execute: () => undefined,
-              group: "Archive",
-              id: "archive.switch-unavailable",
-              keywords: ["switch archive", "change archive"],
-              label: "Switch archive",
-              order: 20,
-              scope: "global",
-            },
-          ]
-        : switchTargets.map((candidate, index) => ({
-            configuration: "unbound",
-            execute: async () => {
-              const switched = await archiveStore.switchArchive(candidate.id);
-              if (switched) await router.navigate("/", { replace: true });
-            },
-            group: "Archive",
-            id: `archive.switch.${candidate.id}`,
-            keywords: ["switch archive", "change archive", candidate.rootPath],
-            label: `Switch to ${candidate.displayName}`,
-            order: 20 + index,
-            scope: "global",
-          }));
 
     return [
       {
@@ -181,7 +173,17 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
         order: 10,
         scope: "global",
       },
-      ...switchCommands,
+      {
+        configuration: "unbound",
+        execute: () => undefined,
+        group: "Archive",
+        id: "archive.switch",
+        keywords: ["switch archive", "change archive"],
+        label: "Switch archive…",
+        order: 20,
+        runInPalette: () => createArchiveSwitchMode(archive),
+        scope: "global",
+      },
       {
         configuration: "unbound",
         execute: () => void archiveStore.openArchiveManagerWindow(),
@@ -234,8 +236,13 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
             keyboard={keyboard}
             onClose={() => setPalette(null)}
             onExecute={(command) => {
+              if (command.runInPalette) {
+                registry.recordRecent(command.id);
+                return command.runInPalette();
+              }
               flushSync(() => setPalette(null));
               executeCommand(command, palette.focusReturn);
+              return { kind: "close" };
             }}
             registry={registry}
           />
@@ -248,6 +255,46 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
       ) : null}
     </QuickActionsContext.Provider>
   );
+}
+
+function createArchiveSwitchMode(archive: ArchiveState): QuickActionPaletteOutcome {
+  const activeArchiveId = archive.status === "ready" ? archive.archive.id : undefined;
+  const hasSwitchTarget = archive.archives.some((candidate) => candidate.id !== activeArchiveId);
+
+  return {
+    kind: "child-mode",
+    mode: new QuickActionChildModeSession({
+      confirm: async (option) => {
+        const switched = await archiveStore.switchArchive(option.id);
+        if (!switched) {
+          return {
+            error:
+              "Archive could not be opened. Check that its folder is available, then try again.",
+            kind: "keep-open",
+          };
+        }
+        await router.navigate("/", { replace: true });
+        return { kind: "close" };
+      },
+      id: "archive-switch",
+      placeholder: "Search archives…",
+      snapshot: {
+        committedOptionId: activeArchiveId,
+        options: archive.archives.map((candidate) => ({
+          availability:
+            candidate.id === activeArchiveId
+              ? { available: false, reason: "Current archive" }
+              : { available: true },
+          id: candidate.id,
+          keywords: [candidate.rootPath],
+          label: candidate.displayName,
+          status: candidate.id === activeArchiveId ? "Current archive" : undefined,
+        })),
+        unavailableReason: hasSwitchTarget ? undefined : "No other known archives are available.",
+      },
+      title: "Switch archive",
+    }),
+  };
 }
 
 function QuickActionsLoadingFallback() {

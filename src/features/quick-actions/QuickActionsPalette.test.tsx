@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuickActionsPalette } from "./QuickActionsPalette";
 import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
+import { QuickActionChildModeSession, type QuickActionPaletteOutcome } from "./quickActionModes";
 import { focusPresentationRuntime } from "../../app/inputModality";
 
 let root: Root | null = null;
@@ -37,11 +38,16 @@ function createCommand(
   };
 }
 
-async function renderPalette(commands: QuickActionRegistration[]) {
+async function renderPalette(
+  commands: QuickActionRegistration[],
+  execute?: (
+    command: QuickActionRegistration,
+  ) => Promise<QuickActionPaletteOutcome> | QuickActionPaletteOutcome,
+) {
   const registry = new QuickActionsRegistry();
   registry.register("test", commands);
   const onClose = vi.fn();
-  const onExecute = vi.fn();
+  const onExecute = vi.fn(execute ?? (() => ({ kind: "close" as const })));
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -80,6 +86,7 @@ describe("QuickActionsPalette", () => {
     const options = [...rendered.container.querySelectorAll<HTMLElement>('[role="option"]')];
 
     expect(document.activeElement).toBe(input);
+    expect(rendered.container.querySelector('input[type="search"]')).toBe(input);
     expect(input.getAttribute("role")).toBe("combobox");
     expect(input.getAttribute("aria-autocomplete")).toBe("list");
     expect(input.getAttribute("aria-expanded")).toBe("true");
@@ -109,7 +116,7 @@ describe("QuickActionsPalette", () => {
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
 
     await act(async () => pressKey(input, "ArrowDown"));
-    await act(async () => pressKey(input, "Enter"));
+    act(() => pressKey(input, "Enter"));
 
     expect(rendered.onExecute).toHaveBeenCalledOnce();
     expect(rendered.onExecute).toHaveBeenCalledWith(second);
@@ -318,5 +325,471 @@ describe("QuickActionsPalette", () => {
 
     expect(rendered.onClose).toHaveBeenCalledTimes(1);
     expect(rendered.onExecute).not.toHaveBeenCalled();
+  });
+
+  it("enters a child mode and restores the root query and active command on Escape", async () => {
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "archives",
+      placeholder: "Search archives…",
+      snapshot: {
+        committedOptionId: "books",
+        options: [
+          { id: "books", label: "Books", status: "Current archive" },
+          { id: "comics", label: "Comics" },
+        ],
+      },
+      title: "Switch archive",
+    });
+    const switchCommand = createCommand("archive.switch", "Switch archive…", {
+      group: "Archive",
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([switchCommand], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => setInputValue(input, "Switch"));
+    const rootActiveDescendant = input.getAttribute("aria-activedescendant");
+    await act(async () => pressKey(input, "Enter"));
+
+    expect(document.activeElement).toBe(input);
+    expect(rendered.container.querySelector('input[type="search"]')).toBe(input);
+    expect(input.placeholder).toBe("Search archives…");
+    expect(rendered.container.textContent).toContain("Switch archive");
+    expect(rendered.container.textContent).toContain("Current archive");
+
+    await act(async () => pressKey(input, "Escape"));
+
+    expect(rendered.onClose).not.toHaveBeenCalled();
+    expect(input.placeholder).toBe("Type a command…");
+    expect(input.value).toBe("Switch");
+    expect(input.getAttribute("aria-activedescendant")).toBe(rootActiveDescendant);
+    await act(async () => pressKey(input, "Escape"));
+    expect(rendered.onClose).toHaveBeenCalledOnce();
+  });
+
+  it("returns from an empty child query with Backspace and disposes the mode once", async () => {
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "archives",
+      onDispose,
+      placeholder: "Search archives…",
+      snapshot: { options: [{ id: "books", label: "Books" }] },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Backspace"));
+
+    expect(input.placeholder).toBe("Type a command…");
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("preserves an active child option by id when options are replaced", async () => {
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "keep-open" }),
+      id: "archives",
+      placeholder: "Search archives…",
+      snapshot: {
+        options: [
+          { id: "books", label: "Books" },
+          { id: "comics", label: "Comics" },
+        ],
+      },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "ArrowDown"));
+    expect(input.getAttribute("aria-activedescendant")).toContain("comics");
+
+    await act(async () => {
+      mode.replaceOptions([
+        { id: "novels", label: "Novels" },
+        { id: "comics", label: "Comics updated" },
+      ]);
+    });
+
+    expect(input.getAttribute("aria-activedescendant")).toContain("comics");
+    expect(rendered.container.textContent).toContain("Comics updated");
+  });
+
+  it("derives generic committed state separately from active selection", async () => {
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "keep-open" }),
+      id: "preferences",
+      placeholder: "Search preferences…",
+      snapshot: {
+        committedOptionId: "comfortable",
+        options: [
+          { id: "compact", label: "Compact" },
+          { id: "comfortable", label: "Comfortable", status: "Saved preference" },
+        ],
+      },
+      title: "Choose density",
+    });
+    const command = createCommand("density", "Choose density", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+
+    const options = [...rendered.container.querySelectorAll<HTMLElement>('[role="option"]')];
+    const active = options.find((option) => option.getAttribute("aria-selected") === "true")!;
+    const committed = options.find((option) => option.dataset.committed === "true")!;
+    const detailId = committed.getAttribute("aria-describedby")!;
+    expect(active.getAttribute("aria-label")).toBe("Compact");
+    expect(committed.getAttribute("aria-label")).toBe("Comfortable");
+    expect(committed).not.toBe(active);
+    expect(document.getElementById(detailId)?.textContent).toBe("Saved preference");
+    expect(committed.textContent).toContain("Saved preference");
+  });
+
+  it("keeps a child mode open with owned feedback when confirmation fails", async () => {
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ error: "Archive could not be opened. Try again.", kind: "keep-open" }),
+      id: "archives",
+      placeholder: "Search archives…",
+      snapshot: { options: [{ id: "comics", label: "Comics" }] },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Enter"));
+
+    expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "Archive could not be opened",
+    );
+    expect(input.placeholder).toBe("Search archives…");
+    expect(document.activeElement).toBe(input);
+    expect(rendered.onClose).not.toHaveBeenCalled();
+  });
+
+  it("disposes an active mode once when the palette unmounts", async () => {
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "archives",
+      onDispose,
+      placeholder: "Search archives…",
+      snapshot: { options: [{ id: "books", label: "Books" }] },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => pressKey(input, "Enter"));
+
+    act(() => root?.unmount());
+    root = null;
+
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes an active mode once when the palette closes from its backdrop", async () => {
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "archives",
+      onDispose,
+      placeholder: "Search archives…",
+      snapshot: { options: [{ id: "books", label: "Books" }] },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const dialog = rendered.container.querySelector<HTMLDialogElement>("dialog")!;
+    await act(async () => pressKey(input, "Enter"));
+
+    act(() => {
+      dialog.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      dialog.click();
+    });
+
+    expect(rendered.onClose).toHaveBeenCalledOnce();
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes a replaced child mode and transfers ownership to the replacement", async () => {
+    const disposeFirst = vi.fn();
+    const disposeSecond = vi.fn();
+    const secondMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "second",
+      onDispose: disposeSecond,
+      placeholder: "Search second options…",
+      snapshot: { options: [{ id: "second-option", label: "Second option" }] },
+      title: "Second mode",
+    });
+    const firstMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "child-mode", mode: secondMode }),
+      id: "first",
+      onDispose: disposeFirst,
+      placeholder: "Search first options…",
+      snapshot: { options: [{ id: "first-option", label: "First option" }] },
+      title: "First mode",
+    });
+    const command = createCommand("staged", "Open staged mode", {
+      runInPalette: () => ({ kind: "child-mode", mode: firstMode }),
+    });
+    const rendered = await renderPalette([command], () => ({
+      kind: "child-mode",
+      mode: firstMode,
+    }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Enter"));
+
+    expect(disposeFirst).toHaveBeenCalledOnce();
+    expect(disposeSecond).not.toHaveBeenCalled();
+    expect(input.placeholder).toBe("Search second options…");
+    expect(rendered.container.textContent).toContain("Second mode");
+
+    act(() => root?.unmount());
+    root = null;
+    expect(disposeSecond).toHaveBeenCalledOnce();
+  });
+
+  it("ignores a stale confirmation result after child cancellation", async () => {
+    let resolveConfirmation!: (outcome: QuickActionPaletteOutcome) => void;
+    const confirmation = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveConfirmation = resolve;
+    });
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => confirmation,
+      id: "archives",
+      onDispose,
+      placeholder: "Search archives…",
+      snapshot: { options: [{ id: "comics", label: "Comics" }] },
+      title: "Switch archive",
+    });
+    const command = createCommand("archive.switch", "Switch archive…", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    act(() => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Escape"));
+    await act(async () => {
+      resolveConfirmation({ error: "Stale failure", kind: "keep-open" });
+      await confirmation;
+    });
+
+    expect(onDispose).toHaveBeenCalledOnce();
+    expect(rendered.container.textContent).not.toContain("Stale failure");
+    expect(input.placeholder).toBe("Type a command…");
+  });
+
+  it("disposes a stale replacement returned after child cancellation", async () => {
+    let resolveConfirmation!: (outcome: QuickActionPaletteOutcome) => void;
+    const confirmation = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveConfirmation = resolve;
+    });
+    const disposeReplacement = vi.fn();
+    const replacement = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "replacement",
+      onDispose: disposeReplacement,
+      placeholder: "Search replacement…",
+      snapshot: { options: [{ id: "replacement-option", label: "Replacement" }] },
+      title: "Replacement",
+    });
+    const mode = new QuickActionChildModeSession({
+      confirm: () => confirmation,
+      id: "initial",
+      placeholder: "Search initial…",
+      snapshot: { options: [{ id: "initial-option", label: "Initial" }] },
+      title: "Initial",
+    });
+    const command = createCommand("staged", "Open staged mode", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+    act(() => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Escape"));
+    await act(async () => {
+      resolveConfirmation({ kind: "child-mode", mode: replacement });
+      await confirmation;
+    });
+
+    expect(disposeReplacement).toHaveBeenCalledOnce();
+    expect(input.placeholder).toBe("Type a command…");
+  });
+
+  it("retires an older asynchronous root mode when a newer root mode takes ownership", async () => {
+    let resolveFirst!: (outcome: QuickActionPaletteOutcome) => void;
+    const firstOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const disposeFirst = vi.fn();
+    const disposeSecond = vi.fn();
+    const firstMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "first-mode",
+      onDispose: disposeFirst,
+      placeholder: "Search first…",
+      snapshot: { options: [{ id: "first-option", label: "First" }] },
+      title: "First mode",
+    });
+    const secondMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "second-mode",
+      onDispose: disposeSecond,
+      placeholder: "Search second…",
+      snapshot: { options: [{ id: "second-option", label: "Second" }] },
+      title: "Second mode",
+    });
+    const firstCommand = createCommand("first", "First mode", {
+      order: 1,
+      runInPalette: () => firstOutcome,
+    });
+    const secondCommand = createCommand("second", "Second mode", {
+      order: 2,
+      runInPalette: () => ({ kind: "child-mode", mode: secondMode }),
+    });
+    const rendered = await renderPalette([firstCommand, secondCommand], (command) =>
+      command.id === "first" ? firstOutcome : { kind: "child-mode", mode: secondMode },
+    );
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+    act(() => pressKey(input, "ArrowDown"));
+    act(() => pressKey(input, "Enter"));
+    expect(input.placeholder).toBe("Search second…");
+
+    await act(async () => {
+      resolveFirst({ kind: "child-mode", mode: firstMode });
+      await firstOutcome;
+    });
+
+    expect(disposeFirst).toHaveBeenCalledOnce();
+    expect(disposeSecond).not.toHaveBeenCalled();
+    expect(input.placeholder).toBe("Search second…");
+    expect(rendered.container.textContent).toContain("Second mode");
+  });
+
+  it("disposes a late root mode after the palette closes", async () => {
+    let resolveOutcome!: (outcome: QuickActionPaletteOutcome) => void;
+    const pendingOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveOutcome = resolve;
+    });
+    const onDispose = vi.fn();
+    const lateMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "late",
+      onDispose,
+      placeholder: "Search late options…",
+      snapshot: { options: [] },
+      title: "Late mode",
+    });
+    const command = createCommand("late", "Late mode", { runInPalette: () => pendingOutcome });
+    const rendered = await renderPalette([command], () => pendingOutcome);
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+    await act(async () => pressKey(input, "Escape"));
+    await act(async () => {
+      resolveOutcome({ kind: "child-mode", mode: lateMode });
+      await pendingOutcome;
+    });
+
+    expect(rendered.onClose).toHaveBeenCalledOnce();
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes a late root mode after the palette unmounts", async () => {
+    let resolveOutcome!: (outcome: QuickActionPaletteOutcome) => void;
+    const pendingOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveOutcome = resolve;
+    });
+    const onDispose = vi.fn();
+    const lateMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "late-unmount",
+      onDispose,
+      placeholder: "Search late options…",
+      snapshot: { options: [] },
+      title: "Late mode",
+    });
+    const command = createCommand("late", "Late mode", { runInPalette: () => pendingOutcome });
+    const rendered = await renderPalette([command], () => pendingOutcome);
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+    act(() => root?.unmount());
+    root = null;
+    await act(async () => {
+      resolveOutcome({ kind: "child-mode", mode: lateMode });
+      await pendingOutcome;
+    });
+
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("does not publish stale keep-open feedback from an older root operation", async () => {
+    let resolveFirst!: (outcome: QuickActionPaletteOutcome) => void;
+    const firstOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondMode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "second-mode",
+      placeholder: "Search second…",
+      snapshot: { options: [{ id: "second-option", label: "Second" }] },
+      title: "Second mode",
+    });
+    const firstCommand = createCommand("first", "First mode", {
+      order: 1,
+      runInPalette: () => firstOutcome,
+    });
+    const secondCommand = createCommand("second", "Second mode", {
+      order: 2,
+      runInPalette: () => ({ kind: "child-mode", mode: secondMode }),
+    });
+    const rendered = await renderPalette([firstCommand, secondCommand], (command) =>
+      command.id === "first" ? firstOutcome : { kind: "child-mode", mode: secondMode },
+    );
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    act(() => pressKey(input, "Enter"));
+    act(() => pressKey(input, "ArrowDown"));
+    act(() => pressKey(input, "Enter"));
+    await act(async () => {
+      resolveFirst({ error: "Stale root failure", kind: "keep-open" });
+      await firstOutcome;
+    });
+
+    expect(rendered.container.textContent).not.toContain("Stale root failure");
+    expect(input.placeholder).toBe("Search second…");
   });
 });

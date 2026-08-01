@@ -6,6 +6,7 @@ import {
   type SearchTextVariants,
 } from "../../utils/searchText";
 import type { AppCommand } from "../commands/appCommands";
+import type { QuickActionPaletteOutcome } from "./quickActionModes";
 
 export const QUICK_ACTION_SEARCH_BOOKS_REQUEST = "search-books";
 
@@ -21,6 +22,7 @@ export function requestsBookSearch(state: unknown): boolean {
 export type QuickActionRegistration = AppCommand & {
   keywords?: readonly string[];
   order?: number;
+  runInPalette?: () => Promise<QuickActionPaletteOutcome> | QuickActionPaletteOutcome;
   showInPalette?: boolean;
 };
 

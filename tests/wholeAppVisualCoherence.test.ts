@@ -318,7 +318,9 @@ describe("Phase 0.4.0.16 whole-app visual coherence gate", () => {
     expect(quickActionsStyles).not.toMatch(/(?:#[0-9a-f]{3,8}\b|rgb\(|hsl\()/i);
     expect(quickActionsStyles).not.toContain("var(--accent");
     expect(quickActionsStyles).not.toContain("backdrop-filter");
-    expect(quickActionsSource).toContain('placeholder="Type a command…"');
+    expect(quickActionsSource).toContain(
+      'placeholder={activeMode?.placeholder ?? "Type a command…"}',
+    );
     expect(quickActionsSource).toContain("{command.group}: {command.label}");
     expect(quickActionsSource).not.toContain("quick-actions__command-group");
     expect(quickActionsStyles).toMatch(

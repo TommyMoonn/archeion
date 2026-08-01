@@ -12,80 +12,11 @@ import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
-import type { AppCommand } from "../commands/appCommands";
 import { commandDefinitions } from "../commands/commandBindings";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
-import type { QuickActionRegistration, QuickActionsRegistry } from "./quickActions";
-
-vi.mock("./QuickActionsPalette", async () => {
-  const React = await import("react");
-  const { useModalDialogLifecycle } = await import("../../components/useModalDialogLifecycle");
-
-  return {
-    QuickActionsPalette({
-      focusReturn,
-      onClose,
-      onExecute,
-      registry,
-    }: {
-      focusReturn?: import("../../utils/focusRestoration").FocusReturnRecord;
-      onClose: () => void;
-      onExecute: (command: AppCommand) => void;
-      registry: QuickActionsRegistry;
-    }) {
-      const dialogRef = React.useRef<HTMLDialogElement>(null);
-      const inputRef = React.useRef<HTMLInputElement>(null);
-      const modal = useModalDialogLifecycle({
-        dialogRef,
-        focusReturn,
-        onClose,
-        surfaceKind: "quick-actions",
-      });
-
-      React.useEffect(() => {
-        inputRef.current?.focus();
-      }, []);
-
-      return (
-        <dialog
-          className="quick-actions"
-          onCancel={modal.onCancel}
-          onClick={modal.onClick}
-          onPointerDown={modal.onPointerDown}
-          ref={dialogRef}
-        >
-          <input
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                onClose();
-                return;
-              }
-
-              if (event.key === "Enter") {
-                const requestedCommandId = inputRef.current?.value.startsWith("Switch")
-                  ? "archive.switch.archive-comics"
-                  : inputRef.current?.value.startsWith("Settings")
-                    ? commandDefinitions.settings.id
-                    : "test.run";
-                const command = registry
-                  .getSnapshot()
-                  .commands.find((candidate) => candidate.id === requestedCommandId);
-                if (command) {
-                  modal.suppressFocusRestoration();
-                  onExecute(command);
-                }
-              }
-            }}
-            ref={inputRef}
-            type="search"
-          />
-        </dialog>
-      );
-    },
-  };
-});
+import type { QuickActionRegistration } from "./quickActions";
 
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 
@@ -482,9 +413,18 @@ describe("QuickActionsProvider", () => {
     });
     const palette = await waitForPalette();
     const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
-    act(() => setInputValue(search, "Switch to Comics"));
-    act(() => {
+    await act(async () => setInputValue(search, "Switch archive"));
+    await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    expect(search.placeholder).toBe("Search archives…");
+    expect(document.activeElement).toBe(search);
+    expect(palette.querySelector('[aria-selected="true"]')?.textContent).toContain("Comics");
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
     });
 
     expect(switchArchive).toHaveBeenCalledWith("archive-comics");
@@ -495,6 +435,114 @@ describe("QuickActionsProvider", () => {
       expect(navigate).toHaveBeenCalledTimes(1);
     });
     expect(navigate).toHaveBeenCalledWith("/", { replace: true });
+  });
+
+  it("exposes one root archive command and marks the current archive in its child mode", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Switch archive"));
+
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(1);
+    expect(palette.textContent).toContain("Archive: Switch archive…");
+    expect(palette.textContent).not.toContain("Switch to Comics");
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    const currentArchive = palette.querySelector<HTMLElement>('[data-committed="true"]')!;
+    expect(currentArchive.textContent).toContain("Books");
+    expect(currentArchive.textContent).toContain("Current archive");
+    expect(currentArchive.getAttribute("aria-disabled")).toBe("true");
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(2);
+  });
+
+  it("keeps archive switching open with actionable feedback after a failed switch", async () => {
+    const switchArchive = vi.spyOn(archiveStore, "switchArchive").mockResolvedValue(false);
+    const navigate = vi.spyOn(router, "navigate").mockResolvedValue(undefined);
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Switch archive"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+    await act(async () => setInputValue(search, "Comics"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    expect(switchArchive).toHaveBeenCalledWith("archive-comics");
+    expect(navigate).not.toHaveBeenCalled();
+    expect(document.querySelector(".quick-actions")).toBe(palette);
+    expect(palette.querySelector('[role="alert"]')?.textContent).toContain(
+      "Check that its folder is available, then try again.",
+    );
+    expect(document.activeElement).toBe(search);
+  });
+
+  it("keeps the no-other-archive state inside the archive child mode", async () => {
+    vi.mocked(archiveStore.getSnapshot).mockReturnValue({
+      ...readyArchive,
+      archives: [readyArchive.archive],
+    });
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Switch archive"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    expect(palette.textContent).toContain("No other known archives are available.");
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(1);
+    expect(palette.querySelector('[role="option"]')?.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("closes an active child mode when the archive scope is replaced", async () => {
+    let archiveSnapshot = readyArchive;
+    const archiveListeners: Array<() => void> = [];
+    const publishArchive = () => archiveListeners.forEach((listener) => listener());
+    vi.mocked(archiveStore.getSnapshot).mockImplementation(() => archiveSnapshot);
+    vi.mocked(archiveStore.subscribe).mockImplementation((listener) => {
+      archiveListeners.push(listener);
+      return () => archiveListeners.splice(archiveListeners.indexOf(listener), 1).length > 0;
+    });
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Switch archive"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+    expect(search.placeholder).toBe("Search archives…");
+
+    archiveSnapshot = {
+      ...readyArchive,
+      archive: readyArchive.archives[1]!,
+      path: readyArchive.archives[1]!.rootPath,
+    };
+    act(() => publishArchive());
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
   });
 
   it("restores the original caller after Quick Actions opens and closes Settings", async () => {
