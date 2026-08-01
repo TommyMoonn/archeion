@@ -24,7 +24,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     expect(runtimeTests).not.toMatch(/applyPreview\([^\n]+\{\s*app:[^}]+reader:/);
   });
 
-  it("removes manual Settings synchronization and close-time catalog refresh", () => {
+  it("keeps manual Settings synchronization and close-time catalog refresh removed", () => {
     const managerController = source("src/features/themes/useThemeManagerController.ts");
     const managerDialog = source("src/features/themes/ThemeManagerDialog.tsx");
     const settingsDialog = source("src/features/settings/SettingsDialog.tsx");
@@ -34,9 +34,12 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     for (const productionSource of [managerController, managerDialog]) {
       expect(productionSource).not.toContain("onAppearanceChanged");
     }
-    expect(settingsDialog).not.toContain("themeCatalog.refresh");
+    expect(settingsDialog).toContain("refreshThemeCatalog: themeCatalog.refresh");
+    expect(settingsDialog).toContain("onClose={() => setThemeManagerOpen(false)}");
+    expect(settingsDialog).not.toMatch(/onClose=\{\(\) =>\s*\{[^}]*themeCatalog\.refresh/s);
     expect(settingsController).not.toContain("themeCatalogError");
-    expect(catalogHook).not.toMatch(/\brefresh\s*[:,=]/);
+    expect(catalogHook).toContain("archiveThemeCatalog.refreshPackages()");
+    expect(catalogHook).not.toContain("onAppearanceChanged");
   });
 
   it("keeps removed starter and package-reveal paths absent", () => {

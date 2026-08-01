@@ -287,11 +287,13 @@ describe("useThemeManagerController", () => {
       await Promise.resolve();
     });
     expect(listPackageDirectories).toHaveBeenCalledOnce();
-    packageListing.resolve([theme.id]);
-    await vi.waitFor(() => expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2));
-    appearanceRead.resolve(initialSettings);
+    await act(async () => {
+      packageListing.resolve([theme.id]);
+      await vi.waitFor(() => expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2));
+    });
 
     await act(async () => {
+      appearanceRead.resolve(initialSettings);
       await selectorRefresh;
       await settle();
     });
