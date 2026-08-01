@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-01
+
+Archeion's integrated-workspace release for a more coherent shell, faster large-library interactions, clearer accessible feedback, safer archive operations, and easier archive-local theme management.
+
+### Added
+
+- Added a collapsible sidebar and sidebar-aligned titlebar with direct access to Quick Actions, the active archive folder, and native window controls.
+- Added application-owned tooltips for icon controls and unavailable actions, with consistent timing, positioning, dismissal, and reduced-motion behavior.
+- Added input-modality-aware focus presentation so keyboard navigation remains prominent without leaving unnecessary keyboard-style rings after pointer interaction.
+- Added skip links, clearer window landmarks, stronger form relationships, visible required guidance, and more reliable focus entry for the main app, Reader, Settings, and Archive Manager.
+
+### Changed
+
+- Redesigned the frameless application shell, Archive Manager, shared surfaces, controls, icons, spacing, typography, elevation, and motion around one calmer visual hierarchy.
+- Improved Library performance with versioned snapshots, structural index invalidation, and bounded collection derivation so unchanged books and views avoid repeated work.
+- Tightened Reader source-file and session ownership so EPUB bytes, active sessions, and stale results are released or ignored at the correct lifecycle boundary.
+- Coordinated full and targeted scans, maintenance rescans, imports, and archive mutations so shared work is serialized and older results cannot replace current archive state.
+- Aligned browser and native settings normalization, including keyboard overrides, numeric ranges, legacy values, unknown fields, and current-schema persistence.
+- Improved constrained-window reflow, long-content wrapping, logical layout geometry, control hit areas, forced-colors states, and reduced-motion behavior across Library, Reader, Settings, dialogs, and Archive Manager.
+- Reworked interface copy for clearer actions, empty and unavailable states, safe operation feedback, destructive confirmations, and practical recovery guidance without exposing internal paths or identifiers.
+- Organized metadata recovery files under `.archeion/backups/<category>/` and EPUB writeback backups under `.archeion/backups/epub-writeback/`, with automatic migration of recognized legacy backup files.
+- Refreshed archive theme packages when Theme Manager or a theme selector is intentionally opened, while keeping the existing manual **Reload themes** action available.
+- Updated built-in theme color derivation and contrast handling while preserving the public custom-theme format and Windows forced-colors behavior.
+
+### Fixed
+
+- Prevented stale scan, maintenance, watcher, import, metadata, and persistence work from publishing into a replaced archive generation.
+- Prevented valid keyboard overrides from being discarded because a later command was disabled or moved, and made malformed persisted shortcuts non-fatal and deterministic across TypeScript and Rust.
+- Corrected successful EPUB imports that were reported as contradictory rename failures and kept the import dialog from remaining open after success.
+- Separated field-validation feedback from save and filesystem failures so valid values are not incorrectly announced as invalid.
+- Prevented raw storage errors, complete filesystem paths, and internal book identifiers from appearing in Library import, warning, and bulk-action feedback.
+- Prevented stale or duplicated theme-refresh errors when selectors and Theme Manager share catalog and appearance work or a newer theme selection supersedes an older refresh.
+- Corrected pressed, selected, focus, surface, typography, and responsive-layout states that could become unclear or misordered in forced-colors mode or constrained windows.
+
+### Testing
+
+- Expanded frontend and native regression coverage for shell composition, focus and tooltips, responsive layout, typography, colors, settings parity, scanning and mutation concurrency, archive backup migration, theme refresh coordination, forms, landmarks, and safe feedback.
+
 ## [0.8.0] - 2026-07-24
 
 Archeion's accessible desktop interaction release for configurable shortcuts, persistent collection layouts, contextual actions, clearer feedback, and more resilient keyboard, scaling, and non-hover use.
@@ -247,7 +285,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/TommyMoonn/archeion/compare/v0.5.0...v0.6.0
