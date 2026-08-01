@@ -30,6 +30,10 @@ import {
 } from "../commands/commandResolver";
 import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
 import { QuickActionChildModeSession, type QuickActionPaletteOutcome } from "./quickActionModes";
+import {
+  createThemeQuickActionMode,
+  type QuickActionThemeModeServices,
+} from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 
 const loadQuickActionsPalette = () =>
@@ -41,7 +45,12 @@ const QuickActionsPalette = lazy(loadQuickActionsPalette);
 const SettingsDialog = lazy(loadSettingsDialog);
 const quickActionsRegistry = new QuickActionsRegistry();
 
-export function QuickActionsProvider({ children }: { children: ReactNode }) {
+type QuickActionsProviderProps = {
+  children: ReactNode;
+  themeModeServices?: QuickActionThemeModeServices;
+};
+
+export function QuickActionsProvider({ children, themeModeServices }: QuickActionsProviderProps) {
   const registry = quickActionsRegistry;
   const [palette, setPalette] = useState<{
     archiveId: string | null;
@@ -194,8 +203,22 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
         order: 30,
         scope: "global",
       },
+      {
+        availability: activeArchive
+          ? { available: true }
+          : { available: false, reason: "No archive is open." },
+        configuration: "unbound",
+        execute: () => undefined,
+        group: "Appearance",
+        id: "appearance.change-theme",
+        keywords: ["theme", "appearance", "preview"],
+        label: "Change theme…",
+        order: 10,
+        runInPalette: () => createThemeQuickActionMode(themeModeServices),
+        scope: "global",
+      },
     ];
-  }, [archive, openPalette, openSettings, settings]);
+  }, [archive, openPalette, openSettings, settings, themeModeServices]);
 
   useEffect(() => registry.register("app", appCommands), [appCommands, registry]);
 
@@ -237,7 +260,6 @@ export function QuickActionsProvider({ children }: { children: ReactNode }) {
             onClose={() => setPalette(null)}
             onExecute={(command) => {
               if (command.runInPalette) {
-                registry.recordRecent(command.id);
                 return command.runInPalette();
               }
               flushSync(() => setPalette(null));

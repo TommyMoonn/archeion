@@ -23,6 +23,7 @@ export type AppCommand = {
   defaultBinding?: KeyboardBinding;
   execute: () => Promise<void> | void;
   group:
+    | "Appearance"
     | "Archive"
     | "General"
     | "Library"

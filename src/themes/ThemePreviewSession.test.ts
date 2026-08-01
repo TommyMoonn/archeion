@@ -75,6 +75,24 @@ function createRuntime() {
 }
 
 describe("ThemePreviewSession", () => {
+  it("previews and keeps a built-in application theme without changing Reader", async () => {
+    const owner = createRuntime();
+    const session = new ThemePreviewSession(owner.runtime);
+
+    const started = session.startBuiltInPreview({ id: "dark", name: "Archeion Dark" });
+
+    expect(started.ok).toBe(true);
+    expect(owner.applyPreview).toHaveBeenCalledWith(
+      archive,
+      expect.objectContaining({ base: "dark" }),
+    );
+    await expect(session.keep()).resolves.toBe(true);
+    expect(owner.keepPreview).toHaveBeenCalledWith(archive, settings(), {
+      appTheme: { kind: "builtin", id: "dark" },
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+  });
+
   it("previews and keeps only the application selection", async () => {
     const owner = createRuntime();
     const session = new ThemePreviewSession(owner.runtime);

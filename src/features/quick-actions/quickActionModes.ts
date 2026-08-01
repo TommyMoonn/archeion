@@ -11,11 +11,17 @@ export type QuickActionModeOption = {
   id: string;
   keywords?: readonly string[];
   label: string;
+  previewRevision?: number;
   status?: string;
 };
 
 export type QuickActionModeSnapshot = {
   committedOptionId?: string;
+  feedback?: Readonly<{
+    message: string;
+    tone: "error" | "status" | "warning";
+  }>;
+  initialActiveOptionId?: string;
   options: readonly QuickActionModeOption[];
   unavailableReason?: string;
 };
@@ -33,7 +39,7 @@ export type QuickActionChildMode = {
   getSnapshot: () => QuickActionModeSnapshot;
   id: string;
   placeholder: string;
-  preview?: (option: QuickActionModeOption | undefined) => void;
+  preview?: (optionId: string | undefined) => void;
   subscribe: (listener: () => void) => () => void;
   title: string;
 };
@@ -80,8 +86,12 @@ export class QuickActionChildModeSession implements QuickActionChildMode {
     this.descriptor.confirm(option);
 
   replaceOptions(options: readonly QuickActionModeOption[]): void {
+    this.replaceSnapshot({ ...this.snapshot, options });
+  }
+
+  replaceSnapshot(snapshot: QuickActionModeSnapshot): void {
     if (this.disposed) return;
-    this.snapshot = copySnapshot({ ...this.snapshot, options });
+    this.snapshot = copySnapshot(snapshot);
     this.listeners.forEach((listener) => listener());
   }
 

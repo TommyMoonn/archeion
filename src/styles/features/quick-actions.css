@@ -102,6 +102,10 @@ html[data-motion="on"] .quick-actions[open] {
   color: var(--danger);
 }
 
+.quick-actions__mode-feedback[data-tone="warning"] {
+  border-inline-start: 3px solid var(--warning);
+}
+
 .quick-actions__command {
   width: 100%;
   min-height: 46px;

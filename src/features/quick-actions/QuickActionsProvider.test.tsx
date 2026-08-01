@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useMemo } from "react";
+import { act, StrictMode, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -14,9 +14,14 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { router } from "../../app/router";
 import { commandDefinitions } from "../commands/commandBindings";
 import { focusPresentationRuntime } from "../../app/inputModality";
+import type { ActiveAppearanceArchive } from "../../themes/AppearanceRuntime";
+import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
+import { builtInThemeCatalogEntries } from "../../themes/themeCatalogReadModel";
+import { ThemePreviewSession, type ThemePreviewRuntime } from "../../themes/ThemePreviewSession";
 import { useQuickActions, useRegisterQuickActions } from "./QuickActionsContext";
 import { QuickActionsProvider } from "./QuickActionsProvider";
 import type { QuickActionRegistration } from "./quickActions";
+import type { QuickActionThemeModeServices } from "./quickActionThemeMode";
 
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
 
@@ -91,6 +96,52 @@ const readyArchive: ArchiveState = {
   watcherError: null,
 };
 
+function createThemeModeServices() {
+  const activeArchive = readyArchive.archives[0]!;
+  const archive: ActiveAppearanceArchive = Object.freeze({
+    generation: 1,
+    id: activeArchive.id,
+    rootPath: activeArchive.rootPath,
+  });
+  const settings = Object.freeze({
+    appTheme: Object.freeze({ kind: "builtin" as const, id: "light" as const }),
+    readerTheme: Object.freeze({ kind: "builtin" as const, id: "sepia" as const }),
+  });
+  const listeners = new Set<() => void>();
+  const applyPreview = vi.fn<ThemePreviewRuntime["applyPreview"]>(() => true);
+  const clearPreview = vi.fn<ThemePreviewRuntime["clearPreview"]>(() => true);
+  const keepPreview = vi.fn<ThemePreviewRuntime["keepPreview"]>(async () => undefined);
+  const runtime: ThemePreviewRuntime = {
+    applyPreview,
+    clearPreview,
+    getPreviewContext: () => ({ archive, settings }),
+    getSnapshot: () => ({
+      app: resolveBuiltInAppTheme("light"),
+      archive,
+      reader: resolveBuiltInReaderTheme("sepia"),
+    }),
+    keepPreview,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  const snapshot = Object.freeze({
+    archive: Object.freeze({ generation: archive.generation, rootPath: archive.rootPath }),
+    entries: builtInThemeCatalogEntries,
+    fullyEnumerated: true,
+  });
+  const services: QuickActionThemeModeServices = {
+    catalog: {
+      getSnapshot: () => snapshot,
+      refreshPackages: vi.fn(async () => snapshot),
+    },
+    previewSession: new ThemePreviewSession(runtime),
+    runtime,
+  };
+  return { applyPreview, clearPreview, keepPreview, services, settings };
+}
+
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let stopFocusPresentation: (() => void) | null = null;
@@ -161,20 +212,30 @@ function Harness({
 
 async function renderProvider(
   onRun = vi.fn(),
-  options: { onFocusSearch?: () => void; onReaderCommand?: () => void } = {},
+  options: {
+    onFocusSearch?: () => void;
+    onReaderCommand?: () => void;
+    strictMode?: boolean;
+    themeModeServices?: QuickActionThemeModeServices;
+  } = {},
 ) {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  const provider = (
+    <LibraryStorageContext value={createStorage()}>
+      <QuickActionsProvider themeModeServices={options.themeModeServices}>
+        <Harness
+          onFocusSearch={options.onFocusSearch}
+          onReaderCommand={options.onReaderCommand}
+          onRun={onRun}
+        />
+      </QuickActionsProvider>
+    </LibraryStorageContext>
+  );
 
   await act(async () => {
-    root?.render(
-      <LibraryStorageContext value={createStorage()}>
-        <QuickActionsProvider>
-          <Harness onRun={onRun} {...options} />
-        </QuickActionsProvider>
-      </LibraryStorageContext>,
-    );
+    root?.render(options.strictMode ? <StrictMode>{provider}</StrictMode> : provider);
   });
 
   return { container, onRun };
@@ -460,6 +521,159 @@ describe("QuickActionsProvider", () => {
     expect(currentArchive.textContent).toContain("Current archive");
     expect(currentArchive.getAttribute("aria-disabled")).toBe("true");
     expect(palette.querySelectorAll('[role="option"]')).toHaveLength(2);
+  });
+
+  it("exposes one Appearance theme command instead of one command per theme", async () => {
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Change theme"));
+
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(1);
+    expect(palette.textContent).toContain("Appearance: Change theme…");
+    expect(palette.textContent).not.toContain("Change to Archeion Dark");
+  });
+
+  it("enters and exits the real theme child mode under Strict Mode with keyboard preview", async () => {
+    const theme = createThemeModeServices();
+    const rendered = await renderProvider(vi.fn(), {
+      strictMode: true,
+      themeModeServices: theme.services,
+    });
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Change theme"));
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(search.placeholder).toBe("Search application themes…");
+    expect(palette.textContent).toContain("Change theme");
+    expect(palette.textContent).toContain("Archeion Dark");
+    expect(palette.textContent).toContain("Archeion Light");
+    const committed = palette.querySelector<HTMLElement>('[data-committed="true"]')!;
+    expect(committed.textContent).toContain("Archeion Light");
+    expect(committed.textContent).toContain("Current theme");
+    expect(committed.getAttribute("aria-selected")).toBe("true");
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
+      );
+    });
+    expect(theme.applyPreview).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ base: "dark" }),
+    );
+    expect(theme.keepPreview).not.toHaveBeenCalled();
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    expect(search.placeholder).toBe("Type a command…");
+    expect(search.value).toBe("Change theme");
+    expect(theme.clearPreview).toHaveBeenCalled();
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    expect(document.querySelector(".quick-actions")).toBeNull();
+  });
+
+  it("enters the real theme child mode by pointer and commits only on option click", async () => {
+    const theme = createThemeModeServices();
+    const rendered = await renderProvider(vi.fn(), {
+      strictMode: true,
+      themeModeServices: theme.services,
+    });
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Change theme"));
+    const rootOption = palette.querySelector<HTMLElement>('[role="option"]')!;
+    await act(async () => {
+      rootOption.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      rootOption.click();
+    });
+
+    expect(search.placeholder).toBe("Search application themes…");
+    expect(document.activeElement).toBe(search);
+    const dark = [...palette.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (option) => option.getAttribute("aria-label") === "Archeion Dark",
+    )!;
+    await act(async () => dark.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(theme.applyPreview).toHaveBeenLastCalledWith(
+      expect.anything(),
+      expect.objectContaining({ base: "dark" }),
+    );
+    expect(theme.keepPreview).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(search);
+
+    await act(async () => dark.click());
+    expect(theme.keepPreview).toHaveBeenCalledWith(expect.anything(), theme.settings, {
+      appTheme: { kind: "builtin", id: "dark" },
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+    expect(document.querySelector(".quick-actions")).toBeNull();
+  });
+
+  it("enters the archive child mode through keyboard and pointer under Strict Mode", async () => {
+    const rendered = await renderProvider(vi.fn(), { strictMode: true });
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Switch archive"));
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(search.placeholder).toBe("Search archives…");
+    expect(palette.querySelector('[data-committed="true"]')?.textContent).toContain("Books");
+    expect(palette.querySelector('[data-committed="true"]')?.getAttribute("aria-disabled")).toBe(
+      "true",
+    );
+    expect(palette.querySelector('[aria-selected="true"]')?.textContent).toContain("Comics");
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
+      );
+    });
+    expect(search.placeholder).toBe("Type a command…");
+    expect(search.value).toBe("Switch archive");
+    const rootOption = palette.querySelector<HTMLElement>('[role="option"]')!;
+    await act(async () => {
+      rootOption.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, cancelable: true }),
+      );
+      rootOption.click();
+    });
+
+    expect(search.placeholder).toBe("Search archives…");
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(document.activeElement).toBe(search);
   });
 
   it("keeps archive switching open with actionable feedback after a failed switch", async () => {

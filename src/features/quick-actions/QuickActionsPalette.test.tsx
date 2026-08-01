@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -20,6 +20,14 @@ function setInputValue(input: HTMLInputElement, value: string): void {
 
 function pressKey(input: HTMLInputElement, key: string): void {
   input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key }));
+}
+
+function deferred<Value>() {
+  let resolve!: (value: Value) => void;
+  const promise = new Promise<Value>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
 }
 
 function createCommand(
@@ -43,6 +51,7 @@ async function renderPalette(
   execute?: (
     command: QuickActionRegistration,
   ) => Promise<QuickActionPaletteOutcome> | QuickActionPaletteOutcome,
+  options: { strictMode?: boolean } = {},
 ) {
   const registry = new QuickActionsRegistry();
   registry.register("test", commands);
@@ -51,16 +60,17 @@ async function renderPalette(
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  const palette = (
+    <QuickActionsPalette
+      keyboard={{ shortcuts: {} }}
+      onClose={onClose}
+      onExecute={onExecute}
+      registry={registry}
+    />
+  );
 
   await act(async () => {
-    root?.render(
-      <QuickActionsPalette
-        keyboard={{ shortcuts: {} }}
-        onClose={onClose}
-        onExecute={onExecute}
-        registry={registry}
-      />,
-    );
+    root?.render(options.strictMode ? <StrictMode>{palette}</StrictMode> : palette);
   });
 
   return { container, onClose, onExecute, registry };
@@ -366,6 +376,136 @@ describe("QuickActionsPalette", () => {
     expect(input.getAttribute("aria-activedescendant")).toBe(rootActiveDescendant);
     await act(async () => pressKey(input, "Escape"));
     expect(rendered.onClose).toHaveBeenCalledOnce();
+  });
+
+  it("starts on the mode-owned initial option and previews keyboard and pointer movement", async () => {
+    const preview = vi.fn();
+    const confirm = vi.fn(() => ({ kind: "keep-open" as const }));
+    const mode = new QuickActionChildModeSession({
+      confirm,
+      id: "themes",
+      placeholder: "Search application themes…",
+      preview,
+      snapshot: {
+        committedOptionId: "light",
+        initialActiveOptionId: "light",
+        options: [
+          { id: "dark", label: "Archeion Dark" },
+          { id: "light", label: "Archeion Light", status: "Current theme" },
+          { id: "custom", label: "Custom theme" },
+        ],
+      },
+      title: "Change theme",
+    });
+    const command = createCommand("appearance.change-theme", "Change theme…", {
+      group: "Appearance",
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }));
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    await act(async () => pressKey(input, "Enter"));
+    expect(input.getAttribute("aria-activedescendant")).toContain("light");
+    expect(preview).toHaveBeenLastCalledWith("light");
+    expect(document.activeElement).toBe(input);
+
+    await act(async () => pressKey(input, "ArrowDown"));
+    expect(preview).toHaveBeenLastCalledWith("custom");
+    expect(confirm).not.toHaveBeenCalled();
+
+    const dark = [...rendered.container.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (option) => option.getAttribute("aria-label") === "Archeion Dark",
+    )!;
+    await act(async () => dark.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
+    expect(preview).toHaveBeenLastCalledWith("dark");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
+
+    await act(async () => dark.click());
+    expect(confirm).toHaveBeenCalledWith(expect.objectContaining({ id: "dark" }));
+  });
+
+  it("retains staged-mode ownership after Strict Mode effect replay", async () => {
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "keep-open" }),
+      id: "strict-mode",
+      onDispose,
+      placeholder: "Search strict options…",
+      snapshot: { options: [{ id: "owned", label: "Owned option" }] },
+      title: "Strict mode child",
+    });
+    const command = createCommand("strict-mode", "Open strict mode", {
+      runInPalette: () => ({ kind: "child-mode", mode }),
+    });
+    const focus = vi.spyOn(HTMLInputElement.prototype, "focus");
+    const rendered = await renderPalette([command], () => ({ kind: "child-mode", mode }), {
+      strictMode: true,
+    });
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const recordRecent = vi.spyOn(rendered.registry, "recordRecent");
+
+    expect(focus.mock.calls.length).toBeGreaterThanOrEqual(2);
+    await act(async () => pressKey(input, "Enter"));
+
+    expect(input.placeholder).toBe("Search strict options…");
+    expect(rendered.container.textContent).toContain("Owned option");
+    expect(onDispose).not.toHaveBeenCalled();
+    expect(recordRecent).toHaveBeenCalledOnce();
+
+    act(() => root?.unmount());
+    root = null;
+    expect(onDispose).toHaveBeenCalledOnce();
+  });
+
+  it("disposes a late staged outcome after a real Strict Mode unmount without recording it", async () => {
+    const pending = deferred<QuickActionPaletteOutcome>();
+    const onDispose = vi.fn();
+    const mode = new QuickActionChildModeSession({
+      confirm: () => ({ kind: "close" }),
+      id: "late-strict-mode",
+      onDispose,
+      placeholder: "Search late options…",
+      snapshot: { options: [{ id: "late", label: "Late option" }] },
+      title: "Late strict mode child",
+    });
+    const command = createCommand("late-strict-mode", "Open late strict mode", {
+      runInPalette: () => pending.promise,
+    });
+    const rendered = await renderPalette([command], () => pending.promise, { strictMode: true });
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const recordRecent = vi.spyOn(rendered.registry, "recordRecent");
+
+    act(() => pressKey(input, "Enter"));
+    act(() => root?.unmount());
+    root = null;
+    await act(async () => {
+      pending.resolve({ kind: "child-mode", mode });
+      await pending.promise;
+    });
+
+    expect(onDispose).toHaveBeenCalledOnce();
+    expect(recordRecent).not.toHaveBeenCalled();
+  });
+
+  it("does not record a staged command when mode construction throws", async () => {
+    const command = createCommand("throwing-mode", "Open throwing mode", {
+      runInPalette: () => {
+        throw new Error("construction failed");
+      },
+    });
+    const rendered = await renderPalette([command], () => {
+      throw new Error("construction failed");
+    });
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const recordRecent = vi.spyOn(rendered.registry, "recordRecent");
+
+    act(() => pressKey(input, "Enter"));
+
+    expect(rendered.container.querySelector('[role="alert"]')?.textContent).toContain(
+      "could not be completed",
+    );
+    expect(recordRecent).not.toHaveBeenCalled();
   });
 
   it("returns from an empty child query with Backspace and disposes the mode once", async () => {
@@ -681,6 +821,7 @@ describe("QuickActionsPalette", () => {
       command.id === "first" ? firstOutcome : { kind: "child-mode", mode: secondMode },
     );
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const recordRecent = vi.spyOn(rendered.registry, "recordRecent");
 
     act(() => pressKey(input, "Enter"));
     act(() => pressKey(input, "ArrowDown"));
@@ -694,6 +835,8 @@ describe("QuickActionsPalette", () => {
 
     expect(disposeFirst).toHaveBeenCalledOnce();
     expect(disposeSecond).not.toHaveBeenCalled();
+    expect(recordRecent).toHaveBeenCalledOnce();
+    expect(recordRecent).toHaveBeenCalledWith("second");
     expect(input.placeholder).toBe("Search second…");
     expect(rendered.container.textContent).toContain("Second mode");
   });

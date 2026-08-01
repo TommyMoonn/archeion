@@ -1,4 +1,4 @@
-import type { ArchiveAppearanceSettings } from "../types/settings";
+import type { ArchiveAppearanceSettings, ArchiveAppThemeSelection } from "../types/settings";
 import type {
   ActiveAppearanceArchive,
   AppearancePreviewContext,
@@ -6,11 +6,12 @@ import type {
 } from "./AppearanceRuntime";
 import type {
   ResolvedAppTheme,
+  ResolvedTheme,
   ThemeContrastWarning,
   ThemeDiagnostic,
   ThemeManifestV1,
 } from "./domain";
-import { resolveTheme } from "./resolveTheme";
+import { resolveBuiltInAppTheme, resolveTheme } from "./resolveTheme";
 import { validateThemeManifest } from "./validateThemeManifest";
 
 type Listener = () => void;
@@ -37,6 +38,11 @@ export type ThemePreviewStartResult =
       ok: false;
       reason: "busy" | "invalid-theme" | "no-active-archive";
     }>;
+
+export type BuiltInAppThemePreview = Readonly<{
+  id: "dark" | "light";
+  name: string;
+}>;
 
 export type ThemePreviewRuntime = Readonly<{
   applyPreview: (archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme) => boolean;
@@ -65,6 +71,7 @@ export class ThemePreviewSession {
   private cleanupRequested = false;
   private readonly listeners = new Set<Listener>();
   private nextSessionId = 0;
+  private readonly resolvedCustomPreviews = new WeakMap<ThemeManifestV1, ResolvedTheme>();
   private snapshot: ThemePreviewSessionSnapshot = IDLE_SNAPSHOT;
   private stopRuntime: (() => void) | null = null;
 
@@ -88,7 +95,43 @@ export class ThemePreviewSession {
         reason: "invalid-theme",
       });
     }
-    const resolved = resolveTheme(validation.manifest);
+    return this.startValidatedPreview(validation.manifest);
+  }
+
+  getApplicationContrastWarnings(candidate: ThemeManifestV1): readonly ThemeContrastWarning[] {
+    return Object.freeze(
+      this.resolveCustomPreview(candidate).contrastWarnings.filter(
+        (warning) => !warning.foregroundPath.startsWith("$.reader"),
+      ),
+    );
+  }
+
+  startValidatedPreview(candidate: ThemeManifestV1): ThemePreviewStartResult {
+    const resolved = this.resolveCustomPreview(candidate);
+    return this.startResolvedPreview({
+      appTheme: resolved.app,
+      candidate,
+      contrastWarnings: this.getApplicationContrastWarnings(candidate),
+      selection: { kind: "custom", id: candidate.id },
+    });
+  }
+
+  startBuiltInPreview(candidate: BuiltInAppThemePreview): ThemePreviewStartResult {
+    return this.startResolvedPreview({
+      appTheme: resolveBuiltInAppTheme(candidate.id),
+      candidate,
+      contrastWarnings: [],
+      selection: { kind: "builtin", id: candidate.id },
+    });
+  }
+
+  private startResolvedPreview(input: {
+    appTheme: ResolvedAppTheme;
+    candidate: Readonly<{ id: string; name: string }>;
+    contrastWarnings: readonly ThemeContrastWarning[];
+    selection: ArchiveAppThemeSelection;
+  }): ThemePreviewStartResult {
+    if (this.snapshot.status === "keeping") return Object.freeze({ ok: false, reason: "busy" });
 
     const initialContext = this.runtime.getPreviewContext();
     if (!initialContext) return Object.freeze({ ok: false, reason: "no-active-archive" });
@@ -99,11 +142,9 @@ export class ThemePreviewSession {
       return Object.freeze({ ok: false, reason: "no-active-archive" });
     }
 
-    const contrastWarnings = Object.freeze(
-      resolved.contrastWarnings.filter((warning) => !warning.foregroundPath.startsWith("$.reader")),
-    );
+    const contrastWarnings = Object.freeze([...input.contrastWarnings]);
     const rollbackSettings = freezeAppearanceSettings(context.settings);
-    const nextSettings = previewSettings(rollbackSettings, validation.manifest);
+    const nextSettings = previewSettings(rollbackSettings, input.selection);
     const id = this.nextSessionId + 1;
     this.nextSessionId = id;
     this.active = Object.freeze({
@@ -116,7 +157,7 @@ export class ThemePreviewSession {
     this.publish(
       activeSnapshot({
         archive: context.archive,
-        candidate: validation.manifest,
+        candidate: input.candidate,
         contrastWarnings,
         status: "previewing",
         warningsAcknowledged: false,
@@ -124,7 +165,7 @@ export class ThemePreviewSession {
     );
     this.stopRuntime = this.runtime.subscribe(this.handleRuntimeChange);
 
-    if (!this.runtime.applyPreview(context.archive, resolved.app)) {
+    if (!this.runtime.applyPreview(context.archive, input.appTheme)) {
       this.finishSession(id);
       return Object.freeze({ ok: false, reason: "no-active-archive" });
     }
@@ -231,11 +272,19 @@ export class ThemePreviewSession {
     this.snapshot = snapshot;
     this.listeners.forEach((listener) => listener());
   }
+
+  private resolveCustomPreview(candidate: ThemeManifestV1): ResolvedTheme {
+    const cached = this.resolvedCustomPreviews.get(candidate);
+    if (cached) return cached;
+    const resolved = resolveTheme(candidate);
+    this.resolvedCustomPreviews.set(candidate, resolved);
+    return resolved;
+  }
 }
 
 function activeSnapshot(
   snapshot: Omit<ActiveThemePreviewSnapshot, "candidate"> & {
-    candidate: Pick<ThemeManifestV1, "id" | "name">;
+    candidate: Readonly<{ id: string; name: string }>;
   },
 ): ActiveThemePreviewSnapshot {
   return Object.freeze({
@@ -246,10 +295,10 @@ function activeSnapshot(
 
 function previewSettings(
   rollbackSettings: Readonly<ArchiveAppearanceSettings>,
-  manifest: ThemeManifestV1,
+  selection: ArchiveAppThemeSelection,
 ): ArchiveAppearanceSettings {
   return {
-    appTheme: { kind: "custom", id: manifest.id },
+    appTheme: { ...selection },
     readerTheme: { ...rollbackSettings.readerTheme },
   };
 }

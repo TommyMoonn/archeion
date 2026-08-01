@@ -159,6 +159,7 @@ export function QuickActionsPalette({
   });
 
   useEffect(() => {
+    mountedRef.current = true;
     inputRef.current?.focus();
     return () => {
       mountedRef.current = false;
@@ -169,8 +170,8 @@ export function QuickActionsPalette({
 
   useEffect(() => {
     if (!activeMode?.preview) return;
-    activeMode.preview(activeModeOption);
-  }, [activeMode, activeModeOption]);
+    activeMode.preview(activeModeOption?.id);
+  }, [activeMode, activeModeOption?.id, activeModeOption?.previewRevision]);
 
   useLayoutEffect(() => {
     activeModeRef.current = activeMode;
@@ -194,7 +195,9 @@ export function QuickActionsPalette({
     setActiveMode(mode);
     const nextSnapshot = mode.getSnapshot();
     setModeQuery("");
-    setActiveModeOptionId(resolveActiveModeOption(nextSnapshot.options, undefined)?.id);
+    setActiveModeOptionId(
+      resolveActiveModeOption(nextSnapshot.options, nextSnapshot.initialActiveOptionId)?.id,
+    );
     setModeError(undefined);
     modeBusyRef.current = false;
     setModeBusy(false);
@@ -223,11 +226,16 @@ export function QuickActionsPalette({
     closePalette(true);
   }
 
-  function settleRootOutcome(outcome: QuickActionPaletteOutcome, operationRevision: number): void {
+  function settleRootOutcome(
+    command: QuickActionRegistration,
+    outcome: QuickActionPaletteOutcome,
+    operationRevision: number,
+  ): void {
     if (!mountedRef.current || operationRevisionRef.current !== operationRevision) {
       disposeUnusedOutcome(outcome);
       return;
     }
+    registry.recordRecent(command.id);
     applyOutcome(outcome);
   }
 
@@ -257,12 +265,12 @@ export function QuickActionsPalette({
     }
 
     if (!isPromiseLike(result)) {
-      settleRootOutcome(result, operationRevision);
+      settleRootOutcome(command, result, operationRevision);
       return;
     }
 
     void Promise.resolve(result).then(
-      (outcome) => settleRootOutcome(outcome, operationRevision),
+      (outcome) => settleRootOutcome(command, outcome, operationRevision),
       () => reportRootFailure(operationRevision),
     );
   }
@@ -466,6 +474,14 @@ export function QuickActionsPalette({
           {modeError ? (
             <p className="quick-actions__mode-feedback" role="alert">
               {modeError}
+            </p>
+          ) : activeMode && modeSnapshot.feedback ? (
+            <p
+              className="quick-actions__mode-feedback"
+              data-tone={modeSnapshot.feedback.tone}
+              role={modeSnapshot.feedback.tone === "error" ? "alert" : "status"}
+            >
+              {modeSnapshot.feedback.message}
             </p>
           ) : activeMode && modeSnapshot.unavailableReason ? (
             <p className="quick-actions__mode-feedback" role="status">
