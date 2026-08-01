@@ -131,6 +131,11 @@
     background: Highlight;
   }
 
+  .quick-actions__command[data-active="true"] {
+    outline: 1px solid Highlight;
+    outline-offset: -1px;
+  }
+
   .archive-row--missing {
     border-inline-start: 3px double Mark;
     box-shadow: none;

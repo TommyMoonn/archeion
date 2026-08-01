@@ -175,7 +175,7 @@ export function QuickActionsPalette({
                 onClose();
               }
             }}
-            placeholder="Type a command"
+            placeholder="Type a command…"
             ref={inputRef}
             role="combobox"
             spellCheck={false}
@@ -217,7 +217,9 @@ export function QuickActionsPalette({
                           {command.group}: {command.label}
                         </strong>
                         {!availability.available ? (
-                          <span id={reasonId}>{availability.reason}</span>
+                          <span className="quick-actions__command-reason" id={reasonId}>
+                            {availability.reason}
+                          </span>
                         ) : null}
                       </span>
                       {shortcut ? <kbd>{shortcut}</kbd> : null}

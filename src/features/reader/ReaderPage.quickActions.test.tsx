@@ -240,7 +240,7 @@ async function openPalette(): Promise<HTMLInputElement> {
 async function openPaletteSearch(): Promise<HTMLInputElement> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
     const input = document.querySelector<HTMLInputElement>(
-      '.quick-actions input[placeholder="Type a command"]',
+      '.quick-actions input[placeholder="Type a command…"]',
     );
     if (input) {
       return input;

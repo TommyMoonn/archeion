@@ -80,7 +80,7 @@ describe("application motion language", () => {
     );
   });
 
-  it("uses scale for raised overlays and compact notice motion for feedback", () => {
+  it("uses bounded overlay entrances and compact notice motion for feedback", () => {
     expect(dialogStyles).toMatch(
       /html\[data-motion="on"\] \.dialog\[open\]\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\)/s,
     );
@@ -88,7 +88,16 @@ describe("application motion language", () => {
       /html\[data-motion="on"\] dialog\[open\] > \.modal-surface\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\)/s,
     );
     expect(quickActionsStyles).toMatch(
-      /html\[data-motion="on"\] \.quick-actions\[open\]\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\)/s,
+      /html\[data-motion="on"\] \.quick-actions\[open\]\s*\{[^}]*animation:\s*quick-actions-enter var\(--motion-duration-fast\) var\(--motion-ease-standard\);/s,
+    );
+    const quickActionsEntrance = quickActionsStyles.slice(
+      quickActionsStyles.indexOf("@keyframes quick-actions-enter"),
+      quickActionsStyles.indexOf("@media (max-height: 560px)"),
+    );
+    expect(quickActionsEntrance).toContain("transform: translateY(-4px)");
+    expect(quickActionsEntrance).not.toContain("scale(");
+    expect(quickActionsStyles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*?html\[data-motion="on"\] \.quick-actions\[open\]\s*\{[^}]*animation:\s*none;[^}]*transform:\s*none;/s,
     );
     expect(settingsStyles).toMatch(
       /html\[data-motion="on"\] \.settings-status\s*\{[^}]*animation:\s*app-motion-notice-in var\(--motion-duration-fast\)/s,

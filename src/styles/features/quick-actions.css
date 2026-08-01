@@ -1,94 +1,93 @@
 .quick-actions {
-  width: min(620px, calc(100% - 32px));
+  width: min(640px, calc(100% - 24px));
   max-width: none;
-  margin: min(15vh, 132px) auto auto;
+  margin: clamp(20px, 10dvh, 96px) auto auto;
   padding: 0;
   border: 1px solid var(--line);
-  border-radius: var(--radius-dialog);
+  border-radius: var(--radius-menu);
   color: var(--text);
-  background: var(--surface);
-  box-shadow: var(--shadow-dialog);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-popover);
   overflow: hidden;
 }
 
 html[data-motion="on"] .quick-actions[open] {
-  animation: app-motion-scale-in var(--motion-duration-standard) var(--motion-ease-standard);
+  animation: quick-actions-enter var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
 .quick-actions::backdrop {
   background: var(--backdrop);
-  backdrop-filter: blur(2px);
 }
 
 .quick-actions__panel {
   display: grid;
-  grid-template-rows: auto minmax(112px, 1fr) auto;
-  max-height: min(68vh, 560px);
+  grid-template-rows: auto minmax(96px, 1fr) auto;
+  height: 520px;
+  max-height: 70dvh;
 }
 
 .quick-actions__search {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px;
+  padding: 9px 12px;
   border-bottom: 1px solid var(--line);
 }
 
 .quick-actions__search .input-shell {
-  flex: 1;
+  width: 100%;
   min-width: 0;
+  min-height: 36px;
+  padding-block: 0;
+  padding-inline: 4px;
   border: 0;
+  border-radius: 0;
   background: transparent;
   box-shadow: none;
 }
 
 .quick-actions__search .input-shell:focus-within {
-  border-color: transparent;
+  background: transparent;
   box-shadow: none;
 }
 
 .quick-actions__search input {
-  height: 38px;
+  height: 36px;
   padding: 0;
   color: var(--text-strong);
   font-size: var(--type-title-small);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--type-title-small-line-height);
 }
 
 .quick-actions__command > kbd,
 .quick-actions__footer kbd {
   border: 1px solid var(--line);
-  border-bottom-color: var(--line-strong);
   border-radius: var(--radius-small);
   color: var(--muted);
-  background: var(--surface-raised);
-  box-shadow: 0 1px 0 var(--line-strong);
+  background: var(--surface);
   font-family: var(--font-mono);
   font-size: var(--type-caption);
-  line-height: 1;
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
   white-space: nowrap;
-}
-
-.quick-actions__search > kbd {
-  padding: 6px 7px;
 }
 
 .quick-actions__results {
   min-height: 0;
-  padding: 6px;
+  padding: 5px;
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .quick-actions__command {
   width: 100%;
-  min-height: 50px;
+  min-height: 46px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 18px;
-  padding: 9px 11px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-control);
+  gap: 16px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: var(--radius-small);
   color: var(--text);
   background: transparent;
   text-align: start;
@@ -96,32 +95,32 @@ html[data-motion="on"] .quick-actions[open] {
 }
 
 .quick-actions__command[data-active="true"] {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
+  background: var(--surface-hover);
 }
 
 .quick-actions__command[aria-disabled="true"] {
   cursor: default;
-  opacity: 0.68;
 }
 
 .quick-actions__command-copy {
   min-width: 0;
   display: grid;
-  gap: 2px;
+  gap: 1px;
 }
 
 .quick-actions__command-copy strong {
   color: var(--text-strong);
   font-size: var(--type-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
   overflow-wrap: anywhere;
 }
 
 .quick-actions__command-copy span {
   color: var(--muted);
   font-size: var(--type-caption);
-  line-height: 1.35;
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
   overflow-wrap: anywhere;
 }
 
@@ -131,11 +130,13 @@ html[data-motion="on"] .quick-actions[open] {
 
 .quick-actions__command > kbd {
   flex: 0 0 auto;
-  padding: 5px 6px;
+  min-width: 34px;
+  padding: 2px 6px;
+  text-align: center;
 }
 
 .quick-actions__empty {
-  min-height: 150px;
+  min-height: 100%;
   display: grid;
   place-content: center;
   gap: 5px;
@@ -148,22 +149,28 @@ html[data-motion="on"] .quick-actions[open] {
   margin: 0;
   color: var(--text-strong);
   font-size: var(--type-body);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line-height);
 }
 
 .quick-actions__empty span {
   font-size: var(--type-caption);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
 }
 
 .quick-actions__footer {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 16px;
-  min-height: 38px;
-  padding: 7px 12px;
+  gap: 14px;
+  min-height: 34px;
+  padding: 5px 10px;
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: var(--type-caption);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
 }
 
 .quick-actions__footer span {
@@ -173,7 +180,7 @@ html[data-motion="on"] .quick-actions[open] {
 }
 
 .quick-actions__footer kbd {
-  padding: 3px 4px;
+  padding: 1px 4px;
 }
 
 .quick-actions-loading {
@@ -182,26 +189,40 @@ html[data-motion="on"] .quick-actions[open] {
   z-index: 1000;
   display: grid;
   place-items: start center;
-  padding-top: min(15vh, 132px);
+  padding-top: clamp(20px, 10dvh, 96px);
   background: var(--backdrop);
 }
 
 .quick-actions-loading span {
   padding: 10px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-menu);
   color: var(--muted);
   background: var(--surface-raised);
+  box-shadow: var(--shadow-popover);
   font-size: var(--type-meta);
+}
+
+@keyframes quick-actions-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @media (max-height: 560px) {
   .quick-actions {
-    margin-top: 24px;
+    margin-top: 16px;
   }
 
   .quick-actions__panel {
-    max-height: calc(100vh - 48px);
+    height: calc(100dvh - 32px);
+    max-height: none;
   }
 }
 
@@ -212,6 +233,15 @@ html[data-motion="on"] .quick-actions[open] {
   }
 
   .quick-actions__footer {
-    display: none;
+    justify-content: flex-start;
+    gap: 10px;
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion="on"] .quick-actions[open] {
+    animation: none;
+    transform: none;
   }
 }

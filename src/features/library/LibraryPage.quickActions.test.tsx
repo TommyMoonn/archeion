@@ -177,7 +177,7 @@ async function openPalette(): Promise<HTMLInputElement> {
 
   for (let attempt = 0; attempt < 40; attempt += 1) {
     const input = document.querySelector<HTMLInputElement>(
-      '.quick-actions input[placeholder="Type a command"]',
+      '.quick-actions input[placeholder="Type a command…"]',
     );
     if (input) {
       return input;
@@ -327,12 +327,12 @@ describe("LibraryPage Quick Actions", () => {
 
     await vi.waitFor(() => {
       expect(
-        document.querySelectorAll('.quick-actions input[placeholder="Type a command"]'),
+        document.querySelectorAll('.quick-actions input[placeholder="Type a command…"]'),
       ).toHaveLength(1);
     });
     expect(document.querySelectorAll(".quick-actions")).toHaveLength(1);
     expect(
-      document.querySelectorAll('.quick-actions input[placeholder="Type a command"]'),
+      document.querySelectorAll('.quick-actions input[placeholder="Type a command…"]'),
     ).toHaveLength(1);
   });
 

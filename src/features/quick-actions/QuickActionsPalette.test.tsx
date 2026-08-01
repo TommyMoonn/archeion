@@ -75,6 +75,7 @@ describe("QuickActionsPalette", () => {
     const second = createCommand("second", "Second action", { order: 2 });
     const rendered = await renderPalette([first, second]);
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    const panel = rendered.container.querySelector<HTMLElement>(".quick-actions__panel")!;
     const listbox = rendered.container.querySelector<HTMLElement>('[role="listbox"]')!;
     const options = [...rendered.container.querySelectorAll<HTMLElement>('[role="option"]')];
 
@@ -89,10 +90,16 @@ describe("QuickActionsPalette", () => {
       true,
     );
     expect(options[0]?.getAttribute("aria-selected")).toBe("true");
+    expect([...panel.children].map((child) => child.className)).toEqual([
+      "quick-actions__search",
+      "quick-actions__results",
+      "quick-actions__footer",
+    ]);
     expect(rendered.container.querySelector(".quick-actions__search > kbd")).toBeNull();
     expect(rendered.container.querySelector(".quick-actions__command strong")?.textContent).toBe(
       "Library: First action",
     );
+    expect(rendered.container.querySelector(".quick-actions__command-group")).toBeNull();
   });
 
   it("executes the active available command once through Enter", async () => {

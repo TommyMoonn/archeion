@@ -173,6 +173,10 @@ describe("forced-colors and focus visibility contract", () => {
     expect(forcedColorsBlock).toContain(".book-card[data-selected]");
     expect(forcedColorsBlock).toContain(".dialog");
     expect(forcedColorsBlock).toContain(".menu-popover");
+    expect(forcedColorsBlock).toContain('.quick-actions__command[data-active="true"]');
+    expect(cssBlock('.quick-actions__command[data-active="true"]', forcedColorsBlock)).toMatch(
+      /outline:\s*1px solid Highlight;[\s\S]*outline-offset:\s*-1px;/,
+    );
     expect(forcedColorsBlock).toContain(".book-row");
     expect(forcedColorsBlock).toContain(".settings-window");
     expect(forcedColorsBlock).toContain('[aria-disabled="true"]');

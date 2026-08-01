@@ -117,12 +117,20 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
       cssBlock(dialogs, ".dialog"),
       cssBlock(settings, ".settings-window"),
       cssBlock(settings, ".about-window"),
-      cssBlock(quickActions, ".quick-actions"),
       cssBlock(readerContentActions, ".reader-illustration-viewer"),
     ]) {
       expect(block).toContain("border-radius: var(--radius-dialog)");
       expect(block).toContain("box-shadow: var(--shadow-dialog)");
     }
+  });
+
+  it("gives Quick Actions a restrained command-surface geometry", () => {
+    const quickActionsSurface = cssBlock(quickActions, ".quick-actions");
+
+    expect(quickActionsSurface).toContain("border-radius: var(--radius-menu)");
+    expect(quickActionsSurface).toContain("box-shadow: var(--shadow-popover)");
+    expect(quickActionsSurface).not.toContain("var(--radius-dialog)");
+    expect(quickActionsSurface).not.toContain("var(--shadow-dialog)");
   });
 
   it("keeps menus concentric and separates tooltip elevation from popovers", () => {
