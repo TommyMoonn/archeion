@@ -48,7 +48,7 @@ export function createThemeQuickActionMode(
 
 class ThemeQuickActionMode implements QuickActionChildMode {
   readonly id = "app-theme";
-  readonly placeholder = "Search application themes…";
+  readonly placeholder = "Change theme…";
   readonly title = "Change theme";
 
   private actionFeedback: QuickActionModeSnapshot["feedback"];
@@ -182,12 +182,7 @@ class ThemeQuickActionMode implements QuickActionChildMode {
       initialActiveOptionId,
       options: Object.freeze(
         [...this.entries.entries()].map(([id, entry]) => {
-          const status = optionStatus(
-            id,
-            this.activeOptionId,
-            committedOptionId,
-            this.warningCounts.get(id),
-          );
+          const status = optionStatus(id, committedOptionId, this.warningCounts.get(id));
           return Object.freeze({
             id,
             keywords: Object.freeze(
@@ -287,13 +282,11 @@ function selectionOptionId(selection: ArchiveAppThemeSelection): string | undefi
 
 function optionStatus(
   id: string,
-  activeId: string | undefined,
   committedId: string | undefined,
   warningCount: number | undefined,
 ): string | undefined {
   const statuses: string[] = [];
   if (id === committedId) statuses.push("Current theme");
-  if (id === activeId) statuses.push("Previewing");
   if (warningCount) statuses.push(warningCountText(warningCount));
   return statuses.length > 0 ? statuses.join(" · ") : undefined;
 }

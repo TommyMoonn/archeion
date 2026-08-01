@@ -391,9 +391,6 @@ export function QuickActionsPalette({
     >
       <div className="quick-actions__panel">
         <div className="quick-actions__search">
-          <p className="quick-actions__mode-heading" hidden={!activeMode}>
-            {activeMode?.title}
-          </p>
           <Input
             aria-activedescendant={activeResultId}
             aria-autocomplete="list"

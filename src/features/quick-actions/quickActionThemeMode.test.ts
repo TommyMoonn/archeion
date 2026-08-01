@@ -179,7 +179,7 @@ describe("Quick Actions theme mode", () => {
     expect(harness.keepPreview).not.toHaveBeenCalled();
     expect(
       harness.mode.getSnapshot().options.find((option) => option.id === "builtin:dark")?.status,
-    ).toContain("Previewing");
+    ).toBeUndefined();
 
     harness.mode.dispose();
     harness.mode.dispose();

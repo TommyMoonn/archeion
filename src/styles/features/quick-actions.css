@@ -31,15 +31,6 @@ html[data-motion="on"] .quick-actions[open] {
   border-bottom: 1px solid var(--line);
 }
 
-.quick-actions__mode-heading {
-  margin: 0;
-  padding-inline: 4px;
-  color: var(--muted);
-  font-size: var(--type-caption);
-  font-weight: var(--type-caption-weight);
-  line-height: var(--type-caption-line-height);
-}
-
 .quick-actions__search .input-shell {
   width: 100%;
   min-width: 0;

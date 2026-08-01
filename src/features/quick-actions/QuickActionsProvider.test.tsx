@@ -555,7 +555,7 @@ describe("QuickActionsProvider", () => {
       );
     });
 
-    expect(search.placeholder).toBe("Search application themes…");
+    expect(search.placeholder).toBe("Change theme…");
     expect(palette.textContent).toContain("Change theme");
     expect(palette.textContent).toContain("Archeion Dark");
     expect(palette.textContent).toContain("Archeion Light");
@@ -614,7 +614,7 @@ describe("QuickActionsProvider", () => {
       rootOption.click();
     });
 
-    expect(search.placeholder).toBe("Search application themes…");
+    expect(search.placeholder).toBe("Change theme…");
     expect(document.activeElement).toBe(search);
     const dark = [...palette.querySelectorAll<HTMLElement>('[role="option"]')].find(
       (option) => option.getAttribute("aria-label") === "Archeion Dark",

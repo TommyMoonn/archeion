@@ -365,7 +365,10 @@ describe("QuickActionsPalette", () => {
     expect(document.activeElement).toBe(input);
     expect(rendered.container.querySelector('input[type="search"]')).toBe(input);
     expect(input.placeholder).toBe("Search archives…");
-    expect(rendered.container.textContent).toContain("Switch archive");
+    expect(rendered.container.querySelector(".quick-actions__mode-heading")).toBeNull();
+    expect(rendered.container.querySelector('[role="listbox"]')?.getAttribute("aria-label")).toBe(
+      "Switch archive",
+    );
     expect(rendered.container.textContent).toContain("Current archive");
 
     await act(async () => pressKey(input, "Escape"));
@@ -384,7 +387,7 @@ describe("QuickActionsPalette", () => {
     const mode = new QuickActionChildModeSession({
       confirm,
       id: "themes",
-      placeholder: "Search application themes…",
+      placeholder: "Change theme…",
       preview,
       snapshot: {
         committedOptionId: "light",
