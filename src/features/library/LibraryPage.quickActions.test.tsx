@@ -293,7 +293,9 @@ beforeEach(async () => {
       ...current.library,
       collections: {
         ...current.library.collections,
-        books: { ...current.library.collections.books, viewMode: "grid" },
+        books: { cardSize: "medium", sortBy: "author", viewMode: "grid" },
+        folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
+        series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
       },
     },
   });
@@ -365,6 +367,84 @@ describe("LibraryPage Quick Actions", () => {
     expect(search).toBeInstanceOf(HTMLInputElement);
     expect(document.activeElement).toBe(search);
     expect(rendered.container.textContent).toContain("Your collection");
+  });
+
+  it("enters a contextual Books display mode and persists the confirmed value", async () => {
+    const rendered = await renderLibrary(
+      "/?view=folder&folderPath=Fiction&archiveId=archive-books",
+    );
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Change sort"));
+    await vi.waitFor(() => {
+      expect(document.querySelector('[role="option"]')?.textContent).toContain("Change sort…");
+    });
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    });
+
+    expect(search.placeholder).toBe("Change sort…");
+    expect(document.activeElement).toBe(search);
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).map((option) => ({
+        committed: option.dataset.committed,
+        label: option.textContent,
+      })),
+    ).toEqual([
+      { committed: undefined, label: "Title" },
+      { committed: "true", label: "Author" },
+      { committed: undefined, label: "Recently opened" },
+    ]);
+
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+    });
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    expect(appPreferencesStore.getBooksCollectionSnapshot().sortBy).toBe("recently-opened");
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(rendered.container.textContent).toContain("Fiction");
+  });
+
+  it("offers only the active Folder display commands and hides row card sizing", async () => {
+    await renderLibrary("/?view=folders&archiveId=archive-books");
+    const search = await openPalette();
+
+    await act(async () => setInputValue(search, "Change Folder"));
+    expect(
+      Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).map((option) =>
+        option.textContent?.trim(),
+      ),
+    ).toEqual(
+      expect.arrayContaining(["Library: Change Folder view…", "Library: Change Folder sort…"]),
+    );
+    expect(document.querySelectorAll('[role="option"]')).toHaveLength(2);
+    expect(document.body.textContent).not.toContain("Change Folder card size…");
+
+    await act(async () => setInputValue(search, "Change Series"));
+    expect(document.querySelector('[role="option"]')).toBeNull();
+  });
+
+  it("changes Series display preferences without affecting Books ordering", async () => {
+    await renderLibrary("/?view=series&archiveId=archive-books");
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Change Series sort"));
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    });
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowDown" }));
+    });
+    await act(async () => {
+      search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+      await Promise.resolve();
+    });
+
+    expect(appPreferencesStore.getSeriesCollectionSnapshot().sortBy).toBe("recently-opened");
+    expect(appPreferencesStore.getBooksCollectionSnapshot().sortBy).toBe("author");
   });
 
   it.each([

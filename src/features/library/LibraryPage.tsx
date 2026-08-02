@@ -12,6 +12,7 @@ import {
   useLibraryPreferences,
   useSeriesCollectionPreferences,
   useShowContinueReadingPreference,
+  appPreferencesStore,
 } from "../../stores/appPreferencesStore";
 import type { LibraryLocation } from "../../types/library";
 import { createDefaultLibraryFilters } from "../../types/library";
@@ -54,6 +55,7 @@ import { useLibraryMutationFocus } from "./useLibraryMutationFocus";
 import { useCollectionDisplayPreferences } from "./useCollectionDisplayPreferences";
 import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
 import { startupTrace } from "../../app/startupTrace";
+import { createLibraryCollectionQuickActions } from "./libraryCollectionQuickActions";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
@@ -562,6 +564,25 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   }, [navigation.location.type, openBookSearch]);
   const activeSearchScope: AppCommand["scope"] =
     navigation.location.type === "folders" ? "folders" : "library";
+  const collectionQuickActions = useMemo(
+    () =>
+      createLibraryCollectionQuickActions({
+        collections: {
+          books: booksDisplayPreferences,
+          folders: foldersDisplayPreferences,
+          series: seriesDisplayPreferences,
+        },
+        location: navigation.location,
+        updateCollection: (collection, changes) =>
+          appPreferencesStore.updateLibraryCollection(collection, changes),
+      }),
+    [
+      booksDisplayPreferences,
+      foldersDisplayPreferences,
+      navigation.location,
+      seriesDisplayPreferences,
+    ],
+  );
   const quickActionCommands = useMemo<QuickActionRegistration[]>(
     () => [
       {
@@ -589,6 +610,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
             },
           ]
         : []),
+      ...collectionQuickActions,
       {
         configuration: "unbound",
         execute: () => enterLocation({ type: "library" }),
@@ -684,6 +706,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
       activeSearchScope,
       bookActions.isImporting,
       bookActions.isRescanning,
+      collectionQuickActions,
       dialogActions,
       enterLocation,
       focusActiveSearch,
