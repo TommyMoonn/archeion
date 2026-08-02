@@ -51,6 +51,7 @@ function renderComposition({
           onRevealArchive={onRevealArchive}
           quickActionsAriaKeyShortcuts="Control+Shift+P"
           revealArchiveDisabledReason={revealArchiveDisabledReason}
+          sidebarToggleAriaKeyShortcuts="Control+B"
         />
         {!collapsed ? (
           <div ref={expandedContentRef}>
@@ -95,6 +96,7 @@ function renderResponsiveComposition() {
           onOpenQuickActions={vi.fn()}
           onRevealArchive={vi.fn()}
           quickActionsAriaKeyShortcuts="Control+Shift+P"
+          sidebarToggleAriaKeyShortcuts="Control+B"
         />
         <button type="button">Outside titlebar</button>
         {!sidebarState.collapsed ? (
@@ -146,6 +148,11 @@ describe("LibraryTitlebarComposition", () => {
       "Open Quick Actions",
       "Collapse sidebar",
     ]);
+    expect(
+      container
+        .querySelector('button[aria-label="Collapse sidebar"]')
+        ?.getAttribute("aria-keyshortcuts"),
+    ).toBe("Control+B");
     expect(
       Array.from(actionGroup?.querySelectorAll("button") ?? []).every((button) =>
         button.classList.contains("icon-button--compact"),

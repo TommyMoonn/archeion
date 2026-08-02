@@ -21,6 +21,7 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
 import { LibraryPage } from "./LibraryPage";
 
 const readyArchive: ArchiveState = {
@@ -58,6 +59,7 @@ const folder: Folder = {
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
+let sidebarMedia: ReturnType<typeof installLibrarySidebarMedia> | null = null;
 const librarySnapshotObservers = new Set<StorageObserver<LibrarySnapshot>>();
 let currentLibrarySnapshot: LibrarySnapshot;
 
@@ -281,6 +283,7 @@ async function changeDefaultBookViewToList(settings: HTMLDialogElement): Promise
 }
 
 beforeEach(async () => {
+  window.sessionStorage.clear();
   vi.spyOn(archiveStore, "getSnapshot").mockReturnValue(readyArchive);
   vi.spyOn(archiveStore, "subscribe").mockReturnValue(() => true);
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
@@ -309,6 +312,8 @@ afterEach(async () => {
   root = null;
   container = null;
   librarySnapshotObservers.clear();
+  sidebarMedia?.restore();
+  sidebarMedia = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
   await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
@@ -336,6 +341,194 @@ describe("LibraryPage Quick Actions", () => {
     expect(
       document.querySelectorAll('.quick-actions input[placeholder="Type a command…"]'),
     ).toHaveLength(1);
+  });
+
+  it("uses one focus-aware owner for the titlebar button and configured sidebar command", async () => {
+    const rendered = await renderLibrary();
+    const shell = rendered.container.querySelector<HTMLElement>(".app-shell")!;
+    const collapse = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Collapse sidebar"]',
+    )!;
+    const expandedControl = rendered.container.querySelector<HTMLButtonElement>(
+      ".sidebar__expanded-content button",
+    )!;
+
+    expect(collapse.getAttribute("aria-keyshortcuts")).toBe("Control+B");
+    act(() => expandedControl.focus());
+    const collapseEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      key: "b",
+    });
+    act(() => expandedControl.dispatchEvent(collapseEvent));
+
+    expect(collapseEvent.defaultPrevented).toBe(true);
+    expect(shell.dataset.sidebarCollapsed).toBe("true");
+    const expand = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Expand sidebar"]',
+    )!;
+    expect(document.activeElement).toBe(expand);
+    expect(expand.getAttribute("aria-keyshortcuts")).toBe("Control+B");
+
+    act(() => expand.click());
+    expect(shell.dataset.sidebarCollapsed).toBeUndefined();
+    expect(
+      rendered.container.querySelector('button[aria-label="Collapse sidebar"]'),
+    ).not.toBeNull();
+  });
+
+  it("toggles the same desktop sidebar command in the Folders scope", async () => {
+    const rendered = await renderLibrary("/?view=folders&archiveId=archive-books");
+    const target = rendered.container.querySelector<HTMLElement>("main")!;
+
+    act(() =>
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "b",
+        }),
+      ),
+    );
+
+    expect(
+      rendered.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
+    ).toBe("true");
+    expect(rendered.container.textContent).toContain("Folders");
+  });
+
+  it("updates the Quick Actions label from the shared sidebar state", async () => {
+    const rendered = await renderLibrary();
+
+    await executeCommand("Collapse sidebar");
+    expect(
+      rendered.container.querySelector(".app-shell")?.getAttribute("data-sidebar-collapsed"),
+    ).toBe("true");
+
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "sidebar"));
+    expect(document.querySelector('[role="option"]')?.textContent).toContain("Expand sidebar");
+    expect(document.body.textContent).not.toContain("Collapse sidebar");
+  });
+
+  it("leaves text entry and IME composition authoritative", async () => {
+    const rendered = await renderLibrary();
+    const shell = rendered.container.querySelector<HTMLElement>(".app-shell")!;
+    const search = rendered.container.querySelector<HTMLInputElement>(
+      'input[name="archeion-library-search"]',
+    )!;
+    const textEntryEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      key: "b",
+    });
+    act(() => search.dispatchEvent(textEntryEvent));
+
+    expect(textEntryEvent.defaultPrevented).toBe(false);
+    expect(shell.dataset.sidebarCollapsed).toBeUndefined();
+
+    const pageTarget = rendered.container.querySelector<HTMLElement>("main")!;
+    const compositionEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      isComposing: true,
+      key: "b",
+    });
+    act(() => pageTarget.dispatchEvent(compositionEvent));
+
+    expect(compositionEvent.defaultPrevented).toBe(false);
+    expect(shell.dataset.sidebarCollapsed).toBeUndefined();
+  });
+
+  it("applies customized and cleared sidebar bindings to the visible control and command", async () => {
+    const rendered = await renderLibrary();
+    const target = rendered.container.querySelector<HTMLElement>("main")!;
+    const shell = rendered.container.querySelector<HTMLElement>(".app-shell")!;
+
+    await act(async () => {
+      await appPreferencesStore.update({
+        keyboard: {
+          shortcuts: {
+            "library.toggle-sidebar": {
+              binding: { alt: false, key: "g", primary: true, shift: false },
+            },
+          },
+        },
+      });
+    });
+    expect(
+      rendered.container
+        .querySelector('button[aria-label="Collapse sidebar"]')
+        ?.getAttribute("aria-keyshortcuts"),
+    ).toBe("Control+G");
+
+    act(() =>
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "g",
+        }),
+      ),
+    );
+    expect(shell.dataset.sidebarCollapsed).toBe("true");
+
+    await act(async () => {
+      await appPreferencesStore.update({
+        keyboard: { shortcuts: { "library.toggle-sidebar": { disabled: true } } },
+      });
+    });
+    expect(
+      rendered.container
+        .querySelector('button[aria-label="Expand sidebar"]')
+        ?.hasAttribute("aria-keyshortcuts"),
+    ).toBe(false);
+
+    act(() =>
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "g",
+        }),
+      ),
+    );
+    expect(shell.dataset.sidebarCollapsed).toBe("true");
+  });
+
+  it("keeps the command discoverable but unavailable in constrained top navigation", async () => {
+    sidebarMedia = installLibrarySidebarMedia(true);
+    const rendered = await renderLibrary();
+
+    expect(rendered.container.querySelector('[aria-label="Collapse sidebar"]')).toBeNull();
+    const target = rendered.container.querySelector<HTMLElement>("main")!;
+    const shortcut = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      key: "b",
+    });
+    act(() => target.dispatchEvent(shortcut));
+    expect(shortcut.defaultPrevented).toBe(true);
+    expect(
+      rendered.container.querySelector(".app-shell")?.hasAttribute("data-sidebar-collapsed"),
+    ).toBe(false);
+
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "sidebar"));
+    const option = document.querySelector<HTMLElement>('[role="option"]')!;
+
+    expect(option.textContent).toContain("Collapse sidebar");
+    expect(option.getAttribute("aria-disabled")).toBe("true");
+    expect(option.textContent).toContain(
+      "Sidebar collapse is unavailable in the constrained navigation layout.",
+    );
   });
 
   it("reveals the active archive through the validated archive owner", async () => {

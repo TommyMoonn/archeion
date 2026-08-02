@@ -116,6 +116,7 @@ describe("Keyboard settings", () => {
       "Open Quick Actions",
       "Open Settings",
       "Focus search",
+      "Toggle sidebar",
       "Toggle table of contents",
       "Toggle annotations",
       "Toggle bookmark",

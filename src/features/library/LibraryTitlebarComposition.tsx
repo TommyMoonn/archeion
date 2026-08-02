@@ -1,8 +1,16 @@
 import { FolderOpen, Zap, PanelLeft } from "lucide-react";
-import { useCallback, useLayoutEffect, useRef, type RefObject } from "react";
+import {
+  forwardRef,
+  useCallback,
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  type RefObject,
+} from "react";
 
 import { IconButton } from "../../components/IconButton";
 import { WindowTitlebarAppActions } from "../../components/WindowTitlebar";
+import { librarySidebarToggleLabel } from "./useLibrarySidebarState";
 
 type LibraryTitlebarCompositionProps = {
   collapseAvailable: boolean;
@@ -13,25 +21,38 @@ type LibraryTitlebarCompositionProps = {
   onRevealArchive: () => void;
   quickActionsAriaKeyShortcuts?: string;
   revealArchiveDisabledReason?: string;
+  sidebarToggleAriaKeyShortcuts?: string;
 };
 
 type TitlebarFocusOwner = "collapse" | "quick-actions" | "reveal";
 
-export function LibraryTitlebarComposition({
-  collapseAvailable,
-  collapsed,
-  expandedSidebarContentRef,
-  onCollapsedChange,
-  onOpenQuickActions,
-  onRevealArchive,
-  quickActionsAriaKeyShortcuts,
-  revealArchiveDisabledReason,
-}: LibraryTitlebarCompositionProps) {
+export type LibraryTitlebarCompositionHandle = {
+  toggleSidebar: () => void;
+};
+
+export const LibraryTitlebarComposition = forwardRef<
+  LibraryTitlebarCompositionHandle,
+  LibraryTitlebarCompositionProps
+>(function LibraryTitlebarComposition(
+  {
+    collapseAvailable,
+    collapsed,
+    expandedSidebarContentRef,
+    onCollapsedChange,
+    onOpenQuickActions,
+    onRevealArchive,
+    quickActionsAriaKeyShortcuts,
+    revealArchiveDisabledReason,
+    sidebarToggleAriaKeyShortcuts,
+  },
+  ref,
+) {
   const collapseControlRef = useRef<HTMLButtonElement>(null);
   const quickActionsControlRef = useRef<HTMLButtonElement>(null);
   const revealControlRef = useRef<HTMLButtonElement>(null);
   const removedFocusOwnerRef = useRef<TitlebarFocusOwner | null>(null);
   const isCollapsed = collapsed && collapseAvailable;
+  const sidebarToggleLabel = librarySidebarToggleLabel(isCollapsed);
   const previousResponsiveStateRef = useRef({ collapseAvailable, isCollapsed });
 
   const setCollapseControlRef = useCallback((control: HTMLButtonElement | null) => {
@@ -83,6 +104,7 @@ export function LibraryTitlebarComposition({
     }
     onCollapsedChange(nextCollapsed);
   }, [expandedSidebarContentRef, isCollapsed, onCollapsedChange]);
+  useImperativeHandle(ref, () => ({ toggleSidebar }), [toggleSidebar]);
 
   return (
     <WindowTitlebarAppActions>
@@ -130,14 +152,15 @@ export function LibraryTitlebarComposition({
           ) : null}
           {collapseAvailable ? (
             <IconButton
+              aria-keyshortcuts={sidebarToggleAriaKeyShortcuts}
               className="library-titlebar-composition__button"
               data-sidebar-direction={isCollapsed ? "expand-right" : "collapse-left"}
               key="sidebar-toggle"
-              label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              label={sidebarToggleLabel}
               onClick={toggleSidebar}
               ref={setCollapseControlRef}
               size="compact"
-              tooltip={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              tooltip={sidebarToggleLabel}
               tooltipPlacement="bottom"
             >
               <PanelLeft
@@ -150,7 +173,7 @@ export function LibraryTitlebarComposition({
       </div>
     </WindowTitlebarAppActions>
   );
-}
+});
 
 function captureRemovedFocusOwner(
   controlRef: RefObject<HTMLButtonElement | null>,

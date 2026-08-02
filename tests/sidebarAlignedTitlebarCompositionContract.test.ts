@@ -65,8 +65,9 @@ describe("Phase 0.9.0.12 sidebar-aligned titlebar composition contract", () => {
       composition.indexOf('label="Open Quick Actions"'),
     );
     expect(composition.indexOf('label="Open Quick Actions"')).toBeLessThan(
-      composition.indexOf('label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}'),
+      composition.indexOf("label={sidebarToggleLabel}"),
     );
+    expect(composition).toContain("librarySidebarToggleLabel(isCollapsed)");
     expect(composition.match(/size="compact"/g)).toHaveLength(3);
     expect(composition.match(/tooltipPlacement="bottom"/g)).toHaveLength(3);
   });

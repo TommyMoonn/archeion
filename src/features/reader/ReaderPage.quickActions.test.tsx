@@ -322,6 +322,24 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it("does not register or react to the Library sidebar command", async () => {
+    const rendered = await renderReader();
+    const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+    const event = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      ctrlKey: true,
+      key: "b",
+    });
+
+    act(() => reader.dispatchEvent(event));
+    expect(event.defaultPrevented).toBe(false);
+
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "sidebar"));
+    expect(document.querySelector('[role="option"]')).toBeNull();
+  });
+
   it("focuses the Reader main landmark when the explicit route mounts", async () => {
     const rendered = await renderReader();
     const main = rendered.container.querySelector<HTMLElement>(`main#${MAIN_CONTENT_ID}`);

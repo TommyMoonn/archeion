@@ -179,6 +179,44 @@ describe("app preferences", () => {
     );
   });
 
+  it("reloads customized and cleared sidebar shortcuts from persisted preferences", async () => {
+    let persisted: unknown = {};
+    const persistence = createPersistence({
+      loadDesktop: async () => persisted,
+      saveDesktop: vi.fn(async (preferences) => {
+        persisted = preferences;
+      }),
+    });
+    const customized = new AppPreferencesStore(persistence);
+    await customized.initialize();
+    await customized.update({
+      keyboard: {
+        shortcuts: {
+          "library.toggle-sidebar": {
+            binding: { alt: false, key: "g", primary: true, shift: true },
+          },
+        },
+      },
+    });
+
+    const afterCustomization = new AppPreferencesStore(persistence);
+    await afterCustomization.initialize();
+    expect(afterCustomization.getSnapshot().keyboard.shortcuts).toEqual({
+      "library.toggle-sidebar": {
+        binding: { alt: false, key: "g", primary: true, shift: true },
+      },
+    });
+
+    await afterCustomization.update({
+      keyboard: { shortcuts: { "library.toggle-sidebar": { disabled: true } } },
+    });
+    const afterClear = new AppPreferencesStore(persistence);
+    await afterClear.initialize();
+    expect(afterClear.getSnapshot().keyboard.shortcuts).toEqual({
+      "library.toggle-sidebar": { disabled: true },
+    });
+  });
+
   it("does not rerender a narrow preference consumer for unrelated UI changes", async () => {
     const original = appPreferencesStore.getSnapshot();
     const container = document.createElement("div");

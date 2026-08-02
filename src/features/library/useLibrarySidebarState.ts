@@ -3,6 +3,10 @@ import { useCallback, useState, useSyncExternalStore } from "react";
 export const LIBRARY_SIDEBAR_TOP_LAYOUT_QUERY = "(max-width: 560px)";
 const LIBRARY_SIDEBAR_COLLAPSED_SESSION_KEY = "archeion:library-sidebar-collapsed";
 
+export function librarySidebarToggleLabel(collapsed: boolean): string {
+  return collapsed ? "Expand sidebar" : "Collapse sidebar";
+}
+
 function readRequestedCollapsed(): boolean {
   if (typeof window === "undefined") return false;
   try {

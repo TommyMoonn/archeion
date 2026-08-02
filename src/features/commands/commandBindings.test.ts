@@ -34,11 +34,12 @@ const plain = (key: string): KeyboardBinding => ({
 });
 
 describe("keyboard command bindings", () => {
-  it("defines all seven configurable commands from one authoritative model", () => {
+  it("defines all eight configurable commands from one authoritative model", () => {
     expect(configurableCommandDefinitions.map((definition) => definition.id)).toEqual([
       "system.quick-actions",
       "system.open-settings",
       "surface.focus-search",
+      "library.toggle-sidebar",
       "reader.open-toc",
       "reader.open-annotations",
       "reader.toggle-bookmark",
@@ -48,12 +49,19 @@ describe("keyboard command bindings", () => {
       primary("p", true),
       primary(","),
       primary("f"),
+      primary("b"),
       plain("t"),
       plain("a"),
       plain("b"),
       plain("s"),
     ]);
     expect(commandDefinitions.focusSearch.showInPalette).toBe(false);
+    expect(commandDefinitions.toggleSidebar).toMatchObject({
+      configuration: "configurable",
+      group: "Library and Folders",
+      scopes: ["library", "folders"],
+      visibleControlOwner: "Main titlebar",
+    });
   });
 
   it("uses the platform primary modifier for matching, display, and ARIA", () => {
@@ -258,5 +266,24 @@ describe("keyboard command bindings", () => {
     const reset = setKeyboardShortcutOverride(cleared, commandDefinitions.settings.id, undefined);
     expect(effectiveKeyboardBinding(commandDefinitions.settings, reset)).toEqual(primary(","));
     expect(reset).toEqual({ shortcuts: {} });
+  });
+
+  it("normalizes a customized or cleared sidebar shortcut for persistence", () => {
+    const customized = setKeyboardShortcutOverride(
+      defaultKeyboardPreferences,
+      commandDefinitions.toggleSidebar.id,
+      { binding: primary("g", true) },
+    );
+
+    expect(normalizeKeyboardPreferences(customized)).toEqual(customized);
+    expect(effectiveKeyboardBinding(commandDefinitions.toggleSidebar, customized)).toEqual(
+      primary("g", true),
+    );
+
+    const cleared = setKeyboardShortcutOverride(customized, commandDefinitions.toggleSidebar.id, {
+      disabled: true,
+    });
+    expect(normalizeKeyboardPreferences(cleared)).toEqual(cleared);
+    expect(effectiveKeyboardBinding(commandDefinitions.toggleSidebar, cleared)).toBeUndefined();
   });
 });

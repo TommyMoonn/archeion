@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
-import { useLibrarySidebarState } from "./useLibrarySidebarState";
+import { librarySidebarToggleLabel, useLibrarySidebarState } from "./useLibrarySidebarState";
 
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -43,6 +43,11 @@ function renderHarness() {
 }
 
 describe("useLibrarySidebarState", () => {
+  it("owns the shared state-aware toggle label", () => {
+    expect(librarySidebarToggleLabel(false)).toBe("Collapse sidebar");
+    expect(librarySidebarToggleLabel(true)).toBe("Expand sidebar");
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();

@@ -67,6 +67,15 @@ export const commandDefinitions = {
     showInPalette: false,
     scopes: ["library", "folders", "settings", "reader"],
   },
+  toggleSidebar: {
+    configuration: "configurable",
+    defaultBinding: binding("b", { primary: true }),
+    group: "Library and Folders",
+    id: "library.toggle-sidebar",
+    label: "Toggle sidebar",
+    scopes: ["library", "folders"],
+    visibleControlOwner: "Main titlebar",
+  },
   readerToc: {
     configuration: "configurable",
     defaultBinding: binding("t"),
@@ -171,6 +180,7 @@ export type ConfigurableCommandId =
   | typeof commandDefinitions.quickActions.id
   | typeof commandDefinitions.settings.id
   | typeof commandDefinitions.focusSearch.id
+  | typeof commandDefinitions.toggleSidebar.id
   | typeof commandDefinitions.readerToc.id
   | typeof commandDefinitions.readerAnnotations.id
   | typeof commandDefinitions.readerBookmark.id
@@ -180,6 +190,7 @@ export const configurableCommandDefinitions: readonly CommandDefinition[] = [
   commandDefinitions.quickActions,
   commandDefinitions.settings,
   commandDefinitions.focusSearch,
+  commandDefinitions.toggleSidebar,
   commandDefinitions.readerToc,
   commandDefinitions.readerAnnotations,
   commandDefinitions.readerBookmark,

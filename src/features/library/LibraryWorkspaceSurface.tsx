@@ -15,17 +15,23 @@ import { PageShell } from "../../components/PageShell";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type { CollectionCardSize, LibraryLocation, LibraryView } from "../../types/library";
 import { FolderBrowser } from "../folders/FolderBrowser";
+import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
+import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
+import type { QuickActionRegistration } from "../quick-actions/quickActions";
 import { BookGrid } from "./BookGrid";
 import { BookList } from "./BookList";
 import { ContinueReading } from "./ContinueReading";
 import { LibraryFeedbackStack } from "./LibraryFeedbackStack";
 import { LibrarySelectionBar } from "./LibrarySelectionBar";
 import { LibrarySidebar } from "./LibrarySidebar";
-import { LibraryTitlebarComposition } from "./LibraryTitlebarComposition";
+import {
+  LibraryTitlebarComposition,
+  type LibraryTitlebarCompositionHandle,
+} from "./LibraryTitlebarComposition";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
-import { useLibrarySidebarState } from "./useLibrarySidebarState";
+import { librarySidebarToggleLabel, useLibrarySidebarState } from "./useLibrarySidebarState";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
 import type { LibraryReturnFocusRequest } from "./useLibraryWorkspaceNavigation";
 
@@ -121,6 +127,25 @@ export function LibraryWorkspaceSurface({
 }: LibraryWorkspaceSurfaceProps) {
   const sidebarState = useLibrarySidebarState();
   const expandedSidebarContentRef = useRef<HTMLDivElement>(null);
+  const titlebarCompositionRef = useRef<LibraryTitlebarCompositionHandle>(null);
+  const { getCommandBinding } = useQuickActions();
+  const sidebarCommandScope = location.type === "folders" ? "folders" : "library";
+  const sidebarToggleCommand = useMemo<QuickActionRegistration>(
+    () => ({
+      ...commandDefinitions.toggleSidebar,
+      availability: sidebarState.collapseAvailable
+        ? { available: true }
+        : {
+            available: false,
+            reason: "Sidebar collapse is unavailable in the constrained navigation layout.",
+          },
+      execute: () => titlebarCompositionRef.current?.toggleSidebar(),
+      label: librarySidebarToggleLabel(sidebarState.collapsed),
+      scope: sidebarCommandScope,
+    }),
+    [sidebarCommandScope, sidebarState.collapseAvailable, sidebarState.collapsed],
+  );
+  useRegisterQuickActions("library-sidebar", [sidebarToggleCommand]);
   const surfaceState = getLibrarySurfaceState(
     books,
     debouncedQuery,
@@ -160,6 +185,10 @@ export function LibraryWorkspaceSurface({
             collapsed={sidebarState.collapsed}
             expandedSidebarContentRef={expandedSidebarContentRef}
             onCollapsedChange={sidebarState.setCollapsed}
+            ref={titlebarCompositionRef}
+            sidebarToggleAriaKeyShortcuts={ariaKeyShortcut(
+              getCommandBinding(commandDefinitions.toggleSidebar.id),
+            )}
           />
           <LibrarySidebar
             {...sidebarProps}
