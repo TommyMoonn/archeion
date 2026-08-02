@@ -570,7 +570,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           ? { available: true }
           : { available: false, reason: "This surface does not have search." },
         execute: focusActiveSearch,
-        keywords: ["find books", "search library", "search folders", "search series"],
         order: 40,
         scope: activeSearchScope,
       },

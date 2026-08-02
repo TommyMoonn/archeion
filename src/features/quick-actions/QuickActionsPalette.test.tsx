@@ -24,10 +24,12 @@ function pressKey(input: HTMLInputElement, key: string): void {
 
 function deferred<Value>() {
   let resolve!: (value: Value) => void;
-  const promise = new Promise<Value>((settle) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<Value>((settle, fail) => {
     resolve = settle;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, reject, resolve };
 }
 
 function createCommand(
@@ -452,6 +454,7 @@ describe("QuickActionsPalette", () => {
     await act(async () => pressKey(input, "Enter"));
 
     expect(input.placeholder).toBe("Search strict options…");
+    expect(input.hasAttribute("aria-busy")).toBe(false);
     expect(rendered.container.textContent).toContain("Owned option");
     expect(onDispose).not.toHaveBeenCalled();
     expect(recordRecent).toHaveBeenCalledOnce();
@@ -789,59 +792,28 @@ describe("QuickActionsPalette", () => {
     expect(input.placeholder).toBe("Type a command…");
   });
 
-  it("retires an older asynchronous root mode when a newer root mode takes ownership", async () => {
-    let resolveFirst!: (outcome: QuickActionPaletteOutcome) => void;
-    const firstOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
-      resolveFirst = resolve;
+  it("coalesces keyboard and pointer activation while an asynchronous root action is pending", async () => {
+    const pending = deferred<QuickActionPaletteOutcome>();
+    const command = createCommand("pending", "Pending action", {
+      runInPalette: () => pending.promise,
     });
-    const disposeFirst = vi.fn();
-    const disposeSecond = vi.fn();
-    const firstMode = new QuickActionChildModeSession({
-      confirm: () => ({ kind: "close" }),
-      id: "first-mode",
-      onDispose: disposeFirst,
-      placeholder: "Search first…",
-      snapshot: { options: [{ id: "first-option", label: "First" }] },
-      title: "First mode",
-    });
-    const secondMode = new QuickActionChildModeSession({
-      confirm: () => ({ kind: "close" }),
-      id: "second-mode",
-      onDispose: disposeSecond,
-      placeholder: "Search second…",
-      snapshot: { options: [{ id: "second-option", label: "Second" }] },
-      title: "Second mode",
-    });
-    const firstCommand = createCommand("first", "First mode", {
-      order: 1,
-      runInPalette: () => firstOutcome,
-    });
-    const secondCommand = createCommand("second", "Second mode", {
-      order: 2,
-      runInPalette: () => ({ kind: "child-mode", mode: secondMode }),
-    });
-    const rendered = await renderPalette([firstCommand, secondCommand], (command) =>
-      command.id === "first" ? firstOutcome : { kind: "child-mode", mode: secondMode },
-    );
+    const rendered = await renderPalette([command], () => pending.promise);
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
-    const recordRecent = vi.spyOn(rendered.registry, "recordRecent");
+    const option = rendered.container.querySelector<HTMLElement>('[role="option"]')!;
 
     act(() => pressKey(input, "Enter"));
-    act(() => pressKey(input, "ArrowDown"));
     act(() => pressKey(input, "Enter"));
-    expect(input.placeholder).toBe("Search second…");
+    act(() => option.click());
+
+    expect(rendered.onExecute).toHaveBeenCalledOnce();
+    expect(input.getAttribute("aria-busy")).toBe("true");
 
     await act(async () => {
-      resolveFirst({ kind: "child-mode", mode: firstMode });
-      await firstOutcome;
+      pending.resolve({ kind: "close" });
+      await pending.promise;
     });
 
-    expect(disposeFirst).toHaveBeenCalledOnce();
-    expect(disposeSecond).not.toHaveBeenCalled();
-    expect(recordRecent).toHaveBeenCalledOnce();
-    expect(recordRecent).toHaveBeenCalledWith("second");
-    expect(input.placeholder).toBe("Search second…");
-    expect(rendered.container.textContent).toContain("Second mode");
+    expect(rendered.onClose).toHaveBeenCalledOnce();
   });
 
   it("disposes a late root mode after the palette closes", async () => {
@@ -902,40 +874,34 @@ describe("QuickActionsPalette", () => {
     expect(onDispose).toHaveBeenCalledOnce();
   });
 
-  it("does not publish stale keep-open feedback from an older root operation", async () => {
-    let resolveFirst!: (outcome: QuickActionPaletteOutcome) => void;
-    const firstOutcome = new Promise<QuickActionPaletteOutcome>((resolve) => {
-      resolveFirst = resolve;
-    });
-    const secondMode = new QuickActionChildModeSession({
-      confirm: () => ({ kind: "close" }),
-      id: "second-mode",
-      placeholder: "Search second…",
-      snapshot: { options: [{ id: "second-option", label: "Second" }] },
-      title: "Second mode",
-    });
-    const firstCommand = createCommand("first", "First mode", {
-      order: 1,
-      runInPalette: () => firstOutcome,
-    });
-    const secondCommand = createCommand("second", "Second mode", {
-      order: 2,
-      runInPalette: () => ({ kind: "child-mode", mode: secondMode }),
-    });
-    const rendered = await renderPalette([firstCommand, secondCommand], (command) =>
-      command.id === "first" ? firstOutcome : { kind: "child-mode", mode: secondMode },
+  it("clears root busy after rejection and allows one later retry", async () => {
+    const first = deferred<QuickActionPaletteOutcome>();
+    const second = deferred<QuickActionPaletteOutcome>();
+    const command = createCommand("retry", "Retry action", { runInPalette: () => first.promise });
+    const rendered = await renderPalette(
+      [command],
+      vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise),
     );
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
 
     act(() => pressKey(input, "Enter"));
-    act(() => pressKey(input, "ArrowDown"));
-    act(() => pressKey(input, "Enter"));
     await act(async () => {
-      resolveFirst({ error: "Stale root failure", kind: "keep-open" });
-      await firstOutcome;
+      first.reject(new Error("save failed"));
+      await expect(first.promise).rejects.toThrow("save failed");
     });
 
-    expect(rendered.container.textContent).not.toContain("Stale root failure");
-    expect(input.placeholder).toBe("Search second…");
+    expect(input.hasAttribute("aria-busy")).toBe(false);
+    expect(rendered.container.querySelector('[role="alert"]')).not.toBeNull();
+
+    act(() => pressKey(input, "Enter"));
+    act(() => pressKey(input, "Enter"));
+    expect(rendered.onExecute).toHaveBeenCalledTimes(2);
+    expect(input.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      second.resolve({ kind: "close" });
+      await second.promise;
+    });
+    expect(rendered.onClose).toHaveBeenCalledOnce();
   });
 });

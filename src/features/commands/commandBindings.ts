@@ -24,6 +24,7 @@ export type CommandDefinition = {
   id: string;
   label: string;
   repeatPolicy?: CommandRepeatPolicy;
+  showInPalette?: boolean;
   scopes: readonly CommandScope[];
   visibleControlOwner?: string;
 };
@@ -63,6 +64,7 @@ export const commandDefinitions = {
     group: "Library and Folders",
     id: "surface.focus-search",
     label: "Focus search",
+    showInPalette: false,
     scopes: ["library", "folders", "settings", "reader"],
   },
   readerToc: {

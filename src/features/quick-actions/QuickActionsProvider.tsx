@@ -16,7 +16,11 @@ import { focusPresentationRuntime } from "../../app/inputModality";
 import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
 import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
-import { useKeyboardPreferences } from "../../stores/appPreferencesStore";
+import {
+  appPreferencesStore,
+  useAppPreferences,
+  useKeyboardPreferences,
+} from "../../stores/appPreferencesStore";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import type { AppCommand, KeyboardInteractionContext } from "../commands/appCommands";
 import {
@@ -29,6 +33,7 @@ import {
   resolveKeyboardCommand,
 } from "../commands/commandResolver";
 import { QuickActionsRegistry, type QuickActionRegistration } from "./quickActions";
+import { createDensityQuickActionMode } from "./quickActionDensityMode";
 import { QuickActionChildModeSession, type QuickActionPaletteOutcome } from "./quickActionModes";
 import {
   createThemeQuickActionMode,
@@ -57,13 +62,30 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
     focusReturn: FocusReturnRecord;
   } | null>(null);
   const [settings, setSettings] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
+  const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
+  const mountedRef = useRef(true);
+  const preferences = useAppPreferences();
   const keyboard = useKeyboardPreferences();
   const archive = useSyncExternalStore(
     archiveStore.subscribe,
     archiveStore.getSnapshot,
     archiveStore.getSnapshot,
   );
+
+  useEffect(() => {
+    mountedRef.current = true;
+    const unsubscribe = appPreferencesStore.subscribe(() => {
+      const animationsEnabled = appPreferencesStore.getSnapshot().appearance.animationsEnabled;
+      setAnimationRetryTarget((currentTarget) =>
+        currentTarget !== null && currentTarget !== animationsEnabled ? null : currentTarget,
+      );
+    });
+    return () => {
+      mountedRef.current = false;
+      unsubscribe();
+    };
+  }, []);
 
   const openPalette = useCallback(() => {
     setPalette({
@@ -149,6 +171,7 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
 
   const appCommands = useMemo<QuickActionRegistration[]>(() => {
     const activeArchive = archive.status === "ready" ? archive.archive : null;
+    const animationTarget = animationRetryTarget ?? !preferences.appearance.animationsEnabled;
 
     return [
       {
@@ -217,8 +240,70 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
         runInPalette: () => createThemeQuickActionMode(themeModeServices),
         scope: "global",
       },
+      {
+        configuration: "unbound",
+        execute: () => undefined,
+        group: "Appearance",
+        id: "appearance.toggle-animations",
+        keywords: ["animations", "motion", "transitions"],
+        label:
+          animationRetryTarget === null
+            ? preferences.appearance.animationsEnabled
+              ? "Turn animations off"
+              : "Turn animations on"
+            : animationTarget
+              ? "Retry saving animations on"
+              : "Retry saving animations off",
+        order: 20,
+        runInPalette: async () => {
+          try {
+            await appPreferencesStore.update({
+              appearance: {
+                animationsEnabled: animationTarget,
+              },
+            });
+            if (mountedRef.current) setAnimationRetryTarget(null);
+            return { kind: "close" };
+          } catch {
+            if (
+              appPreferencesStore.getSnapshot().appearance.animationsEnabled !== animationTarget
+            ) {
+              if (mountedRef.current) setAnimationRetryTarget(null);
+              return { kind: "keep-open" };
+            }
+            if (mountedRef.current) setAnimationRetryTarget(animationTarget);
+            return {
+              error: `Animations are ${animationTarget ? "on" : "off"} for this session but could not be saved. Retry to keep this setting after Archeion closes.`,
+              kind: "keep-open",
+            };
+          }
+        },
+        scope: "global",
+      },
+      {
+        configuration: "unbound",
+        execute: () => undefined,
+        group: "Appearance",
+        id: "appearance.change-density",
+        keywords: ["display density", "comfortable", "compact", "spacing"],
+        label: "Change display density…",
+        order: 30,
+        runInPalette: () =>
+          createDensityQuickActionMode(preferences.density, (density) =>
+            appPreferencesStore.update({ density }),
+          ),
+        scope: "global",
+      },
     ];
-  }, [archive, openPalette, openSettings, settings, themeModeServices]);
+  }, [
+    animationRetryTarget,
+    archive,
+    openPalette,
+    openSettings,
+    preferences,
+    settings,
+    themeModeServices,
+  ]);
 
   useEffect(() => registry.register("app", appCommands), [appCommands, registry]);
 

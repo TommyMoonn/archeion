@@ -53,6 +53,7 @@ describe("keyboard command bindings", () => {
       plain("b"),
       plain("s"),
     ]);
+    expect(commandDefinitions.focusSearch.showInPalette).toBe(false);
   });
 
   it("uses the platform primary modifier for matching, display, and ARIA", () => {

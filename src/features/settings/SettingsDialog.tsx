@@ -127,7 +127,6 @@ export function SettingsDialog({ focusReturn, onClose }: SettingsDialogProps) {
       {
         ...commandDefinitions.focusSearch,
         execute: () => searchInputRef.current?.focus({ preventScroll: true }),
-        keywords: ["find setting", "search preferences"],
         scope: "settings" as const,
       },
     ],

@@ -63,6 +63,7 @@ export function QuickActionsPalette({
   const modeQueryRef = useRef("");
   const modeResultsRef = useRef<readonly QuickActionModeOption[]>([]);
   const modeBusyRef = useRef(false);
+  const rootBusyRef = useRef(false);
   const mountedRef = useRef(true);
   const operationRevisionRef = useRef(0);
   const pointerStartedOnBackdropRef = useRef(false);
@@ -73,6 +74,7 @@ export function QuickActionsPalette({
   const [modeQuery, setModeQuery] = useState("");
   const [activeModeOptionId, setActiveModeOptionId] = useState<string>();
   const [modeBusy, setModeBusy] = useState(false);
+  const [rootBusy, setRootBusy] = useState(false);
   const [modeError, setModeError] = useState<string>();
   const snapshot = useSyncExternalStore(
     registry.subscribe,
@@ -124,6 +126,12 @@ export function QuickActionsPalette({
     }
   }
 
+  function clearRootBusy(): void {
+    if (!rootBusyRef.current) return;
+    rootBusyRef.current = false;
+    setRootBusy(false);
+  }
+
   function closePalette(suppressFocusRestoration = false): void {
     if (suppressFocusRestoration) modal.suppressFocusRestoration();
     retirePendingOutcomes();
@@ -163,6 +171,7 @@ export function QuickActionsPalette({
     inputRef.current?.focus();
     return () => {
       mountedRef.current = false;
+      rootBusyRef.current = false;
       retirePendingOutcomes();
       disposeActiveMode();
     };
@@ -189,6 +198,7 @@ export function QuickActionsPalette({
   }, [activeResultId, displayedResults]);
 
   function enterMode(mode: QuickActionChildMode): void {
+    clearRootBusy();
     retirePendingOutcomes();
     disposeActiveMode();
     activeModeRef.current = mode;
@@ -204,6 +214,7 @@ export function QuickActionsPalette({
   }
 
   function returnToRoot(): void {
+    clearRootBusy();
     retirePendingOutcomes();
     disposeActiveMode();
     setActiveMode(null);
@@ -235,18 +246,20 @@ export function QuickActionsPalette({
       disposeUnusedOutcome(outcome);
       return;
     }
+    clearRootBusy();
     registry.recordRecent(command.id);
     applyOutcome(outcome);
   }
 
   function reportRootFailure(operationRevision: number): void {
     if (mountedRef.current && operationRevisionRef.current === operationRevision) {
+      clearRootBusy();
       setModeError("The action could not be completed. Try again.");
     }
   }
 
   function executeRoot(command: QuickActionRegistration | undefined): void {
-    if (!command || !commandAvailability(command).available) return;
+    if (rootBusyRef.current || !command || !commandAvailability(command).available) return;
     if (!command.runInPalette) {
       retirePendingOutcomes();
       modal.suppressFocusRestoration();
@@ -269,6 +282,8 @@ export function QuickActionsPalette({
       return;
     }
 
+    rootBusyRef.current = true;
+    setRootBusy(true);
     void Promise.resolve(result).then(
       (outcome) => settleRootOutcome(command, outcome, operationRevision),
       () => reportRootFailure(operationRevision),
@@ -394,7 +409,7 @@ export function QuickActionsPalette({
           <Input
             aria-activedescendant={activeResultId}
             aria-autocomplete="list"
-            aria-busy={modeBusy || undefined}
+            aria-busy={rootBusy || modeBusy || undefined}
             aria-controls={listId}
             aria-expanded="true"
             autoCapitalize="none"

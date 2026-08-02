@@ -431,7 +431,6 @@ export function ReaderPage() {
           : { available: false, reason: "Open Contents or Annotations to search this reader." },
         canHandleEvent: canHandleReaderCommand,
         execute: focusReaderSearch,
-        keywords: ["find chapters", "search annotations", "focus reader search"],
         order: 41,
         scope: "reader",
       },

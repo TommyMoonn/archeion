@@ -11,6 +11,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import { defaultAppPreferences } from "../../types/appSettings";
 import { router } from "../../app/router";
 import { commandDefinitions } from "../commands/commandBindings";
 import { focusPresentationRuntime } from "../../app/inputModality";
@@ -288,10 +289,289 @@ afterEach(async () => {
   stopFocusPresentation = null;
   vi.restoreAllMocks();
   document.body.innerHTML = "";
-  await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
+  await appPreferencesStore.update({
+    appearance: defaultAppPreferences.appearance,
+    density: defaultAppPreferences.density,
+    keyboard: { shortcuts: {} },
+  });
 });
 
 describe("QuickActionsProvider", () => {
+  it("toggles the persisted animation preference with a state-aware command label", async () => {
+    await appPreferencesStore.update({ appearance: { animationsEnabled: false } });
+    const rendered = await renderProvider();
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => opener.click());
+    let palette = await waitForPalette();
+    let search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+    expect(palette.textContent).toContain("Appearance: Turn animations on");
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(true);
+
+    act(() => opener.click());
+    palette = await waitForPalette();
+    search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+    expect(palette.textContent).toContain("Appearance: Turn animations off");
+  });
+
+  it("runs only one animation update across repeated keyboard and pointer activation", async () => {
+    await appPreferencesStore.update({ appearance: { animationsEnabled: false } });
+    const originalUpdate = appPreferencesStore.update.bind(appPreferencesStore);
+    const pending = deferred<void>();
+    let updateCompletion!: ReturnType<typeof originalUpdate>;
+    const update = vi.spyOn(appPreferencesStore, "update").mockImplementation((changes) => {
+      updateCompletion = originalUpdate(changes).then(async (preferences) => {
+        await pending.promise;
+        return preferences;
+      });
+      return updateCompletion;
+    });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+    const option = palette.querySelector<HTMLElement>('[role="option"]')!;
+
+    act(() => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+    act(() => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+      option.click();
+    });
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(search.getAttribute("aria-busy")).toBe("true");
+
+    await act(async () => {
+      pending.resolve();
+      await updateCompletion;
+    });
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(true);
+  });
+
+  it("keeps reduced motion authoritative when animations are enabled from the palette", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query) =>
+        ({
+          addEventListener: vi.fn(),
+          matches: query === "(prefers-reduced-motion: reduce)",
+          media: query,
+          onchange: null,
+          removeEventListener: vi.fn(),
+        }) as unknown as MediaQueryList,
+    );
+    await appPreferencesStore.update({ appearance: { animationsEnabled: false } });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(true);
+    expect(document.documentElement.dataset.motion).toBe("off");
+  });
+
+  it("retries the same optimistic animation target after persistence fails", async () => {
+    await appPreferencesStore.update({ appearance: { animationsEnabled: false } });
+    const originalUpdate = appPreferencesStore.update.bind(appPreferencesStore);
+    const targets: boolean[] = [];
+    vi.spyOn(appPreferencesStore, "update").mockImplementation(async (changes) => {
+      const target = changes.appearance?.animationsEnabled;
+      if (typeof target === "boolean") targets.push(target);
+      const preferences = await originalUpdate(changes);
+      if (targets.length === 1) throw new Error("disk unavailable");
+      return preferences;
+    });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(document.querySelector(".quick-actions")).toBe(palette);
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(true);
+    expect(palette.textContent).toContain("Appearance: Retry saving animations on");
+    expect(palette.querySelector('[role="alert"]')?.textContent).toBe(
+      "Animations are on for this session but could not be saved. Retry to keep this setting after Archeion closes.",
+    );
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(targets).toEqual([true, true]);
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(true);
+  });
+
+  it("retires failed animation recovery when newer preference work conflicts", async () => {
+    await appPreferencesStore.update({ appearance: { animationsEnabled: false } });
+    const originalUpdate = appPreferencesStore.update.bind(appPreferencesStore);
+    vi.spyOn(appPreferencesStore, "update").mockImplementationOnce(async (changes) => {
+      await originalUpdate(changes);
+      await originalUpdate({ appearance: { animationsEnabled: false } });
+      throw new Error("older save failed");
+    });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "animations"));
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(appPreferencesStore.getSnapshot().appearance.animationsEnabled).toBe(false);
+    expect(palette.textContent).toContain("Appearance: Turn animations on");
+    expect(palette.textContent).not.toContain("Retry saving animations");
+    expect(palette.querySelector('[role="alert"]')).toBeNull();
+  });
+
+  it("commits display density only after confirming its current-marked child mode", async () => {
+    await appPreferencesStore.update({ density: "comfortable" });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "display density"));
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(search.placeholder).toBe("Change display density…");
+    expect(palette.querySelector('[data-committed="true"]')?.textContent).toContain("Comfortable");
+    expect(appPreferencesStore.getSnapshot().density).toBe("comfortable");
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      );
+    });
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(document.querySelector(".quick-actions")).toBeNull();
+    expect(appPreferencesStore.getSnapshot().density).toBe("compact");
+  });
+
+  it("keeps optimistic density active but uncommitted and retries the same option", async () => {
+    await appPreferencesStore.update({ density: "comfortable" });
+    const originalUpdate = appPreferencesStore.update.bind(appPreferencesStore);
+    const targets: string[] = [];
+    vi.spyOn(appPreferencesStore, "update").mockImplementation(async (changes) => {
+      if (changes.density) targets.push(changes.density);
+      const preferences = await originalUpdate(changes);
+      if (targets.length === 1) throw new Error("disk unavailable");
+      return preferences;
+    });
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "display density"));
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowDown" }),
+      );
+    });
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(document.querySelector(".quick-actions")).toBe(palette);
+    expect(appPreferencesStore.getSnapshot().density).toBe("compact");
+    expect(palette.querySelector('[data-committed="true"]')?.textContent).toContain("Comfortable");
+    expect(palette.querySelector('[aria-selected="true"]')?.textContent).toContain("Compact");
+    expect(palette.querySelector('[role="alert"]')?.textContent).toBe(
+      "Compact density is active for this session but could not be saved. Retry to keep this setting after Archeion closes.",
+    );
+
+    await act(async () => {
+      search.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Enter" }),
+      );
+    });
+
+    expect(targets).toEqual(["compact", "compact"]);
+    expect(document.querySelector(".quick-actions")).toBeNull();
+  });
+
+  it("keeps Focus search out of palette results", async () => {
+    const rendered = await renderProvider();
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!.click());
+    const palette = await waitForPalette();
+    const search = palette.querySelector<HTMLInputElement>('input[type="search"]')!;
+    await act(async () => setInputValue(search, "Focus search"));
+
+    expect(palette.textContent).not.toContain("Focus search");
+    expect(palette.querySelectorAll('[role="option"]')).toHaveLength(0);
+  });
+
+  it("executes Focus search directly without exposing it in the palette", async () => {
+    const onFocusSearch = vi.fn();
+    const rendered = await renderProvider(vi.fn(), { onFocusSearch });
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
+
+    act(() => {
+      opener.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          ctrlKey: true,
+          key: "f",
+        }),
+      );
+    });
+
+    expect(onFocusSearch).toHaveBeenCalledOnce();
+  });
+
   it("opens outside text fields and restores focus after Escape", async () => {
     const rendered = await renderProvider();
     const opener = rendered.container.querySelector<HTMLButtonElement>("#palette-opener")!;
