@@ -39,7 +39,6 @@ describe("reader annotation list model", () => {
       query: "",
       renderLimit: READER_ANNOTATION_RENDER_BATCH,
       sort: "book-order",
-      view: "all",
     });
 
     expect(initial.visibleAnnotations).toHaveLength(450);
@@ -54,7 +53,6 @@ describe("reader annotation list model", () => {
       query: "",
       renderLimit: nextReaderAnnotationRenderLimit(READER_ANNOTATION_RENDER_BATCH),
       sort: "book-order",
-      view: "all",
     });
     expect(expanded.renderedAnnotations).toHaveLength(400);
     expect(expanded.remaining).toBe(50);

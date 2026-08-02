@@ -139,7 +139,7 @@ afterEach(() => {
 });
 
 describe("useReaderBookmarks workflows", () => {
-  it("adds the current bookmark and publishes success feedback", async () => {
+  it("adds the current bookmark without publishing visual success feedback", async () => {
     const created = bookmark("created");
     const storage = { createAnnotation: vi.fn(async () => created) } as unknown as LibraryStorage;
     const props = baseProps(storage);
@@ -153,7 +153,7 @@ describe("useReaderBookmarks workflows", () => {
       type: "bookmark",
     });
     expect(props.synced).toEqual([created]);
-    expect(props.feedback.at(-1)).toEqual({ kind: "added", message: "Bookmark added." });
+    expect(props.feedback).toEqual([]);
   });
 
   it("removes the active current bookmark", async () => {
@@ -182,7 +182,7 @@ describe("useReaderBookmarks workflows", () => {
       chapterHref: "Text/chapter-1.xhtml",
     });
     expect(props.synced).toEqual([restored]);
-    expect(props.feedback.at(-1)).toEqual({ kind: "added", message: "Bookmark restored." });
+    expect(props.feedback).toEqual([]);
   });
 
   it("updates a bookmark label through the stored bookmark mutation path", async () => {
@@ -224,6 +224,23 @@ describe("useReaderBookmarks workflows", () => {
       else await props.apiRef.current?.toggleCurrent();
     });
     expect(props.feedback.at(-1)).toEqual({ kind: "error", message });
+  });
+
+  it("reports an authoritative missing restore result as bookmark failure", async () => {
+    const detached = bookmark("detached", "detached");
+    const storage = {
+      updateBookmarkAnnotation: vi.fn(async () => undefined),
+    } as unknown as LibraryStorage;
+    const props = baseProps(storage, [detached]);
+    await renderHarness(props);
+
+    await act(async () => void (await props.apiRef.current?.toggleCurrent()));
+
+    expect(props.synced).toEqual([]);
+    expect(props.feedback.at(-1)).toEqual({
+      kind: "error",
+      message: "Bookmark could not be restored.",
+    });
   });
 
   it("delegates removal failure feedback to the generic mutation owner", async () => {

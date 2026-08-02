@@ -47,8 +47,11 @@ type HarnessProps = {
   apiRef: MutableRefObject<NoteSessionApi | undefined>;
   archiveId: string;
   bookId: string;
+  claimNoteEditing?: (annotationId: string) => boolean;
   editor: ReaderNoteEditorHandle;
   ensureHighlight: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
+  publishNoteRemoved?: (annotation: HighlightAnnotation) => void;
+  retireNoteRemoval?: (annotationId: string) => void;
   storage: LibraryStorage;
   syncAnnotation: (annotation: Annotation) => void;
   targetRef: MutableRefObject<ReaderNoteTarget | null>;
@@ -58,8 +61,11 @@ function Harness({
   apiRef,
   archiveId,
   bookId,
+  claimNoteEditing = () => true,
   editor,
   ensureHighlight,
+  publishNoteRemoved = () => undefined,
+  retireNoteRemoval = () => undefined,
   storage,
   syncAnnotation,
   targetRef,
@@ -75,7 +81,10 @@ function Harness({
   const session = useReaderNoteSession({
     archiveId,
     bookId,
+    claimNoteEditing,
     ensureHighlight,
+    publishNoteRemoved,
+    retireNoteRemoval,
     storage,
     syncAnnotation,
   });
@@ -120,9 +129,12 @@ function IntegratedHarness({
   apiRef,
   archiveId,
   bookId,
+  claimNoteEditing = () => true,
   ensureHighlight,
   editorVisible = true,
   onTargetUpdate,
+  publishNoteRemoved = () => undefined,
+  retireNoteRemoval = () => undefined,
   storage,
   syncAnnotation,
   targetRef: externalTargetRef,
@@ -132,7 +144,10 @@ function IntegratedHarness({
   const session = useReaderNoteSession({
     archiveId,
     bookId,
+    claimNoteEditing,
     ensureHighlight,
+    publishNoteRemoved,
+    retireNoteRemoval,
     storage,
     syncAnnotation,
   });
@@ -282,6 +297,98 @@ describe("useReaderNoteSession", () => {
     expect(targetRef.current?.keepsHighlightOnEmptyClose).toBe(false);
   });
 
+  it("rejects only the exact note target when editing ownership cannot be claimed", async () => {
+    const blocked = highlight("blocked");
+    const allowed = highlight("allowed");
+    const claimNoteEditing = vi.fn((annotationId: string) => annotationId !== blocked.id);
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      claimNoteEditing,
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(vi.fn()),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+
+    await act(async () => {
+      await expect(apiRef.current!.openAnnotationNote(blocked)).resolves.toBe(false);
+    });
+    expect(targetRef.current).toBeNull();
+
+    await act(async () => {
+      await expect(apiRef.current!.openAnnotationNote(allowed)).resolves.toBe(true);
+    });
+    expect(targetRef.current?.annotation).toBe(allowed);
+    expect(claimNoteEditing).toHaveBeenNthCalledWith(1, blocked.id);
+    expect(claimNoteEditing).toHaveBeenNthCalledWith(2, allowed.id);
+  });
+
+  it("retires note-removal feedback on the first owned replacement draft change", async () => {
+    const existing = highlight("replacement-draft");
+    const other = highlight("other-target");
+    const retireNoteRemoval = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      retireNoteRemoval,
+      storage: storageWithUpdate(vi.fn()),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(existing);
+    });
+    const originalTarget = targetRef.current!;
+
+    expect(retireNoteRemoval).not.toHaveBeenCalled();
+    act(() => apiRef.current!.updateDraft(originalTarget, "Replacement note"));
+    expect(retireNoteRemoval).toHaveBeenCalledWith(existing.id);
+
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(other);
+    });
+    act(() => apiRef.current!.updateDraft(originalTarget, "Stale replacement"));
+    expect(retireNoteRemoval).toHaveBeenCalledTimes(1);
+  });
+
+  it("retires note-removal feedback after successful note persistence", async () => {
+    const existing = highlight("replacement-save");
+    const saved = { ...existing, note: "Replacement note" };
+    const retireNoteRemoval = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      retireNoteRemoval,
+      storage: storageWithUpdate(vi.fn(async () => saved)),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(existing);
+    });
+
+    await act(async () => {
+      await apiRef.current?.saveNote(targetRef.current!, "Replacement note", existing);
+    });
+
+    expect(retireNoteRemoval).toHaveBeenCalledWith(existing.id);
+  });
+
   it("saves and deletes through the latest persisted highlight snapshot", async () => {
     const original = highlight("note", { note: "Old" });
     const latest = { ...original, color: "blue", updatedAt: "2026-07-14T01:00:00.000Z" };
@@ -292,6 +399,7 @@ describe("useReaderNoteSession", () => {
     };
     const deleted = { ...saved, note: undefined, updatedAt: "2026-07-14T03:00:00.000Z" };
     const update = vi.fn().mockResolvedValueOnce(saved).mockResolvedValueOnce(deleted);
+    const publishNoteRemoved = vi.fn();
     const syncAnnotation = vi.fn();
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
@@ -301,6 +409,7 @@ describe("useReaderNoteSession", () => {
       bookId: "book-a",
       editor: { settle: vi.fn(async () => true) },
       ensureHighlight: vi.fn(),
+      publishNoteRemoved,
       storage: storageWithUpdate(update),
       syncAnnotation,
       targetRef,
@@ -324,6 +433,42 @@ describe("useReaderNoteSession", () => {
     });
     expect(update).toHaveBeenNthCalledWith(2, "book-a", saved.id, { note: undefined });
     expect(syncAnnotation).toHaveBeenLastCalledWith(deleted);
+    expect(publishNoteRemoved).toHaveBeenCalledWith(saved);
+  });
+
+  it("publishes note removal only after authoritative storage success", async () => {
+    const original = highlight("publish-after-success", { note: "Original note" });
+    const deleted = { ...original, note: undefined };
+    const pendingDelete = deferred<HighlightAnnotation | undefined>();
+    const publishNoteRemoved = vi.fn();
+    const syncAnnotation = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      publishNoteRemoved,
+      storage: storageWithUpdate(vi.fn(() => pendingDelete.promise)),
+      syncAnnotation,
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+
+    let deletion!: Promise<boolean>;
+    act(() => {
+      deletion = apiRef.current!.deleteNote(targetRef.current!, original);
+    });
+    expect(publishNoteRemoved).not.toHaveBeenCalled();
+
+    await act(async () => pendingDelete.resolve(deleted));
+    await expect(deletion).resolves.toBe(true);
+    expect(syncAnnotation).toHaveBeenCalledWith(deleted);
+    expect(publishNoteRemoved).toHaveBeenCalledWith(original);
   });
 
   it("invalidates a pending open when the book or archive session changes", async () => {
@@ -357,6 +502,7 @@ describe("useReaderNoteSession", () => {
       .fn()
       .mockImplementationOnce(() => pendingSave.promise)
       .mockImplementationOnce(() => pendingDelete.promise);
+    const publishNoteRemoved = vi.fn();
     const syncAnnotation = vi.fn();
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
@@ -364,6 +510,7 @@ describe("useReaderNoteSession", () => {
       apiRef,
       editor: { settle: vi.fn(async () => true) },
       ensureHighlight: vi.fn(),
+      publishNoteRemoved,
       storage: storageWithUpdate(update),
       syncAnnotation,
       targetRef,
@@ -397,6 +544,7 @@ describe("useReaderNoteSession", () => {
     });
     expect(deleteResult).toBe(false);
     expect(syncAnnotation).not.toHaveBeenCalled();
+    expect(publishNoteRemoved).not.toHaveBeenCalled();
     expect(targetRef.current).toBeNull();
   });
 

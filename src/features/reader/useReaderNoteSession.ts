@@ -30,7 +30,10 @@ export type ReaderNoteSurfaceAdapter = {
 type UseReaderNoteSessionOptions = {
   archiveId: string | null;
   bookId?: string;
+  claimNoteEditing: (annotationId: string) => boolean;
   ensureHighlight: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
+  publishNoteRemoved: (annotation: HighlightAnnotation) => void;
+  retireNoteRemoval: (annotationId: string) => void;
   storage: LibraryStorage;
   syncAnnotation: (annotation: Annotation) => void;
 };
@@ -70,7 +73,10 @@ export function readerNoteTargetAnnotationId(target: ReaderNoteTarget): string {
 export function useReaderNoteSession({
   archiveId,
   bookId,
+  claimNoteEditing,
   ensureHighlight,
+  publishNoteRemoved,
+  retireNoteRemoval,
   storage,
   syncAnnotation,
 }: UseReaderNoteSessionOptions) {
@@ -81,7 +87,10 @@ export function useReaderNoteSession({
   const persistenceLeaseRef = useRef<ReaderNotePersistenceLease | null>(null);
   const surfaceAdapterRef = useRef<ReaderNoteSurfaceAdapter | null>(null);
   const mountedRef = useRef(true);
+  const claimNoteEditingRef = useRef(claimNoteEditing);
   const ensureHighlightRef = useRef(ensureHighlight);
+  const publishNoteRemovedRef = useRef(publishNoteRemoved);
+  const retireNoteRemovalRef = useRef(retireNoteRemoval);
   const storageRef = useRef(storage);
   const syncAnnotationRef = useRef(syncAnnotation);
   const session = useMemo<ReaderNoteSessionIdentity>(
@@ -101,10 +110,21 @@ export function useReaderNoteSession({
       openRequestRef.current += 1;
       persistenceLeaseRef.current = null;
     }
+    claimNoteEditingRef.current = claimNoteEditing;
     ensureHighlightRef.current = ensureHighlight;
+    publishNoteRemovedRef.current = publishNoteRemoved;
+    retireNoteRemovalRef.current = retireNoteRemoval;
     storageRef.current = storage;
     syncAnnotationRef.current = syncAnnotation;
-  }, [ensureHighlight, session, storage, syncAnnotation]);
+  }, [
+    claimNoteEditing,
+    ensureHighlight,
+    publishNoteRemoved,
+    retireNoteRemoval,
+    session,
+    storage,
+    syncAnnotation,
+  ]);
 
   useEffect(() => {
     const draftCache = draftCacheRef.current;
@@ -174,7 +194,9 @@ export function useReaderNoteSession({
     ) => {
       if (!ownsOpenRequest(request) || !request.session.bookId) return false;
       const adapter = surfaceAdapterRef.current;
-      if (!adapter) return false;
+      if (!adapter || !claimNoteEditingRef.current(annotation.id) || !ownsOpenRequest(request)) {
+        return false;
+      }
       const target: ReaderNoteTarget = {
         annotation,
         bookId: request.session.bookId,
@@ -252,6 +274,7 @@ export function useReaderNoteSession({
   const updateDraft = useCallback(
     (target: ReaderNoteTarget, text: string) => {
       if (!isCurrentTarget(target)) return;
+      retireNoteRemovalRef.current(target.annotation.id);
       draftCacheRef.current.update(target, text);
     },
     [isCurrentTarget],
@@ -312,6 +335,7 @@ export function useReaderNoteSession({
         );
         if (!saved || !isCurrentTarget(target)) return undefined;
         draftCacheRef.current.confirmPersisted(target, note);
+        retireNoteRemovalRef.current(persistedAnnotation.id);
         const nextTarget = { ...target, annotation: saved };
         surfaceAdapterRef.current?.updateTarget(nextTarget);
         syncAnnotationRef.current(saved);
@@ -336,6 +360,7 @@ export function useReaderNoteSession({
         if (!updated || !isCurrentTarget(target)) return false;
         draftCacheRef.current.clear(target);
         syncAnnotationRef.current(updated);
+        publishNoteRemovedRef.current(persistedAnnotation);
         return true;
       } catch {
         return false;

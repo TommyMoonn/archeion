@@ -15,7 +15,6 @@ import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import { MenuItem } from "../../components/MenuItem";
-import { SegmentedControl } from "../../components/SegmentedControl";
 import { Tooltip } from "../../components/Tooltip";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
@@ -32,17 +31,11 @@ import {
 } from "./readerAnnotationListModel";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderHighlightColor } from "./readerHighlights";
-import { type ReaderAnnotationSort, type ReaderAnnotationView } from "./readerAnnotations";
+import type { ReaderAnnotationSort } from "./readerAnnotations";
 import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import { useReaderAnnotationActionMenu } from "./useReaderAnnotationActionMenu";
 import { useReaderAnnotationPanelActions } from "./useReaderAnnotationPanelActions";
 import { ReaderSidePanel } from "./ReaderSidePanel";
-
-const VIEW_OPTIONS = [
-  { label: "All", value: "all" },
-  { label: "Bookmarks", value: "bookmarks" },
-  { label: "Highlights", value: "highlights" },
-] satisfies Array<{ label: string; value: ReaderAnnotationView }>;
 
 const SORT_OPTIONS = [
   { label: "Book order", value: "book-order" },
@@ -98,7 +91,6 @@ export function ReaderAnnotationsPanel({
   const { closeDetails: closeExportDetails, detailsRef: exportMenuRef } = useDismissibleDetails();
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
-  const [view, setView] = useState<ReaderAnnotationView>("all");
   const [sort, setSort] = useState<ReaderAnnotationSort>("book-order");
   const [renderLimit, setRenderLimit] = useState(READER_ANNOTATION_RENDER_BATCH);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
@@ -111,9 +103,8 @@ export function ReaderAnnotationsPanel({
         query: deferredQuery,
         renderLimit,
         sort,
-        view,
       }),
-    [annotations, deferredQuery, navigation.chapters, renderLimit, sort, view],
+    [annotations, deferredQuery, navigation.chapters, renderLimit, sort],
   );
 
   const requestRowFocus = useCallback((annotationId?: string) => {
@@ -183,11 +174,6 @@ export function ReaderAnnotationsPanel({
     setRenderLimit(READER_ANNOTATION_RENDER_BATCH);
     actionMenu.close();
     actions.resetTransientState();
-  }
-
-  function changeView(nextView: ReaderAnnotationView) {
-    resetListTransientState();
-    setView(nextView);
   }
 
   function changeSort(nextSort: ReaderAnnotationSort) {
@@ -277,14 +263,6 @@ export function ReaderAnnotationsPanel({
       ) : null}
 
       <div className="reader-annotations__controls">
-        <SegmentedControl
-          className="reader-annotations__views"
-          label="Annotation view"
-          onChange={changeView}
-          options={VIEW_OPTIONS}
-          size="compact"
-          value={view}
-        />
         <div className="reader-annotations__tools">
           <Input
             aria-keyshortcuts={searchAriaKeyShortcuts}
@@ -332,11 +310,9 @@ export function ReaderAnnotationsPanel({
         panelAction={actions.panelAction}
         panelId={panelId}
         pendingRemovalId={actions.pendingRemovalId}
-        query={query}
         recoveryFeedback={actions.recoveryFeedback}
         ref={listRef}
         rowMutation={actions.rowMutation}
-        view={view}
       />
 
       <ReaderAnnotationActionMenu

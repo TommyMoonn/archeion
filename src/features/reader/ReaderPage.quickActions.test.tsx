@@ -709,7 +709,7 @@ describe("ReaderPage Quick Actions", () => {
     expect(rendered.container.querySelector(".reader-annotations")).toBeInstanceOf(HTMLElement);
   });
 
-  it("uses the direct bookmark shortcut with the existing stable-location callback", async () => {
+  it("updates the bookmark control quietly for direct add and remove shortcuts", async () => {
     const storage = createStorage();
     const createdBookmark = {
       bookId: "book",
@@ -725,6 +725,7 @@ describe("ReaderPage Quick Actions", () => {
       input: CreateBookmarkAnnotationInput,
     ) => Promise<BookmarkAnnotation>;
     vi.mocked(createBookmark).mockResolvedValue(createdBookmark);
+    vi.mocked(storage.deleteAnnotation).mockResolvedValue(true);
     const rendered = await renderReader(storage);
     const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
 
@@ -741,6 +742,59 @@ describe("ReaderPage Quick Actions", () => {
       label: "Chapter 1",
       type: "bookmark",
     });
+    const removeBookmark = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Remove bookmark"]',
+    );
+    expect(removeBookmark?.getAttribute("aria-pressed")).toBe("true");
+    expect(rendered.container.querySelector(".reader-annotation-feedback")).toBeNull();
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "b" }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(storage.deleteAnnotation).toHaveBeenCalledWith("book", createdBookmark.id);
+    const addBookmark = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add bookmark"]',
+    );
+    expect(addBookmark?.getAttribute("aria-pressed")).toBe("false");
+    expect(rendered.container.querySelector(".reader-annotation-feedback")).toBeNull();
+    expect(
+      Array.from(rendered.container.querySelectorAll("button")).some(
+        (candidate) => candidate.textContent === "Undo",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps bookmark failure feedback visible and dismissible without changing toolbar state", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.createAnnotation).mockRejectedValue(new Error("disk unavailable"));
+    const rendered = await renderReader(storage);
+    const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+
+    await act(async () => {
+      target.dispatchEvent(
+        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "b" }),
+      );
+      await Promise.resolve();
+    });
+
+    const addBookmark = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add bookmark"]',
+    );
+    expect(addBookmark?.getAttribute("aria-pressed")).toBe("false");
+    const feedback = rendered.container.querySelector<HTMLElement>(".reader-annotation-feedback");
+    expect(feedback?.getAttribute("role")).toBe("alert");
+    expect(feedback?.textContent).toContain("Bookmark could not be added.");
+
+    await act(async () => {
+      rendered.container
+        .querySelector<HTMLButtonElement>('button[aria-label="Dismiss annotation message"]')
+        ?.click();
+    });
+    expect(rendered.container.querySelector(".reader-annotation-feedback")).toBeNull();
   });
 
   it("applies reader remapping, clearing, reset, and active shortcut attributes immediately", async () => {

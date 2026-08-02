@@ -1014,28 +1014,6 @@ html[data-motion="on"] .reader-side-panel {
   container-type: inline-size;
 }
 
-.reader-annotations__views.segmented-control {
-  width: 100%;
-  border-color: var(--reader-line);
-  background: color-mix(in srgb, var(--reader-surface) 68%, var(--reader-bg));
-}
-
-.reader-annotations__views .segmented-control__option {
-  padding-inline: 7px;
-  color: var(--reader-muted);
-}
-
-.reader-annotations__views .segmented-control__option:hover:not(:disabled) {
-  color: var(--reader-strong);
-  background: var(--reader-surface);
-}
-
-.reader-annotations__views .segmented-control__option[aria-checked="true"] {
-  border-color: color-mix(in srgb, var(--reader-focus) 44%, var(--reader-line));
-  color: var(--reader-strong);
-  background: color-mix(in srgb, var(--reader-surface) 88%, var(--reader-text) 8%);
-}
-
 .reader-annotations__tools {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 142px;

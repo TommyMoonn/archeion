@@ -8,10 +8,8 @@ import {
   type SearchQuery,
 } from "../../utils/searchText";
 
-export const READER_ANNOTATION_VIEWS = ["all", "bookmarks", "highlights"] as const;
 export const READER_ANNOTATION_SORTS = ["book-order", "recent"] as const;
 
-export type ReaderAnnotationView = (typeof READER_ANNOTATION_VIEWS)[number];
 export type ReaderAnnotationSort = (typeof READER_ANNOTATION_SORTS)[number];
 
 export type ReaderAnnotationGroup = {
@@ -120,12 +118,6 @@ export function readerAnnotationChapterLabel(
   return annotationChapter(annotation, buildChapterLookup(chapters)).label;
 }
 
-function matchesView(annotation: Annotation, view: ReaderAnnotationView): boolean {
-  if (view === "all") return true;
-  if (view === "bookmarks") return annotation.type === "bookmark";
-  return annotation.type === "highlight";
-}
-
 function matchesQuery(
   annotation: Annotation,
   chapter: ChapterDescriptor,
@@ -178,20 +170,17 @@ export function visibleReaderAnnotations({
   chapters,
   query,
   sort,
-  view,
 }: {
   annotations: readonly Annotation[];
   chapters: readonly ReaderChapter[];
   query: string;
   sort: ReaderAnnotationSort;
-  view: ReaderAnnotationView;
 }): Annotation[] {
   const chapterLookup = buildChapterLookup(chapters);
   const searchQuery = createSearchQuery(query);
   const hasQuery = !isEmptySearchQuery(searchQuery);
   const needsChapter = hasQuery || sort === "book-order";
   return annotations
-    .filter((annotation) => matchesView(annotation, view))
     .map((annotation): ReaderAnnotationProjection => {
       const chapter = needsChapter ? annotationChapter(annotation, chapterLookup) : undefined;
       return { annotation, chapter };
@@ -245,10 +234,4 @@ export function readerAnnotationRemovalPrompt(annotation: Annotation): string {
     return "Remove highlight and its attached note?";
   }
   return `${readerAnnotationRemoveLabel(annotation)}?`;
-}
-
-export function readerAnnotationEmptyLabel(view: ReaderAnnotationView): string {
-  if (view === "bookmarks") return "No bookmarks";
-  if (view === "highlights") return "No highlights";
-  return "No annotations";
 }

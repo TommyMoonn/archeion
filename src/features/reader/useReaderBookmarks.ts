@@ -83,7 +83,7 @@ export function useReaderBookmarks({
       });
       if (!mutations.ownsMutation(mutation)) return;
       sync(bookmark);
-      mutations.publishFeedback(session, { kind: "added", message: "Bookmark added." });
+      mutations.publishFeedback(session);
     } catch {
       if (mutations.ownsMutation(mutation)) {
         mutations.publishFeedback(session, {
@@ -124,9 +124,16 @@ export function useReaderBookmarks({
         detachedBookmarkAtCurrent.id,
         { anchorStatus: undefined, chapterHref },
       );
-      if (!mutations.ownsMutation(mutation) || !updated) return;
+      if (!mutations.ownsMutation(mutation)) return;
+      if (!updated) {
+        mutations.publishFeedback(session, {
+          kind: "error",
+          message: "Bookmark could not be restored.",
+        });
+        return;
+      }
       sync(updated);
-      mutations.publishFeedback(session, { kind: "added", message: "Bookmark restored." });
+      mutations.publishFeedback(session);
     } catch {
       if (mutations.ownsMutation(mutation)) {
         mutations.publishFeedback(session, {
@@ -156,7 +163,14 @@ export function useReaderBookmarks({
         const updated = await storage.updateBookmarkAnnotation(session.bookId, bookmark.id, {
           label,
         });
-        if (!mutations.ownsMutation(mutation) || !updated) return false;
+        if (!mutations.ownsMutation(mutation)) return false;
+        if (!updated) {
+          mutations.publishFeedback(session, {
+            kind: "error",
+            message: "Bookmark label could not be saved.",
+          });
+          return false;
+        }
         sync(updated);
         return true;
       } catch {

@@ -15,12 +15,7 @@ import { formatMediumDate } from "../../utils/formatters";
 import type { ReaderAnnotationListModel } from "./readerAnnotationListModel";
 import { readerAnnotationFocusFallbackId } from "./readerAnnotationListModel";
 import { normalizeReaderHighlightColor } from "./readerHighlights";
-import {
-  readerAnnotationEmptyLabel,
-  readerAnnotationLabel,
-  readerAnnotationRemovalPrompt,
-  type ReaderAnnotationView,
-} from "./readerAnnotations";
+import { readerAnnotationLabel, readerAnnotationRemovalPrompt } from "./readerAnnotations";
 import type {
   ReaderAnnotationPanelAction,
   ReaderAnnotationRecoveryFeedback,
@@ -54,10 +49,8 @@ type ReaderAnnotationListProps = {
   panelAction?: ReaderAnnotationPanelAction;
   panelId: string;
   pendingRemovalId?: string;
-  query: string;
   recoveryFeedback?: ReaderAnnotationRecoveryFeedback;
   rowMutation?: ReaderAnnotationRowMutation;
-  view: ReaderAnnotationView;
 };
 
 export const ReaderAnnotationList = forwardRef<
@@ -86,10 +79,8 @@ export const ReaderAnnotationList = forwardRef<
     panelAction,
     panelId,
     pendingRemovalId,
-    query,
     recoveryFeedback,
     rowMutation,
-    view,
   },
   forwardedRef,
 ) {
@@ -159,11 +150,7 @@ export const ReaderAnnotationList = forwardRef<
       ) : null}
 
       {loadStatus === "ready" && annotationCount > 0 && model.visibleAnnotations.length === 0 ? (
-        <AnnotationEmptyState
-          label={query.trim() ? "No matches" : readerAnnotationEmptyLabel(view)}
-        >
-          {query.trim() ? "Try a different search." : "Nothing in this view yet."}
-        </AnnotationEmptyState>
+        <AnnotationEmptyState label="No matches">Try a different search.</AnnotationEmptyState>
       ) : null}
 
       {loadStatus === "ready" && model.visibleAnnotations.length > 0 ? (

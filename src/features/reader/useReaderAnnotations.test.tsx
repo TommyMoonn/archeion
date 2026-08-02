@@ -73,6 +73,7 @@ function Harness({
     <div>
       <span data-testid="ids">{annotations.annotations.map(({ id }) => id).join(",")}</span>
       <span data-testid="bookmarks">{annotations.bookmarks.map(({ id }) => id).join(",")}</span>
+      <span data-testid="current-bookmark">{annotations.currentBookmark?.id}</span>
       <span data-testid="feedback">{annotations.feedback?.message}</span>
       <span data-testid="busy">{String(annotations.busy)}</span>
       <button onClick={() => void annotations.toggleCurrent()} type="button">
@@ -131,11 +132,14 @@ describe("useReaderAnnotations facade", () => {
         bookmarks: [],
         busy: false,
         canToggleCurrent: true,
+        claimNoteEditing: expect.any(Function),
         loadStatus: "ready",
         clearFeedback: expect.any(Function),
         forget: expect.any(Function),
+        publishNoteRemoved: expect.any(Function),
         queueAnchorUpdate: expect.any(Function),
         reload: expect.any(Function),
+        retireNoteRemoval: expect.any(Function),
         remove: expect.any(Function),
         sync: expect.any(Function),
         toggleCurrent: expect.any(Function),
@@ -150,6 +154,25 @@ describe("useReaderAnnotations facade", () => {
     act(() => apiRef.current?.forget("synced"));
     expect(text("ids")).toBe("");
     expect(text("bookmarks")).toBe("");
+  });
+
+  it("exposes note-removal feedback through the shared annotation owner", async () => {
+    const original = highlight("noted");
+    original.note = "Original note";
+    const withoutNote = { ...original, note: undefined };
+    const storage = {
+      listAnnotations: vi.fn(async () => [withoutNote]),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    await renderHarness(storage, "book-a", apiRef);
+
+    act(() => apiRef.current?.publishNoteRemoved(original));
+
+    expect(text("ids")).toBe(original.id);
+    expect(text("feedback")).toBe("Note removed.");
+
+    act(() => apiRef.current?.retireNoteRemoval(original.id));
+    expect(text("feedback")).toBe("");
   });
 
   it("releases queued anchor maintenance after an interactive mutation settles", async () => {
@@ -184,17 +207,56 @@ describe("useReaderAnnotations facade", () => {
     );
   });
 
-  it("gives an active load failure priority over pending mutation feedback", async () => {
-    const load = deferred<Annotation[]>();
+  it("synchronizes a successful bookmark toggle without exposing success feedback", async () => {
+    const created = bookmark("created");
     const storage = {
-      listAnnotations: vi.fn(() => load.promise),
-      createAnnotation: vi.fn(async () => bookmark("created")),
+      listAnnotations: vi.fn(async () => []),
+      createAnnotation: vi.fn(async () => created),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     await renderHarness(storage, "book-a", apiRef);
 
     await act(async () => toggle());
-    expect(text("feedback")).toBe("Bookmark added.");
+
+    expect(text("ids")).toBe(created.id);
+    expect(text("bookmarks")).toBe(created.id);
+    expect(text("feedback")).toBe("");
+  });
+
+  it("reattaches a detached bookmark quietly and projects the active toolbar state", async () => {
+    const detached = { ...bookmark("detached"), anchorStatus: "detached" as const };
+    const restored = { ...detached, anchorStatus: undefined };
+    const storage = {
+      listAnnotations: vi.fn(async () => [detached]),
+      updateBookmarkAnnotation: vi.fn(async () => restored),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    await renderHarness(storage, "book-a", apiRef);
+
+    expect(text("current-bookmark")).toBe("");
+    await act(async () => toggle());
+
+    expect(storage.updateBookmarkAnnotation).toHaveBeenCalledWith("book-a", detached.id, {
+      anchorStatus: undefined,
+      chapterHref: undefined,
+    });
+    expect(text("current-bookmark")).toBe(detached.id);
+    expect(text("feedback")).toBe("");
+  });
+
+  it("gives an active load failure priority over pending mutation feedback", async () => {
+    const load = deferred<Annotation[]>();
+    const storage = {
+      listAnnotations: vi.fn(() => load.promise),
+      createAnnotation: vi.fn(async () => {
+        throw new Error("write failed");
+      }),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
+    await renderHarness(storage, "book-a", apiRef);
+
+    await act(async () => toggle());
+    expect(text("feedback")).toBe("Bookmark could not be added.");
     await act(async () => load.reject(new Error("load failed")));
     expect(text("feedback")).toBe("Annotations could not be loaded.");
 
@@ -206,13 +268,15 @@ describe("useReaderAnnotations facade", () => {
     const load = deferred<Annotation[]>();
     const storage = {
       listAnnotations: vi.fn(() => load.promise),
-      createAnnotation: vi.fn(async () => bookmark("created")),
+      createAnnotation: vi.fn(async () => {
+        throw new Error("write failed");
+      }),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     await renderHarness(storage, "book-a", apiRef);
 
     await act(async () => toggle());
-    expect(text("feedback")).toBe("Bookmark added.");
+    expect(text("feedback")).toBe("Bookmark could not be added.");
     act(() => apiRef.current?.clearFeedback());
     expect(text("feedback")).toBe("");
 
@@ -224,12 +288,14 @@ describe("useReaderAnnotations facade", () => {
     const initialLoad = deferred<Annotation[]>();
     const storage = {
       listAnnotations: vi.fn().mockReturnValueOnce(initialLoad.promise).mockResolvedValueOnce([]),
-      createAnnotation: vi.fn(async () => bookmark("created")),
+      createAnnotation: vi.fn(async () => {
+        throw new Error("write failed");
+      }),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
     await renderHarness(storage, "book-a", apiRef);
     await act(async () => toggle());
-    expect(text("feedback")).toBe("Bookmark added.");
+    expect(text("feedback")).toBe("Bookmark could not be added.");
     await act(async () => initialLoad.reject(new Error("load failed")));
     expect(text("feedback")).toBe("Annotations could not be loaded.");
 
@@ -271,7 +337,7 @@ describe("useReaderAnnotations facade", () => {
     act(() => toggle());
     await renderHarness(storage, "book-b", apiRef);
     await act(async () => bookALoad.reject(new Error("stale load failure")));
-    await act(async () => creation.resolve(bookmark("stale mutation")));
+    await act(async () => creation.reject(new Error("stale mutation failure")));
 
     expect(text("ids")).toBe("book-b");
     expect(text("feedback")).toBe("");

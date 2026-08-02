@@ -5,7 +5,6 @@ import {
   visibleReaderAnnotations,
   type ReaderAnnotationGroup,
   type ReaderAnnotationSort,
-  type ReaderAnnotationView,
 } from "./readerAnnotations";
 
 export const READER_ANNOTATION_RENDER_BATCH = 200;
@@ -24,21 +23,18 @@ export function createReaderAnnotationListModel({
   query,
   renderLimit,
   sort,
-  view,
 }: {
   annotations: readonly Annotation[];
   chapters: readonly ReaderChapter[];
   query: string;
   renderLimit: number;
   sort: ReaderAnnotationSort;
-  view: ReaderAnnotationView;
 }): ReaderAnnotationListModel {
   const visibleAnnotations = visibleReaderAnnotations({
     annotations,
     chapters,
     query,
     sort,
-    view,
   });
   const renderedAnnotations = visibleAnnotations.slice(0, renderLimit);
 

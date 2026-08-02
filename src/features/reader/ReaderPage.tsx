@@ -249,7 +249,10 @@ export function ReaderPage() {
   } = useReaderNoteSession({
     archiveId: activeArchiveId,
     bookId,
+    claimNoteEditing: annotations.claimNoteEditing,
     ensureHighlight: highlights.ensure,
+    publishNoteRemoved: annotations.publishNoteRemoved,
+    retireNoteRemoval: annotations.retireNoteRemoval,
     storage,
     syncAnnotation: annotations.sync,
   });

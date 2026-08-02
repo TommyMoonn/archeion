@@ -156,6 +156,12 @@ function highlight(id: string, overrides: Partial<HighlightAnnotation> = {}): Hi
   };
 }
 
+function currentHighlight(index = 0): HighlightAnnotation {
+  const current = viewerControl.props?.highlights[index];
+  if (!current) throw new Error(`Expected rendered highlight at index ${index}.`);
+  return current;
+}
+
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
   let reject!: (reason?: unknown) => void;
@@ -242,6 +248,26 @@ function createStorageHarness(initial: Record<string, Annotation[]> = {}) {
     storage,
     updateAnnotation,
   };
+}
+
+function deferNextHighlightUpdate(harness: StorageHarness, gate: Promise<void>): void {
+  harness.updateAnnotation.mockImplementationOnce(async (bookId, annotationId, patch) => {
+    await gate;
+    const annotations = harness.records.get(bookId) ?? [];
+    const index = annotations.findIndex((candidate) => candidate.id === annotationId);
+    if (index < 0) return undefined;
+    const updated = {
+      ...annotations[index],
+      ...patch,
+      updatedAt: nextTimestamp,
+    } as Annotation;
+    if (Object.prototype.hasOwnProperty.call(patch, "note") && patch.note === undefined) {
+      delete (updated as HighlightAnnotation).note;
+    }
+    annotations[index] = structuredClone(updated);
+    harness.records.set(bookId, annotations);
+    return structuredClone(updated);
+  });
 }
 
 let container: HTMLDivElement | null = null;
@@ -1438,7 +1464,7 @@ describe("ReaderPage annotation notes", () => {
     ]);
   });
 
-  it("requires explicit deletion, retries failure, and preserves the highlight record", async () => {
+  it("deletes only the saved note and restores it on the existing highlight with Undo", async () => {
     const existing = {
       ...highlight("existing-delete", {
         chapterHref: "Text/notes.xhtml",
@@ -1479,6 +1505,7 @@ describe("ReaderPage annotation notes", () => {
       "Note could not be deleted.",
     );
     expect(viewerControl.props?.highlights[0]?.note).toBe("Original note");
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
 
     await act(async () => {
       button("Delete").click();
@@ -1502,6 +1529,337 @@ describe("ReaderPage annotation notes", () => {
     });
     expect(remaining).not.toHaveProperty("note");
     expect(harness.createAnnotation).not.toHaveBeenCalled();
+    const feedback = container?.querySelector(".reader-annotation-feedback");
+    expect(feedback?.textContent).toContain("Note removed.");
+    expect(
+      Array.from(feedback?.querySelectorAll("button") ?? []).filter(
+        (candidate) => candidate.textContent?.trim() === "Undo",
+      ),
+    ).toHaveLength(1);
+
+    await act(async () => button("Undo").click());
+    await waitForHighlights([existing.id]);
+
+    expect(harness.updateAnnotation).toHaveBeenLastCalledWith("book-1", existing.id, {
+      note: "Original note",
+    });
+    expect(harness.restoreAnnotation).not.toHaveBeenCalled();
+    expect(viewerControl.props?.highlights).toEqual([
+      expect.objectContaining({
+        ...existing,
+        updatedAt: nextTimestamp,
+      }),
+    ]);
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note restored.",
+    );
+
+    const reopenedEditor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      viewerControl.props?.highlights[0],
+    );
+    expect(textarea(reopenedEditor).value).toBe("Original note");
+    await closeEditor();
+  });
+
+  it("retires deleted-note Undo before the replacement editor becomes interactive", async () => {
+    const existing = highlight("replacement-supersession", { note: "Original note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note removed.",
+    );
+    expect(button("Undo")).toBeDefined();
+    const withoutNote = viewerControl.props?.highlights[0];
+    expect(withoutNote?.id).toBe(existing.id);
+    expect(withoutNote).not.toHaveProperty("note");
+
+    const editor = await openNote(
+      {
+        cfiRange: withoutNote!.cfiRange,
+        chapterHref: withoutNote!.chapterHref,
+        selectedText: withoutNote!.selectedText,
+      },
+      withoutNote!,
+    );
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
+    setTextareaValue(editor, "Replacement note");
+
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
+    expect(
+      Array.from(container?.querySelectorAll<HTMLButtonElement>("button") ?? []).some(
+        (candidate) => candidate.textContent?.trim() === "Undo",
+      ),
+    ).toBe(false);
+
+    await closeEditor();
+
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      note: "Replacement note",
+    });
+    expect(harness.records.get("book-1")).toEqual([
+      expect.objectContaining({ id: existing.id, note: "Replacement note" }),
+    ]);
+    expect(viewerControl.props?.highlights).toEqual([
+      expect.objectContaining({ id: existing.id, note: "Replacement note" }),
+    ]);
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
+    expect(harness.updateAnnotation).not.toHaveBeenCalledWith("book-1", existing.id, {
+      note: "Original note",
+    });
+  });
+
+  it("rejects same-highlight note editing until a pending note Undo settles", async () => {
+    const existing = highlight("pending-note-edit", { note: "Original note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+
+    const pendingUndo = deferred<void>();
+    deferNextHighlightUpdate(harness, pendingUndo.promise);
+    act(() => button("Undo").click());
+    await flush();
+
+    const withoutNote = currentHighlight();
+    act(() =>
+      invokeNoteAction(
+        {
+          cfiRange: withoutNote.cfiRange,
+          chapterHref: withoutNote.chapterHref,
+          selectedText: withoutNote.selectedText,
+        },
+        withoutNote,
+      ),
+    );
+    await flush();
+
+    expect(container?.querySelector(".reader-note-editor")).toBeNull();
+    expect(harness.records.get("book-1")?.[0]).not.toHaveProperty("note");
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note removed.",
+    );
+
+    await act(async () => pendingUndo.resolve());
+    await waitForHighlights([existing.id]);
+
+    expect(harness.records.get("book-1")?.[0]).toMatchObject({
+      id: existing.id,
+      note: "Original note",
+    });
+    expect(viewerControl.props?.highlights[0]).toMatchObject({
+      id: existing.id,
+      note: "Original note",
+    });
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note restored.",
+    );
+  });
+
+  it("does not resurrect a pending Undo note after the serialized empty-note workflow", async () => {
+    const existing = highlight("pending-empty-note", { note: "Original note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+
+    const pendingUndo = deferred<void>();
+    deferNextHighlightUpdate(harness, pendingUndo.promise);
+    act(() => button("Undo").click());
+    await flush();
+
+    const withoutNote = currentHighlight();
+    act(() =>
+      invokeNoteAction(
+        {
+          cfiRange: withoutNote.cfiRange,
+          chapterHref: withoutNote.chapterHref,
+          selectedText: withoutNote.selectedText,
+        },
+        withoutNote,
+      ),
+    );
+    await flush();
+    expect(container?.querySelector(".reader-note-editor")).toBeNull();
+
+    await act(async () => pendingUndo.resolve());
+    await waitForHighlights([existing.id]);
+    const restored = currentHighlight();
+    const editor = await openNote(
+      {
+        cfiRange: restored.cfiRange,
+        chapterHref: restored.chapterHref,
+        selectedText: restored.selectedText,
+      },
+      restored,
+    );
+    setTextareaValue(editor, "Temporary replacement");
+    setTextareaValue(editor, "");
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+
+    expect(harness.records.get("book-1")?.[0]).not.toHaveProperty("note");
+    expect(viewerControl.props?.highlights[0]).not.toHaveProperty("note");
+
+    const reopened = await openNote(
+      {
+        cfiRange: restored.cfiRange,
+        chapterHref: restored.chapterHref,
+        selectedText: restored.selectedText,
+      },
+      viewerControl.props?.highlights[0],
+    );
+    expect(textarea(reopened).value).toBe("");
+    expect(harness.records.get("book-1")?.[0]).not.toHaveProperty("note");
+  });
+
+  it("keeps a failed post-Undo replacement draft visible and storage-consistent", async () => {
+    const existing = highlight("pending-replacement-failure", { note: "Original note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+
+    const pendingUndo = deferred<void>();
+    deferNextHighlightUpdate(harness, pendingUndo.promise);
+    act(() => button("Undo").click());
+    await flush();
+    const withoutNote = currentHighlight();
+    act(() =>
+      invokeNoteAction(
+        {
+          cfiRange: withoutNote.cfiRange,
+          chapterHref: withoutNote.chapterHref,
+          selectedText: withoutNote.selectedText,
+        },
+        withoutNote,
+      ),
+    );
+    await flush();
+    expect(container?.querySelector(".reader-note-editor")).toBeNull();
+
+    await act(async () => pendingUndo.resolve());
+    await waitForHighlights([existing.id]);
+    const restored = currentHighlight();
+    const editor = await openNote(
+      {
+        cfiRange: restored.cfiRange,
+        chapterHref: restored.chapterHref,
+        selectedText: restored.selectedText,
+      },
+      restored,
+    );
+    setTextareaValue(editor, "Replacement note");
+    harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable"));
+
+    act(() => button("Back to annotations").click());
+    await flush();
+
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    expect(textarea(editor).value).toBe("Replacement note");
+    expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved");
+    expect(harness.records.get("book-1")?.[0]).toMatchObject({
+      id: existing.id,
+      note: "Original note",
+    });
+    expect(viewerControl.props?.highlights[0]).toMatchObject({
+      id: existing.id,
+      note: "Original note",
+    });
+
+    await closeEditor();
+    expect(harness.records.get("book-1")?.[0]).toMatchObject({
+      id: existing.id,
+      note: "Replacement note",
+    });
+    expect(viewerControl.props?.highlights[0]).toMatchObject({
+      id: existing.id,
+      note: "Replacement note",
+    });
+  });
+
+  it.each([
+    [
+      "returns undefined",
+      (harness: StorageHarness) => harness.updateAnnotation.mockResolvedValueOnce(undefined),
+    ],
+    [
+      "rejects",
+      (harness: StorageHarness) =>
+        harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable")),
+    ],
+  ])("keeps a deleted note absent when note Undo %s", async (_case, failUndo) => {
+    const existing = highlight("note-undo-failure", { note: "Original note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+    expect(viewerControl.props?.highlights).toHaveLength(1);
+    expect(viewerControl.props?.highlights[0]).not.toHaveProperty("note");
+
+    failUndo(harness);
+    await act(async () => button("Undo").click());
+
+    expect(harness.updateAnnotation).toHaveBeenLastCalledWith("book-1", existing.id, {
+      note: "Original note",
+    });
+    expect(harness.restoreAnnotation).not.toHaveBeenCalled();
+    expect(viewerControl.props?.highlights).toHaveLength(1);
+    expect(viewerControl.props?.highlights[0]?.id).toBe(existing.id);
+    expect(viewerControl.props?.highlights[0]).not.toHaveProperty("note");
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note could not be restored.",
+    );
+
+    act(() => button("Dismiss annotation message").click());
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
   });
 
   it("removes a complete noted highlight and restores its exact snapshot with Undo", async () => {
@@ -1753,6 +2111,47 @@ describe("ReaderPage annotation notes", () => {
     expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
     expect(viewerControl.props?.highlights).toEqual([second]);
     expect(harness.records.get("book-1")).toEqual([]);
+  });
+
+  it("does not apply a note Undo completion from Book A to Book B", async () => {
+    const first = highlight("book-1-note-undo", { note: "First note" });
+    const second = highlight("book-2-note-undo", { note: "Second note" });
+    const harness = createStorageHarness({ "book-1": [first], "book-2": [second] });
+    const router = await renderReader(harness);
+    await openNote(
+      {
+        cfiRange: first.cfiRange,
+        chapterHref: first.chapterHref,
+        selectedText: first.selectedText,
+      },
+      first,
+    );
+    await confirmDeleteNote();
+    await waitForEditorToClose();
+    expect(container?.querySelector(".reader-annotation-feedback")?.textContent).toContain(
+      "Note removed.",
+    );
+
+    const pendingUndo = deferred<HighlightAnnotation | undefined>();
+    harness.updateAnnotation.mockImplementationOnce(async (bookId, annotationId) => {
+      const restored = await pendingUndo.promise;
+      if (restored) {
+        const annotations = harness.records.get(bookId) ?? [];
+        const index = annotations.findIndex((candidate) => candidate.id === annotationId);
+        if (index >= 0) annotations[index] = structuredClone(restored);
+        harness.records.set(bookId, annotations);
+      }
+      return restored;
+    });
+    act(() => button("Undo").click());
+    await flush();
+
+    await switchBook(router, "book-2", [second.id]);
+    await act(async () => pendingUndo.resolve(first));
+    await flush();
+
+    expect(viewerControl.props?.highlights).toEqual([second]);
+    expect(container?.querySelector(".reader-annotation-feedback")).toBeNull();
   });
 
   it("suppresses stale undo feedback after an annotation-session switch", async () => {

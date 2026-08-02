@@ -53,7 +53,6 @@ function model(
     query,
     renderLimit,
     sort: "book-order",
-    view: "all",
   });
 }
 
@@ -77,8 +76,6 @@ function defaultProps(
     onSaveBookmarkLabel: vi.fn(),
     onShowMore: vi.fn(),
     panelId: "annotations-panel",
-    query: "",
-    view: "all",
     ...overrides,
   };
 }
@@ -147,7 +144,6 @@ describe("ReaderAnnotationList", () => {
           {...defaultProps({
             annotationCount: 1,
             model: model([bookmark], "missing"),
-            query: "missing",
           })}
         />,
       ),

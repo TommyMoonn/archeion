@@ -4,7 +4,6 @@ import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annota
 import type { ReaderChapter } from "../../types/reader";
 import {
   groupReaderAnnotations,
-  readerAnnotationEmptyLabel,
   readerAnnotationRemoveLabel,
   readerAnnotationRemovalPrompt,
   visibleReaderAnnotations,
@@ -43,7 +42,7 @@ const chapters: ReaderChapter[] = [
 ];
 
 describe("reader annotations", () => {
-  it("searches annotation content and resolved chapter labels within the active view", () => {
+  it("searches annotation content and resolved chapter labels across the complete list", () => {
     const annotations = [
       bookmark({
         chapterHref: "Text/chapter-1.xhtml",
@@ -63,23 +62,18 @@ describe("reader annotations", () => {
       }),
     ];
 
-    const search = (query: string, view: "all" | "bookmarks" | "highlights" = "all") =>
+    const search = (query: string) =>
       visibleReaderAnnotations({
         annotations,
         chapters,
         query,
         sort: "book-order",
-        view,
       }).map(({ id }) => id);
 
     expect(search("RETURN TO THE MAP")).toEqual(["bookmark"]);
-    expect(search("return to", "bookmarks")).toEqual(["bookmark"]);
-    expect(search("return to", "highlights")).toEqual([]);
     expect(search("quoted")).toEqual(["highlight"]);
     expect(search("private thought")).toEqual(["highlight"]);
     expect(search("chapter one")).toEqual(["bookmark", "highlight"]);
-    expect(search("chapter one", "bookmarks")).toEqual(["bookmark"]);
-    expect(search("chapter one", "highlights")).toEqual(["highlight"]);
     expect(search("   \t ")).toEqual(["bookmark", "highlight", "other-highlight"]);
   });
 
@@ -110,7 +104,6 @@ describe("reader annotations", () => {
         chapters: chaptersWithoutAnExplicitLabel,
         query,
         sort: "book-order",
-        view: "all",
       });
 
     expect(search("forgotten harbor")).toEqual([privateAnnotation]);
@@ -144,7 +137,6 @@ describe("reader annotations", () => {
       chapters,
       query: "",
       sort: "book-order",
-      view: "all",
     });
     expect(visible.map(({ id }) => id)).toEqual(["first-early", "first-late", "second"]);
     expect(groupReaderAnnotations(visible, chapters).map(({ label }) => label)).toEqual([
@@ -180,7 +172,6 @@ describe("reader annotations", () => {
       chapters,
       query: "shared theme",
       sort: "book-order",
-      view: "all",
     });
 
     expect(visible.map(({ id }) => id)).toEqual(["first-early", "first-late", "second"]);
@@ -202,7 +193,6 @@ describe("reader annotations", () => {
         chapters,
         query: "",
         sort: "recent",
-        view: "all",
       }).map(({ id }) => id),
     ).toEqual(["newer", "older"]);
   });
@@ -230,7 +220,6 @@ describe("reader annotations", () => {
       chapters,
       query: "",
       sort: "book-order",
-      view: "all",
     });
 
     expect(visible).toHaveLength(1_000);
@@ -257,15 +246,13 @@ describe("reader annotations", () => {
       chapters,
       query: "",
       sort: "recent",
-      view: "all",
     });
 
     expect(visible).toHaveLength(1_000);
     expect(chapterHrefReads).toBe(0);
   });
 
-  it("provides concise view and removal labels", () => {
-    expect(readerAnnotationEmptyLabel("highlights")).toBe("No highlights");
+  it("provides concise removal labels", () => {
     expect(readerAnnotationRemoveLabel(highlight({ id: "highlight" }))).toBe("Remove highlight");
     expect(readerAnnotationRemovalPrompt(highlight({ id: "plain" }))).toBe("Remove highlight?");
     expect(readerAnnotationRemovalPrompt(highlight({ id: "noted", note: "Attached" }))).toBe(

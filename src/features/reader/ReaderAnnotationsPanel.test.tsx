@@ -207,11 +207,6 @@ describe("ReaderAnnotationsPanel", () => {
     expect(rendered.props.onClose).not.toHaveBeenCalled();
 
     pointerClick(exportTrigger);
-    pointerClick(textButton(rendered.container, "Bookmarks"));
-    expect(exportDetails.open).toBe(false);
-    expect(rendered.container.textContent).not.toContain(highlight.selectedText);
-
-    pointerClick(exportTrigger);
     pointerClick(button(rendered.container, "Sort annotations"));
     expect(exportDetails.open).toBe(false);
     expect(button(rendered.container, "Sort annotations").getAttribute("aria-expanded")).toBe(
@@ -516,6 +511,8 @@ describe("ReaderAnnotationsPanel", () => {
     expect(sortTrigger.textContent).toContain("Recently updated");
     expect(sortTrigger.getAttribute("aria-expanded")).toBe("false");
     expect(document.activeElement).toBe(sortTrigger);
+    expect(rendered.container.textContent).toContain(bookmark.label);
+    expect(rendered.container.textContent).toContain(highlight.selectedText);
   });
 
   it("closes the action menu first and restores its trigger", () => {
@@ -1073,7 +1070,7 @@ describe("ReaderAnnotationsPanel", () => {
 
   it("uses annotation-wide search copy and searches labels, chapters, quotes, and notes", async () => {
     const rendered = renderPanel();
-    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(3);
+    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(0);
     expect(rendered.container.textContent).not.toContain("Notes");
 
     const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]');
@@ -1105,27 +1102,26 @@ describe("ReaderAnnotationsPanel", () => {
     expect(rendered.container.textContent).not.toContain("highlight search");
   });
 
-  it("describes the empty annotation collection without a Notes view or standalone note row", () => {
+  it("describes the empty annotation collection without type filters or standalone note rows", () => {
     const rendered = renderPanel({ annotations: [] });
 
     expect(rendered.container.textContent).toContain("Bookmarks and highlights appear here.");
     expect(rendered.container.textContent).toContain("Highlights can include notes.");
-    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(3);
+    expect(rendered.container.querySelector('[aria-label="Annotation view"]')).toBeNull();
+    expect(rendered.container.querySelector(".reader-annotations__views")).toBeNull();
+    expect(rendered.container.querySelectorAll('button[role="radio"]')).toHaveLength(0);
     expect(rendered.container.textContent).not.toContain("Notes");
     expect(rendered.container.querySelector('[aria-label^="Actions for Note"]')).toBeNull();
   });
 
-  it("uses accurate no-results copy in every annotation view", async () => {
+  it("uses annotation-wide no-results copy", async () => {
     const rendered = renderPanel();
     const search = rendered.container.querySelector<HTMLInputElement>('input[type="search"]')!;
 
-    for (const view of ["All", "Bookmarks", "Highlights"]) {
-      act(() => textButton(rendered.container, view).click());
-      setInputValue(search, "not present anywhere");
-      await act(async () => Promise.resolve());
-      expect(rendered.container.textContent).toContain("No matches");
-      expect(rendered.container.textContent).toContain("Try a different search.");
-    }
+    setInputValue(search, "not present anywhere");
+    await act(async () => Promise.resolve());
+    expect(rendered.container.textContent).toContain("No matches");
+    expect(rendered.container.textContent).toContain("Try a different search.");
   });
 
   it("marks a successfully navigated range highlight current without marking unrelated highlights", async () => {
@@ -1194,8 +1190,8 @@ describe("ReaderAnnotationsPanel", () => {
     act(() => textButton(rendered.container, "Show more 5 remaining").click());
     expect(rendered.container.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
   });
-  it("preserves query, view, render limit, scroll, and row focus across note-editor transitions", () => {
-    const annotations = Array.from({ length: 205 }, (_, index): Annotation => ({
+  it("preserves query, scroll, and row focus across note-editor transitions", () => {
+    const annotations = Array.from({ length: 3 }, (_, index): Annotation => ({
       ...highlight,
       cfiRange: `epubcfi(/6/${index + 4},/1:0,/1:18)`,
       id: `highlight-${index}`,
@@ -1218,7 +1214,7 @@ describe("ReaderAnnotationsPanel", () => {
               active,
               annotations,
               currentCfi: undefined,
-              restoreFocusAnnotationId: "highlight-204",
+              restoreFocusAnnotationId: "highlight-2",
             })}
           />
         </>
@@ -1227,11 +1223,7 @@ describe("ReaderAnnotationsPanel", () => {
 
     const target = mount(<NoteTransitionHarness />);
     const search = target.querySelector<HTMLInputElement>('input[type="search"]')!;
-    const highlightsView = textButton(target, "Highlights");
-    pointerClick(highlightsView);
     setInputValue(search, "passage");
-    act(() => textButton(target, "Show more 5 remaining").click());
-    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
     const body = target.querySelector<HTMLElement>(".reader-annotations__body")!;
     act(() => {
       body.scrollTop = 146;
@@ -1242,19 +1234,53 @@ describe("ReaderAnnotationsPanel", () => {
     pointerClick(button(target, "Return to annotations"));
 
     expect(search.value).toBe("passage");
-    expect(highlightsView.getAttribute("aria-checked")).toBe("true");
-    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(205);
+    expect(body.scrollTop).toBe(146);
+    const restoredRow = Array.from(
+      target.querySelectorAll<HTMLElement>(".reader-annotations__item"),
+    ).find((row) => row.textContent?.includes("Passage 2"));
+    expect(document.activeElement).toBe(
+      restoredRow?.querySelector<HTMLButtonElement>("[data-annotation-menu-trigger]"),
+    );
+  });
+
+  it("preserves the expanded render limit across note-editor transitions", () => {
+    const annotations = Array.from({ length: 201 }, (_, index): Annotation => ({
+      ...bookmark,
+      cfiRange: `epubcfi(/6/${index + 2})`,
+      id: `bookmark-${index}`,
+      label: `Bookmark ${index}`,
+    }));
+
+    function NoteTransitionHarness() {
+      const [active, setActive] = useState(true);
+      return (
+        <>
+          <button aria-label="Open note editor" onClick={() => setActive(false)} type="button">
+            Open note editor
+          </button>
+          <button aria-label="Return to annotations" onClick={() => setActive(true)} type="button">
+            Return to annotations
+          </button>
+          <ReaderAnnotationsPanel
+            {...defaultProps({ active, annotations, currentCfi: undefined })}
+          />
+        </>
+      );
+    }
+
+    const target = mount(<NoteTransitionHarness />);
+    act(() => textButton(target, "Show more 1 remaining").click());
+    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(201);
+
+    pointerClick(button(target, "Open note editor"));
+    expect(target.querySelector("aside")?.hidden).toBe(true);
+    pointerClick(button(target, "Return to annotations"));
+
+    expect(target.querySelectorAll(".reader-annotations__item")).toHaveLength(201);
     expect(
       Array.from(target.querySelectorAll<HTMLButtonElement>("button")).some((candidate) =>
         candidate.textContent?.includes("Show more"),
       ),
     ).toBe(false);
-    expect(body.scrollTop).toBe(146);
-    const restoredRow = Array.from(
-      target.querySelectorAll<HTMLElement>(".reader-annotations__item"),
-    ).find((row) => row.textContent?.includes("Passage 204"));
-    expect(document.activeElement).toBe(
-      restoredRow?.querySelector<HTMLButtonElement>("[data-annotation-menu-trigger]"),
-    );
   });
 });
