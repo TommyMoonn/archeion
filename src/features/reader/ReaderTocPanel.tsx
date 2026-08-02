@@ -26,6 +26,7 @@ export function ReaderTocPanel({
   const panelRef = useRef<HTMLElement>(null);
   const localSearchRef = useRef<HTMLInputElement>(null);
   const searchRef = searchInputRef ?? localSearchRef;
+  const bodyRef = useRef<HTMLDivElement>(null);
   const currentChapterRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState("");
   const [navigatingId, setNavigatingId] = useState<string>();
@@ -48,8 +49,11 @@ export function ReaderTocPanel({
     const focusTarget = showSearch
       ? (searchInputRef?.current ?? localSearchRef.current)
       : (currentChapterRef.current ?? panelRef.current);
-    focusTarget?.focus();
-    currentChapterRef.current?.scrollIntoView?.({ block: "nearest" });
+    focusTarget?.focus({ preventScroll: true });
+
+    if (bodyRef.current && currentChapterRef.current) {
+      revealWithinScrollContainer(bodyRef.current, currentChapterRef.current);
+    }
   }, [navigation.status, searchInputRef, showSearch]);
 
   async function selectChapter(chapter: ReaderChapter) {
@@ -111,7 +115,7 @@ export function ReaderTocPanel({
         />
       ) : null}
 
-      <div className="reader-toc__body">
+      <div className="reader-toc__body" ref={bodyRef}>
         {navigation.status === "loading" ? <TocLoadingState /> : null}
 
         {navigation.status === "ready" && navigation.chapters.length === 0 ? (
@@ -172,6 +176,20 @@ export function ReaderTocPanel({
       ) : null}
     </aside>
   );
+}
+
+function revealWithinScrollContainer(container: HTMLElement, target: HTMLElement): void {
+  const containerBounds = container.getBoundingClientRect();
+  const targetBounds = target.getBoundingClientRect();
+  let nextScrollTop = container.scrollTop;
+
+  if (targetBounds.top < containerBounds.top) {
+    nextScrollTop -= containerBounds.top - targetBounds.top;
+  } else if (targetBounds.bottom > containerBounds.bottom) {
+    nextScrollTop += targetBounds.bottom - containerBounds.bottom;
+  }
+
+  container.scrollTop = Math.max(0, nextScrollTop);
 }
 
 function TocLoadingState() {

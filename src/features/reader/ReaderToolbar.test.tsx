@@ -31,7 +31,6 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
     onNextChapter: vi.fn(),
     onPrevious: vi.fn(),
     onPreviousChapter: vi.fn(),
-    onQuickActions: vi.fn(),
     onSettings: vi.fn(),
     onToc: vi.fn(),
   };
@@ -164,14 +163,10 @@ describe("ReaderToolbar", () => {
     const { container } = renderToolbar({
       annotationsAriaKeyShortcuts: "A",
       bookmarkAriaKeyShortcuts: "B",
-      quickActionsAriaKeyShortcuts: "Control+Shift+P",
       settingsAriaKeyShortcuts: "S",
       tocAriaKeyShortcuts: "T",
     });
 
-    expect(button(container, "Quick Actions").getAttribute("aria-keyshortcuts")).toBe(
-      "Control+Shift+P",
-    );
     expect(button(container, "Table of contents").getAttribute("aria-keyshortcuts")).toBe("T");
     expect(button(container, "Annotations").getAttribute("aria-keyshortcuts")).toBe("A");
     expect(button(container, "Add bookmark").getAttribute("aria-keyshortcuts")).toBe("B");
@@ -181,15 +176,16 @@ describe("ReaderToolbar", () => {
   it("omits shortcut attributes for unassigned commands", () => {
     const { container } = renderToolbar();
 
-    for (const label of [
-      "Quick Actions",
-      "Table of contents",
-      "Annotations",
-      "Add bookmark",
-      "Reader settings",
-    ]) {
+    for (const label of ["Table of contents", "Annotations", "Add bookmark", "Reader settings"]) {
       expect(button(container, label).hasAttribute("aria-keyshortcuts")).toBe(false);
     }
+  });
+
+  it("keeps Quick Actions out of the Reader toolbar", () => {
+    const { container } = renderToolbar();
+
+    expect(container.querySelector('button[aria-label="Quick Actions"]')).toBeNull();
+    expect(container.querySelectorAll(".reader-toolbar__divider")).toHaveLength(2);
   });
 
   it("exposes bookmark state and annotation controls", () => {

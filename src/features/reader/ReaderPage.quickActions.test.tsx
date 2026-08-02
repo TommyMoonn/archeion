@@ -20,6 +20,7 @@ import { ReaderRoute } from "./ReaderPage";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 
 const viewerMock = vi.hoisted(() => ({
+  locationPublications: vi.fn(),
   navigateToLocation: vi.fn().mockResolvedValue(true),
   resolveAnnotationAnchor: vi.fn(),
   onKeyDown: null as ((event: KeyboardEvent) => void) | null,
@@ -51,6 +52,7 @@ vi.mock("./EpubViewer", async () => {
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
         onReady: () => void;
+        settings: { mode: "continuous" | "paged" };
       },
       ref: React.ForwardedRef<unknown>,
     ) {
@@ -79,16 +81,36 @@ vi.mock("./EpubViewer", async () => {
       React.useEffect(() => {
         const callbacks = initialCallbacks.current;
         callbacks.onNavigationChange(navigationState);
-        callbacks.onLocationChange({
+        const initialLocation = {
           atEnd: false,
           atStart: false,
           cfi: "epubcfi(/6/4)",
           percentage: 20,
-        });
+        };
+        viewerMock.locationPublications(initialLocation);
+        callbacks.onLocationChange(initialLocation);
         callbacks.onReady();
       }, []);
 
-      return <iframe data-testid="epub-viewer" title="EPUB rendition" />;
+      return (
+        <div className="epub-viewer">
+          <div className="epub-viewer__stage">
+            <iframe data-testid="epub-viewer" title="EPUB rendition" />
+          </div>
+          <button
+            aria-hidden="true"
+            className="epub-viewer__click-zone epub-viewer__click-zone--previous"
+            tabIndex={-1}
+            type="button"
+          />
+          <button
+            aria-hidden="true"
+            className="epub-viewer__click-zone epub-viewer__click-zone--next"
+            tabIndex={-1}
+            type="button"
+          />
+        </div>
+      );
     }),
   };
 });
@@ -294,6 +316,7 @@ function dispatchRenditionShortcut(
 }
 
 beforeEach(() => {
+  viewerMock.locationPublications.mockReset();
   viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
   viewerMock.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
     chapterHref: annotation.chapterHref,
@@ -322,6 +345,84 @@ afterEach(async () => {
 });
 
 describe("ReaderPage Quick Actions", () => {
+  it.each(["paged", "continuous"] as const)(
+    "opens Contents without changing %s Reader geometry or position",
+    async (mode) => {
+      const original = appPreferencesStore.getSnapshot();
+
+      try {
+        await act(async () => {
+          await appPreferencesStore.update({ reader: { ...original.reader, mode } });
+        });
+        const rendered = await renderReader();
+        const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+        const viewer = rendered.container.querySelector<HTMLElement>(".epub-viewer")!;
+        const stage = rendered.container.querySelector<HTMLElement>(".epub-viewer__stage")!;
+        const toolbar = rendered.container.querySelector<HTMLElement>(".reader-toolbar")!;
+        const previousZone = rendered.container.querySelector<HTMLElement>(
+          ".epub-viewer__click-zone--previous",
+        )!;
+        const nextZone = rendered.container.querySelector<HTMLElement>(
+          ".epub-viewer__click-zone--next",
+        )!;
+        const tocButton = rendered.container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Table of contents"]',
+        )!;
+        const geometry = new Map<HTMLElement, DOMRect>([
+          [reader, new DOMRect(0, 0, 1200, 800)],
+          [viewer, new DOMRect(0, 54, 1200, 746)],
+          [stage, new DOMRect(0, 54, 1200, 746)],
+          [toolbar, new DOMRect(0, 0, 1200, 52)],
+          [previousZone, new DOMRect(0, 54, 48, 746)],
+          [nextZone, new DOMRect(1152, 54, 48, 746)],
+        ]);
+
+        for (const [element, bounds] of geometry) {
+          element.getBoundingClientRect = () => bounds;
+        }
+        reader.scrollTop = 73;
+        stage.scrollTop = mode === "continuous" ? 412 : 0;
+        const before = Array.from(geometry.keys(), (element) => element.getBoundingClientRect());
+        const readerScrollTop = reader.scrollTop;
+        const renditionScrollTop = stage.scrollTop;
+
+        await act(async () => tocButton.click());
+        await vi.waitFor(() =>
+          expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement),
+        );
+
+        expect(rendered.container.querySelector(".reader-page")).toBe(reader);
+        expect(rendered.container.querySelector(".epub-viewer")).toBe(viewer);
+        expect(rendered.container.querySelector(".epub-viewer__stage")).toBe(stage);
+        expect(rendered.container.querySelector(".reader-toolbar")).toBe(toolbar);
+        expect(rendered.container.querySelector(".epub-viewer__click-zone--previous")).toBe(
+          previousZone,
+        );
+        expect(rendered.container.querySelector(".epub-viewer__click-zone--next")).toBe(nextZone);
+        expect(Array.from(geometry.keys(), (element) => element.getBoundingClientRect())).toEqual(
+          before,
+        );
+        expect(reader.scrollTop).toBe(readerScrollTop);
+        expect(stage.scrollTop).toBe(renditionScrollTop);
+        expect(viewerMock.locationPublications).toHaveBeenCalledTimes(1);
+        expect(viewerMock.locationPublications).toHaveBeenLastCalledWith(
+          expect.objectContaining({ cfi: "epubcfi(/6/4)", percentage: 20 }),
+        );
+      } finally {
+        await act(async () => {
+          await appPreferencesStore.update(original);
+        });
+      }
+    },
+  );
+
+  it("keeps Quick Actions shortcut-only in Reader chrome", async () => {
+    const rendered = await renderReader();
+
+    expect(rendered.container.querySelector('button[aria-label="Quick Actions"]')).toBeNull();
+    expect(await openPalette()).toBe(document.activeElement);
+  });
+
   it("does not register or react to the Library sidebar command", async () => {
     const rendered = await renderReader();
     const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;

@@ -99,7 +99,7 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
-  const { getCommandBinding, handleKeyboardEvent, openPalette } = useQuickActions();
+  const { getCommandBinding, handleKeyboardEvent } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
@@ -885,7 +885,6 @@ export function ReaderPage() {
           onNextChapter={moveNextChapter}
           onPrevious={movePrevious}
           onPreviousChapter={movePreviousChapter}
-          onQuickActions={openPalette}
           onSettings={toggleSettings}
           onToc={toggleToc}
           percentage={location.percentage}
@@ -894,9 +893,6 @@ export function ReaderPage() {
           previousChapterDisabled={!chapterSequence.previousChapterId}
           title={title}
           mode={settings.mode}
-          quickActionsAriaKeyShortcuts={ariaKeyShortcut(
-            getCommandBinding(commandDefinitions.quickActions.id),
-          )}
           annotationsAriaKeyShortcuts={ariaKeyShortcut(
             getCommandBinding(commandDefinitions.readerAnnotations.id),
           )}

@@ -56,6 +56,7 @@ describe("keyboard command bindings", () => {
       plain("s"),
     ]);
     expect(commandDefinitions.focusSearch.showInPalette).toBe(false);
+    expect(commandDefinitions.quickActions.visibleControlOwner).toBe("Main titlebar");
     expect(commandDefinitions.toggleSidebar).toMatchObject({
       configuration: "configurable",
       group: "Library and Folders",

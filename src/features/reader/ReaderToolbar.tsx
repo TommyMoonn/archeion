@@ -6,7 +6,6 @@ import {
   ChevronsRight,
   ChevronLeft,
   ChevronRight,
-  Zap,
   ListTree,
   ALargeSmall,
 } from "lucide-react";
@@ -37,7 +36,6 @@ type ReaderToolbarProps = {
   onNextChapter: () => void;
   onPrevious: () => void;
   onPreviousChapter: () => void;
-  onQuickActions: () => void;
   onSettings: () => void;
   onToc: () => void;
   percentage: number;
@@ -45,7 +43,6 @@ type ReaderToolbarProps = {
   progressSaveFailed: boolean;
   title: string;
   mode: ReaderMode;
-  quickActionsAriaKeyShortcuts?: string;
   settingsAriaKeyShortcuts?: string;
   tocAriaKeyShortcuts?: string;
   settingsButtonRef?: Ref<HTMLButtonElement>;
@@ -76,7 +73,6 @@ export function ReaderToolbar({
   onNextChapter,
   onPrevious,
   onPreviousChapter,
-  onQuickActions,
   onSettings,
   onToc,
   percentage,
@@ -84,7 +80,6 @@ export function ReaderToolbar({
   progressSaveFailed,
   title,
   mode,
-  quickActionsAriaKeyShortcuts,
   settingsAriaKeyShortcuts,
   tocAriaKeyShortcuts,
   settingsButtonRef,
@@ -238,16 +233,6 @@ export function ReaderToolbar({
           <ChevronRight aria-hidden="true" strokeWidth={2.25} />
         </IconButton>
         <span className="reader-toolbar__divider" />
-        <IconButton
-          aria-keyshortcuts={quickActionsAriaKeyShortcuts}
-          label="Quick Actions"
-          onClick={onQuickActions}
-          size="compact"
-          tooltip="Quick Actions"
-          tooltipPlacement="bottom"
-        >
-          <Zap aria-hidden="true" />
-        </IconButton>
         <IconButton
           aria-keyshortcuts={settingsAriaKeyShortcuts}
           label="Reader settings"

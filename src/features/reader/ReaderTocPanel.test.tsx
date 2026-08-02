@@ -51,6 +51,87 @@ function renderPanel(
 }
 
 describe("ReaderTocPanel", () => {
+  it("focuses and reveals the current chapter without scrolling outside the drawer", () => {
+    const originalScrollIntoView = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollIntoView",
+    );
+    const broadScroll = vi.fn(() => {
+      document.documentElement.scrollTop = 900;
+    });
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: broadScroll,
+    });
+    const bounds = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("reader-toc__body")) return new DOMRect(0, 100, 380, 200);
+        if (this.getAttribute("aria-current") === "location") {
+          return new DOMRect(0, 420, 360, 38);
+        }
+        return new DOMRect();
+      });
+    document.documentElement.scrollTop = 0;
+
+    try {
+      const chapters = Array.from({ length: 8 }, (_, index) =>
+        chapter(`chapter-${index + 1}`, `Chapter ${index + 1}`),
+      );
+      const { container } = renderPanel(navigation(chapters, "chapter-8"));
+      const body = container.querySelector<HTMLElement>(".reader-toc__body")!;
+      const current = container.querySelector<HTMLButtonElement>('[aria-current="location"]')!;
+
+      expect(document.activeElement).toBe(current);
+      expect(body.scrollTop).toBe(158);
+      expect(document.documentElement.scrollTop).toBe(0);
+      expect(broadScroll).not.toHaveBeenCalled();
+    } finally {
+      bounds.mockRestore();
+      if (originalScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, "scrollIntoView", originalScrollIntoView);
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+      }
+    }
+  });
+
+  it("focuses search without scrolling the Reader and still reveals the current chapter locally", () => {
+    const focus = vi.spyOn(HTMLElement.prototype, "focus");
+    const bounds = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this.classList.contains("reader-toc__body")) return new DOMRect(0, 100, 380, 200);
+        if (this.getAttribute("aria-current") === "location") {
+          return new DOMRect(0, 420, 360, 38);
+        }
+        return new DOMRect();
+      });
+    const chapters = Array.from({ length: 13 }, (_, index) =>
+      chapter(`chapter-${index + 1}`, `Chapter ${index + 1}`),
+    );
+
+    try {
+      const { container } = renderPanel(navigation(chapters, "chapter-1"));
+      const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+      const body = container.querySelector<HTMLElement>(".reader-toc__body")!;
+
+      expect(document.activeElement).toBe(search);
+      expect(focus).toHaveBeenCalledWith({ preventScroll: true });
+      expect(body.scrollTop).toBe(158);
+    } finally {
+      focus.mockRestore();
+      bounds.mockRestore();
+    }
+  });
+
+  it("focuses the drawer when no current chapter or search is available", () => {
+    const { container } = renderPanel(navigation([chapter("chapter-1", "Chapter One")]));
+    const panel = container.querySelector<HTMLElement>('[aria-label="Table of contents"]');
+
+    expect(document.activeElement).toBe(panel);
+  });
+
   it("renders nested chapters and marks the current location", () => {
     const { container } = renderPanel(
       navigation(
