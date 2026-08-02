@@ -1,4 +1,4 @@
-import { Minus, Plus, X } from "lucide-react";
+import { Minus, Plus } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
@@ -10,6 +10,7 @@ import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
+import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderSettingsPanelProps = {
   onChange: (settings: ReaderSettings) => void;
@@ -93,7 +94,7 @@ export function ReaderSettingsPanel({
   });
 
   useEffect(() => {
-    closeButtonRef.current?.focus();
+    closeButtonRef.current?.focus({ preventScroll: true });
   }, []);
 
   function update(changes: Partial<ReaderSettings>) {
@@ -101,128 +102,119 @@ export function ReaderSettingsPanel({
   }
 
   return (
-    <aside
-      aria-label="Reader settings"
+    <ReaderSidePanel
+      accessibleLabel="Reader settings"
       className="reader-settings"
-      onClick={(event) => event.stopPropagation()}
+      closeButtonRef={closeButtonRef}
+      closeLabel="Close reader settings"
+      eyebrow="Reading"
+      onClose={onClose}
       ref={panelRef}
+      title="Appearance"
     >
-      <header className="reader-settings__header reader-panel-header">
-        <div>
-          <p>Reading</p>
-          <h2>Appearance</h2>
-        </div>
-        <IconButton
-          label="Close reader settings"
-          onClick={onClose}
-          ref={closeButtonRef}
-          size="compact"
-        >
-          <X aria-hidden="true" />
-        </IconButton>
-      </header>
-
-      <ReaderSetting label="Reading mode">
-        <SegmentedControl
-          className="reader-control"
-          label="Reader mode"
-          onChange={(mode) => update({ mode })}
-          options={[...readerModes]}
-          size="standard"
-          value={settings.mode}
-        />
-      </ReaderSetting>
-
-      <ReaderSetting label="Reader theme">
-        {readerThemeSelection ? (
-          <ArchiveReaderThemeSelect
-            entries={readerThemeEntries}
-            fallback={settings.theme}
-            onChange={onReaderThemeChange}
-            onOpen={onReaderThemeOpen}
-            selection={readerThemeSelection}
+      <div className="reader-settings__body">
+        <ReaderSetting label="Reading mode">
+          <SegmentedControl
+            className="reader-control"
+            label="Reader mode"
+            onChange={(mode) => update({ mode })}
+            options={[...readerModes]}
+            size="standard"
+            value={settings.mode}
           />
-        ) : (
-          <span className="reader-setting__unavailable">Unavailable</span>
-        )}
-      </ReaderSetting>
+        </ReaderSetting>
 
-      <ReaderSetting label="Typeface">
-        <AppSelect
-          ariaLabel="Reader typeface"
-          id="reader-font-family"
-          onChange={(fontFamily) => update({ fontFamily })}
-          options={readerTypefaceOptions}
-          size="standard"
-          value={settings.fontFamily}
-        />
-      </ReaderSetting>
+        <ReaderSetting label="Reader theme">
+          {readerThemeSelection ? (
+            <ArchiveReaderThemeSelect
+              entries={readerThemeEntries}
+              fallback={settings.theme}
+              onChange={onReaderThemeChange}
+              onOpen={onReaderThemeOpen}
+              selection={readerThemeSelection}
+            />
+          ) : (
+            <span className="reader-setting__unavailable">Unavailable</span>
+          )}
+        </ReaderSetting>
 
-      <ReaderSetting className="reader-setting--inline" label="Text size">
-        <div className="reader-stepper">
-          <IconButton
-            disabled={settings.fontSize <= 14}
-            label="Decrease text size"
-            onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
-            size="compact"
-          >
-            <Minus aria-hidden="true" />
-          </IconButton>
-          <output aria-live="polite">{settings.fontSize}px</output>
-          <IconButton
-            disabled={settings.fontSize >= 28}
-            label="Increase text size"
-            onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
-            size="compact"
-          >
-            <Plus aria-hidden="true" />
-          </IconButton>
-        </div>
-      </ReaderSetting>
+        <ReaderSetting label="Typeface">
+          <AppSelect
+            ariaLabel="Reader typeface"
+            id="reader-font-family"
+            onChange={(fontFamily) => update({ fontFamily })}
+            options={readerTypefaceOptions}
+            size="standard"
+            value={settings.fontFamily}
+          />
+        </ReaderSetting>
 
-      <ReaderSetting label="Line spacing">
-        <SegmentedControl
-          className="reader-control"
-          label="Reader line spacing"
-          onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
-          options={lineHeights}
-          size="standard"
-          value={String(settings.lineHeight)}
-        />
-      </ReaderSetting>
+        <ReaderSetting className="reader-setting--inline" label="Text size">
+          <div className="reader-stepper">
+            <IconButton
+              disabled={settings.fontSize <= 14}
+              label="Decrease text size"
+              onClick={() => update({ fontSize: Math.max(14, settings.fontSize - 1) })}
+              size="compact"
+            >
+              <Minus aria-hidden="true" />
+            </IconButton>
+            <output aria-live="polite">{settings.fontSize}px</output>
+            <IconButton
+              disabled={settings.fontSize >= 28}
+              label="Increase text size"
+              onClick={() => update({ fontSize: Math.min(28, settings.fontSize + 1) })}
+              size="compact"
+            >
+              <Plus aria-hidden="true" />
+            </IconButton>
+          </div>
+        </ReaderSetting>
 
-      <ReaderSetting label="Page width">
-        <SegmentedControl
-          className="reader-control"
-          label="Reader page width"
-          onChange={(margin) => update({ margin: Number(margin) })}
-          options={margins}
-          size="standard"
-          value={String(settings.margin)}
-        />
-      </ReaderSetting>
+        <ReaderSetting label="Line spacing">
+          <SegmentedControl
+            className="reader-control"
+            label="Reader line spacing"
+            onChange={(lineHeight) => update({ lineHeight: Number(lineHeight) })}
+            options={lineHeights}
+            size="standard"
+            value={String(settings.lineHeight)}
+          />
+        </ReaderSetting>
 
-      <ReaderSetting label="Progress bar">
-        <SegmentedControl
-          className="reader-control"
-          label="Reader progress bar placement"
-          onChange={(progressPlacement) => update({ progressPlacement })}
-          options={progressPlacements}
-          size="standard"
-          value={settings.progressPlacement}
-        />
-      </ReaderSetting>
+        <ReaderSetting label="Page width">
+          <SegmentedControl
+            className="reader-control"
+            label="Reader page width"
+            onChange={(margin) => update({ margin: Number(margin) })}
+            options={margins}
+            size="standard"
+            value={String(settings.margin)}
+          />
+        </ReaderSetting>
 
-      <p
-        aria-live="polite"
-        className="reader-settings__status"
-        data-error={persistenceFailed || Boolean(readerThemeCatalogError) || undefined}
-        role={persistenceFailed || readerThemeCatalogError ? "alert" : "status"}
-      >
-        {persistenceFailed
-          ? "Settings could not be saved"
-          : (readerThemeCatalogError ?? "Saved automatically")}
-      </p>
-    </aside>
+        <ReaderSetting label="Progress bar">
+          <SegmentedControl
+            className="reader-control"
+            label="Reader progress bar placement"
+            onChange={(progressPlacement) => update({ progressPlacement })}
+            options={progressPlacements}
+            size="standard"
+            value={settings.progressPlacement}
+          />
+        </ReaderSetting>
+
+        <p
+          aria-live="polite"
+          className="reader-settings__status"
+          data-error={persistenceFailed || Boolean(readerThemeCatalogError) || undefined}
+          role={persistenceFailed || readerThemeCatalogError ? "alert" : "status"}
+        >
+          {persistenceFailed
+            ? "Settings could not be saved"
+            : (readerThemeCatalogError ?? "Saved automatically")}
+        </p>
+      </div>
+    </ReaderSidePanel>
   );
 }

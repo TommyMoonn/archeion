@@ -149,6 +149,18 @@ afterEach(() => {
 });
 
 describe("ReaderAnnotationsPanel", () => {
+  it("uses the shared Reader drawer frame without changing annotation controls", () => {
+    const { container } = renderPanel();
+    const panel = container.querySelector<HTMLElement>(".reader-side-panel.reader-annotations");
+
+    expect(panel).not.toBeNull();
+    expect(panel?.querySelector(".reader-side-panel__header")?.textContent).toContain(
+      "Annotations",
+    );
+    expect(panel?.querySelector(".reader-annotations__controls")).not.toBeNull();
+    expect(panel?.querySelector(".reader-annotations__body")).not.toBeNull();
+  });
+
   it("exports the current book in either format and reports completion", async () => {
     const onExport = vi.fn(async () => ({
       annotationCount: 2,

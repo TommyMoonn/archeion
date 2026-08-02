@@ -7,6 +7,7 @@ import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
 import type { ReaderAnnotationExportResult } from "./readerAnnotationExportFile";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderAnnotationLoadStatus } from "./useReaderAnnotations";
+import { ReaderAnnotationsLoadingShell } from "./ReaderPanelLoadingShells";
 
 const ReaderAnnotationsPanel = lazy(() =>
   import("./ReaderAnnotationsPanel").then((module) => ({
@@ -37,28 +38,10 @@ type LazyReaderAnnotationsPanelProps = {
 
 export function LazyReaderAnnotationsPanel(props: LazyReaderAnnotationsPanelProps) {
   return (
-    <Suspense fallback={<ReaderAnnotationsLoadingShell active={props.active} />}>
+    <Suspense
+      fallback={<ReaderAnnotationsLoadingShell active={props.active} onClose={props.onClose} />}
+    >
       <ReaderAnnotationsPanel {...props} />
     </Suspense>
-  );
-}
-
-function ReaderAnnotationsLoadingShell({ active = true }: { active?: boolean }) {
-  return (
-    <aside
-      aria-busy="true"
-      aria-label="Annotations"
-      className="reader-toc reader-annotations"
-      data-reader-ignore-shortcuts
-      hidden={!active}
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
-    >
-      <div aria-label="Loading annotations" className="reader-toc__loading" role="status">
-        <span />
-        <span />
-        <span />
-      </div>
-    </aside>
   );
 }

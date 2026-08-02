@@ -36,6 +36,7 @@ import type { ReaderHighlightColor } from "./readerHighlights";
 import { type ReaderAnnotationSort, type ReaderAnnotationView } from "./readerAnnotations";
 import { useReaderAnnotationActionMenu } from "./useReaderAnnotationActionMenu";
 import { useReaderAnnotationPanelActions } from "./useReaderAnnotationPanelActions";
+import { ReaderSidePanel } from "./ReaderSidePanel";
 
 const VIEW_OPTIONS = [
   { label: "All", value: "all" },
@@ -121,10 +122,10 @@ export function ReaderAnnotationsPanel({
   const focusPanelFallback = useCallback(() => {
     const searchInput = searchInputRef?.current ?? localSearchRef.current;
     if (searchInput?.isConnected && !searchInput.disabled) {
-      searchInput.focus();
+      searchInput.focus({ preventScroll: true });
       if (document.activeElement === searchInput) return;
     }
-    panelRef.current?.focus();
+    panelRef.current?.focus({ preventScroll: true });
   }, [searchInputRef]);
   const survivingRowId = useCallback(
     (annotationId: string) =>
@@ -154,7 +155,9 @@ export function ReaderAnnotationsPanel({
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
     if (!focusedRow) {
-      (searchInputRef?.current ?? localSearchRef.current ?? panelRef.current)?.focus();
+      (searchInputRef?.current ?? localSearchRef.current ?? panelRef.current)?.focus({
+        preventScroll: true,
+      });
     }
   }, [active, restoreFocusAnnotationId, searchInputRef]);
 
@@ -213,60 +216,48 @@ export function ReaderAnnotationsPanel({
   }
 
   return (
-    <aside
-      aria-label="Annotations"
-      className="reader-toc reader-annotations"
-      data-reader-ignore-shortcuts
+    <ReaderSidePanel
+      accessibleLabel="Annotations"
+      className="reader-annotations"
+      closeLabel="Close annotations"
+      eyebrow="Reading"
+      headerActions={
+        <details
+          className="reader-annotations__export-menu"
+          onToggle={(event) => setExportMenuOpen(event.currentTarget.open)}
+          ref={exportMenuRef}
+        >
+          <Tooltip content="Export annotations">
+            <summary aria-haspopup="menu" aria-label="Export annotations" className="menu-trigger">
+              <span aria-hidden="true" className="icon-slot icon-slot--compact">
+                <Download />
+              </span>
+            </summary>
+          </Tooltip>
+          <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
+            <MenuItem
+              disabled={actions.exportState?.status === "exporting"}
+              onClick={() => void exportAnnotations("markdown")}
+            >
+              Export Markdown
+            </MenuItem>
+            <MenuItem
+              disabled={actions.exportState?.status === "exporting"}
+              onClick={() => void exportAnnotations("json")}
+            >
+              Export JSON
+            </MenuItem>
+          </div>
+        </details>
+      }
       hidden={!active}
       id={active ? "reader-annotations" : undefined}
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
+      ignoreReaderShortcuts
+      onClose={onClose}
       ref={panelRef}
       tabIndex={-1}
+      title="Annotations"
     >
-      <header className="reader-panel-header">
-        <div>
-          <p>Reading</p>
-          <h2>Annotations</h2>
-        </div>
-        <div className="reader-panel-header__actions">
-          <details
-            className="reader-annotations__export-menu"
-            onToggle={(event) => setExportMenuOpen(event.currentTarget.open)}
-            ref={exportMenuRef}
-          >
-            <Tooltip content="Export annotations">
-              <summary
-                aria-haspopup="menu"
-                aria-label="Export annotations"
-                className="menu-trigger"
-              >
-                <span aria-hidden="true" className="icon-slot icon-slot--compact">
-                  <Download />
-                </span>
-              </summary>
-            </Tooltip>
-            <div className="menu-popover" role={exportMenuOpen ? "menu" : undefined}>
-              <MenuItem
-                disabled={actions.exportState?.status === "exporting"}
-                onClick={() => void exportAnnotations("markdown")}
-              >
-                Export Markdown
-              </MenuItem>
-              <MenuItem
-                disabled={actions.exportState?.status === "exporting"}
-                onClick={() => void exportAnnotations("json")}
-              >
-                Export JSON
-              </MenuItem>
-            </div>
-          </details>
-          <IconButton label="Close annotations" onClick={onClose} size="compact">
-            <X aria-hidden="true" />
-          </IconButton>
-        </div>
-      </header>
-
       {actions.exportState ? (
         <div
           className="reader-annotations__export-status"
@@ -379,6 +370,6 @@ export function ReaderAnnotationsPanel({
           {actions.actionError.message}
         </p>
       ) : null}
-    </aside>
+    </ReaderSidePanel>
   );
 }

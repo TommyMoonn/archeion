@@ -13,6 +13,7 @@ import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { HighlightAnnotation } from "../../types/annotation";
+import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderNoteEditorProps = {
   annotation: HighlightAnnotation;
@@ -363,16 +364,13 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     });
 
     return (
-      <section
+      <ReaderSidePanel
         ref={editorRef}
-        aria-busy={deleting || undefined}
-        aria-labelledby="reader-note-title"
-        aria-label="Annotation note"
-        className="reader-toc reader-annotations reader-note-editor"
-        data-reader-ignore-shortcuts
-        id="reader-annotations"
-      >
-        <header className="reader-note-editor__header">
+        accessibleLabel="Annotation note"
+        ariaBusy={deleting}
+        className="reader-annotations reader-note-editor"
+        eyebrow="Annotations"
+        headerLeading={
           <IconButton
             disabled={deleting}
             label="Back to annotations"
@@ -381,8 +379,12 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           >
             <ArrowLeft aria-hidden="true" />
           </IconButton>
-          <h2 id="reader-note-title">Note</h2>
-        </header>
+        }
+        id="reader-annotations"
+        ignoreReaderShortcuts
+        title="Note"
+        titleId="reader-note-title"
+      >
         <label className="reader-note-editor__field">
           <span className="sr-only">Note text</span>
           <textarea
@@ -450,7 +452,7 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           )}
           <span>Plain text · Markdown-friendly</span>
         </footer>
-      </section>
+      </ReaderSidePanel>
     );
   },
 );

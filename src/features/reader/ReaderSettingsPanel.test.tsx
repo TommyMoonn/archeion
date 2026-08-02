@@ -162,6 +162,10 @@ describe("ReaderSettingsPanel", () => {
       'button[aria-label="Close reader settings"]',
     );
 
+    expect(rendered.container.querySelector(".reader-side-panel.reader-settings")).not.toBeNull();
+    expect(rendered.container.querySelector(".reader-side-panel__header")?.textContent).toContain(
+      "Appearance",
+    );
     expect(document.activeElement).toBe(close);
     expect(rendered.container.querySelector('[role="status"]')?.textContent).toContain(
       "Saved automatically",

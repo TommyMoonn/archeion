@@ -189,11 +189,11 @@ describe("Phase 0.9.0.25 adaptive layout and content growth contract", () => {
   it("keeps horizontal overflow at bounded local owners and preserves non-hover access", () => {
     expect(cssBlock(shell, ".app-shell")).toContain("overflow: hidden");
     expect(cssBlock(shell, ".sidebar__folder-scroll")).toContain("overflow-x: hidden");
-    expect(cssBlock(reader, ".reader-settings")).toContain("overflow-y: auto");
+    expect(cssBlock(reader, ".reader-settings__body")).toContain("overflow-y: auto");
     expect(cssBlock(archive, ".archive-manager-window")).toContain("overflow: hidden");
     expect(folders).toContain(".folder-browser__item-actions");
     expect(folders).not.toMatch(/\.folder-browser__item-actions\s*\{[^}]*opacity:\s*0/s);
-    expect(forcedColors).toContain(".reader-settings");
+    expect(forcedColors).toContain(".reader-side-panel");
     expect(forcedColors).toContain(".archive-manager-window");
   });
 });

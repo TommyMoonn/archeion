@@ -141,8 +141,8 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     const detailHeader = cssBlock(series, ".series-detail__header");
     const hints = cssBlock(series, ".series-hints");
     const volumes = cssBlock(series, ".series-volumes");
-    const toc = cssBlock(reader, ".reader-toc");
-    const panelHeader = cssBlock(reader, ".reader-panel-header");
+    const panel = cssBlock(reader, ".reader-side-panel");
+    const panelHeader = cssBlock(reader, ".reader-side-panel__header");
     const tocSearch = cssBlock(reader, ".reader-toc__search.input-shell");
     const annotations = cssBlock(reader, ".reader-annotations");
     const annotationControls = cssBlock(reader, ".reader-annotations__controls");
@@ -152,13 +152,20 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(detailHeader).toContain("padding: 0 0 24px");
     expect(hints).not.toContain("padding-top");
     expect(volumes).toContain("padding: 0 0 36px");
-    expect(toc).toContain("--reader-panel-inset: 14px");
+    expect(panel).toContain("--reader-panel-inset: 14px");
+    expect(panel).toContain("top: 52px");
+    expect(panel).toContain("bottom: 0");
+    expect(panel).toContain("inset-inline-end: 0");
+    expect(panel).toContain("width: min(380px, calc(100vw - 36px))");
     expect(panelHeader).toContain("padding: 14px var(--reader-panel-inset, 14px)");
     expect(tocSearch).toContain("margin: 12px var(--reader-panel-inset) 4px");
-    expect(annotations).toContain("--reader-panel-inset: 14px");
+    expect(annotations).toContain("width: min(430px, calc(100vw - 36px))");
     expect(annotationControls).toContain("padding: 12px var(--reader-panel-inset)");
     expect(constrainedReader).toMatch(
-      /\.reader-settings\s*\{[^}]*--reader-panel-inset:\s*19px;[^}]*padding:\s*19px;/s,
+      /\.reader-side-panel\s*\{[^}]*top:\s*52px;[^}]*width:\s*calc\(100vw - 18px\);/s,
+    );
+    expect(reader.indexOf("@media (max-width: 560px)")).toBeGreaterThan(
+      reader.indexOf(".reader-annotations {"),
     );
   });
 

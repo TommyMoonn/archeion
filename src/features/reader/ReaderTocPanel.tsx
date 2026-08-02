@@ -1,12 +1,12 @@
-import { BookOpenText, Check, Search, X } from "lucide-react";
+import { BookOpenText, Check, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, RefObject } from "react";
 
-import { IconButton } from "../../components/IconButton";
 import { Input } from "../../components/Input";
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_TOC_SEARCH_THRESHOLD } from "./readerNavigation";
+import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderTocPanelProps = {
   navigation: ReaderNavigationState;
@@ -80,26 +80,18 @@ export function ReaderTocPanel({
   }
 
   return (
-    <aside
-      aria-label="Table of contents"
+    <ReaderSidePanel
+      accessibleLabel="Table of contents"
       className="reader-toc"
-      data-reader-ignore-shortcuts
+      closeLabel="Close table of contents"
+      eyebrow="Navigate"
       id="reader-table-of-contents"
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
+      ignoreReaderShortcuts
+      onClose={onClose}
       ref={panelRef}
       tabIndex={-1}
+      title="Contents"
     >
-      <header className="reader-toc__header reader-panel-header">
-        <div>
-          <p>Navigate</p>
-          <h2>Contents</h2>
-        </div>
-        <IconButton label="Close table of contents" onClick={onClose} size="compact">
-          <X aria-hidden="true" />
-        </IconButton>
-      </header>
-
       {showSearch ? (
         <Input
           aria-keyshortcuts={searchAriaKeyShortcuts}
@@ -174,7 +166,7 @@ export function ReaderTocPanel({
           That chapter could not be opened.
         </p>
       ) : null}
-    </aside>
+    </ReaderSidePanel>
   );
 }
 

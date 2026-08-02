@@ -198,7 +198,7 @@ describe("Phase 0.9.0.26 typography roles and text resilience", () => {
       },
       {
         source: readerStyles,
-        selector: ".reader-panel-header h2",
+        selector: ".reader-side-panel__header h2",
         role: "heading",
         letterSpacing: false,
       },

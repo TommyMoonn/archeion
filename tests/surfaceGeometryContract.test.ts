@@ -68,8 +68,7 @@ const elevatedSurfaceSelectors = [
   ".reader-content-action-feedback",
   ".reader-illustration-viewer",
   ".reader-next-volume",
-  ".reader-toc",
-  ".reader-settings",
+  ".reader-side-panel",
   ".reader-annotation-feedback",
   ".reader-highlight-feedback",
   ".reader-note-feedback",
@@ -164,7 +163,13 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
       "box-shadow: var(--shadow-popover)",
     );
     expect(cssBlock(library, ".details-drawer")).toContain("box-shadow: var(--shadow-drawer)");
-    expect(cssBlock(reader, ".reader-toc")).toContain("box-shadow: var(--shadow-drawer)");
+    const readerPanel = cssBlock(reader, ".reader-side-panel");
+    const readerSettings = cssBlock(reader, ".reader-settings");
+    expect(readerPanel).toContain("box-shadow: var(--shadow-drawer)");
+    expect(readerPanel).not.toContain("border-radius");
+    expect(readerSettings).not.toMatch(
+      /(?:position|top|bottom|inset-inline-end|width|border-radius|box-shadow):/,
+    );
     expect(cssBlock(emptyState, ".empty-state__glow")).toContain("box-shadow: var(--shadow-card)");
   });
 

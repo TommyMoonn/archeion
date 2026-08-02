@@ -141,6 +141,10 @@ describe("ReaderTocPanel", () => {
     );
     const current = container.querySelector<HTMLButtonElement>('[aria-current="location"]');
 
+    expect(container.querySelector(".reader-side-panel.reader-toc")).not.toBeNull();
+    expect(container.querySelector(".reader-side-panel__header")?.textContent).toContain(
+      "Contents",
+    );
     expect(current?.textContent).toContain("Chapter One");
     expect(current?.style.getPropertyValue("--chapter-indent")).toBe("18px");
     expect(container.querySelector('nav[aria-label="Book chapters"]')).not.toBeNull();

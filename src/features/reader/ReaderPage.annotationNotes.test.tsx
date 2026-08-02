@@ -1203,19 +1203,36 @@ describe("ReaderPage annotation notes", () => {
   it("keeps TOC, settings, and annotation surfaces mutually exclusive", async () => {
     const harness = createStorageHarness();
     await renderReader(harness);
+    const reader = container?.querySelector<HTMLElement>(".reader-page");
+    const viewer = container?.querySelector<HTMLElement>('[data-testid="epub-viewer-mock"]');
+    if (!reader || !viewer) throw new Error("Reader and viewer must be mounted");
+    const readerBounds = new DOMRect(0, 0, 1200, 800);
+    const viewerBounds = new DOMRect(0, 54, 1200, 746);
+    reader.getBoundingClientRect = () => readerBounds;
+    viewer.getBoundingClientRect = () => viewerBounds;
+
+    const expectStableReader = () => {
+      expect(container?.querySelector(".reader-page")).toBe(reader);
+      expect(container?.querySelector('[data-testid="epub-viewer-mock"]')).toBe(viewer);
+      expect(reader.getBoundingClientRect()).toEqual(readerBounds);
+      expect(viewer.getBoundingClientRect()).toEqual(viewerBounds);
+      expect(container?.querySelectorAll(".reader-side-panel")).toHaveLength(1);
+      expect(container?.querySelector(".reader-side-panel__header")).not.toBeNull();
+    };
 
     act(() => button("Reader settings").click());
     await waitForElement('aside[aria-label="Reader settings"]');
-    expect(container?.querySelectorAll(".reader-toc, .reader-settings")).toHaveLength(1);
+    expectStableReader();
 
     act(() => button("Annotations").click());
     await waitForElement('aside[aria-label="Annotations"]');
     expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
+    expectStableReader();
 
     act(() => button("Table of contents").click());
     await waitForElement('aside[aria-label="Table of contents"]');
     expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
-    expect(container?.querySelectorAll(".reader-toc, .reader-settings")).toHaveLength(1);
+    expectStableReader();
   });
 
   it("backs out of the note subview before closing the annotation surface on Escape", async () => {

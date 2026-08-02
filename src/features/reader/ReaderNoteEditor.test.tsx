@@ -123,6 +123,8 @@ describe("ReaderNoteEditor", () => {
     await act(async () => vi.advanceTimersByTimeAsync(1));
 
     expect(props.onSave).toHaveBeenCalledWith("Updated note", annotation);
+    expect(target.querySelector(".reader-side-panel.reader-note-editor")).not.toBeNull();
+    expect(target.querySelector(".reader-side-panel__header")?.textContent).toContain("Note");
     expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
     expect(target.querySelector(".reader-note-editor__status")).toBeInstanceOf(HTMLDivElement);
     expect(target.querySelector(".reader-note-editor__footer")).toBeInstanceOf(HTMLElement);

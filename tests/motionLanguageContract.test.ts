@@ -117,7 +117,7 @@ describe("application motion language", () => {
     expect(archiveStyles).toContain("archive-manager-slide-from-right");
     expect(archiveStyles).toContain("archive-manager-slide-from-left");
     expect(readerStyles).toMatch(
-      /html\[data-motion="on"\] \.reader-toc\s*\{[^}]*animation:\s*reader-toc-enter var\(--motion-duration-standard\)/s,
+      /html\[data-motion="on"\] \.reader-side-panel\s*\{[^}]*animation:\s*reader-side-panel-enter var\(--motion-duration-standard\)/s,
     );
   });
 
