@@ -394,6 +394,7 @@ svg {
   font-weight: 400;
   letter-spacing: -0.055em;
   line-height: 0.93;
+  text-wrap: balance;
 }
 
 .hero h1 span {
@@ -875,6 +876,7 @@ svg {
   font-weight: 400;
   letter-spacing: -0.05em;
   line-height: 1.02;
+  text-wrap: balance;
 }
 
 .section-heading--split {
@@ -1138,7 +1140,9 @@ svg {
   overflow: hidden;
   border-radius: 6px;
   background: #242427;
-  box-shadow: 0 9px 20px rgb(0 0 0 / 22%);
+  box-shadow:
+    0 9px 20px rgb(0 0 0 / 22%),
+    inset 0 0 0 1px rgb(255 255 255 / 10%);
 }
 
 .book-card img {
@@ -1243,6 +1247,7 @@ svg {
   font-weight: 400;
   letter-spacing: -0.035em;
   line-height: 1.16;
+  text-wrap: balance;
 }
 
 .feature-ledger ul,
@@ -2400,12 +2405,14 @@ svg {
   font-size: 26px;
   font-weight: 400;
   letter-spacing: -0.035em;
+  text-wrap: balance;
 }
 
 .architecture-node p {
   margin: 13px 0 0;
   color: var(--body);
   font-size: 14px;
+  text-wrap: pretty;
 }
 
 .architecture-node code {
@@ -2529,6 +2536,7 @@ svg {
   font-weight: 400;
   letter-spacing: -0.05em;
   line-height: 1;
+  text-wrap: balance;
 }
 
 .entry-points {
