@@ -318,7 +318,6 @@
   const bookGrid = document.querySelector("[data-book-grid]");
   const previewTitle = document.querySelector("[data-preview-title]");
   const previewKicker = document.querySelector("[data-preview-kicker]");
-  const libraryCaption = document.querySelector("[data-library-caption]");
   const bookCards = Array.from(document.querySelectorAll(".book-card"));
   const reduceLibraryMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -326,12 +325,10 @@
     library: {
       title: "Library",
       kicker: "All books",
-      caption: "Browse every book in the active archive.",
       matches: () => true,
     },
     favorites: {
       title: "Favorites",
-      caption: "Keep a focused shelf of books you want close by.",
       matches: (card) => card.dataset.favorite === "true",
     },
   };
@@ -362,7 +359,7 @@
     });
   };
 
-  const renderLibraryBooks = ({ title, kicker, caption, matches }) => {
+  const renderLibraryBooks = ({ title, kicker, matches }) => {
     if (!bookGrid) return;
 
     let visibleCount = 0;
@@ -377,7 +374,6 @@
       const suffix = visibleCount === 1 ? "book" : "books";
       previewKicker.textContent = kicker || `${visibleCount} ${suffix}`;
     }
-    if (libraryCaption) libraryCaption.textContent = caption;
     animateLibraryGrid();
     requestPageMetricsRefresh();
   };
@@ -400,7 +396,6 @@
     activeButton?.setAttribute("aria-pressed", "true");
     renderLibraryBooks({
       title: folder,
-      caption: `Browse the books stored in ${folder}.`,
       matches: (card) => card.dataset.folder === folder,
     });
   };

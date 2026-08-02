@@ -402,14 +402,6 @@ svg {
   font-style: italic;
 }
 
-.hero__lede {
-  max-width: 610px;
-  margin: 30px 0 0;
-  color: #b9b6bd;
-  font-size: clamp(18px, 1.5vw, 21px);
-  line-height: 1.55;
-}
-
 .hero__actions {
   display: flex;
   flex-wrap: wrap;
@@ -483,29 +475,6 @@ svg {
 .button--light svg {
   fill: currentColor;
   stroke: none;
-}
-
-.hero__signals {
-  display: grid;
-  grid-template-columns: repeat(2, max-content);
-  gap: 11px 22px;
-  margin-top: 44px;
-  color: var(--moon-muted);
-  font-size: 13px;
-}
-
-.hero__signals span {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.hero__signals i {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--blue);
-  box-shadow: 0 0 0 5px rgb(143 193 227 / 8%);
 }
 
 .home-orbit-canvas {
@@ -909,49 +878,11 @@ svg {
 }
 
 .section-heading--split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(340px, 0.65fr);
-  align-items: end;
-  gap: 72px;
-}
-
-.promise-row {
-  display: grid;
-  gap: 0;
-  border-top: 1px solid var(--line);
-}
-
-.promise-row span {
-  position: relative;
-  padding: 13px 0 13px 20px;
-  border-bottom: 1px solid var(--line);
-  color: var(--body);
-  font-size: 14px;
-}
-
-.promise-row span::before {
-  position: absolute;
-  top: 20px;
-  left: 1px;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--blue-deep);
-  content: "";
+  max-width: 960px;
 }
 
 .library-stage {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: clamp(26px, 4vw, 60px);
   margin-top: clamp(64px, 7vw, 104px);
-}
-
-.library-stage__rail {
-  display: flex;
-  flex-direction: column;
-  min-height: 670px;
-  padding: 8px 0 0;
 }
 
 .stage-index {
@@ -959,15 +890,6 @@ svg {
   font-family: var(--display);
   font-size: 18px;
   font-style: italic;
-}
-
-.library-stage__rail > p {
-  margin: auto 0 0;
-  color: var(--muted);
-  font-family: var(--display);
-  font-size: 17px;
-  font-style: italic;
-  line-height: 1.55;
 }
 
 .app-preview {
@@ -1382,27 +1304,11 @@ svg {
 }
 
 .section-heading--reader {
-  display: grid;
-  grid-template-columns: 1fr minmax(320px, 0.52fr);
-  align-items: end;
-  gap: 84px;
+  max-width: 980px;
 }
 
 .section-heading--reader h2 {
   color: var(--moon-strong);
-}
-
-.promise-row--dark {
-  border-color: var(--moon-line);
-}
-
-.promise-row--dark span {
-  border-color: var(--moon-line);
-  color: var(--moon-muted);
-}
-
-.promise-row--dark span::before {
-  background: var(--blue);
 }
 
 .reader-demo {
@@ -2388,7 +2294,7 @@ svg {
 
 .architecture-heading {
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) 330px;
+  grid-template-columns: 150px minmax(0, 1fr);
   align-items: end;
   gap: 50px;
 }
@@ -2667,7 +2573,7 @@ svg {
 
 .terminal-card__top {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr auto;
   align-items: center;
   min-height: 50px;
   padding: 0 15px;
@@ -2806,10 +2712,6 @@ svg {
     grid-template-columns: 120px minmax(0, 1fr);
   }
 
-  .architecture-heading .promise-row {
-    grid-column: 2;
-  }
-
   .architecture-node--files {
     grid-column: 1 / span 4;
   }
@@ -2887,29 +2789,6 @@ svg {
     display: none;
   }
 
-  .section-heading--split,
-  .section-heading--reader {
-    grid-template-columns: 1fr;
-    gap: 44px;
-  }
-
-  .library-stage {
-    grid-template-columns: 1fr;
-  }
-
-  .library-stage__rail {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    align-items: center;
-    min-height: auto;
-    gap: 20px;
-  }
-
-  .library-stage__rail > p {
-    grid-column: 1 / -1;
-    margin: 0;
-  }
-
   .reader-demo {
     grid-template-columns: 1fr;
   }
@@ -2940,10 +2819,6 @@ svg {
   .architecture-heading {
     grid-template-columns: 1fr;
     gap: 32px;
-  }
-
-  .architecture-heading .promise-row {
-    grid-column: auto;
   }
 
   .architecture-map {
@@ -2993,17 +2868,9 @@ svg {
     font-size: clamp(52px, 16vw, 76px);
   }
 
-  .hero__signals {
-    grid-template-columns: 1fr;
-  }
-
   .section-heading h2,
   .get-started__copy h2 {
     font-size: clamp(42px, 13vw, 60px);
-  }
-
-  .library-stage__rail {
-    grid-template-columns: 1fr;
   }
 
   .stage-index {
