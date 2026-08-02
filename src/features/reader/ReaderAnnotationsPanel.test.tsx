@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Annotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { ReaderAnnotationsPanel } from "./ReaderAnnotationsPanel";
+import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -137,7 +138,11 @@ function defaultProps(
 
 function renderPanel(overrides: Partial<ComponentProps<typeof ReaderAnnotationsPanel>> = {}) {
   const props = defaultProps(overrides);
-  const target = mount(<ReaderAnnotationsPanel {...props} />);
+  const target = mount(
+    <ReaderSideSurfaceLayer onDismiss={props.onClose}>
+      <ReaderAnnotationsPanel {...props} />
+    </ReaderSideSurfaceLayer>,
+  );
   return { container: target, props };
 }
 

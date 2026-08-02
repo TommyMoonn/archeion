@@ -68,6 +68,7 @@ import {
 } from "../quick-actions/quickActions";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
+import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 import {
   readerNoteTargetAnnotationId,
   useReaderNoteSession,
@@ -234,14 +235,17 @@ export function ReaderPage() {
     chapters: navigationState.chapters,
   });
   const {
+    confirmDraftPersisted,
     connectSurface: connectNoteSurface,
     deleteNote,
+    draftFor: noteDraftFor,
     editorHandleRef,
     invalidateOpenRequests,
     openAnnotationNote,
     openSelectionNote,
     saveNote,
     settle: settleNoteEditor,
+    updateDraft: updateNoteDraft,
   } = useReaderNoteSession({
     archiveId: activeArchiveId,
     bookId,
@@ -988,68 +992,75 @@ export function ReaderPage() {
         <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
       ) : null}
 
-      {annotationsOpen ? (
-        <>
-          <LazyReaderAnnotationsPanel
-            active={!noteTarget}
-            annotations={annotations.annotations}
-            currentAnnotationId={currentAnnotationId}
-            currentCfi={location.cfi}
-            loadStatus={annotations.loadStatus}
-            navigation={navigationState}
-            onClose={closeAnnotations}
-            onEditNote={openAnnotationNote}
-            onExport={exportCurrentAnnotations}
-            onNavigate={navigateToAnnotation}
-            onRecover={recoverAnnotationAnchor}
-            onRecolorHighlight={highlights.recolor}
-            onReload={annotations.reload}
-            onRemove={removeAnnotation}
-            onUpdateBookmarkLabel={annotations.updateLabel}
-            restoreFocusAnnotationId={annotationFocusTargetId}
-            searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-            searchInputRef={annotationsSearchInputRef}
-          />
-          {noteTarget ? (
-            <ReaderNoteEditor
-              annotation={noteTarget.annotation}
-              keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
-              key={noteTarget.editorKey}
-              onBack={returnNoteToAnnotations}
-              onDelete={(persistedAnnotation) => deleteNote(noteTarget, persistedAnnotation)}
-              onSave={(note, persistedAnnotation) =>
-                saveNote(noteTarget, note, persistedAnnotation)
-              }
-              ref={editorHandleRef}
+      {sideSurface ? (
+        <ReaderSideSurfaceLayer onDismiss={closeTopmost}>
+          {annotationsOpen ? (
+            <>
+              <LazyReaderAnnotationsPanel
+                active={!noteTarget}
+                annotations={annotations.annotations}
+                currentAnnotationId={currentAnnotationId}
+                currentCfi={location.cfi}
+                loadStatus={annotations.loadStatus}
+                navigation={navigationState}
+                onClose={closeAnnotations}
+                onEditNote={openAnnotationNote}
+                onExport={exportCurrentAnnotations}
+                onNavigate={navigateToAnnotation}
+                onRecover={recoverAnnotationAnchor}
+                onRecolorHighlight={highlights.recolor}
+                onReload={annotations.reload}
+                onRemove={removeAnnotation}
+                onUpdateBookmarkLabel={annotations.updateLabel}
+                restoreFocusAnnotationId={annotationFocusTargetId}
+                searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
+                searchInputRef={annotationsSearchInputRef}
+              />
+              {noteTarget ? (
+                <ReaderNoteEditor
+                  annotation={noteTarget.annotation}
+                  keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
+                  key={noteTarget.editorKey}
+                  onBack={returnNoteToAnnotations}
+                  onDelete={(persistedAnnotation) => deleteNote(noteTarget, persistedAnnotation)}
+                  onDraftChange={(note) => updateNoteDraft(noteTarget, note)}
+                  onDraftPersisted={(note, expectedDraft) =>
+                    confirmDraftPersisted(noteTarget, note, expectedDraft)
+                  }
+                  onSave={(note, persistedAnnotation) =>
+                    saveNote(noteTarget, note, persistedAnnotation)
+                  }
+                  ref={editorHandleRef}
+                  restoredDraft={noteDraftFor(noteTarget)?.text}
+                />
+              ) : null}
+            </>
+          ) : null}
+
+          {tocOpen ? (
+            <LazyReaderTocPanel
+              navigation={navigationState}
+              onClose={closeToc}
+              onNavigate={navigateToChapter}
+              searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
+              searchInputRef={tocSearchInputRef}
             />
           ) : null}
-        </>
-      ) : null}
 
-      {tocOpen ? (
-        <LazyReaderTocPanel
-          navigation={navigationState}
-          onClose={closeToc}
-          onNavigate={navigateToChapter}
-          searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-          searchInputRef={tocSearchInputRef}
-        />
-      ) : null}
-
-      {settingsOpen ? (
-        <div className="reader-settings-layer" onClick={closeSettings}>
-          <ReaderSettingsPanel
-            onChange={changeSettings}
-            onClose={closeSettings}
-            onReaderThemeChange={changeReaderTheme}
-            onReaderThemeOpen={() => void themeCatalog.refresh()}
-            persistenceFailed={settingsPersistenceFailed}
-            readerThemeCatalogError={themeCatalog.error}
-            readerThemeEntries={themeCatalog.entries}
-            readerThemeSelection={readerThemeSelection}
-            settings={settings}
-          />
-        </div>
+          {settingsOpen ? (
+            <ReaderSettingsPanel
+              onChange={changeSettings}
+              onClose={closeSettings}
+              onReaderThemeChange={changeReaderTheme}
+              onReaderThemeOpen={() => void themeCatalog.refresh()}
+              persistenceFailed={settingsPersistenceFailed}
+              readerThemeCatalogError={themeCatalog.error}
+              readerThemeEntries={themeCatalog.entries}
+              readerThemeSelection={readerThemeSelection}
+              settings={settings}
+            />
+          ) : null}
+        </ReaderSideSurfaceLayer>
       ) : null}
     </main>
   );

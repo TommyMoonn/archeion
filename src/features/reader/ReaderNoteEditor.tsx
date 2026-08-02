@@ -11,13 +11,16 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
-import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import type { HighlightAnnotation } from "../../types/annotation";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderNoteEditorProps = {
   annotation: HighlightAnnotation;
+  restoredDraft?: string;
   keepsHighlightOnEmptyClose?: boolean;
+  onDraftChange?: (text: string) => void;
+  onDraftPersisted?: (text: string, expectedDraftText: string) => void;
   onBusyChange?: (busy: boolean) => void;
   onBack: () => void;
   onDelete: (persistedAnnotation: HighlightAnnotation) => Promise<boolean>;
@@ -31,7 +34,7 @@ export type ReaderNoteEditorHandle = {
   settle: () => Promise<boolean>;
 };
 
-type SaveStatus = "idle" | "saving" | "saved" | "empty" | "error";
+type SaveStatus = "idle" | "saving" | "saved" | "restored" | "empty" | "error";
 type ErrorKind = "save" | "delete" | null;
 const NOTE_SAVE_DELAY_MS = 650;
 
@@ -41,14 +44,32 @@ function annotationRepresentsNote(annotation: HighlightAnnotation): boolean {
 
 export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEditorProps>(
   function ReaderNoteEditor(
-    { annotation, keepsHighlightOnEmptyClose = false, onBack, onBusyChange, onDelete, onSave },
+    {
+      annotation,
+      restoredDraft,
+      keepsHighlightOnEmptyClose = false,
+      onBack,
+      onBusyChange,
+      onDelete,
+      onDraftChange,
+      onDraftPersisted,
+      onSave,
+    },
     ref,
   ) {
-    const initialText = annotation?.note ?? "";
+    const persistedText = annotation?.note ?? "";
+    const restoredDraftMatchesPersisted =
+      restoredDraft !== undefined && restoredDraft === persistedText;
+    const draftWasRestored = restoredDraft !== undefined && !restoredDraftMatchesPersisted;
+    const initialText = restoredDraft ?? persistedText;
     const initialHasPersistedNote = annotationRepresentsNote(annotation);
     const [text, setText] = useState(initialText);
     const [status, setStatus] = useState<SaveStatus>(
-      initialHasPersistedNote && !initialText.trim() ? "empty" : "idle",
+      draftWasRestored
+        ? "restored"
+        : initialHasPersistedNote && !initialText.trim()
+          ? "empty"
+          : "idle",
     );
     const [errorKind, setErrorKind] = useState<ErrorKind>(null);
     const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -59,8 +80,8 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     const restoreDeleteFocusRef = useRef(false);
     const mountedRef = useRef(true);
     const textRef = useRef(initialText);
-    const savedTextRef = useRef(initialText);
-    const draftGenerationRef = useRef(0);
+    const savedTextRef = useRef(persistedText);
+    const draftGenerationRef = useRef(draftWasRestored && initialText !== persistedText ? 1 : 0);
     const requestedGenerationRef = useRef(0);
     const persistedGenerationRef = useRef(0);
     const latestAnnotationRef = useRef(annotation);
@@ -74,14 +95,24 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
     const onBusyChangeRef = useRef(onBusyChange);
     const onBackRef = useRef(onBack);
     const onDeleteRef = useRef(onDelete);
+    const onDraftChangeRef = useRef(onDraftChange);
+    const onDraftPersistedRef = useRef(onDraftPersisted);
     const onSaveRef = useRef(onSave);
 
     useEffect(() => {
       onBusyChangeRef.current = onBusyChange;
       onBackRef.current = onBack;
       onDeleteRef.current = onDelete;
+      onDraftChangeRef.current = onDraftChange;
+      onDraftPersistedRef.current = onDraftPersisted;
       onSaveRef.current = onSave;
-    }, [onBack, onBusyChange, onDelete, onSave]);
+    }, [onBack, onBusyChange, onDelete, onDraftChange, onDraftPersisted, onSave]);
+
+    useLayoutEffect(() => {
+      if (restoredDraftMatchesPersisted) {
+        onDraftPersistedRef.current?.(initialText, initialText);
+      }
+    }, [initialText, restoredDraftMatchesPersisted]);
 
     useEffect(() => {
       latestAnnotationRef.current = annotation;
@@ -137,7 +168,16 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
           const generation = requestedGenerationRef.current;
           const nextText = textRef.current;
 
-          if (generation <= persistedGenerationRef.current || nextText === savedTextRef.current) {
+          if (nextText === savedTextRef.current) {
+            onDraftPersistedRef.current?.(nextText, nextText);
+            persistedGenerationRef.current = Math.max(persistedGenerationRef.current, generation);
+            if (generation === draftGenerationRef.current) {
+              updateStatus("idle");
+            }
+            return true;
+          }
+
+          if (generation <= persistedGenerationRef.current) {
             persistedGenerationRef.current = Math.max(persistedGenerationRef.current, generation);
             if (generation === draftGenerationRef.current) {
               updateStatus("idle");
@@ -220,6 +260,15 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
 
     const handleTextChange = useCallback(
       (nextText: string) => {
+        if (nextText === savedTextRef.current) {
+          if (saveInFlightRef.current) {
+            onDraftChangeRef.current?.(nextText);
+          } else {
+            onDraftPersistedRef.current?.(nextText, textRef.current);
+          }
+        } else {
+          onDraftChangeRef.current?.(nextText);
+        }
         textRef.current = nextText;
         draftGenerationRef.current += 1;
         setText(nextText);
@@ -227,6 +276,9 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
 
         if (deleteRequestedRef.current) return;
         if (nextText === savedTextRef.current) {
+          if (saveInFlightRef.current) {
+            requestedGenerationRef.current = draftGenerationRef.current;
+          }
           updateStatus("idle");
           return;
         }
@@ -334,15 +386,17 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
         ? "Saving…"
         : status === "saved"
           ? "Saved"
-          : status === "empty"
-            ? "Use Delete note to remove it."
-            : status === "error"
-              ? errorKind === "delete"
-                ? "Note could not be deleted."
-                : "Not saved"
-              : keepsHighlightOnEmptyClose && !hasPersistedNote && !text.trim()
-                ? "Closing without a note keeps the highlight."
-                : "Changes save automatically";
+          : status === "restored"
+            ? "Draft restored"
+            : status === "empty"
+              ? "Use Delete note to remove it."
+              : status === "error"
+                ? errorKind === "delete"
+                  ? "Note could not be deleted."
+                  : "Not saved. Retry."
+                : keepsHighlightOnEmptyClose && !hasPersistedNote && !text.trim()
+                  ? "Closing without a note keeps the highlight."
+                  : "Changes save automatically";
     const canDelete = hasPersistedNote || Boolean(text.trim());
 
     function cancelDeleteConfirmation() {
@@ -350,17 +404,14 @@ export const ReaderNoteEditor = forwardRef<ReaderNoteEditorHandle, ReaderNoteEdi
       setConfirmingDelete(false);
     }
 
-    useTransientSurfaceOwnership({
-      elementRef: editorRef,
-      kind: "inline-editor",
-      onDismiss: (reason) => {
-        if (reason !== "escape" || deleting) return;
-        if (confirmingDelete) {
-          cancelDeleteConfirmation();
-          return;
-        }
-        void requestBack();
-      },
+    useReaderSideSurfaceDismiss(() => {
+      if (deleting) return true;
+      if (confirmingDelete) {
+        cancelDeleteConfirmation();
+        return true;
+      }
+      requestBack();
+      return true;
     });
 
     return (

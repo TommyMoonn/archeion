@@ -446,10 +446,12 @@ html[data-motion="on"] .reader-toc__loading span {
   margin-bottom: 13px;
 }
 
-.reader-settings-layer {
+.reader-side-surface-layer {
   position: absolute;
   z-index: 8;
-  inset: 0;
+  top: 52px;
+  inset-inline: 0;
+  bottom: 0;
 }
 
 .reader-side-panel {
@@ -457,7 +459,7 @@ html[data-motion="on"] .reader-toc__loading span {
 
   position: absolute;
   z-index: 7;
-  top: 52px;
+  top: 0;
   inset-inline-end: 0;
   bottom: 0;
   display: flex;
@@ -993,7 +995,6 @@ html[data-motion="on"] .reader-side-panel {
   }
 
   .reader-side-panel {
-    top: 52px;
     width: calc(100vw - 18px);
   }
 }

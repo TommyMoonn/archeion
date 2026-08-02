@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
+import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 import { ReaderTocPanel } from "./ReaderTocPanel";
 
 let root: Root | null = null;
@@ -44,7 +45,11 @@ function renderPanel(
   const onNavigate = vi.fn(options.onNavigate ?? (async () => true));
 
   act(() => {
-    root?.render(<ReaderTocPanel navigation={state} onClose={onClose} onNavigate={onNavigate} />);
+    root?.render(
+      <ReaderSideSurfaceLayer onDismiss={onClose}>
+        <ReaderTocPanel navigation={state} onClose={onClose} onNavigate={onNavigate} />
+      </ReaderSideSurfaceLayer>,
+    );
   });
 
   return { container, onClose, onNavigate };

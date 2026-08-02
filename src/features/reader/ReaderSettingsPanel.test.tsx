@@ -16,6 +16,7 @@ import type { AppCommand } from "../commands/appCommands";
 import { resolveKeyboardCommand } from "../commands/commandResolver";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
+import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -58,12 +59,14 @@ function renderPanel(persistenceFailed = false) {
 
   act(() => {
     root?.render(
-      <ReaderSettingsPanel
-        {...basePanelProps}
-        onClose={onClose}
-        onReaderThemeChange={onReaderThemeChange}
-        persistenceFailed={persistenceFailed}
-      />,
+      <ReaderSideSurfaceLayer onDismiss={onClose}>
+        <ReaderSettingsPanel
+          {...basePanelProps}
+          onClose={onClose}
+          onReaderThemeChange={onReaderThemeChange}
+          persistenceFailed={persistenceFailed}
+        />
+      </ReaderSideSurfaceLayer>,
     );
   });
 
@@ -73,13 +76,20 @@ function renderPanel(persistenceFailed = false) {
 function ControlledPanel({ onClose }: { onClose: () => void }) {
   const [open, setOpen] = useState(true);
   return open ? (
-    <ReaderSettingsPanel
-      {...basePanelProps}
-      onClose={() => {
+    <ReaderSideSurfaceLayer
+      onDismiss={() => {
         onClose();
         setOpen(false);
       }}
-    />
+    >
+      <ReaderSettingsPanel
+        {...basePanelProps}
+        onClose={() => {
+          onClose();
+          setOpen(false);
+        }}
+      />
+    </ReaderSideSurfaceLayer>
   ) : null;
 }
 
@@ -96,13 +106,20 @@ function PanelWithModal({
   return (
     <>
       {panelOpen ? (
-        <ReaderSettingsPanel
-          {...basePanelProps}
-          onClose={() => {
+        <ReaderSideSurfaceLayer
+          onDismiss={() => {
             onPanelClose();
             setPanelOpen(false);
           }}
-        />
+        >
+          <ReaderSettingsPanel
+            {...basePanelProps}
+            onClose={() => {
+              onPanelClose();
+              setPanelOpen(false);
+            }}
+          />
+        </ReaderSideSurfaceLayer>
       ) : null}
       <button onClick={() => setModalOpen(true)} type="button">
         Open modal
@@ -213,6 +230,7 @@ describe("ReaderSettingsPanel", () => {
     act(() => sepia.click());
 
     expect(rendered.onReaderThemeChange).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
+    expect(rendered.onClose).not.toHaveBeenCalled();
     expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
   });
 
@@ -294,13 +312,15 @@ describe("ReaderSettingsPanel", () => {
       'aside[aria-label="Reader settings"]',
     )!;
 
-    expect(panel.dataset.applicationTransient).toBe("reader-panel");
+    const layer = rendered.container.querySelector<HTMLElement>(".reader-side-surface-layer")!;
+    expect(panel.dataset.applicationTransient).toBeUndefined();
+    expect(layer.dataset.applicationTransient).toBe("reader-panel");
     expect(activeTransientSurfaceKind()).toBe("reader-panel");
 
     act(() => root?.unmount());
     root = null;
 
-    expect(panel.dataset.applicationTransient).toBeUndefined();
+    expect(layer.dataset.applicationTransient).toBeUndefined();
     expect(activeTransientSurfaceKind()).toBeNull();
   });
 
@@ -312,7 +332,9 @@ describe("ReaderSettingsPanel", () => {
     function render(settings: ReaderSettings) {
       act(() => {
         root?.render(
-          <ReaderSettingsPanel {...basePanelProps} onClose={onClose} settings={settings} />,
+          <ReaderSideSurfaceLayer onDismiss={onClose}>
+            <ReaderSettingsPanel {...basePanelProps} onClose={onClose} settings={settings} />
+          </ReaderSideSurfaceLayer>,
         );
       });
     }

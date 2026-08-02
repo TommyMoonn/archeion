@@ -4,7 +4,6 @@ import type { CSSProperties, RefObject } from "react";
 
 import { Input } from "../../components/Input";
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
-import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_TOC_SEARCH_THRESHOLD } from "./readerNavigation";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
@@ -36,14 +35,6 @@ export function ReaderTocPanel({
     () => filterChapters(navigation.chapters, query),
     [navigation.chapters, query],
   );
-
-  useTransientSurfaceOwnership({
-    elementRef: panelRef,
-    kind: "reader-panel",
-    onDismiss: (reason) => {
-      if (reason === "escape") onClose();
-    },
-  });
 
   useEffect(() => {
     const focusTarget = showSearch

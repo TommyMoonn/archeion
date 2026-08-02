@@ -111,7 +111,9 @@ function Harness({
 }
 
 type IntegratedHarnessProps = Omit<HarnessProps, "editor" | "targetRef"> & {
+  editorVisible?: boolean;
   onTargetUpdate?: (target: ReaderNoteTarget) => void;
+  targetRef?: MutableRefObject<ReaderNoteTarget | null>;
 };
 
 function IntegratedHarness({
@@ -119,9 +121,11 @@ function IntegratedHarness({
   archiveId,
   bookId,
   ensureHighlight,
+  editorVisible = true,
   onTargetUpdate,
   storage,
   syncAnnotation,
+  targetRef: externalTargetRef,
 }: IntegratedHarnessProps) {
   const [target, setTarget] = useState<ReaderNoteTarget | null>(null);
   const targetRef = useRef(target);
@@ -132,37 +136,43 @@ function IntegratedHarness({
     storage,
     syncAnnotation,
   });
-  const { connectSurface, deleteNote, editorHandleRef, saveNote } = session;
+  const { confirmDraftPersisted, connectSurface, deleteNote, editorHandleRef, saveNote } = session;
 
   useLayoutEffect(() => {
     targetRef.current = target;
+    if (externalTargetRef) externalTargetRef.current = target;
     return connectSurface({
       getTarget: () => targetRef.current,
       showTarget: (nextTarget) => {
         targetRef.current = nextTarget;
+        if (externalTargetRef) externalTargetRef.current = nextTarget;
         setTarget(nextTarget);
       },
       updateTarget: (nextTarget) => {
         onTargetUpdate?.(nextTarget);
         targetRef.current = nextTarget;
+        if (externalTargetRef) externalTargetRef.current = nextTarget;
         setTarget(nextTarget);
       },
     });
-  }, [connectSurface, onTargetUpdate, target]);
+  }, [connectSurface, externalTargetRef, onTargetUpdate, target]);
 
   useLayoutEffect(() => {
     apiRef.current = session;
   }, [apiRef, session]);
 
-  return target ? (
+  return target && editorVisible ? (
     <ReaderNoteEditor
       annotation={target.annotation}
       keepsHighlightOnEmptyClose={target.keepsHighlightOnEmptyClose}
       key={target.editorKey}
       onBack={() => setTarget(null)}
       onDelete={(persistedAnnotation) => deleteNote(target, persistedAnnotation)}
+      onDraftChange={(text) => session.updateDraft(target, text)}
+      onDraftPersisted={(text, expectedDraft) => confirmDraftPersisted(target, text, expectedDraft)}
       onSave={(note, persistedAnnotation) => saveNote(target, note, persistedAnnotation)}
       ref={editorHandleRef}
+      restoredDraft={session.draftFor(target)?.text}
     />
   ) : null;
 }
@@ -418,6 +428,248 @@ describe("useReaderNoteSession", () => {
 
     expect(update).toHaveBeenCalledOnce();
     expect(update).toHaveBeenCalledWith("book-a", original.id, { note: draft });
+  });
+
+  it("restores a failed draft when the same editor target remounts in the Reader session", async () => {
+    const original = highlight("restored-draft", { note: "Persisted note" });
+    const update = vi.fn(async () => undefined);
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const props: IntegratedHarnessProps = {
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+    };
+    await renderIntegratedHarness(props);
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+    setDraft("Recovered session draft");
+
+    await renderIntegratedHarness({ ...props, editorVisible: false });
+    await act(async () => Promise.resolve());
+    expect(update).toHaveBeenCalledOnce();
+
+    await renderIntegratedHarness({ ...props, editorVisible: true });
+    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+      "Recovered session draft",
+    );
+    expect(container?.querySelector('[role="status"]')?.textContent).toContain("Draft restored");
+  });
+
+  it("retires a reverted persisted note before remount without writing it again", async () => {
+    vi.useFakeTimers();
+    const original = highlight("reverted-draft", { note: "Original note" });
+    const update = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    const props: IntegratedHarnessProps = {
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    };
+    await renderIntegratedHarness(props);
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+
+    setDraft("Temporary edit");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Temporary edit" });
+
+    setDraft("Original note");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+
+    await renderIntegratedHarness({ ...props, editorVisible: false });
+    await renderIntegratedHarness({ ...props, editorVisible: true });
+    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Original note");
+    expect(container?.querySelector('[role="status"]')?.textContent).not.toContain(
+      "Draft restored",
+    );
+
+    await act(async () => vi.runAllTimersAsync());
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("retires a fresh note draft returned to empty before remount", async () => {
+    vi.useFakeTimers();
+    const original = highlight("empty-reverted-draft");
+    const update = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    const props: IntegratedHarnessProps = {
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    };
+    await renderIntegratedHarness(props);
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+
+    setDraft("Temporary draft");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Temporary draft" });
+
+    setDraft("");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+
+    await renderIntegratedHarness({ ...props, editorVisible: false });
+    await renderIntegratedHarness({ ...props, editorVisible: true });
+    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("");
+    expect(container?.querySelector('[role="status"]')?.textContent).not.toContain(
+      "Draft restored",
+    );
+
+    await act(async () => vi.runAllTimersAsync());
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("keeps a reverted draft protected until an older active save is superseded", async () => {
+    vi.useFakeTimers();
+    const original = highlight("reverted-during-save", { note: "Original note" });
+    const firstSave = deferred<HighlightAnnotation | undefined>();
+    const secondSave = deferred<HighlightAnnotation | undefined>();
+    const update = vi
+      .fn()
+      .mockImplementationOnce(() => firstSave.promise)
+      .mockImplementationOnce(() => secondSave.promise);
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderIntegratedHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+
+    setDraft("Temporary edit");
+    await act(async () => vi.advanceTimersByTimeAsync(650));
+    expect(update).toHaveBeenCalledTimes(1);
+
+    setDraft("Original note");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
+
+    await act(async () => {
+      firstSave.resolve({ ...original, note: "Temporary edit" });
+      await firstSave.promise;
+    });
+    expect(update).toHaveBeenCalledTimes(2);
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
+
+    await act(async () => {
+      secondSave.resolve(original);
+      await secondSave.promise;
+    });
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+  });
+
+  it("retires a matching stale cache entry when settlement finds persisted text", async () => {
+    const original = highlight("settled-persisted-draft", { note: "Original note" });
+    const update = vi.fn();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderIntegratedHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+    act(() => apiRef.current?.updateDraft(targetRef.current!, "Original note"));
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
+
+    await act(async () => {
+      expect(await apiRef.current?.settle()).toBe(true);
+    });
+
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("does not retire a different newer draft during persisted reconciliation", async () => {
+    const original = highlight("persisted-reconciliation-safety", { note: "Original note" });
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(vi.fn()),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+    const target = targetRef.current!;
+    act(() => apiRef.current?.updateDraft(target, "Newer draft"));
+
+    act(() => apiRef.current?.confirmDraftPersisted(target, "Original note", "Temporary edit"));
+
+    expect(apiRef.current?.draftFor(target)).toEqual({ text: "Newer draft" });
+  });
+
+  it("retires the exact cached draft after confirmed save and deletion", async () => {
+    const original = highlight("cache-retirement", { note: "Persisted note" });
+    const update = vi.fn(
+      async (_bookId: string, _annotationId: string, changes: { note?: string }) => ({
+        ...original,
+        note: changes.note,
+      }),
+    );
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      archiveId: "archive-a",
+      bookId: "book-a",
+      editor: { settle: vi.fn(async () => true) },
+      ensureHighlight: vi.fn(),
+      storage: storageWithUpdate(update),
+      syncAnnotation: vi.fn(),
+      targetRef,
+    });
+    await act(async () => {
+      await apiRef.current?.openAnnotationNote(original);
+    });
+    const initialTarget = targetRef.current!;
+    act(() => apiRef.current?.updateDraft(initialTarget, "Saved draft"));
+    expect(apiRef.current?.draftFor(initialTarget)).toEqual({ text: "Saved draft" });
+
+    await act(async () => {
+      await apiRef.current?.saveNote(initialTarget, "Saved draft", original);
+    });
+    const savedTarget = targetRef.current!;
+    expect(apiRef.current?.draftFor(savedTarget)).toBeUndefined();
+
+    act(() => apiRef.current?.updateDraft(savedTarget, "Delete this draft"));
+    expect(apiRef.current?.draftFor(savedTarget)).toEqual({ text: "Delete this draft" });
+    await act(async () => {
+      await apiRef.current?.deleteNote(savedTarget, savedTarget.annotation);
+    });
+    expect(apiRef.current?.draftFor(savedTarget)).toBeUndefined();
   });
 
   it("allows teardown durability to finish without publishing after unmount", async () => {

@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { HighlightAnnotation } from "../../types/annotation";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
+import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -58,7 +59,9 @@ function defaultProps(): ComponentProps<typeof ReaderNoteEditor> {
 
 function renderElement(element: ReactElement) {
   const target = container ?? createContainer();
-  act(() => root?.render(element));
+  act(() =>
+    root?.render(<ReaderSideSurfaceLayer onDismiss={vi.fn()}>{element}</ReaderSideSurfaceLayer>),
+  );
   return target;
 }
 
@@ -96,6 +99,13 @@ async function confirmDelete(target: HTMLElement) {
   await click(target, "Delete");
 }
 
+function pointerPair(target: HTMLElement, pointerId = 1) {
+  act(() => {
+    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId }));
+    target.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId }));
+  });
+}
+
 describe("ReaderNoteEditor", () => {
   it("explains that closing an empty fresh note keeps its new highlight", async () => {
     const freshHighlight = { ...annotation, note: undefined };
@@ -128,6 +138,75 @@ describe("ReaderNoteEditor", () => {
     expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
     expect(target.querySelector(".reader-note-editor__status")).toBeInstanceOf(HTMLDivElement);
     expect(target.querySelector(".reader-note-editor__footer")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("restores a cached draft as unsaved work and updates its owner before debounce", async () => {
+    const editorRef = createRef<ReaderNoteEditorHandle>();
+    const onDraftChange = vi.fn();
+    const props = { ...defaultProps(), onDraftChange };
+    const target = renderElement(
+      <ReaderNoteEditor {...props} ref={editorRef} restoredDraft="Recovered draft" />,
+    );
+    const field = target.querySelector<HTMLTextAreaElement>("textarea")!;
+
+    expect(field.value).toBe("Recovered draft");
+    expect(target.querySelector("[role=status]")?.textContent).toContain("Draft restored");
+
+    enterText(target, "Recovered and edited");
+    expect(onDraftChange).toHaveBeenCalledWith("Recovered and edited");
+    expect(props.onSave).not.toHaveBeenCalled();
+
+    await act(async () => {
+      expect(await editorRef.current?.settle()).toBe(true);
+    });
+    expect(props.onSave).toHaveBeenCalledWith("Recovered and edited", annotation);
+  });
+
+  it("retires a draft immediately when text returns to the persisted value", async () => {
+    vi.useFakeTimers();
+    const persisted = { ...annotation, note: "Original note" };
+    const onDraftChange = vi.fn();
+    const onDraftPersisted = vi.fn();
+    const { container: target, props } = renderEditor({
+      annotation: persisted,
+      onDraftChange,
+      onDraftPersisted,
+    });
+
+    enterText(target, "Temporary edit");
+    expect(onDraftChange).toHaveBeenLastCalledWith("Temporary edit");
+
+    enterText(target, "Original note");
+    expect(onDraftPersisted).toHaveBeenLastCalledWith("Original note", "Temporary edit");
+    expect(onDraftChange).toHaveBeenCalledTimes(1);
+    expect(target.querySelector("[role=status]")?.textContent).toContain(
+      "Changes save automatically",
+    );
+
+    await act(async () => vi.runAllTimersAsync());
+    expect(props.onSave).not.toHaveBeenCalled();
+  });
+
+  it("retires a restored draft that already matches persistence without restored status", async () => {
+    const editorRef = createRef<ReaderNoteEditorHandle>();
+    const persisted = { ...annotation, note: "Original note" };
+    const onDraftPersisted = vi.fn();
+    const props = { ...defaultProps(), annotation: persisted, onDraftPersisted };
+    const target = renderElement(
+      <ReaderNoteEditor {...props} ref={editorRef} restoredDraft="Original note" />,
+    );
+
+    expect(target.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Original note");
+    expect(target.querySelector("[role=status]")?.textContent).not.toContain("Draft restored");
+    expect(target.querySelector("[role=status]")?.textContent).toContain(
+      "Changes save automatically",
+    );
+    expect(onDraftPersisted).toHaveBeenCalledWith("Original note", "Original note");
+
+    await act(async () => {
+      expect(await editorRef.current?.settle()).toBe(true);
+    });
+    expect(props.onSave).not.toHaveBeenCalled();
   });
 
   it("coalesces a rapid editing burst into one final note write", async () => {
@@ -173,7 +252,7 @@ describe("ReaderNoteEditor", () => {
 
     expect(flushed).toBe(false);
     expect(props.onBack).not.toHaveBeenCalled();
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved");
+    expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved. Retry.");
     expect(target.querySelector("[role=status]")?.getAttribute("aria-live")).toBe("assertive");
     expect(button(target, "Retry")).toBeInstanceOf(HTMLButtonElement);
 
@@ -453,5 +532,19 @@ describe("ReaderNoteEditor", () => {
     });
 
     expect(props.onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismisses delete confirmation before using an outside click as Back", async () => {
+    const { container: target, props } = renderEditor();
+    await click(target, "Delete note");
+    const layer = target.querySelector<HTMLElement>(".reader-side-surface-layer")!;
+
+    pointerPair(layer);
+    expect(target.textContent).not.toContain("Delete this note?");
+    expect(props.onBack).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(button(target, "Delete note"));
+
+    pointerPair(layer, 2);
+    expect(props.onBack).toHaveBeenCalledOnce();
   });
 });

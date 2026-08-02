@@ -9,6 +9,7 @@ import {
   subscribeTransientSurfaceOwnership,
   transientSurfaceOriginatesFrom,
   transientSurfaceOwnershipSnapshot,
+  transientSurfaceClaimedOutsidePointer,
   resetTransientSurfaceOwnershipForTests,
 } from "./transientSurfaceOwnership";
 
@@ -112,10 +113,12 @@ describe("transient surface ownership", () => {
       onDismiss: second,
     });
 
-    document.body.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    const event = new PointerEvent("pointerdown", { bubbles: true });
+    document.body.dispatchEvent(event);
 
     expect(second).toHaveBeenCalledWith("outside-pointer");
     expect(first).not.toHaveBeenCalled();
+    expect(transientSurfaceClaimedOutsidePointer(event)).toBe(true);
   });
 
   it("window blur closes eligible non-modal surfaces without dismissing modals", () => {

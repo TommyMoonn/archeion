@@ -36,6 +36,7 @@ type RegisteredTransientSurface = Required<
 
 const surfaceStack: RegisteredTransientSurface[] = [];
 const ownershipListeners = new Set<() => void>();
+const outsidePointerDismissals = new WeakSet<Event>();
 let ownershipRevision = 0;
 let listenersInstalled = false;
 
@@ -86,7 +87,12 @@ function handleEscape(event: KeyboardEvent): void {
 function handlePointerDown(event: PointerEvent): void {
   const surface = topSurface();
   if (!surface?.dismissOnOutsidePointer || ownsTarget(surface, event.target)) return;
+  outsidePointerDismissals.add(event);
   surface.onDismiss("outside-pointer");
+}
+
+export function transientSurfaceClaimedOutsidePointer(event: Event): boolean {
+  return outsidePointerDismissals.has(event);
 }
 
 function handleWindowBlur(): void {

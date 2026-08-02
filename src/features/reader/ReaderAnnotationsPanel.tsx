@@ -20,7 +20,6 @@ import { Tooltip } from "../../components/Tooltip";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { useDismissibleDetails } from "../../utils/useDismissibleDetails";
-import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { ReaderAnnotationActionMenu } from "./ReaderAnnotationActionMenu";
 import { ReaderAnnotationList, type ReaderAnnotationListHandle } from "./ReaderAnnotationList";
 import type { ReaderAnnotationExportFormat } from "./readerAnnotationExport";
@@ -34,6 +33,7 @@ import {
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import { type ReaderAnnotationSort, type ReaderAnnotationView } from "./readerAnnotations";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import { useReaderAnnotationActionMenu } from "./useReaderAnnotationActionMenu";
 import { useReaderAnnotationPanelActions } from "./useReaderAnnotationPanelActions";
 import { ReaderSidePanel } from "./ReaderSidePanel";
@@ -161,28 +161,18 @@ export function ReaderAnnotationsPanel({
     }
   }, [active, restoreFocusAnnotationId, searchInputRef]);
 
-  function handlePanelEscape() {
-    if (actionMenu.menu) {
-      actionMenu.handleEscape();
-    } else if (exportMenuRef.current?.open) {
-      closeExportMenu({ restoreFocus: true });
-    } else if (actions.editing) {
+  function dismissNestedSurface() {
+    if (actions.editing) {
       actions.cancelBookmarkRename(actions.editing.annotationId);
+      return true;
     } else if (actions.pendingRemovalId) {
       actions.cancelRemoval(actions.pendingRemovalId);
-    } else {
-      onClose();
+      return true;
     }
+    return false;
   }
 
-  useTransientSurfaceOwnership({
-    active,
-    elementRef: panelRef,
-    kind: "reader-panel",
-    onDismiss: (reason) => {
-      if (reason === "escape") handlePanelEscape();
-    },
-  });
+  useReaderSideSurfaceDismiss(dismissNestedSurface, active);
 
   function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
     closeExportDetails(options);

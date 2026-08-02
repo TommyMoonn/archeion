@@ -242,29 +242,23 @@ async function renderProvider(
   return { container, onRun };
 }
 
-async function waitForPalette(): Promise<HTMLDialogElement> {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    const palette = document.querySelector<HTMLDialogElement>(".quick-actions");
-    if (palette) {
-      return palette;
-    }
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 0));
-    });
-  }
-
-  throw new Error("Quick Actions palette was not rendered.");
-}
-
-async function waitForSettings(): Promise<HTMLDialogElement> {
+async function waitForDialog(selector: string, failureMessage: string): Promise<HTMLDialogElement> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
-    const settings = document.querySelector<HTMLDialogElement>(".settings-dialog");
-    if (settings) return settings;
+    const dialog = document.querySelector<HTMLDialogElement>(selector);
+    if (dialog) return dialog;
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 10));
     });
   }
-  throw new Error("Settings dialog was not rendered.");
+  throw new Error(failureMessage);
+}
+
+function waitForPalette(): Promise<HTMLDialogElement> {
+  return waitForDialog(".quick-actions", "Quick Actions palette was not rendered.");
+}
+
+function waitForSettings(): Promise<HTMLDialogElement> {
+  return waitForDialog(".settings-dialog", "Settings dialog was not rendered.");
 }
 
 beforeEach(() => {

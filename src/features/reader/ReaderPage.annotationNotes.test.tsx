@@ -372,6 +372,27 @@ function button(label: string): HTMLButtonElement {
   return match;
 }
 
+function pointerPair(target: HTMLElement, pointerId = 1): void {
+  act(() => {
+    target.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId,
+        pointerType: "mouse",
+      }),
+    );
+    target.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        button: 0,
+        pointerId,
+        pointerType: "mouse",
+      }),
+    );
+  });
+}
+
 async function closeEditor(): Promise<void> {
   await act(async () => {
     button("Back to annotations").click();
@@ -1271,6 +1292,81 @@ describe("ReaderPage annotation notes", () => {
     await flush();
     expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
     expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("uses one paired-pointer backdrop contract for ordinary Reader panels", async () => {
+    const harness = createStorageHarness();
+    await renderReader(harness);
+
+    for (const [trigger, label] of [
+      ["Reader settings", "Reader settings"],
+      ["Table of contents", "Table of contents"],
+      ["Annotations", "Annotations"],
+    ] as const) {
+      act(() => button(trigger).click());
+      const panel = await waitForElement<HTMLElement>(`aside[aria-label="${label}"]`);
+      pointerPair(panel, 10);
+      expect(container?.querySelector(`aside[aria-label="${label}"]`)).toBe(panel);
+
+      const layer = container?.querySelector<HTMLElement>(".reader-side-surface-layer");
+      if (!layer) throw new Error("Reader side-surface layer was not rendered.");
+      pointerPair(layer, 11);
+      await flush();
+      expect(container?.querySelector(`aside[aria-label="${label}"]`)).toBeNull();
+    }
+  });
+
+  it("settles one note level on outside click before a second click closes Annotations", async () => {
+    const existing = highlight("outside-note", { note: "Persisted note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Saved from outside dismissal");
+    const layer = container?.querySelector<HTMLElement>(".reader-side-surface-layer");
+    if (!layer) throw new Error("Reader side-surface layer was not rendered.");
+
+    pointerPair(layer, 20);
+    await waitForEditorToClose();
+    expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
+      note: "Saved from outside dismissal",
+    });
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).not.toBeNull();
+
+    pointerPair(layer, 21);
+    await flush();
+    expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
+  });
+
+  it("keeps the note editor open when outside-click settlement fails", async () => {
+    const existing = highlight("outside-failure", { note: "Persisted note" });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    harness.updateAnnotation.mockResolvedValueOnce(undefined);
+    await renderReader(harness);
+    const editor = await openNote(
+      {
+        cfiRange: existing.cfiRange,
+        chapterHref: existing.chapterHref,
+        selectedText: existing.selectedText,
+      },
+      existing,
+    );
+    setTextareaValue(editor, "Retry outside settlement");
+    const layer = container?.querySelector<HTMLElement>(".reader-side-surface-layer");
+    if (!layer) throw new Error("Reader side-surface layer was not rendered.");
+
+    pointerPair(layer, 30);
+    await flush();
+
+    expect(container?.querySelector(".reader-note-editor")).toBe(editor);
+    expect(textarea(editor).value).toBe("Retry outside settlement");
+    expect(editor.querySelector('[role="status"]')?.textContent).toContain("Not saved. Retry.");
   });
 
   it("creates a default highlight before opening a fresh empty note and keeps it on close", async () => {

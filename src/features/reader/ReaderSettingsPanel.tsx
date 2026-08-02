@@ -8,7 +8,6 @@ import { SegmentedControl } from "../../components/SegmentedControl";
 import type { ReaderProgressPlacement, ReaderSettings } from "../../types/reader";
 import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
-import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
@@ -84,14 +83,6 @@ export function ReaderSettingsPanel({
 }: ReaderSettingsPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-
-  useTransientSurfaceOwnership({
-    elementRef: panelRef,
-    kind: "reader-panel",
-    onDismiss: (reason) => {
-      if (reason === "escape") onClose();
-    },
-  });
 
   useEffect(() => {
     closeButtonRef.current?.focus({ preventScroll: true });

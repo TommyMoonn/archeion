@@ -3,6 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderTextSelection } from "./EpubViewer";
+import { ReaderNoteDraftCache, type ReaderNoteDraft } from "./readerNoteDraftCache";
 import type { ReaderNoteEditorHandle } from "./ReaderNoteEditor";
 
 type ReaderNoteSessionIdentity = {
@@ -75,6 +76,7 @@ export function useReaderNoteSession({
 }: UseReaderNoteSessionOptions) {
   const editorRef = useRef<ReaderNoteEditorHandle>(null);
   const editorKeyRef = useRef(0);
+  const draftCacheRef = useRef(new ReaderNoteDraftCache());
   const openRequestRef = useRef(0);
   const persistenceLeaseRef = useRef<ReaderNotePersistenceLease | null>(null);
   const surfaceAdapterRef = useRef<ReaderNoteSurfaceAdapter | null>(null);
@@ -94,6 +96,7 @@ export function useReaderNoteSession({
 
   useLayoutEffect(() => {
     if (!sameNoteSession(sessionRef.current, session)) {
+      draftCacheRef.current.clearSession(sessionRef.current.token);
       sessionRef.current = session;
       openRequestRef.current += 1;
       persistenceLeaseRef.current = null;
@@ -104,11 +107,13 @@ export function useReaderNoteSession({
   }, [ensureHighlight, session, storage, syncAnnotation]);
 
   useEffect(() => {
+    const draftCache = draftCacheRef.current;
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       openRequestRef.current += 1;
       surfaceAdapterRef.current = null;
+      draftCache.clearAll();
     };
   }, []);
 
@@ -126,6 +131,10 @@ export function useReaderNoteSession({
 
   const invalidateOpenRequests = useCallback(() => {
     openRequestRef.current += 1;
+  }, []);
+
+  const draftFor = useCallback((target: ReaderNoteTarget): ReaderNoteDraft | undefined => {
+    return draftCacheRef.current.read(target);
   }, []);
 
   const connectSurface = useCallback((adapter: ReaderNoteSurfaceAdapter) => {
@@ -240,6 +249,25 @@ export function useReaderNoteSession({
     );
   }, []);
 
+  const updateDraft = useCallback(
+    (target: ReaderNoteTarget, text: string) => {
+      if (!isCurrentTarget(target)) return;
+      draftCacheRef.current.update(target, text);
+    },
+    [isCurrentTarget],
+  );
+
+  const confirmDraftPersisted = useCallback(
+    (target: ReaderNoteTarget, text: string, expectedDraftText = text) => {
+      if (!isCurrentTarget(target)) return;
+      const draftCache = draftCacheRef.current;
+      if (draftCache.read(target)?.text !== expectedDraftText) return;
+      if (expectedDraftText !== text) draftCache.update(target, text);
+      draftCache.confirmPersisted(target, text);
+    },
+    [isCurrentTarget],
+  );
+
   const ownsPersistenceLease = useCallback(
     (target: ReaderNoteTarget, persistedAnnotation: HighlightAnnotation) => {
       const lease = persistenceLeaseRef.current;
@@ -283,6 +311,7 @@ export function useReaderNoteSession({
           { note },
         );
         if (!saved || !isCurrentTarget(target)) return undefined;
+        draftCacheRef.current.confirmPersisted(target, note);
         const nextTarget = { ...target, annotation: saved };
         surfaceAdapterRef.current?.updateTarget(nextTarget);
         syncAnnotationRef.current(saved);
@@ -305,6 +334,7 @@ export function useReaderNoteSession({
           { note: undefined },
         );
         if (!updated || !isCurrentTarget(target)) return false;
+        draftCacheRef.current.clear(target);
         syncAnnotationRef.current(updated);
         return true;
       } catch {
@@ -316,24 +346,30 @@ export function useReaderNoteSession({
 
   return useMemo(
     () => ({
+      confirmDraftPersisted,
       connectSurface,
       deleteNote,
+      draftFor,
       editorHandleRef,
       invalidateOpenRequests,
       openAnnotationNote,
       openSelectionNote,
       saveNote,
       settle,
+      updateDraft,
     }),
     [
+      confirmDraftPersisted,
       connectSurface,
       deleteNote,
+      draftFor,
       editorHandleRef,
       invalidateOpenRequests,
       openAnnotationNote,
       openSelectionNote,
       saveNote,
       settle,
+      updateDraft,
     ],
   );
 }
