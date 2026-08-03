@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-03
+
+Archeion's first stable release, with a redesigned Quick Actions workflow, more predictable keyboard and Reader interactions, safer note editing, and a simpler annotation experience.
+
+### Added
+
+- Added staged Quick Actions choices for switching archives, previewing and selecting application themes, changing display density, and turning interface animations on or off.
+- Added contextual Quick Actions for changing the active Books, Folders, or Series view, sorting, and card size without leaving the current collection.
+- Added a configurable **Toggle sidebar** command, with `Ctrl+B` as its default shortcut in Library and Folder views.
+- Added temporary Reader-session note draft protection so interrupted edits can be restored and failed saves remain available to retry.
+
+### Changed
+
+- Redesigned Quick Actions as a compact, input-focused command palette with clearer keyboard navigation, active-result feedback, and focused child choices for multi-step commands.
+- Made focus restoration more predictable after closing Quick Actions, Settings, dialogs, menus, and Reader surfaces, without leaving unrelated controls or complete page regions visibly focused.
+- Unified Reader Contents, Annotations, and Appearance into one side-panel composition with consistent geometry, Escape behavior, and one-level outside-click dismissal.
+- Kept the Reader viewport and reading position stable when opening Contents, and removed the redundant Quick Actions button from the Reader toolbar.
+- Simplified Annotations into one complete searchable and sortable collection instead of separate All, Bookmarks, and Highlights views.
+- Made bookmark toggling immediate and quiet while retaining visible, dismissible feedback for bookmark failures.
+- Limited annotation Undo to meaningful authored content, including complete highlights, highlights with attached notes, and saved-note-only deletion that preserves the owning highlight.
+- Removed **Focus search** from Quick Actions results while preserving its configurable direct shortcut.
+
+### Fixed
+
+- Prevented Escape, command execution, and programmatic focus restoration from producing sticky keyboard styling or restoring focus to an unrelated page container.
+- Prevented stale Quick Actions child-mode, archive-switch, theme-preview, and preference results from replacing newer choices after the palette changes mode or closes.
+- Prevented Reader panel opening and table-of-contents positioning from shifting the EPUB viewport, toolbar, reading location, or page-turn zones.
+- Prevented temporary note-editor remounts or ordinary panel dismissal from discarding an unsaved draft before settlement completes.
+- Prevented stale note-deletion Undo from overwriting a newer replacement note, including pending Undo operations for the same highlight.
+- Kept successful highlight and note restoration synchronized with the active Reader collection even when the original feedback was dismissed or superseded.
+
+### Testing
+
+- Expanded focused regression coverage for focus return, Quick Actions keyboard and child-mode behavior, theme preview, collection commands, sidebar shortcuts, Reader panel geometry and dismissal, note draft settlement, annotation Undo ownership, and bookmark feedback.
+
 ## [0.9.0] - 2026-08-01
 
 Archeion's integrated-workspace release for a more coherent shell, faster large-library interactions, clearer accessible feedback, safer archive operations, and easier archive-local theme management.
@@ -285,7 +320,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/TommyMoonn/archeion/compare/v0.6.0...v0.7.0
