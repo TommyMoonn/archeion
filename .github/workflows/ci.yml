@@ -37,8 +37,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Check frontend architecture
+        run: npm run architecture:check
+
       - name: Run frontend checks
-        run: npm run check
+        run: npm run check:frontend
 
       - name: Build frontend
         run: npm run build
