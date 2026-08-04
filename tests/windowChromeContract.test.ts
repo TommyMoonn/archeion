@@ -73,6 +73,19 @@ describe("single frameless window contract", () => {
     expect(mainCapabilities.permissions).toContain("core:window:allow-toggle-maximize");
   });
 
+  it("grants the shutdown permissions required by the flush-then-destroy close lifecycle", () => {
+    const sharedCapabilities = readJson<{ permissions: string[] }>(
+      "src-tauri/capabilities/default.json",
+    );
+    const lifecycle = read("src/storage/useMetadataWriteLifecycle.ts");
+
+    expect(lifecycle).toContain("event.preventDefault()");
+    expect(lifecycle).toContain("await flushMetadataWrites(storage)");
+    expect(lifecycle).toContain("await appWindow.destroy()");
+    expect(sharedCapabilities.permissions).toContain("core:window:allow-close");
+    expect(sharedCapabilities.permissions).toContain("core:window:allow-destroy");
+  });
+
   it("uses one fixed titlebar composition without selectable render branches", () => {
     const app = read("src/app/App.tsx");
     const titlebar = read("src/components/WindowTitlebar.tsx");
