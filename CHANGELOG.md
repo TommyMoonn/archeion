@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-08-04
+
+Archeion 1.0.1 restores normal application shutdown when using the custom titlebar or another native close request.
+
+### Fixed
+
+- Restored the titlebar **Close** button and native window-close requests so Archeion exits after pending archive metadata and application preferences finish writing.
+- Allowed the final desktop-window shutdown step required by Archeion's existing save-before-close lifecycle.
+
+### Testing
+
+- Added regression coverage tying the shared desktop capability to the flush-then-destroy close lifecycle.
+
 ## [1.0.0] - 2026-08-03
 
 Archeion's first stable release, with a redesigned Quick Actions workflow, more predictable keyboard and Reader interactions, safer note editing, and a simpler annotation experience.
@@ -320,7 +333,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/TommyMoonn/archeion/compare/v0.7.0...v0.8.0
