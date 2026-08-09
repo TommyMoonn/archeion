@@ -24,9 +24,9 @@ let container: HTMLDivElement | null = null;
 const keyboardPreferences: KeyboardPreferences = { shortcuts: {} };
 
 const basePanelProps = {
-  onChange: vi.fn(),
-  onReaderThemeChange: vi.fn(),
+  onReaderThemeCommit: vi.fn(),
   onReaderThemeOpen: vi.fn(),
+  onSettingsCommit: vi.fn(),
   persistenceFailed: false,
   readerThemeCatalogError: null,
   readerThemeEntries: [],
@@ -55,7 +55,7 @@ function createContainer() {
 function renderPanel(persistenceFailed = false) {
   const host = createContainer();
   const onClose = vi.fn();
-  const onReaderThemeChange = vi.fn();
+  const onReaderThemeCommit = vi.fn();
 
   act(() => {
     root?.render(
@@ -63,14 +63,14 @@ function renderPanel(persistenceFailed = false) {
         <ReaderSettingsPanel
           {...basePanelProps}
           onClose={onClose}
-          onReaderThemeChange={onReaderThemeChange}
+          onReaderThemeCommit={onReaderThemeCommit}
           persistenceFailed={persistenceFailed}
         />
       </ReaderSideSurfaceLayer>,
     );
   });
 
-  return { container: host, onClose, onReaderThemeChange };
+  return { container: host, onClose, onReaderThemeCommit };
 }
 
 function ControlledPanel({ onClose }: { onClose: () => void }) {
@@ -229,7 +229,7 @@ describe("ReaderSettingsPanel", () => {
     )!;
     act(() => sepia.click());
 
-    expect(rendered.onReaderThemeChange).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
+    expect(rendered.onReaderThemeCommit).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
     expect(rendered.onClose).not.toHaveBeenCalled();
     expect(rendered.container.textContent?.match(/Reader theme/g)).toHaveLength(1);
   });

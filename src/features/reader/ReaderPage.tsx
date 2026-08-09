@@ -1,5 +1,13 @@
 import { BookOpenText, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   useLoaderData,
   useLocation,
@@ -20,25 +28,15 @@ import {
 } from "../../app/readerReturnContext";
 import { useReaderArchiveSession } from "../archive/readerArchiveSession";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
-import {
-  appPreferencesStore,
-  useAppPreferencesPersistenceStatus,
-  useLibraryPreferences,
-  useReaderPreferences,
-} from "../../stores/appPreferencesStore";
+import { appPreferencesStore, useLibraryPreferences } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import {
   isLibrarySmartViewVisible,
   normalizeVisibleLibraryHref,
 } from "../../types/librarySmartViews";
 import type { Annotation } from "../../types/annotation";
-import type { ArchiveReaderThemeSelection } from "../../types/settings";
 import { bookTitle } from "../../utils/bookDisplay";
-import {
-  normalizeReaderSettings,
-  type ReaderNavigationState,
-  type ReaderSettings,
-} from "../../types/reader";
+import { type ReaderNavigationState, type ReaderSettings } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import {
@@ -86,11 +84,11 @@ import {
 import { useReaderAnnotationRecovery } from "./useReaderAnnotationRecovery";
 import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
 import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
-import { appearanceRuntime, useResolvedReaderTheme } from "../../themes/appearanceRuntimeInstance";
+import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
-import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useReaderSource } from "./useReaderFileLoad";
+import { createReaderAppearanceController } from "./readerAppearanceController";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -113,22 +111,31 @@ export function ReaderPage() {
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
-  const settings = useReaderPreferences();
-  const readerTheme = useResolvedReaderTheme();
-  const committedAppearance = useCommittedArchiveAppearance();
+  const archiveRootPath = archiveSession.rootPath;
+  const [appearanceController] = useState(() =>
+    createReaderAppearanceController({
+      archiveRootPath,
+      preferences: appPreferencesStore,
+      runtime: appearanceRuntime,
+    }),
+  );
+  const appearance = useSyncExternalStore(
+    appearanceController.subscribe,
+    appearanceController.getSnapshot,
+    appearanceController.getSnapshot,
+  );
+  const settings = appearance.settings;
+  const readerTheme = appearance.readerTheme;
   const themeCatalog = useArchiveThemeCatalogEntries(true);
   const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
   const libraryPreferences = useLibraryPreferences();
-  const appSettingsStatus = useAppPreferencesPersistenceStatus();
   const viewerRef = useRef<EpubViewerHandle>(null);
   const readerMainRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
-  const readerThemeSaveRevision = useRef(0);
   const lastControlsRevealAt = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
-  const [readerThemeSaveFailed, setReaderThemeSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
     chapters: [],
@@ -159,12 +166,14 @@ export function ReaderPage() {
   );
 
   useLayoutEffect(() => {
+    appearanceController.activate();
     progressController?.activate();
     readerMainRef.current?.focus({ preventScroll: true });
     return () => {
+      appearanceController.teardown();
       void progressController?.teardown();
     };
-  }, [progressController]);
+  }, [appearanceController, progressController]);
 
   const activeArchiveId = archiveSession.archiveId;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
@@ -181,8 +190,7 @@ export function ReaderPage() {
   const returnDestination = readerReturnNavigation(returnContext);
   const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
-  const settingsPersistenceFailed = appSettingsStatus.status === "error" || readerThemeSaveFailed;
-  const archiveRootPath = archiveSession.rootPath;
+  const settingsPersistenceFailed = appearance.persistenceFailed;
   const readerSource = useReaderSource({
     active: Boolean(bookId && activeArchiveId && !isBookFileMissing && !error),
     archiveId: activeArchiveId,
@@ -190,10 +198,7 @@ export function ReaderPage() {
     bookId: bookId ?? null,
     storage,
   });
-  const readerThemeSelection =
-    archiveRootPath && committedAppearance?.archive.rootPath === archiveRootPath
-      ? committedAppearance.settings.readerTheme
-      : null;
+  const readerThemeSelection = appearance.readerThemeSelection;
   const chapterSequence = useMemo(
     () => deriveReaderChapterSequence(navigationState.chapters, navigationState.currentChapterId),
     [navigationState.chapters, navigationState.currentChapterId],
@@ -674,31 +679,18 @@ export function ReaderPage() {
     );
   }, [navigate, nextVolume, returnContext, runControlledReaderExit]);
 
-  const changeSettings = useCallback((nextSettings: ReaderSettings) => {
-    const normalizedSettings = normalizeReaderSettings(nextSettings);
-    void appPreferencesStore.update({ reader: normalizedSettings }).catch(() => undefined);
-  }, []);
+  const changeSettings = useCallback(
+    (nextSettings: ReaderSettings) => {
+      void appearanceController.commitSettings(nextSettings);
+    },
+    [appearanceController],
+  );
 
   const changeReaderTheme = useCallback(
-    (readerTheme: ArchiveReaderThemeSelection) => {
-      const revision = readerThemeSaveRevision.current + 1;
-      readerThemeSaveRevision.current = revision;
-      setReaderThemeSaveFailed(false);
-      const context = appearanceRuntime.getPreviewContext();
-      if (!context || !archiveRootPath || context.archive.rootPath !== archiveRootPath) {
-        setReaderThemeSaveFailed(true);
-        return;
-      }
-      void appearanceRuntime.updateArchiveAppearanceSettings(context.archive, { readerTheme }).then(
-        () => {
-          if (readerThemeSaveRevision.current === revision) setReaderThemeSaveFailed(false);
-        },
-        () => {
-          if (readerThemeSaveRevision.current === revision) setReaderThemeSaveFailed(true);
-        },
-      );
+    (readerTheme: Parameters<typeof appearanceController.commitReaderTheme>[0]) => {
+      void appearanceController.commitReaderTheme(readerTheme);
     },
-    [archiveRootPath],
+    [appearanceController],
   );
 
   const handleReady = useCallback(() => {
@@ -927,6 +919,7 @@ export function ReaderPage() {
         </section>
       ) : fileLease && readerSessionIdentity ? (
         <EpubViewer
+          contentTheme={appearance.contentTheme}
           ref={viewerRef}
           fileLease={fileLease}
           highlights={highlights.highlights}
@@ -1051,10 +1044,10 @@ export function ReaderPage() {
 
           {settingsOpen ? (
             <ReaderSettingsPanel
-              onChange={changeSettings}
               onClose={closeSettings}
-              onReaderThemeChange={changeReaderTheme}
+              onReaderThemeCommit={changeReaderTheme}
               onReaderThemeOpen={() => void themeCatalog.refresh()}
+              onSettingsCommit={changeSettings}
               persistenceFailed={settingsPersistenceFailed}
               readerThemeCatalogError={themeCatalog.error}
               readerThemeEntries={themeCatalog.entries}

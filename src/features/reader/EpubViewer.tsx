@@ -5,7 +5,6 @@ import {
   useEffect,
   useImperativeHandle,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -23,7 +22,7 @@ import {
   type ReaderNavigationIntent,
 } from "./readerNavigation";
 import { forwardContinuousWheel } from "./readerContinuousScroll";
-import { createReaderContentTheme, readerContentSettingsEqual } from "./readerTheme";
+import type { ReaderContentTheme } from "./readerTheme";
 import { IconButton } from "../../components/IconButton";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
@@ -59,6 +58,7 @@ export type EpubViewerHandle = {
 };
 
 type EpubViewerProps = {
+  contentTheme: ReaderContentTheme;
   fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
@@ -92,6 +92,7 @@ function sessionErrorMessage(error: EpubSessionError): string {
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
+    contentTheme,
     fileLease,
     highlights = [],
     initialCfi,
@@ -134,20 +135,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         onCancelHighlightGesture: () => undefined,
         onHighlightEvent: () => undefined,
       }),
-  );
-
-  const contentTheme = useMemo(
-    () =>
-      createReaderContentTheme(
-        {
-          fontFamily: settings.fontFamily,
-          fontSize: settings.fontSize,
-          lineHeight: settings.lineHeight,
-          margin: settings.margin,
-        },
-        readerTheme.tokens,
-      ),
-    [readerTheme, settings.fontFamily, settings.fontSize, settings.lineHeight, settings.margin],
   );
 
   const bridgeRef = useRef<EpubSessionBridge>({
@@ -620,10 +607,11 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
+    previous.contentTheme === next.contentTheme &&
     previous.readerTheme === next.readerTheme &&
     previous.sessionIdentity === next.sessionIdentity &&
-    previous.settings.mode === next.settings.mode &&
-    readerContentSettingsEqual(previous.settings, next.settings)
+    previous.settings.margin === next.settings.margin &&
+    previous.settings.mode === next.settings.mode
   );
 }
 

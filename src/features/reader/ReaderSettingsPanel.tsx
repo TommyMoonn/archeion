@@ -12,10 +12,10 @@ import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderSettingsPanelProps = {
-  onChange: (settings: ReaderSettings) => void;
   onClose: () => void;
-  onReaderThemeChange: (selection: ArchiveReaderThemeSelection) => void;
+  onReaderThemeCommit: (selection: ArchiveReaderThemeSelection) => void;
   onReaderThemeOpen: () => void;
+  onSettingsCommit: (settings: ReaderSettings) => void;
   persistenceFailed: boolean;
   readerThemeCatalogError: string | null;
   readerThemeEntries: readonly ThemeCatalogEntry[];
@@ -71,10 +71,10 @@ function ReaderSetting({
 }
 
 export function ReaderSettingsPanel({
-  onChange,
   onClose,
-  onReaderThemeChange,
+  onReaderThemeCommit,
   onReaderThemeOpen,
+  onSettingsCommit,
   persistenceFailed,
   readerThemeCatalogError,
   readerThemeEntries,
@@ -89,7 +89,7 @@ export function ReaderSettingsPanel({
   }, []);
 
   function update(changes: Partial<ReaderSettings>) {
-    onChange({ ...settings, ...changes });
+    onSettingsCommit({ ...settings, ...changes });
   }
 
   return (
@@ -120,7 +120,7 @@ export function ReaderSettingsPanel({
             <ArchiveReaderThemeSelect
               entries={readerThemeEntries}
               fallback={settings.theme}
-              onChange={onReaderThemeChange}
+              onChange={onReaderThemeCommit}
               onOpen={onReaderThemeOpen}
               selection={readerThemeSelection}
             />

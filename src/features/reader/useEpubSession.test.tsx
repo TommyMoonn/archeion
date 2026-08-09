@@ -14,6 +14,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { EpubContent } from "./readerContentDocumentRegistry";
+import { createReaderContentTheme } from "./readerTheme";
+import { defaultReaderSettings } from "../../types/reader";
+import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { createReaderFileLease, type ReaderFileLease } from "./readerFileLease";
 import {
   createReaderSessionLifecycle,
@@ -49,6 +52,10 @@ type MockRendition = Rendition & {
   off: ReturnType<typeof vi.fn>;
   prev: ReturnType<typeof vi.fn>;
   started: Promise<void>;
+  themes: {
+    register: ReturnType<typeof vi.fn>;
+    select: ReturnType<typeof vi.fn>;
+  };
 };
 
 type MockBookSession = ReturnType<typeof createBookSession>;
@@ -137,6 +144,10 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
     }),
     prev: vi.fn(async () => undefined),
     started,
+    themes: {
+      register: vi.fn(),
+      select: vi.fn(),
+    },
   };
   return rendition as unknown as MockRendition;
 }
@@ -627,6 +638,57 @@ describe("useEpubSession lifecycle", () => {
     expect(facadeRef.current?.documents.has(oldDocument)).toBe(false);
     sessionA.rendition.contentCallbacks[0]?.({ document: oldDocument });
     expect(facadeRef.current?.documents.has(oldDocument)).toBe(false);
+  });
+
+  it("applies Reader appearance only to the active replacement rendition", async () => {
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const dark = resolveBuiltInReaderTheme("dark");
+    const sepia = resolveBuiltInReaderTheme("sepia");
+    const darkContent = createReaderContentTheme(defaultReaderSettings, dark.tokens);
+    const sepiaContent = createReaderContentTheme(defaultReaderSettings, sepia.tokens);
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-a"),
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+
+    facadeRef.current?.applyContentTheme(darkContent, null);
+    expect(sessionA.rendition.themes.register).toHaveBeenCalledOnce();
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-b"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-b"),
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionB, bridge);
+    facadeRef.current?.applyContentTheme(sepiaContent, null);
+
+    expect(sessionA.rendition.themes.register).toHaveBeenCalledOnce();
+    expect(sessionB.rendition.themes.register).toHaveBeenLastCalledWith(
+      "archeion-reader",
+      expect.objectContaining({
+        body: expect.objectContaining({ background: `${sepia.tokens.background} !important` }),
+      }),
+    );
+    sessionA.rendition.contentCallbacks[0]?.({
+      document: document.implementation.createHTMLDocument("retired"),
+    });
+    expect(facadeRef.current?.documents.list()).toHaveLength(0);
   });
 
   it("exposes location only for the active session and ignores stale relocation", async () => {

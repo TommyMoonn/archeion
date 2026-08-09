@@ -461,6 +461,48 @@ describe("AppearanceRuntime", () => {
     expect(runtime.getSnapshot().reader).toBe(before.reader);
   });
 
+  it("keeps a Reader preview separate from committed archive settings until persistence succeeds", async () => {
+    const preferences = createPreferencesSource();
+    const save = deferred<Readonly<ArchiveAppearanceSettings>>();
+    const saveArchiveAppearanceSettings = vi.fn(() => save.promise);
+    const runtime = new AppearanceRuntime({
+      getDocumentRoot: () => document.createElement("div"),
+      globalPreferences: preferences.source,
+    });
+    runtime.start();
+    await runtime.activateArchive(
+      { id: "archive-a", rootPath: "D:\\Archive A" },
+      {
+        getArchiveAppearanceSettings: async () =>
+          appearanceSettings({ kind: "inherit" }, { kind: "builtin", id: "sepia" }),
+        saveArchiveAppearanceSettings,
+      },
+    );
+    const context = runtime.getPreviewContext();
+    if (!context) throw new Error("Expected an active preview context");
+    const selection = { kind: "builtin", id: "light" } as const;
+
+    await expect(runtime.applyReaderPreview(context.archive, selection)).resolves.toBe(true);
+    expect(runtime.getReaderSnapshot().base).toBe("light");
+    expect(runtime.getPreviewContext()?.settings.readerTheme).toEqual({
+      kind: "builtin",
+      id: "sepia",
+    });
+    expect(saveArchiveAppearanceSettings).not.toHaveBeenCalled();
+
+    const keeping = runtime.keepReaderPreview(context.archive, context.settings, selection);
+    expect(runtime.getPreviewContext()?.settings.readerTheme).toEqual({
+      kind: "builtin",
+      id: "sepia",
+    });
+    save.resolve(appearanceSettings(context.settings.appTheme, selection));
+    await keeping;
+
+    expect(runtime.getPreviewContext()?.settings.readerTheme).toEqual(selection);
+    expect(runtime.getReaderSnapshot().base).toBe("light");
+    expect(runtime.clearReaderPreview(context.archive)).toBe(false);
+  });
+
   it("keeps an application preview without changing the committed reader selection or palette", async () => {
     const preferences = createPreferencesSource();
     const saveArchiveAppearanceSettings = vi.fn(async (settings: ArchiveAppearanceSettings) =>

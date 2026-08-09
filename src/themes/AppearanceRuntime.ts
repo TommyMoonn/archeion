@@ -1,5 +1,5 @@
 import type { AppPreferences } from "../types/appSettings";
-import type { ArchiveAppearanceSettings } from "../types/settings";
+import type { ArchiveAppearanceSettings, ArchiveReaderThemeSelection } from "../types/settings";
 import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearanceSettingsSource";
 import {
   ArchiveThemeCatalog,
@@ -77,6 +77,12 @@ type ActiveAppearancePreview = Readonly<{
   archiveGeneration: number;
 }>;
 
+type ActiveReaderAppearancePreview = Readonly<{
+  archiveGeneration: number;
+  reader: ResolvedReaderTheme;
+  selection: ArchiveReaderThemeSelection;
+}>;
+
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
 
 export class AppearanceRuntime {
@@ -98,6 +104,7 @@ export class AppearanceRuntime {
   private mediaQuery: MediaQueryList | null = null;
   private preferences: GlobalAppearancePreferences;
   private preview: ActiveAppearancePreview | null = null;
+  private readerPreview: ActiveReaderAppearancePreview | null = null;
   private resolution: ArchiveThemeSelectionResolution | null = null;
   private snapshot: AppearanceRuntimeSnapshot;
   private stopPreferences: (() => void) | null = null;
@@ -143,6 +150,50 @@ export class AppearanceRuntime {
     return true;
   }
 
+  async applyReaderPreview(
+    archive: ActiveAppearanceArchive,
+    selection: ArchiveReaderThemeSelection,
+  ): Promise<boolean> {
+    const context = this.activeArchive;
+    const committed = this.appearanceSettings;
+    if (!context || !committed || !this.isArchiveCurrent(archive)) return false;
+
+    let resolution: ArchiveThemeSelectionResolution;
+    try {
+      resolution = await this.catalog.loadSelected({
+        ...committed,
+        readerTheme: selection,
+      });
+    } catch (error) {
+      if (!this.isCurrent(context) || error instanceof ArchiveThemeCatalogChangedError)
+        return false;
+      throw error;
+    }
+    if (
+      !this.isCurrent(context) ||
+      !this.appearanceSettings ||
+      !sameAppearanceSettings(this.appearanceSettings, committed)
+    ) {
+      return false;
+    }
+
+    this.readerPreview = Object.freeze({
+      archiveGeneration: archive.generation,
+      reader: this.resolveReaderSelection(resolution.reader, this.preferences.reader.theme),
+      selection: Object.freeze({ ...selection }),
+    });
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  clearReaderPreview(archive: ActiveAppearanceArchive): boolean {
+    if (!this.readerPreview || !this.isArchiveCurrent(archive)) return false;
+    if (this.readerPreview.archiveGeneration !== archive.generation) return false;
+    this.readerPreview = null;
+    this.commitCurrentAppearance();
+    return true;
+  }
+
   async keepPreview(
     archive: ActiveAppearanceArchive,
     expectedSettings: Readonly<ArchiveAppearanceSettings>,
@@ -162,6 +213,35 @@ export class AppearanceRuntime {
       throw new AppearanceRuntimeSettingsChangedError();
     }
     await this.persistAppearance(context, settings, true);
+  }
+
+  async keepReaderPreview(
+    archive: ActiveAppearanceArchive,
+    expectedSettings: Readonly<ArchiveAppearanceSettings>,
+    selection: ArchiveReaderThemeSelection,
+  ): Promise<void> {
+    const context = this.activeArchive;
+    if (!context || !this.isArchiveCurrent(archive)) {
+      throw new AppearanceRuntimeArchiveChangedError();
+    }
+    if (
+      !this.readerPreview ||
+      this.readerPreview.archiveGeneration !== archive.generation ||
+      !sameSelection(this.readerPreview.selection, selection)
+    ) {
+      throw new Error("There is no matching active Reader theme preview for this archive.");
+    }
+    if (
+      !this.appearanceSettings ||
+      !sameAppearanceSettings(this.appearanceSettings, expectedSettings)
+    ) {
+      throw new AppearanceRuntimeSettingsChangedError();
+    }
+    await this.persistAppearance(
+      context,
+      { ...expectedSettings, readerTheme: { ...selection } },
+      false,
+    );
   }
 
   async saveArchiveAppearanceSettings(
@@ -293,6 +373,7 @@ export class AppearanceRuntime {
     this.appearanceSettings = null;
     this.committedContext = null;
     this.preview = null;
+    this.readerPreview = null;
     this.resolution = null;
     this.commitCurrentAppearance();
 
@@ -328,6 +409,7 @@ export class AppearanceRuntime {
     this.appearanceSettings = null;
     this.committedContext = null;
     this.preview = null;
+    this.readerPreview = null;
     this.resolution = null;
     this.catalog.deactivateArchive();
     this.commitCurrentAppearance();
@@ -339,6 +421,9 @@ export class AppearanceRuntime {
     const readerChanged = next.reader.theme !== this.preferences.reader.theme;
     if (!appChanged && !readerChanged) return;
     this.preferences = next;
+    if (readerChanged && this.resolution?.reader.effective.kind === "inherit") {
+      this.readerPreview = null;
+    }
     if (
       !this.resolution ||
       (appChanged && this.resolution.app.effective.kind === "inherit") ||
@@ -363,7 +448,7 @@ export class AppearanceRuntime {
     const resolved = this.resolution
       ? this.resolvedSnapshot(this.resolution, archive)
       : this.globalSnapshot(archive);
-    const snapshot =
+    const appSnapshot =
       this.preview && archive?.generation === this.preview.archiveGeneration
         ? Object.freeze({
             app: this.preview.app,
@@ -371,6 +456,10 @@ export class AppearanceRuntime {
             reader: resolved.reader,
           })
         : resolved;
+    const snapshot =
+      this.readerPreview && archive?.generation === this.readerPreview.archiveGeneration
+        ? Object.freeze({ ...appSnapshot, reader: this.readerPreview.reader })
+        : appSnapshot;
 
     const root = this.getDocumentRoot();
     if (!root) {
@@ -473,7 +562,7 @@ export class AppearanceRuntime {
   private async persistAppearance(
     context: ActiveArchiveContext,
     settings: ArchiveAppearanceSettings,
-    clearPreview: boolean,
+    clearAppPreview: boolean,
   ): Promise<Readonly<ArchiveAppearanceSettings>> {
     const requested = freezeAppearanceSettings(settings);
     context.persistence.desiredSettings = requested;
@@ -496,7 +585,7 @@ export class AppearanceRuntime {
       }
 
       this.assertPersistenceOperationCurrent(context, operation);
-      return this.resolveAndPublishAppearance(context, saved, operation, clearPreview);
+      return this.resolveAndPublishAppearance(context, saved, operation, clearAppPreview);
     });
   }
 
@@ -542,7 +631,7 @@ export class AppearanceRuntime {
     context: ActiveArchiveContext,
     settings: Readonly<ArchiveAppearanceSettings>,
     operation: number,
-    clearPreview: boolean,
+    clearAppPreview: boolean,
   ): Promise<Readonly<ArchiveAppearanceSettings>> {
     let retriedCurrentCatalog = false;
     while (true) {
@@ -552,7 +641,7 @@ export class AppearanceRuntime {
         const resolution = await this.catalog.loadSelected(settings);
         this.assertPersistenceOperationCurrent(context, operation);
         this.assertCatalogScopeCurrent(context);
-        return this.publishResolvedAppearance(context, resolution, clearPreview);
+        return this.publishResolvedAppearance(context, resolution, clearAppPreview);
       } catch (error) {
         if (!(error instanceof ArchiveThemeCatalogChangedError)) throw error;
         this.assertPersistenceOperationCurrent(context, operation);
@@ -566,14 +655,15 @@ export class AppearanceRuntime {
   private publishResolvedAppearance(
     context: ActiveArchiveContext,
     resolution: ArchiveThemeSelectionResolution,
-    clearPreview: boolean,
+    clearAppPreview: boolean,
   ): Readonly<ArchiveAppearanceSettings> {
     if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
     const settings = appearanceSettingsFromResolution(resolution);
     context.persistence.desiredSettings = settings;
     this.appearanceSettings = settings;
     this.resolution = resolution;
-    if (clearPreview) this.preview = null;
+    if (clearAppPreview) this.preview = null;
+    this.readerPreview = null;
     this.updateCommittedContext(context, settings);
     this.commitCurrentAppearance();
     return settings;

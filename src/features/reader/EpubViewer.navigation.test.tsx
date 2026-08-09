@@ -18,6 +18,7 @@ import { createReaderFileLease } from "./readerFileLease";
 import { createReaderSessionLifecycle, transitionReaderSession } from "./readerSession";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
+import { createReaderContentTheme } from "./readerTheme";
 
 const epubModuleMock = vi.hoisted(() => ({
   openBook: vi.fn(),
@@ -307,7 +308,9 @@ function defaultViewerProps(fileBlob: Blob) {
     throw new Error("Expected an open reader session identity.");
   }
 
+  const readerTheme = resolveBuiltInReaderTheme("dark");
   return {
+    contentTheme: createReaderContentTheme(defaultReaderSettings, readerTheme.tokens),
     fileLease: createReaderFileLease({
       initialBlob: fileBlob,
       load: async () => fileBlob,
@@ -322,7 +325,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
     onReady: vi.fn(),
-    readerTheme: resolveBuiltInReaderTheme("dark"),
+    readerTheme,
     sessionIdentity,
     settings: defaultReaderSettings,
   };
@@ -830,15 +833,21 @@ describe("EpubViewer navigation lifecycle", () => {
         fontSize: defaultReaderSettings.fontSize + 2,
       },
     };
+    settingsProps.contentTheme = createReaderContentTheme(
+      settingsProps.settings,
+      settingsProps.readerTheme.tokens,
+    );
     await rerenderViewer(root, settingsProps);
     const registerTheme = vi.mocked(session.rendition.themes.register);
     const selectTheme = vi.mocked(session.rendition.themes.select);
     const registrationsBeforePalette = registerTheme.mock.calls.length;
     const selectionsBeforePalette = selectTheme.mock.calls.length;
 
+    const paletteReaderTheme = resolveReaderTheme("dark", { background: "#123456" });
     const paletteProps = {
       ...settingsProps,
-      readerTheme: resolveReaderTheme("dark", { background: "#123456" }),
+      contentTheme: createReaderContentTheme(settingsProps.settings, paletteReaderTheme.tokens),
+      readerTheme: paletteReaderTheme,
     };
     await rerenderViewer(root, paletteProps);
 
