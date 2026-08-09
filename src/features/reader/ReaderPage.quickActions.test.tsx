@@ -48,7 +48,8 @@ vi.mock("./EpubViewer", async () => {
           atEnd: boolean;
           atStart: boolean;
           cfi: string;
-          percentage: number;
+          rawPercentage: number;
+          sectionCount: number;
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
         onReady: () => void;
@@ -85,7 +86,8 @@ vi.mock("./EpubViewer", async () => {
           atEnd: false,
           atStart: false,
           cfi: "epubcfi(/6/4)",
-          percentage: 20,
+          rawPercentage: 0.2,
+          sectionCount: 10,
         };
         viewerMock.locationPublications(initialLocation);
         callbacks.onLocationChange(initialLocation);
@@ -164,6 +166,7 @@ let container: HTMLDivElement | null = null;
 
 function createStorage(): LibraryStorage {
   return {
+    flushPendingWrites: vi.fn().mockResolvedValue(undefined),
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),
     createAnnotation: vi.fn(),
@@ -406,7 +409,7 @@ describe("ReaderPage Quick Actions", () => {
         expect(stage.scrollTop).toBe(renditionScrollTop);
         expect(viewerMock.locationPublications).toHaveBeenCalledTimes(1);
         expect(viewerMock.locationPublications).toHaveBeenLastCalledWith(
-          expect.objectContaining({ cfi: "epubcfi(/6/4)", percentage: 20 }),
+          expect.objectContaining({ cfi: "epubcfi(/6/4)", rawPercentage: 0.2 }),
         );
       } finally {
         await act(async () => {

@@ -3,8 +3,7 @@ import type { Book as EpubBook, Location, Rendition } from "epubjs";
 
 import type { ReaderNavigationState } from "../../types/reader";
 import { measurePerformance, measurePerformanceAsync } from "../../utils/measurePerformance";
-import type { ReaderLocation } from "./readerLocation";
-import { normalizeReaderLocation } from "./readerLocation";
+import { snapshotReaderRelocation, type ReaderRelocation } from "./readerLocation";
 import {
   ReaderContentDocumentSessionOwner,
   type ReaderContentDocumentAccess,
@@ -38,7 +37,7 @@ export type EpubSessionBridge = {
   onContent: (content: EpubContent) => void;
   onDisplayed: () => void;
   onError: (error: EpubSessionError) => void;
-  onLocationChange: (location: ReaderLocation) => void;
+  onLocationChange: (relocation: ReaderRelocation) => void;
   onNavigationChange: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
   onRelocated: () => void;
@@ -156,7 +155,7 @@ export type EpubSessionFacade = {
   applyContentTheme: (theme: ReaderContentTheme, container: HTMLElement | null) => void;
   documents: ReaderContentDocumentAccess;
   getInteractionSession: () => EpubSessionInteractionAccess | null;
-  getLocation: () => ReaderLocation | null;
+  getRelocation: () => ReaderRelocation | null;
   getNavigationState: () => ReaderNavigationState;
   isLoading: boolean;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
@@ -177,7 +176,7 @@ export function useEpubSession({
   const initialCfiRef = useRef(initialCfi);
   const [documentSessions] = useState(() => new ReaderContentDocumentSessionOwner());
   const sessionRef = useRef<EpubSessionSnapshot | null>(null);
-  const locationRef = useRef<ReaderLocation | null>(null);
+  const relocationRef = useRef<ReaderRelocation | null>(null);
   const teardownRef = useRef<() => void>(() => undefined);
   const activeSessionIdentityRef = useRef<ReaderSessionIdentity | null>(null);
   const navigationControllerRef = useRef<ReaderNavigationStateController | null>(null);
@@ -306,7 +305,7 @@ export function useEpubSession({
     const generation = ++generationRef.current;
     const sessionDocuments = documentSessions.activate();
     activeSessionIdentityRef.current = sessionIdentity;
-    locationRef.current = null;
+    relocationRef.current = null;
     const navigationController = createReaderNavigationStateController((state) =>
       bridgeRef.current?.onNavigationChange(state),
     );
@@ -349,7 +348,7 @@ export function useEpubSession({
         session.rendition.off("relocated", owner.onRelocated);
         session.rendition.off("selected", owner.onSelected);
         if (wasCurrent) isNavigatingRef.current = false;
-        if (wasCurrent) locationRef.current = null;
+        if (wasCurrent) relocationRef.current = null;
         if (navigationControllerRef.current === navigationController) {
           navigationControllerRef.current = null;
         }
@@ -458,12 +457,12 @@ export function useEpubSession({
             canonicalCfiRef.current = location.start.cfi;
             navigationController.relocate(location);
             bridgeRef.current?.onRelocated();
-            const acceptedLocation = normalizeReaderLocation(
+            const acceptedRelocation = snapshotReaderRelocation(
               location,
               session.book.packaging.spine.length,
             );
-            locationRef.current = acceptedLocation;
-            bridgeRef.current?.onLocationChange(acceptedLocation);
+            relocationRef.current = acceptedRelocation;
+            bridgeRef.current?.onLocationChange(acceptedRelocation);
           },
           onSelected: (cfiRange, contents) => {
             if (!ownsSession(session)) return;
@@ -537,7 +536,7 @@ export function useEpubSession({
       }
       invalidateTurnOwner();
       isNavigatingRef.current = false;
-      locationRef.current = null;
+      relocationRef.current = null;
       if (navigationControllerRef.current === navigationController) {
         navigationControllerRef.current = null;
       }
@@ -579,14 +578,14 @@ export function useEpubSession({
     [documentSessions],
   );
   const getInteractionSession = useCallback(() => sessionRef.current?.interactions ?? null, []);
-  const getLocation = useCallback(() => locationRef.current, []);
+  const getRelocation = useCallback(() => relocationRef.current, []);
   const teardown = useCallback(() => teardownRef.current(), []);
 
   return {
     applyContentTheme,
     documents: documentSessions.access,
     getInteractionSession,
-    getLocation,
+    getRelocation,
     getNavigationState,
     isLoading: settledSessionKey !== sessionKey,
     navigateToChapter,

@@ -232,6 +232,7 @@ function createStorageHarness(initial: Record<string, Annotation[]> = {}) {
   const storage = {
     createAnnotation,
     deleteAnnotation,
+    flushPendingWrites: vi.fn(async () => undefined),
     listAnnotations,
     loadBookFile: vi.fn(async (bookId: string) => new Blob([bookId])),
     restoreAnnotation,

@@ -39,7 +39,7 @@ import { useEpubSession, type EpubSessionBridge, type EpubSessionError } from ".
 import { useEpubContentActionController } from "./useEpubContentActionController";
 import { useReaderIllustrationExport } from "./useReaderIllustrationExport";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
-import type { ReaderLocation } from "./readerLocation";
+import type { ReaderRelocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
@@ -68,7 +68,7 @@ type EpubViewerProps = {
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
   onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
-  onLocationChange: (location: ReaderLocation) => void;
+  onLocationChange: (relocation: ReaderRelocation) => void;
   onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => void;
   onCreateHighlight?: (
     selection: ReaderTextSelection,

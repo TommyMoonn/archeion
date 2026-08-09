@@ -439,7 +439,7 @@ describe("useEpubSession lifecycle", () => {
         applyContentTheme: expect.any(Function),
         documents: expect.any(Object),
         getInteractionSession: expect.any(Function),
-        getLocation: expect.any(Function),
+        getRelocation: expect.any(Function),
         getNavigationState: expect.any(Function),
         navigateToChapter: expect.any(Function),
         navigateToLocation: expect.any(Function),
@@ -483,7 +483,7 @@ describe("useEpubSession lifecycle", () => {
     });
 
     expect(facadeRef.current?.getInteractionSession()).toBeNull();
-    expect(facadeRef.current?.getLocation()).toBeNull();
+    expect(facadeRef.current?.getRelocation()).toBeNull();
     expect(facadeRef.current?.documents.has(registeredDocument)).toBe(false);
     expect(bridge.onSessionEnding).toHaveBeenCalledOnce();
     expect(session.rendition.off).toHaveBeenCalledTimes(3);
@@ -647,7 +647,14 @@ describe("useEpubSession lifecycle", () => {
     );
     await waitForReady(sessionA, bridge);
     emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/book-a)"));
-    expect(facadeRef.current?.getLocation()?.cfi).toBe("epubcfi(/book-a)");
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe("epubcfi(/book-a)");
+    expect(bridge.onLocationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cfi: "epubcfi(/book-a)",
+        rawPercentage: 0.5,
+        sectionCount: 1,
+      }),
+    );
 
     await rerenderHarness(
       root,
@@ -665,13 +672,15 @@ describe("useEpubSession lifecycle", () => {
         expect(bridge.onReady).toHaveBeenCalledTimes(2);
       });
     });
-    expect(facadeRef.current?.getLocation()).toBeNull();
+    expect(facadeRef.current?.getRelocation()).toBeNull();
 
+    const publicationCount = vi.mocked(bridge.onLocationChange).mock.calls.length;
     emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/stale-book-a)"));
-    expect(facadeRef.current?.getLocation()).toBeNull();
+    expect(facadeRef.current?.getRelocation()).toBeNull();
+    expect(bridge.onLocationChange).toHaveBeenCalledTimes(publicationCount);
 
     emitStaleEvent(sessionB, "relocated", relocation("epubcfi(/book-b)"));
-    expect(facadeRef.current?.getLocation()?.cfi).toBe("epubcfi(/book-b)");
+    expect(facadeRef.current?.getRelocation()?.cfi).toBe("epubcfi(/book-b)");
   });
 
   it("settles startup failure once and retries with a fresh Reader session identity", async () => {
@@ -1134,6 +1143,7 @@ describe("useEpubSession lifecycle", () => {
     vi.mocked(bridge.onContent).mockClear();
     vi.mocked(bridge.onRendered).mockClear();
     vi.mocked(bridge.onRelocated).mockClear();
+    vi.mocked(bridge.onLocationChange).mockClear();
     vi.mocked(bridge.onSelected).mockClear();
 
     const content = { document: document.implementation.createHTMLDocument("stale") };
@@ -1145,6 +1155,7 @@ describe("useEpubSession lifecycle", () => {
     expect(bridge.onContent).not.toHaveBeenCalled();
     expect(bridge.onRendered).not.toHaveBeenCalled();
     expect(bridge.onRelocated).not.toHaveBeenCalled();
+    expect(bridge.onLocationChange).not.toHaveBeenCalled();
     expect(bridge.onSelected).not.toHaveBeenCalled();
   });
 

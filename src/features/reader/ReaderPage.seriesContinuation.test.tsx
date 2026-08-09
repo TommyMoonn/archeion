@@ -13,13 +13,15 @@ import type { Book } from "../../types/book";
 import { ReaderRoute } from "./ReaderPage";
 
 const viewerMock = vi.hoisted(() => ({
+  initialCfi: undefined as string | undefined,
   onError: undefined as ((message: string) => void) | undefined,
   sessionsStarted: 0,
   location: {
     atEnd: false,
     atStart: false,
     cfi: "epubcfi(/6/10)",
-    percentage: 0,
+    rawPercentage: 0,
+    sectionCount: 10,
   },
 }));
 
@@ -29,10 +31,12 @@ vi.mock("./EpubViewer", async () => {
   return {
     EpubViewer: React.forwardRef(function MockEpubViewer(
       {
+        initialCfi,
         onError,
         onLocationChange,
         onReady,
       }: {
+        initialCfi?: string;
         onError: (message: string) => void;
         onLocationChange: (location: typeof viewerMock.location) => void;
         onReady: () => void;
@@ -47,13 +51,14 @@ vi.mock("./EpubViewer", async () => {
       }));
       React.useEffect(() => {
         viewerMock.sessionsStarted += 1;
+        viewerMock.initialCfi = initialCfi;
         viewerMock.onError = onError;
         onLocationChange(viewerMock.location);
         onReady();
         return () => {
           if (viewerMock.onError === onError) viewerMock.onError = undefined;
         };
-      }, [onError, onLocationChange, onReady]);
+      }, [initialCfi, onError, onLocationChange, onReady]);
 
       return <div data-testid="epub-viewer" />;
     }),
@@ -80,6 +85,7 @@ function createBook(overrides: Partial<Book> & Pick<Book, "id">): Book {
 
 function createStorage(books: Book[], overrides: Partial<LibraryStorage> = {}): LibraryStorage {
   return {
+    flushPendingWrites: vi.fn().mockResolvedValue(undefined),
     loadBookFile: vi.fn().mockResolvedValue(new Blob(["epub"])),
     listAnnotations: vi.fn().mockResolvedValue([]),
     createAnnotation: vi.fn(),
@@ -261,6 +267,7 @@ describe("ReaderPage series continuation", () => {
 
     expect(rendered.router.state.location.pathname).toBe("/");
     expect(rendered.router.state.location.state).toBeNull();
+    expect(rendered.storage.flushPendingWrites).toHaveBeenCalled();
   });
 
   it("returns to the explicit origin from the toolbar", async () => {
@@ -293,7 +300,8 @@ describe("ReaderPage series continuation", () => {
       atEnd: false,
       atStart: false,
       cfi: "epubcfi(/6/10)",
-      percentage: 20,
+      rawPercentage: 0.2,
+      sectionCount: 10,
     };
     const rendered = await renderReader([createBook({ id: "book" })], "book");
     const tocButton = rendered.container.querySelector<HTMLButtonElement>(
@@ -317,12 +325,28 @@ describe("ReaderPage series continuation", () => {
     expect(viewerMock.sessionsStarted).toBe(1);
   });
 
+  it("passes controller-restored progress into the EPUB session", async () => {
+    await renderReader(
+      [
+        createBook({
+          id: "restored-book",
+          progressCfi: "epubcfi(/6/18)",
+          progressPercent: 64,
+        }),
+      ],
+      "restored-book",
+    );
+
+    expect(viewerMock.initialCfi).toBe("epubcfi(/6/18)");
+  });
+
   it("offers the next volume only after completion and opens it on user action", async () => {
     viewerMock.location = {
       atEnd: true,
       atStart: false,
       cfi: "epubcfi(/6/12)",
-      percentage: 99.5,
+      rawPercentage: 0.995,
+      sectionCount: 10,
     };
     const books = [
       createBook({
@@ -376,7 +400,8 @@ describe("ReaderPage series continuation", () => {
       atEnd: false,
       atStart: false,
       cfi: "epubcfi(/6/10)",
-      percentage: 99.4,
+      rawPercentage: 0.994,
+      sectionCount: 10,
     };
     const books = [
       createBook({

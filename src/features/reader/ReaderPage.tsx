@@ -41,13 +41,17 @@ import {
 } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
-import type { ReaderLocation } from "./readerLocation";
 import {
-  createReaderSessionInitialState,
+  EMPTY_READER_LOCATION,
+  type ReaderLocation,
+  type ReaderRelocation,
+} from "./readerLocation";
+import {
   createReaderSessionKey,
   createReaderSessionLifecycle,
   transitionReaderSession,
 } from "./readerSession";
+import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
@@ -133,20 +137,34 @@ export function ReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
-  const [readerInitialState] = useState(() =>
-    createReaderSessionInitialState(book, startFromBeginning),
-  );
   const [readerSessionLifecycle] = useState(() => {
     const idle = createReaderSessionLifecycle();
     if (!bookId) return idle;
     return transitionReaderSession(idle, { bookId, type: "open" }).state;
   });
   const readerSessionIdentity = readerSessionLifecycle.identity;
-  const [location, setLocation] = useState<ReaderLocation>(readerInitialState.initialLocation);
+  const [progressController] = useState(() =>
+    book && readerSessionIdentity
+      ? createReaderProgressController({
+          book,
+          identity: readerSessionIdentity,
+          onPersistenceFailureChange: setProgressSaveFailed,
+          persistence: storage,
+          startFromBeginning,
+        })
+      : null,
+  );
+  const [location, setLocation] = useState<ReaderLocation>(
+    () => progressController?.getLocation() ?? EMPTY_READER_LOCATION,
+  );
 
   useLayoutEffect(() => {
+    progressController?.activate();
     readerMainRef.current?.focus({ preventScroll: true });
-  }, []);
+    return () => {
+      void progressController?.teardown();
+    };
+  }, [progressController]);
 
   const activeArchiveId = archiveSession.archiveId;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
@@ -227,7 +245,7 @@ export function ReaderPage() {
     navigateToAnnotation,
   } = useReaderAnnotationNavigation({
     annotations: annotations.annotations,
-    initialLocation: readerInitialState.initialLocation,
+    initialLocation: progressController?.getLocation() ?? EMPTY_READER_LOCATION,
     loadStatus: annotations.loadStatus,
     navigateToLocation: navigateToAnnotationLocation,
     persistAnchor: persistAnnotationAnchor,
@@ -264,15 +282,8 @@ export function ReaderPage() {
   });
   const settleReaderPersistence = useCallback(async () => {
     if (!(await settleNoteEditor())) return false;
-    try {
-      await storage.flushPendingWrites?.();
-      if (mountedRef.current) setProgressSaveFailed(false);
-      return true;
-    } catch {
-      if (mountedRef.current) setProgressSaveFailed(true);
-      return false;
-    }
-  }, [settleNoteEditor, storage]);
+    return progressController?.flush() ?? true;
+  }, [progressController, settleNoteEditor]);
   const controlledTransitions = useReaderControlledTransitions({
     onTransitionIntent: invalidateOpenRequests,
     sessionKey: bookId,
@@ -335,9 +346,8 @@ export function ReaderPage() {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      void storage.flushPendingWrites?.().catch(() => undefined);
     };
-  }, [storage]);
+  }, []);
 
   const movePrevious = useCallback(() => {
     void viewerRef.current?.previous();
@@ -692,41 +702,24 @@ export function ReaderPage() {
   );
 
   const handleReady = useCallback(() => {
-    if (!bookId || isBookFileMissing) {
+    if (!readerSessionIdentity || !progressController || isBookFileMissing) {
       return;
     }
 
     setReaderReady(true);
-    void storage
-      .updateBook(bookId, {
-        lastOpenedAt: new Date().toISOString(),
-      })
-      .catch(() => {
-        setProgressSaveFailed(true);
-      });
-  }, [bookId, isBookFileMissing, storage]);
+    progressController.recordOpened(readerSessionIdentity);
+  }, [isBookFileMissing, progressController, readerSessionIdentity]);
 
   const handleLocationChange = useCallback(
-    (nextLocation: ReaderLocation) => {
-      if (!bookId) {
-        return;
-      }
+    (relocation: ReaderRelocation) => {
+      if (!readerSessionIdentity || !progressController) return;
+      const nextLocation = progressController.acceptRelocation(readerSessionIdentity, relocation);
+      if (!nextLocation) return;
 
-      handleAnnotationLocationChange(nextLocation);
       setLocation(nextLocation);
-      void storage
-        .updateBook(bookId, {
-          progressCfi: nextLocation.cfi,
-          progressPercent: nextLocation.percentage,
-        })
-        .then(() => {
-          if (mountedRef.current) setProgressSaveFailed(false);
-        })
-        .catch(() => {
-          if (mountedRef.current) setProgressSaveFailed(true);
-        });
+      handleAnnotationLocationChange(nextLocation);
     },
-    [bookId, handleAnnotationLocationChange, storage],
+    [handleAnnotationLocationChange, progressController, readerSessionIdentity],
   );
 
   const handleViewerError = useCallback((message: string) => setError(message), []);
@@ -937,7 +930,7 @@ export function ReaderPage() {
           ref={viewerRef}
           fileLease={fileLease}
           highlights={highlights.highlights}
-          initialCfi={readerInitialState.initialCfi}
+          initialCfi={progressController?.getInitialCfi()}
           onError={handleViewerError}
           onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
           onHighlightInteractionClear={highlights.clearInteractionFeedback}
