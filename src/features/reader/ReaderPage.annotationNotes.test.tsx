@@ -524,6 +524,11 @@ describe("ReaderPage annotation notes", () => {
     act(() => button("Recolor highlight").click());
     await act(async () => button("Green").click());
 
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (harness.records.get("book-1")?.[0]?.color === "green") break;
+      await flush();
+    }
+
     expect(harness.records.get("book-1")?.[0]).toMatchObject({
       anchorStatus: "detached",
       color: "green",
@@ -808,7 +813,12 @@ describe("ReaderPage annotation notes", () => {
     await act(async () => button("Green").click());
 
     for (let attempt = 0; attempt < 30; attempt += 1) {
-      if (viewerControl.props?.highlights[0]?.color === "green") break;
+      if (
+        viewerControl.props?.highlights[0]?.color === "green" &&
+        document.activeElement === trigger
+      ) {
+        break;
+      }
       await flush();
     }
 
@@ -826,6 +836,34 @@ describe("ReaderPage annotation notes", () => {
     expect(container?.querySelector('[aria-label="green highlight"]')).toBeInstanceOf(HTMLElement);
     expect(container?.textContent).toContain("Keep this attached note");
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("keeps persisted and rendered highlight color at the prior accepted state when recoloring fails", async () => {
+    const existing = highlight("failed-recolor", {
+      color: "blue",
+      note: "Keep the accepted note",
+    });
+    const harness = createStorageHarness({ "book-1": [existing] });
+    harness.updateAnnotation.mockRejectedValueOnce(new Error("disk unavailable"));
+    await renderReader(harness);
+
+    act(() => button("Annotations").click());
+    const trigger = await waitForElement<HTMLButtonElement>(
+      'button[aria-label="Actions for Highlight"]',
+    );
+    act(() => trigger.click());
+    act(() => button("Recolor highlight").click());
+    await act(async () => button("Green").click());
+
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      if (container?.textContent?.includes("The highlight color could not be changed")) break;
+      await flush();
+    }
+
+    expect(harness.records.get("book-1")).toEqual([existing]);
+    expect(viewerControl.props?.highlights).toEqual([existing]);
+    expect(container?.querySelector('[aria-label="blue highlight"]')).toBeInstanceOf(HTMLElement);
+    expect(container?.querySelector('[aria-label="green highlight"]')).toBeNull();
   });
 
   it("replaces the annotation browser with its note subview and restores panel state and row focus", async () => {

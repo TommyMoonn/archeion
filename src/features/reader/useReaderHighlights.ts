@@ -1,6 +1,5 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation } from "../../types/annotation";
 import {
   MAX_HIGHLIGHT_TEXT_LENGTH,
@@ -9,6 +8,7 @@ import {
   type ReaderHighlightColor,
 } from "./readerHighlights";
 import { resolveHighlightSelection } from "./readerHighlightInteraction";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 
 type HighlightSelection = {
   cfiRange: string;
@@ -21,8 +21,7 @@ type HighlightSelection = {
 type UseReaderHighlightsOptions = {
   annotations: readonly Annotation[];
   bookId?: string;
-  onAnnotationChange: (annotation: Annotation) => void;
-  storage: LibraryStorage;
+  mutations: ReaderAnnotationCommandSurface;
 };
 
 export type ReaderHighlightFeedback = {
@@ -40,20 +39,18 @@ function sameFeedback(
 export function useReaderHighlights({
   annotations,
   bookId,
-  onAnnotationChange,
-  storage,
+  mutations,
 }: UseReaderHighlightsOptions) {
   const [feedback, setFeedback] = useState<ReaderHighlightFeedback | null>(null);
-  const session = useMemo(() => ({ bookId, token: Symbol("reader-highlight-session") }), [bookId]);
-  const activeSessionRef = useRef<typeof session | undefined>(undefined);
+  const allHighlights = useMemo(
+    () =>
+      annotations.filter(
+        (annotation): annotation is Extract<Annotation, { type: "highlight" }> =>
+          annotation.type === "highlight",
+      ),
+    [annotations],
+  );
   const visibleAnnotations = useMemo(() => readerHighlights(annotations), [annotations]);
-
-  useLayoutEffect(() => {
-    activeSessionRef.current = session;
-    return () => {
-      if (activeSessionRef.current === session) activeSessionRef.current = undefined;
-    };
-  }, [session]);
 
   const create = useCallback(
     async (selection: HighlightSelection, color: ReaderHighlightColor) => {
@@ -82,33 +79,32 @@ export function useReaderHighlights({
         );
         return false;
       }
-      try {
-        if (resolution.kind === "existing") {
-          const updated = await storage.updateHighlightAnnotation(bookId, resolution.highlight.id, {
-            color,
-          });
-          if (updated?.type === "highlight") onAnnotationChange(updated);
-        } else {
-          const created = await storage.createAnnotation(bookId, {
-            type: "highlight",
-            cfiRange: selection.cfiRange,
-            chapterHref: selection.chapterHref,
-            ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
-            ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
-            selectedText,
-            color,
-          });
-          if (created.type !== "highlight") return false;
-          onAnnotationChange(created);
-        }
+      const outcome =
+        resolution.kind === "existing"
+          ? await mutations.update({
+              annotation: resolution.highlight,
+              annotationType: "highlight",
+              changes: { color },
+            })
+          : await mutations.create({
+              type: "highlight",
+              cfiRange: selection.cfiRange,
+              chapterHref: selection.chapterHref,
+              ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
+              ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
+              selectedText,
+              color,
+            });
+      if (outcome.status === "accepted" && outcome.annotation.type === "highlight") {
         setFeedback(null);
         return true;
-      } catch {
-        setFeedback({ kind: "persistence", message: "The highlight could not be saved." });
-        return false;
       }
+      if (outcome.status === "failed") {
+        setFeedback({ kind: "persistence", message: "The highlight could not be saved." });
+      }
+      return false;
     },
-    [bookId, onAnnotationChange, storage, visibleAnnotations],
+    [bookId, mutations, visibleAnnotations],
   );
 
   const ensure = useCallback(
@@ -135,53 +131,52 @@ export function useReaderHighlights({
         );
         return undefined;
       }
-      try {
-        const created = await storage.createAnnotation(bookId, {
-          type: "highlight",
-          cfiRange: selection.cfiRange,
-          chapterHref: selection.chapterHref,
-          ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
-          ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
-          selectedText,
-          color: "yellow",
-        });
-        if (created.type !== "highlight") return undefined;
-        onAnnotationChange(created);
+      const outcome = await mutations.create({
+        type: "highlight",
+        cfiRange: selection.cfiRange,
+        chapterHref: selection.chapterHref,
+        ...(selection.contextAfter ? { contextAfter: selection.contextAfter } : {}),
+        ...(selection.contextBefore ? { contextBefore: selection.contextBefore } : {}),
+        selectedText,
+        color: "yellow",
+      });
+      if (outcome.status === "accepted" && outcome.annotation.type === "highlight") {
         setFeedback(null);
-        return created;
-      } catch {
+        return outcome.annotation;
+      }
+      if (outcome.status === "failed") {
         setFeedback({
           kind: "persistence",
           message: "The highlight for this note could not be saved.",
         });
-        return undefined;
       }
+      return undefined;
     },
-    [bookId, onAnnotationChange, storage, visibleAnnotations],
+    [bookId, mutations, visibleAnnotations],
   );
 
   const recolor = useCallback(
     async (id: string, color: ReaderHighlightColor) => {
-      if (!session.bookId) return false;
-      try {
-        const updated = await storage.updateHighlightAnnotation(session.bookId, id, {
-          color: normalizeReaderHighlightColor(color),
-        });
-        if (activeSessionRef.current !== session) return false;
-        if (!updated || updated.type !== "highlight") return false;
-        onAnnotationChange(updated);
+      const highlight = allHighlights.find((annotation) => annotation.id === id);
+      if (!highlight) return false;
+      const outcome = await mutations.update({
+        annotation: highlight,
+        annotationType: "highlight",
+        changes: { color: normalizeReaderHighlightColor(color) },
+      });
+      if (outcome.status === "accepted" && outcome.annotation.type === "highlight") {
         setFeedback(null);
         return true;
-      } catch {
-        if (activeSessionRef.current !== session) return false;
+      }
+      if (outcome.status === "failed") {
         setFeedback({
           kind: "persistence",
           message: "The highlight color could not be changed.",
         });
-        return false;
       }
+      return false;
     },
-    [onAnnotationChange, session, storage],
+    [allHighlights, mutations],
   );
 
   const clearFeedback = useCallback(() => setFeedback(null), []);

@@ -1,12 +1,15 @@
 import { useCallback, useMemo, useRef, useState, type MutableRefObject } from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, HighlightAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import {
   sameReaderAnnotationSession,
   type ReaderAnnotationAnchorChanges,
+  type ReaderAnnotationCreateCommand,
   type ReaderAnnotationMutation,
+  type ReaderAnnotationMutationOutcome,
   type ReaderAnnotationSession,
+  type ReaderAnnotationUpdateCommand,
 } from "./readerAnnotationState";
 
 export type ReaderHighlightRemovalKind = "highlight" | "note";
@@ -163,45 +166,103 @@ export function useReaderAnnotationMutations({
     [drainAnchorMaintenanceRef, isCurrentSession],
   );
 
+  const runMutation = useCallback(
+    async <T extends Annotation>(
+      persist: () => Promise<T | undefined>,
+      accept: (annotation: T) => void,
+    ): Promise<ReaderAnnotationMutationOutcome<T>> => {
+      const mutation = beginMutation(session);
+      if (!mutation) return { status: "rejected" };
+      try {
+        const annotation = await persist();
+        if (!ownsMutation(mutation)) return { status: "retired" };
+        if (!annotation) return { status: "failed" };
+        accept(annotation);
+        return { annotation, status: "accepted" };
+      } catch {
+        return { status: ownsMutation(mutation) ? "failed" : "retired" };
+      } finally {
+        finishMutation(mutation);
+      }
+    },
+    [beginMutation, finishMutation, ownsMutation, session],
+  );
+
+  const create = useCallback(
+    (input: ReaderAnnotationCreateCommand): Promise<ReaderAnnotationMutationOutcome> => {
+      if (!session.bookId) return Promise.resolve({ status: "rejected" });
+      const bookId = session.bookId;
+      return input.type === "bookmark"
+        ? runMutation<BookmarkAnnotation>(() => storage.createAnnotation(bookId, input), sync)
+        : runMutation<HighlightAnnotation>(() => storage.createAnnotation(bookId, input), sync);
+    },
+    [runMutation, session.bookId, storage, sync],
+  );
+
+  const update = useCallback(
+    (command: ReaderAnnotationUpdateCommand): Promise<ReaderAnnotationMutationOutcome> => {
+      if (!session.bookId) return Promise.resolve({ status: "rejected" });
+      const bookId = session.bookId;
+      return command.annotationType === "bookmark"
+        ? runMutation<BookmarkAnnotation>(
+            () => storage.updateBookmarkAnnotation(bookId, command.annotation.id, command.changes),
+            sync,
+          )
+        : runMutation<HighlightAnnotation>(
+            () => storage.updateHighlightAnnotation(bookId, command.annotation.id, command.changes),
+            sync,
+          );
+    },
+    [runMutation, session.bookId, storage, sync],
+  );
+
+  const deleteAnnotation = useCallback(
+    (annotation: Annotation): Promise<ReaderAnnotationMutationOutcome> => {
+      if (!session.bookId) return Promise.resolve({ status: "rejected" });
+      const bookId = session.bookId;
+      return runMutation(
+        async () =>
+          (await storage.deleteAnnotation(bookId, annotation.id)) ? annotation : undefined,
+        (deleted) => forget(deleted.id),
+      );
+    },
+    [forget, runMutation, session.bookId, storage],
+  );
+
+  const restore = useCallback(
+    (annotation: Annotation): Promise<ReaderAnnotationMutationOutcome> => {
+      if (!session.bookId) return Promise.resolve({ status: "rejected" });
+      const bookId = session.bookId;
+      return runMutation(() => storage.restoreAnnotation(bookId, annotation), sync);
+    },
+    [runMutation, session.bookId, storage, sync],
+  );
+
   const remove = useCallback(
     async (annotation: Annotation) => {
-      const mutation = beginMutation(session);
-      if (!mutation || !session.bookId) return false;
-      try {
-        const deleted = await storage.deleteAnnotation(session.bookId, annotation.id);
-        if (!ownsMutation(mutation)) return false;
-        if (!deleted) {
-          publishFeedback(session, {
-            kind: "error",
-            message: annotationRemovalErrorMessage(annotation),
-          });
-          return false;
-        }
-        forget(annotation.id);
-        if (annotation.type === "highlight") {
-          publishFeedback(session, {
-            annotation,
-            kind: "removed",
-            message: highlightRemovedMessage(annotation),
-            removalKind: "highlight",
-          });
-        } else {
-          publishFeedback(session);
-        }
-        return true;
-      } catch {
-        if (ownsMutation(mutation)) {
+      const outcome = await deleteAnnotation(annotation);
+      if (outcome.status !== "accepted") {
+        if (outcome.status === "failed") {
           publishFeedback(session, {
             kind: "error",
             message: annotationRemovalErrorMessage(annotation),
           });
         }
         return false;
-      } finally {
-        finishMutation(mutation);
       }
+      if (annotation.type === "highlight") {
+        publishFeedback(session, {
+          annotation,
+          kind: "removed",
+          message: highlightRemovedMessage(annotation),
+          removalKind: "highlight",
+        });
+      } else {
+        publishFeedback(session);
+      }
+      return true;
     },
-    [beginMutation, finishMutation, forget, ownsMutation, publishFeedback, session, storage],
+    [deleteAnnotation, publishFeedback, session],
   );
 
   const updateAnchor = useCallback(
@@ -209,39 +270,21 @@ export function useReaderAnnotationMutations({
       annotation: Annotation,
       changes: ReaderAnnotationAnchorChanges,
     ): Promise<Annotation | undefined> => {
-      const mutation = beginMutation(session);
-      if (!mutation || !session.bookId) return undefined;
       cancelQueuedAnchorUpdateRef.current(annotation.id);
-      try {
-        const updated =
-          annotation.type === "bookmark"
-            ? await storage.updateBookmarkAnnotation(session.bookId, annotation.id, changes)
-            : await storage.updateHighlightAnnotation(session.bookId, annotation.id, changes);
-        if (!ownsMutation(mutation) || !updated) return undefined;
-        sync(updated);
-        return updated;
-      } catch {
-        if (ownsMutation(mutation)) {
-          publishFeedback(session, {
-            kind: "error",
-            message: "The annotation location could not be updated.",
-          });
-        }
-        return undefined;
-      } finally {
-        finishMutation(mutation);
+      const outcome =
+        annotation.type === "bookmark"
+          ? await update({ annotation, annotationType: "bookmark", changes })
+          : await update({ annotation, annotationType: "highlight", changes });
+      if (outcome.status === "accepted") return outcome.annotation;
+      if (outcome.status === "failed") {
+        publishFeedback(session, {
+          kind: "error",
+          message: "The annotation location could not be updated.",
+        });
       }
+      return undefined;
     },
-    [
-      beginMutation,
-      cancelQueuedAnchorUpdateRef,
-      finishMutation,
-      ownsMutation,
-      publishFeedback,
-      session,
-      storage,
-      sync,
-    ],
+    [cancelQueuedAnchorUpdateRef, publishFeedback, session, update],
   );
 
   const publishNoteRemoved = useCallback(
@@ -379,34 +422,36 @@ export function useReaderAnnotationMutations({
 
   return useMemo(
     () => ({
-      beginMutation,
       busy,
       busyOwnerRef,
       claimNoteEditing,
       clearFeedback,
+      create,
+      delete: deleteAnnotation,
       feedback,
-      finishMutation,
-      ownsMutation,
       publishFeedback,
       publishNoteRemoved,
       retireNoteRemoval,
       remove,
+      restore,
       undoRemove,
+      update,
       updateAnchor,
     }),
     [
-      beginMutation,
       busy,
       claimNoteEditing,
       clearFeedback,
+      create,
+      deleteAnnotation,
       feedback,
-      finishMutation,
-      ownsMutation,
       publishFeedback,
       publishNoteRemoved,
       retireNoteRemoval,
       remove,
+      restore,
       undoRemove,
+      update,
       updateAnchor,
     ],
   );
@@ -414,5 +459,10 @@ export function useReaderAnnotationMutations({
 
 export type ReaderAnnotationMutationContext = Pick<
   ReturnType<typeof useReaderAnnotationMutations>,
-  "beginMutation" | "finishMutation" | "ownsMutation" | "publishFeedback" | "remove"
+  "create" | "publishFeedback" | "remove" | "update"
+>;
+
+export type ReaderAnnotationCommandSurface = Pick<
+  ReturnType<typeof useReaderAnnotationMutations>,
+  "create" | "delete" | "restore" | "update"
 >;

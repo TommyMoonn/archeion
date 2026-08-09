@@ -1,4 +1,12 @@
-import type { Annotation, AnnotationAnchorStatus } from "../../types/annotation";
+import type {
+  Annotation,
+  AnnotationAnchorStatus,
+  BookmarkAnnotation,
+  CreateAnnotationInput,
+  HighlightAnnotation,
+  UpdateBookmarkAnnotationInput,
+  UpdateHighlightAnnotationInput,
+} from "../../types/annotation";
 
 export type ReaderAnnotationSession = {
   archiveId: string | null;
@@ -16,6 +24,23 @@ export type ReaderAnnotationMutation = {
   id: number;
   session: ReaderAnnotationSession;
 };
+
+export type ReaderAnnotationCreateCommand = CreateAnnotationInput;
+
+export type ReaderAnnotationUpdateCommand =
+  | {
+      annotation: BookmarkAnnotation;
+      annotationType: "bookmark";
+      changes: UpdateBookmarkAnnotationInput;
+    }
+  | {
+      annotation: HighlightAnnotation;
+      annotationType: "highlight";
+      changes: UpdateHighlightAnnotationInput;
+    };
+
+export type ReaderAnnotationMutationOutcome<T extends Annotation = Annotation> =
+  { annotation: T; status: "accepted" } | { status: "failed" | "rejected" | "retired" };
 
 export function sameReaderAnnotationSession(
   left: ReaderAnnotationSession,

@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from "react";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
 import type { ReaderLocation } from "./readerLocation";
 import type { ReaderAnnotationSession } from "./readerAnnotationState";
@@ -38,8 +37,6 @@ type ReaderBookmarksOptions = {
   openingError: boolean;
   readerReady: boolean;
   session: ReaderAnnotationSession;
-  storage: LibraryStorage;
-  sync: (annotation: Annotation) => void;
 };
 
 export function useReaderBookmarks({
@@ -52,8 +49,6 @@ export function useReaderBookmarks({
   openingError,
   readerReady,
   session,
-  storage,
-  sync,
 }: ReaderBookmarksOptions) {
   const { bookmarks, currentBookmark, detachedBookmarkAtCurrent } = useMemo(
     () => deriveReaderBookmarkState(annotations, location.cfi),
@@ -72,39 +67,21 @@ export function useReaderBookmarks({
 
   const addCurrent = useCallback(async () => {
     if (!location.cfi || !readerReady || openingError) return;
-    const mutation = mutations.beginMutation(session);
-    if (!mutation || !session.bookId) return;
-    try {
-      const bookmark = await storage.createAnnotation(session.bookId, {
-        type: "bookmark",
-        cfiRange: location.cfi,
-        chapterHref,
-        label: chapterLabel,
-      });
-      if (!mutations.ownsMutation(mutation)) return;
-      sync(bookmark);
+    const outcome = await mutations.create({
+      type: "bookmark",
+      cfiRange: location.cfi,
+      chapterHref,
+      label: chapterLabel,
+    });
+    if (outcome.status === "accepted") {
       mutations.publishFeedback(session);
-    } catch {
-      if (mutations.ownsMutation(mutation)) {
-        mutations.publishFeedback(session, {
-          kind: "error",
-          message: "Bookmark could not be added.",
-        });
-      }
-    } finally {
-      mutations.finishMutation(mutation);
+    } else if (outcome.status === "failed") {
+      mutations.publishFeedback(session, {
+        kind: "error",
+        message: "Bookmark could not be added.",
+      });
     }
-  }, [
-    chapterHref,
-    chapterLabel,
-    location.cfi,
-    mutations,
-    openingError,
-    readerReady,
-    session,
-    storage,
-    sync,
-  ]);
+  }, [chapterHref, chapterLabel, location.cfi, mutations, openingError, readerReady, session]);
 
   const toggleCurrent = useCallback(async () => {
     if (currentBookmark) {
@@ -116,76 +93,40 @@ export function useReaderBookmarks({
       return;
     }
 
-    const mutation = mutations.beginMutation(session);
-    if (!mutation) return;
-    try {
-      const updated = await storage.updateBookmarkAnnotation(
-        session.bookId,
-        detachedBookmarkAtCurrent.id,
-        { anchorStatus: undefined, chapterHref },
-      );
-      if (!mutations.ownsMutation(mutation)) return;
-      if (!updated) {
-        mutations.publishFeedback(session, {
-          kind: "error",
-          message: "Bookmark could not be restored.",
-        });
-        return;
-      }
-      sync(updated);
+    const outcome = await mutations.update({
+      annotation: detachedBookmarkAtCurrent,
+      annotationType: "bookmark",
+      changes: { anchorStatus: undefined, chapterHref },
+    });
+    if (outcome.status === "accepted") {
       mutations.publishFeedback(session);
-    } catch {
-      if (mutations.ownsMutation(mutation)) {
-        mutations.publishFeedback(session, {
-          kind: "error",
-          message: "Bookmark could not be restored.",
-        });
-      }
-    } finally {
-      mutations.finishMutation(mutation);
+    } else if (outcome.status === "failed") {
+      mutations.publishFeedback(session, {
+        kind: "error",
+        message: "Bookmark could not be restored.",
+      });
     }
-  }, [
-    addCurrent,
-    chapterHref,
-    currentBookmark,
-    detachedBookmarkAtCurrent,
-    mutations,
-    session,
-    storage,
-    sync,
-  ]);
+  }, [addCurrent, chapterHref, currentBookmark, detachedBookmarkAtCurrent, mutations, session]);
 
   const updateLabel = useCallback(
     async (bookmark: BookmarkAnnotation, label: string) => {
-      const mutation = mutations.beginMutation(session);
-      if (!mutation || !session.bookId) return false;
-      try {
-        const updated = await storage.updateBookmarkAnnotation(session.bookId, bookmark.id, {
-          label,
-        });
-        if (!mutations.ownsMutation(mutation)) return false;
-        if (!updated) {
-          mutations.publishFeedback(session, {
-            kind: "error",
-            message: "Bookmark label could not be saved.",
-          });
-          return false;
-        }
-        sync(updated);
+      const outcome = await mutations.update({
+        annotation: bookmark,
+        annotationType: "bookmark",
+        changes: { label },
+      });
+      if (outcome.status === "accepted") {
         return true;
-      } catch {
-        if (mutations.ownsMutation(mutation)) {
-          mutations.publishFeedback(session, {
-            kind: "error",
-            message: "Bookmark label could not be saved.",
-          });
-        }
-        return false;
-      } finally {
-        mutations.finishMutation(mutation);
       }
+      if (outcome.status === "failed") {
+        mutations.publishFeedback(session, {
+          kind: "error",
+          message: "Bookmark label could not be saved.",
+        });
+      }
+      return false;
     },
-    [mutations, session, storage, sync],
+    [mutations, session],
   );
 
   return useMemo(

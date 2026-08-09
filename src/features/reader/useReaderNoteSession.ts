@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderTextSelection } from "./EpubViewer";
 import { ReaderNoteDraftCache, type ReaderNoteDraft } from "./readerNoteDraftCache";
 import type { ReaderNoteEditorHandle } from "./ReaderNoteEditor";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 
 type ReaderNoteSessionIdentity = {
   archiveId: string | null;
@@ -34,8 +34,7 @@ type UseReaderNoteSessionOptions = {
   ensureHighlight: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
   publishNoteRemoved: (annotation: HighlightAnnotation) => void;
   retireNoteRemoval: (annotationId: string) => void;
-  storage: LibraryStorage;
-  syncAnnotation: (annotation: Annotation) => void;
+  updateAnnotation: ReaderAnnotationCommandSurface["update"];
 };
 
 type NoteOpenRequest = {
@@ -49,8 +48,8 @@ type ReaderNotePersistenceLease = {
   bookId: string;
   editorKey: number;
   sessionToken: symbol;
-  storage: LibraryStorage;
   targetIdentity: string;
+  updateAnnotation: ReaderAnnotationCommandSurface["update"];
 };
 
 function noteTargetIdentity(annotation: Annotation): string {
@@ -77,8 +76,7 @@ export function useReaderNoteSession({
   ensureHighlight,
   publishNoteRemoved,
   retireNoteRemoval,
-  storage,
-  syncAnnotation,
+  updateAnnotation,
 }: UseReaderNoteSessionOptions) {
   const editorRef = useRef<ReaderNoteEditorHandle>(null);
   const editorKeyRef = useRef(0);
@@ -91,8 +89,7 @@ export function useReaderNoteSession({
   const ensureHighlightRef = useRef(ensureHighlight);
   const publishNoteRemovedRef = useRef(publishNoteRemoved);
   const retireNoteRemovalRef = useRef(retireNoteRemoval);
-  const storageRef = useRef(storage);
-  const syncAnnotationRef = useRef(syncAnnotation);
+  const updateAnnotationRef = useRef(updateAnnotation);
   const session = useMemo<ReaderNoteSessionIdentity>(
     () => ({
       archiveId,
@@ -114,16 +111,14 @@ export function useReaderNoteSession({
     ensureHighlightRef.current = ensureHighlight;
     publishNoteRemovedRef.current = publishNoteRemoved;
     retireNoteRemovalRef.current = retireNoteRemoval;
-    storageRef.current = storage;
-    syncAnnotationRef.current = syncAnnotation;
+    updateAnnotationRef.current = updateAnnotation;
   }, [
     claimNoteEditing,
     ensureHighlight,
     publishNoteRemoved,
     retireNoteRemoval,
     session,
-    storage,
-    syncAnnotation,
+    updateAnnotation,
   ]);
 
   useEffect(() => {
@@ -211,8 +206,8 @@ export function useReaderNoteSession({
         bookId: target.bookId,
         editorKey: target.editorKey,
         sessionToken: target.sessionToken,
-        storage: storageRef.current,
         targetIdentity: target.targetIdentity,
+        updateAnnotation: updateAnnotationRef.current,
       };
       adapter.showTarget(target);
       return true;
@@ -328,17 +323,23 @@ export function useReaderNoteSession({
       const lease = persistenceLeaseFor(target, persistedAnnotation);
       if (!lease) return undefined;
       try {
-        const saved = await lease.storage.updateHighlightAnnotation(
-          target.bookId,
-          persistedAnnotation.id,
-          { note },
-        );
-        if (!saved || !isCurrentTarget(target)) return undefined;
+        const outcome = await lease.updateAnnotation({
+          annotation: persistedAnnotation,
+          annotationType: "highlight",
+          changes: { note },
+        });
+        if (
+          outcome.status !== "accepted" ||
+          outcome.annotation.type !== "highlight" ||
+          !isCurrentTarget(target)
+        ) {
+          return undefined;
+        }
+        const saved = outcome.annotation;
         draftCacheRef.current.confirmPersisted(target, note);
         retireNoteRemovalRef.current(persistedAnnotation.id);
         const nextTarget = { ...target, annotation: saved };
         surfaceAdapterRef.current?.updateTarget(nextTarget);
-        syncAnnotationRef.current(saved);
         return saved;
       } catch {
         return undefined;
@@ -352,14 +353,19 @@ export function useReaderNoteSession({
       const lease = persistenceLeaseFor(target, persistedAnnotation);
       if (!lease) return false;
       try {
-        const updated = await lease.storage.updateHighlightAnnotation(
-          target.bookId,
-          persistedAnnotation.id,
-          { note: undefined },
-        );
-        if (!updated || !isCurrentTarget(target)) return false;
+        const outcome = await lease.updateAnnotation({
+          annotation: persistedAnnotation,
+          annotationType: "highlight",
+          changes: { note: undefined },
+        });
+        if (
+          outcome.status !== "accepted" ||
+          outcome.annotation.type !== "highlight" ||
+          !isCurrentTarget(target)
+        ) {
+          return false;
+        }
         draftCacheRef.current.clear(target);
-        syncAnnotationRef.current(updated);
         publishNoteRemovedRef.current(persistedAnnotation);
         return true;
       } catch {

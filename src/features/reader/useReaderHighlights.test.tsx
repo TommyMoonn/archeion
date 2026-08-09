@@ -1,11 +1,16 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, useLayoutEffect, useMemo, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, HighlightAnnotation } from "../../types/annotation";
+import type {
+  Annotation,
+  CreateAnnotationInput,
+  HighlightAnnotation,
+} from "../../types/annotation";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 import { useReaderHighlights } from "./useReaderHighlights";
 
 let root: Root | null = null;
@@ -43,11 +48,57 @@ function Harness({
   onChange: (annotation: Annotation) => void;
   storage: LibraryStorage;
 }) {
+  const session = useMemo(() => ({ bookId, token: Symbol("highlight-test-session") }), [bookId]);
+  const sessionRef = useRef(session);
+  useLayoutEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
+  const mutations = useMemo<ReaderAnnotationCommandSurface>(
+    () => ({
+      create: async (input: CreateAnnotationInput) => {
+        try {
+          const annotation =
+            input.type === "bookmark"
+              ? await storage.createAnnotation(bookId ?? "", input)
+              : await storage.createAnnotation(bookId ?? "", input);
+          if (sessionRef.current !== session) return { status: "retired" };
+          onChange(annotation);
+          return { annotation, status: "accepted" };
+        } catch {
+          return sessionRef.current === session ? { status: "failed" } : { status: "retired" };
+        }
+      },
+      delete: vi.fn(),
+      restore: vi.fn(),
+      update: async (command) => {
+        try {
+          const annotation =
+            command.annotationType === "bookmark"
+              ? await storage.updateBookmarkAnnotation(
+                  bookId ?? "",
+                  command.annotation.id,
+                  command.changes,
+                )
+              : await storage.updateHighlightAnnotation(
+                  bookId ?? "",
+                  command.annotation.id,
+                  command.changes,
+                );
+          if (sessionRef.current !== session) return { status: "retired" };
+          if (!annotation) return { status: "failed" };
+          onChange(annotation);
+          return { annotation, status: "accepted" };
+        } catch {
+          return sessionRef.current === session ? { status: "failed" } : { status: "retired" };
+        }
+      },
+    }),
+    [bookId, onChange, session, storage],
+  );
   const highlights = useReaderHighlights({
     annotations,
     bookId,
-    onAnnotationChange: onChange,
-    storage,
+    mutations,
   });
 
   return (

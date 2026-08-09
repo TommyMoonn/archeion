@@ -317,6 +317,8 @@ export function useReaderAnnotationPanelActions({
             annotationId: annotation.id,
             message: "The highlight color could not be changed. Try again.",
           });
+        } else {
+          requestRowFocus(annotation.id);
         }
         return recolored;
       } catch {
@@ -331,7 +333,13 @@ export function useReaderAnnotationPanelActions({
         finishRowMutation(request);
       }
     },
-    [beginRowMutation, finishRowMutation, onRecolorHighlight, requestOwnsRowMutation],
+    [
+      beginRowMutation,
+      finishRowMutation,
+      onRecolorHighlight,
+      requestOwnsRowMutation,
+      requestRowFocus,
+    ],
   );
 
   const recoverAnnotation = useCallback(

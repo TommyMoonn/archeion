@@ -120,7 +120,10 @@ afterEach(() => {
 
 describe("useReaderAnnotations facade", () => {
   it("keeps the public API wired and projects collection synchronization into bookmarks", async () => {
+    const created = bookmark("synced");
     const storage = {
+      createAnnotation: vi.fn(async () => created),
+      deleteAnnotation: vi.fn(async () => true),
       listAnnotations: vi.fn(async () => []),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<ReaderAnnotationsApi | undefined> = { current: undefined };
@@ -133,25 +136,37 @@ describe("useReaderAnnotations facade", () => {
         busy: false,
         canToggleCurrent: true,
         claimNoteEditing: expect.any(Function),
+        commands: expect.objectContaining({
+          create: expect.any(Function),
+          delete: expect.any(Function),
+          restore: expect.any(Function),
+          update: expect.any(Function),
+        }),
         loadStatus: "ready",
         clearFeedback: expect.any(Function),
-        forget: expect.any(Function),
         publishNoteRemoved: expect.any(Function),
         queueAnchorUpdate: expect.any(Function),
         reload: expect.any(Function),
         retireNoteRemoval: expect.any(Function),
         remove: expect.any(Function),
-        sync: expect.any(Function),
         toggleCurrent: expect.any(Function),
         undoRemove: expect.any(Function),
         updateAnchor: expect.any(Function),
         updateLabel: expect.any(Function),
       }),
     );
-    act(() => apiRef.current?.sync(bookmark("synced")));
+    await act(async () => {
+      await apiRef.current?.commands.create({
+        cfiRange: created.cfiRange,
+        label: created.label,
+        type: "bookmark",
+      });
+    });
     expect(text("ids")).toBe("synced");
     expect(text("bookmarks")).toBe("synced");
-    act(() => apiRef.current?.forget("synced"));
+    await act(async () => {
+      await apiRef.current?.commands.delete(created);
+    });
     expect(text("ids")).toBe("");
     expect(text("bookmarks")).toBe("");
   });

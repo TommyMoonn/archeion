@@ -1,6 +1,14 @@
 // @vitest-environment happy-dom
 
-import { act, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
+import {
+  act,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +16,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderTextSelection } from "./EpubViewer";
 import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 import { useReaderNoteSession, type ReaderNoteTarget } from "./useReaderNoteSession";
 
 type NoteSessionApi = ReturnType<typeof useReaderNoteSession>;
@@ -41,6 +50,51 @@ function deferred<T>() {
     reject = fail;
   });
   return { promise, reject, resolve };
+}
+
+function useAnnotationUpdateCommand({
+  archiveId,
+  bookId,
+  storage,
+  syncAnnotation,
+}: {
+  archiveId: string;
+  bookId: string;
+  storage: LibraryStorage;
+  syncAnnotation: (annotation: Annotation) => void;
+}): ReaderAnnotationCommandSurface["update"] {
+  const owner = useMemo(
+    () => ({ archiveId, bookId, token: Symbol("note-mutation-test") }),
+    [archiveId, bookId],
+  );
+  const ownerRef = useRef<typeof owner | null>(owner);
+  useLayoutEffect(() => {
+    ownerRef.current = owner;
+    return () => {
+      if (ownerRef.current === owner) ownerRef.current = null;
+    };
+  }, [owner]);
+  return useCallback(
+    async (command) => {
+      try {
+        const annotation =
+          command.annotationType === "bookmark"
+            ? await storage.updateBookmarkAnnotation(bookId, command.annotation.id, command.changes)
+            : await storage.updateHighlightAnnotation(
+                bookId,
+                command.annotation.id,
+                command.changes,
+              );
+        if (ownerRef.current !== owner) return { status: "retired" };
+        if (!annotation) return { status: "failed" };
+        syncAnnotation(annotation);
+        return { annotation, status: "accepted" };
+      } catch {
+        return ownerRef.current === owner ? { status: "failed" } : { status: "retired" };
+      }
+    },
+    [bookId, owner, storage, syncAnnotation],
+  );
 }
 
 type HarnessProps = {
@@ -77,6 +131,12 @@ function Harness({
   const sessionKey = `${archiveId}:${bookId}`;
   const visibleTarget = targetState?.sessionKey === sessionKey ? targetState.target : null;
   const visibleTargetRef = useRef(visibleTarget);
+  const updateAnnotation = useAnnotationUpdateCommand({
+    archiveId,
+    bookId,
+    storage,
+    syncAnnotation,
+  });
 
   const session = useReaderNoteSession({
     archiveId,
@@ -85,8 +145,7 @@ function Harness({
     ensureHighlight,
     publishNoteRemoved,
     retireNoteRemoval,
-    storage,
-    syncAnnotation,
+    updateAnnotation,
   });
 
   useLayoutEffect(() => {
@@ -141,6 +200,12 @@ function IntegratedHarness({
 }: IntegratedHarnessProps) {
   const [target, setTarget] = useState<ReaderNoteTarget | null>(null);
   const targetRef = useRef(target);
+  const updateAnnotation = useAnnotationUpdateCommand({
+    archiveId,
+    bookId,
+    storage,
+    syncAnnotation,
+  });
   const session = useReaderNoteSession({
     archiveId,
     bookId,
@@ -148,8 +213,7 @@ function IntegratedHarness({
     ensureHighlight,
     publishNoteRemoved,
     retireNoteRemoval,
-    storage,
-    syncAnnotation,
+    updateAnnotation,
   });
   const { confirmDraftPersisted, connectSurface, deleteNote, editorHandleRef, saveNote } = session;
 
@@ -528,8 +592,9 @@ describe("useReaderNoteSession", () => {
       saveResult = await promise;
     });
     expect(saveResult).toBeUndefined();
-    expect(syncAnnotation).not.toHaveBeenCalled();
+    expect(syncAnnotation).toHaveBeenCalledWith({ ...original, note: "New" });
     expect(targetRef.current?.annotation.id).toBe("other");
+    syncAnnotation.mockClear();
 
     const activeTarget = targetRef.current!;
     let deleteResult = true;

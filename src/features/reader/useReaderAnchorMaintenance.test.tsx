@@ -63,12 +63,15 @@ function Harness({
     [bookId, sessionKey],
   );
   const sessionRef = useRef(session);
+  const mountedRef = useRef(true);
   const cancelRef = useRef<(annotationId: string) => void>(() => undefined);
   const drainRef = useRef<() => void>(() => undefined);
   useLayoutEffect(() => {
     sessionRef.current = session;
+    mountedRef.current = true;
     busyOwnerRef.current = blockMaintenance ? { id: 1, session } : undefined;
     return () => {
+      mountedRef.current = false;
       busyOwnerRef.current = undefined;
     };
   }, [blockMaintenance, busyOwnerRef, session]);
@@ -81,8 +84,28 @@ function Harness({
       if (next) feedback.push(next);
     },
     session,
-    storage,
-    sync: (annotation) => synced.push(annotation),
+    update: async (command) => {
+      try {
+        const updated =
+          command.annotationType === "bookmark"
+            ? await storage.updateBookmarkAnnotation(bookId, command.annotation.id, command.changes)
+            : await storage.updateHighlightAnnotation(
+                bookId,
+                command.annotation.id,
+                command.changes,
+              );
+        if (!mountedRef.current || !sameReaderAnnotationSession(sessionRef.current, session)) {
+          return { status: "retired" } as const;
+        }
+        if (!updated) return { status: "failed" } as const;
+        synced.push(updated);
+        return { annotation: updated, status: "accepted" } as const;
+      } catch {
+        return mountedRef.current && sameReaderAnnotationSession(sessionRef.current, session)
+          ? ({ status: "failed" } as const)
+          : ({ status: "retired" } as const);
+      }
+    },
   });
   useLayoutEffect(() => {
     apiRef.current = api;

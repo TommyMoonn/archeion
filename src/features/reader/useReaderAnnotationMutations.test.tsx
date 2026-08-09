@@ -207,6 +207,104 @@ afterEach(() => {
 });
 
 describe("useReaderAnnotationMutations", () => {
+  it("publishes one accepted state for create, update, and delete commands", async () => {
+    const created = bookmark("command-bookmark");
+    const updated = { ...created, label: "Updated chapter" };
+    const storage = {
+      createAnnotation: vi.fn(async () => created),
+      deleteAnnotation: vi.fn(async () => true),
+      updateBookmarkAnnotation: vi.fn(async () => updated),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [], storage });
+
+    let createOutcome: Awaited<ReturnType<MutationApi["create"]>> | undefined;
+    await act(async () => {
+      createOutcome = await apiRef.current?.create({
+        cfiRange: created.cfiRange,
+        label: created.label,
+        type: "bookmark",
+      });
+    });
+    expect(createOutcome).toEqual({ annotation: created, status: "accepted" });
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([created]);
+
+    let updateOutcome: Awaited<ReturnType<MutationApi["update"]>> | undefined;
+    await act(async () => {
+      updateOutcome = await apiRef.current?.update({
+        annotation: created,
+        annotationType: "bookmark",
+        changes: { label: updated.label },
+      });
+    });
+    expect(updateOutcome).toEqual({ annotation: updated, status: "accepted" });
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([updated]);
+
+    let deleteOutcome: Awaited<ReturnType<MutationApi["delete"]>> | undefined;
+    await act(async () => {
+      deleteOutcome = await apiRef.current?.delete(updated);
+    });
+    expect(deleteOutcome).toEqual({ annotation: updated, status: "accepted" });
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([]);
+    expect(storage.createAnnotation).toHaveBeenCalledOnce();
+    expect(storage.updateBookmarkAnnotation).toHaveBeenCalledOnce();
+    expect(storage.deleteAnnotation).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the prior accepted state when persistence fails", async () => {
+    const original = highlight("accepted-highlight");
+    const storage = {
+      updateHighlightAnnotation: vi.fn(async () => {
+        throw new Error("disk unavailable");
+      }),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [original], storage });
+
+    let outcome: Awaited<ReturnType<MutationApi["update"]>> | undefined;
+    await act(async () => {
+      outcome = await apiRef.current?.update({
+        annotation: original,
+        annotationType: "highlight",
+        changes: { color: "blue" },
+      });
+    });
+
+    expect(outcome).toEqual({ status: "failed" });
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([original]);
+  });
+
+  it("rejects a competing edit before it can publish out of order", async () => {
+    const original = highlight("serialized-highlight");
+    const firstResult = { ...original, color: "blue" };
+    const firstWrite = deferred<HighlightAnnotation | undefined>();
+    const storage = {
+      updateHighlightAnnotation: vi.fn(() => firstWrite.promise),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [original], storage });
+
+    let first!: Promise<Awaited<ReturnType<MutationApi["update"]>>>;
+    act(() => {
+      first = apiRef.current!.update({
+        annotation: original,
+        annotationType: "highlight",
+        changes: { color: "blue" },
+      });
+    });
+    const competing = await apiRef.current!.update({
+      annotation: original,
+      annotationType: "highlight",
+      changes: { color: "green" },
+    });
+    expect(competing).toEqual({ status: "rejected" });
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledOnce();
+
+    await act(async () => firstWrite.resolve(firstResult));
+    await expect(first).resolves.toEqual({ annotation: firstResult, status: "accepted" });
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([firstResult]);
+  });
+
   it("rejects an archive A completion after the same book becomes archive B state", async () => {
     const archiveA = bookmark("archive-a");
     const archiveB = bookmark("archive-b");

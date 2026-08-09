@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type MutableRefObject } from "react";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, AnnotationType } from "../../types/annotation";
+import type { Annotation } from "../../types/annotation";
 import {
   sameReaderAnnotationSession,
   type ReaderAnnotationAnchorChanges,
@@ -9,10 +8,11 @@ import {
   type ReaderAnnotationSession,
 } from "./readerAnnotationState";
 import type { ReaderAnnotationFeedback } from "./useReaderAnnotationMutations";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 
 type AnchorMaintenanceRequest = {
+  annotation: Annotation;
   annotationId: string;
-  annotationType: AnnotationType;
   changes: ReaderAnnotationAnchorChanges;
   promise: Promise<boolean>;
   resolve: (persisted: boolean) => void;
@@ -27,8 +27,7 @@ type AnchorMaintenanceOptions = {
   isCurrentSession: (session: ReaderAnnotationSession) => boolean;
   publishFeedback: (session: ReaderAnnotationSession, feedback?: ReaderAnnotationFeedback) => void;
   session: ReaderAnnotationSession;
-  storage: LibraryStorage;
-  sync: (annotation: Annotation) => void;
+  update: ReaderAnnotationCommandSurface["update"];
 };
 
 export function useReaderAnchorMaintenance({
@@ -38,8 +37,7 @@ export function useReaderAnchorMaintenance({
   isCurrentSession,
   publishFeedback,
   session,
-  storage,
-  sync,
+  update,
 }: AnchorMaintenanceOptions) {
   const queueRef = useRef(new Map<string, AnchorMaintenanceRequest>());
   const runningRef = useRef<AnchorMaintenanceRequest | undefined>(undefined);
@@ -58,33 +56,41 @@ export function useReaderAnchorMaintenance({
     }
 
     runningRef.current = next;
-    const update =
-      next.annotationType === "bookmark"
-        ? storage.updateBookmarkAnnotation(next.session.bookId, next.annotationId, next.changes)
-        : storage.updateHighlightAnnotation(next.session.bookId, next.annotationId, next.changes);
-    void update
-      .then((updated) => {
-        if (runningRef.current !== next || !isCurrentSession(next.session) || !updated) {
+    const mutation =
+      next.annotation.type === "bookmark"
+        ? update({
+            annotation: next.annotation,
+            annotationType: "bookmark",
+            changes: next.changes,
+          })
+        : update({
+            annotation: next.annotation,
+            annotationType: "highlight",
+            changes: next.changes,
+          });
+    void mutation
+      .then((outcome) => {
+        if (
+          runningRef.current !== next ||
+          !isCurrentSession(next.session) ||
+          outcome.status !== "accepted"
+        ) {
+          if (outcome.status === "failed" && isCurrentSession(next.session)) {
+            publishFeedback(next.session, {
+              kind: "error",
+              message: "The annotation location could not be updated.",
+            });
+          }
           next.resolve(false);
           return;
         }
-        sync(updated);
         next.resolve(true);
-      })
-      .catch(() => {
-        if (isCurrentSession(next.session)) {
-          publishFeedback(next.session, {
-            kind: "error",
-            message: "The annotation location could not be updated.",
-          });
-        }
-        next.resolve(false);
       })
       .finally(() => {
         if (runningRef.current === next) runningRef.current = undefined;
         queueMicrotask(() => drainAnchorMaintenanceRef.current());
       });
-  }, [busyOwnerRef, drainAnchorMaintenanceRef, isCurrentSession, publishFeedback, storage, sync]);
+  }, [busyOwnerRef, drainAnchorMaintenanceRef, isCurrentSession, publishFeedback, update]);
 
   const cancelQueuedAnchorUpdate = useCallback((annotationId: string) => {
     const queued = queueRef.current.get(annotationId);
@@ -166,8 +172,8 @@ export function useReaderAnchorMaintenance({
         resolve = settle;
       });
       queueRef.current.set(annotation.id, {
+        annotation,
         annotationId: annotation.id,
-        annotationType: annotation.type,
         changes,
         promise,
         resolve,

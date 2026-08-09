@@ -234,8 +234,7 @@ export function ReaderPage() {
   const highlights = useReaderHighlights({
     annotations: annotations.annotations,
     bookId,
-    onAnnotationChange: annotations.sync,
-    storage,
+    mutations: annotations.commands,
   });
   const resolveAnnotationAnchor = useCallback(
     (annotation: Annotation, attemptRecovery: boolean) =>
@@ -296,8 +295,7 @@ export function ReaderPage() {
     ensureHighlight: highlights.ensure,
     publishNoteRemoved: annotations.publishNoteRemoved,
     retireNoteRemoval: annotations.retireNoteRemoval,
-    storage,
-    syncAnnotation: annotations.sync,
+    updateAnnotation: annotations.commands.update,
   });
   const settleReaderLeave = useCallback(async () => {
     if (!(await settleNoteEditor())) return false;

@@ -5,9 +5,12 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import type { Annotation, BookmarkAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, CreateAnnotationInput } from "../../types/annotation";
 import { sameReaderAnnotationSession, type ReaderAnnotationSession } from "./readerAnnotationState";
-import type { ReaderAnnotationFeedback } from "./useReaderAnnotationMutations";
+import type {
+  ReaderAnnotationFeedback,
+  ReaderAnnotationMutationContext,
+} from "./useReaderAnnotationMutations";
 import { useReaderBookmarks } from "./useReaderBookmarks";
 
 type BookmarksApi = ReturnType<typeof useReaderBookmarks>;
@@ -69,25 +72,62 @@ function Harness({
     [bookId],
   );
   const sessionRef = useRef(session);
-  const mutationIdRef = useRef(0);
   useLayoutEffect(() => {
     sessionRef.current = session;
   }, [session]);
   const mutations = useMemo(
     () => ({
-      beginMutation: (candidate: ReaderAnnotationSession) => ({
-        id: ++mutationIdRef.current,
-        session: candidate,
-      }),
-      finishMutation: vi.fn(),
-      ownsMutation: (mutation: { session: ReaderAnnotationSession }) =>
-        sameReaderAnnotationSession(sessionRef.current, mutation.session),
+      create: async (input: CreateAnnotationInput) => {
+        const owner = session;
+        try {
+          const annotation =
+            input.type === "bookmark"
+              ? await storage.createAnnotation(bookId, input)
+              : await storage.createAnnotation(bookId, input);
+          if (!sameReaderAnnotationSession(sessionRef.current, owner)) {
+            return { status: "retired" } as const;
+          }
+          synced.push(annotation);
+          return { annotation, status: "accepted" } as const;
+        } catch {
+          return sameReaderAnnotationSession(sessionRef.current, owner)
+            ? ({ status: "failed" } as const)
+            : ({ status: "retired" } as const);
+        }
+      },
       publishFeedback: (_session: ReaderAnnotationSession, next?: ReaderAnnotationFeedback) => {
         if (next) feedback.push(next);
       },
       remove,
+      update: async (command: Parameters<ReaderAnnotationMutationContext["update"]>[0]) => {
+        const owner = session;
+        try {
+          const annotation =
+            command.annotationType === "bookmark"
+              ? await storage.updateBookmarkAnnotation(
+                  bookId,
+                  command.annotation.id,
+                  command.changes,
+                )
+              : await storage.updateHighlightAnnotation(
+                  bookId,
+                  command.annotation.id,
+                  command.changes,
+                );
+          if (!sameReaderAnnotationSession(sessionRef.current, owner)) {
+            return { status: "retired" } as const;
+          }
+          if (!annotation) return { status: "failed" } as const;
+          synced.push(annotation);
+          return { annotation, status: "accepted" } as const;
+        } catch {
+          return sameReaderAnnotationSession(sessionRef.current, owner)
+            ? ({ status: "failed" } as const)
+            : ({ status: "retired" } as const);
+        }
+      },
     }),
-    [feedback, remove],
+    [bookId, feedback, remove, session, storage, synced],
   );
   const bookmarks = useReaderBookmarks({
     annotations,
@@ -99,8 +139,6 @@ function Harness({
     openingError,
     readerReady,
     session,
-    storage,
-    sync: (annotation) => synced.push(annotation),
   });
   useLayoutEffect(() => {
     apiRef.current = bookmarks;
