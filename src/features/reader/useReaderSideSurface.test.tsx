@@ -26,10 +26,11 @@ function deferred<T>() {
 
 function createTransitions(settle: () => Promise<boolean>) {
   let currentRequest = 0;
+  const owner = Object.freeze({ archiveId: null, readerIdentity: null });
   return {
     beginTransition: vi.fn((): ReaderTransitionRequest => ({
       id: ++currentRequest,
-      sessionKey: "book",
+      owner,
     })),
     ownsTransition: vi.fn((request: ReaderTransitionRequest) => request.id === currentRequest),
     runAfterSettlement: vi.fn(

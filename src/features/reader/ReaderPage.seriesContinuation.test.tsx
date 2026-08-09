@@ -16,6 +16,7 @@ const viewerMock = vi.hoisted(() => ({
   initialCfi: undefined as string | undefined,
   onError: undefined as ((message: string) => void) | undefined,
   sessionsStarted: 0,
+  teardown: vi.fn(),
   location: {
     atEnd: false,
     atStart: false,
@@ -48,6 +49,7 @@ vi.mock("./EpubViewer", async () => {
         navigateToLocation: vi.fn().mockResolvedValue(true),
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
+        teardown: viewerMock.teardown,
       }));
       React.useEffect(() => {
         viewerMock.sessionsStarted += 1;
@@ -107,6 +109,7 @@ async function renderReader(
   readerReturnContext?: Record<string, unknown>,
   storageOverrides?: Partial<LibraryStorage>,
 ) {
+  viewerMock.teardown.mockReset();
   const storage = createStorage(books, storageOverrides);
   const router = createMemoryRouter(
     [

@@ -55,6 +55,7 @@ export type EpubViewerHandle = {
     annotation: Annotation,
     attemptRecovery: boolean,
   ) => Promise<ReaderAnnotationRecoveryResult>;
+  teardown: () => void;
 };
 
 type EpubViewerProps = {
@@ -160,6 +161,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     navigateToChapter: displayChapter,
     navigateToLocation: displayLocation,
     navigateToTarget: displayTarget,
+    teardown,
     turn,
   } = useEpubSession({
     bridgeRef,
@@ -460,8 +462,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       previous: () => turn("backward"),
       resolveAnnotationAnchor: (annotation, attemptRecovery) =>
         annotations.resolveAnnotationAnchor(annotation, attemptRecovery),
+      teardown,
     }),
-    [annotations, navigateToChapter, navigateToLocation, turn],
+    [annotations, navigateToChapter, navigateToLocation, teardown, turn],
   );
 
   return (

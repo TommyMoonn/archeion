@@ -3,7 +3,10 @@ import { useBlocker, type BlockerFunction } from "react-router-dom";
 
 export type AsyncRouteIntentOwnership = {
   owns: () => boolean;
+  settled?: boolean;
 };
+
+export type AsyncRouteOwnershipToken = object;
 
 export type AsyncBlockedRouteAttempt = {
   id: symbol;
@@ -12,19 +15,20 @@ export type AsyncBlockedRouteAttempt = {
 
 type OwnedBlockedRouteAttempt = AsyncBlockedRouteAttempt & {
   ownership: AsyncRouteIntentOwnership;
+  ownershipToken: AsyncRouteOwnershipToken;
   reported: boolean;
 };
 
 type RouteSettlement = {
+  ownershipToken: AsyncRouteOwnershipToken;
   promise: Promise<boolean>;
-  sessionKey: string | undefined;
 };
 
 type AsyncRouteLeaveGuardOptions = {
   onBlockedNavigationIntent?: (attempt: AsyncBlockedRouteAttempt) => void;
   onBlockedNavigationSettled?: (attempt: AsyncBlockedRouteAttempt, settled: boolean) => void;
   onNavigationIntent: () => AsyncRouteIntentOwnership;
-  sessionKey: string | undefined;
+  ownershipToken: AsyncRouteOwnershipToken;
   settle: () => Promise<boolean>;
 };
 
@@ -32,16 +36,17 @@ export function useAsyncRouteLeaveGuard({
   onBlockedNavigationIntent,
   onBlockedNavigationSettled,
   onNavigationIntent,
-  sessionKey,
+  ownershipToken,
   settle,
 }: AsyncRouteLeaveGuardOptions): void {
   const intentRef = useRef(onNavigationIntent);
   const blockedIntentRef = useRef(onBlockedNavigationIntent);
   const blockedSettlementRef = useRef(onBlockedNavigationSettled);
   const settleRef = useRef(settle);
-  const sessionKeyRef = useRef(sessionKey);
+  const ownershipTokenRef = useRef(ownershipToken);
   const settlementOwnerRef = useRef(0);
-  const attemptsRef = useRef(new Map<string, OwnedBlockedRouteAttempt>());
+  const attemptsRef = useRef(new Map<symbol, OwnedBlockedRouteAttempt>());
+  const currentAttemptRef = useRef<OwnedBlockedRouteAttempt | null>(null);
   const routeSettlementRef = useRef<RouteSettlement | null>(null);
 
   useLayoutEffect(() => {
@@ -49,14 +54,7 @@ export function useAsyncRouteLeaveGuard({
     blockedIntentRef.current = onBlockedNavigationIntent;
     blockedSettlementRef.current = onBlockedNavigationSettled;
     settleRef.current = settle;
-    sessionKeyRef.current = sessionKey;
-  }, [
-    onBlockedNavigationIntent,
-    onBlockedNavigationSettled,
-    onNavigationIntent,
-    sessionKey,
-    settle,
-  ]);
+  }, [onBlockedNavigationIntent, onBlockedNavigationSettled, onNavigationIntent, settle]);
 
   const reportSettlement = useCallback((attempt: OwnedBlockedRouteAttempt, settled: boolean) => {
     if (attempt.reported) return;
@@ -65,18 +63,19 @@ export function useAsyncRouteLeaveGuard({
   }, []);
 
   const removeActiveAttempt = useCallback((attempt: OwnedBlockedRouteAttempt) => {
-    if (attemptsRef.current.get(attempt.locationKey) !== attempt) return false;
-    attemptsRef.current.delete(attempt.locationKey);
+    if (attemptsRef.current.get(attempt.id) !== attempt) return false;
+    attemptsRef.current.delete(attempt.id);
+    if (currentAttemptRef.current === attempt) currentAttemptRef.current = null;
     return true;
   }, []);
 
   const acquireRouteSettlement = useCallback(() => {
     const active = routeSettlementRef.current;
-    const currentSessionKey = sessionKeyRef.current;
-    if (active && active.sessionKey === currentSessionKey) return active;
+    const currentOwnershipToken = ownershipTokenRef.current;
+    if (active && active.ownershipToken === currentOwnershipToken) return active;
     const settlement: RouteSettlement = {
+      ownershipToken: currentOwnershipToken,
       promise: settleRef.current().catch(() => false),
-      sessionKey: currentSessionKey,
     };
     routeSettlementRef.current = settlement;
     return settlement;
@@ -88,6 +87,8 @@ export function useAsyncRouteLeaveGuard({
         currentLocation.pathname !== nextLocation.pathname ||
         currentLocation.search !== nextLocation.search;
       if (changesRoute) {
+        const ownership = intentRef.current();
+        if (ownership.settled && ownership.owns()) return false;
         settlementOwnerRef.current += 1;
         for (const previous of [...attemptsRef.current.values()]) {
           reportSettlement(previous, false);
@@ -96,10 +97,12 @@ export function useAsyncRouteLeaveGuard({
         const attempt: OwnedBlockedRouteAttempt = {
           id: Symbol("blocked-route-attempt"),
           locationKey: nextLocation.key,
-          ownership: intentRef.current(),
+          ownership,
+          ownershipToken: ownershipTokenRef.current,
           reported: false,
         };
-        attemptsRef.current.set(nextLocation.key, attempt);
+        attemptsRef.current.set(attempt.id, attempt);
+        currentAttemptRef.current = attempt;
         blockedIntentRef.current?.({ id: attempt.id, locationKey: attempt.locationKey });
       }
       return changesRoute;
@@ -113,32 +116,60 @@ export function useAsyncRouteLeaveGuard({
     blockerRef.current = blocker;
   }, [blocker]);
 
+  const retireBlockedAttempt = useCallback(
+    (attempt: OwnedBlockedRouteAttempt) => {
+      const currentBlocker = blockerRef.current;
+      const resetsCurrentBlocker =
+        currentAttemptRef.current === attempt &&
+        currentBlocker.state === "blocked" &&
+        currentBlocker.location.key === attempt.locationKey;
+      removeActiveAttempt(attempt);
+      reportSettlement(attempt, false);
+      if (resetsCurrentBlocker) currentBlocker.reset();
+    },
+    [removeActiveAttempt, reportSettlement],
+  );
+
+  useLayoutEffect(() => {
+    if (ownershipTokenRef.current === ownershipToken) return;
+    ownershipTokenRef.current = ownershipToken;
+    settlementOwnerRef.current += 1;
+    routeSettlementRef.current = null;
+    for (const attempt of [...attemptsRef.current.values()]) {
+      if (attempt.ownershipToken !== ownershipToken) retireBlockedAttempt(attempt);
+    }
+  }, [ownershipToken, retireBlockedAttempt]);
+
   const blockedLocationKey = blocker.state === "blocked" ? blocker.location.key : undefined;
   useEffect(() => {
     if (blocker.state !== "blocked" || !blockedLocationKey) return;
 
-    const attempt = attemptsRef.current.get(blockedLocationKey);
-    if (!attempt) return;
+    const attempt = currentAttemptRef.current;
+    if (!attempt || attempt.locationKey !== blockedLocationKey) return;
     const owner = ++settlementOwnerRef.current;
-    const ownerSessionKey = sessionKeyRef.current;
-    const ownerLocationKey = blockedLocationKey;
     const routeSettlement = acquireRouteSettlement();
     let cancelled = false;
 
     void routeSettlement.promise.then((settled) => {
+      if (cancelled) return;
       if (
-        cancelled ||
         settlementOwnerRef.current !== owner ||
-        sessionKeyRef.current !== ownerSessionKey
+        ownershipTokenRef.current !== attempt.ownershipToken
       ) {
+        retireBlockedAttempt(attempt);
         return;
       }
 
-      const activeAttempt = attemptsRef.current.get(ownerLocationKey);
+      const activeAttempt = attemptsRef.current.get(attempt.id);
       if (activeAttempt !== attempt) return;
 
       const currentBlocker = blockerRef.current;
-      if (currentBlocker.state !== "blocked" || currentBlocker.location.key !== ownerLocationKey) {
+      if (
+        currentAttemptRef.current !== attempt ||
+        currentBlocker.state !== "blocked" ||
+        currentBlocker.location.key !== attempt.locationKey
+      ) {
+        retireBlockedAttempt(attempt);
         return;
       }
 
@@ -163,6 +194,7 @@ export function useAsyncRouteLeaveGuard({
     blocker.state,
     removeActiveAttempt,
     reportSettlement,
+    retireBlockedAttempt,
   ]);
 
   useEffect(
@@ -171,6 +203,7 @@ export function useAsyncRouteLeaveGuard({
       routeSettlementRef.current = null;
       for (const attempt of attemptsRef.current.values()) reportSettlement(attempt, false);
       attemptsRef.current.clear();
+      currentAttemptRef.current = null;
     },
     [reportSettlement],
   );

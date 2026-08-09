@@ -6,6 +6,12 @@ import {
 
 export type ReaderNavigationIntent = "backward" | "forward";
 
+export type ReaderLeaveSettlement = Readonly<{
+  owns: () => boolean;
+  retire: () => void | Promise<void>;
+  settle: () => Promise<boolean>;
+}>;
+
 export const READER_TOC_SEARCH_THRESHOLD = 12;
 export const READER_WHEEL_THROTTLE_MS = 360;
 export const READER_WHEEL_TURN_DELTA = 48;
@@ -16,6 +22,29 @@ const DOM_DELTA_PAGE = 2;
 const WHEEL_LINE_DELTA_PX = 16;
 const WHEEL_PAGE_DELTA_PX = 800;
 const READER_TRANSIENT_SURFACE_SELECTOR = "[data-reader-ignore-shortcuts]";
+
+export async function settleAndRetireReaderSession({
+  owns,
+  retire,
+  settle,
+}: ReaderLeaveSettlement): Promise<boolean> {
+  if (!owns()) return false;
+
+  let settled: boolean;
+  try {
+    settled = await settle();
+  } catch {
+    return false;
+  }
+  if (!settled || !owns()) return false;
+
+  try {
+    await retire();
+  } catch {
+    return false;
+  }
+  return owns();
+}
 
 type ReaderWheelEvent = Pick<
   WheelEvent,

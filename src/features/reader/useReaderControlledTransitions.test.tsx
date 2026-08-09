@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useLayoutEffect, type MutableRefObject } from "react";
+import { act, useLayoutEffect, useMemo, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +15,7 @@ const mocks = vi.hoisted(() => ({
     onBlockedNavigationIntent?: (attempt: AsyncBlockedRouteAttempt) => void;
     onBlockedNavigationSettled?: (attempt: AsyncBlockedRouteAttempt, settled: boolean) => void;
     onNavigationIntent: () => AsyncRouteIntentOwnership;
-    sessionKey?: string;
+    ownershipToken: object;
     settle: () => Promise<boolean>;
   }>,
 }));
@@ -39,6 +39,11 @@ vi.mock("../../stores/archiveStore", () => ({
 }));
 
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
+import {
+  createReaderSessionLifecycle,
+  transitionReaderSession,
+  type ReaderSessionIdentity,
+} from "./readerSession";
 
 type TransitionApi = ReturnType<typeof useReaderControlledTransitions>;
 
@@ -51,6 +56,17 @@ function deferred<T>() {
 }
 
 let routeAttemptSequence = 0;
+
+function createTestReaderIdentity(bookId: string): ReaderSessionIdentity {
+  const transition = transitionReaderSession(createReaderSessionLifecycle(), {
+    bookId,
+    type: "open",
+  });
+  if (transition.kind !== "accepted" || !transition.state.identity) {
+    throw new Error("Expected Reader session identity");
+  }
+  return transition.state.identity;
+}
 
 function beginBlockedRoute() {
   const guard = mocks.routeGuardOptions.at(-1);
@@ -65,18 +81,27 @@ function beginBlockedRoute() {
 
 function Harness({
   apiRef,
+  archiveId = "archive-a",
   intents,
+  readerIdentity,
+  retire = () => undefined,
   sessionKey,
   settle,
 }: {
   apiRef: MutableRefObject<TransitionApi | undefined>;
+  archiveId?: string | null;
   intents: string[];
+  readerIdentity?: ReaderSessionIdentity;
+  retire?: () => void | Promise<void>;
   sessionKey: string;
   settle: () => Promise<boolean>;
 }) {
+  const fallbackIdentity = useMemo(() => createTestReaderIdentity(sessionKey), [sessionKey]);
   const transitions = useReaderControlledTransitions({
+    archiveId,
     onTransitionIntent: () => intents.push(sessionKey),
-    sessionKey,
+    readerIdentity: readerIdentity ?? fallbackIdentity,
+    retire,
     settle,
   });
   useLayoutEffect(() => {
@@ -110,6 +135,30 @@ afterEach(() => {
 });
 
 describe("useReaderControlledTransitions", () => {
+  it("treats opaque Reader identities for the same route as distinct transition owners", async () => {
+    const identityA = createTestReaderIdentity("book-a");
+    const identityB = createTestReaderIdentity("book-a");
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = {
+      apiRef,
+      intents: [],
+      sessionKey: "book-a",
+      settle: async () => true,
+    };
+
+    expect(identityA).not.toBe(identityB);
+    expect(identityA).toMatchObject(identityB);
+    await renderHarness({ ...props, readerIdentity: identityA });
+    const requestA = apiRef.current!.beginTransition();
+
+    await renderHarness({ ...props, readerIdentity: identityB });
+    const requestB = apiRef.current!.beginTransition();
+
+    expect(apiRef.current?.ownsTransition(requestA)).toBe(false);
+    expect(apiRef.current?.ownsTransition(requestB)).toBe(true);
+    expect(requestA.owner).not.toBe(requestB.owner);
+  });
+
   it("owns only the latest request in the active reader session", async () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     const intents: string[] = [];
@@ -161,20 +210,145 @@ describe("useReaderControlledTransitions", () => {
     expect(action).not.toHaveBeenCalled();
   });
 
-  it("deduplicates controlled exits", async () => {
-    const navigation = deferred<void>();
-    const action = vi.fn(() => navigation.promise);
-    const duplicate = vi.fn();
+  it("retires a pending leave when the opaque Reader identity is replaced", async () => {
+    const identityA = createTestReaderIdentity("book-a");
+    const identityB = createTestReaderIdentity("book-a");
+    const settlementA = deferred<boolean>();
+    const settleA = vi.fn(() => settlementA.promise);
+    const settleB = vi.fn(async () => true);
+    const retireA = vi.fn();
+    const retireB = vi.fn();
+    const navigateA = vi.fn();
+    const navigateB = vi.fn();
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
-    await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
+    const props = { apiRef, intents: [], sessionKey: "book-a" };
 
-    const first = apiRef.current!.runControlledExit(action);
-    const second = apiRef.current!.runControlledExit(duplicate);
+    await renderHarness({
+      ...props,
+      readerIdentity: identityA,
+      retire: retireA,
+      settle: settleA,
+    });
+    const leaveA = apiRef.current!.leaveReader(navigateA);
+    await act(async () => Promise.resolve());
+    expect(settleA).toHaveBeenCalledOnce();
+
+    await renderHarness({
+      ...props,
+      readerIdentity: identityB,
+      retire: retireB,
+      settle: settleB,
+    });
+    await expect(leaveA).resolves.toBe(false);
+    await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+
+    await act(async () => settlementA.resolve(true));
+    expect(navigateA).not.toHaveBeenCalled();
+    expect(retireA).not.toHaveBeenCalled();
+    expect(settleA).toHaveBeenCalledOnce();
+    expect(settleB).toHaveBeenCalledOnce();
+    expect(retireB).toHaveBeenCalledOnce();
+    expect(navigateB).toHaveBeenCalledOnce();
+  });
+
+  it("retires a pending leave when archive ownership is replaced", async () => {
+    const identity = createTestReaderIdentity("book-a");
+    const settlementA = deferred<boolean>();
+    const navigateA = vi.fn();
+    const navigateB = vi.fn();
+    const retireB = vi.fn();
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = {
+      apiRef,
+      intents: [],
+      readerIdentity: identity,
+      sessionKey: "book-a",
+    };
+
+    await renderHarness({
+      ...props,
+      archiveId: "archive-a",
+      settle: () => settlementA.promise,
+    });
+    const leaveA = apiRef.current!.leaveReader(navigateA);
+    await act(async () => Promise.resolve());
+
+    await renderHarness({
+      ...props,
+      archiveId: "archive-b",
+      retire: retireB,
+      settle: async () => true,
+    });
+    await expect(leaveA).resolves.toBe(false);
+    await expect(apiRef.current!.leaveReader(navigateB)).resolves.toBe(true);
+    await act(async () => settlementA.resolve(true));
+
+    expect(navigateA).not.toHaveBeenCalled();
+    expect(navigateB).toHaveBeenCalledOnce();
+    expect(retireB).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates controlled exits", async () => {
+    const settlement = deferred<boolean>();
+    const navigation = deferred<void>();
+    const order: string[] = [];
+    const action = vi.fn(() => {
+      order.push("navigate");
+      return navigation.promise;
+    });
+    const duplicate = vi.fn();
+    const retire = vi.fn(() => {
+      order.push("retire");
+    });
+    const settle = vi.fn(() => {
+      order.push("settle");
+      return settlement.promise;
+    });
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, intents: [], retire, sessionKey: "book-a", settle });
+
+    const first = apiRef.current!.leaveReader(action);
+    const second = apiRef.current!.leaveReader(duplicate);
     expect(second).toBe(first);
     expect(duplicate).not.toHaveBeenCalled();
+    expect(action).not.toHaveBeenCalled();
+    await act(async () => settlement.resolve(true));
+    expect(order).toEqual(["settle", "retire", "navigate"]);
     await act(async () => navigation.resolve());
     await expect(first).resolves.toBe(true);
+    expect(settle).toHaveBeenCalledOnce();
+    expect(retire).toHaveBeenCalledOnce();
     expect(action).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces a failed settlement once, does not navigate, and permits one retry", async () => {
+    const publishFailure = vi.fn();
+    const settle = vi
+      .fn()
+      .mockImplementationOnce(async () => {
+        publishFailure();
+        return false;
+      })
+      .mockResolvedValueOnce(true);
+    const retire = vi.fn();
+    const firstNavigation = vi.fn();
+    const duplicateNavigation = vi.fn();
+    const retryNavigation = vi.fn();
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, intents: [], retire, sessionKey: "book-a", settle });
+
+    const failed = apiRef.current!.leaveReader(firstNavigation);
+    const duplicate = apiRef.current!.leaveReader(duplicateNavigation);
+    expect(duplicate).toBe(failed);
+    await expect(failed).resolves.toBe(false);
+    expect(publishFailure).toHaveBeenCalledOnce();
+    expect(firstNavigation).not.toHaveBeenCalled();
+    expect(duplicateNavigation).not.toHaveBeenCalled();
+    expect(retire).not.toHaveBeenCalled();
+
+    await expect(apiRef.current!.leaveReader(retryNavigation)).resolves.toBe(true);
+    expect(retryNavigation).toHaveBeenCalledOnce();
+    expect(retire).toHaveBeenCalledOnce();
   });
 
   it("keeps the first controlled exit owned until a blocked route settles", async () => {
@@ -186,8 +360,8 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const first = apiRef.current!.runControlledExit(firstAction);
-    const competing = apiRef.current!.runControlledExit(competingAction);
+    const first = apiRef.current!.leaveReader(firstAction);
+    const competing = apiRef.current!.leaveReader(competingAction);
     await act(async () => Promise.resolve());
 
     expect(competing).toBe(first);
@@ -207,9 +381,50 @@ describe("useReaderControlledTransitions", () => {
     await expect(first).resolves.toBe(true);
   });
 
-  it("makes a later in-reader transition invalidate a blocked controlled exit", async () => {
+  it("cannot resolve a replacement session from an older blocked controlled exit", async () => {
+    const identityA = createTestReaderIdentity("book-a");
+    const identityB = createTestReaderIdentity("book-a");
+    const retireA = vi.fn();
+    const retireB = vi.fn();
+    let routeA!: ReturnType<typeof beginBlockedRoute>;
+    let routeB!: ReturnType<typeof beginBlockedRoute>;
+    const navigateA = vi.fn(() => {
+      routeA = beginBlockedRoute();
+    });
+    const navigateB = vi.fn(() => {
+      routeB = beginBlockedRoute();
+    });
+    const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
+    const props = {
+      apiRef,
+      intents: [],
+      sessionKey: "book-a",
+      settle: async () => true,
+    };
+
+    await renderHarness({ ...props, readerIdentity: identityA, retire: retireA });
+    const leaveA = apiRef.current!.leaveReader(navigateA);
+    await act(async () => Promise.resolve());
+    expect(navigateA).toHaveBeenCalledOnce();
+    expect(retireA).toHaveBeenCalledOnce();
+
+    await renderHarness({ ...props, readerIdentity: identityB, retire: retireB });
+    await expect(leaveA).resolves.toBe(false);
+    act(() => mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(routeA.attempt, true));
+
+    const leaveB = apiRef.current!.leaveReader(navigateB);
+    await act(async () => Promise.resolve());
+    act(() => mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(routeB.attempt, true));
+    await expect(leaveB).resolves.toBe(true);
+
+    expect(retireA).toHaveBeenCalledOnce();
+    expect(retireB).toHaveBeenCalledOnce();
+    expect(navigateB).toHaveBeenCalledOnce();
+  });
+
+  it("lets a later in-reader transition retire a leave request before navigation starts", async () => {
     const settlement = deferred<boolean>();
-    let blockedRoute!: ReturnType<typeof beginBlockedRoute>;
+    const exitAction = vi.fn();
     const chapterAction = vi.fn(async () => true);
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({
@@ -219,20 +434,15 @@ describe("useReaderControlledTransitions", () => {
       settle: () => settlement.promise,
     });
 
-    const exit = apiRef.current!.runControlledExit(() => {
-      blockedRoute = beginBlockedRoute();
-    });
+    const exit = apiRef.current!.leaveReader(exitAction);
     await act(async () => Promise.resolve());
     const chapter = apiRef.current!.runControlledTransition(chapterAction);
 
-    expect(blockedRoute.ownership.owns()).toBe(false);
     await act(async () => settlement.resolve(true));
-    act(() =>
-      mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(blockedRoute.attempt, false),
-    );
 
     await expect(exit).resolves.toBe(false);
     await expect(chapter).resolves.toBe(true);
+    expect(exitAction).not.toHaveBeenCalled();
     expect(chapterAction).toHaveBeenCalledOnce();
   });
 
@@ -241,7 +451,7 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const exit = apiRef.current!.runControlledExit(() => {
+    const exit = apiRef.current!.leaveReader(() => {
       controlledRoute = beginBlockedRoute();
     });
     await act(async () => Promise.resolve());
@@ -261,14 +471,14 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const firstExit = apiRef.current!.runControlledExit(() => {
+    const firstExit = apiRef.current!.leaveReader(() => {
       firstRoute = beginBlockedRoute();
     });
     await act(async () => Promise.resolve());
     beginBlockedRoute();
     await expect(firstExit).resolves.toBe(false);
 
-    const secondExit = apiRef.current!.runControlledExit(() => {
+    const secondExit = apiRef.current!.leaveReader(() => {
       secondRoute = beginBlockedRoute();
     });
     await act(async () => Promise.resolve());
@@ -297,14 +507,14 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents: [], sessionKey: "book-a", settle: async () => true });
 
-    const failed = apiRef.current!.runControlledExit(blockedAction);
+    const failed = apiRef.current!.leaveReader(blockedAction);
     await act(async () => Promise.resolve());
     act(() =>
       mocks.routeGuardOptions.at(-1)?.onBlockedNavigationSettled?.(blockedRoute.attempt, false),
     );
     await expect(failed).resolves.toBe(false);
 
-    await expect(apiRef.current!.runControlledExit(retryAction)).resolves.toBe(true);
+    await expect(apiRef.current!.leaveReader(retryAction)).resolves.toBe(true);
     expect(retryAction).toHaveBeenCalledOnce();
   });
 
@@ -312,7 +522,7 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     const props = { apiRef, intents: [], sessionKey: "book-a", settle: async () => true };
     await renderHarness(props);
-    const exit = apiRef.current!.runControlledExit(() => {
+    const exit = apiRef.current!.leaveReader(() => {
       beginBlockedRoute();
     });
     await act(async () => Promise.resolve());
@@ -330,7 +540,7 @@ describe("useReaderControlledTransitions", () => {
       sessionKey: "book-a",
       settle: async () => true,
     });
-    const exit = apiRef.current!.runControlledExit(() => {
+    const exit = apiRef.current!.leaveReader(() => {
       beginBlockedRoute();
     });
     await act(async () => Promise.resolve());
@@ -377,7 +587,10 @@ describe("useReaderControlledTransitions", () => {
     const apiRef: MutableRefObject<TransitionApi | undefined> = { current: undefined };
     await renderHarness({ apiRef, intents, sessionKey: "book-a", settle });
 
-    expect(mocks.routeGuardOptions.at(-1)?.sessionKey).toBe("book-a");
+    expect(mocks.routeGuardOptions.at(-1)?.ownershipToken).toMatchObject({
+      archiveId: "archive-a",
+      readerIdentity: expect.objectContaining({ bookId: "book-a" }),
+    });
     mocks.routeGuardOptions.at(-1)?.onNavigationIntent();
     await expect(mocks.archiveGuards.at(-1)?.()).resolves.toBe(true);
     expect(intents).toEqual(["book-a", "book-a"]);

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, useState, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { createMemoryRouter, RouterProvider, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,20 +20,27 @@ let container: HTMLDivElement | null = null;
 
 async function renderGuard(
   settle: () => Promise<boolean>,
-  options: { useHistoryBack?: boolean } = {},
+  options: { intentSettled?: boolean; useHistoryBack?: boolean } = {},
 ) {
   let intentOwnsRoute = true;
-  const onNavigationIntent = vi.fn(() => ({ owns: () => intentOwnsRoute }));
+  const initialOwnershipToken = {};
+  let setOwnershipToken!: Dispatch<SetStateAction<object>>;
+  const onNavigationIntent = vi.fn(() => ({
+    owns: () => intentOwnsRoute,
+    settled: options.intentSettled,
+  }));
   const onBlockedNavigationIntent = vi.fn();
   const onBlockedNavigationSettled = vi.fn();
 
   function GuardedReader() {
+    const [ownershipToken, updateOwnershipToken] = useState<object>(initialOwnershipToken);
+    setOwnershipToken = updateOwnershipToken;
     const navigate = useNavigate();
     useAsyncRouteLeaveGuard({
       onBlockedNavigationIntent,
       onBlockedNavigationSettled,
       onNavigationIntent,
-      sessionKey: "book-a",
+      ownershipToken,
       settle,
     });
     return (
@@ -70,6 +77,9 @@ async function renderGuard(
     onBlockedNavigationSettled,
     onNavigationIntent,
     router,
+    replaceOwnershipToken: async (nextOwnershipToken: object) => {
+      await act(async () => setOwnershipToken(nextOwnershipToken));
+    },
     setIntentOwnership: (owns: boolean) => {
       intentOwnsRoute = owns;
     },
@@ -84,6 +94,20 @@ afterEach(() => {
 });
 
 describe("useAsyncRouteLeaveGuard", () => {
+  it("does not block an owned navigation that already completed Reader settlement", async () => {
+    const settle = vi.fn(async () => true);
+    const rendered = await renderGuard(settle, { intentSettled: true });
+
+    await act(async () => {
+      container?.querySelector<HTMLButtonElement>("button")?.click();
+    });
+
+    expect(rendered.router.state.location.pathname).toBe("/library");
+    expect(rendered.onNavigationIntent).toHaveBeenCalledOnce();
+    expect(rendered.onBlockedNavigationIntent).not.toHaveBeenCalled();
+    expect(settle).not.toHaveBeenCalled();
+  });
+
   it("reports definitive acceptance only after settlement proceeds", async () => {
     const settlement = deferred<boolean>();
     const rendered = await renderGuard(() => settlement.promise);
@@ -155,6 +179,74 @@ describe("useAsyncRouteLeaveGuard", () => {
       expect.objectContaining({ locationKey: expect.any(String) }),
       false,
     );
+  });
+
+  it("retires a blocked route when Reader session ownership is replaced", async () => {
+    const settlementA = deferred<boolean>();
+    const settlementB = deferred<boolean>();
+    const settle = vi
+      .fn()
+      .mockImplementationOnce(() => settlementA.promise)
+      .mockImplementationOnce(() => settlementB.promise);
+    const rendered = await renderGuard(settle);
+
+    act(() => container?.querySelector<HTMLButtonElement>("button")?.click());
+    await act(async () => Promise.resolve());
+    const attemptA = rendered.onBlockedNavigationIntent.mock.calls[0]?.[0];
+    expect(rendered.router.state.location.pathname).toBe("/reader/book-a");
+
+    await rendered.replaceOwnershipToken({});
+    expect(rendered.onBlockedNavigationSettled).toHaveBeenCalledExactlyOnceWith(attemptA, false);
+    expect(rendered.router.state.location.pathname).toBe("/reader/book-a");
+
+    await act(async () => settlementA.resolve(true));
+    expect(rendered.router.state.location.pathname).toBe("/reader/book-a");
+    expect(
+      rendered.onBlockedNavigationSettled.mock.calls.filter(
+        ([attempt, settled]) => attempt.id === attemptA.id && settled === false,
+      ),
+    ).toHaveLength(1);
+
+    act(() => container?.querySelector<HTMLButtonElement>("button")?.click());
+    await act(async () => Promise.resolve());
+    const attemptB = rendered.onBlockedNavigationIntent.mock.calls[1]?.[0];
+    await act(async () => settlementB.resolve(true));
+
+    expect(attemptB.id).not.toBe(attemptA.id);
+    expect(rendered.router.state.location.pathname).toBe("/library");
+    expect(rendered.onBlockedNavigationSettled).toHaveBeenCalledWith(attemptB, true);
+    expect(settle).toHaveBeenCalledTimes(2);
+  });
+
+  it("retires replaced ownership when browser history reuses the target location key", async () => {
+    const settlementA = deferred<boolean>();
+    const settlementB = deferred<boolean>();
+    const settle = vi
+      .fn()
+      .mockImplementationOnce(() => settlementA.promise)
+      .mockImplementationOnce(() => settlementB.promise);
+    const rendered = await renderGuard(settle, { useHistoryBack: true });
+
+    act(() => container?.querySelector<HTMLButtonElement>("button")?.click());
+    await act(async () => Promise.resolve());
+    const attemptA = rendered.onBlockedNavigationIntent.mock.calls[0]?.[0];
+    await rendered.replaceOwnershipToken({});
+    await act(async () => settlementA.resolve(true));
+
+    act(() => container?.querySelector<HTMLButtonElement>("button")?.click());
+    await act(async () => Promise.resolve());
+    const attemptB = rendered.onBlockedNavigationIntent.mock.calls[1]?.[0];
+    await act(async () => settlementB.resolve(true));
+
+    expect(attemptB.locationKey).toBe(attemptA.locationKey);
+    expect(attemptB.id).not.toBe(attemptA.id);
+    expect(
+      rendered.onBlockedNavigationSettled.mock.calls.filter(
+        ([attempt, settled]) => attempt.id === attemptA.id && settled === false,
+      ),
+    ).toHaveLength(1);
+    expect(rendered.onBlockedNavigationSettled).toHaveBeenCalledWith(attemptB, true);
+    expect(rendered.router.state.location.pathname).toBe("/other");
   });
 
   it("settles replaced blocked locations independently", async () => {

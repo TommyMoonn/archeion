@@ -149,6 +149,7 @@ export function ReaderPage() {
     if (!bookId) return idle;
     return transitionReaderSession(idle, { bookId, type: "open" }).state;
   });
+  const readerSessionLifecycleRef = useRef(readerSessionLifecycle);
   const readerSessionIdentity = readerSessionLifecycle.identity;
   const [progressController] = useState(() =>
     book && readerSessionIdentity
@@ -285,15 +286,29 @@ export function ReaderPage() {
     storage,
     syncAnnotation: annotations.sync,
   });
-  const settleReaderPersistence = useCallback(async () => {
+  const settleReaderLeave = useCallback(async () => {
     if (!(await settleNoteEditor())) return false;
     return progressController?.flush() ?? true;
   }, [progressController, settleNoteEditor]);
+  const retireReaderSession = useCallback(async () => {
+    invalidateOpenRequests();
+    const lifecycle = readerSessionLifecycleRef.current;
+    if (lifecycle.identity && lifecycle.phase !== "closing" && lifecycle.phase !== "closed") {
+      const transition = transitionReaderSession(lifecycle, {
+        identity: lifecycle.identity,
+        type: "close",
+      });
+      if (transition.kind === "accepted") readerSessionLifecycleRef.current = transition.state;
+    }
+    viewerRef.current?.teardown();
+    await progressController?.teardown();
+  }, [invalidateOpenRequests, progressController]);
   const controlledTransitions = useReaderControlledTransitions({
+    archiveId: activeArchiveId ?? null,
     onTransitionIntent: invalidateOpenRequests,
-    sessionKey: bookId,
-    settle: settleReaderPersistence,
-    settleArchiveTransition: settleNoteEditor,
+    readerIdentity: readerSessionIdentity,
+    retire: retireReaderSession,
+    settle: settleReaderLeave,
   });
   const revealSideSurfaceControls = useCallback(() => setControlsVisible(true), []);
   const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
@@ -324,7 +339,7 @@ export function ReaderPage() {
     toggleToc,
     updateNoteTarget,
   } = sideSurfaces;
-  const runControlledReaderExit = controlledTransitions.runControlledExit;
+  const leaveReader = controlledTransitions.leaveReader;
   const runControlledReaderTransition = controlledTransitions.runControlledTransition;
 
   useLayoutEffect(
@@ -390,23 +405,23 @@ export function ReaderPage() {
         params.set("archiveId", activeArchiveId);
       }
 
-      return runControlledReaderExit(() =>
+      return leaveReader(() =>
         navigate(`/?${params.toString()}`, {
           state: focusSearch ? { quickAction: QUICK_ACTION_SEARCH_BOOKS_REQUEST } : undefined,
         }),
       ).then(() => undefined);
     },
-    [activeArchiveId, navigate, runControlledReaderExit],
+    [activeArchiveId, leaveReader, navigate],
   );
 
   const returnToOrigin = useCallback(() => {
-    void runControlledReaderExit(() =>
+    void leaveReader(() =>
       navigate(returnDestination.href, {
         replace: true,
         state: returnDestination.state,
       }),
     );
-  }, [navigate, returnDestination, runControlledReaderExit]);
+  }, [leaveReader, navigate, returnDestination]);
 
   const annotationsSearchInputRef = useRef<HTMLInputElement>(null);
   const tocSearchInputRef = useRef<HTMLInputElement>(null);
@@ -671,13 +686,13 @@ export function ReaderPage() {
 
   const openNextVolume = useCallback(() => {
     if (!nextVolume) return;
-    void runControlledReaderExit(() =>
+    void leaveReader(() =>
       navigate(canonicalReaderRoute(nextVolume.id), {
         replace: true,
         state: returnContext ? { readerReturnContext: returnContext } : undefined,
       }),
     );
-  }, [navigate, nextVolume, returnContext, runControlledReaderExit]);
+  }, [leaveReader, navigate, nextVolume, returnContext]);
 
   const changeSettings = useCallback(
     (nextSettings: ReaderSettings) => {

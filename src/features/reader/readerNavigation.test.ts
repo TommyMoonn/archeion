@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   canRunReaderWheelTurn,
@@ -10,6 +10,7 @@ import {
   isReaderTransientSurfaceTarget,
   READER_WHEEL_THROTTLE_MS,
   READER_WHEEL_TURN_DELTA,
+  settleAndRetireReaderSession,
   shouldIgnoreReaderWheelEvent,
 } from "./readerNavigation";
 import { READER_ILLUSTRATION_TRIGGER_SELECTOR } from "./readerIllustrationTrigger";
@@ -115,6 +116,46 @@ function nestedElementTarget(
 }
 
 describe("reader navigation helpers", () => {
+  it("retires the Reader session only after required persistence settles", async () => {
+    const order: string[] = [];
+
+    await expect(
+      settleAndRetireReaderSession({
+        owns: () => true,
+        retire: () => {
+          order.push("retire");
+        },
+        settle: async () => {
+          order.push("settle");
+          return true;
+        },
+      }),
+    ).resolves.toBe(true);
+
+    expect(order).toEqual(["settle", "retire"]);
+  });
+
+  it("does not retire after failed settlement or stale ownership", async () => {
+    const retire = vi.fn();
+
+    await expect(
+      settleAndRetireReaderSession({
+        owns: () => true,
+        retire,
+        settle: async () => false,
+      }),
+    ).resolves.toBe(false);
+    await expect(
+      settleAndRetireReaderSession({
+        owns: () => false,
+        retire,
+        settle: async () => true,
+      }),
+    ).resolves.toBe(false);
+
+    expect(retire).not.toHaveBeenCalled();
+  });
+
   it("keeps command matching outside reader eligibility", () => {
     const ordinary = keyEvent({ key: "s", target: elementTarget() });
     const publisherControl = keyEvent({ key: "s", target: elementTarget("button") });

@@ -39,6 +39,7 @@ const viewerControl = vi.hoisted(() => ({
   paletteOpen: false,
   props: null as MockViewerProps | null,
   resolveAnnotationAnchor: vi.fn(),
+  teardown: vi.fn(),
 }));
 
 const seriesControl = vi.hoisted(() => ({
@@ -64,6 +65,7 @@ vi.mock("./EpubViewer", async () => {
         next: vi.fn(async () => undefined),
         previous: vi.fn(async () => undefined),
         resolveAnnotationAnchor: viewerControl.resolveAnnotationAnchor,
+        teardown: viewerControl.teardown,
       }));
       React.useEffect(() => {
         onNavigationChange?.({
@@ -486,6 +488,7 @@ beforeEach(() => {
     strategy: "exact-cfi",
   }));
   viewerControl.navigateToChapter.mockReset().mockResolvedValue(true);
+  viewerControl.teardown.mockReset();
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
     return 1;
@@ -1031,13 +1034,15 @@ describe("ReaderPage annotation notes", () => {
 
     expect(router.state.location.pathname).toBe("/reader/book-1");
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
-    expect(navigate).toHaveBeenCalledTimes(1);
+    expect(navigate).not.toHaveBeenCalled();
+    expect(viewerControl.teardown).not.toHaveBeenCalled();
 
     await act(async () => pendingSave.resolve({ ...existing, note: "Save once" }));
     await waitForRoute(router, "/");
 
     expect(navigate).toHaveBeenCalledTimes(1);
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
+    expect(viewerControl.teardown).toHaveBeenCalledOnce();
   });
 
   it("keeps the first controlled destination when return and next-volume intents compete", async () => {
