@@ -1,9 +1,36 @@
-import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
+import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import { normalizeReaderChapterHref } from "./readerAnnotations";
 
 export const READER_ANNOTATION_CONTEXT_LENGTH = 96;
 export const READER_ANNOTATION_RECOVERY_CHAPTER_LIMIT = 240;
 const RECOVERY_MATCH_LIMIT = 40;
+
+export type ReaderAnnotationRecoveryIdentity = Readonly<{
+  annotationId: string;
+  annotationType: Annotation["type"];
+  createdAt: string;
+}>;
+
+export function readerAnnotationRecoveryIdentity(
+  annotation: Annotation,
+): ReaderAnnotationRecoveryIdentity {
+  return {
+    annotationId: annotation.id,
+    annotationType: annotation.type,
+    createdAt: annotation.createdAt,
+  };
+}
+
+export function annotationMatchesRecoveryIdentity(
+  annotation: Annotation,
+  identity: ReaderAnnotationRecoveryIdentity,
+): boolean {
+  return (
+    annotation.id === identity.annotationId &&
+    annotation.type === identity.annotationType &&
+    annotation.createdAt === identity.createdAt
+  );
+}
 
 export type ReaderAnnotationRecoveryStrategy =
   "exact-cfi" | "chapter-text" | "context-text" | "chapter-start";

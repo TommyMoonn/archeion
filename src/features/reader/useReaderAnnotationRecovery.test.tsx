@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
+import type { ReaderAnnotationAnchorChanges } from "./readerAnnotationState";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 import {
   recoveredAnnotationAnchorConflicts,
   useReaderAnnotationRecovery,
@@ -34,25 +36,52 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-type HarnessProps = Omit<Parameters<typeof useReaderAnnotationRecovery>[0], "session"> & {
+type HarnessProps = Omit<
+  Parameters<typeof useReaderAnnotationRecovery>[0],
+  "cancelQueuedAnchorUpdate" | "commands" | "session"
+> & {
   activeArchiveId?: string | null;
   apiRef: MutableRefObject<RecoveryApi | undefined>;
   bookId?: string;
+  cancelQueuedAnchorUpdate?: (annotationId: string) => void;
+  commands?: Pick<ReaderAnnotationCommandSurface, "update">;
   sessionKey?: string;
+  updateAnchor?: (
+    annotation: Annotation,
+    changes: ReaderAnnotationAnchorChanges,
+  ) => Promise<Annotation | undefined>;
 };
 
 function Harness({
   activeArchiveId = "archive-a",
   apiRef,
   bookId = "book-1",
+  cancelQueuedAnchorUpdate = () => undefined,
+  commands,
   sessionKey = `${activeArchiveId}:${bookId}`,
+  updateAnchor,
   ...options
 }: HarnessProps) {
   const session = useMemo(
     () => ({ archiveId: activeArchiveId, bookId, token: Symbol(`recovery-${sessionKey}`) }),
     [activeArchiveId, bookId, sessionKey],
   );
-  const recovery = useReaderAnnotationRecovery({ ...options, session });
+  const commandSurface = useMemo<Pick<ReaderAnnotationCommandSurface, "update">>(
+    () =>
+      commands ?? {
+        update: async (command) => {
+          const annotation = await updateAnchor?.(command.annotation, command.changes);
+          return annotation ? { annotation, status: "accepted" } : { status: "failed" };
+        },
+      },
+    [commands, updateAnchor],
+  );
+  const recovery = useReaderAnnotationRecovery({
+    ...options,
+    cancelQueuedAnchorUpdate,
+    commands: commandSurface,
+    session,
+  });
   useLayoutEffect(() => {
     apiRef.current = recovery;
   }, [apiRef, recovery]);
@@ -109,6 +138,102 @@ describe("useReaderAnnotationRecovery", () => {
       anchorStatus: undefined,
       cfiRange: updated.cfiRange,
       chapterHref: "Text/renamed.xhtml",
+    });
+  });
+
+  it("rejects stale persistence before touching a same-id replacement", async () => {
+    const annotation = highlight("stale-persistence");
+    const replacement = {
+      ...annotation,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      selectedText: "Replacement passage",
+    };
+    const cancelQueuedAnchorUpdate = vi.fn();
+    const update = vi.fn(async () => ({ annotation: replacement, status: "accepted" }) as const);
+    const commands = { update };
+    const apiRef = { current: undefined } as MutableRefObject<RecoveryApi | undefined>;
+    const common = {
+      apiRef,
+      cancelQueuedAnchorUpdate,
+      commands,
+      queueAnchorUpdate: vi.fn(),
+      resolveAnchor: vi.fn(),
+    };
+    await renderHarness({ ...common, annotations: [annotation] });
+    const stalePersistAnchor = apiRef.current!.persistAnchor;
+    await renderHarness({ ...common, annotations: [replacement] });
+
+    let persisted: Annotation | undefined;
+    await act(async () => {
+      persisted = await stalePersistAnchor(annotation, {
+        cfiRange: "epubcfi(/6/8!/4/2,/1:4,/1:22)",
+        kind: "resolved",
+        strategy: "context-text",
+      });
+    });
+
+    expect(persisted).toBeUndefined();
+    expect(update).not.toHaveBeenCalled();
+    expect(cancelQueuedAnchorUpdate).not.toHaveBeenCalled();
+    expect(replacement).toMatchObject({
+      cfiRange: annotation.cfiRange,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      selectedText: "Replacement passage",
+    });
+  });
+
+  it("persists through the latest live object for a matching identity", async () => {
+    const annotation = highlight("live-persistence", { chapterHref: "Text/old.xhtml" });
+    const liveAnnotation = {
+      ...annotation,
+      chapterHref: "Text/current.xhtml",
+      note: "Current note",
+    };
+    const recoveredCfi = "epubcfi(/6/8!/4/2,/1:4,/1:22)";
+    const cancelQueuedAnchorUpdate = vi.fn();
+    const update = vi.fn(
+      async (command: Parameters<ReaderAnnotationCommandSurface["update"]>[0]) => {
+        const persisted =
+          command.annotationType === "bookmark"
+            ? ({ ...command.annotation, ...command.changes } as BookmarkAnnotation)
+            : ({ ...command.annotation, ...command.changes } as HighlightAnnotation);
+        return { annotation: persisted, status: "accepted" as const };
+      },
+    );
+    const apiRef = { current: undefined } as MutableRefObject<RecoveryApi | undefined>;
+    const common = {
+      apiRef,
+      cancelQueuedAnchorUpdate,
+      commands: { update },
+      queueAnchorUpdate: vi.fn(),
+      resolveAnchor: vi.fn(),
+    };
+    await renderHarness({ ...common, annotations: [annotation] });
+    const retainedPersistAnchor = apiRef.current!.persistAnchor;
+    await renderHarness({ ...common, annotations: [liveAnnotation] });
+
+    let persisted: Annotation | undefined;
+    await act(async () => {
+      persisted = await retainedPersistAnchor(annotation, {
+        cfiRange: recoveredCfi,
+        kind: "resolved",
+        strategy: "context-text",
+      });
+    });
+
+    expect(update).toHaveBeenCalledWith({
+      annotation: liveAnnotation,
+      annotationType: "highlight",
+      changes: {
+        anchorStatus: undefined,
+        cfiRange: recoveredCfi,
+        chapterHref: liveAnnotation.chapterHref,
+      },
+    });
+    expect(cancelQueuedAnchorUpdate).toHaveBeenCalledWith(annotation.id);
+    expect(persisted).toMatchObject({
+      cfiRange: recoveredCfi,
+      note: "Current note",
     });
   });
 
@@ -344,6 +469,29 @@ describe("useReaderAnnotationRecovery", () => {
     );
   });
 
+  it("enters invalid-anchor recovery once for duplicate rendered callbacks", async () => {
+    const annotation = highlight("duplicate-invalid");
+    const acknowledgement = deferred<boolean>();
+    const queueAnchorUpdate = vi.fn(() => acknowledgement.promise);
+    const apiRef = { current: undefined } as MutableRefObject<RecoveryApi | undefined>;
+    await renderHarness({
+      annotations: [annotation],
+      apiRef,
+      queueAnchorUpdate,
+      resolveAnchor: vi.fn(),
+      updateAnchor: vi.fn(),
+    });
+
+    const first = apiRef.current!.handleInvalidHighlightAnchor(annotation.id, "same-anchor");
+    const duplicate = apiRef.current!.handleInvalidHighlightAnchor(annotation.id, "same-anchor");
+    expect(duplicate).toBe(first);
+    expect(queueAnchorUpdate).toHaveBeenCalledOnce();
+
+    await act(async () => acknowledgement.resolve(true));
+    await expect(first).resolves.toBe(true);
+    await expect(duplicate).resolves.toBe(true);
+  });
+
   it("cancels manual recovery after a same-book archive change", async () => {
     const archiveAAnnotation = highlight("shared-id", { anchorStatus: "detached" });
     const archiveBAnnotation = highlight("shared-id", { anchorStatus: "detached" });
@@ -494,7 +642,7 @@ describe("useReaderAnnotationRecovery", () => {
     expect(updateAnchor).not.toHaveBeenCalled();
   });
 
-  it("lets a newer recovery request invalidate an older request immediately", async () => {
+  it("keys concurrent recovery requests by annotation identity", async () => {
     const first = highlight("first", { anchorStatus: "detached" });
     const second = highlight("second", { anchorStatus: "detached" });
     const firstResolution = deferred<ReaderAnnotationRecoveryResult>();
@@ -528,10 +676,68 @@ describe("useReaderAnnotationRecovery", () => {
         kind: "resolved",
         strategy: "exact-cfi",
       });
-      expect(await firstRecovery).toEqual({ kind: "cancelled" });
+      expect(await firstRecovery).toMatchObject({ kind: "resolved" });
     });
+    expect(updateAnchor).toHaveBeenCalledTimes(2);
+    expect(updateAnchor.mock.calls.map(([annotation]) => annotation.id)).toEqual([
+      second.id,
+      first.id,
+    ]);
+  });
+
+  it("shares one recovery attempt for duplicate requests of the same annotation", async () => {
+    const annotation = highlight("duplicate-recovery", { anchorStatus: "detached" });
+    const resolution = deferred<ReaderAnnotationRecoveryResult>();
+    const updateAnchor = vi.fn(async (target: Annotation) => ({
+      ...target,
+      anchorStatus: undefined,
+    }));
+    const resolveAnchor = vi.fn(() => resolution.promise);
+    const apiRef = { current: undefined } as MutableRefObject<RecoveryApi | undefined>;
+    await renderHarness({
+      annotations: [annotation],
+      apiRef,
+      queueAnchorUpdate: vi.fn(),
+      resolveAnchor,
+      updateAnchor,
+    });
+
+    const first = apiRef.current!.recoverAnnotationAnchor(annotation);
+    const duplicate = apiRef.current!.recoverAnnotationAnchor(annotation);
+    expect(duplicate).toBe(first);
+    expect(resolveAnchor).toHaveBeenCalledOnce();
+
+    await act(async () =>
+      resolution.resolve({
+        cfiRange: annotation.cfiRange,
+        kind: "resolved",
+        strategy: "exact-cfi",
+      }),
+    );
+    await expect(first).resolves.toMatchObject({ kind: "resolved" });
     expect(updateAnchor).toHaveBeenCalledOnce();
-    expect(updateAnchor.mock.calls[0]?.[0]).toBe(second);
+  });
+
+  it("publishes persistence failure as a retryable recovery failure", async () => {
+    const annotation = highlight("persistence-failure", { anchorStatus: "detached" });
+    const apiRef = { current: undefined } as MutableRefObject<RecoveryApi | undefined>;
+    await renderHarness({
+      annotations: [annotation],
+      apiRef,
+      queueAnchorUpdate: vi.fn(),
+      resolveAnchor: vi.fn(async () => ({
+        cfiRange: annotation.cfiRange,
+        kind: "resolved" as const,
+        strategy: "exact-cfi" as const,
+      })),
+      updateAnchor: vi.fn(async () => undefined),
+    });
+
+    await act(async () => {
+      await expect(apiRef.current!.recoverAnnotationAnchor(annotation)).resolves.toEqual({
+        kind: "failed",
+      });
+    });
   });
 
   it("uses the latest target and collection snapshot for collision checks", async () => {

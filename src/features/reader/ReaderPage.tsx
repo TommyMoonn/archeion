@@ -252,10 +252,11 @@ export function ReaderPage() {
     recoverAnnotationAnchor,
   } = useReaderAnnotationRecovery({
     annotations: annotations.annotations,
+    cancelQueuedAnchorUpdate: annotations.cancelQueuedAnchorUpdate,
+    commands: annotations.commands,
     queueAnchorUpdate: annotations.queueAnchorUpdate,
     resolveAnchor: resolveAnnotationAnchor,
     session: annotations.session,
-    updateAnchor: annotations.updateAnchor,
   });
   const {
     currentAnnotationId,

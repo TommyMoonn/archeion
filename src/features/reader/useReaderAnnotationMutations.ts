@@ -4,7 +4,6 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import {
   sameReaderAnnotationSession,
-  type ReaderAnnotationAnchorChanges,
   type ReaderAnnotationCreateCommand,
   type ReaderAnnotationMutation,
   type ReaderAnnotationMutationOutcome,
@@ -48,7 +47,6 @@ type PendingNoteUndoOwner = {
 };
 
 type MutationOptions = {
-  cancelQueuedAnchorUpdateRef: MutableRefObject<(annotationId: string) => void>;
   drainAnchorMaintenanceRef: MutableRefObject<() => void>;
   forget: (annotationId: string) => void;
   isCurrentSession: (session: ReaderAnnotationSession) => boolean;
@@ -77,7 +75,6 @@ function annotationRemovalErrorMessage(annotation: Annotation): string {
 }
 
 export function useReaderAnnotationMutations({
-  cancelQueuedAnchorUpdateRef,
   drainAnchorMaintenanceRef,
   forget,
   isCurrentSession,
@@ -265,28 +262,6 @@ export function useReaderAnnotationMutations({
     [deleteAnnotation, publishFeedback, session],
   );
 
-  const updateAnchor = useCallback(
-    async (
-      annotation: Annotation,
-      changes: ReaderAnnotationAnchorChanges,
-    ): Promise<Annotation | undefined> => {
-      cancelQueuedAnchorUpdateRef.current(annotation.id);
-      const outcome =
-        annotation.type === "bookmark"
-          ? await update({ annotation, annotationType: "bookmark", changes })
-          : await update({ annotation, annotationType: "highlight", changes });
-      if (outcome.status === "accepted") return outcome.annotation;
-      if (outcome.status === "failed") {
-        publishFeedback(session, {
-          kind: "error",
-          message: "The annotation location could not be updated.",
-        });
-      }
-      return undefined;
-    },
-    [cancelQueuedAnchorUpdateRef, publishFeedback, session, update],
-  );
-
   const publishNoteRemoved = useCallback(
     (annotation: HighlightAnnotation) => {
       if (!hasSavedNote(annotation)) return;
@@ -436,7 +411,6 @@ export function useReaderAnnotationMutations({
       restore,
       undoRemove,
       update,
-      updateAnchor,
     }),
     [
       busy,
@@ -452,7 +426,6 @@ export function useReaderAnnotationMutations({
       restore,
       undoRemove,
       update,
-      updateAnchor,
     ],
   );
 }

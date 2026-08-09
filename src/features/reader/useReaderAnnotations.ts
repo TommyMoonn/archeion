@@ -35,7 +35,6 @@ export function useReaderAnnotations({
   const cancelQueuedAnchorUpdateRef = useRef<(annotationId: string) => void>(() => undefined);
   const collection = useReaderAnnotationCollection({ activeArchiveId, bookId, storage });
   const mutations = useReaderAnnotationMutations({
-    cancelQueuedAnchorUpdateRef,
     drainAnchorMaintenanceRef,
     forget: collection.forget,
     isCurrentSession: collection.isCurrentSession,
@@ -99,6 +98,7 @@ export function useReaderAnnotations({
       feedback,
       loadStatus: collection.loadStatus,
       publishNoteRemoved: mutations.publishNoteRemoved,
+      cancelQueuedAnchorUpdate: anchorMaintenance.cancelQueuedAnchorUpdate,
       queueAnchorUpdate: anchorMaintenance.queueAnchorUpdate,
       reload: collection.reload,
       retireNoteRemoval: mutations.retireNoteRemoval,
@@ -107,10 +107,10 @@ export function useReaderAnnotations({
       toggleCurrent: bookmarks.toggleCurrent,
       toggleDisabledReason: bookmarks.toggleDisabledReason,
       undoRemove: mutations.undoRemove,
-      updateAnchor: mutations.updateAnchor,
       updateLabel: bookmarks.updateLabel,
     }),
     [
+      anchorMaintenance.cancelQueuedAnchorUpdate,
       anchorMaintenance.queueAnchorUpdate,
       bookmarks.bookmarks,
       bookmarks.canToggleCurrent,
@@ -135,7 +135,6 @@ export function useReaderAnnotations({
       collection.session,
       mutations.undoRemove,
       mutations.update,
-      mutations.updateAnchor,
     ],
   );
 }

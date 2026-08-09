@@ -136,6 +136,7 @@ describe("useReaderAnnotations facade", () => {
         busy: false,
         canToggleCurrent: true,
         claimNoteEditing: expect.any(Function),
+        cancelQueuedAnchorUpdate: expect.any(Function),
         commands: expect.objectContaining({
           create: expect.any(Function),
           delete: expect.any(Function),
@@ -151,7 +152,6 @@ describe("useReaderAnnotations facade", () => {
         remove: expect.any(Function),
         toggleCurrent: expect.any(Function),
         undoRemove: expect.any(Function),
-        updateAnchor: expect.any(Function),
         updateLabel: expect.any(Function),
       }),
     );

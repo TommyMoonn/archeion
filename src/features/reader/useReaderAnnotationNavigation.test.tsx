@@ -8,6 +8,7 @@ import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import type { ReaderLocation } from "./readerLocation";
 import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
+import { useReaderAnnotationRecovery } from "./useReaderAnnotationRecovery";
 
 type NavigationApi = ReturnType<typeof useReaderAnnotationNavigation>;
 
@@ -83,6 +84,52 @@ function Harness({
   return <span data-testid="current">{navigation.currentAnnotationId}</span>;
 }
 
+type IntegratedHarnessProps = Omit<HarnessProps, "persistAnchor"> & {
+  cancelQueuedAnchorUpdate: (annotationId: string) => void;
+  commands: Parameters<typeof useReaderAnnotationRecovery>[0]["commands"];
+};
+
+function IntegratedHarness({
+  activeArchiveId = "archive-a",
+  annotations,
+  apiRef,
+  bookId,
+  cancelQueuedAnchorUpdate,
+  commands,
+  loadStatus = "ready",
+  navigateToLocation,
+  queueAnchorUpdate,
+  resolveAnchor,
+  sessionKey = `${activeArchiveId}:${bookId}`,
+}: IntegratedHarnessProps) {
+  const session = useMemo(
+    () => ({ archiveId: activeArchiveId, bookId, token: Symbol(`integrated-${sessionKey}`) }),
+    [activeArchiveId, bookId, sessionKey],
+  );
+  const recovery = useReaderAnnotationRecovery({
+    annotations,
+    cancelQueuedAnchorUpdate,
+    commands,
+    queueAnchorUpdate,
+    resolveAnchor,
+    session,
+  });
+  const navigation = useReaderAnnotationNavigation({
+    annotations,
+    initialLocation,
+    loadStatus,
+    navigateToLocation,
+    persistAnchor: recovery.persistAnchor,
+    queueAnchorUpdate,
+    resolveAnchor,
+    session,
+  });
+  useLayoutEffect(() => {
+    apiRef.current = navigation;
+  }, [apiRef, navigation]);
+  return <span data-testid="current">{navigation.currentAnnotationId}</span>;
+}
+
 let container: HTMLDivElement | null = null;
 let root: Root | null = null;
 
@@ -90,6 +137,12 @@ async function renderHarness(props: HarnessProps) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
   await act(async () => root?.render(<Harness {...props} />));
+}
+
+async function renderIntegratedHarness(props: IntegratedHarnessProps) {
+  container ??= document.body.appendChild(document.createElement("div"));
+  root ??= createRoot(container);
+  await act(async () => root?.render(<IntegratedHarness {...props} />));
 }
 
 afterEach(async () => {
@@ -390,6 +443,45 @@ describe("useReaderAnnotationNavigation", () => {
       expect(await result).toBe(false);
     });
     expect(persistAnchor).not.toHaveBeenCalled();
+    expect(navigateToLocation).not.toHaveBeenCalled();
+  });
+
+  it("does not persist stale recovery after a same-id replacement during resolution", async () => {
+    const annotation = highlight("replaced-resolution");
+    const replacement = {
+      ...annotation,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      selectedText: "Replacement passage",
+    };
+    const validation = deferred<ReaderAnnotationRecoveryResult>();
+    const update = vi.fn(async () => ({ annotation: replacement, status: "accepted" }) as const);
+    const cancelQueuedAnchorUpdate = vi.fn();
+    const navigateToLocation = vi.fn(async () => true);
+    const apiRef = { current: undefined } as MutableRefObject<NavigationApi | undefined>;
+    const common = {
+      apiRef,
+      bookId: "book-1",
+      cancelQueuedAnchorUpdate,
+      commands: { update },
+      navigateToLocation,
+      queueAnchorUpdate: vi.fn(),
+      resolveAnchor: vi.fn(() => validation.promise),
+    };
+    await renderIntegratedHarness({ ...common, annotations: [annotation] });
+    const result = apiRef.current!.navigateToAnnotation(annotation);
+    await renderIntegratedHarness({ ...common, annotations: [replacement] });
+
+    await act(async () => {
+      validation.resolve({
+        cfiRange: "epubcfi(/6/8!/4/2,/1:4,/1:22)",
+        kind: "resolved",
+        strategy: "context-text",
+      });
+      await expect(result).resolves.toBe(false);
+    });
+
+    expect(update).not.toHaveBeenCalled();
+    expect(cancelQueuedAnchorUpdate).not.toHaveBeenCalled();
     expect(navigateToLocation).not.toHaveBeenCalled();
   });
 

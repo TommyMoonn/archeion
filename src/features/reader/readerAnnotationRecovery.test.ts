@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import {
+  annotationMatchesRecoveryIdentity,
+  readerAnnotationRecoveryIdentity,
   readerSelectionContext,
   recoverBookmarkChapterAnchor,
   recoverHighlightTextAnchor,
@@ -43,6 +45,24 @@ function recoverySection(href: string, markup: string): ReaderRecoverySection {
 }
 
 describe("reader annotation recovery", () => {
+  it("keys recovery to stable annotation identity rather than mutable anchor fields", () => {
+    const annotation = highlight();
+    const identity = readerAnnotationRecoveryIdentity(annotation);
+
+    expect(
+      annotationMatchesRecoveryIdentity(
+        { ...annotation, cfiRange: "epubcfi(/6/8!/4/2,/1:2,/1:20)" },
+        identity,
+      ),
+    ).toBe(true);
+    expect(
+      annotationMatchesRecoveryIdentity(
+        { ...annotation, createdAt: "2026-07-14T00:00:00.000Z" },
+        identity,
+      ),
+    ).toBe(false);
+  });
+
   it("validates exact highlight ranges using normalized selected text", () => {
     const chapter = document.implementation.createHTMLDocument("chapter");
     chapter.body.innerHTML = "<p>Remember <em>this</em> passage</p>";

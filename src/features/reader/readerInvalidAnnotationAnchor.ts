@@ -1,22 +1,11 @@
-import type { Annotation } from "../../types/annotation";
-import type { ReaderAnnotationAnchorChanges } from "./readerAnnotationState";
+import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 
-type QueueAnchorUpdate = (
-  annotation: Annotation,
-  changes: ReaderAnnotationAnchorChanges,
-  signature: string,
-) => Promise<boolean>;
-
-export function acknowledgeInvalidHighlightAnchor(
+export function invalidHighlightAnchorTarget(
   annotations: readonly Annotation[],
-  queueAnchorUpdate: QueueAnchorUpdate,
   annotationId: string,
-  anchorSignature = annotationId,
-): Promise<boolean> {
+): HighlightAnnotation | undefined {
   const annotation = annotations.find(
     (candidate) => candidate.id === annotationId && candidate.type === "highlight",
   );
-  if (!annotation) return Promise.resolve(false);
-  if (annotation.anchorStatus === "detached") return Promise.resolve(true);
-  return queueAnchorUpdate(annotation, { anchorStatus: "detached" }, anchorSignature);
+  return annotation?.type === "highlight" ? annotation : undefined;
 }

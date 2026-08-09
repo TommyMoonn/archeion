@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
-import { acknowledgeInvalidHighlightAnchor } from "./readerInvalidAnnotationAnchor";
+import { invalidHighlightAnchorTarget } from "./readerInvalidAnnotationAnchor";
 
 function highlight(changes: Partial<HighlightAnnotation> = {}): HighlightAnnotation {
   return {
@@ -16,37 +16,20 @@ function highlight(changes: Partial<HighlightAnnotation> = {}): HighlightAnnotat
   };
 }
 
-describe("invalid rendered annotation anchor acknowledgement", () => {
-  it("queues active highlights for detached-anchor maintenance", async () => {
+describe("invalid rendered annotation anchor detection", () => {
+  it("returns the matching highlight for recovery ownership", () => {
     const annotation = highlight();
-    const queueAnchorUpdate = vi.fn(async () => true);
 
-    await expect(
-      acknowledgeInvalidHighlightAnchor(
-        [annotation],
-        queueAnchorUpdate,
-        annotation.id,
-        "anchor-signature",
-      ),
-    ).resolves.toBe(true);
-    expect(queueAnchorUpdate).toHaveBeenCalledWith(
-      annotation,
-      { anchorStatus: "detached" },
-      "anchor-signature",
-    );
+    expect(invalidHighlightAnchorTarget([annotation], annotation.id)).toBe(annotation);
   });
 
-  it("acknowledges already detached highlights without another write", async () => {
+  it("leaves detached-state handling to the recovery owner", () => {
     const annotation = highlight({ anchorStatus: "detached" });
-    const queueAnchorUpdate = vi.fn();
 
-    await expect(
-      acknowledgeInvalidHighlightAnchor([annotation], queueAnchorUpdate, annotation.id),
-    ).resolves.toBe(true);
-    expect(queueAnchorUpdate).not.toHaveBeenCalled();
+    expect(invalidHighlightAnchorTarget([annotation], annotation.id)).toBe(annotation);
   });
 
-  it("rejects missing and non-highlight annotation identities", async () => {
+  it("rejects missing and non-highlight annotation identities", () => {
     const bookmark: BookmarkAnnotation = {
       cfiRange: "epubcfi(/6/2!/4/2:4)",
       createdAt: "2026-07-14T00:00:00.000Z",
@@ -54,14 +37,7 @@ describe("invalid rendered annotation anchor acknowledgement", () => {
       type: "bookmark",
       updatedAt: "2026-07-14T00:00:00.000Z",
     };
-    const queueAnchorUpdate = vi.fn();
-
-    await expect(
-      acknowledgeInvalidHighlightAnchor([bookmark], queueAnchorUpdate, bookmark.id),
-    ).resolves.toBe(false);
-    await expect(
-      acknowledgeInvalidHighlightAnchor([bookmark], queueAnchorUpdate, "missing"),
-    ).resolves.toBe(false);
-    expect(queueAnchorUpdate).not.toHaveBeenCalled();
+    expect(invalidHighlightAnchorTarget([bookmark], bookmark.id)).toBeUndefined();
+    expect(invalidHighlightAnchorTarget([bookmark], "missing")).toBeUndefined();
   });
 });

@@ -2,13 +2,20 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react"
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import {
+  annotationMatchesRecoveryIdentity,
+  readerAnnotationRecoveryIdentity,
+  type ReaderAnnotationRecoveryIdentity,
+  type ReaderAnnotationRecoveryResult,
+} from "./readerAnnotationRecovery";
+import {
   sameReaderAnnotationSession,
   type ReaderAnnotationAnchorChanges,
+  type ReaderAnnotationMutationOutcome,
   type ReaderAnnotationSession,
 } from "./readerAnnotationState";
-import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
-import { acknowledgeInvalidHighlightAnchor } from "./readerInvalidAnnotationAnchor";
+import { invalidHighlightAnchorTarget } from "./readerInvalidAnnotationAnchor";
 import { resolveHighlightSelection } from "./readerHighlightInteraction";
+import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 
 type PersistableRecoveryResult = Extract<
   ReaderAnnotationRecoveryResult,
@@ -17,16 +24,23 @@ type PersistableRecoveryResult = Extract<
 type ResolvedRecoveryResult = Extract<ReaderAnnotationRecoveryResult, { kind: "resolved" }>;
 
 type ReaderAnnotationRecoveryRequest = {
-  readonly annotationId: string;
-  readonly annotationType: Annotation["type"];
-  readonly id: number;
-  readonly initialDetached: boolean;
+  readonly identity: ReaderAnnotationRecoveryIdentity;
+  phase: "persisting" | "resolving";
+  promise?: Promise<ReaderAnnotationRecoveryResult>;
   readonly session: ReaderAnnotationSession;
-  readonly targetCreatedAt: string;
+};
+
+type InvalidAnchorRequest = {
+  readonly identity: ReaderAnnotationRecoveryIdentity;
+  promise?: Promise<boolean>;
+  readonly session: ReaderAnnotationSession;
+  readonly signature: string;
 };
 
 type UseReaderAnnotationRecoveryOptions = {
   annotations: readonly Annotation[];
+  cancelQueuedAnchorUpdate: (annotationId: string) => void;
+  commands: Pick<ReaderAnnotationCommandSurface, "update">;
   queueAnchorUpdate: (
     annotation: Annotation,
     changes: ReaderAnnotationAnchorChanges,
@@ -36,10 +50,6 @@ type UseReaderAnnotationRecoveryOptions = {
     annotation: Annotation,
     attemptRecovery: boolean,
   ) => Promise<ReaderAnnotationRecoveryResult>;
-  updateAnchor: (
-    annotation: Annotation,
-    changes: ReaderAnnotationAnchorChanges,
-  ) => Promise<Annotation | undefined>;
   session: ReaderAnnotationSession;
 };
 
@@ -63,50 +73,70 @@ export function recoveredAnnotationAnchorConflicts(
   return resolveHighlightSelection(result.cfiRange, activeHighlights).kind !== "new";
 }
 
+function outcomeAnnotation(outcome: ReaderAnnotationMutationOutcome): Annotation | undefined {
+  return outcome.status === "accepted" ? outcome.annotation : undefined;
+}
+
 export function useReaderAnnotationRecovery({
   annotations,
+  cancelQueuedAnchorUpdate,
+  commands,
   queueAnchorUpdate,
   resolveAnchor,
   session,
-  updateAnchor,
 }: UseReaderAnnotationRecoveryOptions) {
   const sessionRef = useRef(session);
   const mountedRef = useRef(true);
-  const requestSequenceRef = useRef(0);
-  const activeRequestRef = useRef<ReaderAnnotationRecoveryRequest | undefined>(undefined);
   const annotationsRef = useRef(annotations);
+  const cancelQueuedAnchorUpdateRef = useRef(cancelQueuedAnchorUpdate);
+  const commandsRef = useRef(commands);
   const queueAnchorUpdateRef = useRef(queueAnchorUpdate);
   const resolveAnchorRef = useRef(resolveAnchor);
-  const updateAnchorRef = useRef(updateAnchor);
+  const recoveryRequestsRef = useRef(new Map<string, ReaderAnnotationRecoveryRequest>());
+  const invalidAnchorRequestsRef = useRef(new Map<string, InvalidAnchorRequest>());
 
   useLayoutEffect(() => {
     if (!sameReaderAnnotationSession(sessionRef.current, session)) {
-      activeRequestRef.current = undefined;
+      recoveryRequestsRef.current.clear();
+      invalidAnchorRequestsRef.current.clear();
     }
     sessionRef.current = session;
     annotationsRef.current = annotations;
+    cancelQueuedAnchorUpdateRef.current = cancelQueuedAnchorUpdate;
+    commandsRef.current = commands;
     queueAnchorUpdateRef.current = queueAnchorUpdate;
     resolveAnchorRef.current = resolveAnchor;
-    updateAnchorRef.current = updateAnchor;
-    const active = activeRequestRef.current;
-    if (active) {
-      const target = annotations.find((candidate) => candidate.id === active.annotationId);
+
+    for (const [annotationId, request] of recoveryRequestsRef.current) {
+      const target = annotations.find((candidate) => candidate.id === annotationId);
       if (
         !target ||
-        target.type !== active.annotationType ||
-        target.createdAt !== active.targetCreatedAt ||
-        target.anchorStatus !== "detached"
+        !annotationMatchesRecoveryIdentity(target, request.identity) ||
+        (request.phase === "resolving" && target.anchorStatus !== "detached")
       ) {
-        activeRequestRef.current = undefined;
+        recoveryRequestsRef.current.delete(annotationId);
       }
     }
-  }, [annotations, queueAnchorUpdate, resolveAnchor, session, updateAnchor]);
+    for (const [annotationId, request] of invalidAnchorRequestsRef.current) {
+      const target = annotations.find((candidate) => candidate.id === annotationId);
+      if (
+        !target ||
+        target.anchorStatus === "detached" ||
+        !annotationMatchesRecoveryIdentity(target, request.identity)
+      ) {
+        invalidAnchorRequestsRef.current.delete(annotationId);
+      }
+    }
+  }, [annotations, cancelQueuedAnchorUpdate, commands, queueAnchorUpdate, resolveAnchor, session]);
 
   useEffect(() => {
     mountedRef.current = true;
+    const recoveryRequests = recoveryRequestsRef.current;
+    const invalidAnchorRequests = invalidAnchorRequestsRef.current;
     return () => {
       mountedRef.current = false;
-      activeRequestRef.current = undefined;
+      recoveryRequests.clear();
+      invalidAnchorRequests.clear();
     };
   }, []);
 
@@ -116,38 +146,46 @@ export function useReaderAnnotationRecovery({
     [],
   );
 
-  const targetForRequest = useCallback((request: ReaderAnnotationRecoveryRequest) => {
+  const targetForIdentity = useCallback((identity: ReaderAnnotationRecoveryIdentity) => {
     const target = annotationsRef.current.find(
-      (candidate) => candidate.id === request.annotationId,
+      (candidate) => candidate.id === identity.annotationId,
     );
-    return target &&
-      target.type === request.annotationType &&
-      target.createdAt === request.targetCreatedAt &&
-      target.anchorStatus === "detached"
-      ? target
-      : undefined;
+    return target && annotationMatchesRecoveryIdentity(target, identity) ? target : undefined;
   }, []);
 
-  const ownsRequest = useCallback(
+  const ownsRecoveryRequest = useCallback(
     (request: ReaderAnnotationRecoveryRequest) =>
-      activeRequestRef.current === request &&
-      request.initialDetached &&
+      recoveryRequestsRef.current.get(request.identity.annotationId) === request &&
       ownsSession(request.session) &&
-      Boolean(targetForRequest(request)),
-    [ownsSession, targetForRequest],
+      Boolean(targetForIdentity(request.identity)),
+    [ownsSession, targetForIdentity],
   );
 
-  const persistAnchor = useCallback(
+  const persistAnchorResult = useCallback(
     async (
+      owner: ReaderAnnotationSession,
       annotation: Annotation,
       result: PersistableRecoveryResult,
-    ): Promise<Annotation | undefined> => {
-      const owner = session;
-      if (!owner.archiveId || !owner.bookId || !ownsSession(owner)) return undefined;
+    ): Promise<ReaderAnnotationMutationOutcome> => {
+      if (!owner.archiveId || !owner.bookId || !ownsSession(owner)) {
+        return { status: "retired" };
+      }
       if (result.kind === "detached") {
-        if (annotation.anchorStatus === "detached") return annotation;
-        const persisted = await updateAnchorRef.current(annotation, { anchorStatus: "detached" });
-        return ownsSession(owner) ? persisted : undefined;
+        if (annotation.anchorStatus === "detached") {
+          return { annotation, status: "accepted" };
+        }
+        cancelQueuedAnchorUpdateRef.current(annotation.id);
+        return annotation.type === "bookmark"
+          ? commandsRef.current.update({
+              annotation,
+              annotationType: "bookmark",
+              changes: { anchorStatus: "detached" },
+            })
+          : commandsRef.current.update({
+              annotation,
+              annotationType: "highlight",
+              changes: { anchorStatus: "detached" },
+            });
       }
 
       const nextChapterHref = result.chapterHref ?? annotation.chapterHref;
@@ -156,88 +194,145 @@ export function useReaderAnnotationRecovery({
         annotation.cfiRange === result.cfiRange &&
         annotation.chapterHref === nextChapterHref
       ) {
-        return annotation;
+        return { annotation, status: "accepted" };
       }
-      const persisted = await updateAnchorRef.current(annotation, {
+      const changes = {
         anchorStatus: undefined,
         cfiRange: result.cfiRange,
         ...(nextChapterHref ? { chapterHref: nextChapterHref } : {}),
-      });
-      return ownsSession(owner) ? persisted : undefined;
+      };
+      cancelQueuedAnchorUpdateRef.current(annotation.id);
+      return annotation.type === "bookmark"
+        ? commandsRef.current.update({ annotation, annotationType: "bookmark", changes })
+        : commandsRef.current.update({ annotation, annotationType: "highlight", changes });
     },
-    [ownsSession, session],
+    [ownsSession],
+  );
+
+  const persistAnchor = useCallback(
+    async (
+      annotation: Annotation,
+      result: PersistableRecoveryResult,
+    ): Promise<Annotation | undefined> => {
+      const owner = session;
+      const identity = readerAnnotationRecoveryIdentity(annotation);
+      if (!ownsSession(owner)) return undefined;
+      const liveTarget = targetForIdentity(identity);
+      if (!liveTarget) return undefined;
+
+      const outcome = await persistAnchorResult(owner, liveTarget, result);
+      if (!ownsSession(owner)) return undefined;
+      const persisted = outcomeAnnotation(outcome);
+      return persisted && annotationMatchesRecoveryIdentity(persisted, identity)
+        ? persisted
+        : undefined;
+    },
+    [ownsSession, persistAnchorResult, session, targetForIdentity],
   );
 
   const recoverAnnotationAnchor = useCallback(
-    async (annotation: Annotation): Promise<ReaderAnnotationRecoveryResult> => {
-      const request: ReaderAnnotationRecoveryRequest = {
-        annotationId: annotation.id,
-        annotationType: annotation.type,
-        id: ++requestSequenceRef.current,
-        initialDetached: annotation.anchorStatus === "detached",
-        session,
-        targetCreatedAt: annotation.createdAt,
-      };
-      activeRequestRef.current = request;
-
-      try {
-        if (!session.archiveId || !session.bookId || !ownsRequest(request)) {
-          return { kind: "cancelled" };
-        }
-        const initialTarget = targetForRequest(request);
-        if (!initialTarget) return { kind: "cancelled" };
-
-        const result = await resolveAnchorRef.current(initialTarget, true);
-        if (!ownsRequest(request)) return { kind: "cancelled" };
-        if (result.kind === "cancelled" || result.kind === "failed") return result;
-
-        const latestTarget = targetForRequest(request);
-        if (!latestTarget || !ownsRequest(request)) return { kind: "cancelled" };
-        if (
-          result.kind === "resolved" &&
-          recoveredAnnotationAnchorConflicts(latestTarget, result, annotationsRef.current)
-        ) {
-          return { kind: "detached", reason: "conflict" };
-        }
-
-        if (!ownsRequest(request)) return { kind: "cancelled" };
-        const persisted = await persistAnchor(latestTarget, result);
-        if (
-          !persisted ||
-          activeRequestRef.current !== request ||
-          !ownsSession(request.session) ||
-          persisted.id !== request.annotationId ||
-          persisted.type !== request.annotationType ||
-          persisted.createdAt !== request.targetCreatedAt
-        ) {
-          return { kind: "cancelled" };
-        }
-        return result;
-      } finally {
-        if (activeRequestRef.current === request) activeRequestRef.current = undefined;
+    (annotation: Annotation): Promise<ReaderAnnotationRecoveryResult> => {
+      const identity = readerAnnotationRecoveryIdentity(annotation);
+      const existing = recoveryRequestsRef.current.get(identity.annotationId);
+      if (
+        existing &&
+        annotationMatchesRecoveryIdentity(annotation, existing.identity) &&
+        sameReaderAnnotationSession(existing.session, session)
+      ) {
+        return existing.promise ?? Promise.resolve({ kind: "cancelled" });
       }
+
+      const request: ReaderAnnotationRecoveryRequest = {
+        identity,
+        phase: "resolving",
+        session,
+      };
+      const run = async (): Promise<ReaderAnnotationRecoveryResult> => {
+        try {
+          const initialTarget = targetForIdentity(identity);
+          if (
+            !session.archiveId ||
+            !session.bookId ||
+            initialTarget?.anchorStatus !== "detached" ||
+            !ownsRecoveryRequest(request)
+          ) {
+            return { kind: "cancelled" };
+          }
+
+          const result = await resolveAnchorRef.current(initialTarget, true);
+          if (!ownsRecoveryRequest(request)) return { kind: "cancelled" };
+          if (result.kind === "cancelled" || result.kind === "failed") return result;
+
+          const latestTarget = targetForIdentity(identity);
+          if (!latestTarget || latestTarget.anchorStatus !== "detached") {
+            return { kind: "cancelled" };
+          }
+          if (
+            result.kind === "resolved" &&
+            recoveredAnnotationAnchorConflicts(latestTarget, result, annotationsRef.current)
+          ) {
+            return { kind: "detached", reason: "conflict" };
+          }
+
+          request.phase = "persisting";
+          const outcome = await persistAnchorResult(request.session, latestTarget, result);
+          if (!ownsRecoveryRequest(request)) return { kind: "cancelled" };
+          if (outcome.status === "failed") return { kind: "failed" };
+          const persisted = outcomeAnnotation(outcome);
+          if (!persisted || !annotationMatchesRecoveryIdentity(persisted, identity)) {
+            return { kind: "cancelled" };
+          }
+          return result;
+        } finally {
+          if (recoveryRequestsRef.current.get(identity.annotationId) === request) {
+            recoveryRequestsRef.current.delete(identity.annotationId);
+          }
+        }
+      };
+      recoveryRequestsRef.current.set(identity.annotationId, request);
+      const promise = run();
+      request.promise = promise;
+      return promise;
     },
-    [ownsRequest, ownsSession, persistAnchor, session, targetForRequest],
+    [ownsRecoveryRequest, persistAnchorResult, session, targetForIdentity],
   );
 
   const handleInvalidHighlightAnchor = useCallback(
-    async (annotationId: string, anchorSignature = annotationId) => {
+    (annotationId: string, anchorSignature = annotationId): Promise<boolean> => {
       const owner = session;
-      if (!ownsSession(owner)) return false;
-      const target = annotationsRef.current.find(
-        (candidate) =>
-          candidate.id === annotationId &&
-          candidate.type === "highlight" &&
-          candidate.anchorStatus !== "detached",
-      );
-      if (!target) return false;
-      const acknowledged = await acknowledgeInvalidHighlightAnchor(
-        annotationsRef.current,
-        queueAnchorUpdateRef.current,
-        annotationId,
-        anchorSignature,
-      );
-      return acknowledged && ownsSession(owner);
+      if (!ownsSession(owner)) return Promise.resolve(false);
+      const target = invalidHighlightAnchorTarget(annotationsRef.current, annotationId);
+      if (!target) return Promise.resolve(false);
+      if (target.anchorStatus === "detached") return Promise.resolve(true);
+
+      const identity = readerAnnotationRecoveryIdentity(target);
+      const existing = invalidAnchorRequestsRef.current.get(annotationId);
+      if (
+        existing?.signature === anchorSignature &&
+        annotationMatchesRecoveryIdentity(target, existing.identity) &&
+        sameReaderAnnotationSession(existing.session, owner)
+      ) {
+        return existing.promise ?? Promise.resolve(false);
+      }
+
+      const request: InvalidAnchorRequest = {
+        identity,
+        session: owner,
+        signature: anchorSignature,
+      };
+      const promise = queueAnchorUpdateRef
+        .current(target, { anchorStatus: "detached" }, anchorSignature)
+        .then((acknowledged) => {
+          const ownsRequest =
+            invalidAnchorRequestsRef.current.get(annotationId) === request && ownsSession(owner);
+          if (!acknowledged && invalidAnchorRequestsRef.current.get(annotationId) === request) {
+            invalidAnchorRequestsRef.current.delete(annotationId);
+          }
+          return acknowledged && ownsRequest;
+        });
+      request.promise = promise;
+      invalidAnchorRequestsRef.current.set(annotationId, request);
+      return promise;
     },
     [ownsSession, session],
   );

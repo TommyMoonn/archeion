@@ -68,7 +68,6 @@ function Harness({
   activeArchiveId,
   apiRef,
   bookId,
-  cancel,
   drain,
   initial,
   projections,
@@ -78,7 +77,6 @@ function Harness({
   activeArchiveId: string;
   apiRef: MutableRefObject<MutationApi | undefined>;
   bookId: string;
-  cancel: (annotationId: string) => void;
   drain: () => void;
   initial: Annotation[];
   projections?: MutationProjection[];
@@ -92,13 +90,11 @@ function Harness({
   const sessionRef = useRef(session);
   const mountedRef = useRef(true);
   const [collection, setCollection] = useState({ items: initial, session });
-  const cancelRef = useRef(cancel);
   const drainRef = useRef(drain);
   useLayoutEffect(() => {
     sessionRef.current = session;
-    cancelRef.current = cancel;
     drainRef.current = drain;
-  }, [cancel, drain, session]);
+  }, [drain, session]);
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -109,7 +105,6 @@ function Harness({
     ? collection.items
     : initial;
   const mutations = useReaderAnnotationMutations({
-    cancelQueuedAnchorUpdateRef: cancelRef,
     drainAnchorMaintenanceRef: drainRef,
     forget: (annotationId) =>
       setCollection((current) => ({
@@ -158,7 +153,6 @@ async function renderHarness({
   activeArchiveId = "archive-a",
   apiRef,
   bookId = "book-a",
-  cancel = vi.fn(),
   drain = vi.fn(),
   initial,
   projections,
@@ -168,7 +162,6 @@ async function renderHarness({
   activeArchiveId?: string;
   apiRef: MutableRefObject<MutationApi | undefined>;
   bookId?: string;
-  cancel?: (annotationId: string) => void;
   drain?: () => void;
   initial: Annotation[];
   projections?: MutationProjection[];
@@ -183,7 +176,6 @@ async function renderHarness({
         activeArchiveId={activeArchiveId}
         apiRef={apiRef}
         bookId={bookId}
-        cancel={cancel}
         drain={drain}
         initial={initial}
         projections={projections}
@@ -993,46 +985,6 @@ describe("useReaderAnnotationMutations", () => {
     expect(text("feedback")).toBe("Bookmark could not be removed.");
   });
 
-  it("cancels queued maintenance before an explicit anchor update and drains afterward", async () => {
-    const original = highlight();
-    const updated = { ...original, anchorStatus: "detached" } as HighlightAnnotation;
-    const cancel = vi.fn();
-    const drain = vi.fn();
-    const storage = {
-      updateHighlightAnnotation: vi.fn(async () => updated),
-    } as unknown as LibraryStorage;
-    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
-    await renderHarness({ apiRef, cancel, drain, initial: [original], storage });
-
-    await act(async () =>
-      expect(apiRef.current!.updateAnchor(original, { anchorStatus: "detached" })).resolves.toBe(
-        updated,
-      ),
-    );
-    await act(async () => Promise.resolve());
-    expect(cancel).toHaveBeenCalledWith(original.id);
-    expect(drain).toHaveBeenCalledOnce();
-  });
-
-  it("publishes retryable feedback when an explicit anchor update fails", async () => {
-    const original = highlight();
-    const storage = {
-      updateHighlightAnnotation: vi.fn(async () => {
-        throw new Error("write failed");
-      }),
-    } as unknown as LibraryStorage;
-    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
-    await renderHarness({ apiRef, initial: [original], storage });
-
-    await act(async () =>
-      expect(apiRef.current!.updateAnchor(original, { anchorStatus: "detached" })).resolves.toBe(
-        undefined,
-      ),
-    );
-    expect(text("ids")).toBe(original.id);
-    expect(text("feedback")).toBe("The annotation location could not be updated.");
-  });
-
   it("projects no stale feedback or busy state on the first render of a new session", async () => {
     const removed = highlight("removed");
     const pending = highlight("pending");
@@ -1052,9 +1004,13 @@ describe("useReaderAnnotationMutations", () => {
       storage,
     });
     await act(async () => void (await apiRef.current!.remove(removed)));
-    let staleAnchor!: Promise<Annotation | undefined>;
+    let staleAnchor!: ReturnType<MutationApi["update"]>;
     act(() => {
-      staleAnchor = apiRef.current!.updateAnchor(pending, { anchorStatus: "detached" });
+      staleAnchor = apiRef.current!.update({
+        annotation: pending,
+        annotationType: "highlight",
+        changes: { anchorStatus: "detached" },
+      });
     });
     expect(text("feedback")).toBe("Highlight and attached note removed.");
     expect(text("busy")).toBe("true");
@@ -1077,7 +1033,7 @@ describe("useReaderAnnotationMutations", () => {
     expect(text("busy")).toBe("false");
 
     await act(async () => anchorWrite.resolve({ ...pending, anchorStatus: "detached" }));
-    await expect(staleAnchor).resolves.toBeUndefined();
+    await expect(staleAnchor).resolves.toEqual({ status: "retired" });
   });
 
   it("rejects stale remove completion and preserves newer-session busy ownership", async () => {
@@ -1113,9 +1069,13 @@ describe("useReaderAnnotationMutations", () => {
       feedback: undefined,
     });
     const currentApi = apiRef.current!;
-    let update!: Promise<Annotation | undefined>;
+    let update!: ReturnType<MutationApi["update"]>;
     act(() => {
-      update = currentApi.updateAnchor(current, { chapterHref: "chapter.xhtml" });
+      update = currentApi.update({
+        annotation: current,
+        annotationType: "bookmark",
+        changes: { chapterHref: "chapter.xhtml" },
+      });
     });
 
     await act(async () => oldRemoval.resolve(true));
@@ -1123,7 +1083,7 @@ describe("useReaderAnnotationMutations", () => {
     expect(text("busy")).toBe("true");
     expect(text("feedback")).toBe("");
     await act(async () => newUpdate.resolve({ ...current, chapterHref: "chapter.xhtml" }));
-    await expect(update).resolves.toBeDefined();
+    await expect(update).resolves.toMatchObject({ status: "accepted" });
     expect(text("busy")).toBe("false");
   });
 
@@ -1149,13 +1109,17 @@ describe("useReaderAnnotationMutations", () => {
 
     await renderHarness({ apiRef, bookId: "book-a", initial: [anchorBookmark], storage });
     const staleAnchorApi = apiRef.current!;
-    let result!: Promise<Annotation | undefined>;
+    let result!: ReturnType<MutationApi["update"]>;
     act(() => {
-      result = staleAnchorApi.updateAnchor(anchorBookmark, { chapterHref: "stale.xhtml" });
+      result = staleAnchorApi.update({
+        annotation: anchorBookmark,
+        annotationType: "bookmark",
+        changes: { chapterHref: "stale.xhtml" },
+      });
     });
     await renderHarness({ apiRef, bookId: "book-c", initial: [bookmark("book-c")], storage });
     await act(async () => anchor.resolve({ ...anchorBookmark, chapterHref: "stale.xhtml" }));
-    await expect(result).resolves.toBeUndefined();
+    await expect(result).resolves.toEqual({ status: "retired" });
     expect(text("ids")).toBe("book-c");
     expect(text("feedback")).toBe("");
   });
