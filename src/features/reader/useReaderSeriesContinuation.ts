@@ -4,7 +4,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Book, ReadonlyBook } from "../../types/book";
 import type { SeriesEntry } from "../../types/series";
 import { readingStatusForProgress } from "../reading/readingProgress";
-import { deriveSeriesEntryForBook, seriesNextVolumeBook } from "../series/seriesDerivation";
+import { deriveSeriesEntryForBook, seriesNextVolumeBook } from "../series/readerSeriesContinuation";
 
 type ReaderSeriesContinuationInput = {
   book: Book | undefined;

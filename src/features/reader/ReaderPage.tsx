@@ -18,7 +18,7 @@ import {
   readerReturnContextFromState,
   readerReturnNavigation,
 } from "../../app/readerReturnContext";
-import { useArchive } from "../archive/useArchive";
+import { useReaderArchiveSession } from "../archive/readerArchiveSession";
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
@@ -96,7 +96,7 @@ export function ReaderPage() {
   const bookId = book?.id;
   const navigate = useNavigate();
   const routerLocation = useLocation();
-  const archive = useArchive();
+  const archiveSession = useReaderArchiveSession();
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
@@ -135,7 +135,7 @@ export function ReaderPage() {
     readerMainRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const activeArchiveId = archive.status === "ready" ? archive.archive.id : null;
+  const activeArchiveId = archiveSession.archiveId;
   const storedReturnContext = readerReturnContextFromState(routerLocation.state, activeArchiveId);
   const returnContext = useMemo(() => {
     if (!storedReturnContext) return null;
@@ -151,7 +151,7 @@ export function ReaderPage() {
   const backLabel = readerReturnAccessibleLabel(returnContext);
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error" || readerThemeSaveFailed;
-  const archiveRootPath = "path" in archive ? archive.path : null;
+  const archiveRootPath = archiveSession.rootPath;
   const readerFileRequestKey =
     bookId && activeArchiveId && !isBookFileMissing
       ? JSON.stringify([activeArchiveId, archiveRootPath, bookId])
