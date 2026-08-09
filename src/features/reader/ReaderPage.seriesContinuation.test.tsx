@@ -23,10 +23,6 @@ const viewerMock = vi.hoisted(() => ({
   },
 }));
 
-const fileOwnerMock = vi.hoisted(() => ({
-  release: vi.fn(),
-}));
-
 vi.mock("./EpubViewer", async () => {
   const React = await import("react");
 
@@ -64,24 +60,8 @@ vi.mock("./EpubViewer", async () => {
   };
 });
 
-vi.mock("./useReaderFileLoad", async (importOriginal) => {
-  const React = await import("react");
-  const actual = await importOriginal<typeof import("./useReaderFileLoad")>();
-  return {
-    ...actual,
-    useReaderFileLoad(options: Parameters<typeof actual.useReaderFileLoad>[0]) {
-      const { release: releaseOwnedFile, result } = actual.useReaderFileLoad(options);
-      const release = React.useCallback(() => {
-        fileOwnerMock.release();
-        releaseOwnedFile();
-      }, [releaseOwnedFile]);
-      return { release, result };
-    },
-  };
-});
-
 vi.mock("../archive/useArchive", () => ({
-  useArchive: () => ({ status: "ready", archive: { id: "archive-1" } }),
+  useArchive: () => ({ status: "ready", archive: { id: "archive-1" }, path: "/archive" }),
 }));
 
 let root: Root | null = null;
@@ -174,7 +154,6 @@ afterEach(() => {
   container?.remove();
   root = null;
   container = null;
-  fileOwnerMock.release.mockClear();
 });
 
 describe("ReaderPage series continuation", () => {
@@ -206,6 +185,30 @@ describe("ReaderPage series continuation", () => {
     );
     expect(rendered.container.textContent).not.toContain("Unreadable EPUB");
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
+  });
+
+  it("retries a failed source load through the rendered Reader", async () => {
+    const loadBookFile = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Unreadable EPUB"))
+      .mockResolvedValueOnce(new Blob(["epub"]));
+    const rendered = await renderReader(
+      [createBook({ id: "retry-book" })],
+      "retry-book",
+      undefined,
+      { loadBookFile },
+    );
+    const retry = [...rendered.container.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+
+    expect(retry).toBeInstanceOf(HTMLButtonElement);
+    await act(async () => retry?.click());
+
+    expect(loadBookFile).toHaveBeenCalledTimes(2);
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeInstanceOf(
+      HTMLElement,
+    );
   });
 
   it("surfaces the native EPUB size boundary before mounting the viewer", async () => {
@@ -244,7 +247,6 @@ describe("ReaderPage series continuation", () => {
     const alert = rendered.container.querySelector<HTMLElement>('[role="alert"]');
     expect(alert?.textContent).toContain("EPUB could not be opened");
     expect(alert?.textContent).toContain("The EPUB package is invalid.");
-    expect(fileOwnerMock.release).toHaveBeenCalledTimes(1);
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
     await act(async () => Promise.resolve());
     expect(loadBookFile).toHaveBeenCalledTimes(1);

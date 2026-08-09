@@ -1,28 +1,32 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
+import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { createReaderFileLease, type ReaderFileLease } from "./readerFileLease";
 
-type ReaderFileLoadState =
-  | { requestKey: string | null; status: "loading" }
-  | { lease: ReaderFileLease; requestKey: string; status: "ready" }
-  | { error: string; requestKey: string; status: "error" }
-  | { requestKey: string; status: "released" };
-
-type UseReaderFileLoadOptions = {
+type ReaderSourceRequest = Readonly<{
   load: () => Promise<Blob>;
-  requestKey: string | null;
+  requestKey: string;
+  revision: number;
+}>;
+
+type ReaderSourceState =
+  | { request: null; status: "inactive" }
+  | { request: ReaderSourceRequest; status: "loading" }
+  | { lease: ReaderFileLease; request: ReaderSourceRequest; status: "ready" }
+  | { error: string; request: ReaderSourceRequest; status: "error" };
+
+type UseReaderSourceOptions = {
+  active: boolean;
+  archiveId: string | null;
+  archiveRootPath: string | null;
+  bookId: string | null;
+  storage: Pick<LibraryStorage, "loadBookFile">;
 };
 
-export type ReaderFileLoadResult =
-  | { status: "loading" }
-  | { lease: ReaderFileLease; status: "ready" }
-  | { error: string; status: "error" }
-  | { status: "released" };
-
-export type ReaderFileLoadOwner = {
-  release: () => void;
-  result: ReaderFileLoadResult;
-};
+export type ReaderSourceController =
+  | Readonly<{ retry: () => void; status: "inactive" | "loading" }>
+  | Readonly<{ lease: ReaderFileLease; retry: () => void; status: "ready" }>
+  | Readonly<{ error: string; retry: () => void; status: "error" }>;
 
 const EPUB_SIZE_LIMIT_ERROR = "This EPUB exceeds Archeion's 256 MiB reader limit.";
 const DEFAULT_READER_FILE_ERROR =
@@ -35,102 +39,108 @@ function readerFileErrorMessage(error: unknown): string {
   return DEFAULT_READER_FILE_ERROR;
 }
 
-export function useReaderFileLoad({
-  load,
-  requestKey,
-}: UseReaderFileLoadOptions): ReaderFileLoadOwner {
-  const [state, setState] = useState<ReaderFileLoadState>({ requestKey, status: "loading" });
-  const ownerRef = useRef<ReaderFileLease | null>(null);
+function sourceRequestKey(
+  active: boolean,
+  archiveId: string | null,
+  archiveRootPath: string | null,
+  bookId: string | null,
+): string | null {
+  return active && archiveId && bookId
+    ? JSON.stringify([archiveId, archiveRootPath, bookId])
+    : null;
+}
+
+export function useReaderSource({
+  active,
+  archiveId,
+  archiveRootPath,
+  bookId,
+  storage,
+}: UseReaderSourceOptions): ReaderSourceController {
+  const requestKey = sourceRequestKey(active, archiveId, archiveRootPath, bookId);
+  const [retryOwner, setRetryOwner] = useState<{ requestKey: string; revision: number } | null>(
+    null,
+  );
+  const retryRevision = retryOwner?.requestKey === requestKey ? retryOwner.revision : 0;
+  const request = useMemo<ReaderSourceRequest | null>(() => {
+    if (!requestKey || !bookId) return null;
+    return Object.freeze({
+      load: () => storage.loadBookFile(bookId),
+      requestKey,
+      revision: retryRevision,
+    });
+  }, [bookId, requestKey, retryRevision, storage]);
+  const [state, setState] = useState<ReaderSourceState>(() =>
+    request ? { request, status: "loading" } : { request: null, status: "inactive" },
+  );
+  const ownerRef = useRef<{ lease: ReaderFileLease; request: ReaderSourceRequest } | null>(null);
   const stateRef = useRef(state);
 
-  if (state.requestKey !== requestKey) {
-    setState({ requestKey, status: "loading" });
+  if (state.request !== request) {
+    setState(request ? { request, status: "loading" } : { request: null, status: "inactive" });
   }
 
   useLayoutEffect(() => {
     stateRef.current = state;
   }, [state]);
 
-  const release = useCallback(() => {
-    const owner = ownerRef.current;
-    if (owner?.requestKey === requestKey) {
-      owner.dispose();
-      ownerRef.current = null;
-    }
-    const current = stateRef.current;
-    if (!requestKey || current.requestKey !== requestKey || current.status === "released") return;
-    const releasedState = { requestKey: current.requestKey, status: "released" } as const;
-    stateRef.current = releasedState;
-    setState(releasedState);
-  }, [requestKey]);
-
-  const released = state.requestKey === requestKey && state.status === "released";
-
   useEffect(() => {
-    if (!requestKey || released) {
-      return;
-    }
+    if (!request) return;
 
-    let cancelled = false;
-    void load().then(
+    let retired = false;
+    void request.load().then(
       (blob) => {
         const lease = createReaderFileLease({
           initialBlob: blob,
-          load,
-          requestKey,
+          load: request.load,
+          requestKey: request.requestKey,
         });
-        if (cancelled) {
+        if (retired || stateRef.current.request !== request) {
           lease.dispose();
           return;
         }
-        const current = stateRef.current;
-        if (current.requestKey !== requestKey || current.status === "released") {
-          lease.dispose();
-          return;
-        }
-        ownerRef.current = lease;
-        const readyState = { lease, requestKey, status: "ready" } as const;
+        ownerRef.current = { lease, request };
+        const readyState = { lease, request, status: "ready" } as const;
         stateRef.current = readyState;
         setState(readyState);
       },
       (error: unknown) => {
-        if (!cancelled) {
-          const current = stateRef.current;
-          if (current.requestKey === requestKey && current.status !== "released") {
-            const errorState = {
-              error: readerFileErrorMessage(error),
-              requestKey,
-              status: "error",
-            } as const;
-            stateRef.current = errorState;
-            setState(errorState);
-          }
-        }
+        if (retired || stateRef.current.request !== request) return;
+        const errorState = {
+          error: readerFileErrorMessage(error),
+          request,
+          status: "error",
+        } as const;
+        stateRef.current = errorState;
+        setState(errorState);
       },
     );
 
     return () => {
-      cancelled = true;
+      retired = true;
       const owner = ownerRef.current;
-      if (owner?.requestKey === requestKey) {
-        owner.dispose();
+      if (owner?.request === request) {
+        owner.lease.dispose();
         ownerRef.current = null;
       }
     };
-  }, [load, released, requestKey]);
+  }, [request]);
 
-  let result: ReaderFileLoadResult;
-  if (!requestKey || state.requestKey !== requestKey) {
-    result = { status: "loading" };
-  } else if (state.status === "ready") {
-    result = { lease: state.lease, status: "ready" };
-  } else if (state.status === "error") {
-    result = { error: state.error, status: "error" };
-  } else if (state.status === "released") {
-    result = { status: "released" };
-  } else {
-    result = { status: "loading" };
+  const retry = useCallback(() => {
+    const current = stateRef.current;
+    if (!requestKey || current.status !== "error" || current.request.requestKey !== requestKey) {
+      return;
+    }
+    setRetryOwner((owner) => ({
+      requestKey,
+      revision: owner?.requestKey === requestKey ? owner.revision + 1 : 1,
+    }));
+  }, [requestKey]);
+
+  if (state.request !== request || state.status === "inactive") {
+    return { retry, status: request ? "loading" : "inactive" };
   }
-
-  return { release, result };
+  if (state.status === "ready") return { lease: state.lease, retry, status: "ready" };
+  if (state.status === "error") return { error: state.error, retry, status: "error" };
+  return { retry, status: "loading" };
 }

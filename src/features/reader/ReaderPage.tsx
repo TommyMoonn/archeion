@@ -81,7 +81,7 @@ import { appearanceRuntime, useResolvedReaderTheme } from "../../themes/appearan
 import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
-import { useReaderFileLoad } from "./useReaderFileLoad";
+import { useReaderSource } from "./useReaderFileLoad";
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -152,19 +152,12 @@ export function ReaderPage() {
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appSettingsStatus.status === "error" || readerThemeSaveFailed;
   const archiveRootPath = archiveSession.rootPath;
-  const readerFileRequestKey =
-    bookId && activeArchiveId && !isBookFileMissing
-      ? JSON.stringify([activeArchiveId, archiveRootPath, bookId])
-      : null;
-  const loadReaderFile = useCallback(() => {
-    if (!bookId) {
-      return Promise.reject(new Error("The selected EPUB is unavailable."));
-    }
-    return storage.loadBookFile(bookId);
-  }, [bookId, storage]);
-  const { release: releaseReaderFile, result: readerFile } = useReaderFileLoad({
-    load: loadReaderFile,
-    requestKey: readerFileRequestKey,
+  const readerSource = useReaderSource({
+    active: Boolean(bookId && activeArchiveId && !isBookFileMissing && !error),
+    archiveId: activeArchiveId,
+    archiveRootPath,
+    bookId: bookId ?? null,
+    storage,
   });
   const readerThemeSelection =
     archiveRootPath && committedAppearance?.archive.rootPath === archiveRootPath
@@ -723,13 +716,7 @@ export function ReaderPage() {
     [bookId, handleAnnotationLocationChange, storage],
   );
 
-  const handleViewerError = useCallback(
-    (message: string) => {
-      releaseReaderFile();
-      setError(message);
-    },
-    [releaseReaderFile],
-  );
+  const handleViewerError = useCallback((message: string) => setError(message), []);
 
   const handleRescanAndReturn = useCallback(() => {
     setRecoveryStatus("rescanning");
@@ -806,8 +793,8 @@ export function ReaderPage() {
   }
 
   const title = bookTitle(book);
-  const fileLease = readerFile.status === "ready" ? readerFile.lease : undefined;
-  const isFileLoading = readerFile.status === "loading";
+  const fileLease = readerSource.status === "ready" ? readerSource.lease : undefined;
+  const isFileLoading = readerSource.status === "loading";
 
   if (!error && isFileLoading) {
     return (
@@ -825,17 +812,22 @@ export function ReaderPage() {
     );
   }
 
-  if (!error && (readerFile.status === "error" || !fileLease)) {
+  if (!error && (readerSource.status === "error" || !fileLease)) {
     return (
       <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
         <h1>EPUB could not be opened</h1>
         <p>
-          {readerFile.status === "error"
-            ? readerFile.error
+          {readerSource.status === "error"
+            ? readerSource.error
             : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
         </p>
         <div className="reader-status-page__actions">
+          {readerSource.status === "error" ? (
+            <Button onClick={readerSource.retry} size="standard" variant="secondary">
+              Try again
+            </Button>
+          ) : null}
           <Button
             busy={recoveryStatus === "rescanning"}
             disabled={recoveryStatus === "rescanning"}

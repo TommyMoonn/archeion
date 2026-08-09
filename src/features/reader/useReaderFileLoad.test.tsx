@@ -1,11 +1,11 @@
 // @vitest-environment happy-dom
 
-import { act, useEffect } from "react";
+import { act, useEffect, useMemo } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ReaderFileLease } from "./readerFileLease";
-import { useReaderFileLoad, type ReaderFileLoadResult } from "./useReaderFileLoad";
+import { useReaderSource } from "./useReaderFileLoad";
 
 const SOURCE_RELEASE_MARK = "archeion:reader-source-bytes-released";
 const SESSION_TEARDOWN_MEASURE = "archeion:reader-session-teardown";
@@ -14,6 +14,15 @@ type Deferred<T> = {
   promise: Promise<T>;
   reject: (reason?: unknown) => void;
   resolve: (value: T) => void;
+};
+
+type HarnessProps = {
+  active: boolean;
+  archiveId: string | null;
+  archiveRootPath: string | null;
+  bookId: string | null;
+  loadBookFile: (bookId: string) => Promise<Blob>;
+  onLease?: (lease: ReaderFileLease) => void;
 };
 
 function deferred<T>(): Deferred<T> {
@@ -26,55 +35,74 @@ function deferred<T>(): Deferred<T> {
   return { promise, reject, resolve };
 }
 
-const roots: Root[] = [];
+const roots = new Set<Root>();
 
 function Harness({
-  load,
+  active,
+  archiveId,
+  archiveRootPath,
+  bookId,
+  loadBookFile,
   onLease,
-  onRelease,
-  requestKey,
-}: {
-  load: () => Promise<Blob>;
-  onLease?: (lease: ReaderFileLease) => void;
-  onRelease?: (release: () => void) => void;
-  requestKey: string | null;
-}) {
-  const { release, result }: { release: () => void; result: ReaderFileLoadResult } =
-    useReaderFileLoad({ load, requestKey });
+}: HarnessProps) {
+  const storage = useMemo(() => ({ loadBookFile }), [loadBookFile]);
+  const source = useReaderSource({
+    active,
+    archiveId,
+    archiveRootPath,
+    bookId,
+    storage,
+  });
+
   useEffect(() => {
-    onRelease?.(release);
-  }, [onRelease, release]);
-  useEffect(() => {
-    if (result.status === "ready") onLease?.(result.lease);
-  }, [onLease, result]);
+    if (source.status === "ready") onLease?.(source.lease);
+  }, [onLease, source]);
+
   return (
     <>
       <output
-        data-error={result.status === "error" ? result.error : undefined}
-        data-request-key={result.status === "ready" ? result.lease.requestKey : undefined}
+        data-error={source.status === "error" ? source.error : undefined}
+        data-request-key={source.status === "ready" ? source.lease.requestKey : undefined}
       >
-        {result.status}
+        {source.status}
       </output>
-      <button onClick={release} type="button">
-        Release
+      <button onClick={source.retry} type="button">
+        Retry
       </button>
     </>
   );
 }
 
-async function render(
-  load: () => Promise<Blob>,
-  requestKey: string,
-  onRelease?: (release: () => void) => void,
-) {
+async function renderSource(overrides: Partial<HarnessProps> = {}) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  roots.push(root);
-  await act(async () => {
-    root.render(<Harness load={load} onRelease={onRelease} requestKey={requestKey} />);
-  });
-  return { container, root };
+  roots.add(root);
+  let props: HarnessProps = {
+    active: true,
+    archiveId: "archive-a",
+    archiveRootPath: "/archive-a",
+    bookId: "book-1",
+    loadBookFile: () => Promise.resolve(new Blob(["owned"])),
+    ...overrides,
+  };
+
+  const render = async () => {
+    await act(async () => root.render(<Harness {...props} />));
+  };
+  await render();
+
+  return {
+    container,
+    rerender: async (next: Partial<HarnessProps>) => {
+      props = { ...props, ...next };
+      await render();
+    },
+    unmount: () => {
+      if (!roots.delete(root)) return;
+      act(() => root.unmount());
+    },
+  };
 }
 
 beforeEach(() => {
@@ -83,57 +111,35 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  for (const root of roots.splice(0)) {
-    act(() => root.unmount());
-  }
+  for (const root of roots) act(() => root.unmount());
+  roots.clear();
   document.body.replaceChildren();
   performance.clearMarks(SOURCE_RELEASE_MARK);
   performance.clearMeasures(SESSION_TEARDOWN_MEASURE);
+  vi.restoreAllMocks();
 });
 
-describe("useReaderFileLoad", () => {
-  it("releases a ready Blob explicitly and remains idempotent", async () => {
-    let loads = 0;
-    const load = () => {
-      loads += 1;
-      return Promise.resolve(new Blob(["owned"]));
-    };
-    const { container } = await render(load, '["archive-a","book-1"]');
+describe("useReaderSource", () => {
+  it("owns source lookup and publishes an explicit file lease", async () => {
+    const loadBookFile = vi.fn(async (bookId: string) => new Blob([bookId]));
+    const { container } = await renderSource({ loadBookFile });
 
-    expect(container.textContent).toContain("ready");
-    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-1"]');
-
-    await act(async () => container.querySelector("button")?.click());
-    expect(container.textContent).toContain("released");
-    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
-
-    await act(async () => container.querySelector("button")?.click());
-    expect(container.textContent).toContain("released");
-    await act(async () => Promise.resolve());
-    expect(loads).toBe(1);
-    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
-    expect(performance.getEntriesByName(SESSION_TEARDOWN_MEASURE, "measure")).toHaveLength(0);
+    expect(loadBookFile).toHaveBeenCalledWith("book-1");
+    expect(container.querySelector("output")?.textContent).toBe("ready");
+    expect(container.querySelector("output")?.dataset.requestKey).toBe(
+      '["archive-a","/archive-a","book-1"]',
+    );
   });
 
-  it("keeps the ready file owner mounted after a session releases its source handoff", async () => {
+  it("keeps the lease active after a source handoff and reloads bytes on reacquisition", async () => {
     const blobs = [new Blob(["initial"]), new Blob(["replacement"])];
-    let loadIndex = 0;
-    const load = () => Promise.resolve(blobs[loadIndex++]!);
+    const loadBookFile = vi.fn(async () => blobs[loadBookFile.mock.calls.length - 1]!);
     let lease: ReaderFileLease | undefined;
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    const root = createRoot(container);
-    roots.push(root);
-    await act(async () => {
-      root.render(
-        <Harness
-          load={load}
-          onLease={(currentLease) => {
-            lease = currentLease;
-          }}
-          requestKey='["archive-a","book-1"]'
-        />,
-      );
+    const { container } = await renderSource({
+      loadBookFile,
+      onLease: (currentLease) => {
+        lease = currentLease;
+      },
     });
 
     const firstHandoff = await lease!.acquire();
@@ -142,141 +148,104 @@ describe("useReaderFileLoad", () => {
 
     const replacementHandoff = await lease!.acquire();
     expect(replacementHandoff.blob).toBe(blobs[1]);
-    expect(container.querySelector("output")?.textContent).toBe("ready");
-    expect(loadIndex).toBe(2);
+    expect(loadBookFile).toHaveBeenCalledTimes(2);
     replacementHandoff.release();
   });
 
-  it("releases an in-flight request without publishing or restarting its Blob", async () => {
+  it("does not publish a late source after the controller becomes inactive", async () => {
     const pending = deferred<Blob>();
-    let loads = 0;
-    const load = () => {
-      loads += 1;
-      return pending.promise;
-    };
-    const { container } = await render(load, '["archive-a","book-1"]');
+    const loadBookFile = vi.fn(() => pending.promise);
+    const rendered = await renderSource({ loadBookFile });
 
-    await act(async () => container.querySelector("button")?.click());
-    expect(container.textContent).toContain("released");
+    await rendered.rerender({ active: false });
     await act(async () => pending.resolve(new Blob(["late"])));
 
-    expect(container.textContent).toContain("released");
-    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
-    expect(loads).toBe(1);
+    expect(rendered.container.querySelector("output")?.textContent).toBe("inactive");
+    expect(loadBookFile).toHaveBeenCalledOnce();
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
   });
 
-  it("loads a new request key after releasing the previous owner", async () => {
-    const firstBlob = new Blob(["first"]);
-    const secondBlob = new Blob(["second"]);
-    const loadFirst = () => Promise.resolve(firstBlob);
-    const loadSecond = () => Promise.resolve(secondBlob);
-    const { container, root } = await render(loadFirst, '["archive-a","book-1"]');
-
-    await act(async () => container.querySelector("button")?.click());
-    expect(container.textContent).toContain("released");
-
-    await act(async () => {
-      root.render(<Harness load={loadSecond} requestKey='["archive-a","book-2"]' />);
-    });
-
-    expect(container.textContent).toContain("ready");
-    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-2"]');
-  });
-
-  it("does not let an older request release the current owner", async () => {
-    const releases: Array<() => void> = [];
-    const captureRelease = (release: () => void) => releases.push(release);
-    const { container, root } = await render(
-      () => Promise.resolve(new Blob(["first"])),
-      '["archive-a","book-1"]',
-      captureRelease,
-    );
-    const oldRelease = releases.at(-1);
-
-    await act(async () => {
-      root.render(
-        <Harness
-          load={() => Promise.resolve(new Blob(["current"]))}
-          onRelease={captureRelease}
-          requestKey='["archive-a","book-2"]'
-        />,
-      );
-    });
-    expect(container.querySelector("output")?.textContent).toBe("ready");
-
-    await act(async () => oldRelease?.());
-    expect(container.querySelector("output")?.textContent).toBe("ready");
-    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-2"]');
-  });
-
-  it("prevents a superseded book result from becoming active", async () => {
+  it("does not publish a superseded book result", async () => {
     const first = deferred<Blob>();
     const second = deferred<Blob>();
-    const loadFirst = () => first.promise;
-    const loadSecond = () => second.promise;
-    const { container, root } = await render(loadFirst, '["archive-a","book-a"]');
-
-    await act(async () => {
-      root.render(<Harness load={loadSecond} requestKey='["archive-a","book-b"]' />);
-    });
-    const firstBlob = new Blob(["first"]);
-    await act(async () => first.resolve(firstBlob));
-    expect(container.querySelector("output")?.textContent).toBe("loading");
-
-    const secondBlob = new Blob(["second"]);
-    await act(async () => second.resolve(secondBlob));
-    expect(container.querySelector("output")?.textContent).toBe("ready");
-    expect(container.querySelector("output")?.dataset.requestKey).toBe('["archive-a","book-b"]');
-  });
-
-  it("releases the previous active blob as soon as archive ownership changes", async () => {
-    const firstBlob = new Blob(["first"]);
-    const second = deferred<Blob>();
-    const { container, root } = await render(
-      () => Promise.resolve(firstBlob),
-      '["archive-a","book-1"]',
+    const loadBookFile = vi.fn((bookId: string) =>
+      bookId === "book-a" ? first.promise : second.promise,
     );
-    expect(container.querySelector("output")?.textContent).toBe("ready");
+    const rendered = await renderSource({ bookId: "book-a", loadBookFile });
 
-    await act(async () => {
-      root.render(<Harness load={() => second.promise} requestKey='["archive-b","book-1"]' />);
-    });
+    await rendered.rerender({ bookId: "book-b" });
+    await act(async () => first.resolve(new Blob(["first"])));
+    expect(rendered.container.querySelector("output")?.textContent).toBe("loading");
 
-    expect(container.querySelector("output")?.textContent).toBe("loading");
-    expect(container.querySelector("output")?.dataset.requestKey).toBeUndefined();
+    await act(async () => second.resolve(new Blob(["second"])));
+    expect(rendered.container.querySelector("output")?.textContent).toBe("ready");
+    expect(rendered.container.querySelector("output")?.dataset.requestKey).toBe(
+      '["archive-a","/archive-a","book-b"]',
+    );
   });
 
-  it("does not publish a cancelled result after reader teardown", async () => {
-    const pending = deferred<Blob>();
-    const { container, root } = await render(() => pending.promise, '["archive-a","book-1"]');
+  it("retires each ready lease exactly once on archive replacement and unmount", async () => {
+    const mark = vi.spyOn(performance, "mark");
+    const sourceReleaseCount = () =>
+      mark.mock.calls.filter(([name]) => name === SOURCE_RELEASE_MARK).length;
+    const loadBookFile = vi.fn(async (bookId: string) => new Blob([bookId]));
+    const rendered = await renderSource({ loadBookFile });
 
-    act(() => root.unmount());
+    await rendered.rerender({ archiveId: "archive-b", archiveRootPath: "/archive-b" });
+    await act(async () => Promise.resolve());
+    expect(sourceReleaseCount()).toBe(1);
+    expect(rendered.container.querySelector("output")?.textContent).toBe("ready");
+    expect(rendered.container.querySelector("output")?.dataset.requestKey).toBe(
+      '["archive-b","/archive-b","book-1"]',
+    );
+
+    rendered.unmount();
+    expect(sourceReleaseCount()).toBe(2);
+    expect(performance.getEntriesByName(SESSION_TEARDOWN_MEASURE, "measure")).toHaveLength(0);
+  });
+
+  it("does not publish a pending source after unmount", async () => {
+    const pending = deferred<Blob>();
+    const rendered = await renderSource({ loadBookFile: () => pending.promise });
+
+    rendered.unmount();
     await act(async () => pending.resolve(new Blob(["late"])));
 
-    expect(container.childElementCount).toBe(0);
+    expect(rendered.container.childElementCount).toBe(0);
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
   });
 
-  it("preserves an explicit native open error", async () => {
-    const { container } = await render(
-      () => Promise.reject(new Error("This EPUB exceeds Archeion's 256 MiB reader limit.")),
-      '["archive-a","book-1"]',
-    );
-
-    expect(container.querySelector("output")?.textContent).toBe("error");
-    expect(container.querySelector("output")?.dataset.error).toBe(
+  it("preserves the native size boundary while hiding unexpected native errors", async () => {
+    const oversized = await renderSource({
+      loadBookFile: () =>
+        Promise.reject(new Error("This EPUB exceeds Archeion's 256 MiB reader limit.")),
+    });
+    expect(oversized.container.querySelector("output")?.dataset.error).toBe(
       "This EPUB exceeds Archeion's 256 MiB reader limit.",
     );
-  });
+    oversized.unmount();
 
-  it("does not expose an unexpected native file error", async () => {
-    const { container } = await render(
-      () => Promise.reject(new Error("Access denied at C:\\Private\\Books\\Novel.epub")),
-      '["archive-a","book-1"]',
-    );
-
-    expect(container.querySelector("output")?.dataset.error).toBe(
+    const unexpected = await renderSource({
+      loadBookFile: () => Promise.reject(new Error("Access denied at C:\\Private\\Novel.epub")),
+    });
+    expect(unexpected.container.querySelector("output")?.dataset.error).toBe(
       "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.",
     );
-    expect(container.textContent).not.toContain("C:\\Private");
+    expect(unexpected.container.textContent).not.toContain("C:\\Private");
+  });
+
+  it("retries the same source after failure and publishes only the successful lease", async () => {
+    const loadBookFile = vi
+      .fn<() => Promise<Blob>>()
+      .mockRejectedValueOnce(new Error("temporary failure"))
+      .mockResolvedValueOnce(new Blob(["retry"]));
+    const { container } = await renderSource({ loadBookFile });
+
+    expect(container.querySelector("output")?.textContent).toBe("error");
+    await act(async () => container.querySelector("button")?.click());
+
+    expect(loadBookFile).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("output")?.textContent).toBe("ready");
+    expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(0);
   });
 });
