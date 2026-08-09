@@ -278,23 +278,24 @@ export function ReaderPage() {
     chapters: navigationState.chapters,
   });
   const {
-    confirmDraftPersisted,
+    close: closeNote,
     connectSurface: connectNoteSurface,
-    deleteNote,
-    draftFor: noteDraftFor,
-    editorHandleRef,
+    discard: discardNote,
+    edit: editNoteDraft,
+    editorStateFor: noteEditorStateFor,
+    handleEditorUnmount: handleNoteEditorUnmount,
     invalidateOpenRequests,
-    openAnnotationNote,
-    openSelectionNote,
-    saveNote,
+    open: openAnnotationNote,
+    openSelection: openSelectionNote,
+    save: saveNote,
     settle: settleNoteEditor,
-    updateDraft: updateNoteDraft,
   } = useReaderNoteSession({
     archiveId: activeArchiveId,
     bookId,
     claimNoteEditing: annotations.claimNoteEditing,
     ensureHighlight: highlights.ensure,
     publishNoteRemoved: annotations.publishNoteRemoved,
+    resolveCurrentAnnotation: annotations.resolveCurrentAnnotation,
     retireNoteRemoval: annotations.retireNoteRemoval,
     updateAnnotation: annotations.commands.update,
   });
@@ -351,11 +352,12 @@ export function ReaderPage() {
   useLayoutEffect(
     () =>
       connectNoteSurface({
+        closeTarget: returnNoteToAnnotations,
         getTarget: getNoteTarget,
         showTarget: showNoteTarget,
         updateTarget: updateNoteTarget,
       }),
-    [connectNoteSurface, getNoteTarget, showNoteTarget, updateNoteTarget],
+    [connectNoteSurface, getNoteTarget, returnNoteToAnnotations, showNoteTarget, updateNoteTarget],
   );
   const nextVolume = useReaderSeriesContinuation({
     book,
@@ -1067,22 +1069,16 @@ export function ReaderPage() {
                 searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
                 searchInputRef={annotationsSearchInputRef}
               />
-              {noteTarget ? (
+              {noteTarget && noteEditorStateFor(noteTarget) ? (
                 <ReaderNoteEditor
-                  annotation={noteTarget.annotation}
                   keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
                   key={noteTarget.editorKey}
-                  onBack={returnNoteToAnnotations}
-                  onDelete={(persistedAnnotation) => deleteNote(noteTarget, persistedAnnotation)}
-                  onDraftChange={(note) => updateNoteDraft(noteTarget, note)}
-                  onDraftPersisted={(note, expectedDraft) =>
-                    confirmDraftPersisted(noteTarget, note, expectedDraft)
-                  }
-                  onSave={(note, persistedAnnotation) =>
-                    saveNote(noteTarget, note, persistedAnnotation)
-                  }
-                  ref={editorHandleRef}
-                  restoredDraft={noteDraftFor(noteTarget)?.text}
+                  onBack={() => void closeNote(noteTarget)}
+                  onDelete={() => void discardNote(noteTarget)}
+                  onDraftChange={(note) => editNoteDraft(noteTarget, note)}
+                  onRetry={() => void saveNote(noteTarget)}
+                  onUnmount={() => handleNoteEditorUnmount(noteTarget)}
+                  state={noteEditorStateFor(noteTarget)!}
                 />
               ) : null}
             </>

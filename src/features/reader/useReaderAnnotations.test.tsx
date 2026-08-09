@@ -148,6 +148,7 @@ describe("useReaderAnnotations facade", () => {
         publishNoteRemoved: expect.any(Function),
         queueAnchorUpdate: expect.any(Function),
         reload: expect.any(Function),
+        resolveCurrentAnnotation: expect.any(Function),
         retireNoteRemoval: expect.any(Function),
         remove: expect.any(Function),
         toggleCurrent: expect.any(Function),
@@ -155,13 +156,16 @@ describe("useReaderAnnotations facade", () => {
         updateLabel: expect.any(Function),
       }),
     );
+    let resolvedImmediately: Annotation | undefined;
     await act(async () => {
       await apiRef.current?.commands.create({
         cfiRange: created.cfiRange,
         label: created.label,
         type: "bookmark",
       });
+      resolvedImmediately = apiRef.current?.resolveCurrentAnnotation(created.id);
     });
+    expect(resolvedImmediately).toBe(created);
     expect(text("ids")).toBe("synced");
     expect(text("bookmarks")).toBe("synced");
     await act(async () => {

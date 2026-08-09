@@ -48,6 +48,7 @@ export function useReaderAnnotationCollection({
     items: [],
     session,
   });
+  const annotationCollectionRef = useRef(annotationCollection);
   const [loadState, setLoadState] = useState<AnnotationLoadState>({
     session,
     status: "loading",
@@ -82,13 +83,17 @@ export function useReaderAnnotationCollection({
       const loaded =
         session.archiveId && session.bookId ? await storage.listAnnotations(session.bookId) : [];
       if (!ownsLoad(request)) return false;
-      setAnnotationCollection({ items: loaded, session });
+      const nextCollection = { items: loaded, session };
+      annotationCollectionRef.current = nextCollection;
+      setAnnotationCollection(nextCollection);
       setLoadErrorSession(undefined);
       setLoadState({ session, status: "ready" });
       return true;
     } catch {
       if (!ownsLoad(request)) return false;
-      setAnnotationCollection({ items: [], session });
+      const nextCollection = { items: [], session };
+      annotationCollectionRef.current = nextCollection;
+      setAnnotationCollection(nextCollection);
       setLoadErrorSession(session);
       setLoadState({ session, status: "error" });
       return false;
@@ -120,13 +125,16 @@ export function useReaderAnnotationCollection({
   const sync = useCallback(
     (annotation: Annotation) => {
       if (!isCurrentSession(session)) return;
-      setAnnotationCollection((current) => ({
+      const current = annotationCollectionRef.current;
+      const nextCollection = {
         items: upsertReaderAnnotation(
           sameReaderAnnotationSession(current.session, session) ? current.items : [],
           annotation,
         ),
         session,
-      }));
+      };
+      annotationCollectionRef.current = nextCollection;
+      setAnnotationCollection(nextCollection);
     },
     [isCurrentSession, session],
   );
@@ -134,14 +142,25 @@ export function useReaderAnnotationCollection({
   const forget = useCallback(
     (annotationId: string) => {
       if (!isCurrentSession(session)) return;
-      setAnnotationCollection((current) =>
-        sameReaderAnnotationSession(current.session, session)
-          ? {
-              ...current,
-              items: current.items.filter((candidate) => candidate.id !== annotationId),
-            }
-          : current,
-      );
+      const current = annotationCollectionRef.current;
+      if (!sameReaderAnnotationSession(current.session, session)) return;
+      const nextCollection = {
+        ...current,
+        items: current.items.filter((candidate) => candidate.id !== annotationId),
+      };
+      annotationCollectionRef.current = nextCollection;
+      setAnnotationCollection(nextCollection);
+    },
+    [isCurrentSession, session],
+  );
+
+  const resolveCurrentAnnotation = useCallback(
+    (annotationId: string) => {
+      const current = annotationCollectionRef.current;
+      if (!isCurrentSession(session) || !sameReaderAnnotationSession(current.session, session)) {
+        return undefined;
+      }
+      return current.items.find((annotation) => annotation.id === annotationId);
     },
     [isCurrentSession, session],
   );
@@ -158,6 +177,7 @@ export function useReaderAnnotationCollection({
     loadStatus,
     loadFailed: Boolean(loadErrorSession && sameReaderAnnotationSession(loadErrorSession, session)),
     reload,
+    resolveCurrentAnnotation,
     session,
     sync,
   };

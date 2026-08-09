@@ -1,550 +1,161 @@
 // @vitest-environment happy-dom
 
-import { act, createRef, type ComponentProps, type ReactElement } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { HighlightAnnotation } from "../../types/annotation";
-import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
-import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { ReaderNoteEditor } from "./ReaderNoteEditor";
+import type { ReaderNoteEditorState } from "./useReaderNoteSession";
 
-let root: Root | null = null;
-let container: HTMLDivElement | null = null;
-
-const annotation: HighlightAnnotation = {
-  id: "highlight-1",
-  type: "highlight",
-  cfiRange: "epubcfi(/6/2!/4/2:1)",
-  selectedText: "Passage",
-  color: "yellow",
-  note: "Original",
-  createdAt: "2026-01-01T00:00:00.000Z",
-  updatedAt: "2026-01-01T00:00:00.000Z",
+const baseState: ReaderNoteEditorState = {
+  deleting: false,
+  errorKind: null,
+  hasPersistedNote: true,
+  status: "idle",
+  text: "Existing note",
 };
 
-function deferred<T>() {
-  let resolve!: (value: T | PromiseLike<T>) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, reject, resolve };
-}
+let container: HTMLDivElement | null = null;
+let root: Root | null = null;
 
-afterEach(() => {
-  if (root) act(() => root?.unmount());
-  container?.remove();
-  root = null;
-  container = null;
-  vi.useRealTimers();
-});
-
-function createContainer() {
-  container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-  return container;
-}
-
-function defaultProps(): ComponentProps<typeof ReaderNoteEditor> {
+function props(overrides: Partial<React.ComponentProps<typeof ReaderNoteEditor>> = {}) {
   return {
-    annotation,
-    onBusyChange: vi.fn(),
     onBack: vi.fn(),
-    onDelete: vi.fn(async () => true),
-    onSave: vi.fn(async (note: string) => ({ ...annotation, note })),
+    onDelete: vi.fn(),
+    onDraftChange: vi.fn(),
+    onRetry: vi.fn(),
+    onUnmount: vi.fn(),
+    state: baseState,
+    ...overrides,
   };
 }
 
-function renderElement(element: ReactElement) {
-  const target = container ?? createContainer();
-  act(() =>
-    root?.render(<ReaderSideSurfaceLayer onDismiss={vi.fn()}>{element}</ReaderSideSurfaceLayer>),
+async function renderEditor(componentProps: React.ComponentProps<typeof ReaderNoteEditor>) {
+  container ??= document.body.appendChild(document.createElement("div"));
+  root ??= createRoot(container);
+  await act(async () => root?.render(<ReaderNoteEditor {...componentProps} />));
+}
+
+function clickButton(label: string) {
+  const button = [...(container?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+    (candidate) => candidate.textContent?.trim() === label,
   );
-  return target;
+  if (!button) throw new Error(`Expected button labeled ${label}.`);
+  act(() => button.click());
 }
 
-function renderEditor(overrides: Partial<ComponentProps<typeof ReaderNoteEditor>> = {}) {
-  const props = { ...defaultProps(), ...overrides };
-  const target = renderElement(<ReaderNoteEditor {...props} />);
-  return { container: target, props };
-}
-
-function enterText(target: HTMLElement, text: string) {
-  const textarea = target.querySelector<HTMLTextAreaElement>("textarea");
-  if (!textarea) throw new Error("Note textarea was not rendered.");
-  act(() => {
-    const setValue = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-    setValue?.call(textarea, text);
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
-
-function button(target: HTMLElement, label: string): HTMLButtonElement {
-  const match = Array.from(target.querySelectorAll<HTMLButtonElement>("button")).find(
-    (candidate) =>
-      candidate.getAttribute("aria-label") === label || candidate.textContent?.trim() === label,
-  );
-  if (!match) throw new Error(`Button ${label} was not rendered.`);
-  return match;
-}
-
-async function click(target: HTMLElement, label: string) {
-  await act(async () => button(target, label).click());
-}
-
-async function confirmDelete(target: HTMLElement) {
-  await click(target, "Delete note");
-  await click(target, "Delete");
-}
-
-function pointerPair(target: HTMLElement, pointerId = 1) {
-  act(() => {
-    target.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId }));
-    target.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, pointerId }));
-  });
-}
+afterEach(async () => {
+  const mountedRoot = root;
+  root = null;
+  await act(async () => mountedRoot?.unmount());
+  container?.remove();
+  container = null;
+  vi.restoreAllMocks();
+});
 
 describe("ReaderNoteEditor", () => {
-  it("explains that closing an empty fresh note keeps its new highlight", async () => {
-    const freshHighlight = { ...annotation, note: undefined };
-    const { container: target, props } = renderEditor({
-      annotation: freshHighlight,
-      keepsHighlightOnEmptyClose: true,
-    });
-
-    expect(target.textContent).toContain("Closing without a note keeps the highlight.");
-    await click(target, "Back to annotations");
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onDelete).not.toHaveBeenCalled();
-    expect(props.onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("autosaves only after the debounce while preserving editor geometry", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-    enterText(target, "Updated note");
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    await act(async () => vi.advanceTimersByTimeAsync(649));
-    expect(props.onSave).not.toHaveBeenCalled();
-    await act(async () => vi.advanceTimersByTimeAsync(1));
-
-    expect(props.onSave).toHaveBeenCalledWith("Updated note", annotation);
-    expect(target.querySelector(".reader-side-panel.reader-note-editor")).not.toBeNull();
-    expect(target.querySelector(".reader-side-panel__header")?.textContent).toContain("Note");
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
-    expect(target.querySelector(".reader-note-editor__status")).toBeInstanceOf(HTMLDivElement);
-    expect(target.querySelector(".reader-note-editor__footer")).toBeInstanceOf(HTMLElement);
-  });
-
-  it("restores a cached draft as unsaved work and updates its owner before debounce", async () => {
-    const editorRef = createRef<ReaderNoteEditorHandle>();
+  it("renders session-owned text and publishes edits without owning a draft", async () => {
     const onDraftChange = vi.fn();
-    const props = { ...defaultProps(), onDraftChange };
-    const target = renderElement(
-      <ReaderNoteEditor {...props} ref={editorRef} restoredDraft="Recovered draft" />,
-    );
-    const field = target.querySelector<HTMLTextAreaElement>("textarea")!;
+    await renderEditor(props({ onDraftChange }));
 
-    expect(field.value).toBe("Recovered draft");
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Draft restored");
-
-    enterText(target, "Recovered and edited");
-    expect(onDraftChange).toHaveBeenCalledWith("Recovered and edited");
-    expect(props.onSave).not.toHaveBeenCalled();
-
-    await act(async () => {
-      expect(await editorRef.current?.settle()).toBe(true);
-    });
-    expect(props.onSave).toHaveBeenCalledWith("Recovered and edited", annotation);
-  });
-
-  it("retires a draft immediately when text returns to the persisted value", async () => {
-    vi.useFakeTimers();
-    const persisted = { ...annotation, note: "Original note" };
-    const onDraftChange = vi.fn();
-    const onDraftPersisted = vi.fn();
-    const { container: target, props } = renderEditor({
-      annotation: persisted,
-      onDraftChange,
-      onDraftPersisted,
-    });
-
-    enterText(target, "Temporary edit");
-    expect(onDraftChange).toHaveBeenLastCalledWith("Temporary edit");
-
-    enterText(target, "Original note");
-    expect(onDraftPersisted).toHaveBeenLastCalledWith("Original note", "Temporary edit");
-    expect(onDraftChange).toHaveBeenCalledTimes(1);
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Changes save automatically",
-    );
-
-    await act(async () => vi.runAllTimersAsync());
-    expect(props.onSave).not.toHaveBeenCalled();
-  });
-
-  it("retires a restored draft that already matches persistence without restored status", async () => {
-    const editorRef = createRef<ReaderNoteEditorHandle>();
-    const persisted = { ...annotation, note: "Original note" };
-    const onDraftPersisted = vi.fn();
-    const props = { ...defaultProps(), annotation: persisted, onDraftPersisted };
-    const target = renderElement(
-      <ReaderNoteEditor {...props} ref={editorRef} restoredDraft="Original note" />,
-    );
-
-    expect(target.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Original note");
-    expect(target.querySelector("[role=status]")?.textContent).not.toContain("Draft restored");
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Changes save automatically",
-    );
-    expect(onDraftPersisted).toHaveBeenCalledWith("Original note", "Original note");
-
-    await act(async () => {
-      expect(await editorRef.current?.settle()).toBe(true);
-    });
-    expect(props.onSave).not.toHaveBeenCalled();
-  });
-
-  it("coalesces a rapid editing burst into one final note write", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-
-    for (let index = 1; index <= 50; index += 1) {
-      enterText(target, `Draft ${index}`);
-    }
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-
-    expect(props.onSave).toHaveBeenCalledTimes(1);
-    expect(props.onSave).toHaveBeenCalledWith("Draft 50", annotation);
-  });
-
-  it("flushes a pending edit before closing without a duplicate timer save", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-    enterText(target, "Close-safe note");
-
-    await click(target, "Back to annotations");
-    await act(async () => vi.runAllTimersAsync());
-
-    expect(props.onSave).toHaveBeenCalledTimes(1);
-    expect(props.onSave).toHaveBeenCalledWith("Close-safe note", annotation);
-    expect(props.onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("exposes an awaited flush that keeps a failed draft visible and retryable", async () => {
-    const editorRef = createRef<ReaderNoteEditorHandle>();
-    const onSave = vi
-      .fn()
-      .mockResolvedValueOnce(undefined)
-      .mockImplementationOnce(async (note: string) => ({ ...annotation, note }));
-    const props = { ...defaultProps(), onSave };
-    const target = renderElement(<ReaderNoteEditor {...props} ref={editorRef} />);
-    enterText(target, "Await this note");
-
-    let flushed = true;
-    await act(async () => {
-      flushed = (await editorRef.current?.settle()) ?? true;
-    });
-
-    expect(flushed).toBe(false);
-    expect(props.onBack).not.toHaveBeenCalled();
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved. Retry.");
-    expect(target.querySelector("[role=status]")?.getAttribute("aria-live")).toBe("assertive");
-    expect(button(target, "Retry")).toBeInstanceOf(HTMLButtonElement);
-
-    await click(target, "Retry");
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
-  });
-
-  it("does not duplicate a controlled flush during the later unmount fallback", async () => {
-    const editorRef = createRef<ReaderNoteEditorHandle>();
-    const props = defaultProps();
-    const target = renderElement(<ReaderNoteEditor {...props} ref={editorRef} />);
-    enterText(target, "Persist once");
-
-    await act(async () => {
-      expect(await editorRef.current?.settle()).toBe(true);
-    });
-    act(() => {
-      root?.unmount();
-      root = null;
-    });
-    await act(async () => Promise.resolve());
-
-    expect(props.onSave).toHaveBeenCalledTimes(1);
-  });
-
-  it("flushes a meaningful pending draft when unmounted", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-    enterText(target, "Unmount-safe note");
-
-    await act(async () => {
-      root?.unmount();
-      root = null;
-      await Promise.resolve();
-    });
-
-    expect(props.onSave).toHaveBeenCalledTimes(1);
-    expect(props.onSave).toHaveBeenCalledWith("Unmount-safe note", annotation);
-  });
-
-  it("flushes the previous editor session when another note replaces it", async () => {
-    vi.useFakeTimers();
-    const firstProps = defaultProps();
-    const second = { ...annotation, id: "highlight-2", note: "Second" };
-    const secondProps = { ...defaultProps(), annotation: second };
-    const target = renderElement(<ReaderNoteEditor key="first" {...firstProps} />);
-    enterText(target, "First pending draft");
-
-    await act(async () => {
-      root?.render(<ReaderNoteEditor key="second" {...secondProps} />);
-      await Promise.resolve();
-    });
-
-    expect(firstProps.onSave).toHaveBeenCalledTimes(1);
-    expect(firstProps.onSave).toHaveBeenCalledWith("First pending draft", annotation);
-    expect(secondProps.onSave).not.toHaveBeenCalled();
-  });
-
-  it("serializes saves and persists the newest draft after an active save", async () => {
-    vi.useFakeTimers();
-    const firstSave = deferred<HighlightAnnotation | undefined>();
-    const onSave = vi
-      .fn()
-      .mockImplementationOnce(() => firstSave.promise)
-      .mockImplementationOnce(async (note: string) => ({ ...annotation, note }));
-    const { container: target } = renderEditor({ onSave });
-
-    enterText(target, "First draft");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    expect(onSave).toHaveBeenCalledTimes(1);
-
-    enterText(target, "Newest draft");
-    await act(async () => firstSave.resolve({ ...annotation, note: "First draft" }));
-
-    expect(onSave).toHaveBeenCalledTimes(2);
-    expect(onSave.mock.calls[1]?.[0]).toBe("Newest draft");
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
-  });
-
-  it("does not let an older completion mark a newer draft as saved", async () => {
-    vi.useFakeTimers();
-    const firstSave = deferred<HighlightAnnotation | undefined>();
-    const secondSave = deferred<HighlightAnnotation | undefined>();
-    const onSave = vi
-      .fn()
-      .mockImplementationOnce(() => firstSave.promise)
-      .mockImplementationOnce(() => secondSave.promise);
-    const { container: target } = renderEditor({ onSave });
-
-    enterText(target, "First draft");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    enterText(target, "Second draft");
-    await act(async () => firstSave.resolve({ ...annotation, note: "First draft" }));
-
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saving");
-    await act(async () => secondSave.resolve({ ...annotation, note: "Second draft" }));
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
-  });
-
-  it("keeps the latest failed save visible and retryable", async () => {
-    vi.useFakeTimers();
-    const onSave = vi
-      .fn()
-      .mockResolvedValueOnce(undefined)
-      .mockImplementationOnce(async (note: string) => ({ ...annotation, note }));
-    const { container: target } = renderEditor({ onSave });
-    enterText(target, "Retry this note");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Not saved");
-    await click(target, "Retry");
-
-    expect(onSave).toHaveBeenCalledTimes(2);
-    expect(onSave.mock.calls[1]?.[0]).toBe("Retry this note");
-    expect(target.querySelector("[role=status]")?.textContent).toContain("Saved");
-  });
-
-  it("does not publish completion callbacks after unmount", async () => {
-    vi.useFakeTimers();
-    const pending = deferred<HighlightAnnotation | undefined>();
-    const onBusyChange = vi.fn();
-    const { container: target } = renderEditor({
-      onBusyChange,
-      onSave: vi.fn(() => pending.promise),
-    });
-    enterText(target, "Pending during unmount");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    expect(onBusyChange).toHaveBeenLastCalledWith(true);
+    const textarea = container?.querySelector<HTMLTextAreaElement>("textarea");
+    expect(textarea?.value).toBe("Existing note");
 
     act(() => {
-      root?.unmount();
-      root = null;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+      setter?.call(textarea, "Edited note");
+      textarea?.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    const callsBeforeCompletion = onBusyChange.mock.calls.length;
-    await act(async () => pending.resolve({ ...annotation, note: "Pending during unmount" }));
 
-    expect(onBusyChange).toHaveBeenCalledTimes(callsBeforeCompletion);
+    expect(onDraftChange).toHaveBeenCalledOnce();
+    expect(onDraftChange).toHaveBeenCalledWith("Edited note");
+    expect(textarea?.value).toBe("Existing note");
   });
 
-  it("requires explicit deletion when an existing note is cleared", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-    enterText(target, "");
-    await act(async () => vi.runAllTimersAsync());
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Use Delete note to remove it.",
+  it("renders save failure state and delegates retry", async () => {
+    const onRetry = vi.fn();
+    await renderEditor(
+      props({
+        onRetry,
+        state: { ...baseState, errorKind: "save", status: "error" },
+      }),
     );
-    expect(button(target, "Delete note").disabled).toBe(false);
 
-    await click(target, "Back to annotations");
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(container?.querySelector('[role="status"]')?.textContent).toContain("Not saved. Retry.");
+    clickButton("Retry");
+    expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  it("waits for a pending existing-note update before deleting the updated record", async () => {
-    vi.useFakeTimers();
-    const update = deferred<HighlightAnnotation | undefined>();
-    const updated = { ...annotation, note: "Updated before delete" };
-    const onSave = vi.fn(() => update.promise);
-    const onDelete = vi.fn(async () => true);
-    const { container: target } = renderEditor({ onDelete, onSave });
+  it("confirms deletion before delegating discard", async () => {
+    const onDelete = vi.fn();
+    await renderEditor(props({ onDelete }));
 
-    enterText(target, "Updated before delete");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    await click(target, "Delete note");
-    await act(async () => {
-      button(target, "Delete").click();
-      await Promise.resolve();
-    });
-
+    clickButton("Delete note");
+    expect(container?.querySelector('[role="group"]')?.textContent).toContain("Delete this note?");
     expect(onDelete).not.toHaveBeenCalled();
-    await act(async () => update.resolve(updated));
-    expect(onDelete).toHaveBeenCalledWith(updated);
+
+    clickButton("Delete");
+    expect(onDelete).toHaveBeenCalledOnce();
   });
 
-  it("does not recreate a note after deletion and deduplicates repeated confirmation", async () => {
-    vi.useFakeTimers();
-    const deletion = deferred<boolean>();
-    const onDelete = vi.fn(() => deletion.promise);
-    const { container: target, props } = renderEditor({ onDelete });
+  it("cancels deletion confirmation without closing the note", async () => {
+    const onBack = vi.fn();
+    await renderEditor(props({ onBack }));
 
-    await click(target, "Delete note");
-    await act(async () => {
-      const confirm = button(target, "Delete");
-      confirm.click();
-      confirm.click();
-      await Promise.resolve();
-    });
-    expect(onDelete).toHaveBeenCalledTimes(1);
+    clickButton("Delete note");
+    clickButton("Cancel");
 
-    await act(async () => deletion.resolve(true));
-    await act(async () => vi.runAllTimersAsync());
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(container?.querySelector('[role="group"]')).toBeNull();
+    expect(onBack).not.toHaveBeenCalled();
   });
 
-  it("keeps the editor open with visible feedback when deletion fails", async () => {
-    const { container: target, props } = renderEditor({ onDelete: vi.fn(async () => false) });
-
-    await confirmDelete(target);
-
-    expect(props.onBack).toHaveBeenCalledTimes(1);
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Note could not be deleted.",
+  it("disables editing and navigation while deletion is pending", async () => {
+    const onBack = vi.fn();
+    await renderEditor(
+      props({
+        onBack,
+        state: { ...baseState, deleting: true },
+      }),
     );
-    expect(target.querySelector("textarea")).toBeInstanceOf(HTMLTextAreaElement);
-  });
 
-  it("settles a pending confirmed deletion before external close", async () => {
-    const editorRef = createRef<ReaderNoteEditorHandle>();
-    const deletion = deferred<boolean>();
-    const onDelete = vi.fn(() => deletion.promise);
-    const props = { ...defaultProps(), onDelete };
-    const target = renderElement(<ReaderNoteEditor {...props} ref={editorRef} />);
-
-    await click(target, "Delete note");
-    act(() => button(target, "Delete").click());
-
-    let settled: boolean | undefined;
-    const settlement = editorRef.current?.settle().then((result) => {
-      settled = result;
-    });
-    await act(async () => Promise.resolve());
-
-    expect(onDelete).toHaveBeenCalledTimes(1);
-    expect(settled).toBeUndefined();
-
-    await act(async () => deletion.resolve(false));
-    await act(async () => settlement);
-
-    expect(settled).toBe(false);
-    expect(props.onBack).toHaveBeenCalledTimes(1);
-    expect(target.querySelector("[role=status]")?.textContent).toContain(
-      "Note could not be deleted.",
+    expect(container?.querySelector("[aria-busy='true']")).not.toBeNull();
+    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.disabled).toBe(true);
+    const back = container?.querySelector<HTMLButtonElement>(
+      'button[aria-label="Back to annotations"]',
     );
+    act(() => back?.click());
+    expect(onBack).not.toHaveBeenCalled();
   });
 
-  it("flushes and closes through Escape", async () => {
-    vi.useFakeTimers();
-    const { container: target, props } = renderEditor();
-    enterText(target, "Escape-safe note");
+  it("explains empty fresh-note close behavior", async () => {
+    await renderEditor(
+      props({
+        keepsHighlightOnEmptyClose: true,
+        state: {
+          ...baseState,
+          hasPersistedNote: false,
+          text: "",
+        },
+      }),
+    );
 
-    await act(async () => {
-      target
-        .querySelector(".reader-note-editor")
-        ?.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Escape" }));
-    });
-
-    expect(props.onSave).not.toHaveBeenCalled();
-    expect(props.onBack).toHaveBeenCalledTimes(1);
+    expect(container?.querySelector('[role="status"]')?.textContent).toContain(
+      "Closing without a note keeps the highlight.",
+    );
+    expect(
+      [...(container?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+        (button) => button.textContent?.trim() === "Delete note",
+      )?.disabled,
+    ).toBe(true);
   });
 
-  it("dismisses delete confirmation before using Escape as Back", async () => {
-    const { container: target, props } = renderEditor();
-    await click(target, "Delete note");
-    const editor = target.querySelector(".reader-note-editor")!;
-    const confirmDeleteButton = button(target, "Delete");
-    expect(document.activeElement).toBe(confirmDeleteButton);
+  it("reports editor unmount exactly once", async () => {
+    const onUnmount = vi.fn();
+    await renderEditor(props({ onUnmount }));
 
-    act(() => {
-      confirmDeleteButton.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
-      );
-    });
+    await act(async () => root?.unmount());
+    root = null;
 
-    expect(target.textContent).not.toContain("Delete this note?");
-    expect(props.onBack).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(button(target, "Delete note"));
-
-    await act(async () => {
-      editor.dispatchEvent(
-        new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "Escape" }),
-      );
-    });
-
-    expect(props.onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("dismisses delete confirmation before using an outside click as Back", async () => {
-    const { container: target, props } = renderEditor();
-    await click(target, "Delete note");
-    const layer = target.querySelector<HTMLElement>(".reader-side-surface-layer")!;
-
-    pointerPair(layer);
-    expect(target.textContent).not.toContain("Delete this note?");
-    expect(props.onBack).not.toHaveBeenCalled();
-    expect(document.activeElement).toBe(button(target, "Delete note"));
-
-    pointerPair(layer, 2);
-    expect(props.onBack).toHaveBeenCalledOnce();
+    expect(onUnmount).toHaveBeenCalledOnce();
   });
 });

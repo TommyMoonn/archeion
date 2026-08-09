@@ -1,25 +1,17 @@
 // @vitest-environment happy-dom
 
-import {
-  act,
-  useCallback,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type MutableRefObject,
-} from "react";
+import { act, useLayoutEffect, useRef, useState, type MutableRefObject } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderTextSelection } from "./EpubViewer";
-import { ReaderNoteEditor, type ReaderNoteEditorHandle } from "./ReaderNoteEditor";
+import { ReaderNoteEditor } from "./ReaderNoteEditor";
 import type { ReaderAnnotationCommandSurface } from "./useReaderAnnotationMutations";
 import { useReaderNoteSession, type ReaderNoteTarget } from "./useReaderNoteSession";
 
 type NoteSessionApi = ReturnType<typeof useReaderNoteSession>;
+type UpdateCommand = ReaderAnnotationCommandSurface["update"];
 
 function highlight(id: string, changes: Partial<HighlightAnnotation> = {}): HighlightAnnotation {
   return {
@@ -52,208 +44,102 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-function useAnnotationUpdateCommand({
-  archiveId,
-  bookId,
-  storage,
-  syncAnnotation,
-}: {
-  archiveId: string;
-  bookId: string;
-  storage: LibraryStorage;
-  syncAnnotation: (annotation: Annotation) => void;
-}): ReaderAnnotationCommandSurface["update"] {
-  const owner = useMemo(
-    () => ({ archiveId, bookId, token: Symbol("note-mutation-test") }),
-    [archiveId, bookId],
-  );
-  const ownerRef = useRef<typeof owner | null>(owner);
-  useLayoutEffect(() => {
-    ownerRef.current = owner;
-    return () => {
-      if (ownerRef.current === owner) ownerRef.current = null;
-    };
-  }, [owner]);
-  return useCallback(
-    async (command) => {
-      try {
-        const annotation =
-          command.annotationType === "bookmark"
-            ? await storage.updateBookmarkAnnotation(bookId, command.annotation.id, command.changes)
-            : await storage.updateHighlightAnnotation(
-                bookId,
-                command.annotation.id,
-                command.changes,
-              );
-        if (ownerRef.current !== owner) return { status: "retired" };
-        if (!annotation) return { status: "failed" };
-        syncAnnotation(annotation);
-        return { annotation, status: "accepted" };
-      } catch {
-        return ownerRef.current === owner ? { status: "failed" } : { status: "retired" };
-      }
-    },
-    [bookId, owner, storage, syncAnnotation],
-  );
+function accepted(annotation: HighlightAnnotation): Awaited<ReturnType<UpdateCommand>> {
+  return { annotation, status: "accepted" };
 }
 
 type HarnessProps = {
   apiRef: MutableRefObject<NoteSessionApi | undefined>;
-  archiveId: string;
-  bookId: string;
+  annotations?: readonly Annotation[];
+  archiveId?: string;
+  bookId?: string;
   claimNoteEditing?: (annotationId: string) => boolean;
-  editor: ReaderNoteEditorHandle;
-  ensureHighlight: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
+  editorVisible?: boolean;
+  ensureHighlight?: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
+  onClose?: () => void;
+  onTargetUpdate?: (target: ReaderNoteTarget) => void;
   publishNoteRemoved?: (annotation: HighlightAnnotation) => void;
+  resolveCurrentAnnotation?: (annotationId: string) => Annotation | undefined;
   retireNoteRemoval?: (annotationId: string) => void;
-  storage: LibraryStorage;
-  syncAnnotation: (annotation: Annotation) => void;
   targetRef: MutableRefObject<ReaderNoteTarget | null>;
+  updateAnnotation: UpdateCommand;
 };
 
 function Harness({
   apiRef,
-  archiveId,
-  bookId,
+  annotations = [],
+  archiveId = "archive-a",
+  bookId = "book-a",
   claimNoteEditing = () => true,
-  editor,
-  ensureHighlight,
-  publishNoteRemoved = () => undefined,
-  retireNoteRemoval = () => undefined,
-  storage,
-  syncAnnotation,
-  targetRef,
-}: HarnessProps) {
-  const [targetState, setTargetState] = useState<{
-    sessionKey: string;
-    target: ReaderNoteTarget;
-  } | null>(null);
-  const sessionKey = `${archiveId}:${bookId}`;
-  const visibleTarget = targetState?.sessionKey === sessionKey ? targetState.target : null;
-  const visibleTargetRef = useRef(visibleTarget);
-  const updateAnnotation = useAnnotationUpdateCommand({
-    archiveId,
-    bookId,
-    storage,
-    syncAnnotation,
-  });
-
-  const session = useReaderNoteSession({
-    archiveId,
-    bookId,
-    claimNoteEditing,
-    ensureHighlight,
-    publishNoteRemoved,
-    retireNoteRemoval,
-    updateAnnotation,
-  });
-
-  useLayoutEffect(() => {
-    visibleTargetRef.current = visibleTarget;
-    targetRef.current = visibleTarget;
-    session.editorHandleRef(editor);
-    const disconnect = session.connectSurface({
-      getTarget: () => visibleTargetRef.current,
-      showTarget: (target) => {
-        visibleTargetRef.current = target;
-        targetRef.current = target;
-        setTargetState({ sessionKey, target });
-      },
-      updateTarget: (target) => {
-        visibleTargetRef.current = target;
-        targetRef.current = target;
-        setTargetState({ sessionKey, target });
-      },
-    });
-    return () => {
-      disconnect();
-      session.editorHandleRef(null);
-    };
-  }, [editor, session, sessionKey, targetRef, visibleTarget]);
-
-  useLayoutEffect(() => {
-    apiRef.current = session;
-  }, [apiRef, session]);
-
-  return <span data-testid="target">{visibleTarget?.annotation.id}</span>;
-}
-
-type IntegratedHarnessProps = Omit<HarnessProps, "editor" | "targetRef"> & {
-  editorVisible?: boolean;
-  onTargetUpdate?: (target: ReaderNoteTarget) => void;
-  targetRef?: MutableRefObject<ReaderNoteTarget | null>;
-};
-
-function IntegratedHarness({
-  apiRef,
-  archiveId,
-  bookId,
-  claimNoteEditing = () => true,
-  ensureHighlight,
-  editorVisible = true,
+  editorVisible = false,
+  ensureHighlight = async () => undefined,
+  onClose = () => undefined,
   onTargetUpdate,
   publishNoteRemoved = () => undefined,
+  resolveCurrentAnnotation,
   retireNoteRemoval = () => undefined,
-  storage,
-  syncAnnotation,
   targetRef: externalTargetRef,
-}: IntegratedHarnessProps) {
+  updateAnnotation,
+}: HarnessProps) {
   const [target, setTarget] = useState<ReaderNoteTarget | null>(null);
   const targetRef = useRef(target);
-  const updateAnnotation = useAnnotationUpdateCommand({
-    archiveId,
-    bookId,
-    storage,
-    syncAnnotation,
-  });
   const session = useReaderNoteSession({
     archiveId,
     bookId,
     claimNoteEditing,
     ensureHighlight,
     publishNoteRemoved,
+    resolveCurrentAnnotation:
+      resolveCurrentAnnotation ??
+      ((annotationId) => annotations.find((annotation) => annotation.id === annotationId)),
     retireNoteRemoval,
     updateAnnotation,
   });
-  const { confirmDraftPersisted, connectSurface, deleteNote, editorHandleRef, saveNote } = session;
+  const editorState = target ? session.editorStateFor(target) : undefined;
 
   useLayoutEffect(() => {
     targetRef.current = target;
-    if (externalTargetRef) externalTargetRef.current = target;
-    return connectSurface({
+    externalTargetRef.current = target;
+    return session.connectSurface({
+      closeTarget: () => {
+        targetRef.current = null;
+        externalTargetRef.current = null;
+        setTarget(null);
+        onClose();
+      },
       getTarget: () => targetRef.current,
       showTarget: (nextTarget) => {
         targetRef.current = nextTarget;
-        if (externalTargetRef) externalTargetRef.current = nextTarget;
+        externalTargetRef.current = nextTarget;
         setTarget(nextTarget);
       },
       updateTarget: (nextTarget) => {
         onTargetUpdate?.(nextTarget);
         targetRef.current = nextTarget;
-        if (externalTargetRef) externalTargetRef.current = nextTarget;
+        externalTargetRef.current = nextTarget;
         setTarget(nextTarget);
       },
     });
-  }, [connectSurface, externalTargetRef, onTargetUpdate, target]);
+  }, [externalTargetRef, onClose, onTargetUpdate, session, target]);
 
   useLayoutEffect(() => {
     apiRef.current = session;
   }, [apiRef, session]);
 
-  return target && editorVisible ? (
+  return target && editorVisible && editorState ? (
     <ReaderNoteEditor
-      annotation={target.annotation}
       keepsHighlightOnEmptyClose={target.keepsHighlightOnEmptyClose}
       key={target.editorKey}
-      onBack={() => setTarget(null)}
-      onDelete={(persistedAnnotation) => deleteNote(target, persistedAnnotation)}
-      onDraftChange={(text) => session.updateDraft(target, text)}
-      onDraftPersisted={(text, expectedDraft) => confirmDraftPersisted(target, text, expectedDraft)}
-      onSave={(note, persistedAnnotation) => saveNote(target, note, persistedAnnotation)}
-      ref={editorHandleRef}
-      restoredDraft={session.draftFor(target)?.text}
+      onBack={() => void session.close(target)}
+      onDelete={() => void session.discard(target)}
+      onDraftChange={(text) => session.edit(target, text)}
+      onRetry={() => void session.save(target)}
+      onUnmount={() => session.handleEditorUnmount(target)}
+      state={editorState}
     />
-  ) : null;
+  ) : (
+    <span data-testid="target">{target?.annotation.id}</span>
+  );
 }
 
 let container: HTMLDivElement | null = null;
@@ -262,26 +148,10 @@ let root: Root | null = null;
 async function renderHarness(props: HarnessProps) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
-  await act(async () => {
-    root?.render(<Harness {...props} />);
-  });
+  await act(async () => root?.render(<Harness {...props} />));
 }
 
-async function renderIntegratedHarness(props: IntegratedHarnessProps) {
-  container ??= document.body.appendChild(document.createElement("div"));
-  root ??= createRoot(container);
-  await act(async () => {
-    root?.render(<IntegratedHarness {...props} />);
-  });
-}
-
-async function unmountHarness() {
-  const mountedRoot = root;
-  root = null;
-  await act(async () => mountedRoot?.unmount());
-}
-
-function setDraft(value: string) {
+function editDraft(value: string) {
   const field = container?.querySelector<HTMLTextAreaElement>("textarea");
   if (!field) throw new Error("Expected a note textarea.");
   act(() => {
@@ -291,783 +161,536 @@ function setDraft(value: string) {
   });
 }
 
-function storageWithUpdate(
-  updateHighlightAnnotation: LibraryStorage["updateHighlightAnnotation"],
-): LibraryStorage {
-  return { updateHighlightAnnotation } as LibraryStorage;
-}
-
 afterEach(async () => {
-  if (root) {
-    await act(async () => root?.unmount());
-  }
+  vi.useRealTimers();
+  const mountedRoot = root;
+  root = null;
+  await act(async () => mountedRoot?.unmount());
   container?.remove();
   container = null;
-  root = null;
   vi.restoreAllMocks();
 });
 
 describe("useReaderNoteSession", () => {
-  it("creates a highlight before opening a fresh note target and keeps the target highlight-owned", async () => {
+  it("creates a highlight before opening a fresh note target", async () => {
     const created = highlight("created");
-    const ensureHighlight = vi.fn(async () => created);
+    let authoritative: readonly Annotation[] = [];
+    const ensureHighlight = vi.fn(async () => {
+      authoritative = [created];
+      return created;
+    });
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
     await renderHarness({
       apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
       ensureHighlight,
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
       targetRef,
+      updateAnnotation: vi.fn(),
     });
 
-    await act(async () => {
-      apiRef.current?.openSelectionNote(selection("created"));
-    });
+    act(() => apiRef.current?.openSelection(selection("created")));
+    await act(async () => Promise.resolve());
 
     expect(ensureHighlight).toHaveBeenCalledWith(selection("created"));
     expect(targetRef.current?.annotation).toBe(created);
     expect(targetRef.current?.keepsHighlightOnEmptyClose).toBe(true);
-    expect(targetRef.current?.targetIdentity).toBe("annotation:created");
+    expect(targetRef.current?.targetIdentity).toBe(`annotation:${created.id}:${created.createdAt}`);
   });
 
-  it("opens an existing highlight without creating another annotation", async () => {
-    const existing = highlight("existing", { color: "rose", note: "Existing note" });
-    const ensureHighlight = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight,
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-
-    let opened = false;
-    await act(async () => {
-      opened = (await apiRef.current?.openAnnotationNote(existing)) ?? false;
-    });
-
-    expect(opened).toBe(true);
-    expect(ensureHighlight).not.toHaveBeenCalled();
-    expect(targetRef.current?.annotation).toBe(existing);
-    expect(targetRef.current?.keepsHighlightOnEmptyClose).toBe(false);
-  });
-
-  it("rejects only the exact note target when editing ownership cannot be claimed", async () => {
+  it("rejects opening a target whose note-editing ownership cannot be claimed", async () => {
     const blocked = highlight("blocked");
-    const allowed = highlight("allowed");
-    const claimNoteEditing = vi.fn((annotationId: string) => annotationId !== blocked.id);
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
     await renderHarness({
       apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      claimNoteEditing,
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
+      annotations: [blocked],
+      claimNoteEditing: () => false,
       targetRef,
+      updateAnnotation: vi.fn(),
     });
 
     await act(async () => {
-      await expect(apiRef.current!.openAnnotationNote(blocked)).resolves.toBe(false);
+      await expect(apiRef.current!.open(blocked)).resolves.toBe(false);
     });
-    expect(targetRef.current).toBeNull();
-
-    await act(async () => {
-      await expect(apiRef.current!.openAnnotationNote(allowed)).resolves.toBe(true);
-    });
-    expect(targetRef.current?.annotation).toBe(allowed);
-    expect(claimNoteEditing).toHaveBeenNthCalledWith(1, blocked.id);
-    expect(claimNoteEditing).toHaveBeenNthCalledWith(2, allowed.id);
-  });
-
-  it("retires note-removal feedback on the first owned replacement draft change", async () => {
-    const existing = highlight("replacement-draft");
-    const other = highlight("other-target");
-    const retireNoteRemoval = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      retireNoteRemoval,
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(existing);
-    });
-    const originalTarget = targetRef.current!;
-
-    expect(retireNoteRemoval).not.toHaveBeenCalled();
-    act(() => apiRef.current!.updateDraft(originalTarget, "Replacement note"));
-    expect(retireNoteRemoval).toHaveBeenCalledWith(existing.id);
-
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(other);
-    });
-    act(() => apiRef.current!.updateDraft(originalTarget, "Stale replacement"));
-    expect(retireNoteRemoval).toHaveBeenCalledTimes(1);
-  });
-
-  it("retires note-removal feedback after successful note persistence", async () => {
-    const existing = highlight("replacement-save");
-    const saved = { ...existing, note: "Replacement note" };
-    const retireNoteRemoval = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      retireNoteRemoval,
-      storage: storageWithUpdate(vi.fn(async () => saved)),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(existing);
-    });
-
-    await act(async () => {
-      await apiRef.current?.saveNote(targetRef.current!, "Replacement note", existing);
-    });
-
-    expect(retireNoteRemoval).toHaveBeenCalledWith(existing.id);
-  });
-
-  it("saves and deletes through the latest persisted highlight snapshot", async () => {
-    const original = highlight("note", { note: "Old" });
-    const latest = { ...original, color: "blue", updatedAt: "2026-07-14T01:00:00.000Z" };
-    const saved = {
-      ...latest,
-      note: "  New note\r\nline  ",
-      updatedAt: "2026-07-14T02:00:00.000Z",
-    };
-    const deleted = { ...saved, note: undefined, updatedAt: "2026-07-14T03:00:00.000Z" };
-    const update = vi.fn().mockResolvedValueOnce(saved).mockResolvedValueOnce(deleted);
-    const publishNoteRemoved = vi.fn();
-    const syncAnnotation = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      publishNoteRemoved,
-      storage: storageWithUpdate(update),
-      syncAnnotation,
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    const target = targetRef.current!;
-
-    await act(async () => {
-      await apiRef.current?.saveNote(target, "  New note\r\nline  ", latest);
-    });
-    expect(update).toHaveBeenNthCalledWith(1, "book-a", latest.id, {
-      note: "  New note\r\nline  ",
-    });
-    expect(targetRef.current?.annotation).toBe(saved);
-    expect(syncAnnotation).toHaveBeenCalledWith(saved);
-
-    await act(async () => {
-      expect(await apiRef.current?.deleteNote(targetRef.current!, saved)).toBe(true);
-    });
-    expect(update).toHaveBeenNthCalledWith(2, "book-a", saved.id, { note: undefined });
-    expect(syncAnnotation).toHaveBeenLastCalledWith(deleted);
-    expect(publishNoteRemoved).toHaveBeenCalledWith(saved);
-  });
-
-  it("publishes note removal only after authoritative storage success", async () => {
-    const original = highlight("publish-after-success", { note: "Original note" });
-    const deleted = { ...original, note: undefined };
-    const pendingDelete = deferred<HighlightAnnotation | undefined>();
-    const publishNoteRemoved = vi.fn();
-    const syncAnnotation = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      publishNoteRemoved,
-      storage: storageWithUpdate(vi.fn(() => pendingDelete.promise)),
-      syncAnnotation,
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-
-    let deletion!: Promise<boolean>;
-    act(() => {
-      deletion = apiRef.current!.deleteNote(targetRef.current!, original);
-    });
-    expect(publishNoteRemoved).not.toHaveBeenCalled();
-
-    await act(async () => pendingDelete.resolve(deleted));
-    await expect(deletion).resolves.toBe(true);
-    expect(syncAnnotation).toHaveBeenCalledWith(deleted);
-    expect(publishNoteRemoved).toHaveBeenCalledWith(original);
-  });
-
-  it("invalidates a pending open when the book or archive session changes", async () => {
-    const pending = deferred<HighlightAnnotation | undefined>();
-    const ensureHighlight = vi.fn(() => pending.promise);
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const common = {
-      apiRef,
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight,
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    };
-    await renderHarness({ ...common, archiveId: "archive-a", bookId: "book-a" });
-    await act(async () => apiRef.current?.openSelectionNote(selection("stale")));
-
-    await renderHarness({ ...common, archiveId: "archive-b", bookId: "book-b" });
-    await act(async () => pending.resolve(highlight("stale")));
 
     expect(targetRef.current).toBeNull();
   });
 
-  it("rejects stale save and delete completions from another editor or session", async () => {
-    const original = highlight("original", { note: "Old" });
-    const other = highlight("other", { note: "Other" });
-    const pendingSave = deferred<HighlightAnnotation | undefined>();
-    const pendingDelete = deferred<HighlightAnnotation | undefined>();
-    const update = vi
-      .fn()
-      .mockImplementationOnce(() => pendingSave.promise)
-      .mockImplementationOnce(() => pendingDelete.promise);
-    const publishNoteRemoved = vi.fn();
-    const syncAnnotation = vi.fn();
+  it("rejects a save when the authoritative annotation was replaced with the same ID", async () => {
+    const original = highlight("replaced-save", { note: "Original note" });
+    const replacement = highlight("replaced-save", {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      note: "Replacement note",
+    });
+    let authoritative: readonly Annotation[] = [original];
+    const updateAnnotation = vi.fn<UpdateCommand>();
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const common = {
+    await renderHarness({
       apiRef,
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      publishNoteRemoved,
-      storage: storageWithUpdate(update),
-      syncAnnotation,
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
       targetRef,
-    };
-    await renderHarness({ ...common, archiveId: "archive-a", bookId: "book-a" });
+      updateAnnotation,
+    });
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+      await apiRef.current?.open(original);
     });
     const staleTarget = targetRef.current!;
-    let saveResult: HighlightAnnotation | undefined;
-    await act(async () => {
-      const promise = apiRef.current?.saveNote(staleTarget, "New", original);
-      await apiRef.current?.openAnnotationNote(other);
-      pendingSave.resolve({ ...original, note: "New" });
-      saveResult = await promise;
-    });
-    expect(saveResult).toBeUndefined();
-    expect(syncAnnotation).toHaveBeenCalledWith({ ...original, note: "New" });
-    expect(targetRef.current?.annotation.id).toBe("other");
-    syncAnnotation.mockClear();
+    act(() => apiRef.current?.edit(staleTarget, "Stale note draft"));
+    authoritative = [replacement];
 
-    const activeTarget = targetRef.current!;
-    let deleteResult = true;
-    let deletePromise: Promise<boolean> | undefined;
     await act(async () => {
-      deletePromise = apiRef.current?.deleteNote(activeTarget, other);
+      await expect(apiRef.current!.save(staleTarget)).resolves.toBe(false);
     });
-    await renderHarness({ ...common, archiveId: "archive-b", bookId: "book-b" });
-    await act(async () => {
-      pendingDelete.resolve({ ...other, note: undefined });
-      deleteResult = (await deletePromise) ?? true;
-    });
-    expect(deleteResult).toBe(false);
-    expect(syncAnnotation).not.toHaveBeenCalled();
-    expect(publishNoteRemoved).not.toHaveBeenCalled();
+
+    expect(updateAnnotation).not.toHaveBeenCalled();
+    expect(replacement.note).toBe("Replacement note");
     expect(targetRef.current).toBeNull();
   });
 
-  it("persists a dirty draft exactly once when the real editor and note session unmount", async () => {
-    const original = highlight("unmount-draft", { note: "Previous note" });
-    const draft = "  Final draft\r\nwith exact spacing  ";
-    const update = vi.fn(
-      async (_bookId: string, _annotationId: string, changes: { note?: string }) => ({
-        ...original,
-        note: changes.note,
-      }),
-    );
+  it("rejects deletion when the authoritative annotation was replaced with the same ID", async () => {
+    const original = highlight("replaced-delete", { note: "Original note" });
+    const replacement = highlight("replaced-delete", {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      note: "Replacement note",
+    });
+    let authoritative: readonly Annotation[] = [original];
+    const publishNoteRemoved = vi.fn();
+    const updateAnnotation = vi.fn<UpdateCommand>();
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    await renderIntegratedHarness({
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
       apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
+      publishNoteRemoved,
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
+      targetRef,
+      updateAnnotation,
     });
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+      await apiRef.current?.open(original);
     });
-    setDraft(draft);
+    const staleTarget = targetRef.current!;
+    authoritative = [replacement];
 
-    await unmountHarness();
-    await act(async () => Promise.resolve());
+    await act(async () => {
+      await expect(apiRef.current!.discard(staleTarget)).resolves.toBe(false);
+    });
 
-    expect(update).toHaveBeenCalledOnce();
-    expect(update).toHaveBeenCalledWith("book-a", original.id, { note: draft });
+    expect(updateAnnotation).not.toHaveBeenCalled();
+    expect(publishNoteRemoved).not.toHaveBeenCalled();
+    expect(replacement.note).toBe("Replacement note");
   });
 
-  it("restores a failed draft when the same editor target remounts in the Reader session", async () => {
-    const original = highlight("restored-draft", { note: "Persisted note" });
-    const update = vi.fn(async () => undefined);
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const props: IntegratedHarnessProps = {
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
+  it("persists through the current live annotation when mutable fields changed", async () => {
+    const original = highlight("live-mutable", { note: "Original note" });
+    const live = {
+      ...original,
+      color: "blue" as const,
+      updatedAt: "2026-07-15T00:00:00.000Z",
     };
-    await renderIntegratedHarness(props);
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+    let authoritative: readonly Annotation[] = [original];
+    const updateAnnotation = vi.fn<UpdateCommand>(async (command) => {
+      if (command.annotationType !== "highlight") return { status: "rejected" };
+      const saved = { ...command.annotation, note: command.changes.note };
+      authoritative = [saved];
+      return accepted(saved);
     });
-    setDraft("Recovered session draft");
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
+      targetRef,
+      updateAnnotation,
+    });
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    const target = targetRef.current!;
+    authoritative = [live];
+    act(() => apiRef.current?.edit(target, "Updated note"));
 
-    await renderIntegratedHarness({ ...props, editorVisible: false });
+    await act(async () => {
+      await expect(apiRef.current!.save(target)).resolves.toBe(true);
+    });
+
+    expect(updateAnnotation).toHaveBeenCalledWith(
+      expect.objectContaining({ annotation: live, changes: { note: "Updated note" } }),
+    );
+    expect(targetRef.current?.annotation).toMatchObject({
+      color: "blue",
+      note: "Updated note",
+      updatedAt: live.updatedAt,
+    });
+  });
+
+  it("does not adopt an accepted persistence result with a different target identity", async () => {
+    const original = highlight("mismatched-result", { note: "Original note" });
+    const mismatched = highlight("mismatched-result", {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      note: "Stale write",
+    });
+    let authoritative: readonly Annotation[] = [original];
+    const onTargetUpdate = vi.fn();
+    const updateAnnotation = vi.fn<UpdateCommand>(async () => {
+      authoritative = [mismatched];
+      return accepted(mismatched);
+    });
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      onTargetUpdate,
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
+      targetRef,
+      updateAnnotation,
+    });
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    const target = targetRef.current!;
+    act(() => apiRef.current?.edit(target, "Stale write"));
+
+    await act(async () => {
+      await expect(apiRef.current!.save(target)).resolves.toBe(false);
+    });
+
+    expect(updateAnnotation).toHaveBeenCalledOnce();
+    expect(onTargetUpdate).not.toHaveBeenCalled();
+    expect(targetRef.current).toBeNull();
+  });
+
+  it("rejects an existing target replaced while its asynchronous open is settling", async () => {
+    const active = highlight("active", { note: "Active note" });
+    const opening = highlight("opening", { note: "Opening note" });
+    const replacement = highlight("opening", {
+      createdAt: "2026-07-15T00:00:00.000Z",
+      note: "Replacement note",
+    });
+    const pendingSave = deferred<Awaited<ReturnType<UpdateCommand>>>();
+    let authoritative: readonly Annotation[] = [active, opening];
+    const updateAnnotation = vi.fn<UpdateCommand>(() => pendingSave.promise);
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      apiRef,
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
+      targetRef,
+      updateAnnotation,
+    });
+    await act(async () => {
+      await apiRef.current?.open(active);
+    });
+    act(() => apiRef.current?.edit(targetRef.current!, "Settled active note"));
+
+    let openResult!: Promise<boolean>;
+    act(() => {
+      openResult = apiRef.current!.open(opening);
+    });
+    const savedActive = { ...active, note: "Settled active note" };
+    authoritative = [savedActive, replacement];
+    await act(async () => pendingSave.resolve(accepted(savedActive)));
+
+    await expect(openResult).resolves.toBe(false);
+    expect(targetRef.current?.annotation.id).toBe(active.id);
+    expect(targetRef.current?.annotation.note).toBe("Settled active note");
+  });
+
+  it("keeps the owned draft when the editor surface moves away and returns", async () => {
+    const original = highlight("moving-editor", { note: "Persisted note" });
+    const updateAnnotation = vi.fn<UpdateCommand>(async () => ({ status: "failed" }));
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    const props: HarnessProps = {
+      apiRef,
+      annotations: [original],
+      editorVisible: true,
+      targetRef,
+      updateAnnotation,
+    };
+    await renderHarness(props);
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    editDraft("Unsaved session draft");
+
+    await renderHarness({ ...props, editorVisible: false });
     await act(async () => Promise.resolve());
-    expect(update).toHaveBeenCalledOnce();
+    await renderHarness({ ...props, editorVisible: true });
 
-    await renderIntegratedHarness({ ...props, editorVisible: true });
     expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
-      "Recovered session draft",
+      "Unsaved session draft",
     );
-    expect(container?.querySelector('[role="status"]')?.textContent).toContain("Draft restored");
-  });
-
-  it("retires a reverted persisted note before remount without writing it again", async () => {
-    vi.useFakeTimers();
-    const original = highlight("reverted-draft", { note: "Original note" });
-    const update = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const props: IntegratedHarnessProps = {
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    };
-    await renderIntegratedHarness(props);
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({
+      text: "Unsaved session draft",
     });
-
-    setDraft("Temporary edit");
-    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Temporary edit" });
-
-    setDraft("Original note");
-    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
-
-    await renderIntegratedHarness({ ...props, editorVisible: false });
-    await renderIntegratedHarness({ ...props, editorVisible: true });
-    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("Original note");
-    expect(container?.querySelector('[role="status"]')?.textContent).not.toContain(
-      "Draft restored",
-    );
-
-    await act(async () => vi.runAllTimersAsync());
-    expect(update).not.toHaveBeenCalled();
   });
 
-  it("retires a fresh note draft returned to empty before remount", async () => {
-    vi.useFakeTimers();
-    const original = highlight("empty-reverted-draft");
-    const update = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const props: IntegratedHarnessProps = {
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
+  it("serializes saves and prevents an older completion from overwriting a newer draft", async () => {
+    const original = highlight("serialized", { note: "Original" });
+    const liveBetweenRevisions = {
+      ...original,
+      color: "rose" as const,
+      updatedAt: "2026-07-15T00:00:00.000Z",
     };
-    await renderIntegratedHarness(props);
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-
-    setDraft("Temporary draft");
-    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Temporary draft" });
-
-    setDraft("");
-    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
-
-    await renderIntegratedHarness({ ...props, editorVisible: false });
-    await renderIntegratedHarness({ ...props, editorVisible: true });
-    expect(container?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe("");
-    expect(container?.querySelector('[role="status"]')?.textContent).not.toContain(
-      "Draft restored",
-    );
-
-    await act(async () => vi.runAllTimersAsync());
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it("keeps a reverted draft protected until an older active save is superseded", async () => {
-    vi.useFakeTimers();
-    const original = highlight("reverted-during-save", { note: "Original note" });
-    const firstSave = deferred<HighlightAnnotation | undefined>();
-    const secondSave = deferred<HighlightAnnotation | undefined>();
-    const update = vi
-      .fn()
+    let authoritative: readonly Annotation[] = [original];
+    const firstSave = deferred<Awaited<ReturnType<UpdateCommand>>>();
+    const secondSave = deferred<Awaited<ReturnType<UpdateCommand>>>();
+    const updateAnnotation = vi
+      .fn<UpdateCommand>()
       .mockImplementationOnce(() => firstSave.promise)
       .mockImplementationOnce(() => secondSave.promise);
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderIntegratedHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-
-    setDraft("Temporary edit");
-    await act(async () => vi.advanceTimersByTimeAsync(650));
-    expect(update).toHaveBeenCalledTimes(1);
-
-    setDraft("Original note");
-    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
-
-    await act(async () => {
-      firstSave.resolve({ ...original, note: "Temporary edit" });
-      await firstSave.promise;
-    });
-    expect(update).toHaveBeenCalledTimes(2);
-    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
-
-    await act(async () => {
-      secondSave.resolve(original);
-      await secondSave.promise;
-    });
-    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
-  });
-
-  it("retires a matching stale cache entry when settlement finds persisted text", async () => {
-    const original = highlight("settled-persisted-draft", { note: "Original note" });
-    const update = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderIntegratedHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    act(() => apiRef.current?.updateDraft(targetRef.current!, "Original note"));
-    expect(apiRef.current?.draftFor(targetRef.current!)).toEqual({ text: "Original note" });
-
-    await act(async () => {
-      expect(await apiRef.current?.settle()).toBe(true);
-    });
-
-    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it("does not retire a different newer draft during persisted reconciliation", async () => {
-    const original = highlight("persisted-reconciliation-safety", { note: "Original note" });
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
     await renderHarness({
       apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
+      resolveCurrentAnnotation: (annotationId) =>
+        authoritative.find((annotation) => annotation.id === annotationId),
       targetRef,
+      updateAnnotation,
     });
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+      await apiRef.current?.open(original);
     });
     const target = targetRef.current!;
-    act(() => apiRef.current?.updateDraft(target, "Newer draft"));
 
-    act(() => apiRef.current?.confirmDraftPersisted(target, "Original note", "Temporary edit"));
+    act(() => apiRef.current?.edit(target, "First draft"));
+    let settlement!: Promise<boolean>;
+    act(() => {
+      settlement = apiRef.current!.save(target);
+    });
+    act(() => apiRef.current?.edit(target, "Latest draft"));
+    expect(apiRef.current?.editorStateFor(target)?.text).toBe("Latest draft");
 
-    expect(apiRef.current?.draftFor(target)).toEqual({ text: "Newer draft" });
-  });
+    authoritative = [liveBetweenRevisions];
+    await act(async () => firstSave.resolve(accepted({ ...original, note: "First draft" })));
+    expect(updateAnnotation).toHaveBeenCalledTimes(2);
+    expect(apiRef.current?.editorStateFor(target)?.text).toBe("Latest draft");
 
-  it("retires the exact cached draft after confirmed save and deletion", async () => {
-    const original = highlight("cache-retirement", { note: "Persisted note" });
-    const update = vi.fn(
-      async (_bookId: string, _annotationId: string, changes: { note?: string }) => ({
-        ...original,
-        note: changes.note,
+    await act(async () =>
+      secondSave.resolve(accepted({ ...liveBetweenRevisions, note: "Latest draft" })),
+    );
+    await expect(settlement).resolves.toBe(true);
+    expect(updateAnnotation).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        annotation: liveBetweenRevisions,
+        changes: { note: "Latest draft" },
       }),
     );
+    expect(targetRef.current?.annotation.note).toBe("Latest draft");
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+  });
+
+  it("keeps a failed save as a retryable session draft", async () => {
+    const original = highlight("retryable", { note: "Original" });
+    const saved = { ...original, note: "Retry draft" };
+    const updateAnnotation = vi
+      .fn<UpdateCommand>()
+      .mockResolvedValueOnce({ status: "failed" })
+      .mockResolvedValueOnce(accepted(saved));
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({ annotations: [original], apiRef, targetRef, updateAnnotation });
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    const target = targetRef.current!;
+    act(() => apiRef.current?.edit(target, "Retry draft"));
+
+    await act(async () => {
+      await expect(apiRef.current!.save(target)).resolves.toBe(false);
+    });
+    expect(apiRef.current?.editorStateFor(target)).toMatchObject({
+      errorKind: "save",
+      status: "error",
+      text: "Retry draft",
+    });
+    expect(apiRef.current?.draftFor(target)).toEqual({ text: "Retry draft" });
+
+    await act(async () => {
+      await expect(apiRef.current!.save(target)).resolves.toBe(true);
+    });
+    expect(targetRef.current?.annotation).toEqual(saved);
+    expect(apiRef.current?.draftFor(targetRef.current!)).toBeUndefined();
+  });
+
+  it("discards only the active target and rejects a stale target", async () => {
+    const first = highlight("first", { note: "First note" });
+    const second = highlight("second", { note: "Second note" });
+    const removed = { ...second, note: undefined };
+    const publishNoteRemoved = vi.fn();
+    const updateAnnotation = vi.fn<UpdateCommand>(async () => accepted(removed));
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
     await renderHarness({
       apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
+      annotations: [first, second],
+      publishNoteRemoved,
       targetRef,
+      updateAnnotation,
     });
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    const initialTarget = targetRef.current!;
-    act(() => apiRef.current?.updateDraft(initialTarget, "Saved draft"));
-    expect(apiRef.current?.draftFor(initialTarget)).toEqual({ text: "Saved draft" });
-
-    await act(async () => {
-      await apiRef.current?.saveNote(initialTarget, "Saved draft", original);
-    });
-    const savedTarget = targetRef.current!;
-    expect(apiRef.current?.draftFor(savedTarget)).toBeUndefined();
-
-    act(() => apiRef.current?.updateDraft(savedTarget, "Delete this draft"));
-    expect(apiRef.current?.draftFor(savedTarget)).toEqual({ text: "Delete this draft" });
-    await act(async () => {
-      await apiRef.current?.deleteNote(savedTarget, savedTarget.annotation);
-    });
-    expect(apiRef.current?.draftFor(savedTarget)).toBeUndefined();
-  });
-
-  it("allows teardown durability to finish without publishing after unmount", async () => {
-    const original = highlight("deferred-unmount");
-    const persisted = deferred<HighlightAnnotation | undefined>();
-    const update = vi.fn(() => persisted.promise);
-    const syncAnnotation = vi.fn();
-    const targetUpdate = vi.fn();
-    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    await renderIntegratedHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      onTargetUpdate: targetUpdate,
-      storage: storageWithUpdate(update),
-      syncAnnotation,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    targetUpdate.mockClear();
-    setDraft("Pending at teardown");
-
-    await unmountHarness();
-    expect(update).toHaveBeenCalledOnce();
-    await act(async () => {
-      persisted.resolve({ ...original, note: "Pending at teardown" });
-      await persisted.promise;
-    });
-
-    expect(syncAnnotation).not.toHaveBeenCalled();
-    expect(targetUpdate).not.toHaveBeenCalled();
-    expect(consoleError).not.toHaveBeenCalled();
-  });
-
-  it("does not duplicate an explicitly settled draft during later unmount", async () => {
-    const original = highlight("settled-unmount");
-    const update = vi.fn(async () => ({ ...original, note: "Already settled" }));
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    await renderIntegratedHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    setDraft("Already settled");
-
-    await act(async () => {
-      expect(await apiRef.current?.settle()).toBe(true);
-    });
-    expect(update).toHaveBeenCalledOnce();
-    await unmountHarness();
-    await act(async () => Promise.resolve());
-
-    expect(update).toHaveBeenCalledOnce();
-  });
-
-  it("does not grant a replaced editor a new persistence write", async () => {
-    const first = highlight("replaced-a");
-    const second = highlight("replaced-b");
-    const update = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(first);
+      await apiRef.current?.open(first);
     });
     const staleTarget = targetRef.current!;
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(second);
+      await apiRef.current?.open(second);
+    });
+    const activeTarget = targetRef.current!;
+
+    await expect(apiRef.current?.discard(staleTarget)).resolves.toBe(false);
+    await act(async () => {
+      await expect(apiRef.current!.discard(activeTarget)).resolves.toBe(true);
     });
 
-    expect(await apiRef.current?.saveNote(staleTarget, "Stale draft", first)).toBeUndefined();
-    expect(update).not.toHaveBeenCalled();
+    expect(updateAnnotation).toHaveBeenCalledOnce();
+    expect(updateAnnotation).toHaveBeenCalledWith(
+      expect.objectContaining({ annotation: second, changes: { note: undefined } }),
+    );
+    expect(publishNoteRemoved).toHaveBeenCalledWith(second);
+  });
+
+  it("settles the latest draft before closing the surface", async () => {
+    const original = highlight("close", { note: "Original" });
+    const saved = { ...original, note: "Final" };
+    const onClose = vi.fn();
+    const updateAnnotation = vi.fn<UpdateCommand>(async () => accepted(saved));
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      annotations: [original],
+      apiRef,
+      onClose,
+      targetRef,
+      updateAnnotation,
+    });
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    const target = targetRef.current!;
+    act(() => apiRef.current?.edit(target, "Final"));
+
+    await act(async () => {
+      await expect(apiRef.current!.close(target)).resolves.toBe(true);
+    });
+
+    expect(updateAnnotation).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(targetRef.current).toBeNull();
+  });
+
+  it("retires an in-flight save when the Reader session identity changes", async () => {
+    const original = highlight("stale-session", { note: "Original" });
+    const pending = deferred<Awaited<ReturnType<UpdateCommand>>>();
+    const updateAnnotation = vi.fn<UpdateCommand>(() => pending.promise);
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    const props: HarnessProps = {
+      annotations: [original],
+      apiRef,
+      targetRef,
+      updateAnnotation,
+    };
+    await renderHarness(props);
+    await act(async () => {
+      await apiRef.current?.open(original);
+    });
+    const staleTarget = targetRef.current!;
+    act(() => apiRef.current?.edit(staleTarget, "Stale draft"));
+    let save!: Promise<boolean>;
+    act(() => {
+      save = apiRef.current!.save(staleTarget);
+    });
+
+    await renderHarness({ ...props, archiveId: "archive-b" });
+    await act(async () => pending.resolve(accepted({ ...original, note: "Stale draft" })));
+
+    await expect(save).resolves.toBe(false);
+    expect(targetRef.current).toBeNull();
+  });
+
+  it("does not let a replaced editor start persistence", async () => {
+    const first = highlight("first");
+    const second = highlight("second");
+    const updateAnnotation = vi.fn<UpdateCommand>();
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({ annotations: [first, second], apiRef, targetRef, updateAnnotation });
+    await act(async () => {
+      await apiRef.current?.open(first);
+    });
+    const staleTarget = targetRef.current!;
+    await act(async () => {
+      await apiRef.current?.open(second);
+    });
+
+    expect(apiRef.current?.edit(staleTarget, "Stale draft")).toBe(false);
+    await expect(apiRef.current?.save(staleTarget)).resolves.toBe(false);
+    expect(updateAnnotation).not.toHaveBeenCalled();
     expect(targetRef.current?.annotation.id).toBe(second.id);
   });
 
-  it("rejects an old archive session even when the book ID is unchanged", async () => {
-    const original = highlight("archive-session");
-    const archiveAUpdate = vi.fn();
-    const archiveBUpdate = vi.fn();
+  it("starts unmount durability once and rejects later publication", async () => {
+    const original = highlight("unmount");
+    const pending = deferred<Awaited<ReturnType<UpdateCommand>>>();
+    const updateAnnotation = vi.fn<UpdateCommand>(() => pending.promise);
+    const onTargetUpdate = vi.fn();
     const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
     const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const common = {
-      apiRef,
-      bookId: "book-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    };
     await renderHarness({
-      ...common,
-      archiveId: "archive-a",
-      storage: storageWithUpdate(archiveAUpdate),
+      apiRef,
+      annotations: [original],
+      editorVisible: true,
+      onTargetUpdate,
+      targetRef,
+      updateAnnotation,
     });
     await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
+      await apiRef.current?.open(original);
     });
-    const staleTarget = targetRef.current!;
+    editDraft("Final draft");
+    onTargetUpdate.mockClear();
 
-    await renderHarness({
-      ...common,
-      archiveId: "archive-b",
-      storage: storageWithUpdate(archiveBUpdate),
-    });
-    expect(await apiRef.current?.saveNote(staleTarget, "Stale archive", original)).toBeUndefined();
-    expect(archiveAUpdate).not.toHaveBeenCalled();
-    expect(archiveBUpdate).not.toHaveBeenCalled();
+    const mountedRoot = root;
+    root = null;
+    await act(async () => mountedRoot?.unmount());
+    expect(updateAnnotation).toHaveBeenCalledOnce();
+
+    await act(async () => pending.resolve(accepted({ ...original, note: "Final draft" })));
+    expect(onTargetUpdate).not.toHaveBeenCalled();
   });
 
-  it("rejects an old book session even when the archive ID is unchanged", async () => {
-    const original = highlight("book-session");
-    const update = vi.fn();
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    const common = {
-      apiRef,
-      archiveId: "archive-a",
-      editor: { settle: vi.fn(async () => true) },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(update),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    };
-    await renderHarness({ ...common, bookId: "book-a" });
-    await act(async () => {
-      await apiRef.current?.openAnnotationNote(original);
-    });
-    const staleTarget = targetRef.current!;
-
-    await renderHarness({ ...common, bookId: "book-b" });
-    expect(await apiRef.current?.saveNote(staleTarget, "Stale book", original)).toBeUndefined();
-    expect(update).not.toHaveBeenCalled();
-  });
-
-  it("exposes one final settlement path and cancels superseded opens", async () => {
-    const settlement = deferred<boolean>();
-    const settle = vi.fn(() => settlement.promise);
-    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
-    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
-    await renderHarness({
-      apiRef,
-      archiveId: "archive-a",
-      bookId: "book-a",
-      editor: { settle },
-      ensureHighlight: vi.fn(),
-      storage: storageWithUpdate(vi.fn()),
-      syncAnnotation: vi.fn(),
-      targetRef,
-    });
-
+  it("cancels superseded note opens and publishes only the latest target", async () => {
     const first = highlight("first");
     const second = highlight("second");
+    const apiRef = { current: undefined } as MutableRefObject<NoteSessionApi | undefined>;
+    const targetRef = { current: null } as MutableRefObject<ReaderNoteTarget | null>;
+    await renderHarness({
+      annotations: [first, second],
+      apiRef,
+      targetRef,
+      updateAnnotation: vi.fn(),
+    });
+
     let firstResult = true;
     let secondResult = false;
     await act(async () => {
-      const firstOpen = apiRef.current?.openAnnotationNote(first);
-      const secondOpen = apiRef.current?.openAnnotationNote(second);
-      settlement.resolve(true);
-      firstResult = (await firstOpen) ?? true;
-      secondResult = (await secondOpen) ?? false;
+      const firstOpen = apiRef.current!.open(first);
+      const secondOpen = apiRef.current!.open(second);
+      firstResult = await firstOpen;
+      secondResult = await secondOpen;
     });
 
     expect(firstResult).toBe(false);
     expect(secondResult).toBe(true);
-    expect(targetRef.current?.annotation.id).toBe("second");
-    expect(settle).toHaveBeenCalledTimes(2);
-    expect(await apiRef.current?.settle()).toBe(true);
-    expect(settle).toHaveBeenCalledTimes(3);
+    expect(targetRef.current?.annotation.id).toBe(second.id);
   });
 });
