@@ -44,11 +44,8 @@ import {
   type ReaderLocation,
   type ReaderRelocation,
 } from "./readerLocation";
-import {
-  createReaderSessionKey,
-  createReaderSessionLifecycle,
-  transitionReaderSession,
-} from "./readerSession";
+import { createReaderSessionController, createReaderSessionKey } from "./readerSession";
+import type { EpubSessionError } from "./useEpubSession";
 import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
@@ -134,7 +131,6 @@ export function ReaderPage() {
   const mountedRef = useRef(true);
   const controlsTimer = useRef<number | null>(null);
   const lastControlsRevealAt = useRef(0);
-  const [error, setError] = useState<string | null>(null);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
@@ -144,12 +140,14 @@ export function ReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
-  const [readerSessionLifecycle] = useState(() => {
-    const idle = createReaderSessionLifecycle();
-    if (!bookId) return idle;
-    return transitionReaderSession(idle, { bookId, type: "open" }).state;
-  });
-  const readerSessionLifecycleRef = useRef(readerSessionLifecycle);
+  const [readerSessionController] = useState(() => createReaderSessionController(bookId ?? null));
+  const readerSessionSnapshot = useSyncExternalStore(
+    readerSessionController.subscribe,
+    readerSessionController.getSnapshot,
+    readerSessionController.getSnapshot,
+  );
+  const readerSessionLifecycle = readerSessionSnapshot.lifecycle;
+  const readerSessionFailure = readerSessionSnapshot.failure;
   const readerSessionIdentity = readerSessionLifecycle.identity;
   const [progressController] = useState(() =>
     book && readerSessionIdentity
@@ -193,12 +191,27 @@ export function ReaderPage() {
   const isBookFileMissing = book?.isFileMissing ?? false;
   const settingsPersistenceFailed = appearance.persistenceFailed;
   const readerSource = useReaderSource({
-    active: Boolean(bookId && activeArchiveId && !isBookFileMissing && !error),
+    active: Boolean(bookId && activeArchiveId && !isBookFileMissing),
     archiveId: activeArchiveId,
     archiveRootPath,
     bookId: bookId ?? null,
     storage,
   });
+  useLayoutEffect(() => {
+    if (
+      readerSource.status === "ready" &&
+      readerSessionIdentity &&
+      (readerSessionLifecycle.phase === "acquiring" ||
+        readerSessionLifecycle.phase === "recovering")
+    ) {
+      readerSessionController.sourceAcquired(readerSessionIdentity);
+    }
+  }, [
+    readerSessionController,
+    readerSessionIdentity,
+    readerSessionLifecycle.phase,
+    readerSource.status,
+  ]);
   const readerThemeSelection = appearance.readerThemeSelection;
   const chapterSequence = useMemo(
     () => deriveReaderChapterSequence(navigationState.chapters, navigationState.currentChapterId),
@@ -214,7 +227,7 @@ export function ReaderPage() {
     chapterHref: chapterSequence.current?.href,
     chapterLabel: chapterSequence.current?.label,
     location,
-    openingError: Boolean(error),
+    openingError: Boolean(readerSessionFailure),
     readerReady,
     storage,
   });
@@ -292,17 +305,11 @@ export function ReaderPage() {
   }, [progressController, settleNoteEditor]);
   const retireReaderSession = useCallback(async () => {
     invalidateOpenRequests();
-    const lifecycle = readerSessionLifecycleRef.current;
-    if (lifecycle.identity && lifecycle.phase !== "closing" && lifecycle.phase !== "closed") {
-      const transition = transitionReaderSession(lifecycle, {
-        identity: lifecycle.identity,
-        type: "close",
-      });
-      if (transition.kind === "accepted") readerSessionLifecycleRef.current = transition.state;
-    }
+    const identity = readerSessionController.getSnapshot().lifecycle.identity;
+    if (identity) readerSessionController.close(identity);
     viewerRef.current?.teardown();
     await progressController?.teardown();
-  }, [invalidateOpenRequests, progressController]);
+  }, [invalidateOpenRequests, progressController, readerSessionController]);
   const controlledTransitions = useReaderControlledTransitions({
     archiveId: activeArchiveId ?? null,
     onTransitionIntent: invalidateOpenRequests,
@@ -708,14 +715,16 @@ export function ReaderPage() {
     [appearanceController],
   );
 
-  const handleReady = useCallback(() => {
-    if (!readerSessionIdentity || !progressController || isBookFileMissing) {
-      return;
-    }
-
-    setReaderReady(true);
-    progressController.recordOpened(readerSessionIdentity);
-  }, [isBookFileMissing, progressController, readerSessionIdentity]);
+  const handleReady = useCallback(
+    (identity: Parameters<typeof readerSessionController.ready>[0]) => {
+      if (!progressController || isBookFileMissing || !readerSessionController.ready(identity)) {
+        return;
+      }
+      setReaderReady(true);
+      progressController.recordOpened(identity);
+    },
+    [isBookFileMissing, progressController, readerSessionController],
+  );
 
   const handleLocationChange = useCallback(
     (relocation: ReaderRelocation) => {
@@ -729,7 +738,29 @@ export function ReaderPage() {
     [handleAnnotationLocationChange, progressController, readerSessionIdentity],
   );
 
-  const handleViewerError = useCallback((message: string) => setError(message), []);
+  const handleViewerError = useCallback(
+    (identity: Parameters<typeof readerSessionController.fail>[0], error: EpubSessionError) => {
+      const failureKind = error.kind === "open-failed" ? "epub-open-failed" : null;
+      if (!failureKind || !readerSessionController.fail(identity, failureKind)) return;
+      setReaderReady(false);
+      setNavigationState({ chapters: [], status: "loading" });
+    },
+    [readerSessionController],
+  );
+
+  const handleSessionRetry = useCallback(() => {
+    const failedIdentity = readerSessionController.getSnapshot().failure?.identity;
+    if (!failedIdentity) return;
+    const recoveryIdentity = readerSessionController.retry(
+      failedIdentity,
+      () => viewerRef.current?.teardown(),
+      (replacementIdentity) =>
+        progressController?.replaceIdentity(failedIdentity, replacementIdentity) ?? true,
+    );
+    if (!recoveryIdentity) return;
+    setReaderReady(false);
+    setNavigationState({ chapters: [], status: "loading" });
+  }, [progressController, readerSessionController]);
 
   const handleRescanAndReturn = useCallback(() => {
     setRecoveryStatus("rescanning");
@@ -808,8 +839,11 @@ export function ReaderPage() {
   const title = bookTitle(book);
   const fileLease = readerSource.status === "ready" ? readerSource.lease : undefined;
   const isFileLoading = readerSource.status === "loading";
+  const isSessionAwaitingSourcePublication =
+    Boolean(fileLease) &&
+    (readerSessionLifecycle.phase === "acquiring" || readerSessionLifecycle.phase === "recovering");
 
-  if (!error && isFileLoading) {
+  if (!readerSessionFailure && (isFileLoading || isSessionAwaitingSourcePublication)) {
     return (
       <main
         className="reader-status-page"
@@ -825,7 +859,7 @@ export function ReaderPage() {
     );
   }
 
-  if (!error && (readerSource.status === "error" || !fileLease)) {
+  if (!readerSessionFailure && (readerSource.status === "error" || !fileLease)) {
     return (
       <main className="reader-status-page" id={MAIN_CONTENT_ID} ref={readerMainRef} tabIndex={-1}>
         <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
@@ -836,7 +870,7 @@ export function ReaderPage() {
             : "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it."}
         </p>
         <div className="reader-status-page__actions">
-          {readerSource.status === "error" ? (
+          {readerSource.status === "error" && readerSource.retryable ? (
             <Button onClick={readerSource.retry} size="standard" variant="secondary">
               Try again
             </Button>
@@ -923,16 +957,24 @@ export function ReaderPage() {
       </div>
       <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
 
-      {error ? (
+      {readerSessionFailure ? (
         <section className="reader-error" role="alert">
           <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
           <h1>EPUB could not be opened</h1>
-          <p>{error}</p>
-          <button className="text-link" onClick={returnToOrigin} type="button">
-            Back
-          </button>
+          <p>{readerSessionFailure.message}</p>
+          <div className="reader-status-page__actions">
+            <Button onClick={handleSessionRetry} size="standard" variant="secondary">
+              Try again
+            </Button>
+            <button className="text-link" onClick={returnToOrigin} type="button">
+              Back
+            </button>
+          </div>
         </section>
-      ) : fileLease && readerSessionIdentity ? (
+      ) : fileLease &&
+        readerSessionIdentity &&
+        (readerSessionLifecycle.phase === "starting" ||
+          readerSessionLifecycle.phase === "ready") ? (
         <EpubViewer
           contentTheme={appearance.contentTheme}
           ref={viewerRef}
@@ -998,7 +1040,7 @@ export function ReaderPage() {
         </div>
       ) : null}
 
-      {!error && nextVolume ? (
+      {!readerSessionFailure && nextVolume ? (
         <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
       ) : null}
 

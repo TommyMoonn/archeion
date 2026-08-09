@@ -11,10 +11,13 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import { ReaderRoute } from "./ReaderPage";
+import type { ReaderSessionIdentity } from "./readerSession";
+import type { EpubSessionError } from "./useEpubSession";
 
 const viewerMock = vi.hoisted(() => ({
   initialCfi: undefined as string | undefined,
-  onError: undefined as ((message: string) => void) | undefined,
+  onError: undefined as ((error: EpubSessionError) => void) | undefined,
+  sessionIdentities: [] as ReaderSessionIdentity[],
   sessionsStarted: 0,
   teardown: vi.fn(),
   location: {
@@ -36,11 +39,13 @@ vi.mock("./EpubViewer", async () => {
         onError,
         onLocationChange,
         onReady,
+        sessionIdentity,
       }: {
         initialCfi?: string;
-        onError: (message: string) => void;
+        onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
         onLocationChange: (location: typeof viewerMock.location) => void;
-        onReady: () => void;
+        onReady: (identity: ReaderSessionIdentity) => void;
+        sessionIdentity: ReaderSessionIdentity;
       },
       ref: React.ForwardedRef<unknown>,
     ) {
@@ -52,15 +57,17 @@ vi.mock("./EpubViewer", async () => {
         teardown: viewerMock.teardown,
       }));
       React.useEffect(() => {
+        const reportError = (error: EpubSessionError) => onError(sessionIdentity, error);
         viewerMock.sessionsStarted += 1;
+        viewerMock.sessionIdentities.push(sessionIdentity);
         viewerMock.initialCfi = initialCfi;
-        viewerMock.onError = onError;
+        viewerMock.onError = reportError;
         onLocationChange(viewerMock.location);
-        onReady();
+        onReady(sessionIdentity);
         return () => {
-          if (viewerMock.onError === onError) viewerMock.onError = undefined;
+          if (viewerMock.onError === reportError) viewerMock.onError = undefined;
         };
-      }, [initialCfi, onError, onLocationChange, onReady]);
+      }, [initialCfi, onError, onLocationChange, onReady, sessionIdentity]);
 
       return <div data-testid="epub-viewer" />;
     }),
@@ -110,6 +117,7 @@ async function renderReader(
   storageOverrides?: Partial<LibraryStorage>,
 ) {
   viewerMock.teardown.mockReset();
+  viewerMock.sessionIdentities.length = 0;
   const storage = createStorage(books, storageOverrides);
   const router = createMemoryRouter(
     [
@@ -234,10 +242,15 @@ describe("ReaderPage series continuation", () => {
     expect(rendered.container.textContent).toContain(
       "This EPUB exceeds Archeion's 256 MiB reader limit.",
     );
+    expect(
+      [...rendered.container.querySelectorAll("button")].some(
+        (button) => button.textContent?.trim() === "Try again",
+      ),
+    ).toBe(false);
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
   });
 
-  it("replaces the active viewer with a concise EPUB parsing failure", async () => {
+  it("retries an EPUB session failure with a fresh identity and ignores the retired callback", async () => {
     const loadBookFile = vi.fn().mockResolvedValue(new Blob(["invalid epub"]));
     const rendered = await renderReader(
       [createBook({ id: "invalid-book" })],
@@ -251,13 +264,30 @@ describe("ReaderPage series continuation", () => {
     );
     expect(reportError).toBeTypeOf("function");
 
-    act(() => reportError?.("The EPUB package is invalid."));
+    act(() => reportError?.({ kind: "open-failed" }));
 
     const alert = rendered.container.querySelector<HTMLElement>('[role="alert"]');
     expect(alert?.textContent).toContain("EPUB could not be opened");
-    expect(alert?.textContent).toContain("The EPUB package is invalid.");
+    expect(alert?.textContent).toContain(
+      "This EPUB could not be opened. Try again or return to the Library.",
+    );
     expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeNull();
-    await act(async () => Promise.resolve());
+    const retry = [...rendered.container.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(retry).toBeInstanceOf(HTMLButtonElement);
+
+    await act(async () => retry?.click());
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeInstanceOf(
+      HTMLElement,
+    );
+    expect(viewerMock.sessionIdentities).toHaveLength(2);
+    expect(viewerMock.sessionIdentities[1]).not.toBe(viewerMock.sessionIdentities[0]);
+
+    act(() => reportError?.({ kind: "open-failed" }));
+    expect(rendered.container.querySelector('[data-testid="epub-viewer"]')).toBeInstanceOf(
+      HTMLElement,
+    );
     expect(loadBookFile).toHaveBeenCalledTimes(1);
   });
 

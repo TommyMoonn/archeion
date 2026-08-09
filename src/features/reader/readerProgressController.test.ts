@@ -154,6 +154,23 @@ describe("Reader progress controller", () => {
     expect(harness.controller.getLocation()).toEqual(initialLocation);
   });
 
+  it("transfers progress ownership only to an explicit same-book recovery identity", () => {
+    const harness = createHarness();
+    const recoveryIdentity = sessionIdentity("book-1");
+    const foreignBookIdentity = sessionIdentity("book-2");
+
+    expect(harness.controller.replaceIdentity(recoveryIdentity, foreignBookIdentity)).toBe(false);
+    expect(harness.controller.replaceIdentity(harness.identity, foreignBookIdentity)).toBe(false);
+    expect(harness.controller.replaceIdentity(harness.identity, recoveryIdentity)).toBe(true);
+    expect(harness.controller.acceptRelocation(harness.identity, relocation())).toBeNull();
+    expect(
+      harness.controller.acceptRelocation(
+        recoveryIdentity,
+        relocation({ cfi: "epubcfi(/6/20)", rawPercentage: 0.8 }),
+      ),
+    ).toMatchObject({ cfi: "epubcfi(/6/20)", percentage: 80 });
+  });
+
   it("normalizes fallback page data and exact publication boundaries", () => {
     const harness = createHarness();
 

@@ -13,7 +13,7 @@ type ReaderSourceState =
   | { request: null; status: "inactive" }
   | { request: ReaderSourceRequest; status: "loading" }
   | { lease: ReaderFileLease; request: ReaderSourceRequest; status: "ready" }
-  | { error: string; request: ReaderSourceRequest; status: "error" };
+  | { error: string; request: ReaderSourceRequest; retryable: boolean; status: "error" };
 
 type UseReaderSourceOptions = {
   active: boolean;
@@ -26,17 +26,17 @@ type UseReaderSourceOptions = {
 export type ReaderSourceController =
   | Readonly<{ retry: () => void; status: "inactive" | "loading" }>
   | Readonly<{ lease: ReaderFileLease; retry: () => void; status: "ready" }>
-  | Readonly<{ error: string; retry: () => void; status: "error" }>;
+  | Readonly<{ error: string; retry: () => void; retryable: boolean; status: "error" }>;
 
 const EPUB_SIZE_LIMIT_ERROR = "This EPUB exceeds Archeion's 256 MiB reader limit.";
 const DEFAULT_READER_FILE_ERROR =
   "The EPUB file could not be read. It may have been moved or deleted. Rescan the Library to update it.";
 
-function readerFileErrorMessage(error: unknown): string {
+function readerFileError(error: unknown): Readonly<{ message: string; retryable: boolean }> {
   const message =
     error instanceof Error ? error.message.trim() : typeof error === "string" ? error.trim() : "";
-  if (message === EPUB_SIZE_LIMIT_ERROR) return message;
-  return DEFAULT_READER_FILE_ERROR;
+  if (message === EPUB_SIZE_LIMIT_ERROR) return { message, retryable: false };
+  return { message: DEFAULT_READER_FILE_ERROR, retryable: true };
 }
 
 function sourceRequestKey(
@@ -106,9 +106,11 @@ export function useReaderSource({
       },
       (error: unknown) => {
         if (retired || stateRef.current.request !== request) return;
+        const failure = readerFileError(error);
         const errorState = {
-          error: readerFileErrorMessage(error),
+          error: failure.message,
           request,
+          retryable: failure.retryable,
           status: "error",
         } as const;
         stateRef.current = errorState;
@@ -128,7 +130,12 @@ export function useReaderSource({
 
   const retry = useCallback(() => {
     const current = stateRef.current;
-    if (!requestKey || current.status !== "error" || current.request.requestKey !== requestKey) {
+    if (
+      !requestKey ||
+      current.status !== "error" ||
+      !current.retryable ||
+      current.request.requestKey !== requestKey
+    ) {
       return;
     }
     setRetryOwner((owner) => ({
@@ -141,6 +148,8 @@ export function useReaderSource({
     return { retry, status: request ? "loading" : "inactive" };
   }
   if (state.status === "ready") return { lease: state.lease, retry, status: "ready" };
-  if (state.status === "error") return { error: state.error, retry, status: "error" };
+  if (state.status === "error") {
+    return { error: state.error, retry, retryable: state.retryable, status: "error" };
+  }
   return { retry, status: "loading" };
 }

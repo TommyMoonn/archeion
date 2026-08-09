@@ -36,10 +36,10 @@ type EpubSessionSnapshot = {
 export type EpubSessionBridge = {
   onContent: (content: EpubContent) => void;
   onDisplayed: () => void;
-  onError: (error: EpubSessionError) => void;
+  onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onLocationChange: (relocation: ReaderRelocation) => void;
   onNavigationChange: (navigation: ReaderNavigationState) => void;
-  onReady: () => void;
+  onReady: (identity: ReaderSessionIdentity) => void;
   onRelocated: () => void;
   onRendered: (section: unknown, view: unknown) => void;
   onSelected: (cfiRange: string, contents: EpubContent) => void;
@@ -505,7 +505,7 @@ export function useEpubSession({
           // Reading can continue without a calculated percentage.
         });
         setSettledSessionKey(sessionKey);
-        bridgeRef.current?.onReady();
+        bridgeRef.current?.onReady(sessionIdentity);
         deferNavigationLoad(owner);
       } catch {
         const failedSession = lifecycle?.snapshot;
@@ -516,7 +516,7 @@ export function useEpubSession({
         }
         if (!retired && activeSessionIdentityRef.current === sessionIdentity) {
           setSettledSessionKey(sessionKey);
-          bridgeRef.current?.onError({ kind: "open-failed" });
+          bridgeRef.current?.onError(sessionIdentity, { kind: "open-failed" });
         }
       } finally {
         sourceHandoff?.release();

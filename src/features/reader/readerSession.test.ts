@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  createReaderSessionController,
   createReaderSessionKey,
   createReaderSessionLifecycle,
   transitionReaderSession,
@@ -231,5 +232,83 @@ describe("reader session lifecycle", () => {
     expect(
       transitionReaderSession(acquiring, { identity: identity(acquiring), type: "ready" }),
     ).toEqual({ kind: "rejected", reason: "invalid-transition", state: acquiring });
+  });
+});
+
+describe("reader session controller", () => {
+  it("retires a failed attempt before retry publishes a fresh identity", () => {
+    const controller = createReaderSessionController("book-1");
+    const failedIdentity = identity(controller.getSnapshot().lifecycle);
+    const order: string[] = [];
+    controller.subscribe(() => order.push("publish"));
+
+    expect(controller.sourceAcquired(failedIdentity)).toBe(true);
+    expect(controller.fail(failedIdentity, "epub-open-failed")).toBe(true);
+    order.length = 0;
+
+    const recoveryIdentity = controller.retry(
+      failedIdentity,
+      () => order.push("retire"),
+      () => {
+        order.push("adopt");
+        return true;
+      },
+    );
+
+    expect(order).toEqual(["retire", "adopt", "publish"]);
+    expect(recoveryIdentity).not.toBeNull();
+    expect(recoveryIdentity).not.toBe(failedIdentity);
+    expect(recoveryIdentity).toMatchObject({ bookId: "book-1", revision: 2 });
+    expect(controller.getSnapshot()).toMatchObject({
+      failure: null,
+      lifecycle: { identity: recoveryIdentity, phase: "recovering" },
+    });
+  });
+
+  it("rejects late completion and failure publication from the retired attempt", () => {
+    const controller = createReaderSessionController("book-1");
+    const failedIdentity = identity(controller.getSnapshot().lifecycle);
+    expect(controller.sourceAcquired(failedIdentity)).toBe(true);
+    expect(controller.fail(failedIdentity, "epub-open-failed")).toBe(true);
+    const recoveryIdentity = controller.retry(
+      failedIdentity,
+      () => undefined,
+      () => true,
+    );
+    if (!recoveryIdentity) throw new Error("Expected recovery identity");
+
+    expect(controller.ready(failedIdentity)).toBe(false);
+    expect(controller.fail(failedIdentity, "epub-open-failed")).toBe(false);
+    expect(controller.getSnapshot()).toMatchObject({
+      failure: null,
+      lifecycle: { identity: recoveryIdentity, phase: "recovering" },
+    });
+
+    expect(controller.sourceAcquired(recoveryIdentity)).toBe(true);
+    expect(controller.ready(recoveryIdentity)).toBe(true);
+    expect(controller.getSnapshot().lifecycle.phase).toBe("ready");
+  });
+
+  it("exposes retryable session failure without accepting retry from another identity", () => {
+    const controller = createReaderSessionController("book-1");
+    const sessionIdentity = identity(controller.getSnapshot().lifecycle);
+    const otherIdentity = identity(createReaderSessionController("book-1").getSnapshot().lifecycle);
+    expect(controller.sourceAcquired(sessionIdentity)).toBe(true);
+    expect(controller.fail(sessionIdentity, "epub-open-failed")).toBe(true);
+
+    expect(controller.getSnapshot().failure).toEqual({
+      identity: sessionIdentity,
+      kind: "epub-open-failed",
+      message: "This EPUB could not be opened. Try again or return to the Library.",
+      retryable: true,
+    });
+    expect(
+      controller.retry(
+        otherIdentity,
+        () => undefined,
+        () => true,
+      ),
+    ).toBeNull();
+    expect(controller.getSnapshot().lifecycle.identity).toBe(sessionIdentity);
   });
 });

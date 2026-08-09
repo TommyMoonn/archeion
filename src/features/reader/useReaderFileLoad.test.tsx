@@ -63,6 +63,7 @@ function Harness({
       <output
         data-error={source.status === "error" ? source.error : undefined}
         data-request-key={source.status === "ready" ? source.lease.requestKey : undefined}
+        data-retryable={source.status === "error" ? source.retryable : undefined}
       >
         {source.status}
       </output>
@@ -216,13 +217,16 @@ describe("useReaderSource", () => {
   });
 
   it("preserves the native size boundary while hiding unexpected native errors", async () => {
-    const oversized = await renderSource({
-      loadBookFile: () =>
-        Promise.reject(new Error("This EPUB exceeds Archeion's 256 MiB reader limit.")),
-    });
+    const oversizedLoad = vi.fn(() =>
+      Promise.reject(new Error("This EPUB exceeds Archeion's 256 MiB reader limit.")),
+    );
+    const oversized = await renderSource({ loadBookFile: oversizedLoad });
     expect(oversized.container.querySelector("output")?.dataset.error).toBe(
       "This EPUB exceeds Archeion's 256 MiB reader limit.",
     );
+    expect(oversized.container.querySelector("output")?.dataset.retryable).toBe("false");
+    await act(async () => oversized.container.querySelector("button")?.click());
+    expect(oversizedLoad).toHaveBeenCalledOnce();
     oversized.unmount();
 
     const unexpected = await renderSource({

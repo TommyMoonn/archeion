@@ -13,6 +13,7 @@ import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { archiveStore, type ArchiveTransitionGuard } from "../../stores/archiveStore";
 import { ReaderRoute } from "./ReaderPage";
 import type { ReaderFileLease } from "./readerFileLease";
+import type { ReaderSessionIdentity } from "./readerSession";
 
 type TextSelection = {
   cfiRange: string;
@@ -30,8 +31,9 @@ type MockViewerProps = {
   }) => void;
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
   onOpenNote?: (selection: TextSelection, existingHighlight?: HighlightAnnotation) => void;
-  onReady: () => void;
+  onReady: (identity: ReaderSessionIdentity) => void;
   onRemoveHighlight?: (annotationId: string) => Promise<boolean>;
+  sessionIdentity: ReaderSessionIdentity;
 };
 
 const viewerControl = vi.hoisted(() => ({
@@ -58,7 +60,7 @@ vi.mock("./EpubViewer", async () => {
       ref: React.ForwardedRef<unknown>,
     ) {
       viewerControl.props = props;
-      const { onNavigationChange, onReady } = props;
+      const { onNavigationChange, onReady, sessionIdentity } = props;
       React.useImperativeHandle(ref, () => ({
         navigateToChapter: viewerControl.navigateToChapter,
         navigateToLocation: vi.fn(async () => true),
@@ -80,8 +82,8 @@ vi.mock("./EpubViewer", async () => {
           currentChapterId: "chapter",
           status: "ready",
         });
-        onReady();
-      }, [onNavigationChange, onReady]);
+        onReady(sessionIdentity);
+      }, [onNavigationChange, onReady, sessionIdentity]);
       return (
         <div data-testid="epub-viewer-mock">
           {props.highlights.map((highlight) => (

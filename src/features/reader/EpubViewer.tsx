@@ -63,7 +63,7 @@ type EpubViewerProps = {
   fileLease: ReaderFileLease;
   highlights?: readonly HighlightAnnotation[];
   initialCfi?: string;
-  onError: (message: string) => void;
+  onError: (identity: ReaderSessionIdentity, error: EpubSessionError) => void;
   onHighlightInteractionClear?: () => void;
   onHighlightInteractionError?: (message: string) => void;
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
@@ -78,18 +78,11 @@ type EpubViewerProps = {
   onRecolorHighlight?: (id: string, color: ReaderHighlightColor) => Promise<boolean>;
   onRemoveHighlight?: (id: string) => Promise<boolean>;
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
-  onReady: () => void;
+  onReady: (identity: ReaderSessionIdentity) => void;
   readerTheme: ResolvedReaderTheme;
   sessionIdentity: ReaderSessionIdentity;
   settings: ReaderSettings;
 };
-
-function sessionErrorMessage(error: EpubSessionError): string {
-  switch (error.kind) {
-    case "open-failed":
-      return "This EPUB could not be opened. Return to the Library and try another file.";
-  }
-}
 
 const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(function EpubViewer(
   {
@@ -265,7 +258,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onDisplayed: () => {
         annotations.reconcile();
       },
-      onError: (error) => onError(sessionErrorMessage(error)),
+      onError,
       onLocationChange,
       onNavigationChange: (navigation) => onNavigationChange?.(navigation),
       onReady,

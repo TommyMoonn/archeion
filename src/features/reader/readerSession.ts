@@ -44,6 +44,32 @@ export type ReaderSessionTransition =
       state: ReaderSessionLifecycle;
     }>;
 
+export type ReaderSessionFailure = Readonly<{
+  identity: ReaderSessionIdentity;
+  kind: "epub-open-failed";
+  message: string;
+  retryable: true;
+}>;
+
+export type ReaderSessionSnapshot = Readonly<{
+  failure: ReaderSessionFailure | null;
+  lifecycle: ReaderSessionLifecycle;
+}>;
+
+export type ReaderSessionController = Readonly<{
+  close: (identity: ReaderSessionIdentity) => boolean;
+  fail: (identity: ReaderSessionIdentity, kind: ReaderSessionFailure["kind"]) => boolean;
+  getSnapshot: () => ReaderSessionSnapshot;
+  ready: (identity: ReaderSessionIdentity) => boolean;
+  retry: (
+    identity: ReaderSessionIdentity,
+    retireFailedAttempt: () => void,
+    adoptRecoveryIdentity: (identity: ReaderSessionIdentity) => boolean,
+  ) => ReaderSessionIdentity | null;
+  sourceAcquired: (identity: ReaderSessionIdentity) => boolean;
+  subscribe: (listener: () => void) => () => void;
+}>;
+
 const TERMINAL_OR_TERMINATING_PHASES = new Set<ReaderSessionPhase>(["closing", "closed"]);
 
 function createIdentity(bookId: string, revision: number): ReaderSessionIdentity {
@@ -160,6 +186,88 @@ export function transitionReaderSession(
   }
 
   return reject(state);
+}
+
+const EPUB_OPEN_FAILURE_MESSAGE =
+  "This EPUB could not be opened. Try again or return to the Library.";
+
+export function createReaderSessionController(bookId: string | null): ReaderSessionController {
+  const idle = createReaderSessionLifecycle();
+  const initialLifecycle = bookId
+    ? transitionReaderSession(idle, { bookId, type: "open" }).state
+    : idle;
+  let snapshot: ReaderSessionSnapshot = Object.freeze({
+    failure: null,
+    lifecycle: initialLifecycle,
+  });
+  const listeners = new Set<() => void>();
+
+  const publish = (
+    lifecycle: ReaderSessionLifecycle,
+    failure: ReaderSessionFailure | null,
+  ): void => {
+    snapshot = Object.freeze({ failure, lifecycle });
+    for (const listener of listeners) listener();
+  };
+
+  const accept = (event: ReaderSessionEvent, failure: ReaderSessionFailure | null): boolean => {
+    const transition = transitionReaderSession(snapshot.lifecycle, event);
+    if (transition.kind !== "accepted") return false;
+    publish(transition.state, failure);
+    return true;
+  };
+
+  return Object.freeze({
+    close(identity) {
+      return accept({ identity, type: "close" }, null);
+    },
+    fail(identity, kind) {
+      const transition = transitionReaderSession(snapshot.lifecycle, {
+        identity,
+        type: "failed",
+      });
+      if (transition.kind !== "accepted") return false;
+      publish(
+        transition.state,
+        Object.freeze({
+          identity,
+          kind,
+          message: EPUB_OPEN_FAILURE_MESSAGE,
+          retryable: true,
+        }),
+      );
+      return true;
+    },
+    getSnapshot: () => snapshot,
+    ready(identity) {
+      return accept({ identity, type: "ready" }, null);
+    },
+    retry(identity, retireFailedAttempt, adoptRecoveryIdentity) {
+      if (
+        snapshot.failure?.identity !== identity ||
+        snapshot.lifecycle.identity !== identity ||
+        snapshot.lifecycle.phase !== "failed"
+      ) {
+        return null;
+      }
+      retireFailedAttempt();
+      const transition = transitionReaderSession(snapshot.lifecycle, {
+        identity,
+        type: "retry",
+      });
+      if (transition.kind !== "accepted" || !transition.state.identity) return null;
+      if (!adoptRecoveryIdentity(transition.state.identity)) return null;
+      publish(transition.state, null);
+      return transition.state.identity;
+    },
+    sourceAcquired(identity) {
+      return accept({ identity, type: "source-acquired" }, null);
+    },
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  });
 }
 
 export function createReaderSessionKey(

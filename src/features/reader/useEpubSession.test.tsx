@@ -753,6 +753,8 @@ describe("useEpubSession lifecycle", () => {
     const bridgeRef = createBridgeRef(bridge);
     const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
     const fileLease = leaseFor(new Blob(["retry-book"]));
+    const failedIdentity = createSessionIdentity("retry-book");
+    const retryIdentity = createSessionIdentity("retry-book");
     epubModuleMock.openBook
       .mockReturnValueOnce(failedSession.book)
       .mockReturnValueOnce(retrySession.book);
@@ -761,7 +763,7 @@ describe("useEpubSession lifecycle", () => {
         bridgeRef,
         fileLease,
         mode: "paged",
-        sessionIdentity: createSessionIdentity("retry-book"),
+        sessionIdentity: failedIdentity,
       },
       facadeRef,
     );
@@ -771,6 +773,7 @@ describe("useEpubSession lifecycle", () => {
       await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledOnce());
     });
     expect(failedSession.destroy).toHaveBeenCalledOnce();
+    expect(bridge.onError).toHaveBeenCalledWith(failedIdentity, { kind: "open-failed" });
     expect(bridge.onReady).not.toHaveBeenCalled();
     expect(facadeRef.current?.documents.list()).toEqual([]);
     expect(facadeRef.current?.getInteractionSession()).toBeNull();
@@ -781,7 +784,7 @@ describe("useEpubSession lifecycle", () => {
         bridgeRef,
         fileLease,
         mode: "paged",
-        sessionIdentity: createSessionIdentity("retry-book"),
+        sessionIdentity: retryIdentity,
       },
       facadeRef,
     );
@@ -790,6 +793,7 @@ describe("useEpubSession lifecycle", () => {
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(2);
     expect(bridge.onError).toHaveBeenCalledOnce();
     expect(bridge.onReady).toHaveBeenCalledOnce();
+    expect(bridge.onReady).toHaveBeenCalledWith(retryIdentity);
     expect(facadeRef.current?.getInteractionSession()).not.toBeNull();
   });
 
@@ -841,7 +845,9 @@ describe("useEpubSession lifecycle", () => {
       mode: "paged",
     });
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(epubModuleMock.openBook).not.toHaveBeenCalled();
@@ -860,7 +866,9 @@ describe("useEpubSession lifecycle", () => {
       mode: "paged",
     });
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(performance.getEntriesByName(SOURCE_RELEASE_MARK, "mark")).toHaveLength(1);
@@ -885,7 +893,9 @@ describe("useEpubSession lifecycle", () => {
       session.emitBookEvent("openFailed", new Error("invalid EPUB"));
     });
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(session.destroy).toHaveBeenCalledTimes(1);
@@ -979,7 +989,9 @@ describe("useEpubSession lifecycle", () => {
       mode: "paged",
     });
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(session.destroy).toHaveBeenCalledTimes(1);
@@ -1002,7 +1014,9 @@ describe("useEpubSession lifecycle", () => {
       mode: "paged",
     });
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(session.destroy).toHaveBeenCalledTimes(1);
@@ -1075,7 +1089,9 @@ describe("useEpubSession lifecycle", () => {
 
     await act(async () => {
       started.reject(new Error("rendition start failed"));
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(session.rendition.off).toHaveBeenCalledTimes(3);
@@ -1105,7 +1121,9 @@ describe("useEpubSession lifecycle", () => {
     });
 
     await act(async () => {
-      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledWith({ kind: "open-failed" }));
+      await vi.waitFor(() =>
+        expect(bridge.onError).toHaveBeenCalledWith(expect.anything(), { kind: "open-failed" }),
+      );
     });
 
     expect(session.rendition.display).toHaveBeenCalledTimes(2);

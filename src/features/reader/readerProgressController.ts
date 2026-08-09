@@ -29,6 +29,10 @@ export type ReaderProgressController = Readonly<{
   getInitialCfi: () => string | undefined;
   getLocation: () => ReaderLocation;
   recordOpened: (identity: ReaderSessionIdentity, openedAt?: string) => boolean;
+  replaceIdentity: (
+    currentIdentity: ReaderSessionIdentity,
+    replacementIdentity: ReaderSessionIdentity,
+  ) => boolean;
   teardown: () => Promise<void>;
 }>;
 
@@ -43,6 +47,7 @@ export function createReaderProgressController({
   let active = true;
   let desiredChanges: UpdateBookInput = {};
   let location = initialState.location;
+  let ownedIdentity = identity;
   let persistenceRevision = 0;
   let teardownPromise: Promise<void> | null = null;
 
@@ -64,7 +69,7 @@ export function createReaderProgressController({
   });
 
   function owns(candidate: ReaderSessionIdentity): boolean {
-    return active && candidate === identity;
+    return active && candidate === ownedIdentity;
   }
 
   function schedule(changes: UpdateBookInput): void {
@@ -102,6 +107,11 @@ export function createReaderProgressController({
     recordOpened(candidate, openedAt = new Date().toISOString()) {
       if (!owns(candidate)) return false;
       schedule({ lastOpenedAt: openedAt });
+      return true;
+    },
+    replaceIdentity(currentIdentity, replacementIdentity) {
+      if (!owns(currentIdentity) || replacementIdentity.bookId !== book.id) return false;
+      ownedIdentity = replacementIdentity;
       return true;
     },
     teardown() {

@@ -18,6 +18,7 @@ import type {
 } from "../../types/annotation";
 import { ReaderRoute } from "./ReaderPage";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
+import type { ReaderSessionIdentity } from "./readerSession";
 
 const viewerMock = vi.hoisted(() => ({
   locationPublications: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onReady,
+        sessionIdentity,
       }: {
         onKeyDown: (event: KeyboardEvent) => void;
         onLocationChange: (location: {
@@ -53,7 +55,8 @@ vi.mock("./EpubViewer", async () => {
           sectionCount: number;
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
-        onReady: () => void;
+        onReady: (identity: ReaderSessionIdentity) => void;
+        sessionIdentity: ReaderSessionIdentity;
         settings: { mode: "continuous" | "paged" };
       },
       ref: React.ForwardedRef<unknown>,
@@ -70,6 +73,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onReady,
+        sessionIdentity,
       });
 
       React.useEffect(() => {
@@ -93,7 +97,7 @@ vi.mock("./EpubViewer", async () => {
         };
         viewerMock.locationPublications(initialLocation);
         callbacks.onLocationChange(initialLocation);
-        callbacks.onReady();
+        callbacks.onReady(callbacks.sessionIdentity);
       }, []);
 
       return (
