@@ -15,6 +15,7 @@ import type { BookmarkAnnotation, HighlightAnnotation } from "../../types/annota
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
 import { createReaderFileLease } from "./readerFileLease";
+import { createReaderSessionLifecycle, transitionReaderSession } from "./readerSession";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { resolveBuiltInReaderTheme, resolveReaderTheme } from "../../themes/resolveTheme";
 
@@ -297,6 +298,15 @@ function realClientRect(left: number, top: number, width: number, height: number
 }
 
 function defaultViewerProps(fileBlob: Blob) {
+  const sessionIdentity = transitionReaderSession(createReaderSessionLifecycle(), {
+    bookId: "test-book",
+    type: "open",
+  }).state.identity;
+
+  if (!sessionIdentity) {
+    throw new Error("Expected an open reader session identity.");
+  }
+
   return {
     fileLease: createReaderFileLease({
       initialBlob: fileBlob,
@@ -313,6 +323,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
     onReady: vi.fn(),
     readerTheme: resolveBuiltInReaderTheme("dark"),
+    sessionIdentity,
     settings: defaultReaderSettings,
   };
 }

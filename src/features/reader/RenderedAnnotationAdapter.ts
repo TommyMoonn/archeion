@@ -1,4 +1,3 @@
-import type { Book as EpubBook, Rendition } from "epubjs";
 import type EpubSection from "epubjs/types/section";
 
 import type { Annotation, HighlightAnnotation } from "../../types/annotation";
@@ -22,7 +21,7 @@ import {
   readerHighlightStyles,
   type ReaderHighlightColor,
 } from "./readerHighlights";
-import type { EpubSessionSnapshot } from "./useEpubSession";
+import type { EpubAnnotationSessionAccess } from "./epubSessionInteractionAccess";
 
 export type RenderedAnnotationAdapterOptions = {
   highlights: readonly HighlightAnnotation[];
@@ -38,24 +37,20 @@ type RenderedHighlight = {
   token: { active: boolean };
 };
 
-function bookSpineSections(book: EpubBook): EpubSection[] {
-  const sections: EpubSection[] = [];
-  book.spine.each((section: EpubSection) => sections.push(section));
-  return sections;
-}
-
-function sectionForHref(book: EpubBook, href: string | undefined): EpubSection | undefined {
+function sectionForHref(
+  session: EpubAnnotationSessionAccess,
+  href: string | undefined,
+): EpubSection | undefined {
   if (!href?.trim()) return undefined;
   const target = normalizeReaderChapterHref(href, false);
-  return bookSpineSections(book).find(
-    (section) => normalizeReaderChapterHref(section.href, false) === target,
-  );
+  return session
+    .listSections()
+    .find((section) => normalizeReaderChapterHref(section.href, false) === target);
 }
 
 async function validateExactAnnotationAnchor(
   lifecycle: ReaderAnnotationSectionLifecycle,
-  book: EpubBook,
-  rendition: Rendition | null,
+  session: EpubAnnotationSessionAccess,
   annotation: Annotation,
   signal?: AbortSignal,
 ): Promise<ReaderAnnotationRecoveryResult> {
@@ -64,16 +59,16 @@ async function validateExactAnnotationAnchor(
 
   let section: EpubSection | null;
   try {
-    section = book.spine.get(savedCfi);
+    section = session.getSection(savedCfi) ?? null;
   } catch {
     return { kind: "detached", reason: "not-found" };
   }
   if (!section) return { kind: "detached", reason: "not-found" };
 
   try {
-    const validation = await lifecycle.run(book, rendition, section, signal, async () => {
+    const validation = await lifecycle.run(session, section, signal, async () => {
       try {
-        const range = await book.getRange(savedCfi);
+        const range = await session.getRange(savedCfi);
         return (
           annotation.type === "bookmark" || recoveryRangeMatches(range, annotation.selectedText)
         );
@@ -105,7 +100,7 @@ export class RenderedAnnotationAdapter {
   private rendered = new Map<string, RenderedHighlight>();
   private reportedInvalid = new Map<string, string>();
   private sectionLifecycle = new ReaderAnnotationSectionLifecycle();
-  private session: EpubSessionSnapshot | null = null;
+  private session: EpubAnnotationSessionAccess | null = null;
   private validatedAnchors = new Map<string, string>();
   private validationController: AbortController | null = null;
 
@@ -119,8 +114,8 @@ export class RenderedAnnotationAdapter {
     this.highlightsById = new Map(options.highlights.map((highlight) => [highlight.id, highlight]));
   }
 
-  setSession(session: EpubSessionSnapshot | null): void {
-    if (this.session?.generation === session?.generation) return;
+  setSession(session: EpubAnnotationSessionAccess | null): void {
+    if (this.session === session) return;
     this.cleanupSession();
     this.session = session;
     if (session) this.validationController = new AbortController();
@@ -173,7 +168,7 @@ export class RenderedAnnotationAdapter {
       ) {
         rendered.token.active = false;
         this.options.onCancelHighlightGesture(annotationId);
-        session.rendition.annotations.remove(rendered.range, "highlight");
+        session.removeHighlight(rendered.range, "highlight");
         this.rendered.delete(annotationId);
       }
     }
@@ -185,7 +180,7 @@ export class RenderedAnnotationAdapter {
 
       const token = { active: true };
       try {
-        session.rendition.annotations.highlight(
+        session.highlight(
           range,
           { annotationId },
           (event: Event) => {
@@ -217,15 +212,12 @@ export class RenderedAnnotationAdapter {
     const generation = this.generation;
     const { signal } = controller;
     const ownsRecovery = () =>
-      !signal.aborted &&
-      generation === this.generation &&
-      this.session?.generation === session.generation;
+      !signal.aborted && generation === this.generation && this.session === session;
 
     try {
       const exact = await validateExactAnnotationAnchor(
         this.sectionLifecycle,
-        session.book,
-        session.rendition,
+        session,
         annotation,
         signal,
       );
@@ -233,16 +225,12 @@ export class RenderedAnnotationAdapter {
       if (exact.kind === "resolved" || exact.kind === "failed") return exact;
       if (!attemptRecovery) return { kind: "detached", reason: "not-found" };
 
-      const preferred = sectionForHref(session.book, annotation.chapterHref);
+      const preferred = sectionForHref(session, annotation.chapterHref);
       if (annotation.type === "bookmark") {
         if (!preferred) return { kind: "detached", reason: "chapter-missing" };
         try {
-          const recovered = await this.sectionLifecycle.run(
-            session.book,
-            session.rendition,
-            preferred,
-            signal,
-            (loaded) => recoverBookmarkChapterAnchor(annotation, loaded),
+          const recovered = await this.sectionLifecycle.run(session, preferred, signal, (loaded) =>
+            recoverBookmarkChapterAnchor(annotation, loaded),
           );
           return recovered.kind === "cancelled" ? recovered : recovered.value;
         } catch {
@@ -250,16 +238,12 @@ export class RenderedAnnotationAdapter {
         }
       }
 
-      const sections = bookSpineSections(session.book);
+      const sections = session.listSections();
       const candidates: ReaderHighlightRecoveryCandidate[] = [];
       if (preferred) {
         try {
-          const evaluated = await this.sectionLifecycle.run(
-            session.book,
-            session.rendition,
-            preferred,
-            signal,
-            (loaded) => highlightRecoveryCandidates(annotation, loaded, signal),
+          const evaluated = await this.sectionLifecycle.run(session, preferred, signal, (loaded) =>
+            highlightRecoveryCandidates(annotation, loaded, signal),
           );
           if (evaluated.kind === "cancelled") return evaluated;
           candidates.push(...evaluated.value);
@@ -284,12 +268,8 @@ export class RenderedAnnotationAdapter {
       for (const section of fallback) {
         if (!ownsRecovery()) return { kind: "cancelled" };
         try {
-          const evaluated = await this.sectionLifecycle.run(
-            session.book,
-            session.rendition,
-            section,
-            signal,
-            (loaded) => highlightRecoveryCandidates(annotation, loaded, signal),
+          const evaluated = await this.sectionLifecycle.run(session, section, signal, (loaded) =>
+            highlightRecoveryCandidates(annotation, loaded, signal),
           );
           if (evaluated.kind === "cancelled") return evaluated;
           candidates.push(...evaluated.value);
@@ -313,7 +293,7 @@ export class RenderedAnnotationAdapter {
   }
 
   private startValidation(
-    session: EpubSessionSnapshot,
+    session: EpubAnnotationSessionAccess,
     highlight: HighlightAnnotation,
     signature: string,
   ): void {
@@ -323,19 +303,9 @@ export class RenderedAnnotationAdapter {
 
     this.pendingValidations.set(highlight.id, signature);
     const generation = this.generation;
-    void validateExactAnnotationAnchor(
-      this.sectionLifecycle,
-      session.book,
-      session.rendition,
-      highlight,
-      signal,
-    )
+    void validateExactAnnotationAnchor(this.sectionLifecycle, session, highlight, signal)
       .then((result) => {
-        if (
-          signal.aborted ||
-          generation !== this.generation ||
-          this.session?.generation !== session.generation
-        ) {
+        if (signal.aborted || generation !== this.generation || this.session !== session) {
           return;
         }
         const candidate = this.highlightsById.get(highlight.id);
@@ -362,7 +332,7 @@ export class RenderedAnnotationAdapter {
         if (
           !signal.aborted &&
           generation === this.generation &&
-          this.session?.generation === session.generation &&
+          this.session === session &&
           this.validatedAnchors.get(highlight.id) === signature
         ) {
           this.reconcile();
@@ -439,11 +409,11 @@ export class RenderedAnnotationAdapter {
     this.sectionLifecycle.invalidate();
     this.sectionLifecycle = new ReaderAnnotationSectionLifecycle();
 
-    const rendition = this.session?.rendition;
+    const session = this.session;
     for (const rendered of this.rendered.values()) {
       rendered.token.active = false;
       this.options.onCancelHighlightGesture(rendered.annotationId);
-      rendition?.annotations.remove(rendered.range, "highlight");
+      session?.removeHighlight(rendered.range, "highlight");
     }
     this.rendered.clear();
     this.validatedAnchors.clear();

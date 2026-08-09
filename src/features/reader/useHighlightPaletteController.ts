@@ -7,7 +7,7 @@ import {
   type ClientRect,
   type HighlightPaletteAnchor,
 } from "./readerHighlightPaletteAnchor";
-import type { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
+import type { ReaderContentDocumentAccess } from "./readerContentDocumentRegistry";
 
 export type ReaderTextSelection = {
   cfiRange: string;
@@ -28,7 +28,7 @@ type UseHighlightPaletteControllerOptions = {
   containerRef: RefObject<HTMLDivElement | null>;
   onDismiss: () => void;
   paletteRef: RefObject<HTMLDivElement | null>;
-  registry: ReaderContentDocumentRegistry;
+  registry: ReaderContentDocumentAccess;
   viewerRef: RefObject<HTMLDivElement | null>;
 };
 

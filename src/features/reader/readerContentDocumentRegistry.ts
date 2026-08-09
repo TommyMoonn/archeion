@@ -37,6 +37,15 @@ export type ReaderContentDocumentRegistryOptions = {
   onWheel?: (event: WheelEvent) => void;
 };
 
+export type ReaderContentDocumentAccess = Readonly<{
+  clearSelection: (document?: Document) => void;
+  contextFor: (document: Document) => ReaderContentDocumentContext | null;
+  has: (document: Document) => boolean;
+  list: () => readonly Document[];
+  pruneDisconnected: () => void;
+  updateOptions: (options: ReaderContentDocumentRegistryOptions) => void;
+}>;
+
 type RegisteredDocument = {
   cleanup: () => void;
   sectionHref?: string;
@@ -239,5 +248,53 @@ export class ReaderContentDocumentRegistry {
     } catch {
       return false;
     }
+  }
+}
+
+export class ReaderContentDocumentSessionOwner {
+  private activeRegistry: ReaderContentDocumentRegistry | null = null;
+  private options: ReaderContentDocumentRegistryOptions = {};
+
+  readonly access: ReaderContentDocumentAccess = Object.freeze({
+    clearSelection: (document?: Document) => this.activeRegistry?.clearSelection(document),
+    contextFor: (document: Document) => this.activeRegistry?.contextFor(document) ?? null,
+    has: (document: Document) => this.activeRegistry?.has(document) ?? false,
+    list: () => this.activeRegistry?.list() ?? [],
+    pruneDisconnected: () => this.activeRegistry?.pruneDisconnected(),
+    updateOptions: (options: ReaderContentDocumentRegistryOptions) => {
+      this.options = options;
+      this.activeRegistry?.updateOptions(options);
+    },
+  });
+
+  activate(): ReaderContentDocumentRegistry {
+    this.retire();
+    const registry = new ReaderContentDocumentRegistry();
+    registry.updateOptions(this.options);
+    this.activeRegistry = registry;
+    return registry;
+  }
+
+  applyTheme(
+    rendition: Rendition | null,
+    theme: ReaderContentTheme,
+    container: HTMLElement | null,
+  ) {
+    this.activeRegistry?.applyTheme(rendition, theme, container);
+  }
+
+  bindMounted(container: HTMLElement | null): void {
+    this.activeRegistry?.bindMounted(container);
+  }
+
+  renditionTargetIsUsable(rendition: Rendition, target: string): boolean {
+    return this.activeRegistry?.renditionTargetIsUsable(rendition, target) ?? false;
+  }
+
+  retire(registry?: ReaderContentDocumentRegistry): void {
+    if (!this.activeRegistry || (registry && this.activeRegistry !== registry)) return;
+    const retiring = this.activeRegistry;
+    this.activeRegistry = null;
+    retiring.clear();
   }
 }

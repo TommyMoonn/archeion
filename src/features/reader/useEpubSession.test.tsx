@@ -1,12 +1,25 @@
 // @vitest-environment happy-dom
 
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
-import { act, forwardRef, useImperativeHandle, useRef, type RefObject } from "react";
+import {
+  act,
+  forwardRef,
+  StrictMode,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ReaderContentDocumentRegistry, type EpubContent } from "./readerContentDocumentRegistry";
+import type { EpubContent } from "./readerContentDocumentRegistry";
 import { createReaderFileLease, type ReaderFileLease } from "./readerFileLease";
+import {
+  createReaderSessionLifecycle,
+  transitionReaderSession,
+  type ReaderSessionIdentity,
+} from "./readerSession";
 import {
   useEpubSession,
   type EpubSessionBridge,
@@ -40,12 +53,19 @@ type MockRendition = Rendition & {
 
 type MockBookSession = ReturnType<typeof createBookSession>;
 
-type HarnessProps = Omit<UseEpubSessionOptions, "containerRef">;
+type HarnessProps = Omit<UseEpubSessionOptions, "containerRef" | "sessionIdentity"> & {
+  sessionIdentity?: ReaderSessionIdentity;
+};
 
 const SessionHarness = forwardRef<EpubSessionFacade, HarnessProps>(
   function SessionHarness(props, ref) {
     const containerRef = useRef<HTMLDivElement>(null);
-    const facade = useEpubSession({ ...props, containerRef });
+    const [fallbackIdentity] = useState(() => createSessionIdentity("test-book"));
+    const facade = useEpubSession({
+      ...props,
+      containerRef,
+      sessionIdentity: props.sessionIdentity ?? fallbackIdentity,
+    });
     useImperativeHandle(ref, () => facade, [facade]);
     return <div ref={containerRef} />;
   },
@@ -67,6 +87,14 @@ function deferred<T>(): Deferred<T> {
     reject = rejectPromise;
   });
   return { promise, reject, resolve };
+}
+
+function createSessionIdentity(bookId: string): ReaderSessionIdentity {
+  const opened = transitionReaderSession(createReaderSessionLifecycle(), { bookId, type: "open" });
+  if (opened.kind !== "accepted" || !opened.state.identity) {
+    throw new Error("Expected an opened Reader session identity.");
+  }
+  return opened.state.identity;
 }
 
 function leaseFor(
@@ -163,7 +191,6 @@ function createBookSession(
 
 function createBridge(overrides: Partial<EpubSessionBridge> = {}): EpubSessionBridge {
   return {
-    isLocationUsable: vi.fn(() => true),
     onContent: vi.fn(),
     onDisplayed: vi.fn(),
     onError: vi.fn(),
@@ -188,6 +215,7 @@ function createBridgeRef(bridge = createBridge()): RefObject<EpubSessionBridge> 
 async function renderHarness(
   props: HarnessProps,
   facadeRef: RefObject<EpubSessionFacade | null> = { current: null },
+  strictMode = false,
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -195,7 +223,15 @@ async function renderHarness(
   roots.push(root);
   containers.push(container);
   await act(async () => {
-    root.render(<SessionHarness {...props} ref={facadeRef} />);
+    root.render(
+      strictMode ? (
+        <StrictMode>
+          <SessionHarness {...props} ref={facadeRef} />
+        </StrictMode>
+      ) : (
+        <SessionHarness {...props} ref={facadeRef} />
+      ),
+    );
   });
   return { facadeRef, root };
 }
@@ -229,7 +265,7 @@ function emitStaleEvent(session: MockBookSession, event: string, ...args: unknow
   }
 }
 
-function relocation(): Location {
+function relocation(cfi = "epubcfi(/6/2!/4/2:4)"): Location {
   return {
     atEnd: false,
     atStart: false,
@@ -242,7 +278,7 @@ function relocation(): Location {
       percentage: 0.5,
     },
     start: {
-      cfi: "epubcfi(/6/2!/4/2:4)",
+      cfi,
       displayed: { page: 1, total: 2 },
       href: "Text/chapter.xhtml",
       index: 0,
@@ -381,6 +417,309 @@ describe("useEpubSession lifecycle", () => {
     expect(bridge.onSessionEnding).toHaveBeenCalledTimes(1);
     expect(session.destroy).toHaveBeenCalledTimes(1);
     expect(session.book.off).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns narrow navigation, location, document, and teardown capabilities", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(facadeRef.current).toEqual(
+      expect.objectContaining({
+        applyContentTheme: expect.any(Function),
+        documents: expect.any(Object),
+        getInteractionSession: expect.any(Function),
+        getLocation: expect.any(Function),
+        getNavigationState: expect.any(Function),
+        navigateToChapter: expect.any(Function),
+        navigateToLocation: expect.any(Function),
+        navigateToTarget: expect.any(Function),
+        teardown: expect.any(Function),
+        turn: expect.any(Function),
+      }),
+    );
+    expect(facadeRef.current).not.toHaveProperty("getRendition");
+    expect(facadeRef.current).not.toHaveProperty("getSession");
+    expect(facadeRef.current?.documents).not.toHaveProperty("bind");
+    expect(facadeRef.current?.documents).not.toHaveProperty("clear");
+    const interactionSession = facadeRef.current?.getInteractionSession();
+    expect(interactionSession).toBe(vi.mocked(bridge.onSessionCreated).mock.calls[0]?.[0]);
+    expect(interactionSession).not.toHaveProperty("book");
+    expect(interactionSession).not.toHaveProperty("rendition");
+    expect(interactionSession).not.toHaveProperty("destroy");
+  });
+
+  it("uses one idempotent teardown for explicit retirement and effect cleanup", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+    const registeredDocument = document.implementation.createHTMLDocument("active-session");
+    session.rendition.contentCallbacks[0]?.({ document: registeredDocument });
+    expect(facadeRef.current?.documents.has(registeredDocument)).toBe(true);
+
+    act(() => {
+      facadeRef.current?.teardown();
+      facadeRef.current?.teardown();
+    });
+
+    expect(facadeRef.current?.getInteractionSession()).toBeNull();
+    expect(facadeRef.current?.getLocation()).toBeNull();
+    expect(facadeRef.current?.documents.has(registeredDocument)).toBe(false);
+    expect(bridge.onSessionEnding).toHaveBeenCalledOnce();
+    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.destroy).toHaveBeenCalledOnce();
+
+    act(() => root.unmount());
+
+    expect(bridge.onSessionEnding).toHaveBeenCalledOnce();
+    expect(session.rendition.off).toHaveBeenCalledTimes(3);
+    expect(session.destroy).toHaveBeenCalledOnce();
+  });
+
+  it("does not retain a disposed rendition across StrictMode effect replay", async () => {
+    const sessions = [createBookSession(), createBookSession()];
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook
+      .mockReturnValueOnce(sessions[0].book)
+      .mockReturnValueOnce(sessions[1].book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["strict-book"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("strict-book"),
+      },
+      facadeRef,
+      true,
+    );
+    await act(async () => {
+      await vi.waitFor(() => expect(bridge.onReady).toHaveBeenCalledOnce());
+    });
+
+    const createdSessions = sessions.slice(0, epubModuleMock.openBook.mock.calls.length);
+    expect(facadeRef.current?.getInteractionSession()).not.toBeNull();
+    expect(createdSessions.at(-1)?.destroy).not.toHaveBeenCalled();
+    for (const retiredSession of createdSessions.slice(0, -1)) {
+      expect(retiredSession.destroy).toHaveBeenCalledOnce();
+    }
+
+    act(() => root.unmount());
+
+    for (const createdSession of createdSessions) {
+      expect(createdSession.destroy).toHaveBeenCalledOnce();
+    }
+    expect(facadeRef.current).toBeNull();
+  });
+
+  it("destroys a retired book session before its identity replacement publishes ready", async () => {
+    const stages: string[] = [];
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    sessionA.destroy.mockImplementation(() => stages.push("session-a-destroyed"));
+    const bridge = createBridge({
+      onReady: vi
+        .fn()
+        .mockImplementationOnce(() => stages.push("session-a-ready"))
+        .mockImplementationOnce(() => stages.push("session-b-ready")),
+    });
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const identityA = createSessionIdentity("book-a");
+    const identityB = createSessionIdentity("book-b");
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+        sessionIdentity: identityA,
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-b"])),
+        mode: "paged",
+        sessionIdentity: identityB,
+      },
+      facadeRef,
+    );
+    await act(async () => {
+      await vi.waitFor(() => expect(bridge.onReady).toHaveBeenCalledTimes(2));
+    });
+
+    expect(stages).toEqual(["session-a-ready", "session-a-destroyed", "session-b-ready"]);
+    expect(facadeRef.current?.getInteractionSession()).toBe(
+      vi.mocked(bridge.onSessionCreated).mock.calls.at(-1)?.[0],
+    );
+  });
+
+  it("retires the previous registry before replacement readiness and rejects its documents", async () => {
+    const stages: string[] = [];
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const bridge = createBridge({
+      onReady: vi.fn(() => stages.push(`ready:${facadeRef.current?.documents.list().length}`)),
+      onSessionEnding: vi.fn(() =>
+        stages.push(`ending:${facadeRef.current?.documents.list().length}`),
+      ),
+    });
+    const bridgeRef = createBridgeRef(bridge);
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-a"),
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+    const oldDocument = document.implementation.createHTMLDocument("book-a");
+    sessionA.rendition.contentCallbacks[0]?.({ document: oldDocument });
+    expect(facadeRef.current?.documents.has(oldDocument)).toBe(true);
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-b"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-b"),
+      },
+      facadeRef,
+    );
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(sessionB.rendition.display).toHaveBeenCalled();
+        expect(bridge.onReady).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    expect(stages).toEqual(["ready:0", "ending:0", "ready:0"]);
+    expect(facadeRef.current?.documents.has(oldDocument)).toBe(false);
+    sessionA.rendition.contentCallbacks[0]?.({ document: oldDocument });
+    expect(facadeRef.current?.documents.has(oldDocument)).toBe(false);
+  });
+
+  it("exposes location only for the active session and ignores stale relocation", async () => {
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-a"),
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+    emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/book-a)"));
+    expect(facadeRef.current?.getLocation()?.cfi).toBe("epubcfi(/book-a)");
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease: leaseFor(new Blob(["book-b"])),
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("book-b"),
+      },
+      facadeRef,
+    );
+    await act(async () => {
+      await vi.waitFor(() => {
+        expect(sessionB.rendition.display).toHaveBeenCalled();
+        expect(bridge.onReady).toHaveBeenCalledTimes(2);
+      });
+    });
+    expect(facadeRef.current?.getLocation()).toBeNull();
+
+    emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/stale-book-a)"));
+    expect(facadeRef.current?.getLocation()).toBeNull();
+
+    emitStaleEvent(sessionB, "relocated", relocation("epubcfi(/book-b)"));
+    expect(facadeRef.current?.getLocation()?.cfi).toBe("epubcfi(/book-b)");
+  });
+
+  it("settles startup failure once and retries with a fresh Reader session identity", async () => {
+    const failedStart = deferred<void>();
+    const failedSession = createBookSession({ started: failedStart.promise });
+    const retrySession = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const fileLease = leaseFor(new Blob(["retry-book"]));
+    epubModuleMock.openBook
+      .mockReturnValueOnce(failedSession.book)
+      .mockReturnValueOnce(retrySession.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("retry-book"),
+      },
+      facadeRef,
+    );
+
+    await act(async () => {
+      failedStart.reject(new Error("rendition start failed"));
+      await vi.waitFor(() => expect(bridge.onError).toHaveBeenCalledOnce());
+    });
+    expect(failedSession.destroy).toHaveBeenCalledOnce();
+    expect(bridge.onReady).not.toHaveBeenCalled();
+    expect(facadeRef.current?.documents.list()).toEqual([]);
+    expect(facadeRef.current?.getInteractionSession()).toBeNull();
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity: createSessionIdentity("retry-book"),
+      },
+      facadeRef,
+    );
+    await waitForReady(retrySession, bridge);
+
+    expect(epubModuleMock.openBook).toHaveBeenCalledTimes(2);
+    expect(bridge.onError).toHaveBeenCalledOnce();
+    expect(bridge.onReady).toHaveBeenCalledOnce();
+    expect(facadeRef.current?.getInteractionSession()).not.toBeNull();
   });
 
   it("does not create an EPUB.js book when teardown cancels a pending byte conversion", async () => {
@@ -941,27 +1280,12 @@ describe("useEpubSession content-hook ownership", () => {
   it("prevents an old document from entering the current registry or firing current callbacks", async () => {
     const sessionA = createBookSession();
     const sessionB = createBookSession();
-    const registry = new ReaderContentDocumentRegistry();
     const onInteraction = vi.fn();
     const onKeyDown = vi.fn();
     const onPointerDown = vi.fn();
     const onSelectionCollapsed = vi.fn();
     const onWheel = vi.fn();
-    registry.updateOptions({
-      onInteraction,
-      onKeyDown,
-      onPointerDown,
-      onSelectionCollapsed,
-      onWheel,
-    });
-    const bridge = createBridge({
-      onContent: (content) => {
-        registry.bind(content);
-      },
-      onSessionEnding: () => {
-        registry.clear();
-      },
-    });
+    const bridge = createBridge();
     const bridgeRef = createBridgeRef(bridge);
     const fileA = new Blob(["book-a"]);
     epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
@@ -971,6 +1295,14 @@ describe("useEpubSession content-hook ownership", () => {
       facadeRef,
     );
     await waitForReady(sessionA, bridge);
+    const registry = facadeRef.current!.documents;
+    registry.updateOptions({
+      onInteraction,
+      onKeyDown,
+      onPointerDown,
+      onSelectionCollapsed,
+      onWheel,
+    });
 
     await rerenderHarness(
       root,

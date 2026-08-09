@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
-import type { EpubSessionSnapshot } from "./useEpubSession";
+import type { EpubContentSessionAccess } from "./epubSessionInteractionAccess";
 import {
   classifyEpubLink,
   epubSemanticsFromElement,
@@ -9,11 +9,9 @@ import {
   targetSemanticsForElement,
   type EpubContentAction,
 } from "./epubContentActions";
-import { resolveEpubFootnote, type ResolvedEpubFootnote } from "./epubFootnoteResolver";
+import type { ResolvedEpubFootnote } from "./epubFootnoteResolver";
 import {
   illustrationElementFromTarget,
-  illustrationTargetForElement,
-  resolveEpubIllustration,
   type ResolvedEpubIllustration,
 } from "./epubIllustrationResolver";
 import {
@@ -26,8 +24,8 @@ import {
   type ReaderContentActionAnchor,
 } from "./readerContentActionAnchor";
 import type {
+  ReaderContentDocumentAccess,
   ReaderContentDocumentContext,
-  ReaderContentDocumentRegistry,
 } from "./readerContentDocumentRegistry";
 import type { ClientRect } from "./readerHighlightPaletteAnchor";
 import { openExternalUrl } from "../../app/openExternalUrl";
@@ -58,10 +56,10 @@ export type ReaderIllustrationState = Readonly<{
 }>;
 
 type UseEpubContentActionControllerOptions = {
-  getSession: () => EpubSessionSnapshot | null;
+  getContentSession: () => EpubContentSessionAccess | null;
   navigateToTarget: (target: string) => Promise<boolean>;
   onInteraction: () => void;
-  registry: ReaderContentDocumentRegistry;
+  registry: ReaderContentDocumentAccess;
   viewerRef: RefObject<HTMLDivElement | null>;
 };
 
@@ -99,7 +97,7 @@ function activeReaderContentSurface(className: string): HTMLElement | null {
 }
 
 export function useEpubContentActionController({
-  getSession,
+  getContentSession,
   navigateToTarget,
   onInteraction,
   registry,
@@ -217,30 +215,25 @@ export function useEpubContentActionController({
   }, []);
 
   const isCurrentOperation = useCallback(
-    (operation: number, session: EpubSessionSnapshot) => {
-      const current = getSession();
-      return (
-        mountedRef.current &&
-        operationRef.current === operation &&
-        current === session &&
-        current.generation === session.generation
-      );
+    (operation: number, session: EpubContentSessionAccess) => {
+      const current = getContentSession();
+      return mountedRef.current && operationRef.current === operation && current === session;
     },
-    [getSession],
+    [getContentSession],
   );
 
   const navigate = useCallback(
     (target: string) => {
-      const session = getSession();
+      const session = getContentSession();
       if (!session) return;
       setFeedback(null);
       void navigateToTarget(target).then((navigated) => {
-        if (!navigated && mountedRef.current && getSession() === session) {
+        if (!navigated && mountedRef.current && getContentSession() === session) {
           setFeedback("This EPUB destination could not be opened.");
         }
       });
     },
-    [getSession, navigateToTarget],
+    [getContentSession, navigateToTarget],
   );
 
   const openExternal = useCallback(
@@ -269,7 +262,7 @@ export function useEpubContentActionController({
       currentDocument: Readonly<{ document: Document; href: string }> | null,
       forceFootnote: boolean,
     ) => {
-      const session = getSession();
+      const session = getContentSession();
       if (!session) return;
 
       cancelResolution();
@@ -281,46 +274,47 @@ export function useEpubContentActionController({
       abortRef.current = controller;
       const operation = operationRef.current;
 
-      void resolveEpubFootnote({
-        book: session.book,
-        currentDocument,
-        forceFootnote,
-        signal: controller.signal,
-        target: action.target,
-      }).then((resolution) => {
-        if (!isCurrentOperation(operation, session)) {
-          if (resolution.kind === "resolved") resolution.value.release();
-          return;
-        }
-        abortRef.current = null;
+      void session
+        .resolveFootnote({
+          currentDocument,
+          forceFootnote,
+          signal: controller.signal,
+          target: action.target,
+        })
+        .then((resolution) => {
+          if (!isCurrentOperation(operation, session)) {
+            if (resolution.kind === "resolved") resolution.value.release();
+            return;
+          }
+          abortRef.current = null;
 
-        if (resolution.kind === "cancelled") return;
-        if (resolution.kind === "not-footnote") {
-          navigate(action.target.displayTarget);
-          return;
-        }
-        const anchorRect = anchor.resolveRect();
-        if (!anchorRect) {
-          if (resolution.kind === "resolved") resolution.value.release();
-          return;
-        }
-        if (resolution.kind === "unsupported" && !forceFootnote) {
-          navigate(action.target.displayTarget);
-          return;
-        }
+          if (resolution.kind === "cancelled") return;
+          if (resolution.kind === "not-footnote") {
+            navigate(action.target.displayTarget);
+            return;
+          }
+          const anchorRect = anchor.resolveRect();
+          if (!anchorRect) {
+            if (resolution.kind === "resolved") resolution.value.release();
+            return;
+          }
+          if (resolution.kind === "unsupported" && !forceFootnote) {
+            navigate(action.target.displayTarget);
+            return;
+          }
 
-        setFootnote({
-          anchor,
-          anchorRect,
-          content: resolution.kind === "resolved" ? resolution.value : undefined,
-          message: resolution.kind === "unsupported" ? resolution.message : undefined,
-          viewportRect: readerViewportRect(viewerRef.current),
+          setFootnote({
+            anchor,
+            anchorRect,
+            content: resolution.kind === "resolved" ? resolution.value : undefined,
+            message: resolution.kind === "unsupported" ? resolution.message : undefined,
+            viewportRect: readerViewportRect(viewerRef.current),
+          });
         });
-      });
     },
     [
       cancelResolution,
-      getSession,
+      getContentSession,
       isCurrentOperation,
       navigate,
       setExternal,
@@ -335,7 +329,7 @@ export function useEpubContentActionController({
       action: Extract<EpubContentAction, { kind: "illustration" }>,
       anchor: ReaderContentActionAnchor,
     ) => {
-      const session = getSession();
+      const session = getContentSession();
       if (!session) return;
 
       cancelResolution();
@@ -347,27 +341,32 @@ export function useEpubContentActionController({
       abortRef.current = controller;
       const operation = operationRef.current;
 
-      void resolveEpubIllustration(session.book, action.target, controller.signal).then(
-        (resolution) => {
-          if (!isCurrentOperation(operation, session)) {
-            if (resolution.kind === "resolved") resolution.value.release();
-            return;
-          }
-          abortRef.current = null;
-          if (resolution.kind === "cancelled") return;
-          if (resolution.kind === "unsupported") {
-            setIllustration({
-              anchor,
-              error: "This illustration could not be opened safely.",
-              loading: false,
-            });
-            return;
-          }
-          setIllustration({ anchor, loading: false, resource: resolution.value });
-        },
-      );
+      void session.resolveIllustration(action.target, controller.signal).then((resolution) => {
+        if (!isCurrentOperation(operation, session)) {
+          if (resolution.kind === "resolved") resolution.value.release();
+          return;
+        }
+        abortRef.current = null;
+        if (resolution.kind === "cancelled") return;
+        if (resolution.kind === "unsupported") {
+          setIllustration({
+            anchor,
+            error: "This illustration could not be opened safely.",
+            loading: false,
+          });
+          return;
+        }
+        setIllustration({ anchor, loading: false, resource: resolution.value });
+      });
     },
-    [cancelResolution, getSession, isCurrentOperation, setExternal, setFootnote, setIllustration],
+    [
+      cancelResolution,
+      getContentSession,
+      isCurrentOperation,
+      setExternal,
+      setFootnote,
+      setIllustration,
+    ],
   );
 
   const routeAction = useCallback(
@@ -410,10 +409,10 @@ export function useEpubContentActionController({
 
   const activateIllustrationElement = useCallback(
     (element: Element, context: ReaderContentDocumentContext) => {
-      const session = getSession();
+      const session = getContentSession();
       const currentDocumentHref = context.sectionHref?.trim() ?? "";
       if (!session || !currentDocumentHref) return false;
-      const target = illustrationTargetForElement(session.book, element, currentDocumentHref);
+      const target = session.illustrationTargetForElement(element, currentDocumentHref);
       const focusTarget = illustrationFocusTarget(element);
       const anchor = focusTarget ? contentActionAnchorForElement(focusTarget) : null;
       if (!target || !anchor) return false;
@@ -423,7 +422,7 @@ export function useEpubContentActionController({
       });
       return true;
     },
-    [getSession, routeAction],
+    [getContentSession, routeAction],
   );
 
   const handleContentClick = useCallback(
@@ -507,17 +506,17 @@ export function useEpubContentActionController({
       const target = eventTargetElement(event.target);
       const isContentLink = Boolean(target?.closest("a[href], area[href]"));
       const illustrationElement = illustrationElementFromTarget(target);
-      const session = getSession();
+      const session = getContentSession();
       const isIllustration = Boolean(
         illustrationElement &&
         session &&
         context.sectionHref &&
-        illustrationTargetForElement(session.book, illustrationElement, context.sectionHref),
+        session.illustrationTargetForElement(illustrationElement, context.sectionHref),
       );
       if (footnoteRef.current) dismissFootnote(false);
       return isContentLink || isIllustration;
     },
-    [dismissFootnote, getSession],
+    [dismissFootnote, getContentSession],
   );
 
   const handleContentKeyDown = useCallback(
@@ -535,10 +534,10 @@ export function useEpubContentActionController({
 
   const prepareDocument = useCallback(
     (context: ReaderContentDocumentContext) => {
-      const session = getSession();
+      const session = getContentSession();
       if (!session || !context.sectionHref) return;
       for (const element of context.document.querySelectorAll("img, image")) {
-        if (!illustrationTargetForElement(session.book, element, context.sectionHref)) continue;
+        if (!session.illustrationTargetForElement(element, context.sectionHref)) continue;
         const focusTarget = illustrationFocusTarget(element);
         if (!focusTarget || hasPublisherIllustrationInteractionOwner(element, focusTarget)) {
           continue;
@@ -555,7 +554,7 @@ export function useEpubContentActionController({
         }
       }
     },
-    [getSession],
+    [getContentSession],
   );
 
   const handleDocumentRemoved = useCallback(
@@ -586,7 +585,7 @@ export function useEpubContentActionController({
   const confirmExternal = useCallback(() => {
     const current = externalRef.current;
     if (!current || current.opening) return;
-    const session = getSession();
+    const session = getContentSession();
     if (!session) return;
     const operation = ++operationRef.current;
     const opening = { ...current, error: undefined, opening: true };
@@ -608,7 +607,7 @@ export function useEpubContentActionController({
         });
       },
     );
-  }, [getSession, isCurrentOperation, restoreFocus, setExternal]);
+  }, [getContentSession, isCurrentOperation, restoreFocus, setExternal]);
 
   const refreshFootnoteAnchor = useCallback(() => {
     const current = footnoteRef.current;

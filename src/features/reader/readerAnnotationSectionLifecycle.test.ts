@@ -8,6 +8,7 @@ import {
   READER_ANNOTATION_SECTION_LOAD_CONCURRENCY,
   ReaderAnnotationSectionLifecycle,
 } from "./readerAnnotationSectionLifecycle";
+import { createEpubSessionInteractionAccess } from "./epubSessionInteractionAccess";
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
@@ -49,6 +50,10 @@ function renditionWithContents(contents: () => Array<{ sectionIndex: number }>):
   return { getContents: contents } as unknown as Rendition;
 }
 
+function sessionAccess(rendition: Rendition) {
+  return createEpubSessionInteractionAccess(book, rendition).annotations;
+}
+
 describe("ReaderAnnotationSectionLifecycle", () => {
   it("uses one named section-load worker and unloads temporary sections after success", async () => {
     expect(READER_ANNOTATION_SECTION_LOAD_CONCURRENCY).toBe(1);
@@ -58,10 +63,14 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const firstLoad = deferred<Element>();
     vi.mocked(first.value.load).mockImplementationOnce(() => firstLoad.promise as never);
 
-    const firstTask = lifecycle.run(book, inactiveRendition, first.value, undefined, () => "first");
+    const firstTask = lifecycle.run(
+      sessionAccess(inactiveRendition),
+      first.value,
+      undefined,
+      () => "first",
+    );
     const secondTask = lifecycle.run(
-      book,
-      inactiveRendition,
+      sessionAccess(inactiveRendition),
       second.value,
       undefined,
       () => "second",
@@ -88,7 +97,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const loaded = section("loaded.xhtml", true);
 
     await expect(
-      lifecycle.run(book, inactiveRendition, loaded.value, undefined, ({ href }) => href),
+      lifecycle.run(sessionAccess(inactiveRendition), loaded.value, undefined, ({ href }) => href),
     ).resolves.toEqual({ kind: "completed", value: "loaded.xhtml" });
 
     expect(loaded.value.load).not.toHaveBeenCalled();
@@ -100,7 +109,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const adopted = section("adopted.xhtml", false, 4);
     const rendition = renditionWithContents(() => [{ sectionIndex: 4 }]);
 
-    await lifecycle.run(book, rendition, adopted.value, undefined, () => true);
+    await lifecycle.run(sessionAccess(rendition), adopted.value, undefined, () => true);
 
     expect(adopted.value.unload).not.toHaveBeenCalled();
   });
@@ -113,7 +122,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const taskStarted = deferred<void>();
     const finishTask = deferred<void>();
 
-    const task = lifecycle.run(book, rendition, adopted.value, undefined, async () => {
+    const task = lifecycle.run(sessionAccess(rendition), adopted.value, undefined, async () => {
       taskStarted.resolve(undefined);
       await finishTask.promise;
       return true;
@@ -131,7 +140,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const temporary = section("temporary.xhtml", false, 3);
     const rendition = renditionWithContents(() => [{ sectionIndex: 2 }]);
 
-    await lifecycle.run(book, rendition, temporary.value, undefined, () => true);
+    await lifecycle.run(sessionAccess(rendition), temporary.value, undefined, () => true);
 
     expect(temporary.value.unload).toHaveBeenCalledOnce();
   });
@@ -143,9 +152,9 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const unrelated = section("continuous-unrelated.xhtml", false, 3);
     const rendition = renditionWithContents(() => [{ sectionIndex: 1 }, { sectionIndex: 2 }]);
 
-    await lifecycle.run(book, rendition, first.value, undefined, () => true);
-    await lifecycle.run(book, rendition, second.value, undefined, () => true);
-    await lifecycle.run(book, rendition, unrelated.value, undefined, () => true);
+    await lifecycle.run(sessionAccess(rendition), first.value, undefined, () => true);
+    await lifecycle.run(sessionAccess(rendition), second.value, undefined, () => true);
+    await lifecycle.run(sessionAccess(rendition), unrelated.value, undefined, () => true);
 
     expect(first.value.unload).not.toHaveBeenCalled();
     expect(second.value.unload).not.toHaveBeenCalled();
@@ -157,7 +166,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const failed = section("failed.xhtml");
 
     await expect(
-      lifecycle.run(book, inactiveRendition, failed.value, undefined, () => {
+      lifecycle.run(sessionAccess(inactiveRendition), failed.value, undefined, () => {
         throw new Error("recovery failed");
       }),
     ).rejects.toThrow("recovery failed");
@@ -173,13 +182,17 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     const controller = new AbortController();
 
     const activeTask = lifecycle.run(
-      book,
-      inactiveRendition,
+      sessionAccess(inactiveRendition),
       active.value,
       controller.signal,
       () => 1,
     );
-    const queuedTask = lifecycle.run(book, inactiveRendition, queued.value, undefined, () => 2);
+    const queuedTask = lifecycle.run(
+      sessionAccess(inactiveRendition),
+      queued.value,
+      undefined,
+      () => 2,
+    );
     await Promise.resolve();
     controller.abort();
     lifecycle.invalidate();
@@ -205,7 +218,7 @@ describe("ReaderAnnotationSectionLifecycle", () => {
     } as unknown as Rendition;
 
     await expect(
-      lifecycle.run(book, rendition, temporary.value, undefined, () => true),
+      lifecycle.run(sessionAccess(rendition), temporary.value, undefined, () => true),
     ).resolves.toEqual({ kind: "completed", value: true });
     expect(temporary.value.unload).toHaveBeenCalledOnce();
   });

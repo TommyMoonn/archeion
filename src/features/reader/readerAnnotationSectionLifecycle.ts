@@ -1,6 +1,6 @@
-import type { Book as EpubBook, Rendition } from "epubjs";
 import type EpubSection from "epubjs/types/section";
 
+import type { EpubAnnotationSessionAccess } from "./epubSessionInteractionAccess";
 import type { ReaderRecoverySection } from "./readerAnnotationRecovery";
 
 export const READER_ANNOTATION_SECTION_LOAD_CONCURRENCY = 1;
@@ -9,22 +9,6 @@ export type ReaderSectionTaskResult<T> = { kind: "cancelled" } | { kind: "comple
 
 function sectionIsLoaded(section: EpubSection): boolean {
   return Boolean(section.document || section.contents);
-}
-
-function renditionOwnsSection(rendition: Rendition | null, section: EpubSection): boolean {
-  if (!rendition || typeof rendition.getContents !== "function") return false;
-  try {
-    const contents = rendition.getContents() as unknown;
-    if (!Array.isArray(contents)) return false;
-    return contents.some((content: { sectionIndex?: number; section?: EpubSection } | null) => {
-      if (typeof content?.sectionIndex === "number" && content.sectionIndex === section.index) {
-        return true;
-      }
-      return content?.section === section;
-    });
-  } catch {
-    return false;
-  }
 }
 
 function recoverySection(section: EpubSection): ReaderRecoverySection | undefined {
@@ -46,8 +30,7 @@ export class ReaderAnnotationSectionLifecycle {
   }
 
   run<T>(
-    book: EpubBook,
-    rendition: Rendition | null,
+    session: EpubAnnotationSessionAccess,
     section: EpubSection,
     signal: AbortSignal | undefined,
     task: (loaded: ReaderRecoverySection) => T | Promise<T>,
@@ -58,7 +41,7 @@ export class ReaderAnnotationSectionLifecycle {
 
       const wasLoaded = sectionIsLoaded(section);
       try {
-        if (!wasLoaded) await Promise.resolve(section.load(book.load.bind(book)));
+        if (!wasLoaded) await session.loadSection(section);
         if (signal?.aborted || generation !== this.generation) return { kind: "cancelled" };
         const loaded = recoverySection(section);
         if (!loaded) throw new Error("EPUB section did not expose a document after loading.");
@@ -66,7 +49,7 @@ export class ReaderAnnotationSectionLifecycle {
         if (signal?.aborted || generation !== this.generation) return { kind: "cancelled" };
         return { kind: "completed", value };
       } finally {
-        if (!wasLoaded && !renditionOwnsSection(rendition, section)) section.unload();
+        if (!wasLoaded && !session.isSectionRendered(section)) section.unload();
       }
     });
 

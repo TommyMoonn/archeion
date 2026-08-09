@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import type { Book as EpubBook, Rendition } from "epubjs";
+import type { Book as EpubBook } from "epubjs";
 import { act, useLayoutEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -10,11 +10,14 @@ import {
   resetTransientSurfaceOwnershipForTests,
 } from "../../utils/transientSurfaceOwnership";
 import type { EpubFootnoteResolution } from "./epubFootnoteResolver";
-import type { EpubIllustrationResolution } from "./epubIllustrationResolver";
+import {
+  illustrationTargetForElement,
+  type EpubIllustrationResolution,
+} from "./epubIllustrationResolver";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { READER_ILLUSTRATION_TRIGGER_ATTRIBUTE } from "./readerIllustrationTrigger";
 import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
-import type { EpubSessionSnapshot } from "./useEpubSession";
+import type { EpubContentSessionAccess } from "./epubSessionInteractionAccess";
 import {
   useEpubContentActionController,
   type EpubContentActionController,
@@ -35,16 +38,22 @@ vi.mock("./epubIllustrationResolver", async (importOriginal) => ({
 vi.mock("../../app/openExternalUrl", () => ({ openExternalUrl }));
 
 type HarnessProps = {
-  getSession: () => EpubSessionSnapshot | null;
+  getContentSession: () => EpubContentSessionAccess | null;
   navigateToTarget: (target: string) => Promise<boolean>;
   onController: (controller: EpubContentActionController) => void;
   registry: ReaderContentDocumentRegistry;
   viewer: HTMLDivElement;
 };
 
-function Harness({ getSession, navigateToTarget, onController, registry, viewer }: HarnessProps) {
+function Harness({
+  getContentSession,
+  navigateToTarget,
+  onController,
+  registry,
+  viewer,
+}: HarnessProps) {
   const controller = useEpubContentActionController({
-    getSession,
+    getContentSession,
     navigateToTarget,
     onInteraction: vi.fn(),
     registry,
@@ -63,11 +72,15 @@ function Harness({ getSession, navigateToTarget, onController, registry, viewer 
   ) : null;
 }
 
-function session(generation = 1): EpubSessionSnapshot {
+type TestContentSession = EpubContentSessionAccess & Readonly<{ book: EpubBook }>;
+
+function session(book = { spine: {} } as unknown as EpubBook): TestContentSession {
   return {
-    book: { spine: {} } as unknown as EpubBook,
-    generation,
-    rendition: {} as Rendition,
+    book,
+    illustrationTargetForElement: (element, currentDocumentHref) =>
+      illustrationTargetForElement(book, element, currentDocumentHref),
+    resolveFootnote: (input) => resolveEpubFootnote({ ...input, book }),
+    resolveIllustration: (target, signal) => resolveEpubIllustration(book, target, signal),
   };
 }
 
@@ -116,7 +129,7 @@ afterEach(() => {
 });
 
 describe("useEpubContentActionController", () => {
-  function renderController(activeSession: { current: EpubSessionSnapshot | null }) {
+  function renderController(activeSession: { current: EpubContentSessionAccess | null }) {
     const host = document.createElement("div");
     const viewer = document.createElement("div");
     document.body.append(host, viewer);
@@ -131,7 +144,7 @@ describe("useEpubContentActionController", () => {
     act(() => {
       root.render(
         <Harness
-          getSession={() => activeSession.current}
+          getContentSession={() => activeSession.current}
           navigateToTarget={navigateToTarget}
           onController={(controller) => {
             latest = controller;
@@ -532,10 +545,7 @@ describe("useEpubContentActionController", () => {
     const getBlob = vi.fn();
     const createObjectUrl = vi.spyOn(URL, "createObjectURL");
     const activeSession = {
-      current: {
-        ...session(),
-        book: { archive: { getBlob } } as unknown as EpubBook,
-      },
+      current: session({ archive: { getBlob } } as unknown as EpubBook),
     };
     const harness = renderController(activeSession);
     const { document: chapter } = linkedDocument("chapter-2.xhtml");
@@ -729,7 +739,7 @@ describe("useEpubContentActionController", () => {
     resolveEpubIllustration.mockImplementation(
       () => new Promise<EpubIllustrationResolution>((resolve) => (finish = resolve)),
     );
-    const activeSession = { current: session(1) as EpubSessionSnapshot | null };
+    const activeSession = { current: session() as EpubContentSessionAccess | null };
     const harness = renderController(activeSession);
     const { document: chapter } = linkedDocument("chapter-2.xhtml");
     const image = chapter.createElement("img");
@@ -742,7 +752,7 @@ describe("useEpubContentActionController", () => {
         sectionHref: "Text/chapter.xhtml",
       });
     });
-    activeSession.current = session(2);
+    activeSession.current = session();
     act(() => harness.latest().resetForSession());
     const release = vi.fn();
     await act(async () => {
@@ -1009,7 +1019,7 @@ describe("useEpubContentActionController", () => {
       .mockImplementationOnce(
         () => new Promise<EpubFootnoteResolution>((resolve) => (finishNested = resolve)),
       );
-    const activeSession = { current: session(1) as EpubSessionSnapshot | null };
+    const activeSession = { current: session() as EpubContentSessionAccess | null };
     const harness = renderController(activeSession);
     const { document: chapter, link } = linkedDocument("#note-1", "noteref");
 
@@ -1034,7 +1044,7 @@ describe("useEpubContentActionController", () => {
     );
     expect(firstRelease).toHaveBeenCalledOnce();
 
-    activeSession.current = session(2);
+    activeSession.current = session();
     act(() => harness.latest().resetForSession());
     const nestedRelease = vi.fn();
     await act(async () => {
@@ -1052,8 +1062,8 @@ describe("useEpubContentActionController", () => {
     resolveEpubFootnote.mockImplementation(
       () => new Promise<EpubFootnoteResolution>((resolve) => (finish = resolve)),
     );
-    const first = session(1);
-    const activeSession = { current: first as EpubSessionSnapshot | null };
+    const first = session();
+    const activeSession = { current: first as EpubContentSessionAccess | null };
     const harness = renderController(activeSession);
     const { document: chapter, link } = linkedDocument("#note-1", "noteref");
 
@@ -1063,7 +1073,7 @@ describe("useEpubContentActionController", () => {
         sectionHref: "Text/chapter.xhtml",
       });
     });
-    activeSession.current = session(2);
+    activeSession.current = session();
     act(() => harness.latest().resetForSession());
     const release = vi.fn();
     await act(async () => {

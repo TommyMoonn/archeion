@@ -29,7 +29,6 @@ import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
-import { ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
 import { RenderedAnnotationAdapter } from "./RenderedAnnotationAdapter";
 import {
   selectedHighlightColor,
@@ -44,6 +43,7 @@ import type { ReaderLocation } from "./readerLocation";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
+import type { ReaderSessionIdentity } from "./readerSession";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
@@ -79,14 +79,9 @@ type EpubViewerProps = {
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onReady: () => void;
   readerTheme: ResolvedReaderTheme;
+  sessionIdentity: ReaderSessionIdentity;
   settings: ReaderSettings;
 };
-
-function renderedSectionHref(section: unknown): string | undefined {
-  if (typeof section !== "object" || section === null) return undefined;
-  const href = (section as { href?: unknown }).href;
-  return typeof href === "string" ? href : undefined;
-}
 
 function sessionErrorMessage(error: EpubSessionError): string {
   switch (error.kind) {
@@ -114,6 +109,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onReady,
     readerTheme,
+    sessionIdentity,
     settings,
   },
   ref,
@@ -130,7 +126,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     lastWheelEventAtRef.current = Number.NEGATIVE_INFINITY;
     lastWheelTurnAtRef.current = Number.NEGATIVE_INFINITY;
   }, []);
-  const [contentDocuments] = useState(() => new ReaderContentDocumentRegistry());
   const [annotations] = useState(
     () =>
       new RenderedAnnotationAdapter({
@@ -154,6 +149,39 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       ),
     [readerTheme, settings.fontFamily, settings.fontSize, settings.lineHeight, settings.margin],
   );
+
+  const bridgeRef = useRef<EpubSessionBridge>({
+    onContent: () => undefined,
+    onDisplayed: () => undefined,
+    onError: () => undefined,
+    onLocationChange: () => undefined,
+    onNavigationChange: () => undefined,
+    onReady: () => undefined,
+    onRelocated: () => undefined,
+    onRendered: () => undefined,
+    onSelected: () => undefined,
+    onSessionCreated: () => undefined,
+    onSessionEnding: () => undefined,
+  });
+
+  const {
+    applyContentTheme,
+    documents: contentDocuments,
+    getInteractionSession,
+    getNavigationState,
+    isLoading,
+    navigateToChapter: displayChapter,
+    navigateToLocation: displayLocation,
+    navigateToTarget: displayTarget,
+    turn,
+  } = useEpubSession({
+    bridgeRef,
+    containerRef,
+    fileLease,
+    initialCfi,
+    mode: settings.mode,
+    sessionIdentity,
+  });
 
   const interaction = useHighlightInteractionController({
     containerRef,
@@ -197,40 +225,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     annotations.reconcile();
   }, [annotations, gestures.cancel, gestures.handle, highlights, onHighlightAnchorInvalid]);
 
-  const bridgeRef = useRef<EpubSessionBridge>({
-    isLocationUsable: () => false,
-    onContent: () => undefined,
-    onDisplayed: () => undefined,
-    onError: () => undefined,
-    onLocationChange: () => undefined,
-    onNavigationChange: () => undefined,
-    onReady: () => undefined,
-    onRelocated: () => undefined,
-    onRendered: () => undefined,
-    onSelected: () => undefined,
-    onSessionCreated: () => undefined,
-    onSessionEnding: () => undefined,
-  });
-
-  const {
-    getNavigationState,
-    getRendition,
-    getSession,
-    isLoading,
-    navigateToChapter: displayChapter,
-    navigateToLocation: displayLocation,
-    navigateToTarget: displayTarget,
-    turn,
-  } = useEpubSession({
-    bridgeRef,
-    containerRef,
-    fileLease,
-    initialCfi,
-    mode: settings.mode,
-  });
+  const getContentSession = useCallback(
+    () => getInteractionSession()?.content ?? null,
+    [getInteractionSession],
+  );
 
   const contentActions = useEpubContentActionController({
-    getSession,
+    getContentSession,
     navigateToTarget: displayTarget,
     onInteraction,
     registry: contentDocuments,
@@ -266,17 +267,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   useEffect(() => {
     bridgeRef.current = {
-      isLocationUsable: (rendition, target) =>
-        contentDocuments.renditionTargetIsUsable(rendition, target),
       onContent: (content) => {
-        contentDocuments.bind(content);
         if (content.document) {
           const context = contentDocuments.contextFor(content.document);
           if (context) prepareDocument(context);
         }
       },
       onDisplayed: () => {
-        contentDocuments.bindMounted(containerRef.current);
         annotations.reconcile();
       },
       onError: (error) => onError(sessionErrorMessage(error)),
@@ -290,9 +287,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         dismissExternal(false);
         clearContentActionFeedback();
       },
-      onRendered: (section, view) => {
-        contentDocuments.pruneDisconnected();
-        contentDocuments.bindRenderedView(view, renderedSectionHref(section));
+      onRendered: () => {
         for (const document of contentDocuments.list()) {
           const context = contentDocuments.contextFor(document);
           if (context) prepareDocument(context);
@@ -302,19 +297,19 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       },
       onSelected: handleSelection,
       onSessionCreated: (session) => {
-        annotations.setSession(session);
-        contentDocuments.applyTheme(session.rendition, contentTheme, containerRef.current);
+        annotations.setSession(session.annotations);
+        applyContentTheme(contentTheme, containerRef.current);
       },
       onSessionEnding: () => {
         annotations.setSession(null);
         resetHighlightSession();
         resetContentActionSession();
-        contentDocuments.clear();
         clearReaderWheelGesture();
       },
     };
   }, [
     annotations,
+    applyContentTheme,
     clearContentActionFeedback,
     clearReaderWheelGesture,
     clearFeedback,
@@ -411,9 +406,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   ]);
 
   useEffect(() => {
-    contentDocuments.applyTheme(getRendition(), contentTheme, containerRef.current);
+    applyContentTheme(contentTheme, containerRef.current);
     dismiss(false);
-  }, [contentDocuments, contentTheme, dismiss, getRendition]);
+  }, [applyContentTheme, contentTheme, dismiss]);
 
   useEffect(() => {
     onNavigationChange?.(getNavigationState());
@@ -626,6 +621,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onReady === next.onReady &&
     previous.readerTheme === next.readerTheme &&
+    previous.sessionIdentity === next.sessionIdentity &&
     previous.settings.mode === next.settings.mode &&
     readerContentSettingsEqual(previous.settings, next.settings)
   );

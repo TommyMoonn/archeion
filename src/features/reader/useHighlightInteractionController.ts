@@ -14,7 +14,7 @@ import {
 } from "./readerHighlightPaletteAnchor";
 import { readerSelectionContext } from "./readerAnnotationRecovery";
 import type { HighlightPaletteChoice } from "./ReaderHighlightPalette";
-import type { EpubContent, ReaderContentDocumentRegistry } from "./readerContentDocumentRegistry";
+import type { EpubContent, ReaderContentDocumentAccess } from "./readerContentDocumentRegistry";
 import { normalizeReaderHighlightColor, type ReaderHighlightColor } from "./readerHighlights";
 import {
   useHighlightPaletteController,
@@ -44,7 +44,7 @@ export type UseHighlightInteractionOptions = HighlightInteractionCallbacks & {
   containerRef: RefObject<HTMLDivElement | null>;
   highlights: readonly HighlightAnnotation[];
   paletteRef: RefObject<HTMLDivElement | null>;
-  registry: ReaderContentDocumentRegistry;
+  registry: ReaderContentDocumentAccess;
   viewerRef: RefObject<HTMLDivElement | null>;
 };
 

@@ -42,7 +42,12 @@ import {
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import type { ReaderLocation } from "./readerLocation";
-import { createReaderSessionInitialState, createReaderSessionKey } from "./readerSession";
+import {
+  createReaderSessionInitialState,
+  createReaderSessionKey,
+  createReaderSessionLifecycle,
+  transitionReaderSession,
+} from "./readerSession";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
@@ -128,8 +133,16 @@ export function ReaderPage() {
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
-  const [readerSession] = useState(() => createReaderSessionInitialState(book, startFromBeginning));
-  const [location, setLocation] = useState<ReaderLocation>(readerSession.initialLocation);
+  const [readerInitialState] = useState(() =>
+    createReaderSessionInitialState(book, startFromBeginning),
+  );
+  const [readerSessionLifecycle] = useState(() => {
+    const idle = createReaderSessionLifecycle();
+    if (!bookId) return idle;
+    return transitionReaderSession(idle, { bookId, type: "open" }).state;
+  });
+  const readerSessionIdentity = readerSessionLifecycle.identity;
+  const [location, setLocation] = useState<ReaderLocation>(readerInitialState.initialLocation);
 
   useLayoutEffect(() => {
     readerMainRef.current?.focus({ preventScroll: true });
@@ -214,7 +227,7 @@ export function ReaderPage() {
     navigateToAnnotation,
   } = useReaderAnnotationNavigation({
     annotations: annotations.annotations,
-    initialLocation: readerSession.initialLocation,
+    initialLocation: readerInitialState.initialLocation,
     loadStatus: annotations.loadStatus,
     navigateToLocation: navigateToAnnotationLocation,
     persistAnchor: persistAnnotationAnchor,
@@ -919,12 +932,12 @@ export function ReaderPage() {
             Back
           </button>
         </section>
-      ) : fileLease ? (
+      ) : fileLease && readerSessionIdentity ? (
         <EpubViewer
           ref={viewerRef}
           fileLease={fileLease}
           highlights={highlights.highlights}
-          initialCfi={readerSession.initialCfi}
+          initialCfi={readerInitialState.initialCfi}
           onError={handleViewerError}
           onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
           onHighlightInteractionClear={highlights.clearInteractionFeedback}
@@ -939,6 +952,7 @@ export function ReaderPage() {
           onNavigationChange={setNavigationState}
           onReady={handleReady}
           readerTheme={readerTheme}
+          sessionIdentity={readerSessionIdentity}
           settings={settings}
         />
       ) : null}
