@@ -8,6 +8,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const architectureScript = path.join(projectRoot, "scripts", "check-architecture.mjs");
+const architectureProcessTimeout = 15_000;
 const temporaryRoots: string[] = [];
 
 function createFixture(files: Record<string, string>): string {
@@ -46,19 +47,23 @@ afterEach(() => {
 });
 
 describe("frontend architecture boundaries", () => {
-  it("keeps the current production graph acyclic and within its dependency directions", () => {
-    const result = runArchitecture(projectRoot, true);
-    const report = JSON.parse(result.stdout) as {
-      cycleCount: number;
-      ok: boolean;
-      violations: unknown[];
-    };
+  it(
+    "keeps the current production graph acyclic and within its dependency directions",
+    () => {
+      const result = runArchitecture(projectRoot, true);
+      const report = JSON.parse(result.stdout) as {
+        cycleCount: number;
+        ok: boolean;
+        violations: unknown[];
+      };
 
-    expect(result.status).toBe(0);
-    expect(report.ok).toBe(true);
-    expect(report.cycleCount).toBe(0);
-    expect(report.violations).toEqual([]);
-  });
+      expect(result.status).toBe(0);
+      expect(report.ok).toBe(true);
+      expect(report.cycleCount).toBe(0);
+      expect(report.violations).toEqual([]);
+    },
+    architectureProcessTimeout,
+  );
 
   it("fails a cycle with the complete local path", () => {
     const root = createFixture({

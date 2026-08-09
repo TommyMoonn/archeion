@@ -193,27 +193,35 @@ describeReleaseTooling("release tooling", () => {
     expect(result.status).toBe(0);
   });
 
-  it("rejects a release tag that does not match the application version", () => {
-    const root = createFixture();
-    const result = runPowerShell("check-release.ps1", ["-ProjectRoot", root, "-Tag", "v0.4.0"]);
+  it(
+    "rejects a release tag that does not match the application version",
+    () => {
+      const root = createFixture();
+      const result = runPowerShell("check-release.ps1", ["-ProjectRoot", root, "-Tag", "v0.4.0"]);
 
-    expect(result.status).not.toBe(0);
-    expect(combinedOutput(result)).toContain("Expected 'v0.3.0'");
-  });
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toContain("Expected 'v0.3.0'");
+    },
+    releaseProcessTimeout,
+  );
 
-  it("rejects release validation when the changelog entry is missing", () => {
-    const root = createFixture({ changelogIncludesRelease: false });
-    const result = runPowerShell("check-release.ps1", [
-      "-ProjectRoot",
-      root,
-      "-RequireChangelogEntry",
-    ]);
+  it(
+    "rejects release validation when the changelog entry is missing",
+    () => {
+      const root = createFixture({ changelogIncludesRelease: false });
+      const result = runPowerShell("check-release.ps1", [
+        "-ProjectRoot",
+        root,
+        "-RequireChangelogEntry",
+      ]);
 
-    expect(result.status).not.toBe(0);
-    expect(combinedOutput(result)).toContain(
-      "CHANGELOG.md does not contain a dated [0.3.0] release section.",
-    );
-  });
+      expect(result.status).not.toBe(0);
+      expect(combinedOutput(result)).toContain(
+        "CHANGELOG.md does not contain a dated [0.3.0] release section.",
+      );
+    },
+    releaseProcessTimeout,
+  );
 
   it(
     "stages stable public installer names and matching checksums",
