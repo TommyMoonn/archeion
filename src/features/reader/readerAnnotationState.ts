@@ -14,6 +14,12 @@ export type ReaderAnnotationSession = {
   token: symbol;
 };
 
+export type ReaderAnnotationIdentity = Readonly<{
+  annotationId: string;
+  annotationType: Annotation["type"];
+  createdAt: string;
+}>;
+
 export type ReaderAnnotationAnchorChanges = {
   anchorStatus?: AnnotationAnchorStatus;
   cfiRange?: string;
@@ -48,6 +54,26 @@ export function sameReaderAnnotationSession(
 ): boolean {
   return (
     left.archiveId === right.archiveId && left.bookId === right.bookId && left.token === right.token
+  );
+}
+
+export function readerAnnotationIdentity(annotation: Annotation): ReaderAnnotationIdentity {
+  return {
+    annotationId: annotation.id,
+    annotationType: annotation.type,
+    createdAt: annotation.createdAt,
+  };
+}
+
+export function annotationMatchesReaderIdentity(
+  annotation: Annotation | undefined,
+  identity: ReaderAnnotationIdentity,
+): boolean {
+  return Boolean(
+    annotation &&
+    annotation.id === identity.annotationId &&
+    annotation.type === identity.annotationType &&
+    annotation.createdAt === identity.createdAt,
   );
 }
 

@@ -1,8 +1,16 @@
-import { useCallback, useMemo, useRef, useState, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import {
+  annotationMatchesReaderIdentity,
   sameReaderAnnotationSession,
   type ReaderAnnotationCreateCommand,
   type ReaderAnnotationMutation,
@@ -10,6 +18,10 @@ import {
   type ReaderAnnotationSession,
   type ReaderAnnotationUpdateCommand,
 } from "./readerAnnotationState";
+import {
+  ReaderAnnotationUndoQueue,
+  type ReaderAnnotationUndoEntry,
+} from "./readerAnnotationUndoQueue";
 
 export type ReaderHighlightRemovalKind = "highlight" | "note";
 
@@ -38,18 +50,14 @@ type AnnotationFeedbackState = {
   feedback: ReaderAnnotationFeedback;
   revision: number;
   session: ReaderAnnotationSession;
-};
-
-type PendingNoteUndoOwner = {
-  annotationId: string;
-  mutationId: number;
-  session: ReaderAnnotationSession;
+  undoEntryId?: number;
 };
 
 type MutationOptions = {
   drainAnchorMaintenanceRef: MutableRefObject<() => void>;
   forget: (annotationId: string) => void;
   isCurrentSession: (session: ReaderAnnotationSession) => boolean;
+  resolveCurrentAnnotation: (annotationId: string) => Annotation | undefined;
   session: ReaderAnnotationSession;
   storage: LibraryStorage;
   sync: (annotation: Annotation) => void;
@@ -78,6 +86,7 @@ export function useReaderAnnotationMutations({
   drainAnchorMaintenanceRef,
   forget,
   isCurrentSession,
+  resolveCurrentAnnotation,
   session,
   storage,
   sync,
@@ -86,7 +95,7 @@ export function useReaderAnnotationMutations({
   const feedbackRevisionRef = useRef(0);
   const feedbackStateRef = useRef<AnnotationFeedbackState | undefined>(undefined);
   const busyOwnerRef = useRef<ReaderAnnotationMutation | undefined>(undefined);
-  const pendingNoteUndoOwnerRef = useRef<PendingNoteUndoOwner | undefined>(undefined);
+  const undoQueueRef = useRef(new ReaderAnnotationUndoQueue());
   const [busyState, setBusyState] = useState<ReaderAnnotationMutation>();
   const [feedbackState, setFeedbackState] = useState<AnnotationFeedbackState>();
 
@@ -96,14 +105,23 @@ export function useReaderAnnotationMutations({
       : undefined;
   const busy = Boolean(busyState && sameReaderAnnotationSession(busyState.session, session));
 
-  const publishFeedback = useCallback(
-    (feedbackSession: ReaderAnnotationSession, nextFeedback?: ReaderAnnotationFeedback) => {
+  const publishFeedbackState = useCallback(
+    (
+      feedbackSession: ReaderAnnotationSession,
+      nextFeedback?: ReaderAnnotationFeedback,
+      undoEntryId?: number,
+    ) => {
       if (!isCurrentSession(feedbackSession)) return;
+      const previousUndoEntryId = feedbackStateRef.current?.undoEntryId;
+      if (previousUndoEntryId && previousUndoEntryId !== undoEntryId) {
+        undoQueueRef.current.retire(previousUndoEntryId);
+      }
       const nextState = nextFeedback
         ? {
             feedback: nextFeedback,
             revision: ++feedbackRevisionRef.current,
             session: feedbackSession,
+            ...(undoEntryId ? { undoEntryId } : {}),
           }
         : undefined;
       if (!nextFeedback) feedbackRevisionRef.current += 1;
@@ -112,6 +130,16 @@ export function useReaderAnnotationMutations({
     },
     [isCurrentSession],
   );
+
+  const publishFeedback = useCallback(
+    (feedbackSession: ReaderAnnotationSession, nextFeedback?: ReaderAnnotationFeedback) =>
+      publishFeedbackState(feedbackSession, nextFeedback),
+    [publishFeedbackState],
+  );
+
+  useLayoutEffect(() => {
+    undoQueueRef.current.retireOtherSessions(session);
+  }, [session]);
 
   const ownsFeedbackRevision = useCallback(
     (feedbackSession: ReaderAnnotationSession, revision: number) => {
@@ -248,31 +276,45 @@ export function useReaderAnnotationMutations({
         return false;
       }
       if (annotation.type === "highlight") {
-        publishFeedback(session, {
+        const undoEntry = undoQueueRef.current.recordCommitted(
+          session,
+          "highlight-removal",
           annotation,
-          kind: "removed",
-          message: highlightRemovedMessage(annotation),
-          removalKind: "highlight",
-        });
+        );
+        publishFeedbackState(
+          session,
+          {
+            annotation,
+            kind: "removed",
+            message: highlightRemovedMessage(annotation),
+            removalKind: "highlight",
+          },
+          undoEntry.id,
+        );
       } else {
         publishFeedback(session);
       }
       return true;
     },
-    [deleteAnnotation, publishFeedback, session],
+    [deleteAnnotation, publishFeedback, publishFeedbackState, session],
   );
 
   const publishNoteRemoved = useCallback(
     (annotation: HighlightAnnotation) => {
-      if (!hasSavedNote(annotation)) return;
-      publishFeedback(session, {
-        annotation,
-        kind: "removed",
-        message: "Note removed.",
-        removalKind: "note",
-      });
+      if (!isCurrentSession(session) || !hasSavedNote(annotation)) return;
+      const undoEntry = undoQueueRef.current.recordCommitted(session, "note-removal", annotation);
+      publishFeedbackState(
+        session,
+        {
+          annotation,
+          kind: "removed",
+          message: "Note removed.",
+          removalKind: "note",
+        },
+        undoEntry.id,
+      );
     },
-    [publishFeedback, session],
+    [isCurrentSession, publishFeedbackState, session],
   );
 
   const retireNoteRemovalForSession = useCallback(
@@ -289,6 +331,7 @@ export function useReaderAnnotationMutations({
         return;
       }
       feedbackRevisionRef.current += 1;
+      if (current.undoEntryId) undoQueueRef.current.retire(current.undoEntryId);
       feedbackStateRef.current = undefined;
       setFeedbackState(undefined);
     },
@@ -303,13 +346,7 @@ export function useReaderAnnotationMutations({
   const claimNoteEditing = useCallback(
     (annotationId: string) => {
       if (!isCurrentSession(session)) return false;
-      const pendingUndo = pendingNoteUndoOwnerRef.current;
-      if (
-        pendingUndo &&
-        pendingUndo.annotationId === annotationId &&
-        sameReaderAnnotationSession(pendingUndo.session, session) &&
-        busyOwnerRef.current?.id === pendingUndo.mutationId
-      ) {
+      if (undoQueueRef.current.isRunningFor(annotationId, session)) {
         return false;
       }
       retireNoteRemovalForSession(session, annotationId);
@@ -318,80 +355,81 @@ export function useReaderAnnotationMutations({
     [isCurrentSession, retireNoteRemovalForSession, session],
   );
 
+  const executeUndo = useCallback(
+    async (entry: ReaderAnnotationUndoEntry, feedbackRevision: number) => {
+      if (!isCurrentSession(entry.session)) return;
+      const current = resolveCurrentAnnotation(entry.annotation.id);
+      const currentHighlight =
+        current?.type === "highlight" &&
+        annotationMatchesReaderIdentity(current, entry.identity) &&
+        current.note === undefined
+          ? current
+          : undefined;
+      let outcome: ReaderAnnotationMutationOutcome;
+      if (entry.kind === "note-removal") {
+        if (!currentHighlight) {
+          if (ownsFeedbackRevision(entry.session, feedbackRevision)) {
+            publishFeedback(entry.session);
+          }
+          return;
+        }
+        outcome = await update({
+          annotation: currentHighlight,
+          annotationType: "highlight",
+          changes: { note: entry.annotation.note },
+        });
+      } else {
+        if (current) {
+          if (ownsFeedbackRevision(entry.session, feedbackRevision)) {
+            publishFeedback(entry.session);
+          }
+          return;
+        }
+        outcome = await restore(entry.annotation);
+      }
+      if (!ownsFeedbackRevision(entry.session, feedbackRevision)) return;
+      if (outcome.status === "accepted") {
+        publishFeedback(entry.session, {
+          kind: "restored",
+          message: entry.kind === "note-removal" ? "Note restored." : "Highlight restored.",
+        });
+        return;
+      }
+      if (outcome.status === "failed") {
+        publishFeedback(entry.session, {
+          kind: "error",
+          message:
+            entry.kind === "note-removal"
+              ? "Note could not be restored."
+              : "Highlight could not be restored.",
+        });
+      }
+    },
+    [
+      isCurrentSession,
+      ownsFeedbackRevision,
+      publishFeedback,
+      resolveCurrentAnnotation,
+      restore,
+      update,
+    ],
+  );
+
   const undoRemove = useCallback(async () => {
     const ownedFeedback = feedbackStateRef.current;
     if (
       !ownedFeedback ||
       !sameReaderAnnotationSession(ownedFeedback.session, session) ||
-      ownedFeedback.feedback.kind !== "removed"
+      ownedFeedback.feedback.kind !== "removed" ||
+      !ownedFeedback.undoEntryId
     ) {
       return;
     }
-    const removed = ownedFeedback.feedback.annotation;
-    const removalKind = ownedFeedback.feedback.removalKind;
     const feedbackRevision = ownedFeedback.revision;
-    const mutation = beginMutation(session);
-    if (!mutation || !session.bookId) return;
-    if (removalKind === "note") {
-      pendingNoteUndoOwnerRef.current = {
-        annotationId: removed.id,
-        mutationId: mutation.id,
-        session,
-      };
-    }
-    try {
-      const restored =
-        removalKind === "note"
-          ? await storage.updateHighlightAnnotation(session.bookId, removed.id, {
-              note: removed.note,
-            })
-          : await storage.restoreAnnotation(session.bookId, removed);
-      if (!ownsMutation(mutation)) return;
-      const ownsFeedback = ownsFeedbackRevision(session, feedbackRevision);
-      if (!restored) {
-        if (ownsFeedback) {
-          publishFeedback(session, {
-            kind: "error",
-            message:
-              removalKind === "note"
-                ? "Note could not be restored."
-                : "Highlight could not be restored.",
-          });
-        }
-        return;
-      }
-      sync(restored);
-      if (!ownsFeedback) return;
-      publishFeedback(session, {
-        kind: "restored",
-        message: removalKind === "note" ? "Note restored." : "Highlight restored.",
-      });
-    } catch {
-      if (ownsMutation(mutation) && ownsFeedbackRevision(session, feedbackRevision)) {
-        publishFeedback(session, {
-          kind: "error",
-          message:
-            removalKind === "note"
-              ? "Note could not be restored."
-              : `${annotationKind(removed)} could not be restored.`,
-        });
-      }
-    } finally {
-      if (pendingNoteUndoOwnerRef.current?.mutationId === mutation.id) {
-        pendingNoteUndoOwnerRef.current = undefined;
-      }
-      finishMutation(mutation);
-    }
-  }, [
-    beginMutation,
-    finishMutation,
-    ownsFeedbackRevision,
-    ownsMutation,
-    publishFeedback,
-    session,
-    storage,
-    sync,
-  ]);
+    await undoQueueRef.current.run(ownedFeedback.undoEntryId, session, (entry) =>
+      executeUndo(entry, feedbackRevision),
+    );
+  }, [executeUndo, session]);
 
   const clearFeedback = useCallback(() => publishFeedback(session), [publishFeedback, session]);
 

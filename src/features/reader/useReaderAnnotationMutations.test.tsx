@@ -116,6 +116,8 @@ function Harness({
       })),
     isCurrentSession: (candidate) =>
       mountedRef.current && sameReaderAnnotationSession(sessionRef.current, candidate),
+    resolveCurrentAnnotation: (annotationId) =>
+      annotations.find((annotation) => annotation.id === annotationId),
     session,
     storage,
     sync: (annotation) =>
@@ -378,15 +380,17 @@ describe("useReaderAnnotationMutations", () => {
 
   it("restores a plain removed highlight through full annotation restoration", async () => {
     const original = { ...highlight("plain-highlight"), note: undefined } as HighlightAnnotation;
+    const drain = vi.fn();
     const storage = {
       deleteAnnotation: vi.fn(async () => true),
       restoreAnnotation: vi.fn(async () => original),
       updateHighlightAnnotation: vi.fn(),
     } as unknown as LibraryStorage;
     const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
-    await renderHarness({ apiRef, initial: [original], storage });
+    await renderHarness({ apiRef, drain, initial: [original], storage });
 
     await act(async () => void (await apiRef.current!.remove(original)));
+    drain.mockClear();
     expect(text("feedback")).toBe("Highlight removed.");
     await act(async () => void (await apiRef.current!.undoRemove()));
 
@@ -394,6 +398,7 @@ describe("useReaderAnnotationMutations", () => {
     expect(storage.updateHighlightAnnotation).not.toHaveBeenCalled();
     expect(text("ids")).toBe(original.id);
     expect(text("feedback")).toBe("Highlight restored.");
+    expect(drain).toHaveBeenCalledOnce();
   });
 
   it("restores the complete removed annotation and clears feedback explicitly", async () => {
@@ -411,6 +416,64 @@ describe("useReaderAnnotationMutations", () => {
     expect(text("ids")).toBe(original.id);
     expect(text("feedback")).toBe("Highlight restored.");
     act(() => apiRef.current?.clearFeedback());
+    expect(text("feedback")).toBe("");
+  });
+
+  it("undoes only the latest successfully committed highlight removal", async () => {
+    const first = highlight("first-committed-removal");
+    const second = highlight("second-committed-removal");
+    const storage = {
+      deleteAnnotation: vi.fn(async () => true),
+      restoreAnnotation: vi.fn(async (_bookId: string, annotation: Annotation) => annotation),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [first, second], storage });
+
+    await act(async () => void (await apiRef.current!.remove(first)));
+    await act(async () => void (await apiRef.current!.remove(second)));
+    await act(async () => void (await apiRef.current!.undoRemove()));
+
+    expect(storage.restoreAnnotation).toHaveBeenCalledOnce();
+    expect(storage.restoreAnnotation).toHaveBeenCalledWith("book-a", second);
+    expect(text("ids")).toBe(second.id);
+  });
+
+  it("does not record a failed removal in Undo history", async () => {
+    const original = highlight("failed-removal-history");
+    const storage = {
+      deleteAnnotation: vi.fn(async () => false),
+      restoreAnnotation: vi.fn(),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [original], storage });
+
+    await act(async () => expect(apiRef.current!.remove(original)).resolves.toBe(false));
+    await act(async () => void (await apiRef.current!.undoRemove()));
+
+    expect(storage.restoreAnnotation).not.toHaveBeenCalled();
+    expect(text("ids")).toBe(original.id);
+  });
+
+  it("retires full-removal Undo when the annotation identity is replaced", async () => {
+    const original = highlight("replaced-removal-target");
+    const replacement = {
+      ...original,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      selectedText: "Replacement passage",
+    };
+    const storage = {
+      deleteAnnotation: vi.fn(async () => true),
+      restoreAnnotation: vi.fn(async () => replacement),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [original], storage });
+
+    await act(async () => void (await apiRef.current!.remove(original)));
+    await act(async () => void (await apiRef.current!.restore(replacement)));
+    await act(async () => void (await apiRef.current!.undoRemove()));
+
+    expect(storage.restoreAnnotation).toHaveBeenCalledOnce();
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([replacement]);
     expect(text("feedback")).toBe("");
   });
 
@@ -555,6 +618,36 @@ describe("useReaderAnnotationMutations", () => {
     expect(storage.restoreAnnotation).not.toHaveBeenCalled();
     expect(JSON.parse(text("annotations") ?? "[]")).toEqual([restored]);
     expect(text("feedback")).toBe("Note restored.");
+  });
+
+  it("retires note Undo when a same-id highlight has a new identity", async () => {
+    const original = highlight("replaced-note-target");
+    const withoutNote = { ...original, note: undefined } as HighlightAnnotation;
+    const replacement = {
+      ...withoutNote,
+      createdAt: "2026-07-15T00:00:00.000Z",
+      selectedText: "Replacement passage",
+    };
+    const storage = {
+      updateHighlightAnnotation: vi.fn(async () => replacement),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [withoutNote], storage });
+
+    act(() => apiRef.current!.publishNoteRemoved(original));
+    await act(
+      async () =>
+        void (await apiRef.current!.update({
+          annotation: withoutNote,
+          annotationType: "highlight",
+          changes: { color: "blue" },
+        })),
+    );
+    await act(async () => void (await apiRef.current!.undoRemove()));
+
+    expect(storage.updateHighlightAnnotation).toHaveBeenCalledOnce();
+    expect(JSON.parse(text("annotations") ?? "[]")).toEqual([replacement]);
+    expect(text("feedback")).toBe("");
   });
 
   it("retires note-removal feedback only for its exact highlight", async () => {
@@ -869,6 +962,29 @@ describe("useReaderAnnotationMutations", () => {
     await act(async () => update.resolve(original));
     await first;
     expect(text("busy")).toBe("false");
+  });
+
+  it("keeps in-flight note Undo ownership after its feedback is dismissed", async () => {
+    const original = highlight("dismissed-note-undo");
+    const withoutNote = { ...original, note: undefined } as HighlightAnnotation;
+    const update = deferred<HighlightAnnotation | undefined>();
+    const storage = {
+      updateHighlightAnnotation: vi.fn(() => update.promise),
+    } as unknown as LibraryStorage;
+    const apiRef: MutableRefObject<MutationApi | undefined> = { current: undefined };
+    await renderHarness({ apiRef, initial: [withoutNote], storage });
+
+    act(() => apiRef.current!.publishNoteRemoved(original));
+    let pendingUndo!: Promise<void>;
+    act(() => {
+      pendingUndo = apiRef.current!.undoRemove();
+      apiRef.current!.clearFeedback();
+    });
+
+    expect(apiRef.current!.claimNoteEditing(original.id)).toBe(false);
+    await act(async () => update.resolve(original));
+    await pendingUndo;
+    expect(text("feedback")).toBe("");
   });
 
   it("rejects a note Undo completion after another Reader session becomes authoritative", async () => {

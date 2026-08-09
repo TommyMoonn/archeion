@@ -38,6 +38,7 @@ export function useReaderAnnotations({
     drainAnchorMaintenanceRef,
     forget: collection.forget,
     isCurrentSession: collection.isCurrentSession,
+    resolveCurrentAnnotation: collection.resolveCurrentAnnotation,
     session: collection.session,
     storage,
     sync: collection.sync,

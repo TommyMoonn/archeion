@@ -1,35 +1,28 @@
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
+import {
+  annotationMatchesReaderIdentity,
+  readerAnnotationIdentity,
+  type ReaderAnnotationIdentity,
+} from "./readerAnnotationState";
 import { normalizeReaderChapterHref } from "./readerAnnotations";
 
 export const READER_ANNOTATION_CONTEXT_LENGTH = 96;
 export const READER_ANNOTATION_RECOVERY_CHAPTER_LIMIT = 240;
 const RECOVERY_MATCH_LIMIT = 40;
 
-export type ReaderAnnotationRecoveryIdentity = Readonly<{
-  annotationId: string;
-  annotationType: Annotation["type"];
-  createdAt: string;
-}>;
+export type ReaderAnnotationRecoveryIdentity = ReaderAnnotationIdentity;
 
 export function readerAnnotationRecoveryIdentity(
   annotation: Annotation,
 ): ReaderAnnotationRecoveryIdentity {
-  return {
-    annotationId: annotation.id,
-    annotationType: annotation.type,
-    createdAt: annotation.createdAt,
-  };
+  return readerAnnotationIdentity(annotation);
 }
 
 export function annotationMatchesRecoveryIdentity(
   annotation: Annotation,
   identity: ReaderAnnotationRecoveryIdentity,
 ): boolean {
-  return (
-    annotation.id === identity.annotationId &&
-    annotation.type === identity.annotationType &&
-    annotation.createdAt === identity.createdAt
-  );
+  return annotationMatchesReaderIdentity(annotation, identity);
 }
 
 export type ReaderAnnotationRecoveryStrategy =
