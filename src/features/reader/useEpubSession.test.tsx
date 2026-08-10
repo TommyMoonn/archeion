@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 
 import type { Book as EpubBook, Location, Rendition } from "epubjs";
+import type EpubSection from "epubjs/types/section";
 import {
   act,
   forwardRef,
@@ -458,6 +459,7 @@ describe("useEpubSession lifecycle", () => {
         navigateToChapter: expect.any(Function),
         navigateToLocation: expect.any(Function),
         navigateToTarget: expect.any(Function),
+        searchPublication: expect.any(Function),
         teardown: expect.any(Function),
         turn: expect.any(Function),
       }),
@@ -1347,6 +1349,67 @@ describe("useEpubSession lifecycle", () => {
       canGoForward: false,
       forwardCount: 0,
     });
+  });
+
+  it("retires an in-flight publication search when the Reader session identity is replaced", async () => {
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    const bridgeRef = createBridgeRef();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const identityA = createSessionIdentity("search-book-a");
+    const identityB = createSessionIdentity("search-book-b");
+    const leaseA = leaseFor(new Blob(["search-book-a"]));
+    const leaseB = leaseFor(new Blob(["search-book-b"]));
+    const chapter = document.implementation.createHTMLDocument("search-chapter");
+    chapter.body.textContent = "needle from the retired session";
+    const load = deferred<Element>();
+    const section = {
+      cfiFromRange: vi.fn(() => "epubcfi(/6/2!/4/2:0,/4/2:6)"),
+      contents: undefined as Element | undefined,
+      document: undefined as Document | undefined,
+      href: "Text/search.xhtml",
+      index: 0,
+      linear: true,
+      load: vi.fn(async () => {
+        await load.promise;
+        section.document = chapter;
+        section.contents = chapter.documentElement;
+        return chapter.documentElement;
+      }),
+      unload: vi.fn(() => {
+        section.document = undefined;
+        section.contents = undefined;
+      }),
+    };
+    const searchableBook = sessionA.book as unknown as {
+      load: (...args: unknown[]) => Promise<unknown>;
+      spine: { each: (callback: (section: EpubSection) => void) => void };
+    };
+    searchableBook.load = vi.fn(async () => undefined);
+    searchableBook.spine = {
+      each: (callback) => callback(section as unknown as EpubSection),
+    };
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+
+    const { root } = await renderHarness(
+      { bridgeRef, fileLease: leaseA, mode: "paged", sessionIdentity: identityA },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridgeRef.current);
+
+    const pendingSearch = facadeRef.current!.searchPublication("needle");
+    await vi.waitFor(() => expect(section.load).toHaveBeenCalledOnce());
+
+    await rerenderHarness(
+      root,
+      { bridgeRef, fileLease: leaseB, mode: "paged", sessionIdentity: identityB },
+      facadeRef,
+    );
+    await waitForReady(sessionB, bridgeRef.current);
+    load.resolve(chapter.documentElement);
+
+    await expect(pendingSearch).resolves.toEqual({ kind: "cancelled" });
+    expect(section.unload).toHaveBeenCalledOnce();
   });
 
   it("retires an in-flight deliberate jump when the Reader session identity is replaced", async () => {

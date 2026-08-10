@@ -18,6 +18,12 @@ import {
 } from "./readerDeliberateNavigation";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import {
+  createReaderPublicationSearchService,
+  type ReaderPublicationSearchOptions,
+  type ReaderPublicationSearchOutcome,
+  type ReaderPublicationSearchService,
+} from "./readerPublicationSearch";
+import {
   createLoadingReaderNavigationState,
   createReaderNavigationStateController,
   type ReaderNavigationStateController,
@@ -37,6 +43,7 @@ type EpubSessionSnapshot = {
   book: EpubBook;
   generation: number;
   interactions: EpubSessionInteractionAccess;
+  publicationSearch: ReaderPublicationSearchService;
   rendition: Rendition;
 };
 
@@ -171,6 +178,10 @@ export type EpubSessionFacade = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToTarget: (target: string) => Promise<boolean>;
+  searchPublication: (
+    query: string,
+    options?: ReaderPublicationSearchOptions,
+  ) => Promise<ReaderPublicationSearchOutcome>;
   subscribeNavigationHistory: (listener: () => void) => () => void;
   teardown: () => void;
   turn: (intent: ReaderNavigationIntent) => Promise<void>;
@@ -377,6 +388,7 @@ export function useEpubSession({
         const wasCurrent = sessionRef.current === session;
         if (wasCurrent) sessionRef.current = null;
         deliberateNavigation.unbindDisplay(session);
+        session.publicationSearch.retire();
         owner.cancelDeferredNavigation();
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
@@ -477,7 +489,18 @@ export function useEpubSession({
           }),
         );
         const interactions = createEpubSessionInteractionAccess(book, rendition);
-        const session: EpubSessionSnapshot = { book, generation, interactions, rendition };
+        const publicationSearch = createReaderPublicationSearchService({
+          book,
+          getNavigationModel: () => navigationController.getModel(),
+          sections: interactions.annotations,
+        });
+        const session: EpubSessionSnapshot = {
+          book,
+          generation,
+          interactions,
+          publicationSearch,
+          rendition,
+        };
         const owner: EpubSessionLifecycle = {
           cancelDeferredNavigation: () => undefined,
           identity: sessionIdentity,
@@ -605,6 +628,16 @@ export function useEpubSession({
     sessionKey,
   ]);
 
+  const searchPublication = useCallback(
+    (query: string, options?: ReaderPublicationSearchOptions) => {
+      const publicationSearch = sessionRef.current?.publicationSearch;
+      return publicationSearch
+        ? publicationSearch.search(query, options)
+        : Promise.resolve<ReaderPublicationSearchOutcome>({ kind: "cancelled" });
+    },
+    [],
+  );
+
   const getNavigationState = useCallback(
     () => navigationControllerRef.current?.getState() ?? createLoadingReaderNavigationState(),
     [],
@@ -632,6 +665,7 @@ export function useEpubSession({
     navigateToChapter,
     navigateToLocation,
     navigateToTarget,
+    searchPublication,
     subscribeNavigationHistory,
     teardown,
     turn,

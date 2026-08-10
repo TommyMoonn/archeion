@@ -15,6 +15,7 @@ export type ReaderNavigationTarget = ReaderNavigationDocumentTarget & {
 export type ReaderNavigationAdapter = {
   compareCfis: (first: string, second: string) => number | undefined;
   resolveCfiPosition: (cfi: string) => ReaderNavigationPosition | undefined;
+  resolveCfiTarget: (cfi: string) => ReaderNavigationTarget | undefined;
   resolveLocationTarget: (href: string) => ReaderNavigationDocumentTarget;
   resolveTargets: (hrefs: readonly string[]) => Promise<ReaderNavigationTarget[]>;
 };
@@ -93,6 +94,30 @@ export function createReaderNavigationAdapter(book: EpubBook): ReaderNavigationA
     },
     resolveCfiPosition(cfi) {
       return resolveCfiPosition(adaptedBook, cfi);
+    },
+    resolveCfiTarget(cfi) {
+      const normalizedCfi = nonEmptyString(cfi);
+      if (!isEpubCfiString(normalizedCfi)) {
+        return undefined;
+      }
+
+      try {
+        const target = resolveNavigationTarget(
+          adaptedBook,
+          normalizedCfi,
+          navigationDocumentPaths,
+          spineSections,
+        );
+
+        return {
+          canonicalDocumentHref: target.canonicalDocumentHref,
+          canonicalFullHref: target.canonicalFullHref,
+          displayTarget: target.displayTarget,
+          position: target.position,
+        };
+      } catch {
+        return undefined;
+      }
     },
     resolveLocationTarget(href) {
       const target = resolveNavigationTarget(
