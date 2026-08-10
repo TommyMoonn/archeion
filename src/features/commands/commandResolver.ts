@@ -119,7 +119,13 @@ function commandCanOwnEvent(
   if (isTextEntryTarget(event.target) && !command.allowInTextEntry) return false;
   if (hasActiveSelection(context.sourceDocument) && !command.allowWithSelection) return false;
   if (target?.closest("[data-reader-ignore-shortcuts]")) {
-    return command.scope === "transient-surface" || command.scope === "settings";
+    return (
+      command.scope === "transient-surface" ||
+      command.scope === "settings" ||
+      (activeTransient?.dataset.applicationTransient === "reader-panel" &&
+        command.scope === "reader" &&
+        command.allowInReaderSideSurface === true)
+    );
   }
 
   return true;

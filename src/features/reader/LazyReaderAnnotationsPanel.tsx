@@ -1,4 +1,4 @@
-import { lazy, Suspense, type RefObject } from "react";
+import { lazy, Suspense } from "react";
 
 import type { Annotation, BookmarkAnnotation, HighlightAnnotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
@@ -33,8 +33,6 @@ type LazyReaderAnnotationsPanelProps = {
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
   restoreFocusOnOpen?: boolean;
-  searchAriaKeyShortcuts?: string;
-  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function LazyReaderAnnotationsPanel(props: LazyReaderAnnotationsPanelProps) {

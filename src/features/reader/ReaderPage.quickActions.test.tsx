@@ -20,8 +20,10 @@ import { ReaderRoute } from "./ReaderPage";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
+import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 
 const viewerMock = vi.hoisted(() => ({
+  closePublicationSearch: vi.fn(),
   historySnapshot: {
     backCount: 0,
     canGoBack: false,
@@ -32,9 +34,24 @@ const viewerMock = vi.hoisted(() => ({
   navigateBack: vi.fn().mockResolvedValue(true),
   navigateForward: vi.fn().mockResolvedValue(true),
   navigateToLocation: vi.fn().mockResolvedValue(true),
+  navigateToPublicationSearchResult: vi.fn().mockResolvedValue(true),
+  nextPublicationSearchResult: vi.fn().mockResolvedValue(true),
+  previousPublicationSearchResult: vi.fn().mockResolvedValue(true),
+  publicationSearchState: {
+    error: null,
+    query: "",
+    requestRevision: 0,
+    results: [],
+    selectedResult: null,
+    status: "idle",
+    truncated: false,
+  } as ReaderPublicationSearchControllerState,
   onKeyDown: null as ((event: KeyboardEvent) => void) | null,
   publishNavigationHistory: null as ((snapshot: ReaderNavigationHistorySnapshot) => void) | null,
+  publishPublicationSearch: null as
+    ((state: ReaderPublicationSearchControllerState) => void) | null,
   resolveAnnotationAnchor: vi.fn(),
+  setPublicationSearchQuery: vi.fn(),
   teardown: vi.fn(),
 }));
 
@@ -54,6 +71,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onNavigationHistoryChange,
+        onPublicationSearchChange,
         onReady,
         sessionIdentity,
       }: {
@@ -67,6 +85,7 @@ vi.mock("./EpubViewer", async () => {
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
         onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
+        onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
         onReady: (identity: ReaderSessionIdentity) => void;
         sessionIdentity: ReaderSessionIdentity;
         settings: { mode: "continuous" | "paged" };
@@ -74,11 +93,16 @@ vi.mock("./EpubViewer", async () => {
       ref: React.ForwardedRef<unknown>,
     ) {
       React.useImperativeHandle(ref, () => ({
+        closePublicationSearch: viewerMock.closePublicationSearch,
         getNavigationHistorySnapshot: () => viewerMock.historySnapshot,
         navigateBack: viewerMock.navigateBack,
         navigateForward: viewerMock.navigateForward,
         navigateToChapter: vi.fn().mockResolvedValue(true),
         navigateToLocation: viewerMock.navigateToLocation,
+        navigateToPublicationSearchResult: viewerMock.navigateToPublicationSearchResult,
+        nextPublicationSearchResult: viewerMock.nextPublicationSearchResult,
+        previousPublicationSearchResult: viewerMock.previousPublicationSearchResult,
+        setPublicationSearchQuery: viewerMock.setPublicationSearchQuery,
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
         resolveAnnotationAnchor: viewerMock.resolveAnnotationAnchor,
@@ -88,6 +112,7 @@ vi.mock("./EpubViewer", async () => {
         onLocationChange,
         onNavigationChange,
         onNavigationHistoryChange,
+        onPublicationSearchChange,
         onReady,
         sessionIdentity,
       });
@@ -110,6 +135,16 @@ vi.mock("./EpubViewer", async () => {
           }
         };
       }, [onNavigationHistoryChange]);
+
+      React.useEffect(() => {
+        viewerMock.publishPublicationSearch = onPublicationSearchChange ?? null;
+        onPublicationSearchChange?.(viewerMock.publicationSearchState);
+        return () => {
+          if (viewerMock.publishPublicationSearch === onPublicationSearchChange) {
+            viewerMock.publishPublicationSearch = null;
+          }
+        };
+      }, [onPublicationSearchChange]);
 
       React.useEffect(() => {
         const callbacks = initialCallbacks.current;
@@ -155,6 +190,11 @@ vi.mock("./EpubViewer", async () => {
 vi.mock("./LazyReaderAnnotationsPanel", async () => {
   const { ReaderAnnotationsPanel } = await import("./ReaderAnnotationsPanel");
   return { LazyReaderAnnotationsPanel: ReaderAnnotationsPanel };
+});
+
+vi.mock("./LazyReaderSearchPanel", async () => {
+  const { ReaderSearchPanel } = await import("./ReaderSearchPanel");
+  return { LazyReaderSearchPanel: ReaderSearchPanel };
 });
 
 vi.mock("../archive/useArchive", () => ({
@@ -357,7 +397,15 @@ function publishNavigationHistory(snapshot: ReaderNavigationHistorySnapshot): vo
   });
 }
 
+function publishPublicationSearch(state: ReaderPublicationSearchControllerState): void {
+  viewerMock.publicationSearchState = state;
+  act(() => {
+    viewerMock.publishPublicationSearch?.(state);
+  });
+}
+
 beforeEach(() => {
+  viewerMock.closePublicationSearch.mockReset();
   viewerMock.historySnapshot = {
     backCount: 0,
     canGoBack: false,
@@ -368,7 +416,31 @@ beforeEach(() => {
   viewerMock.navigateBack.mockReset().mockResolvedValue(true);
   viewerMock.navigateForward.mockReset().mockResolvedValue(true);
   viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
+  viewerMock.navigateToPublicationSearchResult.mockReset().mockResolvedValue(true);
+  viewerMock.nextPublicationSearchResult.mockReset().mockResolvedValue(true);
+  viewerMock.previousPublicationSearchResult.mockReset().mockResolvedValue(true);
+  viewerMock.publicationSearchState = {
+    error: null,
+    query: "",
+    requestRevision: 0,
+    results: [],
+    selectedResult: null,
+    status: "idle",
+    truncated: false,
+  };
   viewerMock.publishNavigationHistory = null;
+  viewerMock.publishPublicationSearch = null;
+  viewerMock.setPublicationSearchQuery.mockReset().mockImplementation((query: string) => {
+    publishPublicationSearch({
+      error: null,
+      query,
+      requestRevision: viewerMock.publicationSearchState.requestRevision + 1,
+      results: [],
+      selectedResult: null,
+      status: query.trim() ? "searching" : "idle",
+      truncated: false,
+    });
+  });
   viewerMock.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
     chapterHref: annotation.chapterHref,
     cfiRange: annotation.cfiRange,
@@ -812,26 +884,28 @@ describe("ReaderPage Quick Actions", () => {
     });
   });
 
-  it("focuses the active reader search surface with Ctrl+F", async () => {
+  it("opens Find in Book with Ctrl+F and refocuses its query when repeated", async () => {
     const rendered = await renderReader();
-    const annotationsButton = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Annotations"]',
-    );
+    const paragraph = createRenditionTarget("p");
 
-    await act(async () => annotationsButton?.click());
-    await vi.waitFor(() =>
-      expect(
-        rendered.container.querySelector<HTMLInputElement>(
-          '.reader-annotations input[type="search"]',
-        ),
-      ).toBeInstanceOf(HTMLInputElement),
-    );
-    const readerPage = rendered.container.querySelector<HTMLElement>(".reader-page")!;
-    readerPage.tabIndex = -1;
-    readerPage.focus();
-
+    let shortcutEvent!: KeyboardEvent;
     await act(async () => {
-      readerPage.dispatchEvent(
+      shortcutEvent = dispatchRenditionShortcut(paragraph, { ctrlKey: true, key: "f" });
+    });
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+
+    const input = rendered.container.querySelector<HTMLInputElement>(
+      '.reader-search input[type="search"]',
+    );
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(document.activeElement).toBe(input);
+
+    const close = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close Find in Book"]',
+    )!;
+    close.focus();
+    await act(async () => {
+      close.dispatchEvent(
         new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
@@ -841,11 +915,138 @@ describe("ReaderPage Quick Actions", () => {
       );
     });
 
-    expect(document.activeElement).toBe(
-      rendered.container.querySelector<HTMLInputElement>(
-        '.reader-annotations input[type="search"]',
-      ),
+    expect(document.activeElement).toBe(input);
+  });
+
+  it("keeps annotation search local while Ctrl+F opens Find in Book from that field", async () => {
+    const rendered = await renderReader();
+    const annotationsButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Annotations"]',
+    )!;
+
+    await act(async () => annotationsButton.click());
+    const annotationSearch = rendered.container.querySelector<HTMLInputElement>(
+      'input[placeholder="Search annotations"]',
     );
+    expect(annotationSearch).toBeInstanceOf(HTMLInputElement);
+
+    await act(async () => setInputValue(annotationSearch!, "local note"));
+    expect(annotationSearch?.value).toBe("local note");
+
+    let shortcutEvent!: KeyboardEvent;
+    await act(async () => {
+      shortcutEvent = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
+        key: "f",
+      });
+      annotationSearch!.dispatchEvent(shortcutEvent);
+    });
+
+    expect(shortcutEvent.defaultPrevented).toBe(true);
+    expect(rendered.container.querySelector(".reader-annotations")).toBeNull();
+    const bookSearch = rendered.container.querySelector<HTMLInputElement>(
+      '.reader-search input[type="search"]',
+    );
+    expect(bookSearch).toBeInstanceOf(HTMLInputElement);
+    expect(document.activeElement).toBe(bookSearch);
+  });
+
+  it("opens the same Find in Book surface from the toolbar and restores trigger focus on close", async () => {
+    const rendered = await renderReader();
+    const searchButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Find in book"]',
+    )!;
+
+    await act(async () => searchButton.click());
+    const input = rendered.container.querySelector<HTMLInputElement>(
+      '.reader-search input[type="search"]',
+    );
+    expect(input).toBeInstanceOf(HTMLInputElement);
+    expect(document.activeElement).toBe(input);
+
+    const close = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Close Find in Book"]',
+    )!;
+    await act(async () => close.click());
+    await vi.waitFor(() => expect(rendered.container.querySelector(".reader-search")).toBeNull());
+    await vi.waitFor(() => expect(document.activeElement).toBe(searchButton));
+    expect(viewerMock.closePublicationSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps Reader controls revealed while Find in Book is open and resumes auto-hide after close", async () => {
+    const rendered = await renderReader();
+    const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
+    const searchButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Find in book"]',
+    )!;
+
+    vi.useFakeTimers();
+    try {
+      await act(async () => searchButton.click());
+      expect(rendered.container.querySelector(".reader-search")).toBeInstanceOf(HTMLElement);
+      expect(controls.getAttribute("data-visible")).toBe("true");
+
+      await act(async () => {
+        vi.advanceTimersByTime(3_000);
+      });
+      expect(controls.getAttribute("data-visible")).toBe("true");
+
+      const close = rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Close Find in Book"]',
+      )!;
+      await act(async () => close.click());
+      expect(rendered.container.querySelector(".reader-search")).toBeNull();
+      expect(controls.getAttribute("data-visible")).toBe("true");
+
+      await act(async () => {
+        vi.advanceTimersByTime(2_399);
+      });
+      expect(controls.getAttribute("data-visible")).toBe("true");
+
+      await act(async () => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(controls.getAttribute("data-visible")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("routes Find in Book result activation through the publication search controller", async () => {
+    const rendered = await renderReader();
+    const searchButton = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Find in book"]',
+    )!;
+    await act(async () => searchButton.click());
+
+    const result = Object.freeze({
+      chapterId: "chapter-1",
+      chapterLabel: "Chapter 1",
+      excerpt: "A searchable phrase in context",
+      id: "search-result-1",
+      matchedText: "searchable phrase",
+      position: Object.freeze({ matchIndex: 0, spineIndex: 0 }),
+      target: "epubcfi(/6/2!/4/2:3)",
+    });
+    publishPublicationSearch({
+      error: null,
+      query: "searchable phrase",
+      requestRevision: 2,
+      results: Object.freeze([result]),
+      selectedResult: result,
+      status: "ready",
+      truncated: false,
+    });
+
+    const resultButton = rendered.container.querySelector<HTMLButtonElement>(
+      ".reader-search__result > button",
+    );
+    expect(resultButton?.textContent).toContain("A searchable phrase in context");
+
+    await act(async () => resultButton?.click());
+    expect(viewerMock.navigateToPublicationSearchResult).toHaveBeenCalledWith("search-result-1");
   });
 
   it("executes configurable reader commands directly in the parent document", async () => {

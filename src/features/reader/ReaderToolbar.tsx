@@ -8,6 +8,7 @@ import {
   ChevronRight,
   ListTree,
   Redo2,
+  Search,
   Undo2,
   ALargeSmall,
 } from "lucide-react";
@@ -44,6 +45,7 @@ type ReaderToolbarProps = {
   onNextChapter: () => void;
   onPrevious: () => void;
   onPreviousChapter: () => void;
+  onSearch: () => void;
   onSettings: () => void;
   onToc: () => void;
   percentage: number;
@@ -51,11 +53,14 @@ type ReaderToolbarProps = {
   progressSaveFailed: boolean;
   title: string;
   mode: ReaderMode;
+  searchAriaKeyShortcuts?: string;
   settingsAriaKeyShortcuts?: string;
   tocAriaKeyShortcuts?: string;
+  searchButtonRef?: Ref<HTMLButtonElement>;
   settingsButtonRef?: Ref<HTMLButtonElement>;
   tocButtonRef?: Ref<HTMLButtonElement>;
   tocOpen: boolean;
+  searchOpen: boolean;
   annotationButtonRef?: Ref<HTMLButtonElement>;
 };
 
@@ -87,6 +92,7 @@ export function ReaderToolbar({
   onNextChapter,
   onPrevious,
   onPreviousChapter,
+  onSearch,
   onSettings,
   onToc,
   percentage,
@@ -94,11 +100,14 @@ export function ReaderToolbar({
   progressSaveFailed,
   title,
   mode,
+  searchAriaKeyShortcuts,
   settingsAriaKeyShortcuts,
   tocAriaKeyShortcuts,
+  searchButtonRef,
   settingsButtonRef,
   tocButtonRef,
   tocOpen,
+  searchOpen,
   annotationButtonRef,
 }: ReaderToolbarProps) {
   const positionLabel =
@@ -188,6 +197,19 @@ export function ReaderToolbar({
           <Redo2 aria-hidden="true" strokeWidth={2.25} />
         </IconButton>
         <span className="reader-toolbar__divider" />
+        <IconButton
+          aria-controls="reader-find-in-book"
+          aria-keyshortcuts={searchAriaKeyShortcuts}
+          aria-expanded={searchOpen}
+          label="Find in book"
+          onClick={onSearch}
+          ref={searchButtonRef}
+          size="compact"
+          tooltip="Find in book"
+          tooltipPlacement="bottom"
+        >
+          <Search aria-hidden="true" />
+        </IconButton>
         <IconButton
           aria-controls="reader-table-of-contents"
           aria-keyshortcuts={tocAriaKeyShortcuts}

@@ -926,6 +926,174 @@ html[data-motion="on"] .reader-side-panel {
   font-size: var(--type-meta);
 }
 
+.reader-search {
+  width: min(430px, calc(100vw - 36px));
+}
+
+.reader-search__controls {
+  display: grid;
+  flex: none;
+  gap: 8px;
+  padding: 12px var(--reader-panel-inset) 10px;
+  border-bottom: 1px solid var(--reader-line);
+}
+
+.reader-search__input.input-shell {
+  width: 100%;
+  border-color: var(--reader-line);
+  color: var(--reader-muted);
+  background: var(--reader-surface);
+}
+
+.reader-search__input.input-shell:focus-within {
+  border-color: color-mix(in srgb, var(--reader-focus) 62%, var(--reader-line));
+  background: color-mix(in srgb, var(--reader-surface) 84%, var(--reader-bg));
+}
+
+.reader-search__input input {
+  color: var(--reader-strong);
+}
+
+.reader-search__input input::placeholder {
+  color: var(--reader-muted);
+}
+
+.reader-search__status {
+  min-height: 18px;
+  margin: 0;
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  line-height: 1.4;
+}
+
+.reader-search__body {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 8px 10px 18px;
+  scrollbar-gutter: stable;
+}
+
+.reader-search__results {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reader-search__result {
+  min-width: 0;
+}
+
+.reader-search__result > button {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 6px;
+  padding: 11px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: var(--reader-text);
+  background: color-mix(in srgb, var(--reader-surface) 62%, transparent);
+  text-align: start;
+  transition:
+    border-color var(--motion-duration-standard) var(--motion-ease-standard),
+    color var(--motion-duration-standard) var(--motion-ease-standard),
+    background var(--motion-duration-standard) var(--motion-ease-standard);
+}
+
+.reader-search__result > button:hover {
+  color: var(--reader-strong);
+  background: color-mix(in srgb, var(--reader-focus) 7%, var(--reader-surface));
+}
+
+:root[data-focus-presentation="keyboard-navigation"] .reader-search__result > button:focus-visible {
+  border-color: color-mix(in srgb, var(--reader-focus) 52%, var(--reader-line));
+  outline: 2px solid var(--reader-focus);
+  outline-offset: -2px;
+  color: var(--reader-strong);
+  background: color-mix(in srgb, var(--reader-focus) 10%, var(--reader-surface));
+}
+
+.reader-search__result[data-active] > button {
+  border-color: color-mix(in srgb, var(--reader-focus) 52%, var(--reader-line));
+  color: var(--reader-strong);
+  background: color-mix(in srgb, var(--reader-focus) 9%, var(--reader-surface));
+}
+
+.reader-search__result-meta {
+  overflow: hidden;
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-search__result-excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: var(--type-meta);
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.reader-search__empty {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  color: var(--reader-muted);
+  text-align: center;
+}
+
+.reader-search__empty p {
+  margin: 4px 0 0;
+  color: var(--reader-strong);
+  font-family: var(--font-display);
+  font-size: var(--type-title);
+  font-weight: var(--type-title-weight);
+  line-height: var(--type-title-line-height);
+}
+
+.reader-search__empty span {
+  max-width: 260px;
+  font-size: var(--type-caption);
+  line-height: 1.5;
+}
+
+.reader-search__loading {
+  display: grid;
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.reader-search__loading span {
+  display: block;
+  height: 74px;
+  border-radius: var(--radius-control);
+  background:
+    linear-gradient(
+      100deg,
+      transparent 28%,
+      color-mix(in srgb, var(--reader-text) 7%, transparent) 48%,
+      transparent 68%
+    ),
+    var(--reader-surface);
+  background-size: 220% 100%;
+}
+
+html[data-motion="on"] .reader-search__loading span {
+  animation: loading-sheen 1.5s var(--motion-ease-standard) infinite;
+}
+
 .reader-annotations {
   width: min(430px, calc(100vw - 36px));
 }

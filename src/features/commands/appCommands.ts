@@ -15,6 +15,7 @@ export type KeyboardInteractionContext = {
 };
 
 export type AppCommand = {
+  allowInReaderSideSurface?: boolean;
   allowInTextEntry?: boolean;
   allowWithSelection?: boolean;
   availability?: AppCommandAvailability;

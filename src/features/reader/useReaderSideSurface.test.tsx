@@ -62,6 +62,7 @@ function Harness({
     annotationButtonRef,
     noteTarget,
     restoreFocusAnnotationId,
+    searchButtonRef,
     settingsButtonRef,
     surface,
     tocButtonRef,
@@ -76,6 +77,9 @@ function Harness({
       </button>
       <button ref={tocButtonRef} type="button">
         TOC
+      </button>
+      <button ref={searchButtonRef} type="button">
+        Search
       </button>
       <button ref={settingsButtonRef} type="button">
         Settings
@@ -140,7 +144,7 @@ afterEach(() => {
 });
 
 describe("useReaderSideSurface", () => {
-  it("keeps TOC, settings, and annotations mutually exclusive", async () => {
+  it("keeps search, TOC, settings, and annotations mutually exclusive", async () => {
     const transitions = createTransitions(async () => true);
     const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
     await renderHarness(transitions, apiRef);
@@ -151,6 +155,9 @@ describe("useReaderSideSurface", () => {
     expect(text("surface")).toBe("settings");
     act(() => apiRef.current?.openAnnotations());
     expect(text("surface")).toBe("annotations");
+    act(() => apiRef.current?.openSearch());
+    expect(text("surface")).toBe("search");
+    expect(apiRef.current?.annotationsOpen).toBe(false);
     expect(apiRef.current?.tocOpen).toBe(false);
     expect(apiRef.current?.settingsOpen).toBe(false);
   });
@@ -238,6 +245,25 @@ describe("useReaderSideSurface", () => {
     expect(text("surface")).toBe("closed");
     expect(document.activeElement?.textContent).toBe("Annotations");
     expect(apiRef.current?.closeTopmost()).toBe(false);
+  });
+
+  it("restores focus to the Find in Book trigger when its base surface closes", async () => {
+    const transitions = createTransitions(async () => true);
+    const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
+    await renderHarness(transitions, apiRef);
+    const search = [...container!.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Search",
+    )!;
+
+    act(() => {
+      apiRef.current?.openSearch();
+      search.focus();
+      apiRef.current?.closeSearch();
+    });
+    flushAnimationFrames();
+
+    expect(text("surface")).toBe("closed");
+    expect(document.activeElement).toBe(search);
   });
 
   it("rejects stale TOC focus restoration when annotations open before the next frame", async () => {

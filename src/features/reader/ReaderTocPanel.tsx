@@ -1,6 +1,6 @@
 import { BookOpenText, Check, Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, RefObject } from "react";
+import type { CSSProperties } from "react";
 
 import { Input } from "../../components/Input";
 import type { ReaderChapter, ReaderNavigationState } from "../../types/reader";
@@ -11,20 +11,11 @@ type ReaderTocPanelProps = {
   navigation: ReaderNavigationState;
   onClose: () => void;
   onNavigate: (chapterId: string) => Promise<boolean>;
-  searchAriaKeyShortcuts?: string;
-  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
-export function ReaderTocPanel({
-  navigation,
-  onClose,
-  onNavigate,
-  searchAriaKeyShortcuts,
-  searchInputRef,
-}: ReaderTocPanelProps) {
+export function ReaderTocPanel({ navigation, onClose, onNavigate }: ReaderTocPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
-  const localSearchRef = useRef<HTMLInputElement>(null);
-  const searchRef = searchInputRef ?? localSearchRef;
+  const searchRef = useRef<HTMLInputElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const currentChapterRef = useRef<HTMLButtonElement>(null);
   const [query, setQuery] = useState("");
@@ -38,14 +29,14 @@ export function ReaderTocPanel({
 
   useEffect(() => {
     const focusTarget = showSearch
-      ? (searchInputRef?.current ?? localSearchRef.current)
+      ? searchRef.current
       : (currentChapterRef.current ?? panelRef.current);
     focusTarget?.focus({ preventScroll: true });
 
     if (bodyRef.current && currentChapterRef.current) {
       revealWithinScrollContainer(bodyRef.current, currentChapterRef.current);
     }
-  }, [navigation.status, searchInputRef, showSearch]);
+  }, [navigation.status, showSearch]);
 
   async function selectChapter(chapter: ReaderChapter) {
     if (navigatingId) {
@@ -85,7 +76,6 @@ export function ReaderTocPanel({
     >
       {showSearch ? (
         <Input
-          aria-keyshortcuts={searchAriaKeyShortcuts}
           className="reader-toc__search"
           icon={<Search aria-hidden="true" />}
           label="Search chapters"

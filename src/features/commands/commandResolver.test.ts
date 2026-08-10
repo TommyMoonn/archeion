@@ -275,6 +275,30 @@ describe("keyboard command resolver", () => {
     ).toBe("shared.command");
   });
 
+  it("allows an opted-in Reader command through the owned Reader side surface only", () => {
+    const layer = document.body.appendChild(document.createElement("div"));
+    layer.dataset.applicationTransient = "reader-panel";
+    const panel = layer.appendChild(document.createElement("aside"));
+    panel.dataset.readerIgnoreShortcuts = "true";
+    const input = panel.appendChild(document.createElement("input"));
+    const ordinary = command("ordinary", "reader", { defaultBinding: primaryK });
+    const find = command("find", "reader", {
+      allowInReaderSideSurface: true,
+      allowInTextEntry: true,
+      defaultBinding: primaryK,
+      priority: 1,
+    });
+
+    expect(
+      resolveKeyboardCommand(keyboardEvent(input), [ordinary], preferences, context()),
+    ).toBeNull();
+    expect(
+      resolveKeyboardCommand(keyboardEvent(input), [find], preferences, context())?.command.id,
+    ).toBe("find");
+
+    layer.remove();
+  });
+
   it("retains publisher-control protection without rematching command identities", () => {
     const epubDocument = document.implementation.createHTMLDocument("EPUB");
     const link = epubDocument.createElement("a");

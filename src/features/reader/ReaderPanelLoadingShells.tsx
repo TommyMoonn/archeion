@@ -58,3 +58,30 @@ export function ReaderAnnotationsLoadingShell({
     </ReaderSidePanel>
   );
 }
+
+type ReaderSearchLoadingShellProps = {
+  onClose: () => void;
+};
+
+export function ReaderSearchLoadingShell({ onClose }: ReaderSearchLoadingShellProps) {
+  return (
+    <ReaderSidePanel
+      accessibleLabel="Find in book"
+      ariaBusy
+      className="reader-search"
+      closeLabel="Close Find in Book"
+      eyebrow="Search"
+      id="reader-find-in-book"
+      ignoreReaderShortcuts
+      onClose={onClose}
+      tabIndex={-1}
+      title="Find in Book"
+    >
+      <div aria-label="Loading Find in Book" className="reader-toc__loading" role="status">
+        <span />
+        <span />
+        <span />
+      </div>
+    </ReaderSidePanel>
+  );
+}

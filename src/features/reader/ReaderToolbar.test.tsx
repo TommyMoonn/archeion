@@ -33,6 +33,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
     onNextChapter: vi.fn(),
     onPrevious: vi.fn(),
     onPreviousChapter: vi.fn(),
+    onSearch: vi.fn(),
     onSettings: vi.fn(),
     onToc: vi.fn(),
   };
@@ -60,6 +61,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
             progressSaveFailed={false}
             title="Book Title"
             mode="paged"
+            searchOpen={false}
             tocOpen={false}
             onAnnotations={vi.fn()}
             onToggleBookmark={vi.fn()}
@@ -195,10 +197,12 @@ describe("ReaderToolbar", () => {
     const { container } = renderToolbar({
       annotationsAriaKeyShortcuts: "A",
       bookmarkAriaKeyShortcuts: "B",
+      searchAriaKeyShortcuts: "Control+F",
       settingsAriaKeyShortcuts: "S",
       tocAriaKeyShortcuts: "T",
     });
 
+    expect(button(container, "Find in book").getAttribute("aria-keyshortcuts")).toBe("Control+F");
     expect(button(container, "Table of contents").getAttribute("aria-keyshortcuts")).toBe("T");
     expect(button(container, "Annotations").getAttribute("aria-keyshortcuts")).toBe("A");
     expect(button(container, "Add bookmark").getAttribute("aria-keyshortcuts")).toBe("B");
@@ -208,9 +212,28 @@ describe("ReaderToolbar", () => {
   it("omits shortcut attributes for unassigned commands", () => {
     const { container } = renderToolbar();
 
-    for (const label of ["Table of contents", "Annotations", "Add bookmark", "Reader settings"]) {
+    for (const label of [
+      "Find in book",
+      "Table of contents",
+      "Annotations",
+      "Add bookmark",
+      "Reader settings",
+    ]) {
       expect(button(container, label).hasAttribute("aria-keyshortcuts")).toBe(false);
     }
+  });
+
+  it("opens the owned Find in Book surface from the Reader toolbar control", () => {
+    const searchButtonRef = { current: null as HTMLButtonElement | null };
+    const { callbacks, container } = renderToolbar({ searchButtonRef, searchOpen: true });
+    const search = button(container, "Find in book");
+
+    expect(search.getAttribute("aria-controls")).toBe("reader-find-in-book");
+    expect(search.getAttribute("aria-expanded")).toBe("true");
+    expect(searchButtonRef.current).toBe(search);
+
+    act(() => search.click());
+    expect(callbacks.onSearch).toHaveBeenCalledTimes(1);
   });
 
   it("keeps Quick Actions out of the Reader toolbar", () => {

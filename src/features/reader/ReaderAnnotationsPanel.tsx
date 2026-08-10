@@ -7,7 +7,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type RefObject,
 } from "react";
 
 import { AppSelect } from "../../components/AppSelect";
@@ -60,8 +59,6 @@ type ReaderAnnotationsPanelProps = {
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
   restoreFocusOnOpen?: boolean;
-  searchAriaKeyShortcuts?: string;
-  searchInputRef?: RefObject<HTMLInputElement | null>;
 };
 
 export function ReaderAnnotationsPanel({
@@ -82,13 +79,10 @@ export function ReaderAnnotationsPanel({
   onUpdateBookmarkLabel,
   restoreFocusAnnotationId,
   restoreFocusOnOpen = true,
-  searchAriaKeyShortcuts,
-  searchInputRef,
 }: ReaderAnnotationsPanelProps) {
   const panelId = useId();
   const panelRef = useRef<HTMLElement>(null);
-  const localSearchRef = useRef<HTMLInputElement>(null);
-  const searchRef = searchInputRef ?? localSearchRef;
+  const searchRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<ReaderAnnotationListHandle>(null);
   const { closeDetails: closeExportDetails, detailsRef: exportMenuRef } = useDismissibleDetails();
   const [query, setQuery] = useState("");
@@ -113,13 +107,13 @@ export function ReaderAnnotationsPanel({
     listRef.current?.requestActionFocus(annotationId);
   }, []);
   const focusPanelFallback = useCallback(() => {
-    const searchInput = searchInputRef?.current ?? localSearchRef.current;
+    const searchInput = searchRef.current;
     if (searchInput?.isConnected && !searchInput.disabled) {
       searchInput.focus({ preventScroll: true });
       if (document.activeElement === searchInput) return;
     }
     panelRef.current?.focus({ preventScroll: true });
-  }, [searchInputRef]);
+  }, []);
   const survivingRowId = useCallback(
     (annotationId: string) =>
       readerAnnotationSurvivingRowId(listModel.visibleAnnotations, annotationId),
@@ -148,11 +142,11 @@ export function ReaderAnnotationsPanel({
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
     if (!focusedRow) {
-      (searchInputRef?.current ?? localSearchRef.current ?? panelRef.current)?.focus({
+      (searchRef.current ?? panelRef.current)?.focus({
         preventScroll: true,
       });
     }
-  }, [active, restoreFocusAnnotationId, restoreFocusOnOpen, searchInputRef]);
+  }, [active, restoreFocusAnnotationId, restoreFocusOnOpen]);
 
   function dismissNestedSurface(restoreFocus = true) {
     if (actions.editing) {
@@ -267,7 +261,6 @@ export function ReaderAnnotationsPanel({
       <div className="reader-annotations__controls">
         <div className="reader-annotations__tools">
           <Input
-            aria-keyshortcuts={searchAriaKeyShortcuts}
             className="reader-annotations__search"
             icon={<Search aria-hidden="true" />}
             label="Search annotations"

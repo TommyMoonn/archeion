@@ -56,11 +56,7 @@ import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
 import { ReaderNoteEditor } from "./ReaderNoteEditor";
-import {
-  isReaderKeyboardCommandEligible,
-  isReaderShortcutTargetBlocked,
-  READER_TOC_SEARCH_THRESHOLD,
-} from "./readerNavigation";
+import { isReaderKeyboardCommandEligible, isReaderShortcutTargetBlocked } from "./readerNavigation";
 import {
   EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT,
   type ReaderNavigationHistorySnapshot,
@@ -68,6 +64,8 @@ import {
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
+import { LazyReaderSearchPanel } from "./LazyReaderSearchPanel";
+import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -92,6 +90,16 @@ import { readerThemeCssProperties } from "../../themes/themeCssVariables";
 import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
 import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
+
+const INITIAL_PUBLICATION_SEARCH_STATE: ReaderPublicationSearchControllerState = Object.freeze({
+  error: null,
+  query: "",
+  requestRevision: 0,
+  results: Object.freeze([]),
+  selectedResult: null,
+  status: "idle",
+  truncated: false,
+});
 
 export function ReaderRoute() {
   const { bookId } = useParams();
@@ -145,6 +153,8 @@ export function ReaderPage() {
   const [navigationHistory, setNavigationHistory] = useState<ReaderNavigationHistorySnapshot>(
     EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT,
   );
+  const [publicationSearchState, setPublicationSearchState] =
+    useState<ReaderPublicationSearchControllerState>(INITIAL_PUBLICATION_SEARCH_STATE);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
@@ -335,15 +345,19 @@ export function ReaderPage() {
     annotationButtonRef,
     annotationsOpen,
     closeAnnotations,
+    closeSearch,
     closeSettings,
     closeToc,
     closeTopmost,
     dismissalController,
     getNoteTarget,
     noteTarget,
+    openSearch,
     restoreAnnotationsFocus,
     restoreFocusAnnotationId: annotationFocusTargetId,
     returnNoteToAnnotations,
+    searchButtonRef,
+    searchOpen,
     settingsButtonRef,
     settingsOpen,
     showNoteTarget,
@@ -352,6 +366,7 @@ export function ReaderPage() {
     tocButtonRef,
     tocOpen,
     toggleAnnotations,
+    toggleSearch,
     toggleSettings,
     toggleToc,
     updateNoteTarget,
@@ -456,18 +471,39 @@ export function ReaderPage() {
     );
   }, [leaveReader, navigate, returnDestination]);
 
-  const annotationsSearchInputRef = useRef<HTMLInputElement>(null);
-  const tocSearchInputRef = useRef<HTMLInputElement>(null);
-  const readerSearchAvailable =
-    (annotationsOpen && !noteTarget) ||
-    (tocOpen && navigationState.chapters.length > READER_TOC_SEARCH_THRESHOLD);
+  const readerSearchInputRef = useRef<HTMLInputElement>(null);
+  const searchSurfaceWasOpenRef = useRef(false);
   const focusReaderSearch = useCallback(() => {
-    if (annotationsOpen && !noteTarget) {
-      annotationsSearchInputRef.current?.focus({ preventScroll: true });
+    if (searchOpen) {
+      readerSearchInputRef.current?.focus({ preventScroll: true });
       return;
     }
-    if (tocOpen) tocSearchInputRef.current?.focus({ preventScroll: true });
-  }, [annotationsOpen, noteTarget, tocOpen]);
+    openSearch();
+  }, [openSearch, searchOpen]);
+
+  useLayoutEffect(() => {
+    if (searchSurfaceWasOpenRef.current && !searchOpen) {
+      viewerRef.current?.closePublicationSearch();
+    }
+    searchSurfaceWasOpenRef.current = searchOpen;
+  }, [searchOpen]);
+
+  const setReaderSearchQuery = useCallback((query: string) => {
+    viewerRef.current?.setPublicationSearchQuery(query);
+  }, []);
+  const navigateToSearchResult = useCallback(
+    (resultId: string) =>
+      viewerRef.current?.navigateToPublicationSearchResult(resultId) ?? Promise.resolve(false),
+    [],
+  );
+  const navigateToNextSearchResult = useCallback(
+    () => viewerRef.current?.nextPublicationSearchResult() ?? Promise.resolve(false),
+    [],
+  );
+  const navigateToPreviousSearchResult = useCallback(
+    () => viewerRef.current?.previousPublicationSearchResult() ?? Promise.resolve(false),
+    [],
+  );
 
   const {
     canToggleCurrent: canToggleCurrentBookmark,
@@ -502,10 +538,11 @@ export function ReaderPage() {
       },
       {
         ...commandDefinitions.focusSearch,
-        availability: readerSearchAvailable
-          ? { available: true }
-          : { available: false, reason: "Open Contents or Annotations to search this reader." },
-        canHandleEvent: canHandleReaderCommand,
+        allowInReaderSideSurface: true,
+        allowInTextEntry: true,
+        availability: { available: true },
+        canHandleEvent: (event, context) =>
+          context.sourceDocument === context.applicationDocument || canHandleReaderCommand(event),
         execute: focusReaderSearch,
         order: 41,
         scope: "reader",
@@ -697,7 +734,6 @@ export function ReaderPage() {
     navigationHistory.canGoForward,
     navigationState.chapters.length,
     navigationState.status,
-    readerSearchAvailable,
     returnToOrigin,
     settings.mode,
     sideSurface,
@@ -844,7 +880,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !tocOpen && !annotationsOpen) {
+    if (!settingsOpen && !tocOpen && !annotationsOpen && !searchOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -855,7 +891,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [annotationsOpen, settingsOpen, tocOpen]);
+  }, [annotationsOpen, searchOpen, settingsOpen, tocOpen]);
 
   if (!book || book.isFileMissing) {
     return (
@@ -961,7 +997,9 @@ export function ReaderPage() {
       <ReaderSideSurfaceDismissContext.Provider value={dismissalController}>
         <div
           className="reader-controls"
-          data-visible={controlsVisible || settingsOpen || tocOpen || annotationsOpen || undefined}
+          data-visible={
+            controlsVisible || settingsOpen || tocOpen || annotationsOpen || searchOpen || undefined
+          }
         >
           <ReaderToolbar
             atEnd={location.atEnd}
@@ -992,6 +1030,7 @@ export function ReaderPage() {
             onNextChapter={moveNextChapter}
             onPrevious={movePrevious}
             onPreviousChapter={movePreviousChapter}
+            onSearch={toggleSearch}
             onSettings={toggleSettings}
             onToc={toggleToc}
             percentage={location.percentage}
@@ -1000,6 +1039,9 @@ export function ReaderPage() {
             previousChapterDisabled={!chapterSequence.previousChapterId}
             title={title}
             mode={settings.mode}
+            searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
+            searchButtonRef={searchButtonRef}
+            searchOpen={searchOpen}
             annotationsAriaKeyShortcuts={ariaKeyShortcut(
               getCommandBinding(commandDefinitions.readerAnnotations.id),
             )}
@@ -1060,6 +1102,7 @@ export function ReaderPage() {
             onRemoveHighlight={removeHighlight}
             onNavigationChange={setNavigationState}
             onNavigationHistoryChange={setNavigationHistory}
+            onPublicationSearchChange={setPublicationSearchState}
             onReady={handleReady}
             readerTheme={readerTheme}
             sessionIdentity={readerSessionIdentity}
@@ -1133,8 +1176,6 @@ export function ReaderPage() {
                   onUpdateBookmarkLabel={annotations.updateLabel}
                   restoreFocusAnnotationId={annotationFocusTargetId}
                   restoreFocusOnOpen={restoreAnnotationsFocus}
-                  searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-                  searchInputRef={annotationsSearchInputRef}
                 />
                 {noteTarget && noteEditorStateFor(noteTarget) ? (
                   <ReaderNoteEditor
@@ -1151,13 +1192,23 @@ export function ReaderPage() {
               </>
             ) : null}
 
+            {searchOpen ? (
+              <LazyReaderSearchPanel
+                inputRef={readerSearchInputRef}
+                onActivateResult={navigateToSearchResult}
+                onClose={closeSearch}
+                onNextResult={navigateToNextSearchResult}
+                onPreviousResult={navigateToPreviousSearchResult}
+                onQueryChange={setReaderSearchQuery}
+                state={publicationSearchState}
+              />
+            ) : null}
+
             {tocOpen ? (
               <LazyReaderTocPanel
                 navigation={navigationState}
                 onClose={closeToc}
                 onNavigate={navigateToChapter}
-                searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-                searchInputRef={tocSearchInputRef}
               />
             ) : null}
 
