@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { resetTransientSurfaceOwnershipForTests } from "../../utils/transientSurfaceOwnership";
 import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 
 const roots: Array<ReturnType<typeof createRoot>> = [];
@@ -11,6 +12,7 @@ const roots: Array<ReturnType<typeof createRoot>> = [];
 afterEach(() => {
   for (const root of roots.splice(0)) act(() => root.unmount());
   document.body.replaceChildren();
+  resetTransientSurfaceOwnershipForTests();
   vi.restoreAllMocks();
 });
 
@@ -51,4 +53,34 @@ describe("ReaderExternalLinkDialog", () => {
     expect(onConfirm).toHaveBeenCalledOnce();
     expect(onCancel).not.toHaveBeenCalled();
   });
+
+  it("dismisses safely through the global Escape fallback without a Reader controller", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onCancel = vi.fn();
+
+    act(() => {
+      root.render(
+        <ReaderExternalLinkDialog
+          host="example.com"
+          onCancel={onCancel}
+          onConfirm={vi.fn()}
+          opening={false}
+          url="https://example.com/source"
+        />,
+      );
+    });
+    escape();
+
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onCancel).toHaveBeenCalledWith(true);
+  });
 });
+
+function escape(): void {
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
+  });
+}

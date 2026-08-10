@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useState, type ComponentProps, type ReactNode } from "react";
+import { act, useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,6 +8,7 @@ import type { Annotation } from "../../types/annotation";
 import type { ReaderNavigationState } from "../../types/reader";
 import { ReaderAnnotationsPanel } from "./ReaderAnnotationsPanel";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -144,6 +145,19 @@ function renderPanel(overrides: Partial<ComponentProps<typeof ReaderAnnotationsP
     </ReaderSideSurfaceLayer>,
   );
   return { container: target, props };
+}
+
+function HigherReaderSurface({ active }: { active: boolean }) {
+  const focusRef = useRef<HTMLButtonElement>(null);
+  useReaderSideSurfaceDismiss(() => true, active, "illustration");
+  useLayoutEffect(() => {
+    if (active) focusRef.current?.focus();
+  }, [active]);
+  return (
+    <button ref={focusRef} type="button">
+      Higher Reader surface
+    </button>
+  );
 }
 
 afterEach(() => {
@@ -606,6 +620,54 @@ describe("ReaderAnnotationsPanel", () => {
     expect(rendered.container.querySelector("#annotation-label-bookmark-1")).toBeNull();
     expect(document.activeElement).toBe(button(rendered.container, "Actions for Chapter start"));
     expect(rendered.props.onClose).not.toHaveBeenCalled();
+  });
+
+  it("closes annotation detail without restoring row focus for a higher Reader surface", () => {
+    const props = defaultProps();
+    const renderWithHigherSurface = (active: boolean) => (
+      <ReaderSideSurfaceLayer onDismiss={props.onClose}>
+        <ReaderAnnotationsPanel {...props} />
+        <HigherReaderSurface active={active} />
+      </ReaderSideSurfaceLayer>
+    );
+    const target = mount(renderWithHigherSurface(false));
+    const menuTrigger = button(target, "Actions for Chapter start");
+
+    act(() => menuTrigger.click());
+    act(() => textButton(target, "Rename bookmark").click());
+    expect(target.querySelector("#annotation-label-bookmark-1")).not.toBeNull();
+
+    const higherSurface = textButton(target, "Higher Reader surface");
+    higherSurface.focus();
+    const focus = vi.spyOn(menuTrigger, "focus");
+    act(() => root?.render(renderWithHigherSurface(true)));
+
+    expect(target.querySelector("#annotation-label-bookmark-1")).toBeNull();
+    expect(focus).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(higherSurface);
+  });
+
+  it("does not focus annotations when a conflicted note returns to the base surface", () => {
+    const props = defaultProps({ active: false, restoreFocusOnOpen: false });
+    mount(
+      <ReaderSideSurfaceLayer onDismiss={props.onClose}>
+        <ReaderAnnotationsPanel {...props} />
+      </ReaderSideSurfaceLayer>,
+    );
+    const higherSurface = document.body.appendChild(document.createElement("button"));
+    higherSurface.textContent = "Higher surface focus owner";
+    higherSurface.focus();
+
+    act(() =>
+      root?.render(
+        <ReaderSideSurfaceLayer onDismiss={props.onClose}>
+          <ReaderAnnotationsPanel {...props} active />
+        </ReaderSideSurfaceLayer>,
+      ),
+    );
+
+    expect(document.activeElement).toBe(higherSurface);
+    higherSurface.remove();
   });
 
   it("clears removal confirmation when bookmark renaming starts", () => {

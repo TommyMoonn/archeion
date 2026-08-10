@@ -5,6 +5,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ReaderNoteEditor } from "./ReaderNoteEditor";
+import {
+  createReaderSideSurfaceDismissController,
+  ReaderSideSurfaceDismissContext,
+} from "./readerSideSurfaceDismissal";
 import type { ReaderNoteEditorState } from "./useReaderNoteSession";
 
 const baseState: ReaderNoteEditorState = {
@@ -30,10 +34,23 @@ function props(overrides: Partial<React.ComponentProps<typeof ReaderNoteEditor>>
   };
 }
 
-async function renderEditor(componentProps: React.ComponentProps<typeof ReaderNoteEditor>) {
+async function renderEditor(
+  componentProps: React.ComponentProps<typeof ReaderNoteEditor>,
+  dismissalController?: ReturnType<typeof createReaderSideSurfaceDismissController>,
+) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
-  await act(async () => root?.render(<ReaderNoteEditor {...componentProps} />));
+  await act(async () =>
+    root?.render(
+      dismissalController ? (
+        <ReaderSideSurfaceDismissContext.Provider value={dismissalController}>
+          <ReaderNoteEditor {...componentProps} />
+        </ReaderSideSurfaceDismissContext.Provider>
+      ) : (
+        <ReaderNoteEditor {...componentProps} />
+      ),
+    ),
+  );
 }
 
 function clickButton(label: string) {
@@ -107,6 +124,21 @@ describe("ReaderNoteEditor", () => {
 
     expect(container?.querySelector('[role="group"]')).toBeNull();
     expect(onBack).not.toHaveBeenCalled();
+  });
+
+  it("propagates Reader dismissal focus intent to the note close owner", async () => {
+    const onBack = vi.fn();
+    const controller = createReaderSideSurfaceDismissController();
+    await renderEditor(props({ onBack }), controller);
+
+    act(() => expect(controller.dismissTopmost()).toBe(true));
+    expect(onBack).toHaveBeenCalledWith(true);
+
+    onBack.mockClear();
+    const unregister = controller.register("illustration", () => true);
+    expect(onBack).toHaveBeenCalledOnce();
+    expect(onBack).toHaveBeenCalledWith(false);
+    unregister();
   });
 
   it("disables editing and navigation while deletion is pending", async () => {

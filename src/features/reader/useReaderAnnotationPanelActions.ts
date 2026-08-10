@@ -143,8 +143,8 @@ export function useReaderAnnotationPanelActions({
   }, []);
 
   const cancelBookmarkRename = useCallback(
-    (annotationId: string) => {
-      requestRowFocus(annotationId);
+    (annotationId: string, options: { restoreFocus?: boolean } = {}) => {
+      if (options.restoreFocus !== false) requestRowFocus(annotationId);
       setEditing((current) => (current?.annotationId === annotationId ? undefined : current));
     },
     [requestRowFocus],
@@ -156,8 +156,8 @@ export function useReaderAnnotationPanelActions({
   }, []);
 
   const cancelRemoval = useCallback(
-    (annotationId: string) => {
-      requestRowFocus(annotationId);
+    (annotationId: string, options: { restoreFocus?: boolean } = {}) => {
+      if (options.restoreFocus !== false) requestRowFocus(annotationId);
       setPendingRemovalId((current) => (current === annotationId ? undefined : current));
     },
     [requestRowFocus],

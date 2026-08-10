@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { resetTransientSurfaceOwnershipForTests } from "../../utils/transientSurfaceOwnership";
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import type { ReaderIllustrationExportState } from "./useReaderIllustrationExport";
@@ -82,6 +83,7 @@ describe("ReaderIllustrationViewer", () => {
   afterEach(() => {
     act(() => root.unmount());
     container.remove();
+    resetTransientSurfaceOwnershipForTests();
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -514,5 +516,16 @@ describe("ReaderIllustrationViewer", () => {
 
     expect(cancel.defaultPrevented).toBe(true);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("dismisses safely through the global Escape fallback without a Reader controller", () => {
+    const onClose = renderViewer();
+
+    act(() => {
+      window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
+    });
+
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledWith(true);
   });
 });

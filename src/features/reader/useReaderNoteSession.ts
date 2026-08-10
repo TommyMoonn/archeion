@@ -34,7 +34,7 @@ export type ReaderNoteEditorState = Readonly<{
 }>;
 
 export type ReaderNoteSurfaceAdapter = {
-  closeTarget: () => void;
+  closeTarget: (restoreFocus?: boolean) => void;
   getTarget: () => ReaderNoteTarget | null;
   showTarget: (target: ReaderNoteTarget) => void;
   updateTarget: (target: ReaderNoteTarget) => void;
@@ -418,12 +418,12 @@ export function useReaderNoteSession({
   }, [ownsActive, saveActive]);
 
   const close = useCallback(
-    async (target: ReaderNoteTarget) => {
+    async (target: ReaderNoteTarget, restoreFocus = true) => {
       const active = activeForTarget(target);
       if (!active) return false;
       const settled = await saveActive(active);
       if (!settled || !ownsActive(active)) return false;
-      surfaceAdapterRef.current?.closeTarget();
+      surfaceAdapterRef.current?.closeTarget(restoreFocus);
       return true;
     },
     [activeForTarget, ownsActive, saveActive],

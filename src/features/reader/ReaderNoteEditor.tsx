@@ -9,7 +9,7 @@ import type { ReaderNoteEditorState } from "./useReaderNoteSession";
 
 type ReaderNoteEditorProps = {
   keepsHighlightOnEmptyClose?: boolean;
-  onBack: () => void;
+  onBack: (restoreFocus?: boolean) => void;
   onDelete: () => void;
   onDraftChange: (text: string) => void;
   onRetry: () => void;
@@ -49,24 +49,31 @@ export function ReaderNoteEditor({
     editorRef.current?.querySelector<HTMLButtonElement>("[data-delete-note-trigger]")?.focus();
   }, [confirmingDelete]);
 
-  const requestBack = useCallback(() => {
-    if (!deleting) onBack();
-  }, [deleting, onBack]);
+  const requestBack = useCallback(
+    (restoreFocus = true) => {
+      if (!deleting) onBack(restoreFocus);
+    },
+    [deleting, onBack],
+  );
 
-  const cancelDeleteConfirmation = useCallback(() => {
-    restoreDeleteFocusRef.current = true;
+  const cancelDeleteConfirmation = useCallback((restoreFocus = true) => {
+    restoreDeleteFocusRef.current = restoreFocus;
     setConfirmingDelete(false);
   }, []);
 
-  useReaderSideSurfaceDismiss(() => {
-    if (deleting) return true;
-    if (confirmingDelete) {
-      cancelDeleteConfirmation();
+  useReaderSideSurfaceDismiss(
+    (restoreFocus = true) => {
+      if (deleting) return true;
+      if (confirmingDelete) {
+        cancelDeleteConfirmation(restoreFocus);
+        return true;
+      }
+      requestBack(restoreFocus);
       return true;
-    }
-    requestBack();
-    return true;
-  });
+    },
+    true,
+    "note-editor",
+  );
 
   const statusMessage =
     status === "saving"
@@ -97,7 +104,7 @@ export function ReaderNoteEditor({
         <IconButton
           disabled={deleting}
           label="Back to annotations"
-          onClick={requestBack}
+          onClick={() => requestBack()}
           size="compact"
         >
           <ArrowLeft aria-hidden="true" />
@@ -154,7 +161,7 @@ export function ReaderNoteEditor({
             </Button>
             <Button
               disabled={deleting}
-              onClick={cancelDeleteConfirmation}
+              onClick={() => cancelDeleteConfirmation()}
               size="compact"
               variant="ghost"
             >

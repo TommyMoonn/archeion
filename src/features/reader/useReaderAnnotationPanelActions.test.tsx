@@ -128,6 +128,31 @@ describe("useReaderAnnotationPanelActions", () => {
     expect(apiRef.current?.rowMutation).toBeUndefined();
   });
 
+  it("cancels annotation detail without row focus during Reader conflict settlement", async () => {
+    const requestRowFocus = vi.fn();
+    const apiRef = await renderActions(defaultOptions({ requestRowFocus }));
+
+    act(() => {
+      apiRef.current?.beginBookmarkRename(bookmark);
+      apiRef.current?.cancelBookmarkRename(bookmark.id, { restoreFocus: false });
+    });
+    expect(apiRef.current?.editing).toBeUndefined();
+    expect(requestRowFocus).not.toHaveBeenCalled();
+
+    act(() => {
+      apiRef.current?.beginRemoval(highlight);
+      apiRef.current?.cancelRemoval(highlight.id, { restoreFocus: false });
+    });
+    expect(apiRef.current?.pendingRemovalId).toBeUndefined();
+    expect(requestRowFocus).not.toHaveBeenCalled();
+
+    act(() => {
+      apiRef.current?.beginRemoval(highlight);
+      apiRef.current?.cancelRemoval(highlight.id);
+    });
+    expect(requestRowFocus).toHaveBeenCalledWith(highlight.id);
+  });
+
   it("keeps removal pending on failure and uses the pure surviving-row decision on success", async () => {
     const onRemove = vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     const requestRowFocus = vi.fn();

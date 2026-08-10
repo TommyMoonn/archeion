@@ -73,6 +73,7 @@ import {
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
+import { ReaderSideSurfaceDismissContext } from "./readerSideSurfaceDismissal";
 import {
   readerNoteTargetAnnotationId,
   useReaderNoteSession,
@@ -330,8 +331,10 @@ export function ReaderPage() {
     closeSettings,
     closeToc,
     closeTopmost,
+    dismissalController,
     getNoteTarget,
     noteTarget,
+    restoreAnnotationsFocus,
     restoreFocusAnnotationId: annotationFocusTargetId,
     returnNoteToAnnotations,
     settingsButtonRef,
@@ -909,206 +912,214 @@ export function ReaderPage() {
       style={readerThemeStyle}
       tabIndex={-1}
     >
-      <div
-        className="reader-controls"
-        data-visible={controlsVisible || settingsOpen || tocOpen || annotationsOpen || undefined}
-      >
-        <ReaderToolbar
-          atEnd={location.atEnd}
-          atStart={location.atStart}
-          backLabel={backLabel}
-          chapterProgress={navigationState.chapterProgress}
-          chapterTitle={chapterSequence.current?.label}
-          hasChapterNavigation={hasChapterNavigation}
-          bookmarkActive={Boolean(annotations.currentBookmark)}
-          bookmarkBusy={annotations.busy}
-          bookmarkToggleDisabled={!annotations.canToggleCurrent}
-          bookmarkToggleDisabledReason={annotations.toggleDisabledReason}
-          annotationsOpen={annotationsOpen}
-          onNext={moveNext}
-          onBack={returnToOrigin}
-          onAnnotations={toggleAnnotations}
-          onToggleBookmark={() => void annotations.toggleCurrent()}
-          onNextChapter={moveNextChapter}
-          onPrevious={movePrevious}
-          onPreviousChapter={movePreviousChapter}
-          onSettings={toggleSettings}
-          onToc={toggleToc}
+      <ReaderSideSurfaceDismissContext.Provider value={dismissalController}>
+        <div
+          className="reader-controls"
+          data-visible={controlsVisible || settingsOpen || tocOpen || annotationsOpen || undefined}
+        >
+          <ReaderToolbar
+            atEnd={location.atEnd}
+            atStart={location.atStart}
+            backLabel={backLabel}
+            chapterProgress={navigationState.chapterProgress}
+            chapterTitle={chapterSequence.current?.label}
+            hasChapterNavigation={hasChapterNavigation}
+            bookmarkActive={Boolean(annotations.currentBookmark)}
+            bookmarkBusy={annotations.busy}
+            bookmarkToggleDisabled={!annotations.canToggleCurrent}
+            bookmarkToggleDisabledReason={annotations.toggleDisabledReason}
+            annotationsOpen={annotationsOpen}
+            onNext={moveNext}
+            onBack={returnToOrigin}
+            onAnnotations={toggleAnnotations}
+            onToggleBookmark={() => void annotations.toggleCurrent()}
+            onNextChapter={moveNextChapter}
+            onPrevious={movePrevious}
+            onPreviousChapter={movePreviousChapter}
+            onSettings={toggleSettings}
+            onToc={toggleToc}
+            percentage={location.percentage}
+            progressSaveFailed={progressSaveFailed}
+            nextChapterDisabled={!chapterSequence.nextChapterId}
+            previousChapterDisabled={!chapterSequence.previousChapterId}
+            title={title}
+            mode={settings.mode}
+            annotationsAriaKeyShortcuts={ariaKeyShortcut(
+              getCommandBinding(commandDefinitions.readerAnnotations.id),
+            )}
+            bookmarkAriaKeyShortcuts={ariaKeyShortcut(
+              getCommandBinding(commandDefinitions.readerBookmark.id),
+            )}
+            settingsAriaKeyShortcuts={ariaKeyShortcut(
+              getCommandBinding(commandDefinitions.readerSettings.id),
+            )}
+            tocAriaKeyShortcuts={ariaKeyShortcut(
+              getCommandBinding(commandDefinitions.readerToc.id),
+            )}
+            settingsButtonRef={settingsButtonRef}
+            tocButtonRef={tocButtonRef}
+            tocOpen={tocOpen}
+            annotationButtonRef={annotationButtonRef}
+          />
+        </div>
+        <ReaderProgressBar
           percentage={location.percentage}
-          progressSaveFailed={progressSaveFailed}
-          nextChapterDisabled={!chapterSequence.nextChapterId}
-          previousChapterDisabled={!chapterSequence.previousChapterId}
-          title={title}
-          mode={settings.mode}
-          annotationsAriaKeyShortcuts={ariaKeyShortcut(
-            getCommandBinding(commandDefinitions.readerAnnotations.id),
-          )}
-          bookmarkAriaKeyShortcuts={ariaKeyShortcut(
-            getCommandBinding(commandDefinitions.readerBookmark.id),
-          )}
-          settingsAriaKeyShortcuts={ariaKeyShortcut(
-            getCommandBinding(commandDefinitions.readerSettings.id),
-          )}
-          tocAriaKeyShortcuts={ariaKeyShortcut(getCommandBinding(commandDefinitions.readerToc.id))}
-          settingsButtonRef={settingsButtonRef}
-          tocButtonRef={tocButtonRef}
-          tocOpen={tocOpen}
-          annotationButtonRef={annotationButtonRef}
+          placement={settings.progressPlacement}
         />
-      </div>
-      <ReaderProgressBar percentage={location.percentage} placement={settings.progressPlacement} />
 
-      {readerSessionFailure ? (
-        <section className="reader-error" role="alert">
-          <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
-          <h1>EPUB could not be opened</h1>
-          <p>{readerSessionFailure.message}</p>
-          <div className="reader-status-page__actions">
-            <Button onClick={handleSessionRetry} size="standard" variant="secondary">
-              Try again
-            </Button>
-            <button className="text-link" onClick={returnToOrigin} type="button">
-              Back
-            </button>
+        {readerSessionFailure ? (
+          <section className="reader-error" role="alert">
+            <BookOpenText aria-hidden="true" size={38} strokeWidth={1.5} />
+            <h1>EPUB could not be opened</h1>
+            <p>{readerSessionFailure.message}</p>
+            <div className="reader-status-page__actions">
+              <Button onClick={handleSessionRetry} size="standard" variant="secondary">
+                Try again
+              </Button>
+              <button className="text-link" onClick={returnToOrigin} type="button">
+                Back
+              </button>
+            </div>
+          </section>
+        ) : fileLease &&
+          readerSessionIdentity &&
+          (readerSessionLifecycle.phase === "starting" ||
+            readerSessionLifecycle.phase === "ready") ? (
+          <EpubViewer
+            contentTheme={appearance.contentTheme}
+            ref={viewerRef}
+            fileLease={fileLease}
+            highlights={highlights.highlights}
+            initialCfi={progressController?.getInitialCfi()}
+            onError={handleViewerError}
+            onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
+            onHighlightInteractionClear={highlights.clearInteractionFeedback}
+            onHighlightInteractionError={highlights.reportInteractionFeedback}
+            onInteraction={revealControls}
+            onKeyDown={handleContentKeyDown}
+            onLocationChange={handleLocationChange}
+            onOpenNote={openSelectionNote}
+            onCreateHighlight={highlights.create}
+            onRecolorHighlight={highlights.recolor}
+            onRemoveHighlight={removeHighlight}
+            onNavigationChange={setNavigationState}
+            onReady={handleReady}
+            readerTheme={readerTheme}
+            sessionIdentity={readerSessionIdentity}
+            settings={settings}
+          />
+        ) : null}
+
+        {annotations.feedback ? (
+          <div
+            aria-atomic="true"
+            className="reader-annotation-feedback"
+            data-tone={annotations.feedback.kind === "error" ? "error" : undefined}
+            role={annotations.feedback.kind === "error" ? "alert" : "status"}
+          >
+            <span>{annotations.feedback.message}</span>
+            {annotations.feedback.kind === "removed" ? (
+              <button onClick={() => void annotations.undoRemove()} type="button">
+                Undo
+              </button>
+            ) : null}
+            <IconButton
+              label="Dismiss annotation message"
+              onClick={annotations.clearFeedback}
+              size="compact"
+            >
+              <X aria-hidden="true" />
+            </IconButton>
           </div>
-        </section>
-      ) : fileLease &&
-        readerSessionIdentity &&
-        (readerSessionLifecycle.phase === "starting" ||
-          readerSessionLifecycle.phase === "ready") ? (
-        <EpubViewer
-          contentTheme={appearance.contentTheme}
-          ref={viewerRef}
-          fileLease={fileLease}
-          highlights={highlights.highlights}
-          initialCfi={progressController?.getInitialCfi()}
-          onError={handleViewerError}
-          onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
-          onHighlightInteractionClear={highlights.clearInteractionFeedback}
-          onHighlightInteractionError={highlights.reportInteractionFeedback}
-          onInteraction={revealControls}
-          onKeyDown={handleContentKeyDown}
-          onLocationChange={handleLocationChange}
-          onOpenNote={openSelectionNote}
-          onCreateHighlight={highlights.create}
-          onRecolorHighlight={highlights.recolor}
-          onRemoveHighlight={removeHighlight}
-          onNavigationChange={setNavigationState}
-          onReady={handleReady}
-          readerTheme={readerTheme}
-          sessionIdentity={readerSessionIdentity}
-          settings={settings}
-        />
-      ) : null}
+        ) : null}
 
-      {annotations.feedback ? (
-        <div
-          aria-atomic="true"
-          className="reader-annotation-feedback"
-          data-tone={annotations.feedback.kind === "error" ? "error" : undefined}
-          role={annotations.feedback.kind === "error" ? "alert" : "status"}
-        >
-          <span>{annotations.feedback.message}</span>
-          {annotations.feedback.kind === "removed" ? (
-            <button onClick={() => void annotations.undoRemove()} type="button">
-              Undo
-            </button>
-          ) : null}
-          <IconButton
-            label="Dismiss annotation message"
-            onClick={annotations.clearFeedback}
-            size="compact"
+        {highlights.feedback ? (
+          <div
+            className="reader-highlight-feedback"
+            data-tone={highlights.feedback.kind === "persistence" ? "error" : undefined}
+            role="alert"
           >
-            <X aria-hidden="true" />
-          </IconButton>
-        </div>
-      ) : null}
+            <span>{highlights.feedback.message}</span>
+            <IconButton
+              label="Dismiss highlight message"
+              onClick={highlights.clearFeedback}
+              size="compact"
+            >
+              <X aria-hidden="true" />
+            </IconButton>
+          </div>
+        ) : null}
 
-      {highlights.feedback ? (
-        <div
-          className="reader-highlight-feedback"
-          data-tone={highlights.feedback.kind === "persistence" ? "error" : undefined}
-          role="alert"
-        >
-          <span>{highlights.feedback.message}</span>
-          <IconButton
-            label="Dismiss highlight message"
-            onClick={highlights.clearFeedback}
-            size="compact"
-          >
-            <X aria-hidden="true" />
-          </IconButton>
-        </div>
-      ) : null}
+        {!readerSessionFailure && nextVolume ? (
+          <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
+        ) : null}
 
-      {!readerSessionFailure && nextVolume ? (
-        <ReaderNextVolumePrompt book={nextVolume} onOpen={openNextVolume} />
-      ) : null}
-
-      {sideSurface ? (
-        <ReaderSideSurfaceLayer onDismiss={closeTopmost}>
-          {annotationsOpen ? (
-            <>
-              <LazyReaderAnnotationsPanel
-                active={!noteTarget}
-                annotations={annotations.annotations}
-                currentAnnotationId={currentAnnotationId}
-                currentCfi={location.cfi}
-                loadStatus={annotations.loadStatus}
-                navigation={navigationState}
-                onClose={closeAnnotations}
-                onEditNote={openAnnotationNote}
-                onExport={exportCurrentAnnotations}
-                onNavigate={navigateToAnnotation}
-                onRecover={recoverAnnotationAnchor}
-                onRecolorHighlight={highlights.recolor}
-                onReload={annotations.reload}
-                onRemove={removeAnnotation}
-                onUpdateBookmarkLabel={annotations.updateLabel}
-                restoreFocusAnnotationId={annotationFocusTargetId}
-                searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-                searchInputRef={annotationsSearchInputRef}
-              />
-              {noteTarget && noteEditorStateFor(noteTarget) ? (
-                <ReaderNoteEditor
-                  keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
-                  key={noteTarget.editorKey}
-                  onBack={() => void closeNote(noteTarget)}
-                  onDelete={() => void discardNote(noteTarget)}
-                  onDraftChange={(note) => editNoteDraft(noteTarget, note)}
-                  onRetry={() => void saveNote(noteTarget)}
-                  onUnmount={() => handleNoteEditorUnmount(noteTarget)}
-                  state={noteEditorStateFor(noteTarget)!}
+        {sideSurface ? (
+          <ReaderSideSurfaceLayer onDismiss={closeTopmost}>
+            {annotationsOpen ? (
+              <>
+                <LazyReaderAnnotationsPanel
+                  active={!noteTarget}
+                  annotations={annotations.annotations}
+                  currentAnnotationId={currentAnnotationId}
+                  currentCfi={location.cfi}
+                  loadStatus={annotations.loadStatus}
+                  navigation={navigationState}
+                  onClose={closeAnnotations}
+                  onEditNote={openAnnotationNote}
+                  onExport={exportCurrentAnnotations}
+                  onNavigate={navigateToAnnotation}
+                  onRecover={recoverAnnotationAnchor}
+                  onRecolorHighlight={highlights.recolor}
+                  onReload={annotations.reload}
+                  onRemove={removeAnnotation}
+                  onUpdateBookmarkLabel={annotations.updateLabel}
+                  restoreFocusAnnotationId={annotationFocusTargetId}
+                  restoreFocusOnOpen={restoreAnnotationsFocus}
+                  searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
+                  searchInputRef={annotationsSearchInputRef}
                 />
-              ) : null}
-            </>
-          ) : null}
+                {noteTarget && noteEditorStateFor(noteTarget) ? (
+                  <ReaderNoteEditor
+                    keepsHighlightOnEmptyClose={noteTarget.keepsHighlightOnEmptyClose}
+                    key={noteTarget.editorKey}
+                    onBack={(restoreFocus) => void closeNote(noteTarget, restoreFocus)}
+                    onDelete={() => void discardNote(noteTarget)}
+                    onDraftChange={(note) => editNoteDraft(noteTarget, note)}
+                    onRetry={() => void saveNote(noteTarget)}
+                    onUnmount={() => handleNoteEditorUnmount(noteTarget)}
+                    state={noteEditorStateFor(noteTarget)!}
+                  />
+                ) : null}
+              </>
+            ) : null}
 
-          {tocOpen ? (
-            <LazyReaderTocPanel
-              navigation={navigationState}
-              onClose={closeToc}
-              onNavigate={navigateToChapter}
-              searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
-              searchInputRef={tocSearchInputRef}
-            />
-          ) : null}
+            {tocOpen ? (
+              <LazyReaderTocPanel
+                navigation={navigationState}
+                onClose={closeToc}
+                onNavigate={navigateToChapter}
+                searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
+                searchInputRef={tocSearchInputRef}
+              />
+            ) : null}
 
-          {settingsOpen ? (
-            <ReaderSettingsPanel
-              onClose={closeSettings}
-              onReaderThemeCommit={changeReaderTheme}
-              onReaderThemeOpen={() => void themeCatalog.refresh()}
-              onSettingsCommit={changeSettings}
-              persistenceFailed={settingsPersistenceFailed}
-              readerThemeCatalogError={themeCatalog.error}
-              readerThemeEntries={themeCatalog.entries}
-              readerThemeSelection={readerThemeSelection}
-              settings={settings}
-            />
-          ) : null}
-        </ReaderSideSurfaceLayer>
-      ) : null}
+            {settingsOpen ? (
+              <ReaderSettingsPanel
+                onClose={closeSettings}
+                onReaderThemeCommit={changeReaderTheme}
+                onReaderThemeOpen={() => void themeCatalog.refresh()}
+                onSettingsCommit={changeSettings}
+                persistenceFailed={settingsPersistenceFailed}
+                readerThemeCatalogError={themeCatalog.error}
+                readerThemeEntries={themeCatalog.entries}
+                readerThemeSelection={readerThemeSelection}
+                settings={settings}
+              />
+            ) : null}
+          </ReaderSideSurfaceLayer>
+        ) : null}
+      </ReaderSideSurfaceDismissContext.Provider>
     </main>
   );
 }

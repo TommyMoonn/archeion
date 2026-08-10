@@ -1,17 +1,18 @@
 import { Maximize2, Download, ZoomOut, ZoomIn, X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { IconButton } from "../../components/IconButton";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
 import type { ResolvedEpubIllustration } from "./epubIllustrationResolver";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 import type { ReaderIllustrationExportState } from "./useReaderIllustrationExport";
 import { useReaderIllustrationInteraction } from "./useReaderIllustrationInteraction";
 
 type ReaderIllustrationViewerProps = Readonly<{
   error?: string;
   loading: boolean;
-  onClose: () => void;
+  onClose: (restoreFocus?: boolean) => void;
   onSaveImage?: () => void;
   resource?: ResolvedEpubIllustration;
   saveState?: ReaderIllustrationExportState;
@@ -49,9 +50,34 @@ function ReaderIllustrationViewerInstance({
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const suppressModalFocusRestorationRef = useRef<() => void>(() => undefined);
   const interaction = useReaderIllustrationInteraction(resource, dialogRef, viewportRef);
+  const closeIllustration = useCallback(
+    (restoreFocus = true) => {
+      suppressModalFocusRestorationRef.current();
+      onClose(restoreFocus);
+    },
+    [onClose],
+  );
+  const dismissal = useReaderSideSurfaceDismiss(
+    (restoreFocus = true) => {
+      closeIllustration(restoreFocus);
+      return true;
+    },
+    true,
+    "illustration",
+  );
+  const modal = useModalDialogLifecycle({
+    dialogRef,
+    onClose: dismissal.requestDismissal,
+  });
 
-  const modal = useModalDialogLifecycle({ dialogRef, onClose });
+  useLayoutEffect(() => {
+    suppressModalFocusRestorationRef.current = modal.suppressFocusRestoration;
+    return () => {
+      suppressModalFocusRestorationRef.current = () => undefined;
+    };
+  }, [modal.suppressFocusRestoration]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => closeRef.current?.focus());
@@ -64,7 +90,10 @@ function ReaderIllustrationViewerInstance({
       aria-labelledby="reader-illustration-title"
       className="reader-illustration-viewer"
       data-reader-ignore-shortcuts
-      onCancel={modal.onCancel}
+      onCancel={(event) => {
+        event.preventDefault();
+        dismissal.requestDismissal();
+      }}
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
       onKeyDown={interaction.handleKeyDown}
@@ -79,7 +108,11 @@ function ReaderIllustrationViewerInstance({
               </p>
             ) : null}
           </div>
-          <IconButton label="Close illustration" onClick={onClose} ref={closeRef}>
+          <IconButton
+            label="Close illustration"
+            onClick={() => dismissal.requestDismissal()}
+            ref={closeRef}
+          >
             <X aria-hidden="true" />
           </IconButton>
         </header>

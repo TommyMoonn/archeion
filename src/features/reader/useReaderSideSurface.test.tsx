@@ -83,6 +83,7 @@ function Harness({
       <span data-testid="surface">{surface ?? "closed"}</span>
       <span data-testid="note">{noteTarget?.annotationId}</span>
       <span data-testid="focus-id">{restoreFocusAnnotationId}</span>
+      <span data-testid="restore-focus">{String(surfaces.restoreAnnotationsFocus)}</span>
     </div>
   );
 }
@@ -170,6 +171,30 @@ describe("useReaderSideSurface", () => {
     expect(text("surface")).toBe("annotations");
     expect(text("note")).toBe("");
     expect(text("focus-id")).toBe("highlight-1");
+    expect(text("restore-focus")).toBe("true");
+  });
+
+  it("returns from a conflicted note without restoring annotations focus", async () => {
+    const settlement = deferred<boolean>();
+    const transitions = createTransitions(() => settlement.promise);
+    const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
+    await renderHarness(transitions, apiRef);
+    const higherSurface = document.body.appendChild(document.createElement("button"));
+    higherSurface.textContent = "Higher surface";
+
+    act(() => {
+      apiRef.current?.showNoteTarget({ annotationId: "highlight-1" });
+      higherSurface.focus();
+      apiRef.current?.returnNoteToAnnotations(false);
+    });
+    await act(async () => settlement.resolve(true));
+
+    expect(text("surface")).toBe("annotations");
+    expect(text("note")).toBe("");
+    expect(text("focus-id")).toBe("");
+    expect(text("restore-focus")).toBe("false");
+    expect(document.activeElement).toBe(higherSurface);
+    higherSurface.remove();
   });
 
   it("keeps the note editor active when settlement fails", async () => {

@@ -56,7 +56,7 @@ type HarnessProps = {
   claimNoteEditing?: (annotationId: string) => boolean;
   editorVisible?: boolean;
   ensureHighlight?: (selection: ReaderTextSelection) => Promise<HighlightAnnotation | undefined>;
-  onClose?: () => void;
+  onClose?: (restoreFocus?: boolean) => void;
   onTargetUpdate?: (target: ReaderNoteTarget) => void;
   publishNoteRemoved?: (annotation: HighlightAnnotation) => void;
   resolveCurrentAnnotation?: (annotationId: string) => Annotation | undefined;
@@ -101,11 +101,11 @@ function Harness({
     targetRef.current = target;
     externalTargetRef.current = target;
     return session.connectSurface({
-      closeTarget: () => {
+      closeTarget: (restoreFocus) => {
         targetRef.current = null;
         externalTargetRef.current = null;
         setTarget(null);
-        onClose();
+        onClose(restoreFocus);
       },
       getTarget: () => targetRef.current,
       showTarget: (nextTarget) => {
@@ -130,7 +130,7 @@ function Harness({
     <ReaderNoteEditor
       keepsHighlightOnEmptyClose={target.keepsHighlightOnEmptyClose}
       key={target.editorKey}
-      onBack={() => void session.close(target)}
+      onBack={(restoreFocus) => void session.close(target, restoreFocus)}
       onDelete={() => void session.discard(target)}
       onDraftChange={(text) => session.edit(target, text)}
       onRetry={() => void session.save(target)}
@@ -579,11 +579,12 @@ describe("useReaderNoteSession", () => {
     act(() => apiRef.current?.edit(target, "Final"));
 
     await act(async () => {
-      await expect(apiRef.current!.close(target)).resolves.toBe(true);
+      await expect(apiRef.current!.close(target, false)).resolves.toBe(true);
     });
 
     expect(updateAnnotation).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();
+    expect(onClose).toHaveBeenCalledWith(false);
     expect(targetRef.current).toBeNull();
   });
 

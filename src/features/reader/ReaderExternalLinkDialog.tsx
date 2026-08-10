@@ -1,13 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { Button } from "../../components/Button";
 import { useModalDialogLifecycle } from "../../components/useModalDialogLifecycle";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 
 type ReaderExternalLinkDialogProps = {
   error?: string;
   host: string;
   opening: boolean;
-  onCancel: () => void;
+  onCancel: (restoreFocus?: boolean) => void;
   onConfirm: () => void;
   url: string;
 };
@@ -22,14 +23,35 @@ export function ReaderExternalLinkDialog({
 }: ReaderExternalLinkDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const suppressModalFocusRestorationRef = useRef<() => void>(() => undefined);
+  const closeExternal = useCallback(
+    (restoreFocus = true) => {
+      suppressModalFocusRestorationRef.current();
+      onCancel(restoreFocus);
+    },
+    [onCancel],
+  );
 
+  const dismissal = useReaderSideSurfaceDismiss(
+    (restoreFocus = true) => {
+      if (!opening) closeExternal(restoreFocus);
+      return true;
+    },
+    true,
+    "external-link",
+  );
   const modal = useModalDialogLifecycle({
     closeOnBackdropClick: !opening,
     dialogRef,
-    onClose: () => {
-      if (!opening) onCancel();
-    },
+    onClose: dismissal.requestDismissal,
   });
+
+  useLayoutEffect(() => {
+    suppressModalFocusRestorationRef.current = modal.suppressFocusRestoration;
+    return () => {
+      suppressModalFocusRestorationRef.current = () => undefined;
+    };
+  }, [modal.suppressFocusRestoration]);
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => cancelRef.current?.focus());
@@ -45,7 +67,7 @@ export function ReaderExternalLinkDialog({
       data-reader-ignore-shortcuts
       onCancel={(event) => {
         event.preventDefault();
-        if (!opening) modal.onCancel(event);
+        if (!opening) dismissal.requestDismissal();
       }}
       onClick={modal.onClick}
       onPointerDown={modal.onPointerDown}
@@ -66,7 +88,7 @@ export function ReaderExternalLinkDialog({
         <div className="dialog__footer">
           <Button
             disabled={opening}
-            onClick={onCancel}
+            onClick={() => dismissal.requestDismissal()}
             ref={cancelRef}
             size="standard"
             variant="ghost"

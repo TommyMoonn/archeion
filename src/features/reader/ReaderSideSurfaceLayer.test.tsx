@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useState, type ReactNode } from "react";
+import { act, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -9,7 +9,13 @@ import {
   registerTransientSurface,
   resetTransientSurfaceOwnershipForTests,
 } from "../../utils/transientSurfaceOwnership";
-import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
+import {
+  createReaderSideSurfaceDismissController,
+  useReaderSideSurfaceDismiss,
+} from "./readerSideSurfaceDismissal";
+import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
+import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
+import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
 let root: Root | null = null;
@@ -33,6 +39,13 @@ function renderLayer(children: ReactNode, onDismiss = vi.fn()) {
   return {
     layer: container.querySelector<HTMLElement>(".reader-side-surface-layer")!,
     onDismiss,
+    rerender(nextChildren: ReactNode) {
+      act(() => {
+        root?.render(
+          <ReaderSideSurfaceLayer onDismiss={onDismiss}>{nextChildren}</ReaderSideSurfaceLayer>,
+        );
+      });
+    },
   };
 }
 
@@ -53,7 +66,142 @@ function NestedDismissal() {
   return <span>{active ? "Nested open" : "Nested closed"}</span>;
 }
 
+type PriorityHarnessProps = Readonly<{
+  highest?: "external-link" | "illustration";
+  onHigherDismiss: (restoreFocus?: boolean) => void;
+  onLowerDismiss: (restoreFocus?: boolean) => void;
+}>;
+
+function PriorityHarness({ highest, onHigherDismiss, onLowerDismiss }: PriorityHarnessProps) {
+  const lowerTriggerRef = useRef<HTMLButtonElement>(null);
+
+  return (
+    <>
+      <button ref={lowerTriggerRef} type="button">
+        Selection anchor
+      </button>
+      <ReaderHighlightPalette
+        anchorRect={{ bottom: 120, height: 20, left: 100, right: 140, top: 100, width: 40 }}
+        busy={false}
+        noteActionLabel="Add note"
+        onChoose={vi.fn()}
+        onDismiss={(restoreFocus) => {
+          onLowerDismiss(restoreFocus);
+          if (restoreFocus) lowerTriggerRef.current?.focus();
+        }}
+        onNote={vi.fn()}
+        viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+      />
+      {highest === "external-link" ? (
+        <ReaderExternalLinkDialog
+          host="example.com"
+          onCancel={onHigherDismiss}
+          onConfirm={vi.fn()}
+          opening={false}
+          url="https://example.com"
+        />
+      ) : null}
+      {highest === "illustration" ? (
+        <ReaderIllustrationViewer loading onClose={onHigherDismiss} />
+      ) : null}
+    </>
+  );
+}
+
+function escape(): void {
+  act(() => {
+    window.dispatchEvent(new KeyboardEvent("keydown", { cancelable: true, key: "Escape" }));
+  });
+}
+
 describe("ReaderSideSurfaceLayer", () => {
+  it("dismisses only the highest-priority owned surface", () => {
+    const controller = createReaderSideSurfaceDismissController();
+    const dismissPalette = vi.fn(() => false);
+    const dismissFootnote = vi.fn(() => false);
+    const dismissIllustration = vi.fn(() => true);
+
+    controller.register("highlight-palette", dismissPalette);
+    controller.register("footnote", dismissFootnote);
+    controller.register("illustration", dismissIllustration);
+    dismissPalette.mockClear();
+    dismissFootnote.mockClear();
+
+    expect(controller.dismissTopmost()).toBe(true);
+    expect(dismissIllustration).toHaveBeenLastCalledWith(true);
+    expect(dismissFootnote).not.toHaveBeenCalled();
+    expect(dismissPalette).not.toHaveBeenCalled();
+  });
+
+  it("settles lower-priority surfaces without restoring focus when a higher one opens", () => {
+    const controller = createReaderSideSurfaceDismissController();
+    const dismissPalette = vi.fn(() => true);
+    const dismissFootnote = vi.fn(() => true);
+
+    controller.register("highlight-palette", dismissPalette);
+    controller.register("footnote", dismissFootnote);
+
+    expect(dismissPalette).toHaveBeenCalledOnce();
+    expect(dismissPalette).toHaveBeenCalledWith(false);
+    expect(dismissFootnote).not.toHaveBeenCalled();
+  });
+
+  it.each(["external-link", "illustration"] as const)(
+    "routes global Escape through Reader priority for %s",
+    (highest) => {
+      const onHigherDismiss = vi.fn();
+      const onLowerDismiss = vi.fn();
+      const lower = (
+        <PriorityHarness onHigherDismiss={onHigherDismiss} onLowerDismiss={onLowerDismiss} />
+      );
+      const rendered = renderLayer(lower);
+      const lowerTrigger = container?.querySelector<HTMLButtonElement>("button");
+      act(() => lowerTrigger?.focus());
+      const focusLowerTrigger = vi.spyOn(lowerTrigger!, "focus");
+
+      rendered.rerender(
+        <PriorityHarness
+          highest={highest}
+          onHigherDismiss={onHigherDismiss}
+          onLowerDismiss={onLowerDismiss}
+        />,
+      );
+
+      expect(onLowerDismiss).toHaveBeenCalledOnce();
+      expect(onLowerDismiss).toHaveBeenLastCalledWith(false);
+      expect(focusLowerTrigger).not.toHaveBeenCalled();
+
+      escape();
+
+      expect(onHigherDismiss).toHaveBeenCalledOnce();
+      expect(onHigherDismiss).toHaveBeenLastCalledWith(true);
+      expect(onLowerDismiss).toHaveBeenCalledOnce();
+
+      rendered.rerender(lower);
+      escape();
+
+      expect(onLowerDismiss).toHaveBeenCalledTimes(2);
+      expect(onLowerDismiss).toHaveBeenLastCalledWith(true);
+    },
+  );
+
+  it("keeps a consumed registration active until its owner cleans up", () => {
+    const controller = createReaderSideSurfaceDismissController();
+    const dismissIllustration = vi.fn(() => true);
+    const dismissFallback = vi.fn(() => true);
+    controller.setFallback(dismissFallback);
+    const unregister = controller.register("illustration", dismissIllustration);
+
+    expect(controller.dismissTopmost()).toBe(true);
+    expect(controller.dismissTopmost()).toBe(true);
+    expect(dismissIllustration).toHaveBeenCalledTimes(2);
+    expect(dismissFallback).not.toHaveBeenCalled();
+
+    unregister();
+    expect(controller.dismissTopmost()).toBe(true);
+    expect(dismissFallback).toHaveBeenCalledOnce();
+  });
+
   it("dismisses only when the same pointer begins and ends on the backdrop", () => {
     const { layer, onDismiss } = renderLayer(<aside>Panel</aside>);
     const panel = layer.querySelector<HTMLElement>("aside")!;

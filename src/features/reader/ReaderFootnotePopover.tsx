@@ -7,6 +7,7 @@ import type { EpubContentAction } from "./epubContentActions";
 import type { EpubFootnoteNode, ResolvedEpubFootnote } from "./epubFootnoteResolver";
 import { placeReaderFootnote, type ReaderFootnotePlacement } from "./readerContentActionAnchor";
 import type { ClientRect } from "./readerHighlightPaletteAnchor";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 
 type ReaderFootnotePopoverProps = {
   anchorRect: ClientRect;
@@ -28,13 +29,21 @@ export function ReaderFootnotePopover({
   const popoverRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [size, setSize] = useState({ height: 180, width: 360 });
+  const dismissal = useReaderSideSurfaceDismiss(
+    (restoreFocus = true) => {
+      onDismiss(restoreFocus);
+      return true;
+    },
+    true,
+    "footnote",
+  );
 
   useTransientSurfaceOwnership({
-    closeOnModalOpen: true,
+    closeOnModalOpen: !dismissal.readerOwned,
     dismissOnOutsidePointer: true,
     elementRef: popoverRef,
     kind: "popover",
-    onDismiss: (reason) => onDismiss(reason === "escape"),
+    onDismiss: (reason) => (reason === "escape" ? dismissal.requestDismissal() : onDismiss(false)),
   });
 
   useLayoutEffect(() => {
@@ -80,7 +89,7 @@ export function ReaderFootnotePopover({
         <span>Footnote</span>
         <IconButton
           label="Close footnote"
-          onClick={() => onDismiss()}
+          onClick={() => dismissal.requestDismissal()}
           ref={closeRef}
           size="compact"
         >

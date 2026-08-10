@@ -43,6 +43,7 @@ import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
 import type { ReaderSessionIdentity } from "./readerSession";
+import { useReaderSideSurfaceDismissRequest } from "./readerSideSurfaceDismissal";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
@@ -116,6 +117,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const lastWheelTurnAtRef = useRef(Number.NEGATIVE_INFINITY);
   const wheelDeltaRef = useRef(0);
   const illustrationWasOpenRef = useRef(false);
+  const dismissTopmostSurface = useReaderSideSurfaceDismissRequest();
   const clearReaderWheelGesture = useCallback(() => {
     wheelDeltaRef.current = 0;
     lastWheelEventAtRef.current = Number.NEGATIVE_INFINITY;
@@ -356,8 +358,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   );
 
   const handleRegisteredEscape = useCallback(
-    () => handleContentActionEscape() || handleHighlightEscape(),
-    [handleContentActionEscape, handleHighlightEscape],
+    () => dismissTopmostSurface() || handleContentActionEscape() || handleHighlightEscape(),
+    [dismissTopmostSurface, handleContentActionEscape, handleHighlightEscape],
   );
 
   useEffect(() => {
@@ -533,7 +535,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         <ReaderExternalLinkDialog
           error={externalLink.error}
           host={externalLink.host}
-          onCancel={() => dismissExternal()}
+          onCancel={dismissExternal}
           onConfirm={confirmExternal}
           opening={externalLink.opening}
           url={externalLink.url}
@@ -543,7 +545,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         <ReaderIllustrationViewer
           error={illustration.error}
           loading={illustration.loading}
-          onClose={() => dismissIllustration()}
+          onClose={dismissIllustration}
           onSaveImage={() => void illustrationExport.save()}
           resource={illustration.resource}
           saveState={illustrationExport.state}

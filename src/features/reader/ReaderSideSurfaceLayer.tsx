@@ -1,4 +1,11 @@
-import { useCallback, useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import {
+  useContext,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 
 import {
   transientSurfaceClaimedOutsidePointer,
@@ -6,8 +13,7 @@ import {
 } from "../../utils/transientSurfaceOwnership";
 import {
   ReaderSideSurfaceDismissContext,
-  type ReaderSideSurfaceDismissHandler,
-  type ReaderSideSurfaceDismissRegistration,
+  createReaderSideSurfaceDismissController,
 } from "./readerSideSurfaceDismissal";
 
 type ReaderSideSurfaceLayerProps = {
@@ -18,26 +24,24 @@ type ReaderSideSurfaceLayerProps = {
 export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfaceLayerProps) {
   const layerRef = useRef<HTMLDivElement>(null);
   const pointerDownIdRef = useRef<number | null>(null);
-  const dismissHandlersRef = useRef<ReaderSideSurfaceDismissHandler[]>([]);
+  const parentController = useContext(ReaderSideSurfaceDismissContext);
+  const [localController] = useState(createReaderSideSurfaceDismissController);
+  const controller = parentController ?? localController;
 
-  const registerDismissHandler = useCallback<ReaderSideSurfaceDismissRegistration>((handler) => {
-    dismissHandlersRef.current.push(handler);
-    return () => {
-      const index = dismissHandlersRef.current.lastIndexOf(handler);
-      if (index >= 0) dismissHandlersRef.current.splice(index, 1);
-    };
-  }, []);
-
-  const dismissTopmost = useCallback(() => {
-    const handler = dismissHandlersRef.current.at(-1);
-    if (!handler?.()) onDismiss();
-  }, [onDismiss]);
+  useLayoutEffect(() => {
+    if (parentController) return;
+    localController.setFallback(() => {
+      onDismiss();
+      return true;
+    });
+    return () => localController.setFallback(null);
+  }, [localController, onDismiss, parentController]);
 
   useTransientSurfaceOwnership({
     elementRef: layerRef,
     kind: "reader-panel",
     onDismiss: (reason) => {
-      if (reason === "escape") dismissTopmost();
+      if (reason === "escape") controller.dismissTopmost();
     },
   });
 
@@ -56,7 +60,7 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
     const startedOnBackdrop = pointerDownIdRef.current === event.pointerId;
     pointerDownIdRef.current = null;
-    if (startedOnBackdrop && event.target === event.currentTarget) dismissTopmost();
+    if (startedOnBackdrop && event.target === event.currentTarget) controller.dismissTopmost();
   }
 
   function handlePointerCancel(event: ReactPointerEvent<HTMLDivElement>) {
@@ -64,7 +68,7 @@ export function ReaderSideSurfaceLayer({ children, onDismiss }: ReaderSideSurfac
   }
 
   return (
-    <ReaderSideSurfaceDismissContext.Provider value={registerDismissHandler}>
+    <ReaderSideSurfaceDismissContext.Provider value={controller}>
       <div
         className="reader-side-surface-layer"
         onPointerCancel={handlePointerCancel}

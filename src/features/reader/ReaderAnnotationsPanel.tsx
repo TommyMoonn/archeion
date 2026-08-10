@@ -59,6 +59,7 @@ type ReaderAnnotationsPanelProps = {
   onRemove: (annotation: Annotation) => Promise<boolean>;
   onUpdateBookmarkLabel: (annotation: BookmarkAnnotation, label: string) => Promise<boolean>;
   restoreFocusAnnotationId?: string;
+  restoreFocusOnOpen?: boolean;
   searchAriaKeyShortcuts?: string;
   searchInputRef?: RefObject<HTMLInputElement | null>;
 };
@@ -80,6 +81,7 @@ export function ReaderAnnotationsPanel({
   onRemove,
   onUpdateBookmarkLabel,
   restoreFocusAnnotationId,
+  restoreFocusOnOpen = true,
   searchAriaKeyShortcuts,
   searchInputRef,
 }: ReaderAnnotationsPanelProps) {
@@ -141,7 +143,7 @@ export function ReaderAnnotationsPanel({
   });
 
   useLayoutEffect(() => {
-    if (!active) return;
+    if (!active || !restoreFocusOnOpen) return;
     const focusedRow = restoreFocusAnnotationId
       ? listRef.current?.focusActionTrigger(restoreFocusAnnotationId)
       : false;
@@ -150,20 +152,20 @@ export function ReaderAnnotationsPanel({
         preventScroll: true,
       });
     }
-  }, [active, restoreFocusAnnotationId, searchInputRef]);
+  }, [active, restoreFocusAnnotationId, restoreFocusOnOpen, searchInputRef]);
 
-  function dismissNestedSurface() {
+  function dismissNestedSurface(restoreFocus = true) {
     if (actions.editing) {
-      actions.cancelBookmarkRename(actions.editing.annotationId);
+      actions.cancelBookmarkRename(actions.editing.annotationId, { restoreFocus });
       return true;
     } else if (actions.pendingRemovalId) {
-      actions.cancelRemoval(actions.pendingRemovalId);
+      actions.cancelRemoval(actions.pendingRemovalId, { restoreFocus });
       return true;
     }
     return false;
   }
 
-  useReaderSideSurfaceDismiss(dismissNestedSurface, active);
+  useReaderSideSurfaceDismiss(dismissNestedSurface, active, "annotation-detail");
 
   function closeExportMenu(options: { restoreFocus?: boolean } = {}) {
     closeExportDetails(options);

@@ -16,6 +16,7 @@ import {
   placeHighlightPalette,
   type ClientRect,
 } from "./readerHighlightPaletteAnchor";
+import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 
 export type HighlightPaletteChoice = ReaderHighlightColor | "none";
 
@@ -61,6 +62,14 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
   ) {
     const elementRef = useRef<HTMLDivElement | null>(null);
     const [size, setSize] = useState({ height: 0, width: 0 });
+    const dismissal = useReaderSideSurfaceDismiss(
+      (restoreFocus = true) => {
+        onDismiss(restoreFocus);
+        return true;
+      },
+      true,
+      "highlight-palette",
+    );
     const assignRef = useCallback(
       (node: HTMLDivElement | null) => {
         elementRef.current = node;
@@ -71,11 +80,12 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
     );
 
     useTransientSurfaceOwnership({
-      closeOnModalOpen: true,
+      closeOnModalOpen: !dismissal.readerOwned,
       dismissOnOutsidePointer: true,
       elementRef,
       kind: "popover",
-      onDismiss: (reason) => onDismiss(reason === "escape"),
+      onDismiss: (reason) =>
+        reason === "escape" ? dismissal.requestDismissal() : onDismiss(false),
     });
 
     useLayoutEffect(() => {
