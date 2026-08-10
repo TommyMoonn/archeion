@@ -19,13 +19,23 @@ import type {
 import { ReaderRoute } from "./ReaderPage";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
+import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 
 const viewerMock = vi.hoisted(() => ({
+  historySnapshot: {
+    backCount: 0,
+    canGoBack: false,
+    canGoForward: false,
+    forwardCount: 0,
+  } as ReaderNavigationHistorySnapshot,
   locationPublications: vi.fn(),
+  navigateBack: vi.fn().mockResolvedValue(true),
+  navigateForward: vi.fn().mockResolvedValue(true),
   navigateToLocation: vi.fn().mockResolvedValue(true),
+  onKeyDown: null as ((event: KeyboardEvent) => void) | null,
+  publishNavigationHistory: null as ((snapshot: ReaderNavigationHistorySnapshot) => void) | null,
   resolveAnnotationAnchor: vi.fn(),
   teardown: vi.fn(),
-  onKeyDown: null as ((event: KeyboardEvent) => void) | null,
 }));
 
 const navigationState = {
@@ -43,6 +53,7 @@ vi.mock("./EpubViewer", async () => {
         onKeyDown,
         onLocationChange,
         onNavigationChange,
+        onNavigationHistoryChange,
         onReady,
         sessionIdentity,
       }: {
@@ -55,6 +66,7 @@ vi.mock("./EpubViewer", async () => {
           sectionCount: number;
         }) => void;
         onNavigationChange: (navigation: typeof navigationState) => void;
+        onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
         onReady: (identity: ReaderSessionIdentity) => void;
         sessionIdentity: ReaderSessionIdentity;
         settings: { mode: "continuous" | "paged" };
@@ -62,6 +74,9 @@ vi.mock("./EpubViewer", async () => {
       ref: React.ForwardedRef<unknown>,
     ) {
       React.useImperativeHandle(ref, () => ({
+        getNavigationHistorySnapshot: () => viewerMock.historySnapshot,
+        navigateBack: viewerMock.navigateBack,
+        navigateForward: viewerMock.navigateForward,
         navigateToChapter: vi.fn().mockResolvedValue(true),
         navigateToLocation: viewerMock.navigateToLocation,
         next: vi.fn().mockResolvedValue(undefined),
@@ -72,6 +87,7 @@ vi.mock("./EpubViewer", async () => {
       const initialCallbacks = React.useRef({
         onLocationChange,
         onNavigationChange,
+        onNavigationHistoryChange,
         onReady,
         sessionIdentity,
       });
@@ -84,6 +100,16 @@ vi.mock("./EpubViewer", async () => {
           }
         };
       }, [onKeyDown]);
+
+      React.useEffect(() => {
+        viewerMock.publishNavigationHistory = onNavigationHistoryChange ?? null;
+        onNavigationHistoryChange?.(viewerMock.historySnapshot);
+        return () => {
+          if (viewerMock.publishNavigationHistory === onNavigationHistoryChange) {
+            viewerMock.publishNavigationHistory = null;
+          }
+        };
+      }, [onNavigationHistoryChange]);
 
       React.useEffect(() => {
         const callbacks = initialCallbacks.current;
@@ -324,9 +350,25 @@ function dispatchRenditionShortcut(
   return event;
 }
 
+function publishNavigationHistory(snapshot: ReaderNavigationHistorySnapshot): void {
+  viewerMock.historySnapshot = snapshot;
+  act(() => {
+    viewerMock.publishNavigationHistory?.(snapshot);
+  });
+}
+
 beforeEach(() => {
+  viewerMock.historySnapshot = {
+    backCount: 0,
+    canGoBack: false,
+    canGoForward: false,
+    forwardCount: 0,
+  };
   viewerMock.locationPublications.mockReset();
+  viewerMock.navigateBack.mockReset().mockResolvedValue(true);
+  viewerMock.navigateForward.mockReset().mockResolvedValue(true);
   viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
+  viewerMock.publishNavigationHistory = null;
   viewerMock.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
     chapterHref: annotation.chapterHref,
     cfiRange: annotation.cfiRange,
@@ -451,6 +493,125 @@ describe("ReaderPage Quick Actions", () => {
     expect(document.querySelector('[role="option"]')).toBeNull();
   });
 
+  it("drives toolbar history availability and replay from the current history owner snapshot", async () => {
+    const rendered = await renderReader();
+    const back = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Back in reading history"]',
+    )!;
+    const forward = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Forward in reading history"]',
+    )!;
+
+    expect(back.getAttribute("aria-disabled")).toBe("true");
+    expect(forward.getAttribute("aria-disabled")).toBe("true");
+
+    publishNavigationHistory({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+
+    expect(back.getAttribute("aria-disabled")).not.toBe("true");
+    expect(forward.getAttribute("aria-disabled")).toBe("true");
+
+    await act(async () => {
+      back.click();
+      await Promise.resolve();
+    });
+    expect(viewerMock.navigateBack).toHaveBeenCalledTimes(1);
+
+    publishNavigationHistory({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+    expect(back.getAttribute("aria-disabled")).toBe("true");
+    expect(forward.getAttribute("aria-disabled")).not.toBe("true");
+
+    await act(async () => {
+      forward.click();
+      await Promise.resolve();
+    });
+    expect(viewerMock.navigateForward).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables history controls when the Reader history owner resets for replacement", async () => {
+    const rendered = await renderReader();
+    const back = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Back in reading history"]',
+    )!;
+    const forward = rendered.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Forward in reading history"]',
+    )!;
+
+    publishNavigationHistory({
+      backCount: 2,
+      canGoBack: true,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+    expect(back.getAttribute("aria-disabled")).not.toBe("true");
+    expect(forward.getAttribute("aria-disabled")).not.toBe("true");
+
+    publishNavigationHistory({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+    expect(back.getAttribute("aria-disabled")).toBe("true");
+    expect(forward.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("replays Reader history with Alt+Left and Alt+Right from normal EPUB content", async () => {
+    await renderReader();
+    const paragraph = createRenditionTarget("p");
+    publishNavigationHistory({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+
+    let backEvent!: KeyboardEvent;
+    await act(async () => {
+      backEvent = dispatchRenditionShortcut(paragraph, { altKey: true, key: "ArrowLeft" });
+      await Promise.resolve();
+    });
+    expect(backEvent.defaultPrevented).toBe(true);
+    expect(viewerMock.navigateBack).toHaveBeenCalledTimes(1);
+
+    let forwardEvent!: KeyboardEvent;
+    await act(async () => {
+      forwardEvent = dispatchRenditionShortcut(paragraph, { altKey: true, key: "ArrowRight" });
+      await Promise.resolve();
+    });
+    expect(forwardEvent.defaultPrevented).toBe(true);
+    expect(viewerMock.navigateForward).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not claim history shortcuts from editable EPUB controls", async () => {
+    await renderReader();
+    const input = createRenditionTarget("input");
+    publishNavigationHistory({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+
+    let event!: KeyboardEvent;
+    await act(async () => {
+      event = dispatchRenditionShortcut(input, { altKey: true, key: "ArrowLeft" });
+      await Promise.resolve();
+    });
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(viewerMock.navigateBack).not.toHaveBeenCalled();
+  });
+
   it("focuses the Reader main landmark when the explicit route mounts", async () => {
     const rendered = await renderReader();
     const main = rendered.container.querySelector<HTMLElement>(`main#${MAIN_CONTENT_ID}`);
@@ -488,6 +649,7 @@ describe("ReaderPage Quick Actions", () => {
       });
 
       expect(rendered.router.state.location.pathname).toBe("/");
+      expect(viewerMock.navigateBack).not.toHaveBeenCalled();
       expect(rendered.router.state.location.search).toContain("view=library");
       expect(rendered.router.state.location.search).toContain("query=space");
       expect(rendered.router.state.location.search).not.toContain("smartView");

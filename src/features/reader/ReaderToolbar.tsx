@@ -7,6 +7,8 @@ import {
   ChevronLeft,
   ChevronRight,
   ListTree,
+  Redo2,
+  Undo2,
   ALargeSmall,
 } from "lucide-react";
 import type { Ref } from "react";
@@ -20,6 +22,10 @@ type ReaderToolbarProps = {
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
+  historyBackAriaKeyShortcuts?: string;
+  historyBackDisabled: boolean;
+  historyForwardAriaKeyShortcuts?: string;
+  historyForwardDisabled: boolean;
   bookmarkActive: boolean;
   bookmarkAriaKeyShortcuts?: string;
   bookmarkBusy: boolean;
@@ -30,6 +36,8 @@ type ReaderToolbarProps = {
   nextChapterDisabled: boolean;
   backLabel: string;
   onBack: () => void;
+  onHistoryBack: () => void;
+  onHistoryForward: () => void;
   onAnnotations: () => void;
   onToggleBookmark: () => void;
   onNext: () => void;
@@ -57,6 +65,10 @@ export function ReaderToolbar({
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
+  historyBackAriaKeyShortcuts,
+  historyBackDisabled,
+  historyForwardAriaKeyShortcuts,
+  historyForwardDisabled,
   bookmarkActive,
   bookmarkAriaKeyShortcuts,
   bookmarkBusy,
@@ -67,6 +79,8 @@ export function ReaderToolbar({
   nextChapterDisabled,
   backLabel,
   onBack,
+  onHistoryBack,
+  onHistoryForward,
   onAnnotations,
   onToggleBookmark,
   onNext,
@@ -147,6 +161,33 @@ export function ReaderToolbar({
         )}
       </div>
       <div className="reader-toolbar__navigation">
+        <IconButton
+          aria-keyshortcuts={historyBackAriaKeyShortcuts}
+          disabled={historyBackDisabled}
+          disabledReason="No earlier Reader location"
+          label="Back in reading history"
+          onClick={onHistoryBack}
+          size="compact"
+          tooltip={historyBackDisabled ? "No earlier Reader location" : "Back in reading history"}
+          tooltipPlacement="bottom"
+        >
+          <Undo2 aria-hidden="true" strokeWidth={2.25} />
+        </IconButton>
+        <IconButton
+          aria-keyshortcuts={historyForwardAriaKeyShortcuts}
+          disabled={historyForwardDisabled}
+          disabledReason="No later Reader location"
+          label="Forward in reading history"
+          onClick={onHistoryForward}
+          size="compact"
+          tooltip={
+            historyForwardDisabled ? "No later Reader location" : "Forward in reading history"
+          }
+          tooltipPlacement="bottom"
+        >
+          <Redo2 aria-hidden="true" strokeWidth={2.25} />
+        </IconButton>
+        <span className="reader-toolbar__divider" />
         <IconButton
           aria-controls="reader-table-of-contents"
           aria-keyshortcuts={tocAriaKeyShortcuts}

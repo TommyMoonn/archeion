@@ -1,6 +1,7 @@
 import type { ReaderSessionIdentity } from "./readerSession";
 import {
   createReaderNavigationHistory,
+  EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT,
   type ReaderNavigationHistoryEntry,
   type ReaderNavigationHistorySnapshot,
 } from "./readerNavigationHistory";
@@ -47,15 +48,9 @@ export type ReaderDeliberateNavigationController = Readonly<{
   ) => Promise<boolean>;
   relocate: (owner: object, target: string) => boolean;
   startSession: (identity: ReaderSessionIdentity, initialTarget?: string) => void;
+  subscribeHistory: (listener: () => void) => () => void;
   unbindDisplay: (owner: object) => boolean;
 }>;
-
-const EMPTY_HISTORY_SNAPSHOT: ReaderNavigationHistorySnapshot = Object.freeze({
-  backCount: 0,
-  canGoBack: false,
-  canGoForward: false,
-  forwardCount: 0,
-});
 
 function normalizedTarget(target: string | undefined): string | undefined {
   const normalized = target?.trim();
@@ -70,6 +65,23 @@ export function createReaderDeliberateNavigationController(
   maxHistoryEntries: number,
 ): ReaderDeliberateNavigationController {
   let activeSession: ReaderDeliberateNavigationSession | null = null;
+  let historySnapshot = EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT;
+  const historyListeners = new Set<() => void>();
+
+  const publishHistory = (session: ReaderDeliberateNavigationSession | null) => {
+    const next = session?.history.getSnapshot() ?? EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT;
+    if (
+      next.backCount === historySnapshot.backCount &&
+      next.canGoBack === historySnapshot.canGoBack &&
+      next.canGoForward === historySnapshot.canGoForward &&
+      next.forwardCount === historySnapshot.forwardCount
+    ) {
+      return;
+    }
+
+    historySnapshot = next;
+    for (const listener of historyListeners) listener();
+  };
 
   const ownsBinding = (
     session: ReaderDeliberateNavigationSession,
@@ -94,7 +106,9 @@ export function createReaderDeliberateNavigationController(
       const displayed = await binding.display(target, options);
       if (!displayed || !ownsBinding(session, binding, operation)) return false;
       if (session.currentTarget === returnTarget) session.currentTarget = target;
-      return complete(returnTarget ? historyEntry(returnTarget) : undefined);
+      const completed = complete(returnTarget ? historyEntry(returnTarget) : undefined);
+      if (completed) publishHistory(session);
+      return completed;
     } catch {
       return false;
     } finally {
@@ -143,11 +157,12 @@ export function createReaderDeliberateNavigationController(
       session.binding = undefined;
       session.operation = undefined;
       activeSession = null;
+      publishHistory(null);
       return true;
     },
     forward: () => replay("forward"),
     getCurrentTarget: () => activeSession?.currentTarget,
-    getHistorySnapshot: () => activeSession?.history.getSnapshot() ?? EMPTY_HISTORY_SNAPSHOT,
+    getHistorySnapshot: () => historySnapshot,
     async jump(rawTarget, options = {}) {
       const session = activeSession;
       const binding = session?.binding;
@@ -183,6 +198,11 @@ export function createReaderDeliberateNavigationController(
         history: createReaderNavigationHistory(maxHistoryEntries),
         identity,
       };
+      publishHistory(activeSession);
+    },
+    subscribeHistory(listener) {
+      historyListeners.add(listener);
+      return () => historyListeners.delete(listener);
     },
     unbindDisplay(owner) {
       const session = activeSession;

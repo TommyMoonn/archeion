@@ -136,6 +136,44 @@ describe("Reader deliberate navigation", () => {
     });
   });
 
+  it("publishes history availability changes from the deliberate navigation owner", async () => {
+    const controller = createReaderDeliberateNavigationController(10);
+    const sessionIdentity = identity("book-a");
+    const rendition = {};
+    const listener = vi.fn();
+    controller.subscribeHistory(listener);
+    controller.startSession(sessionIdentity);
+    controller.bindDisplay(sessionIdentity, rendition, async () => true);
+    controller.relocate(rendition, "epubcfi(/6/2!/4/2:2)");
+
+    await controller.jump("Text/chapter-2.xhtml");
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(controller.getHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+
+    await controller.back();
+    expect(listener).toHaveBeenCalledTimes(2);
+    expect(controller.getHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+
+    controller.endSession(sessionIdentity);
+    expect(listener).toHaveBeenCalledTimes(3);
+    expect(controller.getHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
   it("preserves session history when only the active rendition binding is replaced", async () => {
     const controller = createReaderDeliberateNavigationController(10);
     const sessionIdentity = identity("book-a");

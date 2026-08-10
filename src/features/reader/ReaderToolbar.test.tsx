@@ -27,6 +27,8 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
   root = createRoot(container);
   const callbacks = {
     onBack: vi.fn(),
+    onHistoryBack: vi.fn(),
+    onHistoryForward: vi.fn(),
     onNext: vi.fn(),
     onNextChapter: vi.fn(),
     onPrevious: vi.fn(),
@@ -46,6 +48,8 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
             chapterProgress={38}
             chapterTitle="A Very Long Current Chapter Title"
             hasChapterNavigation
+            historyBackDisabled
+            historyForwardDisabled
             bookmarkActive={false}
             bookmarkBusy={false}
             bookmarkToggleDisabled={false}
@@ -87,6 +91,34 @@ describe("ReaderToolbar", () => {
 
     expect(back.textContent).toContain("Back");
     act(() => back.click());
+    expect(callbacks.onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps publication history controls distinct from the contextual Reader exit action", () => {
+    const { callbacks, container } = renderToolbar({
+      historyBackAriaKeyShortcuts: "Alt+ArrowLeft",
+      historyBackDisabled: false,
+      historyForwardAriaKeyShortcuts: "Alt+ArrowRight",
+      historyForwardDisabled: true,
+    });
+    const exit = button(container, "Back to Library");
+    const back = button(container, "Back in reading history");
+    const forward = button(container, "Forward in reading history");
+
+    expect(exit.textContent).toContain("Back");
+    expect(back.getAttribute("aria-keyshortcuts")).toBe("Alt+ArrowLeft");
+    expect(back.getAttribute("aria-disabled")).not.toBe("true");
+    expect(forward.getAttribute("aria-keyshortcuts")).toBe("Alt+ArrowRight");
+    expect(forward.getAttribute("aria-disabled")).toBe("true");
+    expect(document.getElementById(forward.getAttribute("aria-describedby")!)?.textContent).toBe(
+      "No later Reader location",
+    );
+
+    act(() => back.click());
+    act(() => exit.click());
+
+    expect(callbacks.onHistoryBack).toHaveBeenCalledTimes(1);
+    expect(callbacks.onHistoryForward).not.toHaveBeenCalled();
     expect(callbacks.onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -185,7 +217,7 @@ describe("ReaderToolbar", () => {
     const { container } = renderToolbar();
 
     expect(container.querySelector('button[aria-label="Quick Actions"]')).toBeNull();
-    expect(container.querySelectorAll(".reader-toolbar__divider")).toHaveLength(2);
+    expect(container.querySelectorAll(".reader-toolbar__divider")).toHaveLength(3);
   });
 
   it("exposes bookmark state and annotation controls", () => {

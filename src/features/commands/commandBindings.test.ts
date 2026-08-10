@@ -65,6 +65,21 @@ describe("keyboard command bindings", () => {
     });
   });
 
+  it("owns fixed Reader history shortcuts as Alt+Left and Alt+Right", () => {
+    expect(
+      effectiveKeyboardBinding(commandDefinitions.readerHistoryBack, { shortcuts: {} }),
+    ).toEqual({ alt: true, key: "arrowleft", primary: false, shift: false });
+    expect(
+      effectiveKeyboardBinding(commandDefinitions.readerHistoryForward, { shortcuts: {} }),
+    ).toEqual({ alt: true, key: "arrowright", primary: false, shift: false });
+    expect(
+      ariaKeyShortcut(commandDefinitions.readerHistoryBack.defaultBinding, "windows-linux"),
+    ).toBe("Alt+ArrowLeft");
+    expect(
+      ariaKeyShortcut(commandDefinitions.readerHistoryForward.defaultBinding, "windows-linux"),
+    ).toBe("Alt+ArrowRight");
+  });
+
   it("uses the platform primary modifier for matching, display, and ARIA", () => {
     const binding = effectiveKeyboardBinding(commandDefinitions.quickActions, { shortcuts: {} });
 

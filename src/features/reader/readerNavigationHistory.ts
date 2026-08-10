@@ -11,6 +11,14 @@ export type ReaderNavigationHistorySnapshot = Readonly<{
   forwardCount: number;
 }>;
 
+export const EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT: ReaderNavigationHistorySnapshot =
+  Object.freeze({
+    backCount: 0,
+    canGoBack: false,
+    canGoForward: false,
+    forwardCount: 0,
+  });
+
 export type ReaderNavigationHistory = Readonly<{
   completeBackReplay: (
     returnEntry: ReaderNavigationHistoryEntry,

@@ -171,6 +171,7 @@ export type EpubSessionFacade = {
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToTarget: (target: string) => Promise<boolean>;
+  subscribeNavigationHistory: (listener: () => void) => () => void;
   teardown: () => void;
   turn: (intent: ReaderNavigationIntent) => Promise<void>;
 };
@@ -323,6 +324,10 @@ export function useEpubSession({
   const navigateForward = useCallback(() => deliberateNavigation.forward(), [deliberateNavigation]);
   const getNavigationHistorySnapshot = useCallback(
     () => deliberateNavigation.getHistorySnapshot(),
+    [deliberateNavigation],
+  );
+  const subscribeNavigationHistory = useCallback(
+    (listener: () => void) => deliberateNavigation.subscribeHistory(listener),
     [deliberateNavigation],
   );
 
@@ -627,6 +632,7 @@ export function useEpubSession({
     navigateToChapter,
     navigateToLocation,
     navigateToTarget,
+    subscribeNavigationHistory,
     teardown,
     turn,
   };

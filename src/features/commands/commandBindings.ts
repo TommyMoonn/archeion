@@ -120,6 +120,24 @@ export const commandDefinitions = {
     label: "Close the topmost surface",
     scopes: ["transient-surface", "settings", "reader", "folders", "library", "global"],
   },
+  readerHistoryBack: {
+    configuration: "fixed",
+    defaultBinding: binding("arrowleft", { alt: true }),
+    group: "Fixed Interaction Keys",
+    id: "reader.history-back",
+    label: "Back in reading history",
+    scopes: ["reader"],
+    visibleControlOwner: "Reader toolbar",
+  },
+  readerHistoryForward: {
+    configuration: "fixed",
+    defaultBinding: binding("arrowright", { alt: true }),
+    group: "Fixed Interaction Keys",
+    id: "reader.history-forward",
+    label: "Forward in reading history",
+    scopes: ["reader"],
+    visibleControlOwner: "Reader toolbar",
+  },
   readerPreviousPage: {
     configuration: "fixed",
     defaultBinding: binding("arrowleft"),
@@ -199,6 +217,8 @@ export const configurableCommandDefinitions: readonly CommandDefinition[] = [
 
 export const fixedInteractionCommandDefinitions: readonly CommandDefinition[] = [
   commandDefinitions.closeTopmostSurface,
+  commandDefinitions.readerHistoryBack,
+  commandDefinitions.readerHistoryForward,
   commandDefinitions.readerPreviousPage,
   commandDefinitions.readerNextPage,
   commandDefinitions.readerPreviousPageKey,

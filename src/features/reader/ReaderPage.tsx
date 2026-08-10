@@ -61,6 +61,10 @@ import {
   isReaderShortcutTargetBlocked,
   READER_TOC_SEARCH_THRESHOLD,
 } from "./readerNavigation";
+import {
+  EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT,
+  type ReaderNavigationHistorySnapshot,
+} from "./readerNavigationHistory";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
 import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
@@ -137,6 +141,9 @@ export function ReaderPage() {
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>(() =>
     createLoadingReaderNavigationState(),
+  );
+  const [navigationHistory, setNavigationHistory] = useState<ReaderNavigationHistorySnapshot>(
+    EMPTY_READER_NAVIGATION_HISTORY_SNAPSHOT,
   );
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
@@ -352,6 +359,21 @@ export function ReaderPage() {
   const leaveReader = controlledTransitions.leaveReader;
   const runControlledReaderTransition = controlledTransitions.runControlledTransition;
 
+  const navigateHistoryBack = useCallback(
+    () =>
+      runControlledReaderTransition(
+        () => viewerRef.current?.navigateBack() ?? Promise.resolve(false),
+      ),
+    [runControlledReaderTransition],
+  );
+  const navigateHistoryForward = useCallback(
+    () =>
+      runControlledReaderTransition(
+        () => viewerRef.current?.navigateForward() ?? Promise.resolve(false),
+      ),
+    [runControlledReaderTransition],
+  );
+
   useLayoutEffect(
     () =>
       connectNoteSurface({
@@ -543,6 +565,26 @@ export function ReaderPage() {
         scope: "reader",
       },
       {
+        ...commandDefinitions.readerHistoryBack,
+        availability: navigationHistory.canGoBack
+          ? { available: true }
+          : { available: false, reason: "No earlier Reader location" },
+        canHandleEvent: canHandleReaderCommand,
+        execute: () => void navigateHistoryBack(),
+        scope: "reader",
+        showInPalette: false,
+      },
+      {
+        ...commandDefinitions.readerHistoryForward,
+        availability: navigationHistory.canGoForward
+          ? { available: true }
+          : { available: false, reason: "No later Reader location" },
+        canHandleEvent: canHandleReaderCommand,
+        execute: () => void navigateHistoryForward(),
+        scope: "reader",
+        showInPalette: false,
+      },
+      {
         ...commandDefinitions.readerToc,
         availability: tocDisabledReason
           ? { available: false, reason: tocDisabledReason }
@@ -648,7 +690,11 @@ export function ReaderPage() {
     libraryPreferences.smartViews,
     moveNext,
     movePrevious,
+    navigateHistoryBack,
+    navigateHistoryForward,
     navigateToLibraryView,
+    navigationHistory.canGoBack,
+    navigationHistory.canGoForward,
     navigationState.chapters.length,
     navigationState.status,
     readerSearchAvailable,
@@ -924,6 +970,14 @@ export function ReaderPage() {
             chapterProgress={navigationState.chapterProgress}
             chapterTitle={chapterSequence.current?.label}
             hasChapterNavigation={hasChapterNavigation}
+            historyBackAriaKeyShortcuts={ariaKeyShortcut(
+              commandDefinitions.readerHistoryBack.defaultBinding,
+            )}
+            historyBackDisabled={!navigationHistory.canGoBack}
+            historyForwardAriaKeyShortcuts={ariaKeyShortcut(
+              commandDefinitions.readerHistoryForward.defaultBinding,
+            )}
+            historyForwardDisabled={!navigationHistory.canGoForward}
             bookmarkActive={Boolean(annotations.currentBookmark)}
             bookmarkBusy={annotations.busy}
             bookmarkToggleDisabled={!annotations.canToggleCurrent}
@@ -931,6 +985,8 @@ export function ReaderPage() {
             annotationsOpen={annotationsOpen}
             onNext={moveNext}
             onBack={returnToOrigin}
+            onHistoryBack={() => void navigateHistoryBack()}
+            onHistoryForward={() => void navigateHistoryForward()}
             onAnnotations={toggleAnnotations}
             onToggleBookmark={() => void annotations.toggleCurrent()}
             onNextChapter={moveNextChapter}
@@ -1003,6 +1059,7 @@ export function ReaderPage() {
             onRecolorHighlight={highlights.recolor}
             onRemoveHighlight={removeHighlight}
             onNavigationChange={setNavigationState}
+            onNavigationHistoryChange={setNavigationHistory}
             onReady={handleReady}
             readerTheme={readerTheme}
             sessionIdentity={readerSessionIdentity}

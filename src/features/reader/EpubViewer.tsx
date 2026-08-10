@@ -83,6 +83,7 @@ type EpubViewerProps = {
   onRecolorHighlight?: (id: string, color: ReaderHighlightColor) => Promise<boolean>;
   onRemoveHighlight?: (id: string) => Promise<boolean>;
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
+  onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
   onReady: (identity: ReaderSessionIdentity) => void;
   readerTheme: ResolvedReaderTheme;
   sessionIdentity: ReaderSessionIdentity;
@@ -107,6 +108,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onRecolorHighlight,
     onRemoveHighlight,
     onNavigationChange,
+    onNavigationHistoryChange,
     onReady,
     readerTheme,
     sessionIdentity,
@@ -163,6 +165,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     navigateToChapter: displayChapter,
     navigateToLocation: displayLocation,
     navigateToTarget: displayTarget,
+    subscribeNavigationHistory,
     teardown,
     turn,
   } = useEpubSession({
@@ -173,6 +176,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     mode: settings.mode,
     sessionIdentity,
   });
+
+  useEffect(() => {
+    if (!onNavigationHistoryChange) return undefined;
+
+    const publish = () => onNavigationHistoryChange(getNavigationHistorySnapshot());
+    publish();
+    return subscribeNavigationHistory(publish);
+  }, [getNavigationHistorySnapshot, onNavigationHistoryChange, subscribeNavigationHistory]);
 
   const interaction = useHighlightInteractionController({
     containerRef,

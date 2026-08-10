@@ -340,6 +340,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onKeyDown: vi.fn(),
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
+    onNavigationHistoryChange: vi.fn(),
     onReady: vi.fn(),
     readerTheme,
     sessionIdentity,
@@ -1036,6 +1037,12 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(didNavigate).toBe(true);
     expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml");
     expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(1);
+    expect(props.onNavigationHistoryChange).toHaveBeenLastCalledWith({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
 
     await act(async () => {
       session.rendition.emitMock(
