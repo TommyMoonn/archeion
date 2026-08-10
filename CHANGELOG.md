@@ -362,7 +362,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...v1.0.0
 [0.9.0]: https://github.com/TommyMoonn/archeion/compare/v0.8.0...v0.9.0
