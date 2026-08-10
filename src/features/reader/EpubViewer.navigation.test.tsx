@@ -1012,7 +1012,7 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.renderTo).toHaveBeenCalledTimes(1);
   });
 
-  it("uses the shared chapter target when toolbar navigation requests a chapter", async () => {
+  it("routes Contents and annotation-location jumps through one deliberate history owner", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
     const props = defaultViewerProps(new Blob(["book-one"]));
@@ -1021,6 +1021,12 @@ describe("EpubViewer navigation lifecycle", () => {
     await renderViewer(props, viewerRef);
     await waitForActiveRendition(session);
     await resolveNavigation(session);
+    await act(async () => {
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:4)"),
+      );
+    });
 
     let didNavigate = false;
     await act(async () => {
@@ -1029,7 +1035,60 @@ describe("EpubViewer navigation lifecycle", () => {
 
     expect(didNavigate).toBe(true);
     expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml");
-    expect(session.rendition.display).toHaveBeenCalledTimes(2);
+    expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(1);
+
+    await act(async () => {
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/6:8)"),
+      );
+      await expect(viewerRef.current?.navigateToLocation("epubcfi(/6/2!/4/10:2)")).resolves.toBe(
+        true,
+      );
+    });
+
+    expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/10:2)");
+    expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
+      backCount: 2,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("records supported internal EPUB link navigation through deliberate history", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(defaultViewerProps(new Blob(["book-one"])), viewerRef);
+    await waitForActiveRendition(session);
+    const link = session.chapterDocument.createElement("a");
+    link.href = "chapter-2.xhtml";
+    link.textContent = "Next chapter";
+    session.chapterDocument.body.append(link);
+    await act(async () => {
+      session.rendition.emitMock(
+        "rendered",
+        { href: "Text/chapter-1.xhtml" },
+        { document: session.chapterDocument },
+      );
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:4)"),
+      );
+      link.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
+      await vi.waitFor(() =>
+        expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-2.xhtml"),
+      );
+    });
+
+    expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
   });
 
   it("validates an exact saved highlight range before navigation", async () => {

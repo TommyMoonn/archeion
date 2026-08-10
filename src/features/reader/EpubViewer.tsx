@@ -43,11 +43,15 @@ import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
 import type { ReaderSessionIdentity } from "./readerSession";
+import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import { useReaderSideSurfaceDismissRequest } from "./readerSideSurfaceDismissal";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
 export type EpubViewerHandle = {
+  getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
+  navigateBack: () => Promise<boolean>;
+  navigateForward: () => Promise<boolean>;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   next: () => Promise<void>;
@@ -151,8 +155,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     applyContentTheme,
     documents: contentDocuments,
     getInteractionSession,
+    getNavigationHistorySnapshot,
     getNavigationState,
     isLoading,
+    navigateBack: replayBack,
+    navigateForward: replayForward,
     navigateToChapter: displayChapter,
     navigateToLocation: displayLocation,
     navigateToTarget: displayTarget,
@@ -440,6 +447,16 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [displayLocation, prepareNavigation],
   );
 
+  const navigateBack = useCallback(async () => {
+    prepareNavigation();
+    return replayBack();
+  }, [prepareNavigation, replayBack]);
+
+  const navigateForward = useCallback(async () => {
+    prepareNavigation();
+    return replayForward();
+  }, [prepareNavigation, replayForward]);
+
   const handleClickZone = useCallback(
     (intent: ReaderNavigationIntent) => {
       onInteraction();
@@ -451,6 +468,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useImperativeHandle(
     ref,
     () => ({
+      getNavigationHistorySnapshot,
+      navigateBack,
+      navigateForward,
       navigateToChapter,
       navigateToLocation,
       next: () => turn("forward"),
@@ -459,7 +479,16 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         annotations.resolveAnnotationAnchor(annotation, attemptRecovery),
       teardown,
     }),
-    [annotations, navigateToChapter, navigateToLocation, teardown, turn],
+    [
+      annotations,
+      getNavigationHistorySnapshot,
+      navigateBack,
+      navigateForward,
+      navigateToChapter,
+      navigateToLocation,
+      teardown,
+      turn,
+    ],
   );
 
   return (

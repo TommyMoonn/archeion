@@ -450,8 +450,11 @@ describe("useEpubSession lifecycle", () => {
         applyContentTheme: expect.any(Function),
         documents: expect.any(Object),
         getInteractionSession: expect.any(Function),
+        getNavigationHistorySnapshot: expect.any(Function),
         getRelocation: expect.any(Function),
         getNavigationState: expect.any(Function),
+        navigateBack: expect.any(Function),
+        navigateForward: expect.any(Function),
         navigateToChapter: expect.any(Function),
         navigateToLocation: expect.any(Function),
         navigateToTarget: expect.any(Function),
@@ -1239,6 +1242,154 @@ describe("useEpubSession lifecycle", () => {
     expect(bridge.onSelected).not.toHaveBeenCalled();
   });
 
+  it("records deliberate jumps and replay while ordinary page turns stay outside history", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/2:2)"));
+    session.rendition.display.mockClear();
+
+    await expect(facadeRef.current!.navigateToTarget("Text/chapter-2.xhtml")).resolves.toBe(true);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/4!/4/2:2)"));
+    await facadeRef.current!.turn("forward");
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/4!/4/8:8)"));
+    expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(1);
+
+    await expect(facadeRef.current!.navigateToTarget("Text/chapter-3.xhtml")).resolves.toBe(true);
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/6!/4/2:2)"));
+    expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(2);
+
+    await expect(facadeRef.current!.navigateBack()).resolves.toBe(true);
+    expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/4!/4/8:8)");
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: true,
+      forwardCount: 1,
+    });
+
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/4!/4/8:8)"));
+    await expect(facadeRef.current!.navigateForward()).resolves.toBe(true);
+    expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/6!/4/2:2)");
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 2,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("leaves history unchanged when a deliberate target display fails", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/2:2)"));
+    session.rendition.display.mockRejectedValueOnce(new Error("display failed"));
+
+    await expect(facadeRef.current!.navigateToTarget("Text/chapter-2.xhtml")).resolves.toBe(false);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("keeps Continuous-mode scrolling outside deliberate history", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "continuous",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/2:2)"));
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/2!/4/8:8)"));
+    emitStaleEvent(session, "relocated", relocation("epubcfi(/6/4!/4/2:2)"));
+
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("retires an in-flight deliberate jump when the Reader session identity is replaced", async () => {
+    const sessionA = createBookSession();
+    const sessionB = createBookSession();
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const identityA = createSessionIdentity("book-a");
+    const identityB = createSessionIdentity("book-b");
+    const leaseA = leaseFor(new Blob(["book-a"]));
+    const leaseB = leaseFor(new Blob(["book-b"]));
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      { bridgeRef, fileLease: leaseA, mode: "paged", sessionIdentity: identityA },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+    emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/6/2!/4/2:2)"));
+    await expect(facadeRef.current!.navigateToTarget("Text/chapter-2.xhtml")).resolves.toBe(true);
+    emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/6/4!/4/2:2)"));
+    expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(1);
+
+    const pendingDisplay = deferred<void>();
+    sessionA.rendition.display.mockImplementationOnce(() => pendingDisplay.promise);
+    const staleJump = facadeRef.current!.navigateToTarget("Text/chapter-3.xhtml");
+    await rerenderHarness(
+      root,
+      { bridgeRef, fileLease: leaseB, mode: "paged", sessionIdentity: identityB },
+      facadeRef,
+    );
+    await waitForReady(sessionB, bridge);
+
+    pendingDisplay.resolve(undefined);
+    await expect(staleJump).resolves.toBe(false);
+    expect(facadeRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
   it("routes arbitrary safe EPUB targets through the active rendition display path", async () => {
     const session = createBookSession();
     const bridge = createBridge();
@@ -1331,6 +1482,9 @@ describe("useEpubSession content-hook ownership", () => {
     );
     await waitForReady(sessionA, bridge);
     emitStaleEvent(sessionA, "relocated", relocation());
+    await expect(facadeRef.current!.navigateToTarget("Text/chapter-2.xhtml")).resolves.toBe(true);
+    emitStaleEvent(sessionA, "relocated", relocation("epubcfi(/6/4!/4/2:2)"));
+    expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(1);
 
     await rerenderHarness(
       root,
@@ -1345,7 +1499,8 @@ describe("useEpubSession content-hook ownership", () => {
     await waitForReady(sessionB, bridge);
 
     expect(sessionA.destroy).toHaveBeenCalledTimes(1);
-    expect(sessionB.rendition.display).toHaveBeenCalledWith("epubcfi(/6/2!/4/2:4)");
+    expect(sessionB.rendition.display).toHaveBeenCalledWith("epubcfi(/6/4!/4/2:2)");
+    expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(1);
   });
 
   it("ignores content after unmount", async () => {

@@ -12,6 +12,12 @@ import type { ReaderContentTheme } from "./readerTheme";
 import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
 import { loadReaderNavigationModel } from "./readerNavigationModel";
 import {
+  createReaderDeliberateNavigationController,
+  READER_NAVIGATION_HISTORY_LIMIT,
+  type ReaderDeliberateNavigationDisplayOptions,
+} from "./readerDeliberateNavigation";
+import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
+import {
   createLoadingReaderNavigationState,
   createReaderNavigationStateController,
   type ReaderNavigationStateController,
@@ -156,9 +162,12 @@ export type EpubSessionFacade = {
   applyContentTheme: (theme: ReaderContentTheme, container: HTMLElement | null) => void;
   documents: ReaderContentDocumentAccess;
   getInteractionSession: () => EpubSessionInteractionAccess | null;
+  getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
   getRelocation: () => ReaderRelocation | null;
   getNavigationState: () => ReaderNavigationState;
   isLoading: boolean;
+  navigateBack: () => Promise<boolean>;
+  navigateForward: () => Promise<boolean>;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToTarget: (target: string) => Promise<boolean>;
@@ -176,15 +185,16 @@ export function useEpubSession({
 }: UseEpubSessionOptions): EpubSessionFacade {
   const initialCfiRef = useRef(initialCfi);
   const [documentSessions] = useState(() => new ReaderContentDocumentSessionOwner());
+  const [deliberateNavigation] = useState(() =>
+    createReaderDeliberateNavigationController(READER_NAVIGATION_HISTORY_LIMIT),
+  );
   const sessionRef = useRef<EpubSessionSnapshot | null>(null);
   const relocationRef = useRef<ReaderRelocation | null>(null);
   const teardownRef = useRef<() => void>(() => undefined);
   const activeSessionIdentityRef = useRef<ReaderSessionIdentity | null>(null);
   const navigationControllerRef = useRef<ReaderNavigationStateController | null>(null);
   const generationRef = useRef(0);
-  const canonicalCfiRef = useRef(initialCfi);
   const canonicalCfiFileRef = useRef<ReaderFileLease | null>(null);
-  const isNavigatingRef = useRef(false);
   const turnOwnerRef = useRef<EpubTurnOwner | null>(null);
   const sessionKey = useMemo(
     () => ({ fileLease, mode, sessionIdentity }),
@@ -195,6 +205,13 @@ export function useEpubSession({
   useEffect(() => {
     initialCfiRef.current = initialCfi;
   }, [initialCfi]);
+
+  useEffect(() => {
+    deliberateNavigation.startSession(sessionIdentity, initialCfiRef.current);
+    return () => {
+      deliberateNavigation.endSession(sessionIdentity);
+    };
+  }, [deliberateNavigation, sessionIdentity]);
 
   const invalidateTurnOwner = useCallback((session?: EpubSessionSnapshot) => {
     const owner = turnOwnerRef.current;
@@ -253,19 +270,23 @@ export function useEpubSession({
     [invalidateTurnOwner],
   );
 
-  const displayTarget = useCallback(
-    async (rawTarget: string, requireUsableLocation = false) => {
-      const session = sessionRef.current;
+  const displayTargetForSession = useCallback(
+    async (
+      session: EpubSessionSnapshot,
+      rawTarget: string,
+      options: ReaderDeliberateNavigationDisplayOptions,
+    ) => {
       const target = rawTarget.trim();
-      if (!session || !target || isNavigatingRef.current) return false;
+      if (!target || sessionRef.current !== session) return false;
 
-      isNavigatingRef.current = true;
       try {
         await session.rendition.display(target);
-        if (sessionRef.current !== session) return false;
+        if (sessionRef.current !== session || generationRef.current !== session.generation) {
+          return false;
+        }
         const bridge = bridgeRef.current;
         if (
-          requireUsableLocation &&
+          options.requireUsableLocation &&
           !documentSessions.renditionTargetIsUsable(session.rendition, target)
         ) {
           return false;
@@ -275,8 +296,6 @@ export function useEpubSession({
         return true;
       } catch {
         return false;
-      } finally {
-        if (sessionRef.current === session) isNavigatingRef.current = false;
       }
     },
     [bridgeRef, containerRef, documentSessions],
@@ -285,17 +304,27 @@ export function useEpubSession({
   const navigateToChapter = useCallback(
     async (chapterId: string) => {
       const target = navigationControllerRef.current?.getModel().resolveItemTarget(chapterId);
-      return target ? displayTarget(target) : false;
+      return target ? deliberateNavigation.jump(target) : false;
     },
-    [displayTarget],
+    [deliberateNavigation],
   );
 
   const navigateToLocation = useCallback(
-    (cfi: string) => displayTarget(cfi, true),
-    [displayTarget],
+    (cfi: string) => deliberateNavigation.jump(cfi, { requireUsableLocation: true }),
+    [deliberateNavigation],
   );
 
-  const navigateToTarget = useCallback((target: string) => displayTarget(target), [displayTarget]);
+  const navigateToTarget = useCallback(
+    (target: string) => deliberateNavigation.jump(target),
+    [deliberateNavigation],
+  );
+
+  const navigateBack = useCallback(() => deliberateNavigation.back(), [deliberateNavigation]);
+  const navigateForward = useCallback(() => deliberateNavigation.forward(), [deliberateNavigation]);
+  const getNavigationHistorySnapshot = useCallback(
+    () => deliberateNavigation.getHistorySnapshot(),
+    [deliberateNavigation],
+  );
 
   useEffect(() => {
     let retired = false;
@@ -312,10 +341,10 @@ export function useEpubSession({
     );
     navigationControllerRef.current = navigationController;
     const displayCfi =
-      canonicalCfiFileRef.current === fileLease ? canonicalCfiRef.current : initialCfiRef.current;
+      canonicalCfiFileRef.current === fileLease
+        ? deliberateNavigation.getCurrentTarget()
+        : initialCfiRef.current;
     canonicalCfiFileRef.current = fileLease;
-    canonicalCfiRef.current = displayCfi;
-    isNavigatingRef.current = false;
     invalidateTurnOwner();
     navigationController.reset();
 
@@ -342,13 +371,13 @@ export function useEpubSession({
         owner.tornDown = true;
         const wasCurrent = sessionRef.current === session;
         if (wasCurrent) sessionRef.current = null;
+        deliberateNavigation.unbindDisplay(session);
         owner.cancelDeferredNavigation();
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
         session.rendition.off("rendered", owner.onRendered);
         session.rendition.off("relocated", owner.onRelocated);
         session.rendition.off("selected", owner.onSelected);
-        if (wasCurrent) isNavigatingRef.current = false;
         if (wasCurrent) relocationRef.current = null;
         if (navigationControllerRef.current === navigationController) {
           navigationControllerRef.current = null;
@@ -455,7 +484,7 @@ export function useEpubSession({
           },
           onRelocated: (location) => {
             if (!ownsSession(session)) return;
-            canonicalCfiRef.current = location.start.cfi;
+            deliberateNavigation.relocate(session, location.start.cfi);
             navigationController.relocate(location);
             bridgeRef.current?.onRelocated();
             const acceptedRelocation = snapshotReaderRelocation(
@@ -474,6 +503,12 @@ export function useEpubSession({
         };
         lifecycle = owner;
         sessionRef.current = session;
+        deliberateNavigation.bindDisplay(
+          sessionIdentity,
+          session,
+          (target, options) => displayTargetForSession(session, target, options),
+          displayCfi,
+        );
         (rendition as RenditionWithContentHook).hooks?.content?.register?.(
           (content: EpubContent) => {
             if (!ownsSession(session)) return;
@@ -536,7 +571,6 @@ export function useEpubSession({
         destroyBookOnce();
       }
       invalidateTurnOwner();
-      isNavigatingRef.current = false;
       relocationRef.current = null;
       if (navigationControllerRef.current === navigationController) {
         navigationControllerRef.current = null;
@@ -556,6 +590,8 @@ export function useEpubSession({
   }, [
     bridgeRef,
     containerRef,
+    deliberateNavigation,
+    displayTargetForSession,
     documentSessions,
     fileLease,
     invalidateTurnOwner,
@@ -582,9 +618,12 @@ export function useEpubSession({
     applyContentTheme,
     documents: documentSessions.access,
     getInteractionSession,
+    getNavigationHistorySnapshot,
     getRelocation,
     getNavigationState,
     isLoading: settledSessionKey !== sessionKey,
+    navigateBack,
+    navigateForward,
     navigateToChapter,
     navigateToLocation,
     navigateToTarget,

@@ -10,6 +10,8 @@ import {
   resetTransientSurfaceOwnershipForTests,
 } from "../../utils/transientSurfaceOwnership";
 import type { EpubFootnoteResolution } from "./epubFootnoteResolver";
+import { createReaderDeliberateNavigationController } from "./readerDeliberateNavigation";
+import { createReaderSessionController, type ReaderSessionIdentity } from "./readerSession";
 import {
   illustrationTargetForElement,
   type EpubIllustrationResolution,
@@ -74,6 +76,12 @@ function Harness({
 
 type TestContentSession = EpubContentSessionAccess & Readonly<{ book: EpubBook }>;
 
+function readerIdentity(bookId: string): ReaderSessionIdentity {
+  const value = createReaderSessionController(bookId).getSnapshot().lifecycle.identity;
+  if (!value) throw new Error("Expected an active Reader session identity.");
+  return value;
+}
+
 function session(book = { spine: {} } as unknown as EpubBook): TestContentSession {
   return {
     book,
@@ -137,7 +145,8 @@ describe("useEpubContentActionController", () => {
       value: () => ({ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }),
     });
     const registry = new ReaderContentDocumentRegistry();
-    const navigateToTarget = vi.fn(async () => true);
+    const navigateToTarget = vi.fn<(target: string) => Promise<boolean>>();
+    navigateToTarget.mockResolvedValue(true);
     let latest!: EpubContentActionController;
     const root = createRoot(host);
     roots.push(root);
@@ -345,6 +354,52 @@ describe("useEpubContentActionController", () => {
     await act(async () => Promise.resolve());
 
     expect(harness.navigateToTarget).toHaveBeenCalledWith("Text/chapter-2.xhtml#part");
+  });
+
+  it("routes a navigation action from an open footnote through deliberate history", async () => {
+    resolveEpubFootnote.mockResolvedValue({
+      kind: "resolved",
+      value: { nodes: [{ text: "A note", type: "text" }], release: vi.fn() },
+    } satisfies EpubFootnoteResolution);
+    const activeSession = { current: session() };
+    const harness = renderController(activeSession);
+    const { document: chapter, link } = linkedDocument("#note-1", "noteref");
+    const navigation = createReaderDeliberateNavigationController(10);
+    const identity = readerIdentity("book-a");
+    const rendition = {};
+    navigation.startSession(identity);
+    navigation.bindDisplay(identity, rendition, async () => true);
+    navigation.relocate(rendition, "epubcfi(/6/2!/4/2:4)");
+    harness.navigateToTarget.mockImplementation((target) => navigation.jump(target));
+
+    act(() => {
+      harness.latest().handleContentClick(clickFrom(link), {
+        document: chapter,
+        sectionHref: "Text/chapter.xhtml",
+      });
+    });
+    await act(async () => Promise.resolve());
+
+    act(() =>
+      harness.latest().handleFootnoteAction({
+        kind: "internal",
+        target: {
+          displayTarget: "Text/chapter-2.xhtml",
+          documentHref: "Text/chapter-2.xhtml",
+          resourceKind: "document",
+        },
+      }),
+    );
+    await act(async () => Promise.resolve());
+
+    expect(harness.navigateToTarget).toHaveBeenCalledOnce();
+    expect(harness.navigateToTarget).toHaveBeenCalledWith("Text/chapter-2.xhtml");
+    expect(navigation.getHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
   });
 
   it("opens a local image without navigation and prepares it for keyboard activation", async () => {
