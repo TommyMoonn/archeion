@@ -1728,3 +1728,8 @@ html[data-motion="on"] .reader-side-panel {
   box-shadow: var(--shadow-popover);
   font-size: var(--type-meta);
 }
+
+.epub-viewer .archeion-search-match-emphasis line {
+  stroke: var(--reader-focus) !important;
+  stroke-width: 2 !important;
+}

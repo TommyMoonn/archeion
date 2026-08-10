@@ -168,7 +168,7 @@ export class RenderedAnnotationAdapter {
       ) {
         rendered.token.active = false;
         this.options.onCancelHighlightGesture(annotationId);
-        session.removeHighlight(rendered.range, "highlight");
+        session.removeAnnotation(rendered.range, "highlight");
         this.rendered.delete(annotationId);
       }
     }
@@ -413,7 +413,7 @@ export class RenderedAnnotationAdapter {
     for (const rendered of this.rendered.values()) {
       rendered.token.active = false;
       this.options.onCancelHighlightGesture(rendered.annotationId);
-      session?.removeHighlight(rendered.range, "highlight");
+      session?.removeAnnotation(rendered.range, "highlight");
     }
     this.rendered.clear();
     this.validatedAnchors.clear();

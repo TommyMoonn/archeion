@@ -45,17 +45,29 @@ import type { ReaderFileLease } from "./readerFileLease";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import { useReaderSideSurfaceDismissRequest } from "./readerSideSurfaceDismissal";
+import { ReaderSearchMatchEmphasis } from "./readerSearchMatchEmphasis";
+import {
+  useReaderPublicationSearch,
+  type ReaderPublicationSearchControllerState,
+} from "./useReaderPublicationSearch";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
 export type EpubViewerHandle = {
+  closePublicationSearch: () => void;
   getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
+  getPublicationSearchState: () => ReaderPublicationSearchControllerState;
   navigateBack: () => Promise<boolean>;
   navigateForward: () => Promise<boolean>;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
+  navigateToPublicationSearchResult: (resultId: string) => Promise<boolean>;
+  navigateToSelectedPublicationSearchResult: () => Promise<boolean>;
   next: () => Promise<void>;
+  nextPublicationSearchResult: () => Promise<boolean>;
+  previousPublicationSearchResult: () => Promise<boolean>;
   previous: () => Promise<void>;
+  setPublicationSearchQuery: (query: string) => void;
   resolveAnnotationAnchor: (
     annotation: Annotation,
     attemptRecovery: boolean,
@@ -84,6 +96,7 @@ type EpubViewerProps = {
   onRemoveHighlight?: (id: string) => Promise<boolean>;
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
+  onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
   onReady: (identity: ReaderSessionIdentity) => void;
   readerTheme: ResolvedReaderTheme;
   sessionIdentity: ReaderSessionIdentity;
@@ -109,6 +122,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onRemoveHighlight,
     onNavigationChange,
     onNavigationHistoryChange,
+    onPublicationSearchChange,
     onReady,
     readerTheme,
     sessionIdentity,
@@ -129,6 +143,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     lastWheelEventAtRef.current = Number.NEGATIVE_INFINITY;
     lastWheelTurnAtRef.current = Number.NEGATIVE_INFINITY;
   }, []);
+  const [searchMatchEmphasis] = useState(() => new ReaderSearchMatchEmphasis());
   const [annotations] = useState(
     () =>
       new RenderedAnnotationAdapter({
@@ -165,6 +180,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     navigateToChapter: displayChapter,
     navigateToLocation: displayLocation,
     navigateToTarget: displayTarget,
+    searchPublication,
     subscribeNavigationHistory,
     teardown,
     turn,
@@ -184,6 +200,22 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     publish();
     return subscribeNavigationHistory(publish);
   }, [getNavigationHistorySnapshot, onNavigationHistoryChange, subscribeNavigationHistory]);
+
+  const publicationSearch = useReaderPublicationSearch({
+    emphasis: searchMatchEmphasis,
+    navigateToTarget: displayTarget,
+    searchPublication,
+    sessionIdentity,
+  });
+  const {
+    close: closePublicationSearch,
+    runtimeEnding: handlePublicationSearchRuntimeEnding,
+    runtimeReady: handlePublicationSearchRuntimeReady,
+  } = publicationSearch;
+
+  useEffect(() => {
+    onPublicationSearchChange?.(publicationSearch.state);
+  }, [onPublicationSearchChange, publicationSearch.state]);
 
   const interaction = useHighlightInteractionController({
     containerRef,
@@ -300,9 +332,13 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onSelected: handleSelection,
       onSessionCreated: (session) => {
         annotations.setSession(session.annotations);
+        searchMatchEmphasis.setSession(session.annotations);
+        handlePublicationSearchRuntimeReady();
         applyContentTheme(contentTheme, containerRef.current);
       },
-      onSessionEnding: () => {
+      onSessionEnding: (reason) => {
+        if (reason === "replacement") handlePublicationSearchRuntimeEnding();
+        searchMatchEmphasis.setSession(null);
         annotations.setSession(null);
         resetHighlightSession();
         resetContentActionSession();
@@ -326,9 +362,12 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onReady,
     prepareDocument,
+    handlePublicationSearchRuntimeEnding,
+    handlePublicationSearchRuntimeReady,
     refreshAnchor,
     resetContentActionSession,
     resetHighlightSession,
+    searchMatchEmphasis,
   ]);
 
   const handleWheel = useCallback(
@@ -468,6 +507,11 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     return replayForward();
   }, [prepareNavigation, replayForward]);
 
+  const teardownReader = useCallback(() => {
+    closePublicationSearch();
+    teardown();
+  }, [closePublicationSearch, teardown]);
+
   const handleClickZone = useCallback(
     (intent: ReaderNavigationIntent) => {
       onInteraction();
@@ -479,16 +523,23 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useImperativeHandle(
     ref,
     () => ({
+      closePublicationSearch,
       getNavigationHistorySnapshot,
+      getPublicationSearchState: () => publicationSearch.state,
       navigateBack,
       navigateForward,
       navigateToChapter,
       navigateToLocation,
+      navigateToPublicationSearchResult: publicationSearch.navigateResult,
+      navigateToSelectedPublicationSearchResult: publicationSearch.navigateSelectedResult,
       next: () => turn("forward"),
+      nextPublicationSearchResult: publicationSearch.nextResult,
       previous: () => turn("backward"),
+      previousPublicationSearchResult: publicationSearch.previousResult,
       resolveAnnotationAnchor: (annotation, attemptRecovery) =>
         annotations.resolveAnnotationAnchor(annotation, attemptRecovery),
-      teardown,
+      setPublicationSearchQuery: publicationSearch.setQuery,
+      teardown: teardownReader,
     }),
     [
       annotations,
@@ -497,7 +548,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateForward,
       navigateToChapter,
       navigateToLocation,
-      teardown,
+      closePublicationSearch,
+      publicationSearch.navigateResult,
+      publicationSearch.navigateSelectedResult,
+      publicationSearch.nextResult,
+      publicationSearch.previousResult,
+      publicationSearch.setQuery,
+      publicationSearch.state,
+      teardownReader,
       turn,
     ],
   );
@@ -644,6 +702,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onRecolorHighlight === next.onRecolorHighlight &&
     previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
+    previous.onPublicationSearchChange === next.onPublicationSearchChange &&
     previous.onReady === next.onReady &&
     previous.contentTheme === next.contentTheme &&
     previous.readerTheme === next.readerTheme &&

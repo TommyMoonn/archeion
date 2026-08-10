@@ -26,7 +26,14 @@ export type EpubAnnotationSessionAccess = Readonly<{
   isSectionRendered: (section: EpubSection) => boolean;
   listSections: () => readonly EpubSection[];
   loadSection: (section: EpubSection) => Promise<void>;
-  removeHighlight: (cfiRange: string, type: string) => void;
+  removeAnnotation: (cfiRange: string, type: string) => void;
+  underline: (
+    cfiRange: string,
+    data?: object,
+    callback?: (event: Event) => void,
+    className?: string,
+    styles?: object,
+  ) => void;
 }>;
 
 export type EpubContentSessionAccess = Readonly<{
@@ -83,7 +90,10 @@ export function createEpubSessionInteractionAccess(
     loadSection: async (section) => {
       await Promise.resolve(section.load(book.load.bind(book)));
     },
-    removeHighlight: (cfiRange, type) => rendition.annotations.remove(cfiRange, type),
+    removeAnnotation: (cfiRange, type) => rendition.annotations.remove(cfiRange, type),
+    underline: (cfiRange, data, callback, className, styles) => {
+      rendition.annotations.underline(cfiRange, data, callback, className, styles);
+    },
   });
   const content: EpubContentSessionAccess = Object.freeze({
     illustrationTargetForElement: (element, currentDocumentHref) =>

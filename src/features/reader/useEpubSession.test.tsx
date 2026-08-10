@@ -1562,6 +1562,7 @@ describe("useEpubSession content-hook ownership", () => {
     await waitForReady(sessionB, bridge);
 
     expect(sessionA.destroy).toHaveBeenCalledTimes(1);
+    expect(bridge.onSessionEnding).toHaveBeenCalledWith("replacement");
     expect(sessionB.rendition.display).toHaveBeenCalledWith("epubcfi(/6/4!/4/2:2)");
     expect(facadeRef.current!.getNavigationHistorySnapshot().backCount).toBe(1);
   });

@@ -51,6 +51,7 @@ type MockRendition = Rendition & {
   annotations: {
     highlight: ReturnType<typeof vi.fn>;
     remove: ReturnType<typeof vi.fn>;
+    underline: ReturnType<typeof vi.fn>;
   };
   emitContentMock: (content: { document?: Document; window?: Window }) => void;
   emitMock: (event: string, ...args: unknown[]) => void;
@@ -79,6 +80,7 @@ function createMockRendition(): MockRendition {
     annotations: {
       highlight: vi.fn(),
       remove: vi.fn(),
+      underline: vi.fn(),
     },
     display: vi.fn(async () => undefined),
     next: vi.fn(async () => undefined),
@@ -341,6 +343,7 @@ function defaultViewerProps(fileBlob: Blob) {
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
     onNavigationHistoryChange: vi.fn(),
+    onPublicationSearchChange: vi.fn(),
     onReady: vi.fn(),
     readerTheme,
     sessionIdentity,
@@ -368,9 +371,10 @@ async function renderViewer(
 async function rerenderViewer(
   root: Root,
   props: ReturnType<typeof defaultViewerProps>,
+  viewerRef?: Ref<EpubViewerHandle>,
 ): Promise<void> {
   await act(async () => {
-    root.render(<EpubViewer {...props} />);
+    root.render(<EpubViewer {...props} ref={viewerRef} />);
   });
 }
 
@@ -1061,6 +1065,246 @@ describe("EpubViewer navigation lifecycle", () => {
       canGoForward: false,
       forwardCount: 0,
     });
+  });
+
+  it("routes selected publication-search results through deliberate history and clears transient emphasis", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    act(() => {
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:4)"),
+      );
+    });
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+    expect(viewerRef.current?.getPublicationSearchState().status).toBe("ready");
+
+    const searchState = viewerRef.current!.getPublicationSearchState();
+    expect(searchState.results).toHaveLength(1);
+    expect(searchState.selectedResult).toBe(searchState.results[0]);
+    const target = searchState.selectedResult!.target;
+    expect(session.rendition.annotations.underline).toHaveBeenCalledWith(
+      target,
+      { transient: "reader-search-match" },
+      undefined,
+      "archeion-search-match-emphasis",
+      undefined,
+    );
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToSelectedPublicationSearchResult()).resolves.toBe(
+        true,
+      );
+    });
+
+    expect(session.rendition.display).toHaveBeenLastCalledWith(target);
+    expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
+      backCount: 1,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+
+    act(() => viewerRef.current?.closePublicationSearch());
+    expect(viewerRef.current?.getPublicationSearchState()).toEqual(
+      expect.objectContaining({
+        query: "",
+        results: [],
+        selectedResult: null,
+        status: "idle",
+      }),
+    );
+    expect(session.rendition.annotations.remove).toHaveBeenCalledWith(target, "underline");
+    expect(props.onPublicationSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "idle" }),
+    );
+  });
+
+  it("preserves ready publication search and reapplies emphasis across a same-Reader mode replacement", async () => {
+    const paged = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const continuous = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValueOnce(paged.book).mockReturnValueOnce(continuous.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    const { root } = await renderViewer(props, viewerRef);
+    await waitForActiveRendition(paged);
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+
+    const beforeReplacement = viewerRef.current!.getPublicationSearchState();
+    expect(beforeReplacement.status).toBe("ready");
+    expect(beforeReplacement.query).toBe("Highlighted");
+    expect(beforeReplacement.results).toHaveLength(1);
+    const selectedId = beforeReplacement.selectedResult?.id;
+    const target = beforeReplacement.selectedResult?.target;
+    expect(selectedId).toBeTruthy();
+    expect(target).toBeTruthy();
+    expect(viewerRef.current!.getNavigationHistorySnapshot().backCount).toBe(0);
+
+    await rerenderViewer(
+      root,
+      { ...props, settings: { ...defaultReaderSettings, mode: "continuous" } },
+      viewerRef,
+    );
+    await waitForActiveRendition(continuous);
+    await flushAsyncWork();
+
+    const afterReplacement = viewerRef.current!.getPublicationSearchState();
+    expect(paged.rendition.annotations.remove).toHaveBeenCalledWith(target, "underline");
+    expect(afterReplacement).toEqual(
+      expect.objectContaining({
+        query: "Highlighted",
+        status: "ready",
+      }),
+    );
+    expect(afterReplacement.results).toBe(beforeReplacement.results);
+    expect(afterReplacement.selectedResult).toBe(beforeReplacement.selectedResult);
+    expect(continuous.rendition.annotations.underline).toHaveBeenCalledWith(
+      target,
+      { transient: "reader-search-match" },
+      undefined,
+      "archeion-search-match-emphasis",
+      undefined,
+    );
+    expect(viewerRef.current!.getNavigationHistorySnapshot()).toEqual({
+      backCount: 0,
+      canGoBack: false,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("restarts a pending publication search once on the replacement runtime", async () => {
+    const paged = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const continuous = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const oldLoad = deferred<HTMLElement>();
+    paged.section.document = undefined;
+    paged.section.contents = undefined;
+    paged.section.cfiFromRange.mockReturnValue("epubcfi(/old-runtime)");
+    paged.section.load.mockImplementation(async () => {
+      const contents = await oldLoad.promise;
+      paged.section.document = paged.chapterDocument;
+      paged.section.contents = contents;
+      return contents;
+    });
+    continuous.section.cfiFromRange.mockReturnValue("epubcfi(/replacement-runtime)");
+    epubModuleMock.openBook.mockReturnValueOnce(paged.book).mockReturnValueOnce(continuous.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    const { root } = await renderViewer(props, viewerRef);
+    await waitForActiveRendition(paged);
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+    expect(viewerRef.current!.getPublicationSearchState()).toEqual(
+      expect.objectContaining({ query: "Highlighted", status: "searching" }),
+    );
+    expect(paged.section.load).toHaveBeenCalledTimes(1);
+
+    const searchChangesBeforeReplacement = props.onPublicationSearchChange.mock.calls.length;
+    await rerenderViewer(
+      root,
+      { ...props, settings: { ...defaultReaderSettings, mode: "continuous" } },
+      viewerRef,
+    );
+    await waitForActiveRendition(continuous);
+    await flushAsyncWork();
+
+    const replacementState = viewerRef.current!.getPublicationSearchState();
+    expect(paged.destroy).toHaveBeenCalledTimes(1);
+    expect(replacementState.status).toBe("ready");
+    expect(replacementState.query).toBe("Highlighted");
+    expect(replacementState.results).toHaveLength(1);
+    expect(replacementState.selectedResult?.target).toBe("epubcfi(/replacement-runtime)");
+    expect(continuous.section.cfiFromRange).toHaveBeenCalled();
+    expect(continuous.rendition.annotations.underline).toHaveBeenCalledWith(
+      "epubcfi(/replacement-runtime)",
+      { transient: "reader-search-match" },
+      undefined,
+      "archeion-search-match-emphasis",
+      undefined,
+    );
+    expect(
+      props.onPublicationSearchChange.mock.calls
+        .slice(searchChangesBeforeReplacement)
+        .some(([state]) => state.query === "Highlighted" && state.status === "idle"),
+    ).toBe(false);
+
+    await act(async () => {
+      oldLoad.resolve(paged.chapterDocument.documentElement);
+      await oldLoad.promise;
+    });
+    await flushAsyncWork();
+
+    expect(paged.section.unload).toHaveBeenCalledTimes(1);
+    expect(viewerRef.current!.getPublicationSearchState().selectedResult?.target).toBe(
+      "epubcfi(/replacement-runtime)",
+    );
+  });
+
+  it("routes publication-search updates to a replacement callback", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const replacementSearchCallback = vi.fn();
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    const { root } = await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    props.onPublicationSearchChange.mockClear();
+    await rerenderViewer(
+      root,
+      { ...props, onPublicationSearchChange: replacementSearchCallback },
+      viewerRef,
+    );
+
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+
+    expect(replacementSearchCallback).toHaveBeenLastCalledWith(
+      expect.objectContaining({ query: "Highlighted", status: "ready" }),
+    );
+    expect(props.onPublicationSearchChange).not.toHaveBeenCalled();
+  });
+
+  it("clears publication-search state and transient emphasis when the Reader session is replaced", async () => {
+    const first = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    const second = createBookSession("chapter-2", "Text/chapter-2.xhtml");
+    epubModuleMock.openBook.mockReturnValueOnce(first.book).mockReturnValueOnce(second.book);
+    const firstProps = defaultViewerProps(new Blob(["book-one"]));
+    const secondProps = defaultViewerProps(new Blob(["book-two"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    const { root } = await renderViewer(firstProps, viewerRef);
+    await waitForActiveRendition(first);
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+    expect(viewerRef.current?.getPublicationSearchState().status).toBe("ready");
+    const target = viewerRef.current?.getPublicationSearchState().selectedResult?.target;
+    expect(target).toBeTruthy();
+
+    await rerenderViewer(root, secondProps, viewerRef);
+    await waitForActiveRendition(second);
+
+    expect(first.rendition.annotations.remove).toHaveBeenCalledWith(target, "underline");
+    expect(viewerRef.current?.getPublicationSearchState()).toEqual(
+      expect.objectContaining({
+        query: "",
+        results: [],
+        selectedResult: null,
+        status: "idle",
+      }),
+    );
+    expect(secondProps.onPublicationSearchChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ status: "idle" }),
+    );
   });
 
   it("records supported internal EPUB link navigation through deliberate history", async () => {
