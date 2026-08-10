@@ -21,14 +21,15 @@ afterEach(() => {
 });
 
 function chapter(id: string, label: string, depth = 0): ReaderChapter {
-  return { id, label, href: `${id}.xhtml`, depth };
+  const href = `${id}.xhtml`;
+  return { id, label, href, target: href, position: {}, depth };
 }
 
 function navigation(
   chapters: readonly ReaderChapter[],
   currentChapterId?: string,
 ): ReaderNavigationState {
-  return { chapters, currentChapterId, status: "ready" };
+  return { chapters, currentChapterId, landmarks: [], pageReferences: [], status: "ready" };
 }
 
 function renderPanel(
@@ -226,14 +227,24 @@ describe("ReaderTocPanel", () => {
   });
 
   it("shows loading and empty states without exposing a false empty state", () => {
-    const loading = renderPanel({ chapters: [], status: "loading" });
+    const loading = renderPanel({
+      chapters: [],
+      landmarks: [],
+      pageReferences: [],
+      status: "loading",
+    });
     expect(loading.container.querySelector('[role="status"]')).not.toBeNull();
     expect(loading.container.textContent).not.toContain("No table of contents");
 
     act(() => {
       root?.render(
         <ReaderTocPanel
-          navigation={{ chapters: [], status: "ready" }}
+          navigation={{
+            chapters: [],
+            landmarks: [],
+            pageReferences: [],
+            status: "ready",
+          }}
           onClose={loading.onClose}
           onNavigate={loading.onNavigate}
         />,

@@ -39,6 +39,7 @@ import { bookTitle } from "../../utils/bookDisplay";
 import { type ReaderNavigationState, type ReaderSettings } from "../../types/reader";
 import { EpubViewer, type EpubViewerHandle } from "./EpubViewer";
 import { deriveReaderChapterSequence } from "./readerChapterChrome";
+import { createLoadingReaderNavigationState } from "./readerNavigationState";
 import {
   EMPTY_READER_LOCATION,
   type ReaderLocation,
@@ -134,10 +135,9 @@ export function ReaderPage() {
   const lastControlsRevealAt = useRef(0);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
-  const [navigationState, setNavigationState] = useState<ReaderNavigationState>({
-    chapters: [],
-    status: "loading",
-  });
+  const [navigationState, setNavigationState] = useState<ReaderNavigationState>(() =>
+    createLoadingReaderNavigationState(),
+  );
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
@@ -747,7 +747,7 @@ export function ReaderPage() {
       const failureKind = error.kind === "open-failed" ? "epub-open-failed" : null;
       if (!failureKind || !readerSessionController.fail(identity, failureKind)) return;
       setReaderReady(false);
-      setNavigationState({ chapters: [], status: "loading" });
+      setNavigationState(createLoadingReaderNavigationState());
     },
     [readerSessionController],
   );
@@ -763,7 +763,7 @@ export function ReaderPage() {
     );
     if (!recoveryIdentity) return;
     setReaderReady(false);
-    setNavigationState({ chapters: [], status: "loading" });
+    setNavigationState(createLoadingReaderNavigationState());
   }, [progressController, readerSessionController]);
 
   const handleRescanAndReturn = useCallback(() => {

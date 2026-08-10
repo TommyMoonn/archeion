@@ -35,7 +35,14 @@ const annotation: Annotation = {
   updatedAt: "2026-07-14T00:00:00.000Z",
 };
 const chapters = [
-  { depth: 0, href: "chapter.xhtml", id: "chapter", label: "Chapter One" },
+  {
+    depth: 0,
+    href: "chapter.xhtml",
+    id: "chapter",
+    label: "Chapter One",
+    position: {},
+    target: "chapter.xhtml",
+  },
 ] as const;
 
 function Harness({

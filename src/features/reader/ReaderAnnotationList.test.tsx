@@ -14,8 +14,22 @@ import {
 
 const timestamp = "2026-07-12T00:00:00.000Z";
 const chapters: ReaderChapter[] = [
-  { depth: 0, href: "Text/chapter-1.xhtml", id: "chapter-1", label: "Chapter One" },
-  { depth: 0, href: "Text/chapter-2.xhtml", id: "chapter-2", label: "Chapter Two" },
+  {
+    depth: 0,
+    href: "Text/chapter-1.xhtml",
+    id: "chapter-1",
+    label: "Chapter One",
+    position: {},
+    target: "Text/chapter-1.xhtml",
+  },
+  {
+    depth: 0,
+    href: "Text/chapter-2.xhtml",
+    id: "chapter-2",
+    label: "Chapter Two",
+    position: {},
+    target: "Text/chapter-2.xhtml",
+  },
 ];
 const bookmark: BookmarkAnnotation = {
   chapterHref: chapters[0].href,

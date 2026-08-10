@@ -15,7 +15,7 @@ export function createReaderNavigationStateController(
   onChange: (state: ReaderNavigationState) => void,
 ): ReaderNavigationStateController {
   let model = emptyReaderNavigationModel;
-  let state: ReaderNavigationState = { chapters: model.chapters, status: "loading" };
+  let state: ReaderNavigationState = loadingNavigationState();
   let lastLocation: Location | null = null;
   let ready = false;
 
@@ -32,6 +32,8 @@ export function createReaderNavigationStateController(
 
     publish({
       chapters: model.chapters,
+      landmarks: model.landmarks,
+      pageReferences: model.pageReferences,
       status: "ready",
       ...(currentChapterId ? { currentChapterId } : {}),
       ...(chapterProgress !== undefined ? { chapterProgress } : {}),
@@ -49,7 +51,7 @@ export function createReaderNavigationStateController(
       model = emptyReaderNavigationModel;
       lastLocation = null;
       ready = false;
-      publish({ chapters: model.chapters, status: "loading" });
+      publish(loadingNavigationState());
     },
     setModel(nextModel) {
       model = nextModel;
@@ -57,6 +59,10 @@ export function createReaderNavigationStateController(
       publishReadyState();
     },
   };
+}
+
+export function createLoadingReaderNavigationState(): ReaderNavigationState {
+  return loadingNavigationState();
 }
 
 export function normalizeReaderChapterProgress(location: Location): number | undefined {
@@ -73,12 +79,23 @@ export function normalizeReaderChapterProgress(location: Location): number | und
   return Math.round(clamp((displayedPage / displayedTotal) * 100, 0, 100));
 }
 
+function loadingNavigationState(): ReaderNavigationState {
+  return {
+    chapters: emptyReaderNavigationModel.chapters,
+    landmarks: emptyReaderNavigationModel.landmarks,
+    pageReferences: emptyReaderNavigationModel.pageReferences,
+    status: "loading",
+  };
+}
+
 function readerNavigationStatesEqual(
   left: ReaderNavigationState,
   right: ReaderNavigationState,
 ): boolean {
   return (
     left.chapters === right.chapters &&
+    left.landmarks === right.landmarks &&
+    left.pageReferences === right.pageReferences &&
     left.currentChapterId === right.currentChapterId &&
     left.chapterProgress === right.chapterProgress &&
     left.status === right.status

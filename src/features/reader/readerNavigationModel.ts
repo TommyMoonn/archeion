@@ -1,11 +1,21 @@
 import type { Book as EpubBook, Location } from "epubjs";
 
-import type { ReaderChapter } from "../../types/reader";
+import type {
+  ReaderChapter,
+  ReaderLandmark,
+  ReaderNavigationItem,
+  ReaderPageReference,
+} from "../../types/reader";
 import {
   createReaderNavigationAdapter,
   type ReaderNavigationAdapter,
+  type ReaderNavigationDocumentTarget,
   type ReaderNavigationTarget,
 } from "./readerNavigationAdapter";
+import {
+  loadReaderNavigationSource,
+  type ReaderPageReferenceSource,
+} from "./readerNavigationSource";
 
 type NavigationTreeItem = {
   href?: unknown;
@@ -21,104 +31,96 @@ type NavigationFrame = {
   path: number[];
 };
 
-type ResolvedChapter = ReaderNavigationTarget & {
+type UnresolvedNavigationItem = {
+  href: string;
+  id: string;
+  label: string;
+};
+
+type UnresolvedChapter = UnresolvedNavigationItem & {
+  depth: number;
+  parentId?: string;
+};
+
+type UnresolvedLandmark = UnresolvedNavigationItem & {
+  semanticType?: string;
+};
+
+type UnresolvedPageReference = UnresolvedNavigationItem;
+
+type ResolvedChapter = ReaderNavigationDocumentTarget & {
   chapter: ReaderChapter;
 };
 
 export type ReaderNavigationModel = {
   readonly chapters: readonly ReaderChapter[];
+  readonly landmarks: readonly ReaderLandmark[];
+  readonly pageReferences: readonly ReaderPageReference[];
   findCurrentChapter: (location: Location) => ReaderChapter | undefined;
-  resolveChapterTarget: (chapterId: string) => string | undefined;
+  findNearestChapter: (cfi: string) => ReaderChapter | undefined;
+  resolveItemTarget: (itemId: string) => string | undefined;
 };
 
 const EMPTY_CHAPTERS: readonly ReaderChapter[] = Object.freeze([]);
+const EMPTY_LANDMARKS: readonly ReaderLandmark[] = Object.freeze([]);
+const EMPTY_PAGE_REFERENCES: readonly ReaderPageReference[] = Object.freeze([]);
 
 export const emptyReaderNavigationModel: ReaderNavigationModel = Object.freeze({
   chapters: EMPTY_CHAPTERS,
+  landmarks: EMPTY_LANDMARKS,
+  pageReferences: EMPTY_PAGE_REFERENCES,
   findCurrentChapter: () => undefined,
-  resolveChapterTarget: () => undefined,
+  findNearestChapter: () => undefined,
+  resolveItemTarget: () => undefined,
 });
 
-export function flattenReaderNavigation(tree: unknown): ReaderChapter[] {
-  if (!Array.isArray(tree)) {
-    return [];
-  }
-
-  const chapters: ReaderChapter[] = [];
-  const seenItems = new WeakSet<object>();
-  const usedIds = new Set<string>();
-  const stack: NavigationFrame[] = [];
-
-  for (let index = tree.length - 1; index >= 0; index -= 1) {
-    stack.push({ depth: 0, item: tree[index], path: [index] });
-  }
-
-  while (stack.length > 0) {
-    const frame = stack.pop();
-
-    if (!frame || !isNavigationTreeItem(frame.item) || seenItems.has(frame.item)) {
-      continue;
-    }
-
-    seenItems.add(frame.item);
-    const href = nonEmptyString(frame.item.href);
-    let childParentId = frame.parentId;
-
-    if (href) {
-      const id = uniqueChapterId(
-        nonEmptyString(frame.item.id) ??
-          `chapter-${frame.path.map((index) => index + 1).join("-")}`,
-        usedIds,
-      );
-      const chapter: ReaderChapter = {
-        id,
-        label: normalizedLabel(frame.item.label) ?? href,
-        href,
-        depth: frame.depth,
-      };
-
-      if (frame.parentId) {
-        chapter.parentId = frame.parentId;
-      }
-
-      chapters.push(chapter);
-      childParentId = id;
-    }
-
-    if (!Array.isArray(frame.item.subitems)) {
-      continue;
-    }
-
-    for (let index = frame.item.subitems.length - 1; index >= 0; index -= 1) {
-      stack.push({
-        depth: frame.depth + 1,
-        item: frame.item.subitems[index],
-        parentId: childParentId,
-        path: [...frame.path, index],
-      });
-    }
-  }
-
-  return chapters;
-}
-
 export async function loadReaderNavigationModel(book: EpubBook): Promise<ReaderNavigationModel> {
+  const source = await loadReaderNavigationSource(book);
+  const usedIds = new Set<string>();
+  const navigationRecord = asRecord(source.navigation);
+  const unresolvedChapters = parseContents(navigationRecord?.toc, usedIds);
+  const unresolvedLandmarks = parseLandmarks(navigationRecord?.landmarks, usedIds);
+  const unresolvedPageReferences = parsePageReferences(source.pageReferences, usedIds);
+  const unresolvedItems = [
+    ...unresolvedChapters,
+    ...unresolvedLandmarks,
+    ...unresolvedPageReferences,
+  ];
+
+  if (unresolvedItems.length === 0) {
+    return emptyReaderNavigationModel;
+  }
+
   try {
-    const navigation = await book.loaded.navigation;
-    const chapters = flattenReaderNavigation(navigation?.toc);
-
-    if (chapters.length === 0) {
-      return emptyReaderNavigationModel;
-    }
-
     const adapter = createReaderNavigationAdapter(book);
-    const targets = await adapter.resolveTargets(chapters.map((chapter) => chapter.href));
+    const targets = await adapter.resolveTargets(unresolvedItems.map((item) => item.href));
+    const chapterTargets = targets.slice(0, unresolvedChapters.length);
+    const landmarkOffset = unresolvedChapters.length;
+    const pageReferenceOffset = landmarkOffset + unresolvedLandmarks.length;
+    const landmarkTargets = targets.slice(landmarkOffset, pageReferenceOffset);
+    const pageReferenceTargets = targets.slice(pageReferenceOffset);
+    const chapters = unresolvedChapters.map((chapter, index) =>
+      resolveChapter(chapter, chapterTargets[index]),
+    );
+    const landmarks = unresolvedLandmarks.map((landmark, index) =>
+      resolveLandmark(landmark, landmarkTargets[index]),
+    );
+    const pageReferences = unresolvedPageReferences.map((pageReference, index) =>
+      resolvePageReference(pageReference, pageReferenceTargets[index]),
+    );
     const resolvedChapters = chapters.map<ResolvedChapter>((chapter, index) => ({
       chapter,
-      ...targets[index],
+      canonicalDocumentHref: chapterTargets[index].canonicalDocumentHref,
+      canonicalFullHref: chapterTargets[index].canonicalFullHref,
     }));
 
-    return createReaderNavigationModel(chapters, resolvedChapters, adapter);
+    return createReaderNavigationModel(
+      chapters,
+      landmarks,
+      pageReferences,
+      resolvedChapters,
+      adapter,
+    );
   } catch {
     return emptyReaderNavigationModel;
   }
@@ -126,15 +128,19 @@ export async function loadReaderNavigationModel(book: EpubBook): Promise<ReaderN
 
 function createReaderNavigationModel(
   chapters: readonly ReaderChapter[],
+  landmarks: readonly ReaderLandmark[],
+  pageReferences: readonly ReaderPageReference[],
   resolvedChapters: readonly ResolvedChapter[],
   adapter: ReaderNavigationAdapter,
 ): ReaderNavigationModel {
-  const chapterById = new Map(
-    resolvedChapters.map((resolvedChapter) => [resolvedChapter.chapter.id, resolvedChapter]),
+  const targetByItemId = new Map(
+    [...chapters, ...landmarks, ...pageReferences].map((item) => [item.id, item.target]),
   );
 
   return {
     chapters,
+    landmarks,
+    pageReferences,
     findCurrentChapter(location) {
       const locationHref = nonEmptyString(location.start?.href);
       const locationCfi = nonEmptyString(location.start?.cfi);
@@ -173,9 +179,195 @@ function createReaderNavigationModel(
       return closestPrecedingSpineChapter(resolvedChapters, finiteNumber(location.start?.index))
         ?.chapter;
     },
-    resolveChapterTarget(chapterId) {
-      return chapterById.get(chapterId)?.displayTarget;
+    findNearestChapter(cfi) {
+      const position = adapter.resolveCfiPosition(cfi);
+
+      if (!position) {
+        return undefined;
+      }
+
+      const sameSpineChapters =
+        position.spineIndex === undefined
+          ? []
+          : resolvedChapters.filter(
+              (chapter) => chapter.chapter.position.spineIndex === position.spineIndex,
+            );
+      const comparableChapter = position.cfi
+        ? latestChapterAtOrBefore(
+            sameSpineChapters.length > 0 ? sameSpineChapters : resolvedChapters,
+            position.cfi,
+            adapter,
+          )
+        : undefined;
+
+      if (comparableChapter) {
+        return comparableChapter.chapter;
+      }
+
+      if (sameSpineChapters.length > 0) {
+        return sameSpineChapters[0]?.chapter;
+      }
+
+      return closestPrecedingSpineChapter(resolvedChapters, position.spineIndex)?.chapter;
     },
+    resolveItemTarget(itemId) {
+      return targetByItemId.get(itemId);
+    },
+  };
+}
+
+function parseContents(tree: unknown, usedIds: Set<string>): UnresolvedChapter[] {
+  if (!Array.isArray(tree)) {
+    return [];
+  }
+
+  const chapters: UnresolvedChapter[] = [];
+  const seenItems = new WeakSet<object>();
+  const stack: NavigationFrame[] = [];
+
+  for (let index = tree.length - 1; index >= 0; index -= 1) {
+    stack.push({ depth: 0, item: tree[index], path: [index] });
+  }
+
+  while (stack.length > 0) {
+    const frame = stack.pop();
+
+    if (!frame || !isNavigationTreeItem(frame.item) || seenItems.has(frame.item)) {
+      continue;
+    }
+
+    seenItems.add(frame.item);
+    const href = nonEmptyString(frame.item.href);
+    let childParentId = frame.parentId;
+
+    if (href) {
+      const id = uniqueNavigationItemId(
+        nonEmptyString(frame.item.id) ??
+          `chapter-${frame.path.map((index) => index + 1).join("-")}`,
+        usedIds,
+      );
+      const chapter: UnresolvedChapter = {
+        id,
+        label: normalizedLabel(frame.item.label) ?? href,
+        href,
+        depth: frame.depth,
+      };
+
+      if (frame.parentId) {
+        chapter.parentId = frame.parentId;
+      }
+
+      chapters.push(chapter);
+      childParentId = id;
+    }
+
+    if (!Array.isArray(frame.item.subitems)) {
+      continue;
+    }
+
+    for (let index = frame.item.subitems.length - 1; index >= 0; index -= 1) {
+      stack.push({
+        depth: frame.depth + 1,
+        item: frame.item.subitems[index],
+        parentId: childParentId,
+        path: [...frame.path, index],
+      });
+    }
+  }
+
+  return chapters;
+}
+
+function parseLandmarks(value: unknown, usedIds: Set<string>): UnresolvedLandmark[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const landmarks: UnresolvedLandmark[] = [];
+
+  for (let index = 0; index < value.length; index += 1) {
+    const item = asRecord(value[index]);
+    const href = nonEmptyString(item?.href);
+
+    if (!item || !href) {
+      continue;
+    }
+
+    const semanticType = nonEmptyString(item.type);
+    const landmark: UnresolvedLandmark = {
+      id: uniqueNavigationItemId(nonEmptyString(item.id) ?? `landmark-${index + 1}`, usedIds),
+      label: normalizedLabel(item.label) ?? semanticType ?? href,
+      href,
+    };
+
+    if (semanticType) {
+      landmark.semanticType = semanticType;
+    }
+
+    landmarks.push(landmark);
+  }
+
+  return landmarks;
+}
+
+function parsePageReferences(
+  entries: readonly ReaderPageReferenceSource[],
+  usedIds: Set<string>,
+): UnresolvedPageReference[] {
+  const pageReferences: UnresolvedPageReference[] = [];
+
+  for (let index = 0; index < entries.length; index += 1) {
+    const item = entries[index];
+    const href = nonEmptyString(item?.href);
+    const label = normalizedLabel(item?.label);
+
+    if (!item || !href || !label) {
+      continue;
+    }
+
+    pageReferences.push({
+      id: uniqueNavigationItemId(nonEmptyString(item.id) ?? `page-reference-${index + 1}`, usedIds),
+      label,
+      href,
+    });
+  }
+
+  return pageReferences;
+}
+
+function resolveChapter(chapter: UnresolvedChapter, target: ReaderNavigationTarget): ReaderChapter {
+  return {
+    ...chapter,
+    ...resolvedItemFields(target),
+  };
+}
+
+function resolveLandmark(
+  landmark: UnresolvedLandmark,
+  target: ReaderNavigationTarget,
+): ReaderLandmark {
+  return {
+    ...landmark,
+    ...resolvedItemFields(target),
+  };
+}
+
+function resolvePageReference(
+  pageReference: UnresolvedPageReference,
+  target: ReaderNavigationTarget,
+): ReaderPageReference {
+  return {
+    ...pageReference,
+    ...resolvedItemFields(target),
+  };
+}
+
+function resolvedItemFields(
+  target: ReaderNavigationTarget,
+): Pick<ReaderNavigationItem, "position" | "target"> {
+  return {
+    position: target.position,
+    target: target.displayTarget,
   };
 }
 
@@ -187,7 +379,7 @@ function latestChapterAtOrBefore(
   let closestChapter: ResolvedChapter | undefined;
 
   for (const chapter of chapters) {
-    const chapterCfi = chapter.position.cfi;
+    const chapterCfi = chapter.chapter.position.cfi;
 
     if (!chapterCfi) {
       continue;
@@ -204,7 +396,7 @@ function latestChapterAtOrBefore(
       continue;
     }
 
-    const closestCfi = closestChapter.position.cfi;
+    const closestCfi = closestChapter.chapter.position.cfi;
     const closestOrder = closestCfi ? adapter.compareCfis(closestCfi, chapterCfi) : undefined;
 
     if (closestOrder === undefined || closestOrder < 0) {
@@ -226,13 +418,13 @@ function closestPrecedingSpineChapter(
   let closestChapter: ResolvedChapter | undefined;
 
   for (const chapter of chapters) {
-    const spineIndex = chapter.position.spineIndex;
+    const spineIndex = chapter.chapter.position.spineIndex;
 
     if (
       spineIndex === undefined ||
       spineIndex > locationIndex ||
       (closestChapter !== undefined &&
-        spineIndex <= (closestChapter.position.spineIndex ?? Number.NEGATIVE_INFINITY))
+        spineIndex <= (closestChapter.chapter.position.spineIndex ?? Number.NEGATIVE_INFINITY))
     ) {
       continue;
     }
@@ -247,6 +439,12 @@ function isNavigationTreeItem(value: unknown): value is NavigationTreeItem & obj
   return typeof value === "object" && value !== null;
 }
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === "object" && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
 function nonEmptyString(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
@@ -257,11 +455,15 @@ function nonEmptyString(value: unknown): string | undefined {
 }
 
 function normalizedLabel(value: unknown): string | undefined {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? String(value) : undefined;
+  }
+
   const label = nonEmptyString(value);
   return label?.replace(/\s+/g, " ");
 }
 
-function uniqueChapterId(baseId: string, usedIds: Set<string>): string {
+function uniqueNavigationItemId(baseId: string, usedIds: Set<string>): string {
   if (!usedIds.has(baseId)) {
     usedIds.add(baseId);
     return baseId;

@@ -5,11 +5,20 @@ import { deriveReaderChapterSequence } from "./readerChapterChrome";
 import { normalizeReaderChapterProgress } from "./readerNavigationState";
 
 const chapters: ReaderChapter[] = [
-  { id: "part", label: "Part One", href: "part.xhtml", depth: 0 },
+  {
+    id: "part",
+    label: "Part One",
+    href: "part.xhtml",
+    target: "part.xhtml",
+    position: {},
+    depth: 0,
+  },
   {
     id: "chapter-1",
     label: "Chapter One",
     href: "chapter-1.xhtml",
+    target: "chapter-1.xhtml",
+    position: {},
     depth: 1,
     parentId: "part",
   },
@@ -17,6 +26,8 @@ const chapters: ReaderChapter[] = [
     id: "chapter-2",
     label: "Chapter Two",
     href: "chapter-2.xhtml",
+    target: "chapter-2.xhtml",
+    position: {},
     depth: 1,
     parentId: "part",
   },

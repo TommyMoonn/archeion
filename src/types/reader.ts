@@ -5,18 +5,36 @@ export type ReaderMode = "paged" | "continuous";
 
 export type ReaderFontFamily = "serif" | "sans" | "system" | "literata" | "atkinson";
 
-export type ReaderChapter = {
+export type ReaderNavigationPosition = {
+  cfi?: string;
+  spineIndex?: number;
+};
+
+export type ReaderNavigationItem = {
   id: string;
   label: string;
   href: string;
+  target: string;
+  position: ReaderNavigationPosition;
+};
+
+export type ReaderChapter = ReaderNavigationItem & {
   depth: number;
   parentId?: string;
 };
+
+export type ReaderLandmark = ReaderNavigationItem & {
+  semanticType?: string;
+};
+
+export type ReaderPageReference = ReaderNavigationItem;
 
 export type ReaderNavigationState = {
   chapterProgress?: number;
   chapters: readonly ReaderChapter[];
   currentChapterId?: string;
+  landmarks: readonly ReaderLandmark[];
+  pageReferences: readonly ReaderPageReference[];
   status: "loading" | "ready";
 };
 

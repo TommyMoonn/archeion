@@ -1,9 +1,6 @@
 import type { Book as EpubBook } from "epubjs";
 
-export type ReaderNavigationComparablePosition = {
-  cfi?: string;
-  spineIndex?: number;
-};
+import type { ReaderNavigationPosition } from "../../types/reader";
 
 export type ReaderNavigationDocumentTarget = {
   canonicalDocumentHref: string;
@@ -12,11 +9,12 @@ export type ReaderNavigationDocumentTarget = {
 
 export type ReaderNavigationTarget = ReaderNavigationDocumentTarget & {
   displayTarget: string;
-  position: ReaderNavigationComparablePosition;
+  position: ReaderNavigationPosition;
 };
 
 export type ReaderNavigationAdapter = {
   compareCfis: (first: string, second: string) => number | undefined;
+  resolveCfiPosition: (cfi: string) => ReaderNavigationPosition | undefined;
   resolveLocationTarget: (href: string) => ReaderNavigationDocumentTarget;
   resolveTargets: (hrefs: readonly string[]) => Promise<ReaderNavigationTarget[]>;
 };
@@ -93,6 +91,9 @@ export function createReaderNavigationAdapter(book: EpubBook): ReaderNavigationA
         return undefined;
       }
     },
+    resolveCfiPosition(cfi) {
+      return resolveCfiPosition(adaptedBook, cfi);
+    },
     resolveLocationTarget(href) {
       const target = resolveNavigationTarget(
         adaptedBook,
@@ -132,6 +133,21 @@ function resolveNavigationTarget(
   spineSections: readonly EpubSectionAdapter[],
 ): InternalResolvedTarget {
   const parts = splitNavigationTarget(href);
+  const cfi = navigationTargetCfi(parts);
+
+  if (cfi) {
+    const position = resolveCfiPosition(book, cfi) ?? { cfi };
+    const section = sectionForCfi(book, cfi);
+    const sectionHref = nonEmptyString(section?.href);
+
+    return {
+      canonicalDocumentHref: canonicalDocumentIdentity(sectionHref ?? parts.documentHref),
+      canonicalFullHref: cfi,
+      displayTarget: cfi,
+      position,
+      section,
+    };
+  }
   const candidates = documentCandidates(parts.documentHref, navigationDocumentPaths);
   const section = findSpineSection(book, candidates, spineSections);
   const sectionHref = nonEmptyString(section?.href);
@@ -152,6 +168,49 @@ function resolveNavigationTarget(
   };
 }
 
+function resolveCfiPosition(
+  book: EpubNavigationBook,
+  cfi: string,
+): ReaderNavigationPosition | undefined {
+  const normalizedCfi = nonEmptyString(cfi);
+
+  if (!normalizedCfi) {
+    return undefined;
+  }
+
+  const section = sectionForCfi(book, normalizedCfi);
+  if (!section) {
+    return undefined;
+  }
+
+  return {
+    cfi: normalizedCfi,
+    spineIndex: finiteNumber(section.index),
+  };
+}
+
+function sectionForCfi(book: EpubNavigationBook, cfi: string): EpubSectionAdapter | undefined {
+  try {
+    return asEpubSection(book.spine.get(cfi));
+  } catch {
+    return undefined;
+  }
+}
+
+function navigationTargetCfi(parts: NavigationTargetParts): string | undefined {
+  const directTarget = nonEmptyString(parts.originalHref);
+  if (isEpubCfiString(directTarget)) {
+    return directTarget;
+  }
+
+  const fragment = nonEmptyString(parts.decodedFragment);
+  return isEpubCfiString(fragment) ? fragment : undefined;
+}
+
+function isEpubCfiString(value: string | undefined): value is string {
+  return value?.startsWith("epubcfi(") === true && value.endsWith(")");
+}
+
 function documentCandidates(
   documentHref: string,
   navigationDocumentPaths: readonly string[],
@@ -165,6 +224,12 @@ function documentCandidates(
   addCandidate(candidates, normalizeDocumentPath(decodedDocumentHref));
 
   for (const navigationDocumentPath of navigationDocumentPaths) {
+    if (!documentHref) {
+      addCandidate(candidates, normalizeDocumentPath(navigationDocumentPath));
+      addCandidate(candidates, normalizeDocumentPath(safeDecodeUri(navigationDocumentPath)));
+      continue;
+    }
+
     addCandidate(candidates, resolveRelativeDocumentPath(navigationDocumentPath, documentHref));
     addCandidate(
       candidates,
@@ -248,10 +313,6 @@ async function captureAnchorPositions(
   }
 
   for (const documentTargets of targetsByDocument.values()) {
-    if (documentTargets.length < 2) {
-      continue;
-    }
-
     const anchorTargets = documentTargets.filter(
       (target): target is InternalResolvedTarget & { fragment: string } =>
         target.fragment !== undefined,
@@ -259,6 +320,10 @@ async function captureAnchorPositions(
     const section = documentTargets.find((target) => target.section)?.section;
 
     if (anchorTargets.length === 0 || !section) {
+      continue;
+    }
+
+    if (documentTargets.length < 2 && !section.document) {
       continue;
     }
 

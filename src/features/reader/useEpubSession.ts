@@ -12,6 +12,7 @@ import type { ReaderContentTheme } from "./readerTheme";
 import { stabilizeContinuousRendition, type RenditionWithManager } from "./readerContinuousScroll";
 import { loadReaderNavigationModel } from "./readerNavigationModel";
 import {
+  createLoadingReaderNavigationState,
   createReaderNavigationStateController,
   type ReaderNavigationStateController,
 } from "./readerNavigationState";
@@ -283,7 +284,7 @@ export function useEpubSession({
 
   const navigateToChapter = useCallback(
     async (chapterId: string) => {
-      const target = navigationControllerRef.current?.getModel().resolveChapterTarget(chapterId);
+      const target = navigationControllerRef.current?.getModel().resolveItemTarget(chapterId);
       return target ? displayTarget(target) : false;
     },
     [displayTarget],
@@ -564,11 +565,7 @@ export function useEpubSession({
   ]);
 
   const getNavigationState = useCallback(
-    () =>
-      navigationControllerRef.current?.getState() ?? {
-        chapters: [],
-        status: "loading",
-      },
+    () => navigationControllerRef.current?.getState() ?? createLoadingReaderNavigationState(),
     [],
   );
   const applyContentTheme = useCallback(

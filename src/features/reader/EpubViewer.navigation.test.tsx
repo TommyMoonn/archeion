@@ -120,6 +120,8 @@ function createMockRendition(): MockRendition {
 function createBookSession(chapterId: string, chapterHref: string) {
   const bookListeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const navigation = deferred<MockNavigation>();
+  const navigationSource = deferred<Document>();
+  const navigationDocument = document.implementation.createHTMLDocument("navigation");
   const rendition = createMockRendition();
   const chapterDocument = document.implementation.createHTMLDocument(chapterId);
   chapterDocument.body.innerHTML = "<p id='chapter-text'>Highlighted text</p>";
@@ -149,7 +151,10 @@ function createBookSession(chapterId: string, chapterHref: string) {
     loaded: {
       navigation: navigation.promise,
     },
-    load: vi.fn(async () => undefined),
+    load: vi.fn(async (target: string) =>
+      target === "nav.xhtml" ? navigationSource.promise : undefined,
+    ),
+    navigation: undefined as MockNavigation | undefined,
     getRange: vi.fn(async () => {
       const range = chapterDocument.createRange();
       range.selectNodeContents(chapterDocument.querySelector("p")!);
@@ -200,7 +205,18 @@ function createBookSession(chapterId: string, chapterHref: string) {
     chapterDocument,
     destroy,
     generate,
-    navigation,
+    navigation: {
+      promise: navigation.promise,
+      reject(reason?: unknown) {
+        navigationSource.reject(reason);
+        navigation.reject(reason);
+      },
+      resolve(value: MockNavigation) {
+        book.navigation = value;
+        navigationSource.resolve(navigationDocument);
+        navigation.resolve(value);
+      },
+    },
     open,
     renderTo,
     rendition,
@@ -409,6 +425,8 @@ describe("EpubViewer navigation lifecycle", () => {
 
     expect(props.onNavigationChange).toHaveBeenCalledWith({
       chapters: [],
+      landmarks: [],
+      pageReferences: [],
       status: "loading",
     });
     expect(session.navigation.promise).toBeInstanceOf(Promise);
@@ -423,6 +441,8 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.rendition.display).toHaveBeenCalledTimes(1);
     expect(props.onNavigationChange).toHaveBeenLastCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
+      landmarks: [],
+      pageReferences: [],
       status: "ready",
     });
   });
@@ -870,6 +890,8 @@ describe("EpubViewer navigation lifecycle", () => {
     );
     expect(replacementNavigationCallback).toHaveBeenCalledWith({
       chapters: [expect.objectContaining({ id: "chapter-1" })],
+      landmarks: [],
+      pageReferences: [],
       status: "ready",
     });
   });
@@ -952,6 +974,8 @@ describe("EpubViewer navigation lifecycle", () => {
       chapterProgress: 25,
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       currentChapterId: "chapter-1",
+      landmarks: [],
+      pageReferences: [],
       status: "ready",
     });
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
@@ -980,6 +1004,8 @@ describe("EpubViewer navigation lifecycle", () => {
       chapterProgress: 50,
       chapters: [expect.objectContaining({ id: "chapter-1" })],
       currentChapterId: "chapter-1",
+      landmarks: [],
+      pageReferences: [],
       status: "ready",
     });
     expect(epubModuleMock.openBook).toHaveBeenCalledTimes(1);
@@ -1413,6 +1439,8 @@ describe("EpubViewer navigation lifecycle", () => {
     ).toBe(false);
     expect(navigationChanges).toHaveBeenLastCalledWith({
       chapters: [expect.objectContaining({ id: "new-chapter" })],
+      landmarks: [],
+      pageReferences: [],
       status: "ready",
     });
   });
