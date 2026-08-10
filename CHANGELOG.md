@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-08-10
+
+Archeion 1.0.2 improves Reader reliability around book sessions, reading progress, notes and annotations, temporary Reader surfaces, and exports.
+
+### Changed
+
+- Reworked Reader session handling so opening, replacing, retrying, and closing books use one consistent lifecycle.
+- Centralized book loading and EPUB startup so old or replaced Reader work is retired before newer state is shown.
+- Unified reading-progress restoration and saving so rapid navigation, book changes, and Reader exit settle through the same path.
+- Unified Reader appearance handling so saved appearance, temporary previews, and book replacement stay in sync.
+- Unified Reader exit handling so pending reading progress and authored changes settle before navigation continues.
+- Consolidated annotation editing, recovery, note drafts, note saves, and Undo around shared Reader state instead of separate competing paths.
+- Unified Reader panel and popup dismissal so Contents, Annotations, notes, highlight controls, footnotes, illustrations, and external-link dialogs follow one Escape and focus-return order.
+- Routed annotation and illustration exports through a shared save flow with consistent cancellation and failure handling.
+
+### Fixed
+
+- Prevented late work from an older, failed, or replaced Reader session from overwriting the current book state.
+- Prevented older location updates from replacing a newer reading position after rapid navigation or book replacement.
+- Prevented stale annotation recovery and note-save results from overwriting newer Reader changes.
+- Prevented failed annotation changes from entering Undo history and kept rapid Undo requests ordered.
+- Prevented overlapping Reader surfaces from dismissing in the wrong order or restoring focus to the wrong control.
+- Prevented cancelled Reader exports from being reported as failures.
+
+### Testing
+
+- Expanded regression coverage for Reader session replacement, EPUB startup and teardown, progress settlement, appearance restoration, Reader exit, annotations, note drafts and saves, Undo, surface dismissal and focus return, and export cancellation and failure handling.
+- Added frontend dependency-boundary checks to the normal verification path.
+
 ## [1.0.1] - 2026-08-04
 
 Archeion 1.0.1 restores normal application shutdown when using the custom titlebar or another native close request.
