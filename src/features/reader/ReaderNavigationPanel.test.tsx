@@ -11,6 +11,7 @@ import type {
   ReaderPageReference,
 } from "../../types/reader";
 import { ReaderNavigationPanel } from "./ReaderNavigationPanel";
+import { READER_PAGE_LIST_SEARCH_THRESHOLD } from "./readerNavigation";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 
 let root: Root | null = null;
@@ -82,6 +83,14 @@ function clickButtonByText(view: HTMLElement, label: string): HTMLButtonElement 
   return button;
 }
 
+function setSearchValue(input: HTMLInputElement, value: string): void {
+  act(() => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    setter?.call(input, value);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
 describe("ReaderNavigationPanel", () => {
   it("keeps the existing hierarchical Contents interaction for Contents-only publications", () => {
     const { container } = renderPanel(
@@ -109,11 +118,7 @@ describe("ReaderNavigationPanel", () => {
     const search = container.querySelector<HTMLInputElement>('input[type="search"]');
 
     expect(search).not.toBeNull();
-    act(() => {
-      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-      setter?.call(search, "last");
-      search?.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    setSearchValue(search!, "last");
 
     const chapterButtons = container.querySelectorAll(".reader-navigation__chapter");
     expect(chapterButtons).toHaveLength(1);
@@ -180,6 +185,138 @@ describe("ReaderNavigationPanel", () => {
     });
 
     expect(onNavigate).toHaveBeenCalledWith("page-a12");
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it("keeps short Page Lists directly browsable without Find page", () => {
+    const pageReferences = Array.from({ length: READER_PAGE_LIST_SEARCH_THRESHOLD }, (_, index) =>
+      pageReference(`page-${index + 1}`, String(index + 1)),
+    );
+    const { container } = renderPanel(navigation({ pageReferences }));
+
+    expect(container.querySelector<HTMLInputElement>('input[type="search"]')).toBeNull();
+    expect(container.querySelectorAll('nav[aria-label="Book pages"] button')).toHaveLength(
+      READER_PAGE_LIST_SEARCH_THRESHOLD,
+    );
+  });
+
+  it("filters a long Page List by publisher label case-insensitively while preserving labels and order", () => {
+    const labels = [
+      "i",
+      "IV",
+      "xii",
+      "1",
+      "12",
+      "112",
+      "213",
+      "214",
+      ...Array.from({ length: READER_PAGE_LIST_SEARCH_THRESHOLD - 7 }, (_, index) =>
+        String(300 + index),
+      ),
+    ];
+    const pageReferences = labels.map((label, index) => pageReference(`page-${index + 1}`, label));
+    const { container } = renderPanel(navigation({ pageReferences }));
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    expect(search.getAttribute("placeholder")).toBe("Find page");
+    setSearchValue(search, "iv");
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>('nav[aria-label="Book pages"] button')].map(
+        (button) => button.textContent?.trim(),
+      ),
+    ).toEqual(["IV"]);
+
+    setSearchValue(search, "21");
+    expect(
+      [...container.querySelectorAll<HTMLButtonElement>('nav[aria-label="Book pages"] button')].map(
+        (button) => button.textContent?.trim(),
+      ),
+    ).toEqual(["213", "214"]);
+  });
+
+  it("preserves independent Contents and Page List queries while switching collections", () => {
+    const chapters = Array.from({ length: 13 }, (_, index) =>
+      chapter(`chapter-${index + 1}`, index === 12 ? "Appendix Notes" : `Chapter ${index + 1}`),
+    );
+    const pageReferences = Array.from(
+      { length: READER_PAGE_LIST_SEARCH_THRESHOLD + 1 },
+      (_, index) =>
+        pageReference(
+          `page-${index + 1}`,
+          index === READER_PAGE_LIST_SEARCH_THRESHOLD ? "xii" : String(index + 1),
+        ),
+    );
+    const { container } = renderPanel(navigation({ chapters, pageReferences }));
+    let search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    setSearchValue(search, "appendix");
+    expect(container.querySelectorAll(".reader-navigation__chapter")).toHaveLength(1);
+
+    clickButtonByText(container, "Pages");
+    search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    expect(search.value).toBe("");
+    expect(container.querySelectorAll('nav[aria-label="Book pages"] button')).toHaveLength(
+      READER_PAGE_LIST_SEARCH_THRESHOLD + 1,
+    );
+    setSearchValue(search, "XII");
+    expect(container.querySelectorAll('nav[aria-label="Book pages"] button')).toHaveLength(1);
+
+    clickButtonByText(container, "Contents");
+    search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    expect(search.value).toBe("appendix");
+    expect(container.querySelectorAll(".reader-navigation__chapter")).toHaveLength(1);
+
+    clickButtonByText(container, "Pages");
+    search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+    expect(search.value).toBe("XII");
+    expect(container.querySelectorAll('nav[aria-label="Book pages"] button')).toHaveLength(1);
+  });
+
+  it("shows the current Page List query in the no-results state and clears back to publisher pages", () => {
+    const pageReferences = Array.from(
+      { length: READER_PAGE_LIST_SEARCH_THRESHOLD + 1 },
+      (_, index) => pageReference(`page-${index + 1}`, String(index + 1)),
+    );
+    const { container } = renderPanel(navigation({ pageReferences }));
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    setSearchValue(search, "not-a-page");
+    expect(container.querySelector(".reader-navigation__no-results")?.textContent).toContain(
+      "No page labels match “not-a-page”",
+    );
+    expect(container.querySelector('nav[aria-label="Book pages"]')).toBeNull();
+
+    clickButtonByText(container, "Clear search");
+    expect(search.value).toBe("");
+    expect(container.querySelectorAll('nav[aria-label="Book pages"] button')).toHaveLength(
+      READER_PAGE_LIST_SEARCH_THRESHOLD + 1,
+    );
+  });
+
+  it("navigates a filtered page reference through the existing navigation item callback", async () => {
+    const pageReferences = Array.from(
+      { length: READER_PAGE_LIST_SEARCH_THRESHOLD + 1 },
+      (_, index) =>
+        pageReference(
+          `page-${index + 1}`,
+          index === READER_PAGE_LIST_SEARCH_THRESHOLD ? "213" : String(index + 1),
+        ),
+    );
+    const { container, onClose, onNavigate } = renderPanel(navigation({ pageReferences }));
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]')!;
+
+    setSearchValue(search, "213");
+    const result = container.querySelector<HTMLButtonElement>(
+      'nav[aria-label="Book pages"] button',
+    );
+    expect(result?.textContent?.trim()).toBe("213");
+
+    await act(async () => {
+      result?.click();
+      await Promise.resolve();
+    });
+
+    expect(onNavigate).toHaveBeenCalledWith(`page-${READER_PAGE_LIST_SEARCH_THRESHOLD + 1}`);
     expect(onClose).toHaveBeenCalledOnce();
   });
 

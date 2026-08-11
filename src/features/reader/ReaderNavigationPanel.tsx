@@ -10,7 +10,11 @@ import type {
   ReaderNavigationState,
   ReaderPageReference,
 } from "../../types/reader";
-import { READER_CONTENTS_SEARCH_THRESHOLD } from "./readerNavigation";
+import {
+  matchesReaderNavigationSearch,
+  READER_CONTENTS_SEARCH_THRESHOLD,
+  READER_PAGE_LIST_SEARCH_THRESHOLD,
+} from "./readerNavigation";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderNavigationCollection = "contents" | "landmarks" | "pages";
@@ -37,7 +41,8 @@ export function ReaderNavigationPanel({
   const bodyRef = useRef<HTMLDivElement>(null);
   const currentChapterRef = useRef<HTMLButtonElement>(null);
   const didFocusRef = useRef(false);
-  const [query, setQuery] = useState("");
+  const [contentsQuery, setContentsQuery] = useState("");
+  const [pageQuery, setPageQuery] = useState("");
   const [navigatingId, setNavigatingId] = useState<string>();
   const [navigationFailed, setNavigationFailed] = useState(false);
   const availableCollections = availableNavigationCollections(navigation);
@@ -47,12 +52,20 @@ export function ReaderNavigationPanel({
   const activeCollection = availableCollections.includes(requestedCollection)
     ? requestedCollection
     : (availableCollections[0] ?? "contents");
-  const showSearch =
+  const showContentsSearch =
     activeCollection === "contents" &&
     navigation.chapters.length > READER_CONTENTS_SEARCH_THRESHOLD;
+  const pageListSearchEnabled =
+    navigation.pageReferences.length > READER_PAGE_LIST_SEARCH_THRESHOLD;
+  const showPageSearch = activeCollection === "pages" && pageListSearchEnabled;
+  const showSearch = showContentsSearch || showPageSearch;
   const visibleChapters = useMemo(
-    () => filterChapters(navigation.chapters, query),
-    [navigation.chapters, query],
+    () => filterChapters(navigation.chapters, contentsQuery),
+    [contentsQuery, navigation.chapters],
+  );
+  const visiblePageReferences = useMemo(
+    () => filterPageReferences(navigation.pageReferences, pageListSearchEnabled ? pageQuery : ""),
+    [navigation.pageReferences, pageListSearchEnabled, pageQuery],
   );
 
   useEffect(() => {
@@ -129,17 +142,31 @@ export function ReaderNavigationPanel({
         </div>
       ) : null}
 
-      {showSearch ? (
+      {showContentsSearch ? (
         <Input
           className="reader-navigation__search"
           icon={<Search aria-hidden="true" />}
           label="Search chapters"
-          onChange={(event) => setQuery(event.currentTarget.value)}
+          onChange={(event) => setContentsQuery(event.currentTarget.value)}
           placeholder="Search chapters"
           ref={searchRef}
           size="standard"
           type="search"
-          value={query}
+          value={contentsQuery}
+        />
+      ) : null}
+
+      {showPageSearch ? (
+        <Input
+          className="reader-navigation__search"
+          icon={<Search aria-hidden="true" />}
+          label="Find page"
+          onChange={(event) => setPageQuery(event.currentTarget.value)}
+          placeholder="Find page"
+          ref={searchRef}
+          size="standard"
+          type="search"
+          value={pageQuery}
         />
       ) : null}
 
@@ -163,7 +190,7 @@ export function ReaderNavigationPanel({
             chapters={visibleChapters}
             currentChapterId={navigation.currentChapterId}
             navigatingId={navigatingId}
-            onClearSearch={() => setQuery("")}
+            onClearSearch={() => setContentsQuery("")}
             onSelect={selectItem}
             currentChapterRef={currentChapterRef}
           />
@@ -179,9 +206,11 @@ export function ReaderNavigationPanel({
 
         {navigation.status === "ready" && activeCollection === "pages" ? (
           <PagesCollection
-            pageReferences={navigation.pageReferences}
+            pageReferences={visiblePageReferences}
             navigatingId={navigatingId}
+            onClearSearch={() => setPageQuery("")}
             onSelect={selectItem}
+            query={pageQuery}
           />
         ) : null}
       </div>
@@ -301,12 +330,27 @@ function LandmarksCollection({
 function PagesCollection({
   pageReferences,
   navigatingId,
+  onClearSearch,
   onSelect,
+  query,
 }: {
   pageReferences: readonly ReaderPageReference[];
   navigatingId?: string;
+  onClearSearch: () => void;
   onSelect: (item: ReaderNavigationItem) => Promise<void>;
+  query: string;
 }) {
+  if (pageReferences.length === 0 && query.trim()) {
+    return (
+      <div className="reader-navigation__no-results">
+        <p>No page labels match “{query.trim()}”</p>
+        <button onClick={onClearSearch} type="button">
+          Clear search
+        </button>
+      </div>
+    );
+  }
+
   return (
     <nav
       aria-label="Book pages"
@@ -369,9 +413,14 @@ function NavigationLoadingState() {
 }
 
 function filterChapters(chapters: readonly ReaderChapter[], query: string): ReaderChapter[] {
-  const normalizedQuery = query.trim().toLocaleLowerCase();
+  return chapters.filter((chapter) => matchesReaderNavigationSearch(chapter.label, query));
+}
 
-  if (!normalizedQuery) return [...chapters];
-
-  return chapters.filter((chapter) => chapter.label.toLocaleLowerCase().includes(normalizedQuery));
+function filterPageReferences(
+  pageReferences: readonly ReaderPageReference[],
+  query: string,
+): ReaderPageReference[] {
+  return pageReferences.filter((pageReference) =>
+    matchesReaderNavigationSearch(pageReference.label, query),
+  );
 }

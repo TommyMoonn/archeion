@@ -13,9 +13,15 @@ export type ReaderLeaveSettlement = Readonly<{
 }>;
 
 export const READER_CONTENTS_SEARCH_THRESHOLD = 12;
+export const READER_PAGE_LIST_SEARCH_THRESHOLD = 24;
 export const READER_WHEEL_THROTTLE_MS = 360;
 export const READER_WHEEL_TURN_DELTA = 48;
 export const READER_WHEEL_GESTURE_RESET_MS = 260;
+
+export function matchesReaderNavigationSearch(label: string, query: string): boolean {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  return !normalizedQuery || label.toLocaleLowerCase().includes(normalizedQuery);
+}
 
 const DOM_DELTA_LINE = 1;
 const DOM_DELTA_PAGE = 2;
