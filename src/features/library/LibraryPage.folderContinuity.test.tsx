@@ -365,8 +365,15 @@ describe("LibraryPage folder path continuity", () => {
     await act(async () => {
       setInputValue(input, "Novels");
       save.click();
-      await Promise.resolve();
+      await vi.waitFor(() => {
+        expect(updateFolder).toHaveBeenCalledTimes(1);
+      });
     });
+    const updatePromise = updateFolder.mock.results[0]?.value;
+    const resolvePendingUpdate = resolveUpdate;
+    if (!updatePromise || !resolvePendingUpdate) {
+      throw new Error("The pending folder rename was not started.");
+    }
 
     const seriesNavigation = Array.from(
       session.container.querySelectorAll<HTMLButtonElement>("button"),
@@ -390,9 +397,8 @@ describe("LibraryPage folder path continuity", () => {
 
     await act(async () => {
       folders.publish([renamed]);
-      resolveUpdate?.(renamed);
-      await Promise.resolve();
-      await Promise.resolve();
+      resolvePendingUpdate(renamed);
+      await updatePromise;
     });
     await flushAnimationFrame();
 

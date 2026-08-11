@@ -275,7 +275,8 @@
     color: CanvasText;
   }
 
-  .reader-progress[data-seekable]:focus-visible::before {
+  :root[data-focus-presentation="keyboard-navigation"]
+    .reader-progress[data-seekable]:focus-visible::before {
     outline-color: Highlight;
   }
 

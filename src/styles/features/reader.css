@@ -250,7 +250,8 @@ html[data-motion="on"] .reader-toolbar__back:active {
   inset: 0 -0.5rem;
 }
 
-.reader-progress[data-seekable]:focus-visible::before {
+:root[data-focus-presentation="keyboard-navigation"]
+  .reader-progress[data-seekable]:focus-visible::before {
   border-radius: var(--radius-pill);
   outline: 2px solid var(--reader-focus);
   outline-offset: 2px;

@@ -220,7 +220,7 @@ describe("forced-colors and focus visibility contract", () => {
     const progressHandle = cssBlock(".reader-progress__handle", forcedColorsBlock);
     const progressPreview = cssBlock(".reader-progress__preview", forcedColorsBlock);
     const progressFocus = cssBlock(
-      ".reader-progress[data-seekable]:focus-visible::before",
+      ':root[data-focus-presentation="keyboard-navigation"]\n    .reader-progress[data-seekable]:focus-visible::before',
       forcedColorsBlock,
     );
 

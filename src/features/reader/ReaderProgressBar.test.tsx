@@ -215,9 +215,7 @@ describe("ReaderProgressBar", () => {
 
     act(() => {
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 50, pointerId: 5 }));
-      progress.dispatchEvent(
-        pointerEvent("pointerdown", { button: 0, clientX: 50, pointerId: 5 }),
-      );
+      progress.dispatchEvent(pointerEvent("pointerdown", { button: 0, clientX: 50, pointerId: 5 }));
       progress.dispatchEvent(pointerEvent("pointermove", { clientX: 150, pointerId: 5 }));
     });
 
