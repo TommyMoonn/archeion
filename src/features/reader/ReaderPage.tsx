@@ -1031,8 +1031,6 @@ export function ReaderPage() {
           }
         >
           <ReaderToolbar
-            atEnd={location.atEnd}
-            atStart={location.atStart}
             backLabel={backLabel}
             chapterProgress={navigationState.chapterProgress}
             chapterTitle={chapterSequence.current?.label}
@@ -1050,14 +1048,12 @@ export function ReaderPage() {
             bookmarkToggleDisabled={!annotations.canToggleCurrent}
             bookmarkToggleDisabledReason={annotations.toggleDisabledReason}
             annotationsOpen={annotationsOpen}
-            onNext={moveNext}
             onBack={returnToOrigin}
             onHistoryBack={() => void navigateHistoryBack()}
             onHistoryForward={() => void navigateHistoryForward()}
             onAnnotations={toggleAnnotations}
             onToggleBookmark={() => void annotations.toggleCurrent()}
             onNextChapter={moveNextChapter}
-            onPrevious={movePrevious}
             onPreviousChapter={movePreviousChapter}
             onSearch={toggleSearch}
             onSettings={toggleSettings}
@@ -1067,7 +1063,6 @@ export function ReaderPage() {
             nextChapterDisabled={!chapterSequence.nextChapterId}
             previousChapterDisabled={!chapterSequence.previousChapterId}
             title={title}
-            mode={settings.mode}
             searchAriaKeyShortcuts={focusSearchAriaKeyShortcuts}
             searchButtonRef={searchButtonRef}
             searchOpen={searchOpen}

@@ -4,9 +4,7 @@ import {
   BookMarked,
   ChevronsLeft,
   ChevronsRight,
-  ChevronLeft,
-  ChevronRight,
-  ListTree,
+  List,
   Redo2,
   Search,
   Undo2,
@@ -15,11 +13,8 @@ import {
 import type { Ref } from "react";
 
 import { IconButton } from "../../components/IconButton";
-import type { ReaderMode } from "../../types/reader";
 
 type ReaderToolbarProps = {
-  atEnd: boolean;
-  atStart: boolean;
   chapterProgress?: number;
   chapterTitle?: string;
   hasChapterNavigation: boolean;
@@ -41,9 +36,7 @@ type ReaderToolbarProps = {
   onHistoryForward: () => void;
   onAnnotations: () => void;
   onToggleBookmark: () => void;
-  onNext: () => void;
   onNextChapter: () => void;
-  onPrevious: () => void;
   onPreviousChapter: () => void;
   onSearch: () => void;
   onSettings: () => void;
@@ -52,7 +45,6 @@ type ReaderToolbarProps = {
   previousChapterDisabled: boolean;
   progressSaveFailed: boolean;
   title: string;
-  mode: ReaderMode;
   searchAriaKeyShortcuts?: string;
   settingsAriaKeyShortcuts?: string;
   navigationAriaKeyShortcuts?: string;
@@ -65,8 +57,6 @@ type ReaderToolbarProps = {
 };
 
 export function ReaderToolbar({
-  atEnd,
-  atStart,
   chapterProgress,
   chapterTitle,
   hasChapterNavigation,
@@ -88,9 +78,7 @@ export function ReaderToolbar({
   onHistoryForward,
   onAnnotations,
   onToggleBookmark,
-  onNext,
   onNextChapter,
-  onPrevious,
   onPreviousChapter,
   onSearch,
   onSettings,
@@ -99,7 +87,6 @@ export function ReaderToolbar({
   previousChapterDisabled,
   progressSaveFailed,
   title,
-  mode,
   searchAriaKeyShortcuts,
   settingsAriaKeyShortcuts,
   navigationAriaKeyShortcuts,
@@ -221,7 +208,7 @@ export function ReaderToolbar({
           tooltip="Book navigation"
           tooltipPlacement="bottom"
         >
-          <ListTree aria-hidden="true" />
+          <List aria-hidden="true" />
         </IconButton>
         <IconButton
           aria-controls="reader-annotations"
@@ -251,49 +238,6 @@ export function ReaderToolbar({
           tooltipPlacement="bottom"
         >
           <Bookmark aria-hidden="true" fill={bookmarkActive ? "currentColor" : "none"} />
-        </IconButton>
-        <span className="reader-toolbar__divider" />
-        <IconButton
-          label={mode === "continuous" ? "Scroll up" : "Previous page"}
-          disabled={atStart}
-          disabledReason={
-            mode === "continuous" ? "You are at the top" : "You are on the first page"
-          }
-          onClick={onPrevious}
-          size="compact"
-          tooltip={
-            atStart
-              ? mode === "continuous"
-                ? "You are at the top"
-                : "You are on the first page"
-              : mode === "continuous"
-                ? "Scroll up"
-                : "Previous page"
-          }
-          tooltipPlacement="bottom"
-        >
-          <ChevronLeft aria-hidden="true" strokeWidth={2.25} />
-        </IconButton>
-        <IconButton
-          label={mode === "continuous" ? "Scroll down" : "Next page"}
-          disabled={atEnd}
-          disabledReason={
-            mode === "continuous" ? "You are at the end" : "You are on the final page"
-          }
-          onClick={onNext}
-          size="compact"
-          tooltip={
-            atEnd
-              ? mode === "continuous"
-                ? "You are at the end"
-                : "You are on the final page"
-              : mode === "continuous"
-                ? "Scroll down"
-                : "Next page"
-          }
-          tooltipPlacement="bottom"
-        >
-          <ChevronRight aria-hidden="true" strokeWidth={2.25} />
         </IconButton>
         <span className="reader-toolbar__divider" />
         <IconButton

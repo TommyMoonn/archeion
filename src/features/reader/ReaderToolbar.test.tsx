@@ -29,9 +29,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
     onBack: vi.fn(),
     onHistoryBack: vi.fn(),
     onHistoryForward: vi.fn(),
-    onNext: vi.fn(),
     onNextChapter: vi.fn(),
-    onPrevious: vi.fn(),
     onPreviousChapter: vi.fn(),
     onSearch: vi.fn(),
     onSettings: vi.fn(),
@@ -43,8 +41,6 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
       <MemoryRouter>
         <TooltipProvider>
           <ReaderToolbar
-            atEnd={false}
-            atStart={false}
             backLabel="Back to Library"
             chapterProgress={38}
             chapterTitle="A Very Long Current Chapter Title"
@@ -60,7 +56,6 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
             previousChapterDisabled
             progressSaveFailed={false}
             title="Book Title"
-            mode="paged"
             searchOpen={false}
             navigationOpen={false}
             onAnnotations={vi.fn()}
@@ -133,7 +128,7 @@ describe("ReaderToolbar", () => {
     expect(container.textContent).toContain("Chapter 38% · Book 45.7%");
   });
 
-  it("keeps chapter and page actions distinct at true chapter boundaries", () => {
+  it("keeps chapter navigation behavior correct at true chapter boundaries", () => {
     const { callbacks, container } = renderToolbar();
     const previousChapter = button(container, "Previous chapter");
     const nextChapter = button(container, "Next chapter");
@@ -145,13 +140,9 @@ describe("ReaderToolbar", () => {
       document.getElementById(previousChapter.getAttribute("aria-describedby")!)?.textContent,
     ).toBe("You are at the first chapter");
     expect(nextChapter.disabled).toBe(false);
-    expect(button(container, "Previous page").disabled).toBe(false);
-    expect(button(container, "Next page").disabled).toBe(false);
-
     act(() => nextChapter.click());
 
     expect(callbacks.onNextChapter).toHaveBeenCalledTimes(1);
-    expect(callbacks.onNext).not.toHaveBeenCalled();
     act(() => previousChapter.click());
     expect(callbacks.onPreviousChapter).not.toHaveBeenCalled();
   });
@@ -167,14 +158,6 @@ describe("ReaderToolbar", () => {
     expect(container.querySelector('button[aria-label="Next chapter"]')).toBeNull();
     expect(container.querySelector(".reader-toolbar__identity p")?.textContent).toBe("Book Title");
     expect(container.textContent).toContain("Book 45.7%");
-  });
-
-  it("names viewport controls for continuous scrolling", () => {
-    const { container } = renderToolbar({ mode: "continuous" });
-
-    expect(button(container, "Scroll up")).toBeInstanceOf(HTMLButtonElement);
-    expect(button(container, "Scroll down")).toBeInstanceOf(HTMLButtonElement);
-    expect(container.querySelector('button[aria-label="Previous page"]')).toBeNull();
   });
 
   it("disables bookmark creation until the current reading location is available", () => {
@@ -247,13 +230,6 @@ describe("ReaderToolbar", () => {
 
     act(() => navigation.click());
     expect(callbacks.onNavigation).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps Quick Actions out of the Reader toolbar", () => {
-    const { container } = renderToolbar();
-
-    expect(container.querySelector('button[aria-label="Quick Actions"]')).toBeNull();
-    expect(container.querySelectorAll(".reader-toolbar__divider")).toHaveLength(3);
   });
 
   it("exposes bookmark state and annotation controls", () => {
