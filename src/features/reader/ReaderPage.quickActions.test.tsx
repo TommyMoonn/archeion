@@ -340,6 +340,19 @@ async function renderReader(
   return { container, returnContext, router };
 }
 
+function beginToolbarIdleWithFakeTimers(rendered: Awaited<ReturnType<typeof renderReader>>): void {
+  const back = rendered.container.querySelector<HTMLButtonElement>(".reader-toolbar__back")!;
+  const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+  act(() => back.focus());
+  vi.useFakeTimers();
+  act(() => reader.focus());
+}
+
+async function collapseToolbar(rendered: Awaited<ReturnType<typeof renderReader>>): Promise<void> {
+  beginToolbarIdleWithFakeTimers(rendered);
+  await act(async () => vi.advanceTimersByTimeAsync(2_400));
+}
+
 async function openPalette(): Promise<HTMLInputElement> {
   const target = container?.querySelector<HTMLElement>(".reader-page");
   if (!target) {
@@ -1075,23 +1088,162 @@ describe("ReaderPage Quick Actions", () => {
       const close = rendered.container.querySelector<HTMLButtonElement>(
         'button[aria-label="Close Find in Book"]',
       )!;
-      await act(async () => close.click());
+      await act(async () => {
+        close.click();
+        vi.advanceTimersToNextFrame();
+      });
       expect(rendered.container.querySelector(".reader-search")).toBeNull();
+      expect(document.activeElement).toBe(searchButton);
       expect(controls.getAttribute("data-visible")).toBe("true");
 
-      await act(async () => {
-        vi.advanceTimersByTime(2_399);
-      });
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
       expect(controls.getAttribute("data-visible")).toBe("true");
 
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-      });
+      const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+      act(() => reader.focus());
+      await act(async () => vi.advanceTimersByTimeAsync(2_399));
+      expect(controls.getAttribute("data-visible")).toBe("true");
+      await act(async () => vi.advanceTimersByTimeAsync(1));
       expect(controls.getAttribute("data-visible")).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
+
+  it("auto-collapses after idle and ignores ordinary Reader movement while collapsed", async () => {
+    const rendered = await renderReader();
+    try {
+      await collapseToolbar(rendered);
+      const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
+      const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+      const previousZone = rendered.container.querySelector<HTMLElement>(
+        ".epub-viewer__click-zone--previous",
+      )!;
+      const frame = getRenditionFrame();
+
+      expect(controls.getAttribute("data-visible")).toBeNull();
+      expect(controls.hasAttribute("inert")).toBe(true);
+      expect(
+        rendered.container.querySelector('button[aria-label="Show Reader toolbar"]'),
+      ).toBeInstanceOf(HTMLButtonElement);
+
+      act(() => {
+        reader.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }));
+        previousZone.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }));
+        frame.contentDocument!.body.dispatchEvent(
+          new PointerEvent("pointermove", { bubbles: true }),
+        );
+        frame.contentDocument!.body.dispatchEvent(new TouchEvent("touchmove", { bubbles: true }));
+      });
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+
+      expect(controls.getAttribute("data-visible")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hands keyboard focus from the collapsed reveal control into the expanded toolbar", async () => {
+    const rendered = await renderReader();
+    try {
+      await collapseToolbar(rendered);
+      const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
+      const reveal = rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Show Reader toolbar"]',
+      )!;
+      const back = rendered.container.querySelector<HTMLButtonElement>(".reader-toolbar__back")!;
+
+      act(() => reveal.focus());
+      expect(document.activeElement).toBe(reveal);
+      act(() => reveal.click());
+
+      expect(controls.getAttribute("data-visible")).toBe("true");
+      expect(controls.hasAttribute("inert")).toBe(false);
+      expect(document.activeElement).toBe(back);
+      expect(
+        rendered.container.querySelector('button[aria-label="Show Reader toolbar"]'),
+      ).toBeNull();
+
+      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      expect(controls.getAttribute("data-visible")).toBe("true");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    [
+      "Find in Book",
+      { ctrlKey: true, key: "f" },
+      ".reader-search",
+      'button[aria-label="Close Find in Book"]',
+      'button[aria-label="Find in book"]',
+    ],
+    [
+      "Book navigation",
+      { key: "t" },
+      ".reader-navigation",
+      'button[aria-label="Close book navigation"]',
+      'button[aria-label="Book navigation"]',
+    ],
+    [
+      "Annotations",
+      { key: "a" },
+      ".reader-annotations",
+      'button[aria-label="Close annotations"]',
+      'button[aria-label="Annotations"]',
+    ],
+    [
+      "Reader settings",
+      { key: "s" },
+      ".reader-settings",
+      'button[aria-label="Close reader settings"]',
+      'button[aria-label="Reader settings"]',
+    ],
+  ])(
+    "keeps the toolbar expanded while the %s shortcut-owned surface is open",
+    async (_label, shortcut, surfaceSelector, closeSelector, triggerSelector) => {
+      const rendered = await renderReader();
+      try {
+        await collapseToolbar(rendered);
+        const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
+        const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+
+        await act(async () => {
+          reader.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              bubbles: true,
+              cancelable: true,
+              ...shortcut,
+            }),
+          );
+        });
+        expect(rendered.container.querySelector(surfaceSelector)).toBeInstanceOf(HTMLElement);
+        expect(controls.getAttribute("data-visible")).toBe("true");
+
+        await act(async () => vi.advanceTimersByTimeAsync(3_000));
+        expect(controls.getAttribute("data-visible")).toBe("true");
+
+        const close = rendered.container.querySelector<HTMLButtonElement>(closeSelector)!;
+        const trigger = rendered.container.querySelector<HTMLButtonElement>(triggerSelector)!;
+        await act(async () => {
+          close.click();
+          vi.advanceTimersToNextFrame();
+        });
+        expect(rendered.container.querySelector(surfaceSelector)).toBeNull();
+        expect(document.activeElement).toBe(trigger);
+        expect(controls.getAttribute("data-visible")).toBe("true");
+
+        act(() => reader.focus());
+        await act(async () => vi.advanceTimersByTimeAsync(2_399));
+        expect(controls.getAttribute("data-visible")).toBe("true");
+        await act(async () => vi.advanceTimersByTimeAsync(1));
+        expect(controls.getAttribute("data-visible")).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("routes Find in Book result activation through the publication search controller", async () => {
     const rendered = await renderReader();

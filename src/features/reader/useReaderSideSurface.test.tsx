@@ -14,6 +14,8 @@ import { useReaderSideSurface } from "./useReaderSideSurface";
 type NoteTarget = { annotationId: string };
 type SideSurfaceApi = ReturnType<typeof useReaderSideSurface<NoteTarget>>;
 
+const ignoreVisibilityOwnershipChange = () => undefined;
+
 const noteTargetId = (target: NoteTarget) => target.annotationId;
 
 function deferred<T>() {
@@ -46,16 +48,14 @@ function createTransitions(settle: () => Promise<boolean>) {
 
 function Harness({
   apiRef,
-  revealControls,
   transitions,
 }: {
   apiRef: MutableRefObject<SideSurfaceApi | undefined>;
-  revealControls: () => void;
   transitions: ReturnType<typeof createTransitions>;
 }) {
   const surfaces = useReaderSideSurface<NoteTarget>({
     annotationId: noteTargetId,
-    revealControls,
+    onVisibilityOwnershipChange: ignoreVisibilityOwnershipChange,
     transitions,
   });
   const {
@@ -100,14 +100,11 @@ let animationFrames = new Map<number, FrameRequestCallback>();
 async function renderHarness(
   transitions: ReturnType<typeof createTransitions>,
   apiRef: MutableRefObject<SideSurfaceApi | undefined>,
-  revealControls = vi.fn(),
 ) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
   await act(async () => {
-    root?.render(
-      <Harness apiRef={apiRef} revealControls={revealControls} transitions={transitions} />,
-    );
+    root?.render(<Harness apiRef={apiRef} transitions={transitions} />);
   });
 }
 
@@ -347,11 +344,10 @@ describe("useReaderSideSurface", () => {
   it("keeps action callbacks stable when the controller object is freshly allocated", async () => {
     const transitions = createTransitions(async () => true);
     const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
-    const revealControls = vi.fn();
-    await renderHarness({ ...transitions }, apiRef, revealControls);
+    await renderHarness({ ...transitions }, apiRef);
     const first = apiRef.current;
 
-    await renderHarness({ ...transitions }, apiRef, revealControls);
+    await renderHarness({ ...transitions }, apiRef);
 
     expect(apiRef.current?.transition).toBe(first?.transition);
     expect(apiRef.current?.openNavigation).toBe(first?.openNavigation);

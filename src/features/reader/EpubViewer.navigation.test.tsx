@@ -352,7 +352,6 @@ function defaultViewerProps(fileBlob: Blob) {
     onError: vi.fn(),
     onHighlightInteractionClear: vi.fn(),
     onHighlightInteractionError: vi.fn(),
-    onInteraction: vi.fn(),
     onKeyDown: vi.fn(),
     onLocationChange: vi.fn(),
     onNavigationChange: vi.fn<(navigation: ReaderNavigationState) => void>(),
@@ -536,7 +535,6 @@ describe("EpubViewer navigation lifecycle", () => {
       expect(session.renderTo).toHaveBeenCalledTimes(1);
       expect(session.rendition.display).toHaveBeenCalledTimes(1);
       expect(props.onLocationChange).not.toHaveBeenCalled();
-      const interactionCountBeforeModalWheel = props.onInteraction.mock.calls.length;
       const modalWheel = new WheelEvent("wheel", {
         bubbles: true,
         cancelable: true,
@@ -546,7 +544,6 @@ describe("EpubViewer navigation lifecycle", () => {
         dialog?.querySelector(".reader-illustration-viewer__viewport")?.dispatchEvent(modalWheel),
       );
       expect(modalWheel.defaultPrevented).toBe(true);
-      expect(props.onInteraction).toHaveBeenCalledTimes(interactionCountBeforeModalWheel);
       expect(scroller.scrollTop).toBe(40);
       expect(session.rendition.next).not.toHaveBeenCalled();
       expect(session.rendition.prev).not.toHaveBeenCalled();
@@ -606,7 +603,6 @@ describe("EpubViewer navigation lifecycle", () => {
       const child = document.createElement("span");
       transient.append(child);
       stage.append(scroller, transient);
-      const interactionCount = props.onInteraction.mock.calls.length;
 
       act(() =>
         child.dispatchEvent(
@@ -614,7 +610,6 @@ describe("EpubViewer navigation lifecycle", () => {
         ),
       );
 
-      expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount);
       expect(scroller.scrollTop).toBe(40);
       expect(session.rendition.next).not.toHaveBeenCalled();
       expect(session.rendition.prev).not.toHaveBeenCalled();
@@ -656,7 +651,6 @@ describe("EpubViewer navigation lifecycle", () => {
           { document: frame.contentDocument },
         ),
       );
-      const interactionCount = props.onInteraction.mock.calls.length;
 
       act(() =>
         link.dispatchEvent(
@@ -669,7 +663,6 @@ describe("EpubViewer navigation lifecycle", () => {
       );
 
       if (mode === "paged") {
-        expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount);
         expect(session.rendition.next).not.toHaveBeenCalled();
         act(() =>
           paragraph.dispatchEvent(
@@ -684,7 +677,6 @@ describe("EpubViewer navigation lifecycle", () => {
         );
         expect(session.rendition.next).toHaveBeenCalledOnce();
       } else {
-        expect(props.onInteraction).toHaveBeenCalledTimes(interactionCount + 1);
         expect(scroller.scrollTop).toBe(120);
         expect(session.rendition.next).not.toHaveBeenCalled();
       }
@@ -955,12 +947,12 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(container.querySelectorAll(".epub-viewer__click-zone")).toHaveLength(0);
   });
 
-  it("retains wheel listeners on earlier chapter documents as new chapters mount", async () => {
+  it("retains paged wheel navigation on earlier chapter documents as new chapters mount", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
     const props = {
       ...defaultViewerProps(new Blob(["book-one"])),
-      settings: { ...defaultReaderSettings, mode: "continuous" as const },
+      settings: { ...defaultReaderSettings, mode: "paged" as const },
     };
     await renderViewer(props);
     await waitForActiveRendition(session);
@@ -969,11 +961,11 @@ describe("EpubViewer navigation lifecycle", () => {
     const secondChapter = document.implementation.createHTMLDocument("Chapter two");
     session.rendition.emitContentMock({ document: firstChapter });
     session.rendition.emitContentMock({ document: secondChapter });
-    props.onInteraction.mockClear();
 
-    firstChapter.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 80 }));
+    firstChapter.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 24 }));
+    firstChapter.dispatchEvent(new WheelEvent("wheel", { cancelable: true, deltaY: 24 }));
 
-    expect(props.onInteraction).toHaveBeenCalledTimes(1);
+    expect(session.rendition.next).toHaveBeenCalledOnce();
   });
 
   it("publishes current chapter changes without recreating the reader session", async () => {
@@ -2253,7 +2245,6 @@ describe("EpubViewer navigation lifecycle", () => {
       document.dispatchEvent(touchEvent("touchend", 22, 21));
       mark.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 22, clientY: 21 }));
     });
-    expect(props.onInteraction).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[aria-label="Highlight color"]')).toBeInstanceOf(HTMLElement);
 
     act(() => {

@@ -57,7 +57,6 @@ function Harness({
   const controller = useEpubContentActionController({
     getContentSession,
     navigateToTarget,
-    onInteraction: vi.fn(),
     registry,
     viewerRef: { current: viewer },
   });

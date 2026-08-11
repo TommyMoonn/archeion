@@ -34,7 +34,7 @@ type ReaderTransitionController = Pick<
 
 type ReaderSideSurfaceOptions<NoteTarget> = {
   annotationId: (target: NoteTarget) => string;
-  revealControls: () => void;
+  onVisibilityOwnershipChange: (owned: boolean) => void;
   transitions: ReaderTransitionController;
 };
 
@@ -50,7 +50,7 @@ function surfaceFromState<NoteTarget>(
 
 export function useReaderSideSurface<NoteTarget>({
   annotationId,
-  revealControls,
+  onVisibilityOwnershipChange,
   transitions,
 }: ReaderSideSurfaceOptions<NoteTarget>) {
   const { beginTransition, ownsTransition, runAfterSettlement } = transitions;
@@ -76,10 +76,16 @@ export function useReaderSideSurface<NoteTarget>({
     stateRef.current = state;
   }, [state]);
 
-  const publishState = useCallback((next: ReaderSideSurfaceState<NoteTarget>) => {
-    stateRef.current = next;
-    setState(next);
-  }, []);
+  const publishState = useCallback(
+    (next: ReaderSideSurfaceState<NoteTarget>) => {
+      const currentOwned = surfaceFromState(stateRef.current) !== null;
+      const nextOwned = surfaceFromState(next) !== null;
+      stateRef.current = next;
+      setState(next);
+      if (currentOwned !== nextOwned) onVisibilityOwnershipChange(nextOwned);
+    },
+    [onVisibilityOwnershipChange],
+  );
 
   const transition = useCallback(
     (
@@ -88,7 +94,6 @@ export function useReaderSideSurface<NoteTarget>({
       restoreAnnotationFocus = true,
     ) => {
       cancelFocusRestoration();
-      revealControls();
       const request = beginTransition();
       const activeState = stateRef.current;
       const activeNote = activeState.kind === "annotations" ? activeState.noteTarget : undefined;
@@ -161,7 +166,6 @@ export function useReaderSideSurface<NoteTarget>({
       cancelFocusRestoration,
       ownsTransition,
       publishState,
-      revealControls,
       runAfterSettlement,
     ],
   );
@@ -267,15 +271,6 @@ export function useReaderSideSurface<NoteTarget>({
     const current = stateRef.current;
     return current.kind === "annotations" ? (current.noteTarget ?? null) : null;
   }, []);
-  const surfaceRef = useMemo(
-    () =>
-      ({
-        get current() {
-          return surfaceFromState(stateRef.current);
-        },
-      }) as MutableRefObject<ReaderSideSurface>,
-    [],
-  );
 
   return useMemo(
     () => ({
@@ -304,7 +299,6 @@ export function useReaderSideSurface<NoteTarget>({
       showNoteTarget,
       state,
       surface,
-      surfaceRef,
       navigationButtonRef,
       navigationOpen: surface === "navigation",
       toggleAnnotations,
@@ -332,7 +326,6 @@ export function useReaderSideSurface<NoteTarget>({
       showNoteTarget,
       state,
       surface,
-      surfaceRef,
       toggleAnnotations,
       toggleSearch,
       toggleSettings,

@@ -63,11 +63,27 @@
     transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
-.reader-controls[data-visible],
-.reader-controls:focus-within {
+.reader-controls[data-visible] {
   opacity: 1;
   pointer-events: auto;
   transform: translateY(0);
+}
+
+.reader-toolbar-reveal {
+  position: absolute;
+  z-index: 6;
+  top: 8px;
+  left: 50%;
+  border-color: color-mix(in srgb, var(--reader-line) 78%, transparent);
+  color: var(--reader-muted);
+  background: color-mix(in srgb, var(--reader-bg) 92%, var(--reader-surface) 8%);
+  box-shadow: 0 4px 14px color-mix(in srgb, #000 22%, transparent);
+  transform: translateX(-50%);
+}
+
+.reader-toolbar-reveal:hover:not(:disabled):not([aria-disabled="true"]) {
+  color: var(--reader-strong);
+  background: var(--reader-surface);
 }
 
 .reader-toolbar {

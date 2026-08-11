@@ -30,7 +30,6 @@ export type ReaderContentDocumentRegistryOptions = {
   onContentPointerDown?: (event: PointerEvent, context: ReaderContentDocumentContext) => boolean;
   onDocumentRemoved?: (document: Document) => void;
   onEscape?: () => boolean;
-  onInteraction?: () => void;
   onKeyDown?: (event: KeyboardEvent) => void;
   onPointerDown?: () => void;
   onSelectionCollapsed?: (document: Document) => void;
@@ -116,9 +115,7 @@ export class ReaderContentDocumentRegistry {
         event.stopPropagation();
         return;
       }
-      this.options.onInteraction?.();
     };
-    const onContentInteraction = () => this.options.onInteraction?.();
     const onContentPointerDown = (event: PointerEvent) => {
       focusPresentationRuntime.markPointer();
       if (this.options.onContentPointerDown?.(event, context())) return;
@@ -140,8 +137,6 @@ export class ReaderContentDocumentRegistry {
     document.addEventListener("click", onContentClick, true);
     document.addEventListener("pointerdown", onContentPointerDown, true);
     document.addEventListener("selectionchange", onSelectionChange);
-    document.addEventListener("mousemove", onContentInteraction);
-    document.addEventListener("touchstart", onContentInteraction);
     window?.addEventListener("pagehide", onContentTeardown);
 
     const cleanup = () => {
@@ -152,8 +147,6 @@ export class ReaderContentDocumentRegistry {
       document.removeEventListener("click", onContentClick, true);
       document.removeEventListener("pointerdown", onContentPointerDown, true);
       document.removeEventListener("selectionchange", onSelectionChange);
-      document.removeEventListener("mousemove", onContentInteraction);
-      document.removeEventListener("touchstart", onContentInteraction);
       window?.removeEventListener("pagehide", onContentTeardown);
     };
 

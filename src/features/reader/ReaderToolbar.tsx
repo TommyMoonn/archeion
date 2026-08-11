@@ -2,6 +2,7 @@ import {
   ArrowLeft,
   Bookmark,
   BookMarked,
+  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   List,
@@ -10,9 +11,11 @@ import {
   Undo2,
   ALargeSmall,
 } from "lucide-react";
-import type { Ref } from "react";
+import type { MouseEventHandler, Ref } from "react";
 
 import { IconButton } from "../../components/IconButton";
+
+export const READER_TOOLBAR_ID = "reader-toolbar";
 
 type ReaderToolbarProps = {
   chapterProgress?: number;
@@ -22,6 +25,7 @@ type ReaderToolbarProps = {
   historyBackDisabled: boolean;
   historyForwardAriaKeyShortcuts?: string;
   historyForwardDisabled: boolean;
+  entryRef?: Ref<HTMLButtonElement>;
   bookmarkActive: boolean;
   bookmarkAriaKeyShortcuts?: string;
   bookmarkBusy: boolean;
@@ -64,6 +68,7 @@ export function ReaderToolbar({
   historyBackDisabled,
   historyForwardAriaKeyShortcuts,
   historyForwardDisabled,
+  entryRef,
   bookmarkActive,
   bookmarkAriaKeyShortcuts,
   bookmarkBusy,
@@ -104,11 +109,12 @@ export function ReaderToolbar({
   const statusLabel = progressSaveFailed ? `Not saved · ${positionLabel}` : positionLabel;
 
   return (
-    <header className="reader-toolbar">
+    <header className="reader-toolbar" id={READER_TOOLBAR_ID}>
       <button
         aria-label={backLabel}
         className="reader-toolbar__back"
         onClick={onBack}
+        ref={entryRef}
         type="button"
       >
         <span aria-hidden="true" className="icon-slot">
@@ -253,5 +259,24 @@ export function ReaderToolbar({
         </IconButton>
       </div>
     </header>
+  );
+}
+
+type ReaderToolbarRevealButtonProps = {
+  onActivate: MouseEventHandler<HTMLButtonElement>;
+};
+
+export function ReaderToolbarRevealButton({ onActivate }: ReaderToolbarRevealButtonProps) {
+  return (
+    <IconButton
+      aria-controls={READER_TOOLBAR_ID}
+      aria-expanded={false}
+      className="reader-toolbar-reveal"
+      label="Show Reader toolbar"
+      onClick={onActivate}
+      size="compact"
+    >
+      <ChevronDown aria-hidden="true" strokeWidth={2.25} />
+    </IconButton>
   );
 }

@@ -181,22 +181,6 @@ describe("ReaderContentDocumentRegistry", () => {
     }
   });
 
-  it("uses current callbacks without rebinding the document", () => {
-    const frame = mountedFrame();
-    const chapter = frame.contentDocument!;
-    const first = vi.fn();
-    const second = vi.fn();
-    const registry = new ReaderContentDocumentRegistry();
-    registry.updateOptions({ onInteraction: first });
-    registry.bind({ document: chapter, window: frame.contentWindow! });
-
-    registry.updateOptions({ onInteraction: second });
-    chapter.dispatchEvent(new MouseEvent("mousemove"));
-
-    expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledOnce();
-  });
-
   it("suppresses EPUB link activation before reader page-turn and highlight interactions", () => {
     const frame = mountedFrame();
     const chapter = frame.contentDocument!;
@@ -204,13 +188,11 @@ describe("ReaderContentDocumentRegistry", () => {
     link.href = "#note";
     chapter.body.append(link);
     const onContentClick = vi.fn(() => true);
-    const onInteraction = vi.fn();
     const onPointerDown = vi.fn();
     const registry = new ReaderContentDocumentRegistry();
     registry.updateOptions({
       onContentClick,
       onContentPointerDown: () => true,
-      onInteraction,
       onPointerDown,
     });
     registry.bind({
@@ -229,7 +211,6 @@ describe("ReaderContentDocumentRegistry", () => {
       expect.objectContaining({ document: chapter, sectionHref: "Text/chapter.xhtml" }),
     );
     expect(click.defaultPrevented).toBe(true);
-    expect(onInteraction).not.toHaveBeenCalled();
     expect(onPointerDown).not.toHaveBeenCalled();
   });
 
@@ -242,13 +223,11 @@ describe("ReaderContentDocumentRegistry", () => {
     secondDocument.body.append(link);
     const onContentClick = vi.fn(() => true);
     const onContentPointerDown = vi.fn(() => true);
-    const onInteraction = vi.fn();
     const onPointerDown = vi.fn();
     const registry = new ReaderContentDocumentRegistry();
     registry.updateOptions({
       onContentClick,
       onContentPointerDown,
-      onInteraction,
       onPointerDown,
     });
     registry.bind({
@@ -282,7 +261,6 @@ describe("ReaderContentDocumentRegistry", () => {
       }),
     );
     expect(click.defaultPrevented).toBe(true);
-    expect(onInteraction).not.toHaveBeenCalled();
     expect(onPointerDown).not.toHaveBeenCalled();
   });
 

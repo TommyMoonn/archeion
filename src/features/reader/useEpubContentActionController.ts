@@ -58,7 +58,6 @@ export type ReaderIllustrationState = Readonly<{
 type UseEpubContentActionControllerOptions = {
   getContentSession: () => EpubContentSessionAccess | null;
   navigateToTarget: (target: string) => Promise<boolean>;
-  onInteraction: () => void;
   registry: ReaderContentDocumentAccess;
   viewerRef: RefObject<HTMLDivElement | null>;
 };
@@ -99,7 +98,6 @@ function activeReaderContentSurface(className: string): HTMLElement | null {
 export function useEpubContentActionController({
   getContentSession,
   navigateToTarget,
-  onInteraction,
   registry,
   viewerRef,
 }: UseEpubContentActionControllerOptions): EpubContentActionController {
@@ -375,7 +373,6 @@ export function useEpubContentActionController({
       anchor: ReaderContentActionAnchor,
       currentDocument: Readonly<{ document: Document; href: string }> | null,
     ) => {
-      onInteraction();
       switch (action.kind) {
         case "external":
           openExternal(action, anchor);
@@ -399,7 +396,6 @@ export function useEpubContentActionController({
     [
       dismissFootnote,
       navigate,
-      onInteraction,
       openExternal,
       openIllustration,
       resolveFootnoteAction,
@@ -443,7 +439,6 @@ export function useEpubContentActionController({
       const currentDocumentHref = context.sectionHref?.trim() ?? "";
       if (!anchor || !currentDocumentHref) {
         setFeedback("This EPUB link is unavailable.");
-        onInteraction();
         return true;
       }
 
@@ -472,7 +467,6 @@ export function useEpubContentActionController({
         setExternal(null);
         setIllustration(null);
         setFeedback("This EPUB link cannot be opened safely.");
-        onInteraction();
         return true;
       }
 
@@ -482,14 +476,7 @@ export function useEpubContentActionController({
       });
       return true;
     },
-    [
-      activateIllustrationElement,
-      dismissFootnote,
-      onInteraction,
-      routeAction,
-      setExternal,
-      setIllustration,
-    ],
+    [activateIllustrationElement, dismissFootnote, routeAction, setExternal, setIllustration],
   );
 
   const handleFootnoteAction = useCallback(

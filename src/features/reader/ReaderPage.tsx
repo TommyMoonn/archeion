@@ -52,7 +52,7 @@ import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
-import { ReaderToolbar } from "./ReaderToolbar";
+import { ReaderToolbar, ReaderToolbarRevealButton } from "./ReaderToolbar";
 import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
@@ -76,6 +76,7 @@ import {
 } from "../quick-actions/quickActions";
 import { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 import { useReaderSideSurface } from "./useReaderSideSurface";
+import { useReaderToolbarVisibility } from "./useReaderToolbarVisibility";
 import { ReaderSideSurfaceLayer } from "./ReaderSideSurfaceLayer";
 import { ReaderSideSurfaceDismissContext } from "./readerSideSurfaceDismissal";
 import {
@@ -144,8 +145,6 @@ export function ReaderPage() {
   const viewerRef = useRef<EpubViewerHandle>(null);
   const readerMainRef = useRef<HTMLElement>(null);
   const mountedRef = useRef(true);
-  const controlsTimer = useRef<number | null>(null);
-  const lastControlsRevealAt = useRef(0);
   const [progressSaveFailed, setProgressSaveFailed] = useState(false);
   const [readerReady, setReaderReady] = useState(false);
   const [navigationState, setNavigationState] = useState<ReaderNavigationState>(() =>
@@ -157,9 +156,7 @@ export function ReaderPage() {
   const [publicationSearchState, setPublicationSearchState] =
     useState<ReaderPublicationSearchControllerState>(INITIAL_PUBLICATION_SEARCH_STATE);
   const [seekMapStatus, setSeekMapStatus] = useState<ReaderSeekMapState["status"]>("pending");
-  const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
-  const controlsVisibleRef = useRef(controlsVisible);
   const [readerSessionController] = useState(() => createReaderSessionController(bookId ?? null));
   const readerSessionSnapshot = useSyncExternalStore(
     readerSessionController.subscribe,
@@ -337,10 +334,12 @@ export function ReaderPage() {
     retire: retireReaderSession,
     settle: settleReaderLeave,
   });
-  const revealSideSurfaceControls = useCallback(() => setControlsVisible(true), []);
+  const toolbarVisibility = useReaderToolbarVisibility();
+  const activateToolbarVisibility = toolbarVisibility.activate;
+  const deactivateToolbarVisibility = toolbarVisibility.deactivate;
   const sideSurfaces = useReaderSideSurface<ReaderNoteTarget>({
     annotationId: readerNoteTargetAnnotationId,
-    revealControls: revealSideSurfaceControls,
+    onVisibilityOwnershipChange: toolbarVisibility.setSideSurfaceOwned,
     transitions: controlledTransitions,
   });
   const {
@@ -364,7 +363,6 @@ export function ReaderPage() {
     settingsOpen,
     showNoteTarget,
     surface: sideSurface,
-    surfaceRef: sideSurfaceRef,
     navigationButtonRef,
     navigationOpen,
     toggleAnnotations,
@@ -425,10 +423,6 @@ export function ReaderPage() {
   });
 
   useEffect(() => {
-    controlsVisibleRef.current = controlsVisible;
-  }, [controlsVisible]);
-
-  useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
@@ -442,26 +436,6 @@ export function ReaderPage() {
   const moveNext = useCallback(() => {
     void viewerRef.current?.next();
   }, []);
-
-  const revealControls = useCallback(() => {
-    const now = Date.now();
-    const isPanelOpen = sideSurfaceRef.current !== null;
-
-    if (controlsVisibleRef.current && !isPanelOpen && now - lastControlsRevealAt.current < 250) {
-      return;
-    }
-
-    lastControlsRevealAt.current = now;
-    setControlsVisible(true);
-    if (controlsTimer.current !== null) {
-      window.clearTimeout(controlsTimer.current);
-    }
-    if (!isPanelOpen) {
-      controlsTimer.current = window.setTimeout(() => {
-        setControlsVisible(false);
-      }, 2400);
-    }
-  }, [sideSurfaceRef]);
 
   const navigateToLibraryView = useCallback(
     (view: "continue" | "favorites" | "folders" | "library" | "series", focusSearch = false) => {
@@ -831,9 +805,10 @@ export function ReaderPage() {
         return;
       }
       setReaderReady(true);
+      activateToolbarVisibility();
       progressController.recordOpened(identity);
     },
-    [isBookFileMissing, progressController, readerSessionController],
+    [activateToolbarVisibility, isBookFileMissing, progressController, readerSessionController],
   );
 
   const handleLocationChange = useCallback(
@@ -853,9 +828,10 @@ export function ReaderPage() {
       const failureKind = error.kind === "open-failed" ? "epub-open-failed" : null;
       if (!failureKind || !readerSessionController.fail(identity, failureKind)) return;
       setReaderReady(false);
+      deactivateToolbarVisibility();
       setNavigationState(createLoadingReaderNavigationState());
     },
-    [readerSessionController],
+    [deactivateToolbarVisibility, readerSessionController],
   );
 
   const handleSessionRetry = useCallback(() => {
@@ -869,8 +845,9 @@ export function ReaderPage() {
     );
     if (!recoveryIdentity) return;
     setReaderReady(false);
+    deactivateToolbarVisibility();
     setNavigationState(createLoadingReaderNavigationState());
-  }, [progressController, readerSessionController]);
+  }, [deactivateToolbarVisibility, progressController, readerSessionController]);
 
   const handleRescanAndReturn = useCallback(() => {
     setRecoveryStatus("rescanning");
@@ -899,23 +876,6 @@ export function ReaderPage() {
     },
     [handleKeyboardEvent],
   );
-
-  useEffect(() => {
-    if (controlsTimer.current !== null) {
-      window.clearTimeout(controlsTimer.current);
-    }
-    if (!settingsOpen && !navigationOpen && !annotationsOpen && !searchOpen) {
-      controlsTimer.current = window.setTimeout(() => {
-        setControlsVisible(false);
-      }, 2400);
-    }
-
-    return () => {
-      if (controlsTimer.current !== null) {
-        window.clearTimeout(controlsTimer.current);
-      }
-    };
-  }, [annotationsOpen, navigationOpen, searchOpen, settingsOpen]);
 
   if (!book || book.isFileMissing) {
     return (
@@ -1012,8 +972,6 @@ export function ReaderPage() {
       className="reader-page"
       data-reader-theme={readerTheme.base}
       id={MAIN_CONTENT_ID}
-      onFocusCapture={revealControls}
-      onPointerMove={revealControls}
       ref={readerMainRef}
       style={readerThemeStyle}
       tabIndex={-1}
@@ -1021,14 +979,13 @@ export function ReaderPage() {
       <ReaderSideSurfaceDismissContext.Provider value={dismissalController}>
         <div
           className="reader-controls"
-          data-visible={
-            controlsVisible ||
-            settingsOpen ||
-            navigationOpen ||
-            annotationsOpen ||
-            searchOpen ||
-            undefined
-          }
+          aria-hidden={!toolbarVisibility.expanded || undefined}
+          data-visible={toolbarVisibility.expanded || undefined}
+          inert={!toolbarVisibility.expanded}
+          onBlurCapture={toolbarVisibility.onToolbarBlurCapture}
+          onFocusCapture={toolbarVisibility.onToolbarFocusCapture}
+          onPointerEnter={toolbarVisibility.onToolbarPointerEnter}
+          onPointerLeave={toolbarVisibility.onToolbarPointerLeave}
         >
           <ReaderToolbar
             backLabel={backLabel}
@@ -1043,6 +1000,7 @@ export function ReaderPage() {
               commandDefinitions.readerHistoryForward.defaultBinding,
             )}
             historyForwardDisabled={!navigationHistory.canGoForward}
+            entryRef={toolbarVisibility.toolbarEntryRef}
             bookmarkActive={Boolean(annotations.currentBookmark)}
             bookmarkBusy={annotations.busy}
             bookmarkToggleDisabled={!annotations.canToggleCurrent}
@@ -1084,6 +1042,11 @@ export function ReaderPage() {
             annotationButtonRef={annotationButtonRef}
           />
         </div>
+        {toolbarVisibility.revealControlVisible ? (
+          <ReaderToolbarRevealButton
+            onActivate={(event) => toolbarVisibility.reveal(event.detail === 0)}
+          />
+        ) : null}
         <ReaderProgressBar
           onSeek={navigateToProgressPercentage}
           percentage={location.percentage}
@@ -1120,7 +1083,6 @@ export function ReaderPage() {
             onHighlightAnchorInvalid={handleInvalidHighlightAnchor}
             onHighlightInteractionClear={highlights.clearInteractionFeedback}
             onHighlightInteractionError={highlights.reportInteractionFeedback}
-            onInteraction={revealControls}
             onKeyDown={handleContentKeyDown}
             onLocationChange={handleLocationChange}
             onOpenNote={openSelectionNote}

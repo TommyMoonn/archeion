@@ -93,7 +93,6 @@ type EpubViewerProps = {
   onHighlightInteractionClear?: () => void;
   onHighlightInteractionError?: (message: string) => void;
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
-  onInteraction: () => void;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (relocation: ReaderRelocation) => void;
   onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => void;
@@ -123,7 +122,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onHighlightAnchorInvalid,
     onHighlightInteractionClear,
     onHighlightInteractionError,
-    onInteraction,
     onKeyDown,
     onLocationChange,
     onOpenNote,
@@ -244,7 +242,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onCreateHighlight,
     onHighlightInteractionClear,
     onHighlightInteractionError,
-    onInteraction,
     onOpenNote,
     onRecolorHighlight,
     onRemoveHighlight,
@@ -288,7 +285,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const contentActions = useEpubContentActionController({
     getContentSession,
     navigateToTarget: displayTarget,
-    onInteraction,
     registry: contentDocuments,
     viewerRef,
   });
@@ -396,7 +392,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       if (shouldIgnoreReaderWheelEvent(event)) return;
 
       if (settings.mode === "continuous") {
-        onInteraction();
         forwardContinuousWheel(
           event,
           containerRef.current?.querySelector<HTMLElement>(".epub-container") ?? null,
@@ -408,7 +403,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       if (deltaY === null) return;
       event.preventDefault();
       event.stopPropagation();
-      onInteraction();
 
       const now = performance.now();
       if (now - lastWheelEventAtRef.current > READER_WHEEL_GESTURE_RESET_MS) {
@@ -424,7 +418,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       lastWheelTurnAtRef.current = now;
       void turn(intent);
     },
-    [onInteraction, settings.mode, turn],
+    [settings.mode, turn],
   );
 
   const handleRegisteredDocumentRemoved = useCallback(
@@ -447,7 +441,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onContentPointerDown: handleContentPointerDown,
       onDocumentRemoved: handleRegisteredDocumentRemoved,
       onEscape: handleRegisteredEscape,
-      onInteraction,
       onKeyDown,
       onPointerDown: handlePointerDown,
       onSelectionCollapsed: handleSelectionCollapsed,
@@ -463,7 +456,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleRegisteredEscape,
     handleSelectionCollapsed,
     handleWheel,
-    onInteraction,
     onKeyDown,
   ]);
 
@@ -491,7 +483,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     dismissExternal(false);
     dismissIllustration(false);
     clearContentActionFeedback();
-    onInteraction();
   }, [
     clearContentActionFeedback,
     clearFeedback,
@@ -499,7 +490,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     dismissExternal,
     dismissFootnote,
     dismissIllustration,
-    onInteraction,
   ]);
 
   const navigateToNavigationItem = useCallback(
@@ -573,10 +563,9 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const handleClickZone = useCallback(
     (intent: ReaderNavigationIntent) => {
-      onInteraction();
       void turn(intent);
     },
-    [onInteraction, turn],
+    [turn],
   );
 
   useImperativeHandle(
@@ -638,7 +627,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           aria-label="Previous page"
           className="epub-viewer__click-zone epub-viewer__click-zone--previous"
           onClick={() => handleClickZone("backward")}
-          onMouseMove={onInteraction}
           style={
             {
               "--reader-page-turn-zone-width": `${Math.max(0, Math.min(settings.margin, 88))}px`,
@@ -660,7 +648,6 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           aria-label="Next page"
           className="epub-viewer__click-zone epub-viewer__click-zone--next"
           onClick={() => handleClickZone("forward")}
-          onMouseMove={onInteraction}
           style={
             {
               "--reader-page-turn-zone-width": `${Math.max(0, Math.min(settings.margin, 88))}px`,
@@ -759,7 +746,6 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onHighlightAnchorInvalid === next.onHighlightAnchorInvalid &&
     previous.onHighlightInteractionClear === next.onHighlightInteractionClear &&
     previous.onHighlightInteractionError === next.onHighlightInteractionError &&
-    previous.onInteraction === next.onInteraction &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&
     previous.onOpenNote === next.onOpenNote &&

@@ -1748,7 +1748,6 @@ describe("useEpubSession content-hook ownership", () => {
   it("prevents an old document from entering the current registry or firing current callbacks", async () => {
     const sessionA = createBookSession();
     const sessionB = createBookSession();
-    const onInteraction = vi.fn();
     const onKeyDown = vi.fn();
     const onPointerDown = vi.fn();
     const onSelectionCollapsed = vi.fn();
@@ -1765,7 +1764,6 @@ describe("useEpubSession content-hook ownership", () => {
     await waitForReady(sessionA, bridge);
     const registry = facadeRef.current!.documents;
     registry.updateOptions({
-      onInteraction,
       onKeyDown,
       onPointerDown,
       onSelectionCollapsed,
@@ -1793,7 +1791,6 @@ describe("useEpubSession content-hook ownership", () => {
     expect(onWheel).not.toHaveBeenCalled();
     expect(onPointerDown).not.toHaveBeenCalled();
     expect(onSelectionCollapsed).not.toHaveBeenCalled();
-    expect(onInteraction).not.toHaveBeenCalled();
   });
 });
 

@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ReaderToolbar } from "./ReaderToolbar";
+import { ReaderToolbar, ReaderToolbarRevealButton } from "./ReaderToolbar";
 import { TooltipProvider } from "../../components/Tooltip";
 
 let root: Root | null = null;
@@ -82,10 +82,37 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
+  it("exposes the collapsed reveal control as an intentional toolbar disclosure", () => {
+    const onActivate = vi.fn();
+    act(() => {
+      root?.unmount();
+      root = null;
+      container?.remove();
+      container = document.createElement("div");
+      document.body.appendChild(container);
+      root = createRoot(container);
+      root.render(
+        <TooltipProvider>
+          <ReaderToolbarRevealButton onActivate={onActivate} />
+        </TooltipProvider>,
+      );
+    });
+
+    const reveal = button(container!, "Show Reader toolbar");
+    expect(reveal.getAttribute("aria-controls")).toBe("reader-toolbar");
+    expect(reveal.getAttribute("aria-expanded")).toBe("false");
+
+    act(() => reveal.click());
+    expect(onActivate).toHaveBeenCalledOnce();
+  });
+
   it("uses the contextual Back action without changing its visible label", () => {
-    const { callbacks, container } = renderToolbar({ backLabel: "Back to Favorites" });
+    const entryRef = { current: null as HTMLButtonElement | null };
+    const { callbacks, container } = renderToolbar({ backLabel: "Back to Favorites", entryRef });
     const back = button(container, "Back to Favorites");
 
+    expect(container.querySelector(".reader-toolbar")?.id).toBe("reader-toolbar");
+    expect(entryRef.current).toBe(back);
     expect(back.textContent).toContain("Back");
     act(() => back.click());
     expect(callbacks.onBack).toHaveBeenCalledTimes(1);

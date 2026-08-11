@@ -34,7 +34,6 @@ type HighlightInteractionCallbacks = {
   ) => Promise<boolean>;
   onHighlightInteractionClear?: () => void;
   onHighlightInteractionError?: (message: string) => void;
-  onInteraction: () => void;
   onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => void;
   onRecolorHighlight?: (id: string, color: ReaderHighlightColor) => Promise<boolean>;
   onRemoveHighlight?: (id: string) => Promise<boolean>;
@@ -72,7 +71,6 @@ export function useHighlightInteractionController({
   onCreateHighlight,
   onHighlightInteractionClear,
   onHighlightInteractionError,
-  onInteraction,
   onOpenNote,
   onRecolorHighlight,
   onRemoveHighlight,
@@ -84,7 +82,6 @@ export function useHighlightInteractionController({
     onCreateHighlight,
     onHighlightInteractionClear,
     onHighlightInteractionError,
-    onInteraction,
     onOpenNote,
     onRecolorHighlight,
     onRemoveHighlight,
@@ -110,7 +107,6 @@ export function useHighlightInteractionController({
       onCreateHighlight,
       onHighlightInteractionClear,
       onHighlightInteractionError,
-      onInteraction,
       onOpenNote,
       onRecolorHighlight,
       onRemoveHighlight,
@@ -119,7 +115,6 @@ export function useHighlightInteractionController({
     onCreateHighlight,
     onHighlightInteractionClear,
     onHighlightInteractionError,
-    onInteraction,
     onOpenNote,
     onRecolorHighlight,
     onRemoveHighlight,
@@ -197,7 +192,6 @@ export function useHighlightInteractionController({
           selectedText: highlight.selectedText,
         },
       });
-      callbacksRef.current.onInteraction();
     },
     [cancelOperation, clearFeedback, openPalette, registry],
   );
@@ -230,7 +224,6 @@ export function useHighlightInteractionController({
       if (resolution.kind === "blocked") {
         dismiss(false);
         reportFeedback("Overlapping highlights cannot be edited together.", sourceDocument);
-        callbacksRef.current.onInteraction();
         return;
       }
 
@@ -247,7 +240,6 @@ export function useHighlightInteractionController({
           selectedText,
         },
       });
-      callbacksRef.current.onInteraction();
     },
     [cancelOperation, clearFeedback, dismiss, openPalette, reportFeedback],
   );
