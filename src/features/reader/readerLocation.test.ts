@@ -4,6 +4,7 @@ import type { Book } from "../../types/book";
 import {
   createReaderProgressInitialState,
   normalizeReaderLocation,
+  normalizeReaderSeekPercentage,
   snapshotReaderRelocation,
 } from "./readerLocation";
 
@@ -72,6 +73,13 @@ describe("reader locations", () => {
         atEnd: false,
       }).percentage,
     ).toBe(50);
+  });
+
+  it("normalizes seek percentages independently from stored display progress", () => {
+    expect(normalizeReaderSeekPercentage(0.375)).toBe(0.375);
+    expect(normalizeReaderSeekPercentage(-1)).toBe(0);
+    expect(normalizeReaderSeekPercentage(2)).toBe(1);
+    expect(normalizeReaderSeekPercentage(Number.NaN)).toBeUndefined();
   });
 
   it("snapshots only the raw EPUB relocation fields required by progress", () => {

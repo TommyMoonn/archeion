@@ -36,6 +36,10 @@ function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
 }
 
+export function normalizeReaderSeekPercentage(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? clamp(value, 0, 1) : undefined;
+}
+
 export function snapshotReaderRelocation(
   location: Location,
   sectionCount: number,

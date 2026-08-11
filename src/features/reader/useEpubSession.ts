@@ -32,6 +32,12 @@ import {
   type ReaderPublicationSearchService,
 } from "./readerPublicationSearch";
 import {
+  createReaderSeekMap,
+  PENDING_READER_SEEK_MAP_STATE,
+  type ReaderSeekMap,
+  type ReaderSeekMapState,
+} from "./readerSeekMap";
+import {
   createLoadingReaderNavigationState,
   createReaderNavigationStateController,
   type ReaderNavigationStateController,
@@ -54,6 +60,7 @@ type EpubSessionSnapshot = {
   interactions: EpubSessionInteractionAccess;
   publicationSearch: ReaderPublicationSearchService;
   rendition: Rendition;
+  seekMap: ReaderSeekMap;
 };
 
 export type EpubSessionBridge = {
@@ -181,6 +188,7 @@ export type EpubSessionFacade = {
   getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
   getRelocation: () => ReaderRelocation | null;
   getNavigationState: () => ReaderNavigationState;
+  getSeekMapState: () => ReaderSeekMapState;
   isLoading: boolean;
   navigateBack: () => Promise<boolean>;
   navigateForward: () => Promise<boolean>;
@@ -408,6 +416,7 @@ export function useEpubSession({
         if (wasCurrent) sessionRef.current = null;
         deliberateNavigation.unbindDisplay(session);
         session.publicationSearch.retire();
+        session.seekMap.retire();
         owner.cancelDeferredNavigation();
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
@@ -513,12 +522,14 @@ export function useEpubSession({
           getNavigationModel: () => navigationController.getModel(),
           sections: interactions.annotations,
         });
+        const seekMap = createReaderSeekMap(book.locations, () => navigationController.getModel());
         const session: EpubSessionSnapshot = {
           book,
           generation,
           interactions,
           publicationSearch,
           rendition,
+          seekMap,
         };
         const owner: EpubSessionLifecycle = {
           cancelDeferredNavigation: () => undefined,
@@ -584,9 +595,7 @@ export function useEpubSession({
 
         sessionDocuments.bindMounted(containerRef.current);
         bridgeRef.current?.onDisplayed();
-        void book.locations.generate(1600).catch(() => {
-          // Reading can continue without a calculated percentage.
-        });
+        void session.seekMap.generate();
         setSettledSessionKey(sessionKey);
         bridgeRef.current?.onReady(sessionIdentity);
         deferNavigationLoad(owner);
@@ -667,6 +676,10 @@ export function useEpubSession({
     () => navigationControllerRef.current?.getState() ?? createLoadingReaderNavigationState(),
     [],
   );
+  const getSeekMapState = useCallback(
+    () => sessionRef.current?.seekMap.getState() ?? PENDING_READER_SEEK_MAP_STATE,
+    [],
+  );
   const applyContentTheme = useCallback(
     (theme: ReaderContentTheme, container: HTMLElement | null) => {
       documentSessions.applyTheme(sessionRef.current?.rendition ?? null, theme, container);
@@ -684,6 +697,7 @@ export function useEpubSession({
     getNavigationHistorySnapshot,
     getRelocation,
     getNavigationState,
+    getSeekMapState,
     isLoading: settledSessionKey !== sessionKey,
     navigateBack,
     navigateForward,

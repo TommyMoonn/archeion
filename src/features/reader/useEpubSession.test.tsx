@@ -155,6 +155,7 @@ function createRendition(started: Promise<void> = Promise.resolve()): MockRendit
 
 function createBookSession(
   options: {
+    locationsGenerate?: Promise<string[]>;
     navigation?: Promise<unknown>;
     opened?: Promise<unknown>;
     started?: Promise<void>;
@@ -164,13 +165,21 @@ function createBookSession(
   const bookListeners = new Map<string, Set<(...args: unknown[]) => void>>();
   const rendition = createRendition(options.started);
   const destroy = vi.fn();
+  const generatedLocations = ["epubcfi(/6/2!/4/2:0)", "epubcfi(/6/4!/4/2:0)"];
+  const generateLocations = vi.fn(
+    () => options.locationsGenerate ?? Promise.resolve(generatedLocations),
+  );
   const book = {
     destroy,
     loaded: {
       navigation: options.navigation ?? Promise.resolve({ toc: [] }),
     },
     locations: {
-      generate: vi.fn(async () => undefined),
+      cfiFromPercentage: vi.fn((percentage: number) =>
+        percentage >= 1 ? generatedLocations[1] : generatedLocations[0],
+      ),
+      generate: generateLocations,
+      percentageFromCfi: vi.fn((cfi: string) => (cfi === generatedLocations[1] ? 1 : 0)),
     },
     off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
       bookListeners.get(event)?.delete(callback);
@@ -194,6 +203,7 @@ function createBookSession(
     book,
     bookEventCallbacks,
     destroy,
+    generateLocations,
     emitBookEvent(event: string, ...args: unknown[]) {
       for (const callback of bookListeners.get(event) ?? []) callback(...args);
     },
@@ -454,6 +464,7 @@ describe("useEpubSession lifecycle", () => {
         getNavigationHistorySnapshot: expect.any(Function),
         getRelocation: expect.any(Function),
         getNavigationState: expect.any(Function),
+        getSeekMapState: expect.any(Function),
         navigateBack: expect.any(Function),
         navigateForward: expect.any(Function),
         navigateToChapter: expect.any(Function),
@@ -473,6 +484,148 @@ describe("useEpubSession lifecycle", () => {
     expect(interactionSession).not.toHaveProperty("book");
     expect(interactionSession).not.toHaveProperty("rendition");
     expect(interactionSession).not.toHaveProperty("destroy");
+  });
+
+  it("owns seek-map generation from pending through ready after the first usable display", async () => {
+    const locationGeneration = deferred<string[]>();
+    const session = createBookSession({ locationsGenerate: locationGeneration.promise });
+    const stages: string[] = [];
+    session.rendition.display.mockImplementation(async () => {
+      stages.push("display");
+    });
+    session.generateLocations.mockImplementation(() => {
+      stages.push("generate-locations");
+      return locationGeneration.promise;
+    });
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    expect(stages).toEqual(["display", "generate-locations"]);
+    expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "pending" });
+
+    await act(async () => {
+      locationGeneration.resolve(["epubcfi(/6/2!/4/2:0)", "epubcfi(/6/4!/4/2:0)"]);
+      await locationGeneration.promise;
+    });
+
+    const seekState = facadeRef.current?.getSeekMapState();
+    expect(seekState?.status).toBe("ready");
+    if (seekState?.status === "ready") {
+      expect(seekState.resolveCfi(0)).toBe("epubcfi(/6/2!/4/2:0)");
+      expect(seekState.resolveCfi(1)).toBe("epubcfi(/6/4!/4/2:0)");
+      expect(seekState.resolvePercentage("epubcfi(/6/4!/4/2:0)")).toBe(1);
+    }
+  });
+
+  it("keeps ordinary reading ready when seek-map generation fails", async () => {
+    const locationGeneration = deferred<string[]>();
+    const session = createBookSession({ locationsGenerate: locationGeneration.promise });
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+
+    await act(async () => {
+      locationGeneration.reject(new Error("seek map unavailable"));
+      await locationGeneration.promise.catch(() => undefined);
+    });
+
+    await vi.waitFor(() => {
+      expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "unavailable" });
+    });
+    expect(facadeRef.current?.isLoading).toBe(false);
+    expect(bridge.onReady).toHaveBeenCalledTimes(1);
+    expect(bridge.onError).not.toHaveBeenCalled();
+  });
+
+  it("prevents an old seek-map generation from becoming current after same-Reader rendition replacement", async () => {
+    const generationA = deferred<string[]>();
+    const generationB = deferred<string[]>();
+    const sessionA = createBookSession({ locationsGenerate: generationA.promise });
+    const sessionB = createBookSession({ locationsGenerate: generationB.promise });
+    const bridge = createBridge();
+    const bridgeRef = createBridgeRef(bridge);
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    const identity = createSessionIdentity("book-a");
+    const fileLease = leaseFor(new Blob(["book-a"]));
+    epubModuleMock.openBook.mockReturnValueOnce(sessionA.book).mockReturnValueOnce(sessionB.book);
+    const { root } = await renderHarness(
+      {
+        bridgeRef,
+        fileLease,
+        mode: "paged",
+        sessionIdentity: identity,
+      },
+      facadeRef,
+    );
+    await waitForReady(sessionA, bridge);
+
+    await rerenderHarness(
+      root,
+      {
+        bridgeRef,
+        fileLease,
+        mode: "continuous",
+        sessionIdentity: identity,
+      },
+      facadeRef,
+    );
+    await act(async () => {
+      await vi.waitFor(() => expect(sessionB.rendition.display).toHaveBeenCalled());
+    });
+    expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "pending" });
+
+    await act(async () => {
+      generationA.resolve(["epubcfi(/6/2!/4/2:0)"]);
+      await generationA.promise;
+    });
+    expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "pending" });
+
+    await act(async () => {
+      generationB.resolve(["epubcfi(/6/4!/4/2:0)"]);
+      await generationB.promise;
+    });
+    await vi.waitFor(() => expect(facadeRef.current?.getSeekMapState().status).toBe("ready"));
+  });
+
+  it("clears seek readiness when the active EPUB session is torn down", async () => {
+    const session = createBookSession();
+    const bridge = createBridge();
+    const facadeRef = { current: null } as RefObject<EpubSessionFacade | null>;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    await renderHarness(
+      {
+        bridgeRef: createBridgeRef(bridge),
+        fileLease: leaseFor(new Blob(["book-a"])),
+        mode: "paged",
+      },
+      facadeRef,
+    );
+    await waitForReady(session, bridge);
+    await vi.waitFor(() => expect(facadeRef.current?.getSeekMapState().status).toBe("ready"));
+
+    act(() => facadeRef.current?.teardown());
+
+    expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "pending" });
+    expect(session.destroy).toHaveBeenCalledTimes(1);
   });
 
   it("uses one idempotent teardown for explicit retirement and effect cleanup", async () => {
