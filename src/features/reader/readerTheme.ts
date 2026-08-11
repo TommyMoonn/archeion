@@ -4,6 +4,7 @@ import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
+const READER_CONTENT_BLOCK_INSET_PX = 64;
 const READER_CONTENT_MOTION_SELECTOR =
   "html, html::before, html::after, body, body::before, body::after, body *, body *::before, body *::after";
 
@@ -48,7 +49,8 @@ export function readerThemeForSettings(
       background: `${palette.background} !important`,
       "font-size": `${settings.fontSize}px !important`,
       "line-height": `${settings.lineHeight} !important`,
-      padding: `0 ${settings.margin}px !important`,
+      "padding-block": `${READER_CONTENT_BLOCK_INSET_PX}px !important`,
+      "padding-inline": `${settings.margin}px !important`,
       "box-sizing": "border-box !important",
       "overflow-x": "hidden !important",
       "overscroll-behavior": "contain !important",

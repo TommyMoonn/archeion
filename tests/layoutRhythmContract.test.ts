@@ -153,7 +153,6 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(detailHeader).toContain("padding: 0 0 24px");
     expect(hints).not.toContain("padding-top");
     expect(volumes).toContain("padding: 0 0 36px");
-    expect(panelLayer).toContain("top: 52px");
     expect(panelLayer).toContain("bottom: 0");
     expect(panelLayer).toContain("inset-inline: 0");
     expect(panel).toContain("--reader-panel-inset: 14px");

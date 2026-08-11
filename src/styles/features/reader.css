@@ -16,6 +16,9 @@
   --reader-muted: #b8b5bb;
   --reader-focus: #c9c4ef;
   --reader-danger: #e77f8c;
+  --reader-toolbar-height: 52px;
+  --reader-toolbar-toggle-clearance: calc(var(--control-height-compact) + 10px);
+  --reader-header-clearance: 0px;
   --focus: var(--reader-focus);
 
   position: relative;
@@ -26,6 +29,10 @@
   overscroll-behavior: none;
   color: var(--reader-text);
   background: var(--reader-bg);
+}
+
+.reader-page[data-toolbar-expanded] {
+  --reader-header-clearance: var(--reader-toolbar-height);
 }
 
 .reader-page[data-reader-theme="light"] {
@@ -51,37 +58,33 @@
 }
 
 .reader-controls {
-  position: relative;
+  position: absolute;
   z-index: 5;
-  flex: none;
+  top: 0;
+  inset-inline: 0;
+  visibility: hidden;
   color: var(--reader-text);
-  opacity: 0;
   pointer-events: none;
-  transform: translateY(-10px);
-  transition:
-    opacity var(--motion-duration-standard) var(--motion-ease-standard),
-    transform var(--motion-duration-standard) var(--motion-ease-standard);
 }
 
 .reader-controls[data-visible] {
-  opacity: 1;
+  visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
 }
 
-.reader-toolbar-reveal {
+.reader-toolbar-toggle {
   position: absolute;
   z-index: 6;
-  top: 8px;
-  left: 50%;
-  border-color: color-mix(in srgb, var(--reader-line) 78%, transparent);
+  top: calc((var(--reader-toolbar-height) - var(--control-height-compact)) / 2);
+  inset-inline-end: 8px;
+  border-color: transparent;
   color: var(--reader-muted);
-  background: color-mix(in srgb, var(--reader-bg) 92%, var(--reader-surface) 8%);
-  box-shadow: 0 4px 14px color-mix(in srgb, #000 22%, transparent);
-  transform: translateX(-50%);
+  background: transparent;
+  box-shadow: none;
 }
 
-.reader-toolbar-reveal:hover:not(:disabled):not([aria-disabled="true"]) {
+.reader-toolbar-toggle:hover:not(:disabled):not([aria-disabled="true"]),
+.reader-toolbar-toggle:focus-visible {
   color: var(--reader-strong);
   background: var(--reader-surface);
 }
@@ -90,9 +93,11 @@
   display: grid;
   grid-template-columns: minmax(130px, 1fr) minmax(240px, 460px) minmax(250px, 1fr);
   align-items: center;
-  min-height: 52px;
+  min-height: var(--reader-toolbar-height);
   gap: 8px;
-  padding: 0 12px;
+  padding-block: 0;
+  padding-inline-start: 12px;
+  padding-inline-end: calc(12px + var(--reader-toolbar-toggle-clearance));
   border-bottom: 1px solid color-mix(in srgb, var(--reader-line) 72%, transparent);
   background: var(--reader-bg);
 }
@@ -209,20 +214,20 @@ html[data-motion="on"] .reader-toolbar__back:active {
 }
 
 .reader-progress {
-  position: relative;
+  position: absolute;
   z-index: 4;
-  flex: none;
   outline: 0;
 }
 
 .reader-progress[data-placement="top"] {
+  top: var(--reader-header-clearance);
+  inset-inline: 0;
   width: 100%;
   height: 2px;
 }
 
 .reader-progress[data-placement="side"] {
-  position: absolute;
-  top: 62px;
+  top: calc(var(--reader-header-clearance) + 10px);
   inset-inline-start: 8px;
   bottom: 10px;
   width: 3px;
@@ -571,7 +576,7 @@ html[data-motion="on"] .reader-panel-loading span {
 .reader-side-surface-layer {
   position: absolute;
   z-index: 8;
-  top: 52px;
+  top: var(--reader-header-clearance);
   inset-inline: 0;
   bottom: 0;
 }
@@ -1295,7 +1300,8 @@ html[data-motion="on"] .reader-search__loading span {
   .reader-toolbar {
     grid-template-columns: auto minmax(180px, 1fr) auto;
     gap: 4px;
-    padding-inline: 8px;
+    padding-inline-start: 8px;
+    padding-inline-end: calc(8px + var(--reader-toolbar-toggle-clearance));
   }
 
   .reader-toolbar__back {
@@ -1332,7 +1338,8 @@ html[data-motion="on"] .reader-search__loading span {
   .reader-toolbar {
     grid-template-columns: auto minmax(100px, 1fr) minmax(0, 1fr);
     column-gap: 4px;
-    padding-inline: 10px;
+    padding-inline-start: 10px;
+    padding-inline-end: calc(10px + var(--reader-toolbar-toggle-clearance));
   }
 
   .reader-toolbar__back > span:last-child {

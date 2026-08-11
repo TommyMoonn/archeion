@@ -2,10 +2,11 @@ import {
   ArrowLeft,
   Bookmark,
   BookMarked,
-  ChevronDown,
   ChevronsLeft,
   ChevronsRight,
   List,
+  PanelTopClose,
+  PanelTopOpen,
   Redo2,
   Search,
   Undo2,
@@ -25,7 +26,6 @@ type ReaderToolbarProps = {
   historyBackDisabled: boolean;
   historyForwardAriaKeyShortcuts?: string;
   historyForwardDisabled: boolean;
-  entryRef?: Ref<HTMLButtonElement>;
   bookmarkActive: boolean;
   bookmarkAriaKeyShortcuts?: string;
   bookmarkBusy: boolean;
@@ -68,7 +68,6 @@ export function ReaderToolbar({
   historyBackDisabled,
   historyForwardAriaKeyShortcuts,
   historyForwardDisabled,
-  entryRef,
   bookmarkActive,
   bookmarkAriaKeyShortcuts,
   bookmarkBusy,
@@ -114,7 +113,6 @@ export function ReaderToolbar({
         aria-label={backLabel}
         className="reader-toolbar__back"
         onClick={onBack}
-        ref={entryRef}
         type="button"
       >
         <span aria-hidden="true" className="icon-slot">
@@ -262,21 +260,33 @@ export function ReaderToolbar({
   );
 }
 
-type ReaderToolbarRevealButtonProps = {
-  onActivate: MouseEventHandler<HTMLButtonElement>;
+type ReaderToolbarVisibilityToggleProps = {
+  expanded: boolean;
+  onToggle: MouseEventHandler<HTMLButtonElement>;
 };
 
-export function ReaderToolbarRevealButton({ onActivate }: ReaderToolbarRevealButtonProps) {
+export function ReaderToolbarVisibilityToggle({
+  expanded,
+  onToggle,
+}: ReaderToolbarVisibilityToggleProps) {
+  const label = expanded ? "Hide Reader toolbar" : "Show Reader toolbar";
+
   return (
     <IconButton
       aria-controls={READER_TOOLBAR_ID}
-      aria-expanded={false}
-      className="reader-toolbar-reveal"
-      label="Show Reader toolbar"
-      onClick={onActivate}
+      aria-expanded={expanded}
+      className="reader-toolbar-toggle"
+      label={label}
+      onClick={onToggle}
       size="compact"
+      tooltip={label}
+      tooltipPlacement="bottom"
     >
-      <ChevronDown aria-hidden="true" strokeWidth={2.25} />
+      {expanded ? (
+        <PanelTopClose aria-hidden="true" strokeWidth={2.1} />
+      ) : (
+        <PanelTopOpen aria-hidden="true" strokeWidth={2.1} />
+      )}
     </IconButton>
   );
 }

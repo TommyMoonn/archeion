@@ -52,7 +52,7 @@ import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
 import { ReaderSettingsPanel } from "./ReaderSettingsPanel";
-import { ReaderToolbar, ReaderToolbarRevealButton } from "./ReaderToolbar";
+import { ReaderToolbar, ReaderToolbarVisibilityToggle } from "./ReaderToolbar";
 import { LazyReaderAnnotationsPanel } from "./LazyReaderAnnotationsPanel";
 import { useReaderAnnotations } from "./useReaderAnnotations";
 import { useReaderHighlights } from "./useReaderHighlights";
@@ -971,6 +971,7 @@ export function ReaderPage() {
     <main
       className="reader-page"
       data-reader-theme={readerTheme.base}
+      data-toolbar-expanded={toolbarVisibility.expanded || undefined}
       id={MAIN_CONTENT_ID}
       ref={readerMainRef}
       style={readerThemeStyle}
@@ -982,10 +983,6 @@ export function ReaderPage() {
           aria-hidden={!toolbarVisibility.expanded || undefined}
           data-visible={toolbarVisibility.expanded || undefined}
           inert={!toolbarVisibility.expanded}
-          onBlurCapture={toolbarVisibility.onToolbarBlurCapture}
-          onFocusCapture={toolbarVisibility.onToolbarFocusCapture}
-          onPointerEnter={toolbarVisibility.onToolbarPointerEnter}
-          onPointerLeave={toolbarVisibility.onToolbarPointerLeave}
         >
           <ReaderToolbar
             backLabel={backLabel}
@@ -1000,7 +997,6 @@ export function ReaderPage() {
               commandDefinitions.readerHistoryForward.defaultBinding,
             )}
             historyForwardDisabled={!navigationHistory.canGoForward}
-            entryRef={toolbarVisibility.toolbarEntryRef}
             bookmarkActive={Boolean(annotations.currentBookmark)}
             bookmarkBusy={annotations.busy}
             bookmarkToggleDisabled={!annotations.canToggleCurrent}
@@ -1042,11 +1038,10 @@ export function ReaderPage() {
             annotationButtonRef={annotationButtonRef}
           />
         </div>
-        {toolbarVisibility.revealControlVisible ? (
-          <ReaderToolbarRevealButton
-            onActivate={(event) => toolbarVisibility.reveal(event.detail === 0)}
-          />
-        ) : null}
+        <ReaderToolbarVisibilityToggle
+          expanded={toolbarVisibility.expanded}
+          onToggle={toolbarVisibility.toggle}
+        />
         <ReaderProgressBar
           onSeek={navigateToProgressPercentage}
           percentage={location.percentage}

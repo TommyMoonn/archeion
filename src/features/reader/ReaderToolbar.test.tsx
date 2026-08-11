@@ -1,12 +1,12 @@
 // @vitest-environment happy-dom
 
-import { act } from "react";
+import { act, useState } from "react";
 import type { ComponentProps } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ReaderToolbar, ReaderToolbarRevealButton } from "./ReaderToolbar";
+import { ReaderToolbar, ReaderToolbarVisibilityToggle } from "./ReaderToolbar";
 import { TooltipProvider } from "../../components/Tooltip";
 
 let root: Root | null = null;
@@ -82,8 +82,17 @@ function button(container: HTMLElement, label: string): HTMLButtonElement {
 }
 
 describe("ReaderToolbar", () => {
-  it("exposes the collapsed reveal control as an intentional toolbar disclosure", () => {
-    const onActivate = vi.fn();
+  it("keeps one focused top-panel toggle mounted while its state and label change", () => {
+    function ToggleHarness() {
+      const [expanded, setExpanded] = useState(true);
+      return (
+        <ReaderToolbarVisibilityToggle
+          expanded={expanded}
+          onToggle={() => setExpanded((current) => !current)}
+        />
+      );
+    }
+
     act(() => {
       root?.unmount();
       root = null;
@@ -93,26 +102,33 @@ describe("ReaderToolbar", () => {
       root = createRoot(container);
       root.render(
         <TooltipProvider>
-          <ReaderToolbarRevealButton onActivate={onActivate} />
+          <ToggleHarness />
         </TooltipProvider>,
       );
     });
 
-    const reveal = button(container!, "Show Reader toolbar");
-    expect(reveal.getAttribute("aria-controls")).toBe("reader-toolbar");
-    expect(reveal.getAttribute("aria-expanded")).toBe("false");
+    const toggle = button(container!, "Hide Reader toolbar");
+    expect(toggle.getAttribute("aria-controls")).toBe("reader-toolbar");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    act(() => toggle.focus());
 
-    act(() => reveal.click());
-    expect(onActivate).toHaveBeenCalledOnce();
+    act(() => toggle.click());
+
+    const collapsedToggle = button(container!, "Show Reader toolbar");
+    expect(collapsedToggle).toBe(toggle);
+    expect(collapsedToggle.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(toggle);
+
+    act(() => collapsedToggle.click());
+    expect(button(container!, "Hide Reader toolbar")).toBe(toggle);
+    expect(document.activeElement).toBe(toggle);
   });
 
   it("uses the contextual Back action without changing its visible label", () => {
-    const entryRef = { current: null as HTMLButtonElement | null };
-    const { callbacks, container } = renderToolbar({ backLabel: "Back to Favorites", entryRef });
+    const { callbacks, container } = renderToolbar({ backLabel: "Back to Favorites" });
     const back = button(container, "Back to Favorites");
 
     expect(container.querySelector(".reader-toolbar")?.id).toBe("reader-toolbar");
-    expect(entryRef.current).toBe(back);
     expect(back.textContent).toContain("Back");
     act(() => back.click());
     expect(callbacks.onBack).toHaveBeenCalledTimes(1);

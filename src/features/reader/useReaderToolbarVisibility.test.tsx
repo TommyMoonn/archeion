@@ -11,46 +11,19 @@ let container: HTMLDivElement | null = null;
 
 function Harness() {
   const [surfaceOwned, setSurfaceOwned] = useState(false);
-  const {
-    activate,
-    deactivate,
-    expanded,
-    onToolbarBlurCapture,
-    onToolbarFocusCapture,
-    onToolbarPointerEnter,
-    onToolbarPointerLeave,
-    reveal,
-    revealControlVisible,
-    setSideSurfaceOwned,
-    toolbarEntryRef,
-  } = useReaderToolbarVisibility();
+  const { activate, deactivate, expanded, setSideSurfaceOwned, toggle } =
+    useReaderToolbarVisibility();
 
   return (
     <>
-      {revealControlVisible ? (
-        <button
-          aria-label="Show Reader toolbar"
-          onClick={(event) => reveal(event.detail === 0)}
-          type="button"
-        >
-          Reveal
-        </button>
-      ) : null}
-      <div
-        data-expanded={expanded || undefined}
-        onBlurCapture={onToolbarBlurCapture}
-        onFocusCapture={onToolbarFocusCapture}
-        onPointerEnter={onToolbarPointerEnter}
-        onPointerLeave={onToolbarPointerLeave}
-      >
-        <button ref={toolbarEntryRef} type="button">
-          Back
-        </button>
-      </div>
-      <button onClick={() => activate()} type="button">
+      <button aria-expanded={expanded} onClick={toggle} type="button">
+        {expanded ? "Hide Reader toolbar" : "Show Reader toolbar"}
+      </button>
+      <div data-expanded={expanded || undefined}>Toolbar</div>
+      <button onClick={activate} type="button">
         Activate
       </button>
-      <button onClick={() => deactivate()} type="button">
+      <button onClick={deactivate} type="button">
         Deactivate
       </button>
       <button
@@ -63,13 +36,8 @@ function Harness() {
       >
         Toggle surface
       </button>
-      <button type="button">Reading content</button>
     </>
   );
-}
-
-function toolbar(): HTMLElement {
-  return container!.querySelector<HTMLElement>("[data-expanded]")!;
 }
 
 function buttonByText(text: string): HTMLButtonElement {
@@ -99,105 +67,58 @@ afterEach(() => {
 });
 
 describe("useReaderToolbarVisibility", () => {
-  it("starts expanded once active and collapses only after the idle interval", () => {
+  it("starts visible for an active Reader and keeps the selected state stable over time", () => {
     renderHarness();
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
 
-    act(() => vi.advanceTimersByTime(2_399));
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
 
-    act(() => vi.advanceTimersByTime(1));
+    act(() => buttonByText("Hide Reader toolbar").click());
     expect(container!.querySelector("[data-expanded]")).toBeNull();
-    expect(container!.querySelector('button[aria-label="Show Reader toolbar"]')).toBeInstanceOf(
-      HTMLButtonElement,
-    );
+
+    act(() => vi.advanceTimersByTime(10_000));
+    expect(container!.querySelector("[data-expanded]")).toBeNull();
   });
 
-  it("reveals a newly activated Reader even after the previous session had collapsed", () => {
+  it("toggles deterministically through repeated explicit actions", () => {
     renderHarness();
-    act(() => vi.advanceTimersByTime(2_400));
+
+    act(() => buttonByText("Hide Reader toolbar").click());
+    expect(buttonByText("Show Reader toolbar").getAttribute("aria-expanded")).toBe("false");
+
+    act(() => buttonByText("Show Reader toolbar").click());
+    expect(buttonByText("Hide Reader toolbar").getAttribute("aria-expanded")).toBe("true");
+
+    act(() => buttonByText("Hide Reader toolbar").click());
+    expect(buttonByText("Show Reader toolbar").getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("forces visibility while a side surface owns the toolbar and leaves it visible after close", () => {
+    renderHarness();
+    act(() => buttonByText("Hide Reader toolbar").click());
+    expect(container!.querySelector("[data-expanded]")).toBeNull();
+
+    act(() => buttonByText("Toggle surface").click());
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
+
+    act(() => buttonByText("Hide Reader toolbar").click());
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
+
+    act(() => buttonByText("Toggle surface").click());
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
+  });
+
+  it("resets a new Reader session to visible", () => {
+    renderHarness();
+    act(() => buttonByText("Hide Reader toolbar").click());
     expect(container!.querySelector("[data-expanded]")).toBeNull();
 
     act(() => buttonByText("Deactivate").click());
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
 
+    act(() => buttonByText("Hide Reader toolbar").click());
     act(() => buttonByText("Activate").click());
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
-    act(() => vi.advanceTimersByTime(2_399));
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
-    act(() => vi.advanceTimersByTime(1));
-    expect(container!.querySelector("[data-expanded]")).toBeNull();
-  });
-
-  it("does not restart idle collapse for ordinary reading-content pointer movement", () => {
-    renderHarness();
-    const readingContent = buttonByText("Reading content");
-
-    act(() => vi.advanceTimersByTime(2_000));
-    act(() => readingContent.dispatchEvent(new PointerEvent("pointermove", { bubbles: true })));
-    act(() => vi.advanceTimersByTime(400));
-
-    expect(container!.querySelector("[data-expanded]")).toBeNull();
-  });
-
-  it("suspends collapse while pointer or focus owns the toolbar and resumes after ownership ends", () => {
-    renderHarness();
-    const owner = toolbar();
-    const readingContent = buttonByText("Reading content");
-
-    act(() => owner.dispatchEvent(new PointerEvent("pointerover", { bubbles: true })));
-    act(() => vi.advanceTimersByTime(3_000));
-    expect(toolbar()).toBe(owner);
-
-    act(() => owner.dispatchEvent(new PointerEvent("pointerout", { bubbles: true })));
-    act(() => vi.advanceTimersByTime(2_400));
-    expect(container!.querySelector("[data-expanded]")).toBeNull();
-
-    const reveal = container!.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show Reader toolbar"]',
-    )!;
-    act(() => reveal.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 })));
-    const expandedToolbar = toolbar();
-    const expandedEntry = expandedToolbar.querySelector<HTMLButtonElement>("button")!;
-    act(() => expandedEntry.focus());
-    act(() => vi.advanceTimersByTime(3_000));
-    expect(toolbar()).toBe(expandedToolbar);
-
-    act(() => readingContent.focus());
-    act(() => vi.advanceTimersByTime(2_400));
-    expect(container!.querySelector("[data-expanded]")).toBeNull();
-  });
-
-  it("keeps side-surface ownership expanded and resumes idle collapse after the surface closes", () => {
-    renderHarness();
-    const toggle = buttonByText("Toggle surface");
-
-    act(() => toggle.click());
-    act(() => vi.advanceTimersByTime(4_000));
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
-
-    act(() => toggle.click());
-    act(() => vi.advanceTimersByTime(2_399));
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
-    act(() => vi.advanceTimersByTime(1));
-    expect(container!.querySelector("[data-expanded]")).toBeNull();
-  });
-
-  it("keeps the reveal control mounted until keyboard activation hands focus into the toolbar", () => {
-    renderHarness();
-    act(() => vi.advanceTimersByTime(2_400));
-    const reveal = container!.querySelector<HTMLButtonElement>(
-      'button[aria-label="Show Reader toolbar"]',
-    )!;
-    act(() => reveal.focus());
-
-    act(() => reveal.dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 0 })));
-
-    const entry = toolbar().querySelector<HTMLButtonElement>("button")!;
-    expect(document.activeElement).toBe(entry);
-    expect(container!.querySelector('button[aria-label="Show Reader toolbar"]')).toBeNull();
-
-    act(() => vi.advanceTimersByTime(3_000));
-    expect(toolbar()).toBeInstanceOf(HTMLElement);
+    expect(container!.querySelector("[data-expanded]")).toBeInstanceOf(HTMLElement);
   });
 });

@@ -104,14 +104,22 @@ describe("readerThemeForSettings", () => {
     expect(theme.body).toMatchObject({
       "font-size": "22px !important",
       "line-height": "1.8 !important",
-      padding: "0 72px !important",
+      "padding-block": "64px !important",
+      "padding-inline": "72px !important",
       background: "#eee5d2 !important",
       "overflow-x": "hidden !important",
       "overscroll-behavior": "contain !important",
     });
     const bodyRules = theme.body as Record<string, string | undefined>;
+    const narrowerTheme = readerThemeForSettings(
+      { ...defaultReaderSettings, margin: 28 },
+      readerPalette("sepia"),
+    );
 
     expect(theme.html["overscroll-behavior"]).toBe("contain !important");
+    expect(narrowerTheme.body["padding-inline"]).toBe("28px !important");
+    expect(narrowerTheme.body["padding-block"]).toBe(theme.body["padding-block"]);
+    expect(bodyRules.padding).toBeUndefined();
     expect(bodyRules.margin).toBeUndefined();
     expect(bodyRules["max-width"]).toBeUndefined();
     expect(bodyRules.overflow).toBeUndefined();
@@ -188,7 +196,8 @@ describe("readerThemeForSettings", () => {
 
     expect(contentTheme.name).toBe("archeion-reader");
     expect(contentTheme.rules.body["font-size"]).toBe("20px !important");
-    expect(contentTheme.rules.body.padding).toBe("0 64px !important");
+    expect(contentTheme.rules.body["padding-block"]).toBe("64px !important");
+    expect(contentTheme.rules.body["padding-inline"]).toBe("64px !important");
     expect(contentTheme.fontFaceCss).toContain('font-family: "Literata"');
   });
 

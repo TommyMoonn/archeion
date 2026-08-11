@@ -340,17 +340,12 @@ async function renderReader(
   return { container, returnContext, router };
 }
 
-function beginToolbarIdleWithFakeTimers(rendered: Awaited<ReturnType<typeof renderReader>>): void {
-  const back = rendered.container.querySelector<HTMLButtonElement>(".reader-toolbar__back")!;
-  const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
-  act(() => back.focus());
-  vi.useFakeTimers();
-  act(() => reader.focus());
-}
-
-async function collapseToolbar(rendered: Awaited<ReturnType<typeof renderReader>>): Promise<void> {
-  beginToolbarIdleWithFakeTimers(rendered);
-  await act(async () => vi.advanceTimersByTimeAsync(2_400));
+function hideToolbar(rendered: Awaited<ReturnType<typeof renderReader>>): void {
+  const toggle = rendered.container.querySelector<HTMLButtonElement>(
+    'button[aria-label="Hide Reader toolbar"]',
+  );
+  if (!toggle) throw new Error("Reader toolbar visibility toggle was not rendered.");
+  act(() => toggle.click());
 }
 
 async function openPalette(): Promise<HTMLInputElement> {
@@ -1067,7 +1062,7 @@ describe("ReaderPage Quick Actions", () => {
     expect(viewerMock.closePublicationSearch).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps Reader controls revealed while Find in Book is open and resumes auto-hide after close", async () => {
+  it("keeps Reader controls visible after Find in Book closes and idle time passes", async () => {
     const rendered = await renderReader();
     const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
     const searchButton = rendered.container.querySelector<HTMLButtonElement>(
@@ -1080,9 +1075,7 @@ describe("ReaderPage Quick Actions", () => {
       expect(rendered.container.querySelector(".reader-search")).toBeInstanceOf(HTMLElement);
       expect(controls.getAttribute("data-visible")).toBe("true");
 
-      await act(async () => {
-        vi.advanceTimersByTime(3_000);
-      });
+      await act(async () => vi.advanceTimersByTimeAsync(4_000));
       expect(controls.getAttribute("data-visible")).toBe("true");
 
       const close = rendered.container.querySelector<HTMLButtonElement>(
@@ -1096,24 +1089,142 @@ describe("ReaderPage Quick Actions", () => {
       expect(document.activeElement).toBe(searchButton);
       expect(controls.getAttribute("data-visible")).toBe("true");
 
-      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      await act(async () => vi.advanceTimersByTimeAsync(4_000));
       expect(controls.getAttribute("data-visible")).toBe("true");
-
-      const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
-      act(() => reader.focus());
-      await act(async () => vi.advanceTimersByTimeAsync(2_399));
-      expect(controls.getAttribute("data-visible")).toBe("true");
-      await act(async () => vi.advanceTimersByTimeAsync(1));
-      expect(controls.getAttribute("data-visible")).toBeNull();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("auto-collapses after idle and ignores ordinary Reader movement while collapsed", async () => {
+  it.each(["top", "side"] as const)(
+    "keeps the %s progress scrubber and active rendition stable across toolbar collapse and reveal",
+    async (progressPlacement) => {
+      const original = appPreferencesStore.getSnapshot();
+
+      try {
+        await act(async () => {
+          await appPreferencesStore.update({
+            reader: { ...original.reader, progressPlacement },
+          });
+        });
+        const rendered = await renderReader();
+        publishSeekMap({
+          resolveCfi: vi.fn(() => "epubcfi(/6/2!/4/4:0)"),
+          resolveChapterLabel: vi.fn(() => "Chapter 1"),
+          resolvePercentage: vi.fn(() => 0.21),
+          status: "ready",
+        });
+
+        const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+        const viewer = rendered.container.querySelector<HTMLElement>(".epub-viewer")!;
+        const progress = rendered.container.querySelector<HTMLElement>(".reader-progress")!;
+        const initialLocationPublications = viewerMock.locationPublications.mock.calls.length;
+
+        expect(reader.getAttribute("data-toolbar-expanded")).toBe("true");
+        expect(progress.getAttribute("data-placement")).toBe(progressPlacement);
+        expect(progress.getAttribute("role")).toBe("slider");
+
+        hideToolbar(rendered);
+
+        expect(reader.getAttribute("data-toolbar-expanded")).toBeNull();
+        expect(rendered.container.querySelector(".epub-viewer")).toBe(viewer);
+        expect(rendered.container.querySelector(".reader-progress")).toBe(progress);
+        expect(viewerMock.locationPublications).toHaveBeenCalledTimes(initialLocationPublications);
+        expect(viewerMock.navigateToLocation).not.toHaveBeenCalled();
+        expect(viewerMock.navigateToSeekPercentage).not.toHaveBeenCalled();
+        expect(viewerMock.next).not.toHaveBeenCalled();
+        expect(viewerMock.previous).not.toHaveBeenCalled();
+        expect(viewerMock.teardown).not.toHaveBeenCalled();
+
+        const reveal = rendered.container.querySelector<HTMLButtonElement>(
+          'button[aria-label="Show Reader toolbar"]',
+        )!;
+        act(() =>
+          reveal.dispatchEvent(
+            new MouseEvent("click", { bubbles: true, cancelable: true, detail: 1 }),
+          ),
+        );
+
+        expect(reader.getAttribute("data-toolbar-expanded")).toBe("true");
+        expect(rendered.container.querySelector(".epub-viewer")).toBe(viewer);
+        expect(rendered.container.querySelector(".reader-progress")).toBe(progress);
+        expect(viewerMock.locationPublications).toHaveBeenCalledTimes(initialLocationPublications);
+        expect(viewerMock.navigateToLocation).not.toHaveBeenCalled();
+        expect(viewerMock.navigateToSeekPercentage).not.toHaveBeenCalled();
+        expect(viewerMock.next).not.toHaveBeenCalled();
+        expect(viewerMock.previous).not.toHaveBeenCalled();
+        expect(viewerMock.teardown).not.toHaveBeenCalled();
+
+        hideToolbar(rendered);
+        expect(reader.getAttribute("data-toolbar-expanded")).toBeNull();
+        expect(rendered.container.querySelector(".reader-progress")).toBe(progress);
+
+        await act(async () => {
+          progress.focus();
+          progress.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              bubbles: true,
+              cancelable: true,
+              key: "ArrowRight",
+            }),
+          );
+          await Promise.resolve();
+        });
+
+        expect(viewerMock.navigateToSeekPercentage).toHaveBeenCalledTimes(1);
+        expect(viewerMock.navigateToSeekPercentage).toHaveBeenCalledWith(21);
+        expect(rendered.container.querySelector(".epub-viewer")).toBe(viewer);
+        expect(rendered.container.querySelector(".reader-progress")).toBe(progress);
+      } finally {
+        vi.useRealTimers();
+        await act(async () => {
+          await appPreferencesStore.update(original);
+        });
+      }
+    },
+  );
+
+  it("opens a side surface from collapsed state without replacing the active rendition", async () => {
     const rendered = await renderReader();
     try {
-      await collapseToolbar(rendered);
+      hideToolbar(rendered);
+      const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
+      const viewer = rendered.container.querySelector<HTMLElement>(".epub-viewer")!;
+      const progress = rendered.container.querySelector<HTMLElement>(".reader-progress")!;
+      const initialLocationPublications = viewerMock.locationPublications.mock.calls.length;
+
+      expect(reader.getAttribute("data-toolbar-expanded")).toBeNull();
+
+      await act(async () => {
+        reader.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "s",
+          }),
+        );
+      });
+
+      expect(rendered.container.querySelector(".reader-settings")).toBeInstanceOf(HTMLElement);
+      expect(reader.getAttribute("data-toolbar-expanded")).toBe("true");
+      expect(rendered.container.querySelector(".epub-viewer")).toBe(viewer);
+      expect(rendered.container.querySelector(".reader-progress")).toBe(progress);
+      expect(viewerMock.locationPublications).toHaveBeenCalledTimes(initialLocationPublications);
+      expect(viewerMock.navigateToLocation).not.toHaveBeenCalled();
+      expect(viewerMock.navigateToSeekPercentage).not.toHaveBeenCalled();
+      expect(viewerMock.next).not.toHaveBeenCalled();
+      expect(viewerMock.previous).not.toHaveBeenCalled();
+      expect(viewerMock.teardown).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a manually hidden toolbar hidden through ordinary Reader activity and idle time", async () => {
+    const rendered = await renderReader();
+    vi.useFakeTimers();
+    try {
+      hideToolbar(rendered);
       const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
       const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
       const previousZone = rendered.container.querySelector<HTMLElement>(
@@ -1123,9 +1234,6 @@ describe("ReaderPage Quick Actions", () => {
 
       expect(controls.getAttribute("data-visible")).toBeNull();
       expect(controls.hasAttribute("inert")).toBe(true);
-      expect(
-        rendered.container.querySelector('button[aria-label="Show Reader toolbar"]'),
-      ).toBeInstanceOf(HTMLButtonElement);
 
       act(() => {
         reader.dispatchEvent(new PointerEvent("pointermove", { bubbles: true }));
@@ -1135,37 +1243,12 @@ describe("ReaderPage Quick Actions", () => {
         );
         frame.contentDocument!.body.dispatchEvent(new TouchEvent("touchmove", { bubbles: true }));
       });
-      await act(async () => vi.advanceTimersByTimeAsync(3_000));
+      await act(async () => vi.advanceTimersByTimeAsync(4_000));
 
       expect(controls.getAttribute("data-visible")).toBeNull();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("hands keyboard focus from the collapsed reveal control into the expanded toolbar", async () => {
-    const rendered = await renderReader();
-    try {
-      await collapseToolbar(rendered);
-      const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
-      const reveal = rendered.container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Show Reader toolbar"]',
-      )!;
-      const back = rendered.container.querySelector<HTMLButtonElement>(".reader-toolbar__back")!;
-
-      act(() => reveal.focus());
-      expect(document.activeElement).toBe(reveal);
-      act(() => reveal.click());
-
-      expect(controls.getAttribute("data-visible")).toBe("true");
-      expect(controls.hasAttribute("inert")).toBe(false);
-      expect(document.activeElement).toBe(back);
       expect(
         rendered.container.querySelector('button[aria-label="Show Reader toolbar"]'),
-      ).toBeNull();
-
-      await act(async () => vi.advanceTimersByTimeAsync(3_000));
-      expect(controls.getAttribute("data-visible")).toBe("true");
+      ).toBeInstanceOf(HTMLButtonElement);
     } finally {
       vi.useRealTimers();
     }
@@ -1204,8 +1287,9 @@ describe("ReaderPage Quick Actions", () => {
     "keeps the toolbar expanded while the %s shortcut-owned surface is open",
     async (_label, shortcut, surfaceSelector, closeSelector, triggerSelector) => {
       const rendered = await renderReader();
+      vi.useFakeTimers();
       try {
-        await collapseToolbar(rendered);
+        hideToolbar(rendered);
         const controls = rendered.container.querySelector<HTMLElement>(".reader-controls")!;
         const reader = rendered.container.querySelector<HTMLElement>(".reader-page")!;
 
@@ -1235,10 +1319,8 @@ describe("ReaderPage Quick Actions", () => {
         expect(controls.getAttribute("data-visible")).toBe("true");
 
         act(() => reader.focus());
-        await act(async () => vi.advanceTimersByTimeAsync(2_399));
+        await act(async () => vi.advanceTimersByTimeAsync(4_000));
         expect(controls.getAttribute("data-visible")).toBe("true");
-        await act(async () => vi.advanceTimersByTimeAsync(1));
-        expect(controls.getAttribute("data-visible")).toBeNull();
       } finally {
         vi.useRealTimers();
       }
