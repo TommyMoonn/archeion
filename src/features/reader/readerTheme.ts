@@ -4,6 +4,8 @@ import { readerFontFaceCssForId, readerFontFamilyForId } from "./readerFonts";
 
 const READER_CONTENT_THEME_NAME = "archeion-reader";
 const READER_FONT_FACE_STYLE_ID = "archeion-reader-font-faces";
+const READER_CONTENT_MOTION_SELECTOR =
+  "html, html::before, html::after, body, body::before, body::after, body *, body *::before, body *::after";
 
 export type ReaderContentSettings = Pick<
   ReaderSettings,
@@ -38,6 +40,7 @@ export function readerThemeForSettings(
     html: {
       background: `${palette.background} !important`,
       "overscroll-behavior": "contain !important",
+      "scroll-behavior": "auto !important",
       "scrollbar-width": "none !important",
     },
     body: {
@@ -49,6 +52,7 @@ export function readerThemeForSettings(
       "box-sizing": "border-box !important",
       "overflow-x": "hidden !important",
       "overscroll-behavior": "contain !important",
+      "scroll-behavior": "auto !important",
       "scrollbar-width": "none !important",
     },
     "body, body *": {
@@ -59,6 +63,11 @@ export function readerThemeForSettings(
     },
     "*, *::before, *::after": {
       "box-sizing": "border-box !important",
+    },
+    [READER_CONTENT_MOTION_SELECTOR]: {
+      animation: "none !important",
+      "scroll-behavior": "auto !important",
+      transition: "none !important",
     },
     "p, li": {
       color: `${palette.text} !important`,

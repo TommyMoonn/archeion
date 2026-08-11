@@ -118,6 +118,22 @@ describe("readerThemeForSettings", () => {
     expect(theme["body, body *"]["font-family"]).toContain("Segoe UI");
   });
 
+  it("suppresses publication CSS motion in rendered reading content", () => {
+    const theme = readerThemeForSettings(defaultReaderSettings, readerPalette());
+
+    expect(theme.html["scroll-behavior"]).toBe("auto !important");
+    expect(theme.body["scroll-behavior"]).toBe("auto !important");
+    const contentMotionRules = Object.entries(theme).find(([selector]) =>
+      selector.includes("body *::before"),
+    )?.[1];
+
+    expect(contentMotionRules).toMatchObject({
+      animation: "none !important",
+      "scroll-behavior": "auto !important",
+      transition: "none !important",
+    });
+  });
+
   it("maps bundled Literata into reader theme output", () => {
     const theme = readerThemeForSettings(
       { ...defaultReaderSettings, fontFamily: "literata" },
