@@ -21,6 +21,7 @@ import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 import type { ReaderSessionIdentity } from "./readerSession";
 import type { ReaderNavigationHistorySnapshot } from "./readerNavigationHistory";
 import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
+import type { ReaderSeekMapState } from "./readerSeekMap";
 
 const viewerMock = vi.hoisted(() => ({
   closePublicationSearch: vi.fn(),
@@ -35,6 +36,9 @@ const viewerMock = vi.hoisted(() => ({
   navigateForward: vi.fn().mockResolvedValue(true),
   navigateToLocation: vi.fn().mockResolvedValue(true),
   navigateToPublicationSearchResult: vi.fn().mockResolvedValue(true),
+  navigateToSeekPercentage: vi.fn().mockResolvedValue(true),
+  next: vi.fn().mockResolvedValue(undefined),
+  previous: vi.fn().mockResolvedValue(undefined),
   nextPublicationSearchResult: vi.fn().mockResolvedValue(true),
   previousPublicationSearchResult: vi.fn().mockResolvedValue(true),
   publicationSearchState: {
@@ -50,7 +54,12 @@ const viewerMock = vi.hoisted(() => ({
   publishNavigationHistory: null as ((snapshot: ReaderNavigationHistorySnapshot) => void) | null,
   publishPublicationSearch: null as
     ((state: ReaderPublicationSearchControllerState) => void) | null,
+  publishSeekMap: null as ((state: ReaderSeekMapState) => void) | null,
   resolveAnnotationAnchor: vi.fn(),
+  resolveSeekPreview: vi.fn((percentage: number) => ({
+    chapterLabel: "Chapter 1",
+    percentage,
+  })),
   setPublicationSearchQuery: vi.fn(),
   teardown: vi.fn(),
 }));
@@ -74,6 +83,7 @@ vi.mock("./EpubViewer", async () => {
         onNavigationChange,
         onNavigationHistoryChange,
         onPublicationSearchChange,
+        onSeekMapChange,
         onReady,
         sessionIdentity,
       }: {
@@ -88,6 +98,7 @@ vi.mock("./EpubViewer", async () => {
         onNavigationChange: (navigation: typeof navigationState) => void;
         onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
         onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
+        onSeekMapChange?: (state: ReaderSeekMapState) => void;
         onReady: (identity: ReaderSessionIdentity) => void;
         sessionIdentity: ReaderSessionIdentity;
         settings: { mode: "continuous" | "paged" };
@@ -103,12 +114,14 @@ vi.mock("./EpubViewer", async () => {
         navigateToNavigationItem: vi.fn().mockResolvedValue(true),
         navigateToLocation: viewerMock.navigateToLocation,
         navigateToPublicationSearchResult: viewerMock.navigateToPublicationSearchResult,
+        navigateToSeekPercentage: viewerMock.navigateToSeekPercentage,
         nextPublicationSearchResult: viewerMock.nextPublicationSearchResult,
         previousPublicationSearchResult: viewerMock.previousPublicationSearchResult,
         setPublicationSearchQuery: viewerMock.setPublicationSearchQuery,
-        next: vi.fn().mockResolvedValue(undefined),
-        previous: vi.fn().mockResolvedValue(undefined),
+        next: viewerMock.next,
+        previous: viewerMock.previous,
         resolveAnnotationAnchor: viewerMock.resolveAnnotationAnchor,
+        resolveSeekPreview: viewerMock.resolveSeekPreview,
         teardown: viewerMock.teardown,
       }));
       const initialCallbacks = React.useRef({
@@ -116,6 +129,7 @@ vi.mock("./EpubViewer", async () => {
         onNavigationChange,
         onNavigationHistoryChange,
         onPublicationSearchChange,
+        onSeekMapChange,
         onReady,
         sessionIdentity,
       });
@@ -148,6 +162,16 @@ vi.mock("./EpubViewer", async () => {
           }
         };
       }, [onPublicationSearchChange]);
+
+      React.useEffect(() => {
+        viewerMock.publishSeekMap = onSeekMapChange ?? null;
+        onSeekMapChange?.({ status: "pending" });
+        return () => {
+          if (viewerMock.publishSeekMap === onSeekMapChange) {
+            viewerMock.publishSeekMap = null;
+          }
+        };
+      }, [onSeekMapChange]);
 
       React.useEffect(() => {
         const callbacks = initialCallbacks.current;
@@ -407,6 +431,12 @@ function publishPublicationSearch(state: ReaderPublicationSearchControllerState)
   });
 }
 
+function publishSeekMap(state: ReaderSeekMapState): void {
+  act(() => {
+    viewerMock.publishSeekMap?.(state);
+  });
+}
+
 beforeEach(() => {
   viewerMock.closePublicationSearch.mockReset();
   viewerMock.historySnapshot = {
@@ -420,6 +450,9 @@ beforeEach(() => {
   viewerMock.navigateForward.mockReset().mockResolvedValue(true);
   viewerMock.navigateToLocation.mockReset().mockResolvedValue(true);
   viewerMock.navigateToPublicationSearchResult.mockReset().mockResolvedValue(true);
+  viewerMock.navigateToSeekPercentage.mockReset().mockResolvedValue(true);
+  viewerMock.next.mockReset().mockResolvedValue(undefined);
+  viewerMock.previous.mockReset().mockResolvedValue(undefined);
   viewerMock.nextPublicationSearchResult.mockReset().mockResolvedValue(true);
   viewerMock.previousPublicationSearchResult.mockReset().mockResolvedValue(true);
   viewerMock.publicationSearchState = {
@@ -433,6 +466,8 @@ beforeEach(() => {
   };
   viewerMock.publishNavigationHistory = null;
   viewerMock.publishPublicationSearch = null;
+  viewerMock.publishSeekMap = null;
+  viewerMock.resolveSeekPreview.mockClear();
   viewerMock.setPublicationSearchQuery.mockReset().mockImplementation((query: string) => {
     publishPublicationSearch({
       error: null,
@@ -687,6 +722,45 @@ describe("ReaderPage Quick Actions", () => {
 
     expect(event.defaultPrevented).toBe(false);
     expect(viewerMock.navigateBack).not.toHaveBeenCalled();
+  });
+
+  it("switches progress semantics with seek readiness and owns slider Arrow keys", async () => {
+    const rendered = await renderReader();
+    let progress = rendered.container.querySelector<HTMLElement>(".reader-progress")!;
+
+    expect(progress.getAttribute("role")).toBe("progressbar");
+    expect(progress.hasAttribute("tabindex")).toBe(false);
+
+    publishSeekMap({ status: "unavailable" });
+    progress = rendered.container.querySelector<HTMLElement>(".reader-progress")!;
+    expect(progress.getAttribute("role")).toBe("progressbar");
+
+    publishSeekMap({
+      resolveCfi: vi.fn(() => "epubcfi(/6/2!/4/4:0)"),
+      resolveChapterLabel: vi.fn(() => "Chapter 1"),
+      resolvePercentage: vi.fn(() => 0.21),
+      status: "ready",
+    });
+    progress = rendered.container.querySelector<HTMLElement>(".reader-progress")!;
+
+    expect(progress.getAttribute("role")).toBe("slider");
+    expect(progress.getAttribute("tabindex")).toBe("0");
+
+    await act(async () => {
+      progress.focus();
+      progress.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "ArrowRight",
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(viewerMock.navigateToSeekPercentage).toHaveBeenCalledWith(21);
+    expect(viewerMock.next).not.toHaveBeenCalled();
   });
 
   it("focuses the Reader main landmark when the explicit route mounts", async () => {

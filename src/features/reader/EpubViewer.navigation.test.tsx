@@ -153,7 +153,12 @@ function createBookSession(chapterId: string, chapterHref: string) {
   const open = vi.fn();
   const renderTo = vi.fn(() => rendition);
   const destroy = vi.fn();
-  const generate = vi.fn(async () => undefined);
+  const generatedLocations = ["epubcfi(/6/2!/4/2:0)", "epubcfi(/6/2!/4/10:0)"];
+  const generate = vi.fn(async () => generatedLocations);
+  const cfiFromPercentage = vi.fn((percentage: number) =>
+    percentage >= 1 ? generatedLocations[1] : generatedLocations[0],
+  );
+  const percentageFromCfi = vi.fn((cfi: string) => (cfi === generatedLocations[1] ? 1 : 0));
   const book = {
     opened: Promise.resolve(),
     loaded: {
@@ -191,7 +196,7 @@ function createBookSession(chapterId: string, chapterHref: string) {
       }),
     },
     renderTo,
-    locations: { generate },
+    locations: { cfiFromPercentage, generate, percentageFromCfi },
     off: vi.fn((event: string, callback: (...args: unknown[]) => void) => {
       bookListeners.get(event)?.delete(callback);
     }),
@@ -211,9 +216,11 @@ function createBookSession(chapterId: string, chapterHref: string) {
       label: chapterId,
     },
     chapterDocument,
+    cfiFromPercentage,
     destroy,
     generate,
     navigationDocument,
+    percentageFromCfi,
     navigation: {
       promise: navigation.promise,
       reject(reason?: unknown) {
@@ -1068,6 +1075,54 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/10:2)");
     expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
       backCount: 2,
+      canGoBack: true,
+      canGoForward: false,
+      forwardCount: 0,
+    });
+  });
+
+  it("routes committed seek targets through deliberate history and leaves history intact on failure", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    await resolveNavigation(session);
+    await vi.waitFor(() => expect(session.generate).toHaveBeenCalledTimes(1));
+
+    act(() => {
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:4)"),
+      );
+    });
+
+    expect(viewerRef.current?.resolveSeekPreview(0)).toEqual({
+      chapterLabel: "chapter-1",
+      percentage: 0,
+    });
+    expect(viewerRef.current?.resolveSeekPreview(100)).toEqual({
+      chapterLabel: "chapter-1",
+      percentage: 100,
+    });
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToSeekPercentage(100)).resolves.toBe(true);
+    });
+
+    expect(session.rendition.display).toHaveBeenLastCalledWith("epubcfi(/6/2!/4/10:0)");
+    expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(1);
+
+    vi.mocked(session.rendition.display).mockRejectedValueOnce(new Error("seek display failed"));
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToSeekPercentage(0)).resolves.toBe(false);
+    });
+
+    expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
+      backCount: 1,
       canGoBack: true,
       canGoForward: false,
       forwardCount: 0,

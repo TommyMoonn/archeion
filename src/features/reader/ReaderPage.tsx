@@ -47,6 +47,7 @@ import {
 } from "./readerLocation";
 import { createReaderSessionController, createReaderSessionKey } from "./readerSession";
 import type { EpubSessionError } from "./useEpubSession";
+import type { ReaderSeekMapState } from "./readerSeekMap";
 import { createReaderProgressController } from "./readerProgressController";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderNextVolumePrompt } from "./ReaderNextVolumePrompt";
@@ -155,6 +156,7 @@ export function ReaderPage() {
   );
   const [publicationSearchState, setPublicationSearchState] =
     useState<ReaderPublicationSearchControllerState>(INITIAL_PUBLICATION_SEARCH_STATE);
+  const [seekMapStatus, setSeekMapStatus] = useState<ReaderSeekMapState["status"]>("pending");
   const [controlsVisible, setControlsVisible] = useState(true);
   const [recoveryStatus, setRecoveryStatus] = useState<"idle" | "rescanning" | "failed">("idle");
   const controlsVisibleRef = useRef(controlsVisible);
@@ -387,6 +389,22 @@ export function ReaderPage() {
         () => viewerRef.current?.navigateForward() ?? Promise.resolve(false),
       ),
     [runControlledReaderTransition],
+  );
+
+  const resolveProgressSeekPreview = useCallback(
+    (percentage: number) => viewerRef.current?.resolveSeekPreview(percentage) ?? null,
+    [],
+  );
+  const navigateToProgressPercentage = useCallback(
+    (percentage: number) =>
+      runControlledReaderTransition(
+        () => viewerRef.current?.navigateToSeekPercentage(percentage) ?? Promise.resolve(false),
+      ),
+    [runControlledReaderTransition],
+  );
+  const handleSeekMapChange = useCallback(
+    (state: ReaderSeekMapState) => setSeekMapStatus(state.status),
+    [],
   );
 
   useLayoutEffect(
@@ -1072,8 +1090,11 @@ export function ReaderPage() {
           />
         </div>
         <ReaderProgressBar
+          onSeek={navigateToProgressPercentage}
           percentage={location.percentage}
           placement={settings.progressPlacement}
+          resolveSeekPreview={resolveProgressSeekPreview}
+          seekable={seekMapStatus === "ready"}
         />
 
         {readerSessionFailure ? (
@@ -1114,6 +1135,7 @@ export function ReaderPage() {
             onNavigationChange={setNavigationState}
             onNavigationHistoryChange={setNavigationHistory}
             onPublicationSearchChange={setPublicationSearchState}
+            onSeekMapChange={handleSeekMapChange}
             onReady={handleReady}
             readerTheme={readerTheme}
             sessionIdentity={readerSessionIdentity}

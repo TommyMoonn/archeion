@@ -40,11 +40,15 @@ describe("Reader seek map", () => {
   it("generates the active EPUB location map and resolves representative normalized percentages", async () => {
     const epubLocations = locations();
     const seekMap = createReaderSeekMap(epubLocations, () => emptyReaderNavigationModel);
+    const onChange = vi.fn();
+    const unsubscribe = seekMap.subscribe(onChange);
 
     expect(seekMap.getState()).toEqual({ status: "pending" });
 
     await seekMap.generate();
 
+    expect(onChange).toHaveBeenCalledTimes(1);
+    unsubscribe();
     expect(epubLocations.generate).toHaveBeenCalledWith(READER_SEEK_LOCATION_BREAK);
     const state = ready(seekMap.getState());
     expect(state.resolveCfi(0)).toBe("epubcfi(/6/2!/4/2:0)");

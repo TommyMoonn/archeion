@@ -249,6 +249,30 @@
     background: Mark;
   }
 
+  .reader-progress__track {
+    background: Canvas;
+  }
+
+  .reader-progress__fill {
+    background: Highlight;
+  }
+
+  .reader-progress__preview {
+    border-color: CanvasText;
+    color: CanvasText;
+    background: Canvas;
+    box-shadow: none;
+  }
+
+  .reader-progress__preview strong,
+  .reader-progress__preview span {
+    color: CanvasText;
+  }
+
+  .reader-progress[data-seekable]:focus-visible::before {
+    outline-color: Highlight;
+  }
+
   .reader-search__result-match {
     color: HighlightText;
     background: Highlight;

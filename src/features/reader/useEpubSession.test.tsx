@@ -471,6 +471,7 @@ describe("useEpubSession lifecycle", () => {
         navigateToLocation: expect.any(Function),
         navigateToTarget: expect.any(Function),
         searchPublication: expect.any(Function),
+        subscribeSeekMap: expect.any(Function),
         teardown: expect.any(Function),
         turn: expect.any(Function),
       }),
@@ -512,12 +513,16 @@ describe("useEpubSession lifecycle", () => {
 
     expect(stages).toEqual(["display", "generate-locations"]);
     expect(facadeRef.current?.getSeekMapState()).toEqual({ status: "pending" });
+    const onSeekMapChange = vi.fn();
+    const unsubscribe = facadeRef.current?.subscribeSeekMap(onSeekMapChange);
 
     await act(async () => {
       locationGeneration.resolve(["epubcfi(/6/2!/4/2:0)", "epubcfi(/6/4!/4/2:0)"]);
       await locationGeneration.promise;
     });
 
+    expect(onSeekMapChange).toHaveBeenCalledTimes(1);
+    unsubscribe?.();
     const seekState = facadeRef.current?.getSeekMapState();
     expect(seekState?.status).toBe("ready");
     if (seekState?.status === "ready") {

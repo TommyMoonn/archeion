@@ -214,6 +214,24 @@ describe("forced-colors and focus visibility contract", () => {
     );
   });
 
+  it("keeps the seekable Reader progress control legible in forced colors", () => {
+    const progressTrack = cssBlock(".reader-progress__track", forcedColorsBlock);
+    const progressFill = cssBlock(".reader-progress__fill", forcedColorsBlock);
+    const progressPreview = cssBlock(".reader-progress__preview", forcedColorsBlock);
+    const progressFocus = cssBlock(
+      ".reader-progress[data-seekable]:focus-visible::before",
+      forcedColorsBlock,
+    );
+
+    expect(progressTrack).toContain("background: Canvas");
+    expect(progressFill).toContain("background: Highlight");
+    expect(progressPreview).toContain("border-color: CanvasText");
+    expect(progressPreview).toContain("color: CanvasText");
+    expect(progressPreview).toContain("background: Canvas");
+    expect(progressPreview).toContain("box-shadow: none");
+    expect(progressFocus).toContain("outline-color: Highlight");
+  });
+
   it("gives Reader page-turn focus two controlled colors without changing its geometry", () => {
     const pageTurnFocus = cssBlock(".epub-viewer__click-zone:focus-visible", readerSource);
     const previousFocus = cssBlock(

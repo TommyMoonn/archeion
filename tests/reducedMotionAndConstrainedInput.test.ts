@@ -85,6 +85,23 @@ describe("Phase 0.8.0.9 reduced motion and constrained input contracts", () => {
     );
   });
 
+  it("keeps seekable Reader progress hit areas scalable and motion-token based", () => {
+    const progressFill = cssBlock(readerStyles, ".reader-progress__fill");
+    const topHitArea = cssBlock(
+      readerStyles,
+      '.reader-progress[data-seekable][data-placement="top"]::before',
+    );
+    const sideHitArea = cssBlock(
+      readerStyles,
+      '.reader-progress[data-seekable][data-placement="side"]::before',
+    );
+
+    expect(topHitArea).toContain("inset: -0.5rem 0");
+    expect(sideHitArea).toContain("inset: 0 -0.5rem");
+    expect(progressFill).toContain("var(--motion-duration-standard)");
+    expect(progressFill).not.toMatch(/\b\d+(?:\.\d+)?ms\b/);
+  });
+
   it("keeps context menus viewport-bounded while allowing essential action labels to wrap", () => {
     const contextMenu = cssBlock(menuStyles, ".context-menu");
     const menuPopover = cssBlock(menuStyles, ".menu-popover");

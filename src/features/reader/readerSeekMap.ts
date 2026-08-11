@@ -32,6 +32,7 @@ export type ReaderSeekMap = Readonly<{
   generate: () => Promise<void>;
   getState: () => ReaderSeekMapState;
   retire: () => void;
+  subscribe: (listener: () => void) => () => void;
 }>;
 
 export const PENDING_READER_SEEK_MAP_STATE: ReaderSeekMapPendingState = Object.freeze({
@@ -50,6 +51,13 @@ export function createReaderSeekMap(
   let state: ReaderSeekMapState = PENDING_READER_SEEK_MAP_STATE;
   let generationPromise: Promise<void> | null = null;
   let retired = false;
+  const listeners = new Set<() => void>();
+
+  const setState = (nextState: ReaderSeekMapState) => {
+    if (state === nextState) return;
+    state = nextState;
+    for (const listener of listeners) listener();
+  };
 
   const resolveCfi = (percentage: number): string | undefined => {
     const activeLocations = locations;
@@ -109,10 +117,10 @@ export function createReaderSeekMap(
         const generated = await generationLocations.generate(READER_SEEK_LOCATION_BREAK);
         if (retired || locations !== generationLocations) return;
 
-        state = hasGeneratedLocation(generated) ? readyState : UNAVAILABLE_READER_SEEK_MAP_STATE;
+        setState(hasGeneratedLocation(generated) ? readyState : UNAVAILABLE_READER_SEEK_MAP_STATE);
       } catch {
         if (retired || locations !== generationLocations) return;
-        state = UNAVAILABLE_READER_SEEK_MAP_STATE;
+        setState(UNAVAILABLE_READER_SEEK_MAP_STATE);
       }
     })();
 
@@ -126,7 +134,13 @@ export function createReaderSeekMap(
       if (retired) return;
       retired = true;
       locations = null;
-      state = PENDING_READER_SEEK_MAP_STATE;
+      setState(PENDING_READER_SEEK_MAP_STATE);
+      listeners.clear();
+    },
+    subscribe(listener) {
+      if (retired) return () => undefined;
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
   });
 }

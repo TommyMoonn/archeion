@@ -38,7 +38,8 @@ import { useEpubSession, type EpubSessionBridge, type EpubSessionError } from ".
 import { useEpubContentActionController } from "./useEpubContentActionController";
 import { useReaderIllustrationExport } from "./useReaderIllustrationExport";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
-import type { ReaderRelocation } from "./readerLocation";
+import { normalizeReaderSeekPercentage, type ReaderRelocation } from "./readerLocation";
+import type { ReaderSeekMapState } from "./readerSeekMap";
 import type { ReaderHighlightColor } from "./readerHighlights";
 import type { ResolvedReaderTheme } from "../../themes/domain";
 import type { ReaderFileLease } from "./readerFileLease";
@@ -53,6 +54,11 @@ import {
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
+export type ReaderSeekPreview = Readonly<{
+  chapterLabel?: string;
+  percentage: number;
+}>;
+
 export type EpubViewerHandle = {
   closePublicationSearch: () => void;
   getNavigationHistorySnapshot: () => ReaderNavigationHistorySnapshot;
@@ -63,11 +69,13 @@ export type EpubViewerHandle = {
   navigateToNavigationItem: (itemId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToPublicationSearchResult: (resultId: string) => Promise<boolean>;
+  navigateToSeekPercentage: (percentage: number) => Promise<boolean>;
   navigateToSelectedPublicationSearchResult: () => Promise<boolean>;
   next: () => Promise<void>;
   nextPublicationSearchResult: () => Promise<boolean>;
   previousPublicationSearchResult: () => Promise<boolean>;
   previous: () => Promise<void>;
+  resolveSeekPreview: (percentage: number) => ReaderSeekPreview | null;
   setPublicationSearchQuery: (query: string) => void;
   resolveAnnotationAnchor: (
     annotation: Annotation,
@@ -98,6 +106,7 @@ type EpubViewerProps = {
   onNavigationChange?: (navigation: ReaderNavigationState) => void;
   onNavigationHistoryChange?: (snapshot: ReaderNavigationHistorySnapshot) => void;
   onPublicationSearchChange?: (state: ReaderPublicationSearchControllerState) => void;
+  onSeekMapChange?: (state: ReaderSeekMapState) => void;
   onReady: (identity: ReaderSessionIdentity) => void;
   readerTheme: ResolvedReaderTheme;
   sessionIdentity: ReaderSessionIdentity;
@@ -124,6 +133,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onNavigationChange,
     onNavigationHistoryChange,
     onPublicationSearchChange,
+    onSeekMapChange,
     onReady,
     readerTheme,
     sessionIdentity,
@@ -175,6 +185,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     getInteractionSession,
     getNavigationHistorySnapshot,
     getNavigationState,
+    getSeekMapState,
     isLoading,
     navigateBack: replayBack,
     navigateForward: replayForward,
@@ -183,6 +194,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     navigateToTarget: displayTarget,
     searchPublication,
     subscribeNavigationHistory,
+    subscribeSeekMap,
     teardown,
     turn,
   } = useEpubSession({
@@ -201,6 +213,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     publish();
     return subscribeNavigationHistory(publish);
   }, [getNavigationHistorySnapshot, onNavigationHistoryChange, subscribeNavigationHistory]);
+
+  useEffect(() => {
+    if (!onSeekMapChange) return undefined;
+
+    const publish = () => onSeekMapChange(getSeekMapState());
+    publish();
+    return subscribeSeekMap(publish);
+  }, [getSeekMapState, onSeekMapChange, subscribeSeekMap]);
 
   const publicationSearch = useReaderPublicationSearch({
     emphasis: searchMatchEmphasis,
@@ -499,6 +519,43 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     [displayLocation, prepareNavigation],
   );
 
+  const resolveSeekTarget = useCallback(
+    (percentage: number) => {
+      const normalized = normalizeReaderSeekPercentage(percentage / 100);
+      const seekMap = getSeekMapState();
+      if (normalized === undefined || seekMap.status !== "ready") return null;
+
+      const cfi = seekMap.resolveCfi(normalized);
+      if (!cfi) return null;
+
+      const chapterLabel = seekMap.resolveChapterLabel(cfi);
+      return {
+        cfi,
+        preview: Object.freeze({
+          ...(chapterLabel ? { chapterLabel } : {}),
+          percentage: normalized * 100,
+        }) satisfies ReaderSeekPreview,
+      };
+    },
+    [getSeekMapState],
+  );
+
+  const resolveSeekPreview = useCallback(
+    (percentage: number): ReaderSeekPreview | null =>
+      resolveSeekTarget(percentage)?.preview ?? null,
+    [resolveSeekTarget],
+  );
+
+  const navigateToSeekPercentage = useCallback(
+    async (percentage: number) => {
+      const seekTarget = resolveSeekTarget(percentage);
+      if (!seekTarget) return false;
+      prepareNavigation();
+      return displayLocation(seekTarget.cfi);
+    },
+    [displayLocation, prepareNavigation, resolveSeekTarget],
+  );
+
   const navigateBack = useCallback(async () => {
     prepareNavigation();
     return replayBack();
@@ -534,6 +591,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateToNavigationItem,
       navigateToLocation,
       navigateToPublicationSearchResult: publicationSearch.navigateResult,
+      navigateToSeekPercentage,
       navigateToSelectedPublicationSearchResult: publicationSearch.navigateSelectedResult,
       next: () => turn("forward"),
       nextPublicationSearchResult: publicationSearch.nextResult,
@@ -541,6 +599,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       previousPublicationSearchResult: publicationSearch.previousResult,
       resolveAnnotationAnchor: (annotation, attemptRecovery) =>
         annotations.resolveAnnotationAnchor(annotation, attemptRecovery),
+      resolveSeekPreview,
       setPublicationSearchQuery: publicationSearch.setQuery,
       teardown: teardownReader,
     }),
@@ -552,6 +611,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateToChapter,
       navigateToNavigationItem,
       navigateToLocation,
+      navigateToSeekPercentage,
       closePublicationSearch,
       publicationSearch.navigateResult,
       publicationSearch.navigateSelectedResult,
@@ -559,6 +619,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       publicationSearch.previousResult,
       publicationSearch.setQuery,
       publicationSearch.state,
+      resolveSeekPreview,
       teardownReader,
       turn,
     ],
@@ -707,6 +768,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onRemoveHighlight === next.onRemoveHighlight &&
     previous.onNavigationChange === next.onNavigationChange &&
     previous.onPublicationSearchChange === next.onPublicationSearchChange &&
+    previous.onSeekMapChange === next.onSeekMapChange &&
     previous.onReady === next.onReady &&
     previous.contentTheme === next.contentTheme &&
     previous.readerTheme === next.readerTheme &&

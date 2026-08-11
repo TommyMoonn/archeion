@@ -127,6 +127,7 @@ type EpubTurnOwner = {
 type EpubSessionLifecycle = {
   cancelDeferredNavigation: () => void;
   identity: ReaderSessionIdentity;
+  unsubscribeSeekMap: () => void;
   onRelocated: (location: Location) => void;
   onRendered: (section: unknown, view: unknown) => void;
   onSelected: (cfiRange: string, contents: EpubContent) => void;
@@ -201,6 +202,7 @@ export type EpubSessionFacade = {
     options?: ReaderPublicationSearchOptions,
   ) => Promise<ReaderPublicationSearchOutcome>;
   subscribeNavigationHistory: (listener: () => void) => () => void;
+  subscribeSeekMap: (listener: () => void) => () => void;
   teardown: () => void;
   turn: (intent: ReaderNavigationIntent) => Promise<void>;
 };
@@ -226,6 +228,7 @@ export function useEpubSession({
   const generationRef = useRef(0);
   const canonicalCfiFileRef = useRef<ReaderFileLease | null>(null);
   const turnOwnerRef = useRef<EpubTurnOwner | null>(null);
+  const seekMapListenersRef = useRef(new Set<() => void>());
   const sessionKey = useMemo(
     () => ({ fileLease, mode, sessionIdentity }),
     [fileLease, mode, sessionIdentity],
@@ -240,6 +243,15 @@ export function useEpubSession({
   useEffect(() => {
     initialCfiRef.current = initialCfi;
   }, [initialCfi]);
+
+  const notifySeekMap = useCallback(() => {
+    for (const listener of seekMapListenersRef.current) listener();
+  }, []);
+
+  const subscribeSeekMap = useCallback((listener: () => void) => {
+    seekMapListenersRef.current.add(listener);
+    return () => seekMapListenersRef.current.delete(listener);
+  }, []);
 
   useEffect(() => {
     deliberateNavigation.startSession(sessionIdentity, initialCfiRef.current);
@@ -417,6 +429,9 @@ export function useEpubSession({
         deliberateNavigation.unbindDisplay(session);
         session.publicationSearch.retire();
         session.seekMap.retire();
+        owner.unsubscribeSeekMap();
+        owner.unsubscribeSeekMap = () => undefined;
+        if (wasCurrent) notifySeekMap();
         owner.cancelDeferredNavigation();
         owner.cancelDeferredNavigation = () => undefined;
         invalidateTurnOwner(session);
@@ -534,6 +549,7 @@ export function useEpubSession({
         const owner: EpubSessionLifecycle = {
           cancelDeferredNavigation: () => undefined,
           identity: sessionIdentity,
+          unsubscribeSeekMap: () => undefined,
           onRendered: (section, view) => {
             if (!ownsSession(session)) return;
             sessionDocuments.pruneDisconnected();
@@ -561,6 +577,10 @@ export function useEpubSession({
         };
         lifecycle = owner;
         sessionRef.current = session;
+        owner.unsubscribeSeekMap = session.seekMap.subscribe(() => {
+          if (ownsSession(session)) notifySeekMap();
+        });
+        notifySeekMap();
         deliberateNavigation.bindDisplay(
           sessionIdentity,
           session,
@@ -658,6 +678,7 @@ export function useEpubSession({
     fileLease,
     invalidateTurnOwner,
     mode,
+    notifySeekMap,
     sessionIdentity,
     sessionKey,
   ]);
@@ -707,6 +728,7 @@ export function useEpubSession({
     navigateToTarget,
     searchPublication,
     subscribeNavigationHistory,
+    subscribeSeekMap,
     teardown,
     turn,
   };

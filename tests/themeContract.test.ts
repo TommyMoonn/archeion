@@ -453,7 +453,9 @@ describe("theme token baseline", () => {
       expect(readerCss).toMatch(
         /^\.reader-page\s*{[^}]*color:\s*var\(--reader-text\);[^}]*background:\s*var\(--reader-bg\);/m,
       );
-      expect(readerCss).toMatch(/\.reader-progress\s*{[^}]*background:\s*var\(--reader-surface\);/);
+      expect(readerCss).toMatch(
+        /\.reader-progress__track\s*\{[^}]*background:\s*var\(--reader-surface\);/,
+      );
       for (const [token, definition] of Object.entries(readerThemeResolvedTokenRegistry)) {
         expect(readerVariables[definition.cssVariable]).toBe(
           reader.tokens[token as keyof typeof readerThemeResolvedTokenRegistry],
