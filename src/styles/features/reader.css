@@ -256,6 +256,32 @@ html[data-motion="on"] .reader-toolbar__back:active {
   outline-offset: 2px;
 }
 
+.reader-progress__handle {
+  --reader-progress-preview-position: 0%;
+
+  position: absolute;
+  z-index: 3;
+  width: 0.6rem;
+  height: 0.6rem;
+  border: 2px solid var(--reader-bg);
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--reader-bg) 72%, transparent);
+  pointer-events: none;
+}
+
+.reader-progress__handle[data-placement="top"] {
+  top: 50%;
+  left: var(--reader-progress-preview-position);
+  transform: translate(-50%, -50%);
+}
+
+.reader-progress__handle[data-placement="side"] {
+  top: var(--reader-progress-preview-position);
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
 .reader-progress__preview {
   --reader-progress-preview-position: 0%;
 

@@ -257,6 +257,12 @@
     background: Highlight;
   }
 
+  .reader-progress__handle {
+    border-color: Canvas;
+    background: Highlight;
+    box-shadow: none;
+  }
+
   .reader-progress__preview {
     border-color: CanvasText;
     color: CanvasText;

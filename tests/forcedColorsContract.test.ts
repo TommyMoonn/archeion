@@ -217,6 +217,7 @@ describe("forced-colors and focus visibility contract", () => {
   it("keeps the seekable Reader progress control legible in forced colors", () => {
     const progressTrack = cssBlock(".reader-progress__track", forcedColorsBlock);
     const progressFill = cssBlock(".reader-progress__fill", forcedColorsBlock);
+    const progressHandle = cssBlock(".reader-progress__handle", forcedColorsBlock);
     const progressPreview = cssBlock(".reader-progress__preview", forcedColorsBlock);
     const progressFocus = cssBlock(
       ".reader-progress[data-seekable]:focus-visible::before",
@@ -225,6 +226,9 @@ describe("forced-colors and focus visibility contract", () => {
 
     expect(progressTrack).toContain("background: Canvas");
     expect(progressFill).toContain("background: Highlight");
+    expect(progressHandle).toContain("border-color: Canvas");
+    expect(progressHandle).toContain("background: Highlight");
+    expect(progressHandle).toContain("box-shadow: none");
     expect(progressPreview).toContain("border-color: CanvasText");
     expect(progressPreview).toContain("color: CanvasText");
     expect(progressPreview).toContain("background: Canvas");
