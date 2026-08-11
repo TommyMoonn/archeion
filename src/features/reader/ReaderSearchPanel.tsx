@@ -189,10 +189,22 @@ function SearchResult({
         <span className="reader-search__result-meta">
           {result.chapterLabel ?? `Section ${result.position.spineIndex + 1}`}
         </span>
-        <span className="reader-search__result-excerpt">{result.excerpt}</span>
+        <SearchResultExcerpt result={result} />
         {active ? <span className="sr-only">Active result</span> : null}
       </button>
     </li>
+  );
+}
+
+function SearchResultExcerpt({ result }: { result: ReaderPublicationSearchResult }) {
+  const { end, start } = result.excerptMatch;
+
+  return (
+    <span className="reader-search__result-excerpt">
+      {result.excerpt.slice(0, start)}
+      <mark className="reader-search__result-match">{result.excerpt.slice(start, end)}</mark>
+      {result.excerpt.slice(end)}
+    </span>
   );
 }
 

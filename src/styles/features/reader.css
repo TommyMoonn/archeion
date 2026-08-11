@@ -1105,6 +1105,14 @@ html[data-motion="on"] .reader-side-panel {
   -webkit-line-clamp: 3;
 }
 
+.reader-search__result-match {
+  border-radius: 2px;
+  color: var(--reader-strong);
+  background: color-mix(in srgb, var(--reader-focus) 26%, transparent);
+  box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--reader-focus) 82%, transparent);
+  font-weight: var(--font-weight-semibold);
+}
+
 .reader-search__empty {
   display: flex;
   min-height: 220px;
@@ -1962,5 +1970,7 @@ html[data-motion="on"] .reader-search__loading span {
 
 .epub-viewer .archeion-search-match-emphasis line {
   stroke: var(--reader-focus) !important;
-  stroke-width: 2 !important;
+  stroke-width: 3.5 !important;
+  stroke-linecap: round !important;
+  filter: drop-shadow(0 1px 0 var(--reader-bg));
 }

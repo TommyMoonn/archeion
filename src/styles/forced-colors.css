@@ -249,6 +249,18 @@
     background: Mark;
   }
 
+  .reader-search__result-match {
+    color: HighlightText;
+    background: Highlight;
+    box-shadow: none;
+  }
+
+  .epub-viewer .archeion-search-match-emphasis line {
+    stroke: Highlight !important;
+    stroke-width: 3.5 !important;
+    filter: none;
+  }
+
   :where(.icon-slot, .segmented-control__icon, .reader-navigation__current-icon) {
     color: currentColor;
     forced-color-adjust: auto;

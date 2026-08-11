@@ -63,6 +63,7 @@ function result(
 ): ReaderPublicationSearchResult {
   return Object.freeze({
     excerpt: `Excerpt ${id}`,
+    excerptMatch: Object.freeze({ end: 8 + id.length, start: 8 }),
     id,
     matchedText: id,
     position: Object.freeze({ matchIndex: 0, spineIndex: 0 }),

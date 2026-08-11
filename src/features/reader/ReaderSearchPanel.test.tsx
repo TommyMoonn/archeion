@@ -12,7 +12,8 @@ const results: readonly ReaderPublicationSearchResult[] = Object.freeze([
   Object.freeze({
     chapterId: "chapter-1",
     chapterLabel: "Chapter One",
-    excerpt: "Before alpha after",
+    excerpt: "Before <b>alpha</b> after",
+    excerptMatch: Object.freeze({ end: 15, start: 10 }),
     id: "result-1",
     matchedText: "alpha",
     position: Object.freeze({ matchIndex: 0, spineIndex: 0 }),
@@ -21,9 +22,10 @@ const results: readonly ReaderPublicationSearchResult[] = Object.freeze([
   Object.freeze({
     chapterId: "chapter-2",
     chapterLabel: "Chapter Two",
-    excerpt: "Before beta after",
+    excerpt: "Before BeTa after",
+    excerptMatch: Object.freeze({ end: 11, start: 7 }),
     id: "result-2",
-    matchedText: "beta",
+    matchedText: "BeTa",
     position: Object.freeze({ matchIndex: 0, spineIndex: 1 }),
     target: "epubcfi(/6/4!/4/2:7)",
   }),
@@ -131,6 +133,25 @@ describe("ReaderSearchPanel", () => {
     ]);
     expect(resultButtons[0]?.getAttribute("aria-current")).toBe("true");
     expect(resultButtons[1]?.hasAttribute("aria-current")).toBe(false);
+
+    const excerpts = [
+      ...container!.querySelectorAll<HTMLElement>(".reader-search__result-excerpt"),
+    ];
+    const indicators = [
+      ...container!.querySelectorAll<HTMLElement>("mark.reader-search__result-match"),
+    ];
+    expect(excerpts.map((excerpt) => excerpt.textContent)).toEqual([
+      "Before <b>alpha</b> after",
+      "Before BeTa after",
+    ]);
+    expect(indicators.map((indicator) => indicator.textContent)).toEqual(["alpha", "BeTa"]);
+    expect(excerpts[0]?.querySelector("b")).toBeNull();
+    expect(indicators[0]?.closest(".reader-search__result")?.hasAttribute("data-active")).toBe(
+      true,
+    );
+    expect(indicators[1]?.closest(".reader-search__result")?.hasAttribute("data-active")).toBe(
+      false,
+    );
 
     act(() => resultButtons[1]?.click());
     expect(callbacks.onActivateResult).toHaveBeenCalledWith("result-2");

@@ -181,12 +181,35 @@ describe("readerPublicationSearch", () => {
     expect(outcome.results[0]).toEqual(
       expect.objectContaining({
         excerpt: "Before Needle CASE after.",
+        excerptMatch: { end: 18, start: 7 },
         matchedText: "Needle CASE",
       }),
     );
     expect(outcome.results[0]?.excerpt).not.toContain("script");
     expect(outcome.results[0]?.excerpt).not.toContain("style");
     expect(outcome.results[0]?.excerpt).not.toContain("<");
+  });
+
+  it("locates the actual case-preserved match inside a truncated displayed excerpt", async () => {
+    const prefix = "context ".repeat(20);
+    const suffix = " tail".repeat(20);
+    const { section } = createSection(0, `<p>${prefix}NeEdLe${suffix}</p>`);
+    const service = createReaderPublicationSearchService({
+      book: createBook([section]),
+      sections: createSectionAccess([section]),
+    });
+
+    const outcome = await service.search("needle");
+
+    expect(outcome.kind).toBe("completed");
+    if (outcome.kind !== "completed") return;
+    const result = outcome.results[0];
+    expect(result?.excerpt.startsWith("…")).toBe(true);
+    expect(result?.excerpt.endsWith("…")).toBe(true);
+    expect(result?.matchedText).toBe("NeEdLe");
+    expect(result?.excerpt.slice(result.excerptMatch.start, result.excerptMatch.end)).toBe(
+      "NeEdLe",
+    );
   });
 
   it("caps returned results, reports truncation, and keeps deterministic publication ordering and ids", async () => {

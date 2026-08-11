@@ -1030,6 +1030,7 @@ describe("ReaderPage Quick Actions", () => {
       chapterId: "chapter-1",
       chapterLabel: "Chapter 1",
       excerpt: "A searchable phrase in context",
+      excerptMatch: Object.freeze({ end: 19, start: 2 }),
       id: "search-result-1",
       matchedText: "searchable phrase",
       position: Object.freeze({ matchIndex: 0, spineIndex: 0 }),

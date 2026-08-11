@@ -1198,6 +1198,51 @@ describe("EpubViewer navigation lifecycle", () => {
     );
   });
 
+  it("keeps overlapping persisted highlights independent from transient search emphasis", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    session.section.cfiFromRange.mockReturnValue(renderedHighlight.cfiRange);
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = {
+      ...defaultViewerProps(new Blob(["book-one"])),
+      highlights: [renderedHighlight],
+    };
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    await vi.waitFor(() => expect(session.rendition.annotations.highlight).toHaveBeenCalledOnce());
+
+    act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
+    await flushAsyncWork();
+
+    const searchState = viewerRef.current!.getPublicationSearchState();
+    expect(searchState.status).toBe("ready");
+    expect(searchState.selectedResult?.target).toBe(renderedHighlight.cfiRange);
+    expect(session.rendition.annotations.underline).toHaveBeenCalledWith(
+      renderedHighlight.cfiRange,
+      { transient: "reader-search-match" },
+      undefined,
+      "archeion-search-match-emphasis",
+      undefined,
+    );
+
+    const persistedRemovalsBeforeClose = session.rendition.annotations.remove.mock.calls.filter(
+      ([target, type]) => target === renderedHighlight.cfiRange && type === "highlight",
+    ).length;
+    act(() => viewerRef.current?.closePublicationSearch());
+
+    expect(session.rendition.annotations.remove).toHaveBeenCalledWith(
+      renderedHighlight.cfiRange,
+      "underline",
+    );
+    expect(
+      session.rendition.annotations.remove.mock.calls.filter(
+        ([target, type]) => target === renderedHighlight.cfiRange && type === "highlight",
+      ),
+    ).toHaveLength(persistedRemovalsBeforeClose);
+    expect(session.rendition.annotations.highlight).toHaveBeenCalledOnce();
+  });
+
   it("preserves ready publication search and reapplies emphasis across a same-Reader mode replacement", async () => {
     const paged = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     const continuous = createBookSession("chapter-1", "Text/chapter-1.xhtml");

@@ -16,10 +16,16 @@ export type ReaderPublicationSearchPosition = Readonly<{
   spineIndex: number;
 }>;
 
+export type ReaderPublicationSearchExcerptMatch = Readonly<{
+  end: number;
+  start: number;
+}>;
+
 export type ReaderPublicationSearchResult = Readonly<{
   chapterId?: string;
   chapterLabel?: string;
   excerpt: string;
+  excerptMatch: ReaderPublicationSearchExcerptMatch;
   id: string;
   matchedText: string;
   position: ReaderPublicationSearchPosition;
@@ -88,6 +94,7 @@ type SearchableDocument = Readonly<{
 type RawSearchMatch = Readonly<{
   cfi: string;
   excerpt: string;
+  excerptMatch: ReaderPublicationSearchExcerptMatch;
   matchedText: string;
   matchIndex: number;
   spineIndex: number;
@@ -423,6 +430,7 @@ export function createReaderPublicationSearchService({
           Object.freeze({
             ...(chapter ? { chapterId: chapter.id, chapterLabel: chapter.label } : {}),
             excerpt: match.excerpt,
+            excerptMatch: match.excerptMatch,
             id: resultId(match.spineIndex, target.canonicalFullHref),
             matchedText: match.matchedText,
             position: Object.freeze({
@@ -518,10 +526,12 @@ function searchLoadedSection(
         continue;
       }
 
+      const excerpt = excerptForMatch(searchable.text, start, end);
       matches.push(
         Object.freeze({
           cfi,
-          excerpt: excerptForMatch(searchable.text, start, end),
+          excerpt: excerpt.text,
+          excerptMatch: excerpt.match,
           matchedText,
           matchIndex: sourceMatchIndex,
           spineIndex,
@@ -624,11 +634,32 @@ function rangeForMatch(
   return range;
 }
 
-function excerptForMatch(text: string, start: number, end: number): string {
-  const excerptStart = Math.max(0, start - READER_PUBLICATION_SEARCH_EXCERPT_CONTEXT);
-  const excerptEnd = Math.min(text.length, end + READER_PUBLICATION_SEARCH_EXCERPT_CONTEXT);
-  const body = text.slice(excerptStart, excerptEnd).trim();
-  return `${excerptStart > 0 ? "…" : ""}${body}${excerptEnd < text.length ? "…" : ""}`;
+function excerptForMatch(
+  text: string,
+  start: number,
+  end: number,
+): Readonly<{ match: ReaderPublicationSearchExcerptMatch; text: string }> {
+  const rawStart = Math.max(0, start - READER_PUBLICATION_SEARCH_EXCERPT_CONTEXT);
+  const rawEnd = Math.min(text.length, end + READER_PUBLICATION_SEARCH_EXCERPT_CONTEXT);
+  let excerptStart = rawStart;
+  let excerptEnd = rawEnd;
+
+  while (excerptStart < start && isOrdinaryWhitespace(text[excerptStart] ?? "")) {
+    excerptStart += 1;
+  }
+  while (excerptEnd > end && isOrdinaryWhitespace(text[excerptEnd - 1] ?? "")) {
+    excerptEnd -= 1;
+  }
+
+  const leadingEllipsis = excerptStart > 0 ? "…" : "";
+  const trailingEllipsis = excerptEnd < text.length ? "…" : "";
+  const excerpt = `${leadingEllipsis}${text.slice(excerptStart, excerptEnd)}${trailingEllipsis}`;
+  const matchStart = leadingEllipsis.length + start - excerptStart;
+
+  return Object.freeze({
+    match: Object.freeze({ end: matchStart + end - start, start: matchStart }),
+    text: excerpt,
+  });
 }
 
 function normalizeSearchText(value: string): string {

@@ -8,6 +8,7 @@ import {
 
 function annotationSession() {
   return {
+    highlight: vi.fn(),
     removeAnnotation: vi.fn(),
     underline: vi.fn(),
   } as unknown as EpubAnnotationSessionAccess;
@@ -32,6 +33,21 @@ describe("ReaderSearchMatchEmphasis", () => {
     expect(emphasis.show("epubcfi(/6/2!/4/2:8)")).toBe(true);
     expect(session.removeAnnotation).toHaveBeenCalledWith("epubcfi(/6/2!/4/2:1)", "underline");
     expect(session.underline).toHaveBeenCalledTimes(2);
+  });
+
+  it("removes only transient emphasis when a persisted highlight overlaps the same range", () => {
+    const session = annotationSession();
+    const emphasis = new ReaderSearchMatchEmphasis();
+    const target = "epubcfi(/6/2!/4/2:1)";
+    session.highlight(target, { annotationId: "saved-highlight" });
+    emphasis.setSession(session);
+
+    expect(emphasis.show(target)).toBe(true);
+    emphasis.clear();
+
+    expect(session.highlight).toHaveBeenCalledOnce();
+    expect(session.removeAnnotation).toHaveBeenCalledWith(target, "underline");
+    expect(session.removeAnnotation).not.toHaveBeenCalledWith(target, "highlight");
   });
 
   it("clears the old session emphasis before adopting a replacement session", () => {
