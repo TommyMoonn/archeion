@@ -51,6 +51,7 @@ vi.mock("./EpubViewer", async () => {
     ) {
       React.useImperativeHandle(ref, () => ({
         navigateToChapter: vi.fn().mockResolvedValue(false),
+        navigateToNavigationItem: vi.fn().mockResolvedValue(false),
         navigateToLocation: vi.fn().mockResolvedValue(true),
         next: vi.fn().mockResolvedValue(undefined),
         previous: vi.fn().mockResolvedValue(undefined),
@@ -327,7 +328,7 @@ describe("ReaderPage series continuation", () => {
     });
   });
 
-  it("does not remount the EPUB viewer when the TOC opens or closes", async () => {
+  it("does not remount the EPUB viewer when book navigation opens or closes", async () => {
     viewerMock.sessionsStarted = 0;
     viewerMock.location = {
       atEnd: false,
@@ -338,7 +339,7 @@ describe("ReaderPage series continuation", () => {
     };
     const rendered = await renderReader([createBook({ id: "book" })], "book");
     const tocButton = rendered.container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Table of contents"]',
+      'button[aria-label="Book navigation"]',
     );
 
     expect(tocButton).toBeInstanceOf(HTMLButtonElement);
@@ -348,13 +349,13 @@ describe("ReaderPage series continuation", () => {
       tocButton?.click();
       await Promise.resolve();
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(HTMLElement);
     expect(viewerMock.sessionsStarted).toBe(1);
 
     await act(async () => {
       tocButton?.click();
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    expect(rendered.container.querySelector(".reader-navigation")).toBeNull();
     expect(viewerMock.sessionsStarted).toBe(1);
   });
 

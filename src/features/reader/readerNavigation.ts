@@ -12,7 +12,7 @@ export type ReaderLeaveSettlement = Readonly<{
   settle: () => Promise<boolean>;
 }>;
 
-export const READER_TOC_SEARCH_THRESHOLD = 12;
+export const READER_CONTENTS_SEARCH_THRESHOLD = 12;
 export const READER_WHEEL_THROTTLE_MS = 360;
 export const READER_WHEEL_TURN_DELTA = 48;
 export const READER_WHEEL_GESTURE_RESET_MS = 260;

@@ -144,7 +144,7 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     const panelLayer = cssBlock(reader, ".reader-side-surface-layer");
     const panel = cssBlock(reader, ".reader-side-panel");
     const panelHeader = cssBlock(reader, ".reader-side-panel__header");
-    const tocSearch = cssBlock(reader, ".reader-toc__search.input-shell");
+    const navigationSearch = cssBlock(reader, ".reader-navigation__search.input-shell");
     const annotations = cssBlock(reader, ".reader-annotations");
     const annotationControls = cssBlock(reader, ".reader-annotations__controls");
     const constrainedReader = cssBlock(reader, "@media (max-width: 560px)");
@@ -162,7 +162,7 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(panel).toContain("inset-inline-end: 0");
     expect(panel).toContain("width: min(380px, calc(100vw - 36px))");
     expect(panelHeader).toContain("padding: 14px var(--reader-panel-inset, 14px)");
-    expect(tocSearch).toContain("margin: 12px var(--reader-panel-inset) 4px");
+    expect(navigationSearch).toContain("margin: 12px var(--reader-panel-inset) 4px");
     expect(annotations).toContain("width: min(430px, calc(100vw - 36px))");
     expect(annotationControls).toContain("padding: 12px var(--reader-panel-inset)");
     expect(constrainedReader).toMatch(

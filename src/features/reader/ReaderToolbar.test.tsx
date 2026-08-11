@@ -35,7 +35,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
     onPreviousChapter: vi.fn(),
     onSearch: vi.fn(),
     onSettings: vi.fn(),
-    onToc: vi.fn(),
+    onNavigation: vi.fn(),
   };
 
   act(() => {
@@ -62,7 +62,7 @@ function renderToolbar(overrides: Partial<ComponentProps<typeof ReaderToolbar>> 
             title="Book Title"
             mode="paged"
             searchOpen={false}
-            tocOpen={false}
+            navigationOpen={false}
             onAnnotations={vi.fn()}
             onToggleBookmark={vi.fn()}
             {...callbacks}
@@ -199,11 +199,11 @@ describe("ReaderToolbar", () => {
       bookmarkAriaKeyShortcuts: "B",
       searchAriaKeyShortcuts: "Control+F",
       settingsAriaKeyShortcuts: "S",
-      tocAriaKeyShortcuts: "T",
+      navigationAriaKeyShortcuts: "T",
     });
 
     expect(button(container, "Find in book").getAttribute("aria-keyshortcuts")).toBe("Control+F");
-    expect(button(container, "Table of contents").getAttribute("aria-keyshortcuts")).toBe("T");
+    expect(button(container, "Book navigation").getAttribute("aria-keyshortcuts")).toBe("T");
     expect(button(container, "Annotations").getAttribute("aria-keyshortcuts")).toBe("A");
     expect(button(container, "Add bookmark").getAttribute("aria-keyshortcuts")).toBe("B");
     expect(button(container, "Reader settings").getAttribute("aria-keyshortcuts")).toBe("S");
@@ -214,7 +214,7 @@ describe("ReaderToolbar", () => {
 
     for (const label of [
       "Find in book",
-      "Table of contents",
+      "Book navigation",
       "Annotations",
       "Add bookmark",
       "Reader settings",
@@ -234,6 +234,19 @@ describe("ReaderToolbar", () => {
 
     act(() => search.click());
     expect(callbacks.onSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the owned publication-navigation surface from the Reader toolbar control", () => {
+    const navigationButtonRef = { current: null as HTMLButtonElement | null };
+    const { callbacks, container } = renderToolbar({ navigationButtonRef, navigationOpen: true });
+    const navigation = button(container, "Book navigation");
+
+    expect(navigation.getAttribute("aria-controls")).toBe("reader-publication-navigation");
+    expect(navigation.getAttribute("aria-expanded")).toBe("true");
+    expect(navigationButtonRef.current).toBe(navigation);
+
+    act(() => navigation.click());
+    expect(callbacks.onNavigation).toHaveBeenCalledTimes(1);
   });
 
   it("keeps Quick Actions out of the Reader toolbar", () => {

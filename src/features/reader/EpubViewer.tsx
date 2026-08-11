@@ -60,6 +60,7 @@ export type EpubViewerHandle = {
   navigateBack: () => Promise<boolean>;
   navigateForward: () => Promise<boolean>;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
+  navigateToNavigationItem: (itemId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToPublicationSearchResult: (resultId: string) => Promise<boolean>;
   navigateToSelectedPublicationSearchResult: () => Promise<boolean>;
@@ -177,7 +178,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     isLoading,
     navigateBack: replayBack,
     navigateForward: replayForward,
-    navigateToChapter: displayChapter,
+    navigateToNavigationItem: displayNavigationItem,
     navigateToLocation: displayLocation,
     navigateToTarget: displayTarget,
     searchPublication,
@@ -481,13 +482,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onInteraction,
   ]);
 
-  const navigateToChapter = useCallback(
-    async (chapterId: string) => {
+  const navigateToNavigationItem = useCallback(
+    async (itemId: string) => {
       prepareNavigation();
-      return displayChapter(chapterId);
+      return displayNavigationItem(itemId);
     },
-    [displayChapter, prepareNavigation],
+    [displayNavigationItem, prepareNavigation],
   );
+  const navigateToChapter = navigateToNavigationItem;
 
   const navigateToLocation = useCallback(
     async (cfi: string) => {
@@ -529,6 +531,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateBack,
       navigateForward,
       navigateToChapter,
+      navigateToNavigationItem,
       navigateToLocation,
       navigateToPublicationSearchResult: publicationSearch.navigateResult,
       navigateToSelectedPublicationSearchResult: publicationSearch.navigateSelectedResult,
@@ -547,6 +550,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       navigateBack,
       navigateForward,
       navigateToChapter,
+      navigateToNavigationItem,
       navigateToLocation,
       closePublicationSearch,
       publicationSearch.navigateResult,

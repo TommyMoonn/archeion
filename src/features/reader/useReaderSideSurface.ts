@@ -13,13 +13,13 @@ import { activeTransientSurfaceElement } from "../../utils/transientSurfaceOwner
 import { createReaderSideSurfaceDismissController } from "./readerSideSurfaceDismissal";
 import type { useReaderControlledTransitions } from "./useReaderControlledTransitions";
 
-export type ReaderSideSurface = "annotations" | "search" | "settings" | "toc" | null;
+export type ReaderSideSurface = "annotations" | "navigation" | "search" | "settings" | null;
 
 export type ReaderSideSurfaceState<NoteTarget> =
   | { kind: "closed" }
   | { kind: "search" }
   | { kind: "settings" }
-  | { kind: "toc" }
+  | { kind: "navigation" }
   | {
       kind: "annotations";
       noteTarget?: NoteTarget;
@@ -58,7 +58,7 @@ export function useReaderSideSurface<NoteTarget>({
   const stateRef = useRef(state);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const tocButtonRef = useRef<HTMLButtonElement>(null);
+  const navigationButtonRef = useRef<HTMLButtonElement>(null);
   const annotationButtonRef = useRef<HTMLButtonElement>(null);
   const pendingFocusRestorationRef = useRef<PendingFocusRestoration | null>(null);
   const [dismissalController] = useState(createReaderSideSurfaceDismissController);
@@ -113,8 +113,8 @@ export function useReaderSideSurface<NoteTarget>({
           next = { kind: "search" };
         } else if (nextSurface === "settings") {
           next = { kind: "settings" };
-        } else if (nextSurface === "toc") {
-          next = { kind: "toc" };
+        } else if (nextSurface === "navigation") {
+          next = { kind: "navigation" };
         } else {
           next = { kind: "closed" };
         }
@@ -194,11 +194,11 @@ export function useReaderSideSurface<NoteTarget>({
 
   const openSearch = useCallback(() => transition("search"), [transition]);
   const openSettings = useCallback(() => transition("settings"), [transition]);
-  const openToc = useCallback(() => transition("toc"), [transition]);
+  const openNavigation = useCallback(() => transition("navigation"), [transition]);
   const openAnnotations = useCallback(() => transition("annotations"), [transition]);
   const closeSearch = useCallback(() => transition(null, searchButtonRef), [transition]);
   const closeSettings = useCallback(() => transition(null, settingsButtonRef), [transition]);
-  const closeToc = useCallback(() => transition(null, tocButtonRef), [transition]);
+  const closeNavigation = useCallback(() => transition(null, navigationButtonRef), [transition]);
   const closeAnnotations = useCallback(() => transition(null, annotationButtonRef), [transition]);
   const returnNoteToAnnotations = useCallback(
     (restoreFocus = true) => transition("annotations", undefined, restoreFocus),
@@ -213,8 +213,11 @@ export function useReaderSideSurface<NoteTarget>({
       settingsButtonRef,
     );
   }, [transition]);
-  const toggleToc = useCallback(() => {
-    transition(surfaceFromState(stateRef.current) === "toc" ? null : "toc", tocButtonRef);
+  const toggleNavigation = useCallback(() => {
+    transition(
+      surfaceFromState(stateRef.current) === "navigation" ? null : "navigation",
+      navigationButtonRef,
+    );
   }, [transition]);
   const toggleAnnotations = useCallback(() => {
     transition(
@@ -237,8 +240,8 @@ export function useReaderSideSurface<NoteTarget>({
       closeSearch();
       return true;
     }
-    if (current.kind === "toc") {
-      closeToc();
+    if (current.kind === "navigation") {
+      closeNavigation();
       return true;
     }
     if (current.kind === "settings") {
@@ -246,7 +249,7 @@ export function useReaderSideSurface<NoteTarget>({
       return true;
     }
     return false;
-  }, [closeAnnotations, closeSearch, closeSettings, closeToc, returnNoteToAnnotations]);
+  }, [closeAnnotations, closeNavigation, closeSearch, closeSettings, returnNoteToAnnotations]);
 
   useLayoutEffect(() => {
     dismissalController.setFallback(closeBaseSurface);
@@ -281,7 +284,7 @@ export function useReaderSideSurface<NoteTarget>({
       closeAnnotations,
       closeSearch,
       closeSettings,
-      closeToc,
+      closeNavigation,
       closeTopmost,
       dismissalController,
       getNoteTarget,
@@ -289,7 +292,7 @@ export function useReaderSideSurface<NoteTarget>({
       openAnnotations,
       openSearch,
       openSettings,
-      openToc,
+      openNavigation,
       restoreFocusAnnotationId:
         state.kind === "annotations" ? state.restoreFocusAnnotationId : undefined,
       restoreAnnotationsFocus:
@@ -302,12 +305,12 @@ export function useReaderSideSurface<NoteTarget>({
       state,
       surface,
       surfaceRef,
-      tocButtonRef,
-      tocOpen: surface === "toc",
+      navigationButtonRef,
+      navigationOpen: surface === "navigation",
       toggleAnnotations,
       toggleSearch,
       toggleSettings,
-      toggleToc,
+      toggleNavigation,
       transition,
       updateNoteTarget,
       returnNoteToAnnotations,
@@ -316,7 +319,7 @@ export function useReaderSideSurface<NoteTarget>({
       closeAnnotations,
       closeSearch,
       closeSettings,
-      closeToc,
+      closeNavigation,
       closeTopmost,
       dismissalController,
       getNoteTarget,
@@ -324,7 +327,7 @@ export function useReaderSideSurface<NoteTarget>({
       openAnnotations,
       openSearch,
       openSettings,
-      openToc,
+      openNavigation,
       returnNoteToAnnotations,
       showNoteTarget,
       state,
@@ -333,7 +336,7 @@ export function useReaderSideSurface<NoteTarget>({
       toggleAnnotations,
       toggleSearch,
       toggleSettings,
-      toggleToc,
+      toggleNavigation,
       transition,
       updateNoteTarget,
     ],

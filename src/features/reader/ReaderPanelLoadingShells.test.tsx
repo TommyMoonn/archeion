@@ -4,7 +4,10 @@ import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { ReaderAnnotationsLoadingShell, ReaderTocLoadingShell } from "./ReaderPanelLoadingShells";
+import {
+  ReaderAnnotationsLoadingShell,
+  ReaderNavigationLoadingShell,
+} from "./ReaderPanelLoadingShells";
 
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
@@ -25,23 +28,21 @@ function render(node: ReactNode) {
 }
 
 describe("Reader panel loading shells", () => {
-  it("preserves the pending Contents panel structure and close operation", () => {
+  it("preserves the pending book navigation structure and close operation", () => {
     const onClose = vi.fn();
-    const view = render(<ReaderTocLoadingShell onClose={onClose} />);
-    const panel = view.querySelector<HTMLElement>("#reader-table-of-contents");
+    const view = render(<ReaderNavigationLoadingShell onClose={onClose} />);
+    const panel = view.querySelector<HTMLElement>("#reader-publication-navigation");
 
     expect(view.querySelectorAll(".reader-side-panel")).toHaveLength(1);
-    expect(panel?.getAttribute("aria-label")).toBe("Table of contents");
+    expect(panel?.getAttribute("aria-label")).toBe("Book navigation");
     expect(panel?.getAttribute("aria-busy")).toBe("true");
     expect(panel?.tabIndex).toBe(-1);
     expect(view.querySelector('[role="status"]')?.getAttribute("aria-label")).toBe(
-      "Loading table of contents",
+      "Loading book navigation",
     );
 
     act(() =>
-      view
-        .querySelector<HTMLButtonElement>('button[aria-label="Close table of contents"]')
-        ?.click(),
+      view.querySelector<HTMLButtonElement>('button[aria-label="Close book navigation"]')?.click(),
     );
     expect(onClose).toHaveBeenCalledOnce();
   });

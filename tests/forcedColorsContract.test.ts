@@ -138,7 +138,7 @@ const auditedErrorSources = [
   [
     "Reader annotation actions",
     "src/features/reader/ReaderAnnotationsPanel.tsx",
-    /className="reader-toc__error" data-tone="error" role="alert"/,
+    /className="reader-panel-error" data-tone="error" role="alert"/,
   ],
   [
     "Reader highlight persistence",
@@ -146,9 +146,9 @@ const auditedErrorSources = [
     /data-tone=\{highlights\.feedback\.kind === "persistence" \? "error" : undefined\}/,
   ],
   [
-    "Reader table of contents",
-    "src/features/reader/ReaderTocPanel.tsx",
-    /className="reader-toc__error" data-tone="error" role="alert"/,
+    "Reader book navigation",
+    "src/features/reader/ReaderNavigationPanel.tsx",
+    /className="reader-panel-error reader-navigation__error" data-tone="error" role="alert"/,
   ],
 ] as const;
 
@@ -282,7 +282,7 @@ describe("forced-colors and focus visibility contract", () => {
     ];
     const readerFocusContracts = [
       cssBlock(".epub-viewer__click-zone:focus-visible", normalizedReaderSource),
-      cssBlock(".reader-toc__chapter:focus-visible", normalizedReaderSource),
+      cssBlock(".reader-navigation__item:focus-visible", normalizedReaderSource),
       cssBlock(".reader-annotations__target:focus-visible", normalizedReaderSource),
       cssBlock(".reader-annotations__rename input:focus-visible", normalizedReaderSource),
       cssBlock(".reader-annotations__show-more:focus-visible", normalizedReaderSource),

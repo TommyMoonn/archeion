@@ -40,6 +40,12 @@ type Deferred<T> = {
 };
 
 type MockNavigation = {
+  landmarks?: Array<{
+    href: string;
+    id: string;
+    label: string;
+    type?: string;
+  }>;
   toc: Array<{
     href: string;
     id: string;
@@ -207,6 +213,7 @@ function createBookSession(chapterId: string, chapterHref: string) {
     chapterDocument,
     destroy,
     generate,
+    navigationDocument,
     navigation: {
       promise: navigation.promise,
       reject(reason?: unknown) {
@@ -1065,6 +1072,71 @@ describe("EpubViewer navigation lifecycle", () => {
       canGoForward: false,
       forwardCount: 0,
     });
+  });
+
+  it("routes landmark and page-list selections through the deliberate history owner", async () => {
+    const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
+    session.chapterDocument.body.insertAdjacentHTML(
+      "beforeend",
+      '<div id="cover"></div><span id="page-a12"></span>',
+    );
+    session.navigationDocument.body.innerHTML = `
+      <nav epub:type="page-list">
+        <ol>
+          <li id="page-a12"><a href="Text/chapter-1.xhtml#page-a12">A-12</a></li>
+        </ol>
+      </nav>
+    `;
+    epubModuleMock.openBook.mockReturnValue(session.book);
+    const props = defaultViewerProps(new Blob(["book-one"]));
+    const viewerRef = createRef<EpubViewerHandle>();
+
+    await renderViewer(props, viewerRef);
+    await waitForActiveRendition(session);
+    await act(async () => {
+      session.navigation.resolve({
+        landmarks: [
+          {
+            href: "Text/chapter-1.xhtml#cover",
+            id: "landmark-cover",
+            label: "Cover",
+            type: "cover",
+          },
+        ],
+        toc: [session.chapter],
+      });
+      await session.navigation.promise;
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/2:4)"),
+      );
+    });
+
+    expect(props.onNavigationChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        landmarks: [expect.objectContaining({ id: "landmark-cover", semanticType: "cover" })],
+        pageReferences: [expect.objectContaining({ id: "page-a12", label: "A-12" })],
+      }),
+    );
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToNavigationItem("landmark-cover")).resolves.toBe(
+        true,
+      );
+    });
+    expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml#cover");
+    expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(1);
+
+    await act(async () => {
+      session.rendition.emitMock(
+        "relocated",
+        relocation("Text/chapter-1.xhtml", "epubcfi(/6/2!/4/4:6)"),
+      );
+      await expect(viewerRef.current?.navigateToNavigationItem("page-a12")).resolves.toBe(true);
+    });
+    expect(session.rendition.display).toHaveBeenLastCalledWith("Text/chapter-1.xhtml#page-a12");
+    expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(2);
   });
 
   it("routes selected publication-search results through deliberate history and clears transient emphasis", async () => {

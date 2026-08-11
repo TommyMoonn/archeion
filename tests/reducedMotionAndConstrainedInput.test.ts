@@ -62,24 +62,24 @@ describe("Phase 0.8.0.9 reduced motion and constrained input contracts", () => {
   it("uses the application motion owner for Reader entrance, shimmer, and state transitions", () => {
     const loadingLine = cssBlock(readerStyles, ".reader-loading__line");
     const panel = cssBlock(readerStyles, ".reader-side-panel");
-    const tocBody = cssBlock(readerStyles, ".reader-toc__body");
-    const tocChapter = cssBlock(readerStyles, ".reader-toc__chapter");
+    const navigationBody = cssBlock(readerStyles, ".reader-panel-scroll");
+    const navigationItem = cssBlock(readerStyles, ".reader-navigation__item");
 
     expect(loadingLine).not.toContain("animation:");
     expect(panel).not.toContain("animation:");
     expect(panel).toContain("position: absolute");
     expect(panel).toContain("inset-inline-end: 0");
     expect(panel).toContain("bottom: 0");
-    expect(tocBody).toContain("overflow-y: auto");
-    expect(tocBody).toContain("overscroll-behavior: contain");
+    expect(navigationBody).toContain("overflow-y: auto");
+    expect(navigationBody).toContain("overscroll-behavior: contain");
     expect(readerStyles).toMatch(
-      /html\[data-motion="on"\] \.reader-loading__line,\s*html\[data-motion="on"\] \.reader-toc__loading span\s*\{[^}]*animation:\s*loading-sheen/s,
+      /html\[data-motion="on"\] \.reader-loading__line,\s*html\[data-motion="on"\] \.reader-panel-loading span\s*\{[^}]*animation:\s*loading-sheen/s,
     );
     expect(readerStyles).toMatch(
       /html\[data-motion="on"\] \.reader-side-panel\s*\{[^}]*animation:\s*reader-side-panel-enter/s,
     );
-    expect(tocChapter).toContain("var(--motion-duration-standard)");
-    expect(tocChapter).not.toMatch(/\b\d+(?:\.\d+)?ms\b/);
+    expect(navigationItem).toContain("var(--motion-duration-standard)");
+    expect(navigationItem).not.toMatch(/\b\d+(?:\.\d+)?ms\b/);
     expect(tokenStyles).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?--motion-duration-standard:\s*0ms;/,
     );

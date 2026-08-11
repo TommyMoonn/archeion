@@ -65,7 +65,7 @@ function Harness({
     searchButtonRef,
     settingsButtonRef,
     surface,
-    tocButtonRef,
+    navigationButtonRef,
   } = surfaces;
   useLayoutEffect(() => {
     apiRef.current = surfaces;
@@ -75,8 +75,8 @@ function Harness({
       <button ref={annotationButtonRef} type="button">
         Annotations
       </button>
-      <button ref={tocButtonRef} type="button">
-        TOC
+      <button ref={navigationButtonRef} type="button">
+        book navigation
       </button>
       <button ref={searchButtonRef} type="button">
         Search
@@ -144,13 +144,13 @@ afterEach(() => {
 });
 
 describe("useReaderSideSurface", () => {
-  it("keeps search, TOC, settings, and annotations mutually exclusive", async () => {
+  it("keeps search, book navigation, settings, and annotations mutually exclusive", async () => {
     const transitions = createTransitions(async () => true);
     const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
     await renderHarness(transitions, apiRef);
 
-    act(() => apiRef.current?.openToc());
-    expect(text("surface")).toBe("toc");
+    act(() => apiRef.current?.openNavigation());
+    expect(text("surface")).toBe("navigation");
     act(() => apiRef.current?.openSettings());
     expect(text("surface")).toBe("settings");
     act(() => apiRef.current?.openAnnotations());
@@ -158,7 +158,7 @@ describe("useReaderSideSurface", () => {
     act(() => apiRef.current?.openSearch());
     expect(text("surface")).toBe("search");
     expect(apiRef.current?.annotationsOpen).toBe(false);
-    expect(apiRef.current?.tocOpen).toBe(false);
+    expect(apiRef.current?.navigationOpen).toBe(false);
     expect(apiRef.current?.settingsOpen).toBe(false);
   });
 
@@ -210,7 +210,7 @@ describe("useReaderSideSurface", () => {
     await renderHarness(transitions, apiRef);
     act(() => apiRef.current?.showNoteTarget({ annotationId: "highlight-1" }));
 
-    await act(async () => apiRef.current?.openToc());
+    await act(async () => apiRef.current?.openNavigation());
     expect(text("surface")).toBe("annotations");
     expect(text("note")).toBe("highlight-1");
   });
@@ -223,7 +223,7 @@ describe("useReaderSideSurface", () => {
     act(() => apiRef.current?.showNoteTarget({ annotationId: "highlight-1" }));
 
     act(() => {
-      apiRef.current?.openToc();
+      apiRef.current?.openNavigation();
       apiRef.current?.openSettings();
     });
     await act(async () => settlement.resolve(true));
@@ -266,17 +266,17 @@ describe("useReaderSideSurface", () => {
     expect(document.activeElement).toBe(search);
   });
 
-  it("rejects stale TOC focus restoration when annotations open before the next frame", async () => {
+  it("rejects stale book navigation focus restoration when annotations open before the next frame", async () => {
     const transitions = createTransitions(async () => true);
     const apiRef: MutableRefObject<SideSurfaceApi | undefined> = { current: undefined };
     await renderHarness(transitions, apiRef);
     const annotations = container?.querySelector<HTMLButtonElement>("button:first-of-type");
-    const toc = container?.querySelector<HTMLButtonElement>("button:nth-of-type(2)");
+    const navigation = container?.querySelector<HTMLButtonElement>("button:nth-of-type(2)");
 
     act(() => {
-      apiRef.current?.openToc();
-      toc?.focus();
-      apiRef.current?.closeToc();
+      apiRef.current?.openNavigation();
+      navigation?.focus();
+      apiRef.current?.closeNavigation();
       apiRef.current?.openAnnotations();
       annotations?.focus();
     });
@@ -354,12 +354,16 @@ describe("useReaderSideSurface", () => {
     await renderHarness({ ...transitions }, apiRef, revealControls);
 
     expect(apiRef.current?.transition).toBe(first?.transition);
-    expect(apiRef.current?.openToc).toBe(first?.openToc);
+    expect(apiRef.current?.openNavigation).toBe(first?.openNavigation);
     expect(apiRef.current?.toggleAnnotations).toBe(first?.toggleAnnotations);
   });
 
   it.each([
-    ["TOC", (api: SideSurfaceApi) => api.openToc(), (api: SideSurfaceApi) => api.closeToc()],
+    [
+      "book navigation",
+      (api: SideSurfaceApi) => api.openNavigation(),
+      (api: SideSurfaceApi) => api.closeNavigation(),
+    ],
     [
       "Reader Settings",
       (api: SideSurfaceApi) => api.openSettings(),

@@ -210,13 +210,13 @@ describe("Phase 0.9.0.26 typography roles and text resilience", () => {
       },
       {
         source: readerStyles,
-        selector: ".reader-toc__empty p",
+        selector: ".reader-panel-empty p",
         role: "title",
         letterSpacing: false,
       },
       {
         source: readerStyles,
-        selector: ".reader-toc__no-results p",
+        selector: ".reader-navigation__no-results p",
         role: "title",
         letterSpacing: false,
       },
@@ -238,11 +238,11 @@ describe("Phase 0.9.0.26 typography roles and text resilience", () => {
       expectCompleteRole(source, selector, role, { letterSpacing });
     }
 
-    const readerTocTitles = cssBlock(
+    const readerNavigationTitles = cssBlock(
       readerStyles,
-      ".reader-toc__empty p,\n.reader-toc__no-results p",
+      ".reader-panel-empty p,\n.reader-navigation__no-results p",
     );
-    expect(readerTocTitles).not.toContain("var(--type-body-line-height)");
+    expect(readerNavigationTitles).not.toContain("var(--type-body-line-height)");
   });
 
   it("switches every constrained Settings title property and clears page-title tracking", () => {

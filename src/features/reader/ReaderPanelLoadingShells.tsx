@@ -1,24 +1,24 @@
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
-type ReaderTocLoadingShellProps = {
+type ReaderNavigationLoadingShellProps = {
   onClose: () => void;
 };
 
-export function ReaderTocLoadingShell({ onClose }: ReaderTocLoadingShellProps) {
+export function ReaderNavigationLoadingShell({ onClose }: ReaderNavigationLoadingShellProps) {
   return (
     <ReaderSidePanel
-      accessibleLabel="Table of contents"
+      accessibleLabel="Book navigation"
       ariaBusy
-      className="reader-toc"
-      closeLabel="Close table of contents"
+      className="reader-navigation"
+      closeLabel="Close book navigation"
       eyebrow="Navigate"
-      id="reader-table-of-contents"
+      id="reader-publication-navigation"
       ignoreReaderShortcuts
       onClose={onClose}
       tabIndex={-1}
-      title="Contents"
+      title="Navigation"
     >
-      <div aria-label="Loading table of contents" className="reader-toc__loading" role="status">
+      <div aria-label="Loading book navigation" className="reader-panel-loading" role="status">
         <span />
         <span />
         <span />
@@ -50,7 +50,7 @@ export function ReaderAnnotationsLoadingShell({
       tabIndex={active ? -1 : undefined}
       title="Annotations"
     >
-      <div aria-label="Loading annotations" className="reader-toc__loading" role="status">
+      <div aria-label="Loading annotations" className="reader-panel-loading" role="status">
         <span />
         <span />
         <span />
@@ -77,7 +77,7 @@ export function ReaderSearchLoadingShell({ onClose }: ReaderSearchLoadingShellPr
       tabIndex={-1}
       title="Find in Book"
     >
-      <div aria-label="Loading Find in Book" className="reader-toc__loading" role="status">
+      <div aria-label="Loading Find in Book" className="reader-panel-loading" role="status">
         <span />
         <span />
         <span />

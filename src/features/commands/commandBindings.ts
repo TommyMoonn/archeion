@@ -81,7 +81,7 @@ export const commandDefinitions = {
     defaultBinding: binding("t"),
     group: "Reader",
     id: "reader.open-toc",
-    label: "Toggle table of contents",
+    label: "Toggle book navigation",
     scopes: ["reader"],
     visibleControlOwner: "Reader toolbar",
   },

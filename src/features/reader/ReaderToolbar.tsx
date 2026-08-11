@@ -47,7 +47,7 @@ type ReaderToolbarProps = {
   onPreviousChapter: () => void;
   onSearch: () => void;
   onSettings: () => void;
-  onToc: () => void;
+  onNavigation: () => void;
   percentage: number;
   previousChapterDisabled: boolean;
   progressSaveFailed: boolean;
@@ -55,11 +55,11 @@ type ReaderToolbarProps = {
   mode: ReaderMode;
   searchAriaKeyShortcuts?: string;
   settingsAriaKeyShortcuts?: string;
-  tocAriaKeyShortcuts?: string;
+  navigationAriaKeyShortcuts?: string;
   searchButtonRef?: Ref<HTMLButtonElement>;
   settingsButtonRef?: Ref<HTMLButtonElement>;
-  tocButtonRef?: Ref<HTMLButtonElement>;
-  tocOpen: boolean;
+  navigationButtonRef?: Ref<HTMLButtonElement>;
+  navigationOpen: boolean;
   searchOpen: boolean;
   annotationButtonRef?: Ref<HTMLButtonElement>;
 };
@@ -94,7 +94,7 @@ export function ReaderToolbar({
   onPreviousChapter,
   onSearch,
   onSettings,
-  onToc,
+  onNavigation,
   percentage,
   previousChapterDisabled,
   progressSaveFailed,
@@ -102,11 +102,11 @@ export function ReaderToolbar({
   mode,
   searchAriaKeyShortcuts,
   settingsAriaKeyShortcuts,
-  tocAriaKeyShortcuts,
+  navigationAriaKeyShortcuts,
   searchButtonRef,
   settingsButtonRef,
-  tocButtonRef,
-  tocOpen,
+  navigationButtonRef,
+  navigationOpen,
   searchOpen,
   annotationButtonRef,
 }: ReaderToolbarProps) {
@@ -211,14 +211,14 @@ export function ReaderToolbar({
           <Search aria-hidden="true" />
         </IconButton>
         <IconButton
-          aria-controls="reader-table-of-contents"
-          aria-keyshortcuts={tocAriaKeyShortcuts}
-          aria-expanded={tocOpen}
-          label="Table of contents"
-          onClick={onToc}
-          ref={tocButtonRef}
+          aria-controls="reader-publication-navigation"
+          aria-keyshortcuts={navigationAriaKeyShortcuts}
+          aria-expanded={navigationOpen}
+          label="Book navigation"
+          onClick={onNavigation}
+          ref={navigationButtonRef}
           size="compact"
-          tooltip="Table of contents"
+          tooltip="Book navigation"
           tooltipPlacement="bottom"
         >
           <ListTree aria-hidden="true" />

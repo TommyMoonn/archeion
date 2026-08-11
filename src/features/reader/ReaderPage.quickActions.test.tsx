@@ -58,6 +58,8 @@ const viewerMock = vi.hoisted(() => ({
 const navigationState = {
   chapters: [{ id: "chapter-1", href: "chapter-1", label: "Chapter 1", depth: 0 }],
   currentChapterId: "chapter-1",
+  landmarks: [],
+  pageReferences: [],
   status: "ready" as const,
 };
 
@@ -98,6 +100,7 @@ vi.mock("./EpubViewer", async () => {
         navigateBack: viewerMock.navigateBack,
         navigateForward: viewerMock.navigateForward,
         navigateToChapter: vi.fn().mockResolvedValue(true),
+        navigateToNavigationItem: vi.fn().mockResolvedValue(true),
         navigateToLocation: viewerMock.navigateToLocation,
         navigateToPublicationSearchResult: viewerMock.navigateToPublicationSearchResult,
         nextPublicationSearchResult: viewerMock.nextPublicationSearchResult,
@@ -490,7 +493,7 @@ describe("ReaderPage Quick Actions", () => {
           ".epub-viewer__click-zone--next",
         )!;
         const tocButton = rendered.container.querySelector<HTMLButtonElement>(
-          'button[aria-label="Table of contents"]',
+          'button[aria-label="Book navigation"]',
         )!;
         const geometry = new Map<HTMLElement, DOMRect>([
           [reader, new DOMRect(0, 0, 1200, 800)],
@@ -512,7 +515,9 @@ describe("ReaderPage Quick Actions", () => {
 
         await act(async () => tocButton.click());
         await vi.waitFor(() =>
-          expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement),
+          expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(
+            HTMLElement,
+          ),
         );
 
         expect(rendered.container.querySelector(".reader-page")).toBe(reader);
@@ -768,17 +773,17 @@ describe("ReaderPage Quick Actions", () => {
     }
   });
 
-  it("opens the existing TOC action without changing the reader route or return context", async () => {
+  it("opens the existing book-navigation action without changing the reader route or return context", async () => {
     const rendered = await renderReader();
     const search = await openPalette();
-    await act(async () => setInputValue(search, "Toggle table of contents"));
+    await act(async () => setInputValue(search, "Toggle book navigation"));
     await act(async () => {
       search.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
       await Promise.resolve();
     });
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
-      if (rendered.container.querySelector(".reader-toc")) {
+      if (rendered.container.querySelector(".reader-navigation")) {
         break;
       }
       await act(async () => {
@@ -786,7 +791,7 @@ describe("ReaderPage Quick Actions", () => {
       });
     }
 
-    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(HTMLElement);
     expect(rendered.router.state.location.pathname).toBe("/reader/book");
     expect(rendered.router.state.location.state).toEqual({
       readerReturnContext: rendered.returnContext,
@@ -1058,7 +1063,7 @@ describe("ReaderPage Quick Actions", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
       );
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(HTMLElement);
 
     await act(async () => {
       target.dispatchEvent(
@@ -1066,7 +1071,7 @@ describe("ReaderPage Quick Actions", () => {
       );
     });
     expect(rendered.container.querySelector(".reader-settings")).toBeInstanceOf(HTMLElement);
-    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    expect(rendered.container.querySelector(".reader-navigation")).toBeNull();
   });
 
   it("executes configurable reader commands from ordinary EPUB content", async () => {
@@ -1183,9 +1188,7 @@ describe("ReaderPage Quick Actions", () => {
     const rendered = await renderReader();
     const target = rendered.container.querySelector<HTMLElement>(".reader-page")!;
     const tocButton = () =>
-      rendered.container.querySelector<HTMLButtonElement>(
-        'button[aria-label="Table of contents"]',
-      )!;
+      rendered.container.querySelector<HTMLButtonElement>('button[aria-label="Book navigation"]')!;
 
     expect(tocButton().getAttribute("aria-keyshortcuts")).toBe("Q");
     await act(async () => {
@@ -1193,13 +1196,13 @@ describe("ReaderPage Quick Actions", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
       );
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    expect(rendered.container.querySelector(".reader-navigation")).toBeNull();
     await act(async () => {
       target.dispatchEvent(
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "q" }),
       );
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(HTMLElement);
 
     await act(async () => {
       target.dispatchEvent(
@@ -1215,7 +1218,7 @@ describe("ReaderPage Quick Actions", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "q" }),
       );
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeNull();
+    expect(rendered.container.querySelector(".reader-navigation")).toBeNull();
 
     await act(async () => {
       await appPreferencesStore.update({ keyboard: { shortcuts: {} } });
@@ -1226,7 +1229,7 @@ describe("ReaderPage Quick Actions", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "t" }),
       );
     });
-    expect(rendered.container.querySelector(".reader-toc")).toBeInstanceOf(HTMLElement);
+    expect(rendered.container.querySelector(".reader-navigation")).toBeInstanceOf(HTMLElement);
   });
 
   it("blocks EPUB reader commands while the parent Quick Actions dialog is open", async () => {

@@ -185,6 +185,7 @@ export type EpubSessionFacade = {
   navigateBack: () => Promise<boolean>;
   navigateForward: () => Promise<boolean>;
   navigateToChapter: (chapterId: string) => Promise<boolean>;
+  navigateToNavigationItem: (itemId: string) => Promise<boolean>;
   navigateToLocation: (cfi: string) => Promise<boolean>;
   navigateToTarget: (target: string) => Promise<boolean>;
   searchPublication: (
@@ -327,13 +328,14 @@ export function useEpubSession({
     [bridgeRef, containerRef, documentSessions],
   );
 
-  const navigateToChapter = useCallback(
-    async (chapterId: string) => {
-      const target = navigationControllerRef.current?.getModel().resolveItemTarget(chapterId);
+  const navigateToNavigationItem = useCallback(
+    async (itemId: string) => {
+      const target = navigationControllerRef.current?.getModel().resolveItemTarget(itemId);
       return target ? deliberateNavigation.jump(target) : false;
     },
     [deliberateNavigation],
   );
+  const navigateToChapter = navigateToNavigationItem;
 
   const navigateToLocation = useCallback(
     (cfi: string) => deliberateNavigation.jump(cfi, { requireUsableLocation: true }),
@@ -686,6 +688,7 @@ export function useEpubSession({
     navigateBack,
     navigateForward,
     navigateToChapter,
+    navigateToNavigationItem,
     navigateToLocation,
     navigateToTarget,
     searchPublication,

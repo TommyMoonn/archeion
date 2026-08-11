@@ -117,7 +117,7 @@ describe("Keyboard settings", () => {
       "Open Settings",
       "Focus search",
       "Toggle sidebar",
-      "Toggle table of contents",
+      "Toggle book navigation",
       "Toggle annotations",
       "Toggle bookmark",
       "Toggle reader settings",
@@ -322,8 +322,8 @@ describe("Keyboard settings", () => {
     );
 
     const group = document.querySelector<HTMLElement>(".keyboard-shortcut-binding-control");
-    const binding = buttonByName("Change shortcut for Toggle table of contents");
-    const clear = buttonByName("Clear shortcut for Toggle table of contents");
+    const binding = buttonByName("Change shortcut for Toggle book navigation");
+    const clear = buttonByName("Clear shortcut for Toggle book navigation");
 
     expect(group).toBeTruthy();
     expect(group?.children).toHaveLength(2);

@@ -63,7 +63,7 @@ import {
 } from "./readerNavigationHistory";
 import type { ReaderAnnotationRecoveryResult } from "./readerAnnotationRecovery";
 import { useReaderSeriesContinuation } from "./useReaderSeriesContinuation";
-import { LazyReaderTocPanel } from "./LazyReaderTocPanel";
+import { LazyReaderNavigationPanel } from "./LazyReaderNavigationPanel";
 import { LazyReaderSearchPanel } from "./LazyReaderSearchPanel";
 import type { ReaderPublicationSearchControllerState } from "./useReaderPublicationSearch";
 
@@ -347,7 +347,7 @@ export function ReaderPage() {
     closeAnnotations,
     closeSearch,
     closeSettings,
-    closeToc,
+    closeNavigation,
     closeTopmost,
     dismissalController,
     getNoteTarget,
@@ -363,12 +363,12 @@ export function ReaderPage() {
     showNoteTarget,
     surface: sideSurface,
     surfaceRef: sideSurfaceRef,
-    tocButtonRef,
-    tocOpen,
+    navigationButtonRef,
+    navigationOpen,
     toggleAnnotations,
     toggleSearch,
     toggleSettings,
-    toggleToc,
+    toggleNavigation,
     updateNoteTarget,
   } = sideSurfaces;
   const leaveReader = controlledTransitions.leaveReader;
@@ -511,11 +511,14 @@ export function ReaderPage() {
     toggleDisabledReason: bookmarkToggleDisabledReason,
   } = annotations;
   const quickActionCommands = useMemo<QuickActionRegistration[]>(() => {
-    const tocDisabledReason =
+    const navigationDisabledReason =
       navigationState.status === "loading"
-        ? "The table of contents is still loading."
-        : navigationState.chapters.length === 0
-          ? "This book has no usable table of contents."
+        ? "Book navigation is still loading."
+        : navigationState.chapters.length +
+              navigationState.landmarks.length +
+              navigationState.pageReferences.length ===
+            0
+          ? "This book has no usable EPUB navigation."
           : undefined;
     const bookmarkAvailability = canToggleCurrentBookmark
       ? { available: true as const }
@@ -623,12 +626,12 @@ export function ReaderPage() {
       },
       {
         ...commandDefinitions.readerToc,
-        availability: tocDisabledReason
-          ? { available: false, reason: tocDisabledReason }
+        availability: navigationDisabledReason
+          ? { available: false, reason: navigationDisabledReason }
           : { available: true },
         canHandleEvent: canHandleReaderCommand,
-        execute: toggleToc,
-        keywords: ["reader toc", "chapters", "contents"],
+        execute: toggleNavigation,
+        keywords: ["book navigation", "toc", "chapters", "contents", "landmarks", "pages"],
         order: 80,
         scope: "reader",
       },
@@ -733,6 +736,8 @@ export function ReaderPage() {
     navigationHistory.canGoBack,
     navigationHistory.canGoForward,
     navigationState.chapters.length,
+    navigationState.landmarks.length,
+    navigationState.pageReferences.length,
     navigationState.status,
     returnToOrigin,
     settings.mode,
@@ -740,17 +745,18 @@ export function ReaderPage() {
     toggleAnnotations,
     toggleCurrentBookmark,
     toggleSettings,
-    toggleToc,
+    toggleNavigation,
   ]);
   useRegisterQuickActions("reader", quickActionCommands);
 
-  const navigateToChapter = useCallback(
-    (chapterId: string) =>
+  const navigateToNavigationItem = useCallback(
+    (itemId: string) =>
       runControlledReaderTransition(
-        () => viewerRef.current?.navigateToChapter(chapterId) ?? Promise.resolve(false),
+        () => viewerRef.current?.navigateToNavigationItem(itemId) ?? Promise.resolve(false),
       ),
     [runControlledReaderTransition],
   );
+  const navigateToChapter = navigateToNavigationItem;
 
   const removeAnnotation = useCallback(
     (annotation: Annotation) => annotations.remove(annotation),
@@ -880,7 +886,7 @@ export function ReaderPage() {
     if (controlsTimer.current !== null) {
       window.clearTimeout(controlsTimer.current);
     }
-    if (!settingsOpen && !tocOpen && !annotationsOpen && !searchOpen) {
+    if (!settingsOpen && !navigationOpen && !annotationsOpen && !searchOpen) {
       controlsTimer.current = window.setTimeout(() => {
         setControlsVisible(false);
       }, 2400);
@@ -891,7 +897,7 @@ export function ReaderPage() {
         window.clearTimeout(controlsTimer.current);
       }
     };
-  }, [annotationsOpen, searchOpen, settingsOpen, tocOpen]);
+  }, [annotationsOpen, navigationOpen, searchOpen, settingsOpen]);
 
   if (!book || book.isFileMissing) {
     return (
@@ -998,7 +1004,12 @@ export function ReaderPage() {
         <div
           className="reader-controls"
           data-visible={
-            controlsVisible || settingsOpen || tocOpen || annotationsOpen || searchOpen || undefined
+            controlsVisible ||
+            settingsOpen ||
+            navigationOpen ||
+            annotationsOpen ||
+            searchOpen ||
+            undefined
           }
         >
           <ReaderToolbar
@@ -1032,7 +1043,7 @@ export function ReaderPage() {
             onPreviousChapter={movePreviousChapter}
             onSearch={toggleSearch}
             onSettings={toggleSettings}
-            onToc={toggleToc}
+            onNavigation={toggleNavigation}
             percentage={location.percentage}
             progressSaveFailed={progressSaveFailed}
             nextChapterDisabled={!chapterSequence.nextChapterId}
@@ -1051,12 +1062,12 @@ export function ReaderPage() {
             settingsAriaKeyShortcuts={ariaKeyShortcut(
               getCommandBinding(commandDefinitions.readerSettings.id),
             )}
-            tocAriaKeyShortcuts={ariaKeyShortcut(
+            navigationAriaKeyShortcuts={ariaKeyShortcut(
               getCommandBinding(commandDefinitions.readerToc.id),
             )}
             settingsButtonRef={settingsButtonRef}
-            tocButtonRef={tocButtonRef}
-            tocOpen={tocOpen}
+            navigationButtonRef={navigationButtonRef}
+            navigationOpen={navigationOpen}
             annotationButtonRef={annotationButtonRef}
           />
         </div>
@@ -1204,11 +1215,11 @@ export function ReaderPage() {
               />
             ) : null}
 
-            {tocOpen ? (
-              <LazyReaderTocPanel
+            {navigationOpen ? (
+              <LazyReaderNavigationPanel
                 navigation={navigationState}
-                onClose={closeToc}
-                onNavigate={navigateToChapter}
+                onClose={closeNavigation}
+                onNavigate={navigateToNavigationItem}
               />
             ) : null}
 

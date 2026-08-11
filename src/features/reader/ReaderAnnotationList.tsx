@@ -128,7 +128,7 @@ export const ReaderAnnotationList = forwardRef<
 
   return (
     <div
-      className="reader-toc__body reader-annotations__body"
+      className="reader-panel-scroll reader-annotations__body"
       onKeyDown={handleRowKeyboardNavigation}
       ref={bodyRef}
     >
@@ -418,7 +418,7 @@ function AnnotationContent({ annotation }: { annotation: Annotation }) {
 
 function AnnotationEmptyState({ children, label }: { children: string; label: string }) {
   return (
-    <div className="reader-toc__empty reader-annotations__empty">
+    <div className="reader-panel-empty reader-annotations__empty">
       <NotebookPen aria-hidden="true" size={28} strokeWidth={1.5} />
       <p>{label}</p>
       <span>{children}</span>
@@ -428,7 +428,7 @@ function AnnotationEmptyState({ children, label }: { children: string; label: st
 
 function AnnotationLoadingState() {
   return (
-    <div aria-label="Loading annotations" className="reader-toc__loading" role="status">
+    <div aria-label="Loading annotations" className="reader-panel-loading" role="status">
       <span />
       <span />
       <span />

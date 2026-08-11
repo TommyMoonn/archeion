@@ -327,7 +327,7 @@ export function ReaderAnnotationsPanel({
       />
 
       {actions.actionError ? (
-        <p className="reader-toc__error" data-tone="error" role="alert">
+        <p className="reader-panel-error" data-tone="error" role="alert">
           {actions.actionError.message}
         </p>
       ) : null}

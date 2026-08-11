@@ -249,7 +249,7 @@
     background: Mark;
   }
 
-  :where(.icon-slot, .segmented-control__icon, .reader-toc__current-icon) {
+  :where(.icon-slot, .segmented-control__icon, .reader-navigation__current-icon) {
     color: currentColor;
     forced-color-adjust: auto;
   }

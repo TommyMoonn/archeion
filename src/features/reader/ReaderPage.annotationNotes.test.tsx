@@ -27,6 +27,8 @@ type MockViewerProps = {
   onNavigationChange?: (navigation: {
     chapters: Array<{ depth: number; href: string; id: string; label: string }>;
     currentChapterId: string;
+    landmarks: [];
+    pageReferences: [];
     status: "ready";
   }) => void;
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
@@ -37,7 +39,7 @@ type MockViewerProps = {
 };
 
 const viewerControl = vi.hoisted(() => ({
-  navigateToChapter: vi.fn(async () => true),
+  navigateToNavigationItem: vi.fn(async () => true),
   paletteOpen: false,
   props: null as MockViewerProps | null,
   resolveAnnotationAnchor: vi.fn(),
@@ -48,7 +50,7 @@ const seriesControl = vi.hoisted(() => ({
   nextVolume: undefined as Book | undefined,
 }));
 
-const tocControl = vi.hoisted(() => ({
+const navigationControl = vi.hoisted(() => ({
   onNavigate: undefined as ((chapterId: string) => Promise<boolean>) | undefined,
 }));
 
@@ -62,7 +64,8 @@ vi.mock("./EpubViewer", async () => {
       viewerControl.props = props;
       const { onNavigationChange, onReady, sessionIdentity } = props;
       React.useImperativeHandle(ref, () => ({
-        navigateToChapter: viewerControl.navigateToChapter,
+        navigateToChapter: viewerControl.navigateToNavigationItem,
+        navigateToNavigationItem: viewerControl.navigateToNavigationItem,
         navigateToLocation: vi.fn(async () => true),
         next: vi.fn(async () => undefined),
         previous: vi.fn(async () => undefined),
@@ -80,6 +83,8 @@ vi.mock("./EpubViewer", async () => {
             },
           ],
           currentChapterId: "chapter",
+          landmarks: [],
+          pageReferences: [],
           status: "ready",
         });
         onReady(sessionIdentity);
@@ -109,13 +114,13 @@ vi.mock("../archive/useArchive", () => ({
   }),
 }));
 
-vi.mock("./LazyReaderTocPanel", async () => {
+vi.mock("./LazyReaderNavigationPanel", async () => {
   const React = await import("react");
-  const { ReaderTocPanel } = await import("./ReaderTocPanel");
+  const { ReaderNavigationPanel } = await import("./ReaderNavigationPanel");
   return {
-    LazyReaderTocPanel: (props: ComponentProps<typeof ReaderTocPanel>) => {
-      tocControl.onNavigate = props.onNavigate;
-      return React.createElement(ReaderTocPanel, props);
+    LazyReaderNavigationPanel: (props: ComponentProps<typeof ReaderNavigationPanel>) => {
+      navigationControl.onNavigate = props.onNavigate;
+      return React.createElement(ReaderNavigationPanel, props);
     },
   };
 });
@@ -480,7 +485,7 @@ async function waitForRoute(
 
 beforeEach(() => {
   seriesControl.nextVolume = undefined;
-  tocControl.onNavigate = undefined;
+  navigationControl.onNavigate = undefined;
   viewerControl.paletteOpen = false;
   viewerControl.props = null;
   viewerControl.resolveAnnotationAnchor.mockReset().mockImplementation(async (annotation) => ({
@@ -489,7 +494,7 @@ beforeEach(() => {
     kind: "resolved",
     strategy: "exact-cfi",
   }));
-  viewerControl.navigateToChapter.mockReset().mockResolvedValue(true);
+  viewerControl.navigateToNavigationItem.mockReset().mockResolvedValue(true);
   viewerControl.teardown.mockReset();
   vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
     callback(0);
@@ -895,7 +900,7 @@ describe("ReaderPage annotation notes", () => {
 
     setTextareaValue(editor, "Updated while preserving state");
     act(() => {
-      button("Table of contents").click();
+      button("Book navigation").click();
       button("Back to annotations").click();
     });
     await flush();
@@ -909,7 +914,7 @@ describe("ReaderPage annotation notes", () => {
     expect(search.value).toBe("Passage");
     expect(panelBody.scrollTop).toBe(72);
     expect(document.activeElement).toBe(button("Actions for Highlight"));
-    expect(container?.querySelector('aside[aria-label="Table of contents"]')).toBeNull();
+    expect(container?.querySelector('aside[aria-label="Book navigation"]')).toBeNull();
   });
 
   it("settles the note before switching to another reader side surface", async () => {
@@ -924,14 +929,14 @@ describe("ReaderPage annotation notes", () => {
       },
       existing,
     );
-    setTextareaValue(editor, "Settled before TOC");
+    setTextareaValue(editor, "Settled before navigation");
 
-    act(() => button("Table of contents").click());
+    act(() => button("Book navigation").click());
     await waitForEditorToClose();
-    const toc = await waitForElement<HTMLElement>('aside[aria-label="Table of contents"]');
+    const toc = await waitForElement<HTMLElement>('aside[aria-label="Book navigation"]');
 
     expect(harness.updateAnnotation).toHaveBeenCalledWith("book-1", existing.id, {
-      note: "Settled before TOC",
+      note: "Settled before navigation",
     });
     expect(toc).toBeInstanceOf(HTMLElement);
     expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
@@ -1012,14 +1017,14 @@ describe("ReaderPage annotation notes", () => {
     setTextareaValue(editor, "Settle once");
 
     act(() => {
-      button("Table of contents").click();
+      button("Book navigation").click();
       button("Reader settings").click();
     });
     await act(async () => pendingSave.resolve({ ...existing, note: "Settle once" }));
     await waitForEditorToClose();
     await waitForElement('aside[aria-label="Reader settings"]');
 
-    expect(container?.querySelector('aside[aria-label="Table of contents"]')).toBeNull();
+    expect(container?.querySelector('aside[aria-label="Book navigation"]')).toBeNull();
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
   });
 
@@ -1176,9 +1181,9 @@ describe("ReaderPage annotation notes", () => {
     const pendingSave = deferred<Annotation | undefined>();
     harness.updateAnnotation.mockImplementationOnce(() => pendingSave.promise);
     const router = await renderReader(harness);
-    act(() => button("Table of contents").click());
-    await waitForElement('aside[aria-label="Table of contents"]');
-    const navigateToChapter = tocControl.onNavigate;
+    act(() => button("Book navigation").click());
+    await waitForElement('aside[aria-label="Book navigation"]');
+    const navigateToChapter = navigationControl.onNavigate;
     expect(navigateToChapter).toBeTypeOf("function");
 
     const editor = await openNote(
@@ -1201,7 +1206,7 @@ describe("ReaderPage annotation notes", () => {
     await expect(chapterNavigation).resolves.toBe(true);
 
     expect(router.state.location.pathname).toBe("/reader/book-1");
-    expect(viewerControl.navigateToChapter).toHaveBeenCalledExactlyOnceWith("chapter");
+    expect(viewerControl.navigateToNavigationItem).toHaveBeenCalledExactlyOnceWith("chapter");
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
   });
 
@@ -1293,7 +1298,7 @@ describe("ReaderPage annotation notes", () => {
     expect(harness.updateAnnotation).toHaveBeenCalledTimes(1);
   });
 
-  it("keeps TOC, settings, and annotation surfaces mutually exclusive", async () => {
+  it("keeps navigation, settings, and annotation surfaces mutually exclusive", async () => {
     const harness = createStorageHarness();
     await renderReader(harness);
     const reader = container?.querySelector<HTMLElement>(".reader-page");
@@ -1322,8 +1327,8 @@ describe("ReaderPage annotation notes", () => {
     expect(container?.querySelector('aside[aria-label="Reader settings"]')).toBeNull();
     expectStableReader();
 
-    act(() => button("Table of contents").click());
-    await waitForElement('aside[aria-label="Table of contents"]');
+    act(() => button("Book navigation").click());
+    await waitForElement('aside[aria-label="Book navigation"]');
     expect(container?.querySelector('aside[aria-label="Annotations"]')).toBeNull();
     expectStableReader();
   });
@@ -1372,7 +1377,7 @@ describe("ReaderPage annotation notes", () => {
 
     for (const [trigger, label] of [
       ["Reader settings", "Reader settings"],
-      ["Table of contents", "Table of contents"],
+      ["Book navigation", "Book navigation"],
       ["Annotations", "Annotations"],
     ] as const) {
       act(() => button(trigger).click());
