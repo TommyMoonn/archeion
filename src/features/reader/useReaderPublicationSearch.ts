@@ -155,14 +155,11 @@ export function useReaderPublicationSearch({
             return;
           }
 
-          const selectedResult = outcome.results[0] ?? null;
-          if (selectedResult) emphasis.show(selectedResult.target);
-          else emphasis.clear();
+          emphasis.clear();
           publish(
             createState(revision, {
               query,
               results: outcome.results,
-              selectedResult,
               status: "ready",
               truncated: outcome.truncated,
             }),
@@ -241,33 +238,41 @@ export function useReaderPublicationSearch({
     publish(createState(revision));
   }, [emphasis, publish, retireActiveRequest]);
 
-  const selectResult = useCallback(
-    (result: ReaderPublicationSearchResult): ReaderPublicationSearchResult | null => {
-      const current = stateRef.current;
-      const liveResult = current.results.find((candidate) => candidate.id === result.id);
-      if (!liveResult || current.status !== "ready") return null;
-      if (current.selectedResult?.id !== liveResult.id) {
-        emphasis.show(liveResult.target);
-        publish(createState(current.requestRevision, { ...current, selectedResult: liveResult }));
-      }
-      return liveResult;
-    },
-    [emphasis, publish],
-  );
-
   const navigateResult = useCallback(
     async (resultId: string) => {
-      const result = stateRef.current.results.find((candidate) => candidate.id === resultId);
-      if (!result) return false;
-      const selected = selectResult(result);
-      if (!selected) return false;
+      const current = stateRef.current;
+      const result = current.results.find((candidate) => candidate.id === resultId);
+      if (!result || current.status !== "ready") return false;
+
+      const revision = current.requestRevision;
+      const identity = sessionIdentityRef.current;
       try {
-        return await navigateToTarget(selected.target);
+        const navigated = await navigateToTarget(result.target);
+        if (!navigated) return false;
+
+        const liveState = stateRef.current;
+        const liveResult = liveState.results.find((candidate) => candidate.id === result.id);
+        if (
+          !liveResult ||
+          liveState.status !== "ready" ||
+          liveState.requestRevision !== revision ||
+          sessionIdentityRef.current !== identity
+        ) {
+          return false;
+        }
+
+        emphasis.show(liveResult.target);
+        if (liveState.selectedResult?.id !== liveResult.id) {
+          publish(
+            createState(liveState.requestRevision, { ...liveState, selectedResult: liveResult }),
+          );
+        }
+        return true;
       } catch {
         return false;
       }
     },
-    [navigateToTarget, selectResult],
+    [emphasis, navigateToTarget, publish],
   );
 
   const navigateSelectedResult = useCallback(async () => {

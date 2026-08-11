@@ -162,7 +162,8 @@ describe("useReaderPublicationSearch", () => {
     await act(async () => second.resolve(completed([secondResult])));
     await flush();
     expect(apiRef.current!.state.results).toEqual([secondResult]);
-    expect(apiRef.current!.state.selectedResult).toBe(secondResult);
+    expect(apiRef.current!.state.selectedResult).toBeNull();
+    expect(emphasis.show).not.toHaveBeenCalled();
 
     await act(async () => first.resolve(completed([result("stale-result")])));
     await flush();
@@ -170,9 +171,9 @@ describe("useReaderPublicationSearch", () => {
     expect(apiRef.current!.state.results).toEqual([secondResult]);
   });
 
-  it("wraps Previous and Next selection while failed result navigation leaves search state usable", async () => {
+  it("orients initial traversal around successful navigation and preserves active state on failure", async () => {
     const results = [result("first"), result("second"), result("third")];
-    const navigateToTarget = vi.fn(async () => false);
+    const navigateToTarget = vi.fn(async () => true);
     const emphasis = emphasisOwner();
     const apiRef: MutableRefObject<ReaderPublicationSearchController | undefined> = {
       current: undefined,
@@ -187,25 +188,77 @@ describe("useReaderPublicationSearch", () => {
 
     act(() => apiRef.current!.setQuery("needle"));
     await flush();
-    expect(apiRef.current!.state.selectedResult).toBe(results[0]);
+    expect(apiRef.current!.state.selectedResult).toBeNull();
+    expect(emphasis.show).not.toHaveBeenCalled();
 
     await act(async () => {
-      expect(await apiRef.current!.previousResult()).toBe(false);
+      expect(await apiRef.current!.previousResult()).toBe(true);
     });
+    expect(navigateToTarget).toHaveBeenLastCalledWith(results[2]!.target);
     expect(apiRef.current!.state.selectedResult).toBe(results[2]);
-    expect(apiRef.current!.state.results).toEqual(results);
-    expect(apiRef.current!.state.status).toBe("ready");
+    expect(emphasis.show).toHaveBeenLastCalledWith(results[2]!.target);
 
-    navigateToTarget.mockResolvedValueOnce(true);
+    act(() => apiRef.current!.setQuery("needle again"));
+    await flush();
+    expect(apiRef.current!.state.selectedResult).toBeNull();
+
     await act(async () => {
       expect(await apiRef.current!.nextResult()).toBe(true);
     });
+    expect(navigateToTarget).toHaveBeenLastCalledWith(results[0]!.target);
     expect(apiRef.current!.state.selectedResult).toBe(results[0]);
-    expect(emphasis.show.mock.calls.map(([target]) => target)).toEqual([
-      results[0]!.target,
-      results[2]!.target,
-      results[0]!.target,
-    ]);
+    expect(emphasis.show).toHaveBeenLastCalledWith(results[0]!.target);
+
+    navigateToTarget.mockResolvedValueOnce(false);
+    await act(async () => {
+      expect(await apiRef.current!.nextResult()).toBe(false);
+    });
+    expect(navigateToTarget).toHaveBeenLastCalledWith(results[1]!.target);
+    expect(apiRef.current!.state.selectedResult).toBe(results[0]);
+    expect(emphasis.show).toHaveBeenCalledTimes(2);
+
+    navigateToTarget.mockResolvedValueOnce(true);
+    await act(async () => {
+      expect(await apiRef.current!.previousResult()).toBe(true);
+    });
+    expect(navigateToTarget).toHaveBeenLastCalledWith(results[2]!.target);
+    expect(apiRef.current!.state.selectedResult).toBe(results[2]);
+    expect(emphasis.show).toHaveBeenLastCalledWith(results[2]!.target);
+    expect(apiRef.current!.state.results).toEqual(results);
+    expect(apiRef.current!.state.status).toBe("ready");
+  });
+
+  it("does not publish a stale active result when navigation settles after query replacement", async () => {
+    const navigation = deferred<boolean>();
+    const emphasis = emphasisOwner();
+    const apiRef: MutableRefObject<ReaderPublicationSearchController | undefined> = {
+      current: undefined,
+    };
+    await renderHarness({
+      apiRef,
+      emphasis,
+      navigateToTarget: vi.fn(() => navigation.promise),
+      searchPublication: vi.fn(async (query) => completed([result(`${query}-result`)])),
+      sessionIdentity: sessionIdentity("book-a"),
+    });
+
+    act(() => apiRef.current!.setQuery("first"));
+    await flush();
+    let navigationPromise!: Promise<boolean>;
+    act(() => {
+      navigationPromise = apiRef.current!.nextResult();
+    });
+
+    act(() => apiRef.current!.setQuery("second"));
+    await flush();
+    expect(apiRef.current!.state.query).toBe("second");
+    expect(apiRef.current!.state.selectedResult).toBeNull();
+
+    await act(async () => navigation.resolve(true));
+    await expect(navigationPromise).resolves.toBe(false);
+    expect(apiRef.current!.state.query).toBe("second");
+    expect(apiRef.current!.state.selectedResult).toBeNull();
+    expect(emphasis.show).not.toHaveBeenCalled();
   });
 
   it("clears temporary emphasis when search closes and when the Reader identity is replaced", async () => {
@@ -214,10 +267,11 @@ describe("useReaderPublicationSearch", () => {
       current: undefined,
     };
     const firstIdentity = sessionIdentity("book-a");
+    const navigateToTarget = vi.fn(async () => true);
     const base = {
       apiRef,
       emphasis,
-      navigateToTarget: vi.fn(async () => true),
+      navigateToTarget,
       searchPublication: vi.fn(async () => completed([result("first")])) as SearchPublication,
     };
     await renderHarness({ ...base, sessionIdentity: firstIdentity });
@@ -225,6 +279,10 @@ describe("useReaderPublicationSearch", () => {
     act(() => apiRef.current!.setQuery("needle"));
     await flush();
     expect(apiRef.current!.state.status).toBe("ready");
+    await act(async () => {
+      expect(await apiRef.current!.nextResult()).toBe(true);
+    });
+    expect(apiRef.current!.state.selectedResult).not.toBeNull();
 
     act(() => apiRef.current!.close());
     expect(apiRef.current!.state).toEqual(
@@ -234,6 +292,9 @@ describe("useReaderPublicationSearch", () => {
 
     act(() => apiRef.current!.setQuery("needle"));
     await flush();
+    await act(async () => {
+      expect(await apiRef.current!.nextResult()).toBe(true);
+    });
     const clearsBeforeReplacement = emphasis.clear.mock.calls.length;
     await renderHarness({ ...base, sessionIdentity: sessionIdentity("book-b") });
 

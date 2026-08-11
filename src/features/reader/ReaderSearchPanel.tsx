@@ -29,6 +29,7 @@ export function ReaderSearchPanel({
 }: ReaderSearchPanelProps) {
   const panelRef = useRef<HTMLElement>(null);
   const localInputRef = useRef<HTMLInputElement>(null);
+  const resultsViewportRef = useRef<HTMLDivElement>(null);
   const queryInputRef = inputRef ?? localInputRef;
   const hasResults = state.status === "ready" && state.results.length > 0;
 
@@ -37,6 +38,25 @@ export function ReaderSearchPanel({
       preventScroll: true,
     });
   }, [inputRef]);
+
+  useLayoutEffect(() => {
+    const activeResultId = state.selectedResult?.id;
+    const viewport = resultsViewportRef.current;
+    if (!activeResultId || !viewport) return;
+
+    const activeRow = [...viewport.querySelectorAll<HTMLElement>(".reader-search__result")].find(
+      (row) => row.dataset.resultId === activeResultId,
+    );
+    if (!activeRow) return;
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const rowRect = activeRow.getBoundingClientRect();
+    if (rowRect.top < viewportRect.top) {
+      viewport.scrollTop += rowRect.top - viewportRect.top;
+    } else if (rowRect.bottom > viewportRect.bottom) {
+      viewport.scrollTop += rowRect.bottom - viewportRect.bottom;
+    }
+  }, [state.selectedResult?.id]);
 
   function handleQueryKeyDown(event: KeyboardEvent<HTMLInputElement>) {
     if (
@@ -109,7 +129,7 @@ export function ReaderSearchPanel({
         <SearchStatus state={state} />
       </div>
 
-      <div className="reader-search__body">
+      <div className="reader-search__body" ref={resultsViewportRef}>
         {state.status === "idle" && !state.query.trim() ? (
           <div className="reader-search__empty">
             <Search aria-hidden="true" size={28} strokeWidth={1.5} />
@@ -160,9 +180,14 @@ function SearchStatus({ state }: { state: ReaderPublicationSearchControllerState
     text = "Searching…";
   } else if (state.status === "ready") {
     const noun = state.results.length === 1 ? "match" : "matches";
-    text = state.truncated
-      ? `${state.results.length} ${noun} shown · More matches available`
-      : `${state.results.length} ${noun}`;
+    const activeIndex = state.selectedResult
+      ? state.results.findIndex((result) => result.id === state.selectedResult?.id)
+      : -1;
+    const orientation =
+      activeIndex >= 0
+        ? `${activeIndex + 1} of ${state.results.length} ${noun}`
+        : `${state.results.length} ${noun}`;
+    text = state.truncated ? `${orientation} shown · More matches available` : orientation;
   } else if (state.status === "error") {
     text = "Search unavailable";
   }
@@ -184,7 +209,11 @@ function SearchResult({
   result: ReaderPublicationSearchResult;
 }) {
   return (
-    <li className="reader-search__result" data-active={active || undefined}>
+    <li
+      className="reader-search__result"
+      data-active={active || undefined}
+      data-result-id={result.id}
+    >
       <button aria-current={active ? "true" : undefined} onClick={onActivate} type="button">
         <span className="reader-search__result-meta">
           {result.chapterLabel ?? `Section ${result.position.spineIndex + 1}`}

@@ -39,7 +39,7 @@ function state(
     query: "alpha",
     requestRevision: 1,
     results,
-    selectedResult: results[0] ?? null,
+    selectedResult: null,
     status: "ready" as const,
     truncated: false,
     ...overrides,
@@ -66,10 +66,10 @@ function renderPanel(
     onPreviousResult: vi.fn().mockResolvedValue(true),
     onQueryChange: vi.fn(),
   },
+  inputRef = createRef<HTMLInputElement>(),
 ) {
   container ??= document.body.appendChild(document.createElement("div"));
   root ??= createRoot(container);
-  const inputRef = createRef<HTMLInputElement>();
 
   act(() => {
     root?.render(
@@ -120,9 +120,9 @@ describe("ReaderSearchPanel", () => {
     expect(document.activeElement).toBe(input);
   });
 
-  it("renders ordered results, truncation state, active result, and activation", () => {
-    const { callbacks } = renderPanel(state({ truncated: true }));
-    const resultButtons = [
+  it("reports total matches before navigation and active orientation after navigation", () => {
+    const { callbacks, inputRef } = renderPanel(state({ truncated: true }));
+    let resultButtons = [
       ...container!.querySelectorAll<HTMLButtonElement>(".reader-search__result > button"),
     ];
 
@@ -131,7 +131,7 @@ describe("ReaderSearchPanel", () => {
       expect.stringContaining("Chapter One"),
       expect.stringContaining("Chapter Two"),
     ]);
-    expect(resultButtons[0]?.getAttribute("aria-current")).toBe("true");
+    expect(resultButtons[0]?.hasAttribute("aria-current")).toBe(false);
     expect(resultButtons[1]?.hasAttribute("aria-current")).toBe(false);
 
     const excerpts = [
@@ -146,15 +146,52 @@ describe("ReaderSearchPanel", () => {
     ]);
     expect(indicators.map((indicator) => indicator.textContent)).toEqual(["alpha", "BeTa"]);
     expect(excerpts[0]?.querySelector("b")).toBeNull();
-    expect(indicators[0]?.closest(".reader-search__result")?.hasAttribute("data-active")).toBe(
-      true,
-    );
-    expect(indicators[1]?.closest(".reader-search__result")?.hasAttribute("data-active")).toBe(
-      false,
-    );
 
-    act(() => resultButtons[1]?.click());
-    expect(callbacks.onActivateResult).toHaveBeenCalledWith("result-2");
+    renderPanel(
+      state({ selectedResult: results[1] ?? null, truncated: true }),
+      callbacks,
+      inputRef,
+    );
+    resultButtons = [
+      ...container!.querySelectorAll<HTMLButtonElement>(".reader-search__result > button"),
+    ];
+    expect(container?.textContent).toContain("2 of 2 matches shown · More matches available");
+    expect(resultButtons[0]?.hasAttribute("aria-current")).toBe(false);
+    expect(resultButtons[1]?.getAttribute("aria-current")).toBe("true");
+    expect(
+      container
+        ?.querySelectorAll<HTMLElement>("mark.reader-search__result-match")[1]
+        ?.closest(".reader-search__result")
+        ?.hasAttribute("data-active"),
+    ).toBe(true);
+
+    act(() => resultButtons[0]?.click());
+    expect(callbacks.onActivateResult).toHaveBeenCalledWith("result-1");
+  });
+
+  it("reveals an off-screen active result inside the results viewport without moving focus", () => {
+    const { callbacks, inputRef } = renderPanel(state());
+    const input = inputRef.current!;
+    const viewport = container!.querySelector<HTMLElement>(".reader-search__body")!;
+    const rows = [...container!.querySelectorAll<HTMLElement>(".reader-search__result")];
+
+    viewport.scrollTop = 12;
+    vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue({
+      bottom: 120,
+      top: 20,
+    } as DOMRect);
+    vi.spyOn(rows[1]!, "getBoundingClientRect").mockReturnValue({
+      bottom: 180,
+      top: 140,
+    } as DOMRect);
+
+    renderPanel(state({ selectedResult: results[1] ?? null }), callbacks, inputRef);
+
+    expect(viewport.scrollTop).toBe(72);
+    expect(document.activeElement).toBe(input);
+    expect(callbacks.onActivateResult).not.toHaveBeenCalled();
+    expect(callbacks.onNextResult).not.toHaveBeenCalled();
+    expect(callbacks.onPreviousResult).not.toHaveBeenCalled();
   });
 
   it("shows loading, zero-result, and recoverable error states", () => {

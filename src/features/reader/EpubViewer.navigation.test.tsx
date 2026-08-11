@@ -1194,7 +1194,7 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(viewerRef.current?.getNavigationHistorySnapshot().backCount).toBe(2);
   });
 
-  it("routes selected publication-search results through deliberate history and clears transient emphasis", async () => {
+  it("routes activated publication-search results through deliberate history and clears transient emphasis", async () => {
     const session = createBookSession("chapter-1", "Text/chapter-1.xhtml");
     epubModuleMock.openBook.mockReturnValue(session.book);
     const props = defaultViewerProps(new Blob(["book-one"]));
@@ -1214,8 +1214,18 @@ describe("EpubViewer navigation lifecycle", () => {
 
     const searchState = viewerRef.current!.getPublicationSearchState();
     expect(searchState.results).toHaveLength(1);
-    expect(searchState.selectedResult).toBe(searchState.results[0]);
-    const target = searchState.selectedResult!.target;
+    expect(searchState.selectedResult).toBeNull();
+    expect(session.rendition.annotations.underline).not.toHaveBeenCalled();
+    const result = searchState.results[0]!;
+    const target = result.target;
+
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToPublicationSearchResult(result.id)).resolves.toBe(
+        true,
+      );
+    });
+
+    expect(viewerRef.current?.getPublicationSearchState().selectedResult).toBe(result);
     expect(session.rendition.annotations.underline).toHaveBeenCalledWith(
       target,
       { transient: "reader-search-match" },
@@ -1223,13 +1233,6 @@ describe("EpubViewer navigation lifecycle", () => {
       "archeion-search-match-emphasis",
       undefined,
     );
-
-    await act(async () => {
-      await expect(viewerRef.current?.navigateToSelectedPublicationSearchResult()).resolves.toBe(
-        true,
-      );
-    });
-
     expect(session.rendition.display).toHaveBeenLastCalledWith(target);
     expect(viewerRef.current?.getNavigationHistorySnapshot()).toEqual({
       backCount: 1,
@@ -1272,7 +1275,16 @@ describe("EpubViewer navigation lifecycle", () => {
 
     const searchState = viewerRef.current!.getPublicationSearchState();
     expect(searchState.status).toBe("ready");
-    expect(searchState.selectedResult?.target).toBe(renderedHighlight.cfiRange);
+    expect(searchState.selectedResult).toBeNull();
+    const result = searchState.results[0]!;
+    await act(async () => {
+      await expect(viewerRef.current?.navigateToPublicationSearchResult(result.id)).resolves.toBe(
+        true,
+      );
+    });
+    expect(viewerRef.current?.getPublicationSearchState().selectedResult?.target).toBe(
+      renderedHighlight.cfiRange,
+    );
     expect(session.rendition.annotations.underline).toHaveBeenCalledWith(
       renderedHighlight.cfiRange,
       { transient: "reader-search-match" },
@@ -1309,6 +1321,13 @@ describe("EpubViewer navigation lifecycle", () => {
     await waitForActiveRendition(paged);
     act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
     await flushAsyncWork();
+    const initialSearchState = viewerRef.current!.getPublicationSearchState();
+    expect(initialSearchState.selectedResult).toBeNull();
+    await act(async () => {
+      await expect(
+        viewerRef.current?.navigateToPublicationSearchResult(initialSearchState.results[0]!.id),
+      ).resolves.toBe(true);
+    });
 
     const beforeReplacement = viewerRef.current!.getPublicationSearchState();
     expect(beforeReplacement.status).toBe("ready");
@@ -1318,7 +1337,7 @@ describe("EpubViewer navigation lifecycle", () => {
     const target = beforeReplacement.selectedResult?.target;
     expect(selectedId).toBeTruthy();
     expect(target).toBeTruthy();
-    expect(viewerRef.current!.getNavigationHistorySnapshot().backCount).toBe(0);
+    const historyBeforeReplacement = viewerRef.current!.getNavigationHistorySnapshot();
 
     await rerenderViewer(
       root,
@@ -1345,12 +1364,7 @@ describe("EpubViewer navigation lifecycle", () => {
       "archeion-search-match-emphasis",
       undefined,
     );
-    expect(viewerRef.current!.getNavigationHistorySnapshot()).toEqual({
-      backCount: 0,
-      canGoBack: false,
-      canGoForward: false,
-      forwardCount: 0,
-    });
+    expect(viewerRef.current!.getNavigationHistorySnapshot()).toEqual(historyBeforeReplacement);
   });
 
   it("restarts a pending publication search once on the replacement runtime", async () => {
@@ -1394,8 +1408,16 @@ describe("EpubViewer navigation lifecycle", () => {
     expect(replacementState.status).toBe("ready");
     expect(replacementState.query).toBe("Highlighted");
     expect(replacementState.results).toHaveLength(1);
-    expect(replacementState.selectedResult?.target).toBe("epubcfi(/replacement-runtime)");
+    expect(replacementState.selectedResult).toBeNull();
     expect(continuous.section.cfiFromRange).toHaveBeenCalled();
+    expect(continuous.rendition.annotations.underline).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await expect(viewerRef.current?.nextPublicationSearchResult()).resolves.toBe(true);
+    });
+    expect(viewerRef.current?.getPublicationSearchState().selectedResult?.target).toBe(
+      "epubcfi(/replacement-runtime)",
+    );
     expect(continuous.rendition.annotations.underline).toHaveBeenCalledWith(
       "epubcfi(/replacement-runtime)",
       { transient: "reader-search-match" },
@@ -1458,7 +1480,14 @@ describe("EpubViewer navigation lifecycle", () => {
     await waitForActiveRendition(first);
     act(() => viewerRef.current?.setPublicationSearchQuery("Highlighted"));
     await flushAsyncWork();
-    expect(viewerRef.current?.getPublicationSearchState().status).toBe("ready");
+    const readySearchState = viewerRef.current!.getPublicationSearchState();
+    expect(readySearchState.status).toBe("ready");
+    expect(readySearchState.selectedResult).toBeNull();
+    await act(async () => {
+      await expect(
+        viewerRef.current?.navigateToPublicationSearchResult(readySearchState.results[0]!.id),
+      ).resolves.toBe(true);
+    });
     const target = viewerRef.current?.getPublicationSearchState().selectedResult?.target;
     expect(target).toBeTruthy();
 
