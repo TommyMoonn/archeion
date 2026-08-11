@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-11
+
+Archeion 1.1.0 expands Reader search and navigation, adds seekable reading progress, and simplifies the Reader toolbar and page presentation.
+
+### Added
+
+- Added **Find in Book** for the current EPUB, with `Ctrl+F`, highlighted match text in result excerpts and the book, next/previous traversal, active match position, and clear feedback when more matches are available.
+- Added Reader Back and Forward history for jumps from publication navigation, annotations, supported internal links, footnotes, search results, and progress seeking.
+- Added EPUB **Landmarks** and **Pages** alongside Contents, including direct page-label search for longer publisher Page Lists.
+- Added an interactive reading-progress scrubber with click, drag, keyboard seeking, pointer hover preview, chapter context when available, and a transient seek marker.
+
+### Changed
+
+- Simplified the Reader toolbar by removing redundant Previous/Next page buttons while keeping page turns through the existing page zones, wheel behavior, and keyboard controls.
+- Replaced automatic toolbar hiding with a persistent top-right **Show/Hide Reader toolbar** control. A new Reader session starts with the toolbar visible, and the selected state remains until explicitly changed.
+- Kept Reader side surfaces and their focus return coherent with toolbar visibility so Find in Book, Book navigation, Annotations, and Reader settings remain directly reachable.
+- Made toolbar visibility an overlay-only change so showing or hiding it does not resize the reading viewport or move the current location. Top and side progress placement follows the toolbar state without changing seek behavior.
+- Added equal top and bottom reading insets while keeping the Page width setting responsible only for horizontal spacing.
+- Reduced distracting book-defined motion during Reader navigation by disabling transitions, animations, and smooth scrolling inside displayed book content.
+- Improved Find in Book orientation so the active match changes only after a successful jump and result rows stay aligned with the current match.
+
+### Fixed
+
+- Prevented results from an older search or navigation action from replacing the current state after the query or open book changes.
+- Kept failed Find in Book result jumps from replacing the current active match or its highlight.
+- Kept showing or hiding the toolbar from restarting the open book, changing saved progress, or unnecessarily shifting the page layout.
+
+### Testing
+
+- Expanded Reader regression coverage for book search, navigation history, Contents/Landmarks/Page List navigation, page-label lookup, progress seeking and previews, toolbar visibility, side-surface focus behavior, Reader layout stability, and static book presentation.
+
 ## [1.0.2] - 2026-08-10
 
 Archeion 1.0.2 improves Reader reliability around book sessions, reading progress, notes and annotations, temporary Reader surfaces, and exports.
@@ -362,7 +393,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/TommyMoonn/archeion/compare/v0.9.0...v1.0.0
