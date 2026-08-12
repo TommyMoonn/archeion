@@ -14,6 +14,8 @@ mod epub_cover_resource;
 pub mod epub_cover_writeback;
 #[allow(dead_code)]
 pub(crate) mod epub_diagnostics;
+#[allow(dead_code)]
+pub(crate) mod epub_digest;
 mod epub_file_resource;
 pub mod epub_metadata;
 pub mod epub_writeback;

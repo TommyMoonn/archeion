@@ -99,6 +99,39 @@ impl EpubAnalysisCache {
             .filter(|entry| entry.signature == *signature))
     }
 
+    pub(crate) fn reusable_digest(
+        &self,
+        relative_path: &str,
+        signature: &EpubFileSignature,
+    ) -> Result<Option<&CachedEpubDigest>, String> {
+        Ok(self
+            .reusable_entry(relative_path, signature)?
+            .and_then(|entry| entry.digest.as_ref()))
+    }
+
+    pub(crate) fn update_digest(
+        &mut self,
+        relative_path: &str,
+        signature: EpubFileSignature,
+        digest: CachedEpubDigest,
+    ) -> Result<(), String> {
+        let normalized = normalize_epub_path(relative_path)?;
+        match self.entries.get_mut(&normalized) {
+            Some(entry) if entry.signature == signature => entry.digest = Some(digest),
+            _ => {
+                self.entries.insert(
+                    normalized,
+                    EpubAnalysisCacheEntry {
+                        signature,
+                        digest: Some(digest),
+                        diagnostics: None,
+                    },
+                );
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn invalidate(&mut self, relative_path: &str) -> Result<bool, String> {
         let normalized = normalize_epub_path(relative_path)?;
         Ok(self.entries.remove(&normalized).is_some())
