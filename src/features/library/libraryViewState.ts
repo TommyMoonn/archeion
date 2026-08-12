@@ -68,6 +68,10 @@ export function libraryLocationFromSearchParams(
   const view = searchParams.get(LIBRARY_VIEW_PARAM);
 
   switch (view) {
+    case "duplicates":
+      return { type: "duplicates" };
+    case "epub-issues":
+      return { type: "epub-issues" };
     case "favorites":
       return { type: "favorites" };
     case "smart": {

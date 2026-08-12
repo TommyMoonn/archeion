@@ -4,6 +4,7 @@ import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
+import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
 import type { Book } from "../../types/book";
 import {
   createStorage,
@@ -343,6 +344,62 @@ describe("mounted reader-return surfaces", () => {
     expect(pageShell.scrollTop).toBe(360);
     expect(session.container.querySelector(".book-grid, .book-list")).toBeNull();
   });
+
+  it.each([
+    ["duplicates", "Duplicates", "requestDuplicateAnalysis"],
+    ["epub-issues", "EPUB Issues", "requestDiagnostics"],
+  ] as const)(
+    "restores the originating %s integrity location for a current archive book",
+    async (view, title, requestMethod) => {
+      const target = {
+        ...selectionBook("integrity-book", "Integrity Book"),
+        modifiedAt: "2026-08-01T00:00:00.000Z",
+        size: 128,
+      };
+      if (requestMethod === "requestDuplicateAnalysis") {
+        vi.spyOn(archiveIntegrityCommandClient, requestMethod).mockImplementation(
+          async (request) => ({
+            archiveGeneration: request.archiveGeneration,
+            groups: [],
+            requestRevision: request.requestRevision,
+            signatures: {},
+          }),
+        );
+      } else {
+        vi.spyOn(archiveIntegrityCommandClient, requestMethod).mockImplementation(
+          async (request) => ({
+            archiveGeneration: request.archiveGeneration,
+            entries: [],
+            requestRevision: request.requestRevision,
+          }),
+        );
+      }
+      const href = `/?archiveId=${readyState.archive.id}&view=${view}`;
+      const session = await renderLibraryPage(createStorage({ books: [target] }), {
+        pathname: "/",
+        search: `?archiveId=${readyState.archive.id}&view=${view}`,
+        state: {
+          libraryRestoreContext: {
+            archiveId: readyState.archive.id,
+            focusBookId: target.id,
+            href,
+            scrollTop: 180,
+          },
+        },
+      });
+      suite.trackRoot(session.root);
+      await vi.waitFor(() =>
+        expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalled(),
+      );
+      await flushRestoration();
+
+      const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
+      expect(session.container.querySelector("main h1")?.textContent).toBe(title);
+      expect(pageShell.scrollTop).toBe(180);
+      expect(document.activeElement).toBe(pageShell);
+      expect(session.container.querySelector(".book-grid, .book-list")).toBeNull();
+    },
+  );
 
   it("restores a normal Series Detail volume action", async () => {
     const session = await renderLibraryPage(createStorage({ books: seriesBooks() }), {

@@ -41,11 +41,28 @@ export type LibraryLocation =
   | { type: "library" }
   | { type: "continue" }
   | { type: "favorites" }
+  | { type: "duplicates" }
+  | { type: "epub-issues" }
   | { type: "smart-view"; smartView: LibrarySmartView }
   | { type: "series" }
   | { type: "series-detail"; seriesKey: string }
   | { type: "folders" }
   | { type: "folder"; folderId: string };
+
+export type LibraryIntegrityLocation = Extract<
+  LibraryLocation,
+  { type: "duplicates" | "epub-issues" }
+>;
+
+export function isLibraryIntegrityLocation(
+  location: LibraryLocation,
+): location is LibraryIntegrityLocation {
+  return location.type === "duplicates" || location.type === "epub-issues";
+}
+
+export function libraryIntegrityLocationLabel(location: LibraryIntegrityLocation): string {
+  return location.type === "duplicates" ? "Duplicates" : "EPUB Issues";
+}
 
 export type LibraryFilterState = {
   series: string[];

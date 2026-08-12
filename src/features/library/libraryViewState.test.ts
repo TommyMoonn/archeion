@@ -55,6 +55,12 @@ describe("library view URL state", () => {
     expect(libraryLocationFromSearchParams(params("view=series"), folders)).toEqual({
       type: "series",
     });
+    expect(libraryLocationFromSearchParams(params("view=duplicates"), folders)).toEqual({
+      type: "duplicates",
+    });
+    expect(libraryLocationFromSearchParams(params("view=epub-issues"), folders)).toEqual({
+      type: "epub-issues",
+    });
     expect(
       libraryLocationFromSearchParams(params("view=series&seriesKey=star%20saga"), folders),
     ).toEqual({ type: "series-detail", seriesKey: "star saga" });
@@ -109,6 +115,20 @@ describe("library view URL state", () => {
         "archive-b",
       ),
     ).toEqual({ type: "library" });
+    expect(
+      libraryLocationFromSearchParams(
+        params("archiveId=archive-a&view=duplicates"),
+        folders,
+        "archive-b",
+      ),
+    ).toEqual({ type: "library" });
+    expect(
+      libraryLocationFromSearchParams(
+        params("archiveId=archive-a&view=epub-issues"),
+        folders,
+        "archive-b",
+      ),
+    ).toEqual({ type: "library" });
   });
 
   it("writes folder path params without exposing folder ids", () => {
@@ -137,6 +157,24 @@ describe("library view URL state", () => {
     expect(next.get("folderPath")).toBeNull();
     expect(next.get("folderView")).toBeNull();
   });
+
+  it.each(["duplicates", "epub-issues"] as const)(
+    "writes and restores the %s integrity location",
+    (type) => {
+      const next = searchParamsForLibraryLocation(
+        params("view=folder&folderPath=Root%2FSeries&seriesKey=stale"),
+        { type },
+        folders,
+        "archive-books",
+      );
+
+      expect(next.get("view")).toBe(type);
+      expect(next.get("archiveId")).toBe("archive-books");
+      expect(next.get("folderPath")).toBeNull();
+      expect(next.get("seriesKey")).toBeNull();
+      expect(libraryLocationFromSearchParams(next, folders, "archive-books")).toEqual({ type });
+    },
+  );
 
   it("writes series detail keys and clears them when leaving Series", () => {
     const detail = searchParamsForLibraryLocation(

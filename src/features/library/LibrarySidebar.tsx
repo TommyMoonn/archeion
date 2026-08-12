@@ -15,6 +15,8 @@ import {
   Plus,
   CircleQuestionMark,
   ArrowUpDown,
+  Copy,
+  FileWarning,
   Layers,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -236,6 +238,30 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           >
             <Folders aria-hidden="true" size={19} />
             <span>Folders</span>
+          </button>
+        </CollapsedSidebarTooltip>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Duplicates">
+          <button
+            aria-label="Duplicates"
+            aria-current={location.type === "duplicates" ? "page" : undefined}
+            className={`nav-item ${location.type === "duplicates" ? "active" : ""}`}
+            type="button"
+            onClick={() => onLocationChange({ type: "duplicates" })}
+          >
+            <Copy aria-hidden="true" size={19} />
+            <span>Duplicates</span>
+          </button>
+        </CollapsedSidebarTooltip>
+        <CollapsedSidebarTooltip collapsed={isCollapsed} content="EPUB Issues">
+          <button
+            aria-label="EPUB Issues"
+            aria-current={location.type === "epub-issues" ? "page" : undefined}
+            className={`nav-item ${location.type === "epub-issues" ? "active" : ""}`}
+            type="button"
+            onClick={() => onLocationChange({ type: "epub-issues" })}
+          >
+            <FileWarning aria-hidden="true" size={19} />
+            <span>EPUB Issues</span>
           </button>
         </CollapsedSidebarTooltip>
       </nav>

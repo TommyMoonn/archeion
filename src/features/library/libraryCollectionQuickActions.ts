@@ -41,7 +41,13 @@ export function createLibraryCollectionQuickActions({
   location,
   updateCollection,
 }: CollectionQuickActionOptions): QuickActionRegistration[] {
-  if (location.type === "series-detail") return [];
+  if (
+    location.type === "series-detail" ||
+    location.type === "duplicates" ||
+    location.type === "epub-issues"
+  ) {
+    return [];
+  }
 
   if (location.type === "folders") {
     const preferences = collections.folders;

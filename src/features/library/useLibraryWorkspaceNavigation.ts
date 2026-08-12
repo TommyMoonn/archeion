@@ -419,11 +419,18 @@ export function useLibraryWorkspaceNavigationLifecycle({
 }
 
 function locationUsesBookCollection(location: LibraryLocation): boolean {
-  return !["folders", "series", "series-detail"].includes(location.type);
+  return !["duplicates", "epub-issues", "folders", "series", "series-detail"].includes(
+    location.type,
+  );
 }
 
 function locationUsesMountedReaderSurface(location: LibraryLocation): boolean {
-  return location.type === "series" || location.type === "series-detail";
+  return (
+    location.type === "duplicates" ||
+    location.type === "epub-issues" ||
+    location.type === "series" ||
+    location.type === "series-detail"
+  );
 }
 
 function isUsableReaderFocusTarget(target: HTMLElement): boolean {

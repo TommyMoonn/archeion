@@ -30,6 +30,26 @@ describe("reader return context", () => {
     expect(readerReturnAccessibleLabel(context)).toBe("Back to Fiction");
   });
 
+  it.each(["duplicates", "epub-issues"] as const)(
+    "preserves the %s Library destination through Reader return state",
+    (view) => {
+      const integrityContext = createReaderReturnContext({
+        archiveId: "archive-1",
+        focusBookId: "book-1",
+        href: `/?archiveId=archive-1&view=${view}`,
+        label: view === "duplicates" ? "Duplicates" : "EPUB Issues",
+      });
+
+      expect(
+        readerReturnContextFromState({ readerReturnContext: integrityContext }, "archive-1"),
+      ).toEqual(integrityContext);
+      expect(readerReturnNavigation(integrityContext)).toEqual({
+        href: `/?archiveId=archive-1&view=${view}`,
+        state: { libraryRestoreContext: integrityContext },
+      });
+    },
+  );
+
   it("rejects contexts from another archive and malformed or external destinations", () => {
     expect(normalizeReaderReturnContext(context, "archive-2")).toBeNull();
     expect(normalizeReaderReturnContext({ ...context, href: "/settings" }, "archive-1")).toBeNull();

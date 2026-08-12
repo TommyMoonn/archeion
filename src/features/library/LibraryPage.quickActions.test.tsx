@@ -17,6 +17,7 @@ import type {
 } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
+import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
 import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
@@ -290,6 +291,21 @@ beforeEach(async () => {
     callback(0);
     return 1;
   });
+  vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
+    async (request) => ({
+      archiveGeneration: request.archiveGeneration,
+      groups: [],
+      requestRevision: request.requestRevision,
+      signatures: {},
+    }),
+  );
+  vi.spyOn(archiveIntegrityCommandClient, "requestDiagnostics").mockImplementation(
+    async (request) => ({
+      archiveGeneration: request.archiveGeneration,
+      entries: [],
+      requestRevision: request.requestRevision,
+    }),
+  );
   const current = appPreferencesStore.getSnapshot();
   await appPreferencesStore.update({
     library: {
@@ -561,6 +577,30 @@ describe("LibraryPage Quick Actions", () => {
     expect(document.activeElement).toBe(search);
     expect(rendered.container.textContent).toContain("Your collection");
   });
+
+  it.each([
+    ["Go to Duplicates", "Duplicates", "requestDuplicateAnalysis"],
+    ["Go to EPUB Issues", "EPUB Issues", "requestDiagnostics"],
+  ] as const)(
+    "routes %s through Library navigation and the shared integrity controller",
+    async (command, title, requestMethod) => {
+      const rendered = await renderLibrary();
+
+      await executeCommand(command);
+      await vi.waitFor(() => {
+        expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalledOnce();
+      });
+
+      expect(rendered.container.querySelector("main h1")?.textContent).toBe(title);
+      expect(
+        rendered.container
+          .querySelector(`button[aria-label="${title}"]`)
+          ?.getAttribute("aria-current"),
+      ).toBe("page");
+      expect(rendered.container.querySelector('input[name="archeion-library-search"]')).toBeNull();
+      expect(rendered.container.textContent).toContain("Analysis ready");
+    },
+  );
 
   it("enters a contextual Books display mode and persists the confirmed value", async () => {
     const rendered = await renderLibrary(

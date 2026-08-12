@@ -547,6 +547,8 @@ function filterSearchIndexByLocation(
     case "smart-view":
       return index.filter((entry) => bookMatchesSmartView(entry.book, location.smartView));
     case "folders":
+    case "duplicates":
+    case "epub-issues":
     case "series":
     case "series-detail":
       return [];

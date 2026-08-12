@@ -56,6 +56,7 @@ import { useCollectionDisplayPreferences } from "./useCollectionDisplayPreferenc
 import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
 import { startupTrace } from "../../app/startupTrace";
 import { createLibraryCollectionQuickActions } from "./libraryCollectionQuickActions";
+import { useLibraryIntegrity } from "./useLibraryIntegrity";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
 
@@ -172,6 +173,11 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     onArchiveLoadError: handleArchiveLoadError,
     onWatcherError: handleWatcherError,
   });
+  const integrity = useLibraryIntegrity({
+    archiveGeneration: libraryArchiveGeneration,
+    archiveRootPath: activeArchive.rootPath,
+    books,
+  });
 
   useLayoutEffect(() => {
     startupTrace.mark("library-render");
@@ -219,6 +225,26 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     openReader,
     scrollMainContentToTop,
   } = navigation;
+  const duplicateIntegrityStatus = integrity.duplicates.status;
+  const diagnosticIntegrityStatus = integrity.diagnostics.status;
+  const refreshDuplicates = integrity.refreshDuplicates;
+  const refreshDiagnostics = integrity.refreshDiagnostics;
+  useEffect(() => {
+    if (booksLoadState.status !== "ready") return;
+    if (navigation.location.type === "duplicates" && duplicateIntegrityStatus === "idle") {
+      void refreshDuplicates();
+    }
+    if (navigation.location.type === "epub-issues" && diagnosticIntegrityStatus === "idle") {
+      void refreshDiagnostics();
+    }
+  }, [
+    booksLoadState.status,
+    diagnosticIntegrityStatus,
+    duplicateIntegrityStatus,
+    navigation.location.type,
+    refreshDiagnostics,
+    refreshDuplicates,
+  ]);
   const [seriesReturnFocusKey, setSeriesReturnFocusKey] = useState<string | null>(null);
   const pendingEntryFocusKeyRef = useRef<string | null>(null);
   const changeLocation = useCallback(
@@ -550,7 +576,10 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   );
   const folderSearchInputRef = useRef<HTMLInputElement>(null);
   const seriesSearchInputRef = useRef<HTMLInputElement>(null);
-  const searchSurfaceAvailable = navigation.location.type !== "series-detail";
+  const searchSurfaceAvailable =
+    navigation.location.type !== "duplicates" &&
+    navigation.location.type !== "epub-issues" &&
+    navigation.location.type !== "series-detail";
   const focusActiveSearch = useCallback(() => {
     if (navigation.location.type === "folders") {
       folderSearchInputRef.current?.focus({ preventScroll: true });
@@ -558,6 +587,9 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     }
     if (navigation.location.type === "series") {
       seriesSearchInputRef.current?.focus({ preventScroll: true });
+      return;
+    }
+    if (navigation.location.type === "duplicates" || navigation.location.type === "epub-issues") {
       return;
     }
     openBookSearch();
@@ -663,6 +695,26 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         keywords: ["browse series", "collections"],
         label: "Go to Series",
         order: 54,
+        scope: "library",
+      },
+      {
+        configuration: "unbound",
+        execute: () => enterLocation({ type: "duplicates" }),
+        group: "Navigate",
+        id: "navigate.duplicates",
+        keywords: ["duplicate books", "archive integrity"],
+        label: "Go to Duplicates",
+        order: 55,
+        scope: "library",
+      },
+      {
+        configuration: "unbound",
+        execute: () => enterLocation({ type: "epub-issues" }),
+        group: "Navigate",
+        id: "navigate.epub-issues",
+        keywords: ["epub diagnostics", "archive integrity", "book issues"],
+        label: "Go to EPUB Issues",
+        order: 56,
         scope: "library",
       },
       {
@@ -772,6 +824,7 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           id: "current-library-surface",
           label: currentFolder?.name ?? "Archive root",
         }}
+        integrity={integrity}
         isImporting={bookActions.isImporting}
         isLoading={booksLoadState.status === "loading"}
         location={navigation.location}

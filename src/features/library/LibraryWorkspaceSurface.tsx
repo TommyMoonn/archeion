@@ -1,4 +1,4 @@
-import { BookOpenText } from "lucide-react";
+import { BookOpenText, Copy, FileWarning } from "lucide-react";
 import {
   Suspense,
   useLayoutEffect,
@@ -13,7 +13,14 @@ import { Button } from "../../components/Button";
 import { EmptyState } from "../../components/EmptyState";
 import { PageShell } from "../../components/PageShell";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
-import type { CollectionCardSize, LibraryLocation, LibraryView } from "../../types/library";
+import {
+  isLibraryIntegrityLocation,
+  libraryIntegrityLocationLabel,
+  type CollectionCardSize,
+  type LibraryIntegrityLocation,
+  type LibraryLocation,
+  type LibraryView,
+} from "../../types/library";
 import { FolderBrowser } from "../folders/FolderBrowser";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -29,6 +36,7 @@ import {
   type LibraryTitlebarCompositionHandle,
 } from "./LibraryTitlebarComposition";
 import { LibraryToolbar } from "./LibraryToolbar";
+import type { LibraryIntegrityController } from "./useLibraryIntegrity";
 import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
 import { librarySidebarToggleLabel, useLibrarySidebarState } from "./useLibrarySidebarState";
@@ -71,6 +79,7 @@ type LibraryWorkspaceSurfaceProps = {
   folderBrowserProps: ComponentProps<typeof FolderBrowser>;
   hasFilters: boolean;
   importDropTarget: NonNullable<ComponentProps<typeof PageShell>["importDropTarget"]>;
+  integrity: LibraryIntegrityController;
   isImporting: boolean;
   isLoading: boolean;
   location: LibraryLocation;
@@ -106,6 +115,7 @@ export function LibraryWorkspaceSurface({
   folderBrowserProps,
   hasFilters,
   importDropTarget,
+  integrity,
   isImporting,
   isLoading,
   location,
@@ -157,7 +167,10 @@ export function LibraryWorkspaceSurface({
   const surfaceKey = `${libraryLocationKey(location)}:${view}:${surfaceState}`;
   const bookCollectionRootRef = useRef<HTMLDivElement>(null);
   const bookSurfaceActive =
-    location.type !== "folders" && location.type !== "series" && location.type !== "series-detail";
+    !isLibraryIntegrityLocation(location) &&
+    location.type !== "folders" &&
+    location.type !== "series" &&
+    location.type !== "series-detail";
   const bookFocusRevision = useMemo(
     () => `${surfaceKey}:${bookCardSize}:${visibleBooks.map((book) => book.id).join("\u001f")}`,
     [bookCardSize, surfaceKey, visibleBooks],
@@ -246,6 +259,14 @@ export function LibraryWorkspaceSurface({
             <SeriesDetail {...seriesDetailProps} />
           </MountedReaderReturnSurface>
         </Suspense>
+      ) : isLibraryIntegrityLocation(location) ? (
+        <MountedReaderReturnSurface
+          key={libraryLocationKey(location)}
+          onReady={onMountedReturnSurfaceReady}
+          surfaceKey={libraryLocationKey(location)}
+        >
+          <LibraryIntegrityPlaceholder integrity={integrity} location={location} />
+        </MountedReaderReturnSurface>
       ) : (
         <>
           <LibraryToolbar {...toolbarProps} />
@@ -315,6 +336,72 @@ export function LibraryWorkspaceSurface({
 
       <LibraryFeedbackStack {...feedbackProps} />
     </PageShell>
+  );
+}
+
+function LibraryIntegrityPlaceholder({
+  integrity,
+  location,
+}: Readonly<{
+  integrity: LibraryIntegrityController;
+  location: LibraryIntegrityLocation;
+}>) {
+  const duplicates = location.type === "duplicates";
+  const state = duplicates ? integrity.duplicates : integrity.diagnostics;
+  const refresh = duplicates ? integrity.refreshDuplicates : integrity.refreshDiagnostics;
+  const title = libraryIntegrityLocationLabel(location);
+  const Icon = duplicates ? Copy : FileWarning;
+  const loading = state.status === "idle" || state.status === "loading";
+  const resultCount = duplicates
+    ? (integrity.duplicates.snapshot?.groups.length ?? 0)
+    : (integrity.diagnostics.snapshot?.entries.length ?? 0);
+  const readyDescription = duplicates
+    ? resultCount === 1
+      ? "1 duplicate group is ready for review."
+      : `${resultCount} duplicate groups are ready for review.`
+    : resultCount === 1
+      ? "1 EPUB file has diagnostic results ready for review."
+      : `${resultCount} EPUB files have diagnostic results ready for review.`;
+
+  return (
+    <>
+      <header className="library-header">
+        <div className="library-header__title">
+          <p className="eyebrow">Archive integrity</p>
+          <h1>{title}</h1>
+        </div>
+      </header>
+      <div
+        aria-busy={loading || undefined}
+        className="collection-content library-content"
+        data-surface-state={loading ? "loading" : state.status}
+      >
+        {loading ? (
+          <div className="collection-content__loading library-loading" role="status">
+            <span>{duplicates ? "Checking for duplicate EPUBs" : "Checking EPUB files"}</span>
+          </div>
+        ) : state.status === "error" ? (
+          <div role="alert">
+            <EmptyState
+              action={
+                <Button variant="secondary" onClick={() => void refresh()}>
+                  Try again
+                </Button>
+              }
+              description={state.error?.message ?? "Integrity analysis could not be refreshed."}
+              icon={<Icon size={42} strokeWidth={1.5} />}
+              title={`${title} unavailable`}
+            />
+          </div>
+        ) : (
+          <EmptyState
+            description={readyDescription}
+            icon={<Icon size={42} strokeWidth={1.5} />}
+            title="Analysis ready"
+          />
+        )}
+      </div>
+    </>
   );
 }
 

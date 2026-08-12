@@ -65,6 +65,13 @@ describe("collection display Quick Actions", () => {
     );
   });
 
+  it.each(["duplicates", "epub-issues"] as const)(
+    "does not expose book display commands on the %s integrity location",
+    (type) => {
+      expect(commandsFor({ type }).commands).toEqual([]);
+    },
+  );
+
   it("marks the current value and persists only the confirmed Books option", async () => {
     const { mode, updateCollection } = modeFor({ type: "library" }, "Change sort…");
 

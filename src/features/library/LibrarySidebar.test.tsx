@@ -182,6 +182,22 @@ describe("LibrarySidebar", () => {
     }
   });
 
+  it.each([
+    ["Duplicates", { type: "duplicates" }],
+    ["EPUB Issues", { type: "epub-issues" }],
+  ] as const)("navigates to %s through the primary Library navigation", (label, location) => {
+    const onLocationChange = vi.fn();
+    const session = renderInteractiveSidebar(location, onLocationChange);
+    activeRoot = session.root;
+    const control = session.container.querySelector<HTMLButtonElement>(
+      `button[aria-label="${label}"]`,
+    );
+
+    expect(control?.getAttribute("aria-current")).toBe("page");
+    act(() => control?.click());
+    expect(onLocationChange).toHaveBeenCalledWith(location);
+  });
+
   it("exposes only the effective Settings shortcut on the existing Settings control", () => {
     const markup = renderToStaticMarkup(
       <LibrarySidebar {...sidebarProps()} settingsAriaKeyShortcuts="Control+," />,

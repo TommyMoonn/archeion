@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
 
 import type { LibrarySnapshotBook, LibrarySnapshotFolder } from "../../storage/LibraryStorage";
-import type {
-  LibraryFilterState,
-  LibraryLocation,
-  LibrarySmartViewPreferences,
-  LibrarySort,
+import {
+  isLibraryIntegrityLocation,
+  libraryIntegrityLocationLabel,
+  type LibraryFilterState,
+  type LibraryLocation,
+  type LibrarySmartViewPreferences,
+  type LibrarySort,
 } from "../../types/library";
 import { measurePerformance } from "../../utils/measurePerformance";
 import type { FolderBrowserEntry } from "../folders/folderBrowserReadModel";
@@ -100,8 +102,9 @@ export function useLibraryDerivedState({
   );
   const currentFolder =
     location.type === "folder" ? index.folderById.get(location.folderId) : undefined;
-  const libraryTitle =
-    location.type === "favorites"
+  const libraryTitle = isLibraryIntegrityLocation(location)
+    ? libraryIntegrityLocationLabel(location)
+    : location.type === "favorites"
       ? "Favorites"
       : location.type === "continue"
         ? "In Progress"
