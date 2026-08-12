@@ -6,6 +6,8 @@ pub mod archive_import_artifacts;
 pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod epub;
+#[allow(dead_code)]
+pub(crate) mod epub_analysis_cache;
 mod epub_cover_cache;
 mod epub_cover_requests;
 mod epub_cover_resource;
