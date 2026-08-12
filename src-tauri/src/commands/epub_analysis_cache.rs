@@ -12,11 +12,11 @@ use crate::atomic_file::{
     RealAtomicFileSystem,
 };
 
+use super::epub_diagnostics::EpubDiagnostics;
 use super::{filesystem, metadata};
 
 const CACHE_FILE: &str = "epub-analysis-cache.json";
 const CACHE_VERSION: u8 = 1;
-const DIAGNOSTICS_FORMAT_VERSION: u8 = 1;
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -51,40 +51,6 @@ pub(crate) struct CachedEpubDigest {
     pub(crate) sha256: String,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "kebab-case")]
-pub(crate) enum CachedDiagnosticSeverity {
-    Error,
-    Warning,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct CachedDiagnosticIssue {
-    pub(crate) code: String,
-    pub(crate) severity: CachedDiagnosticSeverity,
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub(crate) message_inputs: BTreeMap<String, String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) resource_path: Option<String>,
-}
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct CachedEpubDiagnostics {
-    pub(crate) format_version: u8,
-    pub(crate) issues: Vec<CachedDiagnosticIssue>,
-}
-
-impl CachedEpubDiagnostics {
-    pub(crate) fn new(issues: Vec<CachedDiagnosticIssue>) -> Self {
-        Self {
-            format_version: DIAGNOSTICS_FORMAT_VERSION,
-            issues,
-        }
-    }
-}
-
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct EpubAnalysisCacheEntry {
@@ -92,7 +58,7 @@ pub(crate) struct EpubAnalysisCacheEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) digest: Option<CachedEpubDigest>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) diagnostics: Option<CachedEpubDiagnostics>,
+    pub(crate) diagnostics: Option<EpubDiagnostics>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -146,9 +112,10 @@ impl EpubAnalysisCache {
                         .digest
                         .as_ref()
                         .is_none_or(|digest| valid_sha256(&digest.sha256))
-                    && entry.diagnostics.as_ref().is_none_or(|diagnostics| {
-                        diagnostics.format_version == DIAGNOSTICS_FORMAT_VERSION
-                    })
+                    && entry
+                        .diagnostics
+                        .as_ref()
+                        .is_none_or(EpubDiagnostics::has_current_format)
             })
     }
 }
@@ -260,9 +227,11 @@ mod tests {
     use crate::atomic_file::AtomicFileSystem;
 
     use super::{
-        cache_path, load_at, save_at, save_with_file_system, CachedDiagnosticIssue,
-        CachedDiagnosticSeverity, CachedEpubDiagnostics, CachedEpubDigest, EpubAnalysisCache,
+        cache_path, load_at, save_at, save_with_file_system, CachedEpubDigest, EpubAnalysisCache,
         EpubAnalysisCacheEntry, EpubAnalysisCacheLoadStatus, EpubFileSignature,
+    };
+    use crate::commands::epub_diagnostics::{
+        EpubDiagnosticCode, EpubDiagnosticIssue, EpubDiagnosticSeverity, EpubDiagnostics,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -286,9 +255,9 @@ mod tests {
             digest: Some(CachedEpubDigest {
                 sha256: marker.to_string().repeat(64),
             }),
-            diagnostics: Some(CachedEpubDiagnostics::new(vec![CachedDiagnosticIssue {
-                code: "missing-reading-resource".to_string(),
-                severity: CachedDiagnosticSeverity::Error,
+            diagnostics: Some(EpubDiagnostics::new(vec![EpubDiagnosticIssue {
+                code: EpubDiagnosticCode::ReadingResourceMissing,
+                severity: EpubDiagnosticSeverity::Error,
                 message_inputs: BTreeMap::from([(
                     "manifestId".to_string(),
                     "chapter-1".to_string(),

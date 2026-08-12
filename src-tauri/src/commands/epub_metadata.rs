@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs, io::Read, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fs,
+    io::{Read, Seek},
+    path::Path,
+};
 
 use percent_encoding::percent_decode_str;
 use quick_xml::{
@@ -8,9 +13,9 @@ use quick_xml::{
 use serde::{Deserialize, Serialize};
 use zip::ZipArchive;
 
-const CONTAINER_PATH: &str = "META-INF/container.xml";
-const CONTAINER_READ_LIMIT: u64 = 512 * 1024;
-const PACKAGE_READ_LIMIT: u64 = 4 * 1024 * 1024;
+pub(crate) const CONTAINER_PATH: &str = "META-INF/container.xml";
+pub(crate) const CONTAINER_READ_LIMIT: u64 = 512 * 1024;
+pub(crate) const PACKAGE_READ_LIMIT: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -96,8 +101,8 @@ pub(crate) fn xml_elements(xml: &str, names: &[&[u8]]) -> Vec<(String, HashMap<S
     elements
 }
 
-pub(crate) fn read_zip_text(
-    archive: &mut ZipArchive<fs::File>,
+pub(crate) fn read_zip_text<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
     path: &str,
     limit: u64,
 ) -> Result<String, String> {
@@ -113,7 +118,7 @@ pub(crate) fn read_zip_text(
     Ok(text)
 }
 
-fn sanitize_zip_path(path: &str) -> Result<String, String> {
+pub(crate) fn sanitize_zip_path(path: &str) -> Result<String, String> {
     let mut parts = Vec::new();
     for part in path.split('/') {
         if part.is_empty() || part == "." || part == ".." || part.contains('\\') {
@@ -160,21 +165,139 @@ pub(crate) fn resolve_zip_relative_path(package_path: &str, href: &str) -> Resul
     Ok(parts.join("/"))
 }
 
-fn package_path_from_container(container_xml: &str) -> Result<String, String> {
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EpubContainerPathError {
+    MissingRootfile,
+    UnsafeRootfile,
+}
+
+impl std::fmt::Display for EpubContainerPathError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::MissingRootfile => formatter.write_str("EPUB package document was not found."),
+            Self::UnsafeRootfile => formatter.write_str("EPUB package path is unsafe."),
+        }
+    }
+}
+
+pub(crate) fn package_path_from_container(
+    container_xml: &str,
+) -> Result<String, EpubContainerPathError> {
     let path = xml_elements(container_xml, &[b"rootfile"])
         .into_iter()
         .find_map(|(_, attributes)| attributes.get("full-path").cloned())
-        .ok_or_else(|| "EPUB package document was not found.".to_string())?;
-    sanitize_zip_path(&path)
+        .ok_or(EpubContainerPathError::MissingRootfile)?;
+    sanitize_zip_path(&path).map_err(|_| EpubContainerPathError::UnsafeRootfile)
 }
 
-pub(crate) fn read_package_document(
-    archive: &mut ZipArchive<fs::File>,
+pub(crate) fn read_package_document<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
 ) -> Result<EpubPackageDocument, String> {
     let container = read_zip_text(archive, CONTAINER_PATH, CONTAINER_READ_LIMIT)?;
-    let path = package_path_from_container(&container)?;
+    let path = package_path_from_container(&container).map_err(|error| error.to_string())?;
     let xml = read_zip_text(archive, &path, PACKAGE_READ_LIMIT)?;
     Ok(EpubPackageDocument { path, xml })
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct EpubManifestItem {
+    pub(crate) id: String,
+    pub(crate) href: String,
+    pub(crate) media_type: String,
+    pub(crate) properties: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub(crate) struct EpubPackageStructure {
+    pub(crate) manifest: BTreeMap<String, EpubManifestItem>,
+    pub(crate) spine: Vec<String>,
+    pub(crate) spine_toc: Option<String>,
+}
+
+fn strict_attributes(
+    event: &BytesStart<'_>,
+    reader: &Reader<&[u8]>,
+) -> Result<HashMap<String, String>, String> {
+    event
+        .attributes()
+        .map(|attribute| {
+            let attribute = attribute.map_err(|error| error.to_string())?;
+            let key = String::from_utf8_lossy(attribute.key.local_name().as_ref()).into_owned();
+            let value = attribute
+                .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+                .map_err(|error| error.to_string())?
+                .into_owned();
+            Ok((key, value))
+        })
+        .collect()
+}
+
+pub(crate) fn parse_package_structure(xml: &str) -> Result<EpubPackageStructure, String> {
+    let mut reader = Reader::from_str(xml);
+    let mut structure = EpubPackageStructure::default();
+    let mut saw_package = false;
+
+    loop {
+        match reader.read_event().map_err(|error| error.to_string())? {
+            Event::Start(event) | Event::Empty(event) => {
+                let name = event.local_name();
+                match name.as_ref() {
+                    b"package" => saw_package = true,
+                    b"item" => {
+                        let attributes = strict_attributes(&event, &reader)?;
+                        let Some(id) = attributes.get("id").filter(|value| !value.is_empty())
+                        else {
+                            continue;
+                        };
+                        let Some(href) = attributes.get("href").filter(|value| !value.is_empty())
+                        else {
+                            continue;
+                        };
+                        let Some(media_type) = attributes
+                            .get("media-type")
+                            .filter(|value| !value.is_empty())
+                        else {
+                            continue;
+                        };
+                        structure.manifest.insert(
+                            id.clone(),
+                            EpubManifestItem {
+                                id: id.clone(),
+                                href: href.clone(),
+                                media_type: media_type.clone(),
+                                properties: attributes
+                                    .get("properties")
+                                    .map(|value| {
+                                        value.split_whitespace().map(str::to_owned).collect()
+                                    })
+                                    .unwrap_or_default(),
+                            },
+                        );
+                    }
+                    b"spine" => {
+                        let attributes = strict_attributes(&event, &reader)?;
+                        structure.spine_toc = attributes.get("toc").cloned();
+                    }
+                    b"itemref" => {
+                        let attributes = strict_attributes(&event, &reader)?;
+                        if let Some(idref) =
+                            attributes.get("idref").filter(|value| !value.is_empty())
+                        {
+                            structure.spine.push(idref.clone());
+                        }
+                    }
+                    _ => {}
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+
+    if !saw_package {
+        return Err("EPUB package root element was not found.".to_string());
+    }
+    Ok(structure)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]

@@ -1,4 +1,9 @@
-use std::{fs::File, io::Read, path::Path};
+use std::{
+    fmt,
+    fs::{self, File},
+    io::Read,
+    path::Path,
+};
 
 pub(super) const MAX_ACTIVE_EPUB_BYTES: u64 = 256 * 1024 * 1024;
 
@@ -6,9 +11,38 @@ fn size_limit_error() -> String {
     "This EPUB exceeds Archeion's 256 MiB reader limit.".to_string()
 }
 
+#[derive(Debug)]
+pub(super) enum EpubFileResourceError {
+    NotFile,
+    TooLarge,
+    Unavailable(String),
+}
+
+impl fmt::Display for EpubFileResourceError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::NotFile => formatter.write_str("The selected EPUB is not a file."),
+            Self::TooLarge => formatter.write_str(&size_limit_error()),
+            Self::Unavailable(error) => formatter.write_str(error),
+        }
+    }
+}
+
+pub(super) fn validate_epub_file_size(path: &Path) -> Result<u64, EpubFileResourceError> {
+    let metadata = fs::metadata(path)
+        .map_err(|error| EpubFileResourceError::Unavailable(error.to_string()))?;
+    if !metadata.is_file() {
+        return Err(EpubFileResourceError::NotFile);
+    }
+    if metadata.len() > MAX_ACTIVE_EPUB_BYTES {
+        return Err(EpubFileResourceError::TooLarge);
+    }
+    Ok(metadata.len())
+}
+
 pub(super) fn read_epub_file_bytes(path: &Path) -> Result<Vec<u8>, String> {
     let mut file = File::open(path).map_err(|error| error.to_string())?;
-    let declared_length = file.metadata().map_err(|error| error.to_string())?.len();
+    let declared_length = validate_epub_file_size(path).map_err(|error| error.to_string())?;
     read_bounded_epub_bytes(&mut file, declared_length)
 }
 
