@@ -7,6 +7,52 @@ use super::{
     },
     fixtures::*,
 };
+use crate::commands::epub_analysis_cache;
+
+#[test]
+fn successful_cover_write_invalidates_only_the_edited_epub_analysis() {
+    let root = test_root();
+    fs::create_dir_all(&root).expect("root should be created");
+    let epub_path = root.join("book.epub");
+    let image_path = root.join("replacement.png");
+    write_image(&image_path, 600, 900);
+    write_epub(
+        &epub_path,
+        r#"<package version="3.0"><metadata/><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#,
+        &[("OEBPS/chapter.xhtml", b"<html><body>chapter</body></html>")],
+    );
+    epub_analysis_cache::seed_test_entries(&root, &["book.epub", "other.epub"]);
+    let (image_size, image_modified_at) = fingerprint(&image_path);
+    let (epub_size, epub_modified_at) = fingerprint(&epub_path);
+
+    write_cover_at(
+        &root,
+        EpubCoverWritebackInput {
+            relative_path: "book.epub".to_string(),
+            book_id: "book-1".to_string(),
+            image_path: image_path.to_string_lossy().into_owned(),
+            framing: EpubCoverFraming::Fit,
+            expected_image_size: image_size,
+            expected_image_modified_at: image_modified_at,
+            expected_epub_size: epub_size,
+            expected_epub_modified_at: epub_modified_at,
+            keep_successful_backup: false,
+        },
+    )
+    .expect("cover write should succeed");
+
+    assert!(!epub_analysis_cache::contains_test_entry(
+        &root,
+        "book.epub",
+        0
+    ));
+    assert!(epub_analysis_cache::contains_test_entry(
+        &root,
+        "other.epub",
+        1
+    ));
+    fs::remove_dir_all(root).expect("root should be removed");
+}
 
 #[test]
 fn landmark_dependency_analysis_failure_leaves_epub_byte_for_byte_unchanged() {

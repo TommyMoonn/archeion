@@ -109,6 +109,38 @@ impl EpubDigestService {
         self.digest_with(session, relative_path, hash_file)
     }
 
+    pub(crate) fn invalidate_active_archive_paths(
+        &self,
+        root: &Path,
+        relative_paths: &[String],
+    ) -> Result<bool, String> {
+        self.invalidate_active_archive(root, |cache| {
+            relative_paths.iter().try_fold(false, |changed, path| {
+                Ok(cache.invalidate(path)? || changed)
+            })
+        })
+    }
+
+    pub(crate) fn invalidate_active_archive_prefixes(
+        &self,
+        root: &Path,
+        relative_prefixes: &[String],
+    ) -> Result<bool, String> {
+        self.invalidate_active_archive(root, |cache| {
+            relative_prefixes.iter().try_fold(false, |changed, prefix| {
+                Ok(cache.invalidate_prefix(prefix)? || changed)
+            })
+        })
+    }
+
+    pub(crate) fn clear_active_archive(&self, root: &Path) -> Result<bool, String> {
+        self.invalidate_active_archive(root, |cache| Ok(cache.clear()))
+    }
+
+    pub(crate) fn retire_active_archive(&self) {
+        *recover_lock(&self.active) = None;
+    }
+
     pub(crate) fn reusable_diagnostics(
         &self,
         session: &EpubDigestArchiveSession,
@@ -204,6 +236,30 @@ impl EpubDigestService {
         } else {
             Err(RETIRED_DIGEST_ERROR.to_string())
         }
+    }
+
+    fn invalidate_active_archive(
+        &self,
+        root: &Path,
+        invalidate: impl FnOnce(&mut EpubAnalysisCache) -> Result<bool, String>,
+    ) -> Result<bool, String> {
+        let mut active = recover_lock(&self.active);
+        let Some(state) = active.as_ref().filter(|state| state.root == root).cloned() else {
+            return Ok(false);
+        };
+        let mut next_cache = recover_lock(&state.cache).clone();
+        let changed = invalidate(&mut next_cache)?;
+        let save_result = if changed {
+            epub_analysis_cache::save_after_invalidation_at(root, &next_cache)
+        } else {
+            Ok(())
+        };
+        if changed && save_result.is_ok() {
+            *recover_lock(&state.cache) = next_cache;
+        }
+        *active = None;
+        save_result?;
+        Ok(true)
     }
 }
 
@@ -325,6 +381,37 @@ mod tests {
         write_epub(&root, "Novel.epub", b"different bytes with another size");
         let recomputed = service.digest(&session, "Novel.epub").unwrap();
         assert_ne!(recomputed, first);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn targeted_invalidation_retires_the_owner_and_preserves_unrelated_analysis() {
+        let root = test_root("targeted-invalidation");
+        fs::create_dir_all(&root).unwrap();
+        write_epub(&root, "Changed.epub", b"changed book");
+        write_epub(&root, "Unrelated.epub", b"unrelated book");
+        let service = EpubDigestService::default();
+        let session = service.activate_archive(root.clone()).unwrap();
+        let changed_digest = service.digest(&session, "Changed.epub").unwrap();
+        let unrelated_digest = service.digest(&session, "Unrelated.epub").unwrap();
+
+        assert!(service
+            .invalidate_active_archive_paths(&root, &["Changed.epub".to_string()])
+            .unwrap());
+        assert_eq!(
+            service.digest(&session, "Unrelated.epub").unwrap_err(),
+            RETIRED_DIGEST_ERROR
+        );
+
+        let next_session = service.activate_archive(root.clone()).unwrap();
+        let reused = service
+            .digest_with(&next_session, "Unrelated.epub", |_| {
+                panic!("unrelated analysis should remain reusable")
+            })
+            .unwrap();
+        assert_eq!(reused, unrelated_digest);
+        let recomputed = service.digest(&next_session, "Changed.epub").unwrap();
+        assert_eq!(recomputed, changed_digest);
         fs::remove_dir_all(root).unwrap();
     }
 

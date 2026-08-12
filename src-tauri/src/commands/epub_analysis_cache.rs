@@ -167,7 +167,29 @@ impl EpubAnalysisCache {
 
     pub(crate) fn invalidate(&mut self, relative_path: &str) -> Result<bool, String> {
         let normalized = normalize_epub_path(relative_path)?;
-        Ok(self.entries.remove(&normalized).is_some())
+        let previous_len = self.entries.len();
+        self.entries
+            .retain(|path, _| !path.eq_ignore_ascii_case(&normalized));
+        Ok(self.entries.len() != previous_len)
+    }
+
+    pub(crate) fn invalidate_prefix(&mut self, relative_prefix: &str) -> Result<bool, String> {
+        let normalized = filesystem::normalize_archive_relative_path(relative_prefix)?;
+        let prefix = format!("{normalized}/");
+        let previous_len = self.entries.len();
+        self.entries.retain(|path, _| {
+            !path.eq_ignore_ascii_case(&normalized)
+                && !path
+                    .get(..prefix.len())
+                    .is_some_and(|candidate| candidate.eq_ignore_ascii_case(&prefix))
+        });
+        Ok(self.entries.len() != previous_len)
+    }
+
+    pub(crate) fn clear(&mut self) -> bool {
+        let changed = !self.entries.is_empty();
+        self.entries.clear();
+        changed
     }
 
     fn is_valid(&self) -> bool {
@@ -284,6 +306,99 @@ fn save_with_file_system(
 
 pub(crate) fn save_at(root: &Path, cache: &EpubAnalysisCache) -> Result<(), String> {
     save_with_file_system(root, cache, &RealAtomicFileSystem)
+}
+
+pub(crate) fn save_after_invalidation_at(
+    root: &Path,
+    cache: &EpubAnalysisCache,
+) -> Result<(), String> {
+    if let Err(error) = save_at(root, cache) {
+        let removal_error = fs::remove_file(cache_path(root))
+            .err()
+            .filter(|removal_error| removal_error.kind() != std::io::ErrorKind::NotFound);
+        return Err(match removal_error {
+            Some(removal_error) => format!(
+                "{error}; the stale EPUB analysis cache could not be removed: {removal_error}"
+            ),
+            None => error,
+        });
+    }
+    Ok(())
+}
+
+fn update_at(
+    root: &Path,
+    update: impl FnOnce(&mut EpubAnalysisCache) -> Result<bool, String>,
+) -> Result<bool, String> {
+    let mut cache = load_at(root)?.cache;
+    let changed = update(&mut cache)?;
+    if changed {
+        save_after_invalidation_at(root, &cache)?;
+    }
+    Ok(changed)
+}
+
+pub(crate) fn invalidate_paths_at(root: &Path, relative_paths: &[String]) -> Result<bool, String> {
+    update_at(root, |cache| {
+        relative_paths.iter().try_fold(
+            false,
+            |changed, path| Ok(cache.invalidate(path)? || changed),
+        )
+    })
+}
+
+pub(crate) fn invalidate_prefixes_at(
+    root: &Path,
+    relative_prefixes: &[String],
+) -> Result<bool, String> {
+    update_at(root, |cache| {
+        relative_prefixes.iter().try_fold(false, |changed, prefix| {
+            Ok(cache.invalidate_prefix(prefix)? || changed)
+        })
+    })
+}
+
+pub(crate) fn clear_at(root: &Path) -> Result<bool, String> {
+    update_at(root, |cache| Ok(cache.clear()))
+}
+
+#[cfg(test)]
+pub(crate) fn seed_test_entries(root: &Path, relative_paths: &[&str]) {
+    let mut cache = EpubAnalysisCache::default();
+    for (index, relative_path) in relative_paths.iter().enumerate() {
+        cache
+            .insert(
+                relative_path,
+                EpubAnalysisCacheEntry {
+                    signature: EpubFileSignature {
+                        size_bytes: index as u64 + 1,
+                        modified_at_millis: index as u64 + 1,
+                    },
+                    digest: Some(CachedEpubDigest {
+                        sha256: char::from(b'a' + index as u8).to_string().repeat(64),
+                    }),
+                    diagnostics: None,
+                },
+            )
+            .unwrap();
+    }
+    save_at(root, &cache).unwrap();
+}
+
+#[cfg(test)]
+pub(crate) fn contains_test_entry(root: &Path, relative_path: &str, index: usize) -> bool {
+    load_at(root)
+        .unwrap()
+        .cache
+        .reusable_entry(
+            relative_path,
+            &EpubFileSignature {
+                size_bytes: index as u64 + 1,
+                modified_at_millis: index as u64 + 1,
+            },
+        )
+        .unwrap()
+        .is_some()
 }
 
 #[cfg(test)]
@@ -436,6 +551,32 @@ mod tests {
             .is_none());
         assert!(cache
             .reusable_entry("Shelf/Second.epub", &second_signature)
+            .unwrap()
+            .is_some());
+    }
+
+    #[test]
+    fn prefix_invalidation_retires_only_nested_analysis_entries() {
+        let mut cache = EpubAnalysisCache::default();
+        let nested_signature = signature(10, 1);
+        let unrelated_signature = signature(20, 2);
+        cache
+            .insert(
+                "Series/Nested/Book.epub",
+                entry(nested_signature.clone(), 'a'),
+            )
+            .unwrap();
+        cache
+            .insert("Other/Book.epub", entry(unrelated_signature.clone(), 'b'))
+            .unwrap();
+
+        assert!(cache.invalidate_prefix("series").unwrap());
+        assert!(cache
+            .reusable_entry("Series/Nested/Book.epub", &nested_signature)
+            .unwrap()
+            .is_none());
+        assert!(cache
+            .reusable_entry("Other/Book.epub", &unrelated_signature)
             .unwrap()
             .is_some());
     }

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     archive_import_transaction::ArchiveImportTransactionState,
-    archive_root, filesystem, scanner_cache,
+    archive_root, epub_analysis, filesystem, scanner_cache,
     watcher::{ArchiveWatcherSuppressionOwner, SuppressedWatcherChange},
 };
 
@@ -367,12 +367,37 @@ struct ImportCommitOutcome {
     maintenance_warning: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum ImportDestinationSettlement {
+    Missing,
+    Present,
+}
+
+#[cfg(test)]
 fn copy_or_move_epub_with_fs(
     source: &Path,
     destination: &Path,
     mode: ArchiveImportMode,
     replace_existing: bool,
     fs_ops: &dyn ImportFileSystem,
+) -> Result<ImportCommitOutcome, String> {
+    copy_or_move_epub_with_fs_and_settlement(
+        source,
+        destination,
+        mode,
+        replace_existing,
+        fs_ops,
+        |_| {},
+    )
+}
+
+fn copy_or_move_epub_with_fs_and_settlement(
+    source: &Path,
+    destination: &Path,
+    mode: ArchiveImportMode,
+    replace_existing: bool,
+    fs_ops: &dyn ImportFileSystem,
+    settle_destination: impl FnOnce(ImportDestinationSettlement),
 ) -> Result<ImportCommitOutcome, String> {
     let expected_size = fs::metadata(source)
         .map_err(|error| error.to_string())?
@@ -390,6 +415,7 @@ fn copy_or_move_epub_with_fs(
         if let Err(rename_error) = fs_ops.rename(&temporary_path, destination) {
             let _ = fs_ops.remove_file(&temporary_path);
             if let Err(restore_error) = restore_import_backup(fs_ops, &backup_path, destination) {
+                settle_destination(ImportDestinationSettlement::Missing);
                 return Err(format!(
                     "The replacement EPUB could not be placed in the archive: {rename_error}. {restore_error}"
                 ));
@@ -402,6 +428,8 @@ fn copy_or_move_epub_with_fs(
         let _ = fs_ops.remove_file(&temporary_path);
         return Err(error);
     }
+
+    settle_destination(ImportDestinationSettlement::Present);
 
     let maintenance_warning = if replace_existing {
         fs_ops.remove_file(&backup_path).err().map(|error| {
@@ -537,14 +565,27 @@ fn add_epub_files_to_archive_at_with_context(
             .transpose()?;
 
         let mut imported_paths = Vec::new();
+        let mut settled_paths = Vec::new();
         let mut final_state_changes = Vec::new();
         for item in planned {
-            results[item.index] = Some(match copy_or_move_epub_with_fs(
+            let relative_path = item.relative_path.clone();
+            results[item.index] = Some(match copy_or_move_epub_with_fs_and_settlement(
                 &item.source,
                 &item.destination,
                 mode,
                 item.replace_existing,
                 execution.file_system,
+                |_| {
+                    if let Err(error) = epub_analysis::invalidate_paths_at(
+                        &canonical_root,
+                        std::slice::from_ref(&relative_path),
+                    ) {
+                        eprintln!(
+                            "EPUB analysis cache could not be invalidated after import destination settlement: {error}"
+                        );
+                    }
+                    settled_paths.push(relative_path.clone());
+                },
             ) {
                 Ok(outcome) => {
                     imported_paths.push(item.relative_path.clone());
@@ -569,7 +610,7 @@ fn add_epub_files_to_archive_at_with_context(
             });
         }
 
-        let cache_warning = scanner_cache::invalidate_paths(&canonical_root, &imported_paths).warning;
+        let cache_warning = scanner_cache::invalidate_paths(&canonical_root, &settled_paths).warning;
         let mut folded_watcher_changes = watcher_suppression
             .map(|suppression| suppression.finish())
             .unwrap_or_default();
@@ -645,7 +686,10 @@ mod tests {
     use std::{
         fs,
         path::{Path, PathBuf},
-        sync::{mpsc, Arc, Mutex},
+        sync::{
+            atomic::{AtomicUsize, Ordering},
+            mpsc, Arc, Mutex,
+        },
         thread,
         time::{Duration, SystemTime, UNIX_EPOCH},
     };
@@ -658,8 +702,8 @@ mod tests {
     };
     use crate::commands::{
         archive_import_artifacts::cleanup_archive_import_artifacts_at,
-        archive_import_transaction::ArchiveImportTransactionState, metadata, scanner_cache,
-        watcher::ArchiveWatcherSuppressionOwner,
+        archive_import_transaction::ArchiveImportTransactionState, epub_analysis_cache, metadata,
+        scanner_cache, watcher::ArchiveWatcherSuppressionOwner,
     };
 
     fn test_root() -> std::path::PathBuf {
@@ -740,6 +784,7 @@ mod tests {
         fs::create_dir_all(&root).expect("archive should be created");
         fs::create_dir_all(&external).expect("source folder should be created");
         fs::write(root.join("Novel.epub"), b"existing").expect("existing EPUB should exist");
+        epub_analysis_cache::seed_test_entries(&root, &["Novel.epub", "Other.epub"]);
         let source = external.join("Novel.epub");
         fs::write(&source, b"incoming").expect("incoming EPUB should exist");
 
@@ -865,6 +910,16 @@ mod tests {
             })
             .expect("replacement backup should remain available");
         assert_eq!(fs::read(backup.path()).unwrap(), b"existing");
+        assert!(!epub_analysis_cache::contains_test_entry(
+            &root,
+            "Novel.epub",
+            0
+        ));
+        assert!(epub_analysis_cache::contains_test_entry(
+            &root,
+            "Other.epub",
+            1
+        ));
         let message = result.results[0]
             .message
             .as_deref()
@@ -945,6 +1000,7 @@ mod tests {
         fs::create_dir_all(&root).expect("archive should be created");
         fs::create_dir_all(&external).expect("source folder should be created");
         fs::write(root.join("Novel.epub"), b"existing").expect("existing EPUB should exist");
+        epub_analysis_cache::seed_test_entries(&root, &["Novel.epub", "Other.epub"]);
         let source = external.join("Novel.epub");
         fs::write(&source, b"incoming").expect("incoming EPUB should exist");
 
@@ -972,6 +1028,16 @@ mod tests {
         assert_eq!(replaced[0].status, ArchiveImportStatus::Imported);
         assert!(replaced[0].replaced_existing);
         assert_eq!(fs::read(root.join("Novel.epub")).unwrap(), b"incoming");
+        assert!(!epub_analysis_cache::contains_test_entry(
+            &root,
+            "Novel.epub",
+            0
+        ));
+        assert!(epub_analysis_cache::contains_test_entry(
+            &root,
+            "Other.epub",
+            1
+        ));
         assert!(!root
             .read_dir()
             .expect("archive should be readable")
@@ -1363,6 +1429,30 @@ mod tests {
         copy_started: mpsc::Sender<()>,
     }
 
+    struct BlockSecondCopyFileSystem {
+        copy_count: AtomicUsize,
+        second_copy_started: mpsc::Sender<()>,
+        release_second_copy: Mutex<mpsc::Receiver<()>>,
+    }
+
+    impl ImportFileSystem for BlockSecondCopyFileSystem {
+        fn copy(&self, source: &Path, destination: &Path) -> Result<u64, String> {
+            if self.copy_count.fetch_add(1, Ordering::SeqCst) == 1 {
+                self.second_copy_started.send(()).unwrap();
+                self.release_second_copy.lock().unwrap().recv().unwrap();
+            }
+            fs::copy(source, destination).map_err(|error| error.to_string())
+        }
+
+        fn rename(&self, source: &Path, destination: &Path) -> Result<(), String> {
+            fs::rename(source, destination).map_err(|error| error.to_string())
+        }
+
+        fn remove_file(&self, path: &Path) -> Result<(), String> {
+            fs::remove_file(path).map_err(|error| error.to_string())
+        }
+    }
+
     impl ImportFileSystem for RecordingCopyFileSystem {
         fn copy(&self, source: &Path, destination: &Path) -> Result<u64, String> {
             self.copy_started.send(()).unwrap();
@@ -1448,6 +1538,73 @@ mod tests {
         let source = folder.join(file_name);
         fs::write(&source, bytes).unwrap();
         source
+    }
+
+    #[test]
+    fn committed_destination_is_invalidated_before_a_later_batch_item_finishes() {
+        let root = test_root();
+        let external = test_root();
+        fs::create_dir_all(&root).unwrap();
+        fs::write(root.join("First.epub"), b"old first").unwrap();
+        fs::write(root.join("Later.epub"), b"old later").unwrap();
+        epub_analysis_cache::seed_test_entries(&root, &["First.epub", "Later.epub", "Stable.epub"]);
+        let first_source = source_file(&external, "First.epub", b"new first");
+        let later_source = source_file(&external, "Later.epub", b"new later");
+        let (second_copy_started_tx, second_copy_started_rx) = mpsc::channel();
+        let (release_second_copy_tx, release_second_copy_rx) = mpsc::channel();
+        let file_system = Arc::new(BlockSecondCopyFileSystem {
+            copy_count: AtomicUsize::new(0),
+            second_copy_started: second_copy_started_tx,
+            release_second_copy: Mutex::new(release_second_copy_rx),
+        });
+        let import_root = root.clone();
+        let import = thread::spawn(move || {
+            add_epub_files_to_archive_at_with_context(
+                &import_root,
+                vec![
+                    first_source.to_string_lossy().into_owned(),
+                    later_source.to_string_lossy().into_owned(),
+                ],
+                None,
+                ArchiveImportConflictAction::Replace,
+                ArchiveImportMode::Copy,
+                ArchiveImportExecution {
+                    transaction_state: &ArchiveImportTransactionState::default(),
+                    watcher_suppressions: None,
+                    file_system: file_system.as_ref(),
+                },
+            )
+            .unwrap()
+        });
+
+        second_copy_started_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("the later batch item should pause during its copy");
+        assert_eq!(fs::read(root.join("First.epub")).unwrap(), b"new first");
+        assert!(!epub_analysis_cache::contains_test_entry(
+            &root,
+            "First.epub",
+            0
+        ));
+        assert!(epub_analysis_cache::contains_test_entry(
+            &root,
+            "Later.epub",
+            1
+        ));
+        assert!(epub_analysis_cache::contains_test_entry(
+            &root,
+            "Stable.epub",
+            2
+        ));
+
+        release_second_copy_tx.send(()).unwrap();
+        let result = import.join().unwrap();
+        assert!(result
+            .results
+            .iter()
+            .all(|result| result.status == ArchiveImportStatus::Imported));
+        fs::remove_dir_all(root).unwrap();
+        fs::remove_dir_all(external).unwrap();
     }
 
     #[test]

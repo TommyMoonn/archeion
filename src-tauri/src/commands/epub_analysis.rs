@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     archive_root,
-    epub_analysis_cache::EpubFileSignature,
+    epub_analysis_cache::{self, EpubFileSignature},
     epub_diagnostics::{self, EpubDiagnostics},
     epub_digest::{EpubDigestArchiveSession, EpubDigestService},
     epub_duplicates::{self, EpubDuplicateCandidate, EpubDuplicateGroup},
@@ -148,6 +148,55 @@ impl Default for EpubAnalysisService {
 }
 
 impl EpubAnalysisService {
+    fn invalidate_paths_at(&self, root: &Path, relative_paths: &[String]) -> Result<(), String> {
+        let mut active = recover_lock(&self.active);
+        if active.as_ref().is_some_and(|state| state.root == root) {
+            let invalidation = self
+                .digest_service
+                .invalidate_active_archive_paths(root, relative_paths);
+            *active = None;
+            invalidation?;
+            return Ok(());
+        }
+        drop(active);
+        epub_analysis_cache::invalidate_paths_at(root, relative_paths).map(|_| ())
+    }
+
+    fn invalidate_prefixes_at(
+        &self,
+        root: &Path,
+        relative_prefixes: &[String],
+    ) -> Result<(), String> {
+        let mut active = recover_lock(&self.active);
+        if active.as_ref().is_some_and(|state| state.root == root) {
+            let invalidation = self
+                .digest_service
+                .invalidate_active_archive_prefixes(root, relative_prefixes);
+            *active = None;
+            invalidation?;
+            return Ok(());
+        }
+        drop(active);
+        epub_analysis_cache::invalidate_prefixes_at(root, relative_prefixes).map(|_| ())
+    }
+
+    fn clear_at(&self, root: &Path) -> Result<(), String> {
+        let mut active = recover_lock(&self.active);
+        if active.as_ref().is_some_and(|state| state.root == root) {
+            let invalidation = self.digest_service.clear_active_archive(root);
+            *active = None;
+            invalidation?;
+            return Ok(());
+        }
+        drop(active);
+        epub_analysis_cache::clear_at(root).map(|_| ())
+    }
+
+    fn retire_active_archive(&self) {
+        *recover_lock(&self.active) = None;
+        self.digest_service.retire_active_archive();
+    }
+
     fn request_duplicates(
         &self,
         root: PathBuf,
@@ -506,6 +555,25 @@ fn analysis_service() -> &'static EpubAnalysisService {
     SERVICE.get_or_init(EpubAnalysisService::default)
 }
 
+pub(crate) fn invalidate_paths_at(root: &Path, relative_paths: &[String]) -> Result<(), String> {
+    analysis_service().invalidate_paths_at(root, relative_paths)
+}
+
+pub(crate) fn invalidate_prefixes_at(
+    root: &Path,
+    relative_prefixes: &[String],
+) -> Result<(), String> {
+    analysis_service().invalidate_prefixes_at(root, relative_prefixes)
+}
+
+pub(crate) fn clear_at(root: &Path) -> Result<(), String> {
+    analysis_service().clear_at(root)
+}
+
+pub(crate) fn retire_active_archive() {
+    analysis_service().retire_active_archive();
+}
+
 fn recover_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     mutex
         .lock()
@@ -743,6 +811,40 @@ mod tests {
         assert_eq!(old.join().unwrap().unwrap_err(), RETIRED_ARCHIVE_ERROR);
         fs::remove_dir_all(first_root).unwrap();
         fs::remove_dir_all(second_root).unwrap();
+    }
+
+    #[test]
+    fn explicit_archive_retirement_rejects_pending_publication() {
+        let root = test_root("explicit-retirement");
+        fs::create_dir_all(&root).unwrap();
+        let signature = write_epub(&root, "Novel.epub", b"archive bytes");
+        let service = Arc::new(EpubAnalysisService::default());
+        let (started_tx, started_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let release_rx = Mutex::new(release_rx);
+        let old_service = service.clone();
+        let old_root = root.clone();
+        let pending = thread::spawn(move || {
+            old_service.request_diagnostics_with(
+                old_root,
+                11,
+                1,
+                vec![file("Novel.epub", signature)],
+                |_| {
+                    started_tx.send(()).unwrap();
+                    recover_lock(&release_rx).recv().unwrap();
+                    EpubDiagnostics::new(Vec::new())
+                },
+            )
+        });
+        started_rx.recv().unwrap();
+
+        service.retire_active_archive();
+        release_tx.send(()).unwrap();
+
+        assert_eq!(pending.join().unwrap().unwrap_err(), RETIRED_ARCHIVE_ERROR);
+        assert!(!root.join(".archeion/epub-analysis-cache.json").exists());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

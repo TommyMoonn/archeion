@@ -8,7 +8,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use super::{archive_root, metadata};
+use super::{archive_root, epub_analysis, metadata};
 
 const ARCHIVE_REGISTRY_FILE: &str = "archives.json";
 const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
@@ -555,6 +555,7 @@ pub fn load_archive_registry(app: tauri::AppHandle) -> Result<ArchiveRegistry, S
 #[tauri::command]
 pub fn open_archive(app: tauri::AppHandle, path: String) -> Result<ArchiveRegistry, String> {
     save_active_archive_path(&app, path)?;
+    epub_analysis::retire_active_archive();
     let registry = read_registry(&app)?;
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
@@ -573,6 +574,7 @@ pub fn create_empty_archive(
     let mut registry = read_registry(&app)?;
     upsert_archive_at_path(&mut registry, root_path, Some(validated_name));
     write_registry(&app, &registry)?;
+    epub_analysis::retire_active_archive();
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
 }
@@ -594,6 +596,7 @@ pub fn activate_archive(
     if let Err(error) = validated_root_path(&root_path) {
         registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
         write_registry(&app, &registry)?;
+        epub_analysis::retire_active_archive();
         emit_archive_registry_changed(&app, &registry);
         return Err(error);
     }
@@ -601,6 +604,7 @@ pub fn activate_archive(
     registry.archives[index].last_opened_at = timestamp;
     registry.last_opened_archive_id = Some(registry.archives[index].id.clone());
     write_registry(&app, &registry)?;
+    epub_analysis::retire_active_archive();
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
 }
@@ -634,11 +638,15 @@ pub fn forget_archive(
     archive_id: String,
 ) -> Result<ArchiveRegistry, String> {
     let mut registry = read_registry(&app)?;
+    let forgetting_active = registry.last_opened_archive_id.as_deref() == Some(archive_id.as_str());
     registry.archives.retain(|archive| archive.id != archive_id);
-    if registry.last_opened_archive_id.as_deref() == Some(archive_id.as_str()) {
+    if forgetting_active {
         registry.last_opened_archive_id = None;
     }
     write_registry(&app, &registry)?;
+    if forgetting_active {
+        epub_analysis::retire_active_archive();
+    }
     emit_archive_registry_changed(&app, &registry);
     Ok(registry)
 }

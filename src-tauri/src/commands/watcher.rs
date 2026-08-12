@@ -15,7 +15,7 @@ use notify::{
 use serde::Serialize;
 use tauri::{Emitter, State};
 
-use super::{archive_import_artifacts, archive_root, metadata, scanner_cache};
+use super::{archive_import_artifacts, archive_root, epub_analysis, metadata, scanner_cache};
 
 const ARCHIVE_CHANGED_EVENT: &str = "archive://changed";
 const ARCHIVE_WATCHER_ERROR_EVENT: &str = "archive://watcher-error";
@@ -945,6 +945,20 @@ fn overflow_watcher_event() -> ArchiveWatcherEvent {
     }
 }
 
+fn invalidate_watcher_analysis(root: &Path, payload: &ArchiveWatcherEvent) -> Result<(), String> {
+    if payload.overflow {
+        return epub_analysis::clear_at(root);
+    }
+    if payload.kind == "metadata" {
+        return Ok(());
+    }
+
+    if !payload.relative_paths.is_empty() {
+        epub_analysis::invalidate_prefixes_at(root, &payload.relative_paths)?;
+    }
+    Ok(())
+}
+
 fn watcher_event_with_suppression(
     root: &Path,
     event: &Event,
@@ -1032,10 +1046,20 @@ pub fn start_archive_watcher(
                     Some(&import_suppressions),
                     Instant::now(),
                 ) {
+                    if let Err(error) = invalidate_watcher_analysis(&watched_root, &payload) {
+                        eprintln!(
+                            "EPUB analysis cache could not be invalidated after an external archive change: {error}"
+                        );
+                    }
                     let _ = emit_app.emit(ARCHIVE_CHANGED_EVENT, payload);
                 }
             }
             Err(error) => {
+                if let Err(invalidation_error) = epub_analysis::clear_at(&watched_root) {
+                    eprintln!(
+                        "EPUB analysis cache could not be invalidated after a watcher failure: {invalidation_error}"
+                    );
+                }
                 let _ = emit_app.emit(
                     ARCHIVE_WATCHER_ERROR_EVENT,
                     ArchiveWatcherError {
@@ -1052,9 +1076,15 @@ pub fn start_archive_watcher(
     watcher
         .watch(&canonical_root, RecursiveMode::Recursive)
         .map_err(|error| error.to_string())?;
+    let tail_root = canonical_root.clone();
     state.import_suppressions.install_tail_emitter(
         &canonical_root,
         Arc::new(move |payload| {
+            if let Err(error) = invalidate_watcher_analysis(&tail_root, &payload) {
+                eprintln!(
+                    "EPUB analysis cache could not be invalidated after a deferred archive change: {error}"
+                );
+            }
             let _ = tail_emit_app.emit(ARCHIVE_CHANGED_EVENT, payload);
         }),
     );
@@ -1086,9 +1116,10 @@ pub fn stop_archive_watcher(
 #[cfg(test)]
 mod tests {
     use std::{
+        fs,
         path::{Path, PathBuf},
         sync::{mpsc, Arc},
-        time::{Duration, Instant},
+        time::{Duration, Instant, SystemTime},
     };
 
     use notify::{
@@ -1097,12 +1128,111 @@ mod tests {
     };
 
     use super::{
-        archive_relative_path, path_may_affect_archive, watcher_event,
-        watcher_event_with_suppression, ArchiveWatcherSuppressionOwner, IMPORT_SUPPRESSION_TAIL,
+        archive_relative_path, invalidate_watcher_analysis, path_may_affect_archive, watcher_event,
+        watcher_event_with_suppression, ArchiveWatcherEvent, ArchiveWatcherSuppressionOwner,
+        IMPORT_SUPPRESSION_TAIL,
     };
+    use crate::commands::epub_analysis_cache::{
+        self, CachedEpubDigest, EpubAnalysisCache, EpubAnalysisCacheEntry, EpubFileSignature,
+    };
+
+    fn test_root(label: &str) -> PathBuf {
+        let nonce = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("archeion-watcher-analysis-{label}-{nonce}"))
+    }
+
+    fn cached_entry(marker: char) -> EpubAnalysisCacheEntry {
+        EpubAnalysisCacheEntry {
+            signature: EpubFileSignature {
+                size_bytes: 1,
+                modified_at_millis: 1,
+            },
+            digest: Some(CachedEpubDigest {
+                sha256: marker.to_string().repeat(64),
+            }),
+            diagnostics: None,
+        }
+    }
 
     fn rename_event(paths: &[&str]) -> Event {
         rename_event_with_mode(RenameMode::Both, paths)
+    }
+
+    #[test]
+    fn external_epub_change_invalidates_only_the_reported_analysis_path() {
+        let root = test_root("targeted");
+        fs::create_dir_all(&root).unwrap();
+        let mut cache = EpubAnalysisCache::default();
+        cache.insert("Changed.epub", cached_entry('a')).unwrap();
+        cache.insert("Unrelated.epub", cached_entry('b')).unwrap();
+        epub_analysis_cache::save_at(&root, &cache).unwrap();
+
+        invalidate_watcher_analysis(
+            &root,
+            &ArchiveWatcherEvent {
+                kind: "modify",
+                relative_paths: vec!["Changed.epub".to_string()],
+                overflow: false,
+            },
+        )
+        .unwrap();
+
+        let cache = epub_analysis_cache::load_at(&root).unwrap().cache;
+        let signature = EpubFileSignature {
+            size_bytes: 1,
+            modified_at_millis: 1,
+        };
+        assert!(cache
+            .reusable_entry("Changed.epub", &signature)
+            .unwrap()
+            .is_none());
+        assert!(cache
+            .reusable_entry("Unrelated.epub", &signature)
+            .unwrap()
+            .is_some());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ambiguous_epub_suffixed_folder_change_invalidates_its_nested_analysis() {
+        let root = test_root("epub-folder");
+        fs::create_dir_all(&root).unwrap();
+        let mut cache = EpubAnalysisCache::default();
+        cache
+            .insert("Series.epub/Volume.epub", cached_entry('a'))
+            .unwrap();
+        cache
+            .insert("Other/Stable.epub", cached_entry('b'))
+            .unwrap();
+        epub_analysis_cache::save_at(&root, &cache).unwrap();
+
+        invalidate_watcher_analysis(
+            &root,
+            &ArchiveWatcherEvent {
+                kind: "remove",
+                relative_paths: vec!["Series.epub".to_string()],
+                overflow: false,
+            },
+        )
+        .unwrap();
+
+        let cache = epub_analysis_cache::load_at(&root).unwrap().cache;
+        let signature = EpubFileSignature {
+            size_bytes: 1,
+            modified_at_millis: 1,
+        };
+        assert!(cache
+            .reusable_entry("Series.epub/Volume.epub", &signature)
+            .unwrap()
+            .is_none());
+        assert!(cache
+            .reusable_entry("Other/Stable.epub", &signature)
+            .unwrap()
+            .is_some());
+        fs::remove_dir_all(root).unwrap();
     }
 
     fn rename_event_with_mode(mode: RenameMode, paths: &[&str]) -> Event {

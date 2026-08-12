@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use zip::{write::SimpleFileOptions, ZipArchive, ZipWriter};
 
 use super::{
-    archive_backup::ArchiveBackupLayout, archive_root, epub, epub_metadata, filesystem, metadata,
-    scanner_cache,
+    archive_backup::ArchiveBackupLayout, archive_root, epub, epub_analysis, epub_metadata,
+    filesystem, metadata, scanner_cache,
 };
 
 #[derive(Clone, Debug, Deserialize)]
@@ -698,6 +698,14 @@ fn commit_epub_rewrite_at_with_ops(
     );
 
     if let Err(error) =
+        epub_analysis::invalidate_paths_at(root, &[normalized_relative_path.to_string()])
+    {
+        eprintln!(
+            "EPUB analysis cache could not be invalidated after successful writeback: {error}"
+        );
+    }
+
+    if let Err(error) =
         update_scanner_cache(root, normalized_relative_path, &file_stat, &source_metadata)
     {
         eprintln!(
@@ -816,6 +824,7 @@ mod tests {
         restore_epub_from_backup, write_epub_metadata_at, write_epub_metadata_at_with_backup_ops,
         write_epub_metadata_at_with_ops, WritebackMaintenanceOps, WritebackTransactionOps,
     };
+    use crate::commands::epub_analysis_cache;
 
     fn test_root() -> std::path::PathBuf {
         let nonce = std::time::SystemTime::now()
@@ -1081,6 +1090,7 @@ mod tests {
             },
         )
         .expect("scanner cache should be seeded");
+        epub_analysis_cache::seed_test_entries(&root, &["book.epub", "other.epub"]);
 
         let result = write_epub_metadata_at(&root, "book.epub", update_title(), false)
             .expect("metadata should write");
@@ -1105,6 +1115,16 @@ mod tests {
                 .and_then(|metadata| metadata.title.as_deref()),
             Some("New Title"),
         );
+        assert!(!epub_analysis_cache::contains_test_entry(
+            &root,
+            "book.epub",
+            0
+        ));
+        assert!(epub_analysis_cache::contains_test_entry(
+            &root,
+            "other.epub",
+            1
+        ));
         assert_eq!(other.size, 99);
         assert_eq!(
             other
