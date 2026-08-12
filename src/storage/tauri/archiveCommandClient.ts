@@ -34,9 +34,95 @@ type CommandDefinition<Args, Result> = {
   result: Result;
 };
 
+export type EpubAnalysisFileSignature = {
+  sizeBytes: number;
+  modifiedAtMillis: number;
+};
+
+export type EpubDuplicateAnalysisCandidate = {
+  relativePath: string;
+  signature: EpubAnalysisFileSignature;
+  identifier?: string;
+};
+
+export type EpubDuplicateAnalysisGroup = {
+  kind: "exact" | "probable";
+  identity: string;
+  members: string[];
+};
+
+export type EpubDuplicateAnalysisResult = {
+  archiveGeneration: number;
+  requestRevision: number;
+  signatures: Record<string, EpubAnalysisFileSignature>;
+  groups: EpubDuplicateAnalysisGroup[];
+};
+
+export type EpubDiagnosticCode =
+  | "unreadable-zip"
+  | "inspection-limit-exceeded"
+  | "missing-container"
+  | "malformed-container"
+  | "missing-rootfile"
+  | "unsafe-rootfile"
+  | "missing-package-document"
+  | "malformed-package-document"
+  | "spine-manifest-item-missing"
+  | "unsafe-reading-resource"
+  | "reading-resource-missing"
+  | "unsupported-reading-resource"
+  | "encrypted-reading-resource"
+  | "no-usable-reading-order"
+  | "navigation-resource-missing"
+  | "navigation-resource-unusable"
+  | "broken-local-document-target"
+  | "unsafe-local-link-target"
+  | "invalid-local-link-target"
+  | "readable-document-unusable";
+
+export type EpubDiagnostics = {
+  formatVersion: number;
+  issues: Array<{
+    code: EpubDiagnosticCode;
+    severity: "error" | "warning";
+    messageInputs?: Record<string, string>;
+    resourcePath?: string;
+  }>;
+};
+
+export type EpubDiagnosticAnalysisResult = {
+  archiveGeneration: number;
+  requestRevision: number;
+  entries: Array<{
+    relativePath: string;
+    signature: EpubAnalysisFileSignature;
+    diagnostics: EpubDiagnostics;
+    source: "cached" | "computed";
+  }>;
+};
+
 type ArchiveCommandMap = {
   scan_archive: CommandDefinition<undefined, ArchiveScan>;
   scan_archive_epub_paths: CommandDefinition<{ relativePaths: string[] }, ArchiveEpubScan>;
+  request_epub_duplicate_analysis: CommandDefinition<
+    {
+      archiveGeneration: number;
+      requestRevision: number;
+      candidates: EpubDuplicateAnalysisCandidate[];
+    },
+    EpubDuplicateAnalysisResult
+  >;
+  request_epub_diagnostics: CommandDefinition<
+    {
+      archiveGeneration: number;
+      requestRevision: number;
+      files: Array<{
+        relativePath: string;
+        signature: EpubAnalysisFileSignature;
+      }>;
+    },
+    EpubDiagnosticAnalysisResult
+  >;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
   load_settings_metadata: CommandDefinition<undefined, SettingsMetadata>;
   load_annotations_metadata: CommandDefinition<undefined, unknown>;

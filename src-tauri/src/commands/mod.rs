@@ -6,17 +6,15 @@ pub mod archive_import_artifacts;
 pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod epub;
+pub(crate) mod epub_analysis;
 #[allow(dead_code)]
 pub(crate) mod epub_analysis_cache;
 mod epub_cover_cache;
 mod epub_cover_requests;
 mod epub_cover_resource;
 pub mod epub_cover_writeback;
-#[allow(dead_code)]
 pub(crate) mod epub_diagnostics;
-#[allow(dead_code)]
 pub(crate) mod epub_digest;
-#[allow(dead_code)]
 pub(crate) mod epub_duplicates;
 mod epub_file_resource;
 pub mod epub_metadata;

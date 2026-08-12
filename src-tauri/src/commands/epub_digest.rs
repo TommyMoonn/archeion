@@ -2,13 +2,14 @@ use std::{
     fs::File,
     io::{BufReader, Read},
     path::{Path, PathBuf},
-    sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock},
+    sync::{Arc, Condvar, Mutex, MutexGuard},
 };
 
 use sha2::{Digest, Sha256};
 
 use super::{
     epub_analysis_cache::{self, CachedEpubDigest, EpubAnalysisCache, EpubFileSignature},
+    epub_diagnostics::EpubDiagnostics,
     filesystem,
 };
 
@@ -72,7 +73,7 @@ impl Drop for DigestPermit<'_> {
     }
 }
 
-struct EpubDigestService {
+pub(crate) struct EpubDigestService {
     active: Mutex<Option<Arc<ArchiveDigestState>>>,
     gate: DigestGate,
 }
@@ -106,6 +107,47 @@ impl EpubDigestService {
         relative_path: &str,
     ) -> Result<CachedEpubDigest, String> {
         self.digest_with(session, relative_path, hash_file)
+    }
+
+    pub(crate) fn reusable_diagnostics(
+        &self,
+        session: &EpubDigestArchiveSession,
+        relative_path: &str,
+        signature: &EpubFileSignature,
+    ) -> Result<Option<EpubDiagnostics>, String> {
+        self.ensure_current(session)?;
+        let diagnostics = recover_lock(&session.state.cache)
+            .reusable_diagnostics(relative_path, signature)?
+            .cloned();
+        self.ensure_current(session)?;
+        Ok(diagnostics)
+    }
+
+    pub(crate) fn publish_diagnostics(
+        &self,
+        session: &EpubDigestArchiveSession,
+        relative_path: &str,
+        signature: &EpubFileSignature,
+        diagnostics: EpubDiagnostics,
+    ) -> Result<(), String> {
+        self.ensure_current(session)?;
+        let normalized = filesystem::normalize_archive_relative_path(relative_path)?;
+        let path = filesystem::resolve_existing_epub_path(&session.state.root, &normalized)?;
+        if EpubFileSignature::from_path(&path)? != *signature {
+            return Err(CHANGED_DIGEST_ERROR.to_string());
+        }
+        let active = recover_lock(&self.active);
+        if !active
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, &session.state))
+        {
+            return Err(RETIRED_DIGEST_ERROR.to_string());
+        }
+        let mut next_cache = recover_lock(&session.state.cache).clone();
+        next_cache.update_diagnostics(&normalized, signature.clone(), diagnostics)?;
+        epub_analysis_cache::save_at(&session.state.root, &next_cache)?;
+        *recover_lock(&session.state.cache) = next_cache;
+        Ok(())
     }
 
     fn digest_with<H>(
@@ -163,22 +205,6 @@ impl EpubDigestService {
             Err(RETIRED_DIGEST_ERROR.to_string())
         }
     }
-}
-
-pub(crate) fn activate_archive(root: PathBuf) -> Result<EpubDigestArchiveSession, String> {
-    digest_service().activate_archive(root)
-}
-
-pub(crate) fn digest(
-    session: &EpubDigestArchiveSession,
-    relative_path: &str,
-) -> Result<CachedEpubDigest, String> {
-    digest_service().digest(session, relative_path)
-}
-
-fn digest_service() -> &'static EpubDigestService {
-    static SERVICE: OnceLock<EpubDigestService> = OnceLock::new();
-    SERVICE.get_or_init(EpubDigestService::default)
 }
 
 fn hash_file(path: &Path) -> Result<CachedEpubDigest, String> {

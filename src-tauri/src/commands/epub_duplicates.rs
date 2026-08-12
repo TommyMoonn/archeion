@@ -2,10 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Serialize;
 
-use super::{
-    epub_analysis_cache::CachedEpubDigest,
-    epub_digest::{self, EpubDigestArchiveSession},
-};
+use super::epub_analysis_cache::CachedEpubDigest;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct EpubDuplicateCandidate {
@@ -29,16 +26,7 @@ pub(crate) struct EpubDuplicateGroup {
     pub(crate) members: Vec<String>,
 }
 
-pub(crate) fn classify(
-    session: &EpubDigestArchiveSession,
-    candidates: &[EpubDuplicateCandidate],
-) -> Result<Vec<EpubDuplicateGroup>, String> {
-    classify_with(candidates, |relative_path| {
-        epub_digest::digest(session, relative_path)
-    })
-}
-
-fn classify_with<D>(
+pub(crate) fn classify<D>(
     candidates: &[EpubDuplicateCandidate],
     mut digest: D,
 ) -> Result<Vec<EpubDuplicateGroup>, String>
@@ -142,7 +130,10 @@ fn duplicate_kind_rank(kind: EpubDuplicateKind) -> u8 {
 mod tests {
     use std::collections::BTreeMap;
 
-    use super::{classify_with, EpubDuplicateCandidate, EpubDuplicateGroup, EpubDuplicateKind};
+    use super::{
+        classify as classify_candidates, EpubDuplicateCandidate, EpubDuplicateGroup,
+        EpubDuplicateKind,
+    };
     use crate::commands::epub_analysis_cache::CachedEpubDigest;
 
     fn candidate(
@@ -172,7 +163,7 @@ mod tests {
             .map(|(path, marker)| ((*path).to_string(), digest(*marker)))
             .collect::<BTreeMap<_, _>>();
         let mut requested = Vec::new();
-        let groups = classify_with(candidates, |path| {
+        let groups = classify_candidates(candidates, |path| {
             requested.push(path.to_string());
             digests
                 .get(path)
