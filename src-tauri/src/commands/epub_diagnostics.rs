@@ -15,7 +15,13 @@ const ENCRYPTION_PATH: &str = "META-INF/encryption.xml";
 const ENCRYPTION_READ_LIMIT: u64 = 1024 * 1024;
 const NAVIGATION_READ_LIMIT: u64 = 2 * 1024 * 1024;
 const TOTAL_INSPECTION_LIMIT: u64 = 6 * 1024 * 1024;
-const DIAGNOSTICS_FORMAT_VERSION: u8 = 1;
+const LINK_DOCUMENT_READ_LIMIT: u64 = 2 * 1024 * 1024;
+const TOTAL_LINK_DOCUMENT_BYTES_LIMIT: u64 = 16 * 1024 * 1024;
+const LINK_DOCUMENT_LIMIT: usize = 128;
+const LINKS_PER_DOCUMENT_LIMIT: usize = 2_048;
+const TOTAL_LINKS_LIMIT: usize = 8_192;
+const MESSAGE_INPUT_CHARACTER_LIMIT: usize = 256;
+const DIAGNOSTICS_FORMAT_VERSION: u8 = 2;
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -43,6 +49,10 @@ pub(crate) enum EpubDiagnosticCode {
     NoUsableReadingOrder,
     NavigationResourceMissing,
     NavigationResourceUnusable,
+    BrokenLocalDocumentTarget,
+    UnsafeLocalLinkTarget,
+    InvalidLocalLinkTarget,
+    ReadableDocumentUnusable,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -76,7 +86,13 @@ impl EpubDiagnosticIssue {
     }
 
     fn input(mut self, key: &str, value: impl Into<String>) -> Self {
-        self.message_inputs.insert(key.to_string(), value.into());
+        let value = value.into();
+        let concise_value = value
+            .char_indices()
+            .nth(MESSAGE_INPUT_CHARACTER_LIMIT)
+            .map_or(value.as_str(), |(index, _)| &value[..index]);
+        self.message_inputs
+            .insert(key.to_string(), concise_value.to_string());
         self
     }
 
@@ -130,12 +146,22 @@ fn issue_rank(code: EpubDiagnosticCode) -> u8 {
         EpubDiagnosticCode::NoUsableReadingOrder => 13,
         EpubDiagnosticCode::NavigationResourceMissing => 14,
         EpubDiagnosticCode::NavigationResourceUnusable => 15,
+        EpubDiagnosticCode::BrokenLocalDocumentTarget => 16,
+        EpubDiagnosticCode::UnsafeLocalLinkTarget => 17,
+        EpubDiagnosticCode::InvalidLocalLinkTarget => 18,
+        EpubDiagnosticCode::ReadableDocumentUnusable => 19,
     }
 }
 
-#[derive(Default)]
 struct InspectionBudget {
     consumed: u64,
+    limit: u64,
+}
+
+impl InspectionBudget {
+    fn new(limit: u64) -> Self {
+        Self { consumed: 0, limit }
+    }
 }
 
 enum EntryReadError {
@@ -159,7 +185,7 @@ fn read_bounded_text<R: Read + Seek>(
     if size > resource_limit {
         return Err(EntryReadError::ResourceLimit);
     }
-    if budget.consumed.saturating_add(size) > TOTAL_INSPECTION_LIMIT {
+    if budget.consumed.saturating_add(size) > budget.limit {
         return Err(EntryReadError::TotalLimit);
     }
 
@@ -215,6 +241,381 @@ fn supported_reading_media_type(media_type: &str) -> bool {
         media_type,
         "application/xhtml+xml" | "text/html" | "image/svg+xml"
     )
+}
+
+#[derive(Clone)]
+struct ParsedLinkDocument {
+    fragments: BTreeSet<String>,
+    links: Vec<String>,
+}
+
+#[derive(Clone)]
+enum LinkDocumentInspection {
+    Parsed(ParsedLinkDocument),
+    Malformed,
+    ResourceLimitExceeded,
+    GlobalLimitExceeded,
+    Missing,
+}
+
+enum LinkTarget {
+    External,
+    Invalid,
+    Unsafe,
+    Local {
+        fragment: Option<String>,
+        path: String,
+    },
+}
+
+enum ReaderLocalTargetKind {
+    Document,
+    Illustration,
+}
+
+fn reader_local_target_kind(path: &str) -> Option<ReaderLocalTargetKind> {
+    let extension = path.rsplit_once('.')?.1.to_ascii_lowercase();
+    match extension.as_str() {
+        "htm" | "html" | "xht" | "xhtml" => Some(ReaderLocalTargetKind::Document),
+        "avif" | "gif" | "jpg" | "jpeg" | "png" | "svg" | "webp" => {
+            Some(ReaderLocalTargetKind::Illustration)
+        }
+        _ => None,
+    }
+}
+
+fn has_uri_scheme(value: &str) -> bool {
+    value.split_once(':').is_some_and(|(scheme, _)| {
+        !scheme.is_empty()
+            && scheme.chars().enumerate().all(|(index, character)| {
+                if index == 0 {
+                    character.is_ascii_alphabetic()
+                } else {
+                    character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '.')
+                }
+            })
+    })
+}
+
+fn has_valid_percent_encoding(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if bytes[index] == b'%' {
+            if index + 2 >= bytes.len()
+                || !bytes[index + 1].is_ascii_hexdigit()
+                || !bytes[index + 2].is_ascii_hexdigit()
+            {
+                return false;
+            }
+            index += 3;
+        } else {
+            index += 1;
+        }
+    }
+    true
+}
+
+fn resolve_link_target(source_path: &str, href: &str) -> LinkTarget {
+    let href = href.trim();
+    if href.chars().any(char::is_control) {
+        return LinkTarget::Invalid;
+    }
+    if href.starts_with("//") || has_uri_scheme(href) {
+        return LinkTarget::External;
+    }
+    if href.starts_with('/') || href.starts_with('\\') {
+        return LinkTarget::Unsafe;
+    }
+    if href.is_empty() || href.contains('?') || !has_valid_percent_encoding(href) {
+        return LinkTarget::Invalid;
+    }
+
+    let (document_href, fragment) = href
+        .split_once('#')
+        .map_or((href, None), |(document, fragment)| {
+            (document, (!fragment.is_empty()).then_some(fragment))
+        });
+    let decoded_fragment = fragment.map(epub_metadata::decode_archive_href);
+    if decoded_fragment
+        .as_ref()
+        .is_some_and(|value| value.contains('\u{fffd}') || value.chars().any(char::is_control))
+    {
+        return LinkTarget::Invalid;
+    }
+    let path = if document_href.is_empty() {
+        source_path.to_string()
+    } else {
+        let decoded_href = epub_metadata::decode_archive_href(document_href);
+        if decoded_href.contains('\u{fffd}') || decoded_href.chars().any(char::is_control) {
+            return LinkTarget::Invalid;
+        }
+        if decoded_href.starts_with('/') || decoded_href.starts_with('\\') {
+            return LinkTarget::Unsafe;
+        }
+        if has_uri_scheme(&decoded_href) {
+            return LinkTarget::Invalid;
+        }
+        match epub_metadata::resolve_zip_relative_path(source_path, &decoded_href) {
+            Ok(path) => path,
+            Err(_) => return LinkTarget::Unsafe,
+        }
+    };
+    LinkTarget::Local {
+        fragment: decoded_fragment,
+        path,
+    }
+}
+
+fn collect_link_document_element(
+    event: &quick_xml::events::BytesStart<'_>,
+    reader: &Reader<&[u8]>,
+    fragments: &mut BTreeSet<String>,
+    links: &mut Vec<String>,
+) -> Result<(), EntryReadError> {
+    let local_name = event.local_name();
+    let is_link = matches!(local_name.as_ref(), b"a" | b"area");
+    for attribute in event.attributes() {
+        let attribute = attribute.map_err(|_| EntryReadError::Unreadable)?;
+        let name = attribute.key.local_name();
+        let name = name.as_ref();
+        if name != b"id" && name != b"name" && !(is_link && name == b"href") {
+            continue;
+        }
+        let value = attribute
+            .decoded_and_normalized_value(quick_xml::XmlVersion::Implicit1_0, reader.decoder())
+            .map_err(|_| EntryReadError::Unreadable)?
+            .into_owned();
+        if is_link && name == b"href" {
+            if links.len() == LINKS_PER_DOCUMENT_LIMIT {
+                return Err(EntryReadError::ResourceLimit);
+            }
+            links.push(value);
+        } else if !value.is_empty() {
+            fragments.insert(value);
+        }
+    }
+    Ok(())
+}
+
+fn requires_balanced_link_xml(path: &str) -> bool {
+    !path
+        .rsplit_once('.')
+        .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("html"))
+}
+
+fn parse_link_document(
+    xml: &str,
+    require_balanced_xml: bool,
+) -> Result<ParsedLinkDocument, EntryReadError> {
+    let mut reader = Reader::from_str(xml);
+    let mut depth = 0_u64;
+    let mut saw_element = false;
+    let mut fragments = BTreeSet::new();
+    let mut links = Vec::new();
+
+    loop {
+        match reader
+            .read_event()
+            .map_err(|_| EntryReadError::Unreadable)?
+        {
+            Event::Start(event) => {
+                if require_balanced_xml && saw_element && depth == 0 {
+                    return Err(EntryReadError::Unreadable);
+                }
+                saw_element = true;
+                collect_link_document_element(&event, &reader, &mut fragments, &mut links)?;
+                depth += 1;
+            }
+            Event::Empty(event) => {
+                if require_balanced_xml && saw_element && depth == 0 {
+                    return Err(EntryReadError::Unreadable);
+                }
+                saw_element = true;
+                collect_link_document_element(&event, &reader, &mut fragments, &mut links)?;
+            }
+            Event::End(_) => {
+                depth = if require_balanced_xml {
+                    depth.checked_sub(1).ok_or(EntryReadError::Unreadable)?
+                } else {
+                    depth.saturating_sub(1)
+                };
+            }
+            Event::Eof if saw_element && (!require_balanced_xml || depth == 0) => {
+                return Ok(ParsedLinkDocument { fragments, links });
+            }
+            Event::Eof => return Err(EntryReadError::Unreadable),
+            _ => {}
+        }
+    }
+}
+
+fn inspect_link_document<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+    path: &str,
+    budget: &mut InspectionBudget,
+    inspected_documents: &mut usize,
+) -> LinkDocumentInspection {
+    if *inspected_documents == LINK_DOCUMENT_LIMIT {
+        return LinkDocumentInspection::GlobalLimitExceeded;
+    }
+    *inspected_documents += 1;
+    match read_bounded_text(archive, path, LINK_DOCUMENT_READ_LIMIT, budget) {
+        Ok(xml) => match parse_link_document(&xml, requires_balanced_link_xml(path)) {
+            Ok(document) => LinkDocumentInspection::Parsed(document),
+            Err(EntryReadError::ResourceLimit) => LinkDocumentInspection::ResourceLimitExceeded,
+            Err(EntryReadError::TotalLimit) => LinkDocumentInspection::GlobalLimitExceeded,
+            Err(EntryReadError::Missing | EntryReadError::Unreadable) => {
+                LinkDocumentInspection::Malformed
+            }
+        },
+        Err(EntryReadError::Missing) => LinkDocumentInspection::Missing,
+        Err(EntryReadError::ResourceLimit) => LinkDocumentInspection::ResourceLimitExceeded,
+        Err(EntryReadError::TotalLimit) => LinkDocumentInspection::GlobalLimitExceeded,
+        Err(EntryReadError::Unreadable) => LinkDocumentInspection::Malformed,
+    }
+}
+
+fn local_link_issue(
+    code: EpubDiagnosticCode,
+    source_path: &str,
+    href: &str,
+) -> EpubDiagnosticIssue {
+    EpubDiagnosticIssue::warning(code)
+        .input("href", href)
+        .resource(source_path)
+}
+
+fn inspect_reading_order_links<R: Read + Seek>(
+    archive: &mut ZipArchive<R>,
+    reading_resource_paths: &BTreeSet<String>,
+) -> Vec<EpubDiagnosticIssue> {
+    let mut issues = Vec::new();
+    let mut budget = InspectionBudget::new(TOTAL_LINK_DOCUMENT_BYTES_LIMIT);
+    let mut inspected_documents = 0_usize;
+    let mut documents = BTreeMap::new();
+
+    for path in reading_resource_paths {
+        let inspection =
+            inspect_link_document(archive, path, &mut budget, &mut inspected_documents);
+        match &inspection {
+            LinkDocumentInspection::Malformed => issues.push(
+                EpubDiagnosticIssue::warning(EpubDiagnosticCode::ReadableDocumentUnusable)
+                    .resource(path),
+            ),
+            LinkDocumentInspection::ResourceLimitExceeded => issues.push(limit_issue(Some(path))),
+            LinkDocumentInspection::GlobalLimitExceeded => {
+                issues.push(limit_issue(Some(path)));
+                break;
+            }
+            LinkDocumentInspection::Parsed(_) | LinkDocumentInspection::Missing => {}
+        }
+        documents.insert(path.clone(), inspection);
+    }
+
+    let mut inspected_links = 0_usize;
+    for source_path in reading_resource_paths {
+        let Some(LinkDocumentInspection::Parsed(source)) = documents.get(source_path) else {
+            continue;
+        };
+        let links = source.links.clone();
+        for href in links {
+            if inspected_links == TOTAL_LINKS_LIMIT {
+                issues.push(limit_issue(Some(source_path)));
+                return issues;
+            }
+            inspected_links += 1;
+            match resolve_link_target(source_path, &href) {
+                LinkTarget::External => {}
+                LinkTarget::Invalid => issues.push(local_link_issue(
+                    EpubDiagnosticCode::InvalidLocalLinkTarget,
+                    source_path,
+                    &href,
+                )),
+                LinkTarget::Unsafe => issues.push(local_link_issue(
+                    EpubDiagnosticCode::UnsafeLocalLinkTarget,
+                    source_path,
+                    &href,
+                )),
+                LinkTarget::Local { fragment, path } => {
+                    if !entry_exists(archive, &path) {
+                        issues.push(
+                            local_link_issue(
+                                EpubDiagnosticCode::BrokenLocalDocumentTarget,
+                                source_path,
+                                &href,
+                            )
+                            .input("targetPath", path),
+                        );
+                        continue;
+                    }
+                    match reader_local_target_kind(&path) {
+                        Some(ReaderLocalTargetKind::Document) => {}
+                        Some(ReaderLocalTargetKind::Illustration) if fragment.is_none() => {
+                            continue;
+                        }
+                        Some(ReaderLocalTargetKind::Illustration) | None => {
+                            issues.push(
+                                local_link_issue(
+                                    EpubDiagnosticCode::InvalidLocalLinkTarget,
+                                    source_path,
+                                    &href,
+                                )
+                                .input("targetPath", path),
+                            );
+                            continue;
+                        }
+                    }
+                    let Some(fragment) = fragment else {
+                        continue;
+                    };
+                    let target = if let Some(target) = documents.get(&path) {
+                        target.clone()
+                    } else {
+                        let target = inspect_link_document(
+                            archive,
+                            &path,
+                            &mut budget,
+                            &mut inspected_documents,
+                        );
+                        documents.insert(path.clone(), target.clone());
+                        target
+                    };
+                    match target {
+                        LinkDocumentInspection::Parsed(target)
+                            if target.fragments.contains(&fragment) => {}
+                        LinkDocumentInspection::ResourceLimitExceeded => {
+                            issues.push(limit_issue(Some(&path)))
+                        }
+                        LinkDocumentInspection::GlobalLimitExceeded => {
+                            issues.push(limit_issue(Some(&path)));
+                            return issues;
+                        }
+                        LinkDocumentInspection::Missing => issues.push(
+                            local_link_issue(
+                                EpubDiagnosticCode::BrokenLocalDocumentTarget,
+                                source_path,
+                                &href,
+                            )
+                            .input("targetPath", path),
+                        ),
+                        LinkDocumentInspection::Parsed(_) | LinkDocumentInspection::Malformed => {
+                            issues.push(
+                                local_link_issue(
+                                    EpubDiagnosticCode::InvalidLocalLinkTarget,
+                                    source_path,
+                                    &href,
+                                )
+                                .input("targetPath", path)
+                                .input("fragment", fragment),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+    issues
 }
 
 fn entry_exists<R: Read + Seek>(archive: &mut ZipArchive<R>, path: &str) -> bool {
@@ -307,7 +708,7 @@ pub(crate) fn diagnose_epub(path: &Path) -> EpubDiagnostics {
 }
 
 fn diagnose_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> EpubDiagnostics {
-    let mut budget = InspectionBudget::default();
+    let mut budget = InspectionBudget::new(TOTAL_INSPECTION_LIMIT);
     let container = match read_bounded_text(
         archive,
         epub_metadata::CONTAINER_PATH,
@@ -396,6 +797,7 @@ fn diagnose_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> EpubDiagnost
         Err(EntryReadError::Missing | EntryReadError::Unreadable) => BTreeSet::new(),
     };
     let mut usable_reading_resources = 0_usize;
+    let mut readable_resource_paths = BTreeSet::new();
 
     for idref in &package.spine {
         let Some(item) = package.manifest.get(idref) else {
@@ -444,6 +846,7 @@ fn diagnose_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> EpubDiagnost
             continue;
         }
         usable_reading_resources += 1;
+        readable_resource_paths.insert(resource_path);
     }
 
     if usable_reading_resources == 0 {
@@ -512,6 +915,11 @@ fn diagnose_archive<R: Read + Seek>(archive: &mut ZipArchive<R>) -> EpubDiagnost
         );
     }
 
+    issues.extend(inspect_reading_order_links(
+        archive,
+        &readable_resource_paths,
+    ));
+
     EpubDiagnostics::new(issues)
 }
 
@@ -569,6 +977,7 @@ mod tests {
             ("OEBPS/nav.xhtml", XHTML.as_bytes()),
         ]));
         assert!(diagnostics.issues.is_empty());
+        assert!(diagnostics.has_current_format());
     }
 
     #[test]
@@ -670,6 +1079,189 @@ mod tests {
     }
 
     #[test]
+    fn broken_local_document_target_reports_source_and_resolved_target() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let chapter = r#"<html><body><a href="missing.xhtml">Missing</a></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+        ]));
+
+        assert_eq!(diagnostics.issues.len(), 1);
+        assert_eq!(
+            diagnostics.issues[0].code,
+            EpubDiagnosticCode::BrokenLocalDocumentTarget
+        );
+        assert_eq!(
+            diagnostics.issues[0].resource_path.as_deref(),
+            Some("OEBPS/chapter.xhtml")
+        );
+        assert_eq!(
+            diagnostics.issues[0].message_inputs.get("targetPath"),
+            Some(&"OEBPS/missing.xhtml".to_string())
+        );
+    }
+
+    #[test]
+    fn area_link_to_missing_local_document_is_reported() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let chapter =
+            r#"<html><body><map><area href="missing.xhtml" alt="Missing"/></map></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+        ]));
+
+        assert_eq!(diagnostics.issues.len(), 1);
+        assert_eq!(
+            diagnostics.issues[0].code,
+            EpubDiagnosticCode::BrokenLocalDocumentTarget
+        );
+        assert_eq!(
+            diagnostics.issues[0].message_inputs.get("targetPath"),
+            Some(&"OEBPS/missing.xhtml".to_string())
+        );
+    }
+
+    #[test]
+    fn existing_unsupported_local_resource_is_invalid_but_supported_illustration_is_valid() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="video" href="media/clip.mp4" media-type="video/mp4"/><item id="plate" href="images/plate.png" media-type="image/png"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let chapter = r#"<html><body><a href="media/clip.mp4">Video</a><a href="images/plate.png">Plate</a></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+            ("OEBPS/media/clip.mp4", b"video"),
+            ("OEBPS/images/plate.png", b"png"),
+        ]));
+
+        assert_eq!(diagnostics.issues.len(), 1);
+        assert_eq!(
+            diagnostics.issues[0].code,
+            EpubDiagnosticCode::InvalidLocalLinkTarget
+        );
+        assert_eq!(
+            diagnostics.issues[0].message_inputs.get("targetPath"),
+            Some(&"OEBPS/media/clip.mp4".to_string())
+        );
+    }
+
+    #[test]
+    fn valid_local_documents_and_fragments_and_external_links_are_unreported() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/><item id="target" href="target.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let chapter = r##"<html><body id="self"><a href="#self">Self</a><a href="target.xhtml#note">Target</a><a href="https://example.com/source">Web</a><a href="mailto:reader@example.com">Mail</a></body></html>"##;
+        let target = r#"<html><body><aside id="note">Note</aside></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+            ("OEBPS/target.xhtml", target.as_bytes()),
+        ]));
+
+        assert!(diagnostics.issues.is_empty());
+    }
+
+    #[test]
+    fn unsafe_traversal_and_invalid_local_fragments_are_typed_separately() {
+        let package = r#"<package><manifest><item id="chapter" href="Text/chapter.xhtml" media-type="application/xhtml+xml"/><item id="target" href="Text/target.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let chapter = r#"<html><body><a href="../../../outside.xhtml">Outside</a><a href="target.xhtml#missing">Missing fragment</a><a href="target.xhtml#bad%ZZ">Malformed fragment</a></body></html>"#;
+        let target = r#"<html><body id="present"/></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/Text/chapter.xhtml", chapter.as_bytes()),
+            ("OEBPS/Text/target.xhtml", target.as_bytes()),
+        ]));
+
+        assert_eq!(
+            diagnostics
+                .issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>(),
+            vec![
+                EpubDiagnosticCode::UnsafeLocalLinkTarget,
+                EpubDiagnosticCode::InvalidLocalLinkTarget,
+                EpubDiagnosticCode::InvalidLocalLinkTarget,
+            ]
+        );
+    }
+
+    #[test]
+    fn malformed_readable_document_does_not_discard_other_link_issues() {
+        let package = r#"<package><manifest><item id="broken" href="broken.xhtml" media-type="application/xhtml+xml"/><item id="valid" href="valid.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="broken"/><itemref idref="valid"/></spine></package>"#;
+        let valid = r#"<html><body><a href="missing.xhtml">Missing</a></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/broken.xhtml", b"<html><body>"),
+            ("OEBPS/valid.xhtml", valid.as_bytes()),
+        ]));
+
+        assert_eq!(
+            diagnostics
+                .issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>(),
+            vec![
+                EpubDiagnosticCode::BrokenLocalDocumentTarget,
+                EpubDiagnosticCode::ReadableDocumentUnusable,
+            ]
+        );
+    }
+
+    #[test]
+    fn excessive_links_stop_at_the_per_document_limit() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine><itemref idref="chapter"/></spine></package>"#;
+        let mut chapter = String::from("<html><body>");
+        for index in 0..=super::LINKS_PER_DOCUMENT_LIMIT {
+            chapter.push_str(&format!(r#"<a href="target-{index}.xhtml">Link</a>"#));
+        }
+        chapter.push_str("</body></html>");
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+        ]));
+
+        assert_eq!(
+            diagnostics
+                .issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>(),
+            vec![EpubDiagnosticCode::InspectionLimitExceeded]
+        );
+    }
+
+    #[test]
+    fn structural_and_link_issues_share_deterministic_ordering() {
+        let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine toc="ncx"><itemref idref="chapter"/></spine></package>"#;
+        let chapter = r#"<html><body><a href="missing.xhtml">Missing</a><a href="../../outside.xhtml">Outside</a></body></html>"#;
+        let diagnostics = diagnose_bytes(zip(&[
+            ("META-INF/container.xml", CONTAINER.as_bytes()),
+            ("OEBPS/content.opf", package.as_bytes()),
+            ("OEBPS/chapter.xhtml", chapter.as_bytes()),
+        ]));
+
+        assert_eq!(
+            diagnostics
+                .issues
+                .iter()
+                .map(|issue| issue.code)
+                .collect::<Vec<_>>(),
+            vec![
+                EpubDiagnosticCode::NavigationResourceMissing,
+                EpubDiagnosticCode::BrokenLocalDocumentTarget,
+                EpubDiagnosticCode::UnsafeLocalLinkTarget,
+            ]
+        );
+    }
+
+    #[test]
     fn missing_epub_two_navigation_manifest_item_preserves_declared_id() {
         let package = r#"<package><manifest><item id="chapter" href="chapter.xhtml" media-type="application/xhtml+xml"/></manifest><spine toc="ncx"><itemref idref="chapter"/></spine></package>"#;
         let diagnostics = diagnose_bytes(zip(&[
@@ -725,6 +1317,7 @@ mod tests {
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).unwrap();
         let mut budget = InspectionBudget {
             consumed: TOTAL_INSPECTION_LIMIT,
+            limit: TOTAL_INSPECTION_LIMIT,
         };
         assert!(matches!(
             read_bounded_text(&mut archive, "resource.xml", 1024, &mut budget),
