@@ -1,6 +1,6 @@
 use std::{collections::HashSet, fs, path::Path};
 
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, Transaction};
 
 use super::{
     dictionary_store::{DictionaryIndexState, DictionaryStore, DictionaryStoreError},
@@ -30,8 +30,24 @@ pub(crate) fn replace_dictionary_index(
     package: &ValidatedStarDictPackage,
     installed_definition_bytes: u64,
 ) -> Result<(), DictionaryStoreError> {
-    validate_package_bounds(package, installed_definition_bytes)?;
     let transaction = connection.transaction()?;
+    replace_dictionary_index_in_transaction(
+        &transaction,
+        dictionary_id,
+        package,
+        installed_definition_bytes,
+    )?;
+    transaction.commit()?;
+    Ok(())
+}
+
+pub(crate) fn replace_dictionary_index_in_transaction(
+    transaction: &Transaction<'_>,
+    dictionary_id: &str,
+    package: &ValidatedStarDictPackage,
+    installed_definition_bytes: u64,
+) -> Result<(), DictionaryStoreError> {
+    validate_package_bounds(package, installed_definition_bytes)?;
     let exists: bool = transaction.query_row(
         "SELECT EXISTS(SELECT 1 FROM installed_dictionaries WHERE dictionary_id = ?1)",
         [dictionary_id],
@@ -102,7 +118,6 @@ pub(crate) fn replace_dictionary_index(
             dictionary_id,
         ],
     )?;
-    transaction.commit()?;
     Ok(())
 }
 

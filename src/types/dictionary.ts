@@ -44,3 +44,24 @@ export type DictionaryDownloadOutcome =
     }>
   | Readonly<{ status: "cancelled" }>
   | Readonly<{ status: "failed"; message: string }>;
+
+export type DictionarySourceKind = "catalog" | "manual-import";
+export type DictionaryIndexState = "pending" | "ready" | "rebuild-required" | "unavailable";
+
+export type InstalledDictionary = Readonly<{
+  id: string;
+  displayName: string;
+  language: string;
+  enabled: boolean;
+  order: number;
+  entryCount: number;
+  installedSizeBytes: number;
+  sourceKind: DictionarySourceKind;
+  catalogId: string | null;
+  sourceAttribution: string;
+  licenseName: string;
+  licenseUrl: string | null;
+  packageVersion: string;
+  indexState: DictionaryIndexState;
+  storageRelativePath: string;
+}>;

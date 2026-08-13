@@ -7,6 +7,7 @@ use super::dictionary_download::{
     cleanup_verified_download, DictionaryDownloadError, DictionaryDownloadOutcome,
     DictionaryDownloadProgress, DictionaryDownloadService,
 };
+use super::dictionary_install::DictionaryInstallService;
 use super::dictionary_store::{open_current_store, DictionaryRegistrySnapshot, DictionaryStore};
 
 pub(crate) fn app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -97,6 +98,35 @@ pub fn cleanup_verified_dictionary_download(
     staging_token: String,
 ) -> Result<bool, String> {
     cleanup_verified_download(&app_data_root(&app)?, &staging_token)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn install_catalog_dictionary(
+    app: tauri::AppHandle,
+    staging_token: String,
+    install_service: tauri::State<'_, DictionaryInstallService>,
+) -> Result<super::dictionary_store::InstalledDictionary, String> {
+    let root = app_data_root(&app)?;
+    let service = install_service.inner().clone();
+    tokio::task::spawn_blocking(move || service.install_catalog(&root, &staging_token))
+        .await
+        .map_err(|error| format!("Dictionary installation task failed: {error}"))?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn import_stardict_dictionary(
+    app: tauri::AppHandle,
+    ifo_path: String,
+    install_service: tauri::State<'_, DictionaryInstallService>,
+) -> Result<super::dictionary_store::InstalledDictionary, String> {
+    let root = app_data_root(&app)?;
+    let source = PathBuf::from(ifo_path);
+    let service = install_service.inner().clone();
+    tokio::task::spawn_blocking(move || service.install_manual(&root, &source))
+        .await
+        .map_err(|error| format!("Dictionary import task failed: {error}"))?
         .map_err(|error| error.to_string())
 }
 

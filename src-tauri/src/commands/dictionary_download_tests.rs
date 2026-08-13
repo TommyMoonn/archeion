@@ -9,8 +9,9 @@ use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
 
 use super::{
-    cleanup_verified_download, download_staging_root, open_http_source, DictionaryDownloadError,
-    DictionaryDownloadService, NextChunkFuture, PackageSource, RequestTicket,
+    cleanup_verified_download, download_staging_root, open_http_source, resolve_verified_download,
+    DictionaryDownloadError, DictionaryDownloadService, NextChunkFuture, PackageSource,
+    RequestTicket,
 };
 use crate::commands::dictionary_catalog::{DictionaryCatalogEntry, DictionaryCatalogPackageFormat};
 
@@ -130,12 +131,20 @@ async fn streamed_download_reports_bounded_progress_and_publishes_only_verified_
     assert_eq!(package.size_bytes, bytes.len() as u64);
     assert_eq!(package.sha256, sha256(&bytes));
     let staged = download_staging_root(&root).join(&package.staging_token);
-    assert_eq!(fs::read(&staged).unwrap(), bytes);
+    let artifact = resolve_verified_download(&root, &package.staging_token).unwrap();
+    assert_eq!(artifact.catalog_entry, package_entry);
+    assert_eq!(artifact.verified_size_bytes, bytes.len() as u64);
+    assert_eq!(artifact.verified_sha256, sha256(&bytes));
+    assert_eq!(fs::read(&artifact.package_path).unwrap(), bytes);
+    assert_eq!(fs::read_dir(&staged).unwrap().count(), 2);
     assert_eq!(progress.first().unwrap().received_bytes, 0);
     assert_eq!(progress.last().unwrap().received_bytes, bytes.len() as u64);
     assert!(progress.len() <= 5);
+    let unrelated = download_staging_root(&root).join("unrelated.staged");
+    fs::write(&unrelated, b"preserve").unwrap();
     assert!(cleanup_verified_download(&root, &package.staging_token).unwrap());
     assert!(!staged.exists());
+    assert_eq!(fs::read(unrelated).unwrap(), b"preserve");
     fs::remove_dir_all(root).unwrap();
 }
 

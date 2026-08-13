@@ -19,6 +19,25 @@ const MAX_EXPANDED_DICTIONARY_BYTES: u64 = 1024 * 1024 * 1024;
 const MAX_ENTRY_COUNT: u32 = 5_000_000;
 const MAX_HEADWORD_BYTES: usize = 255;
 
+pub(crate) fn supported_source_file_limit(path: &Path) -> Option<u64> {
+    let name = path.file_name()?.to_str()?;
+    if name.ends_with(".dict.dz") {
+        Some(MAX_COMPRESSED_DICTIONARY_BYTES)
+    } else {
+        match path.extension()?.to_str()? {
+            "ifo" => Some(MAX_IFO_BYTES),
+            "idx" => Some(MAX_IDX_BYTES),
+            "dict" => Some(MAX_EXPANDED_DICTIONARY_BYTES),
+            "syn" => Some(MAX_SYN_BYTES),
+            _ => None,
+        }
+    }
+}
+
+pub(crate) const fn maximum_package_source_bytes() -> u64 {
+    MAX_IFO_BYTES + MAX_IDX_BYTES + MAX_SYN_BYTES + MAX_EXPANDED_DICTIONARY_BYTES
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidatedStarDictPackage {

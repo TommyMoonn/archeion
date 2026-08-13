@@ -297,6 +297,13 @@ fn validate_entry(entry: &mut DictionaryCatalogEntry) -> Result<(), DictionaryCa
     Ok(())
 }
 
+pub(crate) fn validate_catalog_entry(
+    mut entry: DictionaryCatalogEntry,
+) -> Result<DictionaryCatalogEntry, DictionaryCatalogError> {
+    validate_entry(&mut entry)?;
+    Ok(entry)
+}
+
 fn normalize_required(
     value: &mut String,
     maximum_chars: usize,

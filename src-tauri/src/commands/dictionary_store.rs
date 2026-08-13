@@ -237,6 +237,7 @@ pub enum DictionaryRecoveryReason {
 
 #[derive(Debug)]
 pub(crate) enum DictionaryStoreError {
+    Activation(String),
     Database(rusqlite::Error),
     Filesystem(std::io::Error),
     InvalidDictionaryId,
@@ -250,6 +251,7 @@ pub(crate) enum DictionaryStoreError {
 impl fmt::Display for DictionaryStoreError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Activation(message) => formatter.write_str(message),
             Self::Database(error) => {
                 write!(formatter, "Dictionary database operation failed: {error}")
             }
@@ -429,50 +431,64 @@ impl DictionaryStore {
             [],
             |row| row.get(0),
         )?;
-        let entry_count = to_sql_integer(registration.entry_count, "entry count")?;
-        let installed_size_bytes =
-            to_sql_integer(registration.installed_size_bytes, "installed size")?;
-
-        transaction.execute(
-            "INSERT INTO installed_dictionaries (
-                dictionary_id,
-                display_name,
-                language,
-                enabled,
-                sort_order,
-                entry_count,
-                installed_size_bytes,
-                source_kind,
-                catalog_id,
-                source_attribution,
-                license_name,
-                license_url,
-                package_version,
-                index_state,
-                storage_relative_path
-            ) VALUES (
-                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15
-            )",
-            params![
-                dictionary_id,
-                registration.display_name,
-                registration.language,
-                registration.enabled,
-                order,
-                entry_count,
-                installed_size_bytes,
-                registration.source_kind.as_database_value(),
-                registration.catalog_id,
-                registration.source_attribution,
-                registration.license_name,
-                registration.license_url,
-                registration.package_version,
-                registration.index_state.as_database_value(),
-                storage_relative_path,
-            ],
+        insert_registration(
+            &transaction,
+            &dictionary_id,
+            &storage_relative_path,
+            order,
+            &registration,
         )?;
         transaction.commit()?;
 
+        self.get(&dictionary_id)?
+            .ok_or(DictionaryStoreError::InvalidStoredValue("new dictionary"))
+    }
+
+    pub(crate) fn install_dictionary<Activate, Rollback>(
+        &mut self,
+        registration: DictionaryRegistration,
+        package: &ValidatedStarDictPackage,
+        installed_definition_bytes: u64,
+        activate: Activate,
+        rollback_activation: Rollback,
+    ) -> Result<InstalledDictionary, DictionaryStoreError>
+    where
+        Activate: FnOnce(&str, &Path) -> Result<(), String>,
+        Rollback: FnOnce(&Path) -> Result<(), String>,
+    {
+        let paths = self.paths.clone();
+        let transaction = self.connection.transaction()?;
+        let dictionary_id = generate_dictionary_id(&transaction)?;
+        let storage_relative_path = paths.relative_installed_path(&dictionary_id)?;
+        let installed_path = paths.installed_path(&dictionary_id)?;
+        let order: i64 = transaction.query_row(
+            "SELECT COALESCE(MAX(sort_order) + 1, 0) FROM installed_dictionaries",
+            [],
+            |row| row.get(0),
+        )?;
+        insert_registration(
+            &transaction,
+            &dictionary_id,
+            &storage_relative_path,
+            order,
+            &registration,
+        )?;
+        dictionary_index::replace_dictionary_index_in_transaction(
+            &transaction,
+            &dictionary_id,
+            package,
+            installed_definition_bytes,
+        )?;
+
+        activate(&dictionary_id, &installed_path).map_err(DictionaryStoreError::Activation)?;
+        if let Err(error) = transaction.commit() {
+            return match rollback_activation(&installed_path) {
+                Ok(()) => Err(DictionaryStoreError::Database(error)),
+                Err(rollback_error) => Err(DictionaryStoreError::Activation(format!(
+                    "Dictionary database publication failed ({error}) and activated-file cleanup failed: {rollback_error}"
+                ))),
+            };
+        }
         self.get(&dictionary_id)?
             .ok_or(DictionaryStoreError::InvalidStoredValue("new dictionary"))
     }
@@ -741,6 +757,40 @@ fn generate_dictionary_id(transaction: &Transaction<'_>) -> Result<String, Dicti
     Err(DictionaryStoreError::InvalidStoredValue(
         "generated dictionary id",
     ))
+}
+
+fn insert_registration(
+    transaction: &Transaction<'_>,
+    dictionary_id: &str,
+    storage_relative_path: &str,
+    order: i64,
+    registration: &DictionaryRegistration,
+) -> Result<(), DictionaryStoreError> {
+    transaction.execute(
+        "INSERT INTO installed_dictionaries (
+            dictionary_id, display_name, language, enabled, sort_order, entry_count,
+            installed_size_bytes, source_kind, catalog_id, source_attribution,
+            license_name, license_url, package_version, index_state, storage_relative_path
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+        params![
+            dictionary_id,
+            registration.display_name,
+            registration.language,
+            registration.enabled,
+            order,
+            to_sql_integer(registration.entry_count, "entry count")?,
+            to_sql_integer(registration.installed_size_bytes, "installed size")?,
+            registration.source_kind.as_database_value(),
+            registration.catalog_id,
+            registration.source_attribution,
+            registration.license_name,
+            registration.license_url,
+            registration.package_version,
+            registration.index_state.as_database_value(),
+            storage_relative_path,
+        ],
+    )?;
+    Ok(())
 }
 
 fn validate_dictionary_id(dictionary_id: &str) -> Result<(), DictionaryStoreError> {

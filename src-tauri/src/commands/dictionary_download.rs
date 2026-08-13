@@ -8,7 +8,7 @@ use std::{
 };
 
 use reqwest::{redirect, Url};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::{
     fs::{self, OpenOptions},
@@ -16,7 +16,9 @@ use tokio::{
 };
 
 use super::{
-    dictionary_catalog::{DictionaryCatalogEntry, DictionaryCatalogPackageFormat},
+    dictionary_catalog::{
+        validate_catalog_entry, DictionaryCatalogEntry, DictionaryCatalogPackageFormat,
+    },
     dictionary_request::{
         DictionaryRequestError, DictionaryRequestOwner, DictionaryRequestTicket as RequestTicket,
     },
@@ -30,6 +32,11 @@ const PROGRESS_STEP_BYTES: u64 = 1024 * 1024;
 const DOWNLOAD_STAGING_DIRECTORY: &str = "staging/downloads";
 const VERIFIED_PREFIX: &str = "verified-";
 const VERIFIED_SUFFIX: &str = ".stardict.zip";
+const RETIRED_INSTALL_PREFIX: &str = "retired-install-";
+const VERIFIED_PACKAGE_FILE_NAME: &str = "package.stardict.zip";
+const VERIFIED_PROVENANCE_FILE_NAME: &str = "provenance-v1.json";
+const VERIFIED_PROVENANCE_SCHEMA_VERSION: u32 = 1;
+const MAX_VERIFIED_PROVENANCE_BYTES: u64 = 32 * 1024;
 static STAGING_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -47,6 +54,59 @@ pub(crate) struct VerifiedDictionaryDownload {
     pub package_format: DictionaryCatalogPackageFormat,
     pub size_bytes: u64,
     pub sha256: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct VerifiedDownloadProvenance {
+    schema_version: u32,
+    staging_token: String,
+    catalog_entry: DictionaryCatalogEntry,
+    package_format: DictionaryCatalogPackageFormat,
+    verified_size_bytes: u64,
+    verified_sha256: String,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct VerifiedDownloadArtifact {
+    artifact_path: PathBuf,
+    pub package_path: PathBuf,
+    pub catalog_entry: DictionaryCatalogEntry,
+    pub verified_size_bytes: u64,
+    pub verified_sha256: String,
+}
+
+pub(crate) struct ClaimedVerifiedDownload {
+    original_path: PathBuf,
+    retired_path: PathBuf,
+    artifact: VerifiedDownloadArtifact,
+}
+
+impl ClaimedVerifiedDownload {
+    pub(crate) fn artifact(&self) -> &VerifiedDownloadArtifact {
+        &self.artifact
+    }
+
+    pub(crate) fn restore(self) -> Result<(), DictionaryDownloadError> {
+        match std::fs::symlink_metadata(&self.original_path) {
+            Ok(_) => {
+                return Err(filesystem_error(std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    "the original verified staging token path is occupied",
+                )))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(filesystem_error(error)),
+        }
+        std::fs::rename(&self.retired_path, &self.original_path).map_err(filesystem_error)
+    }
+
+    pub(crate) fn retire_with<Cleanup>(self, cleanup: Cleanup)
+    where
+        Cleanup: FnOnce(&Path) -> Result<(), std::io::Error>,
+    {
+        let _ = cleanup(&self.retired_path);
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -191,7 +251,7 @@ async fn stage_source<S, P>(
     ticket: &RequestTicket,
     mut source: S,
     mut progress: P,
-) -> Result<(VerifiedDictionaryDownload, StagingFileGuard), DictionaryDownloadError>
+) -> Result<(VerifiedDictionaryDownload, StagingArtifactGuard), DictionaryDownloadError>
 where
     S: PackageSource,
     P: FnMut(DictionaryDownloadProgress) -> Result<(), DictionaryDownloadError>,
@@ -211,11 +271,15 @@ where
     let partial_path = staging.join(format!("partial-{stem}.download"));
     let verified_token = format!("{VERIFIED_PREFIX}{stem}{VERIFIED_SUFFIX}");
     let verified_path = staging.join(&verified_token);
-    let mut guard = StagingFileGuard::new(partial_path.clone());
+    fs::create_dir(&partial_path)
+        .await
+        .map_err(filesystem_error)?;
+    let mut guard = StagingArtifactGuard::new(partial_path.clone());
+    let partial_package_path = partial_path.join(VERIFIED_PACKAGE_FILE_NAME);
     let mut file = OpenOptions::new()
         .write(true)
         .create_new(true)
-        .open(&partial_path)
+        .open(&partial_package_path)
         .await
         .map_err(filesystem_error)?;
     let mut hasher = Sha256::new();
@@ -259,6 +323,13 @@ where
         .current_error()
         .map(download_request_error)
         .map_or(Ok(()), Err)?;
+    let provenance = verified_provenance(
+        entry.clone(),
+        verified_token.clone(),
+        received,
+        sha256.clone(),
+    );
+    write_provenance(&partial_path, &provenance).await?;
     fs::rename(&partial_path, &verified_path)
         .await
         .map_err(filesystem_error)?;
@@ -307,11 +378,154 @@ pub(crate) fn cleanup_verified_download(
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => return Err(filesystem_error(error)),
     };
+    if !metadata.file_type().is_dir() {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    let artifact = resolve_verified_download(app_data_root, staging_token)?;
+    std::fs::remove_dir_all(artifact.artifact_path).map_err(filesystem_error)?;
+    Ok(true)
+}
+
+pub(crate) fn resolve_verified_download(
+    app_data_root: &Path,
+    staging_token: &str,
+) -> Result<VerifiedDownloadArtifact, DictionaryDownloadError> {
+    if !valid_verified_token(staging_token) {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    let artifact_path = download_staging_root(app_data_root).join(staging_token);
+    let metadata = std::fs::symlink_metadata(&artifact_path).map_err(filesystem_error)?;
+    if !metadata.file_type().is_dir() {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    let package_path = artifact_path.join(VERIFIED_PACKAGE_FILE_NAME);
+    require_regular_file(&package_path)?;
+    let provenance_path = artifact_path.join(VERIFIED_PROVENANCE_FILE_NAME);
+    let provenance_metadata = require_regular_file(&provenance_path)?;
+    if provenance_metadata.len() > MAX_VERIFIED_PROVENANCE_BYTES {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    let bytes = std::fs::read(&provenance_path).map_err(filesystem_error)?;
+    let provenance: VerifiedDownloadProvenance =
+        serde_json::from_slice(&bytes).map_err(|_| DictionaryDownloadError::InvalidStagingToken)?;
+    let validated_entry = validate_catalog_entry(provenance.catalog_entry.clone())
+        .map_err(|_| DictionaryDownloadError::InvalidStagingToken)?;
+    if provenance.schema_version != VERIFIED_PROVENANCE_SCHEMA_VERSION
+        || provenance.staging_token != staging_token
+        || validated_entry != provenance.catalog_entry
+        || provenance.package_format != provenance.catalog_entry.package_format
+        || provenance.verified_size_bytes != provenance.catalog_entry.compressed_size_bytes
+        || provenance.verified_sha256 != provenance.catalog_entry.sha256
+    {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    Ok(VerifiedDownloadArtifact {
+        artifact_path,
+        package_path,
+        catalog_entry: provenance.catalog_entry,
+        verified_size_bytes: provenance.verified_size_bytes,
+        verified_sha256: provenance.verified_sha256,
+    })
+}
+
+pub(crate) fn claim_verified_download(
+    app_data_root: &Path,
+    staging_token: &str,
+) -> Result<ClaimedVerifiedDownload, DictionaryDownloadError> {
+    let mut artifact = resolve_verified_download(app_data_root, staging_token)?;
+    let original_path = artifact.artifact_path.clone();
+    let stem = staging_token
+        .strip_prefix(VERIFIED_PREFIX)
+        .and_then(|value| value.strip_suffix(VERIFIED_SUFFIX))
+        .ok_or(DictionaryDownloadError::InvalidStagingToken)?;
+    let retired_path = download_staging_root(app_data_root)
+        .join(format!("{RETIRED_INSTALL_PREFIX}{stem}{VERIFIED_SUFFIX}"));
+    match std::fs::symlink_metadata(&retired_path) {
+        Ok(_) => return Err(DictionaryDownloadError::InvalidStagingToken),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(filesystem_error(error)),
+    }
+    std::fs::rename(&original_path, &retired_path).map_err(filesystem_error)?;
+    artifact.artifact_path = retired_path.clone();
+    artifact.package_path = retired_path.join(VERIFIED_PACKAGE_FILE_NAME);
+    Ok(ClaimedVerifiedDownload {
+        original_path,
+        retired_path,
+        artifact,
+    })
+}
+
+async fn write_provenance(
+    artifact_path: &Path,
+    provenance: &VerifiedDownloadProvenance,
+) -> Result<(), DictionaryDownloadError> {
+    let mut bytes = serde_json::to_vec_pretty(provenance)
+        .map_err(|_| DictionaryDownloadError::InvalidStagingToken)?;
+    bytes.push(b'\n');
+    if bytes.len() as u64 > MAX_VERIFIED_PROVENANCE_BYTES {
+        return Err(DictionaryDownloadError::InvalidStagingToken);
+    }
+    let path = artifact_path.join(VERIFIED_PROVENANCE_FILE_NAME);
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(path)
+        .await
+        .map_err(filesystem_error)?;
+    file.write_all(&bytes).await.map_err(filesystem_error)?;
+    file.flush().await.map_err(filesystem_error)?;
+    file.sync_all().await.map_err(filesystem_error)
+}
+
+fn verified_provenance(
+    catalog_entry: DictionaryCatalogEntry,
+    staging_token: String,
+    verified_size_bytes: u64,
+    verified_sha256: String,
+) -> VerifiedDownloadProvenance {
+    VerifiedDownloadProvenance {
+        schema_version: VERIFIED_PROVENANCE_SCHEMA_VERSION,
+        staging_token,
+        package_format: catalog_entry.package_format,
+        catalog_entry,
+        verified_size_bytes,
+        verified_sha256,
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn write_verified_download_fixture(
+    app_data_root: &Path,
+    staging_token: &str,
+    catalog_entry: DictionaryCatalogEntry,
+    package_bytes: &[u8],
+) -> PathBuf {
+    assert!(valid_verified_token(staging_token));
+    let artifact_path = download_staging_root(app_data_root).join(staging_token);
+    std::fs::create_dir_all(&artifact_path).unwrap();
+    std::fs::write(
+        artifact_path.join(VERIFIED_PACKAGE_FILE_NAME),
+        package_bytes,
+    )
+    .unwrap();
+    let provenance = verified_provenance(
+        catalog_entry,
+        staging_token.to_string(),
+        package_bytes.len() as u64,
+        format!("{:x}", Sha256::digest(package_bytes)),
+    );
+    let mut bytes = serde_json::to_vec_pretty(&provenance).unwrap();
+    bytes.push(b'\n');
+    std::fs::write(artifact_path.join(VERIFIED_PROVENANCE_FILE_NAME), bytes).unwrap();
+    artifact_path
+}
+
+fn require_regular_file(path: &Path) -> Result<std::fs::Metadata, DictionaryDownloadError> {
+    let metadata = std::fs::symlink_metadata(path).map_err(filesystem_error)?;
     if !metadata.file_type().is_file() {
         return Err(DictionaryDownloadError::InvalidStagingToken);
     }
-    std::fs::remove_file(path).map_err(filesystem_error)?;
-    Ok(true)
+    Ok(metadata)
 }
 
 fn valid_verified_token(value: &str) -> bool {
@@ -341,12 +555,12 @@ fn generated_staging_stem() -> String {
     format!("{}-{timestamp}-{sequence}", std::process::id())
 }
 
-struct StagingFileGuard {
+struct StagingArtifactGuard {
     path: PathBuf,
     preserve: bool,
 }
 
-impl StagingFileGuard {
+impl StagingArtifactGuard {
     fn new(path: PathBuf) -> Self {
         Self {
             path,
@@ -355,10 +569,10 @@ impl StagingFileGuard {
     }
 }
 
-impl Drop for StagingFileGuard {
+impl Drop for StagingArtifactGuard {
     fn drop(&mut self) {
         if !self.preserve {
-            let _ = std::fs::remove_file(&self.path);
+            let _ = std::fs::remove_dir_all(&self.path);
         }
     }
 }
