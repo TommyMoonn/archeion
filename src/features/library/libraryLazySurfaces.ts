@@ -46,6 +46,10 @@ const loadLibraryDuplicatesView = () =>
   import("./LibraryDuplicatesView").then((module) => ({
     default: module.LibraryDuplicatesView,
   }));
+const loadLibraryEpubIssuesView = () =>
+  import("./LibraryEpubIssuesView").then((module) => ({
+    default: module.LibraryEpubIssuesView,
+  }));
 
 export const AddEpubDialog = lazy(loadAddEpubDialog);
 export const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
@@ -60,6 +64,7 @@ export const FolderRenameDialog = lazy(loadFolderRenameDialog);
 export const SeriesDetail = lazy(loadSeriesDetail);
 export const SeriesOverview = lazy(loadSeriesOverview);
 export const LibraryDuplicatesView = lazy(loadLibraryDuplicatesView);
+export const LibraryEpubIssuesView = lazy(loadLibraryEpubIssuesView);
 
 export function preloadAboutDialog() {
   void loadAboutDialog();

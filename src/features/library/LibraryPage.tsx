@@ -61,6 +61,7 @@ import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
 import { startupTrace } from "../../app/startupTrace";
 import { createLibraryCollectionQuickActions } from "./libraryCollectionQuickActions";
 import { duplicateGroupBooks } from "./libraryDuplicatesReadModel";
+import { epubIssueBooks } from "./libraryEpubIssuesReadModel";
 import { useLibraryIntegrity } from "./useLibraryIntegrity";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
@@ -326,13 +327,21 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     returnContextRestoredRef: navigation.returnContextRestoredRef,
     visibleBooks,
   });
-  const mutationVisibleBooks = useMemo(
-    () =>
-      navigation.location.type === "duplicates"
-        ? duplicateGroupBooks(books ?? [], integrity.duplicates.snapshot)
-        : visibleBooks,
-    [books, integrity.duplicates.snapshot, navigation.location.type, visibleBooks],
-  );
+  const mutationVisibleBooks = useMemo(() => {
+    if (navigation.location.type === "duplicates") {
+      return duplicateGroupBooks(books ?? [], integrity.duplicates.snapshot);
+    }
+    if (navigation.location.type === "epub-issues") {
+      return epubIssueBooks(books ?? [], integrity.diagnostics.snapshot);
+    }
+    return visibleBooks;
+  }, [
+    books,
+    integrity.diagnostics.snapshot,
+    integrity.duplicates.snapshot,
+    navigation.location.type,
+    visibleBooks,
+  ]);
 
   const {
     beginBookMutation,
@@ -822,6 +831,14 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onReveal: bookActions.revealBookFile,
           state: integrity.duplicates,
         }}
+        epubIssuesViewProps={{
+          books: books ?? [],
+          onOpenDetails: openBookDetails,
+          onRead: readBook,
+          onRefresh: integrity.refreshDiagnostics,
+          onReveal: bookActions.revealBookFile,
+          state: integrity.diagnostics,
+        }}
         emptyState={emptyState}
         feedbackProps={{ onDismiss: dismissFeedback, tokens: feedbackTokens }}
         folderBrowserProps={{
@@ -851,7 +868,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           id: "current-library-surface",
           label: currentFolder?.name ?? "Archive root",
         }}
-        integrity={integrity}
         isImporting={bookActions.isImporting}
         isLoading={booksLoadState.status === "loading"}
         location={navigation.location}

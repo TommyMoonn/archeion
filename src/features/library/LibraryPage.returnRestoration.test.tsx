@@ -6,7 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
 import type { Book } from "../../types/book";
-import type { EpubDuplicateAnalysisResult } from "../../types/epubIntegrity";
+import type {
+  EpubDiagnosticAnalysisResult,
+  EpubDuplicateAnalysisResult,
+} from "../../types/epubIntegrity";
 import {
   createStorage,
   readyState,
@@ -479,6 +482,75 @@ describe("mounted reader-return surfaces", () => {
 
     expect(document.activeElement).toBe(restored);
     expect(pageShell.scrollTop).toBe(180);
+  });
+
+  it("waits for EPUB issue rows before restoring a Reader return target", async () => {
+    const modifiedAt = Date.parse("2026-08-01T00:00:00.000Z");
+    const target = {
+      ...selectionBook("issue-origin", "Issue Origin"),
+      modifiedAt: new Date(modifiedAt).toISOString(),
+      size: 128,
+    };
+    const pending = deferred<EpubDiagnosticAnalysisResult>();
+    vi.spyOn(archiveIntegrityCommandClient, "requestDiagnostics").mockReturnValue(pending.promise);
+    const href = `/?archiveId=${readyState.archive.id}&view=epub-issues`;
+    const session = await renderLibraryPage(createStorage({ books: [target] }), {
+      pathname: "/",
+      search: `?archiveId=${readyState.archive.id}&view=epub-issues`,
+      state: {
+        libraryRestoreContext: {
+          archiveId: readyState.archive.id,
+          focusBookId: target.id,
+          href,
+          scrollTop: 240,
+        },
+      },
+    });
+    suite.trackRoot(session.root);
+    await vi.waitFor(() =>
+      expect(archiveIntegrityCommandClient.requestDiagnostics).toHaveBeenCalled(),
+    );
+    await flushRestoration();
+
+    const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
+    expect(session.container.querySelector("[data-reader-book-id]")).toBeNull();
+    expect(document.activeElement).not.toBe(pageShell);
+
+    const request = vi.mocked(archiveIntegrityCommandClient.requestDiagnostics).mock.calls[0]?.[0];
+    if (!request) throw new Error("Expected a diagnostic analysis request.");
+    await act(async () => {
+      pending.resolve({
+        archiveGeneration: request.archiveGeneration,
+        entries: [
+          {
+            diagnostics: {
+              formatVersion: 1,
+              issues: [
+                {
+                  code: "broken-local-document-target",
+                  messageInputs: { href: "missing.xhtml" },
+                  resourcePath: "OPS/chapter.xhtml",
+                  severity: "warning",
+                },
+              ],
+            },
+            relativePath: target.relativePath!,
+            signature: { modifiedAtMillis: modifiedAt, sizeBytes: target.size },
+            source: "computed",
+          },
+        ],
+        requestRevision: request.requestRevision,
+      });
+      await pending.promise;
+    });
+    await waitForButtonWithText(session.container, "Read");
+    const restored = session.container.querySelector<HTMLElement>(
+      '[data-reader-book-id="issue-origin"] summary',
+    );
+    await flushRestoration();
+
+    expect(document.activeElement).toBe(restored);
+    expect(pageShell.scrollTop).toBe(240);
   });
 
   it("restores a normal Series Detail volume action", async () => {

@@ -580,7 +580,7 @@ describe("LibraryPage Quick Actions", () => {
 
   it.each([
     ["Go to Duplicates", "Duplicates", "requestDuplicateAnalysis", "No duplicate groups"],
-    ["Go to EPUB Issues", "EPUB Issues", "requestDiagnostics", "Analysis ready"],
+    ["Go to EPUB Issues", "EPUB Issues", "requestDiagnostics", "No EPUB issues"],
   ] as const)(
     "routes %s through Library navigation and the shared integrity controller",
     async (command, title, requestMethod, readyCopy) => {

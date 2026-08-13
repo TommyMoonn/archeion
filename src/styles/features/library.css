@@ -2526,6 +2526,311 @@ html[data-motion="on"] .library-feedback__token {
   }
 }
 
+.epub-issues-view {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+.epub-issues-header {
+  max-width: none;
+}
+
+.epub-issues-header__actions {
+  align-self: center;
+  justify-self: end;
+}
+
+.epub-issues-controls {
+  gap: 18px;
+}
+
+.epub-issues-controls > p {
+  margin: 0;
+  color: var(--muted-soft);
+  font-size: var(--type-meta);
+}
+
+.epub-issues-content {
+  display: grid;
+  gap: 14px;
+}
+
+.epub-issues-error {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  gap: 6px 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius-control);
+  color: var(--error);
+  background: var(--danger-soft);
+  font-size: var(--type-meta);
+}
+
+.epub-issues-error span {
+  color: var(--muted);
+}
+
+.epub-issues-books {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 36px;
+}
+
+.epub-issues-book {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.epub-issues-book:focus-within {
+  border-color: var(--line-strong);
+}
+
+.epub-issues-book__header {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr) auto;
+  align-items: center;
+  min-width: 0;
+  gap: 14px;
+  padding: 15px 17px;
+  background: color-mix(in srgb, var(--surface-raised) 64%, transparent);
+}
+
+.book-cover--epub-issue {
+  width: 50px;
+  border-radius: var(--radius-small);
+}
+
+.epub-issues-book__identity {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.epub-issues-book__identity h2,
+.epub-issues-book__identity p,
+.epub-issues-book__identity span {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epub-issues-book__identity h2 {
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: var(--type-heading);
+  font-weight: var(--type-heading-weight);
+  line-height: var(--type-heading-line-height);
+}
+
+.epub-issues-book__identity p {
+  color: var(--muted);
+  font-size: var(--type-meta);
+}
+
+.epub-issues-book__identity span {
+  color: var(--muted-soft);
+  font-family: var(--font-mono);
+  font-size: var(--type-caption);
+}
+
+.epub-issues-book__summary {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.epub-issues-book__summary span {
+  min-height: 22px;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.epub-issues-book__summary [data-severity="error"] {
+  border-color: var(--danger-border);
+  color: var(--error);
+  background: var(--danger-soft);
+}
+
+.epub-issues-book__summary [data-severity="warning"] {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--line));
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 9%, transparent);
+}
+
+.epub-issues-book__disclosure {
+  border-block: 1px solid var(--line);
+}
+
+.epub-issues-book__disclosure > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  gap: 12px;
+  padding: 0 17px;
+  color: var(--text);
+  background: transparent;
+  font-size: var(--type-meta);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  list-style: none;
+}
+
+.epub-issues-book__disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.epub-issues-book__disclosure > summary:hover,
+.epub-issues-book__disclosure[open] > summary {
+  background: var(--surface-hover);
+}
+
+.epub-issues-book__disclosure > summary svg {
+  color: var(--muted);
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.epub-issues-book__disclosure[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.epub-issue-details {
+  padding: 4px 17px 14px;
+}
+
+.epub-issue-details__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.epub-issue-detail {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  align-items: start;
+  gap: 6px 12px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-control);
+  background: color-mix(in srgb, var(--surface-raised) 55%, transparent);
+}
+
+.epub-issue-detail__severity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--warning);
+  font-size: var(--type-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
+.epub-issue-detail[data-severity="error"] .epub-issue-detail__severity {
+  color: var(--error);
+}
+
+.epub-issue-detail > p {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-body);
+}
+
+.epub-issue-detail__context {
+  grid-column: 2;
+  min-width: 0;
+  margin: 0;
+}
+
+.epub-issue-detail__context div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+}
+
+.epub-issue-detail__context dt {
+  color: var(--muted-soft);
+  font-size: var(--type-caption);
+}
+
+.epub-issue-detail__context dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--type-caption);
+}
+
+.epub-issue-detail__context code {
+  font-family: var(--font-mono);
+}
+
+.epub-issues-book__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 680px) {
+  .epub-issues-header__actions {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
+
+  .epub-issues-header__actions .button {
+    width: 100%;
+  }
+
+  .epub-issues-controls {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+    padding-block: 10px;
+  }
+
+  .epub-issues-error,
+  .epub-issues-book__header,
+  .epub-issue-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .book-cover--epub-issue {
+    width: 56px;
+  }
+
+  .epub-issues-book__summary {
+    justify-content: flex-start;
+  }
+
+  .epub-issue-detail__context {
+    grid-column: auto;
+  }
+
+  .epub-issue-detail__context div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .epub-issues-book__actions {
+    justify-content: flex-start;
+  }
+}
+
 .library-filter {
   position: relative;
 }
