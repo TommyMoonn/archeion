@@ -19,7 +19,7 @@ use crate::commands::{
         validate_catalog_entry, DictionaryCatalogEntry, DictionaryCatalogPackageFormat,
     },
     dictionary_download::{resolve_verified_download, write_verified_download_fixture},
-    dictionary_index::normalize_headword,
+    dictionary_index::normalize_dictionary_term,
     dictionary_store::{
         open_current_store, DictionaryIndexState, DictionarySourceKind, DictionaryStoragePaths,
         DictionaryStore,
@@ -191,7 +191,9 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
     );
     assert_ne!(installed.source_attribution, other_entry.source_attribution);
     let store = open_current_store(directory.path()).unwrap();
-    let matches = store.lookup_exact(&normalize_headword("Alpha")).unwrap();
+    let matches = store
+        .lookup_exact(&normalize_dictionary_term("Alpha"), 32)
+        .unwrap();
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].dictionary_id, installed.id);
     let installed_path = store.installed_path(&installed.id).unwrap();

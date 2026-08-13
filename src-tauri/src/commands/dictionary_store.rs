@@ -586,8 +586,9 @@ impl DictionaryStore {
     pub(crate) fn lookup_exact(
         &self,
         headword: &str,
+        maximum_results: usize,
     ) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
-        dictionary_index::lookup_exact(&self.connection, headword)
+        dictionary_index::lookup_exact(&self.connection, headword, maximum_results)
     }
 
     #[allow(dead_code)]

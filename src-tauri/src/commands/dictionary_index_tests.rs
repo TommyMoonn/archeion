@@ -5,7 +5,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use super::normalize_headword;
+use super::normalize_dictionary_term;
 use crate::commands::{
     dictionary_store::{
         DictionaryIndexState, DictionaryRegistration, DictionarySourceKind, DictionaryStore,
@@ -134,9 +134,9 @@ fn representative_entries_build_normalized_rows_and_exact_lookup_is_deterministi
         .replace_index(&second.id, &package(&[("apple", 0, 3)], &[], 3), 3)
         .unwrap();
 
-    let matches = store.lookup_exact("  ApPlE ").unwrap();
+    let matches = store.lookup_exact("  ApPlE ", 32).unwrap();
 
-    assert_eq!(normalize_headword("  ApPlE "), "apple");
+    assert_eq!(normalize_dictionary_term("  ApPlE "), "apple");
     assert_eq!(matches.len(), 3);
     assert_eq!(matches[0].dictionary_id, first.id);
     assert_eq!(matches[0].source_ordinal, 0);
@@ -180,7 +180,7 @@ fn synonym_rows_resolve_to_the_owning_source_entry() {
         )
         .unwrap();
 
-    let matches = store.lookup_exact("COLOUR").unwrap();
+    let matches = store.lookup_exact("COLOUR", 32).unwrap();
 
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].dictionary_id, dictionary.id);
@@ -205,7 +205,7 @@ fn normalized_alias_mappings_are_deduplicated_without_merging_distinct_targets()
         )
         .unwrap();
 
-    let matches = store.lookup_exact("apple").unwrap();
+    let matches = store.lookup_exact("apple", 32).unwrap();
 
     assert_eq!(matches.len(), 2);
     assert_eq!(matches[0].source_ordinal, 0);
@@ -267,13 +267,13 @@ fn replacing_one_dictionary_is_transactional_and_preserves_unrelated_indexes() {
     );
     assert!(store.replace_index(&first.id, &invalid, 4).is_err());
 
-    assert_eq!(store.lookup_exact("stable").unwrap().len(), 1);
-    assert!(store.lookup_exact("replacement").unwrap().is_empty());
+    assert_eq!(store.lookup_exact("stable", 32).unwrap().len(), 1);
+    assert!(store.lookup_exact("replacement", 32).unwrap().is_empty());
     assert!(store
-        .lookup_exact("inserted-before-failure")
+        .lookup_exact("inserted-before-failure", 32)
         .unwrap()
         .is_empty());
-    assert_eq!(store.lookup_exact("other").unwrap().len(), 1);
+    assert_eq!(store.lookup_exact("other", 32).unwrap().len(), 1);
     assert_eq!(store.get(&first.id).unwrap().unwrap(), first_before);
     assert_eq!(store.get(&second.id).unwrap().unwrap(), second_before);
 }
@@ -292,8 +292,8 @@ fn invalid_definition_metadata_cannot_replace_current_rows() {
         .unwrap_err();
 
     assert!(matches!(error, DictionaryStoreError::InvalidIndex(_)));
-    assert_eq!(store.lookup_exact("valid").unwrap().len(), 1);
-    assert!(store.lookup_exact("invalid").unwrap().is_empty());
+    assert_eq!(store.lookup_exact("valid", 32).unwrap().len(), 1);
+    assert!(store.lookup_exact("invalid", 32).unwrap().is_empty());
 }
 
 #[test]
@@ -320,7 +320,7 @@ fn rebuild_restores_queryable_rows_from_installed_stardict_sources() {
 
     store.rebuild_index(&dictionary.id).unwrap();
 
-    let matches = store.lookup_exact("alpha").unwrap();
+    let matches = store.lookup_exact("alpha", 32).unwrap();
     assert_eq!(matches.len(), 1);
     assert_eq!(matches[0].definition_length, 5);
     let installed = store.get(&dictionary.id).unwrap().unwrap();

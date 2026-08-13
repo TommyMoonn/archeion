@@ -215,6 +215,12 @@ pub fn validate_package(
     })
 }
 
+pub(crate) fn read_metadata(ifo_path: &Path) -> Result<StarDictMetadata, StarDictValidationError> {
+    let ifo = resolve_regular_file(ifo_path, false, "StarDict metadata")?;
+    let bytes = read_regular_file(&ifo, MAX_IFO_BYTES, "metadata")?;
+    parse_ifo(&bytes, &ifo)
+}
+
 fn discover_package(ifo_path: &Path) -> Result<PackagePaths, StarDictValidationError> {
     if ifo_path.extension().and_then(OsStr::to_str) != Some("ifo") {
         return Err(StarDictValidationError::new(

@@ -8,6 +8,7 @@ use super::dictionary_download::{
     DictionaryDownloadProgress, DictionaryDownloadService,
 };
 use super::dictionary_install::DictionaryInstallService;
+use super::dictionary_lookup::{DictionaryLookupResponse, DictionaryLookupService};
 use super::dictionary_store::{open_current_store, DictionaryRegistrySnapshot, DictionaryStore};
 
 pub(crate) fn app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -170,4 +171,18 @@ pub fn set_dictionary_order(
         dictionaries,
         recovery: None,
     })
+}
+
+#[tauri::command]
+pub async fn lookup_dictionary_term(
+    app: tauri::AppHandle,
+    term: String,
+    service: tauri::State<'_, DictionaryLookupService>,
+) -> Result<DictionaryLookupResponse, String> {
+    let root = app_data_root(&app)?;
+    let service = service.inner().clone();
+    tokio::task::spawn_blocking(move || service.lookup(&root, &term))
+        .await
+        .map_err(|error| format!("Dictionary lookup task failed: {error}"))?
+        .map_err(|error| error.to_string())
 }

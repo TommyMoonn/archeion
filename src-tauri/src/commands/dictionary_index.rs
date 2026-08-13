@@ -10,18 +10,55 @@ use super::{
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct DictionaryLookupEntry {
     pub dictionary_id: String,
+    pub dictionary_name: String,
+    pub source_attribution: String,
     pub source_ordinal: u32,
     pub display_headword: String,
     pub definition_offset: u64,
     pub definition_length: u32,
 }
 
-pub(crate) fn normalize_headword(headword: &str) -> String {
-    headword
-        .trim()
-        .chars()
-        .flat_map(char::to_lowercase)
-        .collect()
+pub(crate) fn normalize_dictionary_term(term: &str) -> String {
+    let collapsed = term.split_whitespace().collect::<Vec<_>>().join(" ");
+    let mut normalized = collapsed.as_str();
+    loop {
+        let stripped = normalized
+            .trim()
+            .trim_matches(is_surrounding_punctuation)
+            .trim();
+        if stripped.len() == normalized.len() {
+            break;
+        }
+        normalized = stripped;
+    }
+    normalized.chars().flat_map(char::to_lowercase).collect()
+}
+
+fn is_surrounding_punctuation(character: char) -> bool {
+    matches!(
+        character,
+        '.' | ','
+            | ';'
+            | ':'
+            | '!'
+            | '?'
+            | '¡'
+            | '¿'
+            | '"'
+            | '\''
+            | '“'
+            | '”'
+            | '‘'
+            | '’'
+            | '('
+            | ')'
+            | '['
+            | ']'
+            | '{'
+            | '}'
+            | '<'
+            | '>'
+    )
 }
 
 pub(crate) fn replace_dictionary_index(
@@ -69,7 +106,7 @@ pub(crate) fn replace_dictionary_index_in_transaction(
              ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         )?;
         for (ordinal, entry) in package.entries.iter().enumerate() {
-            let normalized = normalize_headword(&entry.word);
+            let normalized = normalize_dictionary_term(&entry.word);
             if normalized.is_empty() {
                 return Err(DictionaryStoreError::InvalidIndex(
                     "Dictionary index contains an empty normalized headword.".to_string(),
@@ -93,7 +130,7 @@ pub(crate) fn replace_dictionary_index_in_transaction(
              ) VALUES (?1, ?2, ?3)",
         )?;
         for synonym in &package.synonyms {
-            let normalized = normalize_headword(&synonym.word);
+            let normalized = normalize_dictionary_term(&synonym.word);
             if normalized.is_empty() {
                 return Err(DictionaryStoreError::InvalidIndex(
                     "Dictionary index contains an empty normalized synonym.".to_string(),
@@ -124,9 +161,10 @@ pub(crate) fn replace_dictionary_index_in_transaction(
 pub(crate) fn lookup_exact(
     connection: &Connection,
     headword: &str,
+    maximum_results: usize,
 ) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
-    let normalized = normalize_headword(headword);
-    if normalized.is_empty() {
+    let normalized = normalize_dictionary_term(headword);
+    if normalized.is_empty() || maximum_results == 0 {
         return Ok(Vec::new());
     }
     let mut statement = connection.prepare(
@@ -146,6 +184,8 @@ pub(crate) fn lookup_exact(
          )
          SELECT
             matched.dictionary_id,
+            dictionary.display_name,
+            dictionary.source_attribution,
             matched.source_ordinal,
             matched.display_headword,
             matched.definition_offset,
@@ -155,16 +195,21 @@ pub(crate) fn lookup_exact(
            ON dictionary.dictionary_id = matched.dictionary_id
          WHERE dictionary.enabled = 1
            AND dictionary.index_state = 'ready'
-         ORDER BY dictionary.sort_order, matched.dictionary_id, matched.source_ordinal",
+         ORDER BY dictionary.sort_order, matched.dictionary_id, matched.source_ordinal
+         LIMIT ?2",
     )?;
-    let rows = statement.query_map([normalized], |row| {
-        let source_ordinal: i64 = row.get(1)?;
-        let definition_offset: i64 = row.get(3)?;
-        let definition_length: i64 = row.get(4)?;
+    let maximum_results = i64::try_from(maximum_results)
+        .map_err(|_| DictionaryStoreError::NumericOverflow("lookup result limit"))?;
+    let rows = statement.query_map(params![normalized, maximum_results], |row| {
+        let source_ordinal: i64 = row.get(3)?;
+        let definition_offset: i64 = row.get(5)?;
+        let definition_length: i64 = row.get(6)?;
         Ok(DictionaryLookupEntry {
             dictionary_id: row.get(0)?,
+            dictionary_name: row.get(1)?,
+            source_attribution: row.get(2)?,
             source_ordinal: u32::try_from(source_ordinal).map_err(|_| conversion_error())?,
-            display_headword: row.get(2)?,
+            display_headword: row.get(4)?,
             definition_offset: u64::try_from(definition_offset).map_err(|_| conversion_error())?,
             definition_length: u32::try_from(definition_length).map_err(|_| conversion_error())?,
         })

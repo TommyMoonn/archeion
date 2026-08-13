@@ -65,3 +65,17 @@ export type InstalledDictionary = Readonly<{
   indexState: DictionaryIndexState;
   storageRelativePath: string;
 }>;
+
+export type DictionaryDefinitionEntry = Readonly<{
+  dictionaryId: string;
+  dictionaryName: string;
+  displayHeadword: string;
+  definitionTextBlocks: readonly string[];
+  sourceAttribution: string;
+}>;
+
+export type DictionaryLookupResponse = Readonly<{
+  normalizedQuery: string;
+  entries: readonly DictionaryDefinitionEntry[];
+  truncated: boolean;
+}>;
