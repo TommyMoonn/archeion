@@ -66,6 +66,17 @@ export type InstalledDictionary = Readonly<{
   storageRelativePath: string;
 }>;
 
+export type DictionaryRecoveryState = Readonly<{
+  reason: "corrupt-database" | "unsupported-schema";
+  message: string;
+}>;
+
+export type DictionaryRegistrySnapshot = Readonly<{
+  status: "ready" | "recovery-required";
+  dictionaries: readonly InstalledDictionary[];
+  recovery: DictionaryRecoveryState | null;
+}>;
+
 export type DictionaryDefinitionEntry = Readonly<{
   dictionaryId: string;
   dictionaryName: string;

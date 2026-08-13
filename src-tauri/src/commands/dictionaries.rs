@@ -174,6 +174,49 @@ pub fn set_dictionary_order(
 }
 
 #[tauri::command]
+pub async fn remove_dictionary(
+    app: tauri::AppHandle,
+    dictionary_id: String,
+) -> Result<DictionaryRegistrySnapshot, String> {
+    let root = app_data_root(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let mut store = open_current_store(&root).map_err(|error| error.to_string())?;
+        let dictionaries = store
+            .remove_dictionary(&dictionary_id)
+            .map_err(|error| error.to_string())?;
+        Ok(DictionaryRegistrySnapshot {
+            status: super::dictionary_store::DictionaryRegistryStatus::Ready,
+            dictionaries,
+            recovery: None,
+        })
+    })
+    .await
+    .map_err(|error| format!("Dictionary removal task failed: {error}"))?
+}
+
+#[tauri::command]
+pub async fn rebuild_dictionary_index(
+    app: tauri::AppHandle,
+    dictionary_id: String,
+) -> Result<DictionaryRegistrySnapshot, String> {
+    let root = app_data_root(&app)?;
+    tokio::task::spawn_blocking(move || {
+        let mut store = open_current_store(&root).map_err(|error| error.to_string())?;
+        store
+            .rebuild_index(&dictionary_id)
+            .map_err(|error| error.to_string())?;
+        let dictionaries = store.list().map_err(|error| error.to_string())?;
+        Ok(DictionaryRegistrySnapshot {
+            status: super::dictionary_store::DictionaryRegistryStatus::Ready,
+            dictionaries,
+            recovery: None,
+        })
+    })
+    .await
+    .map_err(|error| format!("Dictionary index rebuild task failed: {error}"))?
+}
+
+#[tauri::command]
 pub async fn lookup_dictionary_term(
     app: tauri::AppHandle,
     term: String,

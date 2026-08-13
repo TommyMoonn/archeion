@@ -15,6 +15,7 @@ import { GeneralSettingsSection } from "./sections/GeneralSettingsSection";
 import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
+import { DictionarySettingsSection } from "./sections/DictionarySettingsSection";
 import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
 import { StorageSettingsSection } from "./sections/StorageSettingsSection";
 import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
@@ -54,6 +55,8 @@ function renderSettingsSection(
       return <LibrarySettingsSection context={controller} />;
     case "reader":
       return <ReaderSettingsSection context={controller} />;
+    case "dictionaries":
+      return <DictionarySettingsSection />;
     case "keyboard":
       return <KeyboardSettingsSection context={controller} />;
     case "appearance":

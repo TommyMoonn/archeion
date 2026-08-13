@@ -8,6 +8,7 @@ describe("settingsSections", () => {
       "General",
       "Library",
       "Reader",
+      "Dictionaries",
       "Keyboard",
       "Appearance",
       "Archives",
@@ -21,6 +22,7 @@ describe("settingsSections", () => {
       "general",
       "library",
       "reader",
+      "dictionaries",
       "keyboard",
       "appearance",
       "archives",
@@ -66,6 +68,7 @@ describe("settingsSections", () => {
     expect(sectionMatches("appearance", " window ")).toBe(true);
     expect(sectionMatches("import", "destination")).toBe(true);
     expect(sectionMatches("reader", "destination")).toBe(false);
+    expect(sectionMatches("dictionaries", "stardict")).toBe(true);
   });
 
   it("shows all sections for empty search", () => {

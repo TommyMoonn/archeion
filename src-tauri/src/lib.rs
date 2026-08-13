@@ -64,6 +64,8 @@ pub fn run() {
             commands::dictionaries::import_stardict_dictionary,
             commands::dictionaries::set_dictionary_enabled,
             commands::dictionaries::set_dictionary_order,
+            commands::dictionaries::remove_dictionary,
+            commands::dictionaries::rebuild_dictionary_index,
             commands::filesystem::create_archive_folder,
             commands::filesystem::delete_archive_epub_file,
             commands::filesystem::delete_archive_folder,

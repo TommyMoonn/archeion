@@ -16,6 +16,7 @@ use super::{
 const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
 const DICTIONARY_ROOT_NAME: &str = "dictionaries";
 const INSTALLED_DIRECTORY_NAME: &str = "installed";
+const REMOVAL_STAGING_DIRECTORY: &str = "staging/removals";
 const SCHEMA_VERSION: i64 = 1;
 const SQLITE_BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -529,6 +530,68 @@ impl DictionaryStore {
         self.list()
     }
 
+    pub(crate) fn remove_dictionary(
+        &mut self,
+        dictionary_id: &str,
+    ) -> Result<Vec<InstalledDictionary>, DictionaryStoreError> {
+        validate_dictionary_id(dictionary_id)?;
+        let installed = self
+            .get(dictionary_id)?
+            .ok_or(DictionaryStoreError::InvalidDictionaryId)?;
+        let installed_path = self.paths.installed_path(dictionary_id)?;
+        let metadata = fs::symlink_metadata(&installed_path)?;
+        if !metadata.file_type().is_dir() {
+            return Err(DictionaryStoreError::Activation(
+                "Installed dictionary storage is not a regular directory.".to_string(),
+            ));
+        }
+        let retired_parent = self.paths.root().join(REMOVAL_STAGING_DIRECTORY);
+        fs::create_dir_all(&retired_parent)?;
+        let retired_path = retired_parent.join(dictionary_id);
+        if fs::symlink_metadata(&retired_path).is_ok() {
+            return Err(DictionaryStoreError::Activation(
+                "Dictionary removal staging already exists and requires recovery.".to_string(),
+            ));
+        }
+        fs::rename(&installed_path, &retired_path)?;
+
+        let database_result = (|| {
+            let transaction = self.connection.transaction()?;
+            let removed = transaction.execute(
+                "DELETE FROM installed_dictionaries WHERE dictionary_id = ?1",
+                [dictionary_id],
+            )?;
+            if removed != 1 {
+                return Err(DictionaryStoreError::InvalidDictionaryId);
+            }
+            transaction.execute(
+                "UPDATE installed_dictionaries
+                 SET sort_order = sort_order - 1
+                 WHERE sort_order > ?1",
+                [i64::from(installed.order)],
+            )?;
+            transaction.commit()?;
+            Ok(())
+        })();
+
+        if let Err(error) = database_result {
+            return match fs::rename(&retired_path, &installed_path) {
+                Ok(()) => Err(error),
+                Err(restore_error) => Err(DictionaryStoreError::Activation(format!(
+                    "Dictionary removal failed ({error}) and installed-file restoration failed: {restore_error}"
+                ))),
+            };
+        }
+
+        if let Err(error) = fs::remove_dir_all(&retired_path) {
+            eprintln!(
+                "Dictionary removal committed but retired-file cleanup failed at {}: {error}",
+                retired_path.display()
+            );
+        }
+        self.list()
+    }
+
     pub(crate) fn get(
         &self,
         dictionary_id: &str,
@@ -1001,6 +1064,53 @@ mod tests {
             vec![0, 1, 2]
         );
         assert!(!reopened[2].enabled);
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn removal_deletes_only_the_owned_dictionary_and_compacts_persisted_order() {
+        let root = test_root("remove");
+        let mut store = current_store(&root);
+        let first = store
+            .register(registration("First"))
+            .expect("first dictionary should register");
+        let second = store
+            .register(registration("Second"))
+            .expect("second dictionary should register");
+        let first_path = store
+            .installed_path(&first.id)
+            .expect("first installed path should resolve");
+        let second_path = store
+            .installed_path(&second.id)
+            .expect("second installed path should resolve");
+        fs::create_dir_all(&first_path).expect("first dictionary files should exist");
+        fs::create_dir_all(&second_path).expect("second dictionary files should exist");
+        fs::write(first_path.join("dictionary.dict"), b"remove")
+            .expect("first payload should exist");
+        fs::write(second_path.join("dictionary.dict"), b"preserve")
+            .expect("second payload should exist");
+
+        let remaining = store
+            .remove_dictionary(&first.id)
+            .expect("owned dictionary should be removed");
+        drop(store);
+
+        assert!(!first_path.exists());
+        assert_eq!(
+            fs::read(second_path.join("dictionary.dict"))
+                .expect("unrelated dictionary payload should remain"),
+            b"preserve"
+        );
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].id, second.id);
+        assert_eq!(remaining[0].order, 0);
+        assert_eq!(
+            current_store(&root)
+                .list()
+                .expect("removal should persist after reopening"),
+            remaining
+        );
 
         let _ = fs::remove_dir_all(root);
     }

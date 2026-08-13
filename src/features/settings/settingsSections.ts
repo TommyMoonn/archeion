@@ -76,6 +76,20 @@ export const settingsSections = [
     ],
   },
   {
+    id: "dictionaries",
+    label: "Dictionaries",
+    searchTerms: [
+      "dictionaries",
+      "dictionary",
+      "lookup",
+      "available dictionaries",
+      "installed dictionaries",
+      "stardict",
+      "import dictionary",
+      "download dictionary",
+    ],
+  },
+  {
     id: "keyboard",
     label: "Keyboard",
     searchTerms: [

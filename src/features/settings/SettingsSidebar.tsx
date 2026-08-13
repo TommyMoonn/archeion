@@ -5,6 +5,7 @@ import {
   Database,
   Download,
   Keyboard,
+  Languages,
   Search,
   Palette,
   SlidersHorizontal,
@@ -37,6 +38,8 @@ function SectionIcon({ section }: { section: SettingsSection }) {
       return <Database aria-hidden="true" size={16} />;
     case "reader":
       return <BookOpenText aria-hidden="true" size={16} />;
+    case "dictionaries":
+      return <Languages aria-hidden="true" size={16} />;
     case "keyboard":
       return <Keyboard aria-hidden="true" size={16} />;
     case "appearance":
