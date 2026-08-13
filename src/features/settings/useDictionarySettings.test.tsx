@@ -146,11 +146,13 @@ afterEach(() => {
 
 describe("useDictionarySettings", () => {
   it("opens from cached catalog and installed state, then publishes an explicit refresh", async () => {
-    const deps = dependencies();
+    const registrySink = { publish: vi.fn() };
+    const deps = dependencies({ registrySink });
     const rendered = await renderController(deps);
 
     expect(rendered.controller.catalog?.source).toBe("cache");
     expect(rendered.controller.registry?.dictionaries).toEqual([]);
+    expect(registrySink.publish).toHaveBeenCalledWith(registry());
 
     await act(async () => {
       await rendered.controller.refreshCatalog();
@@ -303,7 +305,8 @@ describe("useDictionarySettings", () => {
         return current;
       }),
     };
-    const deps = dependencies({ managementClient });
+    const registrySink = { publish: vi.fn() };
+    const deps = dependencies({ managementClient, registrySink });
     const first = await renderController(deps);
 
     await act(async () => {
@@ -319,5 +322,6 @@ describe("useDictionarySettings", () => {
       "dict-a",
     ]);
     expect(reopened.controller.registry?.dictionaries[1]?.enabled).toBe(false);
+    expect(registrySink.publish).toHaveBeenCalledWith(current);
   });
 });

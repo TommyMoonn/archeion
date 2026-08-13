@@ -51,6 +51,7 @@ import {
   useReaderPublicationSearch,
   type ReaderPublicationSearchControllerState,
 } from "./useReaderPublicationSearch";
+import { useReaderDictionaryLookup } from "./useReaderDictionaryLookup";
 
 export type { ReaderTextSelection } from "./useHighlightInteractionController";
 
@@ -95,6 +96,7 @@ type EpubViewerProps = {
   onHighlightAnchorInvalid?: (annotationId: string, anchorSignature: string) => Promise<boolean>;
   onKeyDown: (event: KeyboardEvent) => void;
   onLocationChange: (relocation: ReaderRelocation) => void;
+  onManageDictionaries?: (focusTarget?: HTMLElement) => void;
   onOpenNote?: (selection: ReaderTextSelection, existingHighlight?: HighlightAnnotation) => void;
   onCreateHighlight?: (
     selection: ReaderTextSelection,
@@ -124,6 +126,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     onHighlightInteractionError,
     onKeyDown,
     onLocationChange,
+    onManageDictionaries = () => undefined,
     onOpenNote,
     onCreateHighlight,
     onRecolorHighlight,
@@ -266,6 +269,14 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     refreshAnchor,
     resetForSession: resetHighlightSession,
   } = interaction;
+  const dictionaryLookup = useReaderDictionaryLookup({
+    onManageDictionaries,
+    selectionOwner: menu,
+    sessionIdentity,
+  });
+  const defineAvailability = menu
+    ? dictionaryLookup.availabilityFor(menu.selection.selectedText)
+    : null;
 
   useEffect(() => {
     annotations.updateOptions({
@@ -718,6 +729,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           ref={paletteRef}
           anchorRect={menu.anchorRect}
           busy={highlightBusy}
+          defineAvailable={Boolean(defineAvailability?.available)}
+          defineBusy={dictionaryLookup.state.status === "looking-up"}
+          defineLabel={defineAvailability?.label ?? "Define"}
+          defineUnavailableReason={defineAvailability?.reason ?? undefined}
           hasAttachedNote={Boolean(menu.existingHighlight?.note?.trim())}
           noteActionLabel={
             menu.existingHighlight
@@ -728,6 +743,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           }
           onChoose={choosePaletteOption}
           onDismiss={dismiss}
+          onDefine={() => dictionaryLookup.define(menu)}
           onNote={openNote}
           selectedColor={selectedHighlightColor(menu)}
           viewportRect={paletteViewport}
@@ -748,6 +764,7 @@ function areEpubViewerPropsEqual(previous: EpubViewerProps, next: EpubViewerProp
     previous.onHighlightInteractionError === next.onHighlightInteractionError &&
     previous.onKeyDown === next.onKeyDown &&
     previous.onLocationChange === next.onLocationChange &&
+    previous.onManageDictionaries === next.onManageDictionaries &&
     previous.onOpenNote === next.onOpenNote &&
     previous.onCreateHighlight === next.onCreateHighlight &&
     previous.onRecolorHighlight === next.onRecolorHighlight &&

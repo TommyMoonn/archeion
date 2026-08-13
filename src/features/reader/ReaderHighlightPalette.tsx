@@ -1,4 +1,4 @@
-import { NotebookPen } from "lucide-react";
+import { BookOpenText, NotebookPen } from "lucide-react";
 import {
   forwardRef,
   useCallback,
@@ -9,6 +9,7 @@ import {
 } from "react";
 
 import { Tooltip } from "../../components/Tooltip";
+import { IconButton } from "../../components/IconButton";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
 import { READER_HIGHLIGHT_COLORS, type ReaderHighlightColor } from "./readerHighlights";
 import {
@@ -23,10 +24,15 @@ export type HighlightPaletteChoice = ReaderHighlightColor | "none";
 type ReaderHighlightPaletteProps = {
   anchorRect: ClientRect;
   busy: boolean;
+  defineAvailable?: boolean;
+  defineBusy?: boolean;
+  defineLabel?: "Define" | "Manage dictionaries";
+  defineUnavailableReason?: string;
   hasAttachedNote?: boolean;
   noteActionLabel: "Add note" | "Edit note" | "Highlight and add note";
   onChoose: (choice: HighlightPaletteChoice) => void;
   onDismiss: (restoreFocus?: boolean) => void;
+  onDefine?: () => void;
   onNote: () => void;
   selectedColor?: ReaderHighlightColor;
   viewportRect: ClientRect;
@@ -50,10 +56,15 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
     {
       anchorRect,
       busy,
+      defineAvailable = false,
+      defineBusy = false,
+      defineLabel = "Define",
+      defineUnavailableReason,
       hasAttachedNote = false,
       noteActionLabel,
       onChoose,
       onDismiss,
+      onDefine = () => undefined,
       onNote,
       selectedColor,
       viewportRect,
@@ -134,7 +145,6 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
     return (
       <div
         ref={assignRef}
-        aria-busy={busy || undefined}
         aria-label="Highlight color"
         className="reader-highlight-menu menu-popover"
         data-placement={position.placement}
@@ -166,6 +176,17 @@ export const ReaderHighlightPalette = forwardRef<HTMLDivElement, ReaderHighlight
           );
         })}
         <span aria-hidden="true" className="reader-highlight-menu__divider" />
+        <IconButton
+          disabled={defineBusy || !defineAvailable}
+          disabledReason={!defineAvailable ? defineUnavailableReason : undefined}
+          label={defineLabel}
+          onClick={onDefine}
+          role="menuitem"
+          size="compact"
+          tooltip={defineLabel}
+        >
+          <BookOpenText />
+        </IconButton>
         <Tooltip content={noteActionLabel}>
           <button
             aria-label={noteActionLabel}

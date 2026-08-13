@@ -3,12 +3,13 @@ import { createContext, useContext, useEffect } from "react";
 import type { KeyboardInteractionContext } from "../commands/appCommands";
 import type { KeyboardBinding } from "../commands/commandBindings";
 import type { QuickActionRegistration } from "./quickActions";
+import type { SettingsSection } from "../settings/settingsSections";
 
 export type QuickActionsContextValue = {
   getCommandBinding: (commandId: string) => KeyboardBinding | undefined;
   handleKeyboardEvent: (event: KeyboardEvent, context?: KeyboardInteractionContext) => boolean;
   openPalette: () => void;
-  openSettings: () => void;
+  openSettings: (section?: SettingsSection, returnFocusTo?: HTMLElement) => void;
   preloadSettings: () => void;
   registerCommands: (sourceId: string, commands: readonly QuickActionRegistration[]) => () => void;
 };

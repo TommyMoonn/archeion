@@ -30,6 +30,7 @@ import type { FocusReturnRecord } from "../../utils/focusRestoration";
 
 type SettingsDialogProps = {
   focusReturn?: FocusReturnRecord;
+  initialSection?: SettingsSection;
   onClose: () => void;
 };
 
@@ -71,12 +72,16 @@ function renderSettingsSection(
   }
 }
 
-export function SettingsDialog({ focusReturn, onClose }: SettingsDialogProps) {
+export function SettingsDialog({
+  focusReturn,
+  initialSection = "general",
+  onClose,
+}: SettingsDialogProps) {
   const contentRef = useRef<HTMLElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(initialSection);
   const [animateSectionChange, setAnimateSectionChange] = useState(false);
   const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");

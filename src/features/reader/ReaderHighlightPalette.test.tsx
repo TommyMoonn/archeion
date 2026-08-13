@@ -45,11 +45,134 @@ describe("ReaderHighlightPalette", () => {
       "blue highlight",
       "rose highlight",
       "No color",
+      "Define",
       "Highlight and add note",
     ]);
     expect(container.querySelector(".reader-highlight-menu")?.getAttribute("data-placement")).toBe(
       "above",
     );
+  });
+
+  it("keeps Define operable while annotation actions are busy", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onChoose = vi.fn();
+    const onDefine = vi.fn();
+    const onNote = vi.fn();
+
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy
+          defineAvailable
+          noteActionLabel="Add note"
+          onChoose={onChoose}
+          onDefine={onDefine}
+          onDismiss={vi.fn()}
+          onNote={onNote}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    const defineAction = container.querySelector<HTMLButtonElement>('[aria-label="Define"]');
+    expect(defineAction?.disabled).toBe(false);
+    expect(
+      container.querySelector<HTMLButtonElement>('[aria-label="yellow highlight"]')?.disabled,
+    ).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="Add note"]')?.disabled).toBe(
+      true,
+    );
+    expect(
+      container.querySelector('[aria-label="Highlight color"]')?.hasAttribute("aria-busy"),
+    ).toBe(false);
+
+    act(() => defineAction?.click());
+
+    expect(onDefine).toHaveBeenCalledOnce();
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(onNote).not.toHaveBeenCalled();
+  });
+
+  it("keeps annotation actions operable while dictionary lookup is busy", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onChoose = vi.fn();
+    const onDefine = vi.fn();
+    const onNote = vi.fn();
+
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy={false}
+          defineAvailable
+          defineBusy
+          noteActionLabel="Add note"
+          onChoose={onChoose}
+          onDefine={onDefine}
+          onDismiss={vi.fn()}
+          onNote={onNote}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    const defineAction = container.querySelector<HTMLButtonElement>('[aria-label="Define"]');
+    const highlightAction = container.querySelector<HTMLButtonElement>(
+      '[aria-label="yellow highlight"]',
+    );
+    const noteAction = container.querySelector<HTMLButtonElement>('[aria-label="Add note"]');
+    expect(defineAction?.disabled).toBe(true);
+    expect(highlightAction?.disabled).toBe(false);
+    expect(noteAction?.disabled).toBe(false);
+    expect(
+      container.querySelector('[aria-label="Highlight color"]')?.hasAttribute("aria-busy"),
+    ).toBe(false);
+
+    act(() => {
+      highlightAction?.click();
+      noteAction?.click();
+    });
+
+    expect(onChoose).toHaveBeenCalledWith("yellow");
+    expect(onNote).toHaveBeenCalledOnce();
+    expect(onDefine).not.toHaveBeenCalled();
+  });
+
+  it("exposes dictionary management as the current action when lookup is unavailable", () => {
+    const container = document.createElement("div");
+    document.body.append(container);
+    const root = createRoot(container);
+    roots.push(root);
+    const onDefine = vi.fn();
+
+    act(() => {
+      root.render(
+        <ReaderHighlightPalette
+          anchorRect={{ bottom: 130, height: 20, left: 100, right: 180, top: 110, width: 80 }}
+          busy={false}
+          defineAvailable
+          defineLabel="Manage dictionaries"
+          noteActionLabel="Add note"
+          onChoose={vi.fn()}
+          onDefine={onDefine}
+          onDismiss={vi.fn()}
+          onNote={vi.fn()}
+          viewportRect={{ bottom: 600, height: 600, left: 0, right: 800, top: 0, width: 800 }}
+        />,
+      );
+    });
+
+    const action = container.querySelector<HTMLButtonElement>('[aria-label="Manage dictionaries"]');
+    expect(action).toBeInstanceOf(HTMLButtonElement);
+    act(() => action?.click());
+    expect(onDefine).toHaveBeenCalledOnce();
   });
 
   it("closes on Escape while focus is inside the palette", () => {

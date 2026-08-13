@@ -40,6 +40,7 @@ import {
   type QuickActionThemeModeServices,
 } from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
+import type { SettingsSection } from "../settings/settingsSections";
 
 const loadQuickActionsPalette = () =>
   import("./QuickActionsPalette").then((module) => ({ default: module.QuickActionsPalette }));
@@ -61,7 +62,10 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
     archiveId: string | null;
     focusReturn: FocusReturnRecord;
   } | null>(null);
-  const [settings, setSettings] = useState<{ focusReturn: FocusReturnRecord } | null>(null);
+  const [settings, setSettings] = useState<{
+    focusReturn: FocusReturnRecord;
+    initialSection?: SettingsSection;
+  } | null>(null);
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const mountedRef = useRef(true);
@@ -98,10 +102,16 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
     void loadSettingsDialog();
   }, []);
 
-  const openSettings = useCallback(() => {
-    preloadSettings();
-    setSettings({ focusReturn: commandFocusReturnRef.current ?? captureFocusReturn() });
-  }, [preloadSettings]);
+  const openSettings = useCallback(
+    (initialSection?: SettingsSection, returnFocusTo?: HTMLElement) => {
+      preloadSettings();
+      setSettings({
+        focusReturn: commandFocusReturnRef.current ?? captureFocusReturn(returnFocusTo),
+        initialSection,
+      });
+    },
+    [preloadSettings],
+  );
 
   const executeCommand = useCallback(
     (command: AppCommand, focusReturn?: FocusReturnRecord) => {
@@ -357,7 +367,11 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
       ) : null}
       {settings ? (
         <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
-          <SettingsDialog focusReturn={settings.focusReturn} onClose={() => setSettings(null)} />
+          <SettingsDialog
+            focusReturn={settings.focusReturn}
+            initialSection={settings.initialSection}
+            onClose={() => setSettings(null)}
+          />
         </Suspense>
       ) : null}
     </QuickActionsContext.Provider>

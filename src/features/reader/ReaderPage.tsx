@@ -120,7 +120,7 @@ export function ReaderPage() {
   const [searchParams] = useSearchParams();
   const startFromBeginning = searchParams.get("start") === "beginning";
   const storage = useLibraryStorage();
-  const { getCommandBinding, handleKeyboardEvent } = useQuickActions();
+  const { getCommandBinding, handleKeyboardEvent, openSettings } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
@@ -798,6 +798,10 @@ export function ReaderPage() {
     },
     [appearanceController],
   );
+  const openDictionarySettings = useCallback(
+    (focusTarget?: HTMLElement) => openSettings("dictionaries", focusTarget),
+    [openSettings],
+  );
 
   const handleReady = useCallback(
     (identity: Parameters<typeof readerSessionController.ready>[0]) => {
@@ -1080,6 +1084,7 @@ export function ReaderPage() {
             onHighlightInteractionError={highlights.reportInteractionFeedback}
             onKeyDown={handleContentKeyDown}
             onLocationChange={handleLocationChange}
+            onManageDictionaries={openDictionarySettings}
             onOpenNote={openSelectionNote}
             onCreateHighlight={highlights.create}
             onRecolorHighlight={highlights.recolor}

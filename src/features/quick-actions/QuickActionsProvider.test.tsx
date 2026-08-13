@@ -195,7 +195,7 @@ function Harness({
       <button id="palette-opener" onClick={openPalette} type="button">
         Open from here
       </button>
-      <button id="settings-opener" onClick={openSettings} type="button">
+      <button id="settings-opener" onClick={() => openSettings()} type="button">
         Open settings
       </button>
       <input aria-label="Text field" type="text" />

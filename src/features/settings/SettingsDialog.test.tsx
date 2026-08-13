@@ -3,12 +3,18 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { invoke } from "@tauri-apps/api/core";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { defaultAppPreferences } from "../../types/appSettings";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { SettingsDialog } from "./SettingsDialog";
+
+vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@tauri-apps/api/core")>()),
+  invoke: vi.fn(async () => undefined),
+}));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -67,7 +73,7 @@ function scrollToMock() {
   return HTMLElement.prototype.scrollTo as ReturnType<typeof vi.fn>;
 }
 
-function renderDialog(storage = createStorage()) {
+function renderDialog(storage = createStorage(), initialSection?: "dictionaries") {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -75,7 +81,7 @@ function renderDialog(storage = createStorage()) {
   act(() => {
     root.render(
       <LibraryStorageContext value={storage}>
-        <SettingsDialog onClose={vi.fn()} />
+        <SettingsDialog initialSection={initialSection} onClose={vi.fn()} />
       </LibraryStorageContext>,
     );
   });
@@ -108,6 +114,7 @@ describe("SettingsDialog responsiveness", () => {
   const roots: Root[] = [];
 
   beforeEach(() => {
+    vi.mocked(invoke).mockResolvedValue(undefined);
     installDialogPolyfill();
     installScrollToMock();
     delete document.documentElement.dataset.motion;
@@ -148,6 +155,16 @@ describe("SettingsDialog responsiveness", () => {
     expect(container.querySelector('[data-setting-id="general.startup-behavior"]')).not.toBeNull();
     expect(container.querySelector('[data-setting-id="appearance.display-density"]')).toBeNull();
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();
+  });
+
+  it("opens directly to an explicitly requested settings section", () => {
+    const { container } = track(renderDialog(createStorage(), "dictionaries"));
+
+    expect(container.querySelector(".dictionary-settings h2")?.textContent).toBe("Dictionaries");
+    expect(
+      container.querySelector('nav[aria-label="Settings sections"] [aria-current="page"]')
+        ?.textContent,
+    ).toContain("Dictionaries");
   });
 
   it("resets all collection display groups through the existing Library reset", async () => {

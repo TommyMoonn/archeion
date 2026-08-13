@@ -17,6 +17,10 @@ import {
   dictionaryManagementCommandClient,
   type DictionaryManagementCommandClient,
 } from "../../storage/dictionaryManagementCommandClient";
+import {
+  dictionaryRegistryStore,
+  type DictionaryRegistrySource,
+} from "../../storage/dictionaryRegistryStore";
 import type {
   DictionaryCatalogSnapshot,
   DictionaryDownloadOutcome,
@@ -46,6 +50,7 @@ export type DictionarySettingsDependencies = Readonly<{
   installClient: DictionaryInstallCommandClient;
   managementClient: DictionaryManagementCommandClient;
   pickImportFile: () => Promise<string | null>;
+  registrySink?: Pick<DictionaryRegistrySource, "publish">;
 }>;
 
 const defaultDependencies: DictionarySettingsDependencies = {
@@ -53,6 +58,7 @@ const defaultDependencies: DictionarySettingsDependencies = {
   downloadClient: dictionaryDownloadCommandClient,
   installClient: dictionaryInstallCommandClient,
   managementClient: dictionaryManagementCommandClient,
+  registrySink: dictionaryRegistryStore,
   pickImportFile: async () => {
     const selected = await open({
       directory: false,
@@ -97,6 +103,16 @@ export function useDictionarySettings(
   const catalogInstallInFlightRef = useRef(false);
   const refreshCancellationRequestedRef = useRef(false);
   const managementOperationRef = useRef<DictionaryManagementOperation | null>(null);
+  const registryRef = useRef<DictionaryRegistrySnapshot | null>(null);
+
+  const publishRegistry = useCallback(
+    (snapshot: DictionaryRegistrySnapshot) => {
+      registryRef.current = snapshot;
+      setRegistry(snapshot);
+      dependencies.registrySink?.publish(snapshot);
+    },
+    [dependencies.registrySink],
+  );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -119,7 +135,7 @@ export function useDictionarySettings(
       .list()
       .then((snapshot) => {
         if (retired) return;
-        setRegistry(snapshot);
+        publishRegistry(snapshot);
         setRegistryState("ready");
       })
       .catch((error: unknown) => {
@@ -140,7 +156,7 @@ export function useDictionarySettings(
         void dependencies.downloadClient.cleanup(retainedToken);
       }
     };
-  }, [dependencies]);
+  }, [dependencies, publishRegistry]);
 
   const refreshCatalog = useCallback(async () => {
     if (refreshing) return;
@@ -167,16 +183,17 @@ export function useDictionarySettings(
     await dependencies.catalogClient.cancelRefresh();
   }, [dependencies.catalogClient]);
 
-  const settleInstalled = useCallback((installed: InstalledDictionary) => {
-    setRegistry((current) => {
-      const dictionaries = [...(current?.dictionaries ?? [])]
+  const settleInstalled = useCallback(
+    (installed: InstalledDictionary) => {
+      const dictionaries = [...(registryRef.current?.dictionaries ?? [])]
         .filter((dictionary) => dictionary.id !== installed.id)
         .concat(installed)
         .sort((left, right) => left.order - right.order);
-      return readyRegistry(dictionaries);
-    });
-    setRegistryState("ready");
-  }, []);
+      publishRegistry(readyRegistry(dictionaries));
+      setRegistryState("ready");
+    },
+    [publishRegistry],
+  );
 
   const installCatalog = useCallback(
     async (catalogId: string) => {
@@ -320,7 +337,7 @@ export function useDictionarySettings(
       try {
         const snapshot = await request();
         if (!mountedRef.current) return false;
-        setRegistry(snapshot);
+        publishRegistry(snapshot);
         setRegistryState("ready");
         return true;
       } catch (error) {
@@ -336,7 +353,7 @@ export function useDictionarySettings(
         if (mountedRef.current) setManagementOperation(null);
       }
     },
-    [],
+    [publishRegistry],
   );
 
   const setEnabled = useCallback(
