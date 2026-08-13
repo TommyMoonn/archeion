@@ -50,5 +50,11 @@ describe("EpubIssueDetails", () => {
     expect(issues[1]?.textContent).toContain("missing.xhtml#part");
     expect(issues[1]?.textContent).toContain("OPS/chapter.xhtml");
     expect(Array.from(issues, (issue) => issue.dataset.severity)).toEqual(["error", "warning"]);
+    expect(
+      Array.from(
+        issues,
+        (issue) => issue.querySelector(".epub-issue-detail__severity .sr-only")?.textContent,
+      ),
+    ).toEqual(["Error", "Warning"]);
   });
 });

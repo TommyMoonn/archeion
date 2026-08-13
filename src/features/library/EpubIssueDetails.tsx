@@ -95,7 +95,7 @@ export function EpubIssueDetails({ issues }: Readonly<{ issues: EpubDiagnostics[
             >
               <span className="epub-issue-detail__severity">
                 <Icon aria-hidden="true" size={17} />
-                {error ? "Error" : "Warning"}
+                <span className="sr-only">{error ? "Error" : "Warning"}</span>
               </span>
               <p>{epubDiagnosticIssueMessage(issue)}</p>
               {issue.resourcePath ? (

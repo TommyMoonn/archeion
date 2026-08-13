@@ -4,7 +4,6 @@ import {
   FileCheck2,
   FileWarning,
   FolderOpen,
-  Info,
   RefreshCw,
 } from "lucide-react";
 import { useId } from "react";
@@ -43,7 +42,7 @@ function EpubIssueBook({
   resolved: ResolvedEpubIssueBook;
 }) {
   const titleId = useId();
-  const { book, entry, errorCount, readerAvailable, warningCount } = resolved;
+  const { book, entry, readerAvailable } = resolved;
   const title = bookTitle(book);
   const author = bookAuthor(book);
   const issueCount = entry.diagnostics.issues.length;
@@ -54,17 +53,46 @@ function EpubIssueBook({
   return (
     <article aria-labelledby={titleId} className="epub-issues-book" data-reader-book-id={book.id}>
       <div className="epub-issues-book__header">
-        <BookCover book={book} className="book-cover--epub-issue" loadImmediately />
+        <button
+          aria-label={`Open details for ${title}`}
+          className="epub-issues-book__cover-action"
+          onClick={() => onOpenDetails(book)}
+          type="button"
+        >
+          <BookCover book={book} className="book-cover--epub-issue" loadImmediately />
+        </button>
         <div className="epub-issues-book__identity">
-          <h2 id={titleId}>{title}</h2>
+          <h2 id={titleId}>
+            <button
+              className="epub-issues-book__title-action"
+              onClick={() => onOpenDetails(book)}
+              type="button"
+            >
+              {title}
+            </button>
+          </h2>
           <p>{author || "Author unavailable"}</p>
           <span title={book.relativePath}>{book.relativePath}</span>
         </div>
-        <div aria-label="Issue summary" className="epub-issues-book__summary">
-          {errorCount ? <span data-severity="error">{countLabel(errorCount, "error")}</span> : null}
-          {warningCount ? (
-            <span data-severity="warning">{countLabel(warningCount, "warning")}</span>
-          ) : null}
+        <div className="epub-issues-book__actions">
+          <Button
+            disabled={!readerAvailable}
+            disabledReason={readerUnavailableReason}
+            icon={<BookOpen />}
+            onClick={() => onRead(book)}
+            size="compact"
+            variant="secondary"
+          >
+            Read
+          </Button>
+          <Button
+            icon={<FolderOpen />}
+            onClick={() => onReveal(book)}
+            size="compact"
+            variant="ghost"
+          >
+            Reveal
+          </Button>
         </div>
       </div>
 
@@ -75,25 +103,6 @@ function EpubIssueBook({
         </summary>
         <EpubIssueDetails issues={entry.diagnostics.issues} />
       </details>
-
-      <div className="epub-issues-book__actions">
-        <Button
-          disabled={!readerAvailable}
-          disabledReason={readerUnavailableReason}
-          icon={<BookOpen />}
-          onClick={() => onRead(book)}
-          size="compact"
-          variant="secondary"
-        >
-          Read
-        </Button>
-        <Button icon={<Info />} onClick={() => onOpenDetails(book)} size="compact" variant="ghost">
-          Book details
-        </Button>
-        <Button icon={<FolderOpen />} onClick={() => onReveal(book)} size="compact" variant="ghost">
-          Reveal
-        </Button>
-      </div>
     </article>
   );
 }
@@ -140,7 +149,6 @@ export function LibraryEpubIssuesView({
                 ? "Analysis unavailable"
                 : resultLabel}
           </span>
-          <p>Inspect Reader-relevant problems without changing EPUB files.</p>
         </div>
       </header>
 

@@ -8,6 +8,7 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import type { Book } from "../../types/book";
 import type { EpubDuplicateAnalysisResult } from "../../types/epubIntegrity";
+import { TooltipProvider } from "../../components/Tooltip";
 import { LibraryDuplicatesView, type LibraryDuplicatesViewProps } from "./LibraryDuplicatesView";
 
 (
@@ -106,7 +107,9 @@ async function renderView(props: LibraryDuplicatesViewProps) {
   await act(async () => {
     root?.render(
       <LibraryStorageContext.Provider value={storage}>
-        <LibraryDuplicatesView {...props} />
+        <TooltipProvider>
+          <LibraryDuplicatesView {...props} />
+        </TooltipProvider>
       </LibraryStorageContext.Provider>,
     );
   });
@@ -133,12 +136,26 @@ describe("LibraryDuplicatesView", () => {
     ]);
     expect(groups[0]?.textContent).toContain("Exact duplicate");
     expect(groups[0]?.textContent).toContain("Digest");
-    expect(groups[1]?.textContent).toContain("Probable match");
+    expect(groups[1]?.textContent).not.toContain("Probable match");
     expect(groups[1]?.textContent).toContain("EPUB identifier");
     expect(groups[1]?.textContent).toContain("urn:shared");
     expect(rendered.textContent).toContain("Authors/Alpha.epub");
     expect(rendered.textContent).toContain("1.0 MB");
     expect(rendered.textContent).toContain("Ada");
+    expect(rendered.textContent).not.toContain("Review matches before changing archive files.");
+
+    const alphaTitle = rendered.querySelector<HTMLElement>(
+      '[data-reader-book-id="book-a"] .duplicate-member__identity strong',
+    );
+    const tooltipId = alphaTitle?.getAttribute("aria-describedby");
+    expect(tooltipId).toBeTruthy();
+    expect(document.getElementById(tooltipId!)?.textContent).toBe("Alpha");
+
+    const overflow = rendered.querySelector<HTMLButtonElement>(
+      'button[aria-label="File actions for Alpha"]',
+    );
+    expect(overflow?.textContent).not.toContain("More");
+    expect(overflow?.querySelector("svg")).not.toBeNull();
   });
 
   it("targets the current member through existing read, details, reveal, move, and delete adapters", async () => {

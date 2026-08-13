@@ -1,9 +1,10 @@
-import { BookOpen, Copy, FolderOpen, MoveRight, RefreshCw, Trash2 } from "lucide-react";
+import { BookOpen, Copy, Ellipsis, FolderOpen, MoveRight, RefreshCw, Trash2 } from "lucide-react";
 import { memo, useId } from "react";
 
 import { Button } from "../../components/Button";
 import { ContextMenuSurface, ContextMenuTrigger } from "../../components/ContextMenu";
 import { EmptyState } from "../../components/EmptyState";
+import { Tooltip } from "../../components/Tooltip";
 import { useContextMenuController } from "../../components/contextMenuController";
 import type { LibrarySnapshotBook } from "../../storage/LibraryStorage";
 import type {
@@ -61,7 +62,9 @@ const DuplicateMember = memo(function DuplicateMember({
       >
         <BookCover book={book} className="book-cover--duplicate" loadImmediately />
         <span className="duplicate-member__identity">
-          <strong>{title}</strong>
+          <Tooltip content={title} onlyWhenTruncated>
+            <strong>{title}</strong>
+          </Tooltip>
           <span>{author || "Author unavailable"}</span>
         </span>
       </button>
@@ -110,7 +113,9 @@ const DuplicateMember = memo(function DuplicateMember({
           label={`File actions for ${title}`}
           tooltip={`File actions for ${title}`}
         >
-          <span aria-hidden="true">More</span>
+          <span aria-hidden="true" className="icon-slot">
+            <Ellipsis strokeWidth={2.25} />
+          </span>
         </ContextMenuTrigger>
         <ContextMenuSurface
           actions={[
@@ -155,9 +160,7 @@ function DuplicateGroup({
     <section aria-labelledby={titleId} className="duplicate-group" data-duplicate-kind={group.kind}>
       <header className="duplicate-group__header">
         <div>
-          <span className="duplicate-group__classification">
-            {exact ? "Exact duplicate" : "Probable match"}
-          </span>
+          {exact ? <span className="duplicate-group__classification">Exact duplicate</span> : null}
           <h2 id={titleId}>
             {members.length} {members.length === 1 ? "copy" : "copies"}
           </h2>
@@ -224,7 +227,6 @@ export function LibraryDuplicatesView({
                 ? "Analysis unavailable"
                 : groupCountLabel}
           </span>
-          <p>Review matches before changing archive files.</p>
         </div>
       </header>
 

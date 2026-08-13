@@ -144,7 +144,8 @@ describe("LibraryPage duplicate review integration", () => {
       (await waitForButtonWithText(session.container, "Refresh")).click();
     });
     await vi.waitFor(() => {
-      expect(session.container.textContent).toContain("Probable match");
+      expect(session.container.querySelector('[data-duplicate-kind="probable"]')).not.toBeNull();
+      expect(session.container.textContent).toContain("EPUB identifier");
     });
 
     expect(request).toHaveBeenCalledTimes(2);

@@ -2240,12 +2240,6 @@ html[data-motion="on"] .library-feedback__token {
   gap: 18px;
 }
 
-.duplicates-controls > p {
-  margin: 0;
-  color: var(--muted-soft);
-  font-size: var(--type-meta);
-}
-
 .duplicates-content {
   display: grid;
   gap: 14px;
@@ -2304,12 +2298,6 @@ html[data-motion="on"] .library-feedback__token {
   font-weight: var(--font-weight-semibold);
 }
 
-.duplicate-group[data-duplicate-kind="probable"] .duplicate-group__classification {
-  border-color: var(--line-strong);
-  color: var(--muted);
-  background: var(--surface);
-}
-
 .duplicate-group__header h2 {
   margin: 7px 0 0;
   color: var(--text-strong);
@@ -2319,10 +2307,19 @@ html[data-motion="on"] .library-feedback__token {
   line-height: var(--type-heading-line-height);
 }
 
+.duplicate-group[data-duplicate-kind="probable"] .duplicate-group__header h2 {
+  margin-top: 0;
+}
+
 .duplicate-group__identity,
 .duplicate-group__identity div {
   min-width: 0;
   margin: 0;
+}
+
+.duplicate-group__identity {
+  width: min(100%, 280px);
+  justify-self: end;
 }
 
 .duplicate-group__identity dt {
@@ -2339,6 +2336,7 @@ html[data-motion="on"] .library-feedback__token {
   color: var(--text);
   font-size: var(--type-meta);
   text-overflow: ellipsis;
+  text-align: end;
   white-space: nowrap;
 }
 
@@ -2456,13 +2454,21 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .duplicate-member__menu-trigger {
+  display: inline-grid;
+  width: var(--control-height-compact);
+  height: var(--control-height-compact);
   min-height: var(--control-height-compact);
-  padding: 0 9px;
+  place-items: center;
+  padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   color: var(--muted);
   background: transparent;
-  font-size: var(--type-caption);
+}
+
+.duplicate-member__menu-trigger .icon-slot {
+  --icon-slot-size: 18px;
+  --icon-glyph-size: 18px;
 }
 
 .duplicate-member__menu-trigger:hover,
@@ -2506,7 +2512,13 @@ html[data-motion="on"] .library-feedback__token {
     grid-template-columns: 1fr;
   }
 
-  .duplicate-group__identity dt {
+  .duplicate-group__identity {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .duplicate-group__identity dt,
+  .duplicate-group__identity dd {
     text-align: start;
   }
 
@@ -2543,12 +2555,6 @@ html[data-motion="on"] .library-feedback__token {
 
 .epub-issues-controls {
   gap: 18px;
-}
-
-.epub-issues-controls > p {
-  margin: 0;
-  color: var(--muted-soft);
-  font-size: var(--type-meta);
 }
 
 .epub-issues-content {
@@ -2600,6 +2606,34 @@ html[data-motion="on"] .library-feedback__token {
   background: color-mix(in srgb, var(--surface-raised) 64%, transparent);
 }
 
+.epub-issues-book__cover-action,
+.epub-issues-book__title-action {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+}
+
+.epub-issues-book__cover-action {
+  display: block;
+  border-radius: var(--radius-small);
+}
+
+.epub-issues-book__title-action {
+  max-width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-small);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.epub-issues-book__cover-action:hover,
+.epub-issues-book__title-action:hover {
+  color: var(--accent-strong);
+}
+
 .book-cover--epub-issue {
   width: 50px;
   border-radius: var(--radius-small);
@@ -2640,36 +2674,8 @@ html[data-motion="on"] .library-feedback__token {
   font-size: var(--type-caption);
 }
 
-.epub-issues-book__summary {
-  display: flex;
-  justify-content: flex-end;
-  gap: 7px;
-}
-
-.epub-issues-book__summary span {
-  min-height: 22px;
-  padding: 2px 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-pill);
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
-  white-space: nowrap;
-}
-
-.epub-issues-book__summary [data-severity="error"] {
-  border-color: var(--danger-border);
-  color: var(--error);
-  background: var(--danger-soft);
-}
-
-.epub-issues-book__summary [data-severity="warning"] {
-  border-color: color-mix(in srgb, var(--warning) 35%, var(--line));
-  color: var(--warning);
-  background: color-mix(in srgb, var(--warning) 9%, transparent);
-}
-
 .epub-issues-book__disclosure {
-  border-block: 1px solid var(--line);
+  border-top: 1px solid var(--line);
 }
 
 .epub-issues-book__disclosure > summary {
@@ -2719,7 +2725,7 @@ html[data-motion="on"] .library-feedback__token {
 
 .epub-issue-detail {
   display: grid;
-  grid-template-columns: 78px minmax(0, 1fr);
+  grid-template-columns: 18px minmax(0, 1fr);
   align-items: start;
   gap: 6px 12px;
   min-width: 0;
@@ -2732,10 +2738,7 @@ html[data-motion="on"] .library-feedback__token {
 .epub-issue-detail__severity {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
   color: var(--warning);
-  font-size: var(--type-caption);
-  font-weight: var(--font-weight-semibold);
 }
 
 .epub-issue-detail[data-severity="error"] .epub-issue-detail__severity {
@@ -2783,7 +2786,10 @@ html[data-motion="on"] .library-feedback__token {
   justify-content: flex-end;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 12px 14px;
+}
+
+.epub-issues-book__actions .button:last-child {
+  margin-inline-end: calc(-1 * var(--button-padding-inline));
 }
 
 @media (max-width: 680px) {
@@ -2803,22 +2809,16 @@ html[data-motion="on"] .library-feedback__token {
     padding-block: 10px;
   }
 
-  .epub-issues-error,
-  .epub-issues-book__header,
-  .epub-issue-detail {
+  .epub-issues-error {
     grid-template-columns: 1fr;
+  }
+
+  .epub-issues-book__header {
+    grid-template-columns: 56px minmax(0, 1fr);
   }
 
   .book-cover--epub-issue {
     width: 56px;
-  }
-
-  .epub-issues-book__summary {
-    justify-content: flex-start;
-  }
-
-  .epub-issue-detail__context {
-    grid-column: auto;
   }
 
   .epub-issue-detail__context div {
@@ -2827,7 +2827,12 @@ html[data-motion="on"] .library-feedback__token {
   }
 
   .epub-issues-book__actions {
+    grid-column: 1 / -1;
     justify-content: flex-start;
+  }
+
+  .epub-issues-book__actions .button:last-child {
+    margin-inline-end: 0;
   }
 }
 

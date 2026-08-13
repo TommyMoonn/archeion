@@ -117,8 +117,11 @@ describe("LibraryEpubIssuesView", () => {
     const blockedRow = rendered.querySelector<HTMLElement>('[data-reader-book-id="blocked"]')!;
 
     expect(rendered.textContent).toContain("2 affected books");
-    expect(readableRow.textContent).toContain("1 warning");
-    expect(blockedRow.textContent).toContain("1 error");
+    expect(rendered.textContent).not.toContain(
+      "Inspect Reader-relevant problems without changing EPUB files.",
+    );
+    expect(readableRow.querySelector(".epub-issues-book__summary")).toBeNull();
+    expect(blockedRow.querySelector(".epub-issues-book__summary")).toBeNull();
     const summary = readableRow.querySelector<HTMLElement>("summary")!;
     summary.focus();
     expect(document.activeElement).toBe(summary);
@@ -128,13 +131,23 @@ describe("LibraryEpubIssuesView", () => {
     expect(readableRow.textContent).toContain("OPS/chapter.xhtml");
 
     await act(async () => {
+      readableRow
+        .querySelector<HTMLButtonElement>(
+          'button[aria-label="Open details for Readable with warning"]',
+        )
+        ?.click();
+      buttonWithText(readableRow, "Readable with warning")?.click();
       buttonWithText(readableRow, "Read")?.click();
-      buttonWithText(readableRow, "Book details")?.click();
       buttonWithText(readableRow, "Reveal")?.click();
     });
     expect(props.onRead).toHaveBeenCalledWith(readable);
-    expect(props.onOpenDetails).toHaveBeenCalledWith(readable);
+    expect(props.onOpenDetails).toHaveBeenCalledTimes(2);
+    expect(props.onOpenDetails).toHaveBeenNthCalledWith(1, readable);
+    expect(props.onOpenDetails).toHaveBeenNthCalledWith(2, readable);
     expect(props.onReveal).toHaveBeenCalledWith(readable);
+    expect(readableRow.querySelector(".epub-issues-book__header")?.textContent).toContain("Read");
+    expect(readableRow.querySelector(".epub-issues-book__header")?.textContent).toContain("Reveal");
+    expect(readableRow.querySelector(":scope > .epub-issues-book__actions")).toBeNull();
     expect(
       blockedRow.querySelector('[data-issue-code="inspection-limit-exceeded"]'),
     ).not.toBeNull();

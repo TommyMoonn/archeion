@@ -544,8 +544,8 @@ describe("mounted reader-return surfaces", () => {
       await pending.promise;
     });
     await waitForButtonWithText(session.container, "Read");
-    const restored = session.container.querySelector<HTMLElement>(
-      '[data-reader-book-id="issue-origin"] summary',
+    const restored = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open details for Issue Origin"]',
     );
     await flushRestoration();
 

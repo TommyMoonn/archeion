@@ -74,7 +74,11 @@ describe("LibraryPage EPUB Issues integration", () => {
     });
     suite.trackRoot(session.root);
 
-    await act(async () => (await waitForButtonWithText(session.container, "Book details")).click());
+    const details = session.container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open details for Affected EPUB"]',
+    );
+    if (!details) throw new Error("Affected EPUB details action was not rendered.");
+    await act(async () => details.click());
     await vi.waitFor(() => {
       expect(session.container.querySelector(".details-drawer")?.textContent).toContain(
         "Affected EPUB",
