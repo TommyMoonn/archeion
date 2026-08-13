@@ -37,7 +37,7 @@ import {
 } from "./LibraryTitlebarComposition";
 import { LibraryToolbar } from "./LibraryToolbar";
 import type { LibraryIntegrityController } from "./useLibraryIntegrity";
-import { SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
+import { LibraryDuplicatesView, SeriesDetail, SeriesOverview } from "./libraryLazySurfaces";
 import { useBookCollectionFocusPreservation } from "./useBookCollectionFocusPreservation";
 import { librarySidebarToggleLabel, useLibrarySidebarState } from "./useLibrarySidebarState";
 import { libraryLocationKey } from "./useLibraryWorkspaceNavigation";
@@ -74,6 +74,7 @@ type LibraryWorkspaceSurfaceProps = {
   bookCollectionProps: SharedBookCollectionProps;
   continuePreview: readonly LibrarySnapshotBook[];
   debouncedQuery: string;
+  duplicatesViewProps: ComponentProps<typeof LibraryDuplicatesView>;
   emptyState: { title: string; description: string };
   feedbackProps: ComponentProps<typeof LibraryFeedbackStack>;
   folderBrowserProps: ComponentProps<typeof FolderBrowser>;
@@ -110,6 +111,7 @@ export function LibraryWorkspaceSurface({
   bookCollectionProps,
   continuePreview,
   debouncedQuery,
+  duplicatesViewProps,
   emptyState,
   feedbackProps,
   folderBrowserProps,
@@ -257,6 +259,32 @@ export function LibraryWorkspaceSurface({
             surfaceKey={libraryLocationKey(location)}
           >
             <SeriesDetail {...seriesDetailProps} />
+          </MountedReaderReturnSurface>
+        </Suspense>
+      ) : location.type === "duplicates" ? (
+        <Suspense
+          fallback={
+            <div
+              aria-busy="true"
+              className="collection-content library-content"
+              data-surface-state="loading"
+            >
+              <div className="collection-content__loading library-loading" role="status">
+                Checking for duplicate EPUBs
+              </div>
+            </div>
+          }
+        >
+          <MountedReaderReturnSurface
+            key={libraryLocationKey(location)}
+            onReady={onMountedReturnSurfaceReady}
+            ready={
+              duplicatesViewProps.state.snapshot !== null ||
+              duplicatesViewProps.state.status === "error"
+            }
+            surfaceKey={libraryLocationKey(location)}
+          >
+            <LibraryDuplicatesView {...duplicatesViewProps} />
           </MountedReaderReturnSurface>
         </Suspense>
       ) : isLibraryIntegrityLocation(location) ? (
@@ -408,14 +436,16 @@ function LibraryIntegrityPlaceholder({
 function MountedReaderReturnSurface({
   children,
   onReady,
+  ready = true,
   surfaceKey,
 }: {
   children: ReactNode;
   onReady: (surfaceKey: string) => void;
+  ready?: boolean;
   surfaceKey: string;
 }) {
   useLayoutEffect(() => {
-    onReady(surfaceKey);
-  }, [onReady, surfaceKey]);
+    if (ready) onReady(surfaceKey);
+  }, [onReady, ready, surfaceKey]);
   return children;
 }

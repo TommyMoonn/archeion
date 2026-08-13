@@ -15,7 +15,11 @@ import {
   appPreferencesStore,
 } from "../../stores/appPreferencesStore";
 import type { LibraryLocation } from "../../types/library";
-import { createDefaultLibraryFilters } from "../../types/library";
+import {
+  createDefaultLibraryFilters,
+  isLibraryIntegrityLocation,
+  libraryIntegrityLocationLabel,
+} from "../../types/library";
 import { isLibrarySmartViewVisible } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
 import type { ImportSettings } from "../../types/settings";
@@ -56,6 +60,7 @@ import { useCollectionDisplayPreferences } from "./useCollectionDisplayPreferenc
 import { useLibraryViewPreferences } from "./useLibraryViewPreferences";
 import { startupTrace } from "../../app/startupTrace";
 import { createLibraryCollectionQuickActions } from "./libraryCollectionQuickActions";
+import { duplicateGroupBooks } from "./libraryDuplicatesReadModel";
 import { useLibraryIntegrity } from "./useLibraryIntegrity";
 
 type ReadyArchiveState = Extract<ArchiveState, { status: "ready" }>;
@@ -321,6 +326,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     returnContextRestoredRef: navigation.returnContextRestoredRef,
     visibleBooks,
   });
+  const mutationVisibleBooks = useMemo(
+    () =>
+      navigation.location.type === "duplicates"
+        ? duplicateGroupBooks(books ?? [], integrity.duplicates.snapshot)
+        : visibleBooks,
+    [books, integrity.duplicates.snapshot, navigation.location.type, visibleBooks],
+  );
 
   const {
     beginBookMutation,
@@ -333,10 +345,13 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   } = useLibraryMutationFocus({
     activeArchiveId: activeArchive.id,
     dialogOpen: dialog.type !== "none",
-    fallbackRef: navigation.searchInputRef,
+    fallbackRef:
+      navigation.location.type === "duplicates"
+        ? navigation.pageShellRef
+        : navigation.searchInputRef,
     folders: folders ?? [],
     locationKey: libraryLocationKey(navigation.location),
-    visibleBooks,
+    visibleBooks: mutationVisibleBooks,
   });
 
   const { changeFilters, changeSort, changeView } = useLibraryViewPreferences({
@@ -404,15 +419,17 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
     scrollMainContentToTop();
   }, [changeFilters, scrollMainContentToTop]);
 
-  const readerReturnLabel = navigation.query.trim()
-    ? "Search results"
-    : navigation.location.type === "folders"
-      ? "Folders"
-      : navigation.location.type === "series"
-        ? "Series"
-        : navigation.location.type === "series-detail"
-          ? (activeSeries?.displayName ?? "Series")
-          : libraryTitle;
+  const readerReturnLabel = isLibraryIntegrityLocation(navigation.location)
+    ? libraryIntegrityLocationLabel(navigation.location)
+    : navigation.query.trim()
+      ? "Search results"
+      : navigation.location.type === "folders"
+        ? "Folders"
+        : navigation.location.type === "series"
+          ? "Series"
+          : navigation.location.type === "series-detail"
+            ? (activeSeries?.displayName ?? "Series")
+            : libraryTitle;
   const readBook = useCallback(
     (book: LibrarySnapshotBook) => openReader(book, readerReturnLabel),
     [openReader, readerReturnLabel],
@@ -795,6 +812,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         }}
         continuePreview={continuePreview}
         debouncedQuery={debouncedQuery}
+        duplicatesViewProps={{
+          books: books ?? [],
+          onDelete: requestDeleteBook,
+          onMove: openMoveBook,
+          onOpenDetails: openBookDetails,
+          onRead: readBook,
+          onRefresh: integrity.refreshDuplicates,
+          onReveal: bookActions.revealBookFile,
+          state: integrity.duplicates,
+        }}
         emptyState={emptyState}
         feedbackProps={{ onDismiss: dismissFeedback, tokens: feedbackTokens }}
         folderBrowserProps={{

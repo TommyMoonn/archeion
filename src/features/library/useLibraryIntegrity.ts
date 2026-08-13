@@ -14,6 +14,7 @@ import type {
   EpubIntegrityOperation,
   EpubIntegrityReadState,
 } from "../../types/epubIntegrity";
+import { libraryBookAnalysisFile } from "./libraryIntegrityFiles";
 
 type IntegrityScope = Readonly<{
   archiveGeneration: number;
@@ -80,20 +81,6 @@ function integrityScope(
   };
 }
 
-function fileSignature(book: LibrarySnapshotBook) {
-  if (book.isFileMissing || !book.relativePath || book.size === undefined || !book.modifiedAt) {
-    return null;
-  }
-  const modifiedAtMillis = Date.parse(book.modifiedAt);
-  if (!Number.isFinite(modifiedAtMillis) || !Number.isSafeInteger(book.size) || book.size < 0) {
-    return null;
-  }
-  return {
-    relativePath: book.relativePath,
-    signature: { modifiedAtMillis, sizeBytes: book.size },
-  } satisfies EpubAnalysisFileRequest;
-}
-
 function analysisInputs(books: readonly LibrarySnapshotBook[] | null | undefined): Readonly<{
   candidates: readonly EpubDuplicateAnalysisCandidate[];
   files: readonly EpubAnalysisFileRequest[];
@@ -101,7 +88,7 @@ function analysisInputs(books: readonly LibrarySnapshotBook[] | null | undefined
   const files: EpubAnalysisFileRequest[] = [];
   const candidates: EpubDuplicateAnalysisCandidate[] = [];
   for (const book of books ?? []) {
-    const file = fileSignature(book);
+    const file = libraryBookAnalysisFile(book);
     if (!file) continue;
     files.push(file);
     const identifier = book.sourceMetadata?.identifier?.trim();

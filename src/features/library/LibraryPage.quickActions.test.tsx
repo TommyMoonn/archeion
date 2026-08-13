@@ -579,26 +579,26 @@ describe("LibraryPage Quick Actions", () => {
   });
 
   it.each([
-    ["Go to Duplicates", "Duplicates", "requestDuplicateAnalysis"],
-    ["Go to EPUB Issues", "EPUB Issues", "requestDiagnostics"],
+    ["Go to Duplicates", "Duplicates", "requestDuplicateAnalysis", "No duplicate groups"],
+    ["Go to EPUB Issues", "EPUB Issues", "requestDiagnostics", "Analysis ready"],
   ] as const)(
     "routes %s through Library navigation and the shared integrity controller",
-    async (command, title, requestMethod) => {
+    async (command, title, requestMethod, readyCopy) => {
       const rendered = await renderLibrary();
 
       await executeCommand(command);
       await vi.waitFor(() => {
         expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalledOnce();
+        expect(rendered.container.querySelector("main h1")?.textContent).toBe(title);
       });
 
-      expect(rendered.container.querySelector("main h1")?.textContent).toBe(title);
       expect(
         rendered.container
           .querySelector(`button[aria-label="${title}"]`)
           ?.getAttribute("aria-current"),
       ).toBe("page");
       expect(rendered.container.querySelector('input[name="archeion-library-search"]')).toBeNull();
-      expect(rendered.container.textContent).toContain("Analysis ready");
+      expect(rendered.container.textContent).toContain(readyCopy);
     },
   );
 

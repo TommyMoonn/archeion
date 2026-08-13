@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
 import type { Book } from "../../types/book";
+import type { EpubDuplicateAnalysisResult } from "../../types/epubIntegrity";
 import {
   createStorage,
   readyState,
@@ -15,6 +16,14 @@ import {
   waitForButtonWithLabel,
   waitForButtonWithText,
 } from "./LibraryPage.testUtils";
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
 
 function largeBooks(count = 500): Book[] {
   return Array.from({ length: count }, (_, index) =>
@@ -391,6 +400,7 @@ describe("mounted reader-return surfaces", () => {
       await vi.waitFor(() =>
         expect(archiveIntegrityCommandClient[requestMethod]).toHaveBeenCalled(),
       );
+      await waitForSelector(session.container, "main h1");
       await flushRestoration();
 
       const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
@@ -400,6 +410,76 @@ describe("mounted reader-return surfaces", () => {
       expect(session.container.querySelector(".book-grid, .book-list")).toBeNull();
     },
   );
+
+  it("waits for duplicate rows before restoring a Reader return target", async () => {
+    const modifiedAt = Date.parse("2026-08-01T00:00:00.000Z");
+    const target = {
+      ...selectionBook("duplicate-origin", "Duplicate Origin"),
+      modifiedAt: new Date(modifiedAt).toISOString(),
+      size: 128,
+    };
+    const copy = {
+      ...selectionBook("duplicate-copy", "Duplicate Copy"),
+      modifiedAt: new Date(modifiedAt).toISOString(),
+      size: 128,
+    };
+    const pending = deferred<EpubDuplicateAnalysisResult>();
+    vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockReturnValue(
+      pending.promise,
+    );
+    const href = `/?archiveId=${readyState.archive.id}&view=duplicates`;
+    const session = await renderLibraryPage(createStorage({ books: [target, copy] }), {
+      pathname: "/",
+      search: `?archiveId=${readyState.archive.id}&view=duplicates`,
+      state: {
+        libraryRestoreContext: {
+          archiveId: readyState.archive.id,
+          focusBookId: target.id,
+          href,
+          scrollTop: 180,
+        },
+      },
+    });
+    suite.trackRoot(session.root);
+    await vi.waitFor(() =>
+      expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).toHaveBeenCalled(),
+    );
+    await flushRestoration();
+
+    const pageShell = session.container.querySelector<HTMLElement>(".page-shell")!;
+    expect(session.container.querySelector("[data-reader-book-id]")).toBeNull();
+    expect(document.activeElement).not.toBe(pageShell);
+
+    const request = vi.mocked(archiveIntegrityCommandClient.requestDuplicateAnalysis).mock
+      .calls[0]?.[0];
+    if (!request) throw new Error("Expected a duplicate analysis request.");
+    await act(async () => {
+      pending.resolve({
+        archiveGeneration: request.archiveGeneration,
+        groups: [
+          {
+            identity: "sha256:reader-return",
+            kind: "exact",
+            members: [target.relativePath!, copy.relativePath!],
+          },
+        ],
+        requestRevision: request.requestRevision,
+        signatures: {
+          [target.relativePath!]: { modifiedAtMillis: modifiedAt, sizeBytes: target.size },
+          [copy.relativePath!]: { modifiedAtMillis: modifiedAt, sizeBytes: copy.size },
+        },
+      });
+      await pending.promise;
+    });
+    const restored = await waitForButtonWithLabel(
+      session.container,
+      "Open details for Duplicate Origin",
+    );
+    await flushRestoration();
+
+    expect(document.activeElement).toBe(restored);
+    expect(pageShell.scrollTop).toBe(180);
+  });
 
   it("restores a normal Series Detail volume action", async () => {
     const session = await renderLibraryPage(createStorage({ books: seriesBooks() }), {

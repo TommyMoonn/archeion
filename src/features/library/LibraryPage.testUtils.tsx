@@ -20,8 +20,10 @@ import type { Folder } from "../../types/folder";
 import { createDefaultLibraryFilters } from "../../types/library";
 import { LibraryPage } from "./LibraryPage";
 import {
+  LibraryPageLocationProbe,
   LibraryPageNavigateProbe,
   LibraryPageRouteProbe,
+  type LibraryPageLocationChange,
   type LibraryPageRouteChange,
 } from "./LibraryPageRouteProbe.testUtils";
 
@@ -379,6 +381,7 @@ export async function renderLibraryPage(
   initialEntry: MemoryRouterInitialEntry = "/",
   onRouteChange?: (route: LibraryPageRouteChange) => void,
   onNavigateReady?: (navigate: NavigateFunction) => void,
+  onLocationChange?: (route: LibraryPageLocationChange) => void,
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -391,6 +394,7 @@ export async function renderLibraryPage(
         <MemoryRouter initialEntries={[initialEntry]}>
           {onRouteChange ? <LibraryPageRouteProbe onChange={onRouteChange} /> : null}
           {onNavigateReady ? <LibraryPageNavigateProbe onReady={onNavigateReady} /> : null}
+          {onLocationChange ? <LibraryPageLocationProbe onChange={onLocationChange} /> : null}
           <LibraryStorageContext.Provider value={storage}>
             <LibraryPage />
           </LibraryStorageContext.Provider>
