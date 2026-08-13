@@ -160,7 +160,9 @@ function DuplicateGroup({
     <section aria-labelledby={titleId} className="duplicate-group" data-duplicate-kind={group.kind}>
       <header className="duplicate-group__header">
         <div>
-          {exact ? <span className="duplicate-group__classification">Exact duplicate</span> : null}
+          <span className="duplicate-group__classification">
+            {exact ? "Exact duplicate" : "Probable duplicate"}
+          </span>
           <h2 id={titleId}>
             {members.length} {members.length === 1 ? "copy" : "copies"}
           </h2>

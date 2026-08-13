@@ -1,10 +1,12 @@
 import {
   BookOpen,
   ChevronDown,
+  CircleAlert,
   FileCheck2,
   FileWarning,
   FolderOpen,
   RefreshCw,
+  TriangleAlert,
 } from "lucide-react";
 import { useId } from "react";
 
@@ -42,7 +44,7 @@ function EpubIssueBook({
   resolved: ResolvedEpubIssueBook;
 }) {
   const titleId = useId();
-  const { book, entry, readerAvailable } = resolved;
+  const { book, entry, errorCount, readerAvailable, warningCount } = resolved;
   const title = bookTitle(book);
   const author = bookAuthor(book);
   const issueCount = entry.diagnostics.issues.length;
@@ -73,6 +75,26 @@ function EpubIssueBook({
           </h2>
           <p>{author || "Author unavailable"}</p>
           <span title={book.relativePath}>{book.relativePath}</span>
+          <div
+            className="epub-issues-book__summary"
+            data-reader-available={readerAvailable ? "true" : "false"}
+          >
+            {errorCount > 0 ? (
+              <span data-severity="error">
+                <CircleAlert aria-hidden="true" size={14} />
+                {countLabel(errorCount, "error")}
+              </span>
+            ) : null}
+            {warningCount > 0 ? (
+              <span data-severity="warning">
+                <TriangleAlert aria-hidden="true" size={14} />
+                {countLabel(warningCount, "warning")}
+              </span>
+            ) : null}
+            {!readerAvailable ? (
+              <strong className="epub-issues-book__reader-status">Reader unavailable</strong>
+            ) : null}
+          </div>
         </div>
         <div className="epub-issues-book__actions">
           <Button

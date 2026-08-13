@@ -2307,8 +2307,10 @@ html[data-motion="on"] .library-feedback__token {
   line-height: var(--type-heading-line-height);
 }
 
-.duplicate-group[data-duplicate-kind="probable"] .duplicate-group__header h2 {
-  margin-top: 0;
+.duplicate-group[data-duplicate-kind="probable"] .duplicate-group__classification {
+  border-color: var(--line-strong);
+  color: var(--text);
+  background: color-mix(in srgb, var(--surface-hover) 72%, transparent);
 }
 
 .duplicate-group__identity,
@@ -2668,10 +2670,47 @@ html[data-motion="on"] .library-feedback__token {
   font-size: var(--type-meta);
 }
 
-.epub-issues-book__identity span {
+.epub-issues-book__identity > span {
   color: var(--muted-soft);
   font-family: var(--font-mono);
   font-size: var(--type-caption);
+}
+
+.epub-issues-book__summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 12px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--type-caption);
+}
+
+.epub-issues-book__summary > span,
+.epub-issues-book__reader-status {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  gap: 5px;
+  margin: 0;
+  overflow: visible;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.epub-issues-book__summary > span[data-severity="error"] {
+  color: var(--error);
+}
+
+.epub-issues-book__summary > span[data-severity="warning"] {
+  color: var(--warning);
+}
+
+.epub-issues-book__reader-status {
+  padding-inline-start: 12px;
+  border-inline-start: 1px solid var(--line-strong);
+  color: var(--text-strong);
+  font-weight: var(--font-weight-semibold);
 }
 
 .epub-issues-book__disclosure {
@@ -2712,7 +2751,7 @@ html[data-motion="on"] .library-feedback__token {
 }
 
 .epub-issue-details {
-  padding: 4px 17px 14px;
+  padding: 14px 17px;
 }
 
 .epub-issue-details__list {
@@ -2738,7 +2777,14 @@ html[data-motion="on"] .library-feedback__token {
 .epub-issue-detail__severity {
   display: inline-flex;
   align-items: center;
+  align-self: center;
+  justify-self: center;
   color: var(--warning);
+  line-height: 0;
+}
+
+.epub-issue-detail:has(.epub-issue-detail__context) .epub-issue-detail__severity {
+  grid-row: 1 / span 2;
 }
 
 .epub-issue-detail[data-severity="error"] .epub-issue-detail__severity {

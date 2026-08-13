@@ -29,10 +29,11 @@ function book(id: string, title: string): Book {
 
 const readable = book("readable", "Readable with warning");
 const blocked = book("blocked", "Unreadable archive");
+const mixed = book("mixed", "Mixed diagnostics");
 
 function analysis(
   requestRevision = 1,
-  order: readonly Book[] = [readable, blocked],
+  order: readonly Book[] = [readable, blocked, mixed],
 ): EpubDiagnosticAnalysisResult {
   return {
     archiveGeneration: 1,
@@ -42,14 +43,24 @@ function analysis(
         issues:
           candidate.id === "blocked"
             ? [{ code: "inspection-limit-exceeded" as const, severity: "error" as const }]
-            : [
-                {
-                  code: "broken-local-document-target" as const,
-                  messageInputs: { href: "missing.xhtml" },
-                  resourcePath: "OPS/chapter.xhtml",
-                  severity: "warning" as const,
-                },
-              ],
+            : candidate.id === "mixed"
+              ? [
+                  { code: "unreadable-zip" as const, severity: "error" as const },
+                  {
+                    code: "broken-local-document-target" as const,
+                    messageInputs: { href: "missing.xhtml" },
+                    resourcePath: "OPS/chapter.xhtml",
+                    severity: "warning" as const,
+                  },
+                ]
+              : [
+                  {
+                    code: "broken-local-document-target" as const,
+                    messageInputs: { href: "missing.xhtml" },
+                    resourcePath: "OPS/chapter.xhtml",
+                    severity: "warning" as const,
+                  },
+                ],
       },
       relativePath: candidate.relativePath!,
       signature: { modifiedAtMillis: modifiedAt, sizeBytes: candidate.size! },
@@ -70,7 +81,7 @@ function defaultProps(
   overrides: Partial<LibraryEpubIssuesViewProps> = {},
 ): LibraryEpubIssuesViewProps {
   return {
-    books: [readable, blocked],
+    books: [readable, blocked, mixed],
     onOpenDetails: vi.fn(),
     onRead: vi.fn(),
     onRefresh: vi.fn().mockResolvedValue(true),
@@ -116,12 +127,30 @@ describe("LibraryEpubIssuesView", () => {
     const readableRow = rendered.querySelector<HTMLElement>('[data-reader-book-id="readable"]')!;
     const blockedRow = rendered.querySelector<HTMLElement>('[data-reader-book-id="blocked"]')!;
 
-    expect(rendered.textContent).toContain("2 affected books");
+    const mixedRow = rendered.querySelector<HTMLElement>('[data-reader-book-id="mixed"]')!;
+
+    expect(rendered.textContent).toContain("3 affected books");
     expect(rendered.textContent).not.toContain(
       "Inspect Reader-relevant problems without changing EPUB files.",
     );
-    expect(readableRow.querySelector(".epub-issues-book__summary")).toBeNull();
-    expect(blockedRow.querySelector(".epub-issues-book__summary")).toBeNull();
+    expect(readableRow.querySelector('[data-severity="warning"]')?.textContent).toBe("1 warning");
+    expect(blockedRow.querySelector('[data-severity="error"]')?.textContent).toBe("1 error");
+    expect(blockedRow.querySelector(".epub-issues-book__reader-status")?.textContent).toBe(
+      "Reader unavailable",
+    );
+    expect(mixedRow.querySelector('[data-severity="error"]')?.textContent).toBe("1 error");
+    expect(mixedRow.querySelector('[data-severity="warning"]')?.textContent).toBe("1 warning");
+    expect(mixedRow.querySelector(".epub-issues-book__reader-status")?.textContent).toBe(
+      "Reader unavailable",
+    );
+    expect(
+      readableRow
+        .querySelector(".epub-issues-book__summary")
+        ?.getAttribute("data-reader-available"),
+    ).toBe("true");
+    expect(
+      blockedRow.querySelector(".epub-issues-book__summary")?.getAttribute("data-reader-available"),
+    ).toBe("false");
     const summary = readableRow.querySelector<HTMLElement>("summary")!;
     summary.focus();
     expect(document.activeElement).toBe(summary);
@@ -152,6 +181,7 @@ describe("LibraryEpubIssuesView", () => {
       blockedRow.querySelector('[data-issue-code="inspection-limit-exceeded"]'),
     ).not.toBeNull();
     expect(buttonWithText(blockedRow, "Read")?.getAttribute("aria-disabled")).toBe("true");
+    expect(buttonWithText(readableRow, "Read")?.getAttribute("aria-disabled")).toBeNull();
   });
 
   it("publishes replacement diagnostics through Refresh", async () => {
@@ -221,6 +251,6 @@ describe("LibraryEpubIssuesView", () => {
     );
 
     expect(rendered.textContent).toContain("Refresh failed.");
-    expect(rendered.querySelectorAll("[data-reader-book-id]")).toHaveLength(2);
+    expect(rendered.querySelectorAll("[data-reader-book-id]")).toHaveLength(3);
   });
 });

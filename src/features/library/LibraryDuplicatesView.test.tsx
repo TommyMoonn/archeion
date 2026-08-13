@@ -136,7 +136,7 @@ describe("LibraryDuplicatesView", () => {
     ]);
     expect(groups[0]?.textContent).toContain("Exact duplicate");
     expect(groups[0]?.textContent).toContain("Digest");
-    expect(groups[1]?.textContent).not.toContain("Probable match");
+    expect(groups[1]?.textContent).toContain("Probable duplicate");
     expect(groups[1]?.textContent).toContain("EPUB identifier");
     expect(groups[1]?.textContent).toContain("urn:shared");
     expect(rendered.textContent).toContain("Authors/Alpha.epub");
