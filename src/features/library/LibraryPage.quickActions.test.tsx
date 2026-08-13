@@ -22,6 +22,7 @@ import { archiveStore, type ArchiveState } from "../../stores/archiveStore";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { Book } from "../../types/book";
 import type { Folder } from "../../types/folder";
+import { DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES } from "../../types/librarySmartViews";
 import { installLibrarySidebarMedia } from "./librarySidebarMedia.testUtils";
 import { LibraryPage } from "./LibraryPage";
 
@@ -316,6 +317,10 @@ beforeEach(async () => {
         folders: { cardSize: "medium", sortBy: "name", viewMode: "list" },
         series: { cardSize: "medium", sortBy: "title", viewMode: "grid" },
       },
+      smartViews: {
+        enabled: DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.enabled,
+        visible: [...DEFAULT_LIBRARY_SMART_VIEW_PREFERENCES.visible],
+      },
     },
   });
 });
@@ -584,6 +589,16 @@ describe("LibraryPage Quick Actions", () => {
   ] as const)(
     "routes %s through Library navigation and the shared integrity controller",
     async (command, title, requestMethod, readyCopy) => {
+      const current = appPreferencesStore.getSnapshot();
+      await appPreferencesStore.update({
+        library: {
+          ...current.library,
+          smartViews: {
+            enabled: true,
+            visible: [title === "Duplicates" ? "duplicates" : "epub-issues"],
+          },
+        },
+      });
       const rendered = await renderLibrary();
 
       await executeCommand(command);
@@ -592,15 +607,49 @@ describe("LibraryPage Quick Actions", () => {
         expect(rendered.container.querySelector("main h1")?.textContent).toBe(title);
       });
 
+      const disclosure = rendered.container.querySelector<HTMLButtonElement>(
+        ".sidebar__smart-views-disclosure",
+      );
+      expect(disclosure?.textContent).toContain(`· ${title}`);
+      act(() => disclosure?.click());
       expect(
-        rendered.container
-          .querySelector(`button[aria-label="${title}"]`)
+        Array.from(
+          rendered.container.querySelectorAll<HTMLButtonElement>(
+            ".sidebar__smart-views-list button",
+          ),
+        )
+          .find((button) => button.textContent === title)
           ?.getAttribute("aria-current"),
       ).toBe("page");
       expect(rendered.container.querySelector('input[name="archeion-library-search"]')).toBeNull();
       expect(rendered.container.textContent).toContain(readyCopy);
     },
   );
+
+  it("keeps hidden archive-health navigation out of Quick Actions without starting analysis", async () => {
+    await renderLibrary();
+    const search = await openPalette();
+    await act(async () => setInputValue(search, "Go to Duplicates"));
+
+    expect(document.querySelector('[role="option"]')).toBeNull();
+    expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).not.toHaveBeenCalled();
+    expect(archiveIntegrityCommandClient.requestDiagnostics).not.toHaveBeenCalled();
+  });
+
+  it("does not start integrity analysis when archive-health Smart Views are only enabled", async () => {
+    const current = appPreferencesStore.getSnapshot();
+    await appPreferencesStore.update({
+      library: {
+        ...current.library,
+        smartViews: { enabled: true, visible: ["duplicates", "epub-issues"] },
+      },
+    });
+    const rendered = await renderLibrary();
+
+    expect(rendered.container.querySelector(".sidebar__smart-views-disclosure")).not.toBeNull();
+    expect(archiveIntegrityCommandClient.requestDuplicateAnalysis).not.toHaveBeenCalled();
+    expect(archiveIntegrityCommandClient.requestDiagnostics).not.toHaveBeenCalled();
+  });
 
   it("enters a contextual Books display mode and persists the confirmed value", async () => {
     const rendered = await renderLibrary(

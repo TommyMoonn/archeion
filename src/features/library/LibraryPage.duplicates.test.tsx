@@ -1,10 +1,11 @@
 // @vitest-environment happy-dom
 
 import { act } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readerReturnContextFromState } from "../../app/readerReturnContext";
 import { archiveIntegrityCommandClient } from "../../storage/archiveCommandClient";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import type { LibrarySnapshot, StorageObserver } from "../../storage/LibraryStorage";
 import type { Book } from "../../types/book";
 import type { EpubDuplicateAnalysisResult } from "../../types/epubIntegrity";
@@ -61,6 +62,16 @@ function result(
 }
 
 describe("LibraryPage duplicate review integration", () => {
+  beforeEach(async () => {
+    const preferences = appPreferencesStore.getSnapshot();
+    await appPreferencesStore.update({
+      library: {
+        ...preferences.library,
+        smartViews: { enabled: true, visible: ["duplicates"] },
+      },
+    });
+  });
+
   it("routes member actions to the current Library action owners", async () => {
     vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
       async (request) => result(request.requestRevision),
@@ -200,6 +211,34 @@ describe("LibraryPage duplicate review integration", () => {
     });
     await vi.waitFor(() => {
       expect(document.activeElement).toBe(session.container.querySelector("main"));
+    });
+  });
+
+  it("settles an active duplicate view to Library when its Smart View is hidden", async () => {
+    vi.spyOn(archiveIntegrityCommandClient, "requestDuplicateAnalysis").mockImplementation(
+      async (request) => result(request.requestRevision),
+    );
+    const session = await renderLibraryPage(
+      createStorage({ books: [alpha, alphaCopy] }),
+      "/?archiveId=archive-books&view=duplicates",
+    );
+    suite.trackRoot(session.root);
+    await vi.waitFor(() =>
+      expect(session.container.querySelector("main h1")?.textContent).toBe("Duplicates"),
+    );
+
+    const preferences = appPreferencesStore.getSnapshot();
+    await act(async () => {
+      await appPreferencesStore.update({
+        library: {
+          ...preferences.library,
+          smartViews: { enabled: true, visible: ["unread"] },
+        },
+      });
+    });
+
+    await vi.waitFor(() => {
+      expect(session.container.querySelector("main h1")?.textContent).toBe("Library");
     });
   });
 });

@@ -1,7 +1,7 @@
 import type { ReadonlyBook } from "../../types/book";
 import type { ReadonlyFolder } from "../../types/folder";
-import type { LibrarySmartView } from "../../types/library";
-import { LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
+import type { LibraryBookSmartView } from "../../types/library";
+import { LIBRARY_BOOK_SMART_VIEWS } from "../../types/librarySmartViews";
 import type { SeriesEntry } from "../../types/series";
 import {
   createFolderBrowserEntry,
@@ -26,7 +26,7 @@ export type LibraryIndexEntry = Readonly<{
   book: ReadonlyBook;
   search: LibrarySearchIndexEntry;
   seriesKey?: string;
-  smartViews: readonly LibrarySmartView[];
+  smartViews: readonly LibraryBookSmartView[];
 }>;
 
 type CachedLibraryIndexEntry = Readonly<{
@@ -238,7 +238,7 @@ function createIndexEntry(
   cached: CachedLibraryIndexEntry | undefined,
 ): LibraryIndexEntry {
   const seriesKey = normalizeSeriesKey(book.sourceMetadata?.series);
-  const smartViews = LIBRARY_SMART_VIEWS.filter((smartView) =>
+  const smartViews = LIBRARY_BOOK_SMART_VIEWS.filter((smartView) =>
     bookMatchesSmartView(book, smartView),
   );
   const folder = book.folderId ? folderById.get(book.folderId) : undefined;

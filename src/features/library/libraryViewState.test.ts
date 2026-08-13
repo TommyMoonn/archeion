@@ -265,6 +265,32 @@ describe("library view URL state", () => {
     expect(next.get("query")).toBe("space");
   });
 
+  it("falls back from hidden integrity URLs and preserves explicitly visible destinations", () => {
+    expect(
+      libraryLocationFromSearchParams(
+        params("view=duplicates&query=space"),
+        folders,
+        undefined,
+        limitedSmartViews,
+      ),
+    ).toEqual({ type: "library" });
+    expect(
+      libraryLocationFromSearchParams(params("view=epub-issues"), folders, undefined, {
+        enabled: true,
+        visible: ["epub-issues"],
+      }),
+    ).toEqual({ type: "epub-issues" });
+    expect(
+      searchParamsForLibraryLocation(
+        params("view=library&query=space"),
+        { type: "duplicates" },
+        folders,
+        undefined,
+        limitedSmartViews,
+      ).get("view"),
+    ).toBe("library");
+  });
+
   it("treats Continue as hidden when the In progress Smart View is not visible", () => {
     expect(
       libraryLocationFromSearchParams(
@@ -287,6 +313,11 @@ describe("library view URL state", () => {
       limitedSmartViews,
       "archive-books",
     );
+    const hiddenDuplicates = hiddenSmartViewFallbackSearchParams(
+      params("archiveId=archive-books&view=duplicates&query=matches"),
+      limitedSmartViews,
+      "archive-books",
+    );
 
     expect(hiddenSmart?.get("view")).toBe("library");
     expect(hiddenSmart?.get("smartView")).toBeNull();
@@ -295,6 +326,8 @@ describe("library view URL state", () => {
     expect(hiddenSmart?.get("archiveId")).toBe("archive-books");
     expect(hiddenContinue?.get("view")).toBe("library");
     expect(hiddenContinue?.get("query")).toBe("unfinished");
+    expect(hiddenDuplicates?.get("view")).toBe("library");
+    expect(hiddenDuplicates?.get("query")).toBe("matches");
   });
 
   it("does not replace normal, unrelated, or visible Smart View URLs", () => {

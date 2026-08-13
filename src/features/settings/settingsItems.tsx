@@ -353,7 +353,7 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "library",
   },
   ...LIBRARY_SMART_VIEW_DEFINITIONS.map((definition): SettingsItem => ({
-    description: "Choose whether this view appears when Smart Views are shown.",
+    description: definition.description,
     groupLabel: "Smart Views",
     id: `library.smart-views.${definition.id}`,
     label: definition.label,
@@ -367,10 +367,7 @@ export const settingsItems: readonly SettingsItem[] = [
           ? "At least one Smart View must remain selected. Turn off Show Smart Views instead."
           : undefined;
       return (
-        <SettingsRow
-          description="Choose whether this view appears when Smart Views are shown."
-          label={definition.label}
-        >
+        <SettingsRow description={definition.description} label={definition.label}>
           <Toggle
             checked={checked}
             disabled={Boolean(disabledReason)}

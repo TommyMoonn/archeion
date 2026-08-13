@@ -296,6 +296,12 @@ fn default_visible_smart_views() -> Vec<String> {
     .map(str::to_string)
     .collect()
 }
+fn supported_smart_views() -> Vec<String> {
+    default_visible_smart_views()
+        .into_iter()
+        .chain(["duplicates".to_string(), "epub-issues".to_string()])
+        .collect()
+}
 fn default_reader_font_family() -> String {
     "serif".to_string()
 }
@@ -394,7 +400,7 @@ fn normalize_smart_views(settings: Option<&Map<String, Value>>) -> LibrarySmartV
         normalize_filter_values(settings.and_then(|value| value.get("visible")))
             .into_iter()
             .collect();
-    let visible: Vec<_> = default_visible_smart_views()
+    let visible: Vec<_> = supported_smart_views()
         .into_iter()
         .filter(|smart_view| requested.contains(smart_view))
         .collect();
@@ -1631,7 +1637,11 @@ mod tests {
             (
                 "enabled",
                 true,
-                vec!["unread".to_string(), "completed".to_string()],
+                vec![
+                    "unread".to_string(),
+                    "duplicates".to_string(),
+                    "epub-issues".to_string(),
+                ],
             ),
             (
                 "disabled",

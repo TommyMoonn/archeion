@@ -43,6 +43,8 @@ import type {
   LibrarySmartViewPreferences,
 } from "../../types/library";
 import {
+  libraryLocationForSmartView,
+  librarySmartViewForLocation,
   librarySmartViewLabel,
   visibleLibrarySmartViewDefinitions,
 } from "../../types/librarySmartViews";
@@ -61,6 +63,8 @@ const smartViewIcons: Record<LibrarySmartView, LucideIcon> = {
   completed: CircleCheck,
   "needs-metadata": NotebookPen,
   "needs-cover": ImageOff,
+  duplicates: Copy,
+  "epub-issues": FileWarning,
 };
 
 function CollapsedSidebarTooltip({
@@ -77,11 +81,6 @@ function CollapsedSidebarTooltip({
       {children}
     </Tooltip>
   );
-}
-
-function activeSmartViewForLocation(location: LibraryLocation): LibrarySmartView | null {
-  if (location.type === "continue") return "in-progress";
-  return location.type === "smart-view" ? location.smartView : null;
 }
 
 type LibrarySidebarProps = {
@@ -143,7 +142,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
     useDismissibleDetails();
   const [smartViewsExpanded, setSmartViewsExpanded] = useState(false);
   const smartViewsContentId = useId();
-  const activeSmartView = activeSmartViewForLocation(location);
+  const activeSmartView = librarySmartViewForLocation(location);
   const visibleSmartViews = visibleLibrarySmartViewDefinitions(smartViewPreferences);
   const isCollapsed = collapsed;
   const sortedFolderEntries = useMemo(
@@ -240,30 +239,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
             <span>Folders</span>
           </button>
         </CollapsedSidebarTooltip>
-        <CollapsedSidebarTooltip collapsed={isCollapsed} content="Duplicates">
-          <button
-            aria-label="Duplicates"
-            aria-current={location.type === "duplicates" ? "page" : undefined}
-            className={`nav-item ${location.type === "duplicates" ? "active" : ""}`}
-            type="button"
-            onClick={() => onLocationChange({ type: "duplicates" })}
-          >
-            <Copy aria-hidden="true" size={19} />
-            <span>Duplicates</span>
-          </button>
-        </CollapsedSidebarTooltip>
-        <CollapsedSidebarTooltip collapsed={isCollapsed} content="EPUB Issues">
-          <button
-            aria-label="EPUB Issues"
-            aria-current={location.type === "epub-issues" ? "page" : undefined}
-            className={`nav-item ${location.type === "epub-issues" ? "active" : ""}`}
-            type="button"
-            onClick={() => onLocationChange({ type: "epub-issues" })}
-          >
-            <FileWarning aria-hidden="true" size={19} />
-            <span>EPUB Issues</span>
-          </button>
-        </CollapsedSidebarTooltip>
       </nav>
 
       {!isCollapsed ? (
@@ -315,13 +290,7 @@ export const LibrarySidebar = memo(function LibrarySidebar({
                       className={`nav-item ${isActive ? "active" : ""}`}
                       key={view}
                       type="button"
-                      onClick={() =>
-                        onLocationChange(
-                          view === "in-progress"
-                            ? { type: "continue" }
-                            : { type: "smart-view", smartView: view },
-                        )
-                      }
+                      onClick={() => onLocationChange(libraryLocationForSmartView(view))}
                     >
                       <SmartViewIcon aria-hidden="true" size={18} />
                       <span>{librarySmartViewLabel(view)}</span>

@@ -723,26 +723,34 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
         order: 54,
         scope: "library",
       },
-      {
-        configuration: "unbound",
-        execute: () => enterLocation({ type: "duplicates" }),
-        group: "Navigate",
-        id: "navigate.duplicates",
-        keywords: ["duplicate books", "archive integrity"],
-        label: "Go to Duplicates",
-        order: 55,
-        scope: "library",
-      },
-      {
-        configuration: "unbound",
-        execute: () => enterLocation({ type: "epub-issues" }),
-        group: "Navigate",
-        id: "navigate.epub-issues",
-        keywords: ["epub diagnostics", "archive integrity", "book issues"],
-        label: "Go to EPUB Issues",
-        order: 56,
-        scope: "library",
-      },
+      ...(isLibrarySmartViewVisible(smartViewPreferences, "duplicates")
+        ? [
+            {
+              configuration: "unbound" as const,
+              execute: () => enterLocation({ type: "duplicates" }),
+              group: "Navigate" as const,
+              id: "navigate.duplicates",
+              keywords: ["duplicate books", "archive integrity"],
+              label: "Go to Duplicates",
+              order: 55,
+              scope: "library" as const,
+            },
+          ]
+        : []),
+      ...(isLibrarySmartViewVisible(smartViewPreferences, "epub-issues")
+        ? [
+            {
+              configuration: "unbound" as const,
+              execute: () => enterLocation({ type: "epub-issues" }),
+              group: "Navigate" as const,
+              id: "navigate.epub-issues",
+              keywords: ["epub diagnostics", "archive integrity", "book issues"],
+              label: "Go to EPUB Issues",
+              order: 56,
+              scope: "library" as const,
+            },
+          ]
+        : []),
       {
         availability: bookActions.isImporting
           ? { available: false, reason: "Wait for the current EPUB import to finish." }

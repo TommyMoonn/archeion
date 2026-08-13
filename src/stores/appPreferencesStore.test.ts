@@ -549,6 +549,16 @@ describe("app preferences", () => {
         library: { smartViews: { enabled: false, visible: ["completed"] } },
       }).library.smartViews,
     ).toEqual({ enabled: false, visible: ["completed"] });
+    expect(
+      normalizeAppPreferences({
+        library: {
+          smartViews: {
+            enabled: true,
+            visible: ["epub-issues", "unread", "duplicates"],
+          },
+        },
+      }).library.smartViews,
+    ).toEqual({ enabled: true, visible: ["unread", "duplicates", "epub-issues"] });
   });
 
   it("preserves supported bundled reader fonts", () => {

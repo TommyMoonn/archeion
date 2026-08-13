@@ -819,6 +819,43 @@ describe("ReaderPage Quick Actions", () => {
     }
   });
 
+  it("falls back to Library when its archive-health return destination becomes hidden", async () => {
+    const original = appPreferencesStore.getSnapshot();
+
+    try {
+      await act(async () => {
+        await appPreferencesStore.update({
+          library: {
+            ...original.library,
+            smartViews: { enabled: true, visible: ["unread"] },
+          },
+        });
+      });
+      const rendered = await renderReader(
+        createStorage(),
+        "/?archiveId=archive-books&view=duplicates&query=space",
+      );
+      const back = rendered.container.querySelector<HTMLButtonElement>(
+        'button[aria-label="Back to Library"]',
+      );
+
+      expect(back).toBeInstanceOf(HTMLButtonElement);
+      await act(async () => {
+        back?.click();
+        await Promise.resolve();
+      });
+
+      expect(rendered.router.state.location.pathname).toBe("/");
+      expect(rendered.router.state.location.search).toContain("view=library");
+      expect(rendered.router.state.location.search).toContain("query=space");
+      expect(rendered.router.state.location.search).not.toContain("duplicates");
+    } finally {
+      await act(async () => {
+        await appPreferencesStore.update(original);
+      });
+    }
+  });
+
   it("offers Continue navigation only while the In progress Smart View is visible", async () => {
     const original = appPreferencesStore.getSnapshot();
 

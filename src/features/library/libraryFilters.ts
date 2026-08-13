@@ -5,13 +5,13 @@ import {
   normalizeLibrarySort,
   type LibraryFilterState,
   type LibraryLocation,
-  type LibrarySmartView,
+  type LibraryBookSmartView,
   type LibrarySort,
 } from "../../types/library";
 import { bookAuthor, bookTitle } from "../../utils/bookDisplay";
 import { bookReadingStatus, isBookInProgress } from "../reading/readingProgress";
 import { normalizeSeriesKey } from "../series/seriesDerivation";
-import { LIBRARY_SMART_VIEWS } from "../../types/librarySmartViews";
+import { LIBRARY_BOOK_SMART_VIEWS } from "../../types/librarySmartViews";
 import {
   createSearchQuery,
   createSearchTextVariants,
@@ -41,7 +41,7 @@ export type LibraryFilterOptionAccumulator = {
   publishers: Map<string, string>;
 };
 
-export type LibrarySmartViewCounts = Record<LibrarySmartView, number>;
+export type LibrarySmartViewCounts = Record<LibraryBookSmartView, number>;
 
 function normalizedMetadataValue(value: string | undefined): string {
   return value?.trim().toLocaleLowerCase() ?? "";
@@ -59,7 +59,7 @@ export function bookNeedsCover(book: ReadonlyBook): boolean {
   return !hasText(book.coverPath);
 }
 
-export function bookMatchesSmartView(book: ReadonlyBook, smartView: LibrarySmartView): boolean {
+export function bookMatchesSmartView(book: ReadonlyBook, smartView: LibraryBookSmartView): boolean {
   switch (smartView) {
     case "unread":
       return bookReadingStatus(book) === "unread";
@@ -76,7 +76,7 @@ export function bookMatchesSmartView(book: ReadonlyBook, smartView: LibrarySmart
 
 export function countBooksBySmartView(
   books: ReadonlyBook[],
-  visibleSmartViews: readonly LibrarySmartView[] = LIBRARY_SMART_VIEWS,
+  visibleSmartViews: readonly LibraryBookSmartView[] = LIBRARY_BOOK_SMART_VIEWS,
 ): LibrarySmartViewCounts {
   const counts: LibrarySmartViewCounts = {
     unread: 0,

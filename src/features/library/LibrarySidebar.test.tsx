@@ -182,22 +182,6 @@ describe("LibrarySidebar", () => {
     }
   });
 
-  it.each([
-    ["Duplicates", { type: "duplicates" }],
-    ["EPUB Issues", { type: "epub-issues" }],
-  ] as const)("navigates to %s through the primary Library navigation", (label, location) => {
-    const onLocationChange = vi.fn();
-    const session = renderInteractiveSidebar(location, onLocationChange);
-    activeRoot = session.root;
-    const control = session.container.querySelector<HTMLButtonElement>(
-      `button[aria-label="${label}"]`,
-    );
-
-    expect(control?.getAttribute("aria-current")).toBe("page");
-    act(() => control?.click());
-    expect(onLocationChange).toHaveBeenCalledWith(location);
-  });
-
   it("exposes only the effective Settings shortcut on the existing Settings control", () => {
     const markup = renderToStaticMarkup(
       <LibrarySidebar {...sidebarProps()} settingsAriaKeyShortcuts="Control+," />,
@@ -519,6 +503,28 @@ describe("LibrarySidebar", () => {
     expect(session.container.textContent).toMatch(/Unread[\s\S]*Needs cover/);
     expect(session.container.textContent).not.toContain("In progress");
     expect(session.container.textContent).not.toContain("Completed");
+  });
+
+  it.each([
+    ["Duplicates", { type: "duplicates" }],
+    ["EPUB Issues", { type: "epub-issues" }],
+  ] as const)("opens the opt-in %s route from Smart Views", (label, location) => {
+    const onLocationChange = vi.fn();
+    const session = renderInteractiveSidebar(location, onLocationChange, {
+      enabled: true,
+      visible: [location.type],
+    });
+    activeRoot = session.root;
+    const disclosure = smartViewsDisclosure(session.container);
+
+    expect(disclosure.textContent).toContain(`· ${label}`);
+    act(() => disclosure.click());
+    const control = Array.from(
+      session.container.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent === label);
+    expect(control?.getAttribute("aria-current")).toBe("page");
+    act(() => control?.click());
+    expect(onLocationChange).toHaveBeenCalledWith(location);
   });
 
   it("collapses Smart Views initially and supports pointer and keyboard-compatible activation", () => {

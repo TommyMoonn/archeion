@@ -132,6 +132,10 @@ describe("settings section components", () => {
     expect(markup).toContain("Smart Views");
     expect(markup).toContain("Show Smart Views");
     expect(markup).toContain('aria-label="Show Unread Smart View"');
+    expect(markup).toContain('aria-label="Show Duplicates Smart View"');
+    expect(markup).toContain('aria-label="Show EPUB Issues Smart View"');
+    expect(markup).toContain("Review exact and probable duplicate EPUBs.");
+    expect(markup).toContain("Inspect Reader-relevant EPUB problems.");
     expect(markup).toContain("Turn on Show Smart Views to choose visible views.");
   });
 

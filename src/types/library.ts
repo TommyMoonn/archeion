@@ -29,8 +29,10 @@ export type LibraryCollectionPreferences = {
   series: SeriesCollectionPreferences;
 };
 export type LibraryReadingStatus = "unread" | "in-progress" | "completed";
-export type LibrarySmartView =
+export type LibraryBookSmartView =
   "unread" | "in-progress" | "completed" | "needs-metadata" | "needs-cover";
+export type LibraryIntegritySmartView = "duplicates" | "epub-issues";
+export type LibrarySmartView = LibraryBookSmartView | LibraryIntegritySmartView;
 
 export type LibrarySmartViewPreferences = {
   enabled: boolean;
@@ -43,7 +45,7 @@ export type LibraryLocation =
   | { type: "favorites" }
   | { type: "duplicates" }
   | { type: "epub-issues" }
-  | { type: "smart-view"; smartView: LibrarySmartView }
+  | { type: "smart-view"; smartView: LibraryBookSmartView }
   | { type: "series" }
   | { type: "series-detail"; seriesKey: string }
   | { type: "folders" }

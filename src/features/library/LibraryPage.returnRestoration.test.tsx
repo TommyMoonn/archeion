@@ -263,7 +263,14 @@ describe("mounted reader-return surfaces", () => {
   const suite = setupLibraryPageTestSuite();
 
   beforeEach(async () => {
-    await appPreferencesStore.update({ showContinueReading: true });
+    const preferences = appPreferencesStore.getSnapshot();
+    await appPreferencesStore.update({
+      library: {
+        ...preferences.library,
+        smartViews: { enabled: true, visible: ["duplicates", "epub-issues"] },
+      },
+      showContinueReading: true,
+    });
   });
 
   it("prefers an already-mounted Continue Reading control over its windowed grid book", async () => {

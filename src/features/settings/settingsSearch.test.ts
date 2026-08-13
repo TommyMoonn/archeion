@@ -60,6 +60,12 @@ describe("settingsSearch", () => {
     expect(findSettingsSearchResults("cover art").map((result) => result.item.id)).toEqual([
       "library.smart-views.needs-cover",
     ]);
+    expect(findSettingsSearchResults("duplicate books").map((result) => result.item.id)).toEqual([
+      "library.smart-views.duplicates",
+    ]);
+    expect(findSettingsSearchResults("epub diagnostics").map((result) => result.item.id)).toEqual([
+      "library.smart-views.epub-issues",
+    ]);
   });
 
   it("finds collection display settings by domain-specific terms", () => {
