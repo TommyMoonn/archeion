@@ -5,6 +5,8 @@ pub mod archive_import;
 pub mod archive_import_artifacts;
 pub mod archive_import_transaction;
 pub mod archive_root;
+pub mod dictionaries;
+pub(crate) mod dictionary_store;
 pub mod epub;
 pub(crate) mod epub_analysis;
 #[allow(dead_code)]
