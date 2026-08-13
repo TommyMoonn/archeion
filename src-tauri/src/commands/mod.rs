@@ -7,8 +7,10 @@ pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod dictionaries;
 pub(crate) mod dictionary_catalog;
+pub(crate) mod dictionary_download;
 #[allow(dead_code)]
 pub(crate) mod dictionary_index;
+pub(crate) mod dictionary_request;
 pub(crate) mod dictionary_store;
 pub mod epub;
 pub(crate) mod epub_analysis;

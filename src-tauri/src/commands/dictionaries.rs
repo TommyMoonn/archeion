@@ -3,6 +3,10 @@ use std::path::PathBuf;
 use tauri::Manager;
 
 use super::dictionary_catalog::{DictionaryCatalogService, DictionaryCatalogSnapshot};
+use super::dictionary_download::{
+    cleanup_verified_download, DictionaryDownloadError, DictionaryDownloadOutcome,
+    DictionaryDownloadProgress, DictionaryDownloadService,
+};
 use super::dictionary_store::{open_current_store, DictionaryRegistrySnapshot, DictionaryStore};
 
 pub(crate) fn app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -14,8 +18,11 @@ pub(crate) fn app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
 #[tauri::command]
 pub fn load_cached_dictionary_catalog(
     app: tauri::AppHandle,
+    service: tauri::State<'_, DictionaryCatalogService>,
 ) -> Result<Option<DictionaryCatalogSnapshot>, String> {
-    DictionaryCatalogService::load_cached(&app_data_root(&app)?).map_err(|error| error.to_string())
+    service
+        .load_cached(&app_data_root(&app)?)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]
@@ -35,6 +42,62 @@ pub async fn refresh_dictionary_catalog(
 #[tauri::command]
 pub fn cancel_dictionary_catalog_refresh(service: tauri::State<'_, DictionaryCatalogService>) {
     service.cancel_current();
+}
+
+#[tauri::command]
+pub async fn download_dictionary_catalog_package(
+    app: tauri::AppHandle,
+    catalog_id: String,
+    on_progress: tauri::ipc::Channel<DictionaryDownloadProgress>,
+    catalog_service: tauri::State<'_, DictionaryCatalogService>,
+    download_service: tauri::State<'_, DictionaryDownloadService>,
+) -> Result<DictionaryDownloadOutcome, String> {
+    let entry = match catalog_service.current_entry(&catalog_id) {
+        Ok(entry) => entry,
+        Err(error) => {
+            return Ok(DictionaryDownloadOutcome::Failed {
+                message: error.to_string(),
+            });
+        }
+    };
+    let root = match app_data_root(&app) {
+        Ok(root) => root,
+        Err(message) => return Ok(DictionaryDownloadOutcome::Failed { message }),
+    };
+    Ok(
+        match download_service
+            .inner()
+            .clone()
+            .download(&root, entry, move |progress| {
+                on_progress
+                    .send(progress)
+                    .map_err(|_| DictionaryDownloadError::ProgressUnavailable)
+            })
+            .await
+        {
+            Ok(package) => DictionaryDownloadOutcome::Succeeded { package },
+            Err(DictionaryDownloadError::Cancelled | DictionaryDownloadError::Superseded) => {
+                DictionaryDownloadOutcome::Cancelled
+            }
+            Err(error) => DictionaryDownloadOutcome::Failed {
+                message: error.to_string(),
+            },
+        },
+    )
+}
+
+#[tauri::command]
+pub fn cancel_dictionary_download(service: tauri::State<'_, DictionaryDownloadService>) {
+    service.cancel_current();
+}
+
+#[tauri::command]
+pub fn cleanup_verified_dictionary_download(
+    app: tauri::AppHandle,
+    staging_token: String,
+) -> Result<bool, String> {
+    cleanup_verified_download(&app_data_root(&app)?, &staging_token)
+        .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

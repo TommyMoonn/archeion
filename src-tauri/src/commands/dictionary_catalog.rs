@@ -9,12 +9,14 @@ use std::{
 
 use reqwest::{redirect, Url};
 use serde::{Deserialize, Serialize};
-use tokio::sync::watch;
 
 use crate::atomic_file::{
     transaction_path, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
 };
 
+use super::dictionary_request::{
+    DictionaryRequestError, DictionaryRequestOwner, DictionaryRequestTicket,
+};
 use super::dictionary_store::DictionaryStoragePaths;
 
 const CATALOG_ENDPOINT: &str = "https://tommymoonn.github.io/archeion/dictionaries/catalog-v1.json";
@@ -75,55 +77,10 @@ struct CatalogManifest {
     dictionaries: Vec<DictionaryCatalogEntry>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum RequestRetirement {
-    Active,
-    Cancelled,
-    Superseded,
-}
-
-struct ActiveRequest {
-    revision: u64,
-    retirement: watch::Sender<RequestRetirement>,
-}
-
-#[derive(Default)]
-struct RequestOwner {
-    revision: u64,
-    active: Option<ActiveRequest>,
-}
-
-#[derive(Clone)]
-struct RequestTicket {
-    revision: u64,
-    retirement: watch::Receiver<RequestRetirement>,
-}
-
-impl RequestTicket {
-    fn current_error(&self) -> Option<DictionaryCatalogError> {
-        match *self.retirement.borrow() {
-            RequestRetirement::Active => None,
-            RequestRetirement::Cancelled => Some(DictionaryCatalogError::Cancelled),
-            RequestRetirement::Superseded => Some(DictionaryCatalogError::Superseded),
-        }
-    }
-
-    async fn wait_for_retirement(&self) -> DictionaryCatalogError {
-        let mut retirement = self.retirement.clone();
-        loop {
-            if let Some(error) = self.current_error() {
-                return error;
-            }
-            if retirement.changed().await.is_err() {
-                return DictionaryCatalogError::Superseded;
-            }
-        }
-    }
-}
-
 #[derive(Clone, Default)]
 pub(crate) struct DictionaryCatalogService {
-    requests: Arc<Mutex<RequestOwner>>,
+    requests: DictionaryRequestOwner,
+    current: Arc<Mutex<Option<CatalogManifest>>>,
 }
 
 impl DictionaryCatalogService {
@@ -140,27 +97,29 @@ impl DictionaryCatalogService {
         fetch: F,
     ) -> Result<DictionaryCatalogSnapshot, DictionaryCatalogError>
     where
-        F: FnOnce(RequestTicket) -> Fut,
+        F: FnOnce(DictionaryRequestTicket) -> Fut,
         Fut: Future<Output = Result<Vec<u8>, DictionaryCatalogError>>,
     {
-        let ticket = self.begin_request()?;
+        let ticket = self.requests.begin().map_err(catalog_request_error)?;
         let result = fetch(ticket.clone())
             .await
             .and_then(|bytes| validate_catalog_bytes(&bytes));
         match result {
             Ok(manifest) => self.publish(app_data_root, &ticket, manifest),
-            Err(error) => Err(self.finish_failed_request(&ticket).unwrap_or(error)),
+            Err(error) => Err(self
+                .requests
+                .finish_failed(&ticket)
+                .map(catalog_request_error)
+                .unwrap_or(error)),
         }
     }
 
     pub(crate) fn cancel_current(&self) {
-        let mut requests = recover_lock(&self.requests);
-        if let Some(active) = requests.active.take() {
-            active.retirement.send_replace(RequestRetirement::Cancelled);
-        }
+        self.requests.cancel_current();
     }
 
     pub(crate) fn load_cached(
+        &self,
         app_data_root: &Path,
     ) -> Result<Option<DictionaryCatalogSnapshot>, DictionaryCatalogError> {
         let path = catalog_cache_path(app_data_root);
@@ -169,6 +128,7 @@ impl DictionaryCatalogService {
             None => return Ok(None),
         };
         let manifest = validate_catalog_bytes(&bytes)?;
+        *recover_lock(&self.current) = Some(manifest.clone());
         Ok(Some(snapshot(
             manifest,
             DictionaryCatalogSource::Cache,
@@ -176,85 +136,41 @@ impl DictionaryCatalogService {
         )))
     }
 
-    fn begin_request(&self) -> Result<RequestTicket, DictionaryCatalogError> {
-        let mut requests = recover_lock(&self.requests);
-        if let Some(active) = requests.active.take() {
-            active
-                .retirement
-                .send_replace(RequestRetirement::Superseded);
-        }
-        requests.revision = requests
-            .revision
-            .checked_add(1)
-            .ok_or(DictionaryCatalogError::RequestRevisionExhausted)?;
-        let revision = requests.revision;
-        let (retirement, receiver) = watch::channel(RequestRetirement::Active);
-        requests.active = Some(ActiveRequest {
-            revision,
-            retirement,
-        });
-        Ok(RequestTicket {
-            revision,
-            retirement: receiver,
-        })
+    pub(crate) fn current_entry(
+        &self,
+        catalog_id: &str,
+    ) -> Result<DictionaryCatalogEntry, DictionaryCatalogError> {
+        recover_lock(&self.current)
+            .as_ref()
+            .and_then(|manifest| {
+                manifest
+                    .dictionaries
+                    .iter()
+                    .find(|entry| entry.id == catalog_id)
+                    .cloned()
+            })
+            .ok_or_else(|| DictionaryCatalogError::EntryUnavailable(catalog_id.to_string()))
     }
 
     fn publish(
         &self,
         app_data_root: &Path,
-        ticket: &RequestTicket,
+        ticket: &DictionaryRequestTicket,
         manifest: CatalogManifest,
     ) -> Result<DictionaryCatalogSnapshot, DictionaryCatalogError> {
-        let mut requests = recover_lock(&self.requests);
-        ensure_current_request(&requests, ticket)?;
-        let cache_warning = write_catalog_cache(app_data_root, &manifest)
-            .err()
-            .map(|error| error.to_string());
-        requests.active = None;
-        Ok(snapshot(
-            manifest,
-            DictionaryCatalogSource::Network,
-            cache_warning,
-        ))
-    }
-
-    fn finish_failed_request(&self, ticket: &RequestTicket) -> Option<DictionaryCatalogError> {
-        if let Some(error) = ticket.current_error() {
-            return Some(error);
-        }
-        let mut requests = recover_lock(&self.requests);
-        if requests
-            .active
-            .as_ref()
-            .is_some_and(|active| active.revision == ticket.revision)
-        {
-            requests.active = None;
-            None
-        } else {
-            Some(DictionaryCatalogError::Superseded)
-        }
+        self.requests
+            .settle_current(ticket, || {
+                let cache_warning = write_catalog_cache(app_data_root, &manifest)
+                    .err()
+                    .map(|error| error.to_string());
+                *recover_lock(&self.current) = Some(manifest.clone());
+                snapshot(manifest, DictionaryCatalogSource::Network, cache_warning)
+            })
+            .map_err(catalog_request_error)
     }
 }
 
-fn ensure_current_request(
-    requests: &RequestOwner,
-    ticket: &RequestTicket,
-) -> Result<(), DictionaryCatalogError> {
-    if let Some(error) = ticket.current_error() {
-        return Err(error);
-    }
-    if requests
-        .active
-        .as_ref()
-        .is_some_and(|active| active.revision == ticket.revision)
-    {
-        Ok(())
-    } else {
-        Err(DictionaryCatalogError::Superseded)
-    }
-}
-
-async fn fetch_catalog(ticket: RequestTicket) -> Result<Vec<u8>, DictionaryCatalogError> {
+async fn fetch_catalog(ticket: DictionaryRequestTicket) -> Result<Vec<u8>, DictionaryCatalogError> {
     let client = reqwest::Client::builder()
         .connect_timeout(CONNECT_TIMEOUT)
         .timeout(REQUEST_TIMEOUT)
@@ -264,7 +180,7 @@ async fn fetch_catalog(ticket: RequestTicket) -> Result<Vec<u8>, DictionaryCatal
         .map_err(network_error)?;
     let response = tokio::select! {
         response = client.get(CATALOG_ENDPOINT).send() => response.map_err(network_error)?,
-        error = ticket.wait_for_retirement() => return Err(error),
+        error = ticket.wait_for_retirement() => return Err(catalog_request_error(error)),
     };
     if !response.status().is_success() {
         return Err(DictionaryCatalogError::Network(format!(
@@ -284,7 +200,7 @@ async fn fetch_catalog(ticket: RequestTicket) -> Result<Vec<u8>, DictionaryCatal
     loop {
         let chunk = tokio::select! {
             chunk = response.chunk() => chunk.map_err(network_error)?,
-            error = ticket.wait_for_retirement() => return Err(error),
+            error = ticket.wait_for_retirement() => return Err(catalog_request_error(error)),
         };
         let Some(chunk) = chunk else {
             break;
@@ -518,6 +434,16 @@ fn network_error(error: reqwest::Error) -> DictionaryCatalogError {
     }
 }
 
+fn catalog_request_error(error: DictionaryRequestError) -> DictionaryCatalogError {
+    match error {
+        DictionaryRequestError::Cancelled => DictionaryCatalogError::Cancelled,
+        DictionaryRequestError::RevisionExhausted => {
+            DictionaryCatalogError::RequestRevisionExhausted
+        }
+        DictionaryRequestError::Superseded => DictionaryCatalogError::Superseded,
+    }
+}
+
 fn cache_error(error: std::io::Error) -> DictionaryCatalogError {
     DictionaryCatalogError::Cache(format!(
         "The dictionary catalog cache is unavailable: {error}"
@@ -534,6 +460,7 @@ fn recover_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
 pub(crate) enum DictionaryCatalogError {
     Cache(String),
     Cancelled,
+    EntryUnavailable(String),
     Invalid(String),
     Network(String),
     RequestRevisionExhausted,
@@ -548,6 +475,10 @@ impl fmt::Display for DictionaryCatalogError {
                 formatter.write_str(message)
             }
             Self::Cancelled => formatter.write_str("The dictionary catalog refresh was cancelled."),
+            Self::EntryUnavailable(catalog_id) => write!(
+                formatter,
+                "Dictionary catalog entry '{catalog_id}' is not in the current catalog."
+            ),
             Self::RequestRevisionExhausted => {
                 formatter.write_str("Dictionary catalog request revisions are exhausted.")
             }

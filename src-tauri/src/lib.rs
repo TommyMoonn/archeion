@@ -7,6 +7,8 @@ use tauri::Manager;
 pub fn run() {
     let dictionary_catalog_service =
         commands::dictionary_catalog::DictionaryCatalogService::default();
+    let dictionary_download_service =
+        commands::dictionary_download::DictionaryDownloadService::default();
     let import_transaction_state =
         commands::archive_import_transaction::ArchiveImportTransactionState::default();
     let import_suppressions = commands::watcher::ArchiveWatcherSuppressionOwner::default();
@@ -20,6 +22,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .manage(dictionary_catalog_service)
+        .manage(dictionary_download_service)
         .manage(watcher_state)
         .manage(import_transaction_state)
         .manage(import_command_state)
@@ -48,6 +51,9 @@ pub fn run() {
             commands::dictionaries::load_cached_dictionary_catalog,
             commands::dictionaries::refresh_dictionary_catalog,
             commands::dictionaries::cancel_dictionary_catalog_refresh,
+            commands::dictionaries::download_dictionary_catalog_package,
+            commands::dictionaries::cancel_dictionary_download,
+            commands::dictionaries::cleanup_verified_dictionary_download,
             commands::dictionaries::set_dictionary_enabled,
             commands::dictionaries::set_dictionary_order,
             commands::filesystem::create_archive_folder,

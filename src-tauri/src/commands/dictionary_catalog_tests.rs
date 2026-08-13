@@ -79,14 +79,17 @@ async fn valid_catalog_publishes_normalized_entries_in_deterministic_order() {
     );
     assert_eq!(snapshot.entries[0].name, "Alpha");
     assert_eq!(
+        service.current_entry("alpha-en").unwrap(),
+        snapshot.entries[0]
+    );
+    assert_eq!(
         snapshot.entries[0].sha256,
         "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     );
-    let cached = DictionaryCatalogService::load_cached(&root)
-        .unwrap()
-        .unwrap();
+    let cached = service.load_cached(&root).unwrap().unwrap();
     assert_eq!(cached.source, DictionaryCatalogSource::Cache);
     assert_eq!(cached.entries, snapshot.entries);
+    assert_eq!(service.current_entry("zulu").unwrap().id, "zulu");
     fs::remove_dir_all(root).unwrap();
 }
 
@@ -135,7 +138,9 @@ async fn cancellation_and_newer_requests_retire_stale_publication() {
         pending_service
             .refresh_with(&pending_root, move |ticket| async move {
                 started_tx.send(()).unwrap();
-                Err(ticket.wait_for_retirement().await)
+                Err(super::catalog_request_error(
+                    ticket.wait_for_retirement().await,
+                ))
             })
             .await
     });
@@ -176,9 +181,7 @@ async fn cancellation_and_newer_requests_retire_stale_publication() {
         old.await.unwrap().unwrap_err(),
         DictionaryCatalogError::Superseded
     );
-    let cached = DictionaryCatalogService::load_cached(&stale_root)
-        .unwrap()
-        .unwrap();
+    let cached = stale_service.load_cached(&stale_root).unwrap().unwrap();
     assert_eq!(cached.entries[0].id, "current");
     assert!(!cancelled_root.exists());
     fs::remove_dir_all(stale_root).unwrap();
@@ -224,9 +227,7 @@ async fn failed_refresh_preserves_valid_cache_and_installed_dictionary_state() {
         .unwrap_err();
 
     assert!(matches!(error, DictionaryCatalogError::Network(_)));
-    let cached = DictionaryCatalogService::load_cached(&root)
-        .unwrap()
-        .unwrap();
+    let cached = service.load_cached(&root).unwrap().unwrap();
     assert_eq!(cached.entries[0].id, "cached");
     assert_eq!(
         open_current_store(&root).unwrap().list().unwrap(),

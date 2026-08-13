@@ -23,3 +23,24 @@ export type DictionaryCatalogSnapshot = Readonly<{
   source: "cache" | "network";
   cacheWarning: string | null;
 }>;
+
+export type DictionaryDownloadProgress = Readonly<{
+  receivedBytes: number;
+  totalBytes: number;
+}>;
+
+export type VerifiedDictionaryDownload = Readonly<{
+  stagingToken: string;
+  catalogId: string;
+  packageFormat: DictionaryCatalogPackageFormat;
+  sizeBytes: number;
+  sha256: string;
+}>;
+
+export type DictionaryDownloadOutcome =
+  | Readonly<{
+      status: "succeeded";
+      package: VerifiedDictionaryDownload;
+    }>
+  | Readonly<{ status: "cancelled" }>
+  | Readonly<{ status: "failed"; message: string }>;
