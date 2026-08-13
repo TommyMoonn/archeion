@@ -8,6 +8,11 @@ use std::{
 use rusqlite::{params, Connection, OpenFlags, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
 
+use super::{
+    dictionary_index::{self, DictionaryLookupEntry},
+    stardict_validation::ValidatedStarDictPackage,
+};
+
 const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
 const DICTIONARY_ROOT_NAME: &str = "dictionaries";
 const INSTALLED_DIRECTORY_NAME: &str = "installed";
@@ -146,8 +151,7 @@ pub enum DictionaryIndexState {
 }
 
 impl DictionaryIndexState {
-    #[allow(dead_code)]
-    fn as_database_value(self) -> &'static str {
+    pub(crate) fn as_database_value(self) -> &'static str {
         match self {
             Self::Pending => "pending",
             Self::Ready => "ready",
@@ -238,6 +242,7 @@ pub(crate) enum DictionaryStoreError {
     InvalidDictionaryId,
     InvalidOrder,
     InvalidStoredValue(&'static str),
+    InvalidIndex(String),
     NumericOverflow(&'static str),
     RecoveryRequired(DictionaryRecoveryState),
 }
@@ -260,6 +265,7 @@ impl fmt::Display for DictionaryStoreError {
                     "Dictionary database contains an invalid {field}."
                 )
             }
+            Self::InvalidIndex(message) => formatter.write_str(message),
             Self::NumericOverflow(field) => {
                 write!(
                     formatter,
@@ -507,8 +513,7 @@ impl DictionaryStore {
         self.list()
     }
 
-    #[allow(dead_code)]
-    fn get(
+    pub(crate) fn get(
         &self,
         dictionary_id: &str,
     ) -> Result<Option<InstalledDictionary>, DictionaryStoreError> {
@@ -544,6 +549,43 @@ impl DictionaryStore {
         dictionary_id: &str,
     ) -> Result<PathBuf, DictionaryStoreError> {
         self.paths.installed_path(dictionary_id)
+    }
+
+    pub(crate) fn replace_index(
+        &mut self,
+        dictionary_id: &str,
+        package: &ValidatedStarDictPackage,
+        installed_definition_bytes: u64,
+    ) -> Result<(), DictionaryStoreError> {
+        validate_dictionary_id(dictionary_id)?;
+        dictionary_index::replace_dictionary_index(
+            &mut self.connection,
+            dictionary_id,
+            package,
+            installed_definition_bytes,
+        )
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn lookup_exact(
+        &self,
+        headword: &str,
+    ) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
+        dictionary_index::lookup_exact(&self.connection, headword)
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn rebuild_index(
+        &mut self,
+        dictionary_id: &str,
+    ) -> Result<(), DictionaryStoreError> {
+        validate_dictionary_id(dictionary_id)?;
+        dictionary_index::rebuild_dictionary_index(self, dictionary_id)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.connection
     }
 }
 
