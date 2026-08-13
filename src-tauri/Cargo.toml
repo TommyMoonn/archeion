@@ -31,6 +31,7 @@ tauri-plugin-dialog = "2.7.0"
 zip = { version = "8.6", default-features = false, features = ["deflate"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
+rusqlite = { version = "0.40.1", default-features = false, features = ["bundled"] }
 windows = { version = "=0.62.2", features = [
   "Win32_Foundation",
   "Win32_System_Com",
