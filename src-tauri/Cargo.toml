@@ -1,6 +1,6 @@
 [package]
 name = "archeion"
-version = "1.1.0"
+version = "1.2.0"
 description = "A local-first desktop EPUB reader and archive manager"
 authors = ["Khoa Luong"]
 license = "GPL-3.0-only"

@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-08-13
+
+Archeion 1.2.0 adds optional archive health tools for reviewing duplicate EPUBs and book problems that can affect reading, without changing files automatically.
+
+### Added
+
+- Added an opt-in **Duplicates** Smart View for reviewing exact copies and probable matches across the active archive.
+- Added clear **Exact duplicate** and **Probable duplicate** labels, with matching file information for exact copies and the EPUB identifier for probable matches.
+- Added an opt-in **EPUB Issues** Smart View for finding books with structural problems, broken local links, unreadable content, or other issues that can affect Reader.
+- Added concise error and warning counts for affected books, expandable issue details, and the location of the problem inside the EPUB when available.
+- Added **Reader unavailable** status when a reported problem prevents the book from opening in Reader.
+
+### Changed
+
+- Added **Duplicates** and **EPUB Issues** to **Settings > Library > Smart Views**. Both are hidden by default and appear in the Library sidebar only after they are selected and Smart Views are enabled.
+- Added matching Quick Actions for enabled archive health views.
+- Kept archive health checks on demand so opening an archive does not wait for duplicate or issue review.
+- Kept duplicate and issue review read-only. Archeion does not automatically delete, merge, move, repair, or rewrite EPUB files.
+- Kept existing Library actions available from review results, including Read when supported, Book Details, Reveal, Move, and Delete where applicable.
+
+### Fixed
+
+- Prevented old duplicate or issue results from remaining current after an EPUB is changed, replaced, moved, renamed, deleted, or imported.
+- Prevented results from an earlier archive, request, or file version from replacing newer archive health results.
+- Kept archive health review accurate when returning from Reader or when files change while a review is in progress.
+
+### Testing
+
+- Expanded regression coverage for exact and probable duplicate review, EPUB issue details, archive changes, refresh and retry behavior, optional Smart View navigation, Reader return, and accessibility of review actions.
+
 ## [1.1.0] - 2026-08-11
 
 Archeion 1.1.0 expands Reader search and navigation, adds seekable reading progress, and simplifies the Reader toolbar and page presentation.
@@ -393,7 +423,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/TommyMoonn/archeion/compare/v1.0.0...v1.0.1
