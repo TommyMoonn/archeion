@@ -162,6 +162,29 @@ fn valid_plain_package_returns_metadata_entries_and_source_facts() {
 }
 
 #[test]
+fn package_discovery_preserves_dots_in_the_dictionary_base_name() {
+    let directory = TestDirectory::new("dotted-package-name");
+    let original_ifo = write_plain_package(directory.path(), "");
+    let dotted_ifo = directory.path().join("WordNet2.0.ifo");
+    fs::rename(&original_ifo, &dotted_ifo).unwrap();
+    fs::rename(
+        directory.path().join("fixture.idx"),
+        directory.path().join("WordNet2.0.idx"),
+    )
+    .unwrap();
+    fs::rename(
+        directory.path().join("fixture.dict"),
+        directory.path().join("WordNet2.0.dict"),
+    )
+    .unwrap();
+
+    let package = validate_package(&dotted_ifo).expect("dotted package name should remain intact");
+
+    assert_eq!(package.package_name, "WordNet2.0");
+    assert_eq!(package.entries.len(), 2);
+}
+
+#[test]
 fn valid_dict_dz_uses_the_bounded_compressed_definition_path() {
     let directory = TestDirectory::new("dict-dz");
     let mut index = index_entry_64("alpha", 0, 5);

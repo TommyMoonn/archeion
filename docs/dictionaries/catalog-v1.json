@@ -1,4 +1,21 @@
 {
   "schemaVersion": 1,
-  "dictionaries": []
+  "dictionaries": [
+    {
+      "id": "princeton-wordnet-3-0",
+      "name": "Princeton WordNet 3.0",
+      "language": "en",
+      "description": "English definitions, synonyms, and lexical relationships for everyday and reference lookup.",
+      "sourceAttribution": "Princeton University WordNet 3.0; StarDict conversion by Lauren Landau for Duet; packaged for Archeion",
+      "sourceUrl": "https://github.com/lauren-alexandra/duet-xteink/releases/tag/v0.1.0-alpha.9",
+      "licenseName": "Princeton WordNet License",
+      "licenseUrl": "https://wordnet.princeton.edu/license-and-commercial-use",
+      "packageVersion": "3.0-archeion-1",
+      "compressedSizeBytes": 8906973,
+      "installedSizeEstimateBytes": 26356999,
+      "downloadUrl": "https://tommymoonn.github.io/archeion/dictionaries/packages/princeton-wordnet-3.0-stardict-archeion-1.zip",
+      "packageFormat": "stardict-zip",
+      "sha256": "4bf92ff3b3e436ab70941e7db72c9124fc71647f3425fc9acab5882cc73816f0"
+    }
+  ]
 }

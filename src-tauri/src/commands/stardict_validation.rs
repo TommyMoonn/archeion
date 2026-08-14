@@ -253,7 +253,7 @@ fn discover_package(ifo_path: &Path) -> Result<PackagePaths, StarDictValidationE
         ));
     }
 
-    let sibling = |extension: &str| parent.join(stem).with_extension(extension);
+    let sibling = |extension: &str| parent.join(format!("{package_name}.{extension}"));
     let idx = resolve_regular_file(&sibling("idx"), true, "StarDict index")?;
     let dict_candidate = sibling("dict");
     let dict_dz_candidate = sibling("dict.dz");

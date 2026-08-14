@@ -16,6 +16,8 @@ use crate::commands::dictionary_store::{
 };
 
 static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const PRODUCTION_CATALOG_BYTES: &[u8] =
+    include_bytes!("../../../docs/dictionaries/catalog-v1.json");
 
 fn test_root(label: &str) -> PathBuf {
     let sequence = TEST_SEQUENCE.fetch_add(1, Ordering::Relaxed);
@@ -50,6 +52,17 @@ fn manifest(entries: Vec<Value>) -> Vec<u8> {
         "dictionaries": entries
     }))
     .unwrap()
+}
+
+#[test]
+fn committed_production_catalog_is_valid_and_non_empty() {
+    let catalog = validate_catalog_bytes(PRODUCTION_CATALOG_BYTES)
+        .expect("the committed production dictionary catalog should validate");
+
+    assert!(
+        !catalog.dictionaries.is_empty(),
+        "the production dictionary catalog must publish at least one dictionary"
+    );
 }
 
 #[tokio::test(flavor = "current_thread")]
