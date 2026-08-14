@@ -95,6 +95,7 @@ export function useDictionarySettings(
     dictionaryId: string;
     message: string;
   } | null>(null);
+  const [recovering, setRecovering] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const mountedRef = useRef(true);
@@ -397,6 +398,24 @@ export function useDictionarySettings(
     [dependencies.managementClient, runManagement],
   );
 
+  const recoverResources = useCallback(async () => {
+    if (recovering) return false;
+    setRecovering(true);
+    setRegistryError(null);
+    try {
+      const snapshot = await dependencies.managementClient.recover();
+      if (!mountedRef.current) return false;
+      publishRegistry(snapshot);
+      setRegistryState("ready");
+      return snapshot.status === "ready";
+    } catch (error) {
+      if (mountedRef.current) setRegistryError(errorMessage(error));
+      return false;
+    } finally {
+      if (mountedRef.current) setRecovering(false);
+    }
+  }, [dependencies.managementClient, publishRegistry, recovering]);
+
   return {
     cancelCatalogRefresh,
     cancelDownload,
@@ -412,6 +431,8 @@ export function useDictionarySettings(
     managementOperation,
     move,
     rebuildIndex,
+    recoverResources,
+    recovering,
     refreshCatalog,
     refreshing,
     registry,

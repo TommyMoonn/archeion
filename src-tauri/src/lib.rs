@@ -11,6 +11,8 @@ pub fn run() {
         commands::dictionary_download::DictionaryDownloadService::default();
     let dictionary_install_service =
         commands::dictionary_install::DictionaryInstallService::default();
+    let dictionary_maintenance_service =
+        commands::dictionary_maintenance::DictionaryMaintenanceService::default();
     let dictionary_lookup_service = commands::dictionary_lookup::DictionaryLookupService;
     let import_transaction_state =
         commands::archive_import_transaction::ArchiveImportTransactionState::default();
@@ -27,6 +29,7 @@ pub fn run() {
         .manage(dictionary_catalog_service)
         .manage(dictionary_download_service)
         .manage(dictionary_install_service)
+        .manage(dictionary_maintenance_service)
         .manage(dictionary_lookup_service)
         .manage(watcher_state)
         .manage(import_transaction_state)
@@ -53,6 +56,7 @@ pub fn run() {
             commands::archive_import::add_epub_files_to_archive,
             commands::archive_import_artifacts::cleanup_archive_import_artifacts,
             commands::dictionaries::list_installed_dictionaries,
+            commands::dictionaries::recover_dictionary_resources,
             commands::dictionaries::lookup_dictionary_term,
             commands::dictionaries::load_cached_dictionary_catalog,
             commands::dictionaries::refresh_dictionary_catalog,

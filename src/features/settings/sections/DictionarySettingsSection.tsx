@@ -141,7 +141,22 @@ function InstalledDictionaryRow({
   removeButtonRef: RefCallback<HTMLButtonElement>;
   total: number;
 }) {
-  const busy = Boolean(controller.managementOperation);
+  const unavailable = dictionary.indexState === "unavailable";
+  const catalogAvailable = Boolean(
+    dictionary.catalogId &&
+    controller.catalog?.entries.some((entry) => entry.id === dictionary.catalogId),
+  );
+  const recoveryOperation =
+    dictionary.catalogId && controller.catalogOperation?.catalogId === dictionary.catalogId
+      ? controller.catalogOperation
+      : null;
+  const busy = Boolean(
+    controller.managementOperation ||
+    controller.recovering ||
+    controller.importing ||
+    recoveryOperation?.phase === "downloading" ||
+    recoveryOperation?.phase === "installing",
+  );
   const rowError =
     controller.managementError?.dictionaryId === dictionary.id
       ? controller.managementError.message
@@ -153,7 +168,11 @@ function InstalledDictionaryRow({
         <div className="dictionary-settings-card__heading">
           <h4>{dictionary.displayName}</h4>
           <span className="dictionary-settings-card__status">
-            {dictionary.indexState === "ready" ? "Ready" : "Index required"}
+            {dictionary.indexState === "ready"
+              ? "Ready"
+              : unavailable
+                ? "Unavailable"
+                : "Index required"}
           </span>
         </div>
         <p>{dictionary.sourceAttribution}</p>
@@ -175,6 +194,15 @@ function InstalledDictionaryRow({
             <dd>{dictionary.licenseName}</dd>
           </div>
         </dl>
+        {unavailable ? (
+          <p className="dictionary-settings-card__error">
+            {dictionary.sourceKind === "catalog"
+              ? catalogAvailable
+                ? "Installed files are missing or invalid. Download this dictionary again to restore it."
+                : "Installed files are missing or invalid. Refresh the catalog to check for a replacement, or remove this dictionary."
+              : "Installed files are missing or invalid. Import a replacement, then remove this unavailable copy."}
+          </p>
+        ) : null}
         {rowError ? (
           <p className="dictionary-settings-card__error" role="alert">
             {rowError}
@@ -184,7 +212,7 @@ function InstalledDictionaryRow({
       <div className="dictionary-settings-card__actions dictionary-settings-card__actions--installed">
         <Toggle
           checked={dictionary.enabled}
-          disabled={busy}
+          disabled={busy || unavailable}
           label={`${dictionary.enabled ? "Disable" : "Enable"} ${dictionary.displayName}`}
           onChange={(enabled) => void controller.setEnabled(dictionary.id, enabled)}
           size="standard"
@@ -218,6 +246,35 @@ function InstalledDictionaryRow({
             Rebuild index
           </Button>
         ) : null}
+        {unavailable && dictionary.sourceKind === "catalog" && catalogAvailable ? (
+          <Button
+            busy={Boolean(
+              recoveryOperation?.phase === "downloading" ||
+              recoveryOperation?.phase === "installing",
+            )}
+            disabled={busy}
+            icon={<Download aria-hidden="true" />}
+            onClick={() => {
+              if (dictionary.catalogId) void controller.installCatalog(dictionary.catalogId);
+            }}
+            size="compact"
+            variant="secondary"
+          >
+            Download again
+          </Button>
+        ) : null}
+        {unavailable && dictionary.sourceKind === "manual-import" ? (
+          <Button
+            busy={controller.importing}
+            disabled={busy}
+            icon={<FilePlus2 aria-hidden="true" />}
+            onClick={() => void controller.importDictionary()}
+            size="compact"
+            variant="secondary"
+          >
+            Import replacement
+          </Button>
+        ) : null}
         <IconButton
           disabled={busy}
           label={`Remove ${dictionary.displayName}`}
@@ -246,7 +303,7 @@ export function DictionarySettingsView({
   const successfulRemovalFocusRef = useRef<readonly string[] | null>(null);
   const installedCatalogIds = new Set(
     controller.registry?.dictionaries.flatMap((dictionary) =>
-      dictionary.catalogId ? [dictionary.catalogId] : [],
+      dictionary.catalogId && dictionary.indexState !== "unavailable" ? [dictionary.catalogId] : [],
     ) ?? [],
   );
   const dictionaries = controller.registry?.dictionaries ?? EMPTY_DICTIONARIES;
@@ -388,9 +445,20 @@ export function DictionarySettingsView({
             </p>
           ) : null}
           {controller.registry?.status === "recovery-required" ? (
-            <p className="dictionary-settings__error" role="alert">
-              {controller.registry.recovery?.message ?? "Dictionary storage requires recovery."}
-            </p>
+            <div className="dictionary-settings__notice" role="alert">
+              <p>
+                {controller.registry.recovery?.message ?? "Dictionary storage requires recovery."}
+              </p>
+              <Button
+                busy={controller.recovering}
+                disabled={controller.recovering}
+                onClick={() => void controller.recoverResources()}
+                size="compact"
+                variant="secondary"
+              >
+                Try recovery
+              </Button>
+            </div>
           ) : null}
           {controller.registryState === "ready" &&
           controller.registry?.status === "ready" &&

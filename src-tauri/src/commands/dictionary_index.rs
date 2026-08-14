@@ -1,4 +1,8 @@
-use std::{collections::HashSet, fs, path::Path};
+use std::{
+    collections::{BTreeSet, HashSet},
+    fs,
+    path::Path,
+};
 
 use rusqlite::{params, Connection, Transaction};
 
@@ -59,23 +63,6 @@ fn is_surrounding_punctuation(character: char) -> bool {
             | '<'
             | '>'
     )
-}
-
-pub(crate) fn replace_dictionary_index(
-    connection: &mut Connection,
-    dictionary_id: &str,
-    package: &ValidatedStarDictPackage,
-    installed_definition_bytes: u64,
-) -> Result<(), DictionaryStoreError> {
-    let transaction = connection.transaction()?;
-    replace_dictionary_index_in_transaction(
-        &transaction,
-        dictionary_id,
-        package,
-        installed_definition_bytes,
-    )?;
-    transaction.commit()?;
-    Ok(())
 }
 
 pub(crate) fn replace_dictionary_index_in_transaction(
@@ -158,6 +145,67 @@ pub(crate) fn replace_dictionary_index_in_transaction(
     Ok(())
 }
 
+pub(crate) fn dictionary_index_is_current(
+    connection: &Connection,
+    dictionary_id: &str,
+    package: &ValidatedStarDictPackage,
+) -> Result<bool, DictionaryStoreError> {
+    let mut statement = connection.prepare(
+        "SELECT source_ordinal, normalized_headword, display_headword,
+                definition_offset, definition_length
+         FROM dictionary_entries
+         WHERE dictionary_id = ?1
+         ORDER BY source_ordinal",
+    )?;
+    let mut rows = statement.query([dictionary_id])?;
+    for (expected_ordinal, expected) in package.entries.iter().enumerate() {
+        let Some(row) = rows.next()? else {
+            return Ok(false);
+        };
+        let ordinal: i64 = row.get(0)?;
+        let definition_offset: i64 = row.get(3)?;
+        let definition_length: i64 = row.get(4)?;
+        if ordinal != to_sql_integer(expected_ordinal as u64, "source ordinal")?
+            || row.get::<_, String>(1)? != normalize_dictionary_term(&expected.word)
+            || row.get::<_, String>(2)? != expected.word
+            || definition_offset != to_sql_integer(expected.definition_offset, "definition offset")?
+            || definition_length != i64::from(expected.definition_size)
+        {
+            return Ok(false);
+        }
+    }
+    if rows.next()?.is_some() {
+        return Ok(false);
+    }
+
+    let expected_aliases = package
+        .synonyms
+        .iter()
+        .map(|synonym| {
+            (
+                normalize_dictionary_term(&synonym.word),
+                synonym.target_index,
+            )
+        })
+        .collect::<BTreeSet<_>>();
+    let mut statement = connection.prepare(
+        "SELECT normalized_alias, source_ordinal
+         FROM dictionary_aliases
+         WHERE dictionary_id = ?1
+         ORDER BY normalized_alias, source_ordinal",
+    )?;
+    let actual_aliases = statement
+        .query_map([dictionary_id], |row| {
+            let ordinal: i64 = row.get(1)?;
+            Ok((
+                row.get::<_, String>(0)?,
+                u32::try_from(ordinal).map_err(|_| conversion_error())?,
+            ))
+        })?
+        .collect::<Result<BTreeSet<_>, _>>()?;
+    Ok(actual_aliases == expected_aliases)
+}
+
 pub(crate) fn lookup_exact(
     connection: &Connection,
     headword: &str,
@@ -223,11 +271,23 @@ pub(crate) fn rebuild_dictionary_index(
     dictionary_id: &str,
 ) -> Result<(), DictionaryStoreError> {
     let installed_path = store.installed_path(dictionary_id)?;
-    let ifo_path = find_installed_ifo(&installed_path)?;
-    let package = stardict_validation::validate_package(&ifo_path)
-        .map_err(|error| DictionaryStoreError::InvalidIndex(error.to_string()))?;
+    let package = validate_installed_package(&installed_path)?;
     let installed_definition_bytes = package.definition_data.expanded_bytes;
     store.replace_index(dictionary_id, &package, installed_definition_bytes)
+}
+
+pub(crate) fn validate_installed_package(
+    installed_path: &Path,
+) -> Result<ValidatedStarDictPackage, DictionaryStoreError> {
+    let metadata = fs::symlink_metadata(installed_path)?;
+    if !metadata.file_type().is_dir() {
+        return Err(DictionaryStoreError::InvalidIndex(
+            "Installed dictionary storage is not a regular directory.".to_string(),
+        ));
+    }
+    let ifo_path = find_installed_ifo(installed_path)?;
+    stardict_validation::validate_package(&ifo_path)
+        .map_err(|error| DictionaryStoreError::InvalidIndex(error.to_string()))
 }
 
 fn find_installed_ifo(installed_path: &Path) -> Result<std::path::PathBuf, DictionaryStoreError> {

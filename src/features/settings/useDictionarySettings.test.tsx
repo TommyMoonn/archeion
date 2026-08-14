@@ -98,6 +98,7 @@ function dependencies(
     },
     managementClient: {
       list: vi.fn(async () => registry()),
+      recover: vi.fn(async () => registry()),
       rebuildIndex: vi.fn(async () => registry()),
       remove: vi.fn(async () => registry()),
       setEnabled: vi.fn(async () => registry()),
@@ -278,6 +279,40 @@ describe("useDictionarySettings", () => {
     expect(rendered.controller.registry?.dictionaries[0]?.id).toBe("dict-import");
   });
 
+  it("retries native resource recovery and publishes the settled registry", async () => {
+    const recovered = registry([installed()]);
+    const recover = vi.fn(async () => recovered);
+    const registrySink = { publish: vi.fn() };
+    const deps = dependencies({
+      managementClient: {
+        list: vi.fn(async () => ({
+          dictionaries: [],
+          recovery: {
+            reason: "corrupt-database" as const,
+            message: "Recovery required",
+          },
+          status: "recovery-required" as const,
+        })),
+        recover,
+        rebuildIndex: vi.fn(async () => recovered),
+        remove: vi.fn(async () => recovered),
+        setEnabled: vi.fn(async () => recovered),
+        setOrder: vi.fn(async () => recovered),
+      },
+      registrySink,
+    });
+    const rendered = await renderController(deps);
+
+    await act(async () => {
+      await rendered.controller.recoverResources();
+    });
+
+    expect(recover).toHaveBeenCalledOnce();
+    expect(rendered.controller.registry).toEqual(recovered);
+    expect(registrySink.publish).toHaveBeenLastCalledWith(recovered);
+    expect(rendered.controller.recovering).toBe(false);
+  });
+
   it("persists enable and ordering snapshots across controller reopen", async () => {
     let current = registry([
       installed(),
@@ -285,6 +320,7 @@ describe("useDictionarySettings", () => {
     ]);
     const managementClient = {
       list: vi.fn(async () => current),
+      recover: vi.fn(async () => current),
       rebuildIndex: vi.fn(async () => current),
       remove: vi.fn(async () => current),
       setEnabled: vi.fn(async (dictionaryId: string, enabled: boolean) => {

@@ -226,6 +226,8 @@ async fn network_timeout_and_cancel_settle_without_verified_staging() {
 
     let pending_service = service.clone();
     let pending_root = root.clone();
+    let recognized_stale = download_staging_root(&root).join("partial-1-2-3.download");
+    fs::create_dir_all(&recognized_stale).unwrap();
     let (started_tx, started_rx) = oneshot::channel();
     let pending = tokio::spawn(async move {
         pending_service
@@ -241,11 +243,14 @@ async fn network_timeout_and_cancel_settle_without_verified_staging() {
             .await
     });
     started_rx.await.unwrap();
+    assert_eq!(service.cleanup_stale(&root).unwrap(), 0);
+    assert!(recognized_stale.is_dir());
     service.cancel_current();
     assert_eq!(
         pending.await.unwrap().unwrap_err(),
         DictionaryDownloadError::Cancelled
     );
+    assert_eq!(service.cleanup_stale(&root).unwrap(), 1);
     assert!(
         !download_staging_root(&root).exists()
             || fs::read_dir(download_staging_root(&root))

@@ -15,6 +15,7 @@ beforeEach(() => {
 describe("dictionaryManagementCommandClient", () => {
   it("routes installed dictionary management through the native registry owner", async () => {
     await dictionaryManagementCommandClient.list();
+    await dictionaryManagementCommandClient.recover();
     await dictionaryManagementCommandClient.setEnabled("dict-a", false);
     await dictionaryManagementCommandClient.setOrder(["dict-b", "dict-a"]);
     await dictionaryManagementCommandClient.rebuildIndex("dict-a");
@@ -22,6 +23,7 @@ describe("dictionaryManagementCommandClient", () => {
 
     expect(invokeMock.mock.calls).toEqual([
       ["list_installed_dictionaries"],
+      ["recover_dictionary_resources"],
       ["set_dictionary_enabled", { dictionaryId: "dict-a", enabled: false }],
       ["set_dictionary_order", { dictionaryIds: ["dict-b", "dict-a"] }],
       ["rebuild_dictionary_index", { dictionaryId: "dict-a" }],

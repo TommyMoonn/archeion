@@ -205,6 +205,16 @@ impl DictionaryDownloadService {
     pub(crate) fn cancel_current(&self) {
         self.requests.cancel_current();
     }
+
+    pub(crate) fn cleanup_stale(
+        &self,
+        app_data_root: &Path,
+    ) -> Result<usize, DictionaryDownloadError> {
+        if self.requests.is_active() {
+            return Ok(0);
+        }
+        cleanup_stale_download_staging(app_data_root)
+    }
 }
 
 async fn open_http_source(
@@ -544,6 +554,51 @@ fn download_staging_root(app_data_root: &Path) -> PathBuf {
     DictionaryStoragePaths::from_app_data_root(app_data_root)
         .root()
         .join(DOWNLOAD_STAGING_DIRECTORY)
+}
+
+fn cleanup_stale_download_staging(app_data_root: &Path) -> Result<usize, DictionaryDownloadError> {
+    let staging = download_staging_root(app_data_root);
+    let entries = match std::fs::read_dir(&staging) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(filesystem_error(error)),
+    };
+    let mut removed = 0;
+    for entry in entries {
+        let entry = entry.map_err(filesystem_error)?;
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if !recognized_stale_download_name(name) {
+            continue;
+        }
+        let metadata = std::fs::symlink_metadata(entry.path()).map_err(filesystem_error)?;
+        if !metadata.file_type().is_dir() {
+            continue;
+        }
+        std::fs::remove_dir_all(entry.path()).map_err(filesystem_error)?;
+        removed += 1;
+    }
+    Ok(removed)
+}
+
+fn recognized_stale_download_name(name: &str) -> bool {
+    name.strip_prefix("partial-")
+        .and_then(|value| value.strip_suffix(".download"))
+        .or_else(|| {
+            name.strip_prefix(RETIRED_INSTALL_PREFIX)
+                .and_then(|value| value.strip_suffix(VERIFIED_SUFFIX))
+        })
+        .is_some_and(valid_generated_stem)
+}
+
+fn valid_generated_stem(stem: &str) -> bool {
+    let segments = stem.split('-').collect::<Vec<_>>();
+    segments.len() == 3
+        && segments
+            .iter()
+            .all(|segment| !segment.is_empty() && segment.bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 fn generated_staging_stem() -> String {

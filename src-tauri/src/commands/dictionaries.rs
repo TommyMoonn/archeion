@@ -9,7 +9,8 @@ use super::dictionary_download::{
 };
 use super::dictionary_install::DictionaryInstallService;
 use super::dictionary_lookup::{DictionaryLookupResponse, DictionaryLookupService};
-use super::dictionary_store::{open_current_store, DictionaryRegistrySnapshot, DictionaryStore};
+use super::dictionary_maintenance::DictionaryMaintenanceService;
+use super::dictionary_store::{open_current_store, DictionaryRegistrySnapshot};
 
 pub(crate) fn app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
@@ -132,10 +133,48 @@ pub async fn import_stardict_dictionary(
 }
 
 #[tauri::command]
-pub fn list_installed_dictionaries(
+pub async fn list_installed_dictionaries(
     app: tauri::AppHandle,
+    maintenance_service: tauri::State<'_, DictionaryMaintenanceService>,
+    download_service: tauri::State<'_, DictionaryDownloadService>,
+    install_service: tauri::State<'_, DictionaryInstallService>,
 ) -> Result<DictionaryRegistrySnapshot, String> {
-    DictionaryStore::snapshot(&app_data_root(&app)?).map_err(|error| error.to_string())
+    maintain_dictionary_resources(
+        app_data_root(&app)?,
+        maintenance_service.inner().clone(),
+        download_service.inner().clone(),
+        install_service.inner().clone(),
+    )
+    .await
+}
+
+#[tauri::command]
+pub async fn recover_dictionary_resources(
+    app: tauri::AppHandle,
+    maintenance_service: tauri::State<'_, DictionaryMaintenanceService>,
+    download_service: tauri::State<'_, DictionaryDownloadService>,
+    install_service: tauri::State<'_, DictionaryInstallService>,
+) -> Result<DictionaryRegistrySnapshot, String> {
+    maintain_dictionary_resources(
+        app_data_root(&app)?,
+        maintenance_service.inner().clone(),
+        download_service.inner().clone(),
+        install_service.inner().clone(),
+    )
+    .await
+}
+
+async fn maintain_dictionary_resources(
+    root: PathBuf,
+    maintenance_service: DictionaryMaintenanceService,
+    download_service: DictionaryDownloadService,
+    install_service: DictionaryInstallService,
+) -> Result<DictionaryRegistrySnapshot, String> {
+    tokio::task::spawn_blocking(move || {
+        maintenance_service.maintain(&root, &download_service, &install_service)
+    })
+    .await
+    .map_err(|error| format!("Dictionary maintenance task failed: {error}"))?
 }
 
 #[tauri::command]

@@ -61,6 +61,10 @@ impl DictionaryRequestTicket {
 }
 
 impl DictionaryRequestOwner {
+    pub(crate) fn is_active(&self) -> bool {
+        recover_lock(&self.state).active.is_some()
+    }
+
     pub(crate) fn begin(&self) -> Result<DictionaryRequestTicket, DictionaryRequestError> {
         let mut state = recover_lock(&self.state);
         if let Some(active) = state.active.take() {

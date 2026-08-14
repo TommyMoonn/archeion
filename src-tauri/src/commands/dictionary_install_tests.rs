@@ -305,6 +305,48 @@ fn manual_import_uses_the_same_owned_layout_without_modifying_source_files() {
 }
 
 #[test]
+fn catalog_reinstall_restores_unavailable_dictionary_without_changing_its_identity() {
+    let directory = TestDirectory::new("catalog-reinstall");
+    let source = directory.path().join("source");
+    create_package(&source, "fixture");
+    let first_token = "verified-20-21-22.stardict.zip";
+    write_verified_archive(directory.path(), first_token, &source);
+    let installed = DictionaryInstallService::default()
+        .install_catalog(directory.path(), first_token)
+        .unwrap();
+    {
+        let mut store = open_current_store(directory.path()).unwrap();
+        store.set_enabled(&installed.id, false).unwrap();
+        let installed_path = store.installed_path(&installed.id).unwrap();
+        fs::remove_file(installed_path.join("dictionary.dict")).unwrap();
+    }
+    let unavailable = DictionaryStore::snapshot(directory.path()).unwrap();
+    assert_eq!(
+        unavailable.dictionaries[0].index_state,
+        DictionaryIndexState::Unavailable
+    );
+
+    let retry_token = "verified-23-24-25.stardict.zip";
+    write_verified_archive(directory.path(), retry_token, &source);
+    let restored = DictionaryInstallService::default()
+        .install_catalog(directory.path(), retry_token)
+        .unwrap();
+
+    assert_eq!(restored.id, installed.id);
+    assert_eq!(restored.order, installed.order);
+    assert!(!restored.enabled);
+    assert_eq!(restored.index_state, DictionaryIndexState::Ready);
+    assert_eq!(restored.catalog_id, installed.catalog_id);
+    let store = open_current_store(directory.path()).unwrap();
+    assert_eq!(store.list().unwrap().len(), 1);
+    assert!(store.lookup_exact("alpha", 8).unwrap().is_empty());
+    let mut store = open_current_store(directory.path()).unwrap();
+    store.set_enabled(&restored.id, true).unwrap();
+    assert_eq!(store.lookup_exact("alpha", 8).unwrap().len(), 1);
+    assert_install_staging_empty(directory.path());
+}
+
+#[test]
 fn invalid_catalog_package_cleans_install_staging_and_preserves_verified_and_unrelated_data() {
     let directory = TestDirectory::new("invalid-catalog");
     let token = "verified-4-5-6.stardict.zip";

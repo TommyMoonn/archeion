@@ -76,6 +76,8 @@ function controller(
     managementOperation: null,
     move: vi.fn(async () => true),
     rebuildIndex: vi.fn(async () => true),
+    recoverResources: vi.fn(async () => true),
+    recovering: false,
     refreshCatalog: vi.fn(async () => undefined),
     refreshing: false,
     registry: {
@@ -277,5 +279,56 @@ describe("DictionarySettingsView", () => {
     expect(container.querySelector("progress")?.getAttribute("value")).toBe("512");
     act(() => button(container, "Cancel").click());
     expect(value.cancelDownload).toHaveBeenCalledOnce();
+  });
+
+  it("keeps unavailable dictionaries visible with source-appropriate recovery actions", () => {
+    const value = controller({
+      registry: {
+        dictionaries: [
+          installed({
+            catalogId: "english-core",
+            indexState: "unavailable",
+          }),
+          installed({
+            catalogId: null,
+            displayName: "Manual",
+            id: "dict-b",
+            indexState: "unavailable",
+            order: 1,
+            sourceKind: "manual-import",
+          }),
+        ],
+        recovery: null,
+        status: "ready",
+      },
+    });
+    const container = renderView(value);
+    act(() => button(container, "Installed (2)").click());
+
+    expect(container.textContent).toContain("Unavailable");
+    expect(container.textContent).toContain("Download this dictionary again to restore it.");
+    expect(container.textContent).toContain("Import a replacement");
+    act(() => button(container, "Download again").click());
+    act(() => button(container, "Import replacement").click());
+
+    expect(value.installCatalog).toHaveBeenCalledWith("english-core");
+    expect(value.importDictionary).toHaveBeenCalledOnce();
+    expect(button(container, "Disable English Core").disabled).toBe(true);
+  });
+
+  it("offers a retry when native dictionary recovery cannot settle automatically", () => {
+    const value = controller({
+      registry: {
+        dictionaries: [],
+        recovery: { reason: "corrupt-database", message: "Recovery failed" },
+        status: "recovery-required",
+      },
+    });
+    const container = renderView(value);
+    act(() => button(container, "Installed (0)").click());
+
+    expect(container.textContent).toContain("Recovery failed");
+    act(() => button(container, "Try recovery").click());
+    expect(value.recoverResources).toHaveBeenCalledOnce();
   });
 });

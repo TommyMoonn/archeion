@@ -10,6 +10,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     dictionary_index::{self, DictionaryLookupEntry},
+    dictionary_recovery_registry::{
+        read_recovery_registry, recovery_registry_exists, StagedRecoveryRegistry,
+    },
     stardict_validation::ValidatedStarDictPackage,
 };
 
@@ -246,6 +249,7 @@ pub(crate) enum DictionaryStoreError {
     InvalidStoredValue(&'static str),
     InvalidIndex(String),
     NumericOverflow(&'static str),
+    Recovery(String),
     RecoveryRequired(DictionaryRecoveryState),
 }
 
@@ -275,6 +279,7 @@ impl fmt::Display for DictionaryStoreError {
                     "Dictionary {field} is outside the supported range."
                 )
             }
+            Self::Recovery(message) => formatter.write_str(message),
             Self::RecoveryRequired(state) => formatter.write_str(&state.message),
         }
     }
@@ -348,6 +353,7 @@ impl DictionaryStore {
     pub(crate) fn open(app_data_root: &Path) -> Result<DictionaryStoreOpen, DictionaryStoreError> {
         let paths = DictionaryStoragePaths::from_app_data_root(app_data_root);
         fs::create_dir_all(paths.root())?;
+        let database_existed = paths.database().exists();
 
         let connection = match Connection::open_with_flags(
             paths.database(),
@@ -374,7 +380,16 @@ impl DictionaryStore {
         }
 
         match inspect_database(&connection) {
-            Ok(DatabaseInspection::Empty) => initialize_schema(&connection)?,
+            Ok(DatabaseInspection::Empty)
+                if database_existed || !recovery_registry_exists(&paths) =>
+            {
+                initialize_schema(&connection)?
+            }
+            Ok(DatabaseInspection::Empty) => {
+                return Ok(DictionaryStoreOpen::RecoveryRequired(corrupt_recovery(
+                    &"the dictionary database is missing",
+                )))
+            }
             Ok(DatabaseInspection::Current) => {}
             Ok(DatabaseInspection::Unsupported(version)) => {
                 return Ok(DictionaryStoreOpen::RecoveryRequired(unsupported_recovery(
@@ -406,8 +421,25 @@ impl DictionaryStore {
         app_data_root: &Path,
     ) -> Result<DictionaryRegistrySnapshot, DictionaryStoreError> {
         match Self::open(app_data_root)? {
-            DictionaryStoreOpen::Current(store) => {
+            DictionaryStoreOpen::Current(mut store) => {
+                store.reconcile_installed_resources()?;
                 Ok(DictionaryRegistrySnapshot::ready(store.list()?))
+            }
+            DictionaryStoreOpen::RecoveryRequired(recovery)
+                if recovery.reason == DictionaryRecoveryReason::CorruptDatabase =>
+            {
+                match recover_database_from_installed_registry(app_data_root) {
+                    Ok(mut store) => {
+                        store.reconcile_installed_resources()?;
+                        Ok(DictionaryRegistrySnapshot::ready(store.list()?))
+                    }
+                    Err(error) => Ok(DictionaryRegistrySnapshot::recovery_required(
+                        DictionaryRecoveryState {
+                            reason: recovery.reason,
+                            message: format!("{} Recovery failed: {error}", recovery.message),
+                        },
+                    )),
+                }
             }
             DictionaryStoreOpen::RecoveryRequired(recovery) => {
                 Ok(DictionaryRegistrySnapshot::recovery_required(recovery))
@@ -417,6 +449,92 @@ impl DictionaryStore {
 
     pub(crate) fn list(&self) -> Result<Vec<InstalledDictionary>, DictionaryStoreError> {
         list_with_connection(&self.connection)
+    }
+
+    fn reconcile_installed_resources(&mut self) -> Result<(), DictionaryStoreError> {
+        let dictionaries = self.list()?;
+        let mut resources = Vec::with_capacity(dictionaries.len());
+        let mut changed = false;
+        for dictionary in &dictionaries {
+            let installed_path = self.paths.installed_path(&dictionary.id)?;
+            match dictionary_index::validate_installed_package(&installed_path) {
+                Ok(package) => {
+                    let installed_size_bytes = package
+                        .source_files
+                        .iter()
+                        .map(|source| source.byte_length)
+                        .sum::<u64>();
+                    let index_current = dictionary_index::dictionary_index_is_current(
+                        &self.connection,
+                        &dictionary.id,
+                        &package,
+                    )
+                    .unwrap_or(false);
+                    let current = index_current
+                        && dictionary.index_state == DictionaryIndexState::Ready
+                        && dictionary.entry_count == package.entries.len() as u64
+                        && dictionary.installed_size_bytes == installed_size_bytes;
+                    changed |= !current;
+                    resources.push(Some((package, installed_size_bytes, current)));
+                }
+                Err(_) => {
+                    changed |= dictionary.index_state != DictionaryIndexState::Unavailable;
+                    resources.push(None);
+                }
+            }
+        }
+
+        if !changed {
+            let recovery_is_current = read_recovery_registry(&self.paths)
+                .ok()
+                .is_some_and(|recovered| recovered == dictionaries);
+            if !recovery_is_current {
+                stage_recovery_registry(&self.paths, &dictionaries)?.commit();
+            }
+            return Ok(());
+        }
+
+        let transaction = self.connection.transaction()?;
+        for (dictionary, resource) in dictionaries.iter().zip(resources) {
+            match resource {
+                Some((package, installed_size_bytes, false)) => {
+                    transaction.execute(
+                        "UPDATE installed_dictionaries
+                         SET installed_size_bytes = ?1
+                         WHERE dictionary_id = ?2",
+                        params![
+                            to_sql_integer(installed_size_bytes, "installed size")?,
+                            dictionary.id
+                        ],
+                    )?;
+                    dictionary_index::replace_dictionary_index_in_transaction(
+                        &transaction,
+                        &dictionary.id,
+                        &package,
+                        package.definition_data.expanded_bytes,
+                    )?;
+                }
+                Some((_package, _installed_size_bytes, true)) => {}
+                None => {
+                    transaction.execute(
+                        "DELETE FROM dictionary_entries WHERE dictionary_id = ?1",
+                        [&dictionary.id],
+                    )?;
+                    transaction.execute(
+                        "UPDATE installed_dictionaries
+                         SET index_state = ?1
+                         WHERE dictionary_id = ?2",
+                        params![
+                            DictionaryIndexState::Unavailable.as_database_value(),
+                            dictionary.id
+                        ],
+                    )?;
+                }
+            }
+        }
+        let settled = list_with_connection(&transaction)?;
+        let recovery = stage_recovery_registry(&self.paths, &settled)?;
+        commit_with_recovery_registry(transaction, recovery)
     }
 
     #[allow(dead_code)]
@@ -439,7 +557,9 @@ impl DictionaryStore {
             order,
             &registration,
         )?;
-        transaction.commit()?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = stage_recovery_registry(&self.paths, &dictionaries)?;
+        commit_with_recovery_registry(transaction, recovery)?;
 
         self.get(&dictionary_id)?
             .ok_or(DictionaryStoreError::InvalidStoredValue("new dictionary"))
@@ -482,16 +602,146 @@ impl DictionaryStore {
         )?;
 
         activate(&dictionary_id, &installed_path).map_err(DictionaryStoreError::Activation)?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = match stage_recovery_registry(&paths, &dictionaries) {
+            Ok(recovery) => recovery,
+            Err(error) => {
+                return match rollback_activation(&installed_path) {
+                    Ok(()) => Err(error),
+                    Err(rollback_error) => Err(DictionaryStoreError::Activation(format!(
+                        "Dictionary recovery publication failed ({error}) and activated-file cleanup failed: {rollback_error}"
+                    ))),
+                }
+            }
+        };
         if let Err(error) = transaction.commit() {
+            let recovery_error = recovery.rollback().err();
             return match rollback_activation(&installed_path) {
-                Ok(()) => Err(DictionaryStoreError::Database(error)),
+                Ok(()) if recovery_error.is_none() => Err(DictionaryStoreError::Database(error)),
+                Ok(()) => Err(DictionaryStoreError::Activation(format!(
+                    "Dictionary database publication failed ({error}) and recovery-registry restoration failed: {}",
+                    recovery_error.unwrap()
+                ))),
                 Err(rollback_error) => Err(DictionaryStoreError::Activation(format!(
                     "Dictionary database publication failed ({error}) and activated-file cleanup failed: {rollback_error}"
                 ))),
             };
         }
+        recovery.commit();
         self.get(&dictionary_id)?
             .ok_or(DictionaryStoreError::InvalidStoredValue("new dictionary"))
+    }
+
+    pub(crate) fn unavailable_catalog_dictionary(
+        &self,
+        catalog_id: &str,
+    ) -> Result<Option<InstalledDictionary>, DictionaryStoreError> {
+        let matches = self
+            .list()?
+            .into_iter()
+            .filter(|dictionary| {
+                dictionary.source_kind == DictionarySourceKind::Catalog
+                    && dictionary.catalog_id.as_deref() == Some(catalog_id)
+                    && dictionary.index_state == DictionaryIndexState::Unavailable
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [] => Ok(None),
+            [dictionary] => Ok(Some(dictionary.clone())),
+            _ => Err(DictionaryStoreError::InvalidStoredValue(
+                "catalog recovery identity",
+            )),
+        }
+    }
+
+    pub(crate) fn replace_unavailable_dictionary<Activate, Rollback>(
+        &mut self,
+        dictionary_id: &str,
+        registration: DictionaryRegistration,
+        package: &ValidatedStarDictPackage,
+        installed_definition_bytes: u64,
+        activate: Activate,
+        rollback_activation: Rollback,
+    ) -> Result<InstalledDictionary, DictionaryStoreError>
+    where
+        Activate: FnOnce(&str, &Path) -> Result<(), String>,
+        Rollback: FnOnce(&Path) -> Result<(), String>,
+    {
+        validate_dictionary_id(dictionary_id)?;
+        let current = self
+            .get(dictionary_id)?
+            .ok_or(DictionaryStoreError::InvalidDictionaryId)?;
+        if current.source_kind != DictionarySourceKind::Catalog
+            || current.index_state != DictionaryIndexState::Unavailable
+            || current.catalog_id != registration.catalog_id
+        {
+            return Err(DictionaryStoreError::InvalidDictionaryId);
+        }
+
+        let paths = self.paths.clone();
+        let installed_path = paths.installed_path(dictionary_id)?;
+        let transaction = self.connection.transaction()?;
+        let updated = transaction.execute(
+            "UPDATE installed_dictionaries
+             SET display_name = ?1, language = ?2, entry_count = ?3,
+                 installed_size_bytes = ?4, source_attribution = ?5,
+                 license_name = ?6, license_url = ?7, package_version = ?8,
+                 index_state = ?9
+             WHERE dictionary_id = ?10 AND index_state = 'unavailable'",
+            params![
+                registration.display_name,
+                registration.language,
+                to_sql_integer(registration.entry_count, "entry count")?,
+                to_sql_integer(registration.installed_size_bytes, "installed size")?,
+                registration.source_attribution,
+                registration.license_name,
+                registration.license_url,
+                registration.package_version,
+                registration.index_state.as_database_value(),
+                dictionary_id,
+            ],
+        )?;
+        if updated != 1 {
+            return Err(DictionaryStoreError::InvalidDictionaryId);
+        }
+        dictionary_index::replace_dictionary_index_in_transaction(
+            &transaction,
+            dictionary_id,
+            package,
+            installed_definition_bytes,
+        )?;
+
+        activate(dictionary_id, &installed_path).map_err(DictionaryStoreError::Activation)?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = match stage_recovery_registry(&paths, &dictionaries) {
+            Ok(recovery) => recovery,
+            Err(error) => {
+                return match rollback_activation(&installed_path) {
+                    Ok(()) => Err(error),
+                    Err(rollback_error) => Err(DictionaryStoreError::Activation(format!(
+                        "Dictionary recovery publication failed ({error}) and replacement rollback failed: {rollback_error}"
+                    ))),
+                }
+            }
+        };
+        if let Err(error) = transaction.commit() {
+            let recovery_error = recovery.rollback().err();
+            return match rollback_activation(&installed_path) {
+                Ok(()) if recovery_error.is_none() => Err(DictionaryStoreError::Database(error)),
+                Ok(()) => Err(DictionaryStoreError::Activation(format!(
+                    "Dictionary replacement failed ({error}) and recovery-registry restoration failed: {}",
+                    recovery_error.unwrap()
+                ))),
+                Err(rollback_error) => Err(DictionaryStoreError::Activation(format!(
+                    "Dictionary replacement failed ({error}) and installed-file restoration failed: {rollback_error}"
+                ))),
+            };
+        }
+        recovery.commit();
+        self.get(dictionary_id)?
+            .ok_or(DictionaryStoreError::InvalidStoredValue(
+                "replaced dictionary",
+            ))
     }
 
     pub(crate) fn set_enabled(
@@ -508,7 +758,9 @@ impl DictionaryStore {
         if changed != 1 {
             return Err(DictionaryStoreError::InvalidDictionaryId);
         }
-        transaction.commit()?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = stage_recovery_registry(&self.paths, &dictionaries)?;
+        commit_with_recovery_registry(transaction, recovery)?;
         self.list()
     }
 
@@ -526,7 +778,9 @@ impl DictionaryStore {
                 params![to_sql_integer(order as u64, "order")?, dictionary_id],
             )?;
         }
-        transaction.commit()?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = stage_recovery_registry(&self.paths, &dictionaries)?;
+        commit_with_recovery_registry(transaction, recovery)?;
         self.list()
     }
 
@@ -539,21 +793,28 @@ impl DictionaryStore {
             .get(dictionary_id)?
             .ok_or(DictionaryStoreError::InvalidDictionaryId)?;
         let installed_path = self.paths.installed_path(dictionary_id)?;
-        let metadata = fs::symlink_metadata(&installed_path)?;
-        if !metadata.file_type().is_dir() {
-            return Err(DictionaryStoreError::Activation(
-                "Installed dictionary storage is not a regular directory.".to_string(),
-            ));
-        }
-        let retired_parent = self.paths.root().join(REMOVAL_STAGING_DIRECTORY);
-        fs::create_dir_all(&retired_parent)?;
-        let retired_path = retired_parent.join(dictionary_id);
-        if fs::symlink_metadata(&retired_path).is_ok() {
-            return Err(DictionaryStoreError::Activation(
-                "Dictionary removal staging already exists and requires recovery.".to_string(),
-            ));
-        }
-        fs::rename(&installed_path, &retired_path)?;
+        let retired_path = match fs::symlink_metadata(&installed_path) {
+            Ok(metadata) if metadata.file_type().is_dir() => {
+                let retired_parent = self.paths.root().join(REMOVAL_STAGING_DIRECTORY);
+                fs::create_dir_all(&retired_parent)?;
+                let retired_path = retired_parent.join(dictionary_id);
+                if fs::symlink_metadata(&retired_path).is_ok() {
+                    return Err(DictionaryStoreError::Activation(
+                        "Dictionary removal staging already exists and requires recovery."
+                            .to_string(),
+                    ));
+                }
+                fs::rename(&installed_path, &retired_path)?;
+                Some(retired_path)
+            }
+            Ok(_) => {
+                return Err(DictionaryStoreError::Activation(
+                    "Installed dictionary storage is not a regular directory.".to_string(),
+                ))
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(error) => return Err(error.into()),
+        };
 
         let database_result = (|| {
             let transaction = self.connection.transaction()?;
@@ -570,24 +831,32 @@ impl DictionaryStore {
                  WHERE sort_order > ?1",
                 [i64::from(installed.order)],
             )?;
-            transaction.commit()?;
+            let dictionaries = list_with_connection(&transaction)?;
+            let recovery = stage_recovery_registry(&self.paths, &dictionaries)?;
+            commit_with_recovery_registry(transaction, recovery)?;
             Ok(())
         })();
 
         if let Err(error) = database_result {
-            return match fs::rename(&retired_path, &installed_path) {
-                Ok(()) => Err(error),
-                Err(restore_error) => Err(DictionaryStoreError::Activation(format!(
-                    "Dictionary removal failed ({error}) and installed-file restoration failed: {restore_error}"
-                ))),
+            return if let Some(retired_path) = &retired_path {
+                match fs::rename(retired_path, &installed_path) {
+                    Ok(()) => Err(error),
+                    Err(restore_error) => Err(DictionaryStoreError::Activation(format!(
+                        "Dictionary removal failed ({error}) and installed-file restoration failed: {restore_error}"
+                    ))),
+                }
+            } else {
+                Err(error)
             };
         }
 
-        if let Err(error) = fs::remove_dir_all(&retired_path) {
-            eprintln!(
-                "Dictionary removal committed but retired-file cleanup failed at {}: {error}",
-                retired_path.display()
-            );
+        if let Some(retired_path) = retired_path {
+            if let Err(error) = fs::remove_dir_all(&retired_path) {
+                eprintln!(
+                    "Dictionary removal committed but retired-file cleanup failed at {}: {error}",
+                    retired_path.display()
+                );
+            }
         }
         self.list()
     }
@@ -637,12 +906,16 @@ impl DictionaryStore {
         installed_definition_bytes: u64,
     ) -> Result<(), DictionaryStoreError> {
         validate_dictionary_id(dictionary_id)?;
-        dictionary_index::replace_dictionary_index(
-            &mut self.connection,
+        let transaction = self.connection.transaction()?;
+        dictionary_index::replace_dictionary_index_in_transaction(
+            &transaction,
             dictionary_id,
             package,
             installed_definition_bytes,
-        )
+        )?;
+        let dictionaries = list_with_connection(&transaction)?;
+        let recovery = stage_recovery_registry(&self.paths, &dictionaries)?;
+        commit_with_recovery_registry(transaction, recovery)
     }
 
     #[allow(dead_code)]
@@ -750,6 +1023,200 @@ fn list_with_connection(
     let rows = statement.query_map([], read_dictionary)?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(DictionaryStoreError::from)
+}
+
+fn stage_recovery_registry(
+    paths: &DictionaryStoragePaths,
+    dictionaries: &[InstalledDictionary],
+) -> Result<StagedRecoveryRegistry, DictionaryStoreError> {
+    validate_recovery_dictionaries(dictionaries)?;
+    StagedRecoveryRegistry::stage(paths, dictionaries)
+        .map_err(|error| DictionaryStoreError::Recovery(error.to_string()))
+}
+
+fn commit_with_recovery_registry(
+    transaction: Transaction<'_>,
+    recovery: StagedRecoveryRegistry,
+) -> Result<(), DictionaryStoreError> {
+    match transaction.commit() {
+        Ok(()) => {
+            recovery.commit();
+            Ok(())
+        }
+        Err(database_error) => match recovery.rollback() {
+            Ok(()) => Err(DictionaryStoreError::Database(database_error)),
+            Err(recovery_error) => Err(DictionaryStoreError::Recovery(format!(
+                "Dictionary database publication failed ({database_error}) and recovery-registry restoration failed: {recovery_error}"
+            ))),
+        },
+    }
+}
+
+fn validate_recovery_dictionaries(
+    dictionaries: &[InstalledDictionary],
+) -> Result<(), DictionaryStoreError> {
+    let mut ids = HashSet::new();
+    let mut orders = HashSet::new();
+    for dictionary in dictionaries {
+        validate_dictionary_id(&dictionary.id)?;
+        if dictionary.storage_relative_path != owned_storage_relative_path(&dictionary.id)? {
+            return Err(DictionaryStoreError::InvalidStoredValue("storage path"));
+        }
+        if !ids.insert(dictionary.id.as_str()) || !orders.insert(dictionary.order) {
+            return Err(DictionaryStoreError::InvalidStoredValue(
+                "recovery registry identity or order",
+            ));
+        }
+        match dictionary.source_kind {
+            DictionarySourceKind::Catalog if dictionary.catalog_id.is_none() => {
+                return Err(DictionaryStoreError::InvalidStoredValue("catalog id"))
+            }
+            DictionarySourceKind::ManualImport if dictionary.catalog_id.is_some() => {
+                return Err(DictionaryStoreError::InvalidStoredValue("catalog id"))
+            }
+            _ => {}
+        }
+    }
+    if orders.len() != dictionaries.len()
+        || !(0..dictionaries.len() as u32).all(|order| orders.contains(&order))
+    {
+        return Err(DictionaryStoreError::InvalidOrder);
+    }
+    Ok(())
+}
+
+fn recover_database_from_installed_registry(
+    app_data_root: &Path,
+) -> Result<DictionaryStore, DictionaryStoreError> {
+    let paths = DictionaryStoragePaths::from_app_data_root(app_data_root);
+    let mut dictionaries = read_recovery_registry(&paths)
+        .map_err(|error| DictionaryStoreError::Recovery(error.to_string()))?;
+    dictionaries.sort_by_key(|dictionary| (dictionary.order, dictionary.id.clone()));
+    validate_recovery_dictionaries(&dictionaries)?;
+
+    let recovery_database = paths.root().join("dictionaries.sqlite3.recovery");
+    remove_recognized_database_artifact(&recovery_database)?;
+    let mut connection = Connection::open_with_flags(
+        &recovery_database,
+        OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_CREATE
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+    )?;
+    connection.busy_timeout(SQLITE_BUSY_TIMEOUT)?;
+    connection.pragma_update(None, "foreign_keys", true)?;
+    initialize_schema(&connection)?;
+    {
+        let transaction = connection.transaction()?;
+        for dictionary in &dictionaries {
+            let installed_path = paths.installed_path(&dictionary.id)?;
+            let package = dictionary_index::validate_installed_package(&installed_path).ok();
+            let installed_size_bytes = package
+                .as_ref()
+                .map(|package| {
+                    package
+                        .source_files
+                        .iter()
+                        .map(|source| source.byte_length)
+                        .sum()
+                })
+                .unwrap_or(dictionary.installed_size_bytes);
+            let registration = DictionaryRegistration {
+                display_name: dictionary.display_name.clone(),
+                language: dictionary.language.clone(),
+                enabled: dictionary.enabled,
+                entry_count: if package.is_some() {
+                    0
+                } else {
+                    dictionary.entry_count
+                },
+                installed_size_bytes,
+                source_kind: dictionary.source_kind,
+                catalog_id: dictionary.catalog_id.clone(),
+                source_attribution: dictionary.source_attribution.clone(),
+                license_name: dictionary.license_name.clone(),
+                license_url: dictionary.license_url.clone(),
+                package_version: dictionary.package_version.clone(),
+                index_state: if package.is_some() {
+                    DictionaryIndexState::Pending
+                } else {
+                    DictionaryIndexState::Unavailable
+                },
+            };
+            insert_registration(
+                &transaction,
+                &dictionary.id,
+                &dictionary.storage_relative_path,
+                i64::from(dictionary.order),
+                &registration,
+            )?;
+            if let Some(package) = package {
+                dictionary_index::replace_dictionary_index_in_transaction(
+                    &transaction,
+                    &dictionary.id,
+                    &package,
+                    package.definition_data.expanded_bytes,
+                )?;
+            }
+        }
+        transaction.commit()?;
+    }
+    connection.close().map_err(|(_, error)| error)?;
+
+    let retired_database = paths.root().join("dictionaries.sqlite3.corrupt");
+    remove_recognized_database_artifact(&retired_database)?;
+    let database_was_present = match fs::symlink_metadata(paths.database()) {
+        Ok(_) => {
+            fs::rename(paths.database(), &retired_database)?;
+            true
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => false,
+        Err(error) => return Err(error.into()),
+    };
+    if let Err(error) = fs::rename(&recovery_database, paths.database()) {
+        if database_was_present {
+            let _ = fs::rename(&retired_database, paths.database());
+        }
+        return Err(error.into());
+    }
+
+    let recovered = match DictionaryStore::open(app_data_root)? {
+        DictionaryStoreOpen::Current(store) => store,
+        DictionaryStoreOpen::RecoveryRequired(state) => {
+            let _ = fs::remove_file(paths.database());
+            if database_was_present {
+                let _ = fs::rename(&retired_database, paths.database());
+            }
+            return Err(DictionaryStoreError::Recovery(format!(
+                "Rebuilt dictionary database did not open successfully: {}",
+                state.message
+            )));
+        }
+    };
+    if database_was_present {
+        if let Err(error) = remove_recognized_database_artifact(&retired_database) {
+            eprintln!(
+                "Dictionary database recovery committed but retired-database cleanup failed at {}: {error}",
+                retired_database.display()
+            );
+        }
+    }
+    Ok(recovered)
+}
+
+fn remove_recognized_database_artifact(path: &Path) -> Result<(), DictionaryStoreError> {
+    match fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.file_type().is_file() => fs::remove_file(path)?,
+        Ok(metadata) if metadata.file_type().is_dir() => fs::remove_dir_all(path)?,
+        Ok(_) => {
+            return Err(DictionaryStoreError::Recovery(format!(
+                "Recognized dictionary database recovery path is not a regular resource: {}",
+                path.display()
+            )))
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+    Ok(())
 }
 
 fn read_dictionary(row: &rusqlite::Row<'_>) -> rusqlite::Result<InstalledDictionary> {
@@ -984,6 +1451,34 @@ mod tests {
 
     fn current_store(root: &Path) -> DictionaryStore {
         open_current_store(root).expect("dictionary store should be current")
+    }
+
+    fn install_test_package(
+        store: &mut DictionaryStore,
+        name: &str,
+        word: &str,
+        definition: &[u8],
+    ) -> super::InstalledDictionary {
+        let dictionary = store.register(registration(name)).unwrap();
+        let installed_path = store.installed_path(&dictionary.id).unwrap();
+        fs::create_dir_all(&installed_path).unwrap();
+        let mut index = Vec::new();
+        index.extend_from_slice(word.as_bytes());
+        index.push(0);
+        index.extend_from_slice(&0_u32.to_be_bytes());
+        index.extend_from_slice(&(definition.len() as u32).to_be_bytes());
+        fs::write(installed_path.join("dictionary.idx"), &index).unwrap();
+        fs::write(installed_path.join("dictionary.dict"), definition).unwrap();
+        fs::write(
+            installed_path.join("dictionary.ifo"),
+            format!(
+                "StarDict's dict ifo file\nversion=2.4.2\nbookname={name}\nwordcount=1\nidxfilesize={}\nsametypesequence=m\n",
+                index.len()
+            ),
+        )
+        .unwrap();
+        store.rebuild_index(&dictionary.id).unwrap();
+        store.get(&dictionary.id).unwrap().unwrap()
     }
 
     #[test]
@@ -1284,5 +1779,139 @@ mod tests {
         let _ = fs::remove_dir_all(app_data_root);
         let _ = fs::remove_dir_all(first_archive);
         let _ = fs::remove_dir_all(second_archive);
+    }
+
+    #[test]
+    fn missing_or_corrupt_lookup_rows_rebuild_without_changing_registry_metadata() {
+        let root = test_root("missing-index-recovery");
+        let first_id;
+        let second_id;
+        {
+            let mut store = current_store(&root);
+            let first = install_test_package(&mut store, "First", "alpha", b"first");
+            let second = install_test_package(&mut store, "Second", "beta", b"second");
+            first_id = first.id.clone();
+            second_id = second.id.clone();
+            store.set_enabled(&first.id, false).unwrap();
+            store
+                .set_order(&[second.id.clone(), first.id.clone()])
+                .unwrap();
+        }
+        let expected = DictionaryStore::snapshot(&root).unwrap().dictionaries;
+        {
+            let store = current_store(&root);
+            store
+                .connection()
+                .execute(
+                    "DELETE FROM dictionary_entries WHERE dictionary_id = ?1",
+                    [&first_id],
+                )
+                .unwrap();
+            store
+                .connection()
+                .execute(
+                    "UPDATE dictionary_entries
+                     SET normalized_headword = 'wrong'
+                     WHERE dictionary_id = ?1",
+                    [&second_id],
+                )
+                .unwrap();
+        }
+
+        let snapshot = DictionaryStore::snapshot(&root).unwrap();
+
+        assert_eq!(snapshot.status, DictionaryRegistryStatus::Ready);
+        assert_eq!(snapshot.dictionaries, expected);
+        let store = current_store(&root);
+        assert_eq!(store.lookup_exact("beta", 8).unwrap().len(), 1);
+        assert!(store.lookup_exact("alpha", 8).unwrap().is_empty());
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corrupt_database_rebuilds_registry_and_indexes_from_owned_recovery_state() {
+        let root = test_root("database-recovery");
+        {
+            let mut store = current_store(&root);
+            let first = install_test_package(&mut store, "First", "alpha", b"first");
+            let second = install_test_package(&mut store, "Second", "beta", b"second");
+            store.set_enabled(&first.id, false).unwrap();
+            store
+                .set_order(&[second.id.clone(), first.id.clone()])
+                .unwrap();
+        }
+        let expected = DictionaryStore::snapshot(&root).unwrap().dictionaries;
+        let database = DictionaryStoragePaths::from_app_data_root(&root)
+            .database()
+            .to_path_buf();
+        fs::write(&database, b"not a sqlite database").unwrap();
+
+        let snapshot = DictionaryStore::snapshot(&root).unwrap();
+
+        assert_eq!(snapshot.status, DictionaryRegistryStatus::Ready);
+        assert_eq!(snapshot.dictionaries, expected);
+        let store = current_store(&root);
+        assert_eq!(store.lookup_exact("beta", 8).unwrap().len(), 1);
+        assert!(store.lookup_exact("alpha", 8).unwrap().is_empty());
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_definition_data_marks_only_the_affected_dictionary_unavailable() {
+        let root = test_root("missing-definition");
+        let first;
+        let second;
+        {
+            let mut store = current_store(&root);
+            first = install_test_package(&mut store, "First", "alpha", b"first");
+            second = install_test_package(&mut store, "Second", "beta", b"second");
+            let first_path = store.installed_path(&first.id).unwrap();
+            fs::remove_file(first_path.join("dictionary.dict")).unwrap();
+        }
+
+        let snapshot = DictionaryStore::snapshot(&root).unwrap();
+
+        assert_eq!(snapshot.status, DictionaryRegistryStatus::Ready);
+        assert_eq!(snapshot.dictionaries.len(), 2);
+        assert_eq!(snapshot.dictionaries[0].id, first.id);
+        assert_eq!(
+            snapshot.dictionaries[0].index_state,
+            DictionaryIndexState::Unavailable
+        );
+        assert_eq!(snapshot.dictionaries[1].id, second.id);
+        assert_eq!(
+            snapshot.dictionaries[1].index_state,
+            DictionaryIndexState::Ready
+        );
+        let store = current_store(&root);
+        assert!(store.lookup_exact("alpha", 8).unwrap().is_empty());
+        assert_eq!(store.lookup_exact("beta", 8).unwrap().len(), 1);
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_installed_directory_remains_visible_and_removable() {
+        let root = test_root("missing-directory");
+        let dictionary;
+        {
+            let mut store = current_store(&root);
+            dictionary = install_test_package(&mut store, "Missing", "alpha", b"first");
+            fs::remove_dir_all(store.installed_path(&dictionary.id).unwrap()).unwrap();
+        }
+
+        let snapshot = DictionaryStore::snapshot(&root).unwrap();
+        assert_eq!(snapshot.dictionaries.len(), 1);
+        assert_eq!(
+            snapshot.dictionaries[0].index_state,
+            DictionaryIndexState::Unavailable
+        );
+        let mut store = current_store(&root);
+        let remaining = store.remove_dictionary(&dictionary.id).unwrap();
+        assert!(remaining.is_empty());
+        drop(store);
+        fs::remove_dir_all(root).unwrap();
     }
 }

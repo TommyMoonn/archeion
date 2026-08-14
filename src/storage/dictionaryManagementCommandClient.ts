@@ -4,6 +4,7 @@ import type { DictionaryRegistrySnapshot } from "../types/dictionary";
 
 export type DictionaryManagementCommandClient = Readonly<{
   list: () => Promise<DictionaryRegistrySnapshot>;
+  recover: () => Promise<DictionaryRegistrySnapshot>;
   rebuildIndex: (dictionaryId: string) => Promise<DictionaryRegistrySnapshot>;
   remove: (dictionaryId: string) => Promise<DictionaryRegistrySnapshot>;
   setEnabled: (dictionaryId: string, enabled: boolean) => Promise<DictionaryRegistrySnapshot>;
@@ -12,6 +13,7 @@ export type DictionaryManagementCommandClient = Readonly<{
 
 export const dictionaryManagementCommandClient: DictionaryManagementCommandClient = {
   list: () => invoke("list_installed_dictionaries"),
+  recover: () => invoke("recover_dictionary_resources"),
   rebuildIndex: (dictionaryId) => invoke("rebuild_dictionary_index", { dictionaryId }),
   remove: (dictionaryId) => invoke("remove_dictionary", { dictionaryId }),
   setEnabled: (dictionaryId, enabled) =>

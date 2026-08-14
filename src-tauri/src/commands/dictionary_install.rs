@@ -87,6 +87,16 @@ impl DictionaryInstallService {
         let registration = manual_registration(&prepared);
         publish_install(app_data_root, &staging, registration, &prepared)
     }
+
+    pub(crate) fn with_maintenance<T>(
+        &self,
+        app_data_root: &Path,
+        maintain: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        let _operation = recover_lock(&self.operation);
+        cleanup_stale_install_staging(app_data_root).map_err(|error| error.to_string())?;
+        maintain()
+    }
 }
 
 fn install_claimed_catalog(
@@ -99,7 +109,101 @@ fn install_claimed_catalog(
     let validated = extract_catalog_archive(&artifact.package_path, &extracted)?;
     let prepared = prepare_owned_package(&validated, &staging.path.join("prepared"))?;
     let registration = catalog_registration(&artifact.catalog_entry, &prepared);
-    publish_install(app_data_root, &staging, registration, &prepared)
+    publish_catalog_install(app_data_root, &staging, registration, &prepared)
+}
+
+fn publish_catalog_install(
+    app_data_root: &Path,
+    staging: &InstallStaging,
+    registration: DictionaryRegistration,
+    package: &ValidatedStarDictPackage,
+) -> Result<InstalledDictionary, DictionaryInstallError> {
+    let mut store = open_current_store(app_data_root)?;
+    let recovery_target = registration
+        .catalog_id
+        .as_deref()
+        .map(|catalog_id| store.unavailable_catalog_dictionary(catalog_id))
+        .transpose()?
+        .flatten();
+    let Some(target) = recovery_target else {
+        drop(store);
+        return publish_install(app_data_root, staging, registration, package);
+    };
+
+    let prepared_path = staging.path.join("prepared");
+    let retired_path = staging.path.join("replaced");
+    let installed = store
+        .replace_unavailable_dictionary(
+            &target.id,
+            registration,
+            package,
+            package.definition_data.expanded_bytes,
+            |_dictionary_id, installed_path| {
+                activate_replacement(&prepared_path, installed_path, &retired_path)
+            },
+            |installed_path| rollback_replacement(installed_path, &retired_path),
+        )
+        .map_err(DictionaryInstallError::Store)?;
+    if retired_path.exists() {
+        if let Err(error) = fs::remove_dir_all(&retired_path) {
+            eprintln!(
+                "Dictionary replacement committed but retired-file cleanup failed at {}: {error}",
+                retired_path.display()
+            );
+        }
+    }
+    Ok(installed)
+}
+
+fn activate_replacement(
+    prepared_path: &Path,
+    installed_path: &Path,
+    retired_path: &Path,
+) -> Result<(), String> {
+    match fs::symlink_metadata(installed_path) {
+        Ok(metadata) if metadata.file_type().is_dir() => {
+            fs::rename(installed_path, retired_path).map_err(|error| {
+                format!("Existing dictionary files could not be retired: {error}")
+            })?;
+        }
+        Ok(_) => return Err("Installed dictionary storage is not a regular directory.".to_string()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "Installed dictionary storage is unavailable: {error}"
+            ))
+        }
+    }
+    if let Err(error) = fs::rename(prepared_path, installed_path) {
+        if retired_path.exists() {
+            let _ = fs::rename(retired_path, installed_path);
+        }
+        return Err(format!(
+            "Replacement dictionary files could not be activated: {error}"
+        ));
+    }
+    Ok(())
+}
+
+fn rollback_replacement(installed_path: &Path, retired_path: &Path) -> Result<(), String> {
+    match fs::symlink_metadata(installed_path) {
+        Ok(metadata) if metadata.file_type().is_dir() => fs::remove_dir_all(installed_path)
+            .map_err(|error| format!("Replacement dictionary cleanup failed: {error}"))?,
+        Ok(_) => {
+            return Err("Replacement dictionary storage is not a regular directory.".to_string())
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => {
+            return Err(format!(
+                "Replacement dictionary storage is unavailable: {error}"
+            ))
+        }
+    }
+    if retired_path.exists() {
+        fs::rename(retired_path, installed_path)
+            .map_err(|error| format!("Original dictionary files could not be restored: {error}"))?;
+    }
+    Ok(())
 }
 
 fn publish_install(
@@ -374,6 +478,39 @@ fn install_staging_root(app_data_root: &Path) -> PathBuf {
     DictionaryStoragePaths::from_app_data_root(app_data_root)
         .root()
         .join(INSTALL_STAGING_DIRECTORY)
+}
+
+fn cleanup_stale_install_staging(app_data_root: &Path) -> Result<usize, DictionaryInstallError> {
+    let staging = install_staging_root(app_data_root);
+    let entries = match fs::read_dir(&staging) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(0),
+        Err(error) => return Err(DictionaryInstallError::Filesystem(error)),
+    };
+    let mut removed = 0;
+    for entry in entries {
+        let entry = entry.map_err(DictionaryInstallError::Filesystem)?;
+        let name = entry.file_name();
+        let Some(stem) = name.to_str().and_then(|name| name.strip_prefix("install-")) else {
+            continue;
+        };
+        let segments = stem.split('-').collect::<Vec<_>>();
+        if segments.len() != 3
+            || segments.iter().any(|segment| {
+                segment.is_empty() || !segment.bytes().all(|byte| byte.is_ascii_digit())
+            })
+        {
+            continue;
+        }
+        let metadata =
+            fs::symlink_metadata(entry.path()).map_err(DictionaryInstallError::Filesystem)?;
+        if !metadata.file_type().is_dir() {
+            continue;
+        }
+        fs::remove_dir_all(entry.path()).map_err(DictionaryInstallError::Filesystem)?;
+        removed += 1;
+    }
+    Ok(removed)
 }
 
 struct InstallStaging {
