@@ -7,6 +7,7 @@ import type { EpubContentAction } from "./epubContentActions";
 import type { EpubFootnoteNode, ResolvedEpubFootnote } from "./epubFootnoteResolver";
 import { placeReaderFootnote, type ReaderFootnotePlacement } from "./readerContentActionAnchor";
 import type { ClientRect } from "./readerHighlightPaletteAnchor";
+import { trapReaderPopoverFocus } from "./readerPopoverFocus";
 import { useReaderSideSurfaceDismiss } from "./readerSideSurfaceDismissal";
 
 type ReaderFootnotePopoverProps = {
@@ -78,9 +79,7 @@ export function ReaderFootnotePopover({
       data-placement={placement.placement}
       data-reader-ignore-shortcuts
       onClick={(event) => event.stopPropagation()}
-      onKeyDown={(event) => {
-        if (event.key === "Tab") trapPopoverFocus(event, popoverRef.current);
-      }}
+      onKeyDown={(event) => trapReaderPopoverFocus(event, popoverRef.current)}
       onPointerDown={(event) => event.stopPropagation()}
       role="dialog"
       style={placementStyle(placement)}
@@ -140,24 +139,4 @@ function renderNode(
 
 function placementStyle(placement: ReaderFootnotePlacement) {
   return { left: placement.left, top: placement.top };
-}
-
-function trapPopoverFocus(event: React.KeyboardEvent, popover: HTMLElement | null): void {
-  if (!popover) return;
-  const controls = Array.from(
-    popover.querySelectorAll<HTMLElement>(
-      'button:not(:disabled), [href], [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((control) => !control.hasAttribute("disabled"));
-  const first = controls[0];
-  const last = controls.at(-1);
-  if (!first || !last) return;
-
-  if (controls.length === 1 || (event.shiftKey && document.activeElement === first)) {
-    event.preventDefault();
-    last.focus();
-  } else if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
-  }
 }

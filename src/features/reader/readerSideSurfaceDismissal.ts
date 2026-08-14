@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useLayoutEffect, useRef } from 
 
 export type ReaderTransientSurfaceKind =
   | "annotation-detail"
+  | "dictionary-definition"
   | "external-link"
   | "footnote"
   | "highlight-palette"
@@ -20,6 +21,7 @@ const READER_TRANSIENT_SURFACE_PRIORITY: Record<ReaderTransientSurfaceKind, numb
   "annotation-detail": 10,
   "note-editor": 20,
   "highlight-palette": 30,
+  "dictionary-definition": 35,
   footnote: 40,
   "external-link": 50,
   illustration: 60,

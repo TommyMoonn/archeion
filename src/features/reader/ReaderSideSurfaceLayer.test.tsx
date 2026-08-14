@@ -146,6 +146,21 @@ describe("ReaderSideSurfaceLayer", () => {
     expect(dismissFootnote).not.toHaveBeenCalled();
   });
 
+  it("replaces the highlight palette with the owned dictionary definition surface", () => {
+    const controller = createReaderSideSurfaceDismissController();
+    const dismissPalette = vi.fn(() => true);
+    const dismissDictionary = vi.fn(() => true);
+
+    controller.register("highlight-palette", dismissPalette);
+    controller.register("dictionary-definition", dismissDictionary);
+
+    expect(dismissPalette).toHaveBeenCalledOnce();
+    expect(dismissPalette).toHaveBeenCalledWith(false);
+    expect(dismissDictionary).not.toHaveBeenCalled();
+    expect(controller.dismissTopmost()).toBe(true);
+    expect(dismissDictionary).toHaveBeenCalledWith(true);
+  });
+
   it.each(["external-link", "illustration"] as const)(
     "routes global Escape through Reader priority for %s",
     (highest) => {

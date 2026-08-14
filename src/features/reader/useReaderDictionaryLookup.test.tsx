@@ -204,6 +204,23 @@ describe("useReaderDictionaryLookup", () => {
     expect(harness.latest().state.requestRevision).toBe(2);
   });
 
+  it("retains selection ownership after the highlight palette yields to the definition surface", async () => {
+    const selected = menu("Example");
+    const harness = await renderLookup({ owner: selected });
+
+    act(() => harness.latest().define(selected));
+    harness.render(null);
+    await act(async () => Promise.resolve());
+
+    expect(harness.latest().state).toMatchObject({
+      selectedTerm: "example",
+      selectionOwner: selected,
+      status: "ready",
+    });
+    act(() => harness.latest().dismiss());
+    expect(harness.latest().state.status).toBe("idle");
+  });
+
   it("keeps invalid selections unavailable without starting lookup", async () => {
     const harness = await renderLookup();
     const empty = menu("... ");
@@ -257,6 +274,45 @@ describe("useReaderDictionaryLookup", () => {
       error: "Dictionary data is unavailable",
       status: "error",
     });
+  });
+
+  it("retries the current failed selection with a new request revision", async () => {
+    const retryResult = deferred<DictionaryLookupResponse>();
+    const selected = menu("Example");
+    const lookup = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Dictionary data is unavailable"))
+      .mockImplementationOnce(() => retryResult.promise);
+    const harness = await renderLookup({ lookup, owner: selected });
+
+    act(() => harness.latest().define(selected));
+    await act(async () => Promise.resolve());
+    expect(harness.latest().state.status).toBe("error");
+
+    act(() => harness.latest().retry());
+    expect(harness.latest().state).toMatchObject({ requestRevision: 2, status: "looking-up" });
+    await act(async () => retryResult.resolve(response("Example")));
+
+    expect(harness.latest().state).toMatchObject({
+      requestRevision: 2,
+      selectedTerm: "example",
+      status: "ready",
+    });
+  });
+
+  it("retires the owned lookup when its content document is removed or selection collapses", async () => {
+    const selected = menu("Example");
+    const harness = await renderLookup({ owner: selected });
+
+    act(() => harness.latest().define(selected));
+    await act(async () => Promise.resolve());
+    act(() => harness.latest().handleSelectionCollapsed(selected.anchor.document));
+    expect(harness.latest().state.status).toBe("idle");
+
+    act(() => harness.latest().define(selected));
+    await act(async () => Promise.resolve());
+    act(() => harness.latest().handleDocumentRemoved(selected.anchor.document));
+    expect(harness.latest().state.status).toBe("idle");
   });
 
   it("retires an older completion after selection or Reader session replacement", async () => {

@@ -290,10 +290,34 @@ export function useReaderDictionaryLookup({
     [availabilityFor, dependencies.lookupClient, onManageDictionaries, sessionIdentity],
   );
 
+  const retry = useCallback(() => {
+    const current = stateRef.current;
+    if (current.status !== "error" || !current.selectionOwner) return;
+    define(current.selectionOwner);
+  }, [define]);
+
+  const handleDocumentRemoved = useCallback(
+    (document: Document) => {
+      if (stateRef.current.selectionOwner?.anchor.document === document) retire();
+    },
+    [retire],
+  );
+
+  const handleSelectionCollapsed = useCallback(
+    (document: Document) => {
+      if (stateRef.current.selectionOwner?.anchor.document === document) retire();
+    },
+    [retire],
+  );
+
   return {
     availabilityFor,
     define,
+    dismiss: retire,
+    handleDocumentRemoved,
+    handleSelectionCollapsed,
     retire,
+    retry,
     state,
   };
 }

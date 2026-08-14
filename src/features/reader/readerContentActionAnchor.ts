@@ -20,6 +20,18 @@ export type ReaderFootnotePlacement = Readonly<{
   top: number;
 }>;
 
+export type ReaderAnchoredPopoverPlacement = ReaderFootnotePlacement &
+  Readonly<{
+    maxHeight: number;
+    placementHeight: number;
+    width: number;
+  }>;
+
+export type ReaderAnchoredPopoverPreferences = Readonly<{
+  maxHeight: number;
+  width: number;
+}>;
+
 const VIEWPORT_GAP = 12;
 const ANCHOR_GAP = 10;
 
@@ -51,18 +63,23 @@ export function readerViewportRect(viewer: HTMLElement | null): ClientRect {
   );
 }
 
-export function placeReaderFootnote(
+export function placeReaderAnchoredPopover(
   anchor: ClientRect,
   viewport: ClientRect,
   size: Readonly<{ height: number; width: number }>,
-): ReaderFootnotePlacement | null {
+  preferences?: ReaderAnchoredPopoverPreferences,
+): ReaderAnchoredPopoverPlacement | null {
   if (viewport.width <= 0 || viewport.height <= 0) return null;
 
   const availableWidth = viewport.width - VIEWPORT_GAP * 2;
   const availableHeight = viewport.height - VIEWPORT_GAP * 2;
   if (availableWidth <= 0 || availableHeight <= 0) return null;
-  const width = Math.min(Math.max(size.width, Math.min(280, availableWidth)), availableWidth);
-  const height = Math.min(Math.max(size.height, Math.min(120, availableHeight)), availableHeight);
+  const width = Math.min(
+    Math.max(preferences?.width ?? size.width, Math.min(280, availableWidth)),
+    availableWidth,
+  );
+  const maxHeight = Math.min(preferences?.maxHeight ?? availableHeight, availableHeight);
+  const placementHeight = Math.min(Math.max(size.height, Math.min(120, maxHeight)), maxHeight);
   const centeredLeft = anchor.left + anchor.width / 2 - width / 2;
   const left = clamp(
     centeredLeft,
@@ -72,16 +89,25 @@ export function placeReaderFootnote(
   const roomBelow = viewport.bottom - anchor.bottom - ANCHOR_GAP;
   const roomAbove = anchor.top - viewport.top - ANCHOR_GAP;
   const placement =
-    roomBelow >= Math.min(height, 220) || roomBelow >= roomAbove ? "below" : "above";
+    roomBelow >= Math.min(placementHeight, 220) || roomBelow >= roomAbove ? "below" : "above";
   const desiredTop =
-    placement === "below" ? anchor.bottom + ANCHOR_GAP : anchor.top - height - ANCHOR_GAP;
+    placement === "below" ? anchor.bottom + ANCHOR_GAP : anchor.top - placementHeight - ANCHOR_GAP;
   const top = clamp(
     desiredTop,
     viewport.top + VIEWPORT_GAP,
-    viewport.bottom - height - VIEWPORT_GAP,
+    viewport.bottom - placementHeight - VIEWPORT_GAP,
   );
 
-  return { left, placement, top };
+  return { left, maxHeight, placement, placementHeight, top, width };
+}
+
+export function placeReaderFootnote(
+  anchor: ClientRect,
+  viewport: ClientRect,
+  size: Readonly<{ height: number; width: number }>,
+): ReaderFootnotePlacement | null {
+  const result = placeReaderAnchoredPopover(anchor, viewport, size);
+  return result ? { left: result.left, placement: result.placement, top: result.top } : null;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {

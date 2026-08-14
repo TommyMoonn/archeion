@@ -28,6 +28,7 @@ import { ReaderExternalLinkDialog } from "./ReaderExternalLinkDialog";
 import { ReaderFootnotePopover } from "./ReaderFootnotePopover";
 import { ReaderIllustrationViewer } from "./ReaderIllustrationViewer";
 import { ReaderHighlightPalette } from "./ReaderHighlightPalette";
+import { ReaderDictionaryPopover } from "./ReaderDictionaryPopover";
 import { RenderedAnnotationAdapter } from "./RenderedAnnotationAdapter";
 import {
   selectedHighlightColor,
@@ -269,14 +270,21 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     refreshAnchor,
     resetForSession: resetHighlightSession,
   } = interaction;
-  const dictionaryLookup = useReaderDictionaryLookup({
+  const {
+    availabilityFor: dictionaryAvailabilityFor,
+    define: defineSelection,
+    dismiss: dismissDictionaryLookup,
+    handleDocumentRemoved: handleDictionaryDocumentRemoved,
+    handleSelectionCollapsed: handleDictionarySelectionCollapsed,
+    retry: retryDictionaryLookup,
+    state: dictionaryLookupState,
+  } = useReaderDictionaryLookup({
     onManageDictionaries,
     selectionOwner: menu,
     sessionIdentity,
   });
-  const defineAvailability = menu
-    ? dictionaryLookup.availabilityFor(menu.selection.selectedText)
-    : null;
+  const defineAvailability = menu ? dictionaryAvailabilityFor(menu.selection.selectedText) : null;
+  const dictionaryOwner = dictionaryLookupState.selectionOwner;
 
   useEffect(() => {
     annotations.updateOptions({
@@ -344,6 +352,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onReady,
       onRelocated: () => {
         dismiss(false);
+        dismissDictionaryLookup();
         clearFeedback();
         dismissFootnote(false);
         dismissExternal(false);
@@ -369,6 +378,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
         searchMatchEmphasis.setSession(null);
         annotations.setSession(null);
         resetHighlightSession();
+        dismissDictionaryLookup();
         resetContentActionSession();
         clearReaderWheelGesture();
       },
@@ -382,6 +392,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     contentDocuments,
     contentTheme,
     dismiss,
+    dismissDictionaryLookup,
     dismissExternal,
     dismissFootnote,
     handleSelection,
@@ -435,9 +446,27 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   const handleRegisteredDocumentRemoved = useCallback(
     (document: Document) => {
       handleHighlightDocumentRemoved(document);
+      handleDictionaryDocumentRemoved(document);
       handleContentActionDocumentRemoved(document);
     },
-    [handleContentActionDocumentRemoved, handleHighlightDocumentRemoved],
+    [
+      handleDictionaryDocumentRemoved,
+      handleContentActionDocumentRemoved,
+      handleHighlightDocumentRemoved,
+    ],
+  );
+
+  const handleRegisteredPointerDown = useCallback(() => {
+    dismissDictionaryLookup();
+    handlePointerDown();
+  }, [dismissDictionaryLookup, handlePointerDown]);
+
+  const handleRegisteredSelectionCollapsed = useCallback(
+    (document: Document) => {
+      handleDictionarySelectionCollapsed(document);
+      handleSelectionCollapsed(document);
+    },
+    [handleDictionarySelectionCollapsed, handleSelectionCollapsed],
   );
 
   const handleRegisteredEscape = useCallback(
@@ -453,8 +482,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
       onDocumentRemoved: handleRegisteredDocumentRemoved,
       onEscape: handleRegisteredEscape,
       onKeyDown,
-      onPointerDown: handlePointerDown,
-      onSelectionCollapsed: handleSelectionCollapsed,
+      onPointerDown: handleRegisteredPointerDown,
+      onSelectionCollapsed: handleRegisteredSelectionCollapsed,
       onWheel: handleWheel,
     });
   }, [
@@ -462,10 +491,10 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     handleContentClick,
     handleContentKeyDown,
     handleContentPointerDown,
-    handlePointerDown,
+    handleRegisteredPointerDown,
     handleRegisteredDocumentRemoved,
     handleRegisteredEscape,
-    handleSelectionCollapsed,
+    handleRegisteredSelectionCollapsed,
     handleWheel,
     onKeyDown,
   ]);
@@ -473,7 +502,8 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
   useEffect(() => {
     applyContentTheme(contentTheme, containerRef.current);
     dismiss(false);
-  }, [applyContentTheme, contentTheme, dismiss]);
+    dismissDictionaryLookup();
+  }, [applyContentTheme, contentTheme, dismiss, dismissDictionaryLookup]);
 
   useEffect(() => {
     onNavigationChange?.(getNavigationState());
@@ -489,6 +519,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
 
   const prepareNavigation = useCallback(() => {
     dismiss(false);
+    dismissDictionaryLookup();
     clearFeedback();
     dismissFootnote(false);
     dismissExternal(false);
@@ -498,6 +529,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
     clearContentActionFeedback,
     clearFeedback,
     dismiss,
+    dismissDictionaryLookup,
     dismissExternal,
     dismissFootnote,
     dismissIllustration,
@@ -730,7 +762,7 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           anchorRect={menu.anchorRect}
           busy={highlightBusy}
           defineAvailable={Boolean(defineAvailability?.available)}
-          defineBusy={dictionaryLookup.state.status === "looking-up"}
+          defineBusy={dictionaryLookupState.status === "looking-up"}
           defineLabel={defineAvailability?.label ?? "Define"}
           defineUnavailableReason={defineAvailability?.reason ?? undefined}
           hasAttachedNote={Boolean(menu.existingHighlight?.note?.trim())}
@@ -743,10 +775,20 @@ const EpubViewerComponent = forwardRef<EpubViewerHandle, EpubViewerProps>(functi
           }
           onChoose={choosePaletteOption}
           onDismiss={dismiss}
-          onDefine={() => dictionaryLookup.define(menu)}
+          onDefine={() => defineSelection(menu)}
           onNote={openNote}
           selectedColor={selectedHighlightColor(menu)}
           viewportRect={paletteViewport}
+        />
+      ) : null}
+      {dictionaryOwner && dictionaryLookupState.status !== "idle" ? (
+        <ReaderDictionaryPopover
+          anchor={dictionaryOwner.anchor}
+          initialAnchorRect={dictionaryOwner.anchorRect}
+          onDismiss={dismissDictionaryLookup}
+          onRetry={retryDictionaryLookup}
+          state={dictionaryLookupState}
+          viewerRef={viewerRef}
         />
       ) : null}
     </div>
