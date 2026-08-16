@@ -8,8 +8,9 @@ use serde_json::{json, Value};
 use tokio::sync::oneshot;
 
 use super::{
-    catalog_cache_path, validate_catalog_bytes, DictionaryCatalogError, DictionaryCatalogService,
-    DictionaryCatalogSource, MAX_CATALOG_BYTES,
+    catalog_cache_path, validate_catalog_bytes, DictionaryCatalogError,
+    DictionaryCatalogPackageFormat, DictionaryCatalogService, DictionaryCatalogSource,
+    MAX_CATALOG_BYTES,
 };
 use crate::commands::dictionary_store::{
     open_current_store, DictionaryIndexState, DictionaryRegistration, DictionarySourceKind,
@@ -109,6 +110,35 @@ async fn valid_catalog_publishes_normalized_entries_in_deterministic_order() {
     assert_eq!(cached.entries, snapshot.entries);
     assert_eq!(service.current_entry("zulu").unwrap().id, "zulu");
     fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn catalog_accepts_versioned_stardict_zip_and_tar_xz_package_formats() {
+    let zip_entry = entry("zip", "ZIP", "en");
+    let mut tar_entry = entry("tar", "TAR XZ", "fr");
+    tar_entry["downloadUrl"] = json!("https://example.com/freedict-fra-eng-2026.1.stardict.tar.xz");
+    tar_entry["packageFormat"] = json!("stardict-tar-xz");
+
+    let catalog = validate_catalog_bytes(&manifest(vec![zip_entry, tar_entry])).unwrap();
+
+    let zip = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "zip")
+        .unwrap();
+    let tar = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "tar")
+        .unwrap();
+    assert_eq!(
+        zip.package_format,
+        DictionaryCatalogPackageFormat::StardictZip
+    );
+    assert_eq!(
+        tar.package_format,
+        DictionaryCatalogPackageFormat::StardictTarXz
+    );
 }
 
 #[test]

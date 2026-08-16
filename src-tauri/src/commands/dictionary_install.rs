@@ -1,9 +1,8 @@
 use std::{
-    collections::HashSet,
     fmt,
-    fs::{self, File, OpenOptions},
-    io::{Read, Write},
-    path::{Component, Path, PathBuf},
+    fs::{self, File},
+    io::Read,
+    path::{Path, PathBuf},
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc, Mutex, MutexGuard,
@@ -11,10 +10,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use sha2::{Digest, Sha256};
-use zip::ZipArchive;
-
 use super::{
+    dictionary_archive::{self, DictionaryArchiveError},
     dictionary_catalog::DictionaryCatalogEntry,
     dictionary_download::{
         claim_verified_download, DictionaryDownloadError, VerifiedDownloadArtifact,
@@ -27,9 +24,9 @@ use super::{
         self, StarDictDefinitionCompression, StarDictSourceFileKind, ValidatedStarDictPackage,
     },
 };
+use sha2::{Digest, Sha256};
 
 const INSTALL_STAGING_DIRECTORY: &str = "staging/installs";
-const MAX_ARCHIVE_ENTRIES: usize = 16;
 static INSTALL_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone, Default)]
@@ -106,7 +103,11 @@ fn install_claimed_catalog(
     verify_catalog_archive(artifact)?;
     let staging = InstallStaging::create(app_data_root)?;
     let extracted = staging.path.join("source");
-    let validated = extract_catalog_archive(&artifact.package_path, &extracted)?;
+    let validated = dictionary_archive::extract_catalog_package(
+        artifact.catalog_entry.package_format,
+        &artifact.package_path,
+        &extracted,
+    )?;
     let prepared = prepare_owned_package(&validated, &staging.path.join("prepared"))?;
     let registration = catalog_registration(&artifact.catalog_entry, &prepared);
     publish_catalog_install(app_data_root, &staging, registration, &prepared)
@@ -290,119 +291,6 @@ fn verify_catalog_archive(
     Ok(())
 }
 
-fn extract_catalog_archive(
-    archive_path: &Path,
-    destination: &Path,
-) -> Result<ValidatedStarDictPackage, DictionaryInstallError> {
-    fs::create_dir_all(destination).map_err(DictionaryInstallError::Filesystem)?;
-    let file = File::open(archive_path).map_err(DictionaryInstallError::Filesystem)?;
-    let mut archive = ZipArchive::new(file).map_err(zip_error)?;
-    if archive.len() > MAX_ARCHIVE_ENTRIES {
-        return Err(DictionaryInstallError::InvalidArchive(
-            "The dictionary package contains too many archive entries.".to_string(),
-        ));
-    }
-    let mut extracted_paths = HashSet::new();
-    let mut extracted_files = Vec::new();
-    let mut ifo_paths = Vec::new();
-    let mut expanded_bytes = 0_u64;
-    for index in 0..archive.len() {
-        let mut entry = archive.by_index(index).map_err(zip_error)?;
-        let enclosed = entry.enclosed_name().ok_or_else(|| {
-            DictionaryInstallError::InvalidArchive(
-                "The dictionary package contains an unsafe path.".to_string(),
-            )
-        })?;
-        if !safe_archive_path(&enclosed) || archive_entry_is_symlink(entry.unix_mode()) {
-            return Err(DictionaryInstallError::InvalidArchive(
-                "The dictionary package contains an unsafe resource.".to_string(),
-            ));
-        }
-        if entry.is_dir() {
-            continue;
-        }
-        let limit =
-            stardict_validation::supported_source_file_limit(&enclosed).ok_or_else(|| {
-                DictionaryInstallError::InvalidArchive(
-                    "The dictionary package contains an unsupported resource.".to_string(),
-                )
-            })?;
-        if entry.size() > limit {
-            return Err(DictionaryInstallError::InvalidArchive(
-                "A dictionary package resource exceeds its size limit.".to_string(),
-            ));
-        }
-        expanded_bytes = expanded_bytes
-            .checked_add(entry.size())
-            .filter(|bytes| *bytes <= stardict_validation::maximum_package_source_bytes())
-            .ok_or_else(|| {
-                DictionaryInstallError::InvalidArchive(
-                    "The expanded dictionary package exceeds its size limit.".to_string(),
-                )
-            })?;
-        let collision_key = enclosed.to_string_lossy().to_lowercase();
-        if !extracted_paths.insert(collision_key) {
-            return Err(DictionaryInstallError::InvalidArchive(
-                "The dictionary package contains duplicate resource paths.".to_string(),
-            ));
-        }
-        let output = destination.join(&enclosed);
-        let parent = output.parent().ok_or_else(|| {
-            DictionaryInstallError::InvalidArchive(
-                "The dictionary package resource path is invalid.".to_string(),
-            )
-        })?;
-        fs::create_dir_all(parent).map_err(DictionaryInstallError::Filesystem)?;
-        let mut output_file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&output)
-            .map_err(DictionaryInstallError::Filesystem)?;
-        let copied = std::io::copy(&mut entry.by_ref().take(limit + 1), &mut output_file)
-            .map_err(DictionaryInstallError::Filesystem)?;
-        if copied != entry.size() || copied > limit {
-            return Err(DictionaryInstallError::InvalidArchive(
-                "A dictionary package resource has an invalid expanded size.".to_string(),
-            ));
-        }
-        output_file
-            .flush()
-            .map_err(DictionaryInstallError::Filesystem)?;
-        output_file
-            .sync_all()
-            .map_err(DictionaryInstallError::Filesystem)?;
-        if output.extension().and_then(|extension| extension.to_str()) == Some("ifo") {
-            ifo_paths.push(output.clone());
-        }
-        extracted_files.push(output);
-    }
-    if ifo_paths.len() != 1 {
-        return Err(DictionaryInstallError::InvalidArchive(
-            "The dictionary package must contain exactly one StarDict .ifo file.".to_string(),
-        ));
-    }
-    let validated = stardict_validation::validate_package(&ifo_paths[0])?;
-    if validated.source_files.len() != extracted_files.len() {
-        return Err(DictionaryInstallError::InvalidArchive(
-            "The dictionary package must contain one complete StarDict package.".to_string(),
-        ));
-    }
-    Ok(validated)
-}
-
-fn safe_archive_path(path: &Path) -> bool {
-    let components = path.components().collect::<Vec<_>>();
-    !components.is_empty()
-        && components.len() <= 2
-        && components
-            .iter()
-            .all(|component| matches!(component, Component::Normal(_)))
-}
-
-fn archive_entry_is_symlink(mode: Option<u32>) -> bool {
-    mode.is_some_and(|mode| mode & 0o170000 == 0o120000)
-}
-
 fn prepare_owned_package(
     package: &ValidatedStarDictPackage,
     destination: &Path,
@@ -549,17 +437,11 @@ fn recover_lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
-fn zip_error(error: zip::result::ZipError) -> DictionaryInstallError {
-    DictionaryInstallError::InvalidArchive(format!(
-        "The dictionary package archive is invalid: {error}"
-    ))
-}
-
 #[derive(Debug)]
 pub(crate) enum DictionaryInstallError {
     Download(DictionaryDownloadError),
+    Archive(DictionaryArchiveError),
     Filesystem(std::io::Error),
-    InvalidArchive(String),
     SourceChanged,
     Store(DictionaryStoreError),
     Validation(stardict_validation::StarDictValidationError),
@@ -573,9 +455,9 @@ pub(crate) enum DictionaryInstallError {
 impl fmt::Display for DictionaryInstallError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Archive(error) => write!(formatter, "{error}"),
             Self::Download(error) => write!(formatter, "{error}"),
             Self::Filesystem(error) => write!(formatter, "Dictionary installation failed: {error}"),
-            Self::InvalidArchive(message) => formatter.write_str(message),
             Self::SourceChanged => formatter.write_str(
                 "The StarDict source changed while it was being copied for installation.",
             ),
@@ -591,6 +473,18 @@ impl fmt::Display for DictionaryInstallError {
                 formatter,
                 "{installation} The verified package could not be restored for retry: {restoration}"
             ),
+        }
+    }
+}
+
+impl From<DictionaryArchiveError> for DictionaryInstallError {
+    fn from(value: DictionaryArchiveError) -> Self {
+        match value {
+            DictionaryArchiveError::Filesystem(error) => Self::Filesystem(error),
+            DictionaryArchiveError::InvalidArchive(message) => {
+                Self::Archive(DictionaryArchiveError::InvalidArchive(message))
+            }
+            DictionaryArchiveError::Validation(error) => Self::Validation(error),
         }
     }
 }

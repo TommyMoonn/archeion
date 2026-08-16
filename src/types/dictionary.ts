@@ -1,4 +1,4 @@
-export type DictionaryCatalogPackageFormat = "stardict-zip";
+export type DictionaryCatalogPackageFormat = "stardict-zip" | "stardict-tar-xz";
 
 export type DictionaryCatalogEntry = Readonly<{
   id: string;

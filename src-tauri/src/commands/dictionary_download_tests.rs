@@ -29,7 +29,10 @@ fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn entry(bytes: &[u8]) -> DictionaryCatalogEntry {
+fn entry_with_format(
+    bytes: &[u8],
+    package_format: DictionaryCatalogPackageFormat,
+) -> DictionaryCatalogEntry {
     DictionaryCatalogEntry {
         id: "english".to_string(),
         name: "English".to_string(),
@@ -43,10 +46,20 @@ fn entry(bytes: &[u8]) -> DictionaryCatalogEntry {
         package_version: "1".to_string(),
         compressed_size_bytes: bytes.len() as u64,
         installed_size_estimate_bytes: None,
-        download_url: "https://example.com/english.zip".to_string(),
-        package_format: DictionaryCatalogPackageFormat::StardictZip,
+        download_url: match package_format {
+            DictionaryCatalogPackageFormat::StardictZip => "https://example.com/english.zip",
+            DictionaryCatalogPackageFormat::StardictTarXz => {
+                "https://example.com/english.stardict.tar.xz"
+            }
+        }
+        .to_string(),
+        package_format,
         sha256: sha256(bytes),
     }
+}
+
+fn entry(bytes: &[u8]) -> DictionaryCatalogEntry {
+    entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictZip)
 }
 
 struct ChunkSource {
@@ -150,6 +163,43 @@ async fn streamed_download_reports_bounded_progress_and_publishes_only_verified_
 }
 
 #[tokio::test(flavor = "current_thread")]
+async fn tar_xz_download_preserves_verified_archive_bytes_and_format() {
+    let root = test_root("tar-xz-success");
+    let bytes = b"representative-compressed-tar-xz";
+    let package_entry = entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
+    let service = DictionaryDownloadService::default();
+
+    let package = service
+        .download_with(
+            &root,
+            package_entry.clone(),
+            |_| Ok(()),
+            |_, _| async move {
+                Ok(ChunkSource::new(
+                    Some(bytes.len() as u64),
+                    vec![bytes.to_vec()],
+                ))
+            },
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        package.package_format,
+        DictionaryCatalogPackageFormat::StardictTarXz
+    );
+    let artifact = resolve_verified_download(&root, &package.staging_token).unwrap();
+    assert_eq!(
+        artifact.catalog_entry.package_format,
+        DictionaryCatalogPackageFormat::StardictTarXz
+    );
+    assert_eq!(artifact.verified_size_bytes, bytes.len() as u64);
+    assert_eq!(artifact.verified_sha256, sha256(bytes));
+    assert_eq!(fs::read(artifact.package_path).unwrap(), bytes);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
 async fn checksum_and_size_failures_remove_only_the_owned_partial_file() {
     let root = test_root("contained-failures");
     let staging = download_staging_root(&root);
@@ -162,7 +212,7 @@ async fn checksum_and_size_failures_remove_only_the_owned_partial_file() {
     let service = DictionaryDownloadService::default();
     let bytes = b"package";
 
-    let mut wrong_digest = entry(bytes);
+    let mut wrong_digest = entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
     wrong_digest.sha256 = "0".repeat(64);
     let checksum_error = service
         .download_with(
@@ -183,7 +233,7 @@ async fn checksum_and_size_failures_remove_only_the_owned_partial_file() {
     let size_error = service
         .download_with(
             &root,
-            entry(bytes),
+            entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz),
             |_| Ok(()),
             |_, _| async move { Ok(ChunkSource::new(None, vec![b"package!".to_vec()])) },
         )

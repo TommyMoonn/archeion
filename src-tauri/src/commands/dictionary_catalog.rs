@@ -54,6 +54,7 @@ pub(crate) struct DictionaryCatalogEntry {
 #[serde(rename_all = "kebab-case")]
 pub(crate) enum DictionaryCatalogPackageFormat {
     StardictZip,
+    StardictTarXz,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

@@ -19,6 +19,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2.6.3", features = [] }
 
 [dependencies]
+liblzma = { version = "0.4.7", default-features = false, features = ["static"] }
 image = { version = "=0.25.10", default-features = false, features = ["gif", "jpeg", "png", "webp"] }
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] }
 percent-encoding = "2"

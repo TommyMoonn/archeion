@@ -15,6 +15,7 @@ use super::{
     DictionaryInstallService, InstallStaging,
 };
 use crate::commands::{
+    dictionary_archive::{self, DictionaryArchiveError},
     dictionary_catalog::{
         validate_catalog_entry, DictionaryCatalogEntry, DictionaryCatalogPackageFormat,
     },
@@ -104,7 +105,10 @@ fn create_catalog_archive(source: &Path, archive_path: &Path) -> Vec<u8> {
     fs::read(archive_path).unwrap()
 }
 
-fn catalog_entry(bytes: &[u8]) -> DictionaryCatalogEntry {
+fn catalog_entry_with_format(
+    bytes: &[u8],
+    package_format: DictionaryCatalogPackageFormat,
+) -> DictionaryCatalogEntry {
     DictionaryCatalogEntry {
         id: "english-core".to_string(),
         name: "English Core".to_string(),
@@ -118,10 +122,20 @@ fn catalog_entry(bytes: &[u8]) -> DictionaryCatalogEntry {
         package_version: "2026.1".to_string(),
         compressed_size_bytes: bytes.len() as u64,
         installed_size_estimate_bytes: None,
-        download_url: "https://example.com/english.zip".to_string(),
-        package_format: DictionaryCatalogPackageFormat::StardictZip,
+        download_url: match package_format {
+            DictionaryCatalogPackageFormat::StardictZip => "https://example.com/english.zip",
+            DictionaryCatalogPackageFormat::StardictTarXz => {
+                "https://example.com/english.stardict.tar.xz"
+            }
+        }
+        .to_string(),
+        package_format,
         sha256: format!("{:x}", Sha256::digest(bytes)),
     }
+}
+
+fn catalog_entry(bytes: &[u8]) -> DictionaryCatalogEntry {
+    catalog_entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictZip)
 }
 
 fn write_verified_archive(root: &Path, token: &str, source: &Path) -> DictionaryCatalogEntry {
@@ -146,7 +160,7 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
     let directory = TestDirectory::new("catalog");
     let source = directory.path().join("source");
     create_package(&source, "fixture");
-    let token = "verified-1-2-3.stardict.zip";
+    let token = "verified-1-2-3.dictionary-package";
     let entry = write_verified_archive(directory.path(), token, &source);
     let mut other_entry = entry.clone();
     other_entry.id = "other-english".to_string();
@@ -224,11 +238,51 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
 }
 
 #[test]
+fn verified_tar_xz_catalog_installs_through_existing_activation_and_index_owner() {
+    let directory = TestDirectory::new("tar-xz-catalog");
+    let token = "verified-30-31-32.dictionary-package";
+    let bytes = dictionary_archive::tests::freedict_style_tar_xz_fixture();
+    let entry = catalog_entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
+    write_verified_download_fixture(directory.path(), token, entry.clone(), bytes);
+
+    let installed = DictionaryInstallService::default()
+        .install_catalog(directory.path(), token)
+        .unwrap();
+
+    assert_eq!(installed.catalog_id.as_deref(), Some(entry.id.as_str()));
+    assert_eq!(installed.source_language, "fr");
+    assert_eq!(installed.target_language, "en");
+    assert_eq!(installed.index_state, DictionaryIndexState::Ready);
+    assert_eq!(installed.entry_count, 2);
+    let store = open_current_store(directory.path()).unwrap();
+    assert_eq!(
+        store
+            .lookup_exact(&normalize_dictionary_term("alpha"), 8)
+            .unwrap()
+            .len(),
+        1
+    );
+    let installed_path = store.installed_path(&installed.id).unwrap();
+    assert_eq!(
+        fs::read_dir(&installed_path)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect::<std::collections::BTreeSet<_>>(),
+        ["dictionary.dict", "dictionary.idx", "dictionary.ifo"]
+            .into_iter()
+            .map(std::ffi::OsString::from)
+            .collect()
+    );
+    assert!(resolve_verified_download(directory.path(), token).is_err());
+    assert_install_staging_empty(directory.path());
+}
+
+#[test]
 fn post_publication_cleanup_failure_keeps_success_and_permanently_retires_token() {
     let directory = TestDirectory::new("retired-cleanup-failure");
     let source = directory.path().join("source");
     create_package(&source, "fixture");
-    let token = "verified-10-11-12.stardict.zip";
+    let token = "verified-10-11-12.dictionary-package";
     write_verified_archive(directory.path(), token, &source);
     let verified_path = DictionaryStoragePaths::from_app_data_root(directory.path())
         .root()
@@ -322,7 +376,7 @@ fn catalog_reinstall_restores_unavailable_dictionary_without_changing_its_identi
     let directory = TestDirectory::new("catalog-reinstall");
     let source = directory.path().join("source");
     create_package(&source, "fixture");
-    let first_token = "verified-20-21-22.stardict.zip";
+    let first_token = "verified-20-21-22.dictionary-package";
     write_verified_archive(directory.path(), first_token, &source);
     let installed = DictionaryInstallService::default()
         .install_catalog(directory.path(), first_token)
@@ -339,7 +393,7 @@ fn catalog_reinstall_restores_unavailable_dictionary_without_changing_its_identi
         DictionaryIndexState::Unavailable
     );
 
-    let retry_token = "verified-23-24-25.stardict.zip";
+    let retry_token = "verified-23-24-25.dictionary-package";
     write_verified_archive(directory.path(), retry_token, &source);
     let restored = DictionaryInstallService::default()
         .install_catalog(directory.path(), retry_token)
@@ -362,7 +416,7 @@ fn catalog_reinstall_restores_unavailable_dictionary_without_changing_its_identi
 #[test]
 fn invalid_catalog_package_cleans_install_staging_and_preserves_verified_and_unrelated_data() {
     let directory = TestDirectory::new("invalid-catalog");
-    let token = "verified-4-5-6.stardict.zip";
+    let token = "verified-4-5-6.dictionary-package";
     let temporary_archive = directory.path().join("invalid.stardict.zip");
     let file = fs::File::create(&temporary_archive).unwrap();
     let mut writer = ZipWriter::new(file);
@@ -401,7 +455,7 @@ fn invalid_catalog_package_cleans_install_staging_and_preserves_verified_and_unr
 #[test]
 fn catalog_archive_traversal_is_rejected_without_writing_outside_staging() {
     let directory = TestDirectory::new("unsafe-archive");
-    let token = "verified-7-8-9.stardict.zip";
+    let token = "verified-7-8-9.dictionary-package";
     let temporary_archive = directory.path().join("unsafe.stardict.zip");
     let file = fs::File::create(&temporary_archive).unwrap();
     let mut writer = ZipWriter::new(file);
@@ -419,7 +473,9 @@ fn catalog_archive_traversal_is_rejected_without_writing_outside_staging() {
 
     assert!(matches!(
         result,
-        Err(DictionaryInstallError::InvalidArchive(_))
+        Err(DictionaryInstallError::Archive(
+            DictionaryArchiveError::InvalidArchive(_)
+        ))
     ));
     assert!(!directory.path().join("outside.ifo").exists());
     assert!(archive.is_dir());

@@ -6,6 +6,7 @@ pub mod archive_import_artifacts;
 pub mod archive_import_transaction;
 pub mod archive_root;
 pub mod dictionaries;
+pub(crate) mod dictionary_archive;
 pub(crate) mod dictionary_catalog;
 pub(crate) mod dictionary_download;
 #[allow(dead_code)]

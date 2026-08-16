@@ -25,7 +25,7 @@ describe("dictionaryDownloadCommandClient", () => {
 
     await dictionaryDownloadCommandClient.download("english", onProgress);
     await dictionaryDownloadCommandClient.cancel();
-    await dictionaryDownloadCommandClient.cleanup("verified-1-2-3.stardict.zip");
+    await dictionaryDownloadCommandClient.cleanup("verified-1-2-3.dictionary-package");
 
     expect(ChannelMock).toHaveBeenCalledWith(onProgress);
     const channel = ChannelMock.mock.instances[0];
@@ -35,7 +35,7 @@ describe("dictionaryDownloadCommandClient", () => {
       [
         "cleanup_verified_dictionary_download",
         {
-          stagingToken: "verified-1-2-3.stardict.zip",
+          stagingToken: "verified-1-2-3.dictionary-package",
         },
       ],
     ]);

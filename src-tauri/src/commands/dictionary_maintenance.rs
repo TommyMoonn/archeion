@@ -72,8 +72,8 @@ mod tests {
         let installs = dictionary_root.join("staging/installs");
         for path in [
             downloads.join("partial-1-2-3.download"),
-            downloads.join("retired-install-4-5-6.stardict.zip"),
-            downloads.join("verified-7-8-9.stardict.zip"),
+            downloads.join("retired-install-4-5-6.dictionary-package"),
+            downloads.join("verified-7-8-9.dictionary-package"),
             downloads.join("unrelated"),
             installs.join("install-1-2-3"),
             installs.join("unrelated"),
@@ -93,10 +93,10 @@ mod tests {
         assert_eq!(snapshot.status, DictionaryRegistryStatus::Ready);
         assert!(!downloads.join("partial-1-2-3.download").exists());
         assert!(!downloads
-            .join("retired-install-4-5-6.stardict.zip")
+            .join("retired-install-4-5-6.dictionary-package")
             .exists());
         assert!(!installs.join("install-1-2-3").exists());
-        assert!(downloads.join("verified-7-8-9.stardict.zip").is_dir());
+        assert!(downloads.join("verified-7-8-9.dictionary-package").is_dir());
         assert!(downloads.join("unrelated").is_dir());
         assert!(installs.join("unrelated").is_dir());
         fs::remove_dir_all(root).unwrap();

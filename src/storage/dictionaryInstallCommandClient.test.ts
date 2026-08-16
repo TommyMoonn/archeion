@@ -14,14 +14,14 @@ beforeEach(() => {
 
 describe("dictionaryInstallCommandClient", () => {
   it("routes verified catalog and manual StarDict sources through native installation", async () => {
-    await dictionaryInstallCommandClient.installCatalog("verified-1-2-3.stardict.zip");
+    await dictionaryInstallCommandClient.installCatalog("verified-1-2-3.dictionary-package");
     await dictionaryInstallCommandClient.importStarDict("C:/Dictionaries/source.ifo");
 
     expect(invokeMock.mock.calls).toEqual([
       [
         "install_catalog_dictionary",
         {
-          stagingToken: "verified-1-2-3.stardict.zip",
+          stagingToken: "verified-1-2-3.dictionary-package",
         },
       ],
       [
