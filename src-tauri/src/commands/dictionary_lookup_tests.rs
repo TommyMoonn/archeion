@@ -130,7 +130,8 @@ fn install_dictionary_with_sequence(
     let dictionary = store
         .register(DictionaryRegistration {
             display_name: name.to_string(),
-            language: "en".to_string(),
+            source_language: "en".to_string(),
+            target_language: "en".to_string(),
             enabled,
             entry_count: 0,
             installed_size_bytes: definition_bytes.len() as u64,

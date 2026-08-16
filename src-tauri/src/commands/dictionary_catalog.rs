@@ -14,6 +14,7 @@ use crate::atomic_file::{
     transaction_path, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
 };
 
+use super::dictionary_language::canonicalize_language_tag;
 use super::dictionary_request::{
     DictionaryRequestError, DictionaryRequestOwner, DictionaryRequestTicket,
 };
@@ -34,7 +35,8 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 pub(crate) struct DictionaryCatalogEntry {
     pub id: String,
     pub name: String,
-    pub language: String,
+    pub source_language: String,
+    pub target_language: String,
     pub description: String,
     pub source_attribution: String,
     pub source_url: Option<String>,
@@ -243,7 +245,8 @@ fn validate_catalog_bytes(bytes: &[u8]) -> Result<CatalogManifest, DictionaryCat
     }
     manifest.dictionaries.sort_by_cached_key(|entry| {
         (
-            entry.language.to_lowercase(),
+            entry.source_language.to_lowercase(),
+            entry.target_language.to_lowercase(),
             entry.name.to_lowercase(),
             entry.id.clone(),
         )
@@ -264,7 +267,8 @@ fn validate_entry(entry: &mut DictionaryCatalogEntry) -> Result<(), DictionaryCa
         return invalid_entry(&entry.id, "id");
     }
     normalize_required(&mut entry.name, 160, &entry.id, "name")?;
-    normalize_locale(&mut entry.language, &entry.id)?;
+    normalize_language_tag(&mut entry.source_language, &entry.id, "source language")?;
+    normalize_language_tag(&mut entry.target_language, &entry.id, "target language")?;
     normalize_required(&mut entry.description, 600, &entry.id, "description")?;
     normalize_required(
         &mut entry.source_attribution,
@@ -318,13 +322,14 @@ fn normalize_required(
     Ok(())
 }
 
-fn normalize_locale(value: &mut String, entry_id: &str) -> Result<(), DictionaryCatalogError> {
-    normalize_required(value, 64, entry_id, "language")?;
-    if value.split('-').any(|part| {
-        part.is_empty() || part.len() > 8 || !part.bytes().all(|byte| byte.is_ascii_alphanumeric())
-    }) {
-        return invalid_entry(entry_id, "language");
-    }
+fn normalize_language_tag(
+    value: &mut String,
+    entry_id: &str,
+    field: &'static str,
+) -> Result<(), DictionaryCatalogError> {
+    let canonical =
+        canonicalize_language_tag(value).ok_or_else(|| invalid_entry_error(entry_id, field))?;
+    *value = canonical;
     Ok(())
 }
 

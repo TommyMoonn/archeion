@@ -28,10 +28,15 @@ fn test_root(label: &str) -> PathBuf {
 }
 
 fn entry(id: &str, name: &str, language: &str) -> Value {
+    directional_entry(id, name, language, language)
+}
+
+fn directional_entry(id: &str, name: &str, source_language: &str, target_language: &str) -> Value {
     json!({
         "id": id,
         "name": name,
-        "language": language,
+        "sourceLanguage": source_language,
+        "targetLanguage": target_language,
         "description": "A focused dictionary.",
         "sourceAttribution": "Example Lexicographers",
         "sourceUrl": "https://example.com/source",
@@ -107,6 +112,50 @@ async fn valid_catalog_publishes_normalized_entries_in_deterministic_order() {
 }
 
 #[test]
+fn catalog_preserves_canonical_monolingual_and_directional_language_pairs() {
+    let catalog = validate_catalog_bytes(&manifest(vec![
+        entry("english-us", "English US", "EN-us"),
+        directional_entry("french-english", "French to English", "FR", "en"),
+        directional_entry("english-french", "English to French", "en", "fr"),
+    ]))
+    .unwrap();
+
+    let english = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "english-us")
+        .unwrap();
+    assert_eq!(english.source_language, "en-US");
+    assert_eq!(english.target_language, "en-US");
+
+    let french_english = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "french-english")
+        .unwrap();
+    assert_eq!(french_english.source_language, "fr");
+    assert_eq!(french_english.target_language, "en");
+
+    let english_french = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "english-french")
+        .unwrap();
+    assert_eq!(english_french.source_language, "en");
+    assert_eq!(english_french.target_language, "fr");
+    assert_ne!(
+        (
+            french_english.source_language.as_str(),
+            french_english.target_language.as_str()
+        ),
+        (
+            english_french.source_language.as_str(),
+            english_french.target_language.as_str()
+        )
+    );
+}
+
+#[test]
 fn invalid_manifests_never_validate_for_publication() {
     let mut invalid_schema: Value =
         serde_json::from_slice(&manifest(vec![entry("english", "English", "en")])).unwrap();
@@ -128,7 +177,40 @@ fn invalid_manifests_never_validate_for_publication() {
     invalid_digest["dictionaries"][0]["sha256"] = json!("not-a-digest");
     let invalid_digest = serde_json::to_vec(&invalid_digest).unwrap();
 
-    for bytes in [invalid_schema, duplicate_ids, insecure_url, invalid_digest] {
+    let mut invalid_language: Value =
+        serde_json::from_slice(&manifest(vec![entry("english", "English", "en")])).unwrap();
+    invalid_language["dictionaries"][0]["targetLanguage"] = json!("en_US");
+    let invalid_language = serde_json::to_vec(&invalid_language).unwrap();
+
+    let legacy_single_language = serde_json::to_vec(&json!({
+        "schemaVersion": 1,
+        "dictionaries": [{
+            "id": "legacy",
+            "name": "Legacy",
+            "language": "en",
+            "description": "Legacy prerelease shape",
+            "sourceAttribution": "Example",
+            "sourceUrl": null,
+            "licenseName": "Example",
+            "licenseUrl": "https://example.com/license",
+            "packageVersion": "1",
+            "compressedSizeBytes": 4096,
+            "installedSizeEstimateBytes": 8192,
+            "downloadUrl": "https://example.com/legacy.zip",
+            "packageFormat": "stardict-zip",
+            "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+        }]
+    }))
+    .unwrap();
+
+    for bytes in [
+        invalid_schema,
+        duplicate_ids,
+        insecure_url,
+        invalid_digest,
+        invalid_language,
+        legacy_single_language,
+    ] {
         assert!(matches!(
             validate_catalog_bytes(&bytes),
             Err(DictionaryCatalogError::Invalid(_))
@@ -215,7 +297,8 @@ async fn failed_refresh_preserves_valid_cache_and_installed_dictionary_state() {
         store
             .register(DictionaryRegistration {
                 display_name: "Installed".to_string(),
-                language: "en".to_string(),
+                source_language: "en".to_string(),
+                target_language: "en".to_string(),
                 enabled: true,
                 entry_count: 1,
                 installed_size_bytes: 4,

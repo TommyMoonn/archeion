@@ -11,6 +11,7 @@ pub(crate) mod dictionary_download;
 #[allow(dead_code)]
 pub(crate) mod dictionary_index;
 pub(crate) mod dictionary_install;
+pub(crate) mod dictionary_language;
 pub(crate) mod dictionary_lookup;
 pub(crate) mod dictionary_maintenance;
 pub(crate) mod dictionary_recovery_registry;

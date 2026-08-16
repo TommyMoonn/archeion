@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     dictionary_index::{self, DictionaryLookupEntry},
+    dictionary_language::is_canonical_language_tag,
     dictionary_recovery_registry::{
         read_recovery_registry, recovery_registry_exists, StagedRecoveryRegistry,
     },
@@ -27,7 +28,8 @@ const CREATE_SCHEMA: &str = r#"
 CREATE TABLE installed_dictionaries (
     dictionary_id TEXT PRIMARY KEY NOT NULL,
     display_name TEXT NOT NULL,
-    language TEXT NOT NULL,
+    source_language TEXT NOT NULL,
+    target_language TEXT NOT NULL,
     enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
     sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
     entry_count INTEGER NOT NULL CHECK (entry_count >= 0),
@@ -83,7 +85,8 @@ const VERIFY_SCHEMA: &str = r#"
 SELECT
     dictionary_id,
     display_name,
-    language,
+    source_language,
+    target_language,
     enabled,
     sort_order,
     entry_count,
@@ -105,7 +108,8 @@ LIMIT 0
 pub struct InstalledDictionary {
     pub id: String,
     pub display_name: String,
-    pub language: String,
+    pub source_language: String,
+    pub target_language: String,
     pub enabled: bool,
     pub order: u32,
     pub entry_count: u64,
@@ -179,7 +183,8 @@ impl DictionaryIndexState {
 #[allow(dead_code)]
 pub(crate) struct DictionaryRegistration {
     pub display_name: String,
-    pub language: String,
+    pub source_language: String,
+    pub target_language: String,
     pub enabled: bool,
     pub entry_count: u64,
     pub installed_size_bytes: u64,
@@ -677,20 +682,22 @@ impl DictionaryStore {
         {
             return Err(DictionaryStoreError::InvalidDictionaryId);
         }
+        validate_language_pair(&registration.source_language, &registration.target_language)?;
 
         let paths = self.paths.clone();
         let installed_path = paths.installed_path(dictionary_id)?;
         let transaction = self.connection.transaction()?;
         let updated = transaction.execute(
             "UPDATE installed_dictionaries
-             SET display_name = ?1, language = ?2, entry_count = ?3,
-                 installed_size_bytes = ?4, source_attribution = ?5,
-                 license_name = ?6, license_url = ?7, package_version = ?8,
-                 index_state = ?9
-             WHERE dictionary_id = ?10 AND index_state = 'unavailable'",
+             SET display_name = ?1, source_language = ?2, target_language = ?3, entry_count = ?4,
+                 installed_size_bytes = ?5, source_attribution = ?6,
+                 license_name = ?7, license_url = ?8, package_version = ?9,
+                 index_state = ?10
+             WHERE dictionary_id = ?11 AND index_state = 'unavailable'",
             params![
                 registration.display_name,
-                registration.language,
+                registration.source_language,
+                registration.target_language,
                 to_sql_integer(registration.entry_count, "entry count")?,
                 to_sql_integer(registration.installed_size_bytes, "installed size")?,
                 registration.source_attribution,
@@ -869,7 +876,8 @@ impl DictionaryStore {
             "SELECT
                 dictionary_id,
                 display_name,
-                language,
+                source_language,
+                target_language,
                 enabled,
                 sort_order,
                 entry_count,
@@ -1004,7 +1012,8 @@ fn list_with_connection(
         "SELECT
             dictionary_id,
             display_name,
-            language,
+            source_language,
+            target_language,
             enabled,
             sort_order,
             entry_count,
@@ -1062,6 +1071,7 @@ fn validate_recovery_dictionaries(
         if dictionary.storage_relative_path != owned_storage_relative_path(&dictionary.id)? {
             return Err(DictionaryStoreError::InvalidStoredValue("storage path"));
         }
+        validate_language_pair(&dictionary.source_language, &dictionary.target_language)?;
         if !ids.insert(dictionary.id.as_str()) || !orders.insert(dictionary.order) {
             return Err(DictionaryStoreError::InvalidStoredValue(
                 "recovery registry identity or order",
@@ -1122,7 +1132,8 @@ fn recover_database_from_installed_registry(
                 .unwrap_or(dictionary.installed_size_bytes);
             let registration = DictionaryRegistration {
                 display_name: dictionary.display_name.clone(),
-                language: dictionary.language.clone(),
+                source_language: dictionary.source_language.clone(),
+                target_language: dictionary.target_language.clone(),
                 enabled: dictionary.enabled,
                 entry_count: if package.is_some() {
                     0
@@ -1221,12 +1232,15 @@ fn remove_recognized_database_artifact(path: &Path) -> Result<(), DictionaryStor
 
 fn read_dictionary(row: &rusqlite::Row<'_>) -> rusqlite::Result<InstalledDictionary> {
     let id: String = row.get(0)?;
-    let source_kind: String = row.get(7)?;
-    let index_state: String = row.get(13)?;
-    let order: i64 = row.get(4)?;
-    let entry_count: i64 = row.get(5)?;
-    let installed_size_bytes: i64 = row.get(6)?;
-    let storage_relative_path: String = row.get(14)?;
+    let source_language: String = row.get(2)?;
+    let target_language: String = row.get(3)?;
+    validate_language_pair(&source_language, &target_language).map_err(to_sql_conversion_error)?;
+    let source_kind: String = row.get(8)?;
+    let index_state: String = row.get(14)?;
+    let order: i64 = row.get(5)?;
+    let entry_count: i64 = row.get(6)?;
+    let installed_size_bytes: i64 = row.get(7)?;
+    let storage_relative_path: String = row.get(15)?;
     let expected_storage_relative_path =
         owned_storage_relative_path(&id).map_err(to_sql_conversion_error)?;
     if storage_relative_path != expected_storage_relative_path {
@@ -1238,19 +1252,20 @@ fn read_dictionary(row: &rusqlite::Row<'_>) -> rusqlite::Result<InstalledDiction
     Ok(InstalledDictionary {
         id,
         display_name: row.get(1)?,
-        language: row.get(2)?,
-        enabled: row.get(3)?,
+        source_language,
+        target_language,
+        enabled: row.get(4)?,
         order: to_u32(order, "order").map_err(to_sql_conversion_error)?,
         entry_count: to_u64(entry_count, "entry count").map_err(to_sql_conversion_error)?,
         installed_size_bytes: to_u64(installed_size_bytes, "installed size")
             .map_err(to_sql_conversion_error)?,
         source_kind: DictionarySourceKind::from_database_value(&source_kind)
             .map_err(to_sql_conversion_error)?,
-        catalog_id: row.get(8)?,
-        source_attribution: row.get(9)?,
-        license_name: row.get(10)?,
-        license_url: row.get(11)?,
-        package_version: row.get(12)?,
+        catalog_id: row.get(9)?,
+        source_attribution: row.get(10)?,
+        license_name: row.get(11)?,
+        license_url: row.get(12)?,
+        package_version: row.get(13)?,
         index_state: DictionaryIndexState::from_database_value(&index_state)
             .map_err(to_sql_conversion_error)?,
         storage_relative_path,
@@ -1297,16 +1312,18 @@ fn insert_registration(
     order: i64,
     registration: &DictionaryRegistration,
 ) -> Result<(), DictionaryStoreError> {
+    validate_language_pair(&registration.source_language, &registration.target_language)?;
     transaction.execute(
         "INSERT INTO installed_dictionaries (
-            dictionary_id, display_name, language, enabled, sort_order, entry_count,
+            dictionary_id, display_name, source_language, target_language, enabled, sort_order, entry_count,
             installed_size_bytes, source_kind, catalog_id, source_attribution,
             license_name, license_url, package_version, index_state, storage_relative_path
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
         params![
             dictionary_id,
             registration.display_name,
-            registration.language,
+            registration.source_language,
+            registration.target_language,
             registration.enabled,
             order,
             to_sql_integer(registration.entry_count, "entry count")?,
@@ -1321,6 +1338,19 @@ fn insert_registration(
             storage_relative_path,
         ],
     )?;
+    Ok(())
+}
+
+fn validate_language_pair(
+    source_language: &str,
+    target_language: &str,
+) -> Result<(), DictionaryStoreError> {
+    if !is_canonical_language_tag(source_language) {
+        return Err(DictionaryStoreError::InvalidStoredValue("source language"));
+    }
+    if !is_canonical_language_tag(target_language) {
+        return Err(DictionaryStoreError::InvalidStoredValue("target language"));
+    }
     Ok(())
 }
 
@@ -1435,7 +1465,8 @@ mod tests {
     fn registration(name: &str) -> DictionaryRegistration {
         DictionaryRegistration {
             display_name: name.to_string(),
-            language: "en".to_string(),
+            source_language: "en".to_string(),
+            target_language: "en".to_string(),
             enabled: true,
             entry_count: 42,
             installed_size_bytes: 4096,
@@ -1514,10 +1545,52 @@ mod tests {
             .expect("registered dictionary should reload");
 
         assert_eq!(reopened, vec![expected]);
+        assert_eq!(reopened[0].source_language, "en");
+        assert_eq!(reopened[0].target_language, "en");
         assert_eq!(
             reopened[0].storage_relative_path,
             format!("installed/{}", reopened[0].id)
         );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn directional_language_pairs_remain_distinct_through_registry_updates() {
+        let root = test_root("language-pairs");
+        let mut store = current_store(&root);
+        let mut french_english = registration("French to English");
+        french_english.source_language = "fr".to_string();
+        french_english.target_language = "en".to_string();
+        french_english.catalog_id = Some("french-english".to_string());
+        let french_english = store.register(french_english).unwrap();
+
+        let mut english_french = registration("English to French");
+        english_french.source_language = "en".to_string();
+        english_french.target_language = "fr".to_string();
+        english_french.catalog_id = Some("english-french".to_string());
+        let english_french = store.register(english_french).unwrap();
+
+        store.set_enabled(&french_english.id, false).unwrap();
+        store
+            .set_order(&[english_french.id.clone(), french_english.id.clone()])
+            .unwrap();
+        drop(store);
+
+        let reopened = current_store(&root).list().unwrap();
+        assert_eq!(reopened.len(), 2);
+        assert_eq!(reopened[0].id, english_french.id);
+        assert_eq!(reopened[0].source_language, "en");
+        assert_eq!(reopened[0].target_language, "fr");
+        assert!(reopened[0].enabled);
+        assert_eq!(reopened[0].order, 0);
+        assert_eq!(reopened[0].index_state, DictionaryIndexState::Ready);
+        assert_eq!(reopened[1].id, french_english.id);
+        assert_eq!(reopened[1].source_language, "fr");
+        assert_eq!(reopened[1].target_language, "en");
+        assert!(!reopened[1].enabled);
+        assert_eq!(reopened[1].order, 1);
+        assert_eq!(reopened[1].index_state, DictionaryIndexState::Ready);
 
         let _ = fs::remove_dir_all(root);
     }

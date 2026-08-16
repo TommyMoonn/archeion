@@ -3,7 +3,8 @@ export type DictionaryCatalogPackageFormat = "stardict-zip";
 export type DictionaryCatalogEntry = Readonly<{
   id: string;
   name: string;
-  language: string;
+  sourceLanguage: string;
+  targetLanguage: string;
   description: string;
   sourceAttribution: string;
   sourceUrl: string | null;
@@ -51,7 +52,8 @@ export type DictionaryIndexState = "pending" | "ready" | "rebuild-required" | "u
 export type InstalledDictionary = Readonly<{
   id: string;
   displayName: string;
-  language: string;
+  sourceLanguage: string;
+  targetLanguage: string;
   enabled: boolean;
   order: number;
   entryCount: number;

@@ -22,7 +22,8 @@ const catalog: DictionaryCatalogSnapshot = {
       downloadUrl: "https://example.com/core.zip",
       id: "english-core",
       installedSizeEstimateBytes: 8192,
-      language: "English",
+      sourceLanguage: "en",
+      targetLanguage: "en",
       licenseName: "CC BY 4.0",
       licenseUrl: "https://example.com/license",
       name: "English Core",
@@ -46,7 +47,8 @@ function installed(overrides: Partial<InstalledDictionary> = {}): InstalledDicti
     id: "dict-a",
     indexState: "rebuild-required",
     installedSizeBytes: 8192,
-    language: "English",
+    sourceLanguage: "en",
+    targetLanguage: "en",
     licenseName: "CC BY 4.0",
     licenseUrl: "https://example.com/license",
     order: 0,
@@ -160,6 +162,42 @@ describe("DictionarySettingsView", () => {
     expect(container.textContent).toContain("Example Lexicographers");
     expect(container.textContent).toContain("CC BY 4.0");
     expect(container.textContent).toContain("2.0 KB");
+  });
+
+  it("formats monolingual and directional language metadata for catalog and installed dictionaries", () => {
+    const directionalCatalog: DictionaryCatalogSnapshot = {
+      ...catalog,
+      entries: [
+        {
+          ...catalog.entries[0],
+          sourceLanguage: "fr",
+          targetLanguage: "en",
+        },
+      ],
+    };
+    const value = controller({
+      catalog: directionalCatalog,
+      registry: {
+        dictionaries: [
+          installed({ sourceLanguage: "en", targetLanguage: "en" }),
+          installed({
+            displayName: "English to French",
+            id: "dict-b",
+            order: 1,
+            sourceLanguage: "en",
+            targetLanguage: "fr",
+          }),
+        ],
+        recovery: null,
+        status: "ready",
+      },
+    });
+    const container = renderView(value);
+
+    expect(container.textContent).toContain("French → English");
+    act(() => button(container, "Installed (2)").click());
+    expect(container.textContent).toContain("English");
+    expect(container.textContent).toContain("English → French");
   });
 
   it("exposes installed enable, order, rebuild, and confirmed removal actions", async () => {

@@ -435,7 +435,8 @@ fn catalog_registration(
 ) -> DictionaryRegistration {
     DictionaryRegistration {
         display_name: entry.name.clone(),
-        language: entry.language.clone(),
+        source_language: entry.source_language.clone(),
+        target_language: entry.target_language.clone(),
         enabled: true,
         entry_count: 0,
         installed_size_bytes: installed_source_bytes(package),
@@ -452,7 +453,8 @@ fn catalog_registration(
 fn manual_registration(package: &ValidatedStarDictPackage) -> DictionaryRegistration {
     DictionaryRegistration {
         display_name: package.metadata.book_name.clone(),
-        language: "und".to_string(),
+        source_language: "und".to_string(),
+        target_language: "und".to_string(),
         enabled: true,
         entry_count: 0,
         installed_size_bytes: installed_source_bytes(package),

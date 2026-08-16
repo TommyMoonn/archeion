@@ -222,14 +222,15 @@ mod tests {
     fn dictionary(enabled: bool) -> InstalledDictionary {
         InstalledDictionary {
             id: "dict-00000000000000000000000000000000".to_string(),
-            display_name: "English".to_string(),
-            language: "en".to_string(),
+            display_name: "French to English".to_string(),
+            source_language: "fr".to_string(),
+            target_language: "en".to_string(),
             enabled,
             order: 0,
             entry_count: 1,
             installed_size_bytes: 32,
             source_kind: DictionarySourceKind::Catalog,
-            catalog_id: Some("english".to_string()),
+            catalog_id: Some("french-english".to_string()),
             source_attribution: "Example".to_string(),
             license_name: "Example license".to_string(),
             license_url: Some("https://example.com/license".to_string()),
@@ -251,7 +252,10 @@ mod tests {
             .unwrap()
             .rollback()
             .unwrap();
-        assert!(read_recovery_registry(&paths).unwrap()[0].enabled);
+        let restored = read_recovery_registry(&paths).unwrap();
+        assert!(restored[0].enabled);
+        assert_eq!(restored[0].source_language, "fr");
+        assert_eq!(restored[0].target_language, "en");
 
         StagedRecoveryRegistry::stage(&paths, &[dictionary(false)])
             .unwrap()

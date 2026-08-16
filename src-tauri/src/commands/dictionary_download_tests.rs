@@ -33,7 +33,8 @@ fn entry(bytes: &[u8]) -> DictionaryCatalogEntry {
     DictionaryCatalogEntry {
         id: "english".to_string(),
         name: "English".to_string(),
-        language: "en".to_string(),
+        source_language: "en".to_string(),
+        target_language: "en".to_string(),
         description: "A test dictionary.".to_string(),
         source_attribution: "Example".to_string(),
         source_url: None,

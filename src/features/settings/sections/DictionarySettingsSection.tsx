@@ -15,7 +15,7 @@ import { IconButton } from "../../../components/IconButton";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
 import type { DictionaryCatalogEntry, InstalledDictionary } from "../../../types/dictionary";
-import { formatFileSize } from "../../../utils/formatters";
+import { formatDictionaryLanguagePair, formatFileSize } from "../../../utils/formatters";
 import { focusElementIfUsable } from "../../../utils/focusRestoration";
 import { useDictionarySettings, type DictionarySettingsController } from "../useDictionarySettings";
 
@@ -61,7 +61,7 @@ function AvailableDictionaryRow({
         <dl className="dictionary-settings-card__facts">
           <div>
             <dt>Language</dt>
-            <dd>{entry.language}</dd>
+            <dd>{formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage)}</dd>
           </div>
           <div>
             <dt>Source</dt>
@@ -179,7 +179,9 @@ function InstalledDictionaryRow({
         <dl className="dictionary-settings-card__facts">
           <div>
             <dt>Language</dt>
-            <dd>{dictionary.language}</dd>
+            <dd>
+              {formatDictionaryLanguagePair(dictionary.sourceLanguage, dictionary.targetLanguage)}
+            </dd>
           </div>
           <div>
             <dt>Entries</dt>

@@ -4,7 +4,8 @@
     {
       "id": "princeton-wordnet-3-0",
       "name": "Princeton WordNet 3.0",
-      "language": "en",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
       "description": "English definitions, synonyms, and lexical relationships for everyday and reference lookup.",
       "sourceAttribution": "Princeton University WordNet 3.0; StarDict conversion by Lauren Landau for Duet; packaged for Archeion",
       "sourceUrl": "https://github.com/lauren-alexandra/duet-xteink/releases/tag/v0.1.0-alpha.9",

@@ -59,7 +59,8 @@ fn open_store(root: &Path) -> DictionaryStore {
 fn registration(name: &str) -> DictionaryRegistration {
     DictionaryRegistration {
         display_name: name.to_string(),
-        language: "en".to_string(),
+        source_language: "en".to_string(),
+        target_language: "en".to_string(),
         enabled: true,
         entry_count: 0,
         installed_size_bytes: 0,

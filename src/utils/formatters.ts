@@ -29,3 +29,28 @@ export function formatFileSize(bytes: number): string {
 
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+let dictionaryLanguageDisplayNames: Intl.DisplayNames | null = null;
+
+function formatDictionaryLanguageTag(languageTag: string): string {
+  if (languageTag === "und") return "Unknown";
+
+  try {
+    dictionaryLanguageDisplayNames ??= new Intl.DisplayNames(["en"], {
+      fallback: "code",
+      type: "language",
+    });
+    return dictionaryLanguageDisplayNames.of(languageTag) ?? languageTag;
+  } catch {
+    return languageTag;
+  }
+}
+
+export function formatDictionaryLanguagePair(
+  sourceLanguage: string,
+  targetLanguage: string,
+): string {
+  const source = formatDictionaryLanguageTag(sourceLanguage);
+  if (sourceLanguage === targetLanguage) return source;
+  return `${source} → ${formatDictionaryLanguageTag(targetLanguage)}`;
+}

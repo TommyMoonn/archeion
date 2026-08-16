@@ -108,7 +108,8 @@ fn catalog_entry(bytes: &[u8]) -> DictionaryCatalogEntry {
     DictionaryCatalogEntry {
         id: "english-core".to_string(),
         name: "English Core".to_string(),
-        language: "en-US".to_string(),
+        source_language: "fr".to_string(),
+        target_language: "en".to_string(),
         description: "Fixture".to_string(),
         source_attribution: "Fixture Lexicographers".to_string(),
         source_url: Some("https://example.com/source".to_string()),
@@ -174,6 +175,8 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
         .unwrap();
 
     assert_eq!(installed.display_name, entry.name);
+    assert_eq!(installed.source_language, "fr");
+    assert_eq!(installed.target_language, "en");
     assert_eq!(installed.source_kind, DictionarySourceKind::Catalog);
     assert_eq!(installed.catalog_id.as_deref(), Some("english-core"));
     assert_eq!(installed.source_attribution, "Fixture Lexicographers");
@@ -185,6 +188,14 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
     assert_eq!(installed.package_version, "2026.1");
     assert_eq!(installed.index_state, DictionaryIndexState::Ready);
     assert_eq!(installed.entry_count, 2);
+    let registry = DictionaryStore::snapshot(directory.path()).unwrap();
+    assert_eq!(registry.dictionaries.len(), 1);
+    assert_eq!(registry.dictionaries[0].source_language, "fr");
+    assert_eq!(registry.dictionaries[0].target_language, "en");
+    assert_eq!(
+        registry.dictionaries[0].index_state,
+        DictionaryIndexState::Ready
+    );
     assert_ne!(
         installed.catalog_id.as_deref(),
         Some(other_entry.id.as_str())
@@ -290,6 +301,8 @@ fn manual_import_uses_the_same_owned_layout_without_modifying_source_files() {
         .unwrap();
 
     assert_eq!(installed.display_name, "Fixture Dictionary");
+    assert_eq!(installed.source_language, "und");
+    assert_eq!(installed.target_language, "und");
     assert_eq!(installed.source_kind, DictionarySourceKind::ManualImport);
     assert_eq!(installed.catalog_id, None);
     assert_eq!(installed.index_state, DictionaryIndexState::Ready);
