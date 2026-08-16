@@ -13,6 +13,7 @@ import {
   createStorage,
   renderLibraryPage,
   setupLibraryPageTestSuite,
+  waitForButtonWithLabel,
   waitForButtonWithText,
 } from "./LibraryPage.testUtils";
 
@@ -90,16 +91,11 @@ describe("LibraryPage EPUB Issues integration", () => {
     );
     if (!details) throw new Error("Affected EPUB details action was not rendered.");
     await act(async () => details.click());
-    await vi.waitFor(() => {
-      expect(session.container.querySelector(".details-drawer")?.textContent).toContain(
-        "Affected EPUB",
-      );
-    });
-    await act(async () => {
-      session.container
-        .querySelector<HTMLButtonElement>('button[aria-label="Close book details"]')
-        ?.click();
-    });
+    const closeDetails = await waitForButtonWithLabel(session.container, "Close book details");
+    expect(session.container.querySelector(".details-drawer")?.textContent).toContain(
+      "Affected EPUB",
+    );
+    await act(async () => closeDetails.click());
 
     await act(async () => (await waitForButtonWithText(session.container, "Reveal")).click());
     expect(storage.revealBookFile).toHaveBeenCalledWith(affectedBook.id);

@@ -82,14 +82,9 @@ describe("LibraryPage duplicate review integration", () => {
 
     const details = await waitForButtonWithLabel(session.container, "Open details for Alpha");
     await act(async () => details.click());
-    await vi.waitFor(() => {
-      expect(session.container.querySelector(".details-drawer")?.textContent).toContain("Alpha");
-    });
-    await act(async () => {
-      session.container
-        .querySelector<HTMLButtonElement>('button[aria-label="Close book details"]')
-        ?.click();
-    });
+    const closeDetails = await waitForButtonWithLabel(session.container, "Close book details");
+    expect(session.container.querySelector(".details-drawer")?.textContent).toContain("Alpha");
+    await act(async () => closeDetails.click());
 
     const reveal = await waitForButtonWithText(session.container, "Reveal");
     await act(async () => reveal.click());

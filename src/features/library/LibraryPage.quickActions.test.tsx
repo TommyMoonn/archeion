@@ -7,6 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../series/SeriesOverview";
 import "../settings/SettingsDialog";
+import "./LibraryDuplicatesView";
+import "./LibraryEpubIssuesView";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { WindowTitlebarAppActionsHost } from "../../components/WindowTitlebar";
 import type {

@@ -73,12 +73,12 @@ function scrollToMock() {
   return HTMLElement.prototype.scrollTo as ReturnType<typeof vi.fn>;
 }
 
-function renderDialog(storage = createStorage(), initialSection?: "dictionaries") {
+async function renderDialog(storage = createStorage(), initialSection?: "dictionaries") {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
 
-  act(() => {
+  await act(async () => {
     root.render(
       <LibraryStorageContext value={storage}>
         <SettingsDialog initialSection={initialSection} onClose={vi.fn()} />
@@ -138,8 +138,8 @@ describe("SettingsDialog responsiveness", () => {
     return rendered;
   }
 
-  it("renders only the active settings section in normal mode", () => {
-    const { container } = track(renderDialog());
+  it("renders only the active settings section in normal mode", async () => {
+    const { container } = track(await renderDialog());
 
     expect(container.querySelector(".settings-window.modal-surface")).not.toBeNull();
     expect(document.activeElement).toBe(
@@ -157,8 +157,8 @@ describe("SettingsDialog responsiveness", () => {
     expect(container.querySelector('[data-setting-id="storage.cover-cache-status"]')).toBeNull();
   });
 
-  it("opens directly to an explicitly requested settings section", () => {
-    const { container } = track(renderDialog(createStorage(), "dictionaries"));
+  it("opens directly to an explicitly requested settings section", async () => {
+    const { container } = track(await renderDialog(createStorage(), "dictionaries"));
 
     expect(container.querySelector(".dictionary-settings h2")?.textContent).toBe("Dictionaries");
     expect(
@@ -183,7 +183,7 @@ describe("SettingsDialog responsiveness", () => {
           showContinueReading: false,
         });
       });
-      const { container } = track(renderDialog());
+      const { container } = track(await renderDialog());
       clickButton(container, "Library");
       await act(async () => Promise.resolve());
       clickButton(container, "Reset Library");
@@ -199,7 +199,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("uses instant section scrolling without adding section motion when app motion is disabled", async () => {
-    const { container } = track(renderDialog());
+    const { container } = track(await renderDialog());
 
     clickButton(container, "Storage");
     await act(async () => {
@@ -217,7 +217,7 @@ describe("SettingsDialog responsiveness", () => {
 
   it("keeps initial Settings content static and animates only later section switches", async () => {
     document.documentElement.dataset.motion = "on";
-    const { container } = track(renderDialog());
+    const { container } = track(await renderDialog());
     const initialSection = container.querySelector(".settings-section-transition");
 
     expect(initialSection?.hasAttribute("data-transition")).toBe(false);
@@ -242,7 +242,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("does not request deferred Storage or Import data on initial open", async () => {
-    const { storage } = track(renderDialog());
+    const { storage } = track(await renderDialog());
 
     await act(async () => {
       await Promise.resolve();
@@ -256,7 +256,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("does not load a competing archive appearance copy when controls become visible", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
 
     clickButton(container, "Appearance");
     await act(async () => {
@@ -270,7 +270,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("loads cover cache status when the Storage section becomes visible", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
 
     clickButton(container, "Storage");
     await act(async () => {
@@ -289,7 +289,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("loads folder and archive import settings when Import controls become visible", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
 
     clickButton(container, "Import");
     await act(async () => {
@@ -301,7 +301,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("loads cover cache status when a matching Storage search result needs it", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
     const search = container.querySelector(
       'input[name="archeion-settings-search"]',
     ) as HTMLInputElement | null;
@@ -320,7 +320,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("loads EPUB writeback backup status when a matching Storage search result needs it", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
     const search = container.querySelector(
       'input[name="archeion-settings-search"]',
     ) as HTMLInputElement | null;
@@ -339,7 +339,7 @@ describe("SettingsDialog responsiveness", () => {
   });
 
   it("loads folders when a matching Import destination search result needs them", async () => {
-    const { container, storage } = track(renderDialog());
+    const { container, storage } = track(await renderDialog());
     const search = container.querySelector(
       'input[name="archeion-settings-search"]',
     ) as HTMLInputElement | null;
