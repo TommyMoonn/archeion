@@ -256,10 +256,10 @@ Common repository utilities are exposed through npm aliases:
 npm run changes:peek
 npm run changes:apply
 npm run changes:review
-npm run changes:package -- -Name "task-name"
+npm run changes:package -- --name "task-name"
 npm run changes:restore
 npm run clean
-npm run clean:all -- -DryRun
+npm run clean:all -- --dry-run
 npm run zip
 ```
 

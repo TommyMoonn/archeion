@@ -1,151 +1,191 @@
 # Project Scripts
 
-Run these commands from the project root using PowerShell.
+Run from the project root with PowerShell 7.
 
-| Script                       | Purpose                                                               | Example                                                     |
-| ---------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `apply-chatgpt-zip.ps1`      | Applies the newest Archeion changed-files ZIP from Downloads.         | `.\scripts\apply-chatgpt-zip.ps1 -DryRun`                   |
-| `package-changed-files.ps1`  | Packages current Git changes while preserving project-relative paths. | `.\scripts\package-changed-files.ps1 -Name "phase-0.2.0.7"` |
-| `review-changes.ps1`         | Summarizes staged, unstaged, added, modified, and deleted files.      | `.\scripts\review-changes.ps1 -Detailed`                    |
-| `restore-chatgpt-import.ps1` | Restores files from the latest ChatGPT import backup.                 | `.\scripts\restore-chatgpt-import.ps1 -DryRun`              |
-| `clean-generated.ps1`        | Removes generated output and caches.                                  | `.\scripts\clean-generated.ps1 -DryRun`                     |
-| `zip-project.ps1`            | Creates `<project-slug>(yyMMddHHmm).zip` using `.zipignore`.          | `.\scripts\zip-project.ps1`                                 |
-| `check-release.ps1`          | Validates release versions, tags, and optional changelog metadata.    | `.\scripts\check-release.ps1 -RequireChangelogEntry`        |
-| `set-version.ps1`            | Updates every application version source as one transaction.          | `.\scripts\set-version.ps1 0.3.0`                           |
-| `stage-windows-bundles.ps1`  | Collects validated Windows bundles under stable public asset names.   | `.\scripts\stage-windows-bundles.ps1`                       |
+Public flags use Git-style `--kebab-case`. Existing PowerShell-style flags and renamed script entry points remain compatibility aliases.
 
-## npm command aliases
+Every command supports `-h` / `--help`.
 
-The commonly used scripts are also available through `npm run`:
+## Commands
+
+| Script | Purpose | Example |
+| --- | --- | --- |
+| `apply-changes.ps1` | Apply a changed-files ZIP. | `.\scripts\apply-changes.ps1 --dry-run` |
+| `package-changes.ps1` | Package current Git changes. | `.\scripts\package-changes.ps1 --name "phase-1.3.0.16"` |
+| `review-changes.ps1` | Summarize working-tree changes. | `.\scripts\review-changes.ps1 --files` |
+| `restore-changes.ps1` | Restore an import backup. | `.\scripts\restore-changes.ps1 --dry-run` |
+| `clean-generated.ps1` | Remove generated outputs and caches. | `.\scripts\clean-generated.ps1 --dry-run` |
+| `zip-project.ps1` | Create `<project-slug>(yyMMddHHmm).zip` using `.zipignore`. | `.\scripts\zip-project.ps1` |
+| `check-release.ps1` | Validate release versions, tags, and changelog metadata. | `.\scripts\check-release.ps1 --require-changelog` |
+| `set-version.ps1` | Update all application version sources transactionally. | `.\scripts\set-version.ps1 1.3.0` |
+| `stage-windows-release.ps1` | Validate and stage Windows release installers. | `.\scripts\stage-windows-release.ps1` |
+
+Compatibility entry points:
+
+```text
+apply-chatgpt-zip.ps1      -> apply-changes.ps1
+package-changed-files.ps1  -> package-changes.ps1
+restore-chatgpt-import.ps1 -> restore-changes.ps1
+stage-windows-bundles.ps1  -> stage-windows-release.ps1
+```
+
+The wrappers contain no implementation logic and forward all arguments to the canonical script.
+
+## Common flags
+
+Use the same long names when a command exposes the same concept:
+
+```text
+--project <path>
+--output <path>
+--dry-run
+--force
+--help
+```
+
+Short aliases are command-specific. `-p`, `-o`, `-f`, and `-h` keep their obvious meanings where exposed; `-n` is `--dry-run` on previewable commands but `--name` on `package-changes.ps1`. Prefer long flags in scripts and documentation when ambiguity matters.
+
+## `apply-changes.ps1`
+
+```text
+--zip <path>
+-p, --project <path>
+--downloads <path>
+--pattern <glob>
+--strip-root
+-n, --dry-run
+--allow-dirty
+--no-backup
+--allow-directory-deletion
+-h, --help
+```
+
+Without `--zip`, the newest ZIP matching `archeion*.zip` in Downloads is used.
+
+```powershell
+.\scripts\apply-changes.ps1 --dry-run
+.\scripts\apply-changes.ps1 --zip .\archeion-fix-changed-files.zip
+```
+
+## `package-changes.ps1`
+
+```text
+-n, --name <slug>
+-p, --project <path>
+-o, --output <path>
+--tracked-only
+-f, --force
+-h, --help
+```
+
+Untracked files are included by default. `--tracked-only` excludes them.
+
+```powershell
+.\scripts\package-changes.ps1 --name "phase-1.3.0.16"
+```
+
+## `review-changes.ps1`
+
+```text
+-p, --project <path>
+--files
+-h, --help
+```
+
+`--files` prints every changed path in addition to the summary.
+
+## `restore-changes.ps1`
+
+```text
+-p, --project <path>
+--backup <path>
+-n, --dry-run
+-h, --help
+```
+
+Without `--backup`, the newest import backup for the project is used.
+
+## `clean-generated.ps1`
+
+```text
+-p, --project <path>
+--rust
+--deps
+--installers
+--all
+-n, --dry-run
+-f, --force
+-h, --help
+```
+
+`--force` bypasses tracked-file protection for the selected cleanup targets. Use it only after reviewing the paths.
+
+## `check-release.ps1`
+
+```text
+-p, --project <path>
+--tag <tag>
+--require-changelog
+-h, --help
+```
+
+## `set-version.ps1`
+
+```text
+set-version.ps1 VERSION
+-p, --project <path>
+-h, --help
+```
+
+The version remains positional because it is the command's primary operand.
+
+## `stage-windows-release.ps1`
+
+```text
+--bundle-dir <path>
+-o, --output <path>
+-p, --project <path>
+-h, --help
+```
+
+The default bundle directory is `src-tauri/target/release/bundle`; the default output is `artifacts/windows`.
+
+## `zip-project.ps1`
+
+```text
+-h, --help
+```
+
+The command otherwise remains zero-config.
+
+## npm aliases
 
 ```powershell
 npm run version:check
-npm run version:set -- 0.3.0
-npm run release:check -- -Tag v0.4.0
+npm run version:set -- 1.3.0
+npm run release:check -- --tag v1.3.0
 npm run release:stage
-npm run changes:review
-npm run changes:package -- -Name "phase-0.3.0"
-npm run changes:apply -- -DryRun
-npm run changes:restore -- -DryRun
+npm run changes:review -- --files
+npm run changes:package -- --name "phase-1.3.0.16"
+npm run changes:apply -- --dry-run
+npm run changes:restore -- --dry-run
 npm run clean
-npm run clean:all -- -DryRun
+npm run clean:all -- --dry-run
 npm run zip
 ```
 
-Arguments after `--` are forwarded to the underlying PowerShell script.
+Arguments after npm's `--` are forwarded to the underlying script.
 
-## Release preparation
+## Compatibility
 
-Use `set-version.ps1` to update `package.json`, `package-lock.json`,
-`src-tauri/Cargo.toml`, `src-tauri/Cargo.lock`, and
-`src-tauri/tauri.conf.json` together. The script restores all five files if an
-update or validation step fails.
-
-```powershell
-npm run version:set -- 0.4.0
-npm run release:check -- -Tag v0.4.0
-```
-
-`stage-windows-bundles.ps1` validates that Tauri's generated installers contain
-the current version, then publishes them as `Archeion-Setup-x64.exe` and
-`Archeion-x64.msi` so the README can use permanent `releases/latest/download`
-links.
-
-## Script flags
-
-### `apply-chatgpt-zip.ps1`
-
-| Flag                      | Purpose                                                                       |
-| ------------------------- | ----------------------------------------------------------------------------- |
-| `-ZipPath <path>`         | Apply a specific ZIP instead of the newest matching ZIP in Downloads.         |
-| `-DryRun`                 | Preview copies and deletions without changing files.                          |
-| `-AllowDirty`             | Allow importing when tracked files already have uncommitted changes.          |
-| `-NoBackup`               | Skip backing up overwritten or deleted files.                                 |
-| `-AllowDirectoryDeletion` | Permit directories listed with `dir:` in the deletion manifest to be removed. |
-| `-StripSingleRoot`        | Force removal of one extra top-level ZIP folder.                              |
-| `-DownloadsPath <path>`   | Use a different Downloads directory.                                          |
-| `-ZipPattern <pattern>`   | Change the automatic ZIP search pattern. Default: `archeion*.zip`.            |
-| `-ProjectRoot <path>`     | Apply into another project root.                                              |
-
-Typical use:
+Legacy invocations remain accepted, including:
 
 ```powershell
 .\scripts\apply-chatgpt-zip.ps1 -DryRun
-.\scripts\apply-chatgpt-zip.ps1
-```
-
----
-
-### `package-changed-files.ps1`
-
-| Flag                  | Purpose                                                        |
-| --------------------- | -------------------------------------------------------------- |
-| `-Name <name>`        | Sets the task portion of the ZIP filename. Default: `changes`. |
-| `-OutputPath <path>`  | Places the ZIP at a custom location.                           |
-| `-ExcludeUntracked`   | Excludes untracked files from the ZIP.                         |
-| `-Force`              | Replaces an existing ZIP with the same filename.               |
-| `-ProjectRoot <path>` | Packages changes from another project root.                    |
-
-Typical use:
-
-```powershell
-.\scripts\package-changed-files.ps1 -Name "phase-0.2.0.7"
-```
-
----
-
-### `review-changes.ps1`
-
-| Flag                  | Purpose                                          |
-| --------------------- | ------------------------------------------------ |
-| `-Detailed`           | Prints every changed path, not only the summary. |
-| `-ProjectRoot <path>` | Reviews another project root.                    |
-
-Typical use:
-
-```powershell
-.\scripts\review-changes.ps1
+.\scripts\package-changed-files.ps1 -Name "phase-1.3.0.16"
 .\scripts\review-changes.ps1 -Detailed
+.\scripts\clean-generated.ps1 -Dependencies -DryRun
+.\scripts\check-release.ps1 -RequireChangelogEntry
 ```
 
----
-
-### `restore-chatgpt-import.ps1`
-
-| Flag                  | Purpose                                              |
-| --------------------- | ---------------------------------------------------- |
-| `-DryRun`             | Preview which files would be restored.               |
-| `-BackupPath <path>`  | Restore a specific backup instead of the newest one. |
-| `-ProjectRoot <path>` | Restore into another project root.                   |
-
-Typical use:
-
-```powershell
-.\scripts\restore-chatgpt-import.ps1 -DryRun
-.\scripts\restore-chatgpt-import.ps1
-```
-
----
-
-### `clean-generated.ps1`
-
-| Flag                  | Purpose                                                         |
-| --------------------- | --------------------------------------------------------------- |
-| `-DryRun`             | Preview cleanup and estimated freed space.                      |
-| `-Rust`               | Also remove `src-tauri/target`.                                 |
-| `-Dependencies`       | Also remove `node_modules`.                                     |
-| `-Installers`         | Also remove generated Tauri installer bundles.                  |
-| `-All`                | Enable Rust, dependencies, and installer cleanup.               |
-| `-Force`              | Allow removal of selected directories containing tracked files. |
-| `-ProjectRoot <path>` | Clean another project root.                                     |
-
-Typical use:
-
-```powershell
-.\scripts\clean-generated.ps1 -DryRun
-.\scripts\clean-generated.ps1
-.\scripts\clean-generated.ps1 -Rust
-.\scripts\clean-generated.ps1 -All -DryRun
-```
-
-`-Force` should be rare. It bypasses the tracked-file protection, not just confirmation.
+New documentation and automation should use the canonical command names and Git-style flags.
