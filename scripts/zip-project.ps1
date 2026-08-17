@@ -2,8 +2,15 @@ $ErrorActionPreference = "Stop"
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot/.."
 $ProjectName = Split-Path $ProjectRoot -Leaf
-$OutputPath = Join-Path (Split-Path $ProjectRoot -Parent) "$ProjectName.zip"
-$OutputFileName = Split-Path $OutputPath -Leaf
+$ProjectSlug = ($ProjectName.ToLowerInvariant() -replace '[^a-z0-9]+', '-').Trim('-')
+
+if ([string]::IsNullOrWhiteSpace($ProjectSlug)) {
+    throw "Could not derive a project slug from '$ProjectName'."
+}
+
+$Timestamp = Get-Date -Format "yyMMddHHmm"
+$OutputFileName = "$ProjectSlug($Timestamp).zip"
+$OutputPath = Join-Path (Split-Path $ProjectRoot -Parent) $OutputFileName
 $IgnoreFile = Join-Path $ProjectRoot ".zipignore"
 $FileList = Join-Path $env:TEMP "$ProjectName-zip-filelist.txt"
 

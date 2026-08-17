@@ -9,7 +9,7 @@ Run these commands from the project root using PowerShell.
 | `review-changes.ps1`         | Summarizes staged, unstaged, added, modified, and deleted files.      | `.\scripts\review-changes.ps1 -Detailed`                    |
 | `restore-chatgpt-import.ps1` | Restores files from the latest ChatGPT import backup.                 | `.\scripts\restore-chatgpt-import.ps1 -DryRun`              |
 | `clean-generated.ps1`        | Removes generated output and caches.                                  | `.\scripts\clean-generated.ps1 -DryRun`                     |
-| `zip-project.ps1`            | Creates a full project ZIP using `.zipignore`.                        | `.\scripts\zip-project.ps1`                                 |
+| `zip-project.ps1`            | Creates `<project-slug>(yyMMddHHmm).zip` using `.zipignore`.          | `.\scripts\zip-project.ps1`                                 |
 | `check-release.ps1`          | Validates release versions, tags, and optional changelog metadata.    | `.\scripts\check-release.ps1 -RequireChangelogEntry`        |
 | `set-version.ps1`            | Updates every application version source as one transaction.          | `.\scripts\set-version.ps1 0.3.0`                           |
 | `stage-windows-bundles.ps1`  | Collects validated Windows bundles under stable public asset names.   | `.\scripts\stage-windows-bundles.ps1`                       |
