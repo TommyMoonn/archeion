@@ -12,7 +12,8 @@ use super::{
     dictionary_index::{self, DictionaryLookupEntry},
     dictionary_language::is_canonical_language_tag,
     dictionary_recovery_registry::{
-        read_recovery_registry, recovery_registry_exists, StagedRecoveryRegistry,
+        read_recovery_registry, recovery_registry_exists, recovery_registry_uses_current_schema,
+        StagedRecoveryRegistry,
     },
     stardict_validation::ValidatedStarDictPackage,
 };
@@ -21,7 +22,7 @@ const DATABASE_FILE_NAME: &str = "dictionaries.sqlite3";
 const DICTIONARY_ROOT_NAME: &str = "dictionaries";
 const INSTALLED_DIRECTORY_NAME: &str = "installed";
 const REMOVAL_STAGING_DIRECTORY: &str = "staging/removals";
-const SCHEMA_VERSION: i64 = 1;
+const SCHEMA_VERSION: i64 = 2;
 const SQLITE_BUSY_TIMEOUT: Duration = Duration::from_secs(5);
 
 const CREATE_SCHEMA: &str = r#"
@@ -78,7 +79,7 @@ CREATE TABLE dictionary_aliases (
 CREATE INDEX dictionary_aliases_lookup_idx
 ON dictionary_aliases(normalized_alias, dictionary_id, source_ordinal);
 
-PRAGMA user_version = 1;
+PRAGMA user_version = 2;
 "#;
 
 const VERIFY_SCHEMA: &str = r#"
@@ -396,6 +397,13 @@ impl DictionaryStore {
                 )))
             }
             Ok(DatabaseInspection::Current) => {}
+            Ok(DatabaseInspection::VersionOne(layout)) => {
+                if let Err(error) = migrate_version_one_schema(&connection, layout) {
+                    return Ok(DictionaryStoreOpen::RecoveryRequired(corrupt_recovery(
+                        &error,
+                    )));
+                }
+            }
             Ok(DatabaseInspection::Unsupported(version)) => {
                 return Ok(DictionaryStoreOpen::RecoveryRequired(unsupported_recovery(
                     version,
@@ -490,9 +498,10 @@ impl DictionaryStore {
         }
 
         if !changed {
-            let recovery_is_current = read_recovery_registry(&self.paths)
-                .ok()
-                .is_some_and(|recovered| recovered == dictionaries);
+            let recovery_is_current = recovery_registry_uses_current_schema(&self.paths)
+                && read_recovery_registry(&self.paths)
+                    .ok()
+                    .is_some_and(|recovered| recovered == dictionaries);
             if !recovery_is_current {
                 stage_recovery_registry(&self.paths, &dictionaries)?.commit();
             }
@@ -953,7 +962,14 @@ impl DictionaryStore {
 enum DatabaseInspection {
     Empty,
     Current,
+    VersionOne(VersionOneSchema),
     Unsupported(i64),
+}
+
+#[derive(Clone, Copy)]
+enum VersionOneSchema {
+    SingleLanguage,
+    LanguagePair,
 }
 
 fn inspect_database(connection: &Connection) -> rusqlite::Result<DatabaseInspection> {
@@ -966,6 +982,11 @@ fn inspect_database(connection: &Connection) -> rusqlite::Result<DatabaseInspect
     let version: i64 = connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
     if version == SCHEMA_VERSION {
         return Ok(DatabaseInspection::Current);
+    }
+    if version == 1 {
+        return Ok(inspect_version_one_schema(connection)?
+            .map(DatabaseInspection::VersionOne)
+            .unwrap_or(DatabaseInspection::Unsupported(version)));
     }
     if version != 0 {
         return Ok(DatabaseInspection::Unsupported(version));
@@ -982,6 +1003,64 @@ fn inspect_database(connection: &Connection) -> rusqlite::Result<DatabaseInspect
     } else {
         Ok(DatabaseInspection::Unsupported(version))
     }
+}
+
+fn inspect_version_one_schema(
+    connection: &Connection,
+) -> rusqlite::Result<Option<VersionOneSchema>> {
+    let mut statement = connection.prepare("PRAGMA table_info(installed_dictionaries)")?;
+    let columns = statement
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<HashSet<_>, _>>()?;
+    if columns.is_empty() {
+        return Ok(None);
+    }
+
+    let has_single_language = columns.contains("language");
+    let has_source_language = columns.contains("source_language");
+    let has_target_language = columns.contains("target_language");
+    match (
+        has_single_language,
+        has_source_language,
+        has_target_language,
+    ) {
+        (true, false, false) => Ok(Some(VersionOneSchema::SingleLanguage)),
+        (false, true, true) => Ok(Some(VersionOneSchema::LanguagePair)),
+        _ => Ok(None),
+    }
+}
+
+fn migrate_version_one_schema(
+    connection: &Connection,
+    layout: VersionOneSchema,
+) -> Result<(), DictionaryStoreError> {
+    if matches!(layout, VersionOneSchema::SingleLanguage) {
+        let mut statement = connection.prepare("SELECT language FROM installed_dictionaries")?;
+        let languages = statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        for language in languages {
+            if !is_canonical_language_tag(&language) {
+                return Err(DictionaryStoreError::InvalidStoredValue("language"));
+            }
+        }
+    }
+
+    let transaction = connection.unchecked_transaction()?;
+    if matches!(layout, VersionOneSchema::SingleLanguage) {
+        transaction.execute_batch(
+            "ALTER TABLE installed_dictionaries
+                 ADD COLUMN source_language TEXT NOT NULL DEFAULT 'und';
+             ALTER TABLE installed_dictionaries
+                 ADD COLUMN target_language TEXT NOT NULL DEFAULT 'und';
+             UPDATE installed_dictionaries
+             SET source_language = language, target_language = language;
+             ALTER TABLE installed_dictionaries DROP COLUMN language;",
+        )?;
+    }
+    transaction.pragma_update(None, "user_version", SCHEMA_VERSION)?;
+    transaction.commit()?;
+    Ok(())
 }
 
 fn initialize_schema(connection: &Connection) -> Result<(), DictionaryStoreError> {
@@ -1512,6 +1591,152 @@ mod tests {
         store.get(&dictionary.id).unwrap().unwrap()
     }
 
+    fn create_legacy_single_language_database(root: &Path) {
+        let paths = DictionaryStoragePaths::from_app_data_root(root);
+        fs::create_dir_all(paths.root()).unwrap();
+        let connection = Connection::open(paths.database()).unwrap();
+        connection
+            .execute_batch(
+                r#"
+CREATE TABLE installed_dictionaries (
+    dictionary_id TEXT PRIMARY KEY NOT NULL,
+    display_name TEXT NOT NULL,
+    language TEXT NOT NULL,
+    enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+    sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+    entry_count INTEGER NOT NULL CHECK (entry_count >= 0),
+    installed_size_bytes INTEGER NOT NULL CHECK (installed_size_bytes >= 0),
+    source_kind TEXT NOT NULL CHECK (source_kind IN ('catalog', 'manual-import')),
+    catalog_id TEXT,
+    source_attribution TEXT NOT NULL,
+    license_name TEXT NOT NULL,
+    license_url TEXT,
+    package_version TEXT NOT NULL,
+    index_state TEXT NOT NULL CHECK (
+        index_state IN ('pending', 'ready', 'rebuild-required', 'unavailable')
+    ),
+    storage_relative_path TEXT NOT NULL UNIQUE
+);
+CREATE INDEX installed_dictionaries_order_idx
+ON installed_dictionaries(sort_order, dictionary_id);
+CREATE TABLE dictionary_entries (
+    dictionary_id TEXT NOT NULL,
+    source_ordinal INTEGER NOT NULL CHECK (source_ordinal >= 0),
+    normalized_headword TEXT NOT NULL,
+    display_headword TEXT NOT NULL,
+    definition_offset INTEGER NOT NULL CHECK (definition_offset >= 0),
+    definition_length INTEGER NOT NULL CHECK (definition_length >= 0),
+    PRIMARY KEY (dictionary_id, source_ordinal),
+    FOREIGN KEY (dictionary_id)
+        REFERENCES installed_dictionaries(dictionary_id)
+        ON DELETE CASCADE
+);
+CREATE INDEX dictionary_entries_headword_idx
+ON dictionary_entries(normalized_headword, dictionary_id, source_ordinal);
+CREATE TABLE dictionary_aliases (
+    dictionary_id TEXT NOT NULL,
+    normalized_alias TEXT NOT NULL,
+    source_ordinal INTEGER NOT NULL CHECK (source_ordinal >= 0),
+    PRIMARY KEY (dictionary_id, normalized_alias, source_ordinal),
+    FOREIGN KEY (dictionary_id, source_ordinal)
+        REFERENCES dictionary_entries(dictionary_id, source_ordinal)
+        ON DELETE CASCADE
+);
+CREATE INDEX dictionary_aliases_lookup_idx
+ON dictionary_aliases(normalized_alias, dictionary_id, source_ordinal);
+PRAGMA user_version = 1;
+"#,
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO installed_dictionaries (
+                    dictionary_id, display_name, language, enabled, sort_order, entry_count,
+                    installed_size_bytes, source_kind, catalog_id, source_attribution,
+                    license_name, license_url, package_version, index_state, storage_relative_path
+                 ) VALUES (?1, ?2, ?3, 1, 0, 42, 4096, 'catalog', ?4, ?5, ?6, ?7, ?8, 'ready', ?9)",
+                rusqlite::params![
+                    "dict-00000000000000000000000000000001",
+                    "Legacy English",
+                    "en",
+                    "english-core",
+                    "Example Lexicographers",
+                    "CC BY 4.0",
+                    "https://example.com/license",
+                    "2026.1",
+                    "installed/dict-00000000000000000000000000000001",
+                ],
+            )
+            .unwrap();
+    }
+
+    #[test]
+    fn legacy_single_language_schema_migrates_without_losing_registry_metadata() {
+        let root = test_root("legacy-language-schema");
+        create_legacy_single_language_database(&root);
+
+        let mut store = current_store(&root);
+        let migrated = store.list().unwrap();
+        assert_eq!(migrated.len(), 1);
+        assert_eq!(migrated[0].display_name, "Legacy English");
+        assert_eq!(migrated[0].source_language, "en");
+        assert_eq!(migrated[0].target_language, "en");
+        assert!(migrated[0].enabled);
+        assert_eq!(migrated[0].order, 0);
+        assert_eq!(migrated[0].entry_count, 42);
+
+        store
+            .register(registration("New English"))
+            .expect("current inserts should work after migration");
+        drop(store);
+
+        let paths = DictionaryStoragePaths::from_app_data_root(&root);
+        let connection = Connection::open(paths.database()).unwrap();
+        let version: i64 = connection
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
+        let mut statement = connection
+            .prepare("PRAGMA table_info(installed_dictionaries)")
+            .unwrap();
+        let columns = statement
+            .query_map([], |row| row.get::<_, String>(1))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(!columns.iter().any(|column| column == "language"));
+        assert!(columns.iter().any(|column| column == "source_language"));
+        assert!(columns.iter().any(|column| column == "target_language"));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn language_pair_schema_stamped_as_version_one_is_promoted_in_place() {
+        let root = test_root("language-pair-v1");
+        let expected = {
+            let mut store = current_store(&root);
+            store.register(registration("English Core")).unwrap()
+        };
+        let paths = DictionaryStoragePaths::from_app_data_root(&root);
+        let connection = Connection::open(paths.database()).unwrap();
+        connection
+            .pragma_update(None, "user_version", 1_i64)
+            .unwrap();
+        drop(connection);
+
+        let reopened = current_store(&root);
+        assert_eq!(reopened.list().unwrap(), vec![expected]);
+        let version: i64 = reopened
+            .connection()
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .unwrap();
+        assert_eq!(version, 2);
+
+        drop(reopened);
+        let _ = fs::remove_dir_all(root);
+    }
+
     #[test]
     fn empty_app_data_initializes_current_empty_registry() {
         let root = test_root("empty");
@@ -1526,7 +1751,7 @@ mod tests {
         let version: i64 = connection
             .pragma_query_value(None, "user_version", |row| row.get(0))
             .expect("schema version should be readable");
-        assert_eq!(version, 1);
+        assert_eq!(version, 2);
 
         let _ = fs::remove_dir_all(root);
     }
@@ -1900,6 +2125,53 @@ mod tests {
         assert!(store.lookup_exact("alpha", 8).unwrap().is_empty());
         drop(store);
         fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn corrupt_database_recovers_from_legacy_single_language_registry() {
+        let root = test_root("legacy-registry-database-recovery");
+        let expected = {
+            let mut store = current_store(&root);
+            install_test_package(&mut store, "Legacy", "alpha", b"first")
+        };
+        let paths = DictionaryStoragePaths::from_app_data_root(&root);
+        let recovery_path = paths.root().join("registry-recovery-v1.json");
+        let mut registry: serde_json::Value =
+            serde_json::from_slice(&fs::read(&recovery_path).unwrap()).unwrap();
+        registry["schemaVersion"] = serde_json::json!(1);
+        let dictionaries = registry["dictionaries"].as_array_mut().unwrap();
+        for dictionary in dictionaries {
+            let object = dictionary.as_object_mut().unwrap();
+            let language = object.remove("sourceLanguage").unwrap();
+            object.remove("targetLanguage");
+            object.insert("language".to_string(), language);
+        }
+        fs::write(
+            &recovery_path,
+            serde_json::to_vec_pretty(&registry).unwrap(),
+        )
+        .unwrap();
+        fs::write(paths.database(), b"not a sqlite database").unwrap();
+
+        let snapshot = DictionaryStore::snapshot(&root).unwrap();
+
+        assert_eq!(snapshot.status, DictionaryRegistryStatus::Ready);
+        assert_eq!(snapshot.dictionaries.len(), 1);
+        assert_eq!(snapshot.dictionaries[0].id, expected.id);
+        assert_eq!(snapshot.dictionaries[0].source_language, "en");
+        assert_eq!(snapshot.dictionaries[0].target_language, "en");
+        let store = current_store(&root);
+        assert_eq!(store.lookup_exact("alpha", 8).unwrap().len(), 1);
+        drop(store);
+
+        let rewritten: serde_json::Value =
+            serde_json::from_slice(&fs::read(&recovery_path).unwrap()).unwrap();
+        assert_eq!(rewritten["schemaVersion"], serde_json::json!(2));
+        assert_eq!(rewritten["dictionaries"][0]["sourceLanguage"], "en");
+        assert_eq!(rewritten["dictionaries"][0]["targetLanguage"], "en");
+        assert!(rewritten["dictionaries"][0].get("language").is_none());
+
+        let _ = fs::remove_dir_all(root);
     }
 
     #[test]

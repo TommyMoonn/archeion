@@ -7,7 +7,7 @@ use crate::atomic_file::transaction_path;
 use super::dictionary_store::{DictionaryStoragePaths, InstalledDictionary};
 
 const RECOVERY_REGISTRY_FILE_NAME: &str = "registry-recovery-v1.json";
-const RECOVERY_REGISTRY_SCHEMA_VERSION: u32 = 1;
+const RECOVERY_REGISTRY_SCHEMA_VERSION: u32 = 2;
 const MAX_RECOVERY_REGISTRY_BYTES: u64 = 2 * 1024 * 1024;
 
 #[derive(Debug)]
@@ -36,11 +36,61 @@ impl From<std::io::Error> for DictionaryRecoveryRegistryError {
     }
 }
 
-#[derive(Deserialize, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct RecoveryRegistryFile {
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct RecoveryRegistryFile<'a> {
     schema_version: u32,
-    dictionaries: Vec<InstalledDictionary>,
+    dictionaries: &'a [InstalledDictionary],
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct RecoveryRegistryEnvelope {
+    schema_version: u32,
+    dictionaries: Vec<serde_json::Value>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct LegacyInstalledDictionaryV1 {
+    id: String,
+    display_name: String,
+    language: String,
+    enabled: bool,
+    order: u32,
+    entry_count: u64,
+    installed_size_bytes: u64,
+    source_kind: super::dictionary_store::DictionarySourceKind,
+    catalog_id: Option<String>,
+    source_attribution: String,
+    license_name: String,
+    license_url: Option<String>,
+    package_version: String,
+    index_state: super::dictionary_store::DictionaryIndexState,
+    storage_relative_path: String,
+}
+
+impl From<LegacyInstalledDictionaryV1> for InstalledDictionary {
+    fn from(value: LegacyInstalledDictionaryV1) -> Self {
+        Self {
+            id: value.id,
+            display_name: value.display_name,
+            source_language: value.language.clone(),
+            target_language: value.language,
+            enabled: value.enabled,
+            order: value.order,
+            entry_count: value.entry_count,
+            installed_size_bytes: value.installed_size_bytes,
+            source_kind: value.source_kind,
+            catalog_id: value.catalog_id,
+            source_attribution: value.source_attribution,
+            license_name: value.license_name,
+            license_url: value.license_url,
+            package_version: value.package_version,
+            index_state: value.index_state,
+            storage_relative_path: value.storage_relative_path,
+        }
+    }
 }
 
 pub(crate) fn recovery_registry_exists(paths: &DictionaryStoragePaths) -> bool {
@@ -59,17 +109,66 @@ pub(crate) fn read_recovery_registry(
         ));
     }
     let bytes = fs::read(path)?;
-    let registry: RecoveryRegistryFile = serde_json::from_slice(&bytes).map_err(|_| {
+    decode_recovery_registry(&bytes)
+}
+
+pub(crate) fn recovery_registry_uses_current_schema(paths: &DictionaryStoragePaths) -> bool {
+    let path = recovery_registry_path(paths);
+    let Ok(metadata) = fs::symlink_metadata(&path) else {
+        return false;
+    };
+    if !metadata.file_type().is_file() || metadata.len() > MAX_RECOVERY_REGISTRY_BYTES {
+        return false;
+    }
+    let Ok(bytes) = fs::read(path) else {
+        return false;
+    };
+    serde_json::from_slice::<RecoveryRegistryEnvelope>(&bytes)
+        .is_ok_and(|registry| registry.schema_version == RECOVERY_REGISTRY_SCHEMA_VERSION)
+}
+
+fn decode_recovery_registry(
+    bytes: &[u8],
+) -> Result<Vec<InstalledDictionary>, DictionaryRecoveryRegistryError> {
+    let registry: RecoveryRegistryEnvelope = serde_json::from_slice(bytes).map_err(|_| {
         DictionaryRecoveryRegistryError::Invalid(
             "Dictionary recovery registry contains invalid data.".to_string(),
         )
     })?;
-    if registry.schema_version != RECOVERY_REGISTRY_SCHEMA_VERSION {
-        return Err(DictionaryRecoveryRegistryError::Invalid(
+    match registry.schema_version {
+        RECOVERY_REGISTRY_SCHEMA_VERSION => registry
+            .dictionaries
+            .into_iter()
+            .map(|dictionary| {
+                serde_json::from_value(dictionary).map_err(|_| {
+                    DictionaryRecoveryRegistryError::Invalid(
+                        "Dictionary recovery registry contains invalid data.".to_string(),
+                    )
+                })
+            })
+            .collect(),
+        1 => registry
+            .dictionaries
+            .into_iter()
+            .map(|dictionary| {
+                if let Ok(current) =
+                    serde_json::from_value::<InstalledDictionary>(dictionary.clone())
+                {
+                    return Ok(current);
+                }
+                serde_json::from_value::<LegacyInstalledDictionaryV1>(dictionary)
+                    .map(InstalledDictionary::from)
+                    .map_err(|_| {
+                        DictionaryRecoveryRegistryError::Invalid(
+                            "Dictionary recovery registry contains invalid data.".to_string(),
+                        )
+                    })
+            })
+            .collect(),
+        _ => Err(DictionaryRecoveryRegistryError::Invalid(
             "Dictionary recovery registry uses an unsupported schema.".to_string(),
-        ));
+        )),
     }
-    Ok(registry.dictionaries)
 }
 
 pub(crate) struct StagedRecoveryRegistry {
@@ -89,7 +188,7 @@ impl StagedRecoveryRegistry {
         let backup_path = transaction_path(&current_path, "previous");
         let mut bytes = serde_json::to_vec_pretty(&RecoveryRegistryFile {
             schema_version: RECOVERY_REGISTRY_SCHEMA_VERSION,
-            dictionaries: dictionaries.to_vec(),
+            dictionaries,
         })
         .map_err(|_| {
             DictionaryRecoveryRegistryError::Invalid(
@@ -204,7 +303,9 @@ mod tests {
         sync::atomic::{AtomicU64, Ordering},
     };
 
-    use super::{read_recovery_registry, StagedRecoveryRegistry};
+    use super::{
+        read_recovery_registry, recovery_registry_uses_current_schema, StagedRecoveryRegistry,
+    };
     use crate::commands::dictionary_store::{
         DictionaryIndexState, DictionarySourceKind, DictionaryStoragePaths, InstalledDictionary,
     };
@@ -238,6 +339,67 @@ mod tests {
             index_state: DictionaryIndexState::Ready,
             storage_relative_path: "installed/dict-00000000000000000000000000000000".to_string(),
         }
+    }
+
+    #[test]
+    fn legacy_single_language_registry_is_read_as_a_monolingual_pair() {
+        let root = test_root();
+        let paths = DictionaryStoragePaths::from_app_data_root(&root);
+        fs::create_dir_all(paths.root()).unwrap();
+        let path = paths.root().join("registry-recovery-v1.json");
+        fs::write(
+            &path,
+            br#"{
+  "schemaVersion": 1,
+  "dictionaries": [
+    {
+      "id": "dict-00000000000000000000000000000000",
+      "displayName": "Legacy English",
+      "language": "en",
+      "enabled": true,
+      "order": 0,
+      "entryCount": 1,
+      "installedSizeBytes": 32,
+      "sourceKind": "catalog",
+      "catalogId": "english-core",
+      "sourceAttribution": "Example",
+      "licenseName": "Example license",
+      "licenseUrl": "https://example.com/license",
+      "packageVersion": "1",
+      "indexState": "ready",
+      "storageRelativePath": "installed/dict-00000000000000000000000000000000"
+    }
+  ]
+}
+"#,
+        )
+        .unwrap();
+
+        let restored = read_recovery_registry(&paths).unwrap();
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].source_language, "en");
+        assert_eq!(restored[0].target_language, "en");
+        assert!(!recovery_registry_uses_current_schema(&paths));
+
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn staged_registry_writes_the_current_recovery_schema() {
+        let root = test_root();
+        let paths = DictionaryStoragePaths::from_app_data_root(&root);
+        StagedRecoveryRegistry::stage(&paths, &[dictionary(true)])
+            .unwrap()
+            .commit();
+
+        assert!(recovery_registry_uses_current_schema(&paths));
+        let value: serde_json::Value = serde_json::from_slice(
+            &fs::read(paths.root().join("registry-recovery-v1.json")).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(value["schemaVersion"], serde_json::json!(2));
+
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
