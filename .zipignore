@@ -7,3 +7,5 @@ src-tauri/target
 *.log
 *.tmp
 *.zip
+.dev/chatgpt/bundles
+.scratch
