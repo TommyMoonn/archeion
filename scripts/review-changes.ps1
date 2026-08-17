@@ -1,16 +1,31 @@
 #requires -Version 7.0
 
-[CmdletBinding()]
-param(
-    [Parameter()]
-    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
-
-    [Parameter()]
-    [switch]$Detailed
-)
-
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+. (Join-Path $PSScriptRoot "Cli.Common.ps1")
+
+$cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
+    project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+    files = @{ Kind = 'Switch'; Aliases = @('-Detailed') }
+}
+
+if ($cli['help']) {
+    Write-CliHelp @'
+Usage: .\scripts\review-changes.ps1 [options]
+
+Options:
+  -p, --project <path>          Project root to review.
+  --files                       List every changed path.
+  -h, --help                    Show this help.
+
+Legacy PowerShell flags remain accepted for compatibility.
+'@
+    return
+}
+
+$ProjectRoot = $cli['project']
+$Detailed = [bool]$cli['files']
 
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 
@@ -310,5 +325,5 @@ if ($Detailed) {
 }
 else {
     Write-Host ""
-    Write-Host "Run with -Detailed to list every changed path."
+    Write-Host "Run with --files to list every changed path."
 }

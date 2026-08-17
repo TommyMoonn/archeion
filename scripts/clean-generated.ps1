@@ -1,31 +1,46 @@
 #requires -Version 7.0
 
-[CmdletBinding()]
-param(
-    [Parameter()]
-    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
-
-    [Parameter()]
-    [switch]$Rust,
-
-    [Parameter()]
-    [switch]$Dependencies,
-
-    [Parameter()]
-    [switch]$Installers,
-
-    [Parameter()]
-    [switch]$All,
-
-    [Parameter()]
-    [switch]$DryRun,
-
-    [Parameter()]
-    [switch]$Force
-)
-
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+. (Join-Path $PSScriptRoot "Cli.Common.ps1")
+
+$cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
+    project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+    rust = @{ Kind = 'Switch'; Aliases = @('-Rust') }
+    deps = @{ Kind = 'Switch'; Aliases = @('-Dependencies') }
+    installers = @{ Kind = 'Switch'; Aliases = @('-Installers') }
+    all = @{ Kind = 'Switch'; Aliases = @('-All') }
+    'dry-run' = @{ Kind = 'Switch'; Aliases = @('-n', '-DryRun') }
+    force = @{ Kind = 'Switch'; Aliases = @('-f', '-Force') }
+}
+
+if ($cli['help']) {
+    Write-CliHelp @'
+Usage: .\scripts\clean-generated.ps1 [options]
+
+Options:
+  -p, --project <path>          Project root to clean.
+  --rust                        Remove src-tauri/target.
+  --deps                        Remove node_modules.
+  --installers                  Remove generated Tauri installers.
+  --all                         Enable rust, deps, and installers cleanup.
+  -n, --dry-run                 Preview cleanup only.
+  -f, --force                   Allow selected tracked content to be removed.
+  -h, --help                    Show this help.
+
+Legacy PowerShell flags remain accepted for compatibility.
+'@
+    return
+}
+
+$ProjectRoot = $cli['project']
+$Rust = [bool]$cli['rust']
+$Dependencies = [bool]$cli['deps']
+$Installers = [bool]$cli['installers']
+$All = [bool]$cli['all']
+$DryRun = [bool]$cli['dry-run']
+$Force = [bool]$cli['force']
 
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 $PathComparison = [System.StringComparison]::OrdinalIgnoreCase
@@ -186,7 +201,7 @@ foreach ($relativePath in ($targets | Sort-Object { $_.Length })) {
 
     $trackedPaths = @(Get-TrackedPathsUnder -RelativePath $relativePath)
     if ($trackedPaths.Count -gt 0 -and -not $Force) {
-        throw "Refusing to remove '$relativePath' because it contains tracked files. Use -Force only after reviewing: $($trackedPaths -join ', ')"
+        throw "Refusing to remove '$relativePath' because it contains tracked files. Use --force only after reviewing: $($trackedPaths -join ', ')"
     }
 
     $existingTargets.Add([pscustomobject]@{
@@ -225,9 +240,9 @@ else {
 }
 
 if (-not $Rust -and -not $All) {
-    Write-Host "Rust target was preserved. Use -Rust to remove it."
+    Write-Host "Rust target was preserved. Use --rust to remove it."
 }
 
 if (-not $Dependencies -and -not $All) {
-    Write-Host "node_modules was preserved. Use -Dependencies to remove it."
+    Write-Host "node_modules was preserved. Use --deps to remove it."
 }

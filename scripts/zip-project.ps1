@@ -1,4 +1,20 @@
+#requires -Version 7.0
+
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+. (Join-Path $PSScriptRoot "Cli.Common.ps1")
+
+$cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{}
+if ($cli['help']) {
+    Write-CliHelp @'
+Usage: .\scripts\zip-project.ps1
+
+Options:
+  -h, --help                    Show this help.
+'@
+    return
+}
 
 $ProjectRoot = Resolve-Path "$PSScriptRoot/.."
 $ProjectName = Split-Path $ProjectRoot -Leaf

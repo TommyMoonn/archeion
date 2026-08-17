@@ -1,19 +1,34 @@
 #requires -Version 7.0
 
-[CmdletBinding()]
-param(
-    [Parameter()]
-    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
-
-    [Parameter()]
-    [string]$Tag,
-
-    [Parameter()]
-    [switch]$RequireChangelogEntry
-)
-
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+. (Join-Path $PSScriptRoot "Cli.Common.ps1")
+
+$cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
+    project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+    tag = @{ Aliases = @('-Tag') }
+    'require-changelog' = @{ Kind = 'Switch'; Aliases = @('-RequireChangelogEntry') }
+}
+
+if ($cli['help']) {
+    Write-CliHelp @'
+Usage: .\scripts\check-release.ps1 [options]
+
+Options:
+  -p, --project <path>          Project root to validate.
+  --tag <tag>                   Expected release tag.
+  --require-changelog           Require a matching changelog entry.
+  -h, --help                    Show this help.
+
+Legacy PowerShell flags remain accepted for compatibility.
+'@
+    return
+}
+
+$ProjectRoot = $cli['project']
+$Tag = $cli['tag']
+$RequireChangelogEntry = [bool]$cli['require-changelog']
 
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 $semVerPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'

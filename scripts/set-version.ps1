@@ -1,17 +1,38 @@
 #requires -Version 7.0
 
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory, Position = 0)]
-    [ValidatePattern('^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$')]
-    [string]$Version,
-
-    [Parameter()]
-    [string]$ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-)
-
-Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+Set-StrictMode -Version Latest
+
+. (Join-Path $PSScriptRoot "Cli.Common.ps1")
+
+$cli = ConvertFrom-CliArguments -Arguments $args -OptionSpecs @{
+    version = @{ Aliases = @('-Version') }
+    project = @{ Aliases = @('-p', '-ProjectRoot'); Default = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path }
+} -Positionals @('version')
+
+if ($cli['help']) {
+    Write-CliHelp @'
+Usage: .\scripts\set-version.ps1 VERSION [options]
+
+Arguments:
+  VERSION                       Semantic version to apply.
+
+Options:
+  -p, --project <path>          Project root to update.
+  -h, --help                    Show this help.
+
+Legacy -Version and -ProjectRoot flags remain accepted for compatibility.
+'@
+    return
+}
+
+$Version = [string]$cli['version']
+$ProjectRoot = $cli['project']
+
+$semVerPattern = '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$'
+if ([string]::IsNullOrWhiteSpace($Version) -or $Version -notmatch $semVerPattern) {
+    throw "VERSION must be a valid semantic version."
+}
 
 $ProjectRoot = [System.IO.Path]::GetFullPath($ProjectRoot).TrimEnd([char[]]@('\', '/'))
 
@@ -114,7 +135,7 @@ try {
         throw "Cargo rejected the updated manifest and lockfile."
     }
 
-    & (Join-Path $PSScriptRoot "check-release.ps1") -ProjectRoot $ProjectRoot
+    & (Join-Path $PSScriptRoot "check-release.ps1") '--project' $ProjectRoot
 
     Write-Host "Updated Archeion to version $Version."
     Write-Host "Add the dated changelog section before creating the release tag."
