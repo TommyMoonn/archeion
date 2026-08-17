@@ -176,7 +176,7 @@ fn unsafe_tar_paths_are_rejected_before_extraction() {
 
 #[test]
 fn tar_links_and_special_entries_are_rejected() {
-    for type_flag in [b'1', b'2', b'3', b'4', b'6', b'x', b'g', b'L'] {
+    for type_flag in *b"12346xgL" {
         let directory = TestDirectory::new("special");
         let result = extract_raw_tar(
             &directory,
