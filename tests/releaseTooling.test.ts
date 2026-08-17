@@ -169,6 +169,21 @@ describeReleaseTooling("release tooling", () => {
   it("validates package-lock files with the empty root package key", () => {
     const root = createFixture();
     const result = runPowerShell("check-release.ps1", [
+      "--project",
+      root,
+      "--tag",
+      "v0.3.0",
+      "--require-changelog",
+    ]);
+
+    expect(combinedOutput(result)).toContain("Release configuration is valid.");
+    expect(combinedOutput(result)).toContain("Tag:     v0.3.0");
+    expect(result.status).toBe(0);
+  });
+
+  it("keeps legacy PowerShell flags compatible", () => {
+    const root = createFixture();
+    const result = runPowerShell("check-release.ps1", [
       "-ProjectRoot",
       root,
       "-Tag",
@@ -177,13 +192,24 @@ describeReleaseTooling("release tooling", () => {
     ]);
 
     expect(combinedOutput(result)).toContain("Release configuration is valid.");
-    expect(combinedOutput(result)).toContain("Tag:     v0.3.0");
     expect(result.status).toBe(0);
+  });
+
+  it.each([
+    "apply-chatgpt-zip.ps1",
+    "package-changed-files.ps1",
+    "restore-chatgpt-import.ps1",
+    "stage-windows-bundles.ps1",
+  ])("keeps the legacy %s entry point", (scriptName) => {
+    const result = runPowerShell(scriptName, ["--help"]);
+
+    expect(result.status).toBe(0);
+    expect(combinedOutput(result)).toContain("Usage:");
   });
 
   it("validates an inherited GitHub release tag when no explicit tag is supplied", () => {
     const root = createFixture();
-    const result = runPowerShell("check-release.ps1", ["-ProjectRoot", root], {
+    const result = runPowerShell("check-release.ps1", ["--project", root], {
       GITHUB_REF_NAME: "v0.3.0",
       GITHUB_REF_TYPE: "tag",
     });
@@ -197,7 +223,7 @@ describeReleaseTooling("release tooling", () => {
     "rejects a release tag that does not match the application version",
     () => {
       const root = createFixture();
-      const result = runPowerShell("check-release.ps1", ["-ProjectRoot", root, "-Tag", "v0.4.0"]);
+      const result = runPowerShell("check-release.ps1", ["--project", root, "--tag", "v0.4.0"]);
 
       expect(result.status).not.toBe(0);
       expect(combinedOutput(result)).toContain("Expected 'v0.3.0'");
@@ -210,9 +236,9 @@ describeReleaseTooling("release tooling", () => {
     () => {
       const root = createFixture({ changelogIncludesRelease: false });
       const result = runPowerShell("check-release.ps1", [
-        "-ProjectRoot",
+        "--project",
         root,
-        "-RequireChangelogEntry",
+        "--require-changelog",
       ]);
 
       expect(result.status).not.toBe(0);
@@ -237,12 +263,12 @@ describeReleaseTooling("release tooling", () => {
       fs.writeFileSync(path.join(bundleRoot, "nsis", "Archeion_0.3.0_x64-setup.exe"), nsisContents);
       fs.writeFileSync(path.join(bundleRoot, "msi", "Archeion_0.3.0_x64_en-US.msi"), msiContents);
 
-      const result = runPowerShell("stage-windows-bundles.ps1", [
-        "-ProjectRoot",
+      const result = runPowerShell("stage-windows-release.ps1", [
+        "--project",
         root,
-        "-BundleRoot",
+        "--bundle-dir",
         bundleRoot,
-        "-OutputDirectory",
+        "--output",
         outputDirectory,
       ]);
 
@@ -272,7 +298,7 @@ describeReleaseTooling("release tooling", () => {
     "updates all application version sources as one transaction",
     () => {
       const root = createFixture();
-      const result = runPowerShell("set-version.ps1", ["0.4.0-beta.1", "-ProjectRoot", root]);
+      const result = runPowerShell("set-version.ps1", ["0.4.0-beta.1", "--project", root]);
 
       expect(combinedOutput(result)).toContain("Updated Archeion to version 0.4.0-beta.1.");
       expect(result.status).toBe(0);
@@ -305,7 +331,7 @@ describeReleaseTooling("release tooling", () => {
         ]),
       );
 
-      const result = runPowerShell("set-version.ps1", ["0.4.0", "-ProjectRoot", root]);
+      const result = runPowerShell("set-version.ps1", ["0.4.0", "--project", root]);
 
       expect(result.status).not.toBe(0);
       expect(combinedOutput(result)).toContain(
