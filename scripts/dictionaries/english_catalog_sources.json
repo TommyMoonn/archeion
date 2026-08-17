@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "sources": [
+    {
+      "id": "princeton-wordnet-3-0",
+      "name": "Princeton WordNet 3.0",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
+      "description": "English definitions, synonyms, and lexical relationships for everyday and reference lookup.",
+      "sourceAttribution": "Princeton University WordNet 3.0",
+      "sourceUrl": "https://wordnetcode.princeton.edu/3.0/",
+      "licenseName": "Princeton WordNet License",
+      "licenseUrl": "https://wordnet.princeton.edu/license-and-commercial-use",
+      "sourceArchiveName": "WordNet-3.0.tar.bz2",
+      "sourceArchiveUrl": "https://wordnetcode.princeton.edu/3.0/WordNet-3.0.tar.bz2",
+      "sourceArchiveSizeBytes": 9060524,
+      "sourceArchiveSha256": "6c492d0c7b4a40e7674d088191d3aa11f373bb1da60762e098b8ee2dda96ef22",
+      "sourceFormat": "wndb",
+      "packageVersion": "3.0-archeion-2",
+      "packageFileName": "princeton-wordnet-3.0-stardict-archeion-2.tar.xz"
+    },
+    {
+      "id": "open-english-wordnet-2025-plus",
+      "name": "Open English WordNet 2025+",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
+      "description": "A current community-maintained English WordNet with definitions, synonyms, and lexical coverage.",
+      "sourceAttribution": "Open English WordNet 2025+",
+      "sourceUrl": "https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition",
+      "licenseName": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "sourceArchiveName": "english-wordnet-2025-plus-index.sense-fixed.zip",
+      "sourceArchiveUrl": "https://github.com/globalwordnet/english-wordnet/releases/download/2025-edition/english-wordnet-2025-plus-index.sense-fixed.zip",
+      "sourceArchiveSizeBytes": 10979359,
+      "sourceArchiveSha256": "8360c45a8e066d9f73ff7682172d70ffae48a2604ac23e5ca7f43abcabc004a6",
+      "sourceFormat": "wndb",
+      "packageVersion": "2025-plus-fixed-2026-06-26-archeion-1",
+      "packageFileName": "open-english-wordnet-2025-plus-stardict-archeion-1.tar.xz"
+    },
+    {
+      "id": "gcide-0-54",
+      "name": "GNU Collaborative International Dictionary of English (GCIDE)",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
+      "description": "A broad collaborative English dictionary derived from Webster's Revised Unabridged Dictionary and later open contributions.",
+      "sourceAttribution": "GNU Collaborative International Dictionary of English 0.54",
+      "sourceUrl": "https://www.gnu.org/software/gcide/",
+      "licenseName": "GNU General Public License v3 or later (GPL-3.0-or-later)",
+      "licenseUrl": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "sourceArchiveName": "gcide-0.54.tar.xz",
+      "sourceArchiveUrl": "https://ftp.gnu.org/gnu/gcide/gcide-0.54.tar.xz",
+      "sourceArchiveSizeBytes": 14803080,
+      "sourceArchiveSha256": "22416f6f36175b160dc388b7547512514d464473cf7d7c898d738efb26c51d42",
+      "sourceFormat": "gcide",
+      "packageVersion": "0.54-archeion-1",
+      "packageFileName": "gcide-0.54-stardict-archeion-1.tar.xz"
+    }
+  ]
+}

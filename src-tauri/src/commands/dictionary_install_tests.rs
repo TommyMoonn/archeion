@@ -21,6 +21,7 @@ use crate::commands::{
     },
     dictionary_download::{resolve_verified_download, write_verified_download_fixture},
     dictionary_index::normalize_dictionary_term,
+    dictionary_lookup::DictionaryLookupService,
     dictionary_store::{
         open_current_store, DictionaryIndexState, DictionarySourceKind, DictionaryStoragePaths,
         DictionaryStore,
@@ -29,6 +30,14 @@ use crate::commands::{
 };
 
 static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const PRINCETON_REPRESENTATIVE_PACKAGE: &[u8] = include_bytes!(
+    "fixtures/dictionary/english_catalog/princeton-wordnet-representative.stardict.tar.xz"
+);
+const OEWN_REPRESENTATIVE_PACKAGE: &[u8] = include_bytes!(
+    "fixtures/dictionary/english_catalog/open-english-wordnet-representative.stardict.tar.xz"
+);
+const GCIDE_REPRESENTATIVE_PACKAGE: &[u8] =
+    include_bytes!("fixtures/dictionary/english_catalog/gcide-representative.stardict.tar.xz");
 
 struct TestDirectory(PathBuf);
 
@@ -235,6 +244,95 @@ fn verified_catalog_provenance_cannot_be_substituted_with_an_identical_package_e
     assert!(!archive.exists());
     assert_eq!(fs::read(unrelated_staging).unwrap(), b"preserve");
     assert_install_staging_empty(directory.path());
+}
+
+#[test]
+fn representative_english_catalog_packages_install_index_and_lookup_through_existing_owners() {
+    let directory = TestDirectory::new("english-catalog-representatives");
+    let fixtures = [
+        (
+            "princeton-wordnet-3-0",
+            "Princeton WordNet 3.0",
+            "Princeton University WordNet 3.0",
+            PRINCETON_REPRESENTATIVE_PACKAGE,
+            "entity",
+            "that which is perceived or known or inferred to have its own distinct existence",
+            None,
+        ),
+        (
+            "open-english-wordnet-2025-plus",
+            "Open English WordNet 2025+",
+            "Open English WordNet 2025+",
+            OEWN_REPRESENTATIVE_PACKAGE,
+            "pub",
+            "tavern consisting of a building with a bar and public rooms",
+            None,
+        ),
+        (
+            "gcide-0-54",
+            "GNU Collaborative International Dictionary of English (GCIDE)",
+            "GNU Collaborative International Dictionary of English 0.54",
+            GCIDE_REPRESENTATIVE_PACKAGE,
+            "Aard-wolf",
+            "A carnivorous, striped, quadruped mammal",
+            Some("maanhaar"),
+        ),
+    ];
+
+    for (index, (id, name, source, bytes, term, expected_definition, alias_term)) in
+        fixtures.into_iter().enumerate()
+    {
+        let token = format!("verified-16-{index}-0.dictionary-package");
+        let mut entry =
+            catalog_entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
+        entry.id = id.to_string();
+        entry.name = name.to_string();
+        entry.source_language = "en".to_string();
+        entry.target_language = "en".to_string();
+        entry.source_attribution = source.to_string();
+        entry.package_version = "representative-test".to_string();
+        write_verified_download_fixture(directory.path(), &token, entry, bytes);
+
+        let installed = DictionaryInstallService::default()
+            .install_catalog(directory.path(), &token)
+            .expect("representative English package should use the catalog install owner");
+        assert_eq!(installed.catalog_id.as_deref(), Some(id));
+        assert_eq!(installed.index_state, DictionaryIndexState::Ready);
+
+        let response = DictionaryLookupService
+            .lookup(directory.path(), term)
+            .expect("representative headword lookup should succeed");
+        let match_entry = response
+            .entries
+            .iter()
+            .find(|result| result.dictionary_id == installed.id)
+            .expect("installed representative dictionary should publish the lookup");
+        assert!(
+            match_entry
+                .definition_text_blocks
+                .iter()
+                .any(|block| block.contains(expected_definition)),
+            "{id} should retain the current representative textual definition"
+        );
+
+        if let Some(alias_term) = alias_term {
+            let alias_response = DictionaryLookupService
+                .lookup(directory.path(), alias_term)
+                .expect("representative alias lookup should succeed");
+            let alias_entry = alias_response
+                .entries
+                .iter()
+                .find(|result| result.dictionary_id == installed.id)
+                .expect("installed representative dictionary should publish the alias lookup");
+            assert!(
+                alias_entry
+                    .definition_text_blocks
+                    .iter()
+                    .any(|block| block.contains(expected_definition)),
+                "{id} should retain the representative alias/synonym lookup"
+            );
+        }
+    }
 }
 
 #[test]

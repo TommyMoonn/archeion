@@ -5,6 +5,7 @@ use std::{
 };
 
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tokio::sync::oneshot;
 
 use super::{
@@ -12,8 +13,13 @@ use super::{
     DictionaryCatalogPackageFormat, DictionaryCatalogService, DictionaryCatalogSource,
     MAX_CATALOG_BYTES,
 };
-use crate::commands::dictionary_store::{
-    open_current_store, DictionaryIndexState, DictionaryRegistration, DictionarySourceKind,
+use crate::commands::{
+    dictionary_download::write_verified_download_fixture,
+    dictionary_install::DictionaryInstallService,
+    dictionary_lookup::DictionaryLookupService,
+    dictionary_store::{
+        open_current_store, DictionaryIndexState, DictionaryRegistration, DictionarySourceKind,
+    },
 };
 
 static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -69,6 +75,123 @@ fn committed_production_catalog_is_valid_and_non_empty() {
         !catalog.dictionaries.is_empty(),
         "the production dictionary catalog must publish at least one dictionary"
     );
+}
+
+#[test]
+#[ignore = "requires generated Phase 1.3.0.16 production candidate packages"]
+fn generated_english_candidates_install_index_activate_and_lookup() {
+    let candidate_dir = PathBuf::from(
+        std::env::var_os("ARCHEION_ENGLISH_CANDIDATE_DIR")
+            .expect("candidate package directory must be supplied"),
+    );
+    let candidate_catalog = PathBuf::from(
+        std::env::var_os("ARCHEION_ENGLISH_CANDIDATE_CATALOG")
+            .expect("candidate catalog path must be supplied"),
+    );
+    let validation_receipt = PathBuf::from(
+        std::env::var_os("ARCHEION_ENGLISH_VALIDATION_RECEIPT")
+            .expect("validation receipt path must be supplied"),
+    );
+
+    let catalog_bytes = fs::read(&candidate_catalog).expect("candidate catalog should be readable");
+    let catalog = validate_catalog_bytes(&catalog_bytes)
+        .expect("candidate catalog should pass the production catalog validator");
+    let required = [
+        ("princeton-wordnet-3-0", "entity"),
+        ("open-english-wordnet-2025-plus", "pub"),
+        ("gcide-0-54", "Aard-wolf"),
+    ];
+    assert_eq!(
+        catalog.dictionaries.len(),
+        required.len(),
+        "the English candidate set should contain exactly the configured Phase 16 sources"
+    );
+
+    let app_data_root = test_root("generated-english-candidates");
+    fs::create_dir_all(&app_data_root).expect("candidate validation root should be created");
+    let mut receipt_packages = Vec::with_capacity(required.len());
+
+    for (index, (id, lookup_term)) in required.into_iter().enumerate() {
+        let entry = catalog
+            .dictionaries
+            .iter()
+            .find(|entry| entry.id == id)
+            .unwrap_or_else(|| panic!("candidate catalog should contain {id}"))
+            .clone();
+        assert_eq!(entry.source_language, "en");
+        assert_eq!(entry.target_language, "en");
+        assert_eq!(
+            entry.package_format,
+            DictionaryCatalogPackageFormat::StardictTarXz
+        );
+
+        let file_name = entry
+            .download_url
+            .rsplit('/')
+            .next()
+            .filter(|name| !name.is_empty())
+            .expect("candidate download URL should end in a package filename");
+        let package_path = candidate_dir.join(file_name);
+        let package_bytes = fs::read(&package_path).unwrap_or_else(|error| {
+            panic!("candidate package {file_name} should be readable: {error}")
+        });
+        let package_sha256 = format!("{:x}", Sha256::digest(&package_bytes));
+        assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
+        assert_eq!(package_sha256, entry.sha256);
+
+        let token = format!("verified-16-{index}-0.dictionary-package");
+        write_verified_download_fixture(&app_data_root, &token, entry.clone(), &package_bytes);
+        let installed = DictionaryInstallService::default()
+            .install_catalog(&app_data_root, &token)
+            .unwrap_or_else(|error| {
+                panic!("{id} should install through the catalog owner: {error}")
+            });
+        assert_eq!(installed.catalog_id.as_deref(), Some(id));
+        assert_eq!(installed.index_state, DictionaryIndexState::Ready);
+        assert!(
+            installed.entry_count > 0,
+            "{id} should publish indexed entries"
+        );
+
+        let response = DictionaryLookupService
+            .lookup(&app_data_root, lookup_term)
+            .unwrap_or_else(|error| panic!("{id} representative lookup should succeed: {error}"));
+        let matched = response
+            .entries
+            .iter()
+            .find(|result| result.dictionary_id == installed.id)
+            .unwrap_or_else(|| panic!("{id} should return a result for {lookup_term}"));
+        assert!(
+            matched
+                .definition_text_blocks
+                .iter()
+                .any(|block| !block.trim().is_empty()),
+            "{id} should return a textual definition for {lookup_term}"
+        );
+
+        receipt_packages.push(json!({
+            "id": id,
+            "fileName": file_name,
+            "compressedSizeBytes": package_bytes.len(),
+            "sha256": package_sha256,
+        }));
+    }
+
+    let mut receipt_bytes = serde_json::to_vec_pretty(&json!({
+        "schemaVersion": 1,
+        "catalogSha256": format!("{:x}", Sha256::digest(&catalog_bytes)),
+        "packages": receipt_packages,
+    }))
+    .expect("validation receipt should serialize");
+    receipt_bytes.push(b'\n');
+    fs::create_dir_all(
+        validation_receipt
+            .parent()
+            .expect("validation receipt should have a parent directory"),
+    )
+    .expect("validation receipt parent should be created");
+    fs::write(&validation_receipt, receipt_bytes).expect("validation receipt should be written");
+    fs::remove_dir_all(app_data_root).expect("candidate validation root should be removed");
 }
 
 #[tokio::test(flavor = "current_thread")]

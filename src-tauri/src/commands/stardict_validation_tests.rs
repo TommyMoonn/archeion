@@ -8,7 +8,10 @@ use std::{
 
 use flate2::{write::DeflateEncoder, Compression};
 
-use crate::commands::dictionary_store::DictionaryStore;
+use crate::commands::{
+    dictionary_archive, dictionary_catalog::DictionaryCatalogPackageFormat,
+    dictionary_store::DictionaryStore,
+};
 
 use super::{
     validate_package, StarDictDefinitionCompression, StarDictValidationErrorCode,
@@ -16,6 +19,14 @@ use super::{
 };
 
 static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const PRINCETON_REPRESENTATIVE_PACKAGE: &[u8] = include_bytes!(
+    "fixtures/dictionary/english_catalog/princeton-wordnet-representative.stardict.tar.xz"
+);
+const OEWN_REPRESENTATIVE_PACKAGE: &[u8] = include_bytes!(
+    "fixtures/dictionary/english_catalog/open-english-wordnet-representative.stardict.tar.xz"
+);
+const GCIDE_REPRESENTATIVE_PACKAGE: &[u8] =
+    include_bytes!("fixtures/dictionary/english_catalog/gcide-representative.stardict.tar.xz");
 
 struct TestDirectory(PathBuf);
 
@@ -131,6 +142,43 @@ fn dictzip_fixture(bytes: &[u8]) -> Vec<u8> {
     result.extend_from_slice(&crc32(bytes).to_le_bytes());
     result.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
     result
+}
+
+#[test]
+fn representative_english_catalog_packages_use_the_existing_stardict_contract() {
+    for (label, bytes, expected_headword) in [
+        ("princeton", PRINCETON_REPRESENTATIVE_PACKAGE, "entity"),
+        ("oewn", OEWN_REPRESENTATIVE_PACKAGE, "pub"),
+        ("gcide", GCIDE_REPRESENTATIVE_PACKAGE, "Aard-wolf"),
+    ] {
+        let directory = TestDirectory::new(label);
+        let archive_path = directory.path().join(format!("{label}.stardict.tar.xz"));
+        fs::write(&archive_path, bytes).unwrap();
+        let extraction = directory.path().join("extracted");
+
+        let package = dictionary_archive::extract_catalog_package(
+            DictionaryCatalogPackageFormat::StardictTarXz,
+            &archive_path,
+            &extraction,
+        )
+        .expect("representative English package should pass production extraction and validation");
+
+        assert!(
+            package
+                .entries
+                .iter()
+                .any(|entry| entry.word == expected_headword),
+            "{label} fixture should preserve its representative headword"
+        );
+        assert_eq!(package.metadata.same_type_sequence.as_deref(), Some("m"));
+
+        if label == "gcide" {
+            assert!(
+                package.entries.iter().any(|entry| entry.word == "maanhaar"),
+                "the GCIDE representative package should preserve a meaningful synonym"
+            );
+        }
+    }
 }
 
 #[test]
