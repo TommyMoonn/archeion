@@ -14,6 +14,10 @@ use super::{
     RequestTicket,
 };
 use crate::commands::dictionary_catalog::{DictionaryCatalogEntry, DictionaryCatalogPackageFormat};
+use crate::commands::{
+    dictionary_archive, dictionary_install::DictionaryInstallService,
+    dictionary_lookup::DictionaryLookupService,
+};
 
 static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
@@ -196,6 +200,47 @@ async fn tar_xz_download_preserves_verified_archive_bytes_and_format() {
     assert_eq!(artifact.verified_size_bytes, bytes.len() as u64);
     assert_eq!(artifact.verified_sha256, sha256(bytes));
     assert_eq!(fs::read(artifact.package_path).unwrap(), bytes);
+    fs::remove_dir_all(root).unwrap();
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn representative_freedict_package_downloads_installs_indexes_and_looks_up() {
+    let root = test_root("freedict-full-path");
+    let bytes = dictionary_archive::tests::freedict_style_tar_xz_fixture();
+    let mut package_entry = entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
+    package_entry.id = "freedict-fra-eng".to_string();
+    package_entry.source_language = "fr".to_string();
+    package_entry.target_language = "en".to_string();
+    let service = DictionaryDownloadService::default();
+
+    let verified = service
+        .download_with(
+            &root,
+            package_entry,
+            |_| Ok(()),
+            |_, _| async move {
+                Ok(ChunkSource::new(
+                    Some(bytes.len() as u64),
+                    vec![bytes.to_vec()],
+                ))
+            },
+        )
+        .await
+        .expect("representative FreeDict bytes should pass download verification");
+    let installed = DictionaryInstallService::default()
+        .install_catalog(&root, &verified.staging_token)
+        .expect("verified FreeDict bytes should install and index");
+    let lookup = DictionaryLookupService
+        .lookup(&root, "alpha")
+        .expect("installed FreeDict fixture should be queryable");
+
+    assert_eq!(installed.catalog_id.as_deref(), Some("freedict-fra-eng"));
+    assert_eq!(installed.source_language, "fr");
+    assert_eq!(installed.target_language, "en");
+    assert!(lookup
+        .entries
+        .iter()
+        .any(|entry| entry.dictionary_id == installed.id));
     fs::remove_dir_all(root).unwrap();
 }
 

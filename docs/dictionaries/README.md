@@ -53,6 +53,37 @@ python scripts/dictionaries/build_english_catalog_packages.py verify-fixtures
 
 Use `write-fixtures` only when intentionally changing the deterministic conversion contract. These fixtures are test data, not production dictionaries.
 
+## FreeDict catalog maintenance
+
+The multilingual catalog is generated from a local snapshot of FreeDict's official [`freedict-database.json`](https://freedict.org/freedict-database.json). Archeion does not query FreeDict at runtime. Each maintenance build selects the single current StarDict release for each language pair, maps its ISO 639-3 direction through `scripts/dictionaries/freedict_languages.json`, downloads the direct HTTPS artifact, and verifies the official byte size and SHA-512 before deriving Archeion's SHA-256 catalog field.
+
+The builder reads each package's StarDict metadata to retain dictionary-specific attribution and normalize its stated redistribution licence. `scripts/dictionaries/freedict_exclusions.json` contains only current releases rejected by Archeion's existing StarDict validator, with the exact compatibility reason and upstream version, URL, byte size, and SHA-512. An exclusion applies only while that complete release identity matches current metadata. Any changed release, unexpected candidate-construction failure, or transient download failure stops the build instead of silently reducing catalog coverage.
+
+Download the official metadata snapshot separately, then build a candidate without changing the production catalog:
+
+```text
+python scripts/dictionaries/build_freedict_catalog.py build \
+  --metadata /path/to/freedict-database.json
+```
+
+The default candidate location is `.project/dictionaries/freedict-catalog-candidate/`. Package archives remain maintenance cache inputs and are not copied into the application bundle or this repository. The generated catalog points directly to versioned FreeDict HTTPS artifacts. Its local build report records the exact metadata dictionary-name set, the authorized exclusions, and the candidate catalog SHA-256. Starting any rebuild removes the previous candidate catalog, build report, and native-validation receipt so a failed attempt cannot leave older candidate state eligible for validation or publication.
+
+Every dictionary metadata entry must be an object with a non-empty `name`; malformed entries abort maintenance before candidate construction. The official top-level `software` envelope is recognized explicitly as auxiliary metadata and is not counted as a dictionary candidate.
+
+Validate every admitted package with Archeion's current native manifest and archive validator:
+
+```text
+python scripts/dictionaries/build_freedict_catalog.py validate
+```
+
+Validation first proves that the candidate contains every metadata entry except the exact release-bound compatibility exclusions. It then checks the candidate catalog, every archive's exact byte size and SHA-256, and safe StarDict extraction. It writes a receipt bound to the candidate catalog only after all admitted packages pass. Publish the catalog only with that complete receipt:
+
+```text
+python scripts/dictionaries/build_freedict_catalog.py publish
+```
+
+Publication atomically replaces `catalog-v1.json`, runs the committed production-catalog regression test, and restores the previous catalog if the test fails. Rebuilding invalidates the previous validation receipt.
+
 ## Current Princeton package
 
 The currently published `princeton-wordnet-3.0-stardict-archeion-1.zip` predates the authoritative-source builder. It is derived from the StarDict package in the [Duet v0.1.0-alpha.9 release](https://github.com/lauren-alexandra/duet-xteink/releases/tag/v0.1.0-alpha.9).

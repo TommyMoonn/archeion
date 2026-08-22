@@ -36,6 +36,10 @@ Desktop.ini
 .eslintcache
 .vite/
 
+# Python tooling caches
+__pycache__/
+*.py[cod]
+
 # Temporary files
 *.local
 *.tmp

@@ -246,6 +246,7 @@ fn validate_catalog_bytes(bytes: &[u8]) -> Result<CatalogManifest, DictionaryCat
     }
     manifest.dictionaries.sort_by_cached_key(|entry| {
         (
+            !(entry.source_language == "en" && entry.target_language == "en"),
             entry.source_language.to_lowercase(),
             entry.target_language.to_lowercase(),
             entry.name.to_lowercase(),
