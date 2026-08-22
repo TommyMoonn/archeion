@@ -123,7 +123,6 @@ fn catalog_entry_with_format(
         name: "English Core".to_string(),
         source_language: "fr".to_string(),
         target_language: "en".to_string(),
-        description: "Fixture".to_string(),
         source_attribution: "Fixture Lexicographers".to_string(),
         source_url: Some("https://example.com/source".to_string()),
         license_name: "CC BY 4.0".to_string(),

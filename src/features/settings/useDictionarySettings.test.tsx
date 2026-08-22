@@ -24,7 +24,6 @@ const catalog: DictionaryCatalogSnapshot = {
   entries: [
     {
       compressedSizeBytes: 1024,
-      description: "A compact English dictionary.",
       downloadUrl: "https://example.com/core.zip",
       id: "english-core",
       installedSizeEstimateBytes: 4096,

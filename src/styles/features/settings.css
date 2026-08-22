@@ -517,7 +517,6 @@ html[data-motion="on"] .settings-status {
 }
 
 .dictionary-settings__header h2,
-.dictionary-settings__header p,
 .dictionary-settings-card h4,
 .dictionary-settings-card p,
 .dictionary-settings-card dl,
@@ -528,14 +527,6 @@ html[data-motion="on"] .settings-status {
 .dictionary-settings__error,
 .dictionary-settings__warning {
   margin: 0;
-}
-
-.dictionary-settings__header p {
-  max-width: 48ch;
-  margin-top: 5px;
-  color: var(--muted);
-  font-size: var(--type-body-supporting);
-  line-height: var(--type-body-supporting-line-height);
 }
 
 .dictionary-settings__header-actions,
@@ -585,6 +576,7 @@ html[data-motion="on"] .settings-status {
 
 .dictionary-settings-card__heading {
   display: flex;
+  flex-wrap: wrap;
   min-width: 0;
   align-items: center;
   gap: 9px;
@@ -599,11 +591,31 @@ html[data-motion="on"] .settings-status {
   overflow-wrap: anywhere;
 }
 
-.dictionary-settings-card__main > p {
-  max-width: 60ch;
+.dictionary-settings-card__source {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 5px;
   color: var(--muted);
   font-size: var(--type-body-supporting);
   line-height: var(--type-body-supporting-line-height);
+}
+
+.dictionary-settings-card__source > :last-child {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.dictionary-settings-card a {
+  color: inherit;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+
+.dictionary-settings-card a:hover,
+.dictionary-settings-card a:focus-visible {
+  color: var(--text-strong);
+  text-decoration-color: currentColor;
 }
 
 .dictionary-settings-card__status {
@@ -623,8 +635,10 @@ html[data-motion="on"] .settings-status {
 }
 
 .dictionary-settings-card__facts > div {
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   min-width: 0;
+  max-width: 100%;
   gap: 5px;
 }
 

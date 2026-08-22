@@ -3,19 +3,27 @@
 
 from __future__ import annotations
 
+import hashlib
 import io
+import json
 import lzma
 import tarfile
 import tempfile
 import unittest
+from argparse import Namespace
 from pathlib import Path
 
 from build_english_catalog_packages import (
+    DEFAULT_CONFIG,
+    DOWNLOAD_BASE,
     DirectorySource,
     build_package,
+    candidate_metadata,
     fixture_source_dir,
     fixture_specs,
+    load_specs,
     parse_gcide_data,
+    publish_candidates,
     read_gcide_entries,
 )
 
@@ -136,6 +144,63 @@ class GcideConverterTests(unittest.TestCase):
         self.assertIn("Conversion script SHA-256:", text)
         self.assertIn("Conversion configuration SHA-256:", text)
         self.assertIn("converted form, not the original source representation", text)
+
+
+class EnglishCatalogPublicationTests(unittest.TestCase):
+    def test_description_bearing_candidate_cannot_be_published(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="archeion-english-publish-") as temporary:
+            root = Path(temporary)
+            candidate_dir = root / "candidate-packages"
+            candidate_dir.mkdir()
+            entries = []
+            for spec in load_specs(DEFAULT_CONFIG):
+                package_bytes = f"fixture package for {spec.id}".encode()
+                (candidate_dir / spec.package_file_name).write_bytes(package_bytes)
+                entry = {
+                    "id": spec.id,
+                    "name": spec.name,
+                    "sourceLanguage": spec.source_language,
+                    "targetLanguage": spec.target_language,
+                    "sourceAttribution": spec.source_attribution,
+                    "sourceUrl": spec.source_url,
+                    "licenseName": spec.license_name,
+                    "licenseUrl": spec.license_url,
+                    "packageVersion": spec.package_version,
+                    "compressedSizeBytes": len(package_bytes),
+                    "installedSizeEstimateBytes": 1,
+                    "downloadUrl": f"{DOWNLOAD_BASE}/{spec.package_file_name}",
+                    "packageFormat": "stardict-tar-xz",
+                    "sha256": hashlib.sha256(package_bytes).hexdigest(),
+                }
+                entries.append(entry)
+
+            candidate_catalog = root / "candidate.json"
+            candidate_catalog.write_text(
+                json.dumps({"schemaVersion": 1, "dictionaries": entries}),
+                encoding="utf-8",
+            )
+            candidate_metadata(candidate_dir, candidate_catalog)
+            entries[0]["description"] = "Retired candidate metadata."
+            candidate_catalog.write_text(
+                json.dumps({"schemaVersion": 1, "dictionaries": entries}),
+                encoding="utf-8",
+            )
+            receipt = root / "receipt.json"
+            receipt.write_text("{}", encoding="utf-8")
+            published_catalog = root / "published.json"
+
+            with self.assertRaisesRegex(ValueError, "retired description field"):
+                publish_candidates(
+                    Namespace(
+                        candidate_dir=candidate_dir,
+                        candidate_catalog=candidate_catalog,
+                        receipt=receipt,
+                        output_dir=root / "published-packages",
+                        catalog=published_catalog,
+                    )
+                )
+
+            self.assertFalse(published_catalog.exists())
 
 
 if __name__ == "__main__":

@@ -45,7 +45,6 @@ fn directional_entry(id: &str, name: &str, source_language: &str, target_languag
         "name": name,
         "sourceLanguage": source_language,
         "targetLanguage": target_language,
-        "description": "A focused dictionary.",
         "sourceAttribution": "Example Lexicographers",
         "sourceUrl": "https://example.com/source",
         "licenseName": "CC BY 4.0",
@@ -69,6 +68,13 @@ fn manifest(entries: Vec<Value>) -> Vec<u8> {
 
 #[test]
 fn committed_production_catalog_is_valid_and_non_empty() {
+    let raw: Value = serde_json::from_slice(PRODUCTION_CATALOG_BYTES).unwrap();
+    assert!(raw["dictionaries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|entry| entry.get("description").is_none()));
+
     let catalog = validate_catalog_bytes(PRODUCTION_CATALOG_BYTES)
         .expect("the committed production dictionary catalog should validate");
 
@@ -103,6 +109,13 @@ fn committed_production_catalog_is_valid_and_non_empty() {
             entry.package_format,
             DictionaryCatalogPackageFormat::StardictTarXz
         );
+        assert!(!entry
+            .source_attribution
+            .to_ascii_lowercase()
+            .contains("packaged for archeion"));
+        assert!(!entry
+            .source_attribution
+            .ends_with(", distributed by FreeDict"));
     }
     for (id, source, target, version) in [
         ("freedict-afr-eng", "af", "en", "0.2.2"),
@@ -493,6 +506,11 @@ fn invalid_manifests_never_validate_for_publication() {
     invalid_language["dictionaries"][0]["targetLanguage"] = json!("en_US");
     let invalid_language = serde_json::to_vec(&invalid_language).unwrap();
 
+    let mut unknown_entry_field: Value =
+        serde_json::from_slice(&manifest(vec![entry("english", "English", "en")])).unwrap();
+    unknown_entry_field["dictionaries"][0]["unexpectedField"] = json!("unexpected");
+    let unknown_entry_field = serde_json::to_vec(&unknown_entry_field).unwrap();
+
     let legacy_single_language = serde_json::to_vec(&json!({
         "schemaVersion": 1,
         "dictionaries": [{
@@ -520,6 +538,7 @@ fn invalid_manifests_never_validate_for_publication() {
         insecure_url,
         invalid_digest,
         invalid_language,
+        unknown_entry_field,
         legacy_single_language,
     ] {
         assert!(matches!(
@@ -531,6 +550,19 @@ fn invalid_manifests_never_validate_for_publication() {
         validate_catalog_bytes(&vec![b' '; MAX_CATALOG_BYTES + 1]).unwrap_err(),
         DictionaryCatalogError::ResponseTooLarge
     );
+}
+
+#[test]
+fn retired_descriptions_are_accepted_but_not_republished() {
+    let mut legacy_manifest: Value =
+        serde_json::from_slice(&manifest(vec![entry("english", "English", "en")])).unwrap();
+    legacy_manifest["dictionaries"][0]["description"] =
+        json!("Description from a previously published catalog.");
+
+    let catalog = validate_catalog_bytes(&serde_json::to_vec(&legacy_manifest).unwrap()).unwrap();
+    let republished = serde_json::to_value(catalog).unwrap();
+
+    assert!(republished["dictionaries"][0].get("description").is_none());
 }
 
 #[tokio::test(flavor = "current_thread")]

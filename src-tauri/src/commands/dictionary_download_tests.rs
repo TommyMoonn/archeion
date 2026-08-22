@@ -42,7 +42,6 @@ fn entry_with_format(
         name: "English".to_string(),
         source_language: "en".to_string(),
         target_language: "en".to_string(),
-        description: "A test dictionary.".to_string(),
         source_attribution: "Example".to_string(),
         source_url: None,
         license_name: "CC BY 4.0".to_string(),

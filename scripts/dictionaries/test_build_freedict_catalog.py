@@ -21,6 +21,7 @@ from build_freedict_catalog import (
     catalog_sort_key,
     load_compatibility_exclusions,
     load_languages,
+    publish,
     read_package_metadata,
     validate,
     verify_candidate_completeness,
@@ -166,6 +167,8 @@ class FreeDictCatalogTests(unittest.TestCase):
         self.assertEqual(candidate.entry["compressedSizeBytes"], len(data))
         self.assertEqual(candidate.entry["sha256"], hashlib.sha256(data).hexdigest())
         self.assertEqual(candidate.entry["packageFormat"], "stardict-tar-xz")
+        self.assertEqual(candidate.entry["sourceAttribution"], "FreeDict Fixture")
+        self.assertNotIn("description", candidate.entry)
         self.assertIn("GPL-2.0-or-later", candidate.entry["licenseName"])
 
     def test_sha512_failure_aborts_build_and_invalidates_receipt(self) -> None:
@@ -367,6 +370,30 @@ class FreeDictCatalogTests(unittest.TestCase):
 
             with self.assertRaisesRegex(ValueError, "does not cover every non-excluded"):
                 verify_candidate_completeness(args)
+
+    def test_description_bearing_candidate_cannot_be_published(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="archeion-freedict-") as temporary:
+            root = Path(temporary)
+            data = package_bytes()
+            args = build_args(root, [dictionary("afr-eng", data)])
+            with patch(
+                "build_freedict_catalog.build_candidate",
+                side_effect=fixture_candidate,
+            ):
+                build(args)
+
+            catalog = json.loads(args.catalog.read_text(encoding="utf-8"))
+            catalog["dictionaries"][0]["description"] = "Retired candidate metadata."
+            args.catalog.write_text(json.dumps(catalog), encoding="utf-8")
+            report = json.loads(args.exclusions.read_text(encoding="utf-8"))
+            report["catalogSha256"] = hashlib.sha256(args.catalog.read_bytes()).hexdigest()
+            args.exclusions.write_text(json.dumps(report), encoding="utf-8")
+            production_before = args.production_catalog.read_bytes()
+
+            with self.assertRaisesRegex(ValueError, "retired description field"):
+                publish(args)
+
+            self.assertEqual(args.production_catalog.read_bytes(), production_before)
 
     def test_unrecognized_package_licence_is_a_concrete_exclusion_reason(self) -> None:
         with tempfile.TemporaryDirectory(prefix="archeion-freedict-") as temporary:

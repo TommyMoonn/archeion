@@ -5,7 +5,6 @@ export type DictionaryCatalogEntry = Readonly<{
   name: string;
   sourceLanguage: string;
   targetLanguage: string;
-  description: string;
   sourceAttribution: string;
   sourceUrl: string | null;
   licenseName: string;

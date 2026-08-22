@@ -46,7 +46,6 @@ class SourceSpec:
     name: str
     source_language: str
     target_language: str
-    description: str
     source_attribution: str
     source_url: str
     license_name: str
@@ -151,7 +150,6 @@ def load_specs(path: Path) -> list[SourceSpec]:
                 name=item["name"],
                 source_language=item["sourceLanguage"],
                 target_language=item["targetLanguage"],
-                description=item["description"],
                 source_attribution=item["sourceAttribution"],
                 source_url=item["sourceUrl"],
                 license_name=item["licenseName"],
@@ -698,7 +696,6 @@ def catalog_entry(spec: SourceSpec, built: BuiltPackage) -> dict[str, object]:
         "name": spec.name,
         "sourceLanguage": spec.source_language,
         "targetLanguage": spec.target_language,
-        "description": spec.description,
         "sourceAttribution": spec.source_attribution,
         "sourceUrl": spec.source_url,
         "licenseName": spec.license_name,
@@ -773,6 +770,11 @@ def candidate_metadata(
     candidate_dir: Path, catalog_path: Path
 ) -> tuple[bytes, list[dict[str, object]], list[dict[str, object]]]:
     catalog_bytes, entries = load_candidate_manifest(catalog_path)
+    for entry in entries:
+        if "description" in entry:
+            raise ValueError(
+                "English candidate catalog entries must not contain the retired description field."
+            )
     expected_ids = [spec.id for spec in load_specs(DEFAULT_CONFIG)]
     actual_ids = [str(entry.get("id", "")) for entry in entries]
     if actual_ids != expected_ids:
@@ -789,7 +791,6 @@ def candidate_metadata(
             "name": spec.name,
             "sourceLanguage": spec.source_language,
             "targetLanguage": spec.target_language,
-            "description": spec.description,
             "sourceAttribution": spec.source_attribution,
             "sourceUrl": spec.source_url,
             "licenseName": spec.license_name,

@@ -30,14 +30,13 @@ const MAX_INSTALLED_SIZE_ESTIMATE_BYTES: u64 = 2 * 1024 * 1024 * 1024;
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(5);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub(crate) struct DictionaryCatalogEntry {
     pub id: String,
     pub name: String,
     pub source_language: String,
     pub target_language: String,
-    pub description: String,
     pub source_attribution: String,
     pub source_url: Option<String>,
     pub license_name: String,
@@ -48,6 +47,53 @@ pub(crate) struct DictionaryCatalogEntry {
     pub download_url: String,
     pub package_format: DictionaryCatalogPackageFormat,
     pub sha256: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct DictionaryCatalogEntryWire {
+    id: String,
+    name: String,
+    source_language: String,
+    target_language: String,
+    #[serde(default)]
+    description: Option<String>,
+    source_attribution: String,
+    source_url: Option<String>,
+    license_name: String,
+    license_url: String,
+    package_version: String,
+    compressed_size_bytes: u64,
+    installed_size_estimate_bytes: Option<u64>,
+    download_url: String,
+    package_format: DictionaryCatalogPackageFormat,
+    sha256: String,
+}
+
+impl<'de> Deserialize<'de> for DictionaryCatalogEntry {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let wire = DictionaryCatalogEntryWire::deserialize(deserializer)?;
+        let _retired_description = wire.description;
+        Ok(Self {
+            id: wire.id,
+            name: wire.name,
+            source_language: wire.source_language,
+            target_language: wire.target_language,
+            source_attribution: wire.source_attribution,
+            source_url: wire.source_url,
+            license_name: wire.license_name,
+            license_url: wire.license_url,
+            package_version: wire.package_version,
+            compressed_size_bytes: wire.compressed_size_bytes,
+            installed_size_estimate_bytes: wire.installed_size_estimate_bytes,
+            download_url: wire.download_url,
+            package_format: wire.package_format,
+            sha256: wire.sha256,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
@@ -271,7 +317,6 @@ fn validate_entry(entry: &mut DictionaryCatalogEntry) -> Result<(), DictionaryCa
     normalize_required(&mut entry.name, 160, &entry.id, "name")?;
     normalize_language_tag(&mut entry.source_language, &entry.id, "source language")?;
     normalize_language_tag(&mut entry.target_language, &entry.id, "target language")?;
-    normalize_required(&mut entry.description, 600, &entry.id, "description")?;
     normalize_required(
         &mut entry.source_attribution,
         240,

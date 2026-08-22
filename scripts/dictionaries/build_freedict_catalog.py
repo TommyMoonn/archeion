@@ -309,8 +309,7 @@ def build_candidate(
         "name": f"FreeDict {pair_name}",
         "sourceLanguage": source.tag,
         "targetLanguage": target.tag,
-        "description": f"{pair_name} translations from the FreeDict collection.",
-        "sourceAttribution": f"{book_name}, distributed by FreeDict",
+        "sourceAttribution": book_name,
         "sourceUrl": url.rsplit("/", 1)[0] + "/",
         "licenseName": license_name,
         "licenseUrl": license_url,
@@ -372,6 +371,15 @@ def exclusion_report_entry(
 def verify_candidate_completeness(args: argparse.Namespace) -> None:
     catalog_bytes = args.catalog.read_bytes()
     catalog = json.loads(catalog_bytes)
+    entries = catalog.get("dictionaries")
+    if not isinstance(entries, list) or not all(
+        isinstance(entry, dict) for entry in entries
+    ):
+        raise ValueError("FreeDict candidate catalog dictionaries must be objects")
+    if any("description" in entry for entry in entries):
+        raise ValueError(
+            "FreeDict candidate catalog entries must not contain the retired description field"
+        )
     report = json.loads(args.exclusions.read_text(encoding="utf-8"))
     compatibility_exclusions = load_compatibility_exclusions(
         args.compatibility_exclusions
@@ -389,7 +397,7 @@ def verify_candidate_completeness(args: argparse.Namespace) -> None:
         raise ValueError("FreeDict build report has invalid metadata names")
     candidate_names = [
         entry["id"].removeprefix("freedict-")
-        for entry in catalog.get("dictionaries", [])
+        for entry in entries
         if entry.get("id", "").startswith("freedict-")
     ]
     if len(candidate_names) != len(set(candidate_names)):

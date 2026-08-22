@@ -70,19 +70,28 @@ function AvailableDictionaryRow({
           <h4>{entry.name}</h4>
           {installed ? <span className="dictionary-settings-card__status">Installed</span> : null}
         </div>
-        <p>{entry.description}</p>
+        <p className="dictionary-settings-card__source">
+          <span>Source</span>
+          {entry.sourceUrl ? (
+            <a href={entry.sourceUrl} rel="noreferrer" target="_blank">
+              {entry.sourceAttribution}
+            </a>
+          ) : (
+            <span>{entry.sourceAttribution}</span>
+          )}
+        </p>
         <dl className="dictionary-settings-card__facts">
           <div>
             <dt>Language</dt>
             <dd>{formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage)}</dd>
           </div>
           <div>
-            <dt>Source</dt>
-            <dd>{entry.sourceAttribution}</dd>
-          </div>
-          <div>
             <dt>License</dt>
-            <dd>{entry.licenseName}</dd>
+            <dd>
+              <a href={entry.licenseUrl} rel="noreferrer" target="_blank">
+                {entry.licenseName}
+              </a>
+            </dd>
           </div>
           <div>
             <dt>Download</dt>
@@ -155,10 +164,10 @@ function InstalledDictionaryRow({
   total: number;
 }) {
   const unavailable = dictionary.indexState === "unavailable";
-  const catalogAvailable = Boolean(
-    dictionary.catalogId &&
-    controller.catalog?.entries.some((entry) => entry.id === dictionary.catalogId),
-  );
+  const catalogEntry = dictionary.catalogId
+    ? controller.catalog?.entries.find((entry) => entry.id === dictionary.catalogId)
+    : undefined;
+  const catalogAvailable = Boolean(catalogEntry);
   const recoveryOperation =
     dictionary.catalogId && controller.catalogOperation?.catalogId === dictionary.catalogId
       ? controller.catalogOperation
@@ -188,7 +197,16 @@ function InstalledDictionaryRow({
                 : "Index required"}
           </span>
         </div>
-        <p>{dictionary.sourceAttribution}</p>
+        <p className="dictionary-settings-card__source">
+          <span>Source</span>
+          {catalogEntry?.sourceUrl ? (
+            <a href={catalogEntry.sourceUrl} rel="noreferrer" target="_blank">
+              {dictionary.sourceAttribution}
+            </a>
+          ) : (
+            <span>{dictionary.sourceAttribution}</span>
+          )}
+        </p>
         <dl className="dictionary-settings-card__facts">
           <div>
             <dt>Language</dt>
@@ -206,7 +224,15 @@ function InstalledDictionaryRow({
           </div>
           <div>
             <dt>License</dt>
-            <dd>{dictionary.licenseName}</dd>
+            <dd>
+              {dictionary.licenseUrl ? (
+                <a href={dictionary.licenseUrl} rel="noreferrer" target="_blank">
+                  {dictionary.licenseName}
+                </a>
+              ) : (
+                dictionary.licenseName
+              )}
+            </dd>
           </div>
         </dl>
         {unavailable ? (
@@ -359,10 +385,7 @@ export function DictionarySettingsView({
   return (
     <section className="settings-section dictionary-settings" ref={sectionRef}>
       <header className="dictionary-settings__header">
-        <div>
-          <h2>Dictionaries</h2>
-          <p>Install and manage dictionaries used for local lookup.</p>
-        </div>
+        <h2>Dictionaries</h2>
         <div className="dictionary-settings__header-actions">
           {controller.refreshing ? (
             <Button
