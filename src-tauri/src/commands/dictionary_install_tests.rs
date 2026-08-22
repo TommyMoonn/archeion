@@ -338,7 +338,7 @@ fn representative_english_catalog_packages_install_index_and_lookup_through_exis
 fn verified_tar_xz_catalog_installs_through_existing_activation_and_index_owner() {
     let directory = TestDirectory::new("tar-xz-catalog");
     let token = "verified-30-31-32.dictionary-package";
-    let bytes = dictionary_archive::tests::freedict_style_tar_xz_fixture();
+    let bytes = dictionary_archive::tests::stardict_tar_xz_fixture();
     let entry = catalog_entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
     write_verified_download_fixture(directory.path(), token, entry.clone(), bytes);
 

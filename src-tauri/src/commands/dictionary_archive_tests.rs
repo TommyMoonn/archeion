@@ -74,12 +74,12 @@ impl TarEntry {
     }
 }
 
-const FREEDICT_SHAPE_TAR_XZ: &[u8] =
-    include_bytes!("fixtures/dictionary/freedict-stardict-shape.tar.xz");
+const STARDICT_SHAPE_TAR_XZ: &[u8] =
+    include_bytes!("fixtures/dictionary/stardict-tar-xz-shape.tar.xz");
 const XZ_128M_DICTIONARY: &[u8] = include_bytes!("fixtures/dictionary/xz-128m-dictionary.tar.xz");
 
-pub(crate) fn freedict_style_tar_xz_fixture() -> &'static [u8] {
-    FREEDICT_SHAPE_TAR_XZ
+pub(crate) fn stardict_tar_xz_fixture() -> &'static [u8] {
+    STARDICT_SHAPE_TAR_XZ
 }
 
 fn build_tar(entries: &[TarEntry]) -> Vec<u8> {
@@ -130,10 +130,10 @@ fn extract_raw_tar(
 }
 
 #[test]
-fn freedict_style_tar_xz_normalizes_gzip_index_and_uses_current_validator() {
+fn directory_shaped_tar_xz_normalizes_gzip_index_and_uses_current_validator() {
     let directory = TestDirectory::new("valid");
     let archive = directory.path().join("fixture.stardict.tar.xz");
-    fs::write(&archive, freedict_style_tar_xz_fixture()).unwrap();
+    fs::write(&archive, stardict_tar_xz_fixture()).unwrap();
     let destination = directory.path().join("extract");
 
     let validated = extract_catalog_package(
@@ -145,7 +145,7 @@ fn freedict_style_tar_xz_normalizes_gzip_index_and_uses_current_validator() {
 
     assert_eq!(validated.package_name, "fixture");
     assert_eq!(validated.entries.len(), 2);
-    assert_eq!(validated.metadata.book_name, "FreeDict-shaped Fixture");
+    assert_eq!(validated.metadata.book_name, "Generic tar.xz Fixture");
     assert!(destination.join("fixture/fixture.idx").is_file());
     assert!(!destination.join("fixture/fixture.idx.gz").exists());
     assert!(!destination.join("fixture/README").exists());
@@ -284,7 +284,7 @@ fn xz_decoder_memory_limit_rejects_large_history_without_large_test_allocation()
 fn decompressed_tar_stream_limit_still_rejects_excessive_output() {
     let directory = TestDirectory::new("xz-output-limit");
     let archive = directory.path().join("fixture.stardict.tar.xz");
-    fs::write(&archive, FREEDICT_SHAPE_TAR_XZ).unwrap();
+    fs::write(&archive, STARDICT_SHAPE_TAR_XZ).unwrap();
     let limits = ArchiveLimits {
         max_tar_stream_bytes: 1024,
         ..ArchiveLimits::production()

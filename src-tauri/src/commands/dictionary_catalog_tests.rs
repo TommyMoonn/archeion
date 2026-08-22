@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     fs,
     path::PathBuf,
     sync::atomic::{AtomicU64, Ordering},
@@ -78,149 +77,15 @@ fn committed_production_catalog_is_valid_and_non_empty() {
     let catalog = validate_catalog_bytes(PRODUCTION_CATALOG_BYTES)
         .expect("the committed production dictionary catalog should validate");
 
-    let freedict = catalog
-        .dictionaries
-        .iter()
-        .filter(|entry| entry.id.starts_with("freedict-"))
-        .collect::<Vec<_>>();
-    let first = catalog
-        .dictionaries
-        .first()
-        .expect("the production catalog should contain an English dictionary");
-    assert_eq!(
-        (
-            first.source_language.as_str(),
-            first.target_language.as_str()
-        ),
-        ("en", "en")
-    );
-    assert!(
-        freedict.len() > 100,
-        "the production catalog should provide broad FreeDict coverage"
-    );
-    let mut directions = HashSet::with_capacity(freedict.len());
-    for entry in &freedict {
-        assert!(
-            directions.insert((&entry.source_language, &entry.target_language)),
-            "FreeDict should publish at most one current dictionary per language direction"
-        );
-        assert!(!entry.package_version.trim().is_empty());
-        assert_eq!(
-            entry.package_format,
-            DictionaryCatalogPackageFormat::StardictTarXz
-        );
+    assert!(!catalog.dictionaries.is_empty());
+    for entry in &catalog.dictionaries {
+        assert_eq!(entry.source_language, "en");
+        assert_eq!(entry.target_language, "en");
         assert!(!entry
             .source_attribution
             .to_ascii_lowercase()
             .contains("packaged for archeion"));
-        assert!(!entry
-            .source_attribution
-            .ends_with(", distributed by FreeDict"));
     }
-    for (id, source, target, version) in [
-        ("freedict-afr-eng", "af", "en", "0.2.2"),
-        ("freedict-eng-fra", "en", "fr", "0.1.6"),
-        ("freedict-ckb-kmr", "ckb", "kmr", "0.2"),
-    ] {
-        let entry = freedict
-            .iter()
-            .find(|entry| entry.id == id)
-            .unwrap_or_else(|| panic!("the production catalog should contain {id}"));
-        assert_eq!(entry.source_language, source);
-        assert_eq!(entry.target_language, target);
-        assert_eq!(entry.package_version, version);
-        assert_eq!(
-            entry.package_format,
-            DictionaryCatalogPackageFormat::StardictTarXz
-        );
-        assert!(entry
-            .download_url
-            .starts_with("https://download.freedict.org/"));
-    }
-}
-
-#[test]
-#[ignore = "requires generated Phase 1.3.0.17 production candidate packages"]
-fn generated_freedict_candidates_pass_current_package_validator() {
-    let candidate_dir = PathBuf::from(
-        std::env::var_os("ARCHEION_FREEDICT_CANDIDATE_DIR")
-            .expect("candidate package directory must be supplied"),
-    );
-    let candidate_catalog = PathBuf::from(
-        std::env::var_os("ARCHEION_FREEDICT_CANDIDATE_CATALOG")
-            .expect("candidate catalog path must be supplied"),
-    );
-    let validation_receipt = PathBuf::from(
-        std::env::var_os("ARCHEION_FREEDICT_VALIDATION_RECEIPT")
-            .expect("validation receipt path must be supplied"),
-    );
-    let catalog_bytes = fs::read(&candidate_catalog).expect("candidate catalog should be readable");
-    let catalog = validate_catalog_bytes(&catalog_bytes)
-        .expect("candidate catalog should pass the production catalog validator");
-    let freedict = catalog
-        .dictionaries
-        .iter()
-        .filter(|entry| entry.id.starts_with("freedict-"))
-        .collect::<Vec<_>>();
-    assert!(
-        freedict.len() > 100,
-        "the FreeDict candidate should provide broad multilingual coverage"
-    );
-
-    let validation_root = test_root("freedict-candidates");
-    fs::create_dir_all(&validation_root).expect("validation root should be created");
-    let mut receipt_packages = Vec::with_capacity(freedict.len());
-    let mut failures = Vec::new();
-    for entry in freedict {
-        let file_name = entry
-            .download_url
-            .rsplit('/')
-            .next()
-            .filter(|name| !name.is_empty())
-            .expect("FreeDict URL should end in a package filename");
-        let package_path = candidate_dir.join(file_name);
-        let package_bytes = fs::read(&package_path)
-            .unwrap_or_else(|error| panic!("{} should be readable: {error}", entry.id));
-        let package_sha256 = format!("{:x}", Sha256::digest(&package_bytes));
-        assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
-        assert_eq!(package_sha256, entry.sha256);
-
-        let extraction = validation_root.join(&entry.id);
-        let validation = crate::commands::dictionary_archive::extract_catalog_package(
-            DictionaryCatalogPackageFormat::StardictTarXz,
-            &package_path,
-            &extraction,
-        );
-        if let Err(error) = validation {
-            failures.push(json!({ "id": entry.id, "reason": error.to_string() }));
-            if extraction.exists() {
-                fs::remove_dir_all(&extraction).expect("failed extraction should be removable");
-            }
-            continue;
-        }
-        fs::remove_dir_all(&extraction).expect("validated extraction should be removable");
-        receipt_packages.push(json!({
-            "id": entry.id,
-            "fileName": file_name,
-            "compressedSizeBytes": package_bytes.len(),
-            "sha256": package_sha256,
-        }));
-    }
-
-    let mut receipt_bytes = serde_json::to_vec_pretty(&json!({
-        "schemaVersion": 1,
-        "catalogSha256": format!("{:x}", Sha256::digest(&catalog_bytes)),
-        "packages": receipt_packages,
-        "failures": &failures,
-    }))
-    .expect("validation receipt should serialize");
-    receipt_bytes.push(b'\n');
-    fs::write(validation_receipt, receipt_bytes).expect("validation receipt should be written");
-    fs::remove_dir_all(validation_root).expect("validation root should be removed");
-    assert!(
-        failures.is_empty(),
-        "FreeDict candidate validation failures: {failures:?}"
-    );
 }
 
 #[test]
@@ -410,7 +275,7 @@ fn catalog_orders_english_monolingual_entries_before_language_pairs() {
 fn catalog_accepts_versioned_stardict_zip_and_tar_xz_package_formats() {
     let zip_entry = entry("zip", "ZIP", "en");
     let mut tar_entry = entry("tar", "TAR XZ", "fr");
-    tar_entry["downloadUrl"] = json!("https://example.com/freedict-fra-eng-2026.1.stardict.tar.xz");
+    tar_entry["downloadUrl"] = json!("https://example.com/directional-2026.1.stardict.tar.xz");
     tar_entry["packageFormat"] = json!("stardict-tar-xz");
 
     let catalog = validate_catalog_bytes(&manifest(vec![zip_entry, tar_entry])).unwrap();

@@ -203,11 +203,11 @@ async fn tar_xz_download_preserves_verified_archive_bytes_and_format() {
 }
 
 #[tokio::test(flavor = "current_thread")]
-async fn representative_freedict_package_downloads_installs_indexes_and_looks_up() {
-    let root = test_root("freedict-full-path");
-    let bytes = dictionary_archive::tests::freedict_style_tar_xz_fixture();
+async fn representative_tar_xz_package_downloads_installs_indexes_and_looks_up() {
+    let root = test_root("tar-xz-full-path");
+    let bytes = dictionary_archive::tests::stardict_tar_xz_fixture();
     let mut package_entry = entry_with_format(bytes, DictionaryCatalogPackageFormat::StardictTarXz);
-    package_entry.id = "freedict-fra-eng".to_string();
+    package_entry.id = "directional-tar-xz".to_string();
     package_entry.source_language = "fr".to_string();
     package_entry.target_language = "en".to_string();
     let service = DictionaryDownloadService::default();
@@ -225,15 +225,15 @@ async fn representative_freedict_package_downloads_installs_indexes_and_looks_up
             },
         )
         .await
-        .expect("representative FreeDict bytes should pass download verification");
+        .expect("representative tar.xz bytes should pass download verification");
     let installed = DictionaryInstallService::default()
         .install_catalog(&root, &verified.staging_token)
-        .expect("verified FreeDict bytes should install and index");
+        .expect("verified tar.xz bytes should install and index");
     let lookup = DictionaryLookupService
         .lookup(&root, "alpha")
-        .expect("installed FreeDict fixture should be queryable");
+        .expect("installed tar.xz fixture should be queryable");
 
-    assert_eq!(installed.catalog_id.as_deref(), Some("freedict-fra-eng"));
+    assert_eq!(installed.catalog_id.as_deref(), Some("directional-tar-xz"));
     assert_eq!(installed.source_language, "fr");
     assert_eq!(installed.target_language, "en");
     assert!(lookup
