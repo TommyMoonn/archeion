@@ -10,12 +10,44 @@
       "sourceUrl": "https://wordnetcode.princeton.edu/3.0/",
       "licenseName": "Princeton WordNet License",
       "licenseUrl": "https://wordnet.princeton.edu/license-and-commercial-use",
-      "packageVersion": "3.0-archeion-1",
-      "compressedSizeBytes": 8906973,
-      "installedSizeEstimateBytes": 26356999,
-      "downloadUrl": "https://tommymoonn.github.io/archeion/dictionaries/packages/princeton-wordnet-3.0-stardict-archeion-1.zip",
-      "packageFormat": "stardict-zip",
-      "sha256": "4bf92ff3b3e436ab70941e7db72c9124fc71647f3425fc9acab5882cc73816f0"
+      "packageVersion": "3.0-archeion-7",
+      "compressedSizeBytes": 5118144,
+      "installedSizeEstimateBytes": 27812475,
+      "downloadUrl": "https://tommymoonn.github.io/archeion/dictionaries/packages/princeton-wordnet-3.0-stardict-archeion-7.tar.xz",
+      "packageFormat": "stardict-tar-xz",
+      "sha256": "6f2e86d62f41a4b16a2a5073b06d665f7c191f4a32cbeafd0e6e143f5ad66c56"
+    },
+    {
+      "id": "open-english-wordnet-2025-plus",
+      "name": "Open English WordNet 2025+",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
+      "sourceAttribution": "Open English WordNet 2025+",
+      "sourceUrl": "https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition",
+      "licenseName": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
+      "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "packageVersion": "2025-plus-fixed-2026-06-26-archeion-6",
+      "compressedSizeBytes": 5395284,
+      "installedSizeEstimateBytes": 29138666,
+      "downloadUrl": "https://tommymoonn.github.io/archeion/dictionaries/packages/open-english-wordnet-2025-plus-stardict-archeion-6.tar.xz",
+      "packageFormat": "stardict-tar-xz",
+      "sha256": "d6abe6c0953060e8b4e9199cf062445898a2205ef61e78a741b1b33959cda7e3"
+    },
+    {
+      "id": "gcide-0-54",
+      "name": "GNU Collaborative International Dictionary of English (GCIDE)",
+      "sourceLanguage": "en",
+      "targetLanguage": "en",
+      "sourceAttribution": "GNU Collaborative International Dictionary of English 0.54",
+      "sourceUrl": "https://www.gnu.org/software/gcide/",
+      "licenseName": "GNU General Public License v3 or later (GPL-3.0-or-later)",
+      "licenseUrl": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "packageVersion": "0.54-archeion-6",
+      "compressedSizeBytes": 5945004,
+      "installedSizeEstimateBytes": 53622727,
+      "downloadUrl": "https://tommymoonn.github.io/archeion/dictionaries/packages/gcide-0.54-stardict-archeion-6.tar.xz",
+      "packageFormat": "stardict-tar-xz",
+      "sha256": "b7c087e434fa4dc3494e612ae5af003fcb8a2a25dad10cf3bf001d5a95f935e0"
     }
   ]
 }

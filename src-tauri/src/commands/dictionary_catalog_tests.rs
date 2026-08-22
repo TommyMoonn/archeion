@@ -77,19 +77,72 @@ fn committed_production_catalog_is_valid_and_non_empty() {
     let catalog = validate_catalog_bytes(PRODUCTION_CATALOG_BYTES)
         .expect("the committed production dictionary catalog should validate");
 
-    assert!(!catalog.dictionaries.is_empty());
-    for entry in &catalog.dictionaries {
+    let required = [
+        (
+            "princeton-wordnet-3-0",
+            "Princeton WordNet 3.0",
+            "3.0-archeion-7",
+        ),
+        (
+            "open-english-wordnet-2025-plus",
+            "Open English WordNet 2025+",
+            "2025-plus-fixed-2026-06-26-archeion-6",
+        ),
+        (
+            "gcide-0-54",
+            "GNU Collaborative International Dictionary of English (GCIDE)",
+            "0.54-archeion-6",
+        ),
+    ];
+    assert_eq!(catalog.dictionaries.len(), required.len());
+    let package_root =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/dictionaries/packages");
+    for (required_id, required_name, required_version) in required {
+        let entry = catalog
+            .dictionaries
+            .iter()
+            .find(|entry| entry.id == required_id)
+            .expect("every required English dictionary should be published");
+        assert_eq!(entry.id, required_id);
+        assert_eq!(entry.name, required_name);
+        assert_eq!(entry.package_version, required_version);
         assert_eq!(entry.source_language, "en");
         assert_eq!(entry.target_language, "en");
+        assert_eq!(
+            entry.package_format,
+            DictionaryCatalogPackageFormat::StardictTarXz
+        );
         assert!(!entry
             .source_attribution
             .to_ascii_lowercase()
             .contains("packaged for archeion"));
+        let file_name = entry
+            .download_url
+            .rsplit('/')
+            .next()
+            .expect("production download URL should contain a package filename");
+        let package_bytes = fs::read(package_root.join(file_name))
+            .expect("every production catalog package should be committed");
+        assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
+        assert_eq!(
+            format!("{:x}", Sha256::digest(&package_bytes)),
+            entry.sha256
+        );
     }
+
+    let princeton = catalog
+        .dictionaries
+        .iter()
+        .find(|entry| entry.id == "princeton-wordnet-3-0")
+        .unwrap();
+    assert_eq!(
+        princeton.source_url.as_deref(),
+        Some("https://wordnetcode.princeton.edu/3.0/")
+    );
 }
 
 #[test]
-#[ignore = "requires generated Phase 1.3.0.16 production candidate packages"]
+#[ignore = "requires generated Phase 1.3.0.23 production candidate packages"]
 fn generated_english_candidates_install_index_activate_and_lookup() {
     let candidate_dir = PathBuf::from(
         std::env::var_os("ARCHEION_ENGLISH_CANDIDATE_DIR")
@@ -115,7 +168,7 @@ fn generated_english_candidates_install_index_activate_and_lookup() {
     assert_eq!(
         catalog.dictionaries.len(),
         required.len(),
-        "the English candidate set should contain exactly the configured Phase 16 sources"
+        "the English candidate set should contain exactly the configured Phase 23 sources"
     );
 
     let app_data_root = test_root("generated-english-candidates");
@@ -150,7 +203,7 @@ fn generated_english_candidates_install_index_activate_and_lookup() {
         assert_eq!(package_bytes.len() as u64, entry.compressed_size_bytes);
         assert_eq!(package_sha256, entry.sha256);
 
-        let token = format!("verified-16-{index}-0.dictionary-package");
+        let token = format!("verified-23-{index}-0.dictionary-package");
         write_verified_download_fixture(&app_data_root, &token, entry.clone(), &package_bytes);
         let installed = DictionaryInstallService::default()
             .install_catalog(&app_data_root, &token)

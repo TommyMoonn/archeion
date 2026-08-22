@@ -11,6 +11,7 @@ import tarfile
 import tempfile
 import unittest
 from argparse import Namespace
+from dataclasses import replace
 from pathlib import Path
 
 from build_english_catalog_packages import (
@@ -18,11 +19,13 @@ from build_english_catalog_packages import (
     DOWNLOAD_BASE,
     DirectorySource,
     DictionaryAlias,
+    build_candidates,
     build_package,
     candidate_metadata,
     fixture_source_dir,
     fixture_specs,
     load_specs,
+    load_pinned_license_notice,
     parse_gcide_data,
     parse_wordnet_exceptions,
     publish_candidates,
@@ -80,6 +83,39 @@ class WordNetConverterTests(unittest.TestCase):
     def test_exception_parser_rejects_incomplete_mappings(self) -> None:
         with self.assertRaisesRegex(ValueError, "Malformed WordNet exception mapping"):
             parse_wordnet_exceptions(b"orphan\n")
+
+    def test_tag_bound_license_notice_is_hash_verified(self) -> None:
+        spec = next(
+            spec
+            for spec in load_specs(DEFAULT_CONFIG)
+            if spec.id == "open-english-wordnet-2025-plus"
+        )
+        notice = load_pinned_license_notice(spec)
+        self.assertIsNotNone(notice)
+        self.assertIn(b"Creative Commons Attribution 4.0", notice or b"")
+
+        with self.assertRaisesRegex(ValueError, "license notice SHA-256 mismatch"):
+            load_pinned_license_notice(
+                replace(spec, license_notice_sha256="0" * 64)
+            )
+
+    def test_exception_mappings_without_indexed_targets_are_not_emitted(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            source_root = Path(temporary)
+            (source_root / "data.noun").write_text(
+                "00000001 03 n 01 gas 0 000 | a gaseous substance\n",
+                encoding="utf-8",
+            )
+            (source_root / "noun.exc").write_text(
+                "gasses gas\naboideaux aboideau\n",
+                encoding="utf-8",
+            )
+            (source_root / "LICENSE").write_text("fixture license\n", encoding="utf-8")
+
+            with DirectorySource(source_root) as source:
+                _, aliases, _ = read_wordnet_entries(source)
+
+        self.assertEqual(aliases, [DictionaryAlias("gasses", "gas")])
 
     def test_source_exception_mappings_are_the_only_inflection_aliases(self) -> None:
         spec = next(
@@ -215,6 +251,83 @@ class GcideConverterTests(unittest.TestCase):
         self.assertNotIn("Second definition", by_headword["First"])
         self.assertNotIn("First definition", by_headword["Second"])
 
+    def test_gcide_source_uses_its_latin1_text_encoding(self) -> None:
+        source = b'<entry main-word="Facade"><p><def>A fa\xe7ade.</def></p></entry>'
+        entries = parse_gcide_data(source)
+        self.assertEqual(entries[0].definition, "A façade")
+
+    def test_gcide_synonym_grammar_emits_only_lexical_aliases(self) -> None:
+        source = b"""\
+<entry main-word="Animosity"><p><def>Active enmity.</def>
+<syn><b>Syn.</b> -- Enmity; hatred; opposition. --
+<er>Animosity</er> is active enmity, inflamed by collision between parties.</syn></p></entry>
+<entry main-word="Indecorum"><p><def>A lack of decorum.</def>
+<syn><b>Syn.</b> -- <xex>Indecorum</xex> is sometimes synonymous with
+<xex>indecency</xex>; but <xex>indecency</xex>, more frequently than
+<xex>indecorum</xex>, is applied to words or actions which refer to what
+nature and propriety require to be concealed or suppressed.</syn></p></entry>
+<entry main-word="Fault"><p><def>A defect.</def>
+<syn><b>Syn.</b> -- -- Error; blemish; defect.</syn></p></entry>
+<entry main-word="Leave"><p><def>To depart.</def>
+<syn>Syn>- To quit; depart from; forsake. See <er>Quit</er>.</syn></p></entry>
+<entry main-word="Rubiaceae"><p><def>The madder family.</def>
+<syn>Rubiaceae, family Rubiaceae, madder family --</syn></p></entry>
+<entry main-word="Pecker"><p><def>A bird that pecks.</def>
+<syn><b>Syn. --</b> penis, shaft [all but the first considered obscene].</syn></p></entry>
+<entry main-word="Hairpin"><p><def>A pin for the hair.</def>
+<syn><b>Syn. --</b> bobby pin; hair grip; kirby grip [British].</syn></p></entry>
+<entry main-word="Discussion"><p><def>Consideration in discourse.</def>
+<syn><b>Syn.</b> -- To <er>Discuss</er>, <er>Examine</er>, <er>Debate</er>.
+We speak of examining a subject when we ponder it with care.</syn></p></entry>
+<entry main-word="Bridal wreath"><p><def>A flowering shrub.</def>
+<syn><b>Syn. --</b> Saint Peter's wreath, St. Peter's wreath.</syn></p></entry>
+<entry main-word="Dyke"><p><def>A lexical fixture.</def>
+<syn><b>Syn. --</b> dyke[vulgar, deprecatory].</syn></p></entry>
+<entry main-word="Adrenaline"><p><def>A hormone.</def>
+<syn><b>Syn. --</b> epinephrine; 3,4-dihydroxy-1-[1-hydroxy-2-(methylamino)-ethyl]benzene.</syn></p></entry>
+"""
+        entries = parse_gcide_data(source)
+        by_owner = {}
+        for entry in entries:
+            by_owner.setdefault(entry.definition, []).append(entry.headword)
+
+        self.assertEqual(
+            by_owner["Active enmity"],
+            ["Animosity", "Enmity", "hatred", "opposition"],
+        )
+        self.assertEqual(by_owner["A lack of decorum"], ["Indecorum"])
+        self.assertEqual(by_owner["A defect"], ["Fault", "Error", "blemish", "defect"])
+        self.assertEqual(
+            by_owner["To depart"],
+            ["Leave", "quit", "depart from", "forsake"],
+        )
+        self.assertEqual(
+            by_owner["The madder family"],
+            ["Rubiaceae", "family Rubiaceae", "madder family"],
+        )
+        self.assertEqual(by_owner["A bird that pecks"], ["Pecker", "penis", "shaft"])
+        self.assertEqual(
+            by_owner["A pin for the hair"],
+            ["Hairpin", "bobby pin", "hair grip", "kirby grip"],
+        )
+        self.assertEqual(
+            by_owner["Consideration in discourse"],
+            ["Discussion", "Discuss", "Examine", "Debate"],
+        )
+        self.assertEqual(
+            by_owner["A flowering shrub"],
+            ["Bridal wreath", "Saint Peter's wreath", "St. Peter's wreath"],
+        )
+        self.assertEqual(by_owner["A lexical fixture"], ["Dyke", "dyke"])
+        self.assertEqual(
+            by_owner["A hormone"],
+            [
+                "Adrenaline",
+                "epinephrine",
+                "3,4-dihydroxy-1-[1-hydroxy-2-(methylamino)-ethyl]benzene",
+            ],
+        )
+
     def test_duplicate_main_word_wrappers_preserve_independent_senses(self) -> None:
         source = b"""\
 <entry main-word="Repeat"><p><def>First independent sense.</def></p></entry>
@@ -278,6 +391,26 @@ class GcideConverterTests(unittest.TestCase):
 
 
 class EnglishCatalogPublicationTests(unittest.TestCase):
+    def test_starting_a_build_invalidates_the_previous_native_receipt(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            receipt = root / "validation-receipt.json"
+            receipt.write_text("stale", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "source archive does not exist"):
+                build_candidates(
+                    Namespace(
+                        princeton=root / "missing-princeton.tar.bz2",
+                        oewn=root / "missing-oewn.zip",
+                        gcide=root / "missing-gcide.tar.xz",
+                        output_dir=root / "candidate-packages",
+                        catalog=root / "candidate-catalog.json",
+                        receipt=receipt,
+                    )
+                )
+
+            self.assertFalse(receipt.exists())
+
     def test_description_bearing_candidate_cannot_be_published(self) -> None:
         with tempfile.TemporaryDirectory(prefix="archeion-english-publish-") as temporary:
             root = Path(temporary)

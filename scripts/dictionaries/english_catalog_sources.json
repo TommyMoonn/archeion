@@ -15,8 +15,8 @@
       "sourceArchiveSizeBytes": 9060524,
       "sourceArchiveSha256": "6c492d0c7b4a40e7674d088191d3aa11f373bb1da60762e098b8ee2dda96ef22",
       "sourceFormat": "wndb",
-      "packageVersion": "3.0-archeion-5",
-      "packageFileName": "princeton-wordnet-3.0-stardict-archeion-5.tar.xz"
+      "packageVersion": "3.0-archeion-7",
+      "packageFileName": "princeton-wordnet-3.0-stardict-archeion-7.tar.xz"
     },
     {
       "id": "open-english-wordnet-2025-plus",
@@ -27,13 +27,16 @@
       "sourceUrl": "https://github.com/globalwordnet/english-wordnet/releases/tag/2025-edition",
       "licenseName": "Creative Commons Attribution 4.0 International (CC BY 4.0)",
       "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+      "licenseNoticeFile": "licenses/oewn-2025-edition-WNDB_License.txt",
+      "licenseNoticeUrl": "https://raw.githubusercontent.com/globalwordnet/english-wordnet/2025-edition/WNDB_License.txt",
+      "licenseNoticeSha256": "0ea1a748bcc434c2ba082f6c3ad97873e8a278134cc3de7e5eb8a66bc2baa01e",
       "sourceArchiveName": "english-wordnet-2025-plus-index.sense-fixed.zip",
       "sourceArchiveUrl": "https://github.com/globalwordnet/english-wordnet/releases/download/2025-edition/english-wordnet-2025-plus-index.sense-fixed.zip",
       "sourceArchiveSizeBytes": 10979359,
       "sourceArchiveSha256": "8360c45a8e066d9f73ff7682172d70ffae48a2604ac23e5ca7f43abcabc004a6",
       "sourceFormat": "wndb",
-      "packageVersion": "2025-plus-fixed-2026-06-26-archeion-4",
-      "packageFileName": "open-english-wordnet-2025-plus-stardict-archeion-4.tar.xz"
+      "packageVersion": "2025-plus-fixed-2026-06-26-archeion-6",
+      "packageFileName": "open-english-wordnet-2025-plus-stardict-archeion-6.tar.xz"
     },
     {
       "id": "gcide-0-54",
@@ -49,8 +52,8 @@
       "sourceArchiveSizeBytes": 14803080,
       "sourceArchiveSha256": "22416f6f36175b160dc388b7547512514d464473cf7d7c898d738efb26c51d42",
       "sourceFormat": "gcide",
-      "packageVersion": "0.54-archeion-4",
-      "packageFileName": "gcide-0.54-stardict-archeion-4.tar.xz"
+      "packageVersion": "0.54-archeion-6",
+      "packageFileName": "gcide-0.54-stardict-archeion-6.tar.xz"
     }
   ]
 }

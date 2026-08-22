@@ -50,6 +50,9 @@ class SourceSpec:
     source_url: str
     license_name: str
     license_url: str
+    license_notice_path: Path | None
+    license_notice_url: str | None
+    license_notice_sha256: str | None
     source_archive_name: str
     source_archive_url: str
     source_archive_size_bytes: int
@@ -160,6 +163,17 @@ def load_specs(path: Path) -> list[SourceSpec]:
                 source_url=item["sourceUrl"],
                 license_name=item["licenseName"],
                 license_url=item["licenseUrl"],
+                license_notice_path=(
+                    (path.parent / item["licenseNoticeFile"]).resolve()
+                    if item.get("licenseNoticeFile")
+                    else None
+                ),
+                license_notice_url=item.get("licenseNoticeUrl"),
+                license_notice_sha256=(
+                    str(item["licenseNoticeSha256"]).lower()
+                    if item.get("licenseNoticeSha256")
+                    else None
+                ),
                 source_archive_name=item["sourceArchiveName"],
                 source_archive_url=item["sourceArchiveUrl"],
                 source_archive_size_bytes=int(item["sourceArchiveSizeBytes"]),
@@ -186,7 +200,7 @@ def validate_specs(specs: Sequence[SourceSpec]) -> None:
         raise ValueError("English dictionary source ids must be unique.")
     for spec in specs:
         if spec.source_language != "en" or spec.target_language != "en":
-            raise ValueError(f"{spec.id}: Phase 1.3.0.16 sources must be English monolingual.")
+            raise ValueError(f"{spec.id}: Phase 1.3.0.23 sources must be English monolingual.")
         if not spec.source_url.startswith("https://"):
             raise ValueError(f"{spec.id}: source URL must use HTTPS.")
         if not spec.source_archive_url.startswith("https://"):
@@ -195,6 +209,25 @@ def validate_specs(specs: Sequence[SourceSpec]) -> None:
             raise ValueError(f"{spec.id}: source archive size must be positive.")
         if not re.fullmatch(r"[0-9a-f]{64}", spec.source_archive_sha256):
             raise ValueError(f"{spec.id}: source archive SHA-256 must be lowercase hexadecimal.")
+        notice_fields = (
+            spec.license_notice_path,
+            spec.license_notice_url,
+            spec.license_notice_sha256,
+        )
+        if any(value is not None for value in notice_fields) and not all(
+            value is not None for value in notice_fields
+        ):
+            raise ValueError(f"{spec.id}: pinned license notice metadata must be complete.")
+        if spec.license_notice_path is not None:
+            config_root = DEFAULT_CONFIG.parent.resolve()
+            if not spec.license_notice_path.is_relative_to(config_root):
+                raise ValueError(f"{spec.id}: pinned license notice must stay under the maintenance root.")
+            if not str(spec.license_notice_url).startswith("https://"):
+                raise ValueError(f"{spec.id}: pinned license notice URL must use HTTPS.")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(spec.license_notice_sha256)):
+                raise ValueError(
+                    f"{spec.id}: pinned license notice SHA-256 must be lowercase hexadecimal."
+                )
         if not spec.package_file_name.endswith(".tar.xz"):
             raise ValueError(f"{spec.id}: production package must use the supported tar.xz format.")
 
@@ -231,6 +264,23 @@ def verify_source_archive(path: Path, spec: SourceSpec) -> None:
             f"{spec.name}: source archive SHA-256 mismatch: expected "
             f"{spec.source_archive_sha256}, got {digest}."
         )
+
+
+def load_pinned_license_notice(spec: SourceSpec) -> bytes | None:
+    if spec.license_notice_path is None:
+        return None
+    if not spec.license_notice_path.is_file():
+        raise ValueError(
+            f"{spec.name}: pinned license notice is missing: {spec.license_notice_path}"
+        )
+    data = spec.license_notice_path.read_bytes()
+    digest = sha256_bytes(data)
+    if digest != spec.license_notice_sha256:
+        raise ValueError(
+            f"{spec.name}: pinned license notice SHA-256 mismatch: expected "
+            f"{spec.license_notice_sha256}, got {digest}."
+        )
+    return data
 
 
 def find_unique_basename(names: Sequence[str], basename: str) -> str:
@@ -332,6 +382,12 @@ def read_wordnet_entries(
             raise ValueError(f"Expected at most one {basename!r}; found {len(matches)}.")
         if matches:
             aliases.extend(parse_wordnet_exceptions(source.read(matches[0])))
+    indexed_headwords = {entry.headword for entry in entries}
+    # Official exception files can retain mappings for lemmas no longer
+    # present in the matching WNDB data files. Only mappings with an indexed
+    # target can become valid StarDict aliases; build_stardict_resources still
+    # rejects any unsupported alias supplied after this conversion boundary.
+    aliases = [alias for alias in aliases if alias.target_headword in indexed_headwords]
     notice_name = find_optional_notice(names)
     notice = source.read(notice_name) if notice_name is not None else None
     return entries, aliases, notice
@@ -407,19 +463,134 @@ def iter_gcide_paragraphs(text: str) -> Iterable[str]:
         yield text[paragraph_start:]
 
 
+GCIDE_LEADING_BOLD_RE = re.compile(
+    r"^\s*<b\b[^>]*>(?P<label>.*?)</b>\s*(?P<remainder>.*)$",
+    re.IGNORECASE | re.DOTALL,
+)
+GCIDE_SYNONYM_MARKER_RE = re.compile(
+    r"^(?:Synonyms?|Syn\.?)\s*(?:>?\s*(?:--|-|:)\s*)*",
+    re.IGNORECASE,
+)
+GCIDE_SYNONYM_DELIMITER_RE = re.compile(r"\s+--(?:\s+|$)")
+GCIDE_TRAILING_QUALIFIER_RE = re.compile(r"\s*(?:\[[^\[\]]*\]|\([^()]*\))\s*$")
+
+
+def gcide_synonym_list_markup(value: str) -> str:
+    """Return the source-marked lexical-list prefix from one GCIDE synonym block."""
+    markup = value.strip()
+    bold = GCIDE_LEADING_BOLD_RE.match(markup)
+    if bold is not None:
+        label = clean_gcide_text(bold.group("label"))
+        marker = GCIDE_SYNONYM_MARKER_RE.match(label)
+        if marker is not None:
+            embedded_value = label[marker.end() :].strip()
+            markup = " ".join(
+                part for part in (embedded_value, bold.group("remainder").strip()) if part
+            )
+    else:
+        marker = GCIDE_SYNONYM_MARKER_RE.match(markup)
+        if marker is not None:
+            markup = markup[marker.end() :]
+
+    markup = re.sub(r"^\s*(?:>?\s*(?:--|-|:)\s*)+", "", markup)
+    delimiter = GCIDE_SYNONYM_DELIMITER_RE.search(markup)
+    if delimiter is not None:
+        markup = markup[: delimiter.start()]
+
+    square_depth = 0
+    parenthesis_depth = 0
+    inside_tag = False
+    for index, character in enumerate(markup):
+        if character == "<":
+            inside_tag = True
+            continue
+        if inside_tag:
+            if character == ">":
+                inside_tag = False
+            continue
+        if character == "[":
+            square_depth += 1
+            continue
+        if character == "]" and square_depth:
+            square_depth -= 1
+            continue
+        if character == "(":
+            parenthesis_depth += 1
+            continue
+        if character == ")" and parenthesis_depth:
+            parenthesis_depth -= 1
+            continue
+        if character != "." or square_depth or parenthesis_depth:
+            continue
+        following = markup[index + 1 :]
+        if following and not following[0].isspace():
+            continue
+        next_character = following.lstrip()[:1]
+        preceding_word = re.search(r"([A-Za-z]+)$", markup[:index])
+        if (
+            preceding_word is not None
+            and len(preceding_word.group(1)) <= 3
+            and next_character.isupper()
+        ):
+            continue
+        return markup[:index]
+    return markup
+
+
+def split_gcide_synonym_list(value: str) -> list[str]:
+    values: list[str] = []
+    start = 0
+    square_depth = 0
+    parenthesis_depth = 0
+    for index, character in enumerate(value):
+        if character == "[":
+            square_depth += 1
+            continue
+        if character == "]" and square_depth:
+            square_depth -= 1
+            continue
+        if character == "(":
+            parenthesis_depth += 1
+            continue
+        if character == ")" and parenthesis_depth:
+            parenthesis_depth -= 1
+            continue
+        if character not in {",", ";"} or square_depth or parenthesis_depth:
+            continue
+        if (
+            character == ","
+            and index > 0
+            and index + 1 < len(value)
+            and value[index - 1].isdigit()
+            and value[index + 1].isdigit()
+        ):
+            continue
+        values.append(value[start:index])
+        start = index + 1
+    values.append(value[start:])
+    return values
+
+
 def gcide_synonym_values(value: str) -> list[str]:
-    cleaned = clean_gcide_text(value)
-    cleaned = re.sub(
-        r"^(?:Syn\.?|Synonyms?)\s*(?:(?:--|[-:])\s*)?",
-        "",
-        cleaned,
-        flags=re.IGNORECASE,
-    )
-    return [
-        synonym
-        for raw in re.split(r"\s*[,;]\s*", cleaned)
-        if (synonym := raw.strip(" .\t\r\n"))
-    ]
+    lexical_markup = gcide_synonym_list_markup(value)
+    # GCIDE uses <xex> for comparative usage prose inside <syn>. A source
+    # segment that reaches that markup before a list boundary is commentary,
+    # not a sequence of aliases.
+    if re.search(r"<xex\b", lexical_markup, re.IGNORECASE):
+        return []
+
+    cleaned = clean_gcide_text(lexical_markup)
+    synonyms: list[str] = []
+    for raw in split_gcide_synonym_list(cleaned):
+        synonym = raw.strip(" .\t\r\n")
+        while GCIDE_TRAILING_QUALIFIER_RE.search(synonym):
+            synonym = GCIDE_TRAILING_QUALIFIER_RE.sub("", synonym)
+        synonym = re.sub(r"^(?:>?\s*(?:--|-|:)\s*)+", "", synonym)
+        synonym = re.sub(r"(?:\s*(?:--|-|:)\s*)+$", "", synonym)
+        synonym = re.sub(r"^To\s+", "", synonym, flags=re.IGNORECASE).strip()
+        if synonym:
+            synonyms.append(synonym)
+    return synonyms
 
 
 def finish_gcide_entry(state: GcideLexicalEntry, output: list[DictionaryEntry]) -> None:
@@ -517,7 +688,7 @@ def parse_gcide_legacy_paragraphs(text: str) -> list[DictionaryEntry]:
 
 def parse_gcide_data(data: bytes) -> list[DictionaryEntry]:
     """Parse supported GCIDE lexical boundaries without merging adjacent entries."""
-    text = data.decode("utf-8", errors="strict")
+    text = data.decode("iso-8859-1", errors="strict")
     entries: list[DictionaryEntry] = []
     outside_start = 0
     active_attrs: str | None = None
@@ -721,6 +892,13 @@ def build_package(
             ]
         )
     else:
+        if spec.license_notice_path is not None:
+            provenance.extend(
+                [
+                    f"License notice source: {spec.license_notice_url}",
+                    f"License notice SHA-256: {spec.license_notice_sha256}",
+                ]
+            )
         provenance.extend(
             [
                 f"Source archive file: {spec.source_archive_name}",
@@ -749,7 +927,10 @@ def convert_source(
     fixture: bool = False,
 ) -> tuple[list[DictionaryEntry], list[DictionaryAlias], bytes | None]:
     if spec.source_format == "wndb":
-        return read_wordnet_entries(source)
+        entries, aliases, notice = read_wordnet_entries(source)
+        if notice is None:
+            notice = load_pinned_license_notice(spec)
+        return entries, aliases, notice
     if spec.source_format == "gcide":
         entries, notice = read_gcide_entries(
             source, require_complete_alphabet=not fixture
@@ -778,6 +959,7 @@ def catalog_entry(spec: SourceSpec, built: BuiltPackage) -> dict[str, object]:
 
 
 def build_candidates(args: argparse.Namespace) -> None:
+    args.receipt.unlink(missing_ok=True)
     specs = load_specs(DEFAULT_CONFIG)
     supplied = {
         "princeton-wordnet-3-0": args.princeton,
@@ -804,7 +986,6 @@ def build_candidates(args: argparse.Namespace) -> None:
     ).encode("utf-8")
     args.output_dir.mkdir(parents=True, exist_ok=True)
     args.catalog.parent.mkdir(parents=True, exist_ok=True)
-    args.receipt.unlink(missing_ok=True)
     for spec, built in built_packages:
         replace_file_atomically(args.output_dir / spec.package_file_name, built.bytes)
     replace_file_atomically(args.catalog, catalog_bytes)
