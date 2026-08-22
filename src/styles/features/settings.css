@@ -551,6 +551,15 @@ html[data-motion="on"] .settings-status {
   justify-self: start;
 }
 
+.dictionary-settings__available {
+  display: grid;
+  gap: 12px;
+}
+
+.dictionary-settings__filter.input-shell {
+  width: min(100%, 360px);
+}
+
 .dictionary-settings__list {
   display: grid;
   gap: 10px;

@@ -4,7 +4,11 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { DictionaryCatalogSnapshot, InstalledDictionary } from "../../../types/dictionary";
+import type {
+  DictionaryCatalogEntry,
+  DictionaryCatalogSnapshot,
+  InstalledDictionary,
+} from "../../../types/dictionary";
 import type { DictionarySettingsController } from "../useDictionarySettings";
 import { DictionarySettingsView } from "./DictionarySettingsSection";
 
@@ -36,6 +40,38 @@ const catalog: DictionaryCatalogSnapshot = {
   ],
   schemaVersion: 1,
   source: "network",
+};
+
+function catalogEntry(
+  overrides: Partial<DictionaryCatalogEntry> & Pick<DictionaryCatalogEntry, "id" | "name">,
+): DictionaryCatalogEntry {
+  return {
+    ...catalog.entries[0],
+    ...overrides,
+  };
+}
+
+const expandedCatalog: DictionaryCatalogSnapshot = {
+  ...catalog,
+  entries: [
+    catalog.entries[0],
+    catalogEntry({
+      description: "French definitions with English translations.",
+      id: "french-essentials",
+      name: "Le Mot Juste",
+      sourceAttribution: "Lexique Collective",
+      sourceLanguage: "fr",
+      targetLanguage: "en",
+    }),
+    catalogEntry({
+      description: "English definitions with German translations.",
+      id: "german-companion",
+      name: "Crossword Bridge",
+      sourceAttribution: "Wortschatz Institute",
+      sourceLanguage: "en",
+      targetLanguage: "de",
+    }),
+  ],
 };
 
 function installed(overrides: Partial<InstalledDictionary> = {}): InstalledDictionary {
@@ -124,6 +160,23 @@ function renderView(value: DictionarySettingsController) {
   return container;
 }
 
+function filterCatalog(container: HTMLElement, query: string) {
+  const input = container.querySelector<HTMLInputElement>('input[type="search"]');
+  if (!input) throw new Error("Catalog filter was not rendered");
+  expect(input.labels?.[0]?.textContent).toBe("Filter available dictionaries");
+  const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+  act(() => {
+    valueSetter?.call(input, query);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+}
+
+function renderedCatalogIds(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>("[data-catalog-id]"), (entry) =>
+    entry.getAttribute("data-catalog-id"),
+  );
+}
+
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
     (this as DialogElementWithOpen).open = true;
@@ -198,6 +251,67 @@ describe("DictionarySettingsView", () => {
     act(() => button(container, "Installed (2)").click());
     expect(container.textContent).toContain("English");
     expect(container.textContent).toContain("English → French");
+  });
+
+  it.each([
+    ["bridge", "german-companion"],
+    ["lexique", "french-essentials"],
+    ["french", "french-essentials"],
+    ["german", "german-companion"],
+  ])("filters the loaded catalog by user-facing metadata for %s", (query, expectedId) => {
+    const value = controller({ catalog: expandedCatalog });
+    const container = renderView(value);
+
+    filterCatalog(container, query);
+
+    expect(renderedCatalogIds(container)).toEqual([expectedId]);
+    expect(value.refreshCatalog).not.toHaveBeenCalled();
+    expect(value.installCatalog).not.toHaveBeenCalled();
+  });
+
+  it("restores catalog order when cleared and keeps installed actions bound to each result", () => {
+    const value = controller({
+      catalog: expandedCatalog,
+      registry: {
+        dictionaries: [installed({ catalogId: "english-core", indexState: "ready" })],
+        recovery: null,
+        status: "ready",
+      },
+    });
+    const container = renderView(value);
+    const productionOrder = ["english-core", "french-essentials", "german-companion"];
+
+    expect(renderedCatalogIds(container)).toEqual(productionOrder);
+    filterCatalog(container, "English Core");
+    expect(renderedCatalogIds(container)).toEqual(["english-core"]);
+    expect(container.querySelector("[data-catalog-id='english-core']")?.textContent).toContain(
+      "Installed",
+    );
+    expect(button(container, "Download").getAttribute("aria-disabled")).toBe("true");
+
+    filterCatalog(container, "Wortschatz");
+    expect(renderedCatalogIds(container)).toEqual(["german-companion"]);
+    act(() => button(container, "Download").click());
+    expect(value.installCatalog).toHaveBeenCalledWith("german-companion");
+
+    filterCatalog(container, "");
+    expect(renderedCatalogIds(container)).toEqual(productionOrder);
+  });
+
+  it("distinguishes no filter matches from an empty catalog", () => {
+    const filteredValue = controller({ catalog: expandedCatalog });
+    const filteredContainer = renderView(filteredValue);
+
+    filterCatalog(filteredContainer, "no such dictionary");
+    expect(filteredContainer.textContent).toContain("No dictionaries match this filter.");
+    expect(filteredContainer.textContent).not.toContain("No catalog has been loaded yet.");
+    expect(filteredValue.refreshCatalog).not.toHaveBeenCalled();
+    expect(filteredValue.installCatalog).not.toHaveBeenCalled();
+
+    const emptyContainer = renderView(controller({ catalog: { ...catalog, entries: [] } }));
+    expect(emptyContainer.textContent).toContain("No catalog has been loaded yet.");
+    expect(emptyContainer.textContent).not.toContain("No dictionaries match this filter.");
+    expect(emptyContainer.querySelector('input[type="search"]')).toBeNull();
   });
 
   it("exposes installed enable, order, rebuild, and confirmed removal actions", async () => {

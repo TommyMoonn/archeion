@@ -5,6 +5,7 @@ import {
   FilePlus2,
   RefreshCw,
   RotateCcw,
+  Search,
   Trash2,
 } from "lucide-react";
 import { useLayoutEffect, useRef, useState, type RefCallback } from "react";
@@ -12,6 +13,7 @@ import { useLayoutEffect, useRef, useState, type RefCallback } from "react";
 import { Button } from "../../../components/Button";
 import { Dialog } from "../../../components/Dialog";
 import { IconButton } from "../../../components/IconButton";
+import { Input } from "../../../components/Input";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
 import type { DictionaryCatalogEntry, InstalledDictionary } from "../../../types/dictionary";
@@ -22,6 +24,17 @@ import { useDictionarySettings, type DictionarySettingsController } from "../use
 type DictionaryView = "available" | "installed";
 
 const EMPTY_DICTIONARIES: InstalledDictionary[] = [];
+
+function catalogEntryMatchesQuery(entry: DictionaryCatalogEntry, query: string) {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  if (!normalizedQuery) return true;
+
+  return [
+    entry.name,
+    entry.sourceAttribution,
+    formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage),
+  ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+}
 
 function catalogActionLabel(
   entry: DictionaryCatalogEntry,
@@ -298,6 +311,7 @@ export function DictionarySettingsView({
   controller: DictionarySettingsController;
 }) {
   const [view, setView] = useState<DictionaryView>("available");
+  const [catalogQuery, setCatalogQuery] = useState("");
   const [removing, setRemoving] = useState<InstalledDictionary | null>(null);
   const [removeTrigger, setRemoveTrigger] = useState<HTMLButtonElement | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
@@ -309,6 +323,10 @@ export function DictionarySettingsView({
     ) ?? [],
   );
   const dictionaries = controller.registry?.dictionaries ?? EMPTY_DICTIONARIES;
+  const catalogEntries = controller.catalog?.entries ?? [];
+  const filteredCatalogEntries = catalogEntries.filter((entry) =>
+    catalogEntryMatchesQuery(entry, catalogQuery),
+  );
 
   useLayoutEffect(() => {
     const neighboringDictionaryIds = successfulRemovalFocusRef.current;
@@ -397,42 +415,60 @@ export function DictionarySettingsView({
       {view === "available" ? (
         <div
           aria-label="Available dictionaries"
-          className="dictionary-settings__list"
+          className="dictionary-settings__available"
           role="region"
         >
-          {controller.catalogError ? (
-            <div className="dictionary-settings__notice" role="alert">
-              <p>{controller.catalogError}</p>
-              <Button
-                onClick={() => void controller.refreshCatalog()}
-                size="compact"
-                variant="secondary"
-              >
-                Try again
-              </Button>
-            </div>
-          ) : null}
-          {controller.catalogState === "loading" ? <p>Loading available dictionaries…</p> : null}
-          {controller.catalogState === "ready" &&
-          (controller.catalog?.entries.length ?? 0) === 0 ? (
-            <div className="dictionary-settings__notice">
-              <p>No catalog has been loaded yet.</p>
-              <Button onClick={() => void controller.refreshCatalog()} size="compact">
-                Refresh catalog
-              </Button>
-            </div>
-          ) : null}
-          {controller.catalog?.cacheWarning ? (
-            <p className="dictionary-settings__warning">{controller.catalog.cacheWarning}</p>
-          ) : null}
-          {controller.catalog?.entries.map((entry) => (
-            <AvailableDictionaryRow
-              controller={controller}
-              entry={entry}
-              installed={installedCatalogIds.has(entry.id)}
-              key={entry.id}
+          {catalogEntries.length > 0 ? (
+            <Input
+              autoComplete="off"
+              className="dictionary-settings__filter"
+              icon={<Search aria-hidden="true" />}
+              label="Filter available dictionaries"
+              onChange={(event) => setCatalogQuery(event.currentTarget.value)}
+              placeholder="Filter dictionaries"
+              size="standard"
+              type="search"
+              value={catalogQuery}
             />
-          ))}
+          ) : null}
+          <div className="dictionary-settings__list">
+            {controller.catalogError ? (
+              <div className="dictionary-settings__notice" role="alert">
+                <p>{controller.catalogError}</p>
+                <Button
+                  onClick={() => void controller.refreshCatalog()}
+                  size="compact"
+                  variant="secondary"
+                >
+                  Try again
+                </Button>
+              </div>
+            ) : null}
+            {controller.catalogState === "loading" ? <p>Loading available dictionaries…</p> : null}
+            {controller.catalogState === "ready" &&
+            (controller.catalog?.entries.length ?? 0) === 0 ? (
+              <div className="dictionary-settings__notice">
+                <p>No catalog has been loaded yet.</p>
+                <Button onClick={() => void controller.refreshCatalog()} size="compact">
+                  Refresh catalog
+                </Button>
+              </div>
+            ) : null}
+            {controller.catalog?.cacheWarning ? (
+              <p className="dictionary-settings__warning">{controller.catalog.cacheWarning}</p>
+            ) : null}
+            {catalogEntries.length > 0 && filteredCatalogEntries.length === 0 ? (
+              <p className="dictionary-settings__empty">No dictionaries match this filter.</p>
+            ) : null}
+            {filteredCatalogEntries.map((entry) => (
+              <AvailableDictionaryRow
+                controller={controller}
+                entry={entry}
+                installed={installedCatalogIds.has(entry.id)}
+                key={entry.id}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <div
