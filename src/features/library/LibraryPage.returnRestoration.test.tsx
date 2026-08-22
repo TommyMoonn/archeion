@@ -329,6 +329,7 @@ describe("mounted reader-return surfaces", () => {
 
     const origin = await waitForButtonWithLabel(session.container, "Open Star Saga");
     origin.focus();
+    await import("../series/SeriesDetail");
     act(() => origin.click());
 
     const back = await waitForButtonWithText(session.container, "All series");
