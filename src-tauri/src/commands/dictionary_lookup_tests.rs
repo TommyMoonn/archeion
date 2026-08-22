@@ -9,7 +9,8 @@ use flate2::{Compress, Compression, FlushCompress, Status};
 
 use super::{
     decode_definition, read_dictzip_range, DictionaryLookupError, DictionaryLookupService,
-    MAX_DEFINITION_BYTES_PER_ENTRY, MAX_LOOKUP_TERM_CHARS, MAX_TOTAL_RESULT_BYTES,
+    MAX_DEFINITION_BYTES_PER_ENTRY, MAX_LOOKUP_CANDIDATES, MAX_LOOKUP_TERM_CHARS,
+    MAX_TOTAL_RESULT_BYTES,
 };
 use crate::commands::{
     dictionary_store::{
@@ -216,6 +217,225 @@ fn exact_normalized_phrase_and_synonym_lookup_return_safe_text() {
         lookup(directory.path(), "FRUIT").entries[0].display_headword,
         "Apple"
     );
+}
+
+#[test]
+fn regular_morphology_resolves_lemma_only_english_entries() {
+    let directory = TestDirectory::new("english-regular-morphology");
+    install_dictionary(
+        directory.path(),
+        "Lemmas",
+        vec![
+            ("walk", b"walk lemma".to_vec()),
+            ("make", b"make lemma".to_vec()),
+            ("study", b"study lemma".to_vec()),
+            ("run", b"run lemma".to_vec()),
+            ("class", b"class lemma".to_vec()),
+            ("happy", b"happy lemma".to_vec()),
+            ("big", b"big lemma".to_vec()),
+            ("large", b"large lemma".to_vec()),
+            ("box", b"box lemma".to_vec()),
+            ("watch", b"watch lemma".to_vec()),
+        ],
+        Vec::new(),
+        true,
+        false,
+    );
+
+    for (inflection, lemma) in [
+        ("((WALKED!))", "walk"),
+        ("making", "make"),
+        ("studied", "study"),
+        ("running", "run"),
+        ("classes", "class"),
+        ("happier", "happy"),
+        ("happiest", "happy"),
+        ("bigger", "big"),
+        ("largest", "large"),
+        ("boxes", "box"),
+        ("watches", "watch"),
+    ] {
+        let response = lookup(directory.path(), inflection);
+        assert_eq!(response.entries.len(), 1, "lookup for {inflection}");
+        assert_eq!(response.entries[0].display_headword, lemma);
+    }
+
+    assert!(lookup(directory.path(), "ice creams").entries.is_empty());
+    assert!(lookup(directory.path(), "quartz").entries.is_empty());
+    assert!(lookup(directory.path(), "press").entries.is_empty());
+
+    install_dictionary(
+        directory.path(),
+        "Exact surface",
+        vec![("walked", b"exact surface".to_vec())],
+        Vec::new(),
+        true,
+        false,
+    );
+    let exact = lookup(directory.path(), "walked");
+    assert_eq!(exact.entries.len(), 1);
+    assert_eq!(exact.entries[0].display_headword, "walked");
+}
+
+#[test]
+fn morphology_lookup_keeps_query_and_result_budgets() {
+    let directory = TestDirectory::new("morphology-limits");
+    let entry_count = MAX_LOOKUP_CANDIDATES + 8;
+    install_dictionary(
+        directory.path(),
+        "Many lemmas",
+        (0..entry_count)
+            .map(|index| ("walk", format!("definition {index}").into_bytes()))
+            .collect(),
+        Vec::new(),
+        true,
+        false,
+    );
+
+    let response = lookup(directory.path(), "walked");
+    assert_eq!(response.entries.len(), super::MAX_LOOKUP_RESULTS);
+    assert!(response.truncated);
+}
+
+#[test]
+fn morphology_rejects_invalid_collisions_and_preserves_real_ambiguity() {
+    let directory = TestDirectory::new("morphology-collisions");
+    install_dictionary(
+        directory.path(),
+        "Collision lemmas",
+        vec![
+            ("hop", b"mechanical hop".to_vec()),
+            ("us", b"mechanical us".to_vec()),
+            ("cut", b"mechanical cut".to_vec()),
+            ("classe", b"mechanical classe".to_vec()),
+            ("runn", b"mechanical runn".to_vec()),
+            ("bigg", b"mechanical bigg".to_vec()),
+            ("pas", b"mechanical pas".to_vec()),
+            ("gass", b"mechanical gass".to_vec()),
+            ("buse", b"mechanical buse".to_vec()),
+            ("the", b"mechanical the".to_vec()),
+            ("bee", b"mechanical bee".to_vec()),
+            ("be", b"mechanical be".to_vec()),
+            ("he", b"mechanical he".to_vec()),
+            ("pry", b"mechanical pry".to_vec()),
+            ("fore", b"mechanical fore".to_vec()),
+            ("flow", b"mechanical flow".to_vec()),
+            ("new", b"mechanical new".to_vec()),
+            ("movy", b"mechanical movy".to_vec()),
+            ("unty", b"mechanical unty".to_vec()),
+            ("bet", b"mechanical bet".to_vec()),
+            ("use", b"mechanical use".to_vec()),
+        ],
+        Vec::new(),
+        true,
+        false,
+    );
+
+    for surface in [
+        "hoped", "used", "cuter", "classes", "running", "bigger", "passed", "gassed", "buses",
+        "leaves", "thing", "being", "best", "her", "priest", "forest", "flower", "news", "movies",
+        "untied", "better", "user",
+    ] {
+        assert!(
+            lookup(directory.path(), surface).entries.is_empty(),
+            "lookup for {surface} must wait for package-owned lexical data"
+        );
+    }
+}
+
+#[test]
+fn package_alias_resolves_a_lexical_inflection_before_runtime_morphology() {
+    let directory = TestDirectory::new("morphology-package-alias");
+    install_dictionary(
+        directory.path(),
+        "Package aliases",
+        vec![
+            ("gas", b"intended gas".to_vec()),
+            ("gass", b"unrelated gass".to_vec()),
+            ("leaf", b"leaf lemma".to_vec()),
+            ("leave", b"leave lemma".to_vec()),
+            ("walk", b"runtime walk candidate".to_vec()),
+            ("stride", b"authoritative alias target".to_vec()),
+        ],
+        vec![("gassed", 0), ("leaves", 2), ("leaves", 3), ("walked", 5)],
+        true,
+        false,
+    );
+
+    let response = lookup(directory.path(), "gassed");
+    assert_eq!(response.entries.len(), 1);
+    assert_eq!(response.entries[0].display_headword, "gas");
+
+    let response = lookup(directory.path(), "walked");
+    assert_eq!(response.entries.len(), 1);
+    assert_eq!(response.entries[0].display_headword, "stride");
+
+    assert_eq!(
+        lookup(directory.path(), "leaves")
+            .entries
+            .iter()
+            .map(|entry| entry.display_headword.as_str())
+            .collect::<Vec<_>>(),
+        ["leaf", "leave"]
+    );
+}
+
+#[test]
+fn morphology_preserves_dictionary_order_and_does_not_cross_language_scope() {
+    let directory = TestDirectory::new("morphology-scope-order");
+    let first = install_dictionary(
+        directory.path(),
+        "First",
+        vec![("class", b"second candidate".to_vec())],
+        Vec::new(),
+        true,
+        false,
+    );
+    let second = install_dictionary(
+        directory.path(),
+        "Second",
+        vec![
+            ("classe", b"first candidate".to_vec()),
+            ("class", b"second candidate".to_vec()),
+        ],
+        Vec::new(),
+        true,
+        false,
+    );
+    let non_english = install_dictionary(
+        directory.path(),
+        "French",
+        vec![("walk", b"non-English entry".to_vec())],
+        Vec::new(),
+        true,
+        false,
+    );
+    let store = open_current_store(directory.path()).unwrap();
+    store
+        .connection()
+        .execute(
+            "UPDATE installed_dictionaries
+             SET source_language = 'fr', target_language = 'en'
+             WHERE dictionary_id = ?1",
+            [&non_english.id],
+        )
+        .unwrap();
+    drop(store);
+
+    let response = lookup(directory.path(), "classes");
+    assert_eq!(
+        response
+            .entries
+            .iter()
+            .map(|entry| (
+                entry.dictionary_id.as_str(),
+                entry.display_headword.as_str()
+            ))
+            .collect::<Vec<_>>(),
+        [(first.id.as_str(), "class"), (second.id.as_str(), "class"),]
+    );
+
+    assert!(lookup(directory.path(), "walked").entries.is_empty());
 }
 
 #[test]

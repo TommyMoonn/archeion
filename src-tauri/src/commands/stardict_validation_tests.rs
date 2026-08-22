@@ -172,6 +172,53 @@ fn representative_english_catalog_packages_use_the_existing_stardict_contract() 
         );
         assert_eq!(package.metadata.same_type_sequence.as_deref(), Some("m"));
 
+        match label {
+            "princeton" => {
+                for expected in [
+                    "entities", "knives", "wolves", "gassed", "gasses", "gassing",
+                ] {
+                    assert!(
+                        package.synonyms.iter().any(|alias| alias.word == expected),
+                        "the Princeton fixture should preserve its {expected} exception alias"
+                    );
+                }
+                assert_eq!(
+                    package
+                        .synonyms
+                        .iter()
+                        .filter(|alias| alias.word == "leaves")
+                        .count(),
+                    2,
+                    "the Princeton fixture should preserve both package-owned leaves mappings"
+                );
+                for fabricated in [
+                    "goed",
+                    "maked",
+                    "runned",
+                    "buss",
+                    "quizes",
+                    "controled",
+                    "controling",
+                ] {
+                    assert!(
+                        package
+                            .synonyms
+                            .iter()
+                            .all(|alias| alias.word != fabricated),
+                        "the Princeton fixture must not fabricate {fabricated}"
+                    );
+                }
+            }
+            "oewn" => assert!(
+                package
+                    .synonyms
+                    .iter()
+                    .any(|alias| alias.word == "public houses"),
+                "the OEWN fixture should preserve its exception alias"
+            ),
+            _ => {}
+        }
+
         if label == "gcide" {
             assert!(
                 package.entries.iter().any(|entry| entry.word == "maanhaar"),

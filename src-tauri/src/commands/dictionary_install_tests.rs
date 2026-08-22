@@ -254,9 +254,9 @@ fn representative_english_catalog_packages_install_index_and_lookup_through_exis
             "Princeton WordNet 3.0",
             "Princeton University WordNet 3.0",
             PRINCETON_REPRESENTATIVE_PACKAGE,
-            "entity",
-            "that which is perceived or known or inferred to have its own distinct existence",
-            None,
+            "gas",
+            "expose to a gaseous substance as part of a process",
+            Some("gassed"),
         ),
         (
             "open-english-wordnet-2025-plus",
@@ -265,7 +265,7 @@ fn representative_english_catalog_packages_install_index_and_lookup_through_exis
             OEWN_REPRESENTATIVE_PACKAGE,
             "pub",
             "tavern consisting of a building with a bar and public rooms",
-            None,
+            Some("public houses"),
         ),
         (
             "gcide-0-54",
@@ -330,6 +330,61 @@ fn representative_english_catalog_packages_install_index_and_lookup_through_exis
                     .any(|block| block.contains(expected_definition)),
                 "{id} should retain the representative alias/synonym lookup"
             );
+        }
+
+        if id == "princeton-wordnet-3-0" {
+            assert_eq!(
+                DictionaryLookupService
+                    .lookup(directory.path(), "leaves")
+                    .expect("package-owned ambiguous alias lookup should succeed")
+                    .entries
+                    .iter()
+                    .filter(|result| result.dictionary_id == installed.id)
+                    .map(|result| result.display_headword.as_str())
+                    .collect::<Vec<_>>(),
+                ["leaf", "leave"]
+            );
+            for (surface, lemma) in [
+                ("walked", "walk"),
+                ("studied", "study"),
+                ("stories", "story"),
+                ("making", "make"),
+                ("running", "run"),
+                ("happier", "happy"),
+                ("bigger", "big"),
+                ("largest", "large"),
+                ("classes", "class"),
+                ("boxes", "box"),
+                ("watches", "watch"),
+            ] {
+                let response = DictionaryLookupService
+                    .lookup(directory.path(), surface)
+                    .expect("regular morphology lookup should succeed");
+                assert_eq!(
+                    response
+                        .entries
+                        .iter()
+                        .filter(|result| result.dictionary_id == installed.id)
+                        .map(|result| result.display_headword.as_str())
+                        .collect::<Vec<_>>(),
+                    [lemma],
+                    "{surface} should resolve through the installed English lemma"
+                );
+            }
+            for (surface, lemma) in [("wolves", "wolf"), ("knives", "knife")] {
+                let response = DictionaryLookupService
+                    .lookup(directory.path(), surface)
+                    .expect("source exception alias lookup should succeed");
+                assert_eq!(
+                    response
+                        .entries
+                        .iter()
+                        .filter(|result| result.dictionary_id == installed.id)
+                        .map(|result| result.display_headword.as_str())
+                        .collect::<Vec<_>>(),
+                    [lemma]
+                );
+            }
         }
     }
 }

@@ -15,6 +15,7 @@ pub(crate) mod dictionary_install;
 pub(crate) mod dictionary_language;
 pub(crate) mod dictionary_lookup;
 pub(crate) mod dictionary_maintenance;
+pub(crate) mod dictionary_morphology;
 pub(crate) mod dictionary_recovery_registry;
 pub(crate) mod dictionary_request;
 pub(crate) mod dictionary_store;

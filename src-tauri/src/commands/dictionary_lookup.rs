@@ -11,6 +11,7 @@ use serde::Serialize;
 
 use super::{
     dictionary_index::{normalize_dictionary_term, DictionaryLookupEntry},
+    dictionary_morphology::english_lemma_candidates,
     dictionary_store::{open_current_store, DictionaryStoreError},
     stardict_validation,
 };
@@ -58,7 +59,11 @@ impl DictionaryLookupService {
         }
 
         let store = open_current_store(app_data_root)?;
-        let candidates = store.lookup_exact(&normalized_query, MAX_LOOKUP_CANDIDATES)?;
+        let mut candidates = store.lookup_exact(&normalized_query, MAX_LOOKUP_CANDIDATES)?;
+        if candidates.is_empty() {
+            let lemmas = english_lemma_candidates(&normalized_query);
+            candidates = store.lookup_english_lemmas(&lemmas, MAX_LOOKUP_CANDIDATES)?;
+        }
         let mut sources = HashMap::new();
         let mut entries = Vec::new();
         let mut response_bytes = 64 + json_size(&normalized_query);

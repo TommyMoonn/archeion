@@ -17,15 +17,146 @@ from build_english_catalog_packages import (
     DEFAULT_CONFIG,
     DOWNLOAD_BASE,
     DirectorySource,
+    DictionaryAlias,
     build_package,
     candidate_metadata,
     fixture_source_dir,
     fixture_specs,
     load_specs,
     parse_gcide_data,
+    parse_wordnet_exceptions,
     publish_candidates,
     read_gcide_entries,
+    read_wordnet_entries,
 )
+
+
+class WordNetConverterTests(unittest.TestCase):
+    def test_exception_files_become_deterministic_stardict_aliases(self) -> None:
+        spec = next(
+            spec
+            for spec in fixture_specs()
+            if spec.id == "open-english-wordnet-2025-plus"
+        )
+        with DirectorySource(fixture_source_dir(spec)) as source:
+            entries, aliases, notice = read_wordnet_entries(source)
+
+        self.assertEqual(
+            aliases, [DictionaryAlias("public houses", "public house")]
+        )
+        self.assertIn("pub", [entry.headword for entry in entries])
+        first = build_package(
+            spec,
+            entries,
+            notice,
+            aliases=aliases,
+            package_stem="wordnet-exceptions-test",
+        )
+        second = build_package(
+            spec,
+            entries,
+            notice,
+            aliases=aliases,
+            package_stem="wordnet-exceptions-test",
+        )
+        self.assertEqual(first.bytes, second.bytes)
+
+        with tarfile.open(
+            fileobj=io.BytesIO(lzma.decompress(first.bytes)), mode="r:"
+        ) as archive:
+            synonym = archive.extractfile(
+                "wordnet-exceptions-test/wordnet-exceptions-test.syn"
+            )
+            metadata = archive.extractfile(
+                "wordnet-exceptions-test/wordnet-exceptions-test.ifo"
+            )
+            self.assertIsNotNone(synonym)
+            self.assertIsNotNone(metadata)
+            if synonym is None or metadata is None:
+                self.fail("generated WordNet package is missing alias resources")
+            self.assertIn(b"public houses\0", synonym.read())
+            self.assertIn("synwordcount=", metadata.read().decode("utf-8"))
+
+    def test_exception_parser_rejects_incomplete_mappings(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Malformed WordNet exception mapping"):
+            parse_wordnet_exceptions(b"orphan\n")
+
+    def test_source_exception_mappings_are_the_only_inflection_aliases(self) -> None:
+        spec = next(
+            spec for spec in fixture_specs() if spec.id == "princeton-wordnet-3-0"
+        )
+        with DirectorySource(fixture_source_dir(spec)) as source:
+            entries, aliases, notice = read_wordnet_entries(source)
+
+        self.assertEqual(
+            set(aliases),
+            {
+                DictionaryAlias("entities", "entity"),
+                DictionaryAlias("knives", "knife"),
+                DictionaryAlias("leaves", "leaf"),
+                DictionaryAlias("wolves", "wolf"),
+                DictionaryAlias("gassed", "gas"),
+                DictionaryAlias("gasses", "gas"),
+                DictionaryAlias("gassing", "gas"),
+                DictionaryAlias("leaves", "leave"),
+            },
+        )
+        for fabricated in [
+            "goed",
+            "maked",
+            "runned",
+            "buss",
+            "quizes",
+            "controled",
+            "controling",
+        ]:
+            self.assertFalse(any(alias.headword == fabricated for alias in aliases))
+        built = build_package(
+            spec,
+            entries,
+            notice,
+            aliases=aliases,
+            package_stem="wordnet-lexical-inflection-test",
+        )
+        with tarfile.open(
+            fileobj=io.BytesIO(lzma.decompress(built.bytes)), mode="r:"
+        ) as archive:
+            synonym = archive.extractfile(
+                "wordnet-lexical-inflection-test/wordnet-lexical-inflection-test.syn"
+            )
+            self.assertIsNotNone(synonym)
+            if synonym is None:
+                self.fail("generated WordNet package is missing lexical aliases")
+            synonym_bytes = synonym.read()
+            self.assertIn(b"gassed\0", synonym_bytes)
+            self.assertEqual(synonym_bytes.count(b"leaves\0"), 2)
+            for fabricated in [
+                b"goed\0",
+                b"maked\0",
+                b"runned\0",
+                b"buss\0",
+                b"quizes\0",
+                b"controled\0",
+                b"controling\0",
+            ]:
+                self.assertNotIn(fabricated, synonym_bytes)
+
+    def test_exception_alias_must_reference_a_generated_lemma(self) -> None:
+        spec = next(
+            spec
+            for spec in fixture_specs()
+            if spec.id == "princeton-wordnet-3-0"
+        )
+        with DirectorySource(fixture_source_dir(spec)) as source:
+            entries, _, notice = read_wordnet_entries(source)
+        with self.assertRaisesRegex(ValueError, "references missing lemma"):
+            build_package(
+                spec,
+                entries,
+                notice,
+                aliases=[DictionaryAlias("missing forms", "missing lemma")],
+                package_stem="wordnet-invalid-alias-test",
+            )
 
 
 class GcideConverterTests(unittest.TestCase):

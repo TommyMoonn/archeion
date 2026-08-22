@@ -66,6 +66,12 @@ class DictionaryEntry:
 
 
 @dataclass(frozen=True)
+class DictionaryAlias:
+    headword: str
+    target_headword: str
+
+
+@dataclass(frozen=True)
 class BuiltPackage:
     bytes: bytes
     installed_size_bytes: int
@@ -285,9 +291,29 @@ def parse_wndb_data(data: bytes) -> list[DictionaryEntry]:
     return entries
 
 
-def read_wordnet_entries(source: SourceArchive | DirectorySource) -> tuple[list[DictionaryEntry], bytes | None]:
+def parse_wordnet_exceptions(data: bytes) -> list[DictionaryAlias]:
+    aliases: list[DictionaryAlias] = []
+    for line_number, raw_line in enumerate(
+        data.decode("utf-8", errors="strict").splitlines(), start=1
+    ):
+        fields = raw_line.split()
+        if not fields:
+            continue
+        if len(fields) < 2:
+            raise ValueError(
+                f"Malformed WordNet exception mapping on line {line_number}."
+            )
+        alias = fields[0].replace("_", " ")
+        for lemma in fields[1:]:
+            aliases.append(DictionaryAlias(alias, lemma.replace("_", " ")))
+    return aliases
+
+
+def read_wordnet_entries(
+    source: SourceArchive | DirectorySource,
+) -> tuple[list[DictionaryEntry], list[DictionaryAlias], bytes | None]:
     names = source.names()
-    data_names = []
+    data_names: list[str] = []
     for basename in ["data.noun", "data.verb", "data.adj", "data.adv"]:
         matches = [name for name in names if PurePosixPath(name).name == basename]
         if len(matches) > 1:
@@ -299,9 +325,16 @@ def read_wordnet_entries(source: SourceArchive | DirectorySource) -> tuple[list[
     entries: list[DictionaryEntry] = []
     for name in data_names:
         entries.extend(parse_wndb_data(source.read(name)))
+    aliases: list[DictionaryAlias] = []
+    for basename in ["noun.exc", "verb.exc", "adj.exc", "adv.exc"]:
+        matches = [name for name in names if PurePosixPath(name).name == basename]
+        if len(matches) > 1:
+            raise ValueError(f"Expected at most one {basename!r}; found {len(matches)}.")
+        if matches:
+            aliases.extend(parse_wordnet_exceptions(source.read(matches[0])))
     notice_name = find_optional_notice(names)
     notice = source.read(notice_name) if notice_name is not None else None
-    return entries, notice
+    return entries, aliases, notice
 
 
 GCIDE_ENTRY_BOUNDARY_RE = re.compile(
@@ -558,6 +591,7 @@ def build_stardict_resources(
     book_name: str,
     entries: Iterable[DictionaryEntry],
     source_url: str,
+    aliases: Iterable[DictionaryAlias] = (),
 ) -> dict[str, bytes]:
     ordered = sorted(
         (entry for entry in entries if entry.definition),
@@ -567,7 +601,8 @@ def build_stardict_resources(
         raise ValueError(f"{book_name}: conversion produced no dictionary entries.")
     definition_bytes = bytearray()
     index_bytes = bytearray()
-    for entry in ordered:
+    headword_indices: dict[str, list[int]] = {}
+    for index, entry in enumerate(ordered):
         encoded_definition = entry.definition.encode("utf-8")
         offset = len(definition_bytes)
         if offset > 0xFFFF_FFFF:
@@ -578,20 +613,47 @@ def build_stardict_resources(
         index_bytes.extend(entry.headword.encode("utf-8"))
         index_bytes.append(0)
         index_bytes.extend(struct.pack(">II", offset, len(encoded_definition)))
+        headword_indices.setdefault(entry.headword, []).append(index)
+    synonym_entries = set()
+    for alias in aliases:
+        targets = headword_indices.get(alias.target_headword)
+        if not targets:
+            raise ValueError(
+                f"{book_name}: exception alias {alias.headword!r} references missing "
+                f"lemma {alias.target_headword!r}."
+            )
+        for target in targets:
+            synonym_entries.add((alias.headword, target))
+    ordered_synonyms = sorted(
+        synonym_entries,
+        key=lambda item: (ascii_casefold_key(item[0]), item[1]),
+    )
+    synonym_bytes = bytearray()
+    for alias, target in ordered_synonyms:
+        synonym_bytes.extend(alias.encode("utf-8"))
+        synonym_bytes.append(0)
+        synonym_bytes.extend(struct.pack(">I", target))
+    synonym_metadata = (
+        f"synwordcount={len(ordered_synonyms)}\n" if ordered_synonyms else ""
+    )
     ifo = (
         "StarDict's dict ifo file\n"
         f"version={STARDICT_VERSION}\n"
         f"bookname={book_name}\n"
         f"wordcount={len(ordered)}\n"
         f"idxfilesize={len(index_bytes)}\n"
+        f"{synonym_metadata}"
         "sametypesequence=m\n"
         f"website={source_url}\n"
     ).encode("utf-8")
-    return {
+    resources = {
         f"{package_name}.ifo": ifo,
         f"{package_name}.idx": bytes(index_bytes),
         f"{package_name}.dict": bytes(definition_bytes),
     }
+    if synonym_bytes:
+        resources[f"{package_name}.syn"] = bytes(synonym_bytes)
+    return resources
 
 
 def deterministic_tar(resources: Mapping[str, bytes]) -> bytes:
@@ -627,13 +689,16 @@ def build_package(
     entries: Sequence[DictionaryEntry],
     notice: bytes | None,
     *,
+    aliases: Sequence[DictionaryAlias] = (),
     package_stem: str | None = None,
     fixture: bool = False,
 ) -> BuiltPackage:
     stem = package_stem or spec.id
     if notice is None:
         raise ValueError(f"{spec.name}: source does not contain a redistributable license notice.")
-    resources = build_stardict_resources(stem, spec.name, entries, spec.source_url)
+    resources = build_stardict_resources(
+        stem, spec.name, entries, spec.source_url, aliases
+    )
     package_root = stem
     tar_resources = {f"{package_root}/{name}": data for name, data in resources.items()}
     provenance = [
@@ -682,11 +747,14 @@ def convert_source(
     source: SourceArchive | DirectorySource,
     *,
     fixture: bool = False,
-) -> tuple[list[DictionaryEntry], bytes | None]:
+) -> tuple[list[DictionaryEntry], list[DictionaryAlias], bytes | None]:
     if spec.source_format == "wndb":
         return read_wordnet_entries(source)
     if spec.source_format == "gcide":
-        return read_gcide_entries(source, require_complete_alphabet=not fixture)
+        entries, notice = read_gcide_entries(
+            source, require_complete_alphabet=not fixture
+        )
+        return entries, [], notice
     raise ValueError(f"Unsupported source format: {spec.source_format}")
 
 
@@ -722,8 +790,8 @@ def build_candidates(args: argparse.Namespace) -> None:
         source_path = supplied[spec.id]
         verify_source_archive(source_path, spec)
         with SourceArchive(source_path) as source:
-            converted, notice = convert_source(spec, source)
-        built = build_package(spec, converted, notice)
+            converted, aliases, notice = convert_source(spec, source)
+        built = build_package(spec, converted, notice, aliases=aliases)
         built_packages.append((spec, built))
         entries.append(catalog_entry(spec, built))
         print(
@@ -997,9 +1065,16 @@ def fixture_package_name(spec: SourceSpec) -> str:
 
 def build_fixture_bytes(spec: SourceSpec) -> bytes:
     with DirectorySource(fixture_source_dir(spec)) as source:
-        converted, notice = convert_source(spec, source, fixture=True)
+        converted, aliases, notice = convert_source(spec, source, fixture=True)
     stem = fixture_package_name(spec).removesuffix(".stardict.tar.xz")
-    return build_package(spec, converted, notice, package_stem=stem, fixture=True).bytes
+    return build_package(
+        spec,
+        converted,
+        notice,
+        aliases=aliases,
+        package_stem=stem,
+        fixture=True,
+    ).bytes
 
 
 def write_fixtures(output_dir: Path) -> None:

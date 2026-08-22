@@ -4,7 +4,7 @@ use std::{
     path::Path,
 };
 
-use rusqlite::{params, Connection, Transaction};
+use rusqlite::{params, params_from_iter, types::Value, Connection, Transaction};
 
 use super::{
     dictionary_store::{DictionaryIndexState, DictionaryStore, DictionaryStoreError},
@@ -215,20 +215,66 @@ pub(crate) fn lookup_exact(
     if normalized.is_empty() || maximum_results == 0 {
         return Ok(Vec::new());
     }
-    let mut statement = connection.prepare(
-        "WITH matched_entries AS (
+    lookup_terms(connection, &[normalized], maximum_results, false)
+}
+
+pub(crate) fn lookup_english_lemmas(
+    connection: &Connection,
+    lemmas: &[String],
+    maximum_results: usize,
+) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
+    let normalized = lemmas
+        .iter()
+        .map(|lemma| normalize_dictionary_term(lemma))
+        .filter(|lemma| !lemma.is_empty())
+        .collect::<Vec<_>>();
+    if normalized.is_empty() || maximum_results == 0 {
+        return Ok(Vec::new());
+    }
+    lookup_terms(connection, &normalized, maximum_results, true)
+}
+
+fn lookup_terms(
+    connection: &Connection,
+    terms: &[String],
+    maximum_results: usize,
+    english_only: bool,
+) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
+    let values = (0..terms.len())
+        .map(|index| format!("(?{}, {index})", index + 1))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let language_filter = if english_only {
+        "AND dictionary.source_language = 'en' AND dictionary.target_language = 'en'"
+    } else {
+        ""
+    };
+    let limit_parameter = terms.len() + 1;
+    let sql = format!(
+        "WITH query_terms(normalized_headword, candidate_priority) AS (VALUES {values}),
+         raw_matches AS (
             SELECT dictionary_id, source_ordinal, display_headword,
-                   definition_offset, definition_length
-            FROM dictionary_entries
-            WHERE normalized_headword = ?1
-            UNION
+                   definition_offset, definition_length, query.candidate_priority
+            FROM dictionary_entries AS entry
+            JOIN query_terms AS query
+              ON query.normalized_headword = entry.normalized_headword
+            UNION ALL
             SELECT entry.dictionary_id, entry.source_ordinal, entry.display_headword,
-                   entry.definition_offset, entry.definition_length
+                   entry.definition_offset, entry.definition_length, query.candidate_priority
             FROM dictionary_aliases AS alias
             JOIN dictionary_entries AS entry
               ON entry.dictionary_id = alias.dictionary_id
              AND entry.source_ordinal = alias.source_ordinal
-            WHERE alias.normalized_alias = ?1
+            JOIN query_terms AS query
+              ON query.normalized_headword = alias.normalized_alias
+         ),
+         matched_entries AS (
+            SELECT dictionary_id, source_ordinal, display_headword,
+                   definition_offset, definition_length,
+                   MIN(candidate_priority) AS candidate_priority
+            FROM raw_matches
+            GROUP BY dictionary_id, source_ordinal, display_headword,
+                     definition_offset, definition_length
          )
          SELECT
             matched.dictionary_id,
@@ -243,12 +289,17 @@ pub(crate) fn lookup_exact(
            ON dictionary.dictionary_id = matched.dictionary_id
          WHERE dictionary.enabled = 1
            AND dictionary.index_state = 'ready'
-         ORDER BY dictionary.sort_order, matched.dictionary_id, matched.source_ordinal
-         LIMIT ?2",
-    )?;
+           {language_filter}
+         ORDER BY dictionary.sort_order, matched.dictionary_id,
+                  matched.candidate_priority, matched.source_ordinal
+         LIMIT ?{limit_parameter}"
+    );
+    let mut statement = connection.prepare(&sql)?;
     let maximum_results = i64::try_from(maximum_results)
         .map_err(|_| DictionaryStoreError::NumericOverflow("lookup result limit"))?;
-    let rows = statement.query_map(params![normalized, maximum_results], |row| {
+    let mut parameters = terms.iter().cloned().map(Value::Text).collect::<Vec<_>>();
+    parameters.push(Value::Integer(maximum_results));
+    let rows = statement.query_map(params_from_iter(parameters.iter()), |row| {
         let source_ordinal: i64 = row.get(3)?;
         let definition_offset: i64 = row.get(5)?;
         let definition_length: i64 = row.get(6)?;

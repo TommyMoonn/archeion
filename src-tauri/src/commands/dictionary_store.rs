@@ -944,6 +944,14 @@ impl DictionaryStore {
         dictionary_index::lookup_exact(&self.connection, headword, maximum_results)
     }
 
+    pub(crate) fn lookup_english_lemmas(
+        &self,
+        lemmas: &[String],
+        maximum_results: usize,
+    ) -> Result<Vec<DictionaryLookupEntry>, DictionaryStoreError> {
+        dictionary_index::lookup_english_lemmas(&self.connection, lemmas, maximum_results)
+    }
+
     #[allow(dead_code)]
     pub(crate) fn rebuild_index(
         &mut self,
