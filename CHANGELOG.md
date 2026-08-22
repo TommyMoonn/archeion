@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-08-22
+
+Archeion 1.3.0 adds optional offline English dictionaries, including definitions for selected Reader text and application-wide controls for installing and managing dictionary sources.
+
+### Added
+
+- Added **Dictionaries** settings with separate **Available** and **Installed** views for discovering, installing, and managing local dictionary resources.
+- Added a curated downloadable catalog containing Princeton WordNet 3.0, Open English WordNet 2025+, and the GNU Collaborative International Dictionary of English.
+- Added manual import for compatible local StarDict dictionaries without depending on the original import location after installation.
+- Added **Define** to the Reader text-selection actions, with an anchored definition popover for loading, results, no-result, retryable error, and multiple-dictionary states.
+- Added offline English inflection handling so common forms such as plurals, past-tense verbs, progressive verbs, comparatives, and superlatives can resolve to installed dictionary entries when supported.
+- Added local filtering for the Available dictionary catalog by name, source, and language information.
+
+### Changed
+
+- Made installed dictionaries application-wide so the same enabled sources and ordering remain available when switching EPUB archives.
+- Added controls to enable or disable dictionaries, change result order, remove installed copies, rebuild recoverable indexes, and reinstall catalog dictionaries when needed.
+- Kept dictionary acquisition explicit and optional. Dictionary packages are downloaded only from user-initiated catalog actions and are not included in the Archeion application bundle.
+- Simplified dictionary cards around source, language, licence, size, status, and relevant actions, with direct source and licence links when available.
+- Preserved compatible StarDict ZIP and tar.xz catalog packages, explicit source and target language metadata, and safe bounded local definition lookup.
+
+### Fixed
+
+- Kept missing or damaged dictionary resources isolated from archives, EPUB files, reading progress, annotations, and other installed dictionaries.
+- Rebuilt recoverable dictionary database and index state from valid installed resources, while keeping unavailable dictionaries visible for removal or reinstall guidance.
+- Prevented older catalog, download, install, lookup, or recovery results from replacing newer dictionary state.
+- Corrected the Installed count so an unknown registry state is not shown as a real zero count.
+- Prevented explanatory GCIDE synonym commentary and usage qualifications from appearing as searchable dictionary headwords.
+
+### Testing
+
+- Expanded native and frontend regression coverage for catalog refresh, verified downloads, safe archive extraction, StarDict validation, installation, indexing, lookup, Reader definition interaction, Settings management, recovery, inflection handling, and production catalog packages.
+
 ## [1.2.0] - 2026-08-13
 
 Archeion 1.2.0 adds optional archive health tools for reviewing duplicate EPUBs and book problems that can affect reading, without changing files automatically.
@@ -423,7 +456,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/TommyMoonn/archeion/compare/v1.0.1...v1.0.2
