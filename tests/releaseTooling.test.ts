@@ -235,11 +235,7 @@ describeReleaseTooling("release tooling", () => {
     "rejects release validation when the changelog entry is missing",
     () => {
       const root = createFixture({ changelogIncludesRelease: false });
-      const result = runPowerShell("check-release.ps1", [
-        "--project",
-        root,
-        "--require-changelog",
-      ]);
+      const result = runPowerShell("check-release.ps1", ["--project", root, "--require-changelog"]);
 
       expect(result.status).not.toBe(0);
       expect(combinedOutput(result)).toContain(

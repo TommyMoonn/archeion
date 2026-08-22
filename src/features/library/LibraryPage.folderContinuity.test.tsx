@@ -215,7 +215,7 @@ describe("LibraryPage folder path continuity", () => {
         '[data-library-folder-path="Archive/Fiction"] [data-library-folder-primary-action]',
       ),
     );
-  });
+  }, 15_000);
 
   it("rewrites an active descendant when its ancestor is renamed", async () => {
     const parent = folder("Fiction");

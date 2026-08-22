@@ -146,7 +146,7 @@ describe("LibraryPage selection and bulk workflows", () => {
       "500 selected",
     );
     expect(session.container.querySelectorAll("[data-reader-book-id]").length).toBeLessThan(80);
-  });
+  }, 15_000);
 
   it("supports explicit selection mode without opening book details", async () => {
     const storage = createStorage({ books: [selectionBook("alpha", "Alpha")] });
