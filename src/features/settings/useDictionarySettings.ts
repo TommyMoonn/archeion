@@ -1,5 +1,5 @@
 import { open } from "@tauri-apps/plugin-dialog";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import {
   dictionaryCatalogCommandClient,
@@ -50,7 +50,7 @@ export type DictionarySettingsDependencies = Readonly<{
   installClient: DictionaryInstallCommandClient;
   managementClient: DictionaryManagementCommandClient;
   pickImportFile: () => Promise<string | null>;
-  registrySink?: Pick<DictionaryRegistrySource, "publish">;
+  registrySource: DictionaryRegistrySource;
 }>;
 
 const defaultDependencies: DictionarySettingsDependencies = {
@@ -58,7 +58,6 @@ const defaultDependencies: DictionarySettingsDependencies = {
   downloadClient: dictionaryDownloadCommandClient,
   installClient: dictionaryInstallCommandClient,
   managementClient: dictionaryManagementCommandClient,
-  registrySink: dictionaryRegistryStore,
   pickImportFile: async () => {
     const selected = await open({
       directory: false,
@@ -68,6 +67,7 @@ const defaultDependencies: DictionarySettingsDependencies = {
     });
     return typeof selected === "string" ? selected : null;
   },
+  registrySource: dictionaryRegistryStore,
 };
 
 function errorMessage(error: unknown) {
@@ -81,13 +81,16 @@ function readyRegistry(dictionaries: readonly InstalledDictionary[]): Dictionary
 export function useDictionarySettings(
   dependencies: DictionarySettingsDependencies = defaultDependencies,
 ) {
+  const registrySnapshot = useSyncExternalStore(
+    dependencies.registrySource.subscribe,
+    dependencies.registrySource.getSnapshot,
+    dependencies.registrySource.getSnapshot,
+  );
   const [catalog, setCatalog] = useState<DictionaryCatalogSnapshot | null>(null);
   const [catalogState, setCatalogState] = useState<LoadState>("idle");
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [registry, setRegistry] = useState<DictionaryRegistrySnapshot | null>(null);
-  const [registryState, setRegistryState] = useState<LoadState>("idle");
-  const [registryError, setRegistryError] = useState<string | null>(null);
+  const [registryOperationError, setRegistryOperationError] = useState<string | null>(null);
   const [catalogOperation, setCatalogOperation] = useState<DictionaryCatalogOperation | null>(null);
   const [managementOperation, setManagementOperation] =
     useState<DictionaryManagementOperation | null>(null);
@@ -104,22 +107,22 @@ export function useDictionarySettings(
   const catalogInstallInFlightRef = useRef(false);
   const refreshCancellationRequestedRef = useRef(false);
   const managementOperationRef = useRef<DictionaryManagementOperation | null>(null);
-  const registryRef = useRef<DictionaryRegistrySnapshot | null>(null);
+  const registryRef = useRef<DictionaryRegistrySnapshot | null>(registrySnapshot.registry);
+  registryRef.current = registrySnapshot.registry;
 
   const publishRegistry = useCallback(
     (snapshot: DictionaryRegistrySnapshot) => {
       registryRef.current = snapshot;
-      setRegistry(snapshot);
-      dependencies.registrySink?.publish(snapshot);
+      dependencies.registrySource.publish(snapshot);
     },
-    [dependencies.registrySink],
+    [dependencies.registrySource],
   );
 
   useEffect(() => {
     mountedRef.current = true;
     let retired = false;
     setCatalogState("loading");
-    setRegistryState("loading");
+    dependencies.registrySource.ensureLoaded();
     void dependencies.catalogClient
       .loadCached()
       .then((snapshot) => {
@@ -132,19 +135,6 @@ export function useDictionarySettings(
         setCatalogError(errorMessage(error));
         setCatalogState("error");
       });
-    void dependencies.managementClient
-      .list()
-      .then((snapshot) => {
-        if (retired) return;
-        publishRegistry(snapshot);
-        setRegistryState("ready");
-      })
-      .catch((error: unknown) => {
-        if (retired) return;
-        setRegistryError(errorMessage(error));
-        setRegistryState("error");
-      });
-
     return () => {
       retired = true;
       mountedRef.current = false;
@@ -157,7 +147,7 @@ export function useDictionarySettings(
         void dependencies.downloadClient.cleanup(retainedToken);
       }
     };
-  }, [dependencies, publishRegistry]);
+  }, [dependencies]);
 
   const refreshCatalog = useCallback(async () => {
     if (refreshing) return;
@@ -191,7 +181,6 @@ export function useDictionarySettings(
         .concat(installed)
         .sort((left, right) => left.order - right.order);
       publishRegistry(readyRegistry(dictionaries));
-      setRegistryState("ready");
     },
     [publishRegistry],
   );
@@ -339,7 +328,6 @@ export function useDictionarySettings(
         const snapshot = await request();
         if (!mountedRef.current) return false;
         publishRegistry(snapshot);
-        setRegistryState("ready");
         return true;
       } catch (error) {
         if (mountedRef.current) {
@@ -367,7 +355,7 @@ export function useDictionarySettings(
 
   const move = useCallback(
     (dictionaryId: string, direction: -1 | 1) => {
-      const dictionaries = registry?.dictionaries ?? [];
+      const dictionaries = registrySnapshot.registry?.dictionaries ?? [];
       const index = dictionaries.findIndex((dictionary) => dictionary.id === dictionaryId);
       const destination = index + direction;
       if (index < 0 || destination < 0 || destination >= dictionaries.length) {
@@ -379,7 +367,7 @@ export function useDictionarySettings(
         dependencies.managementClient.setOrder(ids),
       );
     },
-    [dependencies.managementClient, registry?.dictionaries, runManagement],
+    [dependencies.managementClient, registrySnapshot.registry?.dictionaries, runManagement],
   );
 
   const rebuildIndex = useCallback(
@@ -401,15 +389,14 @@ export function useDictionarySettings(
   const recoverResources = useCallback(async () => {
     if (recovering) return false;
     setRecovering(true);
-    setRegistryError(null);
+    setRegistryOperationError(null);
     try {
       const snapshot = await dependencies.managementClient.recover();
       if (!mountedRef.current) return false;
       publishRegistry(snapshot);
-      setRegistryState("ready");
       return snapshot.status === "ready";
     } catch (error) {
-      if (mountedRef.current) setRegistryError(errorMessage(error));
+      if (mountedRef.current) setRegistryOperationError(errorMessage(error));
       return false;
     } finally {
       if (mountedRef.current) setRecovering(false);
@@ -435,9 +422,9 @@ export function useDictionarySettings(
     recovering,
     refreshCatalog,
     refreshing,
-    registry,
-    registryError,
-    registryState,
+    registry: registrySnapshot.registry,
+    registryError: registryOperationError ?? registrySnapshot.error,
+    registryState: registrySnapshot.status,
     removeDictionary,
     setEnabled,
   };

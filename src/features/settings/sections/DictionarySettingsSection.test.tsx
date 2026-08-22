@@ -197,6 +197,30 @@ afterEach(() => {
 });
 
 describe("DictionarySettingsView", () => {
+  it("shows the current installed count when registry state is already known", () => {
+    const container = renderView(controller());
+
+    expect(button(container, "Installed (2)")).toBeInstanceOf(HTMLButtonElement);
+  });
+
+  it("does not present an unknown registry count as zero", () => {
+    const container = renderView(controller({ registry: null, registryState: "loading" }));
+
+    expect(button(container, "Installed")).toBeInstanceOf(HTMLButtonElement);
+    expect(container.textContent).not.toContain("Installed (0)");
+  });
+
+  it("shows zero only after an empty registry is known", () => {
+    const container = renderView(
+      controller({
+        registry: { dictionaries: [], recovery: null, status: "ready" },
+        registryState: "ready",
+      }),
+    );
+
+    expect(button(container, "Installed (0)")).toBeInstanceOf(HTMLButtonElement);
+  });
+
   it("exposes refresh, catalog installation, and manual import as keyboard buttons", () => {
     const value = controller();
     const container = renderView(value);

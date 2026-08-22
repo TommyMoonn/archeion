@@ -401,7 +401,10 @@ export function DictionarySettingsView({
         onChange={setView}
         options={[
           { label: "Available", value: "available" },
-          { label: `Installed (${dictionaries.length})`, value: "installed" },
+          {
+            label: controller.registry ? `Installed (${dictionaries.length})` : "Installed",
+            value: "installed",
+          },
         ]}
         value={view}
       />
