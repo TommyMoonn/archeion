@@ -15,8 +15,11 @@ use crate::atomic_file::{
 };
 use tauri::{Emitter, Manager};
 
+use super::{archive, theme_migration};
+
 const APP_SETTINGS_FILE: &str = "settings.json";
 const APP_SETTINGS_CHANGED_EVENT: &str = "app-settings-changed";
+const THEME_MIGRATION_RECEIPT_FILE: &str = "theme-package-migration-v1.json";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1274,6 +1277,32 @@ fn write_settings(path: &Path, preferences: &AppPreferences) -> Result<(), Strin
         .map_err(app_settings_replace_error)
 }
 
+fn write_theme_migration_receipt(
+    settings_path: &Path,
+    report: &theme_migration::ThemeMigrationReport,
+) -> Result<(), String> {
+    let directory = settings_path
+        .parent()
+        .ok_or_else(|| "App settings directory is unavailable.".to_string())?;
+    fs::create_dir_all(directory)
+        .map_err(|error| format!("App settings directory could not be created: {error}"))?;
+    let path = directory.join(THEME_MIGRATION_RECEIPT_FILE);
+    let mut contents = serde_json::to_vec_pretty(report)
+        .map_err(|error| format!("Theme migration receipt could not be serialized: {error}"))?;
+    contents.push(b'\n');
+    let temporary = PreparedAtomicFile::write(transaction_path(&path, "tmp-write"), &contents)
+        .map_err(app_settings_temporary_write_error)?;
+    let backup = transaction_path(&path, "write-backup");
+    temporary
+        .replace(
+            &path,
+            &backup,
+            BackupCleanup::Required,
+            &RealAtomicFileSystem,
+        )
+        .map_err(app_settings_replace_error)
+}
+
 struct AppSettingsState {
     revision: u64,
     preferences: Option<AppPreferences>,
@@ -1284,9 +1313,35 @@ pub(crate) struct AppSettingsService {
     state: Mutex<AppSettingsState>,
 }
 
+fn build_service_after_theme_migration<Migrate, PersistReceipt, ReportReceiptError>(
+    path: PathBuf,
+    migrate: Migrate,
+    persist_receipt: PersistReceipt,
+    report_receipt_error: ReportReceiptError,
+) -> Result<AppSettingsService, String>
+where
+    Migrate: FnOnce() -> Result<theme_migration::ThemeMigrationReport, String>,
+    PersistReceipt: FnOnce(&theme_migration::ThemeMigrationReport) -> Result<(), String>,
+    ReportReceiptError: FnOnce(&str),
+{
+    let report = migrate()?;
+    if let Err(error) = persist_receipt(&report) {
+        report_receipt_error(&error);
+    }
+    Ok(AppSettingsService::new(path))
+}
+
 impl AppSettingsService {
     pub(crate) fn from_app(app: &tauri::AppHandle) -> Result<Self, String> {
-        Ok(Self::new(settings_path(app)?))
+        let path = settings_path(app)?;
+        let archive_roots = archive::registered_archive_roots(app)?;
+        let receipt_settings_path = path.clone();
+        build_service_after_theme_migration(
+            path,
+            || theme_migration::migrate_registered_legacy_theme_packages(app, &archive_roots),
+            |report| write_theme_migration_receipt(&receipt_settings_path, report),
+            |error| eprintln!("theme migration receipt could not be persisted: {error}"),
+        )
     }
 
     fn new(path: PathBuf) -> Self {
@@ -1405,12 +1460,20 @@ pub fn save_app_settings(
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+
     use serde_json::Value;
 
+    use crate::commands::theme_migration::{
+        migrate_legacy_theme_packages_at, ThemeMigrationAction, ThemeMigrationRecord,
+        ThemeMigrationReport,
+    };
+
     use super::{
-        read_settings, write_settings, AppPreferences, AppSettingsMutation, AppSettingsService,
+        build_service_after_theme_migration, read_settings, write_settings,
+        write_theme_migration_receipt, AppPreferences, AppSettingsMutation, AppSettingsService,
         AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
-        LibrarySmartViewSettings, ReaderSettings,
+        LibrarySmartViewSettings, ReaderSettings, THEME_MIGRATION_RECEIPT_FILE,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
@@ -2137,6 +2200,112 @@ mod tests {
         assert_eq!(reader.revision, 2);
         assert_eq!(reader.preferences.reader, ReaderSettings::default());
         std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn theme_migration_receipt_records_and_atomically_replaces_the_latest_scan_result() {
+        let root = temporary_settings_root("theme-migration-receipt");
+        let settings_path = root.join("settings.json");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: vec![ThemeMigrationRecord {
+                action: ThemeMigrationAction::ConflictCopied,
+                destination_id: Some("moon-ink-a1b2c3d4e5f6".to_string()),
+                error: None,
+                package_sha256: Some("a".repeat(64)),
+                source_archive: "C:/Archive A".to_string(),
+                source_id: "moon-ink".to_string(),
+            }],
+        };
+
+        write_theme_migration_receipt(&settings_path, &report).unwrap();
+        let receipt_path = root.join(THEME_MIGRATION_RECEIPT_FILE);
+        let persisted: ThemeMigrationReport =
+            serde_json::from_slice(&std::fs::read(&receipt_path).unwrap()).unwrap();
+        assert_eq!(persisted, report);
+
+        let empty_report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+        write_theme_migration_receipt(&settings_path, &empty_report).unwrap();
+        let replaced: ThemeMigrationReport =
+            serde_json::from_slice(&std::fs::read(&receipt_path).unwrap()).unwrap();
+        assert_eq!(replaced, empty_report);
+        assert_eq!(std::fs::read_dir(&root).unwrap().count(), 1);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn theme_migration_receipt_failure_does_not_block_startup_or_later_idempotent_scan() {
+        let root = temporary_settings_root("theme-migration-receipt-failure");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let package = archive.join(".archeion").join("themes").join("moon-ink");
+        std::fs::create_dir_all(&package).unwrap();
+        let source_manifest = serde_json::to_vec(&serde_json::json!({
+            "$schema": "https://tommymoonn.github.io/archeion/schemas/archeion-theme-v1.schema.json",
+            "schemaVersion": 1,
+            "id": "moon-ink",
+            "name": "Moon Ink",
+            "base": "dark",
+            "app": { "accent": "#8fc1e3" }
+        }))
+        .unwrap();
+        std::fs::write(package.join("theme.json"), &source_manifest).unwrap();
+        let settings_path = app_data.join("settings.json");
+        let diagnostics = RefCell::new(Vec::new());
+
+        let service = build_service_after_theme_migration(
+            settings_path.clone(),
+            || migrate_legacy_theme_packages_at(&app_data, std::slice::from_ref(&archive)),
+            |_| Err("simulated receipt persistence failure".to_string()),
+            |error| diagnostics.borrow_mut().push(error.to_string()),
+        )
+        .expect("a receipt failure must not block service construction");
+
+        assert_eq!(service.load().unwrap(), AppPreferences::default());
+        assert_eq!(
+            std::fs::read(app_data.join("themes/moon-ink/theme.json")).unwrap(),
+            source_manifest
+        );
+        assert_eq!(
+            std::fs::read(package.join("theme.json")).unwrap(),
+            source_manifest
+        );
+        assert_eq!(
+            diagnostics.into_inner(),
+            vec!["simulated receipt persistence failure"]
+        );
+
+        build_service_after_theme_migration(
+            settings_path.clone(),
+            || migrate_legacy_theme_packages_at(&app_data, std::slice::from_ref(&archive)),
+            |report| write_theme_migration_receipt(&settings_path, report),
+            |_| panic!("the later receipt write should succeed"),
+        )
+        .expect("a later idempotent scan should construct the service");
+
+        let receipt: ThemeMigrationReport = serde_json::from_slice(
+            &std::fs::read(app_data.join(THEME_MIGRATION_RECEIPT_FILE)).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(receipt.records.len(), 1);
+        assert_eq!(
+            receipt.records[0].action,
+            ThemeMigrationAction::Deduplicated
+        );
+        assert_eq!(
+            receipt.records[0].destination_id.as_deref(),
+            Some("moon-ink")
+        );
+        assert_eq!(
+            std::fs::read(package.join("theme.json")).unwrap(),
+            source_manifest
+        );
+
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     fn temporary_settings_root(label: &str) -> std::path::PathBuf {

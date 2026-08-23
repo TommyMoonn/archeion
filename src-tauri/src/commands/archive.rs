@@ -338,6 +338,14 @@ fn read_registry(app: &tauri::AppHandle) -> Result<ArchiveRegistry, String> {
     Ok(registry)
 }
 
+pub(crate) fn registered_archive_roots(app: &tauri::AppHandle) -> Result<Vec<PathBuf>, String> {
+    Ok(read_registry(app)?
+        .archives
+        .into_iter()
+        .map(|archive| PathBuf::from(archive.root_path))
+        .collect())
+}
+
 fn write_registry(app: &tauri::AppHandle, registry: &ArchiveRegistry) -> Result<(), String> {
     let path = registry_path(app)?;
     let directory = path

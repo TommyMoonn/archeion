@@ -42,5 +42,6 @@ pub mod scanner;
 pub(crate) mod scanner_cache;
 #[allow(dead_code)]
 pub(crate) mod stardict_validation;
+pub mod theme_migration;
 pub mod themes;
 pub mod watcher;

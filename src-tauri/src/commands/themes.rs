@@ -11,12 +11,12 @@ use tauri::Manager;
 
 use super::filesystem;
 
-const THEMES_DIRECTORY: &str = "themes";
-const THEME_MANIFEST_FILE: &str = "theme.json";
-const MAX_THEME_MANIFEST_BYTES: usize = 256 * 1024;
+pub(super) const THEMES_DIRECTORY: &str = "themes";
+pub(super) const THEME_MANIFEST_FILE: &str = "theme.json";
+pub(super) const MAX_THEME_MANIFEST_BYTES: usize = 256 * 1024;
 static TRANSACTION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
-fn transaction_suffix() -> String {
+pub(super) fn transaction_suffix() -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
@@ -25,7 +25,7 @@ fn transaction_suffix() -> String {
     format!("{timestamp}-{sequence}")
 }
 
-fn validate_theme_id(id: &str) -> Result<String, String> {
+pub(super) fn validate_theme_id(id: &str) -> Result<String, String> {
     let bytes = id.as_bytes();
     let valid_contract = (3..=64).contains(&bytes.len())
         && bytes
@@ -42,7 +42,11 @@ fn validate_theme_id(id: &str) -> Result<String, String> {
     Ok(id.to_string())
 }
 
-fn ensure_owned_directory(path: &Path, create: bool, label: &str) -> Result<bool, String> {
+pub(super) fn ensure_owned_directory(
+    path: &Path,
+    create: bool,
+    label: &str,
+) -> Result<bool, String> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() => {
             Err(format!("The {label} cannot be a symbolic link."))
@@ -58,7 +62,7 @@ fn ensure_owned_directory(path: &Path, create: bool, label: &str) -> Result<bool
     }
 }
 
-fn themes_root_at(root: &Path, create: bool) -> Result<Option<PathBuf>, String> {
+pub(super) fn themes_root_at(root: &Path, create: bool) -> Result<Option<PathBuf>, String> {
     if !ensure_owned_directory(root, create, "application data directory")? {
         return Ok(None);
     }
@@ -121,7 +125,7 @@ fn normalize_manifest_json(id: &str, manifest_json: &str) -> Result<Vec<u8>, Str
     Ok(normalized)
 }
 
-fn write_new_synced_file(path: &Path, contents: &[u8]) -> Result<(), String> {
+pub(super) fn write_new_synced_file(path: &Path, contents: &[u8]) -> Result<(), String> {
     let mut file = OpenOptions::new()
         .create_new(true)
         .write(true)
@@ -308,7 +312,7 @@ fn delete_theme_package_at(root: &Path, id: &str) -> Result<(), String> {
     fs::remove_dir_all(package).map_err(|error| error.to_string())
 }
 
-fn resolve_app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+pub(super) fn resolve_app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_data_dir()
         .map_err(|error| format!("Unable to resolve theme storage: {error}"))
@@ -359,6 +363,10 @@ pub fn reveal_themes_folder(app: tauri::AppHandle) -> Result<(), String> {
 mod tests {
     use std::{fs, path::Path, time::SystemTime};
 
+    use crate::commands::theme_migration::{
+        migrate_legacy_theme_packages_at, ThemeMigrationAction,
+    };
+
     use super::{
         create_theme_package_at, delete_theme_package_at, list_theme_packages_at,
         normalize_manifest_json, read_theme_manifest_at, replace_manifest_with_fs,
@@ -386,6 +394,172 @@ mod tests {
             "app": { "accent": "#8fc1e3" }
         })
         .to_string()
+    }
+
+    fn legacy_package(root: &Path, id: &str, name: &str) -> std::path::PathBuf {
+        let package = root.join(".archeion").join(THEMES_DIRECTORY).join(id);
+        fs::create_dir_all(package.join("assets")).unwrap();
+        fs::write(package.join("theme.json"), manifest(id, name)).unwrap();
+        fs::write(package.join("assets").join("notes.txt"), name).unwrap();
+        package
+    }
+
+    #[test]
+    fn migrates_registered_legacy_packages_with_deduplication_conflicts_and_containment() {
+        let app_data = test_root("migration-app-data");
+        let archive_a = test_root("migration-archive-a");
+        let archive_b = test_root("migration-archive-b");
+        let original_a = legacy_package(&archive_a, "moon-ink", "Legacy Moon");
+        let original_b = legacy_package(&archive_b, "moon-ink", "Legacy Moon");
+        let original_a_manifest = fs::read(original_a.join("theme.json")).unwrap();
+        let original_b_manifest = fs::read(original_b.join("theme.json")).unwrap();
+        legacy_package(&archive_b, "paper-light", "Paper Light");
+        let malformed = archive_a
+            .join(".archeion")
+            .join(THEMES_DIRECTORY)
+            .join("broken-theme");
+        fs::create_dir_all(&malformed).unwrap();
+        fs::write(malformed.join("theme.json"), "{invalid").unwrap();
+        create_theme_package_at(
+            &app_data,
+            "moon-ink",
+            &manifest("moon-ink", "Existing Global Moon"),
+        )
+        .unwrap();
+
+        let report =
+            migrate_legacy_theme_packages_at(&app_data, &[archive_b.clone(), archive_a.clone()])
+                .unwrap();
+
+        let conflict = report
+            .records
+            .iter()
+            .find(|record| record.action == ThemeMigrationAction::ConflictCopied)
+            .expect("the differing moon-ink package should receive a deterministic id");
+        let conflict_id = conflict.destination_id.as_deref().unwrap();
+        assert!(conflict_id.starts_with("moon-ink-"));
+        assert_eq!(
+            report
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Copied)
+                .count(),
+            1
+        );
+        assert_eq!(
+            report
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Deduplicated)
+                .count(),
+            1
+        );
+        assert_eq!(
+            report
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Skipped)
+                .count(),
+            1
+        );
+        assert!(read_theme_manifest_at(&app_data, conflict_id)
+            .unwrap()
+            .contains(conflict_id));
+        assert!(app_data
+            .join(THEMES_DIRECTORY)
+            .join(conflict_id)
+            .join("assets")
+            .join("notes.txt")
+            .is_file());
+        assert!(read_theme_manifest_at(&app_data, "paper-light").is_ok());
+        assert!(read_theme_manifest_at(&app_data, "moon-ink")
+            .unwrap()
+            .contains("Existing Global Moon"));
+        assert!(original_a.join("theme.json").is_file());
+        assert!(original_b.join("theme.json").is_file());
+        assert_eq!(
+            fs::read(original_a.join("theme.json")).unwrap(),
+            original_a_manifest
+        );
+        assert_eq!(
+            fs::read(original_b.join("theme.json")).unwrap(),
+            original_b_manifest
+        );
+        assert!(malformed.join("theme.json").is_file());
+
+        let first_global_entries = list_theme_packages_at(&app_data).unwrap();
+        let repeated =
+            migrate_legacy_theme_packages_at(&app_data, &[archive_a.clone(), archive_b.clone()])
+                .unwrap();
+        assert_eq!(
+            list_theme_packages_at(&app_data).unwrap(),
+            first_global_entries
+        );
+        assert_eq!(
+            repeated
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Deduplicated)
+                .count(),
+            3
+        );
+        assert_eq!(
+            repeated
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Skipped)
+                .count(),
+            1
+        );
+
+        fs::remove_dir_all(app_data).unwrap();
+        fs::remove_dir_all(archive_a).unwrap();
+        fs::remove_dir_all(archive_b).unwrap();
+    }
+
+    #[test]
+    fn conflicting_legacy_ids_preserve_both_packages_under_stable_destinations() {
+        let app_data = test_root("migration-conflict-app-data");
+        let archive_a = test_root("migration-conflict-archive-a");
+        let archive_b = test_root("migration-conflict-archive-b");
+        legacy_package(&archive_a, "moon-ink", "Archive A Moon");
+        legacy_package(&archive_b, "moon-ink", "Archive B Moon");
+
+        let report =
+            migrate_legacy_theme_packages_at(&app_data, &[archive_b.clone(), archive_a.clone()])
+                .unwrap();
+        let conflict_id = report
+            .records
+            .iter()
+            .find(|record| record.action == ThemeMigrationAction::ConflictCopied)
+            .and_then(|record| record.destination_id.as_deref())
+            .expect("the second distinct package should receive a conflict id")
+            .to_string();
+
+        assert!(read_theme_manifest_at(&app_data, "moon-ink")
+            .unwrap()
+            .contains("Archive A Moon"));
+        assert!(read_theme_manifest_at(&app_data, &conflict_id)
+            .unwrap()
+            .contains("Archive B Moon"));
+        assert_eq!(list_theme_packages_at(&app_data).unwrap().len(), 2);
+
+        let repeated =
+            migrate_legacy_theme_packages_at(&app_data, &[archive_a.clone(), archive_b.clone()])
+                .unwrap();
+        assert_eq!(
+            repeated
+                .records
+                .iter()
+                .filter(|record| record.action == ThemeMigrationAction::Deduplicated)
+                .count(),
+            2
+        );
+        assert_eq!(list_theme_packages_at(&app_data).unwrap().len(), 2);
+
+        fs::remove_dir_all(app_data).unwrap();
+        fs::remove_dir_all(archive_a).unwrap();
+        fs::remove_dir_all(archive_b).unwrap();
     }
 
     #[test]
