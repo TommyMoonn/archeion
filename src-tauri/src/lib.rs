@@ -24,6 +24,7 @@ pub fn run() {
         import_transaction_state.clone(),
         import_suppressions,
     );
+    let theme_catalog_service = commands::themes::ThemeCatalogService::default();
 
     tauri::Builder::default()
         .setup(|app| {
@@ -40,6 +41,7 @@ pub fn run() {
         .manage(watcher_state)
         .manage(import_transaction_state)
         .manage(import_command_state)
+        .manage(theme_catalog_service)
         .plugin(tauri_plugin_dialog::init())
         .on_window_event(|window, event| {
             if window.label() == "archive-manager" && matches!(event, tauri::WindowEvent::Destroyed)
@@ -114,8 +116,10 @@ pub fn run() {
             commands::scanner::scan_archive,
             commands::scanner::scan_archive_epub_paths,
             commands::themes::delete_theme_package,
+            commands::themes::load_theme_catalog_revision,
             commands::themes::list_theme_packages,
             commands::themes::read_theme_manifest,
+            commands::themes::refresh_theme_catalog,
             commands::themes::replace_theme_manifest,
             commands::themes::reveal_themes_folder,
             commands::themes::store_theme_manifest,

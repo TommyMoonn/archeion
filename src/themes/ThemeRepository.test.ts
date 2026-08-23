@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ThemeManifestV1 } from "./domain";
@@ -6,8 +7,10 @@ import { InvalidThemeManifestError, ThemeRepository } from "./ThemeRepository";
 import { ARCHEION_THEME_SCHEMA_URL } from "./themeTokenRegistry";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("@tauri-apps/api/event", () => ({ listen: vi.fn() }));
 
 const invokeMock = vi.mocked(invoke);
+const listenMock = vi.mocked(listen);
 
 function manifest(overrides: Partial<ThemeManifestV1> = {}): ThemeManifestV1 {
   return {
@@ -78,5 +81,30 @@ describe("global ThemeRepository", () => {
       ["delete_theme_package", { id: "moon-ink" }],
       ["reveal_themes_folder", {}],
     ]);
+  });
+
+  it("uses the separate global catalog revision and event boundary", async () => {
+    const stop = vi.fn();
+    listenMock.mockResolvedValue(stop);
+    invokeMock.mockResolvedValueOnce({ revision: 4 }).mockResolvedValueOnce({ revision: 5 });
+    const repository = new ThemeRepository();
+    const listener = vi.fn();
+
+    await expect(repository.loadCatalogRevision()).resolves.toEqual({ revision: 4 });
+    await expect(repository.refreshCatalog()).resolves.toEqual({ revision: 5 });
+    await repository.subscribeCatalogChanges(listener);
+
+    expect(invokeMock.mock.calls).toEqual([
+      ["load_theme_catalog_revision", {}],
+      ["refresh_theme_catalog", {}],
+    ]);
+    expect(listenMock).toHaveBeenCalledWith("theme-catalog-changed", expect.any(Function));
+    const handler = listenMock.mock.calls[0]?.[1] as (event: {
+      event: string;
+      id: number;
+      payload: { revision: number };
+    }) => void;
+    handler({ event: "theme-catalog-changed", id: 1, payload: { revision: 6 } });
+    expect(listener).toHaveBeenCalledWith({ revision: 6 });
   });
 });

@@ -4,7 +4,7 @@ import type { AppThemeSelection } from "../../types/settings";
 import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
 import type { ThemeCatalogSnapshot, ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import type { ThemeCatalog } from "../../themes/ThemeCatalog";
-import type { ThemeRepository } from "../../themes/ThemeRepository";
+import type { ThemeCatalogRevision, ThemeRepository } from "../../themes/ThemeRepository";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { parseThemeJson } from "../../themes/parseThemeJson";
 import type { ThemePreviewHandle, ThemePreviewSession } from "../../themes/ThemePreviewSession";
@@ -173,9 +173,9 @@ export function useThemeManagerController({
         });
         return false;
       }
-      await repository.storeManifest(manifest);
+      const catalogRevision = await repository.storeManifest(manifest);
       imported = true;
-      await reloadAfterMutation();
+      await reloadAfterMutation(catalogRevision);
       finishOperation(revision, () => {
         setSelectedKey(customEntryKey(manifest.id));
         setMessage(`Imported ${manifest.name}.`);
@@ -202,9 +202,9 @@ export function useThemeManagerController({
     const revision = beginOperation("replace");
     let updated = false;
     try {
-      await repository.replaceManifest(pending.manifest);
+      const catalogRevision = await repository.replaceManifest(pending.manifest);
       updated = true;
-      await reloadAfterMutation();
+      await reloadAfterMutation(catalogRevision);
       finishOperation(revision, () => {
         setPendingReplacement(null);
         setSelectedKey(customEntryKey(pending.manifest.id));
@@ -233,9 +233,9 @@ export function useThemeManagerController({
     const revision = beginOperation("delete");
     let removed = false;
     try {
-      await repository.deletePackage(entry.packageId);
+      const catalogRevision = await repository.deletePackage(entry.packageId);
       removed = true;
-      await reloadAfterMutation();
+      await reloadAfterMutation(catalogRevision);
       finishOperation(revision, () => {
         setPendingDeleteKey(null);
         setMessage(`Removed ${entry.name ?? entry.packageId}.`);
@@ -325,8 +325,8 @@ export function useThemeManagerController({
     }
   }
 
-  async function reloadAfterMutation(): Promise<void> {
-    await runtime.refreshAppearance();
+  async function reloadAfterMutation(revision: ThemeCatalogRevision): Promise<void> {
+    await catalog.synchronizeRevision(revision.revision);
   }
 
   function disposePreview(): void {

@@ -40,6 +40,8 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     readerTheme: { kind: "builtin", id: "sepia" },
   };
   const listeners = new Set<() => void>();
+  let catalogRevision = 0;
+  const nextCatalogRevision = () => ({ revision: (catalogRevision += 1) });
   const updateAppearanceSettings = vi.fn(
     async (changes: { appTheme: GlobalAppearancePreferences["appTheme"] }) => {
       settings = { ...settings, ...changes };
@@ -72,13 +74,18 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     },
   });
   const repository = {
-    deletePackage: vi.fn(async (id: string) => void sources.delete(id)),
+    deletePackage: vi.fn(async (id: string) => {
+      sources.delete(id);
+      return nextCatalogRevision();
+    }),
     replaceManifest: vi.fn(async (item: ThemeManifestV1) => {
       sources.set(item.id, JSON.stringify(item));
+      return nextCatalogRevision();
     }),
     revealThemesRoot: vi.fn(async () => undefined),
     storeManifest: vi.fn(async (item: ThemeManifestV1) => {
       sources.set(item.id, JSON.stringify(item));
+      return nextCatalogRevision();
     }),
   } satisfies ThemeManagerControllerOptions["repository"];
   return {
@@ -164,7 +171,7 @@ describe("global Theme Manager controller", () => {
     expect(services.clearPreview).toHaveBeenCalledOnce();
   });
 
-  it("imports into global storage and refreshes the global runtime", async () => {
+  it("imports into global storage and consumes its catalog revision without a second reload", async () => {
     const services = await mount();
 
     await act(async () =>
@@ -178,7 +185,7 @@ describe("global Theme Manager controller", () => {
     );
 
     expect(services.repository.storeManifest).toHaveBeenCalledOnce();
-    expect(services.refreshAppearance).toHaveBeenCalled();
+    expect(services.refreshAppearance).toHaveBeenCalledOnce();
     expect(latest.entries.some((entry) => entry.id === "paper-sky")).toBe(true);
   });
 });

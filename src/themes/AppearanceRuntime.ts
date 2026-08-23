@@ -66,6 +66,8 @@ export class AppearanceRuntime {
   private readonly readerThemes = new Map<ReaderThemeBase, ResolvedReaderTheme>();
   private resolutionRevision = 0;
   private snapshot: AppearanceRuntimeSnapshot;
+  private stopCatalog: (() => void) | null = null;
+  private stopCatalogSynchronization: (() => void) | null = null;
   private stopPreferences: (() => void) | null = null;
 
   constructor(options: AppearanceRuntimeOptions) {
@@ -99,6 +101,8 @@ export class AppearanceRuntime {
     if (this.stopPreferences) return () => this.stop();
     this.mediaQuery = this.matchMedia?.(SYSTEM_SCHEME_QUERY) ?? null;
     this.addSystemSchemeListener();
+    this.stopCatalog = this.catalog.subscribe(this.handleCatalogChange);
+    this.stopCatalogSynchronization = this.catalog.startSynchronization();
     this.stopPreferences = this.globalPreferences.subscribe(this.handlePreferencesChange);
     this.adoptPreferences(this.globalPreferences.getSnapshot());
     return () => this.stop();
@@ -107,6 +111,10 @@ export class AppearanceRuntime {
   stop(): void {
     this.stopPreferences?.();
     this.stopPreferences = null;
+    this.stopCatalog?.();
+    this.stopCatalog = null;
+    this.stopCatalogSynchronization?.();
+    this.stopCatalogSynchronization = null;
     this.removeSystemSchemeListener();
     this.mediaQuery = null;
     this.preview = null;
@@ -188,12 +196,16 @@ export class AppearanceRuntime {
   }
 
   async refreshAppearance(): Promise<void> {
-    await this.catalog.refreshPackages();
+    await this.catalog.reload();
     await this.resolveCommittedAppearance();
   }
 
   private readonly handlePreferencesChange = () => {
     this.adoptPreferences(this.globalPreferences.getSnapshot());
+  };
+
+  private readonly handleCatalogChange = () => {
+    void this.resolveCommittedAppearance();
   };
 
   private adoptPreferences(preferences: GlobalAppearancePreferences): void {

@@ -68,15 +68,17 @@ function createServices() {
       return () => runtimeListeners.delete(listener);
     },
   });
+  let catalogRevision = 0;
+  const nextCatalogRevision = () => ({ revision: (catalogRevision += 1) });
   return {
     catalog,
     clearPreview,
     previewSession,
     repository: {
-      deletePackage: vi.fn(),
-      replaceManifest: vi.fn(),
+      deletePackage: vi.fn(async () => nextCatalogRevision()),
+      replaceManifest: vi.fn(async () => nextCatalogRevision()),
       revealThemesRoot: vi.fn(),
-      storeManifest: vi.fn(),
+      storeManifest: vi.fn(async () => nextCatalogRevision()),
     },
     runtime,
   };

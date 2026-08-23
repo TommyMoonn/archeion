@@ -1,16 +1,29 @@
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 
 import type { ThemeDiagnostic, ThemeManifestV1 } from "./domain";
 import { validateThemeManifest } from "./validateThemeManifest";
 
 type ThemeCommandDefinition<Args, Result> = Readonly<{ args: Args; result: Result }>;
 
+export const THEME_CATALOG_CHANGED_EVENT = "theme-catalog-changed";
+
+export type ThemeCatalogRevision = Readonly<{ revision: number }>;
+
 type ThemeCommandMap = Readonly<{
   list_theme_packages: ThemeCommandDefinition<undefined, string[]>;
   read_theme_manifest: ThemeCommandDefinition<{ id: string }, string>;
-  store_theme_manifest: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
-  replace_theme_manifest: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
-  delete_theme_package: ThemeCommandDefinition<{ id: string }, void>;
+  store_theme_manifest: ThemeCommandDefinition<
+    { id: string; manifestJson: string },
+    ThemeCatalogRevision
+  >;
+  replace_theme_manifest: ThemeCommandDefinition<
+    { id: string; manifestJson: string },
+    ThemeCatalogRevision
+  >;
+  delete_theme_package: ThemeCommandDefinition<{ id: string }, ThemeCatalogRevision>;
+  load_theme_catalog_revision: ThemeCommandDefinition<undefined, ThemeCatalogRevision>;
+  refresh_theme_catalog: ThemeCommandDefinition<undefined, ThemeCatalogRevision>;
   reveal_themes_folder: ThemeCommandDefinition<undefined, void>;
 }>;
 
@@ -29,6 +42,10 @@ export class InvalidThemeManifestError extends Error {
 }
 
 export class ThemeRepository {
+  supportsCatalogSynchronization(): boolean {
+    return isTauri();
+  }
+
   async listPackageDirectories(): Promise<readonly string[]> {
     const packages = await this.invoke("list_theme_packages", undefined);
     return Object.freeze([...packages]);
@@ -38,7 +55,7 @@ export class ThemeRepository {
     return this.invoke("read_theme_manifest", { id });
   }
 
-  storeManifest(manifest: ThemeManifestV1): Promise<void> {
+  storeManifest(manifest: ThemeManifestV1): Promise<ThemeCatalogRevision> {
     const normalized = normalizedManifest(manifest);
     return this.invoke("store_theme_manifest", {
       id: normalized.id,
@@ -46,7 +63,7 @@ export class ThemeRepository {
     });
   }
 
-  replaceManifest(manifest: ThemeManifestV1): Promise<void> {
+  replaceManifest(manifest: ThemeManifestV1): Promise<ThemeCatalogRevision> {
     const normalized = normalizedManifest(manifest);
     return this.invoke("replace_theme_manifest", {
       id: normalized.id,
@@ -54,12 +71,26 @@ export class ThemeRepository {
     });
   }
 
-  deletePackage(id: string): Promise<void> {
+  deletePackage(id: string): Promise<ThemeCatalogRevision> {
     return this.invoke("delete_theme_package", { id });
   }
 
   revealThemesRoot(): Promise<void> {
     return this.invoke("reveal_themes_folder", undefined);
+  }
+
+  loadCatalogRevision(): Promise<ThemeCatalogRevision> {
+    return this.invoke("load_theme_catalog_revision", undefined);
+  }
+
+  refreshCatalog(): Promise<ThemeCatalogRevision> {
+    return this.invoke("refresh_theme_catalog", undefined);
+  }
+
+  subscribeCatalogChanges(listener: (snapshot: ThemeCatalogRevision) => void): Promise<UnlistenFn> {
+    return listen<ThemeCatalogRevision>(THEME_CATALOG_CHANGED_EVENT, (event) =>
+      listener(event.payload),
+    );
   }
 
   private invoke<Name extends ThemeCommandName>(

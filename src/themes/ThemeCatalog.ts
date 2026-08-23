@@ -37,7 +37,15 @@ export type {
 } from "./themeCatalogReadModel";
 
 type ThemePackageReader = Pick<ThemeRepository, "listPackageDirectories" | "readManifest">;
-type ThemePackageReaderFactory = () => ThemePackageReader;
+type ThemeCatalogChangeSource = Pick<
+  ThemeRepository,
+  | "loadCatalogRevision"
+  | "refreshCatalog"
+  | "subscribeCatalogChanges"
+  | "supportsCatalogSynchronization"
+>;
+type ThemeCatalogSource = ThemePackageReader & Partial<ThemeCatalogChangeSource>;
+type ThemePackageReaderFactory = () => ThemeCatalogSource;
 
 type CatalogContext = {
   cache: Map<string, CustomThemeCatalogEntry>;
@@ -58,12 +66,20 @@ export class ThemeCatalogChangedError extends Error {
 }
 
 export class ThemeCatalog {
+  private appliedCatalogRevision = 0;
   private readonly context: CatalogContext;
   private readonly listeners = new Set<() => void>();
+  private requestedCatalogRevision = 0;
+  private readonly source: ThemeCatalogSource;
   private snapshot: ThemeCatalogSnapshot;
+  private synchronizationActive = false;
+  private synchronizationGeneration = 0;
+  private synchronizationOperation: Promise<ThemeCatalogSnapshot> | null = null;
+  private stopCatalogChanges: (() => void) | null = null;
 
   constructor(createReader: ThemePackageReaderFactory = () => new ThemeRepository()) {
-    this.context = createContext(createReader());
+    this.source = createReader();
+    this.context = createContext(this.source);
     this.snapshot = snapshotFor(this.context);
   }
 
@@ -73,6 +89,50 @@ export class ThemeCatalog {
   };
 
   getSnapshot = (): ThemeCatalogSnapshot => this.snapshot;
+
+  startSynchronization(): () => void {
+    if (this.synchronizationActive || !isCatalogChangeSource(this.source)) {
+      return () => undefined;
+    }
+    this.synchronizationActive = true;
+    this.synchronizationGeneration += 1;
+    void this.connectSynchronization(this.source, this.synchronizationGeneration);
+    return () => this.stopSynchronization();
+  }
+
+  private async connectSynchronization(
+    source: ThemeCatalogChangeSource,
+    generation: number,
+  ): Promise<void> {
+    try {
+      const stop = await source.subscribeCatalogChanges((snapshot) => {
+        if (this.synchronizationActive && generation === this.synchronizationGeneration) {
+          void this.synchronizeRevision(snapshot.revision).catch(reportSynchronizationError);
+        }
+      });
+      if (!this.synchronizationActive || generation !== this.synchronizationGeneration) {
+        stop();
+        return;
+      }
+      this.stopCatalogChanges = stop;
+      const snapshot = await source.loadCatalogRevision();
+      if (this.synchronizationActive && generation === this.synchronizationGeneration) {
+        await this.synchronizeRevision(snapshot.revision);
+      }
+    } catch (error) {
+      if (this.synchronizationActive && generation === this.synchronizationGeneration) {
+        reportSynchronizationError(error);
+      }
+    }
+  }
+
+  private stopSynchronization(): void {
+    if (!this.synchronizationActive) return;
+    this.synchronizationActive = false;
+    this.synchronizationGeneration += 1;
+    this.stopCatalogChanges?.();
+    this.stopCatalogChanges = null;
+  }
 
   async loadSelected(
     settings: Readonly<{ appTheme: AppThemeSelection; readerTheme: ReaderThemeSelection }>,
@@ -185,7 +245,51 @@ export class ThemeCatalog {
   }
 
   async reload(): Promise<ThemeCatalogSnapshot> {
-    return this.refreshPackages();
+    if (!isCatalogChangeSource(this.source)) return this.refreshPackages();
+    const snapshot = await this.source.refreshCatalog();
+    return this.synchronizeRevision(snapshot.revision);
+  }
+
+  synchronizeRevision(revision: number): Promise<ThemeCatalogSnapshot> {
+    if (!Number.isSafeInteger(revision) || revision < 0) {
+      return Promise.reject(new Error("The theme catalog revision is invalid."));
+    }
+    if (revision <= this.appliedCatalogRevision) return Promise.resolve(this.snapshot);
+    this.requestedCatalogRevision = Math.max(this.requestedCatalogRevision, revision);
+    if (this.synchronizationOperation) return this.synchronizationOperation;
+
+    return this.startSynchronizationOperation();
+  }
+
+  private startSynchronizationOperation(): Promise<ThemeCatalogSnapshot> {
+    let attemptedRevision = this.appliedCatalogRevision;
+    const operation = this.drainCatalogRevisions((revision) => {
+      attemptedRevision = revision;
+    });
+    this.synchronizationOperation = operation;
+    const clearOperation = () => {
+      if (this.synchronizationOperation === operation) this.synchronizationOperation = null;
+    };
+    const continueNewerRevision = () => {
+      clearOperation();
+      if (this.requestedCatalogRevision > attemptedRevision) {
+        void this.startSynchronizationOperation().catch(reportSynchronizationError);
+      }
+    };
+    void operation.then(clearOperation, continueNewerRevision);
+    return operation;
+  }
+
+  private async drainCatalogRevisions(
+    recordAttempt: (revision: number) => void,
+  ): Promise<ThemeCatalogSnapshot> {
+    do {
+      const revision = this.requestedCatalogRevision;
+      recordAttempt(revision);
+      await this.refreshPackages();
+      this.appliedCatalogRevision = revision;
+    } while (this.appliedCatalogRevision < this.requestedCatalogRevision);
+    return this.snapshot;
   }
 
   invalidatePackage(packageId: string): void {
@@ -296,6 +400,22 @@ function createContext(reader: ThemePackageReader): CatalogContext {
     reader,
     revision: 0,
   };
+}
+
+function isCatalogChangeSource(
+  source: ThemeCatalogSource,
+): source is ThemeCatalogSource & ThemeCatalogChangeSource {
+  return (
+    typeof source.loadCatalogRevision === "function" &&
+    typeof source.refreshCatalog === "function" &&
+    typeof source.subscribeCatalogChanges === "function" &&
+    typeof source.supportsCatalogSynchronization === "function" &&
+    source.supportsCatalogSynchronization()
+  );
+}
+
+function reportSynchronizationError(error: unknown): void {
+  console.error("Theme catalog synchronization failed", error);
 }
 
 function snapshotFor(context: CatalogContext): ThemeCatalogSnapshot {

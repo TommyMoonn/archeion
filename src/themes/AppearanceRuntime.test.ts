@@ -71,19 +71,19 @@ function createDeferredPreferencesSource() {
   };
 }
 
-function manifest(id: string) {
+function manifest(id: string, accent = "#345678") {
   return JSON.stringify({
     schemaVersion: 1,
     id,
     name: "Paper Night",
     base: "light",
-    app: { accent: "#345678" },
+    app: { accent },
     reader: { base: "sepia", link: "#654321" },
   });
 }
 
 async function settle() {
-  for (let index = 0; index < 5; index += 1) await Promise.resolve();
+  for (let index = 0; index < 20; index += 1) await Promise.resolve();
 }
 
 describe("global AppearanceRuntime", () => {
@@ -228,6 +228,83 @@ describe("global AppearanceRuntime", () => {
       globalPreferences: preferences.source,
     });
     runtime.start();
+    await settle();
+
+    expect(runtime.getSnapshot().app.base).toBe("dark");
+    expect(runtime.getReaderSnapshot().base).toBe("dark");
+  });
+
+  it("refreshes an active custom theme when another window replaces its package", async () => {
+    const preferences = createPreferencesSource(
+      { kind: "custom", id: "paper-night" },
+      { kind: "custom", id: "paper-night" },
+    );
+    let source = manifest("paper-night");
+    const catalogListeners = new Set<(snapshot: { revision: number }) => void>();
+    const createCatalog = () =>
+      new ThemeCatalog(() => ({
+        listPackageDirectories: vi.fn(async () => ["paper-night"]),
+        loadCatalogRevision: vi.fn(async () => ({ revision: 0 })),
+        readManifest: vi.fn(async () => source),
+        refreshCatalog: vi.fn(async () => ({ revision: 1 })),
+        supportsCatalogSynchronization: () => true,
+        subscribeCatalogChanges: vi.fn(async (next) => {
+          catalogListeners.add(next);
+          return () => catalogListeners.delete(next);
+        }),
+      }));
+    const first = new AppearanceRuntime({
+      catalog: createCatalog(),
+      globalPreferences: preferences.source,
+    });
+    const second = new AppearanceRuntime({
+      catalog: createCatalog(),
+      globalPreferences: preferences.source,
+    });
+    first.start();
+    second.start();
+    await settle();
+
+    source = manifest("paper-night", "#abcdef");
+    catalogListeners.forEach((listener) => listener({ revision: 1 }));
+    await settle();
+
+    expect(first.getSnapshot().app.publicTokens.accent).toBe("#abcdef");
+    expect(second.getSnapshot().app.publicTokens.accent).toBe("#abcdef");
+    expect(first.getReaderSnapshot().publicTokens.link).toBe("#654321");
+    expect(second.getReaderSnapshot().publicTokens.link).toBe("#654321");
+  });
+
+  it("falls back immediately when another window deletes the active custom theme", async () => {
+    const preferences = createPreferencesSource(
+      { kind: "custom", id: "paper-night" },
+      { kind: "custom", id: "paper-night" },
+    );
+    let installed = true;
+    let listener: ((snapshot: { revision: number }) => void) | undefined;
+    const catalog = new ThemeCatalog(() => ({
+      listPackageDirectories: vi.fn(async () => (installed ? ["paper-night"] : [])),
+      loadCatalogRevision: vi.fn(async () => ({ revision: 0 })),
+      readManifest: vi.fn(async () => {
+        if (!installed) throw new Error("missing");
+        return manifest("paper-night");
+      }),
+      refreshCatalog: vi.fn(async () => ({ revision: 1 })),
+      supportsCatalogSynchronization: () => true,
+      subscribeCatalogChanges: vi.fn(async (next) => {
+        listener = next;
+        return () => {
+          listener = undefined;
+        };
+      }),
+    }));
+    const runtime = new AppearanceRuntime({ catalog, globalPreferences: preferences.source });
+    runtime.start();
+    await settle();
+    expect(runtime.getSnapshot().app.publicTokens.accent).toBe("#345678");
+
+    installed = false;
+    listener?.({ revision: 1 });
     await settle();
 
     expect(runtime.getSnapshot().app.base).toBe("dark");

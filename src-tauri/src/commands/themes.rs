@@ -2,12 +2,16 @@ use std::{
     fs::{self, File, OpenOptions},
     io::{Read, Write},
     path::{Path, PathBuf},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Mutex, MutexGuard,
+    },
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 use super::filesystem;
 
@@ -15,6 +19,48 @@ pub(super) const THEMES_DIRECTORY: &str = "themes";
 pub(super) const THEME_MANIFEST_FILE: &str = "theme.json";
 pub(super) const MAX_THEME_MANIFEST_BYTES: usize = 256 * 1024;
 static TRANSACTION_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+const THEME_CATALOG_CHANGED_EVENT: &str = "theme-catalog-changed";
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ThemeCatalogRevision {
+    revision: u64,
+}
+
+#[derive(Default)]
+pub struct ThemeCatalogService {
+    revision: Mutex<u64>,
+}
+
+impl ThemeCatalogService {
+    fn lock_revision(&self) -> Result<MutexGuard<'_, u64>, String> {
+        self.revision
+            .lock()
+            .map_err(|_| "Theme catalog state is unavailable.".to_string())
+    }
+
+    fn snapshot(&self) -> Result<ThemeCatalogRevision, String> {
+        Ok(ThemeCatalogRevision {
+            revision: *self.lock_revision()?,
+        })
+    }
+
+    fn advance(
+        &self,
+        publish: impl FnOnce(&ThemeCatalogRevision),
+    ) -> Result<ThemeCatalogRevision, String> {
+        let mut revision = self.lock_revision()?;
+        *revision = revision
+            .checked_add(1)
+            .ok_or_else(|| "Theme catalog revision is exhausted.".to_string())?;
+        let snapshot = ThemeCatalogRevision {
+            revision: *revision,
+        };
+        drop(revision);
+        publish(&snapshot);
+        Ok(snapshot)
+    }
+}
 
 pub(super) fn transaction_suffix() -> String {
     let timestamp = SystemTime::now()
@@ -318,6 +364,27 @@ pub(super) fn resolve_app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, S
         .map_err(|error| format!("Unable to resolve theme storage: {error}"))
 }
 
+fn publish_catalog_change(
+    app: &tauri::AppHandle,
+    service: &ThemeCatalogService,
+    mutation: impl FnOnce() -> Result<(), String>,
+) -> Result<ThemeCatalogRevision, String> {
+    mutate_catalog(service, mutation, |snapshot| {
+        if let Err(error) = app.emit(THEME_CATALOG_CHANGED_EVENT, snapshot) {
+            eprintln!("theme catalog change event failed: {error}");
+        }
+    })
+}
+
+fn mutate_catalog(
+    service: &ThemeCatalogService,
+    mutation: impl FnOnce() -> Result<(), String>,
+    publish: impl FnOnce(&ThemeCatalogRevision),
+) -> Result<ThemeCatalogRevision, String> {
+    mutation()?;
+    service.advance(publish)
+}
+
 #[tauri::command]
 pub fn list_theme_packages(app: tauri::AppHandle) -> Result<Vec<String>, String> {
     list_theme_packages_at(&resolve_app_data_root(&app)?)
@@ -331,24 +398,52 @@ pub fn read_theme_manifest(app: tauri::AppHandle, id: String) -> Result<String, 
 #[tauri::command]
 pub fn store_theme_manifest(
     app: tauri::AppHandle,
+    service: tauri::State<'_, ThemeCatalogService>,
     id: String,
     manifest_json: String,
-) -> Result<(), String> {
-    create_theme_package_at(&resolve_app_data_root(&app)?, &id, &manifest_json)
+) -> Result<ThemeCatalogRevision, String> {
+    let root = resolve_app_data_root(&app)?;
+    publish_catalog_change(&app, &service, || {
+        create_theme_package_at(&root, &id, &manifest_json)
+    })
 }
 
 #[tauri::command]
 pub fn replace_theme_manifest(
     app: tauri::AppHandle,
+    service: tauri::State<'_, ThemeCatalogService>,
     id: String,
     manifest_json: String,
-) -> Result<(), String> {
-    replace_theme_manifest_at(&resolve_app_data_root(&app)?, &id, &manifest_json)
+) -> Result<ThemeCatalogRevision, String> {
+    let root = resolve_app_data_root(&app)?;
+    publish_catalog_change(&app, &service, || {
+        replace_theme_manifest_at(&root, &id, &manifest_json)
+    })
 }
 
 #[tauri::command]
-pub fn delete_theme_package(app: tauri::AppHandle, id: String) -> Result<(), String> {
-    delete_theme_package_at(&resolve_app_data_root(&app)?, &id)
+pub fn delete_theme_package(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, ThemeCatalogService>,
+    id: String,
+) -> Result<ThemeCatalogRevision, String> {
+    let root = resolve_app_data_root(&app)?;
+    publish_catalog_change(&app, &service, || delete_theme_package_at(&root, &id))
+}
+
+#[tauri::command]
+pub fn load_theme_catalog_revision(
+    service: tauri::State<'_, ThemeCatalogService>,
+) -> Result<ThemeCatalogRevision, String> {
+    service.snapshot()
+}
+
+#[tauri::command]
+pub fn refresh_theme_catalog(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, ThemeCatalogService>,
+) -> Result<ThemeCatalogRevision, String> {
+    publish_catalog_change(&app, &service, || Ok(()))
 }
 
 #[tauri::command]
@@ -368,10 +463,10 @@ mod tests {
     };
 
     use super::{
-        create_theme_package_at, delete_theme_package_at, list_theme_packages_at,
+        create_theme_package_at, delete_theme_package_at, list_theme_packages_at, mutate_catalog,
         normalize_manifest_json, read_theme_manifest_at, replace_manifest_with_fs,
-        replace_theme_manifest_at, themes_root_at, validate_theme_id, ThemeFileSystem,
-        MAX_THEME_MANIFEST_BYTES, THEMES_DIRECTORY,
+        replace_theme_manifest_at, themes_root_at, validate_theme_id, ThemeCatalogService,
+        ThemeFileSystem, MAX_THEME_MANIFEST_BYTES, THEMES_DIRECTORY,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -394,6 +489,32 @@ mod tests {
             "app": { "accent": "#8fc1e3" }
         })
         .to_string()
+    }
+
+    #[test]
+    fn completed_catalog_changes_publish_one_monotonic_revision_each() {
+        let service = ThemeCatalogService::default();
+        let published = std::cell::RefCell::new(Vec::new());
+
+        let failed = mutate_catalog(
+            &service,
+            || Err("mutation failed".to_string()),
+            |snapshot| published.borrow_mut().push(snapshot.revision),
+        );
+        assert!(failed.is_err());
+        assert_eq!(service.snapshot().unwrap().revision, 0);
+
+        for expected in 1..=3 {
+            let snapshot = mutate_catalog(
+                &service,
+                || Ok(()),
+                |snapshot| published.borrow_mut().push(snapshot.revision),
+            )
+            .unwrap();
+            assert_eq!(snapshot.revision, expected);
+        }
+
+        assert_eq!(*published.borrow(), vec![1, 2, 3]);
     }
 
     fn legacy_package(root: &Path, id: &str, name: &str) -> std::path::PathBuf {
