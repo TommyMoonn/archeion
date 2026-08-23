@@ -1,4 +1,4 @@
-import type { ArchiveAppThemeSelection, ArchiveReaderThemeSelection } from "../types/settings";
+import type { AppThemeSelection, ReaderThemeSelection } from "../types/settings";
 import type { ThemeDiagnosticCode, ThemeManifestV1 } from "./domain";
 import type { AppThemeBase, ReaderThemeBase } from "./themeTokenRegistry";
 
@@ -57,6 +57,7 @@ export type CustomThemeCatalogEntry = ValidCustomThemeCatalogEntry | InvalidCust
 export type ThemeCatalogEntry = BuiltInThemeCatalogEntry | CustomThemeCatalogEntry;
 export type ApplicableThemeCatalogEntry = BuiltInThemeCatalogEntry | ValidCustomThemeCatalogEntry;
 
+/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
 export type ThemeCatalogScope = Readonly<{
   generation: number;
   rootPath: string;
@@ -66,28 +67,29 @@ export type ThemeCatalogSnapshot = Readonly<{
   archive: ThemeCatalogScope | null;
   entries: readonly ThemeCatalogEntry[];
   fullyEnumerated: boolean;
+  revision?: number;
 }>;
 
 export type AppEffectiveThemeCatalogSelection =
-  | Readonly<{ kind: "inherit" }>
-  | Readonly<{ kind: "system" }>
-  | Readonly<{ entry: ApplicableThemeCatalogEntry; kind: "theme" }>;
+  Readonly<{ kind: "system" }> | Readonly<{ entry: ApplicableThemeCatalogEntry; kind: "theme" }>;
 
-export type ReaderEffectiveThemeCatalogSelection =
-  Readonly<{ kind: "inherit" }> | Readonly<{ entry: ApplicableThemeCatalogEntry; kind: "theme" }>;
+export type ReaderEffectiveThemeCatalogSelection = Readonly<{
+  entry: ApplicableThemeCatalogEntry;
+  kind: "theme";
+}>;
 
 export type AppThemeCatalogSelection = Readonly<{
   customEntry?: CustomThemeCatalogEntry;
   effective: AppEffectiveThemeCatalogSelection;
   fellBack: boolean;
-  requested: Readonly<ArchiveAppThemeSelection>;
+  requested: Readonly<AppThemeSelection>;
 }>;
 
 export type ReaderThemeCatalogSelection = Readonly<{
   customEntry?: CustomThemeCatalogEntry;
   effective: ReaderEffectiveThemeCatalogSelection;
   fellBack: boolean;
-  requested: Readonly<ArchiveReaderThemeSelection>;
+  requested: Readonly<ReaderThemeSelection>;
 }>;
 
 export type ThemeSelectionResolution = Readonly<{

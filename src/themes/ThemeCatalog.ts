@@ -1,7 +1,8 @@
 import type {
-  ArchiveAppearanceSettings,
+  AppThemeSelection,
   ArchiveAppThemeSelection,
   ArchiveReaderThemeSelection,
+  ReaderThemeSelection,
 } from "../types/settings";
 import { ThemeRepository } from "./ThemeRepository";
 import type { ThemeDiagnostic, ThemeManifestV1 } from "./domain";
@@ -14,8 +15,8 @@ import {
 import type {
   AppEffectiveThemeCatalogSelection,
   AppThemeCatalogSelection,
-  ThemeCatalogScope,
   ThemeCatalogSnapshot,
+  ThemeCatalogScope,
   ThemeSelectionResolution,
   CustomThemeCatalogEntry,
   InvalidCustomThemeCatalogEntry,
@@ -29,7 +30,6 @@ import { validateThemeManifest } from "./validateThemeManifest";
 export type {
   ApplicableThemeCatalogEntry,
   AppThemeCatalogSelection,
-  ThemeCatalogScope,
   ThemeCatalogSnapshot,
   ThemeSelectionResolution,
   BuiltInThemeCatalogEntry,
@@ -43,7 +43,7 @@ export type {
 } from "./themeCatalogReadModel";
 
 type ThemePackageReader = Pick<ThemeRepository, "listPackageDirectories" | "readManifest">;
-type ThemePackageReaderFactory = (archiveRootPath: string) => ThemePackageReader;
+type ThemePackageReaderFactory = () => ThemePackageReader;
 
 type CatalogContext = {
   cache: Map<string, CustomThemeCatalogEntry>;
@@ -54,62 +54,61 @@ type CatalogContext = {
   pending: Map<string, Promise<CustomThemeCatalogEntry>>;
   reader: ThemePackageReader;
   revision: number;
-  scope: ThemeCatalogScope;
 };
 
 export class ThemeCatalogChangedError extends Error {
   constructor() {
-    super("The active archive theme catalog changed before the operation completed.");
+    super("The global theme catalog changed before the operation completed.");
     this.name = "ThemeCatalogChangedError";
   }
 }
 
 export class ThemeCatalog {
-  private context: CatalogContext | null = null;
+  private readonly context: CatalogContext;
   private readonly listeners = new Set<() => void>();
-  private snapshot: ThemeCatalogSnapshot = inactiveSnapshot();
+  private snapshot: ThemeCatalogSnapshot;
 
-  constructor(
-    private readonly createReader: ThemePackageReaderFactory = () => new ThemeRepository(),
-  ) {}
+  constructor(createReader: ThemePackageReaderFactory = () => new ThemeRepository()) {
+    this.context = createContext(createReader());
+    this.snapshot = snapshotFor(this.context);
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   };
 
-  activateArchive(scope: ThemeCatalogScope): void {
-    const normalizedScope = normalizeScope(scope);
-    if (
-      this.context?.scope.generation === normalizedScope.generation &&
-      this.context.scope.rootPath === normalizedScope.rootPath
-    ) {
-      return;
-    }
-    this.context = null;
-    this.publish();
-    const reader = this.createReader(normalizedScope.rootPath);
-    this.context = createContext(normalizedScope, reader);
-    this.publish();
-  }
-
-  deactivateArchive(): void {
-    this.context = null;
-    this.publish();
-  }
-
   getSnapshot = (): ThemeCatalogSnapshot => this.snapshot;
 
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  activateArchive(_scope: ThemeCatalogScope): void {
+    void _scope;
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  deactivateArchive(): void {}
+
   async loadSelected(
-    settings: Readonly<ArchiveAppearanceSettings>,
+    settings: Readonly<{
+      appTheme: AppThemeSelection | ArchiveAppThemeSelection;
+      readerTheme: ReaderThemeSelection | ArchiveReaderThemeSelection;
+    }>,
   ): Promise<ThemeSelectionResolution> {
-    const context = this.requireContext();
+    const context = this.context;
     const activeRefresh = context.enumerationRereadsPackages ? context.enumeration : null;
     if (activeRefresh) await activeRefresh;
     this.assertCurrent(context);
     const revision = context.revision;
-    const appSelection = freezeSelection(settings.appTheme);
-    const readerSelection = freezeSelection(settings.readerTheme);
+    const appSelection = freezeSelection(
+      settings.appTheme.kind === "inherit"
+        ? ({ kind: "builtin", id: "dark" } as const)
+        : settings.appTheme,
+    );
+    const readerSelection = freezeSelection(
+      settings.readerTheme.kind === "inherit"
+        ? ({ kind: "builtin", id: "dark" } as const)
+        : settings.readerTheme,
+    );
     const customIds = new Set<string>();
     if (appSelection.kind === "custom") customIds.add(appSelection.id);
     if (readerSelection.kind === "custom") customIds.add(readerSelection.id);
@@ -132,7 +131,7 @@ export class ThemeCatalog {
   }
 
   enumeratePackages(): Promise<ThemeCatalogSnapshot> {
-    const context = this.requireContext();
+    const context = this.context;
     if (context.fullyEnumerated) return Promise.resolve(this.snapshot);
     if (context.enumeration) return context.enumeration;
     const operation = this.enumerateContext(context, false);
@@ -149,7 +148,7 @@ export class ThemeCatalog {
   }
 
   refreshPackages(): Promise<ThemeCatalogSnapshot> {
-    const context = this.requireContext();
+    const context = this.context;
     if (context.enumerationRereadsPackages && context.enumeration) return context.enumeration;
     const activeEnumeration = context.enumeration;
     context.pending = new Map();
@@ -216,18 +215,15 @@ export class ThemeCatalog {
 
   invalidatePackage(packageId: string): void {
     const context = this.context;
-    if (!context) return;
     const cache = new Map(context.cache);
     cache.delete(packageId);
-    const next = createContext(context.scope, context.reader);
-    next.cache = cache;
-    this.context = next;
+    const nextCache = cache;
+    context.cache = nextCache;
+    context.pending = new Map();
+    context.catalogDiagnostics = new Map();
+    context.fullyEnumerated = false;
+    context.revision += 1;
     this.publish();
-  }
-
-  private requireContext(): CatalogContext {
-    if (!this.context) throw new Error("An active archive is required for the theme catalog.");
-    return this.context;
   }
 
   private assertCurrent(context: CatalogContext): void {
@@ -235,7 +231,7 @@ export class ThemeCatalog {
   }
 
   private publish(): void {
-    this.snapshot = this.context ? snapshotFor(this.context) : inactiveSnapshot();
+    this.snapshot = snapshotFor(this.context);
     this.listeners.forEach((listener) => listener());
   }
 
@@ -314,7 +310,7 @@ export class ThemeCatalog {
   }
 }
 
-function createContext(scope: ThemeCatalogScope, reader: ThemePackageReader): CatalogContext {
+function createContext(reader: ThemePackageReader): CatalogContext {
   return {
     cache: new Map(),
     catalogDiagnostics: new Map(),
@@ -324,26 +320,7 @@ function createContext(scope: ThemeCatalogScope, reader: ThemePackageReader): Ca
     pending: new Map(),
     reader,
     revision: 0,
-    scope,
   };
-}
-
-function normalizeScope(scope: ThemeCatalogScope): ThemeCatalogScope {
-  if (!Number.isSafeInteger(scope.generation) || scope.generation < 0) {
-    throw new Error("A non-negative archive generation is required for the theme catalog.");
-  }
-  if (!scope.rootPath.trim()) {
-    throw new Error("An archive root path is required for the theme catalog.");
-  }
-  return Object.freeze({ generation: scope.generation, rootPath: scope.rootPath });
-}
-
-function inactiveSnapshot(): ThemeCatalogSnapshot {
-  return Object.freeze({
-    archive: null,
-    entries: builtInThemeCatalogEntries,
-    fullyEnumerated: false,
-  });
 }
 
 function snapshotFor(context: CatalogContext): ThemeCatalogSnapshot {
@@ -351,9 +328,10 @@ function snapshotFor(context: CatalogContext): ThemeCatalogSnapshot {
     .map((entry) => addCatalogDiagnostics(entry, context.catalogDiagnostics.get(entry.packageId)))
     .sort((left, right) => left.packageId.localeCompare(right.packageId));
   return Object.freeze({
-    archive: context.scope,
+    archive: null,
     entries: Object.freeze([...builtInThemeCatalogEntries, ...customEntries]),
     fullyEnumerated: context.fullyEnumerated,
+    revision: context.revision,
   });
 }
 
@@ -475,9 +453,8 @@ function countValues(values: readonly string[]): Map<string, number> {
 
 function resolveAppSelection(
   context: CatalogContext,
-  selection: Readonly<ArchiveAppThemeSelection>,
+  selection: Readonly<AppThemeSelection>,
 ): AppThemeCatalogSelection {
-  if (selection.kind === "inherit") return appSelection(selection, { kind: "inherit" });
   if (selection.kind === "system") return appSelection(selection, { kind: "system" });
   if (selection.kind === "builtin") {
     const entry = findBuiltInThemeCatalogEntry(selection.id);
@@ -489,14 +466,13 @@ function resolveAppSelection(
   if (entry?.applicable && entry.capabilities.application) {
     return appSelection(selection, { kind: "theme", entry });
   }
-  return appSelection(selection, { kind: "inherit" }, true, entry);
+  return appSelection(selection, fallbackAppSelection(), true, entry);
 }
 
 function resolveReaderSelection(
   context: CatalogContext,
-  selection: Readonly<ArchiveReaderThemeSelection>,
+  selection: Readonly<ReaderThemeSelection>,
 ): ReaderThemeCatalogSelection {
-  if (selection.kind === "inherit") return readerSelection(selection, { kind: "inherit" });
   if (selection.kind === "builtin") {
     const entry = findBuiltInThemeCatalogEntry(selection.id);
     if (!entry?.capabilities.reader) {
@@ -508,7 +484,7 @@ function resolveReaderSelection(
   if (entry?.applicable && entry.capabilities.reader) {
     return readerSelection(selection, { kind: "theme", entry });
   }
-  return readerSelection(selection, { kind: "inherit" }, true, entry);
+  return readerSelection(selection, fallbackReaderSelection(), true, entry);
 }
 
 function publicCustomEntry(
@@ -522,7 +498,7 @@ function publicCustomEntry(
 }
 
 function appSelection(
-  requested: Readonly<ArchiveAppThemeSelection>,
+  requested: Readonly<AppThemeSelection>,
   effective: AppEffectiveThemeCatalogSelection,
   fellBack = false,
   customEntry?: CustomThemeCatalogEntry,
@@ -536,7 +512,7 @@ function appSelection(
 }
 
 function readerSelection(
-  requested: Readonly<ArchiveReaderThemeSelection>,
+  requested: Readonly<ReaderThemeSelection>,
   effective: ReaderEffectiveThemeCatalogSelection,
   fellBack = false,
   customEntry?: CustomThemeCatalogEntry,
@@ -549,10 +525,22 @@ function readerSelection(
   });
 }
 
-function freezeSelection<Selection extends ArchiveAppThemeSelection | ArchiveReaderThemeSelection>(
+function freezeSelection<Selection extends AppThemeSelection | ReaderThemeSelection>(
   selection: Selection,
 ): Readonly<Selection> {
   return Object.freeze({ ...selection });
+}
+
+function fallbackAppSelection(): AppEffectiveThemeCatalogSelection {
+  const entry = findBuiltInThemeCatalogEntry("dark");
+  if (!entry?.capabilities.application) throw new Error("The built-in dark app theme is missing.");
+  return { kind: "theme", entry };
+}
+
+function fallbackReaderSelection(): ReaderEffectiveThemeCatalogSelection {
+  const entry = findBuiltInThemeCatalogEntry("dark");
+  if (!entry?.capabilities.reader) throw new Error("The built-in dark Reader theme is missing.");
+  return { kind: "theme", entry };
 }
 
 function catalogDiagnostic(

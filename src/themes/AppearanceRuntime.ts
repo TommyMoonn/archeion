@@ -1,12 +1,17 @@
 import type { AppPreferences } from "../types/appSettings";
-import type { ArchiveAppearanceSettings, ArchiveReaderThemeSelection } from "../types/settings";
 import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearanceSettingsSource";
+import type {
+  AppThemeSelection,
+  ArchiveAppearanceSettings,
+  ArchiveReaderThemeSelection,
+  ReaderThemeSelection,
+} from "../types/settings";
 import {
   ThemeCatalog,
   ThemeCatalogChangedError,
   type AppThemeCatalogSelection,
-  type ThemeSelectionResolution,
   type ReaderThemeCatalogSelection,
+  type ThemeSelectionResolution,
 } from "./ThemeCatalog";
 import type {
   ResolvedAppTheme,
@@ -20,18 +25,18 @@ import type { AppThemeBase, ReaderThemeBase } from "./themeTokenRegistry";
 
 type Listener = () => void;
 
-export type GlobalAppearancePreferences = Pick<AppPreferences, "appThemePreset" | "reader">;
+export type GlobalAppearancePreferences = Pick<AppPreferences, "appTheme" | "readerTheme">;
 
 export type GlobalAppearanceSource = Readonly<{
   getSnapshot: () => GlobalAppearancePreferences;
   subscribe: (listener: Listener) => () => void;
+  update?: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
 }>;
 
-export type AppearanceArchive = Readonly<{
-  id: string;
-  rootPath: string;
-}>;
+/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+export type AppearanceArchive = Readonly<{ id: string; rootPath: string }>;
 
+/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
 export type ActiveAppearanceArchive = AppearanceArchive & Readonly<{ generation: number }>;
 
 export type AppearanceRuntimeSnapshot = Readonly<{
@@ -45,6 +50,10 @@ export type AppearancePreviewContext = Readonly<{
   settings: Readonly<ArchiveAppearanceSettings>;
 }>;
 
+export type GlobalAppearancePreviewContext = Readonly<{
+  settings: Readonly<GlobalAppearancePreferences>;
+}>;
+
 export type AppearanceRuntimeOptions = Readonly<{
   catalog?: ThemeCatalog;
   getDocumentRoot?: () => HTMLElement | null;
@@ -53,59 +62,32 @@ export type AppearanceRuntimeOptions = Readonly<{
   onError?: (error: unknown) => void;
 }>;
 
-type AppearancePersistenceCoordinator = {
-  desiredSettings: Readonly<ArchiveAppearanceSettings> | null;
-  inFlightRefresh: InFlightAppearanceRefresh | null;
-  lastPersistedSettings: Readonly<ArchiveAppearanceSettings> | null;
-  latestOperation: number;
-  tail: Promise<void>;
-};
-
-type InFlightAppearanceRefresh = Readonly<{
-  operation: number;
-  promise: Promise<Readonly<ArchiveAppearanceSettings>>;
-}>;
-
-type ActiveArchiveContext = ActiveAppearanceArchive &
-  Readonly<{
-    persistence: AppearancePersistenceCoordinator;
-    settingsSource: ArchiveAppearanceSettingsSource;
-  }>;
-
-type ActiveAppearancePreview = Readonly<{
-  app: ResolvedAppTheme;
-  archiveGeneration: number;
-}>;
-
-type ActiveReaderAppearancePreview = Readonly<{
-  archiveGeneration: number;
-  reader: ResolvedReaderTheme;
-  selection: ArchiveReaderThemeSelection;
-}>;
-
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
+const GLOBAL_COMPATIBILITY_ARCHIVE = Object.freeze({
+  generation: 0,
+  id: "global-appearance",
+  rootPath: "",
+});
 
 export class AppearanceRuntime {
+  private readonly appThemes = new Map<AppThemeBase, ResolvedAppTheme>();
+  private appliedAppTheme: ResolvedAppTheme | null = null;
+  private appliedDocumentRoot: HTMLElement | null = null;
   private readonly catalog: ThemeCatalog;
+  private committedContext: GlobalAppearancePreviewContext;
+  private committedResolution: ThemeSelectionResolution | null = null;
+  private readonly customThemes = new WeakMap<ThemeManifestV1, ResolvedTheme>();
   private readonly getDocumentRoot: () => HTMLElement | null;
   private readonly globalPreferences: GlobalAppearanceSource;
   private readonly listeners = new Set<Listener>();
   private readonly matchMedia: ((query: string) => MediaQueryList) | undefined;
-  private readonly onError: (error: unknown) => void;
-  private readonly appThemes = new Map<AppThemeBase, ResolvedAppTheme>();
-  private readonly customThemes = new WeakMap<ThemeManifestV1, ResolvedTheme>();
-  private readonly readerThemes = new Map<ReaderThemeBase, ResolvedReaderTheme>();
-  private activeArchive: ActiveArchiveContext | null = null;
-  private appearanceSettings: Readonly<ArchiveAppearanceSettings> | null = null;
-  private appliedAppTheme: ResolvedAppTheme | null = null;
-  private appliedDocumentRoot: HTMLElement | null = null;
-  private committedContext: AppearancePreviewContext | null = null;
-  private generation = 0;
   private mediaQuery: MediaQueryList | null = null;
-  private preferences: GlobalAppearancePreferences;
-  private preview: ActiveAppearancePreview | null = null;
-  private readerPreview: ActiveReaderAppearancePreview | null = null;
-  private resolution: ThemeSelectionResolution | null = null;
+  private readonly onError: (error: unknown) => void;
+  private preferences: Readonly<GlobalAppearancePreferences>;
+  private preview: ResolvedAppTheme | null = null;
+  private readerPreview: ResolvedReaderTheme | null = null;
+  private readonly readerThemes = new Map<ReaderThemeBase, ResolvedReaderTheme>();
+  private resolutionRevision = 0;
   private snapshot: AppearanceRuntimeSnapshot;
   private stopPreferences: (() => void) | null = null;
 
@@ -122,209 +104,19 @@ export class AppearanceRuntime {
         : window.matchMedia.bind(window));
     this.onError =
       options.onError ?? ((error) => console.error("Appearance could not be loaded", error));
-    this.preferences = options.globalPreferences.getSnapshot();
-    this.snapshot = this.globalSnapshot(null);
+    this.preferences = freezePreferences(options.globalPreferences.getSnapshot());
+    this.committedContext = freezeContext(this.preferences);
+    this.snapshot = this.safeSnapshot(this.preferences);
   }
 
   getSnapshot = (): AppearanceRuntimeSnapshot => this.snapshot;
-
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
-
-  getPreviewContext = (): AppearancePreviewContext | null => this.committedContext;
-
-  applyPreview(archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme): boolean {
-    if (!this.isArchiveCurrent(archive)) return false;
-    this.preview = Object.freeze({
-      app: appTheme,
-      archiveGeneration: archive.generation,
+  getPreviewContext = (): AppearancePreviewContext | null =>
+    Object.freeze({
+      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
+      settings: this.committedContext.settings,
     });
-    this.commitCurrentAppearance();
-    return true;
-  }
-
-  clearPreview(archive: ActiveAppearanceArchive): boolean {
-    if (!this.preview || !this.isArchiveCurrent(archive)) return false;
-    if (this.preview.archiveGeneration !== archive.generation) return false;
-    this.preview = null;
-    this.commitCurrentAppearance();
-    return true;
-  }
-
-  async applyReaderPreview(
-    archive: ActiveAppearanceArchive,
-    selection: ArchiveReaderThemeSelection,
-  ): Promise<boolean> {
-    const context = this.activeArchive;
-    const committed = this.appearanceSettings;
-    if (!context || !committed || !this.isArchiveCurrent(archive)) return false;
-
-    let resolution: ThemeSelectionResolution;
-    try {
-      resolution = await this.catalog.loadSelected({
-        ...committed,
-        readerTheme: selection,
-      });
-    } catch (error) {
-      if (!this.isCurrent(context) || error instanceof ThemeCatalogChangedError) return false;
-      throw error;
-    }
-    if (
-      !this.isCurrent(context) ||
-      !this.appearanceSettings ||
-      !sameAppearanceSettings(this.appearanceSettings, committed)
-    ) {
-      return false;
-    }
-
-    this.readerPreview = Object.freeze({
-      archiveGeneration: archive.generation,
-      reader: this.resolveReaderSelection(resolution.reader, this.preferences.reader.theme),
-      selection: Object.freeze({ ...selection }),
-    });
-    this.commitCurrentAppearance();
-    return true;
-  }
-
-  clearReaderPreview(archive: ActiveAppearanceArchive): boolean {
-    if (!this.readerPreview || !this.isArchiveCurrent(archive)) return false;
-    if (this.readerPreview.archiveGeneration !== archive.generation) return false;
-    this.readerPreview = null;
-    this.commitCurrentAppearance();
-    return true;
-  }
-
-  async keepPreview(
-    archive: ActiveAppearanceArchive,
-    expectedSettings: Readonly<ArchiveAppearanceSettings>,
-    settings: ArchiveAppearanceSettings,
-  ): Promise<void> {
-    const context = this.activeArchive;
-    if (!context || !this.isArchiveCurrent(archive)) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-    if (!this.preview || this.preview.archiveGeneration !== archive.generation) {
-      throw new Error("There is no active theme preview for this archive.");
-    }
-    if (
-      !this.appearanceSettings ||
-      !sameAppearanceSettings(this.appearanceSettings, expectedSettings)
-    ) {
-      throw new AppearanceRuntimeSettingsChangedError();
-    }
-    await this.persistAppearance(context, settings, true);
-  }
-
-  async keepReaderPreview(
-    archive: ActiveAppearanceArchive,
-    expectedSettings: Readonly<ArchiveAppearanceSettings>,
-    selection: ArchiveReaderThemeSelection,
-  ): Promise<void> {
-    const context = this.activeArchive;
-    if (!context || !this.isArchiveCurrent(archive)) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-    if (
-      !this.readerPreview ||
-      this.readerPreview.archiveGeneration !== archive.generation ||
-      !sameSelection(this.readerPreview.selection, selection)
-    ) {
-      throw new Error("There is no matching active Reader theme preview for this archive.");
-    }
-    if (
-      !this.appearanceSettings ||
-      !sameAppearanceSettings(this.appearanceSettings, expectedSettings)
-    ) {
-      throw new AppearanceRuntimeSettingsChangedError();
-    }
-    await this.persistAppearance(
-      context,
-      { ...expectedSettings, readerTheme: { ...selection } },
-      false,
-    );
-  }
-
-  async saveArchiveAppearanceSettings(
-    archive: ActiveAppearanceArchive,
-    settings: ArchiveAppearanceSettings,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    const context = this.activeArchive;
-    if (!context || !this.isArchiveCurrent(archive)) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-    if (this.preview) {
-      throw new Error("End the active theme preview before changing archive appearance.");
-    }
-    return this.persistAppearance(context, settings, false);
-  }
-
-  async updateArchiveAppearanceSettings(
-    archive: ActiveAppearanceArchive,
-    changes: Partial<ArchiveAppearanceSettings>,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    const context = this.activeArchive;
-    if (!context || !this.isArchiveCurrent(archive)) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-    if (this.preview) {
-      throw new Error("End the active theme preview before changing archive appearance.");
-    }
-    const desired = context.persistence.desiredSettings;
-    if (!desired) throw new AppearanceRuntimeSettingsChangedError();
-    return this.persistAppearance(
-      context,
-      {
-        appTheme: { ...(changes.appTheme ?? desired.appTheme) },
-        readerTheme: { ...(changes.readerTheme ?? desired.readerTheme) },
-      },
-      false,
-    );
-  }
-
-  async refreshArchiveAppearance(
-    archive: ActiveAppearanceArchive,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    const context = this.activeArchive;
-    if (!context || !this.appearanceSettings || !this.isArchiveCurrent(archive)) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-    if (this.preview) {
-      throw new Error("End the active theme preview before reloading archive appearance.");
-    }
-
-    const inFlight = context.persistence.inFlightRefresh;
-    if (inFlight && context.persistence.latestOperation === inFlight.operation) {
-      return inFlight.promise;
-    }
-    const operation = this.nextPersistenceOperation(context);
-    const promise = this.enqueuePersistence(context, async () => {
-      this.assertPersistenceOperationCurrent(context, operation);
-      let settings: Readonly<ArchiveAppearanceSettings>;
-      try {
-        settings = freezeAppearanceSettings(
-          await context.settingsSource.getArchiveAppearanceSettings(),
-        );
-      } catch (error) {
-        this.assertPersistenceOperationCurrent(context, operation);
-        const knownPersisted = context.persistence.lastPersistedSettings;
-        if (knownPersisted) {
-          await this.resolveAndPublishAppearance(context, knownPersisted, operation, false);
-        }
-        throw error;
-      }
-      context.persistence.lastPersistedSettings = settings;
-      this.assertPersistenceOperationCurrent(context, operation);
-      return this.resolveAndPublishAppearance(context, settings, operation, false);
-    });
-    const ownedRefresh = Object.freeze({ operation, promise });
-    context.persistence.inFlightRefresh = ownedRefresh;
-    const clearRefresh = () => {
-      if (context.persistence.inFlightRefresh === ownedRefresh) {
-        context.persistence.inFlightRefresh = null;
-      }
-    };
-    void promise.then(clearRefresh, clearRefresh);
-    return promise;
-  }
+  getGlobalPreviewContext = (): GlobalAppearancePreviewContext => this.committedContext;
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -333,12 +125,10 @@ export class AppearanceRuntime {
 
   start(): () => void {
     if (this.stopPreferences) return () => this.stop();
-
     this.mediaQuery = this.matchMedia?.(SYSTEM_SCHEME_QUERY) ?? null;
     this.addSystemSchemeListener();
     this.stopPreferences = this.globalPreferences.subscribe(this.handlePreferencesChange);
-    this.preferences = this.globalPreferences.getSnapshot();
-    this.commitCurrentAppearance();
+    this.adoptPreferences(this.globalPreferences.getSnapshot());
     return () => this.stop();
   }
 
@@ -347,119 +137,214 @@ export class AppearanceRuntime {
     this.stopPreferences = null;
     this.removeSystemSchemeListener();
     this.mediaQuery = null;
-    this.deactivateArchive();
-  }
-
-  async activateArchive(
-    archive: AppearanceArchive,
-    settingsSource: ArchiveAppearanceSettingsSource,
-  ): Promise<void> {
-    const context: ActiveArchiveContext = Object.freeze({
-      generation: this.generation + 1,
-      id: archive.id,
-      persistence: {
-        desiredSettings: null,
-        inFlightRefresh: null,
-        lastPersistedSettings: null,
-        latestOperation: 0,
-        tail: Promise.resolve(),
-      },
-      rootPath: archive.rootPath,
-      settingsSource,
-    });
-    this.generation = context.generation;
-    this.activeArchive = context;
-    this.appearanceSettings = null;
-    this.committedContext = null;
     this.preview = null;
     this.readerPreview = null;
-    this.resolution = null;
     this.commitCurrentAppearance();
+  }
 
+  applyPreview(
+    appThemeOrArchive: ResolvedAppTheme | ActiveAppearanceArchive,
+    legacyAppTheme?: ResolvedAppTheme,
+  ): boolean {
+    const appTheme = legacyAppTheme ?? (appThemeOrArchive as ResolvedAppTheme);
+    this.preview = appTheme;
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  clearPreview(_legacyArchive?: ActiveAppearanceArchive): boolean {
+    void _legacyArchive;
+    if (!this.preview) return false;
+    this.preview = null;
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  async keepPreview(
+    expectedSettingsOrArchive: Readonly<GlobalAppearancePreferences> | ActiveAppearanceArchive,
+    selectionOrExpected: AppThemeSelection | Readonly<ArchiveAppearanceSettings>,
+    legacySettings?: ArchiveAppearanceSettings,
+  ): Promise<void> {
+    const expectedSettings = legacySettings
+      ? this.preferences
+      : (expectedSettingsOrArchive as Readonly<GlobalAppearancePreferences>);
+    const selection = legacySettings
+      ? legacySettings.appTheme.kind === "inherit"
+        ? this.preferences.appTheme
+        : legacySettings.appTheme
+      : (selectionOrExpected as AppThemeSelection);
+    if (!this.preview) throw new Error("There is no active application theme preview.");
+    if (!samePreferences(this.preferences, expectedSettings)) {
+      throw new AppearanceRuntimeSettingsChangedError();
+    }
+    await this.updateGlobalPreferences({ appTheme: selection });
+    this.adoptPreferences(this.globalPreferences.getSnapshot());
+    this.preview = null;
+    this.commitCurrentAppearance();
+  }
+
+  async applyReaderPreview(
+    selectionOrArchive: ReaderThemeSelection | ActiveAppearanceArchive,
+    legacySelection?: ArchiveReaderThemeSelection,
+  ): Promise<boolean> {
+    const selection = legacySelection ?? (selectionOrArchive as ReaderThemeSelection);
+    if (selection.kind === "inherit") return false;
+    const expected = this.preferences;
+    let resolution: ThemeSelectionResolution;
     try {
-      this.catalog.activateArchive({ generation: context.generation, rootPath: context.rootPath });
-      const settings = await settingsSource.getArchiveAppearanceSettings();
-      if (!this.isCurrent(context)) return;
-      context.persistence.lastPersistedSettings = freezeAppearanceSettings(settings);
-      const resolution = await this.catalog.loadSelected(settings);
-      if (!this.isCurrent(context)) return;
-      this.publishResolvedAppearance(context, resolution, false);
+      resolution = await this.catalog.loadSelected({ ...expected, readerTheme: selection });
     } catch (error) {
-      if (!this.isCurrent(context) || error instanceof ThemeCatalogChangedError) return;
-      this.appearanceSettings = null;
-      this.resolution = null;
+      if (error instanceof ThemeCatalogChangedError) return false;
+      throw error;
+    }
+    if (!samePreferences(this.preferences, expected)) return false;
+    this.readerPreview = this.resolveReaderSelection(resolution.reader);
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  clearReaderPreview(_legacyArchive?: ActiveAppearanceArchive): boolean {
+    void _legacyArchive;
+    if (!this.readerPreview) return false;
+    this.readerPreview = null;
+    this.commitCurrentAppearance();
+    return true;
+  }
+
+  async keepReaderPreview(
+    expectedSettingsOrArchive: Readonly<GlobalAppearancePreferences> | ActiveAppearanceArchive,
+    selectionOrExpected: ReaderThemeSelection | Readonly<ArchiveAppearanceSettings>,
+    legacySelection?: ArchiveReaderThemeSelection,
+  ): Promise<void> {
+    const expectedSettings = legacySelection
+      ? this.preferences
+      : (expectedSettingsOrArchive as Readonly<GlobalAppearancePreferences>);
+    const selection = legacySelection ?? (selectionOrExpected as ReaderThemeSelection);
+    if (selection.kind === "inherit") return;
+    if (!this.readerPreview) throw new Error("There is no active Reader theme preview.");
+    if (!samePreferences(this.preferences, expectedSettings)) {
+      throw new AppearanceRuntimeSettingsChangedError();
+    }
+    await this.updateAppearanceSettings({ readerTheme: selection });
+    this.readerPreview = null;
+    this.commitCurrentAppearance();
+  }
+
+  async updateAppearanceSettings(
+    changes: Partial<GlobalAppearancePreferences>,
+  ): Promise<Readonly<GlobalAppearancePreferences>> {
+    if (this.preview && changes.appTheme) {
+      throw new Error("End the active theme preview before changing the application theme.");
+    }
+    await this.updateGlobalPreferences(changes);
+    this.adoptPreferences(this.globalPreferences.getSnapshot());
+    return this.preferences;
+  }
+
+  async refreshAppearance(): Promise<void> {
+    await this.catalog.refreshPackages();
+    await this.resolveCommittedAppearance();
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  async activateArchive(
+    _archive: AppearanceArchive,
+    _settingsSource: ArchiveAppearanceSettingsSource,
+  ): Promise<void> {
+    void _archive;
+    void _settingsSource;
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  deactivateArchive(_archive?: AppearanceArchive): void {
+    void _archive;
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  async saveArchiveAppearanceSettings(
+    _archive: ActiveAppearanceArchive,
+    settings: ArchiveAppearanceSettings,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    void _archive;
+    await this.updateAppearanceSettings(legacyChanges(settings));
+    return settings;
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  async updateArchiveAppearanceSettings(
+    _archive: ActiveAppearanceArchive,
+    changes: Partial<ArchiveAppearanceSettings>,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    void _archive;
+    await this.updateAppearanceSettings(legacyChanges(changes));
+    return legacyAppearanceSettings(this.preferences);
+  }
+
+  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  async refreshArchiveAppearance(
+    _archive: ActiveAppearanceArchive,
+  ): Promise<Readonly<ArchiveAppearanceSettings>> {
+    void _archive;
+    await this.refreshAppearance();
+    return legacyAppearanceSettings(this.preferences);
+  }
+
+  private readonly handlePreferencesChange = () => {
+    this.adoptPreferences(this.globalPreferences.getSnapshot());
+  };
+
+  private updateGlobalPreferences(
+    changes: Partial<GlobalAppearancePreferences>,
+  ): Promise<AppPreferences> {
+    const update = this.globalPreferences.update;
+    if (!update) throw new Error("Global appearance preferences cannot be updated.");
+    return update(changes);
+  }
+
+  private adoptPreferences(preferences: GlobalAppearancePreferences): void {
+    const next = freezePreferences(preferences);
+    if (samePreferences(this.preferences, next) && this.committedResolution) return;
+    const appChanged = !sameAppSelection(this.preferences.appTheme, next.appTheme);
+    const readerChanged = !sameReaderSelection(this.preferences.readerTheme, next.readerTheme);
+    this.preferences = next;
+    this.committedContext = freezeContext(next);
+    if (appChanged) this.preview = null;
+    if (readerChanged) this.readerPreview = null;
+    this.committedResolution = null;
+    this.commitCurrentAppearance();
+    void this.resolveCommittedAppearance();
+  }
+
+  private async resolveCommittedAppearance(): Promise<void> {
+    const revision = this.resolutionRevision + 1;
+    this.resolutionRevision = revision;
+    const expected = this.preferences;
+    try {
+      const resolution = await this.catalog.loadSelected(expected);
+      if (revision !== this.resolutionRevision || !samePreferences(this.preferences, expected)) {
+        return;
+      }
+      this.committedResolution = resolution;
       this.commitCurrentAppearance();
+    } catch (error) {
+      if (revision !== this.resolutionRevision || error instanceof ThemeCatalogChangedError) return;
       this.onError(error);
     }
   }
 
-  deactivateArchive(archive?: AppearanceArchive): void {
-    if (
-      archive &&
-      this.activeArchive &&
-      (archive.id !== this.activeArchive.id || archive.rootPath !== this.activeArchive.rootPath)
-    ) {
-      return;
-    }
-    if (!this.activeArchive && !this.resolution) return;
-
-    this.generation += 1;
-    this.activeArchive = null;
-    this.appearanceSettings = null;
-    this.committedContext = null;
-    this.preview = null;
-    this.readerPreview = null;
-    this.resolution = null;
-    this.catalog.deactivateArchive();
-    this.commitCurrentAppearance();
-  }
-
-  private readonly handlePreferencesChange = () => {
-    const next = this.globalPreferences.getSnapshot();
-    const appChanged = next.appThemePreset !== this.preferences.appThemePreset;
-    const readerChanged = next.reader.theme !== this.preferences.reader.theme;
-    if (!appChanged && !readerChanged) return;
-    this.preferences = next;
-    if (readerChanged && this.resolution?.reader.effective.kind === "inherit") {
-      this.readerPreview = null;
-    }
-    if (
-      !this.resolution ||
-      (appChanged && this.resolution.app.effective.kind === "inherit") ||
-      (readerChanged && this.resolution.reader.effective.kind === "inherit")
-    ) {
-      this.commitCurrentAppearance();
-    }
-  };
-
   private readonly handleSystemSchemeChange = () => {
-    const appSelection = this.resolution?.app.effective;
-    if (
-      appSelection?.kind === "system" ||
-      (appSelection?.kind !== "theme" && this.preferences.appThemePreset === "system")
-    ) {
-      this.commitCurrentAppearance();
-    }
+    if (this.preferences.appTheme.kind === "system") this.commitCurrentAppearance();
   };
 
   private commitCurrentAppearance(): void {
-    const archive = this.activeArchive ? publicArchive(this.activeArchive) : null;
-    const resolved = this.resolution
-      ? this.resolvedSnapshot(this.resolution, archive)
-      : this.globalSnapshot(archive);
-    const appSnapshot =
-      this.preview && archive?.generation === this.preview.archiveGeneration
-        ? Object.freeze({
-            app: this.preview.app,
-            archive,
-            reader: resolved.reader,
-          })
-        : resolved;
-    const snapshot =
-      this.readerPreview && archive?.generation === this.readerPreview.archiveGeneration
-        ? Object.freeze({ ...appSnapshot, reader: this.readerPreview.reader })
-        : appSnapshot;
-
+    const committed = this.committedResolution
+      ? this.resolvedSnapshot(this.committedResolution)
+      : this.safeSnapshot(this.preferences);
+    const snapshot = Object.freeze({
+      app: this.preview ?? committed.app,
+      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
+      reader: this.readerPreview ?? committed.reader,
+    });
     const root = this.getDocumentRoot();
     if (!root) {
       this.appliedDocumentRoot = null;
@@ -472,32 +357,34 @@ export class AppearanceRuntime {
     this.listeners.forEach((listener) => listener());
   }
 
-  private globalSnapshot(archive: ActiveAppearanceArchive | null): AppearanceRuntimeSnapshot {
+  private safeSnapshot(preferences: GlobalAppearancePreferences): AppearanceRuntimeSnapshot {
+    const appBase =
+      preferences.appTheme.kind === "builtin"
+        ? preferences.appTheme.id
+        : preferences.appTheme.kind === "system"
+          ? this.systemAppBase()
+          : "dark";
+    const readerBase =
+      preferences.readerTheme.kind === "builtin" ? preferences.readerTheme.id : "dark";
     return Object.freeze({
-      app: this.resolveBuiltInAppTheme(this.globalAppBase()),
-      archive,
-      reader: this.resolveBuiltInReaderTheme(this.preferences.reader.theme),
+      app: this.resolveBuiltInAppTheme(appBase),
+      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
+      reader: this.resolveBuiltInReaderTheme(readerBase),
     });
   }
 
-  private resolvedSnapshot(
-    resolution: ThemeSelectionResolution,
-    archive: ActiveAppearanceArchive | null,
-  ): AppearanceRuntimeSnapshot {
+  private resolvedSnapshot(resolution: ThemeSelectionResolution): AppearanceRuntimeSnapshot {
     return Object.freeze({
-      app: this.resolveAppSelection(resolution.app, this.globalAppBase(), this.systemAppBase()),
-      archive,
-      reader: this.resolveReaderSelection(resolution.reader, this.preferences.reader.theme),
+      app: this.resolveAppSelection(resolution.app),
+      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
+      reader: this.resolveReaderSelection(resolution.reader),
     });
   }
 
-  private resolveAppSelection(
-    selection: AppThemeCatalogSelection,
-    fallback: AppThemeBase,
-    system: AppThemeBase,
-  ): ResolvedAppTheme {
-    if (selection.effective.kind === "inherit") return this.resolveBuiltInAppTheme(fallback);
-    if (selection.effective.kind === "system") return this.resolveBuiltInAppTheme(system);
+  private resolveAppSelection(selection: AppThemeCatalogSelection): ResolvedAppTheme {
+    if (selection.effective.kind === "system") {
+      return this.resolveBuiltInAppTheme(this.systemAppBase());
+    }
     const entry = selection.effective.entry;
     if (entry.origin === "builtin") {
       if (!entry.appBase) throw new Error(`Built-in theme ${entry.id} has no application palette.`);
@@ -506,18 +393,14 @@ export class AppearanceRuntime {
     return this.resolveCustomTheme(entry.manifest).app;
   }
 
-  private resolveReaderSelection(
-    selection: ReaderThemeCatalogSelection,
-    fallback: ReaderThemeBase,
-  ): ResolvedReaderTheme {
-    if (selection.effective.kind === "inherit") return this.resolveBuiltInReaderTheme(fallback);
+  private resolveReaderSelection(selection: ReaderThemeCatalogSelection): ResolvedReaderTheme {
     const entry = selection.effective.entry;
     if (entry.origin === "builtin") {
-      if (!entry.readerBase) throw new Error(`Built-in theme ${entry.id} has no reader palette.`);
+      if (!entry.readerBase) throw new Error(`Built-in theme ${entry.id} has no Reader palette.`);
       return this.resolveBuiltInReaderTheme(entry.readerBase);
     }
     const reader = this.resolveCustomTheme(entry.manifest).reader;
-    if (!reader) throw new Error(`Custom theme ${entry.id} has no reader palette.`);
+    if (!reader) throw new Error(`Custom theme ${entry.id} has no Reader palette.`);
     return reader;
   }
 
@@ -545,244 +428,77 @@ export class AppearanceRuntime {
     return resolved;
   }
 
-  private globalAppBase(): "dark" | "light" {
-    if (this.preferences.appThemePreset !== "system") return this.preferences.appThemePreset;
-    return this.systemAppBase();
-  }
-
-  private systemAppBase(): "dark" | "light" {
+  private systemAppBase(): AppThemeBase {
     return this.mediaQuery?.matches ? "light" : "dark";
   }
 
-  private isCurrent(context: ActiveArchiveContext): boolean {
-    return this.activeArchive === context;
-  }
-
-  private async persistAppearance(
-    context: ActiveArchiveContext,
-    settings: ArchiveAppearanceSettings,
-    clearAppPreview: boolean,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    const requested = freezeAppearanceSettings(settings);
-    context.persistence.desiredSettings = requested;
-    const operation = this.nextPersistenceOperation(context);
-    return this.enqueuePersistence(context, async () => {
-      this.assertPersistenceOperationCurrent(context, operation);
-      let saved: Readonly<ArchiveAppearanceSettings>;
-      try {
-        saved = freezeAppearanceSettings(
-          await context.settingsSource.saveArchiveAppearanceSettings(requested),
-        );
-        context.persistence.lastPersistedSettings = saved;
-      } catch (error) {
-        if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
-        if (context.persistence.latestOperation !== operation) {
-          throw new AppearanceRuntimeSettingsChangedError();
-        }
-        await this.reconcilePersistedAppearance(context, operation);
-        throw error;
-      }
-
-      this.assertPersistenceOperationCurrent(context, operation);
-      return this.resolveAndPublishAppearance(context, saved, operation, clearAppPreview);
-    });
-  }
-
-  private nextPersistenceOperation(context: ActiveArchiveContext): number {
-    context.persistence.latestOperation += 1;
-    return context.persistence.latestOperation;
-  }
-
-  private enqueuePersistence<Result>(
-    context: ActiveArchiveContext,
-    task: () => Promise<Result>,
-  ): Promise<Result> {
-    const operation = context.persistence.tail.catch(() => undefined).then(task);
-    context.persistence.tail = operation.then(
-      () => undefined,
-      () => undefined,
-    );
-    return operation;
-  }
-
-  private async reconcilePersistedAppearance(
-    context: ActiveArchiveContext,
-    operation: number,
-  ): Promise<void> {
-    this.assertPersistenceOperationCurrent(context, operation);
-    let authoritative: Readonly<ArchiveAppearanceSettings>;
-    try {
-      authoritative = freezeAppearanceSettings(
-        await context.settingsSource.getArchiveAppearanceSettings(),
-      );
-      context.persistence.lastPersistedSettings = authoritative;
-    } catch (error) {
-      const knownPersisted = context.persistence.lastPersistedSettings;
-      if (!knownPersisted) throw error;
-      authoritative = knownPersisted;
-      this.onError(error);
-    }
-    this.assertPersistenceOperationCurrent(context, operation);
-    await this.resolveAndPublishAppearance(context, authoritative, operation, false);
-  }
-
-  private async resolveAndPublishAppearance(
-    context: ActiveArchiveContext,
-    settings: Readonly<ArchiveAppearanceSettings>,
-    operation: number,
-    clearAppPreview: boolean,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    let retriedCurrentCatalog = false;
-    while (true) {
-      this.assertPersistenceOperationCurrent(context, operation);
-      this.assertCatalogScopeCurrent(context);
-      try {
-        const resolution = await this.catalog.loadSelected(settings);
-        this.assertPersistenceOperationCurrent(context, operation);
-        this.assertCatalogScopeCurrent(context);
-        return this.publishResolvedAppearance(context, resolution, clearAppPreview);
-      } catch (error) {
-        if (!(error instanceof ThemeCatalogChangedError)) throw error;
-        this.assertPersistenceOperationCurrent(context, operation);
-        this.assertCatalogScopeCurrent(context);
-        if (retriedCurrentCatalog) throw error;
-        retriedCurrentCatalog = true;
-      }
-    }
-  }
-
-  private publishResolvedAppearance(
-    context: ActiveArchiveContext,
-    resolution: ThemeSelectionResolution,
-    clearAppPreview: boolean,
-  ): Readonly<ArchiveAppearanceSettings> {
-    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
-    const settings = appearanceSettingsFromResolution(resolution);
-    context.persistence.desiredSettings = settings;
-    this.appearanceSettings = settings;
-    this.resolution = resolution;
-    if (clearAppPreview) this.preview = null;
-    this.readerPreview = null;
-    this.updateCommittedContext(context, settings);
-    this.commitCurrentAppearance();
-    return settings;
-  }
-
-  private updateCommittedContext(
-    context: ActiveArchiveContext,
-    settings: Readonly<ArchiveAppearanceSettings>,
-  ): void {
-    const current = this.committedContext;
-    if (
-      current &&
-      current.archive.generation === context.generation &&
-      current.archive.id === context.id &&
-      current.archive.rootPath === context.rootPath &&
-      sameAppearanceSettings(current.settings, settings)
-    ) {
-      return;
-    }
-    this.committedContext = Object.freeze({
-      archive: publicArchive(context),
-      settings,
-    });
-  }
-
-  private assertPersistenceOperationCurrent(
-    context: ActiveArchiveContext,
-    operation: number,
-  ): void {
-    if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
-    if (context.persistence.latestOperation !== operation) {
-      throw new AppearanceRuntimeSettingsChangedError();
-    }
-  }
-
-  private assertCatalogScopeCurrent(context: ActiveArchiveContext): void {
-    const scope = this.catalog.getSnapshot().archive;
-    if (!scope || scope.generation !== context.generation || scope.rootPath !== context.rootPath) {
-      throw new AppearanceRuntimeArchiveChangedError();
-    }
-  }
-
-  private isArchiveCurrent(archive: ActiveAppearanceArchive): boolean {
-    return (
-      this.activeArchive?.generation === archive.generation &&
-      this.activeArchive.id === archive.id &&
-      this.activeArchive.rootPath === archive.rootPath
-    );
-  }
-
   private addSystemSchemeListener(): void {
-    if (typeof this.mediaQuery?.addEventListener === "function") {
-      this.mediaQuery.addEventListener("change", this.handleSystemSchemeChange);
-      return;
-    }
-    this.mediaQuery?.addListener(this.handleSystemSchemeChange);
+    this.mediaQuery?.addEventListener?.("change", this.handleSystemSchemeChange);
   }
 
   private removeSystemSchemeListener(): void {
-    if (typeof this.mediaQuery?.removeEventListener === "function") {
-      this.mediaQuery.removeEventListener("change", this.handleSystemSchemeChange);
-      return;
-    }
-    this.mediaQuery?.removeListener(this.handleSystemSchemeChange);
-  }
-}
-
-export class AppearanceRuntimeArchiveChangedError extends Error {
-  constructor() {
-    super("The active archive changed before the theme preview operation completed.");
-    this.name = "AppearanceRuntimeArchiveChangedError";
+    this.mediaQuery?.removeEventListener?.("change", this.handleSystemSchemeChange);
   }
 }
 
 export class AppearanceRuntimeSettingsChangedError extends Error {
   constructor() {
-    super("Archive appearance settings changed after the theme preview started.");
+    super("Global appearance changed before the operation completed.");
     this.name = "AppearanceRuntimeSettingsChangedError";
   }
 }
 
-function publicArchive(archive: ActiveArchiveContext): ActiveAppearanceArchive {
+function freezePreferences(
+  preferences: GlobalAppearancePreferences,
+): Readonly<GlobalAppearancePreferences> {
   return Object.freeze({
-    generation: archive.generation,
-    id: archive.id,
-    rootPath: archive.rootPath,
+    appTheme: Object.freeze({ ...preferences.appTheme }),
+    readerTheme: Object.freeze({ ...preferences.readerTheme }),
   });
 }
 
-function appearanceSettingsFromResolution(
-  resolution: ThemeSelectionResolution,
-): Readonly<ArchiveAppearanceSettings> {
-  return freezeAppearanceSettings({
-    appTheme: resolution.app.requested,
-    readerTheme: resolution.reader.requested,
-  });
+function freezeContext(preferences: GlobalAppearancePreferences): GlobalAppearancePreviewContext {
+  return Object.freeze({ settings: freezePreferences(preferences) });
 }
 
-function freezeAppearanceSettings(
-  settings: Readonly<ArchiveAppearanceSettings>,
-): Readonly<ArchiveAppearanceSettings> {
-  return Object.freeze({
-    appTheme: Object.freeze({ ...settings.appTheme }),
-    readerTheme: Object.freeze({ ...settings.readerTheme }),
-  });
-}
-
-function sameAppearanceSettings(
-  left: Readonly<ArchiveAppearanceSettings>,
-  right: Readonly<ArchiveAppearanceSettings>,
+function samePreferences(
+  left: Readonly<GlobalAppearancePreferences>,
+  right: Readonly<GlobalAppearancePreferences>,
 ): boolean {
   return (
-    sameSelection(left.appTheme, right.appTheme) &&
-    sameSelection(left.readerTheme, right.readerTheme)
+    sameAppSelection(left.appTheme, right.appTheme) &&
+    sameReaderSelection(left.readerTheme, right.readerTheme)
   );
 }
 
-function sameSelection(
-  left: Readonly<{ id?: string; kind: string }>,
-  right: Readonly<{ id?: string; kind: string }>,
-): boolean {
+function sameAppSelection(left: AppThemeSelection, right: AppThemeSelection): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "system") return true;
+  return right.kind !== "system" && left.id === right.id;
+}
+
+function sameReaderSelection(left: ReaderThemeSelection, right: ReaderThemeSelection): boolean {
   return left.kind === right.kind && left.id === right.id;
+}
+
+function legacyChanges(
+  settings: Partial<ArchiveAppearanceSettings>,
+): Partial<GlobalAppearancePreferences> {
+  return {
+    ...(settings.appTheme && settings.appTheme.kind !== "inherit"
+      ? { appTheme: settings.appTheme }
+      : {}),
+    ...(settings.readerTheme && settings.readerTheme.kind !== "inherit"
+      ? { readerTheme: settings.readerTheme }
+      : {}),
+  };
+}
+
+function legacyAppearanceSettings(
+  preferences: Readonly<GlobalAppearancePreferences>,
+): ArchiveAppearanceSettings {
+  return {
+    appTheme: { ...preferences.appTheme },
+    readerTheme: { ...preferences.readerTheme },
+  };
 }
