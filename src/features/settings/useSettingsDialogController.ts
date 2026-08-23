@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
-import { useLibraryStorage } from "../../storage/useLibraryStorage";
+import { useOptionalLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
   useAppPreferences,
@@ -55,6 +55,7 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
 ]);
 
 export type SettingsDialogControllerOptions = {
+  archiveAccess?: "required" | "unavailable";
   loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
@@ -66,6 +67,7 @@ export type SettingsDialogControllerOptions = {
 };
 
 export function useSettingsDialogController({
+  archiveAccess = "required",
   loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
@@ -75,7 +77,11 @@ export function useSettingsDialogController({
   themeCatalogEntries = [],
   themeCatalogLoading = false,
 }: SettingsDialogControllerOptions = {}) {
-  const storage = useLibraryStorage();
+  const contextualStorage = useOptionalLibraryStorage();
+  const storage = archiveAccess === "unavailable" ? null : contextualStorage;
+  if (archiveAccess === "required" && !storage) {
+    throw new Error("LibraryStorageProvider is missing.");
+  }
   const archiveScanActive = useArchiveScanActivity(storage);
   const archive = useArchive();
   const preferences = useAppPreferences();
@@ -124,7 +130,7 @@ export function useSettingsDialogController({
   )
     ? importDestinationValue
     : destinationOptions[0]?.value;
-  const selectedArchivePath = archive.status === "ready" ? archive.path : undefined;
+  const selectedArchivePath = storage && archive.status === "ready" ? archive.path : undefined;
 
   const clearLocalStatus = useCallback(() => {
     setStatus(null);
@@ -178,6 +184,7 @@ export function useSettingsDialogController({
 
   useEffect(() => {
     if (
+      !storage ||
       !loadArchiveImportSettings ||
       archiveImportLoadedRef.current ||
       archiveImportLoadingRef.current
@@ -185,9 +192,10 @@ export function useSettingsDialogController({
       return;
     }
 
+    const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
     archiveImportLoadingRef.current = true;
-    void storage
+    void activeStorage
       .getArchiveImportSettings()
       .then((loadedImportSettings) => {
         if (dataLoadGenerationRef.current !== generation) return;
@@ -210,13 +218,14 @@ export function useSettingsDialogController({
   }, [loadArchiveImportSettings, storage, setLocalStatus]);
 
   useEffect(() => {
-    if (!loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
+    if (!storage || !loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
       return;
     }
 
+    const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
     foldersLoadingRef.current = true;
-    void storage
+    void activeStorage
       .listFolders()
       .then((loadedFolders) => {
         if (dataLoadGenerationRef.current !== generation) return;
@@ -239,13 +248,19 @@ export function useSettingsDialogController({
   }, [loadFolders, storage, setLocalStatus]);
 
   useEffect(() => {
-    if (!loadCoverCacheStatus || coverCacheLoadedRef.current || coverCacheLoadingRef.current) {
+    if (
+      !storage ||
+      !loadCoverCacheStatus ||
+      coverCacheLoadedRef.current ||
+      coverCacheLoadingRef.current
+    ) {
       return;
     }
 
+    const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
     coverCacheLoadingRef.current = true;
-    void storage
+    void activeStorage
       .getCoverCacheStatus()
       .then((cacheStatus) => {
         if (dataLoadGenerationRef.current !== generation) return;
@@ -269,6 +284,7 @@ export function useSettingsDialogController({
 
   useEffect(() => {
     if (
+      !storage ||
       !loadEpubWritebackBackupStatus ||
       epubWritebackBackupStatusLoadedRef.current ||
       epubWritebackBackupStatusLoadingRef.current
@@ -276,9 +292,10 @@ export function useSettingsDialogController({
       return;
     }
 
+    const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
     epubWritebackBackupStatusLoadingRef.current = true;
-    void storage
+    void activeStorage
       .getEpubWritebackBackupStatus()
       .then((backupStatus) => {
         if (dataLoadGenerationRef.current !== generation) return;
@@ -303,6 +320,7 @@ export function useSettingsDialogController({
   }, [loadEpubWritebackBackupStatus, storage, setLocalStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
+    if (!storage) return;
     if (archiveScanConfirmationKeys.has(confirmation) && isArchiveScanActive(storage)) return;
     setConfirmations((current) => ({ ...current, [confirmation]: true }));
   }
@@ -328,6 +346,7 @@ export function useSettingsDialogController({
   function beginArchiveScanOperation(
     confirmation: SettingsConfirmationKey,
   ): { claim: ArchiveScanOperationClaim; statusOperation: number } | null {
+    if (!storage) return null;
     const claim = tryAcquireArchiveScanOperation(storage);
     if (!claim) return null;
 
@@ -409,6 +428,7 @@ export function useSettingsDialogController({
   }
 
   async function updateArchiveImport(changes: Partial<ArchiveImportSettings>): Promise<void> {
+    if (!storage) return;
     const next = { ...archiveImport, ...changes };
     const statusOperation = beginStatusOperation();
     try {
@@ -463,6 +483,7 @@ export function useSettingsDialogController({
   }
 
   async function rescan() {
+    if (!storage) return;
     const operation = beginArchiveScanOperation("rescanArchive");
     if (!operation) return;
     const { claim, statusOperation } = operation;
@@ -498,7 +519,7 @@ export function useSettingsDialogController({
 
   async function revealArchiveFolder() {
     const statusOperation = beginStatusOperation();
-    if (archive.status !== "ready") return;
+    if (!storage || archive.status !== "ready") return;
     const revealed = await archiveStore.revealArchive(archive.archive.id);
     if (!revealed) {
       publishStatusOperation(
@@ -510,6 +531,7 @@ export function useSettingsDialogController({
   }
 
   async function revealMetadata() {
+    if (!storage) return;
     const statusOperation = beginStatusOperation();
     try {
       await storage.revealMetadataFolder();
@@ -523,6 +545,7 @@ export function useSettingsDialogController({
   }
 
   async function clearCache() {
+    if (!storage) return;
     const statusOperation = beginConfirmationOperation("clearCoverCache");
     if (statusOperation === null) return;
     try {
@@ -540,6 +563,7 @@ export function useSettingsDialogController({
   }
 
   async function clearScannerCache() {
+    if (!storage) return;
     const statusOperation = beginConfirmationOperation("clearScannerCache");
     if (statusOperation === null) return;
     try {
@@ -557,6 +581,7 @@ export function useSettingsDialogController({
   }
 
   async function clearEpubWritebackBackups() {
+    if (!storage) return;
     const statusOperation = beginConfirmationOperation("clearEpubWritebackBackups");
     if (statusOperation === null) return;
     try {
@@ -575,6 +600,7 @@ export function useSettingsDialogController({
   }
 
   async function reextractMetadata() {
+    if (!storage) return;
     const operation = beginArchiveScanOperation("reextractMetadata");
     if (!operation) return;
     const { claim, statusOperation } = operation;
@@ -595,6 +621,7 @@ export function useSettingsDialogController({
   }
 
   async function repairMetadata() {
+    if (!storage) return;
     const operation = beginArchiveScanOperation("repairMetadata");
     if (!operation) return;
     const { claim, statusOperation } = operation;
@@ -672,6 +699,7 @@ export function useSettingsDialogController({
   }
 
   async function resetImport() {
+    if (!storage) return;
     const statusOperation = beginStatusOperation();
     if (
       !(await persistAppPreferences(
@@ -695,6 +723,7 @@ export function useSettingsDialogController({
   }
 
   return {
+    archiveAvailable: storage !== null,
     archiveScanActive,
     cache,
     busyConfirmations,

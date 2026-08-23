@@ -3,7 +3,12 @@ import { RouterProvider } from "react-router-dom";
 
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
-import { ARCHIVE_MANAGER_MAIN_CONTENT_ID, MAIN_CONTENT_ID, SkipLink } from "../components/SkipLink";
+import {
+  ARCHIVE_MANAGER_MAIN_CONTENT_ID,
+  MAIN_CONTENT_ID,
+  SETTINGS_MAIN_CONTENT_ID,
+  SkipLink,
+} from "../components/SkipLink";
 import { TooltipProvider } from "../components/Tooltip";
 import { WindowTitlebar } from "../components/WindowTitlebar";
 import { ArchiveGate } from "../features/archive/ArchiveGate";
@@ -17,7 +22,6 @@ import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { QuickActionsProvider } from "../features/quick-actions/QuickActionsProvider";
 import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { archiveStore } from "../stores/archiveStore";
-import { appPreferencesStore } from "../stores/appPreferencesStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
 import {
@@ -31,11 +35,15 @@ import { resolveWindowMode } from "./windowMode";
 import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
-import { closeSettingsWindow } from "../features/settings/settingsWindow";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
     default: module.ArchiveManagerWindow,
+  })),
+);
+const SettingsWindow = lazy(() =>
+  import("../features/settings/StandaloneSettingsWindow").then((module) => ({
+    default: module.SettingsWindow,
   })),
 );
 
@@ -72,9 +80,21 @@ export function App() {
     );
   }
 
+  if (windowMode === "settings") {
+    return (
+      <TooltipProvider>
+        <AppErrorBoundary mainContentId={SETTINGS_MAIN_CONTENT_ID}>
+          <Suspense fallback={null}>
+            <SettingsWindow />
+          </Suspense>
+        </AppErrorBoundary>
+      </TooltipProvider>
+    );
+  }
+
   return (
     <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
-      <MainWindowApp settingsBridge={windowMode === "settings"} />
+      <MainWindowApp />
     </TooltipProvider>
   );
 }
@@ -113,7 +133,7 @@ function StartupLoading() {
   );
 }
 
-function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
+function MainWindowApp() {
   const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
   const startupAttemptRef = useRef<InitialStartupAttempt | null>(null);
   const startupAttemptSequenceRef = useRef(0);
@@ -152,9 +172,7 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
             isCurrentAttempt: () =>
               startupAttemptRef.current === attempt &&
               attempt.phase === "completing-archive-manager",
-            navigateToLibrary: settingsBridge
-              ? async () => undefined
-              : () => router.navigate("/", { replace: true }),
+            navigateToLibrary: () => router.navigate("/", { replace: true }),
             refreshActiveArchive: () => archiveStore.refreshActiveArchive(),
           });
 
@@ -176,7 +194,7 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
       attempt.completion = completion;
       return completion;
     },
-    [publishStartupError, settingsBridge],
+    [publishStartupError],
   );
 
   const runStartup = useCallback(async () => {
@@ -192,14 +210,6 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
 
     try {
       const result = await initializeMainStartup({
-        ...(settingsBridge
-          ? {
-              getPreferences: () => ({
-                ...appPreferencesStore.getSnapshot(),
-                startupBehavior: "open-last-archive" as const,
-              }),
-            }
-          : {}),
         onArchiveManagerOpened: () => {
           if (startupAttemptRef.current !== attempt || attempt.phase !== "initializing") return;
 
@@ -208,14 +218,11 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
             void completeInitialStartup(attempt);
           }
         },
-        restoreReaderRoute: settingsBridge
-          ? async () => false
-          : (preferences, storage) =>
-              restoreRememberedReaderRoute(preferences, storage, {
-                getCurrentPathname: () => router.state.location.pathname,
-                navigate: (path) => router.navigate(path, { replace: true }),
-              }),
-        ...(settingsBridge ? { restoreWindowState: async () => false } : {}),
+        restoreReaderRoute: (preferences, storage) =>
+          restoreRememberedReaderRoute(preferences, storage, {
+            getCurrentPathname: () => router.state.location.pathname,
+            navigate: (path) => router.navigate(path, { replace: true }),
+          }),
       });
 
       if (startupAttemptRef.current !== attempt) return;
@@ -258,7 +265,7 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
           : "Archeion could not finish startup.",
       );
     }
-  }, [completeInitialStartup, publishStartupError, settingsBridge]);
+  }, [completeInitialStartup, publishStartupError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -304,7 +311,7 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
   }, [startupState.status]);
 
   useEffect(() => {
-    if (startupState.status !== "app" || settingsBridge) {
+    if (startupState.status !== "app") {
       return;
     }
 
@@ -317,13 +324,13 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
       windowStateController.stop();
       stopNavigationTracking();
     };
-  }, [settingsBridge, startupState.status]);
+  }, [startupState.status]);
 
   useEffect(() => {
-    if (startupState.status === "error" && !settingsBridge) {
+    if (startupState.status === "error") {
       void archiveStore.focusMainWindow();
     }
-  }, [settingsBridge, startupState.status]);
+  }, [startupState.status]);
 
   if (startupState.status === "loading" || startupState.status === "manager") {
     return <StartupLoading />;
@@ -375,18 +382,7 @@ function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
       <div className="window-app__content">
         <AppErrorBoundary>
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
-            <QuickActionsProvider
-              initialSettingsOpen={settingsBridge}
-              onSettingsClose={
-                settingsBridge
-                  ? () => {
-                      void closeSettingsWindow().catch((error) => {
-                        console.error("close Settings window failed", error);
-                      });
-                    }
-                  : undefined
-              }
-            >
+            <QuickActionsProvider>
               <ArchiveGate
                 preparedArchiveAtMount={{
                   id: startupState.preparedArchive.archiveId,

@@ -29,6 +29,19 @@
   box-shadow: var(--shadow-dialog);
 }
 
+.settings-window-shell {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.settings-window--standalone {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 .settings-sidebar {
   display: flex;
   flex-direction: column;
@@ -174,6 +187,19 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
 
 .settings-section__group--actions h3 {
   color: var(--muted);
+}
+
+.settings-item-unavailable {
+  min-width: 0;
+  padding: 0;
+  margin: 0;
+  border: 0;
+}
+
+.settings-item-unavailable__note {
+  margin: 6px 0 12px;
+  color: var(--muted);
+  font-size: var(--type-caption);
 }
 
 .settings-row {

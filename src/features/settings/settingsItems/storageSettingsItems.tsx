@@ -52,6 +52,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.rescan-archive",
     label: "Rescan archive",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Checks the active archive without changing EPUB files."
@@ -77,6 +78,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.scanner-cache",
     label: "Clear scanner cache",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Forces EPUB files to be checked again later."
@@ -96,6 +98,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.reextract-source-metadata",
     label: "Re-extract EPUB source metadata",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Rebuilds parsed EPUB title and author data."
@@ -121,6 +124,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.cover-cache-status",
     label: "Cover cache status",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Shows generated covers stored for this archive."
@@ -171,6 +175,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.clear-epub-writeback-backups",
     label: "Clear EPUB writeback backups",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Remove saved recovery copies from successful metadata edits."
@@ -204,6 +209,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.repair-metadata",
     label: "Repair archive metadata",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Rebuilds corrupted sidecar files without changing EPUB files."
@@ -228,6 +234,7 @@ export const storageSettingsItems = [
     groupStyle: "actions",
     id: "storage.metadata-folder",
     label: "Reveal .archeion folder",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Opens the active archive sidecar folder."

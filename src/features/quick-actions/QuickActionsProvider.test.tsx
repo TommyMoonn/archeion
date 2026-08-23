@@ -206,10 +206,8 @@ function Harness({
 async function renderProvider(
   onRun = vi.fn(),
   options: {
-    initialSettingsOpen?: boolean;
     onFocusSearch?: () => void;
     onReaderCommand?: () => void;
-    onSettingsClose?: () => void;
     openSettingsWindow?: () => Promise<boolean>;
     strictMode?: boolean;
     themeModeServices?: QuickActionThemeModeServices;
@@ -221,8 +219,6 @@ async function renderProvider(
   const provider = (
     <LibraryStorageContext value={createStorage()}>
       <QuickActionsProvider
-        initialSettingsOpen={options.initialSettingsOpen}
-        onSettingsClose={options.onSettingsClose}
         openSettingsWindow={options.openSettingsWindow ?? (async () => false)}
         themeModeServices={options.themeModeServices}
       >
@@ -1089,22 +1085,6 @@ describe("QuickActionsProvider", () => {
     });
 
     expect(openSettingsWindow).toHaveBeenCalledTimes(2);
-    expect(document.querySelector(".settings-dialog")).toBeNull();
-  });
-
-  it("exposes the legacy Settings surface for the transitional Settings window", async () => {
-    const onSettingsClose = vi.fn();
-    await renderProvider(vi.fn(), { initialSettingsOpen: true, onSettingsClose });
-
-    const settings = await waitForSettings();
-    expect(settings.querySelector("#settings-title")?.textContent).toBe("Settings");
-
-    await act(async () => {
-      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
-      await Promise.resolve();
-    });
-
-    expect(onSettingsClose).toHaveBeenCalledOnce();
     expect(document.querySelector(".settings-dialog")).toBeNull();
   });
 

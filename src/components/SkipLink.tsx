@@ -2,6 +2,7 @@ import type { MouseEvent } from "react";
 
 export const MAIN_CONTENT_ID = "archeion-main-content";
 export const ARCHIVE_MANAGER_MAIN_CONTENT_ID = "archive-manager-main-content";
+export const SETTINGS_MAIN_CONTENT_ID = "settings-main-content";
 
 type SkipLinkProps = {
   targetId: string;

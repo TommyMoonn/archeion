@@ -46,8 +46,8 @@ describe("Phase 0.9.0.28 navigation landmarks and focus entry", () => {
     expect(settings).toContain('aria-label="Settings sections"');
   });
 
-  it("keeps Settings inside its dialog without adding a competing main landmark", () => {
-    const settings = read("src/features/settings/SettingsDialog.tsx");
+  it("keeps the shared Settings surface free of a competing main landmark", () => {
+    const settings = read("src/features/settings/SettingsSurface.tsx");
 
     expect(settings).toContain('<section aria-label="Settings content"');
     expect(settings).not.toContain('<main className="settings-content"');

@@ -124,12 +124,16 @@ export function releaseArchiveScanOperation(claim: ArchiveScanOperationClaim): v
   releaseUnusedStore(storage, store);
 }
 
-export function useArchiveScanActivity(storage: LibraryStorage): boolean {
+export function useArchiveScanActivity(storage: LibraryStorage | null): boolean {
   const subscribe = useCallback(
-    (listener: () => void) => subscribeToArchiveScanActivity(storage, listener),
+    (listener: () => void) =>
+      storage ? subscribeToArchiveScanActivity(storage, listener) : () => undefined,
     [storage],
   );
-  const getSnapshot = useCallback(() => isArchiveScanActive(storage), [storage]);
+  const getSnapshot = useCallback(
+    () => (storage ? isArchiveScanActive(storage) : false),
+    [storage],
+  );
 
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 }

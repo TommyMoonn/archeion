@@ -54,16 +54,12 @@ const quickActionsRegistry = new QuickActionsRegistry();
 
 type QuickActionsProviderProps = {
   children: ReactNode;
-  initialSettingsOpen?: boolean;
-  onSettingsClose?: () => void;
   openSettingsWindow?: () => Promise<boolean>;
   themeModeServices?: QuickActionThemeModeServices;
 };
 
 export function QuickActionsProvider({
   children,
-  initialSettingsOpen = false,
-  onSettingsClose,
   openSettingsWindow = openNativeSettingsWindow,
   themeModeServices,
 }: QuickActionsProviderProps) {
@@ -75,7 +71,7 @@ export function QuickActionsProvider({
   const [settings, setSettings] = useState<{
     focusReturn?: FocusReturnRecord;
     initialSection?: SettingsSection;
-  } | null>(() => (initialSettingsOpen ? {} : null));
+  } | null>(null);
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const mountedRef = useRef(true);
@@ -393,10 +389,7 @@ export function QuickActionsProvider({
           <SettingsDialog
             focusReturn={settings.focusReturn}
             initialSection={settings.initialSection}
-            onClose={() => {
-              setSettings(null);
-              onSettingsClose?.();
-            }}
+            onClose={() => setSettings(null)}
           />
         </Suspense>
       ) : null}

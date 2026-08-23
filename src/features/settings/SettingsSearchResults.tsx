@@ -6,6 +6,7 @@ import { findSettingsSearchResults } from "./settingsSearch";
 import type { SettingsItem } from "./settingsItemTypes";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import type { SettingsDialogController } from "./useSettingsDialogController";
+import { SettingsItemContent } from "./SettingsSectionItems";
 
 type SettingsSearchResultsProps = {
   controller: SettingsDialogController;
@@ -93,7 +94,7 @@ export function SettingsSearchResults({
                       data-setting-id={item.id}
                       key={item.id}
                     >
-                      {item.render(controller)}
+                      <SettingsItemContent context={controller} item={item} />
                     </div>
                   ))}
                 </div>

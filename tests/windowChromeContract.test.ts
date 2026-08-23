@@ -86,6 +86,16 @@ describe("single frameless window contract", () => {
     expect(sharedCapabilities.permissions).toContain("core:window:allow-destroy");
   });
 
+  it("scopes the Settings picker permission to the Settings window", () => {
+    const settingsCapabilities = readJson<{ permissions: string[]; windows: string[] }>(
+      "src-tauri/capabilities/settings-window.json",
+    );
+
+    expect(settingsCapabilities.windows).toEqual(["settings"]);
+    expect(settingsCapabilities.permissions).toContain("dialog:allow-open");
+    expect(settingsCapabilities.permissions).not.toContain("dialog:allow-save");
+  });
+
   it("uses one fixed titlebar composition without selectable render branches", () => {
     const app = read("src/app/App.tsx");
     const titlebar = read("src/components/WindowTitlebar.tsx");

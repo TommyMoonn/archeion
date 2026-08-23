@@ -5,6 +5,28 @@ import type { SettingsItem, SettingsItemGroupStyle } from "./settingsItemTypes";
 import type { SettingsSection } from "./settingsSections";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
+export function SettingsItemContent({
+  context,
+  item,
+}: {
+  context: SettingsDialogController;
+  item: SettingsItem;
+}) {
+  if (!item.requiresArchive || context.archiveAvailable) {
+    return item.render(context);
+  }
+
+  const descriptionId = `${item.id.replaceAll(".", "-")}-archive-unavailable`;
+  return (
+    <fieldset aria-describedby={descriptionId} className="settings-item-unavailable" disabled>
+      {item.render(context)}
+      <p className="settings-item-unavailable__note" id={descriptionId}>
+        Open these settings from the main window while an archive is active.
+      </p>
+    </fieldset>
+  );
+}
+
 export function SettingsSectionItems({
   context,
   sectionId,
@@ -33,7 +55,7 @@ export function SettingsSectionItems({
         <h3>{activeGroup}</h3>
         {groupItems.map((item) => (
           <div data-setting-id={item.id} key={item.id}>
-            {item.render(context)}
+            <SettingsItemContent context={context} item={item} />
           </div>
         ))}
       </div>,
@@ -49,7 +71,7 @@ export function SettingsSectionItems({
       flushGroup();
       nodes.push(
         <div data-setting-id={item.id} key={item.id}>
-          {item.render(context)}
+          <SettingsItemContent context={context} item={item} />
         </div>,
       );
       continue;

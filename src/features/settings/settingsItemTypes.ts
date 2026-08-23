@@ -19,6 +19,7 @@ export type SettingsItem = {
   groupStyle?: SettingsItemGroupStyle;
   id: string;
   label: string;
+  requiresArchive?: boolean;
   render: (context: SettingsDialogController) => ReactNode;
   searchTerms?: readonly string[];
   sectionId: SettingsSection;

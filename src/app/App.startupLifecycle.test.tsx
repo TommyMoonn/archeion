@@ -40,7 +40,6 @@ function deferred<T>() {
 }
 
 const mocks = vi.hoisted(() => ({
-  closeSettingsWindow: vi.fn(async () => true),
   focusMainWindow: vi.fn(async () => true),
   gatePreparations: [] as unknown[],
   getLibraryStorage: vi.fn(),
@@ -50,10 +49,6 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(async () => undefined),
   providerStorages: [] as unknown[],
   refreshActiveArchive: vi.fn(async () => true),
-  settingsProviderProps: [] as Array<{
-    initialSettingsOpen?: boolean;
-    onSettingsClose?: () => void;
-  }>,
   windowMode: "main" as "main" | "settings",
 }));
 
@@ -85,30 +80,10 @@ vi.mock("../features/archive/archiveManagerLifecycle", () => ({
   quitFromStartup: vi.fn(async () => undefined),
 }));
 vi.mock("../features/quick-actions/QuickActionsProvider", () => ({
-  QuickActionsProvider: ({
-    children,
-    initialSettingsOpen,
-    onSettingsClose,
-  }: {
-    children: React.ReactNode;
-    initialSettingsOpen?: boolean;
-    onSettingsClose?: () => void;
-  }) => {
-    mocks.settingsProviderProps.push({ initialSettingsOpen, onSettingsClose });
-    return (
-      <>
-        {initialSettingsOpen ? (
-          <button data-testid="temporary-settings" onClick={onSettingsClose} type="button">
-            Temporary Settings
-          </button>
-        ) : null}
-        {children}
-      </>
-    );
-  },
+  QuickActionsProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
-vi.mock("../features/settings/settingsWindow", () => ({
-  closeSettingsWindow: mocks.closeSettingsWindow,
+vi.mock("../features/settings/StandaloneSettingsWindow", () => ({
+  SettingsWindow: () => <main data-testid="settings-root">Standalone Settings</main>,
 }));
 vi.mock("../storage/LibraryStorageContext", () => ({
   LibraryStorageProvider: ({
@@ -206,7 +181,6 @@ function storageFor(label: string) {
 }
 
 beforeEach(() => {
-  mocks.closeSettingsWindow.mockClear();
   mocks.focusMainWindow.mockClear();
   mocks.gatePreparations.length = 0;
   mocks.getLibraryStorage.mockReset();
@@ -217,7 +191,6 @@ beforeEach(() => {
   mocks.providerStorages.length = 0;
   mocks.refreshActiveArchive.mockReset();
   mocks.refreshActiveArchive.mockResolvedValue(true);
-  mocks.settingsProviderProps.length = 0;
   mocks.windowMode = "main";
 });
 
@@ -229,38 +202,16 @@ afterEach(() => {
 });
 
 describe("App Archive Manager completion ownership", () => {
-  it("uses the temporary Settings surface without main-window focus or navigation", async () => {
-    const storage = storageFor("settings-storage");
+  it("mounts the standalone Settings root without the main application tree", async () => {
     mocks.windowMode = "settings";
-    mocks.getSnapshot.mockReturnValue(archiveA);
-    mocks.initializeMainStartup.mockResolvedValue({
-      preparedArchive: {
-        archiveId: "archive-a",
-        rootPath: "D:\\archive-a",
-        storage,
-      },
-      restoredReader: false,
-      showArchiveManager: false,
-    });
 
     await renderApp();
 
-    const temporarySettings = container?.querySelector<HTMLButtonElement>(
-      '[data-testid="temporary-settings"]',
-    );
-    expect(temporarySettings).toBeInstanceOf(HTMLButtonElement);
-    expect(mocks.focusMainWindow).not.toHaveBeenCalled();
-    expect(mocks.navigate).not.toHaveBeenCalled();
-
-    const startupOptions = mocks.initializeMainStartup.mock.calls[0]?.[0];
-    expect(startupOptions?.getPreferences?.().startupBehavior).toBe("open-last-archive");
-    await expect(startupOptions?.restoreReaderRoute()).resolves.toBe(false);
-    await expect(startupOptions?.restoreWindowState?.()).resolves.toBe(false);
-    expect(mocks.navigate).not.toHaveBeenCalled();
-
-    await act(async () => temporarySettings?.click());
-
-    expect(mocks.closeSettingsWindow).toHaveBeenCalledOnce();
+    expect(container?.querySelector('[data-testid="settings-root"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="router"]')).toBeNull();
+    expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
+    expect(mocks.providerStorages).toHaveLength(0);
+    expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
   });

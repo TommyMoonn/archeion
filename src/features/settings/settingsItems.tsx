@@ -501,6 +501,7 @@ export const settingsItems: readonly SettingsItem[] = [
     description: "The active archive root on disk.",
     id: "archives.current-archive-folder",
     label: "Current archive folder",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="The active archive root on disk."
@@ -588,6 +589,7 @@ export const settingsItems: readonly SettingsItem[] = [
     deferredData: ["archiveImportSettings", "folders"],
     id: "import.default-destination-folder",
     label: "Default destination folder",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow
         description="Stored per archive because folders differ."
@@ -607,6 +609,7 @@ export const settingsItems: readonly SettingsItem[] = [
   {
     id: "import.reset",
     label: "Reset import settings",
+    requiresArchive: true,
     render: (context) => (
       <SettingsRow label="Reset import settings">
         <Button onClick={() => void context.resetImport()} variant="secondary">
