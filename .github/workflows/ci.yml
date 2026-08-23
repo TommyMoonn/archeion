@@ -17,8 +17,45 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  frontend:
-    name: Frontend checks
+  frontend-checks:
+    name: Frontend ${{ matrix.name }}
+    runs-on: windows-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Architecture
+            command: npm run architecture:check
+          - name: Format
+            command: npm run fmt
+          - name: Lint
+            command: npm run lint
+          - name: Typecheck
+            command: npm run typecheck
+          - name: Tests
+            command: npm run test
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
+
+  frontend-build:
+    name: Frontend build and assets
     runs-on: windows-latest
     timeout-minutes: 20
 
@@ -36,9 +73,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Run frontend checks
-        run: npm run check:frontend
 
       - name: Build frontend
         run: npm run build
@@ -74,10 +108,20 @@ jobs:
       - name: Run release tooling tests
         run: npm run test -- tests/releaseTooling.test.ts
 
-  rust:
-    name: Rust checks
+  rust-checks:
+    name: Rust ${{ matrix.name }}
     runs-on: windows-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Format
+            command: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
+          - name: Clippy
+            command: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+          - name: Tests
+            command: cargo test --locked --manifest-path src-tauri/Cargo.toml
 
     steps:
       - name: Checkout
@@ -97,14 +141,8 @@ jobs:
           workspaces: |
             src-tauri -> target
 
-      - name: Check Rust formatting
-        run: cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-
-      - name: Run Clippy
-        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
-
-      - name: Run Rust tests
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Run ${{ matrix.name }}
+        run: ${{ matrix.command }}
 
   msrv:
     name: Rust 1.88 check
