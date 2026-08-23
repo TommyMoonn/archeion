@@ -114,12 +114,12 @@ describe("global ThemeCatalog", () => {
       readManifest: vi.fn(async (id: string) => manifest(id)),
     }));
     await catalog.enumeratePackages();
-    const previousRevision = catalog.getSnapshot().revision ?? 0;
+    const previousRevision = catalog.getSnapshot().revision;
     packages = ["beta"];
 
     const refreshed = await catalog.refreshPackages();
 
-    expect(refreshed.revision ?? 0).toBeGreaterThan(previousRevision);
+    expect(refreshed.revision).toBeGreaterThan(previousRevision);
     expect(refreshed.entries.slice(3).map((entry) => entry.id)).toEqual(["beta"]);
   });
 });

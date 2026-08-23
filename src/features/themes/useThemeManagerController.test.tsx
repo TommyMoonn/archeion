@@ -4,12 +4,7 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ArchiveAppearanceSettings } from "../../types/settings";
-import { defaultAppPreferences } from "../../types/appSettings";
-import {
-  AppearanceRuntime,
-  AppearanceRuntimeSettingsChangedError,
-} from "../../themes/AppearanceRuntime";
+import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime";
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
@@ -20,27 +15,14 @@ import {
   type ThemeManagerControllerOptions,
 } from "./useThemeManagerController";
 
-const archive = Object.freeze({ generation: 4, id: "archive-a", rootPath: "D:\\Archive" });
-
-function manifest(id: string, reader = true): ThemeManifestV1 {
+function manifest(id: string): ThemeManifestV1 {
   return {
     schemaVersion: 1,
     id,
     name: id === "moon-ink" ? "Moon Ink" : "Paper Sky",
     base: "dark",
     app: { accent: "#8fc1e3" },
-    ...(reader ? { reader: { base: "sepia", link: "#765b34" } } : {}),
   };
-}
-
-function deferred<Value>() {
-  let resolve!: (value: Value) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<Value>((settle, fail) => {
-    resolve = settle;
-    reject = fail;
-  });
-  return { promise, reject, resolve };
 }
 
 function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-ink")]) {
@@ -49,55 +31,53 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     listPackageDirectories: vi.fn(async () => [...sources.keys()]),
     readManifest: vi.fn(async (id: string) => {
       const source = sources.get(id);
-      if (!source) throw new Error("theme.json is missing");
+      if (!source) throw new Error("missing theme");
       return source;
     }),
   }));
-  catalog.activateArchive(archive);
-  let settings: ArchiveAppearanceSettings = {
-    appTheme: { kind: "inherit" },
+  let settings: GlobalAppearancePreferences = {
+    appTheme: { kind: "builtin", id: "dark" },
     readerTheme: { kind: "builtin", id: "sepia" },
   };
   const listeners = new Set<() => void>();
-  const clearPreview = vi.fn(() => true);
-  const updateArchiveAppearanceSettings = vi.fn(
-    async (_archive, changes: Partial<ArchiveAppearanceSettings>) => {
+  const updateAppearanceSettings = vi.fn(
+    async (changes: { appTheme: GlobalAppearancePreferences["appTheme"] }) => {
       settings = { ...settings, ...changes };
       return settings;
     },
   );
+  const refreshAppearance = vi.fn(async () => {
+    await catalog.refreshPackages();
+  });
   const runtime = {
-    getPreviewContext: () => ({ archive, settings }),
-    refreshArchiveAppearance: vi.fn(async () => settings),
-    updateArchiveAppearanceSettings,
+    getPreviewContext: () => ({ settings }),
+    refreshAppearance,
+    updateAppearanceSettings,
   } satisfies ThemeManagerControllerOptions["runtime"];
+  const clearPreview = vi.fn(() => true);
   const previewSession = new ThemePreviewSession({
     applyPreview: vi.fn(() => true),
     clearPreview,
     getPreviewContext: runtime.getPreviewContext,
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("dark"),
-      archive,
       reader: resolveBuiltInReaderTheme("sepia"),
     }),
-    keepPreview: vi.fn(async (_archive, _expected, next) => {
-      settings = next;
+    keepPreview: vi.fn(async (_expected, selection) => {
+      settings = { ...settings, appTheme: selection };
     }),
-    subscribe: (listener) => {
+    subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
   });
   const repository = {
-    deletePackage: vi.fn(async (id: string) => {
-      sources.delete(id);
-    }),
+    deletePackage: vi.fn(async (id: string) => void sources.delete(id)),
     replaceManifest: vi.fn(async (item: ThemeManifestV1) => {
       sources.set(item.id, JSON.stringify(item));
     }),
     revealThemesRoot: vi.fn(async () => undefined),
     storeManifest: vi.fn(async (item: ThemeManifestV1) => {
-      if (sources.has(item.id)) throw new Error("package already exists");
       sources.set(item.id, JSON.stringify(item));
     }),
   } satisfies ThemeManagerControllerOptions["repository"];
@@ -105,10 +85,11 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     catalog,
     clearPreview,
     previewSession,
+    refreshAppearance,
     repository,
     runtime,
     sources,
-    updateArchiveAppearanceSettings,
+    updateAppearanceSettings,
   };
 }
 
@@ -122,367 +103,82 @@ function Harness({ options }: Readonly<{ options: ThemeManagerControllerOptions 
   return null;
 }
 
-async function settle() {
-  await act(async () => {
-    for (let index = 0; index < 8; index += 1) await Promise.resolve();
-  });
-}
-
-describe("useThemeManagerController", () => {
+describe("global Theme Manager controller", () => {
   let container: HTMLDivElement;
   let root: Root;
 
   beforeEach(() => {
     container = document.createElement("div");
-    document.body.append(container);
     root = createRoot(container);
   });
 
   afterEach(() => {
     act(() => root.unmount());
-    container.remove();
     vi.restoreAllMocks();
   });
 
-  async function mount(
-    services = createServices(),
-    overrides: Partial<ThemeManagerControllerOptions> = {},
-  ) {
-    const options: ThemeManagerControllerOptions = {
-      archiveRootPath: archive.rootPath,
-      catalog: services.catalog,
-      previewSession: services.previewSession,
-      repository: services.repository,
-      runtime: services.runtime,
-      ...overrides,
-    };
-    await act(async () => root.render(<Harness options={options} />));
-    await settle();
-    return services;
-  }
-
-  it("owns a flat application catalog and preserves the reader selection when applying", async () => {
-    const services = createServices([manifest("moon-ink"), manifest("paper-sky", false)]);
-    services.sources.set("broken", "{not json");
-    await mount(services);
-
-    expect(latest.entries.map((entry) => entry.id)).toEqual([
-      "dark",
-      "light",
-      "broken",
-      "moon-ink",
-      "paper-sky",
-    ]);
-    expect(latest.entries).toEqual(
-      expect.arrayContaining([expect.objectContaining({ packageId: "broken", applicable: false })]),
-    );
-
-    act(() => latest.select("custom:moon-ink"));
-    await act(async () => expect(await latest.useSelectedTheme()).toBe(true));
-
-    expect(services.updateArchiveAppearanceSettings).toHaveBeenCalledWith(archive, {
-      appTheme: { kind: "custom", id: "moon-ink" },
-    });
-    expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual({
-      kind: "builtin",
-      id: "sepia",
-    });
-  });
-
-  it("reloads the shared catalog and committed runtime without a Settings callback", async () => {
-    const services = await mount();
-    const refreshCatalog = vi.spyOn(services.catalog, "refreshPackages");
-    const readerSelection = services.runtime.getPreviewContext()?.settings.readerTheme;
-
-    await act(async () => expect(await latest.reload()).toBe(true));
-
-    expect(refreshCatalog).toHaveBeenCalledOnce();
-    expect(services.runtime.refreshArchiveAppearance).toHaveBeenCalledWith(archive);
-    expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
-  });
-
-  it("freshly enumerates on entry and reconciles an externally edited active theme", async () => {
-    const services = createServices();
-    await services.catalog.enumeratePackages();
-    services.sources.set(
-      "moon-ink",
-      JSON.stringify({ ...manifest("moon-ink"), name: "Moon Ink Revised" }),
-    );
-    const refreshCatalog = vi.spyOn(services.catalog, "refreshPackages");
-
-    await mount(services);
-
-    expect(refreshCatalog).toHaveBeenCalledOnce();
-    expect(latest.entries).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ id: "moon-ink", name: "Moon Ink Revised" }),
-      ]),
-    );
-    expect(services.runtime.refreshArchiveAppearance).toHaveBeenCalledWith(archive);
-  });
-
-  it("shares catalog and runtime work when Theme Manager opens during a selector refresh", async () => {
-    const packageListing = deferred<readonly string[]>();
-    const appearanceRead = deferred<ArchiveAppearanceSettings>();
-    const theme = manifest("moon-ink");
-    const listPackageDirectories = vi.fn(() => packageListing.promise);
-    const readManifest = vi.fn(async () => JSON.stringify(theme));
-    const catalog = new ThemeCatalog(() => ({
-      listPackageDirectories,
-      readManifest,
-    }));
-    const initialSettings: ArchiveAppearanceSettings = {
-      appTheme: { kind: "inherit" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    };
-    const getArchiveAppearanceSettings = vi
-      .fn<() => Promise<ArchiveAppearanceSettings>>()
-      .mockResolvedValueOnce(initialSettings)
-      .mockImplementationOnce(() => appearanceRead.promise);
-    const runtime = new AppearanceRuntime({
-      catalog,
-      getDocumentRoot: () => document.createElement("div"),
-      globalPreferences: {
-        getSnapshot: () => defaultAppPreferences,
-        subscribe: () => () => undefined,
-      },
-    });
-    runtime.start();
-    await runtime.activateArchive(
-      { id: archive.id, rootPath: archive.rootPath },
-      {
-        getArchiveAppearanceSettings,
-        saveArchiveAppearanceSettings: async (settings) => settings,
-      },
-    );
-    const context = runtime.getPreviewContext();
-    if (!context) throw new Error("Expected an active appearance context");
-    const previewSession = new ThemePreviewSession(runtime);
-    const repository = {
-      deletePackage: vi.fn(async () => undefined),
-      replaceManifest: vi.fn(async () => undefined),
-      revealThemesRoot: vi.fn(async () => undefined),
-      storeManifest: vi.fn(async () => undefined),
-    };
-    let selectorError: unknown = null;
-    const selectorRefresh = catalog
-      .refreshPackages()
-      .then(() => runtime.refreshArchiveAppearance(context.archive))
-      .catch((error: unknown) => {
-        selectorError = error;
-      });
-
+  async function mount(services = createServices()) {
     await act(async () => {
       root.render(
         <Harness
           options={{
-            archiveRootPath: archive.rootPath,
-            catalog,
-            previewSession,
-            repository,
-            runtime,
-          }}
-        />,
-      );
-      await Promise.resolve();
-    });
-    expect(listPackageDirectories).toHaveBeenCalledOnce();
-    await act(async () => {
-      packageListing.resolve([theme.id]);
-      await vi.waitFor(() => expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2));
-    });
-
-    await act(async () => {
-      appearanceRead.resolve(initialSettings);
-      await selectorRefresh;
-      await settle();
-    });
-
-    expect(listPackageDirectories).toHaveBeenCalledOnce();
-    expect(readManifest).toHaveBeenCalledOnce();
-    expect(getArchiveAppearanceSettings).toHaveBeenCalledTimes(2);
-    expect(selectorError).toBeNull();
-    expect(latest.busyAction).toBeNull();
-    expect(latest.error).toBeNull();
-    expect(latest.entries).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "moon-ink" })]),
-    );
-    act(() => runtime.stop());
-  });
-
-  it("keeps refreshed manager entries and identifies entry reconciliation failure", async () => {
-    const services = createServices();
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("runtime reconciliation failed"),
-    );
-
-    await mount(services);
-
-    expect(latest.entries).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "moon-ink" })]),
-    );
-    expect(latest.error).toBe(
-      "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again.",
-    );
-    expect(latest.busyAction).toBeNull();
-  });
-
-  it("completes entry loading when a newer appearance write supersedes reconciliation", async () => {
-    const services = createServices();
-    const olderRefresh = deferred<ArchiveAppearanceSettings>();
-    services.runtime.refreshArchiveAppearance.mockImplementationOnce(() => olderRefresh.promise);
-
-    await act(async () =>
-      root.render(
-        <Harness
-          options={{
-            archiveRootPath: archive.rootPath,
             catalog: services.catalog,
             previewSession: services.previewSession,
             repository: services.repository,
             runtime: services.runtime,
           }}
         />,
-      ),
-    );
-    await settle();
-    expect(latest.busyAction).toBe("load");
-
-    await act(async () => {
-      await services.runtime.updateArchiveAppearanceSettings(archive, {
-        appTheme: { kind: "builtin", id: "light" },
-      });
-      olderRefresh.reject(new AppearanceRuntimeSettingsChangedError());
-      await settle();
+      );
+      for (let index = 0; index < 8; index += 1) await Promise.resolve();
     });
+    return services;
+  }
 
-    expect(services.runtime.getPreviewContext()?.settings.appTheme).toEqual({
+  it("loads the global catalog without an active archive", async () => {
+    await mount();
+    expect(latest.entries.map((entry) => entry.id)).toEqual(["dark", "light", "moon-ink"]);
+  });
+
+  it("applies a selected theme through global preferences and preserves Reader selection", async () => {
+    const services = await mount();
+    act(() => latest.select("custom:moon-ink"));
+
+    await act(async () => expect(latest.useSelectedTheme()).resolves.toBe(true));
+
+    expect(services.updateAppearanceSettings).toHaveBeenCalledWith({
+      appTheme: { kind: "custom", id: "moon-ink" },
+    });
+    expect(services.runtime.getPreviewContext().settings.readerTheme).toEqual({
       kind: "builtin",
-      id: "light",
+      id: "sepia",
     });
-    expect(latest.entries).toEqual(
-      expect.arrayContaining([expect.objectContaining({ id: "moon-ink" })]),
-    );
-    expect(latest.busyAction).toBeNull();
-    expect(latest.error).toBeNull();
   });
 
-  it("completes manual reload when a newer appearance write supersedes reconciliation", async () => {
+  it("keeps preview separate from committed selection", async () => {
     const services = await mount();
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new AppearanceRuntimeSettingsChangedError(),
-    );
+    act(() => latest.select("custom:moon-ink"));
+    act(() => expect(latest.preview()).toBe(true));
 
-    await act(async () => expect(await latest.reload()).toBe(true));
-
-    expect(latest.error).toBeNull();
-    expect(latest.message).toBe("Theme packages reloaded.");
+    expect(services.updateAppearanceSettings).not.toHaveBeenCalled();
+    act(() => latest.disposePreview());
+    expect(services.clearPreview).toHaveBeenCalledOnce();
   });
 
-  it("imports create-only and uses an explicit update confirmation for conflicts", async () => {
+  it("imports into global storage and refreshes the global runtime", async () => {
     const services = await mount();
-    const replacement = { ...manifest("moon-ink"), name: "Moon Ink Revised" };
 
     await act(async () =>
       expect(
-        await latest.importFile(
-          new File([JSON.stringify(replacement)], "moon-ink.json", {
-            type: "application/json",
-          }),
-        ),
-      ).toBe(false),
-    );
-    expect(latest.message).toBe("A theme with this ID already exists.");
-    expect(services.repository.replaceManifest).not.toHaveBeenCalled();
-
-    await act(async () => expect(await latest.confirmReplacement()).toBe(true));
-    expect(services.repository.replaceManifest).toHaveBeenCalledWith(replacement);
-  });
-
-  it("deletes a package while retaining its stored appearance reference", async () => {
-    const services = await mount();
-    act(() => latest.select("custom:moon-ink"));
-    await act(async () => void (await latest.useSelectedTheme()));
-    act(() => latest.requestDelete());
-
-    await act(async () => expect(await latest.confirmDelete()).toBe(true));
-
-    expect(services.repository.deletePackage).toHaveBeenCalledWith("moon-ink");
-    expect(services.runtime.getPreviewContext()?.settings.appTheme).toEqual({
-      kind: "custom",
-      id: "moon-ink",
-    });
-  });
-
-  it("replaces only the active preview and reverts it on unmount", async () => {
-    const services = await mount(createServices([manifest("moon-ink"), manifest("paper-sky")]));
-    act(() => latest.select("custom:moon-ink"));
-    act(() => expect(latest.preview()).toBe(true));
-    act(() => latest.select("custom:paper-sky"));
-    act(() => expect(latest.preview()).toBe(true));
-    expect(services.clearPreview).toHaveBeenCalledOnce();
-
-    act(() => root.unmount());
-    expect(services.clearPreview).toHaveBeenCalledTimes(2);
-    root = createRoot(container);
-  });
-
-  it("does not reload or publish through a catalog that switched archives during a write", async () => {
-    const services = await mount();
-    const pendingStore = deferred<void>();
-    services.repository.storeManifest.mockImplementationOnce(() => pendingStore.promise);
-    const refresh = vi.spyOn(services.catalog, "refreshPackages");
-    let importing!: Promise<boolean>;
-    await act(async () => {
-      importing = latest.importFile(
-        new File([JSON.stringify(manifest("paper-sky"))], "paper-sky.json", {
-          type: "application/json",
-        }),
-      );
-      await Promise.resolve();
-    });
-
-    await act(async () => {
-      services.catalog.activateArchive({ generation: 5, rootPath: archive.rootPath });
-      pendingStore.resolve();
-      expect(await importing).toBe(false);
-    });
-    expect(refresh).not.toHaveBeenCalled();
-    expect(latest.error).toContain("active archive changed");
-  });
-
-  it("consumes live catalog publications and drops old custom entries on scope change", async () => {
-    const services = await mount();
-    services.sources.set("paper-sky", JSON.stringify(manifest("paper-sky")));
-    await act(async () => void (await services.catalog.reload()));
-    expect(latest.entries.some((entry) => entry.id === "paper-sky")).toBe(true);
-
-    await act(async () => {
-      services.catalog.activateArchive({ generation: 5, rootPath: "D:\\Archive B" });
-    });
-    expect(latest.entries.every((entry) => entry.origin === "builtin")).toBe(true);
-    expect(latest.error).toContain("active archive changed");
-  });
-
-  it("keeps a catalog mutation visible when the runtime refresh fails", async () => {
-    const services = await mount();
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("appearance refresh failed"),
-    );
-
-    await act(async () => {
-      expect(
-        await latest.importFile(
+        latest.importFile(
           new File([JSON.stringify(manifest("paper-sky"))], "paper-sky.json", {
             type: "application/json",
           }),
         ),
-      ).toBe(false);
-    });
-
-    expect(latest.error).toBe(
-      "Theme was imported, but Theme Manager could not refresh. Reload themes to update the list.",
+      ).resolves.toBe(true),
     );
+
+    expect(services.repository.storeManifest).toHaveBeenCalledOnce();
+    expect(services.refreshAppearance).toHaveBeenCalled();
     expect(latest.entries.some((entry) => entry.id === "paper-sky")).toBe(true);
   });
 });

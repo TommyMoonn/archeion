@@ -14,9 +14,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     const runtime = source("src/themes/AppearanceRuntime.ts");
     const runtimeTests = source("src/themes/AppearanceRuntime.test.ts");
 
-    expect(runtime).toContain(
-      "applyPreview(archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme)",
-    );
+    expect(runtime).toContain("applyPreview(appTheme: ResolvedAppTheme)");
     expect(runtime).not.toContain("AppearancePreviewPalette");
     expect(runtime).not.toContain("preview.reader");
     expect(runtimeTests).not.toContain("reader-only preview");
@@ -38,7 +36,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     expect(settingsDialog).toContain("onClose={() => setThemeManagerOpen(false)}");
     expect(settingsDialog).not.toMatch(/onClose=\{\(\) =>\s*\{[^}]*themeCatalog\.refresh/s);
     expect(settingsController).not.toContain("themeCatalogError");
-    expect(catalogHook).toContain("themeCatalog.refreshPackages()");
+    expect(catalogHook).toContain("appearanceRuntime.refreshAppearance()");
     expect(catalogHook).not.toContain("onAppearanceChanged");
   });
 

@@ -20,7 +20,6 @@ import {
 const THEME_GUIDE_URL = "https://tommymoonn.github.io/archeion/custom-themes.html";
 
 type ThemeManagerDialogProps = Readonly<{
-  archiveRootPath: string;
   onClose: () => void;
   services?: Readonly<{
     catalog: ThemeManagerControllerOptions["catalog"];
@@ -30,19 +29,13 @@ type ThemeManagerDialogProps = Readonly<{
   }>;
 }>;
 
-export function ThemeManagerDialog({
-  archiveRootPath,
-  onClose,
-  services,
-}: ThemeManagerDialogProps) {
+export function ThemeManagerDialog({ onClose, services }: ThemeManagerDialogProps) {
   const repository = useMemo(
     () => services?.repository ?? new ThemeRepository(),
     [services?.repository],
   );
   const controller = useThemeManagerController({
-    archiveRootPath,
     catalog: services?.catalog ?? themeCatalog,
-    onArchiveScopeInvalidated: onClose,
     previewSession: services?.previewSession ?? themePreviewSession,
     repository,
     runtime: services?.runtime ?? appearanceRuntime,

@@ -1,9 +1,4 @@
-import type {
-  AppThemeSelection,
-  ArchiveAppThemeSelection,
-  ArchiveReaderThemeSelection,
-  ReaderThemeSelection,
-} from "../types/settings";
+import type { AppThemeSelection, ReaderThemeSelection } from "../types/settings";
 import { ThemeRepository } from "./ThemeRepository";
 import type { ThemeDiagnostic, ThemeManifestV1 } from "./domain";
 import { parseThemeJson } from "./parseThemeJson";
@@ -16,7 +11,6 @@ import type {
   AppEffectiveThemeCatalogSelection,
   AppThemeCatalogSelection,
   ThemeCatalogSnapshot,
-  ThemeCatalogScope,
   ThemeSelectionResolution,
   CustomThemeCatalogEntry,
   InvalidCustomThemeCatalogEntry,
@@ -80,35 +74,16 @@ export class ThemeCatalog {
 
   getSnapshot = (): ThemeCatalogSnapshot => this.snapshot;
 
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-  activateArchive(_scope: ThemeCatalogScope): void {
-    void _scope;
-  }
-
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-  deactivateArchive(): void {}
-
   async loadSelected(
-    settings: Readonly<{
-      appTheme: AppThemeSelection | ArchiveAppThemeSelection;
-      readerTheme: ReaderThemeSelection | ArchiveReaderThemeSelection;
-    }>,
+    settings: Readonly<{ appTheme: AppThemeSelection; readerTheme: ReaderThemeSelection }>,
   ): Promise<ThemeSelectionResolution> {
     const context = this.context;
     const activeRefresh = context.enumerationRereadsPackages ? context.enumeration : null;
     if (activeRefresh) await activeRefresh;
     this.assertCurrent(context);
     const revision = context.revision;
-    const appSelection = freezeSelection(
-      settings.appTheme.kind === "inherit"
-        ? ({ kind: "builtin", id: "dark" } as const)
-        : settings.appTheme,
-    );
-    const readerSelection = freezeSelection(
-      settings.readerTheme.kind === "inherit"
-        ? ({ kind: "builtin", id: "dark" } as const)
-        : settings.readerTheme,
-    );
+    const appSelection = freezeSelection(settings.appTheme);
+    const readerSelection = freezeSelection(settings.readerTheme);
     const customIds = new Set<string>();
     if (appSelection.kind === "custom") customIds.add(appSelection.id);
     if (readerSelection.kind === "custom") customIds.add(readerSelection.id);
@@ -328,7 +303,6 @@ function snapshotFor(context: CatalogContext): ThemeCatalogSnapshot {
     .map((entry) => addCatalogDiagnostics(entry, context.catalogDiagnostics.get(entry.packageId)))
     .sort((left, right) => left.packageId.localeCompare(right.packageId));
   return Object.freeze({
-    archive: null,
     entries: Object.freeze([...builtInThemeCatalogEntries, ...customEntries]),
     fullyEnumerated: context.fullyEnumerated,
     revision: context.revision,

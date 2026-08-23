@@ -56,7 +56,7 @@ describe("archive appearance settings source", () => {
     expect(invokeMock).toHaveBeenCalledWith("load_legacy_archive_appearance_settings", {
       rootPath: "C:/ArchiveA",
     });
-    const context = runtime.getPreviewContext();
+    const context = runtime.getLegacyPreviewContext();
     if (!context) throw new Error("Expected an active appearance context");
     const next: ArchiveAppearanceSettings = {
       appTheme: { kind: "builtin", id: "dark" },

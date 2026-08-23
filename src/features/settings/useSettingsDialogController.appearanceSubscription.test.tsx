@@ -6,9 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
+import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
-import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { ThemeRepository } from "../../themes/ThemeRepository";
 import {
   useSettingsDialogController,
@@ -16,17 +15,8 @@ import {
 } from "./useSettingsDialogController";
 
 const archive = Object.freeze({ generation: 9, id: "archive-a", rootPath: "D:\\Archive" });
-const initialContext: AppearancePreviewContext = Object.freeze({
-  archive,
-  settings: Object.freeze({
-    appTheme: Object.freeze({ kind: "inherit" }),
-    readerTheme: Object.freeze({ kind: "inherit" }),
-  }),
-});
-
 function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage {
   return {
-    getArchiveAppearanceSettings: vi.fn(async () => initialContext.settings),
     clearScannerCache: vi.fn().mockResolvedValue(undefined),
     getLibrarySnapshot: vi.fn(() => ({
       archiveGeneration: 1,
@@ -56,12 +46,8 @@ function deferred<T>() {
 
 let latest: SettingsDialogController;
 
-function Harness({
-  committedArchiveAppearance,
-}: Readonly<{ committedArchiveAppearance: AppearancePreviewContext | null }>) {
-  const controller = useSettingsDialogController({
-    committedArchiveAppearance,
-  });
+function Harness() {
+  const controller = useSettingsDialogController();
   useEffect(() => {
     latest = controller;
   }, [controller]);
@@ -100,73 +86,44 @@ describe("Settings committed appearance subscription", () => {
     vi.restoreAllMocks();
   });
 
-  async function render(context: AppearancePreviewContext | null) {
+  async function render() {
     await act(async () => {
       root.render(
         <LibraryStorageContext value={storage}>
-          <Harness committedArchiveAppearance={context} />
+          <Harness />
         </LibraryStorageContext>,
       );
       for (let index = 0; index < 5; index += 1) await Promise.resolve();
     });
   }
 
-  it("updates a still-mounted Settings read model after an ownerless Keep", async () => {
-    await render(initialContext);
-    const keptContext: AppearancePreviewContext = Object.freeze({
-      archive,
-      settings: Object.freeze({
-        appTheme: Object.freeze({ kind: "custom", id: "moon-ink" }),
-        readerTheme: Object.freeze({ kind: "inherit" }),
-      }),
-    });
-
-    await render(keptContext);
-
-    expect(latest.archiveAppearance).toEqual(keptContext.settings);
-    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
-  });
-
-  it("forwards rapid channel changes as partial runtime-owned updates", async () => {
-    const update = vi
-      .spyOn(appearanceRuntime, "updateArchiveAppearanceSettings")
-      .mockResolvedValue(initialContext.settings);
-    vi.spyOn(appearanceRuntime, "getPreviewContext").mockReturnValue(initialContext);
-    await render(initialContext);
+  it("forwards theme changes as global preference updates", async () => {
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await render();
 
     await act(async () => {
-      const application = latest.updateArchiveAppearance({
+      const application = latest.updateAppearance({
         appTheme: { kind: "builtin", id: "light" },
       });
-      const reader = latest.updateArchiveAppearance({
+      const reader = latest.updateAppearance({
         readerTheme: { kind: "builtin", id: "sepia" },
       });
       await Promise.all([application, reader]);
     });
 
-    expect(update).toHaveBeenNthCalledWith(1, archive, {
+    expect(update).toHaveBeenNthCalledWith(1, {
       appTheme: { kind: "builtin", id: "light" },
     });
-    expect(update).toHaveBeenNthCalledWith(2, archive, {
+    expect(update).toHaveBeenNthCalledWith(2, {
       readerTheme: { kind: "builtin", id: "sepia" },
     });
-    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
-  });
-
-  it("clears previous-archive selections when the committed scope is invalidated", async () => {
-    await render(initialContext);
-    expect(latest.archiveAppearance).toEqual(initialContext.settings);
-
-    await render(null);
-
-    expect(latest.archiveAppearance).toBeNull();
   });
 
   it("opens the global themes folder with no active archive", async () => {
     const reveal = vi
       .spyOn(ThemeRepository.prototype, "revealThemesRoot")
       .mockResolvedValue(undefined);
-    await render(null);
+    await render();
 
     await act(async () => expect(await latest.openThemesFolder()).toBe(true));
 
@@ -179,7 +136,7 @@ describe("Settings committed appearance subscription", () => {
       clearScannerCache: vi.fn().mockRejectedValue(new Error("cache failed")),
       rescan: vi.fn(() => pendingRescan.promise),
     });
-    await render(initialContext);
+    await render();
 
     await act(async () => {
       latest.confirmRescanArchive();
@@ -209,20 +166,19 @@ describe("Settings committed appearance subscription", () => {
     storage = createStorage({
       saveArchiveImportSettings: vi.fn(() => pendingImportSave.promise),
     });
-    vi.spyOn(appearanceRuntime, "getPreviewContext").mockReturnValue(initialContext);
-    vi.spyOn(appearanceRuntime, "updateArchiveAppearanceSettings").mockRejectedValue(
+    vi.spyOn(appPreferencesStore, "update").mockRejectedValue(
       new Error("Newer appearance failure."),
     );
-    await render(initialContext);
+    await render();
 
     act(() => latest.updateImportDestination("__archive_root__"));
     await act(async () => {
-      await latest.updateArchiveAppearance({
+      await latest.updateAppearance({
         appTheme: { kind: "builtin", id: "light" },
       });
     });
     expect(latest.status?.message).toBe(
-      "Archive appearance could not be saved. Try changing the appearance again.",
+      "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
     );
 
     await act(async () => {
@@ -232,7 +188,7 @@ describe("Settings committed appearance subscription", () => {
     });
 
     expect(latest.status?.message).toBe(
-      "Archive appearance could not be saved. Try changing the appearance again.",
+      "App settings could not be saved. Your changes remain active until Archeion closes. Try changing the setting again.",
     );
   });
 
@@ -240,7 +196,7 @@ describe("Settings committed appearance subscription", () => {
     const pendingRescan = deferred<void>();
     const rescan = vi.fn(() => pendingRescan.promise);
     storage = createStorage({ rescan });
-    await render(initialContext);
+    await render();
 
     act(() => {
       latest.confirmRescanArchive();

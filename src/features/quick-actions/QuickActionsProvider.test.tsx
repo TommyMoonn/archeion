@@ -15,7 +15,6 @@ import { defaultAppPreferences } from "../../types/appSettings";
 import { router } from "../../app/router";
 import { commandDefinitions } from "../commands/commandBindings";
 import { focusPresentationRuntime } from "../../app/inputModality";
-import type { ActiveAppearanceArchive } from "../../themes/AppearanceRuntime";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { builtInThemeCatalogEntries } from "../../themes/themeCatalogReadModel";
 import { ThemePreviewSession, type ThemePreviewRuntime } from "../../themes/ThemePreviewSession";
@@ -98,12 +97,6 @@ const readyArchive: ArchiveState = {
 };
 
 function createThemeModeServices() {
-  const activeArchive = readyArchive.archives[0]!;
-  const archive: ActiveAppearanceArchive = Object.freeze({
-    generation: 1,
-    id: activeArchive.id,
-    rootPath: activeArchive.rootPath,
-  });
   const settings = Object.freeze({
     appTheme: Object.freeze({ kind: "builtin" as const, id: "light" as const }),
     readerTheme: Object.freeze({ kind: "builtin" as const, id: "sepia" as const }),
@@ -115,10 +108,9 @@ function createThemeModeServices() {
   const runtime: ThemePreviewRuntime = {
     applyPreview,
     clearPreview,
-    getPreviewContext: () => ({ archive, settings }),
+    getPreviewContext: () => ({ settings }),
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("light"),
-      archive,
       reader: resolveBuiltInReaderTheme("sepia"),
     }),
     keepPreview,
@@ -128,9 +120,9 @@ function createThemeModeServices() {
     },
   };
   const snapshot = Object.freeze({
-    archive: Object.freeze({ generation: archive.generation, rootPath: archive.rootPath }),
     entries: builtInThemeCatalogEntries,
     fullyEnumerated: true,
+    revision: 1,
   });
   const services: QuickActionThemeModeServices = {
     catalog: {
@@ -844,10 +836,7 @@ describe("QuickActionsProvider", () => {
         new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "ArrowUp" }),
       );
     });
-    expect(theme.applyPreview).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ base: "dark" }),
-    );
+    expect(theme.applyPreview).toHaveBeenLastCalledWith(expect.objectContaining({ base: "dark" }));
     expect(theme.keepPreview).not.toHaveBeenCalled();
 
     await act(async () => {
@@ -894,17 +883,14 @@ describe("QuickActionsProvider", () => {
       (option) => option.getAttribute("aria-label") === "Archeion Dark",
     )!;
     await act(async () => dark.dispatchEvent(new MouseEvent("mouseover", { bubbles: true })));
-    expect(theme.applyPreview).toHaveBeenLastCalledWith(
-      expect.anything(),
-      expect.objectContaining({ base: "dark" }),
-    );
+    expect(theme.applyPreview).toHaveBeenLastCalledWith(expect.objectContaining({ base: "dark" }));
     expect(theme.keepPreview).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(search);
 
     await act(async () => dark.click());
-    expect(theme.keepPreview).toHaveBeenCalledWith(expect.anything(), theme.settings, {
-      appTheme: { kind: "builtin", id: "dark" },
-      readerTheme: { kind: "builtin", id: "sepia" },
+    expect(theme.keepPreview).toHaveBeenCalledWith(theme.settings, {
+      kind: "builtin",
+      id: "dark",
     });
     expect(document.querySelector(".quick-actions")).toBeNull();
   });

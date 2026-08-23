@@ -57,17 +57,10 @@ export type CustomThemeCatalogEntry = ValidCustomThemeCatalogEntry | InvalidCust
 export type ThemeCatalogEntry = BuiltInThemeCatalogEntry | CustomThemeCatalogEntry;
 export type ApplicableThemeCatalogEntry = BuiltInThemeCatalogEntry | ValidCustomThemeCatalogEntry;
 
-/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-export type ThemeCatalogScope = Readonly<{
-  generation: number;
-  rootPath: string;
-}>;
-
 export type ThemeCatalogSnapshot = Readonly<{
-  archive: ThemeCatalogScope | null;
   entries: readonly ThemeCatalogEntry[];
   fullyEnumerated: boolean;
-  revision?: number;
+  revision: number;
 }>;
 
 export type AppEffectiveThemeCatalogSelection =

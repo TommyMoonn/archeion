@@ -6,20 +6,20 @@ import { readerTypefaceOptions } from "./readerFonts";
 import { IconButton } from "../../components/IconButton";
 import { SegmentedControl } from "../../components/SegmentedControl";
 import type { ReaderProgressPlacement, ReaderSettings } from "../../types/reader";
-import type { ArchiveReaderThemeSelection } from "../../types/settings";
+import type { ReaderThemeSelection } from "../../types/settings";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
-import { ArchiveReaderThemeSelect } from "../themes/ArchiveReaderThemeSelect";
+import { ReaderThemeSelect } from "../themes/ReaderThemeSelect";
 import { ReaderSidePanel } from "./ReaderSidePanel";
 
 type ReaderSettingsPanelProps = {
   onClose: () => void;
-  onReaderThemeCommit: (selection: ArchiveReaderThemeSelection) => void;
+  onReaderThemeCommit: (selection: ReaderThemeSelection) => void;
   onReaderThemeOpen: () => void;
   onSettingsCommit: (settings: ReaderSettings) => void;
   persistenceFailed: boolean;
   readerThemeCatalogError: string | null;
   readerThemeEntries: readonly ThemeCatalogEntry[];
-  readerThemeSelection: ArchiveReaderThemeSelection | null;
+  readerThemeSelection: ReaderThemeSelection;
   settings: ReaderSettings;
 };
 
@@ -116,17 +116,12 @@ export function ReaderSettingsPanel({
         </ReaderSetting>
 
         <ReaderSetting label="Reader theme">
-          {readerThemeSelection ? (
-            <ArchiveReaderThemeSelect
-              entries={readerThemeEntries}
-              fallback={settings.theme}
-              onChange={onReaderThemeCommit}
-              onOpen={onReaderThemeOpen}
-              selection={readerThemeSelection}
-            />
-          ) : (
-            <span className="reader-setting__unavailable">Unavailable</span>
-          )}
+          <ReaderThemeSelect
+            entries={readerThemeEntries}
+            onChange={onReaderThemeCommit}
+            onOpen={onReaderThemeOpen}
+            selection={readerThemeSelection}
+          />
         </ReaderSetting>
 
         <ReaderSetting label="Typeface">

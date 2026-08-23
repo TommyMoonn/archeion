@@ -22,7 +22,6 @@ import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
-import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
@@ -104,10 +103,9 @@ export function SettingsDialog({
     () => getSettingsItemsDataRequirements(visibleSettingsItems),
     [visibleSettingsItems],
   );
-  const themeCatalog = useThemeCatalogEntries(dataRequirements.has("archiveAppearanceSettings"), {
+  const themeCatalog = useThemeCatalogEntries(dataRequirements.has("themeCatalog"), {
     reportRefreshFailure: !themeManagerOpen,
   });
-  const committedArchiveAppearance = useCommittedArchiveAppearance();
   const modal = useModalDialogLifecycle({
     dialogRef,
     focusReturn,
@@ -116,7 +114,6 @@ export function SettingsDialog({
     surfaceKind: "settings",
   });
   const controller = useSettingsDialogController({
-    committedArchiveAppearance,
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),
@@ -243,11 +240,8 @@ export function SettingsDialog({
           onRescanArchive={controller.confirmRescanArchive}
         />
 
-        {themeManagerOpen && controller.selectedArchivePath ? (
-          <ThemeManagerDialog
-            archiveRootPath={controller.selectedArchivePath}
-            onClose={() => setThemeManagerOpen(false)}
-          />
+        {themeManagerOpen ? (
+          <ThemeManagerDialog onClose={() => setThemeManagerOpen(false)} />
         ) : null}
       </div>
     </dialog>

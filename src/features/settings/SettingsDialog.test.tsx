@@ -35,10 +35,6 @@ function createStorage() {
     clearCoverCache: vi.fn(),
     clearEpubWritebackBackups: vi.fn(),
     clearScannerCache: vi.fn(),
-    getArchiveAppearanceSettings: vi.fn(async () => ({
-      appTheme: { kind: "inherit" },
-      readerTheme: { kind: "inherit" },
-    })),
     getArchiveImportSettings: vi.fn(async () => ({})),
     getCoverCacheStatus: vi.fn(async () => ({ fileCount: 1, totalBytes: 1024 })),
     getEpubWritebackBackupStatus: vi.fn(async () => ({
@@ -252,18 +248,16 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.getEpubWritebackBackupStatus).not.toHaveBeenCalled();
     expect(storage.listFolders).not.toHaveBeenCalled();
     expect(storage.getArchiveImportSettings).not.toHaveBeenCalled();
-    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
   });
 
-  it("does not load a competing archive appearance copy when controls become visible", async () => {
-    const { container, storage } = track(await renderDialog());
+  it("renders global appearance controls when the section becomes visible", async () => {
+    const { container } = track(await renderDialog());
 
     clickButton(container, "Appearance");
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(storage.getArchiveAppearanceSettings).not.toHaveBeenCalled();
     expect(container.textContent).toContain("App themes");
     expect(container.textContent).toContain("Manage");
     expect(container.textContent).not.toMatch(/fallback|override|inherit/i);

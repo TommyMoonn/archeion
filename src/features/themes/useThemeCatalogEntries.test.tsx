@@ -4,37 +4,31 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { ThemeCatalogSnapshot, ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
-import { AppearanceRuntimeSettingsChangedError } from "../../themes/AppearanceRuntime";
+import type { ThemeCatalogSnapshot } from "../../themes/themeCatalogReadModel";
+import { builtInThemeCatalogEntries } from "../../themes/themeCatalogReadModel";
 import { useThemeCatalogEntries } from "./useThemeCatalogEntries";
 
 const services = vi.hoisted(() => {
   const listeners = new Set<() => void>();
-  const initialSnapshot: ThemeCatalogSnapshot = {
-    archive: { generation: 1, rootPath: "C:/ArchiveA" },
+  let snapshot: ThemeCatalogSnapshot = {
     entries: [],
-    fullyEnumerated: true,
-  };
-  let snapshot: ThemeCatalogSnapshot = initialSnapshot;
-  const catalog = {
-    enumeratePackages: vi.fn(async () => snapshot),
-    getSnapshot: vi.fn(() => snapshot),
-    refreshPackages: vi.fn(async () => snapshot),
-    subscribe: vi.fn((listener: () => void) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    }),
-  };
-  const runtime = {
-    getSnapshot: vi.fn(() => ({
-      archive: { generation: 1, id: "archive-a", rootPath: "C:/ArchiveA" },
-    })),
-    refreshArchiveAppearance: vi.fn(async () => undefined),
+    fullyEnumerated: false,
+    revision: 0,
   };
   return {
-    catalog,
-    initialSnapshot,
-    runtime,
+    catalog: {
+      enumeratePackages: vi.fn(async () => snapshot),
+      getSnapshot: vi.fn(() => snapshot),
+      subscribe: vi.fn((listener: () => void) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      }),
+    },
+    runtime: { refreshAppearance: vi.fn(async () => undefined) },
+    reset() {
+      snapshot = { entries: [], fullyEnumerated: false, revision: 0 };
+      listeners.clear();
+    },
     setSnapshot(next: ThemeCatalogSnapshot) {
       snapshot = next;
       listeners.forEach((listener) => listener());
@@ -42,9 +36,6 @@ const services = vi.hoisted(() => {
   };
 });
 
-let archiveState = { path: "C:/ArchiveA" };
-
-vi.mock("../archive/useArchive", () => ({ useArchive: () => archiveState }));
 vi.mock("../../themes/appearanceRuntimeInstance", () => ({
   appearanceRuntime: services.runtime,
   themeCatalog: services.catalog,
@@ -53,235 +44,80 @@ vi.mock("../../themes/appearanceRuntimeInstance", () => ({
 let root: Root | null = null;
 let latest: ReturnType<typeof useThemeCatalogEntries> | null = null;
 
-function themeEntry(id: "dark" | "light"): ThemeCatalogEntry {
-  return {
-    applicable: true,
-    appBase: "dark",
-    capabilities: { application: true, reader: true },
-    id,
-    name: id,
-    origin: "builtin",
-    readerBase: "dark",
-    status: "valid",
-  };
-}
-
-function Harness({
-  foregroundError = null,
-  reportRefreshFailure = true,
-}: Readonly<{ foregroundError?: string | null; reportRefreshFailure?: boolean }>) {
-  const value = useThemeCatalogEntries(true, { reportRefreshFailure });
+function Harness({ enabled = true }: Readonly<{ enabled?: boolean }>) {
+  const value = useThemeCatalogEntries(enabled);
   useEffect(() => {
     latest = value;
   }, [value]);
-  return (
-    <>
-      {value.error ? <p role="alert">{value.error}</p> : null}
-      {foregroundError ? <p role="alert">{foregroundError}</p> : null}
-    </>
-  );
-}
-
-function renderHarness(
-  props: Readonly<{ foregroundError?: string | null; reportRefreshFailure?: boolean }> = {},
-): void {
-  const container = document.createElement("div");
-  document.body.append(container);
-  root = createRoot(container);
-  act(() => root?.render(<Harness {...props} />));
+  return null;
 }
 
 afterEach(() => {
   if (root) act(() => root?.unmount());
   root = null;
   latest = null;
-  archiveState = { path: "C:/ArchiveA" };
-  services.setSnapshot(services.initialSnapshot);
-  services.catalog.enumeratePackages.mockClear();
-  services.catalog.refreshPackages.mockReset();
-  services.catalog.refreshPackages.mockImplementation(async () => services.catalog.getSnapshot());
-  services.runtime.getSnapshot.mockReset();
-  services.runtime.getSnapshot.mockReturnValue({
-    archive: { generation: 1, id: "archive-a", rootPath: "C:/ArchiveA" },
-  });
-  services.runtime.refreshArchiveAppearance.mockReset();
-  services.runtime.refreshArchiveAppearance.mockResolvedValue(undefined);
-  document.body.replaceChildren();
+  services.catalog.enumeratePackages.mockReset();
+  services.runtime.refreshAppearance.mockReset();
+  services.runtime.refreshAppearance.mockResolvedValue(undefined);
+  services.reset();
 });
 
-describe("useThemeCatalogEntries", () => {
-  it("coalesces rapid requests, keeps prior entries while pending, and reconciles refreshed appearance", async () => {
-    const previousEntry = themeEntry("dark");
-    const nextEntry = themeEntry("light");
-    services.setSnapshot({ ...services.initialSnapshot, entries: [previousEntry] });
-    let resolveRefresh: ((snapshot: ThemeCatalogSnapshot) => void) | null = null;
-    services.catalog.refreshPackages.mockImplementationOnce(
-      () =>
-        new Promise<ThemeCatalogSnapshot>((resolve) => {
-          resolveRefresh = resolve;
-        }),
-    );
-    renderHarness();
+function render(enabled = true) {
+  const container = document.createElement("div");
+  root = createRoot(container);
+  act(() => root?.render(<Harness enabled={enabled} />));
+}
 
-    let first!: Promise<boolean>;
-    let shared!: Promise<boolean>;
-    act(() => {
-      first = latest!.refresh();
-      shared = latest!.refresh();
+describe("global theme catalog hook", () => {
+  it("enumerates global packages when enabled", async () => {
+    services.catalog.enumeratePackages.mockImplementation(async () => {
+      const next = {
+        entries: builtInThemeCatalogEntries,
+        fullyEnumerated: true,
+        revision: 0,
+      };
+      services.setSnapshot(next);
+      return next;
     });
 
-    expect(shared).toBe(first);
-    expect(services.catalog.refreshPackages).toHaveBeenCalledOnce();
-    expect(latest?.entries).toEqual([previousEntry]);
+    render();
+    await act(async () => Promise.resolve());
 
-    const refreshed = { ...services.initialSnapshot, entries: [previousEntry, nextEntry] };
-    await act(async () => {
-      services.setSnapshot(refreshed);
-      resolveRefresh?.(refreshed);
-      await first;
-    });
-
-    expect(latest?.entries).toEqual([previousEntry, nextEntry]);
-    expect(services.runtime.refreshArchiveAppearance).toHaveBeenCalledOnce();
+    expect(services.catalog.enumeratePackages).toHaveBeenCalledOnce();
+    expect(latest?.entries).toEqual(builtInThemeCatalogEntries);
   });
 
-  it("preserves entries and selection inputs when refresh fails", async () => {
-    const previousEntry = themeEntry("dark");
-    services.setSnapshot({ ...services.initialSnapshot, entries: [previousEntry] });
-    services.catalog.refreshPackages.mockRejectedValueOnce(new Error("filesystem unavailable"));
-    renderHarness();
-
-    await act(async () => expect(await latest!.refresh()).toBe(false));
-
-    expect(latest?.entries).toEqual([previousEntry]);
-    expect(latest?.error).toBe("Themes could not be refreshed. Reload themes to try again.");
-    expect(services.runtime.refreshArchiveAppearance).not.toHaveBeenCalled();
+  it("does not enumerate while disabled", () => {
+    render(false);
+    expect(services.catalog.enumeratePackages).not.toHaveBeenCalled();
+    expect(latest?.loading).toBe(false);
   });
 
-  it("keeps refreshed entries and distinguishes runtime reconciliation failure", async () => {
-    const previousEntry = themeEntry("dark");
-    const refreshedEntry = themeEntry("light");
-    services.setSnapshot({ ...services.initialSnapshot, entries: [previousEntry] });
-    services.catalog.refreshPackages.mockImplementationOnce(async () => {
-      const refreshed = { ...services.initialSnapshot, entries: [previousEntry, refreshedEntry] };
-      services.setSnapshot(refreshed);
-      return refreshed;
-    });
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("runtime reconciliation failed"),
-    );
-    renderHarness();
-
-    await act(async () => expect(await latest!.refresh()).toBe(false));
-
-    expect(latest?.entries).toEqual([previousEntry, refreshedEntry]);
-    expect(latest?.error).toBe(
-      "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again.",
-    );
-  });
-
-  it("treats a newer appearance write as successful refresh supersession", async () => {
-    const previousEntry = themeEntry("dark");
-    const refreshedEntry = themeEntry("light");
-    services.setSnapshot({ ...services.initialSnapshot, entries: [previousEntry] });
-    services.catalog.refreshPackages.mockImplementationOnce(async () => {
-      const refreshed = { ...services.initialSnapshot, entries: [previousEntry, refreshedEntry] };
-      services.setSnapshot(refreshed);
-      return refreshed;
-    });
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new AppearanceRuntimeSettingsChangedError(),
-    );
-    renderHarness();
-
-    await act(async () => expect(await latest!.refresh()).toBe(true));
-
-    expect(latest?.entries).toEqual([previousEntry, refreshedEntry]);
-    expect(latest?.error).toBeNull();
-    expect(document.querySelector('[role="alert"]')).toBeNull();
-  });
-
-  it("retires selector feedback during foreground ownership and requires a new failure afterward", async () => {
-    const refreshedEntry = themeEntry("light");
-    services.catalog.refreshPackages.mockImplementation(async () => {
-      const refreshed = { ...services.initialSnapshot, entries: [refreshedEntry] };
-      services.setSnapshot(refreshed);
-      return refreshed;
-    });
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("earlier selector reconciliation failed"),
-    );
-    renderHarness();
-
-    await act(async () => expect(await latest!.refresh()).toBe(false));
-    expect(latest?.error).toBe(
-      "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again.",
-    );
-
-    act(() => {
-      latest!.retireRefreshFailure();
-      root?.render(
-        <Harness
-          foregroundError="Theme Manager could not update the active appearance."
-          reportRefreshFailure={false}
-        />,
-      );
-    });
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("shared runtime reconciliation failed"),
-    );
-
-    await act(async () => expect(await latest!.refresh()).toBe(false));
-
-    expect(latest?.entries).toEqual([refreshedEntry]);
-    expect(latest?.error).toBeNull();
-    expect(
-      [...document.querySelectorAll('[role="alert"]')].map((alert) => alert.textContent),
-    ).toEqual(["Theme Manager could not update the active appearance."]);
-
-    await act(async () => {
-      root?.render(<Harness />);
-    });
-    expect(latest?.error).toBeNull();
-    expect(document.querySelector('[role="alert"]')).toBeNull();
-
-    services.runtime.refreshArchiveAppearance.mockRejectedValueOnce(
-      new Error("later independent runtime reconciliation failed"),
-    );
-    await act(async () => expect(await latest!.refresh()).toBe(false));
-
-    expect(document.querySelector('[role="alert"]')?.textContent).toBe(
-      "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again.",
-    );
-  });
-
-  it("does not publish stale refresh state or reconcile appearance after generation replacement", async () => {
-    let resolveRefresh: ((snapshot: ThemeCatalogSnapshot) => void) | null = null;
-    services.catalog.refreshPackages.mockImplementationOnce(
-      () =>
-        new Promise<ThemeCatalogSnapshot>((resolve) => {
-          resolveRefresh = resolve;
-        }),
-    );
-    renderHarness();
-    let refreshing!: Promise<boolean>;
-    act(() => {
-      refreshing = latest!.refresh();
-    });
-    const replacement = {
-      archive: { generation: 2, rootPath: "C:/ArchiveA" },
-      entries: [themeEntry("light")],
+  it("refreshes catalog and committed appearance through the runtime owner", async () => {
+    services.setSnapshot({
+      entries: builtInThemeCatalogEntries,
       fullyEnumerated: true,
-    };
-
-    await act(async () => {
-      services.setSnapshot(replacement);
-      resolveRefresh?.(replacement);
-      expect(await refreshing).toBe(false);
+      revision: 1,
     });
+    render();
 
-    expect(latest?.entries).toEqual(replacement.entries);
+    await act(async () => expect(latest?.refresh()).resolves.toBe(true));
+
+    expect(services.runtime.refreshAppearance).toHaveBeenCalledOnce();
+  });
+
+  it("reports and retires refresh failures", async () => {
+    services.setSnapshot({
+      entries: builtInThemeCatalogEntries,
+      fullyEnumerated: true,
+      revision: 1,
+    });
+    services.runtime.refreshAppearance.mockRejectedValueOnce(new Error("unavailable"));
+    render();
+
+    await act(async () => expect(latest?.refresh()).resolves.toBe(false));
+    expect(latest?.error).toContain("could not be refreshed");
+    act(() => latest?.retireRefreshFailure());
     expect(latest?.error).toBeNull();
-    expect(services.runtime.refreshArchiveAppearance).not.toHaveBeenCalled();
   });
 });

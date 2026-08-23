@@ -4,14 +4,13 @@ import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ArchiveAppearanceSettings } from "../../types/settings";
+import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime";
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { ThemeManagerDialog } from "./ThemeManagerDialog";
 import type { ThemeManagerControllerOptions } from "./useThemeManagerController";
 
-const archive = Object.freeze({ generation: 2, id: "archive-a", rootPath: "D:\\Archive" });
 const customManifest = {
   schemaVersion: 1 as const,
   id: "moon-ink",
@@ -37,18 +36,19 @@ function createServices() {
     listPackageDirectories: vi.fn(async () => ["moon-ink"]),
     readManifest: vi.fn(async () => JSON.stringify(customManifest)),
   }));
-  catalog.activateArchive(archive);
-  let settings: ArchiveAppearanceSettings = {
+  let settings: GlobalAppearancePreferences = {
     appTheme: { kind: "custom", id: "moon-ink" },
     readerTheme: { kind: "builtin", id: "sepia" },
   };
   const runtimeListeners = new Set<() => void>();
   const clearPreview = vi.fn(() => true);
   const runtime = {
-    getPreviewContext: () => ({ archive, settings }),
-    refreshArchiveAppearance: vi.fn(async () => settings),
-    updateArchiveAppearanceSettings: vi.fn(
-      async (_archive, changes: Partial<ArchiveAppearanceSettings>) => {
+    getPreviewContext: () => ({ settings }),
+    refreshAppearance: vi.fn(async () => {
+      await catalog.refreshPackages();
+    }),
+    updateAppearanceSettings: vi.fn(
+      async (changes: Pick<GlobalAppearancePreferences, "appTheme">) => {
         settings = { ...settings, ...changes };
         return settings;
       },
@@ -60,7 +60,6 @@ function createServices() {
     getPreviewContext: runtime.getPreviewContext,
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("dark"),
-      archive,
       reader: resolveBuiltInReaderTheme("sepia"),
     }),
     keepPreview: vi.fn(async () => undefined),
@@ -85,13 +84,7 @@ function createServices() {
 
 function Owner({ services }: Readonly<{ services: ReturnType<typeof createServices> }>) {
   const [open, setOpen] = useState(true);
-  return open ? (
-    <ThemeManagerDialog
-      archiveRootPath={archive.rootPath}
-      onClose={() => setOpen(false)}
-      services={services}
-    />
-  ) : null;
+  return open ? <ThemeManagerDialog onClose={() => setOpen(false)} services={services} /> : null;
 }
 
 function button(container: HTMLElement, label: string): HTMLButtonElement {
@@ -236,6 +229,6 @@ describe("ThemeManagerDialog", () => {
     expect(dialogs).toHaveLength(2);
     expect(dialogs[0]?.contains(dialogs[1] ?? null)).toBe(true);
     expect(dialogs[1]?.textContent).toContain("Remove “Moon Ink” theme?");
-    expect(dialogs[1]?.textContent).toContain("active archive");
+    expect(dialogs[1]?.textContent).toContain("from Archeion");
   });
 });

@@ -6,7 +6,7 @@ import type { SettingsDialogController } from "./useSettingsDialogController";
 export type SettingsItemGroupStyle = "standard" | "actions";
 
 export type SettingsDeferredDataRequirement =
-  | "archiveAppearanceSettings"
+  | "themeCatalog"
   | "archiveImportSettings"
   | "coverCacheStatus"
   | "epubWritebackBackupStatus"

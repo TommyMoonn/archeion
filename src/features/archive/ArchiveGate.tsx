@@ -1,16 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import { useLibraryStorage } from "../../storage/useLibraryStorage";
 import { useMetadataWriteLifecycle } from "../../storage/useMetadataWriteLifecycle";
-import { createArchiveAppearanceSettingsSource } from "../../storage/archiveAppearanceSettingsSource";
 import { archiveStore } from "../../stores/archiveStore";
 import { useFilesAndMetadataPreferences } from "../../stores/appPreferencesStore";
 import { ArchiveWatcherController } from "./archiveWatcher";
 import { useArchive } from "./useArchive";
 import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
-import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { startupTrace } from "../../app/startupTrace";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
 
@@ -23,10 +21,6 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
   const state = useArchive();
   const storage = useLibraryStorage();
   useMetadataWriteLifecycle(storage);
-  const appearanceSettingsSource = useMemo(
-    () => createArchiveAppearanceSettingsSource(storage),
-    [storage],
-  );
   const { liveWatcherEnabled, scanOnStartup } = useFilesAndMetadataPreferences();
   const archivePath = state.status === "ready" ? state.path : null;
   const readyArchiveId = state.status === "ready" ? state.archive.id : null;
@@ -87,15 +81,7 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
         archivePath && readyArchiveId ? { id: readyArchiveId, rootPath: archivePath } : null;
       startupTrace.mark("storage");
     }
-    if (!archivePath || !readyArchiveId) {
-      appearanceRuntime.deactivateArchive();
-      return;
-    }
-
-    const archive = { id: readyArchiveId, rootPath: archivePath };
-    void appearanceRuntime.activateArchive(archive, appearanceSettingsSource);
-    return () => appearanceRuntime.deactivateArchive(archive);
-  }, [appearanceSettingsSource, archivePath, readyArchiveId, storage]);
+  }, [archivePath, readyArchiveId, storage]);
 
   useEffect(() => {
     if (!archivePath) {

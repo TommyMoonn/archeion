@@ -127,7 +127,6 @@ export function ReaderPage() {
   const archiveRootPath = archiveSession.rootPath;
   const [appearanceController] = useState(() =>
     createReaderAppearanceController({
-      archiveRootPath,
       preferences: appPreferencesStore,
       runtime: appearanceRuntime,
     }),

@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import type { ArchiveAppearanceSettings } from "../../types/settings";
-import {
-  AppearanceRuntimeSettingsChangedError,
-  type ActiveAppearanceArchive,
-  type AppearancePreviewContext,
-} from "../../themes/AppearanceRuntime";
+import type { AppThemeSelection } from "../../types/settings";
+import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
 import type { ThemeCatalogSnapshot, ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import type { ThemeCatalog } from "../../themes/ThemeCatalog";
 import type { ThemeRepository } from "../../themes/ThemeRepository";
@@ -20,14 +16,11 @@ export type ThemeManagerRepository = Pick<
 >;
 
 export type ThemeManagerAppearanceRuntime = Readonly<{
-  getPreviewContext: () => AppearancePreviewContext | null;
-  refreshArchiveAppearance: (
-    archive: ActiveAppearanceArchive,
-  ) => Promise<Readonly<ArchiveAppearanceSettings>>;
-  updateArchiveAppearanceSettings: (
-    archive: ActiveAppearanceArchive,
-    changes: Partial<ArchiveAppearanceSettings>,
-  ) => Promise<Readonly<ArchiveAppearanceSettings>>;
+  getPreviewContext: () => AppearancePreviewContext;
+  refreshAppearance: () => Promise<void>;
+  updateAppearanceSettings: (
+    changes: Readonly<{ appTheme: AppThemeSelection }>,
+  ) => Promise<AppearancePreviewContext["settings"]>;
 }>;
 
 export type PendingThemeReplacement = Readonly<{
@@ -38,18 +31,14 @@ export type ThemeManagerBusyAction =
   "apply" | "delete" | "import" | "load" | "reload" | "replace" | "reveal";
 
 export type ThemeManagerControllerOptions = Readonly<{
-  archiveRootPath: string;
   catalog: ThemeCatalog;
-  onArchiveScopeInvalidated?: () => void;
   previewSession: ThemePreviewSession;
   repository: ThemeManagerRepository;
   runtime: ThemeManagerAppearanceRuntime;
 }>;
 
 export function useThemeManagerController({
-  archiveRootPath,
   catalog,
-  onArchiveScopeInvalidated,
   previewSession,
   repository,
   runtime,
@@ -70,74 +59,27 @@ export function useThemeManagerController({
     null,
   );
   const mountedRef = useRef(false);
-  const invalidatedRef = useRef(false);
   const operationRevisionRef = useRef(0);
   const previewHandleRef = useRef<ThemePreviewHandle | null>(null);
   const previousPreviewStatusRef = useRef(previewSession.getSnapshot().status);
-  const archiveGeneration = useRef(catalog.getSnapshot().archive?.generation ?? null).current;
-  const scopeValid =
-    snapshot.archive?.rootPath === archiveRootPath &&
-    snapshot.archive.generation === archiveGeneration;
   const previewSnapshot = useSyncExternalStore(
     previewSession.subscribe,
     previewSession.getSnapshot,
     previewSession.getSnapshot,
   );
-  const assertArchiveCurrent = useCallback((): void => {
-    const scope = catalog.getSnapshot().archive;
-    if (!scope || scope.rootPath !== archiveRootPath || scope.generation !== archiveGeneration) {
-      throw new ThemeManagerUserError(
-        "The active archive changed. Reopen Theme Manager to continue.",
-      );
-    }
-  }, [archiveGeneration, archiveRootPath, catalog]);
-  const refreshRuntimeAppearance = useCallback(async (): Promise<void> => {
-    const context = runtime.getPreviewContext();
-    if (!context || context.archive.rootPath !== archiveRootPath) return;
-    await runtime.refreshArchiveAppearance(context.archive);
-  }, [archiveRootPath, runtime]);
-  const reconcileCatalogEntryAppearance = useCallback(async (): Promise<void> => {
-    try {
-      await refreshRuntimeAppearance();
-    } catch (reason) {
-      if (!(reason instanceof AppearanceRuntimeSettingsChangedError)) throw reason;
-      const context = runtime.getPreviewContext();
-      if (
-        !context ||
-        context.archive.rootPath !== archiveRootPath ||
-        context.archive.generation !== archiveGeneration
-      ) {
-        throw new ThemeManagerUserError(
-          "The active archive changed. Reopen Theme Manager to continue.",
-        );
-      }
-    }
-  }, [archiveGeneration, archiveRootPath, refreshRuntimeAppearance, runtime]);
-
   useEffect(() => {
     mountedRef.current = true;
     const revision = beginOperation("load");
-    const scope = catalog.getSnapshot().archive;
-    if (!scope || scope.rootPath !== archiveRootPath || scope.generation !== archiveGeneration) {
-      finishOperation(revision, () => {
-        setError("Theme Manager is unavailable for the active archive.");
-      });
-    } else {
-      let catalogRefreshed = false;
-      void (async () => {
-        const next = await catalog.refreshPackages();
-        catalogRefreshed = true;
-        assertArchiveCurrent();
-        await reconcileCatalogEntryAppearance();
-        assertArchiveCurrent();
-        return next;
-      })().then(
+    void runtime
+      .refreshAppearance()
+      .then(() => catalog.getSnapshot())
+      .then(
         (next) =>
           finishOperation(revision, () => {
             setMessage(
               next.entries.some((entry) => entry.origin === "custom")
                 ? null
-                : "No custom themes are stored in this archive yet.",
+                : "No custom themes are installed yet.",
             );
           }),
         (reason) =>
@@ -145,14 +87,11 @@ export function useThemeManagerController({
             setError(
               themeOperationError(
                 reason,
-                catalogRefreshed
-                  ? "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again."
-                  : "Custom themes could not be loaded. Reload themes to try again.",
+                "Theme Manager is unavailable. Reload themes to try again.",
               ),
             ),
           ),
       );
-    }
 
     return () => {
       mountedRef.current = false;
@@ -160,26 +99,7 @@ export function useThemeManagerController({
       previewHandleRef.current?.dispose();
       previewHandleRef.current = null;
     };
-  }, [
-    archiveGeneration,
-    archiveRootPath,
-    assertArchiveCurrent,
-    catalog,
-    reconcileCatalogEntryAppearance,
-  ]);
-
-  useEffect(() => {
-    if (scopeValid || invalidatedRef.current) return;
-    invalidatedRef.current = true;
-    operationRevisionRef.current += 1;
-    previewHandleRef.current?.dispose();
-    previewHandleRef.current = null;
-    setBusyAction(null);
-    setPendingDeleteKey(null);
-    setPendingReplacement(null);
-    setError("Theme Manager is unavailable because the active archive changed.");
-    onArchiveScopeInvalidated?.();
-  }, [onArchiveScopeInvalidated, scopeValid]);
+  }, [catalog, runtime]);
 
   useEffect(() => {
     const previous = previousPreviewStatusRef.current;
@@ -194,7 +114,7 @@ export function useThemeManagerController({
   const selectedEntry =
     entries.find((entry) => entryKey(entry) === selectedKey) ?? entries[0] ?? null;
   const effectiveSelectedKey = selectedEntry ? entryKey(selectedEntry) : selectedKey;
-  const activeAppThemeKey = appThemeEntryKey(runtime.getPreviewContext()?.settings.appTheme);
+  const activeAppThemeKey = appThemeEntryKey(runtime.getPreviewContext().settings.appTheme);
   const previewActive = previewSnapshot.status !== "idle";
 
   function beginOperation(action: ThemeManagerBusyAction): number {
@@ -215,27 +135,15 @@ export function useThemeManagerController({
   async function reload(): Promise<boolean> {
     if (busyAction || previewActive) return false;
     const revision = beginOperation("reload");
-    let catalogRefreshed = false;
     try {
-      assertArchiveCurrent();
-      await catalog.refreshPackages();
-      catalogRefreshed = true;
-      assertArchiveCurrent();
-      await reconcileCatalogEntryAppearance();
+      await runtime.refreshAppearance();
       finishOperation(revision, () => {
         setMessage("Theme packages reloaded.");
       });
       return operationRevisionRef.current === revision;
     } catch (reason) {
       finishOperation(revision, () =>
-        setError(
-          themeOperationError(
-            reason,
-            catalogRefreshed
-              ? "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again."
-              : "Themes could not be reloaded. Try again.",
-          ),
-        ),
+        setError(themeOperationError(reason, "Themes could not be reloaded. Try again.")),
       );
       return false;
     }
@@ -247,7 +155,6 @@ export function useThemeManagerController({
     let imported = false;
     try {
       const manifest = await validatedFile(file);
-      assertArchiveCurrent();
       const builtInConflict = snapshot.entries.some(
         (entry) => entry.origin === "builtin" && entry.id === manifest.id,
       );
@@ -268,7 +175,6 @@ export function useThemeManagerController({
       }
       await repository.storeManifest(manifest);
       imported = true;
-      assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
         setSelectedKey(customEntryKey(manifest.id));
@@ -296,10 +202,8 @@ export function useThemeManagerController({
     const revision = beginOperation("replace");
     let updated = false;
     try {
-      assertArchiveCurrent();
       await repository.replaceManifest(pending.manifest);
       updated = true;
-      assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
         setPendingReplacement(null);
@@ -329,10 +233,8 @@ export function useThemeManagerController({
     const revision = beginOperation("delete");
     let removed = false;
     try {
-      assertArchiveCurrent();
       await repository.deletePackage(entry.packageId);
       removed = true;
-      assertArchiveCurrent();
       await reloadAfterMutation();
       finishOperation(revision, () => {
         setPendingDeleteKey(null);
@@ -356,15 +258,7 @@ export function useThemeManagerController({
 
   async function useSelectedTheme(): Promise<boolean> {
     const entry = selectedEntry;
-    const context = runtime.getPreviewContext();
-    if (
-      !entry?.applicable ||
-      !entry.capabilities.application ||
-      !context ||
-      !isManagerArchive(context.archive) ||
-      busyAction ||
-      previewActive
-    ) {
+    if (!entry?.applicable || !entry.capabilities.application || busyAction || previewActive) {
       return false;
     }
     const appTheme =
@@ -376,7 +270,7 @@ export function useThemeManagerController({
     if (!appTheme) return false;
     const revision = beginOperation("apply");
     try {
-      await runtime.updateArchiveAppearanceSettings(context.archive, { appTheme });
+      await runtime.updateAppearanceSettings({ appTheme });
       finishOperation(revision, () => {
         setMessage(`${entry.name} is now selected.`);
       });
@@ -403,18 +297,6 @@ export function useThemeManagerController({
     ) {
       return false;
     }
-    try {
-      assertArchiveCurrent();
-      const context = runtime.getPreviewContext();
-      if (!context || !isManagerArchive(context.archive)) {
-        throw new ThemeManagerUserError(
-          "The active archive changed. Reopen Theme Manager to continue.",
-        );
-      }
-    } catch (reason) {
-      setError(themeOperationError(reason, "This theme could not be previewed. Try again."));
-      return false;
-    }
     previewHandleRef.current?.dispose();
     previewHandleRef.current = null;
     const started = previewSession.startPreview({ candidate: selectedEntry.manifest });
@@ -432,37 +314,24 @@ export function useThemeManagerController({
     if (busyAction) return false;
     const revision = beginOperation("reveal");
     try {
-      assertArchiveCurrent();
       await repository.revealThemesRoot();
       finishOperation(revision, () => undefined);
       return operationRevisionRef.current === revision;
     } catch (reason) {
       finishOperation(revision, () =>
-        setError(
-          themeOperationError(
-            reason,
-            "The themes folder could not be opened. Check that the archive is available.",
-          ),
-        ),
+        setError(themeOperationError(reason, "The themes folder could not be opened. Try again.")),
       );
       return false;
     }
   }
 
   async function reloadAfterMutation(): Promise<void> {
-    assertArchiveCurrent();
-    await catalog.refreshPackages();
-    assertArchiveCurrent();
-    await refreshRuntimeAppearance();
+    await runtime.refreshAppearance();
   }
 
   function disposePreview(): void {
     previewHandleRef.current?.dispose();
     previewHandleRef.current = null;
-  }
-
-  function isManagerArchive(archive: ActiveAppearanceArchive): boolean {
-    return archive.rootPath === archiveRootPath && archive.generation === archiveGeneration;
   }
 
   return {
@@ -507,19 +376,17 @@ function customEntryKey(id: string): string {
   return `custom:${id}`;
 }
 
-function appThemeEntryKey(
-  selection: ArchiveAppearanceSettings["appTheme"] | undefined,
-): string | null {
+function appThemeEntryKey(selection: AppThemeSelection | undefined): string | null {
   if (selection?.kind === "custom") return customEntryKey(selection.id);
   if (selection?.kind === "builtin") return `builtin:${selection.id}`;
   return null;
 }
 
 function initialSelectedKey(
-  context: AppearancePreviewContext | null,
+  context: AppearancePreviewContext,
   snapshot: ThemeCatalogSnapshot,
 ): string {
-  const app = context?.settings.appTheme;
+  const app = context.settings.appTheme;
   if (app?.kind === "custom") return customEntryKey(app.id);
   if (app?.kind === "builtin") return `builtin:${app.id}`;
   return entryKey(snapshot.entries[0]!);

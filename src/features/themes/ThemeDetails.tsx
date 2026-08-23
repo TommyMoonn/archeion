@@ -110,7 +110,7 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
       {controller.pendingDeleteKey === controller.selectedKey ? (
         <Dialog
           closeOnBackdropClick={false}
-          description="This removes the theme package from the active archive."
+          description="This removes the theme package from Archeion."
           footer={
             <>
               <Button onClick={controller.cancelDelete} size="standard" variant="secondary">

@@ -53,16 +53,6 @@ vi.mock("../themes/useThemeCatalogEntries", async () => {
   };
 });
 
-vi.mock("../themes/useCommittedArchiveAppearance", () => ({
-  useCommittedArchiveAppearance: () => ({
-    archive: { generation: 1, id: "archive-a", rootPath: "D:\\Books" },
-    settings: {
-      appTheme: { kind: "builtin", id: "dark" },
-      readerTheme: { kind: "builtin", id: "dark" },
-    },
-  }),
-}));
-
 vi.mock("../../stores/archiveStore", () => ({
   archiveStore: {
     getSnapshot: () => archiveState,

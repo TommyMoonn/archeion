@@ -10,12 +10,12 @@ import type { SettingsDialogController } from "../useSettingsDialogController";
 import { appearanceSettingsItems } from "./appearanceSettingsItems";
 
 function controller(): SettingsDialogController {
-  const preferences = defaultAppPreferences;
+  const preferences = {
+    ...defaultAppPreferences,
+    appTheme: { kind: "custom" as const, id: "moon-ink" },
+    readerTheme: { kind: "custom" as const, id: "moon-ink" },
+  };
   return {
-    archiveAppearance: {
-      appTheme: { kind: "custom", id: "moon-ink" },
-      readerTheme: { kind: "inherit" },
-    },
     openThemeManager: vi.fn(),
     openThemesFolder: vi.fn(async () => true),
     preferences,
@@ -44,7 +44,7 @@ function controller(): SettingsDialogController {
       },
     ],
     updateAppPreferences: vi.fn(async () => true),
-    updateArchiveAppearance: vi.fn(async () => true),
+    updateAppearance: vi.fn(async () => true),
     updateReader: vi.fn(),
   } as unknown as SettingsDialogController;
 }
@@ -117,10 +117,10 @@ describe("appearanceSettingsItems", () => {
     act(() => folder.click());
     act(() => manage.click());
     act(() => readerSelect.click());
-    const customReader = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Moon Ink",
+    const lightReader = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Light",
     )!;
-    act(() => customReader.click());
+    act(() => lightReader.click());
     act(() => appSelect.click());
     const archeionLight = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
       (button) => button.textContent === "Archeion Light",
@@ -130,10 +130,10 @@ describe("appearanceSettingsItems", () => {
     expect(context.openThemesFolder).toHaveBeenCalledOnce();
     expect(context.openThemeManager).toHaveBeenCalledOnce();
     expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);
-    expect(context.updateArchiveAppearance).toHaveBeenNthCalledWith(1, {
-      readerTheme: { kind: "custom", id: "moon-ink" },
+    expect(context.updateAppearance).toHaveBeenNthCalledWith(1, {
+      readerTheme: { kind: "builtin", id: "light" },
     });
-    expect(context.updateArchiveAppearance).toHaveBeenNthCalledWith(2, {
+    expect(context.updateAppearance).toHaveBeenNthCalledWith(2, {
       appTheme: { kind: "builtin", id: "light" },
     });
 
@@ -144,7 +144,6 @@ describe("appearanceSettingsItems", () => {
   it("keeps global theme storage accessible without an active archive", () => {
     const context: SettingsDialogController = {
       ...controller(),
-      archiveAppearance: null,
       selectedArchivePath: undefined,
     };
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
@@ -160,7 +159,7 @@ describe("appearanceSettingsItems", () => {
       (button) => button.textContent === "Manage themes",
     )!;
     expect(folder.disabled).toBe(false);
-    expect(manage.disabled).toBe(true);
+    expect(manage.disabled).toBe(false);
 
     act(() => root.unmount());
   });

@@ -1,12 +1,8 @@
 import type { AppPreferences } from "../../types/appSettings";
-import type { ArchiveAppearanceSettings, ArchiveReaderThemeSelection } from "../../types/settings";
+import type { ReaderThemeSelection } from "../../types/settings";
 import { normalizeReaderSettings, type ReaderSettings } from "../../types/reader";
 import type { ResolvedReaderTheme } from "../../themes/domain";
-import type {
-  ActiveAppearanceArchive,
-  AppearancePreviewContext,
-  AppearanceRuntime,
-} from "../../themes/AppearanceRuntime";
+import type { AppearancePreviewContext, AppearanceRuntime } from "../../themes/AppearanceRuntime";
 import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
 import { createReaderContentTheme, type ReaderContentTheme } from "./readerTheme";
 
@@ -14,7 +10,7 @@ type Listener = () => void;
 
 type ReaderAppearancePreferences = Readonly<{
   getPersistenceSnapshot: () => AppPreferencesPersistenceStatus;
-  getReaderSnapshot: () => ReaderSettings;
+  getSnapshot: () => AppPreferences;
   subscribe: (listener: Listener) => () => void;
   update: (changes: Partial<AppPreferences>) => Promise<AppPreferences>;
 }>;
@@ -30,52 +26,47 @@ type ReaderAppearanceRuntime = Pick<
 >;
 
 type ReaderAppearanceControllerOptions = Readonly<{
-  archiveRootPath: string | null;
   preferences: ReaderAppearancePreferences;
   runtime: ReaderAppearanceRuntime;
 }>;
 
 export type ReaderAppearanceSnapshot = Readonly<{
-  committedReaderTheme: ArchiveReaderThemeSelection | null;
+  committedReaderTheme: ReaderThemeSelection;
   committedSettings: ReaderSettings;
   contentTheme: ReaderContentTheme;
   persistenceFailed: boolean;
   readerTheme: ResolvedReaderTheme;
-  readerThemeSelection: ArchiveReaderThemeSelection | null;
+  readerThemeSelection: ReaderThemeSelection;
   settings: ReaderSettings;
 }>;
 
 export type ReaderAppearanceController = Readonly<{
   activate: () => void;
   clearPreview: () => void;
-  commitReaderTheme: (selection: ArchiveReaderThemeSelection) => Promise<boolean>;
+  commitReaderTheme: (selection: ReaderThemeSelection) => Promise<boolean>;
   commitSettings: (settings?: ReaderSettings) => Promise<boolean>;
   getSnapshot: () => ReaderAppearanceSnapshot;
-  previewReaderTheme: (selection: ArchiveReaderThemeSelection) => Promise<boolean>;
+  previewReaderTheme: (selection: ReaderThemeSelection) => Promise<boolean>;
   previewSettings: (settings: ReaderSettings) => void;
   subscribe: (listener: Listener) => () => void;
   teardown: () => void;
 }>;
 
-type PendingSettingsCommit = Readonly<{
-  revision: number;
-  target: ReaderSettings;
-}>;
-
+type PendingSettingsCommit = Readonly<{ revision: number; target: ReaderSettings }>;
 type PendingThemeCommit = Readonly<{
-  archive: ActiveAppearanceArchive;
-  expectedSettings: Readonly<ArchiveAppearanceSettings>;
+  expectedSettings: AppearancePreviewContext["settings"];
   revision: number;
-  selection: ArchiveReaderThemeSelection;
+  selection: ReaderThemeSelection;
 }>;
 
 export function createReaderAppearanceController({
-  archiveRootPath,
   preferences,
   runtime,
 }: ReaderAppearanceControllerOptions): ReaderAppearanceController {
   let active = true;
-  let committedSettings = normalizeReaderSettings(preferences.getReaderSnapshot());
+  let observedPreferences = preferences.getSnapshot();
+  let committedSettings = normalizeReaderSettings(observedPreferences.reader);
+  let committedTheme = observedPreferences.readerTheme;
   let settingsPreview: ReaderSettings | null = null;
   let settingsSaveFailed = false;
   let themeSaveFailed = false;
@@ -83,8 +74,6 @@ export function createReaderAppearanceController({
   let themeRevision = 0;
   let pendingSettings: PendingSettingsCommit | null = null;
   let pendingTheme: PendingThemeCommit | null = null;
-  let observedSettings = preferences.getReaderSnapshot();
-  let committedContext = matchingContext(runtime.getPreviewContext(), archiveRootPath);
   let readerTheme = runtime.getReaderSnapshot();
   let stopPreferences: (() => void) | null = null;
   let stopRuntime: (() => void) | null = null;
@@ -94,8 +83,8 @@ export function createReaderAppearanceController({
   let contentTheme = createReaderContentTheme(derivedSettings, derivedReaderTheme.tokens);
   let snapshot = createSnapshot();
 
-  function currentSelection(): ArchiveReaderThemeSelection | null {
-    return pendingTheme?.selection ?? committedContext?.settings.readerTheme ?? null;
+  function currentSelection(): ReaderThemeSelection {
+    return pendingTheme?.selection ?? committedTheme;
   }
 
   function createSnapshot(): ReaderAppearanceSnapshot {
@@ -106,7 +95,7 @@ export function createReaderAppearanceController({
       contentTheme = createReaderContentTheme(settings, readerTheme.tokens);
     }
     return Object.freeze({
-      committedReaderTheme: committedContext?.settings.readerTheme ?? null,
+      committedReaderTheme: committedTheme,
       committedSettings,
       contentTheme,
       persistenceFailed:
@@ -125,49 +114,39 @@ export function createReaderAppearanceController({
   }
 
   function handlePreferencesChange(): void {
-    const next = preferences.getReaderSnapshot();
-    if (next !== observedSettings) {
-      observedSettings = next;
-      if (!pendingSettings || !readerSettingsEqual(next, pendingSettings.target)) {
+    const next = preferences.getSnapshot();
+    if (next.reader !== observedPreferences.reader) {
+      if (!pendingSettings || !readerSettingsEqual(next.reader, pendingSettings.target)) {
         settingsRevision += 1;
         pendingSettings = null;
         settingsPreview = null;
         settingsSaveFailed = false;
-        committedSettings = normalizeReaderSettings(next);
       }
+      committedSettings = normalizeReaderSettings(next.reader);
     }
-    publish();
-  }
-
-  function handleRuntimeChange(): void {
-    const nextContext = matchingContext(runtime.getPreviewContext(), archiveRootPath);
-    const nextTheme = runtime.getReaderSnapshot();
-    if (nextContext !== committedContext) {
-      const expected = pendingTheme?.expectedSettings;
-      const committedTarget = pendingTheme
-        ? { ...pendingTheme.expectedSettings, readerTheme: pendingTheme.selection }
-        : null;
-      if (
-        !expected ||
-        (!sameAppearanceSettings(nextContext?.settings, expected) &&
-          (!committedTarget || !sameAppearanceSettings(nextContext?.settings, committedTarget)))
-      ) {
+    if (!sameReaderThemeSelection(next.readerTheme, observedPreferences.readerTheme)) {
+      committedTheme = next.readerTheme;
+      if (!pendingTheme || !sameReaderThemeSelection(next.readerTheme, pendingTheme.selection)) {
         themeRevision += 1;
         pendingTheme = null;
         themeSaveFailed = false;
       }
-      committedContext = nextContext;
     }
-    readerTheme = nextTheme;
+    observedPreferences = next;
+    publish();
+  }
+
+  function handleRuntimeChange(): void {
+    readerTheme = runtime.getReaderSnapshot();
     publish();
   }
 
   function activate(): void {
     if (stopPreferences || stopRuntime) return;
     active = true;
-    observedSettings = preferences.getReaderSnapshot();
-    committedSettings = normalizeReaderSettings(observedSettings);
-    committedContext = matchingContext(runtime.getPreviewContext(), archiveRootPath);
+    observedPreferences = preferences.getSnapshot();
+    committedSettings = normalizeReaderSettings(observedPreferences.reader);
+    committedTheme = observedPreferences.readerTheme;
     readerTheme = runtime.getReaderSnapshot();
     stopPreferences = preferences.subscribe(handlePreferencesChange);
     stopRuntime = runtime.subscribe(handleRuntimeChange);
@@ -182,25 +161,20 @@ export function createReaderAppearanceController({
     settingsPreview = null;
     settingsSaveFailed = false;
     themeSaveFailed = false;
-    const context = matchingContext(runtime.getPreviewContext(), archiveRootPath);
-    if (context) runtime.clearReaderPreview(context.archive);
+    runtime.clearReaderPreview();
     readerTheme = runtime.getReaderSnapshot();
-    if (active) {
-      publish();
-    } else {
-      snapshot = createSnapshot();
-    }
+    if (active) publish();
+    else snapshot = createSnapshot();
   }
 
-  async function previewReaderTheme(selection: ArchiveReaderThemeSelection): Promise<boolean> {
-    const context = matchingContext(runtime.getPreviewContext(), archiveRootPath);
-    if (!active || !context) return false;
+  async function previewReaderTheme(selection: ReaderThemeSelection): Promise<boolean> {
+    if (!active) return false;
+    const expectedSettings = runtime.getPreviewContext().settings;
     const revision = ++themeRevision;
-    const applied = await runtime.applyReaderPreview(context.archive, selection);
+    const applied = await runtime.applyReaderPreview(selection);
     if (!active || revision !== themeRevision || !applied) return false;
     pendingTheme = Object.freeze({
-      archive: context.archive,
-      expectedSettings: context.settings,
+      expectedSettings,
       revision,
       selection: Object.freeze({ ...selection }),
     });
@@ -210,19 +184,14 @@ export function createReaderAppearanceController({
     return true;
   }
 
-  async function commitReaderTheme(selection: ArchiveReaderThemeSelection): Promise<boolean> {
+  async function commitReaderTheme(selection: ReaderThemeSelection): Promise<boolean> {
     const previewMatches =
       pendingTheme && sameReaderThemeSelection(pendingTheme.selection, selection);
     if (!previewMatches && !(await previewReaderTheme(selection))) return false;
     const operation = pendingTheme;
     if (!operation || !active) return false;
-
     try {
-      await runtime.keepReaderPreview(
-        operation.archive,
-        operation.expectedSettings,
-        operation.selection,
-      );
+      await runtime.keepReaderPreview(operation.expectedSettings, operation.selection);
     } catch {
       if (active && pendingTheme === operation && themeRevision === operation.revision) {
         pendingTheme = null;
@@ -232,11 +201,10 @@ export function createReaderAppearanceController({
       }
       return false;
     }
-
     if (!active || pendingTheme !== operation || themeRevision !== operation.revision) return false;
     pendingTheme = null;
+    committedTheme = operation.selection;
     themeSaveFailed = false;
-    committedContext = matchingContext(runtime.getPreviewContext(), archiveRootPath);
     readerTheme = runtime.getReaderSnapshot();
     publish();
     return true;
@@ -249,13 +217,12 @@ export function createReaderAppearanceController({
     const operation = Object.freeze({ revision: ++settingsRevision, target });
     pendingSettings = operation;
     publish();
-
     try {
       const saved = await preferences.update({ reader: target });
       if (!active || pendingSettings !== operation || settingsRevision !== operation.revision) {
         return false;
       }
-      observedSettings = saved.reader;
+      observedPreferences = saved;
       committedSettings = normalizeReaderSettings(saved.reader);
       settingsPreview = null;
       pendingSettings = null;
@@ -300,15 +267,6 @@ export function createReaderAppearanceController({
   });
 }
 
-function matchingContext(
-  context: AppearancePreviewContext | null,
-  archiveRootPath: string | null,
-): AppearancePreviewContext | null {
-  return context && archiveRootPath && context.archive.rootPath === archiveRootPath
-    ? context
-    : null;
-}
-
 function readerSettingsEqual(left: ReaderSettings, right: ReaderSettings): boolean {
   return (
     left.fontFamily === right.fontFamily &&
@@ -322,24 +280,8 @@ function readerSettingsEqual(left: ReaderSettings, right: ReaderSettings): boole
 }
 
 function sameReaderThemeSelection(
-  left: ArchiveReaderThemeSelection,
-  right: ArchiveReaderThemeSelection,
+  left: ReaderThemeSelection,
+  right: ReaderThemeSelection,
 ): boolean {
-  if (left.kind !== right.kind) return false;
-  if (left.kind === "inherit") return true;
-  return right.kind !== "inherit" && left.id === right.id;
-}
-
-function sameAppearanceSettings(
-  left: Readonly<ArchiveAppearanceSettings> | undefined,
-  right: Readonly<ArchiveAppearanceSettings>,
-): boolean {
-  if (!left || !sameReaderThemeSelection(left.readerTheme, right.readerTheme)) return false;
-  if (left.appTheme.kind !== right.appTheme.kind) return false;
-  if (left.appTheme.kind === "inherit" || left.appTheme.kind === "system") return true;
-  return (
-    right.appTheme.kind !== "inherit" &&
-    right.appTheme.kind !== "system" &&
-    left.appTheme.id === right.appTheme.id
-  );
+  return left.kind === right.kind && left.id === right.id;
 }

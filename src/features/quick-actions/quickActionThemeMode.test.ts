@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { ArchiveAppearanceSettings } from "../../types/settings";
-import type { ActiveAppearanceArchive } from "../../themes/AppearanceRuntime";
+import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import type {
@@ -12,12 +11,6 @@ import type {
 import { builtInThemeCatalogEntries } from "../../themes/themeCatalogReadModel";
 import { ThemePreviewSession, type ThemePreviewRuntime } from "../../themes/ThemePreviewSession";
 import { createThemeQuickActionMode } from "./quickActionThemeMode";
-
-const archive: ActiveAppearanceArchive = Object.freeze({
-  generation: 4,
-  id: "archive-a",
-  rootPath: "D:\\Archive",
-});
 
 function deferred<Value>() {
   let resolve!: (value: Value) => void;
@@ -72,16 +65,16 @@ function catalogSnapshot(
   customEntries: ThemeCatalogSnapshot["entries"] = [],
 ): ThemeCatalogSnapshot {
   return Object.freeze({
-    archive: Object.freeze({ generation: archive.generation, rootPath: archive.rootPath }),
     entries: Object.freeze([...builtInThemeCatalogEntries, ...customEntries]),
     fullyEnumerated: true,
+    revision: 1,
   });
 }
 
 function createHarness(
   initial: ThemeCatalogSnapshot,
   refresh: Promise<ThemeCatalogSnapshot>,
-  options: { failKeep?: boolean; settings?: ArchiveAppearanceSettings } = {},
+  options: { failKeep?: boolean; settings?: GlobalAppearancePreferences } = {},
 ) {
   const listeners = new Set<() => void>();
   const settings =
@@ -89,7 +82,7 @@ function createHarness(
     ({
       appTheme: { kind: "builtin", id: "light" },
       readerTheme: { kind: "builtin", id: "sepia" },
-    } satisfies ArchiveAppearanceSettings);
+    } satisfies GlobalAppearancePreferences);
   const applyPreview = vi.fn<ThemePreviewRuntime["applyPreview"]>(() => true);
   const clearPreview = vi.fn<ThemePreviewRuntime["clearPreview"]>(() => true);
   const keepPreview = vi.fn<ThemePreviewRuntime["keepPreview"]>(async () => {
@@ -98,10 +91,9 @@ function createHarness(
   const runtime: ThemePreviewRuntime = {
     applyPreview,
     clearPreview,
-    getPreviewContext: () => ({ archive, settings }),
+    getPreviewContext: () => ({ settings }),
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("light"),
-      archive,
       reader: resolveBuiltInReaderTheme("sepia"),
     }),
     keepPreview,
@@ -160,7 +152,6 @@ describe("Quick Actions theme mode", () => {
     );
     harness.mode.preview?.("custom:edited");
     expect(harness.applyPreview).toHaveBeenLastCalledWith(
-      archive,
       expect.objectContaining({ base: "dark" }),
     );
   });
@@ -172,10 +163,7 @@ describe("Quick Actions theme mode", () => {
 
     harness.mode.preview?.(dark?.id);
 
-    expect(harness.applyPreview).toHaveBeenCalledWith(
-      archive,
-      expect.objectContaining({ base: "dark" }),
-    );
+    expect(harness.applyPreview).toHaveBeenCalledWith(expect.objectContaining({ base: "dark" }));
     expect(harness.keepPreview).not.toHaveBeenCalled();
     expect(
       harness.mode.getSnapshot().options.find((option) => option.id === "builtin:dark")?.status,
@@ -207,9 +195,9 @@ describe("Quick Actions theme mode", () => {
     expect(harness.keepPreview).not.toHaveBeenCalled();
 
     await expect(harness.mode.confirm(option)).resolves.toEqual({ kind: "close" });
-    expect(harness.keepPreview).toHaveBeenCalledWith(archive, expect.anything(), {
-      appTheme: { kind: "custom", id: "warning-theme" },
-      readerTheme: { kind: "builtin", id: "sepia" },
+    expect(harness.keepPreview).toHaveBeenCalledWith(expect.anything(), {
+      kind: "custom",
+      id: "warning-theme",
     });
   });
 

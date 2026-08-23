@@ -139,15 +139,12 @@ describe("global AppearanceRuntime", () => {
     const preferences = createPreferencesSource();
     const runtime = new AppearanceRuntime({ globalPreferences: preferences.source });
     runtime.start();
-    const committed = runtime.getGlobalPreviewContext().settings;
+    const committed = runtime.getPreviewContext().settings;
 
     runtime.applyPreview(resolveBuiltInAppTheme("light"));
 
     expect(runtime.getSnapshot().app.base).toBe("light");
-    expect(runtime.getGlobalPreviewContext().settings.appTheme).toEqual({
-      kind: "builtin",
-      id: "dark",
-    });
+    expect(runtime.getPreviewContext().settings.appTheme).toEqual({ kind: "builtin", id: "dark" });
     expect(preferences.update).not.toHaveBeenCalled();
 
     await runtime.keepPreview(committed, { kind: "builtin", id: "light" });
@@ -155,17 +152,14 @@ describe("global AppearanceRuntime", () => {
     expect(preferences.update).toHaveBeenCalledWith({
       appTheme: { kind: "builtin", id: "light" },
     });
-    expect(runtime.getGlobalPreviewContext().settings.appTheme).toEqual({
-      kind: "builtin",
-      id: "light",
-    });
+    expect(runtime.getPreviewContext().settings.appTheme).toEqual({ kind: "builtin", id: "light" });
   });
 
   it("keeps a newer Reader selection when an application preview save completes", async () => {
     const preferences = createDeferredPreferencesSource();
     const runtime = new AppearanceRuntime({ globalPreferences: preferences.source });
     runtime.start();
-    const committed = runtime.getGlobalPreviewContext().settings;
+    const committed = runtime.getPreviewContext().settings;
     runtime.applyPreview(resolveBuiltInAppTheme("light"));
 
     const pending = runtime.keepPreview(committed, { kind: "builtin", id: "light" });
@@ -174,7 +168,7 @@ describe("global AppearanceRuntime", () => {
     await pending;
     await settle();
 
-    expect(runtime.getGlobalPreviewContext().settings).toEqual({
+    expect(runtime.getPreviewContext().settings).toEqual({
       appTheme: { kind: "builtin", id: "light" },
       readerTheme: { kind: "builtin", id: "sepia" },
     });
@@ -186,7 +180,7 @@ describe("global AppearanceRuntime", () => {
     const preferences = createPreferencesSource();
     const runtime = new AppearanceRuntime({ globalPreferences: preferences.source });
     runtime.start();
-    const committed = runtime.getGlobalPreviewContext().settings;
+    const committed = runtime.getPreviewContext().settings;
     runtime.applyPreview(resolveBuiltInAppTheme("light"));
     await preferences.update({ readerTheme: { kind: "builtin", id: "sepia" } });
 
@@ -211,7 +205,7 @@ describe("global AppearanceRuntime", () => {
     await settle();
 
     expect(preferences.source.getSnapshot().appTheme).toEqual({ kind: "builtin", id: "light" });
-    expect(runtime.getGlobalPreviewContext().settings).toEqual({
+    expect(runtime.getPreviewContext().settings).toEqual({
       appTheme: { kind: "builtin", id: "light" },
       readerTheme: { kind: "builtin", id: "sepia" },
     });

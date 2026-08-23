@@ -6,42 +6,37 @@ import { IconButton } from "../../../components/IconButton";
 import { SegmentedControl } from "../../../components/SegmentedControl";
 import { Toggle } from "../../../components/Toggle";
 import type { InterfaceDensity } from "../../../types/appSettings";
-import { ArchiveReaderThemeSelect } from "../../themes/ArchiveReaderThemeSelect";
+import { ReaderThemeSelect } from "../../themes/ReaderThemeSelect";
 import {
   applicationThemeOptions,
   applicationThemeValue,
   decodeApplicationTheme,
-} from "../../themes/archiveThemeSelectionOptions";
+} from "../../themes/themeSelectionOptions";
 import { SettingsRow } from "../SettingsRow";
 import { densityOptions } from "../settingsOptions";
 import type { SettingsItem } from "../settingsItemTypes";
 
 export const appearanceSettingsItems = [
   {
-    deferredData: ["archiveAppearanceSettings"],
+    deferredData: ["themeCatalog"],
     description: "Choose the colors used while reading.",
     id: "reader.theme",
     label: "Reader theme",
     render: (context) => (
       <SettingsRow description="Choose the colors used while reading." label="Reader theme">
-        {context.archiveAppearance ? (
-          <ArchiveReaderThemeSelect
-            entries={context.themeCatalogEntries}
-            fallback={context.reader.theme}
-            onChange={(readerTheme) => void context.updateArchiveAppearance({ readerTheme })}
-            onOpen={() => void context.refreshThemeCatalog()}
-            selection={context.archiveAppearance.readerTheme}
-          />
-        ) : (
-          <span className="settings-row__unavailable">Unavailable</span>
-        )}
+        <ReaderThemeSelect
+          entries={context.themeCatalogEntries}
+          onChange={(readerTheme) => void context.updateAppearance({ readerTheme })}
+          onOpen={() => void context.refreshThemeCatalog()}
+          selection={context.preferences.readerTheme}
+        />
       </SettingsRow>
     ),
     searchTerms: ["theme", "light", "sepia", "dark", "epub reader", "custom reader theme"],
     sectionId: "reader",
   },
   {
-    deferredData: ["archiveAppearanceSettings"],
+    deferredData: ["themeCatalog"],
     description: "Choose the theme used across Archeion.",
     groupLabel: "App appearance",
     id: "appearance.app-themes",
@@ -56,30 +51,21 @@ export const appearanceSettingsItems = [
           >
             <FolderOpen aria-hidden="true" />
           </IconButton>
-          {context.archiveAppearance ? (
-            <AppSelect
-              ariaLabel="App themes"
-              onChange={(value) =>
-                void context.updateArchiveAppearance({
-                  appTheme: decodeApplicationTheme(value),
-                })
-              }
-              onOpen={() => void context.refreshThemeCatalog()}
-              options={applicationThemeOptions(
-                context.themeCatalogEntries,
-                context.archiveAppearance.appTheme,
-              )}
-              value={applicationThemeValue(
-                context.archiveAppearance.appTheme,
-                context.preferences.appThemePreset,
-              )}
-            />
-          ) : (
-            <span className="settings-row__unavailable">Unavailable</span>
-          )}
+          <AppSelect
+            ariaLabel="App themes"
+            onChange={(value) =>
+              void context.updateAppearance({ appTheme: decodeApplicationTheme(value) })
+            }
+            onOpen={() => void context.refreshThemeCatalog()}
+            options={applicationThemeOptions(
+              context.themeCatalogEntries,
+              context.preferences.appTheme,
+            )}
+            value={applicationThemeValue(context.preferences.appTheme)}
+          />
           <Button
             className="settings-theme-control__manage"
-            disabled={!context.selectedArchivePath || context.themeCatalogLoading}
+            disabled={context.themeCatalogLoading}
             onClick={context.openThemeManager}
             size="standard"
             variant="secondary"

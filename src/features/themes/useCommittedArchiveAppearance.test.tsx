@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { ArchiveAppearanceSettings } from "../../types/settings";
-import { AppearanceRuntime, type AppearancePreviewContext } from "../../themes/AppearanceRuntime";
+import {
+  AppearanceRuntime,
+  type LegacyAppearancePreviewContext,
+} from "../../themes/AppearanceRuntime";
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
@@ -41,7 +44,7 @@ function cloneSettings(settings: Readonly<ArchiveAppearanceSettings>): ArchiveAp
   };
 }
 
-let observed: AppearancePreviewContext | null = null;
+let observed: LegacyAppearancePreviewContext | null = null;
 
 function Harness({ source }: Readonly<{ source: CommittedAppearanceSource }>) {
   const context = useCommittedArchiveAppearance(source);
@@ -127,7 +130,7 @@ describe("useCommittedArchiveAppearance", () => {
 
     expect(observed?.settings).toEqual(kept);
 
-    const context = runtime.getPreviewContext();
+    const context = runtime.getLegacyPreviewContext();
     if (!context) throw new Error("Expected committed archive appearance");
     const changedReader = {
       appTheme: { kind: "custom", id: candidate.id },

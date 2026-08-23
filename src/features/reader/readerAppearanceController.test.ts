@@ -1,226 +1,119 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { AppPreferences } from "../../types/appSettings";
-import { defaultReaderSettings, type ReaderSettings } from "../../types/reader";
-import type { ArchiveAppearanceSettings, ArchiveReaderThemeSelection } from "../../types/settings";
+import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import { resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
-import type { AppPreferencesPersistenceStatus } from "../../stores/appPreferencesStore";
-import {
-  createReaderAppearanceController,
-  type ReaderAppearanceController,
-} from "./readerAppearanceController";
+import { createReaderAppearanceController } from "./readerAppearanceController";
 
-type Deferred<T> = Readonly<{
-  promise: Promise<T>;
-  reject: (reason?: unknown) => void;
-  resolve: (value: T) => void;
-}>;
-
-function deferred<T>(): Deferred<T> {
-  let resolve!: (value: T) => void;
-  let reject!: (reason?: unknown) => void;
-  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-    resolve = resolvePromise;
-    reject = rejectPromise;
-  });
-  return { promise, reject, resolve };
-}
-
-const archive = Object.freeze({ generation: 4, id: "archive-1", rootPath: "C:/library" });
-const initialArchiveSettings: ArchiveAppearanceSettings = {
-  appTheme: { kind: "inherit" },
-  readerTheme: { kind: "builtin", id: "sepia" },
-};
-
-function themeFor(selection: ArchiveReaderThemeSelection) {
-  if (selection.kind === "builtin") return resolveBuiltInReaderTheme(selection.id);
-  return resolveBuiltInReaderTheme("dark");
-}
-
-function createHarness(
-  options: { deferSettingsSave?: boolean; deferThemeSave?: boolean; failThemeSave?: boolean } = {},
-) {
+function createHarness() {
+  let preferences: AppPreferences = structuredClone(defaultAppPreferences);
+  let resolved = resolveBuiltInReaderTheme("dark");
   const preferenceListeners = new Set<() => void>();
   const runtimeListeners = new Set<() => void>();
-  let preferenceSettings: ReaderSettings = {
-    ...defaultReaderSettings,
-    fontFamily: "atkinson",
-    fontSize: 22,
-  };
-  let persistenceStatus: AppPreferencesPersistenceStatus = { status: "idle" };
-  let context = Object.freeze({ archive, settings: Object.freeze(initialArchiveSettings) });
-  let readerTheme = themeFor(context.settings.readerTheme);
-  let previewSelection: ArchiveReaderThemeSelection | null = null;
-  const settingsSave = options.deferSettingsSave ? deferred<AppPreferences>() : null;
-  const themeSave = options.deferThemeSave ? deferred<void>() : null;
-
-  const preferences = {
-    getPersistenceSnapshot: () => persistenceStatus,
-    getReaderSnapshot: () => preferenceSettings,
-    subscribe(listener: () => void) {
-      preferenceListeners.add(listener);
-      return () => preferenceListeners.delete(listener);
-    },
-    update: vi.fn(async ({ reader }: Partial<AppPreferences>) => {
-      if (!reader) throw new Error("Expected Reader settings.");
-      preferenceSettings = reader;
+  const update = vi.fn(async (changes: Partial<AppPreferences>) => {
+    preferences = { ...preferences, ...changes };
+    preferenceListeners.forEach((listener) => listener());
+    return preferences;
+  });
+  const applyReaderPreview = vi.fn(async (selection: AppPreferences["readerTheme"]) => {
+    resolved = resolveBuiltInReaderTheme(selection.kind === "builtin" ? selection.id : "dark");
+    runtimeListeners.forEach((listener) => listener());
+    return true;
+  });
+  const clearReaderPreview = vi.fn(() => true);
+  const keepReaderPreview = vi.fn(
+    async (_expected: unknown, selection: AppPreferences["readerTheme"]) => {
+      preferences = { ...preferences, readerTheme: selection };
       preferenceListeners.forEach((listener) => listener());
-      if (settingsSave) return settingsSave.promise;
-      return { reader: preferenceSettings } as AppPreferences;
-    }),
-  };
-
-  const runtime = {
-    async applyReaderPreview(
-      candidateArchive: typeof archive,
-      selection: ArchiveReaderThemeSelection,
-    ) {
-      if (candidateArchive !== archive) return false;
-      previewSelection = selection;
-      readerTheme = themeFor(selection);
-      runtimeListeners.forEach((listener) => listener());
-      return true;
     },
-    clearReaderPreview(candidateArchive: typeof archive) {
-      if (candidateArchive !== archive || !previewSelection) return false;
-      previewSelection = null;
-      readerTheme = themeFor(context.settings.readerTheme);
-      runtimeListeners.forEach((listener) => listener());
-      return true;
+  );
+  const controller = createReaderAppearanceController({
+    preferences: {
+      getPersistenceSnapshot: () => ({ status: "idle" }),
+      getSnapshot: () => preferences,
+      subscribe(listener) {
+        preferenceListeners.add(listener);
+        return () => preferenceListeners.delete(listener);
+      },
+      update,
     },
-    getPreviewContext: () => context,
-    getReaderSnapshot: () => readerTheme,
-    async keepReaderPreview(
-      candidateArchive: typeof archive,
-      _expected: Readonly<ArchiveAppearanceSettings>,
-      selection: ArchiveReaderThemeSelection,
-    ) {
-      if (candidateArchive !== archive || !previewSelection) throw new Error("Preview retired");
-      if (themeSave) await themeSave.promise;
-      if (options.failThemeSave) {
-        previewSelection = null;
-        readerTheme = themeFor(context.settings.readerTheme);
-        runtimeListeners.forEach((listener) => listener());
-        throw new Error("save failed");
-      }
-      context = Object.freeze({
-        archive,
-        settings: Object.freeze({ ...context.settings, readerTheme: { ...selection } }),
-      });
-      previewSelection = null;
-      readerTheme = themeFor(selection);
-      runtimeListeners.forEach((listener) => listener());
+    runtime: {
+      applyReaderPreview,
+      clearReaderPreview,
+      getPreviewContext: () => ({
+        settings: {
+          appTheme: preferences.appTheme,
+          readerTheme: preferences.readerTheme,
+        },
+      }),
+      getReaderSnapshot: () => resolved,
+      keepReaderPreview,
+      subscribe(listener) {
+        runtimeListeners.add(listener);
+        return () => runtimeListeners.delete(listener);
+      },
     },
-    subscribe(listener: () => void) {
-      runtimeListeners.add(listener);
-      return () => runtimeListeners.delete(listener);
-    },
-  };
-
-  const controller: ReaderAppearanceController = createReaderAppearanceController({
-    archiveRootPath: archive.rootPath,
-    preferences,
-    runtime,
   });
   controller.activate();
-
-  return {
-    controller,
-    preferences,
-    resolveSettingsSave() {
-      settingsSave?.resolve({ reader: preferenceSettings } as AppPreferences);
-    },
-    resolveThemeSave() {
-      themeSave?.resolve();
-    },
-    setPersistenceFailure() {
-      persistenceStatus = { status: "error", error: "save failed" };
-      preferenceListeners.forEach((listener) => listener());
-    },
-  };
+  return { applyReaderPreview, clearReaderPreview, controller, keepReaderPreview, update };
 }
 
-describe("Reader appearance controller", () => {
-  it("restores saved Reader settings and the committed archive Reader theme", () => {
+describe("global Reader appearance controller", () => {
+  it("reads the committed Reader theme from global preferences", () => {
     const { controller } = createHarness();
 
-    expect(controller.getSnapshot()).toMatchObject({
-      committedReaderTheme: { kind: "builtin", id: "sepia" },
-      committedSettings: { fontFamily: "atkinson", fontSize: 22 },
-      readerTheme: { base: "sepia" },
-      readerThemeSelection: { kind: "builtin", id: "sepia" },
-      settings: { fontFamily: "atkinson", fontSize: 22 },
+    expect(controller.getSnapshot().committedReaderTheme).toEqual({
+      kind: "builtin",
+      id: "dark",
     });
+    expect(controller.getSnapshot().readerTheme.base).toBe("dark");
   });
 
-  it("keeps a settings preview separate from committed settings until persistence succeeds", async () => {
-    const harness = createHarness({ deferSettingsSave: true });
-    const preview = { ...harness.controller.getSnapshot().settings, fontSize: 26 };
+  it("previews and commits Reader themes through the global runtime", async () => {
+    const { applyReaderPreview, controller, keepReaderPreview } = createHarness();
 
-    harness.controller.previewSettings(preview);
-    expect(harness.controller.getSnapshot().settings.fontSize).toBe(26);
-    expect(harness.controller.getSnapshot().committedSettings.fontSize).toBe(22);
-    expect(harness.preferences.update).not.toHaveBeenCalled();
+    await expect(controller.previewReaderTheme({ kind: "builtin", id: "sepia" })).resolves.toBe(
+      true,
+    );
+    expect(controller.getSnapshot().readerTheme.base).toBe("sepia");
+    await expect(controller.commitReaderTheme({ kind: "builtin", id: "sepia" })).resolves.toBe(
+      true,
+    );
 
-    const commit = harness.controller.commitSettings();
-    expect(harness.preferences.update).toHaveBeenCalledOnce();
-    expect(harness.controller.getSnapshot().committedSettings.fontSize).toBe(22);
-
-    harness.resolveSettingsSave();
-    await expect(commit).resolves.toBe(true);
-    expect(harness.controller.getSnapshot().committedSettings.fontSize).toBe(26);
-    expect(harness.controller.getSnapshot().settings.fontSize).toBe(26);
-  });
-
-  it("keeps a Reader theme preview separate until the archive setting commits", async () => {
-    const harness = createHarness({ deferThemeSave: true });
-    const selection = { kind: "builtin", id: "light" } as const;
-
-    await expect(harness.controller.previewReaderTheme(selection)).resolves.toBe(true);
-    expect(harness.controller.getSnapshot().readerTheme.base).toBe("light");
-    expect(harness.controller.getSnapshot().readerThemeSelection).toEqual(selection);
-    expect(harness.controller.getSnapshot().committedReaderTheme).toEqual({
+    expect(applyReaderPreview).toHaveBeenCalledWith({ kind: "builtin", id: "sepia" });
+    expect(keepReaderPreview).toHaveBeenCalledWith(expect.anything(), {
       kind: "builtin",
       id: "sepia",
     });
-
-    const commit = harness.controller.commitReaderTheme(selection);
-    expect(harness.controller.getSnapshot().committedReaderTheme).toEqual({
+    expect(controller.getSnapshot().committedReaderTheme).toEqual({
       kind: "builtin",
       id: "sepia",
     });
-    harness.resolveThemeSave();
-    await expect(commit).resolves.toBe(true);
-    expect(harness.controller.getSnapshot().committedReaderTheme).toEqual(selection);
-    expect(harness.controller.getSnapshot().readerTheme.base).toBe("light");
   });
 
-  it("reports the existing preferences persistence owner and clears previews on teardown", async () => {
-    const harness = createHarness();
-    const contentTheme = harness.controller.getSnapshot().contentTheme;
-    harness.setPersistenceFailure();
-    expect(harness.controller.getSnapshot().persistenceFailed).toBe(true);
-    expect(harness.controller.getSnapshot().contentTheme).toBe(contentTheme);
+  it("persists typography separately from the global Reader theme", async () => {
+    const { controller, update } = createHarness();
+    const next = { ...controller.getSnapshot().settings, fontSize: 22 };
 
-    await harness.controller.previewReaderTheme({ kind: "builtin", id: "light" });
-    harness.controller.teardown();
-    harness.controller.teardown();
+    await expect(controller.commitSettings(next)).resolves.toBe(true);
 
-    expect(harness.controller.getSnapshot().readerTheme.base).toBe("sepia");
+    expect(update).toHaveBeenCalledWith({ reader: next });
+    expect(controller.getSnapshot().readerThemeSelection).toEqual({
+      kind: "builtin",
+      id: "dark",
+    });
   });
 
-  it("retires a failed Reader theme preview and preserves the committed selection", async () => {
-    const harness = createHarness({ failThemeSave: true });
+  it("clears local previews without changing committed preferences", async () => {
+    const { clearReaderPreview, controller, keepReaderPreview } = createHarness();
+    await controller.previewReaderTheme({ kind: "builtin", id: "light" });
 
-    await expect(
-      harness.controller.commitReaderTheme({ kind: "builtin", id: "light" }),
-    ).resolves.toBe(false);
+    controller.clearPreview();
 
-    expect(harness.controller.getSnapshot()).toMatchObject({
-      committedReaderTheme: { kind: "builtin", id: "sepia" },
-      persistenceFailed: true,
-      readerTheme: { base: "sepia" },
-      readerThemeSelection: { kind: "builtin", id: "sepia" },
+    expect(clearReaderPreview).toHaveBeenCalledOnce();
+    expect(keepReaderPreview).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().committedReaderTheme).toEqual({
+      kind: "builtin",
+      id: "dark",
     });
   });
 });

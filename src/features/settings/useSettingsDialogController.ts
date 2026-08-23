@@ -9,17 +9,11 @@ import {
   useAppPreferencesPersistenceStatus,
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
-import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { ThemeRepository } from "../../themes/ThemeRepository";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
-import type {
-  ArchiveAppearanceSettings,
-  ArchiveImportSettings,
-  ImportSettings,
-} from "../../types/settings";
+import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import {
   isArchiveScanActive,
   releaseArchiveScanOperation,
@@ -61,7 +55,6 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
 ]);
 
 export type SettingsDialogControllerOptions = {
-  committedArchiveAppearance?: AppearancePreviewContext | null;
   loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
@@ -73,7 +66,6 @@ export type SettingsDialogControllerOptions = {
 };
 
 export function useSettingsDialogController({
-  committedArchiveAppearance = null,
   loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
@@ -133,10 +125,6 @@ export function useSettingsDialogController({
     ? importDestinationValue
     : destinationOptions[0]?.value;
   const selectedArchivePath = archive.status === "ready" ? archive.path : undefined;
-  const archiveAppearance =
-    selectedArchivePath && committedArchiveAppearance?.archive.rootPath === selectedArchivePath
-      ? committedArchiveAppearance.settings
-      : null;
 
   const clearLocalStatus = useCallback(() => {
     setStatus(null);
@@ -440,44 +428,18 @@ export function useSettingsDialogController({
     });
   }
 
-  async function updateArchiveAppearance(
-    changes: Partial<ArchiveAppearanceSettings>,
+  function updateAppearance(
+    changes: Pick<Partial<AppPreferences>, "appTheme" | "readerTheme">,
   ): Promise<boolean> {
-    const statusOperation = beginStatusOperation();
-    const previewContext = appearanceRuntime.getPreviewContext();
-    if (
-      !previewContext ||
-      !selectedArchivePath ||
-      previewContext.archive.rootPath !== selectedArchivePath
-    ) {
-      publishStatusOperation(
-        statusOperation,
-        "Archive appearance is unavailable. Reopen Settings from an active archive.",
-        "error",
-      );
-      return false;
-    }
-
-    try {
-      await appearanceRuntime.updateArchiveAppearanceSettings(previewContext.archive, changes);
-      publishStatusOperation(statusOperation, "Archive appearance saved.", "success");
-      return true;
-    } catch {
-      publishStatusOperation(
-        statusOperation,
-        "Archive appearance could not be saved. Try changing the appearance again.",
-        "error",
-      );
-      return false;
-    }
+    return updateAppPreferences(changes, { successMessage: "Appearance saved." });
   }
 
   function openThemeManager() {
     const statusOperation = beginStatusOperation();
-    if (!selectedArchivePath || !onOpenThemeManager) {
+    if (!onOpenThemeManager) {
       publishStatusOperation(
         statusOperation,
-        "Theme Manager requires an active archive. Open an archive, then try again.",
+        "Theme Manager is unavailable. Close and reopen Settings, then try again.",
         "error",
       );
       return;
@@ -664,7 +626,7 @@ export function useSettingsDialogController({
 
   async function resetReader() {
     await updateAppPreferences(
-      { reader: defaultAppPreferences.reader },
+      { reader: defaultAppPreferences.reader, readerTheme: defaultAppPreferences.readerTheme },
       { successMessage: "Reader settings reset." },
     );
   }
@@ -682,6 +644,7 @@ export function useSettingsDialogController({
   async function resetAppearance() {
     await updateAppPreferences(
       {
+        appTheme: defaultAppPreferences.appTheme,
         appThemePreset: defaultAppPreferences.appThemePreset,
         appearance: defaultAppPreferences.appearance,
         density: defaultAppPreferences.density,
@@ -732,7 +695,6 @@ export function useSettingsDialogController({
   }
 
   return {
-    archiveAppearance,
     archiveScanActive,
     cache,
     busyConfirmations,
@@ -767,7 +729,7 @@ export function useSettingsDialogController({
     status,
     themeCatalogEntries,
     themeCatalogLoading,
-    updateArchiveAppearance,
+    updateAppearance,
     updateAppPreferences,
     updateFiles,
     updateImportDefaults,

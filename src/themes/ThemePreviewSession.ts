@@ -1,8 +1,8 @@
-import type { ArchiveAppearanceSettings, ArchiveAppThemeSelection } from "../types/settings";
+import type { AppThemeSelection } from "../types/settings";
 import type {
-  ActiveAppearanceArchive,
   AppearancePreviewContext,
   AppearanceRuntimeSnapshot,
+  GlobalAppearancePreferences,
 } from "./AppearanceRuntime";
 import type {
   ResolvedAppTheme,
@@ -17,7 +17,6 @@ import { validateThemeManifest } from "./validateThemeManifest";
 type Listener = () => void;
 
 type ActiveThemePreviewSnapshot = Readonly<{
-  archive: ActiveAppearanceArchive;
   candidate: Readonly<{ id: string; name: string }>;
   contrastWarnings: readonly ThemeContrastWarning[];
   error?: string;
@@ -27,16 +26,14 @@ type ActiveThemePreviewSnapshot = Readonly<{
 
 export type ThemePreviewSessionSnapshot = Readonly<{ status: "idle" }> | ActiveThemePreviewSnapshot;
 
-export type ThemePreviewHandle = Readonly<{
-  dispose: () => boolean;
-}>;
+export type ThemePreviewHandle = Readonly<{ dispose: () => boolean }>;
 
 export type ThemePreviewStartResult =
   | Readonly<{ handle: ThemePreviewHandle; ok: true }>
   | Readonly<{
       diagnostics?: readonly ThemeDiagnostic[];
       ok: false;
-      reason: "busy" | "invalid-theme" | "no-active-archive";
+      reason: "busy" | "invalid-theme";
     }>;
 
 export type BuiltInAppThemePreview = Readonly<{
@@ -45,23 +42,21 @@ export type BuiltInAppThemePreview = Readonly<{
 }>;
 
 export type ThemePreviewRuntime = Readonly<{
-  applyPreview: (archive: ActiveAppearanceArchive, appTheme: ResolvedAppTheme) => boolean;
-  clearPreview: (archive: ActiveAppearanceArchive) => boolean;
-  getPreviewContext: () => AppearancePreviewContext | null;
+  applyPreview: (appTheme: ResolvedAppTheme) => boolean;
+  clearPreview: () => boolean;
+  getPreviewContext: () => AppearancePreviewContext;
   getSnapshot: () => AppearanceRuntimeSnapshot;
   keepPreview: (
-    archive: ActiveAppearanceArchive,
-    expectedSettings: Readonly<ArchiveAppearanceSettings>,
-    settings: ArchiveAppearanceSettings,
+    expectedSettings: Readonly<GlobalAppearancePreferences>,
+    selection: AppThemeSelection,
   ) => Promise<void>;
   subscribe: (listener: Listener) => () => void;
 }>;
 
 type ActiveSession = Readonly<{
-  archive: ActiveAppearanceArchive;
   id: number;
-  nextSettings: ArchiveAppearanceSettings;
-  rollbackSettings: Readonly<ArchiveAppearanceSettings>;
+  rollbackSettings: Readonly<GlobalAppearancePreferences>;
+  selection: AppThemeSelection;
 }>;
 
 const IDLE_SNAPSHOT: ThemePreviewSessionSnapshot = Object.freeze({ status: "idle" });
@@ -86,7 +81,6 @@ export class ThemePreviewSession {
 
   startPreview(input: { candidate: unknown }): ThemePreviewStartResult {
     if (this.snapshot.status === "keeping") return Object.freeze({ ok: false, reason: "busy" });
-
     const validation = validateThemeManifest(input.candidate);
     if (!validation.ok) {
       return Object.freeze({
@@ -125,57 +119,6 @@ export class ThemePreviewSession {
     });
   }
 
-  private startResolvedPreview(input: {
-    appTheme: ResolvedAppTheme;
-    candidate: Readonly<{ id: string; name: string }>;
-    contrastWarnings: readonly ThemeContrastWarning[];
-    selection: ArchiveAppThemeSelection;
-  }): ThemePreviewStartResult {
-    if (this.snapshot.status === "keeping") return Object.freeze({ ok: false, reason: "busy" });
-
-    const initialContext = this.runtime.getPreviewContext();
-    if (!initialContext) return Object.freeze({ ok: false, reason: "no-active-archive" });
-
-    if (this.active) this.revertSession(this.active.id);
-    const context = this.runtime.getPreviewContext();
-    if (!context || !sameArchive(context.archive, initialContext.archive)) {
-      return Object.freeze({ ok: false, reason: "no-active-archive" });
-    }
-
-    const contrastWarnings = Object.freeze([...input.contrastWarnings]);
-    const rollbackSettings = freezeAppearanceSettings(context.settings);
-    const nextSettings = previewSettings(rollbackSettings, input.selection);
-    const id = this.nextSessionId + 1;
-    this.nextSessionId = id;
-    this.active = Object.freeze({
-      archive: context.archive,
-      id,
-      nextSettings,
-      rollbackSettings,
-    });
-    this.cleanupRequested = false;
-    this.publish(
-      activeSnapshot({
-        archive: context.archive,
-        candidate: input.candidate,
-        contrastWarnings,
-        status: "previewing",
-        warningsAcknowledged: false,
-      }),
-    );
-    this.stopRuntime = this.runtime.subscribe(this.handleRuntimeChange);
-
-    if (!this.runtime.applyPreview(context.archive, input.appTheme)) {
-      this.finishSession(id);
-      return Object.freeze({ ok: false, reason: "no-active-archive" });
-    }
-
-    return Object.freeze({
-      handle: Object.freeze({ dispose: () => this.revertSession(id) }),
-      ok: true,
-    });
-  }
-
   acknowledgeWarnings(acknowledged: boolean): void {
     if (this.snapshot.status === "idle" || this.snapshot.contrastWarnings.length === 0) return;
     if (this.snapshot.status === "keeping") return;
@@ -196,15 +139,14 @@ export class ThemePreviewSession {
     if (this.snapshot.contrastWarnings.length > 0 && !this.snapshot.warningsAcknowledged) {
       return false;
     }
-
     this.publish(activeSnapshot({ ...this.snapshot, status: "keeping" }));
     try {
-      await this.runtime.keepPreview(active.archive, active.rollbackSettings, active.nextSettings);
+      await this.runtime.keepPreview(active.rollbackSettings, active.selection);
     } catch {
       const snapshot = this.getSnapshot();
       if (this.active?.id === active.id && snapshot.status !== "idle") {
         if (this.cleanupRequested) {
-          this.runtime.clearPreview(active.archive);
+          this.runtime.clearPreview();
           this.finishSession(active.id);
           return false;
         }
@@ -218,15 +160,13 @@ export class ThemePreviewSession {
       }
       return false;
     }
-
     if (this.active?.id !== active.id) return false;
     this.finishSession(active.id);
     return true;
   }
 
   revert(): boolean {
-    if (!this.active) return false;
-    return this.revertSession(this.active.id);
+    return this.active ? this.revertSession(this.active.id) : false;
   }
 
   dispose(): void {
@@ -236,15 +176,49 @@ export class ThemePreviewSession {
     }
     this.stopRuntime?.();
     this.stopRuntime = null;
-    this.active = null;
     this.publish(IDLE_SNAPSHOT);
+  }
+
+  private startResolvedPreview(input: {
+    appTheme: ResolvedAppTheme;
+    candidate: Readonly<{ id: string; name: string }>;
+    contrastWarnings: readonly ThemeContrastWarning[];
+    selection: AppThemeSelection;
+  }): ThemePreviewStartResult {
+    if (this.snapshot.status === "keeping") return Object.freeze({ ok: false, reason: "busy" });
+    if (this.active) this.revertSession(this.active.id);
+    const rollbackSettings = freezePreferences(this.runtime.getPreviewContext().settings);
+    const id = this.nextSessionId + 1;
+    this.nextSessionId = id;
+    this.active = Object.freeze({
+      id,
+      rollbackSettings,
+      selection: Object.freeze({ ...input.selection }),
+    });
+    this.cleanupRequested = false;
+    this.publish(
+      activeSnapshot({
+        candidate: input.candidate,
+        contrastWarnings: Object.freeze([...input.contrastWarnings]),
+        status: "previewing",
+        warningsAcknowledged: false,
+      }),
+    );
+    this.stopRuntime = this.runtime.subscribe(this.handleRuntimeChange);
+    this.runtime.applyPreview(input.appTheme);
+    return Object.freeze({
+      handle: Object.freeze({ dispose: () => this.revertSession(id) }),
+      ok: true,
+    });
   }
 
   private readonly handleRuntimeChange = () => {
     const active = this.active;
-    if (!active) return;
-    const archive = this.runtime.getSnapshot().archive;
-    if (!archive || !sameArchive(archive, active.archive)) this.finishSession(active.id);
+    if (!active || this.snapshot.status === "keeping") return;
+    if (!samePreferences(this.runtime.getPreviewContext().settings, active.rollbackSettings)) {
+      this.runtime.clearPreview();
+      this.finishSession(active.id);
+    }
   };
 
   private revertSession(id: number): boolean {
@@ -254,7 +228,7 @@ export class ThemePreviewSession {
       this.cleanupRequested = true;
       return true;
     }
-    this.runtime.clearPreview(active.archive);
+    this.runtime.clearPreview();
     this.finishSession(id);
     return true;
   }
@@ -293,27 +267,31 @@ function activeSnapshot(
   });
 }
 
-function previewSettings(
-  rollbackSettings: Readonly<ArchiveAppearanceSettings>,
-  selection: ArchiveAppThemeSelection,
-): ArchiveAppearanceSettings {
-  return {
-    appTheme: { ...selection },
-    readerTheme: { ...rollbackSettings.readerTheme },
-  };
-}
-
-function freezeAppearanceSettings(
-  settings: Readonly<ArchiveAppearanceSettings>,
-): Readonly<ArchiveAppearanceSettings> {
+function freezePreferences(
+  settings: Readonly<GlobalAppearancePreferences>,
+): Readonly<GlobalAppearancePreferences> {
   return Object.freeze({
     appTheme: Object.freeze({ ...settings.appTheme }),
     readerTheme: Object.freeze({ ...settings.readerTheme }),
   });
 }
 
-function sameArchive(left: ActiveAppearanceArchive, right: ActiveAppearanceArchive): boolean {
+function samePreferences(
+  left: Readonly<GlobalAppearancePreferences>,
+  right: Readonly<GlobalAppearancePreferences>,
+): boolean {
   return (
-    left.generation === right.generation && left.id === right.id && left.rootPath === right.rootPath
+    sameAppSelection(left.appTheme, right.appTheme) &&
+    left.readerTheme.kind === right.readerTheme.kind &&
+    left.readerTheme.id === right.readerTheme.id
   );
+}
+
+function sameAppSelection(
+  left: GlobalAppearancePreferences["appTheme"],
+  right: GlobalAppearancePreferences["appTheme"],
+): boolean {
+  if (left.kind !== right.kind) return false;
+  if (left.kind === "system") return true;
+  return right.kind !== "system" && left.id === right.id;
 }

@@ -3,7 +3,6 @@ import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearan
 import type {
   AppThemeSelection,
   ArchiveAppearanceSettings,
-  ArchiveReaderThemeSelection,
   ReaderThemeSelection,
 } from "../types/settings";
 import {
@@ -33,24 +32,24 @@ export type GlobalAppearanceSource = Readonly<{
   update?: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
 }>;
 
-/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
 export type AppearanceArchive = Readonly<{ id: string; rootPath: string }>;
 
-/** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
 export type ActiveAppearanceArchive = AppearanceArchive & Readonly<{ generation: number }>;
 
-export type AppearanceRuntimeSnapshot = Readonly<{
-  app: ResolvedAppTheme;
-  archive: ActiveAppearanceArchive | null;
-  reader: ResolvedReaderTheme;
-}>;
-
-export type AppearancePreviewContext = Readonly<{
+/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
+export type LegacyAppearancePreviewContext = Readonly<{
   archive: ActiveAppearanceArchive;
   settings: Readonly<ArchiveAppearanceSettings>;
 }>;
 
-export type GlobalAppearancePreviewContext = Readonly<{
+export type AppearanceRuntimeSnapshot = Readonly<{
+  app: ResolvedAppTheme;
+  reader: ResolvedReaderTheme;
+}>;
+
+export type AppearancePreviewContext = Readonly<{
   settings: Readonly<GlobalAppearancePreferences>;
 }>;
 
@@ -74,7 +73,7 @@ export class AppearanceRuntime {
   private appliedAppTheme: ResolvedAppTheme | null = null;
   private appliedDocumentRoot: HTMLElement | null = null;
   private readonly catalog: ThemeCatalog;
-  private committedContext: GlobalAppearancePreviewContext;
+  private committedContext: AppearancePreviewContext;
   private committedResolution: ThemeSelectionResolution | null = null;
   private readonly customThemes = new WeakMap<ThemeManifestV1, ResolvedTheme>();
   private readonly getDocumentRoot: () => HTMLElement | null;
@@ -111,12 +110,12 @@ export class AppearanceRuntime {
 
   getSnapshot = (): AppearanceRuntimeSnapshot => this.snapshot;
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
-  getPreviewContext = (): AppearancePreviewContext | null =>
+  getPreviewContext = (): AppearancePreviewContext => this.committedContext;
+  getLegacyPreviewContext = (): LegacyAppearancePreviewContext =>
     Object.freeze({
       archive: GLOBAL_COMPATIBILITY_ARCHIVE,
       settings: this.committedContext.settings,
     });
-  getGlobalPreviewContext = (): GlobalAppearancePreviewContext => this.committedContext;
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -142,18 +141,13 @@ export class AppearanceRuntime {
     this.commitCurrentAppearance();
   }
 
-  applyPreview(
-    appThemeOrArchive: ResolvedAppTheme | ActiveAppearanceArchive,
-    legacyAppTheme?: ResolvedAppTheme,
-  ): boolean {
-    const appTheme = legacyAppTheme ?? (appThemeOrArchive as ResolvedAppTheme);
+  applyPreview(appTheme: ResolvedAppTheme): boolean {
     this.preview = appTheme;
     this.commitCurrentAppearance();
     return true;
   }
 
-  clearPreview(_legacyArchive?: ActiveAppearanceArchive): boolean {
-    void _legacyArchive;
+  clearPreview(): boolean {
     if (!this.preview) return false;
     this.preview = null;
     this.commitCurrentAppearance();
@@ -161,18 +155,9 @@ export class AppearanceRuntime {
   }
 
   async keepPreview(
-    expectedSettingsOrArchive: Readonly<GlobalAppearancePreferences> | ActiveAppearanceArchive,
-    selectionOrExpected: AppThemeSelection | Readonly<ArchiveAppearanceSettings>,
-    legacySettings?: ArchiveAppearanceSettings,
+    expectedSettings: Readonly<GlobalAppearancePreferences>,
+    selection: AppThemeSelection,
   ): Promise<void> {
-    const expectedSettings = legacySettings
-      ? this.preferences
-      : (expectedSettingsOrArchive as Readonly<GlobalAppearancePreferences>);
-    const selection = legacySettings
-      ? legacySettings.appTheme.kind === "inherit"
-        ? this.preferences.appTheme
-        : legacySettings.appTheme
-      : (selectionOrExpected as AppThemeSelection);
     if (!this.preview) throw new Error("There is no active application theme preview.");
     if (!samePreferences(this.preferences, expectedSettings)) {
       throw new AppearanceRuntimeSettingsChangedError();
@@ -183,12 +168,7 @@ export class AppearanceRuntime {
     this.commitCurrentAppearance();
   }
 
-  async applyReaderPreview(
-    selectionOrArchive: ReaderThemeSelection | ActiveAppearanceArchive,
-    legacySelection?: ArchiveReaderThemeSelection,
-  ): Promise<boolean> {
-    const selection = legacySelection ?? (selectionOrArchive as ReaderThemeSelection);
-    if (selection.kind === "inherit") return false;
+  async applyReaderPreview(selection: ReaderThemeSelection): Promise<boolean> {
     const expected = this.preferences;
     let resolution: ThemeSelectionResolution;
     try {
@@ -203,8 +183,7 @@ export class AppearanceRuntime {
     return true;
   }
 
-  clearReaderPreview(_legacyArchive?: ActiveAppearanceArchive): boolean {
-    void _legacyArchive;
+  clearReaderPreview(): boolean {
     if (!this.readerPreview) return false;
     this.readerPreview = null;
     this.commitCurrentAppearance();
@@ -212,15 +191,9 @@ export class AppearanceRuntime {
   }
 
   async keepReaderPreview(
-    expectedSettingsOrArchive: Readonly<GlobalAppearancePreferences> | ActiveAppearanceArchive,
-    selectionOrExpected: ReaderThemeSelection | Readonly<ArchiveAppearanceSettings>,
-    legacySelection?: ArchiveReaderThemeSelection,
+    expectedSettings: Readonly<GlobalAppearancePreferences>,
+    selection: ReaderThemeSelection,
   ): Promise<void> {
-    const expectedSettings = legacySelection
-      ? this.preferences
-      : (expectedSettingsOrArchive as Readonly<GlobalAppearancePreferences>);
-    const selection = legacySelection ?? (selectionOrExpected as ReaderThemeSelection);
-    if (selection.kind === "inherit") return;
     if (!this.readerPreview) throw new Error("There is no active Reader theme preview.");
     if (!samePreferences(this.preferences, expectedSettings)) {
       throw new AppearanceRuntimeSettingsChangedError();
@@ -246,47 +219,26 @@ export class AppearanceRuntime {
     await this.resolveCommittedAppearance();
   }
 
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  /** @deprecated Removed after the remaining frontend compatibility paths are retired. */
   async activateArchive(
-    _archive: AppearanceArchive,
-    _settingsSource: ArchiveAppearanceSettingsSource,
+    archive: AppearanceArchive,
+    settingsSource: ArchiveAppearanceSettingsSource,
   ): Promise<void> {
-    void _archive;
-    void _settingsSource;
+    void archive;
+    void settingsSource;
   }
 
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-  deactivateArchive(_archive?: AppearanceArchive): void {
-    void _archive;
-  }
-
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
+  /** @deprecated Removed after the remaining frontend compatibility paths are retired. */
   async saveArchiveAppearanceSettings(
-    _archive: ActiveAppearanceArchive,
+    archive: ActiveAppearanceArchive,
     settings: ArchiveAppearanceSettings,
   ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    void _archive;
-    await this.updateAppearanceSettings(legacyChanges(settings));
+    void archive;
+    await this.updateAppearanceSettings({
+      ...(settings.appTheme.kind === "inherit" ? {} : { appTheme: settings.appTheme }),
+      ...(settings.readerTheme.kind === "inherit" ? {} : { readerTheme: settings.readerTheme }),
+    });
     return settings;
-  }
-
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-  async updateArchiveAppearanceSettings(
-    _archive: ActiveAppearanceArchive,
-    changes: Partial<ArchiveAppearanceSettings>,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    void _archive;
-    await this.updateAppearanceSettings(legacyChanges(changes));
-    return legacyAppearanceSettings(this.preferences);
-  }
-
-  /** @deprecated Transitional compatibility for consumers migrated in the next commit. */
-  async refreshArchiveAppearance(
-    _archive: ActiveAppearanceArchive,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    void _archive;
-    await this.refreshAppearance();
-    return legacyAppearanceSettings(this.preferences);
   }
 
   private readonly handlePreferencesChange = () => {
@@ -342,7 +294,6 @@ export class AppearanceRuntime {
       : this.safeSnapshot(this.preferences);
     const snapshot = Object.freeze({
       app: this.preview ?? committed.app,
-      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
       reader: this.readerPreview ?? committed.reader,
     });
     const root = this.getDocumentRoot();
@@ -368,7 +319,6 @@ export class AppearanceRuntime {
       preferences.readerTheme.kind === "builtin" ? preferences.readerTheme.id : "dark";
     return Object.freeze({
       app: this.resolveBuiltInAppTheme(appBase),
-      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
       reader: this.resolveBuiltInReaderTheme(readerBase),
     });
   }
@@ -376,7 +326,6 @@ export class AppearanceRuntime {
   private resolvedSnapshot(resolution: ThemeSelectionResolution): AppearanceRuntimeSnapshot {
     return Object.freeze({
       app: this.resolveAppSelection(resolution.app),
-      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
       reader: this.resolveReaderSelection(resolution.reader),
     });
   }
@@ -457,7 +406,7 @@ function freezePreferences(
   });
 }
 
-function freezeContext(preferences: GlobalAppearancePreferences): GlobalAppearancePreviewContext {
+function freezeContext(preferences: GlobalAppearancePreferences): AppearancePreviewContext {
   return Object.freeze({ settings: freezePreferences(preferences) });
 }
 
@@ -479,26 +428,4 @@ function sameAppSelection(left: AppThemeSelection, right: AppThemeSelection): bo
 
 function sameReaderSelection(left: ReaderThemeSelection, right: ReaderThemeSelection): boolean {
   return left.kind === right.kind && left.id === right.id;
-}
-
-function legacyChanges(
-  settings: Partial<ArchiveAppearanceSettings>,
-): Partial<GlobalAppearancePreferences> {
-  return {
-    ...(settings.appTheme && settings.appTheme.kind !== "inherit"
-      ? { appTheme: settings.appTheme }
-      : {}),
-    ...(settings.readerTheme && settings.readerTheme.kind !== "inherit"
-      ? { readerTheme: settings.readerTheme }
-      : {}),
-  };
-}
-
-function legacyAppearanceSettings(
-  preferences: Readonly<GlobalAppearancePreferences>,
-): ArchiveAppearanceSettings {
-  return {
-    appTheme: { ...preferences.appTheme },
-    readerTheme: { ...preferences.readerTheme },
-  };
 }

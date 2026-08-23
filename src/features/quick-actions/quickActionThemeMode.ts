@@ -1,4 +1,4 @@
-import type { ArchiveAppThemeSelection } from "../../types/settings";
+import type { AppThemeSelection } from "../../types/settings";
 import type { AppearanceRuntime } from "../../themes/AppearanceRuntime";
 import type { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
@@ -69,7 +69,7 @@ class ThemeQuickActionMode implements QuickActionChildMode {
     this.recordWarnings();
     const committedOptionId = committedThemeOptionId(services, this.entries);
     this.snapshot = this.createSnapshot(committedOptionId, committedOptionId);
-    void this.refresh(catalogSnapshot);
+    void this.refresh();
   }
 
   getSnapshot = (): QuickActionModeSnapshot => this.snapshot;
@@ -207,10 +207,10 @@ class ThemeQuickActionMode implements QuickActionChildMode {
     this.listeners.forEach((listener) => listener());
   }
 
-  private async refresh(initialSnapshot: ThemeCatalogSnapshot): Promise<void> {
+  private async refresh(): Promise<void> {
     try {
       const refreshed = await this.services.catalog.refreshPackages();
-      if (this.disposed || !sameCatalogScope(initialSnapshot, refreshed)) return;
+      if (this.disposed) return;
       this.entries = applicationEntries(refreshed);
       this.recordWarnings();
       this.previewRevision += 1;
@@ -262,16 +262,15 @@ function committedThemeOptionId(
   services: QuickActionThemeModeServices,
   entries: ReadonlyMap<string, ApplicationThemeEntry>,
 ): string | undefined {
-  const context = services.runtime.getPreviewContext();
-  const requested = context?.settings.appTheme;
-  const requestedId = requested ? selectionOptionId(requested) : undefined;
+  const requested = services.runtime.getPreviewContext().settings.appTheme;
+  const requestedId = selectionOptionId(requested);
   if (requestedId && entries.has(requestedId)) return requestedId;
 
   const resolvedId = `builtin:${services.runtime.getSnapshot().app.base}`;
   return entries.has(resolvedId) ? resolvedId : entries.keys().next().value;
 }
 
-function selectionOptionId(selection: ArchiveAppThemeSelection): string | undefined {
+function selectionOptionId(selection: AppThemeSelection): string | undefined {
   if (selection.kind === "builtin" || selection.kind === "custom") {
     return `${selection.kind}:${selection.id}`;
   }
@@ -291,13 +290,4 @@ function optionStatus(
 
 function warningCountText(count: number): string {
   return `${count} contrast ${count === 1 ? "warning" : "warnings"}`;
-}
-
-function sameCatalogScope(initial: ThemeCatalogSnapshot, refreshed: ThemeCatalogSnapshot): boolean {
-  return Boolean(
-    initial.archive &&
-    refreshed.archive &&
-    initial.archive.generation === refreshed.archive.generation &&
-    initial.archive.rootPath === refreshed.archive.rootPath,
-  );
 }

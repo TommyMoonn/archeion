@@ -45,8 +45,8 @@ function createSession() {
     getPreviewContext: () => ({
       archive,
       settings: {
-        appTheme: { kind: "inherit" },
-        readerTheme: { kind: "inherit" },
+        appTheme: { kind: "builtin", id: "dark" },
+        readerTheme: { kind: "builtin", id: "dark" },
       },
     }),
     getSnapshot: () => ({
