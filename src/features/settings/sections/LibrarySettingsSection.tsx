@@ -1,4 +1,5 @@
 import { SettingsSectionItems } from "../SettingsSectionItems";
+import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
 type LibrarySettingsSectionProps = {
@@ -8,9 +9,7 @@ type LibrarySettingsSectionProps = {
 export function LibrarySettingsSection({ context }: LibrarySettingsSectionProps) {
   return (
     <section className="settings-section">
-      <header>
-        <h2>Library</h2>
-      </header>
+      <SettingsSectionHeader title="Library" />
       <SettingsSectionItems context={context} sectionId="library" />
     </section>
   );

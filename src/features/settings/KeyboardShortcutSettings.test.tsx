@@ -97,7 +97,9 @@ describe("Keyboard settings", () => {
     expect(markup).not.toContain(
       "Configure application shortcuts and review fixed reader interaction keys.",
     );
-    expect(markup).not.toMatch(/<header>\s*<h2>Keyboard<\/h2>\s*<p/);
+    const header = markup.match(/<header[^>]*>.*?<\/header>/)?.[0];
+    expect(header).toBeDefined();
+    expect(header).not.toContain("<p");
   });
 
   it("renders the compact grouped keymap without implementation metadata", () => {

@@ -1,4 +1,5 @@
 import { SettingsSectionItems } from "../SettingsSectionItems";
+import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
 type StorageSettingsSectionProps = {
@@ -8,9 +9,7 @@ type StorageSettingsSectionProps = {
 export function StorageSettingsSection({ context }: StorageSettingsSectionProps) {
   return (
     <section className="settings-section">
-      <header>
-        <h2>Storage</h2>
-      </header>
+      <SettingsSectionHeader title="Storage" />
       <SettingsSectionItems context={context} sectionId="storage" />
     </section>
   );

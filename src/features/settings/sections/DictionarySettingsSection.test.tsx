@@ -194,6 +194,16 @@ afterEach(() => {
 });
 
 describe("DictionarySettingsView", () => {
+  it("renders the Dictionaries heading without a tab subtitle", () => {
+    const container = renderView(controller());
+
+    expect(container.querySelector("h2")?.textContent).toBe("Dictionaries");
+    expect(container.querySelector(".settings-section__header-copy p")).toBeNull();
+    expect(container.textContent).not.toContain(
+      "Manage offline dictionaries used for Reader lookup.",
+    );
+  });
+
   it("shows the current installed count when registry state is already known", () => {
     const container = renderView(controller());
 

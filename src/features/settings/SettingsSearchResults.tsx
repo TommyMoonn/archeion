@@ -2,6 +2,7 @@ import { X } from "lucide-react";
 import { useMemo } from "react";
 
 import { Button } from "../../components/Button";
+import { SettingsSectionHeader } from "./components/SettingsSectionHeader";
 import { findSettingsSearchResults } from "./settingsSearch";
 import type { SettingsItem } from "./settingsItemTypes";
 import { settingsSections, type SettingsSection } from "./settingsSections";
@@ -59,19 +60,20 @@ export function SettingsSearchResults({
 
   return (
     <section className="settings-section settings-search-results">
-      <header className="settings-search-results__header">
-        <div>
-          <h2>Search results</h2>
-          <p>
-            {resultCount > 0
-              ? `${resultCount} matching ${resultCount === 1 ? "setting" : "settings"}`
-              : "No settings found"}
-          </p>
-        </div>
-        <Button icon={<X aria-hidden="true" />} onClick={onClearSearch} variant="secondary">
-          Clear search
-        </Button>
-      </header>
+      <SettingsSectionHeader
+        actions={
+          <Button icon={<X aria-hidden="true" />} onClick={onClearSearch} variant="secondary">
+            Clear search
+          </Button>
+        }
+        className="settings-search-results__header"
+        description={
+          resultCount > 0
+            ? `${resultCount} matching ${resultCount === 1 ? "setting" : "settings"}`
+            : "No settings found"
+        }
+        title="Search results"
+      />
 
       {groupedResults.length > 0 ? (
         <div className="settings-search-results__sections">

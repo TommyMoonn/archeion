@@ -19,6 +19,7 @@ import { Toggle } from "../../../components/Toggle";
 import type { DictionaryCatalogEntry, InstalledDictionary } from "../../../types/dictionary";
 import { formatDictionaryLanguagePair, formatFileSize } from "../../../utils/formatters";
 import { focusElementIfUsable } from "../../../utils/focusRestoration";
+import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
 import { useDictionarySettings, type DictionarySettingsController } from "../useDictionarySettings";
 
 type DictionaryView = "available" | "installed";
@@ -384,39 +385,42 @@ export function DictionarySettingsView({
 
   return (
     <section className="settings-section dictionary-settings" ref={sectionRef}>
-      <header className="dictionary-settings__header">
-        <h2>Dictionaries</h2>
-        <div className="dictionary-settings__header-actions">
-          {controller.refreshing ? (
+      <SettingsSectionHeader
+        actions={
+          <div className="dictionary-settings__header-actions">
+            {controller.refreshing ? (
+              <Button
+                onClick={() => void controller.cancelCatalogRefresh()}
+                size="compact"
+                variant="secondary"
+              >
+                Cancel refresh
+              </Button>
+            ) : (
+              <Button
+                icon={<RefreshCw aria-hidden="true" />}
+                onClick={() => void controller.refreshCatalog()}
+                size="compact"
+                variant="secondary"
+              >
+                Refresh
+              </Button>
+            )}
             <Button
-              onClick={() => void controller.cancelCatalogRefresh()}
+              busy={controller.importing}
+              disabled={controller.importing}
+              icon={<FilePlus2 aria-hidden="true" />}
+              onClick={() => void controller.importDictionary()}
               size="compact"
               variant="secondary"
             >
-              Cancel refresh
+              Import dictionary
             </Button>
-          ) : (
-            <Button
-              icon={<RefreshCw aria-hidden="true" />}
-              onClick={() => void controller.refreshCatalog()}
-              size="compact"
-              variant="secondary"
-            >
-              Refresh
-            </Button>
-          )}
-          <Button
-            busy={controller.importing}
-            disabled={controller.importing}
-            icon={<FilePlus2 aria-hidden="true" />}
-            onClick={() => void controller.importDictionary()}
-            size="compact"
-            variant="secondary"
-          >
-            Import dictionary
-          </Button>
-        </div>
-      </header>
+          </div>
+        }
+        className="dictionary-settings__header"
+        title="Dictionaries"
+      />
 
       <SegmentedControl<DictionaryView>
         className="dictionary-settings__tabs"

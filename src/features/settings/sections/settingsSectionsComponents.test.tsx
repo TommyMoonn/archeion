@@ -6,6 +6,7 @@ import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { ArchivesSettingsSection } from "./ArchivesSettingsSection";
 import { GeneralSettingsSection } from "./GeneralSettingsSection";
 import { LibrarySettingsSection } from "./LibrarySettingsSection";
+import { ReaderSettingsSection } from "./ReaderSettingsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
@@ -76,6 +77,47 @@ function renderStorage(overrides: Partial<SettingsDialogController> = {}) {
 }
 
 describe("settings section components", () => {
+  it.each([
+    {
+      Section: GeneralSettingsSection,
+      description: "Startup, confirmations, and window behavior.",
+      title: "General",
+    },
+    {
+      Section: AppearanceSettingsSection,
+      description: "Choose Archeion's theme, density, and motion.",
+      title: "Appearance",
+    },
+    {
+      Section: LibrarySettingsSection,
+      description: "Set default Library layouts, sorting, and Smart Views.",
+      title: "Library",
+    },
+    {
+      Section: ReaderSettingsSection,
+      description: "Set default reading typography, layout, and Reader theme.",
+      title: "Reader",
+    },
+    {
+      Section: ArchivesSettingsSection,
+      description: "Manage the active archive and default import behavior.",
+      title: "Archives",
+    },
+    {
+      Section: StorageSettingsSection,
+      description: "Control archive scanning, caches, backups, and recovery.",
+      title: "Storage",
+    },
+  ])("renders the $title heading without a tab subtitle", ({ Section, title, description }) => {
+    const markup = renderToStaticMarkup(<Section context={createController()} />);
+    const header = markup.match(/<header[^>]*>.*?<\/header>/)?.[0];
+
+    expect(markup).toContain(`<h2>${title}</h2>`);
+    expect(header).toBeDefined();
+    expect(header).not.toContain("<p");
+    expect(markup).not.toContain(description.replaceAll("'", "&#x27;"));
+  });
+
   it("renders the accepted Appearance labels", () => {
     const markup = renderAppearance();
 
