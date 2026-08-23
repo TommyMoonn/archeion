@@ -41,6 +41,7 @@ import {
 } from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
 import type { SettingsSection } from "../settings/settingsSections";
+import { openSettingsWindow as openNativeSettingsWindow } from "../settings/settingsWindow";
 
 const loadQuickActionsPalette = () =>
   import("./QuickActionsPalette").then((module) => ({ default: module.QuickActionsPalette }));
@@ -53,19 +54,28 @@ const quickActionsRegistry = new QuickActionsRegistry();
 
 type QuickActionsProviderProps = {
   children: ReactNode;
+  initialSettingsOpen?: boolean;
+  onSettingsClose?: () => void;
+  openSettingsWindow?: () => Promise<boolean>;
   themeModeServices?: QuickActionThemeModeServices;
 };
 
-export function QuickActionsProvider({ children, themeModeServices }: QuickActionsProviderProps) {
+export function QuickActionsProvider({
+  children,
+  initialSettingsOpen = false,
+  onSettingsClose,
+  openSettingsWindow = openNativeSettingsWindow,
+  themeModeServices,
+}: QuickActionsProviderProps) {
   const registry = quickActionsRegistry;
   const [palette, setPalette] = useState<{
     archiveId: string | null;
     focusReturn: FocusReturnRecord;
   } | null>(null);
   const [settings, setSettings] = useState<{
-    focusReturn: FocusReturnRecord;
+    focusReturn?: FocusReturnRecord;
     initialSection?: SettingsSection;
-  } | null>(null);
+  } | null>(() => (initialSettingsOpen ? {} : null));
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
   const mountedRef = useRef(true);
@@ -104,13 +114,26 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
 
   const openSettings = useCallback(
     (initialSection?: SettingsSection, returnFocusTo?: HTMLElement) => {
-      preloadSettings();
-      setSettings({
+      const dialogState = {
         focusReturn: commandFocusReturnRef.current ?? captureFocusReturn(returnFocusTo),
         initialSection,
-      });
+      };
+      const openDialogFallback = () => {
+        if (!mountedRef.current) return;
+        preloadSettings();
+        setSettings(dialogState);
+      };
+
+      void openSettingsWindow()
+        .then((opened) => {
+          if (!opened) openDialogFallback();
+        })
+        .catch((error) => {
+          console.error("open_settings_window failed", error);
+          openDialogFallback();
+        });
     },
-    [preloadSettings],
+    [openSettingsWindow, preloadSettings],
   );
 
   const executeCommand = useCallback(
@@ -370,7 +393,10 @@ export function QuickActionsProvider({ children, themeModeServices }: QuickActio
           <SettingsDialog
             focusReturn={settings.focusReturn}
             initialSection={settings.initialSection}
-            onClose={() => setSettings(null)}
+            onClose={() => {
+              setSettings(null);
+              onSettingsClose?.();
+            }}
           />
         </Suspense>
       ) : null}

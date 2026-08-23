@@ -17,6 +17,7 @@ import { LibraryStorageProvider } from "../storage/LibraryStorageContext";
 import { QuickActionsProvider } from "../features/quick-actions/QuickActionsProvider";
 import { getLibraryStorage } from "../storage/defaultLibraryStorage";
 import { archiveStore } from "../stores/archiveStore";
+import { appPreferencesStore } from "../stores/appPreferencesStore";
 import { startNavigationStateTracking } from "./navigationState";
 import { router } from "./router";
 import {
@@ -30,6 +31,7 @@ import { resolveWindowMode } from "./windowMode";
 import { appearanceRuntime } from "../themes/appearanceRuntimeInstance";
 import { startupTrace } from "./startupTrace";
 import { focusPresentationRuntime } from "./inputModality";
+import { closeSettingsWindow } from "../features/settings/settingsWindow";
 
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
@@ -72,7 +74,7 @@ export function App() {
 
   return (
     <TooltipProvider subscribeToRouteChanges={subscribeToRouteChanges}>
-      <MainWindowApp />
+      <MainWindowApp settingsBridge={windowMode === "settings"} />
     </TooltipProvider>
   );
 }
@@ -111,7 +113,7 @@ function StartupLoading() {
   );
 }
 
-function MainWindowApp() {
+function MainWindowApp({ settingsBridge }: { settingsBridge: boolean }) {
   const [startupState, setStartupState] = useState<MainWindowStartupState>({ status: "loading" });
   const startupAttemptRef = useRef<InitialStartupAttempt | null>(null);
   const startupAttemptSequenceRef = useRef(0);
@@ -150,7 +152,9 @@ function MainWindowApp() {
             isCurrentAttempt: () =>
               startupAttemptRef.current === attempt &&
               attempt.phase === "completing-archive-manager",
-            navigateToLibrary: () => router.navigate("/", { replace: true }),
+            navigateToLibrary: settingsBridge
+              ? async () => undefined
+              : () => router.navigate("/", { replace: true }),
             refreshActiveArchive: () => archiveStore.refreshActiveArchive(),
           });
 
@@ -172,7 +176,7 @@ function MainWindowApp() {
       attempt.completion = completion;
       return completion;
     },
-    [publishStartupError],
+    [publishStartupError, settingsBridge],
   );
 
   const runStartup = useCallback(async () => {
@@ -188,6 +192,14 @@ function MainWindowApp() {
 
     try {
       const result = await initializeMainStartup({
+        ...(settingsBridge
+          ? {
+              getPreferences: () => ({
+                ...appPreferencesStore.getSnapshot(),
+                startupBehavior: "open-last-archive" as const,
+              }),
+            }
+          : {}),
         onArchiveManagerOpened: () => {
           if (startupAttemptRef.current !== attempt || attempt.phase !== "initializing") return;
 
@@ -196,11 +208,14 @@ function MainWindowApp() {
             void completeInitialStartup(attempt);
           }
         },
-        restoreReaderRoute: (preferences, storage) =>
-          restoreRememberedReaderRoute(preferences, storage, {
-            getCurrentPathname: () => router.state.location.pathname,
-            navigate: (path) => router.navigate(path, { replace: true }),
-          }),
+        restoreReaderRoute: settingsBridge
+          ? async () => false
+          : (preferences, storage) =>
+              restoreRememberedReaderRoute(preferences, storage, {
+                getCurrentPathname: () => router.state.location.pathname,
+                navigate: (path) => router.navigate(path, { replace: true }),
+              }),
+        ...(settingsBridge ? { restoreWindowState: async () => false } : {}),
       });
 
       if (startupAttemptRef.current !== attempt) return;
@@ -243,7 +258,7 @@ function MainWindowApp() {
           : "Archeion could not finish startup.",
       );
     }
-  }, [completeInitialStartup, publishStartupError]);
+  }, [completeInitialStartup, publishStartupError, settingsBridge]);
 
   useEffect(() => {
     let cancelled = false;
@@ -289,7 +304,7 @@ function MainWindowApp() {
   }, [startupState.status]);
 
   useEffect(() => {
-    if (startupState.status !== "app") {
+    if (startupState.status !== "app" || settingsBridge) {
       return;
     }
 
@@ -302,13 +317,13 @@ function MainWindowApp() {
       windowStateController.stop();
       stopNavigationTracking();
     };
-  }, [startupState.status]);
+  }, [settingsBridge, startupState.status]);
 
   useEffect(() => {
-    if (startupState.status === "error") {
+    if (startupState.status === "error" && !settingsBridge) {
       void archiveStore.focusMainWindow();
     }
-  }, [startupState.status]);
+  }, [settingsBridge, startupState.status]);
 
   if (startupState.status === "loading" || startupState.status === "manager") {
     return <StartupLoading />;
@@ -360,7 +375,18 @@ function MainWindowApp() {
       <div className="window-app__content">
         <AppErrorBoundary>
           <LibraryStorageProvider storage={startupState.preparedArchive.storage}>
-            <QuickActionsProvider>
+            <QuickActionsProvider
+              initialSettingsOpen={settingsBridge}
+              onSettingsClose={
+                settingsBridge
+                  ? () => {
+                      void closeSettingsWindow().catch((error) => {
+                        console.error("close Settings window failed", error);
+                      });
+                    }
+                  : undefined
+              }
+            >
               <ArchiveGate
                 preparedArchiveAtMount={{
                   id: startupState.preparedArchive.archiveId,

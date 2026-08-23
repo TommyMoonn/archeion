@@ -2,8 +2,10 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export const ARCHIVE_MANAGER_WINDOW_LABEL = "archive-manager";
+export const SETTINGS_WINDOW_LABEL = "settings";
 
-export type AppWindowMode = "main" | typeof ARCHIVE_MANAGER_WINDOW_LABEL;
+export type AppWindowMode =
+  "main" | typeof ARCHIVE_MANAGER_WINDOW_LABEL | typeof SETTINGS_WINDOW_LABEL;
 
 type ResolveWindowModeOptions = {
   currentWindowLabel?: string | null;
@@ -12,9 +14,11 @@ type ResolveWindowModeOptions = {
 };
 
 function queryWindowMode(search: string): AppWindowMode {
-  return new URLSearchParams(search).get("window") === ARCHIVE_MANAGER_WINDOW_LABEL
-    ? ARCHIVE_MANAGER_WINDOW_LABEL
-    : "main";
+  const mode = new URLSearchParams(search).get("window");
+  if (mode === ARCHIVE_MANAGER_WINDOW_LABEL || mode === SETTINGS_WINDOW_LABEL) {
+    return mode;
+  }
+  return "main";
 }
 
 function safeIsTauri(): boolean {
@@ -52,7 +56,10 @@ export function resolveWindowMode({
       : (currentWindowLabel ?? null);
 
   if (isDesktop && windowLabel) {
-    return windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL ? ARCHIVE_MANAGER_WINDOW_LABEL : "main";
+    if (windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL || windowLabel === SETTINGS_WINDOW_LABEL) {
+      return windowLabel;
+    }
+    return "main";
   }
 
   return queryWindowMode(search);

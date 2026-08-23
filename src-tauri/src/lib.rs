@@ -123,6 +123,7 @@ pub fn run() {
             commands::themes::replace_theme_manifest,
             commands::themes::reveal_themes_folder,
             commands::themes::store_theme_manifest,
+            commands::window::open_settings_window,
             commands::archive_root::clear_cover_cache,
             commands::archive_root::invalidate_cover_cache_entries,
             commands::archive_root::maintain_cover_cache,

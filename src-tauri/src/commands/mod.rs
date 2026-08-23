@@ -45,3 +45,4 @@ pub(crate) mod stardict_validation;
 pub mod theme_migration;
 pub mod themes;
 pub mod watcher;
+pub mod window;

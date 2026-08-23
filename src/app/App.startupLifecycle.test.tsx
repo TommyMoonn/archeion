@@ -23,7 +23,10 @@ type MainStartupResult =
     };
 
 type MainStartupOptions = {
+  getPreferences?: () => { startupBehavior: string };
   onArchiveManagerOpened: () => void;
+  restoreReaderRoute: () => Promise<boolean>;
+  restoreWindowState?: () => Promise<boolean>;
 };
 
 function deferred<T>() {
@@ -37,6 +40,7 @@ function deferred<T>() {
 }
 
 const mocks = vi.hoisted(() => ({
+  closeSettingsWindow: vi.fn(async () => true),
   focusMainWindow: vi.fn(async () => true),
   gatePreparations: [] as unknown[],
   getLibraryStorage: vi.fn(),
@@ -46,6 +50,11 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(async () => undefined),
   providerStorages: [] as unknown[],
   refreshActiveArchive: vi.fn(async () => true),
+  settingsProviderProps: [] as Array<{
+    initialSettingsOpen?: boolean;
+    onSettingsClose?: () => void;
+  }>,
+  windowMode: "main" as "main" | "settings",
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -76,7 +85,30 @@ vi.mock("../features/archive/archiveManagerLifecycle", () => ({
   quitFromStartup: vi.fn(async () => undefined),
 }));
 vi.mock("../features/quick-actions/QuickActionsProvider", () => ({
-  QuickActionsProvider: ({ children }: { children: React.ReactNode }) => children,
+  QuickActionsProvider: ({
+    children,
+    initialSettingsOpen,
+    onSettingsClose,
+  }: {
+    children: React.ReactNode;
+    initialSettingsOpen?: boolean;
+    onSettingsClose?: () => void;
+  }) => {
+    mocks.settingsProviderProps.push({ initialSettingsOpen, onSettingsClose });
+    return (
+      <>
+        {initialSettingsOpen ? (
+          <button data-testid="temporary-settings" onClick={onSettingsClose} type="button">
+            Temporary Settings
+          </button>
+        ) : null}
+        {children}
+      </>
+    );
+  },
+}));
+vi.mock("../features/settings/settingsWindow", () => ({
+  closeSettingsWindow: mocks.closeSettingsWindow,
 }));
 vi.mock("../storage/LibraryStorageContext", () => ({
   LibraryStorageProvider: ({
@@ -122,7 +154,7 @@ vi.mock("./startupController", async (importOriginal) => {
   };
 });
 vi.mock("./startupTrace", () => ({ startupTrace: { mark: vi.fn() } }));
-vi.mock("./windowMode", () => ({ resolveWindowMode: () => "main" }));
+vi.mock("./windowMode", () => ({ resolveWindowMode: () => mocks.windowMode }));
 vi.mock("./windowState", () => ({
   MainWindowStateController: class MainWindowStateController {
     start = vi.fn(async () => undefined);
@@ -174,6 +206,7 @@ function storageFor(label: string) {
 }
 
 beforeEach(() => {
+  mocks.closeSettingsWindow.mockClear();
   mocks.focusMainWindow.mockClear();
   mocks.gatePreparations.length = 0;
   mocks.getLibraryStorage.mockReset();
@@ -184,6 +217,8 @@ beforeEach(() => {
   mocks.providerStorages.length = 0;
   mocks.refreshActiveArchive.mockReset();
   mocks.refreshActiveArchive.mockResolvedValue(true);
+  mocks.settingsProviderProps.length = 0;
+  mocks.windowMode = "main";
 });
 
 afterEach(() => {
@@ -194,6 +229,42 @@ afterEach(() => {
 });
 
 describe("App Archive Manager completion ownership", () => {
+  it("uses the temporary Settings surface without main-window focus or navigation", async () => {
+    const storage = storageFor("settings-storage");
+    mocks.windowMode = "settings";
+    mocks.getSnapshot.mockReturnValue(archiveA);
+    mocks.initializeMainStartup.mockResolvedValue({
+      preparedArchive: {
+        archiveId: "archive-a",
+        rootPath: "D:\\archive-a",
+        storage,
+      },
+      restoredReader: false,
+      showArchiveManager: false,
+    });
+
+    await renderApp();
+
+    const temporarySettings = container?.querySelector<HTMLButtonElement>(
+      '[data-testid="temporary-settings"]',
+    );
+    expect(temporarySettings).toBeInstanceOf(HTMLButtonElement);
+    expect(mocks.focusMainWindow).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    const startupOptions = mocks.initializeMainStartup.mock.calls[0]?.[0];
+    expect(startupOptions?.getPreferences?.().startupBehavior).toBe("open-last-archive");
+    await expect(startupOptions?.restoreReaderRoute()).resolves.toBe(false);
+    await expect(startupOptions?.restoreWindowState?.()).resolves.toBe(false);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+
+    await act(async () => temporarySettings?.click());
+
+    expect(mocks.closeSettingsWindow).toHaveBeenCalledOnce();
+    expect(mocks.focusMainWindow).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
   it("accepts an early close before the manager startup result commits", async () => {
     const startup = deferred<MainStartupResult>();
     const storage = storageFor("archive-b-storage");

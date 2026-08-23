@@ -13,6 +13,16 @@ describe("resolveWindowMode", () => {
     ).toBe("archive-manager");
   });
 
+  it("resolves settings mode from the Tauri window label", () => {
+    expect(
+      resolveWindowMode({
+        currentWindowLabel: "settings",
+        isDesktop: true,
+        search: "",
+      }),
+    ).toBe("settings");
+  });
+
   it("does not let the query string override a known Tauri main window label", () => {
     expect(
       resolveWindowMode({
@@ -31,6 +41,16 @@ describe("resolveWindowMode", () => {
         search: "?window=archive-manager",
       }),
     ).toBe("archive-manager");
+  });
+
+  it("uses the settings query marker as a browser and test fallback", () => {
+    expect(
+      resolveWindowMode({
+        currentWindowLabel: null,
+        isDesktop: false,
+        search: "?window=settings",
+      }),
+    ).toBe("settings");
   });
 
   it("defaults to the main app window", () => {

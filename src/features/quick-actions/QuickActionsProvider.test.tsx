@@ -206,8 +206,11 @@ function Harness({
 async function renderProvider(
   onRun = vi.fn(),
   options: {
+    initialSettingsOpen?: boolean;
     onFocusSearch?: () => void;
     onReaderCommand?: () => void;
+    onSettingsClose?: () => void;
+    openSettingsWindow?: () => Promise<boolean>;
     strictMode?: boolean;
     themeModeServices?: QuickActionThemeModeServices;
   } = {},
@@ -217,7 +220,12 @@ async function renderProvider(
   root = createRoot(container);
   const provider = (
     <LibraryStorageContext value={createStorage()}>
-      <QuickActionsProvider themeModeServices={options.themeModeServices}>
+      <QuickActionsProvider
+        initialSettingsOpen={options.initialSettingsOpen}
+        onSettingsClose={options.onSettingsClose}
+        openSettingsWindow={options.openSettingsWindow ?? (async () => false)}
+        themeModeServices={options.themeModeServices}
+      >
         <Harness
           onFocusSearch={options.onFocusSearch}
           onReaderCommand={options.onReaderCommand}
@@ -1067,6 +1075,50 @@ describe("QuickActionsProvider", () => {
       settings.querySelector('button[aria-label="Close settings"]'),
     );
     expect(document.activeElement).not.toBe(settings.querySelector('input[type="search"]'));
+  });
+
+  it("routes repeated desktop Settings actions through the native create-or-focus owner", async () => {
+    const openSettingsWindow = vi.fn(async () => true);
+    const rendered = await renderProvider(vi.fn(), { openSettingsWindow });
+    const opener = rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!;
+
+    await act(async () => {
+      opener.click();
+      opener.click();
+      await Promise.resolve();
+    });
+
+    expect(openSettingsWindow).toHaveBeenCalledTimes(2);
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+  });
+
+  it("exposes the legacy Settings surface for the transitional Settings window", async () => {
+    const onSettingsClose = vi.fn();
+    await renderProvider(vi.fn(), { initialSettingsOpen: true, onSettingsClose });
+
+    const settings = await waitForSettings();
+    expect(settings.querySelector("#settings-title")?.textContent).toBe("Settings");
+
+    await act(async () => {
+      settings.dispatchEvent(new Event("cancel", { cancelable: true }));
+      await Promise.resolve();
+    });
+
+    expect(onSettingsClose).toHaveBeenCalledOnce();
+    expect(document.querySelector(".settings-dialog")).toBeNull();
+  });
+
+  it("retains the Settings dialog when native window creation fails", async () => {
+    const error = new Error("window unavailable");
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const rendered = await renderProvider(vi.fn(), {
+      openSettingsWindow: async () => Promise.reject(error),
+    });
+
+    act(() => rendered.container.querySelector<HTMLButtonElement>("#settings-opener")!.click());
+
+    expect(await waitForSettings()).toBeTruthy();
+    expect(consoleError).toHaveBeenCalledWith("open_settings_window failed", error);
   });
 
   it("keeps pointer-open Settings restoration out of keyboard-navigation presentation", async () => {
