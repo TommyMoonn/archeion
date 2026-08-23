@@ -46,6 +46,7 @@ describe("keyboard preference persistence", () => {
         preferences: normalizeAppPreferences(null),
         revision: 1,
       })),
+      subscribeDesktop: vi.fn(async () => () => undefined),
       readLegacy: () => persisted,
       removeLegacy: vi.fn(),
       saveBrowserFallback,

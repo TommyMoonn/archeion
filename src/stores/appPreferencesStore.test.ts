@@ -16,7 +16,12 @@ import {
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
 ) {
-  const { loadDesktop: loadOverride, mutateDesktop: mutateOverride, ...rest } = overrides;
+  const {
+    loadDesktop: loadOverride,
+    mutateDesktop: mutateOverride,
+    subscribeDesktop: subscribeOverride,
+    ...rest
+  } = overrides;
   let snapshot = nativeSnapshot();
 
   return {
@@ -32,10 +37,64 @@ function createPersistence(
         snapshot = applyNativeMutation(snapshot, mutation);
         return snapshot;
       }),
+    subscribeDesktop: subscribeOverride ?? vi.fn(async () => () => undefined),
     readLegacy: () => null,
     removeLegacy: vi.fn(),
     saveBrowserFallback: vi.fn(),
     ...rest,
+  };
+}
+
+type DesktopSnapshotListener = (snapshot: unknown) => void;
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  const promise = new Promise<T>((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function createDesktopSettingsHarness(initial = nativeSnapshot()) {
+  let snapshot = structuredClone(initial);
+  const listeners = new Set<DesktopSnapshotListener>();
+
+  const createWindow = (firstMutationGate?: Promise<void>) => {
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      if (firstMutationGate) {
+        const gate = firstMutationGate;
+        firstMutationGate = undefined;
+        await gate;
+      }
+      snapshot = applyNativeMutation(snapshot, mutation);
+      listeners.forEach((listener) => listener(structuredClone(snapshot)));
+      return structuredClone(snapshot);
+    });
+
+    return {
+      mutateDesktop,
+      persistence: {
+        isDesktop: () => true,
+        loadDesktop: vi.fn(async () => structuredClone(snapshot)),
+        mutateDesktop,
+        readLegacy: () => null,
+        removeLegacy: vi.fn(),
+        saveBrowserFallback: vi.fn(),
+        subscribeDesktop: vi.fn(async (listener: DesktopSnapshotListener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        }),
+      },
+    };
+  };
+
+  return {
+    createWindow,
+    publish(preferences: unknown, revision = snapshot.revision + 1) {
+      snapshot = nativeSnapshot(preferences, revision);
+      listeners.forEach((listener) => listener(structuredClone(snapshot)));
+    },
+    snapshot: () => structuredClone(snapshot),
   };
 }
 
@@ -99,6 +158,7 @@ describe("desktop app preference read model", () => {
       readLegacy: () => null,
       removeLegacy: vi.fn(),
       saveBrowserFallback: vi.fn(),
+      subscribeDesktop: vi.fn(async () => () => undefined),
     });
 
     await store.initialize();
@@ -123,6 +183,7 @@ describe("desktop app preference read model", () => {
       readLegacy: () => null,
       removeLegacy: vi.fn(),
       saveBrowserFallback: vi.fn(),
+      subscribeDesktop: vi.fn(async () => () => undefined),
     });
 
     try {
@@ -156,6 +217,7 @@ describe("desktop app preference read model", () => {
       readLegacy: () => null,
       removeLegacy: vi.fn(),
       saveBrowserFallback,
+      subscribeDesktop: vi.fn(async () => () => undefined),
     });
 
     await store.initialize();
@@ -165,6 +227,202 @@ describe("desktop app preference read model", () => {
       expect.objectContaining({ density: "compact" }),
     );
     expect(mutateDesktop).not.toHaveBeenCalled();
+  });
+});
+
+describe("cross-window app preference synchronization", () => {
+  it("applies a newer native settings event to every window mirror without echoing a write", async () => {
+    const harness = createDesktopSettingsHarness(nativeSnapshot({}, 4));
+    const firstWindow = harness.createWindow();
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    await Promise.all([first.initialize(), second.initialize()]);
+    const firstLibrary = first.getLibrarySnapshot();
+    harness.publish({ density: "compact", showContinueReading: false }, 5);
+
+    expect(first.getSnapshot()).toMatchObject({
+      density: "compact",
+      showContinueReading: false,
+    });
+    expect(second.getSnapshot()).toMatchObject({
+      density: "compact",
+      showContinueReading: false,
+    });
+    expect(first.getRevisionSnapshot()).toBe(5);
+    expect(second.getRevisionSnapshot()).toBe(5);
+    expect(first.getLibrarySnapshot()).toBe(firstLibrary);
+    expect(firstWindow.mutateDesktop).not.toHaveBeenCalled();
+    expect(secondWindow.mutateDesktop).not.toHaveBeenCalled();
+  });
+
+  it("ignores duplicate, older, and out-of-order native revisions", async () => {
+    const harness = createDesktopSettingsHarness(nativeSnapshot({}, 8));
+    const window = harness.createWindow();
+    const store = new AppPreferencesStore(window.persistence);
+    await store.initialize();
+
+    harness.publish({ density: "compact" }, 10);
+    harness.publish({ density: "comfortable", showContinueReading: false }, 9);
+    harness.publish({ density: "comfortable", showContinueReading: false }, 10);
+
+    expect(store.getRevisionSnapshot()).toBe(10);
+    expect(store.getSnapshot()).toMatchObject({
+      density: "compact",
+      showContinueReading: true,
+    });
+    expect(window.mutateDesktop).not.toHaveBeenCalled();
+  });
+
+  it("rebases a coalesced local update over unrelated external settings", async () => {
+    vi.useFakeTimers();
+    const harness = createDesktopSettingsHarness(nativeSnapshot({}, 2));
+    const firstWindow = harness.createWindow();
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const densityUpdate = first.update({ density: "compact" });
+      await Promise.resolve();
+      const readerUpdate = first.update({ restoreLastReader: true });
+      await Promise.resolve();
+      harness.publish({ showContinueReading: false }, 3);
+
+      expect(first.getSnapshot()).toMatchObject({
+        density: "compact",
+        restoreLastReader: true,
+        showContinueReading: false,
+      });
+      expect(firstWindow.mutateDesktop).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(250);
+      await Promise.all([densityUpdate, readerUpdate]);
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledTimes(2);
+      expect(firstWindow.mutateDesktop).toHaveBeenNthCalledWith(1, {
+        area: "density",
+        value: "compact",
+      });
+      expect(firstWindow.mutateDesktop).toHaveBeenNthCalledWith(2, {
+        area: "restoreLastReader",
+        value: true,
+      });
+      expect(harness.snapshot().preferences).toMatchObject({
+        density: "compact",
+        restoreLastReader: true,
+        showContinueReading: false,
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(first.getRevisionSnapshot()).toBe(5);
+      expect(second.getRevisionSnapshot()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("preserves a newer same-area revert while the previous mutation is in flight", async () => {
+    vi.useFakeTimers();
+    const firstMutationGate = deferred<void>();
+    const harness = createDesktopSettingsHarness(nativeSnapshot({}, 0));
+    const firstWindow = harness.createWindow(firstMutationGate.promise);
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const compactUpdate = first.update({ density: "compact" });
+      await vi.advanceTimersByTimeAsync(250);
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledOnce();
+
+      const revertUpdate = first.update({ density: "comfortable" });
+      await Promise.resolve();
+      expect(first.getSnapshot().density).toBe("comfortable");
+
+      firstMutationGate.resolve();
+      await vi.advanceTimersByTimeAsync(250);
+      await Promise.all([compactUpdate, revertUpdate]);
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledTimes(2);
+      expect(firstWindow.mutateDesktop).toHaveBeenNthCalledWith(1, {
+        area: "density",
+        value: "compact",
+      });
+      expect(firstWindow.mutateDesktop).toHaveBeenNthCalledWith(2, {
+        area: "density",
+        value: "comfortable",
+      });
+      expect(harness.snapshot()).toMatchObject({
+        preferences: { density: "comfortable" },
+        revision: 2,
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(first.getRevisionSnapshot()).toBe(2);
+      expect(second.getRevisionSnapshot()).toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("retires fulfilled intent before rebasing a newer external same-area change", async () => {
+    vi.useFakeTimers();
+    const firstMutationGate = deferred<void>();
+    const harness = createDesktopSettingsHarness(nativeSnapshot({}, 0));
+    const firstWindow = harness.createWindow(firstMutationGate.promise);
+    const secondWindow = harness.createWindow();
+    const first = new AppPreferencesStore(firstWindow.persistence);
+    const second = new AppPreferencesStore(secondWindow.persistence);
+
+    try {
+      await Promise.all([first.initialize(), second.initialize()]);
+      const densityUpdate = first.update({ density: "compact" });
+      await vi.advanceTimersByTimeAsync(250);
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledOnce();
+
+      const readerUpdate = first.update({ restoreLastReader: true });
+      await Promise.resolve();
+      firstMutationGate.resolve();
+      await densityUpdate;
+      expect(harness.snapshot()).toMatchObject({
+        preferences: { density: "compact", restoreLastReader: false },
+        revision: 1,
+      });
+
+      harness.publish({ density: "comfortable" }, 2);
+      expect(first.getSnapshot()).toMatchObject({
+        density: "comfortable",
+        restoreLastReader: true,
+      });
+      expect(second.getSnapshot()).toMatchObject({
+        density: "comfortable",
+        restoreLastReader: false,
+      });
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledOnce();
+
+      await vi.advanceTimersByTimeAsync(250);
+      await readerUpdate;
+
+      expect(firstWindow.mutateDesktop).toHaveBeenCalledTimes(2);
+      expect(firstWindow.mutateDesktop).toHaveBeenNthCalledWith(2, {
+        area: "restoreLastReader",
+        value: true,
+      });
+      expect(harness.snapshot()).toMatchObject({
+        preferences: { density: "comfortable", restoreLastReader: true },
+        revision: 3,
+      });
+      expect(first.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(second.getSnapshot()).toEqual(harness.snapshot().preferences);
+      expect(first.getRevisionSnapshot()).toBe(3);
+      expect(second.getRevisionSnapshot()).toBe(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

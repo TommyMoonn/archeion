@@ -1,10 +1,12 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 
 import { normalizeKeyboardPreferences } from "../features/commands/commandBindings";
 import { CoalescedWriteQueue } from "../storage/CoalescedWriteQueue";
 import {
   defaultAppPreferences,
+  APP_SETTINGS_CHANGED_EVENT,
   type AppearanceSettings,
   type AppPreferences,
   type AppSettingsMutation,
@@ -62,6 +64,16 @@ type AppPreferencesPersistence = {
   readLegacy: () => unknown;
   removeLegacy: () => void;
   saveBrowserFallback: (preferences: AppPreferences) => void;
+  subscribeDesktop: (listener: (snapshot: unknown) => void) => Promise<() => void>;
+};
+
+type DesktopWriteTarget = {
+  intents: DesktopMutationIntent[];
+};
+
+type DesktopMutationIntent = {
+  id: number;
+  mutation: AppSettingsMutation;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -109,6 +121,8 @@ function createDefaultPersistence(): AppPreferencesPersistence {
     readLegacy: readLegacyPreferences,
     removeLegacy: removeLegacyPreferences,
     saveBrowserFallback,
+    subscribeDesktop: (listener) =>
+      listen<AppSettingsSnapshot>(APP_SETTINGS_CHANGED_EVENT, (event) => listener(event.payload)),
   };
 }
 
@@ -502,6 +516,19 @@ function createAppSettingsMutations(
   return mutations;
 }
 
+function applyAppSettingsMutations(
+  preferences: AppPreferences,
+  mutations: AppSettingsMutation[],
+): AppPreferences {
+  return mutations.reduce<AppPreferences>(
+    (next, mutation) =>
+      mergeAppPreferences(next, {
+        [mutation.area]: mutation.value,
+      } as Partial<AppPreferences>),
+    preferences,
+  );
+}
+
 function preserveEquivalentPreferenceAreas(
   current: AppPreferences,
   native: AppPreferences,
@@ -533,9 +560,16 @@ export class AppPreferencesStore {
   private loadPromise: Promise<void> | null = null;
   private mutationRevision = 0;
   private desktopRevision = 0;
+  private desktopIntentSequence = 0;
+  private readonly desktopMutationIntents = new Map<
+    AppSettingsMutation["area"],
+    DesktopMutationIntent
+  >();
+  private hasDesktopSnapshot = false;
   private desktopPersistedPreferences: AppPreferences | null = null;
   private completedDesktopSnapshot: AppSettingsSnapshot | null = null;
-  private readonly desktopWrites: CoalescedWriteQueue<AppPreferences>;
+  private desktopSubscriptionPromise: Promise<void> | null = null;
+  private readonly desktopWrites: CoalescedWriteQueue<DesktopWriteTarget>;
 
   constructor(persistence = createDefaultPersistence()) {
     this.persistence = persistence;
@@ -553,9 +587,9 @@ export class AppPreferencesStore {
           );
         }
       },
-      write: async (preferences) => {
+      write: async (target) => {
         this.completedDesktopSnapshot = null;
-        this.completedDesktopSnapshot = await this.persistDesktopTarget(preferences);
+        this.completedDesktopSnapshot = await this.persistDesktopTarget(target);
       },
     });
     this.apply();
@@ -605,9 +639,10 @@ export class AppPreferencesStore {
     await this.initialize();
 
     const next = mergeAppPreferences(this.preferences, changes);
+    const mutations = createAppSettingsMutations(this.preferences, next);
     this.mutationRevision += 1;
     this.setPreferences(next);
-    return this.persist(next, this.mutationRevision);
+    return this.persist(next, mutations, this.mutationRevision);
   }
 
   async updateLibrary(changes: LibraryDisplaySettingsUpdate): Promise<AppPreferences> {
@@ -669,19 +704,29 @@ export class AppPreferencesStore {
     }
 
     try {
-      const loaded = normalizeAppSettingsSnapshot(await this.persistence.loadDesktop());
+      const subscription = this.startDesktopSubscription();
+      const loadedSnapshot = this.persistence.loadDesktop();
+      await subscription;
+      const loaded = normalizeAppSettingsSnapshot(await loadedSnapshot);
       if (this.mutationRevision !== loadRevision) {
         this.setPersistenceStatus({ status: "idle" });
         return;
       }
 
-      this.desktopRevision = loaded.revision;
-      this.desktopPersistedPreferences = loaded.preferences;
-      const next = legacyPreferences ?? loaded.preferences;
-      this.setPreferences(next);
+      this.applyDesktopSnapshot(loaded);
 
       if (legacyPreferences) {
-        const migrated = await this.persistDesktopTarget(next);
+        const base = this.desktopPersistedPreferences;
+        if (!base) {
+          throw new Error("Native app settings were not initialized.");
+        }
+        this.setPreferences(legacyPreferences);
+        const intents = this.recordDesktopMutationIntents(
+          createAppSettingsMutations(base, legacyPreferences),
+        );
+        const migrated = await this.persistDesktopTarget({
+          intents,
+        });
         this.setPreferences(
           preserveEquivalentPreferenceAreas(this.preferences, migrated.preferences),
         );
@@ -702,6 +747,7 @@ export class AppPreferencesStore {
 
   private persist(
     preferences: AppPreferences,
+    mutations: AppSettingsMutation[],
     persistenceRevision: number,
   ): Promise<AppPreferences> {
     this.setPersistenceStatus({ status: "saving" });
@@ -718,8 +764,15 @@ export class AppPreferencesStore {
       }
     }
 
+    if (!this.desktopPersistedPreferences) {
+      return Promise.reject(new Error(APP_SETTINGS_SAVE_ERROR));
+    }
+    this.recordDesktopMutationIntents(mutations);
+
     return this.desktopWrites
-      .schedule(structuredClone(preferences))
+      .schedule({
+        intents: structuredClone([...this.desktopMutationIntents.values()]),
+      })
       .then(() => {
         if (this.mutationRevision === persistenceRevision) {
           this.setPersistenceStatus({ status: "saved" });
@@ -735,7 +788,7 @@ export class AppPreferencesStore {
       });
   }
 
-  private async persistDesktopTarget(target: AppPreferences): Promise<AppSettingsSnapshot> {
+  private async persistDesktopTarget(target: DesktopWriteTarget): Promise<AppSettingsSnapshot> {
     const persisted = this.desktopPersistedPreferences;
     if (!persisted) {
       throw new Error("Native app settings were not initialized.");
@@ -745,21 +798,97 @@ export class AppPreferencesStore {
       preferences: persisted,
       revision: this.desktopRevision,
     };
-    const mutations = createAppSettingsMutations(persisted, target);
-
-    for (const mutation of mutations) {
+    for (const intent of target.intents) {
+      const { mutation } = intent;
+      if (!this.isCurrentDesktopMutationIntent(intent)) {
+        continue;
+      }
+      const current = this.desktopPersistedPreferences;
+      if (current && preferenceAreaEqual(current[mutation.area], mutation.value)) {
+        this.retireDesktopMutationIntent(intent);
+        continue;
+      }
+      const revisionBeforeMutation = this.desktopRevision;
       const updated = normalizeAppSettingsSnapshot(
         await this.persistence.mutateDesktop(structuredClone(mutation)),
       );
-      if (updated.revision <= snapshot.revision) {
+      if (updated.revision <= revisionBeforeMutation) {
         throw new Error("Native app settings revision did not advance.");
       }
-      snapshot = updated;
-      this.desktopRevision = updated.revision;
-      this.desktopPersistedPreferences = updated.preferences;
+      this.retireDesktopMutationIntent(intent);
+      if (!this.hasDesktopSnapshot || updated.revision >= this.desktopRevision) {
+        snapshot = updated;
+        this.desktopRevision = updated.revision;
+        this.desktopPersistedPreferences = updated.preferences;
+        this.hasDesktopSnapshot = true;
+      } else if (this.desktopPersistedPreferences) {
+        snapshot = {
+          preferences: this.desktopPersistedPreferences,
+          revision: this.desktopRevision,
+        };
+      }
     }
 
     return snapshot;
+  }
+
+  private startDesktopSubscription(): Promise<void> {
+    if (this.desktopSubscriptionPromise) return this.desktopSubscriptionPromise;
+
+    this.desktopSubscriptionPromise = this.persistence
+      .subscribeDesktop((snapshot) => {
+        try {
+          this.applyDesktopSnapshot(normalizeAppSettingsSnapshot(snapshot));
+        } catch (error) {
+          console.error("app settings change event was invalid", error);
+        }
+      })
+      .then(() => undefined)
+      .catch((error) => {
+        this.desktopSubscriptionPromise = null;
+        throw error;
+      });
+    return this.desktopSubscriptionPromise;
+  }
+
+  private applyDesktopSnapshot(snapshot: AppSettingsSnapshot): void {
+    if (this.hasDesktopSnapshot && snapshot.revision <= this.desktopRevision) {
+      return;
+    }
+
+    const localMutations = [...this.desktopMutationIntents.values()].map(
+      ({ mutation }) => mutation,
+    );
+    this.desktopRevision = snapshot.revision;
+    this.desktopPersistedPreferences = snapshot.preferences;
+    this.hasDesktopSnapshot = true;
+    this.setPreferences(
+      preserveEquivalentPreferenceAreas(
+        this.preferences,
+        applyAppSettingsMutations(snapshot.preferences, localMutations),
+      ),
+    );
+  }
+
+  private recordDesktopMutationIntents(mutations: AppSettingsMutation[]): DesktopMutationIntent[] {
+    mutations.forEach((mutation) => {
+      this.desktopIntentSequence += 1;
+      this.desktopMutationIntents.set(mutation.area, {
+        id: this.desktopIntentSequence,
+        mutation,
+      });
+    });
+    return [...this.desktopMutationIntents.values()];
+  }
+
+  private isCurrentDesktopMutationIntent(intent: DesktopMutationIntent): boolean {
+    return this.desktopMutationIntents.get(intent.mutation.area)?.id === intent.id;
+  }
+
+  private retireDesktopMutationIntent(intent: DesktopMutationIntent): void {
+    if (this.isCurrentDesktopMutationIntent(intent)) {
+      this.desktopMutationIntents.delete(intent.mutation.area);
+    }
   }
 
   private setPreferences(preferences: AppPreferences) {
