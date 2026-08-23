@@ -3,7 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { commandDefinitions } from "../features/commands/commandBindings";
-import { AppPreferencesStore } from "./appPreferencesStore";
+import { AppPreferencesStore, normalizeAppPreferences } from "./appPreferencesStore";
 
 const legacyCustomBinding = {
   alt: false,
@@ -38,11 +38,17 @@ describe("keyboard preference persistence", () => {
     });
     const persistence = {
       isDesktop: () => false,
-      loadDesktop: vi.fn(async () => ({})),
+      loadDesktop: vi.fn(async () => ({
+        preferences: normalizeAppPreferences(null),
+        revision: 0,
+      })),
+      mutateDesktop: vi.fn(async () => ({
+        preferences: normalizeAppPreferences(null),
+        revision: 1,
+      })),
       readLegacy: () => persisted,
       removeLegacy: vi.fn(),
       saveBrowserFallback,
-      saveDesktop: vi.fn(async () => undefined),
     };
     const store = new AppPreferencesStore(persistence);
 

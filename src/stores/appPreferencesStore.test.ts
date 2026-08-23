@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
 
 import { createDefaultLibraryFilters } from "../types/library";
+import type { AppSettingsMutation, AppSettingsSnapshot } from "../types/appSettings";
 import {
   appPreferencesStore,
   AppPreferencesStore,
@@ -15,14 +16,26 @@ import {
 function createPersistence(
   overrides: Partial<ConstructorParameters<typeof AppPreferencesStore>[0]> = {},
 ) {
+  const { loadDesktop: loadOverride, mutateDesktop: mutateOverride, ...rest } = overrides;
+  let snapshot = nativeSnapshot();
+
   return {
     isDesktop: () => true,
-    loadDesktop: async () => ({}),
+    loadDesktop: async () => {
+      const loaded = loadOverride ? await loadOverride() : snapshot;
+      snapshot = loaded as AppSettingsSnapshot;
+      return loaded;
+    },
+    mutateDesktop:
+      mutateOverride ??
+      vi.fn(async (mutation: AppSettingsMutation) => {
+        snapshot = applyNativeMutation(snapshot, mutation);
+        return snapshot;
+      }),
     readLegacy: () => null,
     removeLegacy: vi.fn(),
     saveBrowserFallback: vi.fn(),
-    saveDesktop: vi.fn(async () => undefined),
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -48,9 +61,116 @@ function mockReducedMotion(matches: boolean) {
   };
 }
 
+function nativeSnapshot(preferences: unknown = {}, revision = 0): AppSettingsSnapshot {
+  return {
+    preferences: normalizeAppPreferences(preferences),
+    revision,
+  };
+}
+
+function applyNativeMutation(
+  snapshot: AppSettingsSnapshot,
+  mutation: AppSettingsMutation,
+): AppSettingsSnapshot {
+  return {
+    preferences: normalizeAppPreferences({
+      ...snapshot.preferences,
+      [mutation.area]: mutation.value,
+    }),
+    revision: snapshot.revision + 1,
+  };
+}
+
+describe("desktop app preference read model", () => {
+  it("initializes from the normalized native snapshot and revision", async () => {
+    const loaded = nativeSnapshot(
+      {
+        density: "compact",
+        reader: { ...normalizeAppPreferences(null).reader, mode: "continuous" },
+      },
+      12,
+    );
+    const store = new AppPreferencesStore({
+      isDesktop: () => true,
+      loadDesktop: vi.fn(async () => loaded),
+      mutateDesktop: vi.fn(async () => {
+        throw new Error("mutation was not expected");
+      }),
+      readLegacy: () => null,
+      removeLegacy: vi.fn(),
+      saveBrowserFallback: vi.fn(),
+    });
+
+    await store.initialize();
+
+    expect(store.getRevisionSnapshot()).toBe(12);
+    expect(store.getSnapshot()).toEqual(loaded.preferences);
+    expect(store.getReaderSnapshot()).toBe(store.getSnapshot().reader);
+    expect(store.getLibrarySnapshot()).toBe(store.getSnapshot().library);
+  });
+
+  it("sends only the intended mutation payload for a preference helper", async () => {
+    vi.useFakeTimers();
+    let snapshot = nativeSnapshot({}, 4);
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
+    const store = new AppPreferencesStore({
+      isDesktop: () => true,
+      loadDesktop: vi.fn(async () => snapshot),
+      mutateDesktop,
+      readLegacy: () => null,
+      removeLegacy: vi.fn(),
+      saveBrowserFallback: vi.fn(),
+    });
+
+    try {
+      await store.initialize();
+      const update = store.updateLibraryCollection("books", { cardSize: "large" });
+      await vi.advanceTimersByTimeAsync(250);
+      await update;
+
+      expect(mutateDesktop).toHaveBeenCalledOnce();
+      expect(mutateDesktop).toHaveBeenCalledWith({
+        area: "library",
+        value: expect.objectContaining({
+          collections: expect.objectContaining({
+            books: expect.objectContaining({ cardSize: "large" }),
+          }),
+        }),
+      });
+      expect(store.getRevisionSnapshot()).toBe(5);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps browser fallback persistence separate from native mutations", async () => {
+    const saveBrowserFallback = vi.fn();
+    const mutateDesktop = vi.fn(async () => nativeSnapshot());
+    const store = new AppPreferencesStore({
+      isDesktop: () => false,
+      loadDesktop: vi.fn(async () => nativeSnapshot()),
+      mutateDesktop,
+      readLegacy: () => null,
+      removeLegacy: vi.fn(),
+      saveBrowserFallback,
+    });
+
+    await store.initialize();
+    await store.update({ density: "compact" });
+
+    expect(saveBrowserFallback).toHaveBeenCalledWith(
+      expect.objectContaining({ density: "compact" }),
+    );
+    expect(mutateDesktop).not.toHaveBeenCalled();
+  });
+});
+
 describe("app preferences", () => {
   it("loads preferences only when the window startup owner initializes it", async () => {
-    const loadDesktop = vi.fn(async () => ({ density: "compact" }));
+    const loadDesktop = vi.fn(async () => nativeSnapshot({ density: "compact" }, 2));
     const store = new AppPreferencesStore(createPersistence({ loadDesktop }));
 
     expect(loadDesktop).not.toHaveBeenCalled();
@@ -64,29 +184,30 @@ describe("app preferences", () => {
   it("loads malformed persisted shortcuts without rejecting valid preference siblings", async () => {
     const store = new AppPreferencesStore(
       createPersistence({
-        loadDesktop: async () => ({
-          appearance: { animationsEnabled: true },
-          density: "compact",
-          keyboard: {
-            shortcuts: {
-              "system.open-settings": {
-                binding: { key: "k", primary: true, shift: true },
-              },
-              "surface.focus-search": {
-                binding: { alt: true, key: "g", primary: true },
-              },
-              "reader.open-annotations": {
-                binding: { key: "q" },
-              },
-              "reader.open-reading-settings": {
-                disabled: true,
-              },
-              "system.quick-actions": {
-                binding: { key: "k", primary: true, shift: true },
+        loadDesktop: async () =>
+          nativeSnapshot({
+            appearance: { animationsEnabled: true },
+            density: "compact",
+            keyboard: {
+              shortcuts: {
+                "system.open-settings": {
+                  binding: { key: "k", primary: true, shift: true },
+                },
+                "surface.focus-search": {
+                  binding: { alt: true, key: "g", primary: true },
+                },
+                "reader.open-annotations": {
+                  binding: { key: "q" },
+                },
+                "reader.open-reading-settings": {
+                  disabled: true,
+                },
+                "system.quick-actions": {
+                  binding: { key: "k", primary: true, shift: true },
+                },
               },
             },
-          },
-        }),
+          }),
       }),
     );
 
@@ -125,22 +246,29 @@ describe("app preferences", () => {
   });
 
   it("preserves valid effective keyboard states through an unrelated preference update", async () => {
-    const saveDesktop = vi.fn(async () => undefined);
+    let snapshot = nativeSnapshot();
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
     const store = new AppPreferencesStore(
       createPersistence({
-        loadDesktop: async () => ({
-          keyboard: {
-            shortcuts: {
-              "surface.focus-search": {
-                binding: { key: "g", primary: true },
-              },
-              "system.quick-actions": {
-                binding: { key: "f", primary: true },
+        loadDesktop: async () => {
+          snapshot = nativeSnapshot({
+            keyboard: {
+              shortcuts: {
+                "surface.focus-search": {
+                  binding: { key: "g", primary: true },
+                },
+                "system.quick-actions": {
+                  binding: { key: "f", primary: true },
+                },
               },
             },
-          },
-        }),
-        saveDesktop,
+          });
+          return snapshot;
+        },
+        mutateDesktop,
       }),
     );
 
@@ -171,20 +299,16 @@ describe("app preferences", () => {
     await store.update({ density: "compact" });
 
     expect(store.getSnapshot().keyboard).toEqual(expectedKeyboard);
-    expect(saveDesktop).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        density: "compact",
-        keyboard: expectedKeyboard,
-      }),
-    );
+    expect(mutateDesktop).toHaveBeenLastCalledWith({ area: "density", value: "compact" });
   });
 
   it("reloads customized and cleared sidebar shortcuts from persisted preferences", async () => {
-    let persisted: unknown = {};
+    let persisted = nativeSnapshot();
     const persistence = createPersistence({
       loadDesktop: async () => persisted,
-      saveDesktop: vi.fn(async (preferences) => {
-        persisted = preferences;
+      mutateDesktop: vi.fn(async (mutation: AppSettingsMutation) => {
+        persisted = applyNativeMutation(persisted, mutation);
+        return persisted;
       }),
     });
     const customized = new AppPreferencesStore(persistence);
@@ -431,17 +555,25 @@ describe("app preferences", () => {
   });
 
   it("ignores a legacy frame style and omits it from the next save", async () => {
-    const saveDesktop = vi.fn(async (preferences: unknown) => {
-      void preferences;
+    let snapshot = nativeSnapshot();
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
     });
     const store = new AppPreferencesStore(
       createPersistence({
-        loadDesktop: async () => ({
-          density: "compact",
-          showContinueReading: false,
-          windowFrameStyle: "native",
-        }),
-        saveDesktop,
+        loadDesktop: async () => {
+          snapshot = {
+            revision: 7,
+            preferences: {
+              density: "compact",
+              showContinueReading: false,
+              windowFrameStyle: "native",
+            },
+          } as unknown as AppSettingsSnapshot;
+          return snapshot;
+        },
+        mutateDesktop,
       }),
     );
 
@@ -455,14 +587,11 @@ describe("app preferences", () => {
 
     await store.update({ restoreLastReader: true });
 
-    expect(saveDesktop).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        density: "compact",
-        restoreLastReader: true,
-        showContinueReading: false,
-      }),
-    );
-    expect(saveDesktop.mock.lastCall?.[0]).not.toHaveProperty("windowFrameStyle");
+    expect(mutateDesktop).toHaveBeenLastCalledWith({
+      area: "restoreLastReader",
+      value: true,
+    });
+    expect(mutateDesktop.mock.lastCall?.[0]).not.toHaveProperty("windowFrameStyle");
   });
 
   it("normalizes invalid collection fields without discarding valid siblings", () => {
@@ -632,18 +761,22 @@ describe("app preferences", () => {
   });
 
   it("migrates legacy localStorage preferences into desktop app config", async () => {
-    const saveDesktop = vi.fn(async () => undefined);
+    let snapshot = nativeSnapshot({ density: "comfortable" }, 3);
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
     const removeLegacy = vi.fn();
     const store = new AppPreferencesStore(
       createPersistence({
-        loadDesktop: async () => ({ density: "comfortable" }),
+        loadDesktop: async () => snapshot,
         readLegacy: () => ({
           density: "compact",
           bookCardSize: "large",
           showContinueReading: false,
         }),
         removeLegacy,
-        saveDesktop,
+        mutateDesktop,
       }),
     );
 
@@ -654,14 +787,19 @@ describe("app preferences", () => {
       library: { collections: { books: { cardSize: "large" } } },
       showContinueReading: false,
     });
-    expect(saveDesktop).toHaveBeenCalledWith(expect.objectContaining({ density: "compact" }));
+    expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
+      "density",
+      "library",
+      "showContinueReading",
+    ]);
+    expect(mutateDesktop).toHaveBeenCalledWith({ area: "density", value: "compact" });
     expect(removeLegacy).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces app settings save failures", async () => {
     const store = new AppPreferencesStore(
       createPersistence({
-        saveDesktop: vi.fn(async () => {
+        mutateDesktop: vi.fn(async () => {
           throw new Error("disk full");
         }),
       }),
@@ -709,7 +847,7 @@ describe("app preferences", () => {
     );
 
     const update = store.update({ density: "compact" });
-    resolveLoad({ density: "comfortable" });
+    resolveLoad(nativeSnapshot({ density: "comfortable" }, 2));
     await Promise.all([store.initialize(), update]);
 
     expect(store.getSnapshot().density).toBe("compact");
@@ -717,32 +855,36 @@ describe("app preferences", () => {
 
   it("merges updates with loaded settings before saving during startup", async () => {
     let resolveLoad: (value: unknown) => void = () => undefined;
-    const saveDesktop = vi.fn(async () => undefined);
+    let snapshot = nativeSnapshot();
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
     const store = new AppPreferencesStore(
       createPersistence({
         loadDesktop: () =>
           new Promise((resolve) => {
             resolveLoad = resolve;
           }),
-        saveDesktop,
+        mutateDesktop,
       }),
     );
 
     const update = store.update({ density: "compact" });
-    resolveLoad({ appThemePreset: "light", bookCardSize: "large" });
+    snapshot = nativeSnapshot({ appThemePreset: "light", bookCardSize: "large" }, 5);
+    resolveLoad(snapshot);
     await update;
 
-    expect(saveDesktop).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        appThemePreset: "light",
-        density: "compact",
-        library: expect.objectContaining({
-          collections: expect.objectContaining({
-            books: expect.objectContaining({ cardSize: "large" }),
-          }),
-        }),
-      }),
-    );
+    expect(mutateDesktop).toHaveBeenLastCalledWith({ area: "density", value: "compact" });
+    expect(store.getSnapshot()).toMatchObject({
+      appThemePreset: "light",
+      density: "compact",
+      library: {
+        collections: {
+          books: { cardSize: "large" },
+        },
+      },
+    });
   });
 
   it("preserves unrelated preference branch references after scoped updates", async () => {
@@ -779,8 +921,12 @@ describe("app preferences", () => {
   });
 
   it("persists reader, library, import, and file preferences at app level", async () => {
-    const saveDesktop = vi.fn(async () => undefined);
-    const store = new AppPreferencesStore(createPersistence({ saveDesktop }));
+    let snapshot = nativeSnapshot({}, 6);
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
+    const store = new AppPreferencesStore(createPersistence({ mutateDesktop }));
     await store.initialize();
 
     await store.update({
@@ -810,38 +956,25 @@ describe("app preferences", () => {
       },
     });
 
-    expect(saveDesktop).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        appearance: {
-          animationsEnabled: true,
-        },
-        filesAndMetadata: {
-          keepEpubWritebackBackup: true,
-          liveWatcherEnabled: false,
-          scanOnStartup: false,
-        },
-        import: {
-          defaultConflictAction: "skip",
-          defaultMode: "move",
-        },
-        library: {
-          collections: {
-            ...normalizeAppPreferences(null).library.collections,
-            books: {
-              ...normalizeAppPreferences(null).library.collections.books,
-              sortBy: "recently-opened",
-              viewMode: "list",
-            },
-          },
-          filters: createDefaultLibraryFilters(),
-          smartViews: normalizeAppPreferences(null).library.smartViews,
-        },
-        reader: expect.objectContaining({
-          fontSize: 24,
-          progressPlacement: "side",
-        }),
-      }),
-    );
+    expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
+      "appearance",
+      "filesAndMetadata",
+      "import",
+      "library",
+      "reader",
+    ]);
+    expect(mutateDesktop).toHaveBeenCalledWith({
+      area: "filesAndMetadata",
+      value: {
+        keepEpubWritebackBackup: true,
+        liveWatcherEnabled: false,
+        scanOnStartup: false,
+      },
+    });
+    expect(mutateDesktop).toHaveBeenCalledWith({
+      area: "reader",
+      value: expect.objectContaining({ fontSize: 24, progressPlacement: "side" }),
+    });
   });
 
   it("applies motion off when animations are disabled", async () => {
@@ -895,29 +1028,39 @@ describe("app preferences", () => {
 describe("app preference write coalescing", () => {
   it("persists rapid desktop updates as one trailing latest-value write", async () => {
     vi.useFakeTimers();
-    const saveDesktop = vi.fn(async () => undefined);
-    const store = new AppPreferencesStore(createPersistence({ saveDesktop }));
+    let snapshot = nativeSnapshot();
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
+    const store = new AppPreferencesStore(createPersistence({ mutateDesktop }));
 
     try {
       await store.initialize();
       const first = store.update({ density: "compact" });
       const second = store.updateLibraryCollection("books", { cardSize: "large" });
 
-      expect(saveDesktop).not.toHaveBeenCalled();
+      expect(mutateDesktop).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(250);
       await expect(Promise.all([first, second])).resolves.toHaveLength(2);
 
-      expect(saveDesktop).toHaveBeenCalledOnce();
-      expect(saveDesktop).toHaveBeenCalledWith(
-        expect.objectContaining({
-          density: "compact",
-          library: expect.objectContaining({
-            collections: expect.objectContaining({
-              books: expect.objectContaining({ cardSize: "large" }),
-            }),
+      expect(mutateDesktop).toHaveBeenCalledTimes(2);
+      expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
+        "density",
+        "library",
+      ]);
+      expect(mutateDesktop).toHaveBeenNthCalledWith(1, {
+        area: "density",
+        value: "compact",
+      });
+      expect(mutateDesktop).toHaveBeenNthCalledWith(2, {
+        area: "library",
+        value: expect.objectContaining({
+          collections: expect.objectContaining({
+            books: expect.objectContaining({ cardSize: "large" }),
           }),
         }),
-      );
+      });
     } finally {
       vi.useRealTimers();
     }
@@ -925,8 +1068,12 @@ describe("app preference write coalescing", () => {
 
   it("flushes a pending desktop update without waiting for the trailing delay", async () => {
     vi.useFakeTimers();
-    const saveDesktop = vi.fn(async () => undefined);
-    const store = new AppPreferencesStore(createPersistence({ saveDesktop }));
+    let snapshot = nativeSnapshot();
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
+    const store = new AppPreferencesStore(createPersistence({ mutateDesktop }));
 
     try {
       await store.initialize();
@@ -934,7 +1081,8 @@ describe("app preference write coalescing", () => {
       await vi.advanceTimersByTimeAsync(0);
       await store.flushPendingWrites();
       await expect(pending).resolves.toMatchObject({ density: "compact" });
-      expect(saveDesktop).toHaveBeenCalledOnce();
+      expect(mutateDesktop).toHaveBeenCalledOnce();
+      expect(mutateDesktop).toHaveBeenCalledWith({ area: "density", value: "compact" });
     } finally {
       vi.useRealTimers();
     }

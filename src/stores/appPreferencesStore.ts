@@ -7,6 +7,8 @@ import {
   defaultAppPreferences,
   type AppearanceSettings,
   type AppPreferences,
+  type AppSettingsMutation,
+  type AppSettingsSnapshot,
   type PersistedWindowState,
   type RememberedNavigationState,
 } from "../types/appSettings";
@@ -46,8 +48,6 @@ type LibraryDisplaySettingsUpdate = Partial<Omit<LibraryDisplaySettings, "collec
 
 type LibraryCollectionKey = keyof LibraryCollectionPreferences;
 
-type AppPreferencesCommand = "load_app_settings" | "save_app_settings";
-
 export type AppPreferencesPersistenceStatus =
   | { status: "idle" }
   | { status: "loading" }
@@ -58,10 +58,10 @@ export type AppPreferencesPersistenceStatus =
 type AppPreferencesPersistence = {
   isDesktop: () => boolean;
   loadDesktop: () => Promise<unknown>;
+  mutateDesktop: (mutation: AppSettingsMutation) => Promise<unknown>;
   readLegacy: () => unknown;
   removeLegacy: () => void;
   saveBrowserFallback: (preferences: AppPreferences) => void;
-  saveDesktop: (preferences: AppPreferences) => Promise<unknown>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -101,21 +101,14 @@ function saveBrowserFallback(preferences: AppPreferences): void {
   window.localStorage.setItem(LEGACY_STORAGE_KEY, JSON.stringify(preferences));
 }
 
-async function invokeAppSettings<T>(
-  command: AppPreferencesCommand,
-  preferences?: AppPreferences,
-): Promise<T> {
-  return invoke<T>(command, preferences ? { preferences } : undefined);
-}
-
 function createDefaultPersistence(): AppPreferencesPersistence {
   return {
     isDesktop: isTauri,
-    loadDesktop: () => invokeAppSettings("load_app_settings"),
+    loadDesktop: () => invoke("load_app_settings_snapshot"),
+    mutateDesktop: (mutation) => invoke("update_app_settings", { mutation }),
     readLegacy: readLegacyPreferences,
     removeLegacy: removeLegacyPreferences,
     saveBrowserFallback,
-    saveDesktop: (preferences) => invokeAppSettings<void>("save_app_settings", preferences),
   };
 }
 
@@ -418,6 +411,120 @@ function mergeAppPreferences(
   return next;
 }
 
+function normalizeAppSettingsSnapshot(value: unknown): AppSettingsSnapshot {
+  if (!isRecord(value) || !Number.isSafeInteger(value.revision) || Number(value.revision) < 0) {
+    throw new Error("Invalid native app settings snapshot.");
+  }
+
+  return {
+    preferences: normalizeAppPreferences(value.preferences),
+    revision: Number(value.revision),
+  };
+}
+
+function preferenceAreaEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return (
+      Array.isArray(left) &&
+      Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((value, index) => preferenceAreaEqual(value, right[index]))
+    );
+  }
+  if (!isRecord(left) || !isRecord(right)) return false;
+
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return (
+    leftKeys.length === rightKeys.length &&
+    leftKeys.every(
+      (key, index) => key === rightKeys[index] && preferenceAreaEqual(left[key], right[key]),
+    )
+  );
+}
+
+function createAppSettingsMutations(
+  persisted: AppPreferences,
+  target: AppPreferences,
+): AppSettingsMutation[] {
+  const mutations: AppSettingsMutation[] = [];
+
+  if (persisted.appThemePreset !== target.appThemePreset) {
+    mutations.push({ area: "appThemePreset", value: target.appThemePreset });
+  }
+  if (!preferenceAreaEqual(persisted.appearance, target.appearance)) {
+    mutations.push({ area: "appearance", value: target.appearance });
+  }
+  if (persisted.confirmDestructiveFileActions !== target.confirmDestructiveFileActions) {
+    mutations.push({
+      area: "confirmDestructiveFileActions",
+      value: target.confirmDestructiveFileActions,
+    });
+  }
+  if (persisted.density !== target.density) {
+    mutations.push({ area: "density", value: target.density });
+  }
+  if (!preferenceAreaEqual(persisted.filesAndMetadata, target.filesAndMetadata)) {
+    mutations.push({ area: "filesAndMetadata", value: target.filesAndMetadata });
+  }
+  if (!preferenceAreaEqual(persisted.import, target.import)) {
+    mutations.push({ area: "import", value: target.import });
+  }
+  if (!preferenceAreaEqual(persisted.keyboard, target.keyboard)) {
+    mutations.push({ area: "keyboard", value: target.keyboard });
+  }
+  if (!preferenceAreaEqual(persisted.library, target.library)) {
+    mutations.push({ area: "library", value: target.library });
+  }
+  if (!preferenceAreaEqual(persisted.navigation, target.navigation)) {
+    mutations.push({ area: "navigation", value: target.navigation });
+  }
+  if (!preferenceAreaEqual(persisted.reader, target.reader)) {
+    mutations.push({ area: "reader", value: target.reader });
+  }
+  if (persisted.rememberWindowState !== target.rememberWindowState) {
+    mutations.push({ area: "rememberWindowState", value: target.rememberWindowState });
+  }
+  if (persisted.restoreLastReader !== target.restoreLastReader) {
+    mutations.push({ area: "restoreLastReader", value: target.restoreLastReader });
+  }
+  if (persisted.showContinueReading !== target.showContinueReading) {
+    mutations.push({ area: "showContinueReading", value: target.showContinueReading });
+  }
+  if (persisted.startupBehavior !== target.startupBehavior) {
+    mutations.push({ area: "startupBehavior", value: target.startupBehavior });
+  }
+  if (!preferenceAreaEqual(persisted.window, target.window)) {
+    mutations.push({ area: "window", value: target.window });
+  }
+
+  return mutations;
+}
+
+function preserveEquivalentPreferenceAreas(
+  current: AppPreferences,
+  native: AppPreferences,
+): AppPreferences {
+  return {
+    ...native,
+    appearance: preferenceAreaEqual(current.appearance, native.appearance)
+      ? current.appearance
+      : native.appearance,
+    filesAndMetadata: preferenceAreaEqual(current.filesAndMetadata, native.filesAndMetadata)
+      ? current.filesAndMetadata
+      : native.filesAndMetadata,
+    import: preferenceAreaEqual(current.import, native.import) ? current.import : native.import,
+    keyboard: preferenceAreaEqual(current.keyboard, native.keyboard)
+      ? current.keyboard
+      : native.keyboard,
+    library: preferenceAreaEqual(current.library, native.library)
+      ? current.library
+      : native.library,
+    reader: preferenceAreaEqual(current.reader, native.reader) ? current.reader : native.reader,
+  };
+}
+
 export class AppPreferencesStore {
   private readonly listeners = new Set<Listener>();
   private readonly persistence: AppPreferencesPersistence;
@@ -425,14 +532,30 @@ export class AppPreferencesStore {
   private persistenceStatus: AppPreferencesPersistenceStatus = { status: "idle" };
   private loadPromise: Promise<void> | null = null;
   private mutationRevision = 0;
+  private desktopRevision = 0;
+  private desktopPersistedPreferences: AppPreferences | null = null;
+  private completedDesktopSnapshot: AppSettingsSnapshot | null = null;
   private readonly desktopWrites: CoalescedWriteQueue<AppPreferences>;
 
   constructor(persistence = createDefaultPersistence()) {
     this.persistence = persistence;
     this.desktopWrites = new CoalescedWriteQueue({
       delayMs: APP_PREFERENCES_WRITE_DELAY_MS,
+      onFailure: () => {
+        this.completedDesktopSnapshot = null;
+      },
+      onSuccess: (attempt) => {
+        const completed = this.completedDesktopSnapshot;
+        this.completedDesktopSnapshot = null;
+        if (!attempt.isSuperseded() && completed) {
+          this.setPreferences(
+            preserveEquivalentPreferenceAreas(this.preferences, completed.preferences),
+          );
+        }
+      },
       write: async (preferences) => {
-        await this.persistence.saveDesktop(preferences);
+        this.completedDesktopSnapshot = null;
+        this.completedDesktopSnapshot = await this.persistDesktopTarget(preferences);
       },
     });
     this.apply();
@@ -441,6 +564,8 @@ export class AppPreferencesStore {
   getSnapshot = () => this.preferences;
 
   getPersistenceSnapshot = () => this.persistenceStatus;
+
+  getRevisionSnapshot = () => this.desktopRevision;
 
   getFilesAndMetadataSnapshot = () => this.preferences.filesAndMetadata;
 
@@ -544,17 +669,22 @@ export class AppPreferencesStore {
     }
 
     try {
-      const loaded = normalizeAppPreferences(await this.persistence.loadDesktop());
+      const loaded = normalizeAppSettingsSnapshot(await this.persistence.loadDesktop());
       if (this.mutationRevision !== loadRevision) {
         this.setPersistenceStatus({ status: "idle" });
         return;
       }
 
-      const next = legacyPreferences ?? loaded;
+      this.desktopRevision = loaded.revision;
+      this.desktopPersistedPreferences = loaded.preferences;
+      const next = legacyPreferences ?? loaded.preferences;
       this.setPreferences(next);
 
       if (legacyPreferences) {
-        await this.persistence.saveDesktop(next);
+        const migrated = await this.persistDesktopTarget(next);
+        this.setPreferences(
+          preserveEquivalentPreferenceAreas(this.preferences, migrated.preferences),
+        );
         this.persistence.removeLegacy();
         this.setPersistenceStatus({ status: "saved" });
       } else {
@@ -603,6 +733,33 @@ export class AppPreferencesStore {
         }
         throw new Error(message, { cause: error });
       });
+  }
+
+  private async persistDesktopTarget(target: AppPreferences): Promise<AppSettingsSnapshot> {
+    const persisted = this.desktopPersistedPreferences;
+    if (!persisted) {
+      throw new Error("Native app settings were not initialized.");
+    }
+
+    let snapshot: AppSettingsSnapshot = {
+      preferences: persisted,
+      revision: this.desktopRevision,
+    };
+    const mutations = createAppSettingsMutations(persisted, target);
+
+    for (const mutation of mutations) {
+      const updated = normalizeAppSettingsSnapshot(
+        await this.persistence.mutateDesktop(structuredClone(mutation)),
+      );
+      if (updated.revision <= snapshot.revision) {
+        throw new Error("Native app settings revision did not advance.");
+      }
+      snapshot = updated;
+      this.desktopRevision = updated.revision;
+      this.desktopPersistedPreferences = updated.preferences;
+    }
+
+    return snapshot;
   }
 
   private setPreferences(preferences: AppPreferences) {
