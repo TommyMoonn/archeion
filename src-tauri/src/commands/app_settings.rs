@@ -13,9 +13,10 @@ use crate::atomic_file::{
     transaction_path, AtomicReplaceError, BackupCleanup, PreparedAtomicFile, RealAtomicFileSystem,
     TemporaryWriteStage,
 };
-use tauri::Manager;
+use tauri::{Emitter, Manager};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
+const APP_SETTINGS_CHANGED_EVENT: &str = "app-settings-changed";
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -1048,6 +1049,16 @@ impl LibraryDisplaySettings {
     }
 }
 
+impl<'de> Deserialize<'de> for LibraryDisplaySettings {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = Value::deserialize(deserializer)?;
+        Ok(Self::from_value(Some(&value), None))
+    }
+}
+
 impl Default for LibrarySmartViewSettings {
     fn default() -> Self {
         Self {
@@ -1110,6 +1121,57 @@ impl Default for AppPreferences {
             window: None,
         }
     }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(tag = "area", content = "value", rename_all = "camelCase")]
+pub enum AppSettingsMutation {
+    AppThemePreset(String),
+    Appearance(AppearanceSettings),
+    ConfirmDestructiveFileActions(bool),
+    Density(String),
+    FilesAndMetadata(FilesAndMetadataSettings),
+    Import(GlobalImportSettings),
+    Keyboard(KeyboardPreferences),
+    Library(Box<LibraryDisplaySettings>),
+    Navigation(Option<RememberedNavigationState>),
+    Reader(Box<ReaderSettings>),
+    RememberWindowState(bool),
+    RestoreLastReader(bool),
+    ShowContinueReading(bool),
+    StartupBehavior(String),
+    Window(Option<PersistedWindowState>),
+}
+
+impl AppSettingsMutation {
+    fn apply(self, preferences: &mut AppPreferences) {
+        match self {
+            Self::AppThemePreset(value) => preferences.app_theme_preset = value,
+            Self::Appearance(value) => preferences.appearance = value,
+            Self::ConfirmDestructiveFileActions(value) => {
+                preferences.confirm_destructive_file_actions = value;
+            }
+            Self::Density(value) => preferences.density = value,
+            Self::FilesAndMetadata(value) => preferences.files_and_metadata = value,
+            Self::Import(value) => preferences.import = value,
+            Self::Keyboard(value) => preferences.keyboard = value,
+            Self::Library(value) => preferences.library = *value,
+            Self::Navigation(value) => preferences.navigation = value,
+            Self::Reader(value) => preferences.reader = *value,
+            Self::RememberWindowState(value) => preferences.remember_window_state = value,
+            Self::RestoreLastReader(value) => preferences.restore_last_reader = value,
+            Self::ShowContinueReading(value) => preferences.show_continue_reading = value,
+            Self::StartupBehavior(value) => preferences.startup_behavior = value,
+            Self::Window(value) => preferences.window = value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppSettingsSnapshot {
+    pub revision: u64,
+    pub preferences: AppPreferences,
 }
 
 fn settings_path(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -1212,9 +1274,14 @@ fn write_settings(path: &Path, preferences: &AppPreferences) -> Result<(), Strin
         .map_err(app_settings_replace_error)
 }
 
+struct AppSettingsState {
+    revision: u64,
+    preferences: Option<AppPreferences>,
+}
+
 pub(crate) struct AppSettingsService {
     path: PathBuf,
-    snapshot: Mutex<Option<AppPreferences>>,
+    state: Mutex<AppSettingsState>,
 }
 
 impl AppSettingsService {
@@ -1225,32 +1292,79 @@ impl AppSettingsService {
     fn new(path: PathBuf) -> Self {
         Self {
             path,
-            snapshot: Mutex::new(None),
+            state: Mutex::new(AppSettingsState {
+                revision: 0,
+                preferences: None,
+            }),
         }
     }
 
-    fn lock_snapshot(&self) -> Result<MutexGuard<'_, Option<AppPreferences>>, String> {
-        self.snapshot
+    fn lock_state(&self) -> Result<MutexGuard<'_, AppSettingsState>, String> {
+        self.state
             .lock()
             .map_err(|_| "App settings state is unavailable.".to_string())
     }
 
-    fn load(&self) -> Result<AppPreferences, String> {
-        let mut snapshot = self.lock_snapshot()?;
-        if let Some(preferences) = snapshot.as_ref() {
-            return Ok(preferences.clone());
+    fn load_preferences<'a>(
+        &self,
+        state: &'a mut AppSettingsState,
+    ) -> Result<&'a AppPreferences, String> {
+        if state.preferences.is_none() {
+            state.preferences = Some(read_settings(&self.path)?);
         }
+        state
+            .preferences
+            .as_ref()
+            .ok_or_else(|| "App settings state is unavailable.".to_string())
+    }
 
-        let preferences = read_settings(&self.path)?;
-        *snapshot = Some(preferences.clone());
-        Ok(preferences)
+    fn load(&self) -> Result<AppPreferences, String> {
+        let mut state = self.lock_state()?;
+        Ok(self.load_preferences(&mut state)?.clone())
+    }
+
+    fn snapshot(&self) -> Result<AppSettingsSnapshot, String> {
+        let mut state = self.lock_state()?;
+        let preferences = self.load_preferences(&mut state)?.clone();
+        Ok(AppSettingsSnapshot {
+            revision: state.revision,
+            preferences,
+        })
     }
 
     fn save(&self, preferences: AppPreferences) -> Result<AppPreferences, String> {
-        let mut snapshot = self.lock_snapshot()?;
+        let mut state = self.lock_state()?;
         write_settings(&self.path, &preferences)?;
-        *snapshot = Some(preferences.clone());
+        state.preferences = Some(preferences.clone());
         Ok(preferences)
+    }
+
+    fn mutate(
+        &self,
+        mutation: AppSettingsMutation,
+        publish: impl FnOnce(&AppSettingsSnapshot),
+    ) -> Result<AppSettingsSnapshot, String> {
+        let mut state = self.lock_state()?;
+        let mut preferences = self.load_preferences(&mut state)?.clone();
+        mutation.apply(&mut preferences);
+        let value = serde_json::to_value(preferences)
+            .map_err(|error| format!("App settings mutation could not be normalized: {error}"))?;
+        let preferences = normalize_app_preferences_value(&value);
+        let revision = state
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| "App settings revision is exhausted.".to_string())?;
+
+        write_settings(&self.path, &preferences)?;
+        state.preferences = Some(preferences.clone());
+        state.revision = revision;
+        let snapshot = AppSettingsSnapshot {
+            revision,
+            preferences,
+        };
+        drop(state);
+        publish(&snapshot);
+        Ok(snapshot)
     }
 }
 
@@ -1259,6 +1373,26 @@ pub fn load_app_settings(
     service: tauri::State<'_, AppSettingsService>,
 ) -> Result<AppPreferences, String> {
     service.load()
+}
+
+#[tauri::command]
+pub fn load_app_settings_snapshot(
+    service: tauri::State<'_, AppSettingsService>,
+) -> Result<AppSettingsSnapshot, String> {
+    service.snapshot()
+}
+
+#[tauri::command]
+pub fn update_app_settings(
+    app: tauri::AppHandle,
+    service: tauri::State<'_, AppSettingsService>,
+    mutation: AppSettingsMutation,
+) -> Result<AppSettingsSnapshot, String> {
+    service.mutate(mutation, |snapshot| {
+        if let Err(error) = app.emit(APP_SETTINGS_CHANGED_EVENT, snapshot) {
+            eprintln!("app settings change event failed: {error}");
+        }
+    })
 }
 
 #[tauri::command]
@@ -1274,8 +1408,9 @@ mod tests {
     use serde_json::Value;
 
     use super::{
-        read_settings, write_settings, AppPreferences, AppSettingsService, AppearanceSettings,
-        KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
+        read_settings, write_settings, AppPreferences, AppSettingsMutation, AppSettingsService,
+        AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
+        LibrarySmartViewSettings, ReaderSettings,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
@@ -1892,6 +2027,115 @@ mod tests {
             service.load().expect("last valid snapshot should remain"),
             accepted
         );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn typed_mutations_preserve_unrelated_preference_areas() {
+        let root = temporary_settings_root("typed-areas");
+        let service = AppSettingsService::new(root.join("settings.json"));
+        let published = std::cell::RefCell::new(Vec::new());
+
+        let first = service
+            .mutate(
+                AppSettingsMutation::Density("compact".to_string()),
+                |event| {
+                    published.borrow_mut().push(event.clone());
+                },
+            )
+            .expect("density should update");
+        let second = service
+            .mutate(
+                AppSettingsMutation::Reader(Box::new(ReaderSettings {
+                    mode: "continuous".to_string(),
+                    ..ReaderSettings::default()
+                })),
+                |event| published.borrow_mut().push(event.clone()),
+            )
+            .expect("reader settings should update");
+
+        assert_eq!(first.revision, 1);
+        assert_eq!(second.revision, 2);
+        assert_eq!(second.preferences.density, "compact");
+        assert_eq!(second.preferences.reader.mode, "continuous");
+        assert_eq!(published.borrow().as_slice(), &[first, second.clone()]);
+        assert_eq!(
+            read_settings(&root.join("settings.json")).expect("settings should persist"),
+            second.preferences
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn failed_typed_mutation_does_not_advance_or_publish_revision() {
+        let root = temporary_settings_root("typed-failure");
+        let path = root.join("settings.json");
+        let service = AppSettingsService::new(path.clone());
+        let published = std::cell::RefCell::new(Vec::new());
+        let accepted = service
+            .mutate(
+                AppSettingsMutation::Density("compact".to_string()),
+                |event| {
+                    published.borrow_mut().push(event.clone());
+                },
+            )
+            .expect("initial mutation should persist");
+        std::fs::remove_file(&path).expect("settings file should be removed");
+        std::fs::create_dir(&path).expect("conflicting destination should be created");
+
+        let error = service
+            .mutate(AppSettingsMutation::RestoreLastReader(true), |event| {
+                published.borrow_mut().push(event.clone())
+            })
+            .expect_err("mutation persistence should fail");
+
+        assert_eq!(error, "App settings path is not a file.");
+        assert_eq!(
+            published.borrow().as_slice(),
+            std::slice::from_ref(&accepted)
+        );
+        assert_eq!(
+            service
+                .snapshot()
+                .expect("snapshot should remain available"),
+            accepted
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn typed_mutation_input_uses_canonical_normalization() {
+        let root = temporary_settings_root("typed-normalization");
+        let service = AppSettingsService::new(root.join("settings.json"));
+
+        let density_mutation: AppSettingsMutation = serde_json::from_value(serde_json::json!({
+            "area": "density",
+            "value": "unsupported"
+        }))
+        .expect("typed density mutation should deserialize");
+        let density = service
+            .mutate(density_mutation, |_| {})
+            .expect("density mutation should normalize");
+        let reader_mutation: AppSettingsMutation = serde_json::from_value(serde_json::json!({
+            "area": "reader",
+            "value": {
+                "fontSize": 500,
+                "fontFamily": "serif",
+                "lineHeight": 0.1,
+                "margin": -20,
+                "theme": "dark",
+                "progressPlacement": "top",
+                "mode": "unsupported"
+            }
+        }))
+        .expect("typed reader mutation should deserialize");
+        let reader = service
+            .mutate(reader_mutation, |_| {})
+            .expect("reader mutation should normalize");
+
+        assert_eq!(density.preferences.density, "comfortable");
+        assert_eq!(reader.revision, 2);
+        assert_eq!(reader.preferences.reader, ReaderSettings::default());
         std::fs::remove_dir_all(root).expect("settings root should be removed");
     }
 

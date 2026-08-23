@@ -53,6 +53,33 @@ export type AppPreferences = {
   window: PersistedWindowState | null;
 };
 
+export type AppSettingsSnapshot = {
+  revision: number;
+  preferences: AppPreferences;
+};
+
+export type AppSettingsMutation =
+  | { area: "appThemePreset"; value: AppPreferences["appThemePreset"] }
+  | { area: "appearance"; value: AppPreferences["appearance"] }
+  | {
+      area: "confirmDestructiveFileActions";
+      value: AppPreferences["confirmDestructiveFileActions"];
+    }
+  | { area: "density"; value: AppPreferences["density"] }
+  | { area: "filesAndMetadata"; value: AppPreferences["filesAndMetadata"] }
+  | { area: "import"; value: AppPreferences["import"] }
+  | { area: "keyboard"; value: AppPreferences["keyboard"] }
+  | { area: "library"; value: AppPreferences["library"] }
+  | { area: "navigation"; value: AppPreferences["navigation"] }
+  | { area: "reader"; value: AppPreferences["reader"] }
+  | { area: "rememberWindowState"; value: AppPreferences["rememberWindowState"] }
+  | { area: "restoreLastReader"; value: AppPreferences["restoreLastReader"] }
+  | { area: "showContinueReading"; value: AppPreferences["showContinueReading"] }
+  | { area: "startupBehavior"; value: AppPreferences["startupBehavior"] }
+  | { area: "window"; value: AppPreferences["window"] };
+
+export const APP_SETTINGS_CHANGED_EVENT = "app-settings-changed";
+
 export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
   appThemePreset: "dark",
   appearance: Object.freeze({

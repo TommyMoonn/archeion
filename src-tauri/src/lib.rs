@@ -49,7 +49,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_settings::load_app_settings,
+            commands::app_settings::load_app_settings_snapshot,
             commands::app_settings::save_app_settings,
+            commands::app_settings::update_app_settings,
             commands::archive::activate_archive,
             commands::archive::create_empty_archive,
             commands::archive::focus_main_window,
