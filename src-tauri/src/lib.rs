@@ -26,6 +26,12 @@ pub fn run() {
     );
 
     tauri::Builder::default()
+        .setup(|app| {
+            let app_settings = commands::app_settings::AppSettingsService::from_app(app.handle())
+                .map_err(std::io::Error::other)?;
+            app.manage(app_settings);
+            Ok(())
+        })
         .manage(dictionary_catalog_service)
         .manage(dictionary_download_service)
         .manage(dictionary_install_service)

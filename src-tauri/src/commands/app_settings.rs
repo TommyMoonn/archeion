@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     fs,
     path::{Path, PathBuf},
+    sync::{Mutex, MutexGuard},
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -1211,19 +1212,61 @@ fn write_settings(path: &Path, preferences: &AppPreferences) -> Result<(), Strin
         .map_err(app_settings_replace_error)
 }
 
+pub(crate) struct AppSettingsService {
+    path: PathBuf,
+    snapshot: Mutex<Option<AppPreferences>>,
+}
+
+impl AppSettingsService {
+    pub(crate) fn from_app(app: &tauri::AppHandle) -> Result<Self, String> {
+        Ok(Self::new(settings_path(app)?))
+    }
+
+    fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            snapshot: Mutex::new(None),
+        }
+    }
+
+    fn lock_snapshot(&self) -> Result<MutexGuard<'_, Option<AppPreferences>>, String> {
+        self.snapshot
+            .lock()
+            .map_err(|_| "App settings state is unavailable.".to_string())
+    }
+
+    fn load(&self) -> Result<AppPreferences, String> {
+        let mut snapshot = self.lock_snapshot()?;
+        if let Some(preferences) = snapshot.as_ref() {
+            return Ok(preferences.clone());
+        }
+
+        let preferences = read_settings(&self.path)?;
+        *snapshot = Some(preferences.clone());
+        Ok(preferences)
+    }
+
+    fn save(&self, preferences: AppPreferences) -> Result<AppPreferences, String> {
+        let mut snapshot = self.lock_snapshot()?;
+        write_settings(&self.path, &preferences)?;
+        *snapshot = Some(preferences.clone());
+        Ok(preferences)
+    }
+}
+
 #[tauri::command]
-pub fn load_app_settings(app: tauri::AppHandle) -> Result<AppPreferences, String> {
-    read_settings(&settings_path(&app)?)
+pub fn load_app_settings(
+    service: tauri::State<'_, AppSettingsService>,
+) -> Result<AppPreferences, String> {
+    service.load()
 }
 
 #[tauri::command]
 pub fn save_app_settings(
-    app: tauri::AppHandle,
+    service: tauri::State<'_, AppSettingsService>,
     preferences: AppPreferences,
 ) -> Result<AppPreferences, String> {
-    let path = settings_path(&app)?;
-    write_settings(&path, &preferences)?;
-    Ok(preferences)
+    service.save(preferences)
 }
 
 #[cfg(test)]
@@ -1231,8 +1274,8 @@ mod tests {
     use serde_json::Value;
 
     use super::{
-        read_settings, write_settings, AppPreferences, AppearanceSettings, KeyboardBinding,
-        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
+        read_settings, write_settings, AppPreferences, AppSettingsService, AppearanceSettings,
+        KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
@@ -1743,6 +1786,123 @@ mod tests {
             .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-"));
         assert!(backup_exists);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn app_settings_service_loads_one_normalized_snapshot() {
+        let root = temporary_settings_root("service-load");
+        std::fs::create_dir_all(&root).expect("settings root should be created");
+        let path = root.join("settings.json");
+        std::fs::write(
+            &path,
+            br#"{
+                "density": "unsupported",
+                "showContinueReading": false,
+                "reader": { "mode": "continuous" }
+            }"#,
+        )
+        .expect("settings should be written");
+        let service = AppSettingsService::new(path.clone());
+
+        let loaded = service.load().expect("settings should load");
+        std::fs::write(&path, br#"{ "density": "compact" }"#)
+            .expect("settings should be changed outside the service");
+        let reloaded = service.load().expect("cached settings should load");
+
+        assert_eq!(loaded.density, "comfortable");
+        assert!(!loaded.show_continue_reading);
+        assert_eq!(loaded.reader.mode, "continuous");
+        assert_eq!(reloaded, loaded);
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn app_settings_service_recovers_corrupt_settings() {
+        let root = temporary_settings_root("service-corrupt");
+        std::fs::create_dir_all(&root).expect("settings root should be created");
+        let path = root.join("settings.json");
+        std::fs::write(&path, b"{not-json").expect("corrupt settings should be written");
+        let service = AppSettingsService::new(path.clone());
+
+        let loaded = service.load().expect("settings should recover");
+
+        assert_eq!(loaded, AppPreferences::default());
+        assert!(path.is_file());
+        assert!(root
+            .read_dir()
+            .expect("settings root should be readable")
+            .filter_map(Result::ok)
+            .any(|entry| entry.file_name().to_string_lossy().contains(".corrupt-")));
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn app_settings_service_persists_with_atomic_replacement() {
+        let root = temporary_settings_root("service-replace");
+        let path = root.join("settings.json");
+        let service = AppSettingsService::new(path.clone());
+        let first = AppPreferences {
+            density: "compact".to_string(),
+            ..AppPreferences::default()
+        };
+        let second = AppPreferences {
+            restore_last_reader: true,
+            ..AppPreferences::default()
+        };
+
+        service.save(first).expect("initial settings should save");
+        service
+            .save(second.clone())
+            .expect("replacement settings should save");
+
+        assert_eq!(read_settings(&path).expect("settings should read"), second);
+        assert_eq!(
+            root.read_dir()
+                .expect("settings root should be readable")
+                .count(),
+            1
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
+    fn app_settings_service_keeps_snapshot_when_persistence_fails() {
+        let root = temporary_settings_root("service-failure");
+        let path = root.join("settings.json");
+        let service = AppSettingsService::new(path.clone());
+        let accepted = AppPreferences {
+            density: "compact".to_string(),
+            ..AppPreferences::default()
+        };
+        service
+            .save(accepted.clone())
+            .expect("initial settings should save");
+        std::fs::remove_file(&path).expect("settings file should be removed");
+        std::fs::create_dir(&path).expect("conflicting destination should be created");
+
+        let rejected = AppPreferences {
+            restore_last_reader: true,
+            ..AppPreferences::default()
+        };
+        assert_eq!(
+            service.save(rejected).expect_err("replacement should fail"),
+            "App settings path is not a file."
+        );
+        assert_eq!(
+            service.load().expect("last valid snapshot should remain"),
+            accepted
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    fn temporary_settings_root(label: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "archeion-app-settings-{label}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("time should be available")
+                .as_nanos()
+        ))
     }
 
     fn temporary_settings_path(label: &str) -> std::path::PathBuf {
