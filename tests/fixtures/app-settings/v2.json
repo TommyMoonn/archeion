@@ -1,6 +1,10 @@
 {
-  "version": 1,
+  "version": 2,
   "defaults": {
+    "appTheme": {
+      "kind": "builtin",
+      "id": "dark"
+    },
     "appThemePreset": "dark",
     "appearance": {
       "animationsEnabled": false
@@ -62,6 +66,10 @@
       "progressPlacement": "top",
       "mode": "paged"
     },
+    "readerTheme": {
+      "kind": "builtin",
+      "id": "dark"
+    },
     "rememberWindowState": false,
     "restoreLastReader": false,
     "showContinueReading": true,
@@ -75,8 +83,47 @@
       "expectedPatch": {}
     },
     {
+      "name": "global custom theme selections preserve valid package identifiers",
+      "input": {
+        "appTheme": {
+          "kind": "custom",
+          "id": "moon-ink"
+        },
+        "readerTheme": {
+          "kind": "custom",
+          "id": "paper-reader"
+        }
+      },
+      "expectedPatch": {
+        "appTheme": {
+          "kind": "custom",
+          "id": "moon-ink"
+        },
+        "readerTheme": {
+          "kind": "custom",
+          "id": "paper-reader"
+        }
+      }
+    },
+    {
+      "name": "global theme selections reject inherit and invalid identifiers",
+      "input": {
+        "appTheme": {
+          "kind": "inherit"
+        },
+        "readerTheme": {
+          "kind": "custom",
+          "id": "Invalid Theme"
+        }
+      },
+      "expectedPatch": {}
+    },
+    {
       "name": "current settings preserve every supported field",
       "input": {
+        "appTheme": {
+          "kind": "system"
+        },
         "appThemePreset": "light",
         "appearance": {
           "animationsEnabled": true
@@ -151,6 +198,10 @@
           "progressPlacement": "side",
           "mode": "continuous"
         },
+        "readerTheme": {
+          "kind": "builtin",
+          "id": "sepia"
+        },
         "rememberWindowState": true,
         "restoreLastReader": true,
         "showContinueReading": false,
@@ -164,6 +215,9 @@
         }
       },
       "expectedPatch": {
+        "appTheme": {
+          "kind": "system"
+        },
         "appThemePreset": "light",
         "appearance": {
           "animationsEnabled": true
@@ -237,6 +291,10 @@
           "theme": "sepia",
           "progressPlacement": "side",
           "mode": "continuous"
+        },
+        "readerTheme": {
+          "kind": "builtin",
+          "id": "sepia"
         },
         "rememberWindowState": true,
         "restoreLastReader": true,

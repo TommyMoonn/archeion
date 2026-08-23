@@ -1,6 +1,6 @@
 # App settings contract fixtures
 
-`v1.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
+`v2.json` is the shared persisted-settings contract consumed by the TypeScript and Rust
 test suites.
 
 Compatibility policy:

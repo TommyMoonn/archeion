@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { findKeyboardPreferenceConflicts } from "../src/features/commands/commandBindings";
 import { normalizeAppPreferences } from "../src/stores/appPreferencesStore";
-import fixtureCorpus from "./fixtures/app-settings/v1.json";
+import fixtureCorpus from "./fixtures/app-settings/v2.json";
 
 type JsonObject = Record<string, unknown>;
 
@@ -12,6 +12,9 @@ function isObject(value: unknown): value is JsonObject {
 
 function mergeExpected(base: unknown, patch: unknown): unknown {
   if (!isObject(base) || !isObject(patch)) {
+    return structuredClone(patch);
+  }
+  if ("kind" in patch) {
     return structuredClone(patch);
   }
 
@@ -24,7 +27,7 @@ function mergeExpected(base: unknown, patch: unknown): unknown {
 
 describe("cross-language app settings contract", () => {
   it("uses the current versioned fixture corpus", () => {
-    expect(fixtureCorpus.version).toBe(1);
+    expect(fixtureCorpus.version).toBe(2);
   });
 
   it.each(fixtureCorpus.cases)("$name", ({ input, expectedPatch }) => {

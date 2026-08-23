@@ -709,6 +709,7 @@ describe("app preferences", () => {
   it("retains supported settings", () => {
     expect(
       normalizeAppPreferences({
+        appTheme: { kind: "system" },
         appThemePreset: "light",
         appearance: {
           animationsEnabled: true,
@@ -748,6 +749,7 @@ describe("app preferences", () => {
           progressPlacement: "side",
           mode: "continuous",
         },
+        readerTheme: { kind: "custom", id: "paper-reader" },
         rememberWindowState: true,
         restoreLastReader: true,
         showContinueReading: false,
@@ -755,6 +757,7 @@ describe("app preferences", () => {
         windowFrameStyle: "native",
       }),
     ).toEqual({
+      appTheme: { kind: "system" },
       appThemePreset: "light",
       appearance: {
         animationsEnabled: true,
@@ -804,6 +807,7 @@ describe("app preferences", () => {
         progressPlacement: "side",
         mode: "continuous",
       },
+      readerTheme: { kind: "custom", id: "paper-reader" },
       rememberWindowState: true,
       restoreLastReader: true,
       showContinueReading: false,
@@ -1233,6 +1237,28 @@ describe("app preferences", () => {
       area: "reader",
       value: expect.objectContaining({ fontSize: 24, progressPlacement: "side" }),
     });
+  });
+
+  it("persists global application and Reader theme selections as typed areas", async () => {
+    let snapshot = nativeSnapshot({}, 3);
+    const mutateDesktop = vi.fn(async (mutation: AppSettingsMutation) => {
+      snapshot = applyNativeMutation(snapshot, mutation);
+      return snapshot;
+    });
+    const store = new AppPreferencesStore(createPersistence({ mutateDesktop }));
+    await store.initialize();
+
+    await store.update({
+      appTheme: { kind: "custom", id: "moon-ink" },
+      readerTheme: { kind: "builtin", id: "sepia" },
+    });
+
+    expect(mutateDesktop.mock.calls.map(([mutation]) => mutation.area)).toEqual([
+      "appTheme",
+      "readerTheme",
+    ]);
+    expect(store.getSnapshot().appTheme).toEqual({ kind: "custom", id: "moon-ink" });
+    expect(store.getSnapshot().readerTheme).toEqual({ kind: "builtin", id: "sepia" });
   });
 
   it("applies motion off when animations are disabled", async () => {

@@ -26,16 +26,15 @@ export type ArchiveImportSettings = {
   defaultDestinationFolderPath?: string;
 };
 
-export type ArchiveAppThemeSelection =
-  | { kind: "inherit" }
-  | { kind: "system" }
-  | { kind: "builtin"; id: "dark" | "light" }
-  | { kind: "custom"; id: string };
+export type AppThemeSelection =
+  { kind: "system" } | { kind: "builtin"; id: "dark" | "light" } | { kind: "custom"; id: string };
 
-export type ArchiveReaderThemeSelection =
-  | { kind: "inherit" }
-  | { kind: "builtin"; id: "dark" | "light" | "sepia" }
-  | { kind: "custom"; id: string };
+export type ReaderThemeSelection =
+  { kind: "builtin"; id: "dark" | "light" | "sepia" } | { kind: "custom"; id: string };
+
+export type ArchiveAppThemeSelection = { kind: "inherit" } | AppThemeSelection;
+
+export type ArchiveReaderThemeSelection = { kind: "inherit" } | ReaderThemeSelection;
 
 export type ArchiveAppearanceSettings = {
   appTheme: ArchiveAppThemeSelection;

@@ -35,13 +35,16 @@ import {
   LIBRARY_SMART_VIEWS,
 } from "../types/librarySmartViews";
 import type {
+  AppThemeSelection,
   FilesAndMetadataSettings,
   GlobalImportSettings,
   LibraryDisplaySettings,
+  ReaderThemeSelection,
 } from "../types/settings";
 
 const LEGACY_STORAGE_KEY = "archeion:preferences";
 const APP_PREFERENCES_WRITE_DELAY_MS = 250;
+const THEME_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{2,63}$/;
 type Listener = () => void;
 
 type LibraryDisplaySettingsUpdate = Partial<Omit<LibraryDisplaySettings, "collections">> & {
@@ -231,6 +234,32 @@ function normalizeReader(value: unknown): ReaderSettings {
   return normalizeReaderSettings(isRecord(value) ? value : undefined);
 }
 
+function normalizedCustomThemeId(value: unknown): string | null {
+  return typeof value === "string" && THEME_ID_PATTERN.test(value) ? value : null;
+}
+
+function normalizeAppTheme(value: unknown): AppThemeSelection {
+  if (!isRecord(value)) return { ...defaultAppPreferences.appTheme };
+  if (value.kind === "system") return { kind: "system" };
+  if (value.kind === "builtin" && (value.id === "dark" || value.id === "light")) {
+    return { kind: "builtin", id: value.id };
+  }
+  const customId = value.kind === "custom" ? normalizedCustomThemeId(value.id) : null;
+  return customId ? { kind: "custom", id: customId } : { ...defaultAppPreferences.appTheme };
+}
+
+function normalizeReaderTheme(value: unknown): ReaderThemeSelection {
+  if (!isRecord(value)) return { ...defaultAppPreferences.readerTheme };
+  if (
+    value.kind === "builtin" &&
+    (value.id === "dark" || value.id === "light" || value.id === "sepia")
+  ) {
+    return { kind: "builtin", id: value.id };
+  }
+  const customId = value.kind === "custom" ? normalizedCustomThemeId(value.id) : null;
+  return customId ? { kind: "custom", id: customId } : { ...defaultAppPreferences.readerTheme };
+}
+
 function normalizeAppearanceSettings(value: unknown): AppearanceSettings {
   const settings = isRecord(value) ? value : {};
   return {
@@ -315,6 +344,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
   }
 
   return {
+    appTheme: normalizeAppTheme(value.appTheme),
     appThemePreset:
       value.appThemePreset === "system" ||
       value.appThemePreset === "dark" ||
@@ -330,6 +360,7 @@ export function normalizeAppPreferences(value: unknown): AppPreferences {
     library: normalizeLibrarySettings(value.library, value.bookCardSize),
     navigation: normalizeRememberedNavigation(value.navigation),
     reader: normalizeReader(value.reader),
+    readerTheme: normalizeReaderTheme(value.readerTheme),
     rememberWindowState: value.rememberWindowState === true,
     restoreLastReader: value.restoreLastReader === true,
     showContinueReading: value.showContinueReading !== false,
@@ -399,6 +430,9 @@ function mergeAppPreferences(
           },
   });
 
+  if (changes.appTheme === undefined) {
+    next.appTheme = base.appTheme;
+  }
   if (changes.appearance === undefined) {
     next.appearance = base.appearance;
   }
@@ -416,6 +450,9 @@ function mergeAppPreferences(
   }
   if (changes.reader === undefined) {
     next.reader = base.reader;
+  }
+  if (changes.readerTheme === undefined) {
+    next.readerTheme = base.readerTheme;
   }
 
   if (changes.rememberWindowState === false) {
@@ -464,6 +501,9 @@ function createAppSettingsMutations(
 ): AppSettingsMutation[] {
   const mutations: AppSettingsMutation[] = [];
 
+  if (!preferenceAreaEqual(persisted.appTheme, target.appTheme)) {
+    mutations.push({ area: "appTheme", value: target.appTheme });
+  }
   if (persisted.appThemePreset !== target.appThemePreset) {
     mutations.push({ area: "appThemePreset", value: target.appThemePreset });
   }
@@ -496,6 +536,9 @@ function createAppSettingsMutations(
   }
   if (!preferenceAreaEqual(persisted.reader, target.reader)) {
     mutations.push({ area: "reader", value: target.reader });
+  }
+  if (!preferenceAreaEqual(persisted.readerTheme, target.readerTheme)) {
+    mutations.push({ area: "readerTheme", value: target.readerTheme });
   }
   if (persisted.rememberWindowState !== target.rememberWindowState) {
     mutations.push({ area: "rememberWindowState", value: target.rememberWindowState });
@@ -535,6 +578,9 @@ function preserveEquivalentPreferenceAreas(
 ): AppPreferences {
   return {
     ...native,
+    appTheme: preferenceAreaEqual(current.appTheme, native.appTheme)
+      ? current.appTheme
+      : native.appTheme,
     appearance: preferenceAreaEqual(current.appearance, native.appearance)
       ? current.appearance
       : native.appearance,
@@ -549,6 +595,9 @@ function preserveEquivalentPreferenceAreas(
       ? current.library
       : native.library,
     reader: preferenceAreaEqual(current.reader, native.reader) ? current.reader : native.reader,
+    readerTheme: preferenceAreaEqual(current.readerTheme, native.readerTheme)
+      ? current.readerTheme
+      : native.readerTheme,
   };
 }
 

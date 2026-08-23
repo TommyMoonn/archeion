@@ -15,7 +15,7 @@ use crate::atomic_file::{
 };
 use tauri::{Emitter, Manager};
 
-use super::{archive, theme_migration};
+use super::{archive, metadata, theme_migration};
 
 const APP_SETTINGS_FILE: &str = "settings.json";
 const APP_SETTINGS_CHANGED_EVENT: &str = "app-settings-changed";
@@ -129,6 +129,21 @@ pub struct ReaderSettings {
     pub mode: String,
 }
 
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum AppThemeSelection {
+    System,
+    Builtin { id: metadata::BuiltInAppThemeId },
+    Custom { id: String },
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "lowercase")]
+pub enum ReaderThemeSelection {
+    Builtin { id: metadata::BuiltInReaderThemeId },
+    Custom { id: String },
+}
+
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FilesAndMetadataSettings {
@@ -229,6 +244,7 @@ pub struct PersistedWindowState {
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AppPreferences {
+    pub app_theme: AppThemeSelection,
     pub app_theme_preset: String,
     pub appearance: AppearanceSettings,
     pub confirm_destructive_file_actions: bool,
@@ -239,6 +255,7 @@ pub struct AppPreferences {
     pub library: LibraryDisplaySettings,
     pub navigation: Option<RememberedNavigationState>,
     pub reader: ReaderSettings,
+    pub reader_theme: ReaderThemeSelection,
     pub remember_window_state: bool,
     pub restore_last_reader: bool,
     pub show_continue_reading: bool,
@@ -341,6 +358,59 @@ fn normalize_setting(value: Option<String>, supported: &[&str], fallback: &str) 
     value
         .filter(|candidate| supported.contains(&candidate.as_str()))
         .unwrap_or_else(|| fallback.to_string())
+}
+
+fn valid_theme_id(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    (3..=64).contains(&bytes.len())
+        && bytes
+            .first()
+            .is_some_and(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
+        && bytes.iter().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'_' | b'-')
+        })
+}
+
+fn parse_app_theme_selection(value: Option<&Value>) -> Option<AppThemeSelection> {
+    let value = value?.as_object()?;
+    match string_field(value, "kind")?.as_str() {
+        "system" => Some(AppThemeSelection::System),
+        "builtin" => match string_field(value, "id")?.as_str() {
+            "dark" => Some(AppThemeSelection::Builtin {
+                id: metadata::BuiltInAppThemeId::Dark,
+            }),
+            "light" => Some(AppThemeSelection::Builtin {
+                id: metadata::BuiltInAppThemeId::Light,
+            }),
+            _ => None,
+        },
+        "custom" => string_field(value, "id")
+            .filter(|id| valid_theme_id(id))
+            .map(|id| AppThemeSelection::Custom { id }),
+        _ => None,
+    }
+}
+
+fn parse_reader_theme_selection(value: Option<&Value>) -> Option<ReaderThemeSelection> {
+    let value = value?.as_object()?;
+    match string_field(value, "kind")?.as_str() {
+        "builtin" => match string_field(value, "id")?.as_str() {
+            "dark" => Some(ReaderThemeSelection::Builtin {
+                id: metadata::BuiltInReaderThemeId::Dark,
+            }),
+            "light" => Some(ReaderThemeSelection::Builtin {
+                id: metadata::BuiltInReaderThemeId::Light,
+            }),
+            "sepia" => Some(ReaderThemeSelection::Builtin {
+                id: metadata::BuiltInReaderThemeId::Sepia,
+            }),
+            _ => None,
+        },
+        "custom" => string_field(value, "id")
+            .filter(|id| valid_theme_id(id))
+            .map(|id| ReaderThemeSelection::Custom { id }),
+        _ => None,
+    }
 }
 
 fn object_field<'a>(object: &'a Map<String, Value>, key: &str) -> Option<&'a Map<String, Value>> {
@@ -890,6 +960,7 @@ fn normalize_app_preferences_value(value: &Value) -> AppPreferences {
     let files_and_metadata = object_field(settings, "filesAndMetadata");
 
     AppPreferences {
+        app_theme: parse_app_theme_selection(settings.get("appTheme")).unwrap_or_default(),
         app_theme_preset: normalize_setting(
             string_field(settings, "appThemePreset"),
             &["system", "dark", "light"],
@@ -921,6 +992,7 @@ fn normalize_app_preferences_value(value: &Value) -> AppPreferences {
         ),
         navigation: normalize_navigation(object_field(settings, "navigation")),
         reader: normalize_reader_settings(object_field(settings, "reader")),
+        reader_theme: parse_reader_theme_selection(settings.get("readerTheme")).unwrap_or_default(),
         remember_window_state: true_field(settings, "rememberWindowState"),
         restore_last_reader: true_field(settings, "restoreLastReader"),
         show_continue_reading: !false_field(settings, "showContinueReading"),
@@ -1085,6 +1157,22 @@ impl Default for ReaderSettings {
     }
 }
 
+impl Default for AppThemeSelection {
+    fn default() -> Self {
+        Self::Builtin {
+            id: metadata::BuiltInAppThemeId::Dark,
+        }
+    }
+}
+
+impl Default for ReaderThemeSelection {
+    fn default() -> Self {
+        Self::Builtin {
+            id: metadata::BuiltInReaderThemeId::Dark,
+        }
+    }
+}
+
 impl Default for FilesAndMetadataSettings {
     fn default() -> Self {
         Self {
@@ -1107,6 +1195,7 @@ impl Default for GlobalImportSettings {
 impl Default for AppPreferences {
     fn default() -> Self {
         Self {
+            app_theme: AppThemeSelection::default(),
             app_theme_preset: default_app_theme_preset(),
             appearance: AppearanceSettings::default(),
             confirm_destructive_file_actions: true,
@@ -1117,6 +1206,7 @@ impl Default for AppPreferences {
             library: LibraryDisplaySettings::default(),
             navigation: None,
             reader: ReaderSettings::default(),
+            reader_theme: ReaderThemeSelection::default(),
             remember_window_state: false,
             restore_last_reader: false,
             show_continue_reading: true,
@@ -1129,6 +1219,7 @@ impl Default for AppPreferences {
 #[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "area", content = "value", rename_all = "camelCase")]
 pub enum AppSettingsMutation {
+    AppTheme(AppThemeSelection),
     AppThemePreset(String),
     Appearance(AppearanceSettings),
     ConfirmDestructiveFileActions(bool),
@@ -1139,6 +1230,7 @@ pub enum AppSettingsMutation {
     Library(Box<LibraryDisplaySettings>),
     Navigation(Option<RememberedNavigationState>),
     Reader(Box<ReaderSettings>),
+    ReaderTheme(ReaderThemeSelection),
     RememberWindowState(bool),
     RestoreLastReader(bool),
     ShowContinueReading(bool),
@@ -1149,6 +1241,7 @@ pub enum AppSettingsMutation {
 impl AppSettingsMutation {
     fn apply(self, preferences: &mut AppPreferences) {
         match self {
+            Self::AppTheme(value) => preferences.app_theme = value,
             Self::AppThemePreset(value) => preferences.app_theme_preset = value,
             Self::Appearance(value) => preferences.appearance = value,
             Self::ConfirmDestructiveFileActions(value) => {
@@ -1161,6 +1254,7 @@ impl AppSettingsMutation {
             Self::Library(value) => preferences.library = *value,
             Self::Navigation(value) => preferences.navigation = value,
             Self::Reader(value) => preferences.reader = *value,
+            Self::ReaderTheme(value) => preferences.reader_theme = value,
             Self::RememberWindowState(value) => preferences.remember_window_state = value,
             Self::RestoreLastReader(value) => preferences.restore_last_reader = value,
             Self::ShowContinueReading(value) => preferences.show_continue_reading = value,
@@ -1303,6 +1397,102 @@ fn write_theme_migration_receipt(
         .map_err(app_settings_replace_error)
 }
 
+fn migrated_custom_theme_id(
+    preferred_archive: &Path,
+    source_id: &str,
+    report: &theme_migration::ThemeMigrationReport,
+) -> Option<String> {
+    let preferred_archive = preferred_archive.to_string_lossy();
+    report
+        .records
+        .iter()
+        .find(|record| {
+            let same_archive = if cfg!(windows) {
+                record
+                    .source_archive
+                    .eq_ignore_ascii_case(&preferred_archive)
+            } else {
+                record.source_archive == preferred_archive
+            };
+            same_archive && record.source_id == source_id
+        })
+        .and_then(|record| record.destination_id.clone())
+}
+
+fn legacy_global_theme_selections(
+    preferred_archive: Option<&Path>,
+    report: &theme_migration::ThemeMigrationReport,
+) -> (AppThemeSelection, ReaderThemeSelection) {
+    let Some(preferred_archive) = preferred_archive else {
+        return (
+            AppThemeSelection::default(),
+            ReaderThemeSelection::default(),
+        );
+    };
+    let Ok(settings) = metadata::load_settings_at(preferred_archive) else {
+        return (
+            AppThemeSelection::default(),
+            ReaderThemeSelection::default(),
+        );
+    };
+
+    let app_theme = match settings.appearance.app_theme {
+        metadata::ArchiveAppThemeSelection::System => AppThemeSelection::System,
+        metadata::ArchiveAppThemeSelection::Builtin { id } => AppThemeSelection::Builtin { id },
+        metadata::ArchiveAppThemeSelection::Custom { id } => {
+            migrated_custom_theme_id(preferred_archive, &id, report)
+                .map(|id| AppThemeSelection::Custom { id })
+                .unwrap_or_default()
+        }
+        metadata::ArchiveAppThemeSelection::Inherit => AppThemeSelection::default(),
+    };
+    let reader_theme = match settings.appearance.reader_theme {
+        metadata::ArchiveReaderThemeSelection::Builtin { id } => {
+            ReaderThemeSelection::Builtin { id }
+        }
+        metadata::ArchiveReaderThemeSelection::Custom { id } => {
+            migrated_custom_theme_id(preferred_archive, &id, report)
+                .map(|id| ReaderThemeSelection::Custom { id })
+                .unwrap_or_default()
+        }
+        metadata::ArchiveReaderThemeSelection::Inherit => ReaderThemeSelection::default(),
+    };
+    (app_theme, reader_theme)
+}
+
+fn migrate_global_theme_selections(
+    settings_path: &Path,
+    preferred_archive: Option<&Path>,
+    report: &theme_migration::ThemeMigrationReport,
+) -> Result<(), String> {
+    let value = match fs::read(settings_path) {
+        Ok(contents) => match serde_json::from_slice::<Value>(&contents) {
+            Ok(value) => value,
+            Err(_) => {
+                read_settings(settings_path)?;
+                return Ok(());
+            }
+        },
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Value::Object(Map::new()),
+        Err(error) => return Err(format!("App settings could not be read: {error}")),
+    };
+    let Some(settings) = value.as_object() else {
+        return write_settings(settings_path, &AppPreferences::default());
+    };
+    let app_theme = parse_app_theme_selection(settings.get("appTheme"));
+    let reader_theme = parse_reader_theme_selection(settings.get("readerTheme"));
+    if app_theme.is_some() && reader_theme.is_some() {
+        return Ok(());
+    }
+
+    let mut preferences = normalize_app_preferences_value(&value);
+    if !settings.contains_key("appTheme") && !settings.contains_key("readerTheme") {
+        (preferences.app_theme, preferences.reader_theme) =
+            legacy_global_theme_selections(preferred_archive, report);
+    }
+    write_settings(settings_path, &preferences)
+}
+
 struct AppSettingsState {
     revision: u64,
     preferences: Option<AppPreferences>,
@@ -1313,21 +1503,29 @@ pub(crate) struct AppSettingsService {
     state: Mutex<AppSettingsState>,
 }
 
-fn build_service_after_theme_migration<Migrate, PersistReceipt, ReportReceiptError>(
+fn build_service_after_theme_migration<
+    Migrate,
+    PersistReceipt,
+    ReportReceiptError,
+    MigrateSelections,
+>(
     path: PathBuf,
     migrate: Migrate,
     persist_receipt: PersistReceipt,
     report_receipt_error: ReportReceiptError,
+    migrate_selections: MigrateSelections,
 ) -> Result<AppSettingsService, String>
 where
     Migrate: FnOnce() -> Result<theme_migration::ThemeMigrationReport, String>,
     PersistReceipt: FnOnce(&theme_migration::ThemeMigrationReport) -> Result<(), String>,
     ReportReceiptError: FnOnce(&str),
+    MigrateSelections: FnOnce(&theme_migration::ThemeMigrationReport) -> Result<(), String>,
 {
     let report = migrate()?;
     if let Err(error) = persist_receipt(&report) {
         report_receipt_error(&error);
     }
+    migrate_selections(&report)?;
     Ok(AppSettingsService::new(path))
 }
 
@@ -1335,12 +1533,21 @@ impl AppSettingsService {
     pub(crate) fn from_app(app: &tauri::AppHandle) -> Result<Self, String> {
         let path = settings_path(app)?;
         let archive_roots = archive::registered_archive_roots(app)?;
+        let preferred_archive = archive::read_active_archive_path(app)?.map(PathBuf::from);
         let receipt_settings_path = path.clone();
+        let selection_settings_path = path.clone();
         build_service_after_theme_migration(
             path,
             || theme_migration::migrate_registered_legacy_theme_packages(app, &archive_roots),
             |report| write_theme_migration_receipt(&receipt_settings_path, report),
             |error| eprintln!("theme migration receipt could not be persisted: {error}"),
+            |report| {
+                migrate_global_theme_selections(
+                    &selection_settings_path,
+                    preferred_archive.as_deref(),
+                    report,
+                )
+            },
         )
     }
 
@@ -1470,15 +1677,20 @@ mod tests {
     };
 
     use super::{
-        build_service_after_theme_migration, read_settings, write_settings,
-        write_theme_migration_receipt, AppPreferences, AppSettingsMutation, AppSettingsService,
-        AppearanceSettings, KeyboardBinding, KeyboardPreferences, KeyboardShortcutOverride,
-        LibrarySmartViewSettings, ReaderSettings, THEME_MIGRATION_RECEIPT_FILE,
+        build_service_after_theme_migration, migrate_global_theme_selections, read_settings,
+        write_settings, write_theme_migration_receipt, AppPreferences, AppSettingsMutation,
+        AppSettingsService, AppThemeSelection, AppearanceSettings, KeyboardBinding,
+        KeyboardPreferences, KeyboardShortcutOverride, LibrarySmartViewSettings, ReaderSettings,
+        ReaderThemeSelection, THEME_MIGRATION_RECEIPT_FILE,
     };
 
     fn merge_expected(base: &mut Value, patch: &Value) {
         match (base, patch) {
             (Value::Object(base), Value::Object(patch)) => {
+                if patch.contains_key("kind") {
+                    *base = patch.clone();
+                    return;
+                }
                 for (key, value) in patch {
                     if let Some(existing) = base.get_mut(key) {
                         merge_expected(existing, value);
@@ -1494,9 +1706,9 @@ mod tests {
     #[test]
     fn app_preferences_match_the_shared_cross_language_fixture_corpus() {
         let corpus: Value =
-            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v1.json"))
+            serde_json::from_str(include_str!("../../../tests/fixtures/app-settings/v2.json"))
                 .expect("shared app settings fixtures should parse");
-        assert_eq!(corpus["version"], 1);
+        assert_eq!(corpus["version"], 2);
 
         for fixture in corpus["cases"]
             .as_array()
@@ -2130,6 +2342,45 @@ mod tests {
     }
 
     #[test]
+    fn typed_global_theme_mutations_preserve_independent_selections() {
+        let root = temporary_settings_root("typed-global-themes");
+        let service = AppSettingsService::new(root.join("settings.json"));
+
+        let app = service
+            .mutate(
+                AppSettingsMutation::AppTheme(AppThemeSelection::Custom {
+                    id: "moon-ink".to_string(),
+                }),
+                |_| {},
+            )
+            .expect("application theme should update");
+        let reader = service
+            .mutate(
+                AppSettingsMutation::ReaderTheme(ReaderThemeSelection::Builtin {
+                    id: crate::commands::metadata::BuiltInReaderThemeId::Sepia,
+                }),
+                |_| {},
+            )
+            .expect("Reader theme should update");
+
+        assert_eq!(app.revision, 1);
+        assert_eq!(reader.revision, 2);
+        assert_eq!(
+            reader.preferences.app_theme,
+            AppThemeSelection::Custom {
+                id: "moon-ink".to_string()
+            }
+        );
+        assert_eq!(
+            reader.preferences.reader_theme,
+            ReaderThemeSelection::Builtin {
+                id: crate::commands::metadata::BuiltInReaderThemeId::Sepia
+            }
+        );
+        std::fs::remove_dir_all(root).expect("settings root should be removed");
+    }
+
+    #[test]
     fn failed_typed_mutation_does_not_advance_or_publish_revision() {
         let root = temporary_settings_root("typed-failure");
         let path = root.join("settings.json");
@@ -2262,6 +2513,7 @@ mod tests {
             || migrate_legacy_theme_packages_at(&app_data, std::slice::from_ref(&archive)),
             |_| Err("simulated receipt persistence failure".to_string()),
             |error| diagnostics.borrow_mut().push(error.to_string()),
+            |_| Ok(()),
         )
         .expect("a receipt failure must not block service construction");
 
@@ -2284,6 +2536,7 @@ mod tests {
             || migrate_legacy_theme_packages_at(&app_data, std::slice::from_ref(&archive)),
             |report| write_theme_migration_receipt(&settings_path, report),
             |_| panic!("the later receipt write should succeed"),
+            |_| Ok(()),
         )
         .expect("a later idempotent scan should construct the service");
 
@@ -2305,6 +2558,172 @@ mod tests {
             source_manifest
         );
 
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn global_theme_selections_seed_from_the_preferred_archive() {
+        let root = temporary_settings_root("global-theme-selection-builtins");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let metadata = archive.join(".archeion");
+        std::fs::create_dir_all(&metadata).unwrap();
+        std::fs::write(
+            metadata.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "version": 2,
+                "import": {},
+                "appearance": {
+                    "appTheme": { "kind": "system" },
+                    "readerTheme": { "kind": "builtin", "id": "sepia" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let settings_path = app_data.join("settings.json");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+        let preferences = read_settings(&settings_path).unwrap();
+
+        assert_eq!(preferences.app_theme, AppThemeSelection::System);
+        assert_eq!(
+            preferences.reader_theme,
+            ReaderThemeSelection::Builtin {
+                id: crate::commands::metadata::BuiltInReaderThemeId::Sepia
+            }
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn global_custom_selections_use_migrated_conflict_ids_and_are_seeded_only_once() {
+        let root = temporary_settings_root("global-theme-selection-custom");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let other_archive = root.join("other-archive");
+        let metadata = archive.join(".archeion");
+        let legacy_package = metadata.join("themes/moon-ink");
+        let other_package = other_archive.join(".archeion/themes/moon-ink");
+        let global_package = app_data.join("themes/moon-ink");
+        std::fs::create_dir_all(&legacy_package).unwrap();
+        std::fs::create_dir_all(&other_package).unwrap();
+        std::fs::create_dir_all(&global_package).unwrap();
+        std::fs::write(
+            legacy_package.join("theme.json"),
+            br#"{"id":"moon-ink","name":"Legacy Moon"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            other_package.join("theme.json"),
+            br#"{"id":"moon-ink","name":"Other Archive Moon"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            global_package.join("theme.json"),
+            br#"{"id":"moon-ink","name":"Global Moon"}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            metadata.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "version": 2,
+                "import": {},
+                "appearance": {
+                    "appTheme": { "kind": "custom", "id": "moon-ink" },
+                    "readerTheme": { "kind": "custom", "id": "moon-ink" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let settings_path = app_data.join("settings.json");
+        std::fs::write(&settings_path, br#"{"density":"compact"}"#).unwrap();
+        let report =
+            migrate_legacy_theme_packages_at(&app_data, &[other_archive, archive.clone()]).unwrap();
+        let destination_id = report
+            .records
+            .iter()
+            .find(|record| record.source_archive == archive.to_string_lossy())
+            .and_then(|record| record.destination_id.clone())
+            .unwrap();
+        assert_ne!(destination_id, "moon-ink");
+
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+        let preferences = read_settings(&settings_path).unwrap();
+
+        assert_eq!(
+            preferences.app_theme,
+            AppThemeSelection::Custom {
+                id: destination_id.clone()
+            }
+        );
+        assert_eq!(
+            preferences.reader_theme,
+            ReaderThemeSelection::Custom {
+                id: destination_id.clone()
+            }
+        );
+        assert_eq!(preferences.density, "compact");
+        assert!(app_data.join("themes").join(&destination_id).is_dir());
+
+        std::fs::write(
+            metadata.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "version": 2,
+                "import": {},
+                "appearance": {
+                    "appTheme": { "kind": "builtin", "id": "light" },
+                    "readerTheme": { "kind": "builtin", "id": "sepia" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+        let preserved = read_settings(&settings_path).unwrap();
+        assert_eq!(preserved.app_theme, preferences.app_theme);
+        assert_eq!(preserved.reader_theme, preferences.reader_theme);
+
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn missing_or_unmapped_legacy_theme_selections_use_global_defaults() {
+        let root = temporary_settings_root("global-theme-selection-fallback");
+        let app_data = root.join("app-data");
+        let archive = root.join("archive");
+        let metadata = archive.join(".archeion");
+        std::fs::create_dir_all(&metadata).unwrap();
+        std::fs::write(
+            metadata.join("settings.json"),
+            serde_json::to_vec(&serde_json::json!({
+                "version": 2,
+                "import": {},
+                "appearance": {
+                    "appTheme": { "kind": "custom", "id": "missing-theme" },
+                    "readerTheme": { "kind": "custom", "id": "missing-theme" }
+                }
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let settings_path = app_data.join("settings.json");
+        let report = ThemeMigrationReport {
+            version: 1,
+            records: Vec::new(),
+        };
+
+        migrate_global_theme_selections(&settings_path, Some(&archive), &report).unwrap();
+
+        assert_eq!(
+            read_settings(&settings_path).unwrap(),
+            AppPreferences::default()
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 

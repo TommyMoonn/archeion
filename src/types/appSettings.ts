@@ -1,7 +1,9 @@
 import type {
+  AppThemeSelection,
   FilesAndMetadataSettings,
   GlobalImportSettings,
   LibraryDisplaySettings,
+  ReaderThemeSelection,
 } from "./settings";
 import type { KeyboardPreferences } from "./keyboard";
 import {
@@ -36,6 +38,7 @@ export type AppearanceSettings = {
 };
 
 export type AppPreferences = {
+  appTheme: AppThemeSelection;
   appThemePreset: AppThemePreset;
   appearance: AppearanceSettings;
   confirmDestructiveFileActions: boolean;
@@ -46,6 +49,7 @@ export type AppPreferences = {
   library: LibraryDisplaySettings;
   navigation: RememberedNavigationState | null;
   reader: ReaderSettings;
+  readerTheme: ReaderThemeSelection;
   rememberWindowState: boolean;
   restoreLastReader: boolean;
   showContinueReading: boolean;
@@ -59,6 +63,7 @@ export type AppSettingsSnapshot = {
 };
 
 export type AppSettingsMutation =
+  | { area: "appTheme"; value: AppPreferences["appTheme"] }
   | { area: "appThemePreset"; value: AppPreferences["appThemePreset"] }
   | { area: "appearance"; value: AppPreferences["appearance"] }
   | {
@@ -72,6 +77,7 @@ export type AppSettingsMutation =
   | { area: "library"; value: AppPreferences["library"] }
   | { area: "navigation"; value: AppPreferences["navigation"] }
   | { area: "reader"; value: AppPreferences["reader"] }
+  | { area: "readerTheme"; value: AppPreferences["readerTheme"] }
   | { area: "rememberWindowState"; value: AppPreferences["rememberWindowState"] }
   | { area: "restoreLastReader"; value: AppPreferences["restoreLastReader"] }
   | { area: "showContinueReading"; value: AppPreferences["showContinueReading"] }
@@ -81,6 +87,7 @@ export type AppSettingsMutation =
 export const APP_SETTINGS_CHANGED_EVENT = "app-settings-changed";
 
 export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
+  appTheme: Object.freeze({ kind: "builtin", id: "dark" }),
   appThemePreset: "dark",
   appearance: Object.freeze({
     animationsEnabled: false,
@@ -118,6 +125,7 @@ export const defaultAppPreferences: Readonly<AppPreferences> = Object.freeze({
     progressPlacement: "top",
     mode: "paged",
   }),
+  readerTheme: Object.freeze({ kind: "builtin", id: "dark" }),
   rememberWindowState: false,
   restoreLastReader: false,
   showContinueReading: true,
