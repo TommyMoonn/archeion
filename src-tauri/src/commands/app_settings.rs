@@ -1436,7 +1436,8 @@ fn legacy_global_theme_selections(
         );
     };
 
-    let app_theme = match settings.appearance.app_theme {
+    let appearance = settings.into_legacy_appearance().unwrap_or_default();
+    let app_theme = match appearance.app_theme {
         metadata::ArchiveAppThemeSelection::System => AppThemeSelection::System,
         metadata::ArchiveAppThemeSelection::Builtin { id } => AppThemeSelection::Builtin { id },
         metadata::ArchiveAppThemeSelection::Custom { id } => {
@@ -1446,7 +1447,7 @@ fn legacy_global_theme_selections(
         }
         metadata::ArchiveAppThemeSelection::Inherit => AppThemeSelection::default(),
     };
-    let reader_theme = match settings.appearance.reader_theme {
+    let reader_theme = match appearance.reader_theme {
         metadata::ArchiveReaderThemeSelection::Builtin { id } => {
             ReaderThemeSelection::Builtin { id }
         }

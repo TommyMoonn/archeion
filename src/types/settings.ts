@@ -32,13 +32,17 @@ export type AppThemeSelection =
 export type ReaderThemeSelection =
   { kind: "builtin"; id: "dark" | "light" | "sepia" } | { kind: "custom"; id: string };
 
-export type ArchiveAppThemeSelection = { kind: "inherit" } | AppThemeSelection;
+export type LegacyArchiveAppThemeSelection = { kind: "inherit" } | AppThemeSelection;
 
-export type ArchiveReaderThemeSelection = { kind: "inherit" } | ReaderThemeSelection;
+export type LegacyArchiveReaderThemeSelection = { kind: "inherit" } | ReaderThemeSelection;
 
-export type ArchiveAppearanceSettings = {
-  appTheme: ArchiveAppThemeSelection;
-  readerTheme: ArchiveReaderThemeSelection;
+export type LegacyArchiveAppearanceSettings = {
+  appTheme: LegacyArchiveAppThemeSelection;
+  readerTheme: LegacyArchiveReaderThemeSelection;
 };
+
+export type ArchiveAppThemeSelection = LegacyArchiveAppThemeSelection;
+export type ArchiveReaderThemeSelection = LegacyArchiveReaderThemeSelection;
+export type ArchiveAppearanceSettings = LegacyArchiveAppearanceSettings;
 
 export type ImportSettings = GlobalImportSettings & ArchiveImportSettings;

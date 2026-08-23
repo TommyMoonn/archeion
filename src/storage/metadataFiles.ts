@@ -34,9 +34,8 @@ export type ProgressMetadata = {
 };
 
 export type SettingsMetadata = {
-  version: 2;
+  version: 3;
   import: ArchiveImportSettings;
-  appearance: ArchiveAppearanceSettings;
 };
 
 export type LegacySettingsMetadata = {
@@ -70,9 +69,8 @@ export function createProgressMetadata(): ProgressMetadata {
 
 export function createSettingsMetadata(): SettingsMetadata {
   return {
-    version: 2,
+    version: 3,
     import: { ...defaultArchiveImportSettings },
-    appearance: cloneArchiveAppearanceSettings(defaultArchiveAppearanceSettings),
   };
 }
 
@@ -104,14 +102,10 @@ export function normalizeArchiveAppearanceSettings(settings?: unknown): ArchiveA
 
 export function normalizeSettingsMetadata(metadata?: LegacySettingsMetadata): SettingsMetadata {
   return {
-    version: 2,
+    version: 3,
     import: normalizeArchiveImportSettings(
       isRecord(metadata?.import) ? metadata.import : undefined,
     ),
-    appearance:
-      metadata?.version === 2
-        ? normalizeArchiveAppearanceSettings(metadata.appearance)
-        : cloneArchiveAppearanceSettings(defaultArchiveAppearanceSettings),
   };
 }
 

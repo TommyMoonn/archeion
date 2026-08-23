@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   createLibraryMetadata,
   createSettingsMetadata,
+  normalizeArchiveAppearanceSettings,
   normalizeSettingsMetadata,
 } from "./metadataFiles";
 
@@ -14,14 +15,10 @@ describe("metadataFiles", () => {
     });
   });
 
-  it("creates version 2 archive settings with inherited appearance", () => {
+  it("creates version 3 archive settings with only archive-local import settings", () => {
     expect(createSettingsMetadata()).toEqual({
-      version: 2,
+      version: 3,
       import: {},
-      appearance: {
-        appTheme: { kind: "inherit" },
-        readerTheme: { kind: "inherit" },
-      },
     });
   });
 
@@ -51,18 +48,14 @@ describe("metadataFiles", () => {
         },
       }),
     ).toEqual({
-      version: 2,
+      version: 3,
       import: {
         defaultDestinationFolderPath: "Fiction/Classics",
-      },
-      appearance: {
-        appTheme: { kind: "inherit" },
-        readerTheme: { kind: "inherit" },
       },
     });
   });
 
-  it("normalizes version 2 appearance selections while preserving custom references", () => {
+  it("drops version 2 appearance while preserving archive import settings", () => {
     expect(
       normalizeSettingsMetadata({
         version: 2,
@@ -73,31 +66,20 @@ describe("metadataFiles", () => {
         },
       }),
     ).toEqual({
-      version: 2,
+      version: 3,
       import: { defaultDestinationFolderPath: "Themes/Incoming" },
-      appearance: {
-        appTheme: { kind: "custom", id: "missing-theme" },
-        readerTheme: { kind: "builtin", id: "sepia" },
-      },
     });
   });
 
-  it("falls back malformed selections independently without exposing unsupported kinds", () => {
+  it("normalizes the dedicated legacy appearance command result", () => {
     expect(
-      normalizeSettingsMetadata({
-        version: 2,
-        appearance: {
-          appTheme: { kind: "builtin", id: "sepia" },
-          readerTheme: { kind: "system" },
-        },
+      normalizeArchiveAppearanceSettings({
+        appTheme: { kind: "custom", id: "missing-theme" },
+        readerTheme: { kind: "builtin", id: "sepia" },
       }),
     ).toEqual({
-      version: 2,
-      import: {},
-      appearance: {
-        appTheme: { kind: "inherit" },
-        readerTheme: { kind: "inherit" },
-      },
+      appTheme: { kind: "custom", id: "missing-theme" },
+      readerTheme: { kind: "builtin", id: "sepia" },
     });
   });
 });

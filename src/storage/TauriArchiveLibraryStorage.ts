@@ -103,6 +103,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   private readonly coverPromises = new Map<string, Promise<Blob | undefined>>();
   private readonly operationWarningObservers = new Set<StorageObserver<ArchiveOperationWarning>>();
   private settingsMetadata = createSettingsMetadata();
+  private archiveAppearanceSettings = cloneArchiveAppearanceSettings(
+    defaultArchiveAppearanceSettings,
+  );
+  private legacyArchiveAppearanceLoaded = false;
+  private legacyArchiveAppearanceLoad: Promise<void> | null = null;
 
   private readonly commands = new ArchiveCommandClient();
   private readonly mutationCoordinator: ArchiveMutationCoordinator;
@@ -198,6 +203,11 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     this.scanSession.reset();
     this.coverPromises.clear();
     this.settingsMetadata = createSettingsMetadata();
+    this.archiveAppearanceSettings = cloneArchiveAppearanceSettings(
+      defaultArchiveAppearanceSettings,
+    );
+    this.legacyArchiveAppearanceLoaded = false;
+    this.legacyArchiveAppearanceLoad = null;
     this.mutationCoordinator.reset();
     this.annotationRepository.reset();
   }
@@ -542,33 +552,31 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
   }
 
   async getArchiveAppearanceSettings(): Promise<ArchiveAppearanceSettings> {
-    const settings = await this.ensureSettingsMetadata();
-    return cloneArchiveAppearanceSettings(settings.appearance);
+    await this.ensureLegacyArchiveAppearanceSettings();
+    return cloneArchiveAppearanceSettings(this.archiveAppearanceSettings);
   }
 
   async saveArchiveAppearanceSettings(
     settings: ArchiveAppearanceSettings,
   ): Promise<ArchiveAppearanceSettings> {
     const scope = this.createArchiveCommandScope();
-    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
-      ...current,
-      appearance: normalizeArchiveAppearanceSettings(settings),
-    }));
-    return cloneArchiveAppearanceSettings(metadata.appearance);
+    await this.ensureLegacyArchiveAppearanceSettings(scope);
+    this.assertCurrentArchiveScope(scope);
+    this.archiveAppearanceSettings = normalizeArchiveAppearanceSettings(settings);
+    return cloneArchiveAppearanceSettings(this.archiveAppearanceSettings);
   }
 
   async updateArchiveAppearanceSettings(
     changes: Partial<ArchiveAppearanceSettings>,
   ): Promise<ArchiveAppearanceSettings> {
     const scope = this.createArchiveCommandScope();
-    const metadata = await this.mutateSettingsMetadata(scope, (current) => ({
-      ...current,
-      appearance: {
-        ...current.appearance,
-        ...changes,
-      },
-    }));
-    return cloneArchiveAppearanceSettings(metadata.appearance);
+    await this.ensureLegacyArchiveAppearanceSettings(scope);
+    this.assertCurrentArchiveScope(scope);
+    this.archiveAppearanceSettings = normalizeArchiveAppearanceSettings({
+      ...this.archiveAppearanceSettings,
+      ...changes,
+    });
+    return cloneArchiveAppearanceSettings(this.archiveAppearanceSettings);
   }
 
   resetArchiveAppearanceSettings(): Promise<ArchiveAppearanceSettings> {
@@ -652,6 +660,37 @@ export class TauriArchiveLibraryStorage implements LibraryStorage {
     }
     this.settingsMetadata = normalizeSettingsMetadata(metadata);
     return this.settingsMetadata;
+  }
+
+  private ensureLegacyArchiveAppearanceSettings(
+    scope = this.createArchiveCommandScope(),
+  ): Promise<void> {
+    if (this.legacyArchiveAppearanceLoaded) {
+      this.assertCurrentArchiveScope(scope);
+      return Promise.resolve();
+    }
+    if (this.legacyArchiveAppearanceLoad) {
+      return this.legacyArchiveAppearanceLoad;
+    }
+
+    const load = this.mutationCoordinator
+      .runMetadataIo(scope, () =>
+        this.commands.invoke("load_legacy_archive_appearance_settings", undefined, scope.rootPath),
+      )
+      .then((appearance) => {
+        this.assertCurrentArchiveScope(scope);
+        if (appearance) {
+          this.archiveAppearanceSettings = normalizeArchiveAppearanceSettings(appearance);
+        }
+        this.legacyArchiveAppearanceLoaded = true;
+      })
+      .finally(() => {
+        if (this.legacyArchiveAppearanceLoad === load) {
+          this.legacyArchiveAppearanceLoad = null;
+        }
+      });
+    this.legacyArchiveAppearanceLoad = load;
+    return load;
   }
 
   private async ensureSettingsMetadata(

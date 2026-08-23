@@ -16,6 +16,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 describe("archive appearance settings source", () => {
   let persisted: SettingsMetadata;
+  const legacyAppearance: ArchiveAppearanceSettings = {
+    appTheme: { kind: "builtin", id: "light" },
+    readerTheme: { kind: "builtin", id: "sepia" },
+  };
 
   beforeEach(() => {
     persisted = createSettingsMetadata();
@@ -23,6 +27,9 @@ describe("archive appearance settings source", () => {
     invokeMock.mockImplementation(
       async (command: string, args?: { metadata?: SettingsMetadata }) => {
         if (command === "load_settings_metadata") return structuredClone(persisted);
+        if (command === "load_legacy_archive_appearance_settings") {
+          return structuredClone(legacyAppearance);
+        }
         if (command === "save_settings_metadata" && args?.metadata) {
           persisted = structuredClone(args.metadata);
         }
@@ -31,7 +38,7 @@ describe("archive appearance settings source", () => {
     );
   });
 
-  it("preserves the real storage receiver through runtime persistence", async () => {
+  it("preserves transitional runtime behavior without writing archive appearance", async () => {
     const storage = new TauriArchiveLibraryStorage();
     storage.reset("C:/ArchiveA");
     const source = createArchiveAppearanceSettingsSource(storage);
@@ -44,23 +51,25 @@ describe("archive appearance settings source", () => {
     });
     runtime.start();
     await runtime.activateArchive({ id: "archive-a", rootPath: "C:/ArchiveA" }, source);
+    expect(runtime.getSnapshot().app.base).toBe("light");
+    expect(runtime.getSnapshot().reader.base).toBe("sepia");
+    expect(invokeMock).toHaveBeenCalledWith("load_legacy_archive_appearance_settings", {
+      rootPath: "C:/ArchiveA",
+    });
     const context = runtime.getPreviewContext();
     if (!context) throw new Error("Expected an active appearance context");
     const next: ArchiveAppearanceSettings = {
-      appTheme: { kind: "builtin", id: "light" },
-      readerTheme: { kind: "builtin", id: "sepia" },
+      appTheme: { kind: "builtin", id: "dark" },
+      readerTheme: { kind: "builtin", id: "light" },
     };
 
     await expect(runtime.saveArchiveAppearanceSettings(context.archive, next)).resolves.toEqual(
       next,
     );
 
-    expect(persisted.appearance).toEqual(next);
-    expect(runtime.getSnapshot().app.base).toBe("light");
-    expect(runtime.getSnapshot().reader.base).toBe("sepia");
-    expect(invokeMock).toHaveBeenCalledWith(
-      "save_settings_metadata",
-      expect.objectContaining({ metadata: expect.objectContaining({ appearance: next }) }),
-    );
+    expect(persisted).toEqual({ version: 3, import: {} });
+    expect(runtime.getSnapshot().app.base).toBe("dark");
+    expect(runtime.getSnapshot().reader.base).toBe("light");
+    expect(invokeMock).not.toHaveBeenCalledWith("save_settings_metadata", expect.anything());
   });
 });

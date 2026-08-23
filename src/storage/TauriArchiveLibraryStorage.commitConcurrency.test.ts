@@ -56,12 +56,8 @@ function concurrentArchive(): { metadata: MetadataBundle; scan: ArchiveScan } {
       library: { version: 1, books: libraryBooks },
       progress: { version: 1, progress },
       settings: {
-        version: 2,
+        version: 3,
         import: {},
-        appearance: {
-          appTheme: { kind: "inherit" },
-          readerTheme: { kind: "inherit" },
-        },
       },
     },
     scan: {
