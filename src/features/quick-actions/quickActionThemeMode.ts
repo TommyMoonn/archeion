@@ -1,9 +1,9 @@
 import type { ArchiveAppThemeSelection } from "../../types/settings";
 import type { AppearanceRuntime } from "../../themes/AppearanceRuntime";
-import type { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
-import { appearanceRuntime, archiveThemeCatalog } from "../../themes/appearanceRuntimeInstance";
+import type { ThemeCatalog } from "../../themes/ThemeCatalog";
+import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
 import type {
-  ArchiveThemeCatalogSnapshot,
+  ThemeCatalogSnapshot,
   BuiltInThemeCatalogEntry,
   ValidCustomThemeCatalogEntry,
 } from "../../themes/themeCatalogReadModel";
@@ -21,7 +21,7 @@ type ApplicationBuiltInThemeEntry = BuiltInThemeCatalogEntry &
 type ApplicationThemeEntry = ApplicationBuiltInThemeEntry | ValidCustomThemeCatalogEntry;
 
 export type QuickActionThemeModeServices = Readonly<{
-  catalog: Pick<ArchiveThemeCatalog, "getSnapshot" | "refreshPackages">;
+  catalog: Pick<ThemeCatalog, "getSnapshot" | "refreshPackages">;
   previewSession: Pick<
     ThemePreviewSession,
     | "acknowledgeWarnings"
@@ -35,7 +35,7 @@ export type QuickActionThemeModeServices = Readonly<{
 }>;
 
 const defaultServices: QuickActionThemeModeServices = {
-  catalog: archiveThemeCatalog,
+  catalog: themeCatalog,
   previewSession: themePreviewSession,
   runtime: appearanceRuntime,
 };
@@ -207,7 +207,7 @@ class ThemeQuickActionMode implements QuickActionChildMode {
     this.listeners.forEach((listener) => listener());
   }
 
-  private async refresh(initialSnapshot: ArchiveThemeCatalogSnapshot): Promise<void> {
+  private async refresh(initialSnapshot: ThemeCatalogSnapshot): Promise<void> {
     try {
       const refreshed = await this.services.catalog.refreshPackages();
       if (this.disposed || !sameCatalogScope(initialSnapshot, refreshed)) return;
@@ -241,9 +241,7 @@ class ThemeQuickActionMode implements QuickActionChildMode {
   }
 }
 
-function applicationEntries(
-  snapshot: ArchiveThemeCatalogSnapshot,
-): Map<string, ApplicationThemeEntry> {
+function applicationEntries(snapshot: ThemeCatalogSnapshot): Map<string, ApplicationThemeEntry> {
   return new Map(
     snapshot.entries
       .filter(
@@ -295,10 +293,7 @@ function warningCountText(count: number): string {
   return `${count} contrast ${count === 1 ? "warning" : "warnings"}`;
 }
 
-function sameCatalogScope(
-  initial: ArchiveThemeCatalogSnapshot,
-  refreshed: ArchiveThemeCatalogSnapshot,
-): boolean {
+function sameCatalogScope(initial: ThemeCatalogSnapshot, refreshed: ThemeCatalogSnapshot): boolean {
   return Boolean(
     initial.archive &&
     refreshed.archive &&

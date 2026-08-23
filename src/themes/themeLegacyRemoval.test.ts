@@ -29,7 +29,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     const managerDialog = source("src/features/themes/ThemeManagerDialog.tsx");
     const settingsDialog = source("src/features/settings/SettingsDialog.tsx");
     const settingsController = source("src/features/settings/useSettingsDialogController.ts");
-    const catalogHook = source("src/features/themes/useArchiveThemeCatalogEntries.ts");
+    const catalogHook = source("src/features/themes/useThemeCatalogEntries.ts");
 
     for (const productionSource of [managerController, managerDialog]) {
       expect(productionSource).not.toContain("onAppearanceChanged");
@@ -38,7 +38,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     expect(settingsDialog).toContain("onClose={() => setThemeManagerOpen(false)}");
     expect(settingsDialog).not.toMatch(/onClose=\{\(\) =>\s*\{[^}]*themeCatalog\.refresh/s);
     expect(settingsController).not.toContain("themeCatalogError");
-    expect(catalogHook).toContain("archiveThemeCatalog.refreshPackages()");
+    expect(catalogHook).toContain("themeCatalog.refreshPackages()");
     expect(catalogHook).not.toContain("onAppearanceChanged");
   });
 
@@ -50,7 +50,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
 
     const nativeCommands = source("src-tauri/src/commands/themes.rs");
     const invokeHandler = source("src-tauri/src/lib.rs");
-    const repository = source("src/themes/ArchiveThemeRepository.ts");
+    const repository = source("src/themes/ThemeRepository.ts");
     for (const productionSource of [nativeCommands, invokeHandler, repository]) {
       expect(productionSource).not.toContain("create_archive_theme_starter");
       expect(productionSource).not.toContain("reveal_archive_theme_package");

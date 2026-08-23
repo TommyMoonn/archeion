@@ -6,19 +6,16 @@ import {
   type ActiveAppearanceArchive,
   type AppearancePreviewContext,
 } from "../../themes/AppearanceRuntime";
-import type {
-  ArchiveThemeCatalogSnapshot,
-  ThemeCatalogEntry,
-} from "../../themes/themeCatalogReadModel";
-import type { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
-import type { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
+import type { ThemeCatalogSnapshot, ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
+import type { ThemeCatalog } from "../../themes/ThemeCatalog";
+import type { ThemeRepository } from "../../themes/ThemeRepository";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { parseThemeJson } from "../../themes/parseThemeJson";
 import type { ThemePreviewHandle, ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { validateThemeManifest } from "../../themes/validateThemeManifest";
 
 export type ThemeManagerRepository = Pick<
-  ArchiveThemeRepository,
+  ThemeRepository,
   "deletePackage" | "replaceManifest" | "revealThemesRoot" | "storeManifest"
 >;
 
@@ -42,7 +39,7 @@ export type ThemeManagerBusyAction =
 
 export type ThemeManagerControllerOptions = Readonly<{
   archiveRootPath: string;
-  catalog: ArchiveThemeCatalog;
+  catalog: ThemeCatalog;
   onArchiveScopeInvalidated?: () => void;
   previewSession: ThemePreviewSession;
   repository: ThemeManagerRepository;
@@ -520,7 +517,7 @@ function appThemeEntryKey(
 
 function initialSelectedKey(
   context: AppearancePreviewContext | null,
-  snapshot: ArchiveThemeCatalogSnapshot,
+  snapshot: ThemeCatalogSnapshot,
 ): string {
   const app = context?.settings.appTheme;
   if (app?.kind === "custom") return customEntryKey(app.id);

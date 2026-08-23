@@ -8,12 +8,12 @@ import {
 } from "react";
 
 import { AppearanceRuntimeSettingsChangedError } from "../../themes/AppearanceRuntime";
-import { ArchiveThemeCatalogChangedError } from "../../themes/ArchiveThemeCatalog";
-import { appearanceRuntime, archiveThemeCatalog } from "../../themes/appearanceRuntimeInstance";
+import { ThemeCatalogChangedError } from "../../themes/ThemeCatalog";
+import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { useArchive } from "../archive/useArchive";
 
-type ArchiveThemeCatalogEntriesState = Readonly<{
+type ThemeCatalogEntriesState = Readonly<{
   entries: readonly ThemeCatalogEntry[];
   error: string | null;
   loading: boolean;
@@ -21,20 +21,20 @@ type ArchiveThemeCatalogEntriesState = Readonly<{
   retireRefreshFailure: () => void;
 }>;
 
-type ArchiveThemeCatalogEntriesOptions = Readonly<{
+type ThemeCatalogEntriesOptions = Readonly<{
   reportRefreshFailure?: boolean;
 }>;
 
-export function useArchiveThemeCatalogEntries(
+export function useThemeCatalogEntries(
   enabled: boolean,
-  { reportRefreshFailure = true }: ArchiveThemeCatalogEntriesOptions = {},
+  { reportRefreshFailure = true }: ThemeCatalogEntriesOptions = {},
 ) {
   const archive = useArchive();
   const archiveRootPath = "path" in archive ? archive.path : null;
   const snapshot = useSyncExternalStore(
-    archiveThemeCatalog.subscribe,
-    archiveThemeCatalog.getSnapshot,
-    archiveThemeCatalog.getSnapshot,
+    themeCatalog.subscribe,
+    themeCatalog.getSnapshot,
+    themeCatalog.getSnapshot,
   );
   const archiveGeneration =
     snapshot.archive?.rootPath === archiveRootPath ? snapshot.archive.generation : null;
@@ -69,13 +69,13 @@ export function useArchiveThemeCatalogEntries(
   }, [reportRefreshFailure]);
 
   useEffect(() => {
-    const current = archiveThemeCatalog.getSnapshot();
+    const current = themeCatalog.getSnapshot();
     const currentArchive = current.archive;
     if (!enabled || !archiveRootPath || currentArchive?.rootPath !== archiveRootPath) return;
     if (current.fullyEnumerated) return;
 
     let active = true;
-    void archiveThemeCatalog.enumeratePackages().then(
+    void themeCatalog.enumeratePackages().then(
       () => {
         if (active) setFailure(null);
       },
@@ -103,9 +103,9 @@ export function useArchiveThemeCatalogEntries(
     const operation = (async () => {
       let catalogRefreshed = false;
       try {
-        await archiveThemeCatalog.refreshPackages();
+        await themeCatalog.refreshPackages();
         catalogRefreshed = true;
-        const currentCatalogScope = archiveThemeCatalog.getSnapshot().archive;
+        const currentCatalogScope = themeCatalog.getSnapshot().archive;
         if (
           currentCatalogScope?.rootPath !== archiveRootPath ||
           currentCatalogScope.generation !== archiveGeneration
@@ -124,9 +124,9 @@ export function useArchiveThemeCatalogEntries(
         }
         return true;
       } catch (reason) {
-        const currentCatalogScope = archiveThemeCatalog.getSnapshot().archive;
+        const currentCatalogScope = themeCatalog.getSnapshot().archive;
         if (
-          reason instanceof ArchiveThemeCatalogChangedError ||
+          reason instanceof ThemeCatalogChangedError ||
           currentCatalogScope?.rootPath !== archiveRootPath ||
           currentCatalogScope.generation !== archiveGeneration
         ) {
@@ -173,5 +173,5 @@ export function useArchiveThemeCatalogEntries(
     loading: inScope && !snapshot.fullyEnumerated && !error,
     refresh,
     retireRefreshFailure,
-  } satisfies ArchiveThemeCatalogEntriesState;
+  } satisfies ThemeCatalogEntriesState;
 }

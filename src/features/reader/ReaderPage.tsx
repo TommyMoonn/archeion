@@ -89,7 +89,7 @@ import { useReaderAnnotationNavigation } from "./useReaderAnnotationNavigation";
 import { useReaderAnnotationExport } from "./useReaderAnnotationExport";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
 import { readerThemeCssProperties } from "../../themes/themeCssVariables";
-import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
+import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { useReaderSource } from "./useReaderFileLoad";
 import { createReaderAppearanceController } from "./readerAppearanceController";
 
@@ -139,7 +139,7 @@ export function ReaderPage() {
   );
   const settings = appearance.settings;
   const readerTheme = appearance.readerTheme;
-  const themeCatalog = useArchiveThemeCatalogEntries(true);
+  const themeCatalog = useThemeCatalogEntries(true);
   const readerThemeStyle = useMemo(() => readerThemeCssProperties(readerTheme), [readerTheme]);
   const libraryPreferences = useLibraryPreferences();
   const viewerRef = useRef<EpubViewerHandle>(null);

@@ -4,8 +4,8 @@ import { useMemo, useRef, type ChangeEvent } from "react";
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
 import { IconButton } from "../../components/IconButton";
-import { appearanceRuntime, archiveThemeCatalog } from "../../themes/appearanceRuntimeInstance";
-import { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
+import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
+import { ThemeRepository } from "../../themes/ThemeRepository";
 import { ARCHEION_THEME_SCHEMA_URL } from "../../themes/themeTokenRegistry";
 import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
 import { ThemeCatalogList } from "./ThemeCatalogList";
@@ -36,12 +36,12 @@ export function ThemeManagerDialog({
   services,
 }: ThemeManagerDialogProps) {
   const repository = useMemo(
-    () => services?.repository ?? new ArchiveThemeRepository(archiveRootPath),
-    [archiveRootPath, services?.repository],
+    () => services?.repository ?? new ThemeRepository(),
+    [services?.repository],
   );
   const controller = useThemeManagerController({
     archiveRootPath,
-    catalog: services?.catalog ?? archiveThemeCatalog,
+    catalog: services?.catalog ?? themeCatalog,
     onArchiveScopeInvalidated: onClose,
     previewSession: services?.previewSession ?? themePreviewSession,
     repository,

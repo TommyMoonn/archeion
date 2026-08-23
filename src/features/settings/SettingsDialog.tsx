@@ -21,7 +21,7 @@ import { StorageSettingsSection } from "./sections/StorageSettingsSection";
 import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./settingsItems";
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
-import { useArchiveThemeCatalogEntries } from "../themes/useArchiveThemeCatalogEntries";
+import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { useCommittedArchiveAppearance } from "../themes/useCommittedArchiveAppearance";
 import { useSettingsDialogController } from "./useSettingsDialogController";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
@@ -104,10 +104,9 @@ export function SettingsDialog({
     () => getSettingsItemsDataRequirements(visibleSettingsItems),
     [visibleSettingsItems],
   );
-  const themeCatalog = useArchiveThemeCatalogEntries(
-    dataRequirements.has("archiveAppearanceSettings"),
-    { reportRefreshFailure: !themeManagerOpen },
-  );
+  const themeCatalog = useThemeCatalogEntries(dataRequirements.has("archiveAppearanceSettings"), {
+    reportRefreshFailure: !themeManagerOpen,
+  });
   const committedArchiveAppearance = useCommittedArchiveAppearance();
   const modal = useModalDialogLifecycle({
     dialogRef,

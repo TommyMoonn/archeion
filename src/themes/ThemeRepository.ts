@@ -6,15 +6,12 @@ import { validateThemeManifest } from "./validateThemeManifest";
 type ThemeCommandDefinition<Args, Result> = Readonly<{ args: Args; result: Result }>;
 
 type ThemeCommandMap = Readonly<{
-  list_archive_theme_packages: ThemeCommandDefinition<undefined, string[]>;
-  read_archive_theme_manifest: ThemeCommandDefinition<{ id: string }, string>;
-  store_archive_theme_manifest: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
-  replace_archive_theme_manifest: ThemeCommandDefinition<
-    { id: string; manifestJson: string },
-    void
-  >;
-  delete_archive_theme_package: ThemeCommandDefinition<{ id: string }, void>;
-  reveal_archive_themes_folder: ThemeCommandDefinition<undefined, void>;
+  list_theme_packages: ThemeCommandDefinition<undefined, string[]>;
+  read_theme_manifest: ThemeCommandDefinition<{ id: string }, string>;
+  store_theme_manifest: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
+  replace_theme_manifest: ThemeCommandDefinition<{ id: string; manifestJson: string }, void>;
+  delete_theme_package: ThemeCommandDefinition<{ id: string }, void>;
+  reveal_themes_folder: ThemeCommandDefinition<undefined, void>;
 }>;
 
 type ThemeCommandName = keyof ThemeCommandMap;
@@ -31,26 +28,19 @@ export class InvalidThemeManifestError extends Error {
   }
 }
 
-export class ArchiveThemeRepository {
-  readonly archiveRootPath: string;
-
-  constructor(archiveRootPath: string) {
-    if (!archiveRootPath.trim()) throw new Error("An archive root path is required.");
-    this.archiveRootPath = archiveRootPath;
-  }
-
+export class ThemeRepository {
   async listPackageDirectories(): Promise<readonly string[]> {
-    const packages = await this.invoke("list_archive_theme_packages", undefined);
+    const packages = await this.invoke("list_theme_packages", undefined);
     return Object.freeze([...packages]);
   }
 
   readManifest(id: string): Promise<string> {
-    return this.invoke("read_archive_theme_manifest", { id });
+    return this.invoke("read_theme_manifest", { id });
   }
 
   storeManifest(manifest: ThemeManifestV1): Promise<void> {
     const normalized = normalizedManifest(manifest);
-    return this.invoke("store_archive_theme_manifest", {
+    return this.invoke("store_theme_manifest", {
       id: normalized.id,
       manifestJson: serializeManifest(normalized),
     });
@@ -58,28 +48,25 @@ export class ArchiveThemeRepository {
 
   replaceManifest(manifest: ThemeManifestV1): Promise<void> {
     const normalized = normalizedManifest(manifest);
-    return this.invoke("replace_archive_theme_manifest", {
+    return this.invoke("replace_theme_manifest", {
       id: normalized.id,
       manifestJson: serializeManifest(normalized),
     });
   }
 
   deletePackage(id: string): Promise<void> {
-    return this.invoke("delete_archive_theme_package", { id });
+    return this.invoke("delete_theme_package", { id });
   }
 
   revealThemesRoot(): Promise<void> {
-    return this.invoke("reveal_archive_themes_folder", undefined);
+    return this.invoke("reveal_themes_folder", undefined);
   }
 
   private invoke<Name extends ThemeCommandName>(
     command: Name,
     args: ThemeCommandArgs<Name>,
   ): Promise<ThemeCommandResult<Name>> {
-    return invoke<ThemeCommandResult<Name>>(command, {
-      ...(args ?? {}),
-      rootPath: this.archiveRootPath,
-    });
+    return invoke<ThemeCommandResult<Name>>(command, args ?? {});
   }
 }
 

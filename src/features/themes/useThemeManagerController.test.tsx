@@ -10,7 +10,7 @@ import {
   AppearanceRuntime,
   AppearanceRuntimeSettingsChangedError,
 } from "../../themes/AppearanceRuntime";
-import { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
+import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
@@ -45,7 +45,7 @@ function deferred<Value>() {
 
 function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-ink")]) {
   const sources = new Map(initial.map((item) => [item.id, JSON.stringify(item)]));
-  const catalog = new ArchiveThemeCatalog(() => ({
+  const catalog = new ThemeCatalog(() => ({
     listPackageDirectories: vi.fn(async () => [...sources.keys()]),
     readManifest: vi.fn(async (id: string) => {
       const source = sources.get(id);
@@ -227,7 +227,7 @@ describe("useThemeManagerController", () => {
     const theme = manifest("moon-ink");
     const listPackageDirectories = vi.fn(() => packageListing.promise);
     const readManifest = vi.fn(async () => JSON.stringify(theme));
-    const catalog = new ArchiveThemeCatalog(() => ({
+    const catalog = new ThemeCatalog(() => ({
       listPackageDirectories,
       readManifest,
     }));

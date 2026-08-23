@@ -31,10 +31,10 @@ const archiveState = vi.hoisted(() => ({
   watcherError: null,
 }));
 
-vi.mock("../themes/useArchiveThemeCatalogEntries", async () => {
+vi.mock("../themes/useThemeCatalogEntries", async () => {
   const { useCallback, useState } = await vi.importActual<typeof import("react")>("react");
   return {
-    useArchiveThemeCatalogEntries: (
+    useThemeCatalogEntries: (
       _enabled: boolean,
       { reportRefreshFailure = true }: Readonly<{ reportRefreshFailure?: boolean }> = {},
     ) => {

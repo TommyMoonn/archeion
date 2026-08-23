@@ -5,7 +5,7 @@ import type { ActiveAppearanceArchive } from "../../themes/AppearanceRuntime";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import type {
-  ArchiveThemeCatalogSnapshot,
+  ThemeCatalogSnapshot,
   InvalidCustomThemeCatalogEntry,
   ValidCustomThemeCatalogEntry,
 } from "../../themes/themeCatalogReadModel";
@@ -69,8 +69,8 @@ function invalidEntry(id: string): InvalidCustomThemeCatalogEntry {
 }
 
 function catalogSnapshot(
-  customEntries: ArchiveThemeCatalogSnapshot["entries"] = [],
-): ArchiveThemeCatalogSnapshot {
+  customEntries: ThemeCatalogSnapshot["entries"] = [],
+): ThemeCatalogSnapshot {
   return Object.freeze({
     archive: Object.freeze({ generation: archive.generation, rootPath: archive.rootPath }),
     entries: Object.freeze([...builtInThemeCatalogEntries, ...customEntries]),
@@ -79,8 +79,8 @@ function catalogSnapshot(
 }
 
 function createHarness(
-  initial: ArchiveThemeCatalogSnapshot,
-  refresh: Promise<ArchiveThemeCatalogSnapshot>,
+  initial: ThemeCatalogSnapshot,
+  refresh: Promise<ThemeCatalogSnapshot>,
   options: { failKeep?: boolean; settings?: ArchiveAppearanceSettings } = {},
 ) {
   const listeners = new Set<() => void>();
@@ -122,7 +122,7 @@ function createHarness(
 
 describe("Quick Actions theme mode", () => {
   it("shows built-ins immediately and merges added, edited, and removed packages", async () => {
-    const pendingRefresh = deferred<ArchiveThemeCatalogSnapshot>();
+    const pendingRefresh = deferred<ThemeCatalogSnapshot>();
     const initial = catalogSnapshot([
       validEntry(manifest("edited", { name: "Edited old" })),
       validEntry(manifest("removed")),
@@ -166,7 +166,7 @@ describe("Quick Actions theme mode", () => {
   });
 
   it("previews movement without persistence and reverts on disposal", () => {
-    const pendingRefresh = deferred<ArchiveThemeCatalogSnapshot>();
+    const pendingRefresh = deferred<ThemeCatalogSnapshot>();
     const harness = createHarness(catalogSnapshot(), pendingRefresh.promise);
     const dark = harness.mode.getSnapshot().options.find((option) => option.id === "builtin:dark");
 

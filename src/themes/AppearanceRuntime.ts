@@ -2,12 +2,12 @@ import type { AppPreferences } from "../types/appSettings";
 import type { ArchiveAppearanceSettings, ArchiveReaderThemeSelection } from "../types/settings";
 import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearanceSettingsSource";
 import {
-  ArchiveThemeCatalog,
-  ArchiveThemeCatalogChangedError,
+  ThemeCatalog,
+  ThemeCatalogChangedError,
   type AppThemeCatalogSelection,
-  type ArchiveThemeSelectionResolution,
+  type ThemeSelectionResolution,
   type ReaderThemeCatalogSelection,
-} from "./ArchiveThemeCatalog";
+} from "./ThemeCatalog";
 import type {
   ResolvedAppTheme,
   ResolvedReaderTheme,
@@ -46,7 +46,7 @@ export type AppearancePreviewContext = Readonly<{
 }>;
 
 export type AppearanceRuntimeOptions = Readonly<{
-  catalog?: ArchiveThemeCatalog;
+  catalog?: ThemeCatalog;
   getDocumentRoot?: () => HTMLElement | null;
   globalPreferences: GlobalAppearanceSource;
   matchMedia?: (query: string) => MediaQueryList;
@@ -86,7 +86,7 @@ type ActiveReaderAppearancePreview = Readonly<{
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
 
 export class AppearanceRuntime {
-  private readonly catalog: ArchiveThemeCatalog;
+  private readonly catalog: ThemeCatalog;
   private readonly getDocumentRoot: () => HTMLElement | null;
   private readonly globalPreferences: GlobalAppearanceSource;
   private readonly listeners = new Set<Listener>();
@@ -105,12 +105,12 @@ export class AppearanceRuntime {
   private preferences: GlobalAppearancePreferences;
   private preview: ActiveAppearancePreview | null = null;
   private readerPreview: ActiveReaderAppearancePreview | null = null;
-  private resolution: ArchiveThemeSelectionResolution | null = null;
+  private resolution: ThemeSelectionResolution | null = null;
   private snapshot: AppearanceRuntimeSnapshot;
   private stopPreferences: (() => void) | null = null;
 
   constructor(options: AppearanceRuntimeOptions) {
-    this.catalog = options.catalog ?? new ArchiveThemeCatalog();
+    this.catalog = options.catalog ?? new ThemeCatalog();
     this.getDocumentRoot =
       options.getDocumentRoot ??
       (() => (typeof document === "undefined" ? null : document.documentElement));
@@ -158,15 +158,14 @@ export class AppearanceRuntime {
     const committed = this.appearanceSettings;
     if (!context || !committed || !this.isArchiveCurrent(archive)) return false;
 
-    let resolution: ArchiveThemeSelectionResolution;
+    let resolution: ThemeSelectionResolution;
     try {
       resolution = await this.catalog.loadSelected({
         ...committed,
         readerTheme: selection,
       });
     } catch (error) {
-      if (!this.isCurrent(context) || error instanceof ArchiveThemeCatalogChangedError)
-        return false;
+      if (!this.isCurrent(context) || error instanceof ThemeCatalogChangedError) return false;
       throw error;
     }
     if (
@@ -386,7 +385,7 @@ export class AppearanceRuntime {
       if (!this.isCurrent(context)) return;
       this.publishResolvedAppearance(context, resolution, false);
     } catch (error) {
-      if (!this.isCurrent(context) || error instanceof ArchiveThemeCatalogChangedError) return;
+      if (!this.isCurrent(context) || error instanceof ThemeCatalogChangedError) return;
       this.appearanceSettings = null;
       this.resolution = null;
       this.commitCurrentAppearance();
@@ -482,7 +481,7 @@ export class AppearanceRuntime {
   }
 
   private resolvedSnapshot(
-    resolution: ArchiveThemeSelectionResolution,
+    resolution: ThemeSelectionResolution,
     archive: ActiveAppearanceArchive | null,
   ): AppearanceRuntimeSnapshot {
     return Object.freeze({
@@ -643,7 +642,7 @@ export class AppearanceRuntime {
         this.assertCatalogScopeCurrent(context);
         return this.publishResolvedAppearance(context, resolution, clearAppPreview);
       } catch (error) {
-        if (!(error instanceof ArchiveThemeCatalogChangedError)) throw error;
+        if (!(error instanceof ThemeCatalogChangedError)) throw error;
         this.assertPersistenceOperationCurrent(context, operation);
         this.assertCatalogScopeCurrent(context);
         if (retriedCurrentCatalog) throw error;
@@ -654,7 +653,7 @@ export class AppearanceRuntime {
 
   private publishResolvedAppearance(
     context: ActiveArchiveContext,
-    resolution: ArchiveThemeSelectionResolution,
+    resolution: ThemeSelectionResolution,
     clearAppPreview: boolean,
   ): Readonly<ArchiveAppearanceSettings> {
     if (!this.isCurrent(context)) throw new AppearanceRuntimeArchiveChangedError();
@@ -754,7 +753,7 @@ function publicArchive(archive: ActiveArchiveContext): ActiveAppearanceArchive {
 }
 
 function appearanceSettingsFromResolution(
-  resolution: ArchiveThemeSelectionResolution,
+  resolution: ThemeSelectionResolution,
 ): Readonly<ArchiveAppearanceSettings> {
   return freezeAppearanceSettings({
     appTheme: resolution.app.requested,

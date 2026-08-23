@@ -2,10 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { ArchiveAppearanceSettings } from "../types/settings";
 import {
-  ArchiveThemeCatalog,
-  ArchiveThemeCatalogChangedError,
+  ThemeCatalog,
+  ThemeCatalogChangedError,
   type CustomThemeCatalogEntry,
-} from "./ArchiveThemeCatalog";
+} from "./ThemeCatalog";
 
 type TestReader = {
   listPackageDirectories: ReturnType<typeof vi.fn<() => Promise<readonly string[]>>>;
@@ -64,8 +64,8 @@ function reader(
   };
 }
 
-function catalogWithReaders(readers: Readonly<Record<string, TestReader>>): ArchiveThemeCatalog {
-  return new ArchiveThemeCatalog((rootPath) => {
+function catalogWithReaders(readers: Readonly<Record<string, TestReader>>): ThemeCatalog {
+  return new ThemeCatalog((rootPath) => {
     const selected = readers[rootPath];
     if (!selected) throw new Error(`No test reader for ${rootPath}`);
     return selected;
@@ -79,7 +79,7 @@ function customEntries(entries: readonly unknown[]): CustomThemeCatalogEntry[] {
   );
 }
 
-describe("ArchiveThemeCatalog", () => {
+describe("global ThemeCatalog", () => {
   it("always exposes immutable built-ins with explicit application and reader capabilities", () => {
     const catalog = catalogWithReaders({});
 
@@ -612,8 +612,8 @@ describe("ArchiveThemeCatalog", () => {
     catalog.activateArchive({ generation: 2, rootPath: "C:/ArchiveB" });
     initialListing.resolve(["moon-ink"]);
 
-    await expect(initialEnumeration).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
-    await expect(refresh).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    await expect(initialEnumeration).rejects.toBeInstanceOf(ThemeCatalogChangedError);
+    await expect(refresh).rejects.toBeInstanceOf(ThemeCatalogChangedError);
     expect(archiveA.listPackageDirectories).toHaveBeenCalledOnce();
     expect(archiveA.readManifest).not.toHaveBeenCalled();
     expect(archiveB.listPackageDirectories).not.toHaveBeenCalled();
@@ -635,7 +635,7 @@ describe("ArchiveThemeCatalog", () => {
     catalog.activateArchive({ generation: 2, rootPath: "C:/ArchiveB" });
     listing.resolve(["moon-ink"]);
 
-    await expect(stale).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    await expect(stale).rejects.toBeInstanceOf(ThemeCatalogChangedError);
     expect(catalog.getSnapshot()).toMatchObject({
       archive: { generation: 2, rootPath: "C:/ArchiveB" },
       fullyEnumerated: false,
@@ -660,7 +660,7 @@ describe("ArchiveThemeCatalog", () => {
     const refreshed = await catalog.refreshPackages();
     staleManifest.resolve(manifest("moon-ink", { name: "Stale Moon Ink" }));
 
-    await expect(staleSelection).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    await expect(staleSelection).rejects.toBeInstanceOf(ThemeCatalogChangedError);
     expect(customEntries(refreshed.entries)).toEqual([
       expect.objectContaining({ name: "Refreshed Moon Ink" }),
     ]);
@@ -707,7 +707,7 @@ describe("ArchiveThemeCatalog", () => {
     catalog.activateArchive({ generation: 2, rootPath: "C:/ArchiveB" });
     finishRead?.(manifest("moon-ink"));
 
-    await expect(stale).rejects.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    await expect(stale).rejects.toBeInstanceOf(ThemeCatalogChangedError);
     const active = catalog.getSnapshot();
     expect(active.archive).toEqual({ generation: 2, rootPath: "C:/ArchiveB" });
     expect(customEntries(active.entries)).toEqual([]);

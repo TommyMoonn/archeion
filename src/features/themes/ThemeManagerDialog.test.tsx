@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ArchiveAppearanceSettings } from "../../types/settings";
-import { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
+import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { ThemeManagerDialog } from "./ThemeManagerDialog";
@@ -33,7 +33,7 @@ function installDialogPolyfill() {
 }
 
 function createServices() {
-  const catalog = new ArchiveThemeCatalog(() => ({
+  const catalog = new ThemeCatalog(() => ({
     listPackageDirectories: vi.fn(async () => ["moon-ink"]),
     readManifest: vi.fn(async () => JSON.stringify(customManifest)),
   }));

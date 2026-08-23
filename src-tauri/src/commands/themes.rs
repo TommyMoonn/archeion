@@ -7,8 +7,9 @@ use std::{
 };
 
 use serde_json::Value;
+use tauri::Manager;
 
-use super::{archive_root, filesystem};
+use super::filesystem;
 
 const THEMES_DIRECTORY: &str = "themes";
 const THEME_MANIFEST_FILE: &str = "theme.json";
@@ -58,28 +59,21 @@ fn ensure_owned_directory(path: &Path, create: bool, label: &str) -> Result<bool
 }
 
 fn themes_root_at(root: &Path, create: bool) -> Result<Option<PathBuf>, String> {
-    let archive_root = fs::canonicalize(root)
-        .map_err(|_| "The selected archive folder is unavailable.".to_string())?;
-    if !archive_root.is_dir() {
-        return Err("The selected archive folder is unavailable.".to_string());
-    }
-
-    let metadata_root = archive_root.join(filesystem::METADATA_DIRECTORY);
-    if !ensure_owned_directory(&metadata_root, create, "archive metadata directory")? {
+    if !ensure_owned_directory(root, create, "application data directory")? {
         return Ok(None);
     }
-    let canonical_metadata = fs::canonicalize(&metadata_root).map_err(|error| error.to_string())?;
-    if canonical_metadata.parent() != Some(archive_root.as_path()) {
-        return Err("The archive metadata directory is outside the archive.".to_string());
+    let app_data_root = fs::canonicalize(root)
+        .map_err(|_| "The application data directory is unavailable.".to_string())?;
+    if !app_data_root.is_dir() {
+        return Err("The application data directory is unavailable.".to_string());
     }
-
-    let themes_root = canonical_metadata.join(THEMES_DIRECTORY);
-    if !ensure_owned_directory(&themes_root, create, "archive themes directory")? {
+    let themes_root = app_data_root.join(THEMES_DIRECTORY);
+    if !ensure_owned_directory(&themes_root, create, "themes directory")? {
         return Ok(None);
     }
     let canonical_themes = fs::canonicalize(&themes_root).map_err(|error| error.to_string())?;
-    if canonical_themes.parent() != Some(canonical_metadata.as_path()) {
-        return Err("The archive themes directory is outside archive metadata.".to_string());
+    if canonical_themes.parent() != Some(app_data_root.as_path()) {
+        return Err("The themes directory is outside application data.".to_string());
     }
     Ok(Some(canonical_themes))
 }
@@ -97,9 +91,7 @@ fn resolve_existing_package_at(root: &Path, id: &str) -> Result<PathBuf, String>
     let canonical_package = fs::canonicalize(&package)
         .map_err(|_| "The selected theme package is unavailable.".to_string())?;
     if canonical_package.parent() != Some(themes_root.as_path()) {
-        return Err(
-            "The selected theme package is outside the archive themes directory.".to_string(),
-        );
+        return Err("The selected theme package is outside the themes directory.".to_string());
     }
     Ok(canonical_package)
 }
@@ -144,7 +136,7 @@ fn create_theme_package_at(root: &Path, id: &str, manifest_json: &str) -> Result
     let id = validate_theme_id(id)?;
     let normalized = normalize_manifest_json(&id, manifest_json)?;
     let themes_root = themes_root_at(root, true)?
-        .ok_or_else(|| "The archive themes directory is unavailable.".to_string())?;
+        .ok_or_else(|| "The themes directory is unavailable.".to_string())?;
     let destination = themes_root.join(&id);
     match fs::symlink_metadata(&destination) {
         Ok(_) => {
@@ -316,75 +308,50 @@ fn delete_theme_package_at(root: &Path, id: &str) -> Result<(), String> {
     fs::remove_dir_all(package).map_err(|error| error.to_string())
 }
 
-fn resolve_command_archive_root(
-    app: &tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<PathBuf, String> {
-    archive_root::resolve_archive_root(app, root_path)
+fn resolve_app_data_root(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    app.path()
+        .app_data_dir()
+        .map_err(|error| format!("Unable to resolve theme storage: {error}"))
 }
 
 #[tauri::command]
-pub fn list_archive_theme_packages(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<Vec<String>, String> {
-    list_theme_packages_at(&resolve_command_archive_root(&app, root_path)?)
+pub fn list_theme_packages(app: tauri::AppHandle) -> Result<Vec<String>, String> {
+    list_theme_packages_at(&resolve_app_data_root(&app)?)
 }
 
 #[tauri::command]
-pub fn read_archive_theme_manifest(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    id: String,
-) -> Result<String, String> {
-    read_theme_manifest_at(&resolve_command_archive_root(&app, root_path)?, &id)
+pub fn read_theme_manifest(app: tauri::AppHandle, id: String) -> Result<String, String> {
+    read_theme_manifest_at(&resolve_app_data_root(&app)?, &id)
 }
 
 #[tauri::command]
-pub fn store_archive_theme_manifest(
+pub fn store_theme_manifest(
     app: tauri::AppHandle,
-    root_path: Option<String>,
     id: String,
     manifest_json: String,
 ) -> Result<(), String> {
-    create_theme_package_at(
-        &resolve_command_archive_root(&app, root_path)?,
-        &id,
-        &manifest_json,
-    )
+    create_theme_package_at(&resolve_app_data_root(&app)?, &id, &manifest_json)
 }
 
 #[tauri::command]
-pub fn replace_archive_theme_manifest(
+pub fn replace_theme_manifest(
     app: tauri::AppHandle,
-    root_path: Option<String>,
     id: String,
     manifest_json: String,
 ) -> Result<(), String> {
-    replace_theme_manifest_at(
-        &resolve_command_archive_root(&app, root_path)?,
-        &id,
-        &manifest_json,
-    )
+    replace_theme_manifest_at(&resolve_app_data_root(&app)?, &id, &manifest_json)
 }
 
 #[tauri::command]
-pub fn delete_archive_theme_package(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-    id: String,
-) -> Result<(), String> {
-    delete_theme_package_at(&resolve_command_archive_root(&app, root_path)?, &id)
+pub fn delete_theme_package(app: tauri::AppHandle, id: String) -> Result<(), String> {
+    delete_theme_package_at(&resolve_app_data_root(&app)?, &id)
 }
 
 #[tauri::command]
-pub fn reveal_archive_themes_folder(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<(), String> {
-    let root = resolve_command_archive_root(&app, root_path)?;
+pub fn reveal_themes_folder(app: tauri::AppHandle) -> Result<(), String> {
+    let root = resolve_app_data_root(&app)?;
     let themes = themes_root_at(&root, true)?
-        .ok_or_else(|| "The archive themes directory is unavailable.".to_string())?;
+        .ok_or_else(|| "The themes directory is unavailable.".to_string())?;
     filesystem::open_folder(&themes)
 }
 
@@ -396,7 +363,7 @@ mod tests {
         create_theme_package_at, delete_theme_package_at, list_theme_packages_at,
         normalize_manifest_json, read_theme_manifest_at, replace_manifest_with_fs,
         replace_theme_manifest_at, themes_root_at, validate_theme_id, ThemeFileSystem,
-        MAX_THEME_MANIFEST_BYTES,
+        MAX_THEME_MANIFEST_BYTES, THEMES_DIRECTORY,
     };
 
     fn test_root(label: &str) -> std::path::PathBuf {
@@ -433,7 +400,8 @@ mod tests {
     fn lists_only_direct_visible_owned_directories_without_creating_the_root() {
         let root = test_root("list");
         assert!(list_theme_packages_at(&root).unwrap().is_empty());
-        assert!(!root.join(".archeion").join("themes").exists());
+        assert!(!root.join(THEMES_DIRECTORY).exists());
+        assert!(!root.join(".archeion").exists());
         let themes = themes_root_at(&root, true).unwrap().unwrap();
         fs::create_dir(themes.join("paper-light")).unwrap();
         fs::create_dir(themes.join("moon-ink")).unwrap();
@@ -452,7 +420,7 @@ mod tests {
     fn stores_normalized_json_and_reads_only_theme_json() {
         let root = test_root("store-read");
         create_theme_package_at(&root, "moon-ink", &manifest("moon-ink", "Moon Ink")).unwrap();
-        let package = root.join(".archeion").join("themes").join("moon-ink");
+        let package = root.join(THEMES_DIRECTORY).join("moon-ink");
         fs::write(package.join("ignored.txt"), b"ignored").unwrap();
 
         let source = read_theme_manifest_at(&root, "moon-ink").unwrap();
@@ -469,11 +437,8 @@ mod tests {
         for source in ["{invalid", &manifest("other-theme", "Other")] {
             assert!(create_theme_package_at(&root, "moon-ink", source).is_err());
         }
-        assert!(!root
-            .join(".archeion")
-            .join("themes")
-            .join("moon-ink")
-            .exists());
+        assert!(!root.join(THEMES_DIRECTORY).join("moon-ink").exists());
+        assert!(!root.join(".archeion").exists());
         fs::remove_dir_all(root).unwrap();
     }
 
@@ -560,8 +525,7 @@ mod tests {
         let root = test_root("replace");
         create_theme_package_at(&root, "moon-ink", &manifest("moon-ink", "First")).unwrap();
         let extra = root
-            .join(".archeion")
-            .join("themes")
+            .join(THEMES_DIRECTORY)
             .join("moon-ink")
             .join("LICENSE.txt");
         fs::write(&extra, b"keep").unwrap();
@@ -598,7 +562,7 @@ mod tests {
     fn failed_replacement_restores_the_previous_manifest_without_temporary_files() {
         let root = test_root("replace-restore");
         create_theme_package_at(&root, "moon-ink", &manifest("moon-ink", "First")).unwrap();
-        let package = root.join(".archeion").join("themes").join("moon-ink");
+        let package = root.join(THEMES_DIRECTORY).join("moon-ink");
         let replacement =
             normalize_manifest_json("moon-ink", &manifest("moon-ink", "Second")).unwrap();
 
@@ -617,7 +581,7 @@ mod tests {
     fn deletion_removes_the_complete_managed_package() {
         let root = test_root("delete");
         create_theme_package_at(&root, "moon-ink", &manifest("moon-ink", "Moon Ink")).unwrap();
-        let package = root.join(".archeion").join("themes").join("moon-ink");
+        let package = root.join(THEMES_DIRECTORY).join("moon-ink");
         fs::create_dir(package.join("extra-assets")).unwrap();
         fs::write(package.join("extra-assets").join("ignored.bin"), b"ignored").unwrap();
 
@@ -687,9 +651,7 @@ mod tests {
     fn themes_root_symlinks_cannot_redirect_package_creation() {
         let root = test_root("themes-root-symlink");
         let outside = test_root("outside-themes-root");
-        let metadata = root.join(".archeion");
-        fs::create_dir(&metadata).unwrap();
-        let link = metadata.join("themes");
+        let link = root.join(THEMES_DIRECTORY);
         create_directory_symlink(&outside, &link)
             .unwrap_or_else(|error| panic!("symlink setup failed: {error}"));
 

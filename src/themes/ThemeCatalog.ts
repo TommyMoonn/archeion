@@ -3,7 +3,7 @@ import type {
   ArchiveAppThemeSelection,
   ArchiveReaderThemeSelection,
 } from "../types/settings";
-import { ArchiveThemeRepository } from "./ArchiveThemeRepository";
+import { ThemeRepository } from "./ThemeRepository";
 import type { ThemeDiagnostic, ThemeManifestV1 } from "./domain";
 import { parseThemeJson } from "./parseThemeJson";
 import {
@@ -14,9 +14,9 @@ import {
 import type {
   AppEffectiveThemeCatalogSelection,
   AppThemeCatalogSelection,
-  ArchiveThemeCatalogScope,
-  ArchiveThemeCatalogSnapshot,
-  ArchiveThemeSelectionResolution,
+  ThemeCatalogScope,
+  ThemeCatalogSnapshot,
+  ThemeSelectionResolution,
   CustomThemeCatalogEntry,
   InvalidCustomThemeCatalogEntry,
   ReaderEffectiveThemeCatalogSelection,
@@ -29,9 +29,9 @@ import { validateThemeManifest } from "./validateThemeManifest";
 export type {
   ApplicableThemeCatalogEntry,
   AppThemeCatalogSelection,
-  ArchiveThemeCatalogScope,
-  ArchiveThemeCatalogSnapshot,
-  ArchiveThemeSelectionResolution,
+  ThemeCatalogScope,
+  ThemeCatalogSnapshot,
+  ThemeSelectionResolution,
   BuiltInThemeCatalogEntry,
   CustomThemeCatalogEntry,
   InvalidCustomThemeCatalogEntry,
@@ -42,36 +42,35 @@ export type {
   ValidCustomThemeCatalogEntry,
 } from "./themeCatalogReadModel";
 
-type ThemePackageReader = Pick<ArchiveThemeRepository, "listPackageDirectories" | "readManifest">;
+type ThemePackageReader = Pick<ThemeRepository, "listPackageDirectories" | "readManifest">;
 type ThemePackageReaderFactory = (archiveRootPath: string) => ThemePackageReader;
 
 type CatalogContext = {
   cache: Map<string, CustomThemeCatalogEntry>;
   catalogDiagnostics: Map<string, readonly ThemeCatalogDiagnostic[]>;
-  enumeration: Promise<ArchiveThemeCatalogSnapshot> | null;
+  enumeration: Promise<ThemeCatalogSnapshot> | null;
   enumerationRereadsPackages: boolean;
   fullyEnumerated: boolean;
   pending: Map<string, Promise<CustomThemeCatalogEntry>>;
   reader: ThemePackageReader;
   revision: number;
-  scope: ArchiveThemeCatalogScope;
+  scope: ThemeCatalogScope;
 };
 
-export class ArchiveThemeCatalogChangedError extends Error {
+export class ThemeCatalogChangedError extends Error {
   constructor() {
     super("The active archive theme catalog changed before the operation completed.");
-    this.name = "ArchiveThemeCatalogChangedError";
+    this.name = "ThemeCatalogChangedError";
   }
 }
 
-export class ArchiveThemeCatalog {
+export class ThemeCatalog {
   private context: CatalogContext | null = null;
   private readonly listeners = new Set<() => void>();
-  private snapshot: ArchiveThemeCatalogSnapshot = inactiveSnapshot();
+  private snapshot: ThemeCatalogSnapshot = inactiveSnapshot();
 
   constructor(
-    private readonly createReader: ThemePackageReaderFactory = (rootPath) =>
-      new ArchiveThemeRepository(rootPath),
+    private readonly createReader: ThemePackageReaderFactory = () => new ThemeRepository(),
   ) {}
 
   subscribe = (listener: () => void): (() => void) => {
@@ -79,7 +78,7 @@ export class ArchiveThemeCatalog {
     return () => this.listeners.delete(listener);
   };
 
-  activateArchive(scope: ArchiveThemeCatalogScope): void {
+  activateArchive(scope: ThemeCatalogScope): void {
     const normalizedScope = normalizeScope(scope);
     if (
       this.context?.scope.generation === normalizedScope.generation &&
@@ -99,11 +98,11 @@ export class ArchiveThemeCatalog {
     this.publish();
   }
 
-  getSnapshot = (): ArchiveThemeCatalogSnapshot => this.snapshot;
+  getSnapshot = (): ThemeCatalogSnapshot => this.snapshot;
 
   async loadSelected(
     settings: Readonly<ArchiveAppearanceSettings>,
-  ): Promise<ArchiveThemeSelectionResolution> {
+  ): Promise<ThemeSelectionResolution> {
     const context = this.requireContext();
     const activeRefresh = context.enumerationRereadsPackages ? context.enumeration : null;
     if (activeRefresh) await activeRefresh;
@@ -116,7 +115,7 @@ export class ArchiveThemeCatalog {
     if (readerSelection.kind === "custom") customIds.add(readerSelection.id);
     const entries = await Promise.all([...customIds].map((id) => this.loadPackage(context, id)));
     this.assertCurrent(context);
-    if (context.revision !== revision) throw new ArchiveThemeCatalogChangedError();
+    if (context.revision !== revision) throw new ThemeCatalogChangedError();
     let cacheChanged = false;
     for (const entry of entries) {
       if (context.cache.get(entry.packageId) === entry) continue;
@@ -132,7 +131,7 @@ export class ArchiveThemeCatalog {
     });
   }
 
-  enumeratePackages(): Promise<ArchiveThemeCatalogSnapshot> {
+  enumeratePackages(): Promise<ThemeCatalogSnapshot> {
     const context = this.requireContext();
     if (context.fullyEnumerated) return Promise.resolve(this.snapshot);
     if (context.enumeration) return context.enumeration;
@@ -149,7 +148,7 @@ export class ArchiveThemeCatalog {
     return operation;
   }
 
-  refreshPackages(): Promise<ArchiveThemeCatalogSnapshot> {
+  refreshPackages(): Promise<ThemeCatalogSnapshot> {
     const context = this.requireContext();
     if (context.enumerationRereadsPackages && context.enumeration) return context.enumeration;
     const activeEnumeration = context.enumeration;
@@ -177,7 +176,7 @@ export class ArchiveThemeCatalog {
   private async enumerateContext(
     context: CatalogContext,
     rereadPackages: boolean,
-  ): Promise<ArchiveThemeCatalogSnapshot> {
+  ): Promise<ThemeCatalogSnapshot> {
     let packageIds: readonly string[];
     try {
       packageIds = await context.reader.listPackageDirectories();
@@ -211,7 +210,7 @@ export class ArchiveThemeCatalog {
     return this.snapshot;
   }
 
-  async reload(): Promise<ArchiveThemeCatalogSnapshot> {
+  async reload(): Promise<ThemeCatalogSnapshot> {
     return this.refreshPackages();
   }
 
@@ -232,7 +231,7 @@ export class ArchiveThemeCatalog {
   }
 
   private assertCurrent(context: CatalogContext): void {
-    if (this.context !== context) throw new ArchiveThemeCatalogChangedError();
+    if (this.context !== context) throw new ThemeCatalogChangedError();
   }
 
   private publish(): void {
@@ -315,10 +314,7 @@ export class ArchiveThemeCatalog {
   }
 }
 
-function createContext(
-  scope: ArchiveThemeCatalogScope,
-  reader: ThemePackageReader,
-): CatalogContext {
+function createContext(scope: ThemeCatalogScope, reader: ThemePackageReader): CatalogContext {
   return {
     cache: new Map(),
     catalogDiagnostics: new Map(),
@@ -332,7 +328,7 @@ function createContext(
   };
 }
 
-function normalizeScope(scope: ArchiveThemeCatalogScope): ArchiveThemeCatalogScope {
+function normalizeScope(scope: ThemeCatalogScope): ThemeCatalogScope {
   if (!Number.isSafeInteger(scope.generation) || scope.generation < 0) {
     throw new Error("A non-negative archive generation is required for the theme catalog.");
   }
@@ -342,7 +338,7 @@ function normalizeScope(scope: ArchiveThemeCatalogScope): ArchiveThemeCatalogSco
   return Object.freeze({ generation: scope.generation, rootPath: scope.rootPath });
 }
 
-function inactiveSnapshot(): ArchiveThemeCatalogSnapshot {
+function inactiveSnapshot(): ThemeCatalogSnapshot {
   return Object.freeze({
     archive: null,
     entries: builtInThemeCatalogEntries,
@@ -350,7 +346,7 @@ function inactiveSnapshot(): ArchiveThemeCatalogSnapshot {
   });
 }
 
-function snapshotFor(context: CatalogContext): ArchiveThemeCatalogSnapshot {
+function snapshotFor(context: CatalogContext): ThemeCatalogSnapshot {
   const customEntries = [...context.cache.values()]
     .map((entry) => addCatalogDiagnostics(entry, context.catalogDiagnostics.get(entry.packageId)))
     .sort((left, right) => left.packageId.localeCompare(right.packageId));

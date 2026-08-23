@@ -2,12 +2,12 @@ import { useSyncExternalStore } from "react";
 
 import { appPreferencesStore } from "../stores/appPreferencesStore";
 import { AppearanceRuntime } from "./AppearanceRuntime";
-import { ArchiveThemeCatalog } from "./ArchiveThemeCatalog";
+import { ThemeCatalog } from "./ThemeCatalog";
 
-export const archiveThemeCatalog = new ArchiveThemeCatalog();
+export const themeCatalog = new ThemeCatalog();
 
 export const appearanceRuntime = new AppearanceRuntime({
-  catalog: archiveThemeCatalog,
+  catalog: themeCatalog,
   globalPreferences: appPreferencesStore,
 });
 

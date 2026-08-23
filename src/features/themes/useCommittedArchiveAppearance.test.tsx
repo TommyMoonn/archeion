@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { ArchiveAppearanceSettings } from "../../types/settings";
 import { AppearanceRuntime, type AppearancePreviewContext } from "../../themes/AppearanceRuntime";
-import { ArchiveThemeCatalog } from "../../themes/ArchiveThemeCatalog";
+import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import type { ThemeManifestV1 } from "../../themes/domain";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import {
@@ -75,7 +75,7 @@ describe("useCommittedArchiveAppearance", () => {
     const keeping = deferred<ArchiveAppearanceSettings>();
     let saveCount = 0;
     let failNextSave = false;
-    const catalog = new ArchiveThemeCatalog(() => ({
+    const catalog = new ThemeCatalog(() => ({
       listPackageDirectories: async () => [candidate.id],
       readManifest: async () => JSON.stringify(candidate),
     }));
@@ -157,7 +157,7 @@ describe("useCommittedArchiveAppearance", () => {
 
   it("does not publish a pending Keep into a replacement archive context", async () => {
     const keeping = deferred<ArchiveAppearanceSettings>();
-    const catalog = new ArchiveThemeCatalog(() => ({
+    const catalog = new ThemeCatalog(() => ({
       listPackageDirectories: async () => [candidate.id],
       readManifest: async () => JSON.stringify(candidate),
     }));

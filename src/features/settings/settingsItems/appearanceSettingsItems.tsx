@@ -50,7 +50,6 @@ export const appearanceSettingsItems = [
       <SettingsRow description="Choose the theme used across Archeion." label="App themes">
         <div className="settings-theme-control">
           <IconButton
-            disabled={!context.selectedArchivePath}
             label="Open themes folder"
             onClick={() => void context.openThemesFolder()}
             size="standard"

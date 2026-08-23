@@ -9,7 +9,7 @@ import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { archiveStore } from "../../stores/archiveStore";
 import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
-import { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
+import { ThemeRepository } from "../../themes/ThemeRepository";
 import {
   useSettingsDialogController,
   type SettingsDialogController,
@@ -162,11 +162,11 @@ describe("Settings committed appearance subscription", () => {
     expect(latest.archiveAppearance).toBeNull();
   });
 
-  it("opens the active archive's root themes folder through the repository owner", async () => {
+  it("opens the global themes folder with no active archive", async () => {
     const reveal = vi
-      .spyOn(ArchiveThemeRepository.prototype, "revealThemesRoot")
+      .spyOn(ThemeRepository.prototype, "revealThemesRoot")
       .mockResolvedValue(undefined);
-    await render(initialContext);
+    await render(null);
 
     await act(async () => expect(await latest.openThemesFolder()).toBe(true));
 

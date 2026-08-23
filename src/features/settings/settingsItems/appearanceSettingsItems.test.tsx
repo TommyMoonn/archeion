@@ -140,4 +140,28 @@ describe("appearanceSettingsItems", () => {
     act(() => root.unmount());
     container.remove();
   });
+
+  it("keeps global theme storage accessible without an active archive", () => {
+    const context: SettingsDialogController = {
+      ...controller(),
+      archiveAppearance: null,
+      selectedArchivePath: undefined,
+    };
+    const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => root.render(appThemes.render(context)));
+
+    const folder = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Open themes folder"]',
+    )!;
+    const manage = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Manage themes",
+    )!;
+    expect(folder.disabled).toBe(false);
+    expect(manage.disabled).toBe(true);
+
+    act(() => root.unmount());
+  });
 });

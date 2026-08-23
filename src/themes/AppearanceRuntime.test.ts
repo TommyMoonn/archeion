@@ -10,7 +10,7 @@ import {
   AppearanceRuntimeSettingsChangedError,
   type GlobalAppearanceSource,
 } from "./AppearanceRuntime";
-import { ArchiveThemeCatalog, ArchiveThemeCatalogChangedError } from "./ArchiveThemeCatalog";
+import { ThemeCatalog, ThemeCatalogChangedError } from "./ThemeCatalog";
 import type { ResolvedAppTheme } from "./domain";
 import { readerThemeCssProperties } from "./themeCssVariables";
 import { resolveTheme } from "./resolveTheme";
@@ -119,7 +119,7 @@ async function pendingCustomFallback() {
     .fn<(id: string) => Promise<string>>()
     .mockImplementationOnce(() => customManifestRead.promise)
     .mockImplementation(async () => manifest(customId));
-  const catalog = new ArchiveThemeCatalog(() => ({
+  const catalog = new ThemeCatalog(() => ({
     listPackageDirectories,
     readManifest,
   }));
@@ -358,7 +358,7 @@ describe("AppearanceRuntime", () => {
     const removeProperty = vi.spyOn(root.style, "removeProperty");
     const setProperty = vi.spyOn(root.style, "setProperty");
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest,
       })),
@@ -395,7 +395,7 @@ describe("AppearanceRuntime", () => {
     const removeProperty = vi.spyOn(root.style, "removeProperty");
     const setProperty = vi.spyOn(root.style, "setProperty");
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest,
       })),
@@ -509,7 +509,7 @@ describe("AppearanceRuntime", () => {
       appearanceSettings(settings.appTheme, settings.readerTheme),
     );
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest: vi.fn(async () => manifest("preview-theme")),
       })),
@@ -604,7 +604,7 @@ describe("AppearanceRuntime", () => {
       appearanceSettings({ ...settings.appTheme }, { ...settings.readerTheme }),
     );
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest: vi.fn(async (id: string) => manifest(id)),
       })),
@@ -922,7 +922,7 @@ describe("AppearanceRuntime", () => {
       .mockResolvedValueOnce(initial)
       .mockImplementationOnce(() => firstRefreshRead.promise)
       .mockImplementation(async () => persisted);
-    const catalog = new ArchiveThemeCatalog();
+    const catalog = new ThemeCatalog();
     const loadSelected = vi.spyOn(catalog, "loadSelected");
     const runtime = new AppearanceRuntime({
       catalog,
@@ -1249,7 +1249,7 @@ describe("AppearanceRuntime", () => {
 
     const failure = await scenario.refreshing.catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(AppearanceRuntimeArchiveChangedError);
-    expect(failure).not.toBeInstanceOf(ArchiveThemeCatalogChangedError);
+    expect(failure).not.toBeInstanceOf(ThemeCatalogChangedError);
     expect(scenario.runtime.getPreviewContext()).toBe(replacementContext);
     expect(scenario.runtime.getPreviewContext()?.settings).toEqual(replacement);
     expect(scenario.runtime.getSnapshot().archive?.id).toBe("archive-b");
@@ -1457,7 +1457,7 @@ describe("AppearanceRuntime", () => {
     });
     const listPackageDirectories = vi.fn(async () => ["moon-ink"]);
     const readManifest = vi.fn(async () => manifest("moon-ink"));
-    const catalog = new ArchiveThemeCatalog(() => ({ listPackageDirectories, readManifest }));
+    const catalog = new ThemeCatalog(() => ({ listPackageDirectories, readManifest }));
     const root = document.createElement("div");
     const runtime = new AppearanceRuntime({
       catalog,
@@ -1506,7 +1506,7 @@ describe("AppearanceRuntime", () => {
     const preferences = createPreferencesSource();
     const firstSettings = deferred<ArchiveAppearanceSettings>();
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest: vi.fn(async (id: string) => manifest(id)),
       })),
@@ -1581,7 +1581,7 @@ describe("AppearanceRuntime", () => {
   ])("keeps archive opening when a selected custom package is %s", async (_case, readManifest) => {
     const preferences = createPreferencesSource({ appThemePreset: "light" });
     const runtime = new AppearanceRuntime({
-      catalog: new ArchiveThemeCatalog(() => ({
+      catalog: new ThemeCatalog(() => ({
         listPackageDirectories: vi.fn(async () => []),
         readManifest: vi.fn(readManifest),
       })),

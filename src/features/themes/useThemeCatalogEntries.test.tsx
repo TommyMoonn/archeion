@@ -4,21 +4,18 @@ import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type {
-  ArchiveThemeCatalogSnapshot,
-  ThemeCatalogEntry,
-} from "../../themes/themeCatalogReadModel";
+import type { ThemeCatalogSnapshot, ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { AppearanceRuntimeSettingsChangedError } from "../../themes/AppearanceRuntime";
-import { useArchiveThemeCatalogEntries } from "./useArchiveThemeCatalogEntries";
+import { useThemeCatalogEntries } from "./useThemeCatalogEntries";
 
 const services = vi.hoisted(() => {
   const listeners = new Set<() => void>();
-  const initialSnapshot: ArchiveThemeCatalogSnapshot = {
+  const initialSnapshot: ThemeCatalogSnapshot = {
     archive: { generation: 1, rootPath: "C:/ArchiveA" },
     entries: [],
     fullyEnumerated: true,
   };
-  let snapshot: ArchiveThemeCatalogSnapshot = initialSnapshot;
+  let snapshot: ThemeCatalogSnapshot = initialSnapshot;
   const catalog = {
     enumeratePackages: vi.fn(async () => snapshot),
     getSnapshot: vi.fn(() => snapshot),
@@ -38,7 +35,7 @@ const services = vi.hoisted(() => {
     catalog,
     initialSnapshot,
     runtime,
-    setSnapshot(next: ArchiveThemeCatalogSnapshot) {
+    setSnapshot(next: ThemeCatalogSnapshot) {
       snapshot = next;
       listeners.forEach((listener) => listener());
     },
@@ -50,11 +47,11 @@ let archiveState = { path: "C:/ArchiveA" };
 vi.mock("../archive/useArchive", () => ({ useArchive: () => archiveState }));
 vi.mock("../../themes/appearanceRuntimeInstance", () => ({
   appearanceRuntime: services.runtime,
-  archiveThemeCatalog: services.catalog,
+  themeCatalog: services.catalog,
 }));
 
 let root: Root | null = null;
-let latest: ReturnType<typeof useArchiveThemeCatalogEntries> | null = null;
+let latest: ReturnType<typeof useThemeCatalogEntries> | null = null;
 
 function themeEntry(id: "dark" | "light"): ThemeCatalogEntry {
   return {
@@ -73,7 +70,7 @@ function Harness({
   foregroundError = null,
   reportRefreshFailure = true,
 }: Readonly<{ foregroundError?: string | null; reportRefreshFailure?: boolean }>) {
-  const value = useArchiveThemeCatalogEntries(true, { reportRefreshFailure });
+  const value = useThemeCatalogEntries(true, { reportRefreshFailure });
   useEffect(() => {
     latest = value;
   }, [value]);
@@ -112,15 +109,15 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("useArchiveThemeCatalogEntries", () => {
+describe("useThemeCatalogEntries", () => {
   it("coalesces rapid requests, keeps prior entries while pending, and reconciles refreshed appearance", async () => {
     const previousEntry = themeEntry("dark");
     const nextEntry = themeEntry("light");
     services.setSnapshot({ ...services.initialSnapshot, entries: [previousEntry] });
-    let resolveRefresh: ((snapshot: ArchiveThemeCatalogSnapshot) => void) | null = null;
+    let resolveRefresh: ((snapshot: ThemeCatalogSnapshot) => void) | null = null;
     services.catalog.refreshPackages.mockImplementationOnce(
       () =>
-        new Promise<ArchiveThemeCatalogSnapshot>((resolve) => {
+        new Promise<ThemeCatalogSnapshot>((resolve) => {
           resolveRefresh = resolve;
         }),
     );
@@ -259,10 +256,10 @@ describe("useArchiveThemeCatalogEntries", () => {
   });
 
   it("does not publish stale refresh state or reconcile appearance after generation replacement", async () => {
-    let resolveRefresh: ((snapshot: ArchiveThemeCatalogSnapshot) => void) | null = null;
+    let resolveRefresh: ((snapshot: ThemeCatalogSnapshot) => void) | null = null;
     services.catalog.refreshPackages.mockImplementationOnce(
       () =>
-        new Promise<ArchiveThemeCatalogSnapshot>((resolve) => {
+        new Promise<ThemeCatalogSnapshot>((resolve) => {
           resolveRefresh = resolve;
         }),
     );

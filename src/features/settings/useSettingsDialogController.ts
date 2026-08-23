@@ -11,7 +11,7 @@ import {
 import { archiveStore } from "../../stores/archiveStore";
 import type { AppearancePreviewContext } from "../../themes/AppearanceRuntime";
 import { appearanceRuntime } from "../../themes/appearanceRuntimeInstance";
-import { ArchiveThemeRepository } from "../../themes/ArchiveThemeRepository";
+import { ThemeRepository } from "../../themes/ThemeRepository";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
@@ -487,21 +487,13 @@ export function useSettingsDialogController({
 
   async function openThemesFolder(): Promise<boolean> {
     const statusOperation = beginStatusOperation();
-    if (!selectedArchivePath) {
-      publishStatusOperation(
-        statusOperation,
-        "Themes require an active archive. Open an archive, then try again.",
-        "error",
-      );
-      return false;
-    }
     try {
-      await new ArchiveThemeRepository(selectedArchivePath).revealThemesRoot();
+      await new ThemeRepository().revealThemesRoot();
       return true;
     } catch {
       publishStatusOperation(
         statusOperation,
-        "The themes folder could not be opened. Check that the archive is available and try again.",
+        "The themes folder could not be opened. Check application storage access and try again.",
         "error",
       );
       return false;

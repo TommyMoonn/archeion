@@ -57,13 +57,13 @@ export type CustomThemeCatalogEntry = ValidCustomThemeCatalogEntry | InvalidCust
 export type ThemeCatalogEntry = BuiltInThemeCatalogEntry | CustomThemeCatalogEntry;
 export type ApplicableThemeCatalogEntry = BuiltInThemeCatalogEntry | ValidCustomThemeCatalogEntry;
 
-export type ArchiveThemeCatalogScope = Readonly<{
+export type ThemeCatalogScope = Readonly<{
   generation: number;
   rootPath: string;
 }>;
 
-export type ArchiveThemeCatalogSnapshot = Readonly<{
-  archive: ArchiveThemeCatalogScope | null;
+export type ThemeCatalogSnapshot = Readonly<{
+  archive: ThemeCatalogScope | null;
   entries: readonly ThemeCatalogEntry[];
   fullyEnumerated: boolean;
 }>;
@@ -90,10 +90,10 @@ export type ReaderThemeCatalogSelection = Readonly<{
   requested: Readonly<ArchiveReaderThemeSelection>;
 }>;
 
-export type ArchiveThemeSelectionResolution = Readonly<{
+export type ThemeSelectionResolution = Readonly<{
   app: AppThemeCatalogSelection;
   reader: ReaderThemeCatalogSelection;
-  snapshot: ArchiveThemeCatalogSnapshot;
+  snapshot: ThemeCatalogSnapshot;
 }>;
 
 export const emptyThemeCatalogCapabilities: ThemeCatalogCapabilities = Object.freeze({

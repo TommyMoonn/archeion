@@ -29,7 +29,7 @@ describe("Phase 0.9.0.27 UX copy and state guidance", () => {
     const readerExport = read("src/features/reader/useReaderAnnotationPanelExportAction.ts");
     const settings = read("src/features/settings/useSettingsDialogController.ts");
     const themes = read("src/features/themes/useThemeManagerController.ts");
-    const themeCatalog = read("src/features/themes/useArchiveThemeCatalogEntries.ts");
+    const themeCatalog = read("src/features/themes/useThemeCatalogEntries.ts");
     const bulkActions = read("src/features/library/useLibraryBulkActions.ts");
 
     expect(appBoundary).toContain("Archeion could not load this view");
