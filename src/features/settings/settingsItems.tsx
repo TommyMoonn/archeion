@@ -115,6 +115,42 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "general",
   },
   {
+    description: "Restores the previous window layout when supported.",
+    groupLabel: "Window behavior",
+    id: "appearance.remember-window-state",
+    label: "Remember window size and position",
+    render: (context) => (
+      <SettingsRow
+        description="Restores the previous window layout when supported."
+        label="Remember window size and position"
+      >
+        <Toggle
+          checked={context.preferences.rememberWindowState}
+          label="Remember window size and position"
+          onChange={(rememberWindowState) =>
+            void context.updateAppPreferences({ rememberWindowState })
+          }
+        />
+      </SettingsRow>
+    ),
+    searchTerms: ["window", "size", "position", "window behavior"],
+    sectionId: "general",
+  },
+  {
+    groupLabel: "Window behavior",
+    id: "appearance.reset-window",
+    label: "Reset window settings",
+    render: (context) => (
+      <SettingsRow label="Reset window settings">
+        <Button onClick={() => void context.resetWindow()} variant="secondary">
+          Reset window
+        </Button>
+      </SettingsRow>
+    ),
+    searchTerms: ["reset", "window behavior"],
+    sectionId: "general",
+  },
+  {
     id: "general.reset",
     label: "Reset general settings",
     render: (context) => (
@@ -547,6 +583,7 @@ export const settingsItems: readonly SettingsItem[] = [
   ...storageSettingsItems,
   {
     description: "Chooses how new EPUB files are added.",
+    groupLabel: "Import",
     id: "import.default-import-mode",
     label: "Default import mode",
     render: (context) => (
@@ -560,10 +597,11 @@ export const settingsItems: readonly SettingsItem[] = [
       </SettingsRow>
     ),
     searchTerms: ["import mode", "copy", "move", "epub"],
-    sectionId: "import",
+    sectionId: "archives",
   },
   {
     description: "Chooses what happens when a file name already exists.",
+    groupLabel: "Import",
     id: "import.default-conflict-handling",
     label: "Default conflict handling",
     render: (context) => (
@@ -582,11 +620,12 @@ export const settingsItems: readonly SettingsItem[] = [
       </SettingsRow>
     ),
     searchTerms: ["conflict", "file name", "already exists"],
-    sectionId: "import",
+    sectionId: "archives",
   },
   {
     description: "Stored per archive because folders differ.",
     deferredData: ["archiveImportSettings", "folders"],
+    groupLabel: "Import",
     id: "import.default-destination-folder",
     label: "Default destination folder",
     requiresArchive: true,
@@ -604,9 +643,10 @@ export const settingsItems: readonly SettingsItem[] = [
       </SettingsRow>
     ),
     searchTerms: ["destination", "folder", "archive folder"],
-    sectionId: "import",
+    sectionId: "archives",
   },
   {
+    groupLabel: "Import",
     id: "import.reset",
     label: "Reset import settings",
     requiresArchive: true,
@@ -618,7 +658,7 @@ export const settingsItems: readonly SettingsItem[] = [
       </SettingsRow>
     ),
     searchTerms: ["reset"],
-    sectionId: "import",
+    sectionId: "archives",
   },
   ...keyboardSettingsItems,
 ] as const;

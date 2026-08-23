@@ -6,28 +6,26 @@ describe("settingsSections", () => {
   it("keeps the sidebar labels in the accepted order", () => {
     expect(settingsSections.map((section) => section.label)).toEqual([
       "General",
+      "Appearance",
       "Library",
       "Reader",
-      "Dictionaries",
-      "Keyboard",
-      "Appearance",
       "Archives",
       "Storage",
-      "Import",
+      "Dictionaries",
+      "Keyboard",
     ]);
   });
 
   it("uses stable lowercase ids that are independent from labels", () => {
     expect(settingsSections.map((section) => section.id)).toEqual([
       "general",
+      "appearance",
       "library",
       "reader",
-      "dictionaries",
-      "keyboard",
-      "appearance",
       "archives",
       "storage",
-      "import",
+      "dictionaries",
+      "keyboard",
     ]);
     expect(settingsSections.every((section) => section.id === section.id.toLocaleLowerCase())).toBe(
       true,
@@ -50,7 +48,8 @@ describe("settingsSections", () => {
   it("matches current section labels and group terms", () => {
     expect(sectionMatches("appearance", "appearance")).toBe(true);
     expect(sectionMatches("appearance", "app appearance")).toBe(true);
-    expect(sectionMatches("appearance", "window behavior")).toBe(true);
+    expect(sectionMatches("general", "window behavior")).toBe(true);
+    expect(sectionMatches("appearance", "window behavior")).toBe(false);
     expect(sectionMatches("storage", "storage")).toBe(true);
     expect(sectionMatches("storage", "file monitoring")).toBe(true);
     expect(sectionMatches("storage", "archive scanning")).toBe(true);
@@ -65,8 +64,8 @@ describe("settingsSections", () => {
     expect(sectionMatches("storage", "cover")).toBe(true);
     expect(sectionMatches("keyboard", "shortcut")).toBe(true);
     expect(sectionMatches("keyboard", "quick actions")).toBe(true);
-    expect(sectionMatches("appearance", " window ")).toBe(true);
-    expect(sectionMatches("import", "destination")).toBe(true);
+    expect(sectionMatches("general", " window ")).toBe(true);
+    expect(sectionMatches("archives", "destination")).toBe(true);
     expect(sectionMatches("reader", "destination")).toBe(false);
     expect(sectionMatches("dictionaries", "stardict")).toBe(true);
   });

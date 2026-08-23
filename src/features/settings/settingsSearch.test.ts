@@ -34,6 +34,25 @@ describe("settingsSearch", () => {
     ]);
   });
 
+  it("resolves moved settings to their new sections", () => {
+    expect(findSettingsSearchResults("window behavior")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          item: expect.objectContaining({ id: "appearance.remember-window-state" }),
+          sectionLabel: "General",
+        }),
+      ]),
+    );
+    expect(findSettingsSearchResults("default destination folder")).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          item: expect.objectContaining({ id: "import.default-destination-folder" }),
+          sectionLabel: "Archives",
+        }),
+      ]),
+    );
+  });
+
   it("returns only the final app and reader theme controls", () => {
     expect(findSettingsSearchResults("theme").map((result) => result.item.id)).toEqual([
       "reader.theme",

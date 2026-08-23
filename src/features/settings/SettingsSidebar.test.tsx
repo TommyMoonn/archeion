@@ -27,7 +27,9 @@ describe("SettingsSidebar", () => {
     expect(markup).toContain("General");
     expect(markup).toContain("Keyboard");
     expect(markup).toContain("Appearance");
+    expect(markup).toContain("Archives");
     expect(markup).toContain("Storage");
+    expect(markup).not.toContain(">Import<");
     expect(markup).toContain('aria-current="page"');
   });
 });

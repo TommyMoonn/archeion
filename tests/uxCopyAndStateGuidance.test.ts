@@ -74,7 +74,7 @@ describe("Phase 0.9.0.27 UX copy and state guidance", () => {
       expect(settings).toContain(label);
     }
     expect(appearance).toContain("Reset appearance");
-    expect(appearance).toContain("Reset window");
+    expect(settings).toContain("Reset window");
     expect(storage).toContain("Reset storage");
   });
 

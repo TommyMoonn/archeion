@@ -135,7 +135,7 @@ describe("SettingsSearchResults", () => {
       (element) => element.dataset.settingId,
     );
 
-    expect(ids).toEqual(["reader.theme", "appearance.app-themes"]);
+    expect(ids).toEqual(["appearance.app-themes", "reader.theme"]);
     expect(container.textContent).toContain("Reader theme");
     expect(container.textContent).toContain("App themes");
     expect(container.textContent).not.toMatch(/fallback|override|inherit/i);
@@ -190,6 +190,24 @@ describe("SettingsSearchResults", () => {
     expect(controller.updateFiles).toHaveBeenCalledWith({
       scanOnStartup: false,
     });
+  });
+
+  it("groups moved window and import settings under their new sections", () => {
+    const windowResults = trackRoot(renderResults("window behavior"));
+    expect(windowResults.container.textContent).toContain("General");
+    expect(windowResults.container.textContent).toContain("Remember window size and position");
+    expect(windowResults.container.textContent).not.toContain("Appearance");
+
+    const controller = createController();
+    const importResults = trackRoot(renderResults("default import mode", controller));
+    expect(importResults.container.textContent).toContain("Archives");
+    expect(importResults.container.textContent).toContain("Default import mode");
+
+    const moveOption = Array.from(importResults.container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Move",
+    );
+    act(() => moveOption?.click());
+    expect(controller.updateImportDefaults).toHaveBeenCalledWith({ defaultMode: "move" });
   });
 
   it("disables clear EPUB backup action while status is not actionable", () => {

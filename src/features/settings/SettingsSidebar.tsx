@@ -3,7 +3,6 @@ import {
   BookOpenText,
   BrushCleaning,
   Database,
-  Download,
   Keyboard,
   Languages,
   Search,
@@ -48,8 +47,6 @@ function SectionIcon({ section }: { section: SettingsSection }) {
       return <Archive aria-hidden="true" size={16} />;
     case "storage":
       return <BrushCleaning aria-hidden="true" size={16} />;
-    case "import":
-      return <Download aria-hidden="true" size={16} />;
   }
 }
 

@@ -56,9 +56,7 @@ describe("appearanceSettingsItems", () => {
       "appearance.app-themes",
       "appearance.animations",
       "appearance.display-density",
-      "appearance.remember-window-state",
       "appearance.reset-appearance",
-      "appearance.reset-window",
     ]);
   });
 

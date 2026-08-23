@@ -15,7 +15,6 @@ import { AppearanceSettingsSection } from "./sections/AppearanceSettingsSection"
 import { ArchivesSettingsSection } from "./sections/ArchivesSettingsSection";
 import { DictionarySettingsSection } from "./sections/DictionarySettingsSection";
 import { GeneralSettingsSection } from "./sections/GeneralSettingsSection";
-import { ImportSettingsSection } from "./sections/ImportSettingsSection";
 import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
 import { LibrarySettingsSection } from "./sections/LibrarySettingsSection";
 import { ReaderSettingsSection } from "./sections/ReaderSettingsSection";
@@ -62,8 +61,6 @@ function renderSettingsSection(
       return <AppearanceSettingsSection context={controller} />;
     case "storage":
       return <StorageSettingsSection context={controller} />;
-    case "import":
-      return <ImportSettingsSection context={controller} />;
     case "general":
     default:
       return <GeneralSettingsSection context={controller} />;

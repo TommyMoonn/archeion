@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { defaultAppPreferences } from "../../../types/appSettings";
 import { AppearanceSettingsSection } from "./AppearanceSettingsSection";
 import { ArchivesSettingsSection } from "./ArchivesSettingsSection";
+import { GeneralSettingsSection } from "./GeneralSettingsSection";
 import { LibrarySettingsSection } from "./LibrarySettingsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 import type { SettingsDialogController } from "../useSettingsDialogController";
@@ -66,6 +67,10 @@ function renderAppearance() {
   return renderToStaticMarkup(<AppearanceSettingsSection context={createController()} />);
 }
 
+function renderGeneral() {
+  return renderToStaticMarkup(<GeneralSettingsSection context={createController()} />);
+}
+
 function renderStorage(overrides: Partial<SettingsDialogController> = {}) {
   return renderToStaticMarkup(<StorageSettingsSection context={createController(overrides)} />);
 }
@@ -76,10 +81,19 @@ describe("settings section components", () => {
 
     expect(markup).toContain("Appearance");
     expect(markup).toContain("App appearance");
-    expect(markup).toContain("Window behavior");
     expect(markup).toContain("Animations");
     expect(markup).toContain("Display density");
+    expect(markup).not.toContain("Window behavior");
     expect(markup).not.toContain("Interface density");
+  });
+
+  it("renders window behavior under General", () => {
+    const markup = renderGeneral();
+
+    expect(markup).toContain("General");
+    expect(markup).toContain("Window behavior");
+    expect(markup).toContain("Remember window size and position");
+    expect(markup).toContain("Reset window");
   });
 
   it("renders the accepted Storage labels", () => {
@@ -121,6 +135,10 @@ describe("settings section components", () => {
   it("disables archive reveal when no archive path is available", () => {
     const markup = renderToStaticMarkup(<ArchivesSettingsSection context={createController()} />);
 
+    expect(markup).toContain("Import");
+    expect(markup).toContain("Default import mode");
+    expect(markup).toContain("Default conflict handling");
+    expect(markup).toContain("Default destination folder");
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Reveal archive folder");

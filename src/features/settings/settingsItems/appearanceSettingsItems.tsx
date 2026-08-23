@@ -116,28 +116,6 @@ export const appearanceSettingsItems = [
     sectionId: "appearance",
   },
   {
-    description: "Restores the previous window layout when supported.",
-    groupLabel: "Window behavior",
-    id: "appearance.remember-window-state",
-    label: "Remember window size and position",
-    render: (context) => (
-      <SettingsRow
-        description="Restores the previous window layout when supported."
-        label="Remember window size and position"
-      >
-        <Toggle
-          checked={context.preferences.rememberWindowState}
-          label="Remember window size and position"
-          onChange={(rememberWindowState) =>
-            void context.updateAppPreferences({ rememberWindowState })
-          }
-        />
-      </SettingsRow>
-    ),
-    searchTerms: ["window", "size", "position", "window behavior"],
-    sectionId: "appearance",
-  },
-  {
     groupLabel: "Reset",
     groupStyle: "actions",
     id: "appearance.reset-appearance",
@@ -150,21 +128,6 @@ export const appearanceSettingsItems = [
       </SettingsRow>
     ),
     searchTerms: ["reset", "app appearance"],
-    sectionId: "appearance",
-  },
-  {
-    groupLabel: "Reset",
-    groupStyle: "actions",
-    id: "appearance.reset-window",
-    label: "Reset window settings",
-    render: (context) => (
-      <SettingsRow label="Reset window settings">
-        <Button onClick={() => void context.resetWindow()} variant="secondary">
-          Reset window
-        </Button>
-      </SettingsRow>
-    ),
-    searchTerms: ["reset", "window behavior"],
     sectionId: "appearance",
   },
 ] as const satisfies readonly SettingsItem[];

@@ -10,6 +10,7 @@ import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { defaultAppPreferences } from "../../types/appSettings";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { SettingsDialog } from "./SettingsDialog";
+import type { SettingsSection } from "./settingsSections";
 
 vi.mock("@tauri-apps/api/core", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@tauri-apps/api/core")>()),
@@ -69,7 +70,7 @@ function scrollToMock() {
   return HTMLElement.prototype.scrollTo as ReturnType<typeof vi.fn>;
 }
 
-async function renderDialog(storage = createStorage(), initialSection?: "dictionaries") {
+async function renderDialog(storage = createStorage(), initialSection?: SettingsSection) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -161,6 +162,19 @@ describe("SettingsDialog responsiveness", () => {
       container.querySelector('nav[aria-label="Settings sections"] [aria-current="page"]')
         ?.textContent,
     ).toContain("Dictionaries");
+  });
+
+  it("opens merged Import controls through the Archives section selection", async () => {
+    const { container } = track(await renderDialog(createStorage(), "archives"));
+
+    expect(container.querySelector(".settings-section h2")?.textContent).toBe("Archives");
+    expect(
+      container.querySelector('[data-setting-id="import.default-import-mode"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('nav[aria-label="Settings sections"] [aria-current="page"]')
+        ?.textContent,
+    ).toContain("Archives");
   });
 
   it("resets all collection display groups through the existing Library reset", async () => {
@@ -282,10 +296,10 @@ describe("SettingsDialog responsiveness", () => {
     expect(storage.revealMetadataFolder).not.toHaveBeenCalled();
   });
 
-  it("loads folder and archive import settings when Import controls become visible", async () => {
+  it("loads folder and archive import settings when Archives controls become visible", async () => {
     const { container, storage } = track(await renderDialog());
 
-    clickButton(container, "Import");
+    clickButton(container, "Archives");
     await act(async () => {
       await Promise.resolve();
     });
