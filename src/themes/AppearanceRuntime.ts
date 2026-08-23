@@ -1,10 +1,5 @@
 import type { AppPreferences } from "../types/appSettings";
-import type { ArchiveAppearanceSettingsSource } from "../storage/archiveAppearanceSettingsSource";
-import type {
-  AppThemeSelection,
-  ArchiveAppearanceSettings,
-  ReaderThemeSelection,
-} from "../types/settings";
+import type { AppThemeSelection, ReaderThemeSelection } from "../types/settings";
 import {
   ThemeCatalog,
   ThemeCatalogChangedError,
@@ -29,19 +24,7 @@ export type GlobalAppearancePreferences = Pick<AppPreferences, "appTheme" | "rea
 export type GlobalAppearanceSource = Readonly<{
   getSnapshot: () => GlobalAppearancePreferences;
   subscribe: (listener: Listener) => () => void;
-  update?: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
-}>;
-
-/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
-export type AppearanceArchive = Readonly<{ id: string; rootPath: string }>;
-
-/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
-export type ActiveAppearanceArchive = AppearanceArchive & Readonly<{ generation: number }>;
-
-/** @deprecated Removed after the remaining frontend compatibility paths are retired. */
-export type LegacyAppearancePreviewContext = Readonly<{
-  archive: ActiveAppearanceArchive;
-  settings: Readonly<ArchiveAppearanceSettings>;
+  update: (changes: Partial<GlobalAppearancePreferences>) => Promise<AppPreferences>;
 }>;
 
 export type AppearanceRuntimeSnapshot = Readonly<{
@@ -62,11 +45,6 @@ export type AppearanceRuntimeOptions = Readonly<{
 }>;
 
 const SYSTEM_SCHEME_QUERY = "(prefers-color-scheme: light)";
-const GLOBAL_COMPATIBILITY_ARCHIVE = Object.freeze({
-  generation: 0,
-  id: "global-appearance",
-  rootPath: "",
-});
 
 export class AppearanceRuntime {
   private readonly appThemes = new Map<AppThemeBase, ResolvedAppTheme>();
@@ -111,11 +89,6 @@ export class AppearanceRuntime {
   getSnapshot = (): AppearanceRuntimeSnapshot => this.snapshot;
   getReaderSnapshot = (): ResolvedReaderTheme => this.snapshot.reader;
   getPreviewContext = (): AppearancePreviewContext => this.committedContext;
-  getLegacyPreviewContext = (): LegacyAppearancePreviewContext =>
-    Object.freeze({
-      archive: GLOBAL_COMPATIBILITY_ARCHIVE,
-      settings: this.committedContext.settings,
-    });
 
   subscribe = (listener: Listener): (() => void) => {
     this.listeners.add(listener);
@@ -162,7 +135,7 @@ export class AppearanceRuntime {
     if (!samePreferences(this.preferences, expectedSettings)) {
       throw new AppearanceRuntimeSettingsChangedError();
     }
-    await this.updateGlobalPreferences({ appTheme: selection });
+    await this.globalPreferences.update({ appTheme: selection });
     this.adoptPreferences(this.globalPreferences.getSnapshot());
     this.preview = null;
     this.commitCurrentAppearance();
@@ -209,7 +182,7 @@ export class AppearanceRuntime {
     if (this.preview && changes.appTheme) {
       throw new Error("End the active theme preview before changing the application theme.");
     }
-    await this.updateGlobalPreferences(changes);
+    await this.globalPreferences.update(changes);
     this.adoptPreferences(this.globalPreferences.getSnapshot());
     return this.preferences;
   }
@@ -219,39 +192,9 @@ export class AppearanceRuntime {
     await this.resolveCommittedAppearance();
   }
 
-  /** @deprecated Removed after the remaining frontend compatibility paths are retired. */
-  async activateArchive(
-    archive: AppearanceArchive,
-    settingsSource: ArchiveAppearanceSettingsSource,
-  ): Promise<void> {
-    void archive;
-    void settingsSource;
-  }
-
-  /** @deprecated Removed after the remaining frontend compatibility paths are retired. */
-  async saveArchiveAppearanceSettings(
-    archive: ActiveAppearanceArchive,
-    settings: ArchiveAppearanceSettings,
-  ): Promise<Readonly<ArchiveAppearanceSettings>> {
-    void archive;
-    await this.updateAppearanceSettings({
-      ...(settings.appTheme.kind === "inherit" ? {} : { appTheme: settings.appTheme }),
-      ...(settings.readerTheme.kind === "inherit" ? {} : { readerTheme: settings.readerTheme }),
-    });
-    return settings;
-  }
-
   private readonly handlePreferencesChange = () => {
     this.adoptPreferences(this.globalPreferences.getSnapshot());
   };
-
-  private updateGlobalPreferences(
-    changes: Partial<GlobalAppearancePreferences>,
-  ): Promise<AppPreferences> {
-    const update = this.globalPreferences.update;
-    if (!update) throw new Error("Global appearance preferences cannot be updated.");
-    return update(changes);
-  }
 
   private adoptPreferences(preferences: GlobalAppearancePreferences): void {
     const next = freezePreferences(preferences);

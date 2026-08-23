@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { ArchiveAppearanceSettings } from "../types/settings";
 import {
   deferred,
   expectCommandRootPath,
@@ -49,109 +48,13 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
     expect(invokeMock).not.toHaveBeenCalledWith("load_archive_metadata");
   });
 
-  it("loads transitional appearance through the dedicated read-only command", async () => {
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "load_legacy_archive_appearance_settings") {
-        return {
-          appTheme: { kind: "builtin", id: "light" },
-          readerTheme: { kind: "builtin", id: "sepia" },
-        };
-      }
-      return undefined;
-    });
-    const storage = new TauriArchiveLibraryStorage();
-
-    await expect(storage.getArchiveAppearanceSettings()).resolves.toEqual({
-      appTheme: { kind: "builtin", id: "light" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-    expect(invokeMock).toHaveBeenCalledWith("load_legacy_archive_appearance_settings");
-    expect(invokeMock).not.toHaveBeenCalledWith("load_settings_metadata");
-    expect(invokeMock).not.toHaveBeenCalledWith("save_settings_metadata", expect.anything());
-  });
-
-  it("coalesces the legacy read before applying a concurrent memory-only update", async () => {
-    const legacyRead = deferred<ArchiveAppearanceSettings | null>();
-    invokeMock.mockImplementation(async (command) => {
-      if (command === "load_legacy_archive_appearance_settings") return legacyRead.promise;
-      return undefined;
-    });
-    const storage = new TauriArchiveLibraryStorage();
-
-    const reading = storage.getArchiveAppearanceSettings();
-    const updating = storage.updateArchiveAppearanceSettings({
-      appTheme: { kind: "builtin", id: "dark" },
-    });
-    await vi.waitFor(() =>
-      expect(
-        invokeMock.mock.calls.filter(
-          ([command]) => command === "load_legacy_archive_appearance_settings",
-        ),
-      ).toHaveLength(1),
-    );
-    legacyRead.resolve({
-      appTheme: { kind: "builtin", id: "light" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-
-    await expect(reading).resolves.toEqual({
-      appTheme: { kind: "builtin", id: "light" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-    await expect(updating).resolves.toEqual({
-      appTheme: { kind: "builtin", id: "dark" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-    await expect(storage.getArchiveAppearanceSettings()).resolves.toEqual({
-      appTheme: { kind: "builtin", id: "dark" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-  });
-
-  it("keeps transitional appearance updates in memory without persisting them", async () => {
+  it("persists archive import updates without serializing appearance", async () => {
     const { storage } = await scopedStorage();
 
-    await expect(
-      storage.saveArchiveAppearanceSettings({
-        appTheme: { kind: "custom", id: "moon-ink" },
-        readerTheme: { kind: "builtin", id: "sepia" },
-      }),
-    ).resolves.toEqual({
-      appTheme: { kind: "custom", id: "moon-ink" },
-      readerTheme: { kind: "builtin", id: "sepia" },
-    });
-    await expect(
-      storage.updateArchiveAppearanceSettings({
-        readerTheme: { kind: "custom", id: "paper-reader" },
-      }),
-    ).resolves.toEqual({
-      appTheme: { kind: "custom", id: "moon-ink" },
-      readerTheme: { kind: "custom", id: "paper-reader" },
-    });
-    await expect(storage.resetArchiveAppearanceSettings()).resolves.toEqual({
-      appTheme: { kind: "inherit" },
-      readerTheme: { kind: "inherit" },
+    const importSettings = await storage.updateArchiveImportSettings({
+      defaultDestinationFolderPath: "Fiction/New",
     });
 
-    const saveCalls = invokeMock.mock.calls.filter(
-      ([command]) => command === "save_settings_metadata",
-    );
-    expect(saveCalls).toHaveLength(0);
-  });
-
-  it("persists concurrent import updates without serializing or changing session appearance", async () => {
-    const { storage } = await scopedStorage();
-
-    const [appearance, importSettings] = await Promise.all([
-      storage.updateArchiveAppearanceSettings({
-        appTheme: { kind: "builtin", id: "light" },
-      }),
-      storage.updateArchiveImportSettings({
-        defaultDestinationFolderPath: "Fiction/New",
-      }),
-    ]);
-
-    expect(appearance.appTheme).toEqual({ kind: "builtin", id: "light" });
     expect(importSettings).toEqual({ defaultDestinationFolderPath: "Fiction/New" });
     const saveCalls = invokeMock.mock.calls.filter(
       ([command]) => command === "save_settings_metadata",
@@ -163,10 +66,6 @@ describe("TauriArchiveLibraryStorage settings and maintenance", () => {
         version: 3,
         import: { defaultDestinationFolderPath: "Fiction/New" },
       },
-    });
-    await expect(storage.getArchiveAppearanceSettings()).resolves.toEqual({
-      appTheme: { kind: "builtin", id: "light" },
-      readerTheme: { kind: "inherit" },
     });
   });
 

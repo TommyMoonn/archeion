@@ -13,7 +13,6 @@ import type {
   EpubDuplicateAnalysisCandidate,
   EpubDuplicateAnalysisResult,
 } from "../../types/epubIntegrity";
-import type { ArchiveAppearanceSettings } from "../../types/settings";
 import type { StoredAnnotationsMetadata } from "../annotations/annotationsMetadata";
 import type {
   LibraryMetadata,
@@ -61,10 +60,6 @@ type ArchiveCommandMap = {
     EpubDiagnosticAnalysisResult
   >;
   load_archive_metadata: CommandDefinition<undefined, MetadataBundle>;
-  load_legacy_archive_appearance_settings: CommandDefinition<
-    undefined,
-    ArchiveAppearanceSettings | null
-  >;
   load_settings_metadata: CommandDefinition<undefined, SettingsMetadata>;
   load_annotations_metadata: CommandDefinition<undefined, unknown>;
   save_library_metadata: CommandDefinition<{ metadata: LibraryMetadata }, void>;
