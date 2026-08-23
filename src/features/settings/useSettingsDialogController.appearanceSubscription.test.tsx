@@ -212,4 +212,38 @@ describe("Settings committed appearance subscription", () => {
     });
     expect(latest.busyConfirmations.rescanArchive).toBe(false);
   });
+
+  it("does not publish rescan success when reconciliation fails", async () => {
+    storage = createStorage({ rescan: vi.fn().mockRejectedValue(new Error("persist failed")) });
+    await render();
+
+    await act(async () => {
+      latest.confirmRescanArchive();
+      await Promise.resolve();
+    });
+
+    expect(latest.status).toEqual({
+      autoDismiss: false,
+      message: "The archive could not be scanned. Try again.",
+      tone: "error",
+    });
+  });
+
+  it("does not publish metadata-repair success when final reconciliation fails", async () => {
+    storage = createStorage({
+      repairArchiveMetadata: vi.fn().mockRejectedValue(new Error("reconcile failed")),
+    });
+    await render();
+
+    await act(async () => {
+      latest.confirmRepairMetadata();
+      await Promise.resolve();
+    });
+
+    expect(latest.status).toEqual({
+      autoDismiss: false,
+      message: "Archive metadata could not be repaired. Try again.",
+      tone: "error",
+    });
+  });
 });

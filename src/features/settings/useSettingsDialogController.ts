@@ -14,8 +14,8 @@ import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
+import type { KnownArchive } from "../../types/archive";
 import {
-  isArchiveScanActive,
   releaseArchiveScanOperation,
   tryAcquireArchiveScanOperation,
   useArchiveScanActivity,
@@ -29,6 +29,7 @@ import {
 } from "../filesystem/archiveImport";
 import type { SettingsConfirmationKey, SettingsConfirmationState } from "./SettingsConfirmations";
 import type { SettingsLocalStatus, SettingsStatusTone } from "./SettingsStatus";
+import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
 
 const initialConfirmations: SettingsConfirmationState = {
   clearCoverCache: false,
@@ -56,6 +57,9 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
 
 export type SettingsDialogControllerOptions = {
   archiveAccess?: "required" | "unavailable";
+  archiveGeneration?: number;
+  archiveIdentity?: KnownArchive | null;
+  archiveMaintenance?: SettingsArchiveMaintenance | null;
   loadArchiveImportSettings?: boolean;
   loadCoverCacheStatus?: boolean;
   loadEpubWritebackBackupStatus?: boolean;
@@ -68,6 +72,9 @@ export type SettingsDialogControllerOptions = {
 
 export function useSettingsDialogController({
   archiveAccess = "required",
+  archiveGeneration = 0,
+  archiveIdentity = null,
+  archiveMaintenance = null,
   loadArchiveImportSettings = false,
   loadCoverCacheStatus = false,
   loadEpubWritebackBackupStatus = false,
@@ -78,11 +85,14 @@ export function useSettingsDialogController({
   themeCatalogLoading = false,
 }: SettingsDialogControllerOptions = {}) {
   const contextualStorage = useOptionalLibraryStorage();
-  const storage = archiveAccess === "unavailable" ? null : contextualStorage;
+  const storage =
+    archiveMaintenance ?? (archiveAccess === "unavailable" ? null : contextualStorage);
   if (archiveAccess === "required" && !storage) {
     throw new Error("LibraryStorageProvider is missing.");
   }
-  const archiveScanActive = useArchiveScanActivity(storage);
+  const contextualArchiveScanActive = useArchiveScanActivity(
+    storage === contextualStorage ? contextualStorage : null,
+  );
   const archive = useArchive();
   const preferences = useAppPreferences();
   const persistenceStatus = useAppPreferencesPersistenceStatus();
@@ -116,6 +126,11 @@ export function useSettingsDialogController({
     useState<SettingsConfirmationState>(initialConfirmations);
   const [busyConfirmations, setBusyConfirmations] =
     useState<SettingsConfirmationState>(initialBusyConfirmations);
+  const archiveScanActive =
+    contextualArchiveScanActive ||
+    busyConfirmations.rescanArchive ||
+    busyConfirmations.reextractMetadata ||
+    busyConfirmations.repairMetadata;
 
   const importSettings: ImportSettings = {
     ...preferences.import,
@@ -130,7 +145,8 @@ export function useSettingsDialogController({
   )
     ? importDestinationValue
     : destinationOptions[0]?.value;
-  const selectedArchivePath = storage && archive.status === "ready" ? archive.path : undefined;
+  const selectedArchivePath =
+    archiveIdentity?.rootPath ?? (storage && archive.status === "ready" ? archive.path : undefined);
 
   const clearLocalStatus = useCallback(() => {
     setStatus(null);
@@ -180,7 +196,23 @@ export function useSettingsDialogController({
     epubWritebackBackupStatusLoadingRef.current = false;
     foldersLoadedRef.current = false;
     foldersLoadingRef.current = false;
-  }, [storage]);
+  }, [archiveGeneration, storage]);
+
+  useEffect(() => {
+    if (!archiveMaintenance) return;
+    statusOperationRevisionRef.current += 1;
+    confirmationOperationLocksRef.current.clear();
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setConfirmations(initialConfirmations);
+      setBusyConfirmations(initialBusyConfirmations);
+      setStatus(null);
+    });
+    return () => {
+      active = false;
+    };
+  }, [archiveGeneration, archiveMaintenance]);
 
   useEffect(() => {
     if (
@@ -321,7 +353,7 @@ export function useSettingsDialogController({
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
     if (!storage) return;
-    if (archiveScanConfirmationKeys.has(confirmation) && isArchiveScanActive(storage)) return;
+    if (archiveScanConfirmationKeys.has(confirmation) && archiveScanActive) return;
     setConfirmations((current) => ({ ...current, [confirmation]: true }));
   }
 
@@ -345,14 +377,15 @@ export function useSettingsDialogController({
 
   function beginArchiveScanOperation(
     confirmation: SettingsConfirmationKey,
-  ): { claim: ArchiveScanOperationClaim; statusOperation: number } | null {
+  ): { claim: ArchiveScanOperationClaim | null; statusOperation: number } | null {
     if (!storage) return null;
-    const claim = tryAcquireArchiveScanOperation(storage);
-    if (!claim) return null;
+    const claim =
+      storage === contextualStorage ? tryAcquireArchiveScanOperation(contextualStorage) : null;
+    if (storage === contextualStorage && !claim) return null;
 
     const statusOperation = beginConfirmationOperation(confirmation);
     if (statusOperation === null) {
-      releaseArchiveScanOperation(claim);
+      if (claim) releaseArchiveScanOperation(claim);
       return null;
     }
     return { claim, statusOperation };
@@ -501,7 +534,7 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("rescanArchive");
-      releaseArchiveScanOperation(claim);
+      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 
@@ -519,9 +552,17 @@ export function useSettingsDialogController({
 
   async function revealArchiveFolder() {
     const statusOperation = beginStatusOperation();
-    if (!storage || archive.status !== "ready") return;
-    const revealed = await archiveStore.revealArchive(archive.archive.id);
-    if (!revealed) {
+    if (!storage) return;
+    try {
+      if (archiveMaintenance) {
+        await archiveMaintenance.revealArchiveFolder();
+      } else if (
+        archive.status !== "ready" ||
+        !(await archiveStore.revealArchive(archive.archive.id))
+      ) {
+        throw new Error("Archive could not be revealed.");
+      }
+    } catch {
       publishStatusOperation(
         statusOperation,
         "The archive folder could not be opened. Check that the folder still exists.",
@@ -616,7 +657,7 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("reextractMetadata");
-      releaseArchiveScanOperation(claim);
+      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 
@@ -636,7 +677,7 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("repairMetadata");
-      releaseArchiveScanOperation(claim);
+      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 

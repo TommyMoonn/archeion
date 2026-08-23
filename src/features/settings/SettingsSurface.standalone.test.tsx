@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { SettingsSurface } from "./SettingsSurface";
+import type { SettingsArchiveBoundary } from "./useSettingsArchiveMaintenance";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -29,6 +30,37 @@ function changeInputValue(input: HTMLInputElement, value: string) {
 
 async function renderSurface() {
   await act(async () => root.render(<SettingsSurface archiveAccess="unavailable" standalone />));
+}
+
+function availableArchiveBoundary(): SettingsArchiveBoundary {
+  return {
+    maintenance: {
+      clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+      clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+      clearScannerCache: vi.fn().mockResolvedValue(undefined),
+      getArchiveImportSettings: vi.fn().mockResolvedValue({}),
+      getCoverCacheStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+      getEpubWritebackBackupStatus: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+      listFolders: vi.fn().mockResolvedValue([]),
+      repairArchiveMetadata: vi.fn().mockResolvedValue(undefined),
+      resetArchiveImportSettings: vi.fn().mockResolvedValue({}),
+      rescan: vi.fn().mockResolvedValue(undefined),
+      revealArchiveFolder: vi.fn().mockResolvedValue(undefined),
+      revealMetadataFolder: vi.fn().mockResolvedValue(undefined),
+      saveArchiveImportSettings: vi.fn().mockResolvedValue({}),
+    },
+    snapshot: {
+      archive: {
+        id: "archive-a",
+        displayName: "Archive A",
+        rootPath: "D:\\Archive A",
+        createdAt: "1",
+        lastOpenedAt: "1",
+      },
+      generation: 1,
+      status: "ready",
+    },
+  };
 }
 
 beforeEach(() => {
@@ -67,6 +99,28 @@ describe("standalone Settings surface", () => {
         '[data-setting-id="storage.scan-on-startup"] [role="switch"]',
       )?.disabled,
     ).toBe(false);
+  });
+
+  it("enables archive controls through the standalone maintenance boundary", async () => {
+    const archiveBoundary = availableArchiveBoundary();
+    await act(async () =>
+      root.render(
+        <SettingsSurface
+          archiveAccess="unavailable"
+          archiveBoundary={archiveBoundary}
+          standalone
+        />,
+      ),
+    );
+
+    clickButton("Storage");
+    await act(async () => {
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+    expect(container.querySelector('[data-setting-id="storage.rescan-archive"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-setting-id="storage.rescan-archive"] fieldset:disabled'),
+    ).toBeNull();
   });
 
   it("restores persisted preferences but resets section and search state after remount", async () => {

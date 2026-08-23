@@ -15,6 +15,9 @@ const LEGACY_ARCHIVE_REGISTRY_FILE: &str = "vault.json";
 const ARCHIVE_MANAGER_WINDOW_LABEL: &str = "archive-manager";
 const ARCHIVE_REGISTRY_CHANGED_EVENT: &str = "archive-registry-changed";
 const ARCHIVE_MANAGER_CLOSED_EVENT: &str = "archive-manager-closed";
+const ARCHIVE_RECONCILIATION_REQUESTED_EVENT: &str = "archive-reconciliation-requested";
+const ARCHIVE_RECONCILIATION_COMPLETED_EVENT: &str = "archive-reconciliation-completed";
+const ARCHIVE_MAINTENANCE_RECONCILED_EVENT: &str = "archive-maintenance-reconciled";
 const MAIN_WINDOW_LABEL: &str = "main";
 const ARCHIVE_MANAGER_QUERY: &str = "window=archive-manager";
 const ARCHIVE_MANAGER_APP_URL: &str = "index.html?window=archive-manager";
@@ -38,6 +41,32 @@ pub struct ArchiveRegistry {
     pub archives: Vec<ArchiveRecord>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub last_opened_archive_id: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveReconciliationRequest {
+    pub archive_id: String,
+    pub request_id: String,
+    pub root_path: String,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ArchiveReconciliationCompletion {
+    pub archive_id: String,
+    pub request_id: String,
+    pub root_path: String,
+    pub succeeded: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArchiveMaintenanceReconciled {
+    archive_id: String,
+    root_path: String,
 }
 
 impl Default for ArchiveRegistry {
@@ -560,6 +589,80 @@ pub fn load_archive_registry(app: tauri::AppHandle) -> Result<ArchiveRegistry, S
     read_registry(&app)
 }
 
+fn validate_archive_invalidation_scope(
+    registry: &ArchiveRegistry,
+    archive_id: &str,
+    root_path: &str,
+) -> Result<(), String> {
+    let active_id = registry
+        .last_opened_archive_id
+        .as_deref()
+        .ok_or_else(|| "No active archive is available.".to_string())?;
+    let active = registry
+        .archives
+        .iter()
+        .find(|archive| archive.id == active_id)
+        .ok_or_else(|| "The active archive is unavailable.".to_string())?;
+
+    if active.id != archive_id || !archive_paths_match(&active.root_path, root_path) {
+        return Err("The active archive changed before invalidation completed.".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn invalidate_archive_view(
+    app: tauri::AppHandle,
+    archive_id: String,
+    root_path: String,
+) -> Result<(), String> {
+    let registry = read_registry(&app)?;
+    validate_archive_invalidation_scope(&registry, &archive_id, &root_path)?;
+    let main = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(|| "The Main window is unavailable for archive synchronization.".to_string())?;
+    main.emit(
+        ARCHIVE_MAINTENANCE_RECONCILED_EVENT,
+        ArchiveMaintenanceReconciled {
+            archive_id,
+            root_path,
+        },
+    )
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn request_archive_reconciliation(
+    app: tauri::AppHandle,
+    request: ArchiveReconciliationRequest,
+) -> Result<(), String> {
+    let registry = read_registry(&app)?;
+    validate_archive_invalidation_scope(&registry, &request.archive_id, &request.root_path)?;
+    let main = app
+        .get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(|| "The Main window is unavailable for archive reconciliation.".to_string())?;
+    main.emit(ARCHIVE_RECONCILIATION_REQUESTED_EVENT, request)
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub fn complete_archive_reconciliation(
+    app: tauri::AppHandle,
+    mut completion: ArchiveReconciliationCompletion,
+) -> Result<(), String> {
+    let registry = read_registry(&app)?;
+    if validate_archive_invalidation_scope(&registry, &completion.archive_id, &completion.root_path)
+        .is_err()
+    {
+        completion.succeeded = false;
+        completion.error =
+            Some("The active archive changed before reconciliation completed.".to_string());
+    }
+    app.emit(ARCHIVE_RECONCILIATION_COMPLETED_EVENT, completion)
+        .map_err(|error| error.to_string())
+}
+
 #[tauri::command]
 pub fn open_archive(app: tauri::AppHandle, path: String) -> Result<ArchiveRegistry, String> {
     save_active_archive_path(&app, path)?;
@@ -736,10 +839,36 @@ mod tests {
         archive_id_for_path, archive_manager_close_action, archive_manager_url_parts,
         archive_paths_match, archive_root, create_empty_archive_at,
         create_empty_archive_at_with_initializer, metadata, normalize_registry_paths,
-        upsert_archive_at_path, validate_archive_name, validated_display_root_path,
-        validated_parent_path, validated_root_path, ArchiveManagerCloseAction,
-        ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
+        upsert_archive_at_path, validate_archive_invalidation_scope, validate_archive_name,
+        validated_display_root_path, validated_parent_path, validated_root_path,
+        ArchiveManagerCloseAction, ArchiveManagerUrlKind, ArchiveRecord, ArchiveRegistry,
     };
+
+    #[test]
+    fn archive_invalidation_is_bound_to_the_current_registry_identity() {
+        let archive = ArchiveRecord {
+            id: "archive-a".to_string(),
+            display_name: "Archive A".to_string(),
+            root_path: r"C:\Archive A".to_string(),
+            last_opened_at: "1".to_string(),
+            created_at: "1".to_string(),
+        };
+        let registry = ArchiveRegistry {
+            version: 1,
+            archives: vec![archive],
+            last_opened_archive_id: Some("archive-a".to_string()),
+        };
+
+        assert!(
+            validate_archive_invalidation_scope(&registry, "archive-a", r"C:\Archive A").is_ok()
+        );
+        assert!(
+            validate_archive_invalidation_scope(&registry, "archive-b", r"C:\Archive A").is_err()
+        );
+        assert!(
+            validate_archive_invalidation_scope(&registry, "archive-a", r"D:\Archive B").is_err()
+        );
+    }
 
     #[test]
     fn archive_manager_close_lifecycle_requires_a_usable_archive() {

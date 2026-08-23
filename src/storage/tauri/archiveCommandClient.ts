@@ -40,7 +40,7 @@ type CommandDefinition<Args, Result> = {
   result: Result;
 };
 
-type ArchiveCommandMap = {
+export type ArchiveCommandMap = {
   scan_archive: CommandDefinition<undefined, ArchiveScan>;
   scan_archive_epub_paths: CommandDefinition<{ relativePaths: string[] }, ArchiveEpubScan>;
   request_epub_duplicate_analysis: CommandDefinition<
@@ -140,9 +140,10 @@ type ArchiveCommandMap = {
   reveal_archeion_folder: CommandDefinition<undefined, void>;
 };
 
-type ArchiveCommandName = keyof ArchiveCommandMap;
-type ArchiveCommandArgs<Name extends ArchiveCommandName> = ArchiveCommandMap[Name]["args"];
-type ArchiveCommandResult<Name extends ArchiveCommandName> = ArchiveCommandMap[Name]["result"];
+export type ArchiveCommandName = keyof ArchiveCommandMap;
+export type ArchiveCommandArgs<Name extends ArchiveCommandName> = ArchiveCommandMap[Name]["args"];
+export type ArchiveCommandResult<Name extends ArchiveCommandName> =
+  ArchiveCommandMap[Name]["result"];
 
 const METADATA_WRITE_COMMANDS = new Set<ArchiveCommandName>([
   "save_library_metadata",

@@ -11,6 +11,7 @@ import { CoverUrlCacheScopeContext } from "../library/coverUrlCacheScope";
 import { router } from "../../app/router";
 import { startupTrace } from "../../app/startupTrace";
 import { MAIN_CONTENT_ID } from "../../components/SkipLink";
+import { useArchiveReconciliationRequests } from "./useArchiveReconciliationRequests";
 
 type ArchiveGateProps = {
   children: ReactNode;
@@ -28,6 +29,10 @@ export function ArchiveGate({ children, preparedArchiveAtMount }: ArchiveGatePro
   const storageArchiveRef = useRef(preparedArchiveAtMount ?? null);
   const replacingReadyArchive = Boolean(
     readyArchiveId && renderedArchiveId && readyArchiveId !== renderedArchiveId,
+  );
+  useArchiveReconciliationRequests(
+    storage,
+    archivePath && readyArchiveId ? { archiveId: readyArchiveId, rootPath: archivePath } : null,
   );
 
   useEffect(() => {

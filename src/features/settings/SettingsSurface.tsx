@@ -24,9 +24,11 @@ import { getSettingsItemsDataRequirements, getSettingsItemsForSection } from "./
 import { findSettingsSearchResults } from "./settingsSearch";
 import { settingsSections, type SettingsSection } from "./settingsSections";
 import { useSettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsArchiveBoundary } from "./useSettingsArchiveMaintenance";
 
 type SettingsSurfaceProps = {
   archiveAccess: "required" | "unavailable";
+  archiveBoundary?: SettingsArchiveBoundary;
   closeButtonRef?: RefObject<HTMLButtonElement | null>;
   initialSection?: SettingsSection;
   onClose?: () => void;
@@ -70,6 +72,7 @@ function renderSettingsSection(
 
 export function SettingsSurface({
   archiveAccess,
+  archiveBoundary,
   closeButtonRef,
   initialSection = "general",
   onClose,
@@ -84,6 +87,7 @@ export function SettingsSurface({
   const { getCommandBinding } = useQuickActions();
   const trimmedQuery = query.trim();
   const searchActive = trimmedQuery.length > 0;
+  const archiveAvailable = archiveAccess === "required" || Boolean(archiveBoundary?.maintenance);
   const selectedSection = useMemo(
     () => (sectionIsKnown(activeSection) ? activeSection : "general"),
     [activeSection],
@@ -92,8 +96,8 @@ export function SettingsSurface({
     const items = searchActive
       ? findSettingsSearchResults(trimmedQuery).map((result) => result.item)
       : getSettingsItemsForSection(selectedSection);
-    return archiveAccess === "unavailable" ? items.filter((item) => !item.requiresArchive) : items;
-  }, [archiveAccess, searchActive, selectedSection, trimmedQuery]);
+    return archiveAvailable ? items : items.filter((item) => !item.requiresArchive);
+  }, [archiveAvailable, searchActive, selectedSection, trimmedQuery]);
   const dataRequirements = useMemo(
     () => getSettingsItemsDataRequirements(visibleSettingsItems),
     [visibleSettingsItems],
@@ -103,6 +107,9 @@ export function SettingsSurface({
   });
   const controller = useSettingsDialogController({
     archiveAccess,
+    archiveGeneration: archiveBoundary?.snapshot.generation,
+    archiveIdentity: archiveBoundary?.snapshot.archive,
+    archiveMaintenance: archiveBoundary?.maintenance,
     loadArchiveImportSettings: dataRequirements.has("archiveImportSettings"),
     loadCoverCacheStatus: dataRequirements.has("coverCacheStatus"),
     loadEpubWritebackBackupStatus: dataRequirements.has("epubWritebackBackupStatus"),

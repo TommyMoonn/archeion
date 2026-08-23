@@ -6,10 +6,12 @@ import { WindowTitlebar } from "../../components/WindowTitlebar";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { QuickActionsProvider } from "../quick-actions/QuickActionsProvider";
 import { SettingsSurface } from "./SettingsSurface";
+import { useSettingsArchiveMaintenance } from "./useSettingsArchiveMaintenance";
 
 type InitializationState = "loading" | "ready" | "error";
 
 export function SettingsWindow() {
+  const archiveBoundary = useSettingsArchiveMaintenance();
   const [initializationState, setInitializationState] = useState<InitializationState>("loading");
   const [initializationAttempt, setInitializationAttempt] = useState(0);
 
@@ -61,7 +63,11 @@ export function SettingsWindow() {
           ) : null}
           {initializationState === "ready" ? (
             <QuickActionsProvider>
-              <SettingsSurface archiveAccess="unavailable" standalone />
+              <SettingsSurface
+                archiveAccess="unavailable"
+                archiveBoundary={archiveBoundary}
+                standalone
+              />
             </QuickActionsProvider>
           ) : null}
         </main>

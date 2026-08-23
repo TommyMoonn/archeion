@@ -6,7 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SettingsWindow } from "./StandaloneSettingsWindow";
 
-const mocks = vi.hoisted(() => ({ initialize: vi.fn<() => Promise<void>>() }));
+const mocks = vi.hoisted(() => ({
+  initialize: vi.fn<() => Promise<void>>(),
+  archiveBoundary: {
+    maintenance: null,
+    snapshot: { archive: null, generation: 0, status: "unavailable" as const },
+  },
+  surfaceProps: vi.fn(),
+}));
 
 vi.mock("../../components/WindowTitlebar", () => ({
   WindowTitlebar: () => <header data-testid="settings-titlebar" />,
@@ -18,7 +25,13 @@ vi.mock("../quick-actions/QuickActionsProvider", () => ({
   QuickActionsProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("./SettingsSurface", () => ({
-  SettingsSurface: () => <div data-testid="settings-surface">Settings surface</div>,
+  SettingsSurface: (props: unknown) => {
+    mocks.surfaceProps(props);
+    return <div data-testid="settings-surface">Settings surface</div>;
+  },
+}));
+vi.mock("./useSettingsArchiveMaintenance", () => ({
+  useSettingsArchiveMaintenance: () => mocks.archiveBoundary,
 }));
 
 let container: HTMLDivElement;
@@ -39,6 +52,7 @@ beforeEach(() => {
   document.body.append(container);
   root = createRoot(container);
   mocks.initialize.mockReset();
+  mocks.surfaceProps.mockReset();
 });
 
 afterEach(() => {
@@ -58,6 +72,9 @@ describe("SettingsWindow", () => {
 
     await act(async () => initialization.resolve());
     expect(container.querySelector('[data-testid="settings-surface"]')).not.toBeNull();
+    expect(mocks.surfaceProps).toHaveBeenLastCalledWith(
+      expect.objectContaining({ archiveBoundary: mocks.archiveBoundary, standalone: true }),
+    );
     expect(container.querySelectorAll("main")).toHaveLength(1);
     expect(container.querySelector("dialog")).toBeNull();
   });
