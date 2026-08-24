@@ -605,6 +605,11 @@ describe("ReaderPage Quick Actions", () => {
       key: "b",
     });
 
+    expect(rendered.container.querySelector(".app-shell")).toBeNull();
+    expect(rendered.container.querySelector(".page-shell")).toBeNull();
+    expect(rendered.container.querySelector(".sidebar")).toBeNull();
+    expect(rendered.container.querySelector(".library-titlebar-composition")).toBeNull();
+
     act(() => reader.dispatchEvent(event));
     expect(event.defaultPrevented).toBe(false);
 

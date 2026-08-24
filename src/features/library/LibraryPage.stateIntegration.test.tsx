@@ -26,15 +26,24 @@ describe("LibraryPage shell state integration", () => {
     );
     suite.trackRoot(session.root);
 
+    const outerShell = session.container.querySelector(".app-shell");
     const shell = session.container.querySelector(".page-shell");
+    const sidebar = session.container.querySelector(".sidebar");
+    const titlebarActions = session.container.querySelector(".library-titlebar-composition");
     const loadingContent = session.container.querySelector(".collection-content");
 
+    expect(outerShell).not.toBeNull();
+    expect(sidebar).not.toBeNull();
+    expect(titlebarActions).not.toBeNull();
     expect(loadingContent?.getAttribute("data-surface-state")).toBe("loading");
     expect(loadingContent?.getAttribute("aria-busy")).toBe("true");
 
     act(() => loadController.publishModel([], []));
 
+    expect(session.container.querySelector(".app-shell")).toBe(outerShell);
     expect(session.container.querySelector(".page-shell")).toBe(shell);
+    expect(session.container.querySelector(".sidebar")).toBe(sidebar);
+    expect(session.container.querySelector(".library-titlebar-composition")).toBe(titlebarActions);
     const emptyContent = session.container.querySelector(".collection-content");
     expect(emptyContent?.className).toBe(loadingContent?.className);
     expect(emptyContent?.getAttribute("data-surface-state")).toBe("empty");
@@ -53,6 +62,8 @@ describe("LibraryPage shell state integration", () => {
     suite.trackRoot(session.root);
 
     act(() => loadController.publishModel([book], []));
+    const outerShell = session.container.querySelector(".app-shell");
+    const shell = session.container.querySelector(".page-shell");
     const bookTarget = session.container.querySelector(
       'button[aria-label="View details for Alpha"]',
     );
@@ -64,6 +75,8 @@ describe("LibraryPage shell state integration", () => {
 
     act(() => loadController.startLoading());
 
+    expect(session.container.querySelector(".app-shell")).toBe(outerShell);
+    expect(session.container.querySelector(".page-shell")).toBe(shell);
     expect(session.container.querySelector('button[aria-label="View details for Alpha"]')).toBe(
       bookTarget,
     );

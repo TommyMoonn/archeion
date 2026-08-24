@@ -204,7 +204,7 @@ afterEach(() => {
   container = null;
 });
 
-describe("App Archive Manager completion ownership", () => {
+describe("App window mode and startup shell ownership", () => {
   it("mounts the standalone Settings root without the main application tree", async () => {
     mocks.windowMode = "settings";
 
@@ -231,6 +231,23 @@ describe("App Archive Manager completion ownership", () => {
     expect(mocks.gatePreparations).toHaveLength(0);
     expect(mocks.focusMainWindow).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("keeps startup failures on the dedicated status surface outside the Library shell", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.initializeMainStartup.mockRejectedValue(new Error("startup unavailable"));
+
+    await renderApp();
+
+    const status = container?.querySelector(".reader-status-page");
+    expect(status).toBeInstanceOf(HTMLElement);
+    expect(status?.tagName).toBe("MAIN");
+    expect(status?.querySelector('[role="alert"]')).not.toBeNull();
+    expect(
+      Array.from(status?.querySelectorAll("button") ?? [], (button) => button.textContent),
+    ).toEqual(["Retry", "Quit"]);
+    expect(container?.querySelector(".window-app--main-shell")).toBeNull();
+    expect(container?.querySelector('[data-testid="router"]')).toBeNull();
   });
 
   it("accepts an early close before the manager startup result commits", async () => {
@@ -388,6 +405,9 @@ describe("App Archive Manager completion ownership", () => {
     expect(mocks.getLibraryStorage).not.toHaveBeenCalled();
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.providerStorages.at(-1)).toBe(storage);
+    expect(container?.querySelector(".window-app--main-shell")).not.toBeNull();
+    expect(container?.querySelector('[data-testid="router"]')).not.toBeNull();
+    expect(container?.querySelector(".reader-status-page")).toBeNull();
   });
 
   it("prevents a pending completion from publishing after unmount", async () => {
