@@ -7,6 +7,7 @@ import {
   ARCHIVE_MANAGER_MAIN_CONTENT_ID,
   MAIN_CONTENT_ID,
   SETTINGS_MAIN_CONTENT_ID,
+  THEME_MANAGER_MAIN_CONTENT_ID,
   SkipLink,
 } from "../components/SkipLink";
 import { TooltipProvider } from "../components/Tooltip";
@@ -44,6 +45,11 @@ const ArchiveManagerWindow = lazy(() =>
 const SettingsWindow = lazy(() =>
   import("../features/settings/StandaloneSettingsWindow").then((module) => ({
     default: module.SettingsWindow,
+  })),
+);
+const ThemeManagerWindow = lazy(() =>
+  import("../features/themes/ThemeManagerWindow").then((module) => ({
+    default: module.ThemeManagerWindow,
   })),
 );
 
@@ -86,6 +92,18 @@ export function App() {
         <AppErrorBoundary mainContentId={SETTINGS_MAIN_CONTENT_ID}>
           <Suspense fallback={null}>
             <SettingsWindow />
+          </Suspense>
+        </AppErrorBoundary>
+      </TooltipProvider>
+    );
+  }
+
+  if (windowMode === "theme-manager") {
+    return (
+      <TooltipProvider>
+        <AppErrorBoundary mainContentId={THEME_MANAGER_MAIN_CONTENT_ID}>
+          <Suspense fallback={null}>
+            <ThemeManagerWindow />
           </Suspense>
         </AppErrorBoundary>
       </TooltipProvider>

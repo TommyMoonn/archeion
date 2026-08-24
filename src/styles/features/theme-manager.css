@@ -1,3 +1,33 @@
+.theme-manager-window-shell {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.theme-manager-surface {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.theme-manager-surface--standalone {
+  padding: 18px;
+}
+
+.theme-manager-surface--standalone h1 {
+  margin: 0;
+  padding-inline-end: 40px;
+  color: var(--text-strong);
+  font-family: var(--font-display);
+  font-size: var(--type-page-title);
+  font-weight: var(--font-weight-regular);
+}
+
 .theme-manager-dialog {
   width: min(1060px, calc(100% - 32px));
 }
@@ -13,7 +43,12 @@
   padding-inline-end: 40px;
 }
 
-.theme-manager-dialog .dialog__copy + .theme-manager__toolbar {
+.theme-manager-dialog .theme-manager-surface {
+  position: static;
+}
+
+.theme-manager-dialog .dialog__copy + .theme-manager-surface,
+.theme-manager-surface--standalone h1 + .theme-manager__toolbar {
   margin-top: 8px;
 }
 

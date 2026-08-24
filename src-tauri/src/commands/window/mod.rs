@@ -1,6 +1,7 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
+pub const THEME_MANAGER_WINDOW_LABEL: &str = "theme-manager";
 
 const SETTINGS_WINDOW_QUERY: &str = "window=settings";
 const SETTINGS_WINDOW_APP_URL: &str = "index.html?window=settings";
@@ -8,60 +9,107 @@ const SETTINGS_WINDOW_WIDTH: f64 = 1040.0;
 const SETTINGS_WINDOW_HEIGHT: f64 = 720.0;
 const SETTINGS_WINDOW_MIN_WIDTH: f64 = 640.0;
 const SETTINGS_WINDOW_MIN_HEIGHT: f64 = 560.0;
+const THEME_MANAGER_WINDOW_QUERY: &str = "window=theme-manager";
+const THEME_MANAGER_WINDOW_APP_URL: &str = "index.html?window=theme-manager";
+const THEME_MANAGER_WINDOW_WIDTH: f64 = 1080.0;
+const THEME_MANAGER_WINDOW_HEIGHT: f64 = 760.0;
+const THEME_MANAGER_WINDOW_MIN_WIDTH: f64 = 760.0;
+const THEME_MANAGER_WINDOW_MIN_HEIGHT: f64 = 560.0;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SettingsWindowUrlKind {
+enum WindowUrlKind {
     External,
     App,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum SettingsWindowOpenAction {
+enum WindowOpenAction {
     Create,
     FocusExisting,
     ReplaceUnhealthy,
 }
 
+#[cfg(test)]
 fn settings_window_url_parts(
     dev_url: Option<&tauri::Url>,
     debug_build: bool,
-) -> Result<(SettingsWindowUrlKind, String), String> {
+) -> Result<(WindowUrlKind, String), String> {
+    window_url_parts(
+        dev_url,
+        debug_build,
+        SETTINGS_WINDOW_QUERY,
+        SETTINGS_WINDOW_APP_URL,
+        "Settings",
+    )
+}
+
+#[cfg(test)]
+fn theme_manager_window_url_parts(
+    dev_url: Option<&tauri::Url>,
+    debug_build: bool,
+) -> Result<(WindowUrlKind, String), String> {
+    window_url_parts(
+        dev_url,
+        debug_build,
+        THEME_MANAGER_WINDOW_QUERY,
+        THEME_MANAGER_WINDOW_APP_URL,
+        "Theme Manager",
+    )
+}
+
+fn window_url_parts(
+    dev_url: Option<&tauri::Url>,
+    debug_build: bool,
+    query: &str,
+    app_url: &str,
+    title: &str,
+) -> Result<(WindowUrlKind, String), String> {
     if debug_build {
         let mut url = dev_url
             .cloned()
             .ok_or_else(|| "The Tauri development URL is unavailable.".to_string())?;
-        url.set_query(Some(SETTINGS_WINDOW_QUERY));
-        return Ok((SettingsWindowUrlKind::External, url.to_string()));
+        url.set_query(Some(query));
+        return Ok((WindowUrlKind::External, url.to_string()));
     }
 
-    Ok((
-        SettingsWindowUrlKind::App,
-        SETTINGS_WINDOW_APP_URL.to_string(),
-    ))
+    if app_url.is_empty() {
+        return Err(format!("The {title} window URL is unavailable."));
+    }
+    Ok((WindowUrlKind::App, app_url.to_string()))
 }
 
-fn settings_window_webview_url(app: &tauri::AppHandle) -> Result<WebviewUrl, String> {
-    let (kind, url) =
-        settings_window_url_parts(app.config().build.dev_url.as_ref(), cfg!(debug_assertions))?;
+fn managed_window_webview_url(
+    app: &tauri::AppHandle,
+    query: &str,
+    app_url: &str,
+    title: &str,
+) -> Result<WebviewUrl, String> {
+    let (kind, url) = window_url_parts(
+        app.config().build.dev_url.as_ref(),
+        cfg!(debug_assertions),
+        query,
+        app_url,
+        title,
+    )?;
 
     match kind {
-        SettingsWindowUrlKind::External => url
+        WindowUrlKind::External => url
             .parse()
             .map(WebviewUrl::External)
-            .map_err(|error| format!("The Settings window URL is invalid: {error}")),
-        SettingsWindowUrlKind::App => Ok(WebviewUrl::App(url.into())),
+            .map_err(|error| format!("The {title} window URL is invalid: {error}")),
+        WindowUrlKind::App => Ok(WebviewUrl::App(url.into())),
     }
 }
 
-fn settings_window_open_action(existing_is_unhealthy: Option<bool>) -> SettingsWindowOpenAction {
+fn window_open_action(existing_is_unhealthy: Option<bool>) -> WindowOpenAction {
     match existing_is_unhealthy {
-        None => SettingsWindowOpenAction::Create,
-        Some(true) => SettingsWindowOpenAction::ReplaceUnhealthy,
-        Some(false) => SettingsWindowOpenAction::FocusExisting,
+        None => WindowOpenAction::Create,
+        Some(true) => WindowOpenAction::ReplaceUnhealthy,
+        Some(false) => WindowOpenAction::FocusExisting,
     }
 }
 
-fn existing_settings_window_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
+fn existing_window_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
     if !cfg!(debug_assertions) {
         return false;
     }
@@ -72,11 +120,14 @@ fn existing_settings_window_is_unhealthy(window: &tauri::WebviewWindow) -> bool 
         .unwrap_or(true)
 }
 
-fn apply_settings_window_constraints(window: &tauri::WebviewWindow) -> Result<(), String> {
+fn apply_window_constraints(
+    window: &tauri::WebviewWindow,
+    min_width: f64,
+    min_height: f64,
+) -> Result<(), String> {
     window
         .set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
-            SETTINGS_WINDOW_MIN_WIDTH,
-            SETTINGS_WINDOW_MIN_HEIGHT,
+            min_width, min_height,
         ))))
         .map_err(|error| error.to_string())?;
     window
@@ -84,41 +135,47 @@ fn apply_settings_window_constraints(window: &tauri::WebviewWindow) -> Result<()
         .map_err(|error| error.to_string())
 }
 
-fn show_and_focus_settings_window(window: &tauri::WebviewWindow) -> Result<(), String> {
+fn show_and_focus_window(window: &tauri::WebviewWindow) -> Result<(), String> {
     window.show().map_err(|error| error.to_string())?;
     window.set_focus().map_err(|error| error.to_string())
 }
 
-#[tauri::command]
-pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
-    let existing_window = app.get_webview_window(SETTINGS_WINDOW_LABEL);
-    let action = settings_window_open_action(
-        existing_window
-            .as_ref()
-            .map(existing_settings_window_is_unhealthy),
-    );
+struct ManagedWindowSpec {
+    app_url: &'static str,
+    height: f64,
+    label: &'static str,
+    min_height: f64,
+    min_width: f64,
+    query: &'static str,
+    title: &'static str,
+    width: f64,
+}
+
+fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Result<(), String> {
+    let existing_window = app.get_webview_window(spec.label);
+    let action = window_open_action(existing_window.as_ref().map(existing_window_is_unhealthy));
 
     match action {
-        SettingsWindowOpenAction::FocusExisting => {
+        WindowOpenAction::FocusExisting => {
             let window = existing_window.expect("focus action requires an existing window");
-            apply_settings_window_constraints(&window)?;
-            return show_and_focus_settings_window(&window);
+            apply_window_constraints(&window, spec.min_width, spec.min_height)?;
+            return show_and_focus_window(&window);
         }
-        SettingsWindowOpenAction::ReplaceUnhealthy => {
+        WindowOpenAction::ReplaceUnhealthy => {
             let window = existing_window.expect("replace action requires an existing window");
             let _ = window.close();
         }
-        SettingsWindowOpenAction::Create => {}
+        WindowOpenAction::Create => {}
     }
 
     let window = WebviewWindowBuilder::new(
-        &app,
-        SETTINGS_WINDOW_LABEL,
-        settings_window_webview_url(&app)?,
+        app,
+        spec.label,
+        managed_window_webview_url(app, spec.query, spec.app_url, spec.title)?,
     )
-    .title("Settings")
-    .inner_size(SETTINGS_WINDOW_WIDTH, SETTINGS_WINDOW_HEIGHT)
-    .min_inner_size(SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_MIN_HEIGHT)
+    .title(spec.title)
+    .inner_size(spec.width, spec.height)
+    .min_inner_size(spec.min_width, spec.min_height)
     .center()
     .resizable(true)
     .minimizable(true)
@@ -129,31 +186,64 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     .build()
     .map_err(|error| error.to_string())?;
 
-    apply_settings_window_constraints(&window)?;
-    show_and_focus_settings_window(&window)
+    apply_window_constraints(&window, spec.min_width, spec.min_height)?;
+    show_and_focus_window(&window)
+}
+
+#[tauri::command]
+pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
+    open_managed_window(
+        &app,
+        ManagedWindowSpec {
+            app_url: SETTINGS_WINDOW_APP_URL,
+            height: SETTINGS_WINDOW_HEIGHT,
+            label: SETTINGS_WINDOW_LABEL,
+            min_height: SETTINGS_WINDOW_MIN_HEIGHT,
+            min_width: SETTINGS_WINDOW_MIN_WIDTH,
+            query: SETTINGS_WINDOW_QUERY,
+            title: "Settings",
+            width: SETTINGS_WINDOW_WIDTH,
+        },
+    )
+}
+
+#[tauri::command]
+pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), String> {
+    open_managed_window(
+        &app,
+        ManagedWindowSpec {
+            app_url: THEME_MANAGER_WINDOW_APP_URL,
+            height: THEME_MANAGER_WINDOW_HEIGHT,
+            label: THEME_MANAGER_WINDOW_LABEL,
+            min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
+            min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
+            query: THEME_MANAGER_WINDOW_QUERY,
+            title: "Theme Manager",
+            width: THEME_MANAGER_WINDOW_WIDTH,
+        },
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        settings_window_open_action, settings_window_url_parts, SettingsWindowOpenAction,
-        SettingsWindowUrlKind, SETTINGS_WINDOW_HEIGHT, SETTINGS_WINDOW_MIN_HEIGHT,
-        SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_WIDTH,
+        settings_window_url_parts, theme_manager_window_url_parts, window_open_action,
+        WindowOpenAction, WindowUrlKind, SETTINGS_WINDOW_HEIGHT, SETTINGS_WINDOW_MIN_HEIGHT,
+        SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_WIDTH, THEME_MANAGER_WINDOW_HEIGHT,
+        THEME_MANAGER_WINDOW_MIN_HEIGHT, THEME_MANAGER_WINDOW_MIN_WIDTH,
+        THEME_MANAGER_WINDOW_WIDTH,
     };
 
     #[test]
     fn settings_window_lifecycle_creates_focuses_or_replaces_one_window() {
+        assert_eq!(window_open_action(None), WindowOpenAction::Create);
         assert_eq!(
-            settings_window_open_action(None),
-            SettingsWindowOpenAction::Create
+            window_open_action(Some(false)),
+            WindowOpenAction::FocusExisting
         );
         assert_eq!(
-            settings_window_open_action(Some(false)),
-            SettingsWindowOpenAction::FocusExisting
-        );
-        assert_eq!(
-            settings_window_open_action(Some(true)),
-            SettingsWindowOpenAction::ReplaceUnhealthy
+            window_open_action(Some(true)),
+            WindowOpenAction::ReplaceUnhealthy
         );
     }
 
@@ -176,7 +266,7 @@ mod tests {
         let (kind, url) = settings_window_url_parts(Some(&dev_url), true)
             .expect("debug Settings URL should resolve");
 
-        assert_eq!(kind, SettingsWindowUrlKind::External);
+        assert_eq!(kind, WindowUrlKind::External);
         assert_eq!(url, "http://localhost:1420/?window=settings");
     }
 
@@ -185,7 +275,7 @@ mod tests {
         let (kind, url) =
             settings_window_url_parts(None, false).expect("production Settings URL should resolve");
 
-        assert_eq!(kind, SettingsWindowUrlKind::App);
+        assert_eq!(kind, WindowUrlKind::App);
         assert_eq!(url, "index.html?window=settings");
     }
 
@@ -195,5 +285,40 @@ mod tests {
             .expect_err("debug Settings URL requires a dev URL");
 
         assert!(error.contains("development URL"));
+    }
+
+    #[test]
+    fn theme_manager_window_uses_supported_geometry_and_minimum_size() {
+        assert_eq!(
+            (THEME_MANAGER_WINDOW_WIDTH, THEME_MANAGER_WINDOW_HEIGHT),
+            (1080.0, 760.0)
+        );
+        assert_eq!(
+            (
+                THEME_MANAGER_WINDOW_MIN_WIDTH,
+                THEME_MANAGER_WINDOW_MIN_HEIGHT
+            ),
+            (760.0, 560.0)
+        );
+    }
+
+    #[test]
+    fn theme_manager_window_dev_url_uses_external_server_with_mode_marker() {
+        let dev_url = tauri::Url::parse("http://localhost:1420").expect("dev URL should parse");
+
+        let (kind, url) = theme_manager_window_url_parts(Some(&dev_url), true)
+            .expect("debug Theme Manager URL should resolve");
+
+        assert_eq!(kind, WindowUrlKind::External);
+        assert_eq!(url, "http://localhost:1420/?window=theme-manager");
+    }
+
+    #[test]
+    fn theme_manager_window_production_url_uses_bundled_entry_with_mode_marker() {
+        let (kind, url) = theme_manager_window_url_parts(None, false)
+            .expect("production Theme Manager URL should resolve");
+
+        assert_eq!(kind, WindowUrlKind::App);
+        assert_eq!(url, "index.html?window=theme-manager");
     }
 }

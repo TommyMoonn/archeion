@@ -136,6 +136,11 @@ describe("ThemeManagerDialog", () => {
     expect(container.textContent).toContain("Public schema");
     expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");
     expect(container.querySelector('button[aria-label="Close Theme Manager"]')).not.toBeNull();
+    expect(
+      container
+        .querySelector("dialog")
+        ?.contains(container.querySelector(".theme-manager-surface")),
+    ).toBe(true);
 
     const toolbar = container.querySelector(".theme-manager__toolbar")!;
     const links = toolbar.querySelector(".theme-manager__toolbar-links")!;

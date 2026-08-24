@@ -16,6 +16,7 @@ const copy = vi.hoisted(() => ({
     "Themes were refreshed, but the active appearance could not be updated. Reload themes to try again.",
 }));
 const managerState = vi.hoisted(() => ({ error: null as string | null }));
+const themeManagerWindow = vi.hoisted(() => ({ open: vi.fn(async () => false) }));
 const archiveState = vi.hoisted(() => ({
   archive: {
     createdAt: "2026-08-01T00:00:00.000Z",
@@ -70,6 +71,9 @@ vi.mock("../themes/ThemeManagerDialog", () => ({
     </section>
   ),
 }));
+vi.mock("../themes/themeManagerWindowLifecycle", () => ({
+  openThemeManagerWindow: themeManagerWindow.open,
+}));
 
 function installDialogPolyfill() {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -95,17 +99,22 @@ function storage(): LibraryStorage {
   } as unknown as LibraryStorage;
 }
 
-function click(container: HTMLElement, label: string) {
+async function click(container: HTMLElement, label: string) {
   const button = [...container.querySelectorAll("button")].find(
     (candidate) =>
       candidate.textContent?.trim() === label || candidate.getAttribute("aria-label") === label,
   );
   if (!button) throw new Error(`Button not found: ${label}`);
-  act(() => button.click());
+  await act(async () => {
+    button.click();
+    await Promise.resolve();
+  });
 }
 
 afterEach(() => {
   managerState.error = null;
+  themeManagerWindow.open.mockReset();
+  themeManagerWindow.open.mockResolvedValue(false);
   document.body.replaceChildren();
   vi.restoreAllMocks();
 });
@@ -128,7 +137,7 @@ describe("SettingsDialog theme refresh feedback ownership", () => {
         </LibraryStorageContext>,
       );
     });
-    click(container, "Appearance");
+    await click(container, "Appearance");
     return { container, root };
   }
 
@@ -147,11 +156,11 @@ describe("SettingsDialog theme refresh feedback ownership", () => {
     expect([...container.querySelectorAll('[role="alert"]')]).toHaveLength(1);
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(copy.backgroundError);
 
-    click(container, "Manage themes");
+    await click(container, "Manage themes");
 
     expect(container.querySelector('[role="alert"]')).toBeNull();
 
-    click(container, "Close Theme Manager");
+    await click(container, "Close Theme Manager");
 
     expect(container.querySelector('[role="alert"]')).toBeNull();
 
@@ -169,12 +178,12 @@ describe("SettingsDialog theme refresh feedback ownership", () => {
 
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(copy.backgroundError);
 
-    click(container, "Manage themes");
+    await click(container, "Manage themes");
 
     expect([...container.querySelectorAll('[role="alert"]')]).toHaveLength(1);
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(copy.managerError);
 
-    click(container, "Close Theme Manager");
+    await click(container, "Close Theme Manager");
 
     expect(container.querySelector('[role="alert"]')).toBeNull();
 
@@ -182,6 +191,34 @@ describe("SettingsDialog theme refresh feedback ownership", () => {
 
     expect([...container.querySelectorAll('[role="alert"]')]).toHaveLength(1);
     expect(container.querySelector('[role="alert"]')?.textContent).toBe(copy.laterError);
+
+    act(() => root.unmount());
+  });
+
+  it("leaves the legacy dialog closed when the standalone window opens", async () => {
+    themeManagerWindow.open.mockResolvedValue(true);
+    const { container, root } = await renderSettings();
+
+    await click(container, "Manage themes");
+
+    expect(themeManagerWindow.open).toHaveBeenCalledOnce();
+    expect(container.querySelector('[aria-label="Theme Manager"]')).toBeNull();
+
+    act(() => root.unmount());
+  });
+
+  it("uses the legacy dialog when native window creation fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    themeManagerWindow.open.mockRejectedValue(new Error("window unavailable"));
+    const { container, root } = await renderSettings();
+
+    await click(container, "Manage themes");
+
+    expect(container.querySelector('[aria-label="Theme Manager"]')).not.toBeNull();
+    expect(consoleError).toHaveBeenCalledWith(
+      "open_theme_manager_window failed",
+      expect.any(Error),
+    );
 
     act(() => root.unmount());
   });

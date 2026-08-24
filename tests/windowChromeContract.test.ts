@@ -96,13 +96,31 @@ describe("single frameless window contract", () => {
     expect(settingsCapabilities.permissions).not.toContain("dialog:allow-save");
   });
 
+  it("scopes Theme Manager window controls without granting dialog access", () => {
+    const themeManagerCapabilities = readJson<{ permissions: string[]; windows: string[] }>(
+      "src-tauri/capabilities/theme-manager-window.json",
+    );
+
+    expect(themeManagerCapabilities.windows).toEqual(["theme-manager"]);
+    expect(themeManagerCapabilities.permissions).toContain("core:window:allow-close");
+    expect(themeManagerCapabilities.permissions).toContain("core:window:allow-toggle-maximize");
+    expect(themeManagerCapabilities.permissions).not.toContain("dialog:allow-open");
+    expect(themeManagerCapabilities.permissions).not.toContain("dialog:allow-save");
+  });
+
   it("uses one fixed titlebar composition without selectable render branches", () => {
     const app = read("src/app/App.tsx");
+    const settingsWindow = read("src/features/settings/StandaloneSettingsWindow.tsx");
+    const themeManagerWindow = read("src/features/themes/ThemeManagerWindow.tsx");
     const titlebar = read("src/components/WindowTitlebar.tsx");
     const styles = read("src/styles/layout/window-frame.css");
 
     expect(app).toContain("<WindowTitlebar canMaximize={false} />");
-    expect(app.match(/<WindowTitlebar canMaximize \/>/g)).toHaveLength(2);
+    expect(
+      [app, settingsWindow, themeManagerWindow]
+        .join("\n")
+        .match(/<WindowTitlebar canMaximize \/>/g),
+    ).toHaveLength(4);
     expect(titlebar).toContain("if (!isTauri())");
     expect(titlebar).toContain("data-tauri-drag-region");
     expect(titlebar).not.toMatch(/\bonDoubleClick\s*=/);

@@ -6,6 +6,7 @@ import { getProgrammaticScrollBehavior, isAppMotionEnabled } from "../../utils/m
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
 import { ThemeManagerDialog } from "../themes/ThemeManagerDialog";
+import { openThemeManagerWindow } from "../themes/themeManagerWindowLifecycle";
 import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { SettingsConfirmations } from "./SettingsConfirmations";
 import { SettingsSearchResults } from "./SettingsSearchResults";
@@ -113,7 +114,14 @@ export function SettingsSurface({
     loadFolders: dataRequirements.has("folders"),
     onOpenThemeManager: () => {
       themeCatalog.retireRefreshFailure();
-      setThemeManagerOpen(true);
+      void openThemeManagerWindow()
+        .then((opened) => {
+          if (!opened) setThemeManagerOpen(true);
+        })
+        .catch((error) => {
+          console.error("open_theme_manager_window failed", error);
+          setThemeManagerOpen(true);
+        });
     },
     refreshThemeCatalog: themeCatalog.refresh,
     themeCatalogEntries: themeCatalog.entries,

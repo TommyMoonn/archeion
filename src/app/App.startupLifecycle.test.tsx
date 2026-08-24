@@ -49,7 +49,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(async () => undefined),
   providerStorages: [] as unknown[],
   refreshActiveArchive: vi.fn(async () => true),
-  windowMode: "main" as "main" | "settings",
+  windowMode: "main" as "main" | "settings" | "theme-manager",
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -84,6 +84,9 @@ vi.mock("../features/quick-actions/QuickActionsProvider", () => ({
 }));
 vi.mock("../features/settings/StandaloneSettingsWindow", () => ({
   SettingsWindow: () => <main data-testid="settings-root">Standalone Settings</main>,
+}));
+vi.mock("../features/themes/ThemeManagerWindow", () => ({
+  ThemeManagerWindow: () => <main data-testid="theme-manager-root">Theme Manager</main>,
 }));
 vi.mock("../storage/LibraryStorageContext", () => ({
   LibraryStorageProvider: ({
@@ -208,6 +211,20 @@ describe("App Archive Manager completion ownership", () => {
     await renderApp();
 
     expect(container?.querySelector('[data-testid="settings-root"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="router"]')).toBeNull();
+    expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
+    expect(mocks.providerStorages).toHaveLength(0);
+    expect(mocks.gatePreparations).toHaveLength(0);
+    expect(mocks.focusMainWindow).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("mounts the Theme Manager root without the main application tree", async () => {
+    mocks.windowMode = "theme-manager";
+
+    await renderApp();
+
+    expect(container?.querySelector('[data-testid="theme-manager-root"]')).not.toBeNull();
     expect(container?.querySelector('[data-testid="router"]')).toBeNull();
     expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
     expect(mocks.providerStorages).toHaveLength(0);

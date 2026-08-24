@@ -3,9 +3,13 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export const ARCHIVE_MANAGER_WINDOW_LABEL = "archive-manager";
 export const SETTINGS_WINDOW_LABEL = "settings";
+export const THEME_MANAGER_WINDOW_LABEL = "theme-manager";
 
 export type AppWindowMode =
-  "main" | typeof ARCHIVE_MANAGER_WINDOW_LABEL | typeof SETTINGS_WINDOW_LABEL;
+  | "main"
+  | typeof ARCHIVE_MANAGER_WINDOW_LABEL
+  | typeof SETTINGS_WINDOW_LABEL
+  | typeof THEME_MANAGER_WINDOW_LABEL;
 
 type ResolveWindowModeOptions = {
   currentWindowLabel?: string | null;
@@ -15,7 +19,11 @@ type ResolveWindowModeOptions = {
 
 function queryWindowMode(search: string): AppWindowMode {
   const mode = new URLSearchParams(search).get("window");
-  if (mode === ARCHIVE_MANAGER_WINDOW_LABEL || mode === SETTINGS_WINDOW_LABEL) {
+  if (
+    mode === ARCHIVE_MANAGER_WINDOW_LABEL ||
+    mode === SETTINGS_WINDOW_LABEL ||
+    mode === THEME_MANAGER_WINDOW_LABEL
+  ) {
     return mode;
   }
   return "main";
@@ -56,7 +64,11 @@ export function resolveWindowMode({
       : (currentWindowLabel ?? null);
 
   if (isDesktop && windowLabel) {
-    if (windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL || windowLabel === SETTINGS_WINDOW_LABEL) {
+    if (
+      windowLabel === ARCHIVE_MANAGER_WINDOW_LABEL ||
+      windowLabel === SETTINGS_WINDOW_LABEL ||
+      windowLabel === THEME_MANAGER_WINDOW_LABEL
+    ) {
       return windowLabel;
     }
     return "main";
