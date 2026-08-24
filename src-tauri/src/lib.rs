@@ -108,7 +108,6 @@ pub fn run() {
             commands::metadata::initialize_archive_metadata,
             commands::metadata::load_archive_metadata,
             commands::metadata::load_annotations_metadata,
-            commands::metadata::load_legacy_archive_appearance_settings,
             commands::metadata::load_settings_metadata,
             commands::metadata::save_annotations_metadata,
             commands::metadata::save_library_metadata,

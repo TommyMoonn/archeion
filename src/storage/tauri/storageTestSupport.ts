@@ -173,7 +173,6 @@ export function setupDefaultStorageMock(): void {
   invokeMock.mockImplementation(async (command) => {
     if (command === "scan_archive") return firstScan;
     if (command === "load_archive_metadata") return structuredClone(metadata);
-    if (command === "load_legacy_archive_appearance_settings") return null;
     if (command === "load_settings_metadata") return structuredClone(metadata.settings);
     if (command === "read_epub_file") return new Uint8Array([80, 75, 3, 4]).buffer;
     if (command === "load_epub_cover") return new Uint8Array([255, 216, 255]).buffer;

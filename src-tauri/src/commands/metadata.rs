@@ -479,12 +479,6 @@ pub(crate) fn load_settings_at(root: &Path) -> Result<SettingsMetadata, String> 
     read_json::<SettingsMetadata>(root, MetadataDocument::Settings)
 }
 
-pub(crate) fn load_legacy_archive_appearance_at(
-    root: &Path,
-) -> Result<Option<ArchiveAppearanceSettings>, String> {
-    Ok(load_settings_at(root)?.into_legacy_appearance())
-}
-
 #[cfg(test)]
 pub(crate) fn load_scanner_cache_at(root: &Path) -> Result<ScannerCache, String> {
     read_json(root, MetadataDocument::ScannerCache)
@@ -552,14 +546,6 @@ pub fn load_settings_metadata(
 }
 
 #[tauri::command]
-pub fn load_legacy_archive_appearance_settings(
-    app: tauri::AppHandle,
-    root_path: Option<String>,
-) -> Result<Option<ArchiveAppearanceSettings>, String> {
-    load_legacy_archive_appearance_at(&resolve_command_archive_root(&app, root_path)?)
-}
-
-#[tauri::command]
 pub fn save_library_metadata(
     app: tauri::AppHandle,
     root_path: Option<String>,
@@ -614,12 +600,11 @@ mod tests {
     };
 
     use super::{
-        initialize_at, load_annotations_at, load_legacy_archive_appearance_at,
-        load_scanner_cache_with_recovery_at, load_settings_at, metadata_path, read_json,
-        save_annotations_at, write_json, write_json_with_fs, ArchiveAppThemeSelection,
-        ArchiveAppearanceSettings, ArchiveReaderThemeSelection, BuiltInReaderThemeId,
-        LibraryBookMetadata, LibraryMetadata, SettingsMetadata, MAX_METADATA_BACKUPS,
-        SCANNER_CACHE_FILE,
+        initialize_at, load_annotations_at, load_scanner_cache_with_recovery_at, load_settings_at,
+        metadata_path, read_json, save_annotations_at, write_json, write_json_with_fs,
+        ArchiveAppThemeSelection, ArchiveAppearanceSettings, ArchiveReaderThemeSelection,
+        BuiltInReaderThemeId, LibraryBookMetadata, LibraryMetadata, SettingsMetadata,
+        MAX_METADATA_BACKUPS, SCANNER_CACHE_FILE,
     };
     use crate::commands::archive_backup::{ArchiveBackupLayout, MetadataDocument};
 
@@ -1023,8 +1008,8 @@ mod tests {
     }
 
     #[test]
-    fn legacy_appearance_compatibility_payload_survives_command_serialization() {
-        let root = test_root("legacy-appearance-command");
+    fn legacy_appearance_is_retained_only_for_version_two_settings() {
+        let root = test_root("legacy-appearance-migration");
         let settings_path = metadata_path(&root).join("settings.json");
         fs::create_dir_all(
             settings_path
@@ -1045,18 +1030,20 @@ mod tests {
         )
         .expect("legacy settings should be written");
 
-        let appearance = load_legacy_archive_appearance_at(&root)
-            .expect("legacy appearance should load")
+        let appearance = load_settings_at(&root)
+            .expect("legacy settings should load")
+            .into_legacy_appearance()
             .expect("version two appearance should be available");
-        let payload = serde_json::to_value(appearance)
-            .expect("legacy command result should serialize through Tauri");
-
         assert_eq!(
-            payload,
-            serde_json::json!({
-                "appTheme": { "kind": "builtin", "id": "light" },
-                "readerTheme": { "kind": "builtin", "id": "sepia" }
-            })
+            appearance,
+            ArchiveAppearanceSettings {
+                app_theme: ArchiveAppThemeSelection::Builtin {
+                    id: super::BuiltInAppThemeId::Light,
+                },
+                reader_theme: ArchiveReaderThemeSelection::Builtin {
+                    id: BuiltInReaderThemeId::Sepia,
+                },
+            }
         );
         fs::write(
             &settings_path,
@@ -1064,8 +1051,9 @@ mod tests {
         )
         .expect("current settings should be written");
         assert_eq!(
-            load_legacy_archive_appearance_at(&root)
-                .expect("current settings should remain readable"),
+            load_settings_at(&root)
+                .expect("current settings should remain readable")
+                .into_legacy_appearance(),
             None
         );
         fs::remove_dir_all(root).expect("test archive should be removed");

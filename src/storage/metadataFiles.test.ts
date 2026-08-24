@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   createLibraryMetadata,
   createSettingsMetadata,
-  normalizeArchiveAppearanceSettings,
   normalizeSettingsMetadata,
 } from "./metadataFiles";
 
@@ -52,34 +51,6 @@ describe("metadataFiles", () => {
       import: {
         defaultDestinationFolderPath: "Fiction/Classics",
       },
-    });
-  });
-
-  it("drops version 2 appearance while preserving archive import settings", () => {
-    expect(
-      normalizeSettingsMetadata({
-        version: 2,
-        import: { defaultDestinationFolderPath: " Themes\\Incoming " },
-        appearance: {
-          appTheme: { kind: "custom", id: "missing-theme" },
-          readerTheme: { kind: "builtin", id: "sepia" },
-        },
-      }),
-    ).toEqual({
-      version: 3,
-      import: { defaultDestinationFolderPath: "Themes/Incoming" },
-    });
-  });
-
-  it("normalizes the dedicated legacy appearance command result", () => {
-    expect(
-      normalizeArchiveAppearanceSettings({
-        appTheme: { kind: "custom", id: "missing-theme" },
-        readerTheme: { kind: "builtin", id: "sepia" },
-      }),
-    ).toEqual({
-      appTheme: { kind: "custom", id: "missing-theme" },
-      readerTheme: { kind: "builtin", id: "sepia" },
     });
   });
 });
