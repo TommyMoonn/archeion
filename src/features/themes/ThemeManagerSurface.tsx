@@ -7,7 +7,7 @@ import { IconButton } from "../../components/IconButton";
 import { appearanceRuntime, themeCatalog } from "../../themes/appearanceRuntimeInstance";
 import { ARCHEION_THEME_SCHEMA_URL } from "../../themes/themeTokenRegistry";
 import { ThemeRepository } from "../../themes/ThemeRepository";
-import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
+import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 import { ThemeCatalogList } from "./ThemeCatalogList";
 import { ThemeDetails } from "./ThemeDetails";
 import { ThemePreviewControls } from "./ThemePreviewControls";
@@ -21,7 +21,7 @@ const THEME_GUIDE_URL = "https://tommymoonn.github.io/archeion/custom-themes.htm
 
 export type ThemeManagerServices = Readonly<{
   catalog: ThemeManagerControllerOptions["catalog"];
-  previewSession: ThemeManagerControllerOptions["previewSession"];
+  previewSession?: ThemeManagerControllerOptions["previewSession"];
   repository: ThemeManagerRepository;
   runtime: ThemeManagerControllerOptions["runtime"];
 }>;
@@ -41,9 +41,13 @@ export function ThemeManagerSurface({
     () => services?.repository ?? new ThemeRepository(),
     [services?.repository],
   );
+  const previewSession = useMemo(
+    () => services?.previewSession ?? new ThemePreviewSession(appearanceRuntime),
+    [services?.previewSession],
+  );
   const controller = useThemeManagerController({
     catalog: services?.catalog ?? themeCatalog,
-    previewSession: services?.previewSession ?? themePreviewSession,
+    previewSession,
     repository,
     runtime: services?.runtime ?? appearanceRuntime,
   });
@@ -178,7 +182,7 @@ export function ThemeManagerSurface({
         <ThemeDetails controller={controller} />
       </div>
 
-      <ThemePreviewControls session={services?.previewSession ?? themePreviewSession} />
+      <ThemePreviewControls session={previewSession} />
     </section>
   );
 }

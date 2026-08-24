@@ -39,12 +39,15 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     appTheme: { kind: "builtin", id: "dark" },
     readerTheme: { kind: "builtin", id: "sepia" },
   };
+  let appearanceContext = { settings };
   const listeners = new Set<() => void>();
   let catalogRevision = 0;
   const nextCatalogRevision = () => ({ revision: (catalogRevision += 1) });
   const updateAppearanceSettings = vi.fn(
     async (changes: { appTheme: GlobalAppearancePreferences["appTheme"] }) => {
       settings = { ...settings, ...changes };
+      appearanceContext = { settings };
+      listeners.forEach((listener) => listener());
       return settings;
     },
   );
@@ -52,8 +55,12 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     await catalog.refreshPackages();
   });
   const runtime = {
-    getPreviewContext: () => ({ settings }),
+    getPreviewContext: () => appearanceContext,
     refreshAppearance,
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     updateAppearanceSettings,
   } satisfies ThemeManagerControllerOptions["runtime"];
   const clearPreview = vi.fn(() => true);
@@ -67,6 +74,7 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     }),
     keepPreview: vi.fn(async (_expected, selection) => {
       settings = { ...settings, appTheme: selection };
+      appearanceContext = { settings };
     }),
     subscribe(listener) {
       listeners.add(listener);
@@ -97,6 +105,11 @@ function createServices(initial: readonly ThemeManifestV1[] = [manifest("moon-in
     runtime,
     sources,
     updateAppearanceSettings,
+    publishExternalAppTheme(appTheme: GlobalAppearancePreferences["appTheme"]) {
+      settings = { ...settings, appTheme };
+      appearanceContext = { settings };
+      listeners.forEach((listener) => listener());
+    },
   };
 }
 
@@ -155,6 +168,7 @@ describe("global Theme Manager controller", () => {
     expect(services.updateAppearanceSettings).toHaveBeenCalledWith({
       appTheme: { kind: "custom", id: "moon-ink" },
     });
+    expect(latest.activeAppThemeKey).toBe("custom:moon-ink");
     expect(services.runtime.getPreviewContext().settings.readerTheme).toEqual({
       kind: "builtin",
       id: "sepia",
@@ -169,6 +183,14 @@ describe("global Theme Manager controller", () => {
     expect(services.updateAppearanceSettings).not.toHaveBeenCalled();
     act(() => latest.disposePreview());
     expect(services.clearPreview).toHaveBeenCalledOnce();
+  });
+
+  it("tracks committed app-theme changes published by the global runtime", async () => {
+    const services = await mount();
+
+    act(() => services.publishExternalAppTheme({ kind: "custom", id: "moon-ink" }));
+
+    expect(latest.activeAppThemeKey).toBe("custom:moon-ink");
   });
 
   it("imports into global storage and consumes its catalog revision without a second reload", async () => {
@@ -187,5 +209,46 @@ describe("global Theme Manager controller", () => {
     expect(services.repository.storeManifest).toHaveBeenCalledOnce();
     expect(services.refreshAppearance).toHaveBeenCalledOnce();
     expect(latest.entries.some((entry) => entry.id === "paper-sky")).toBe(true);
+  });
+
+  it("reloads, opens the global themes folder, updates, and deletes through the repository", async () => {
+    const services = await mount();
+
+    await act(async () => expect(latest.reload()).resolves.toBe(true));
+    expect(services.refreshAppearance).toHaveBeenCalledTimes(2);
+    await act(async () => expect(latest.openThemesFolder()).resolves.toBe(true));
+    expect(services.repository.revealThemesRoot).toHaveBeenCalledOnce();
+
+    const replacement = { ...manifest("moon-ink"), name: "Moon Ink Revised" };
+    await act(async () =>
+      expect(
+        latest.importFile(
+          new File([JSON.stringify(replacement)], "moon-ink.json", {
+            type: "application/json",
+          }),
+        ),
+      ).resolves.toBe(false),
+    );
+    expect(latest.pendingReplacement?.manifest.name).toBe("Moon Ink Revised");
+    await act(async () => expect(latest.confirmReplacement()).resolves.toBe(true));
+    expect(services.repository.replaceManifest).toHaveBeenCalledWith(replacement);
+
+    act(() => latest.requestDelete());
+    await act(async () => expect(latest.confirmDelete()).resolves.toBe(true));
+    expect(services.repository.deletePackage).toHaveBeenCalledWith("moon-ink");
+    expect(latest.entries.some((entry) => entry.id === "moon-ink")).toBe(false);
+  });
+
+  it("keeps invalid package diagnostics available to the manager", async () => {
+    const services = createServices();
+    services.sources.set("broken-package", JSON.stringify(manifest("moon-ink")));
+    await mount(services);
+
+    const invalid = latest.entries.find(
+      (entry) => entry.origin === "custom" && entry.packageId === "broken-package",
+    );
+    expect(invalid).toMatchObject({ applicable: false, origin: "custom", status: "invalid" });
+    if (invalid?.origin !== "custom") throw new Error("Invalid custom package was not loaded.");
+    expect(invalid.diagnostics.length).toBeGreaterThan(0);
   });
 });

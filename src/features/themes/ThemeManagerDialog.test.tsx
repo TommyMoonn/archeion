@@ -40,16 +40,22 @@ function createServices() {
     appTheme: { kind: "custom", id: "moon-ink" },
     readerTheme: { kind: "builtin", id: "sepia" },
   };
+  let appearanceContext = { settings };
   const runtimeListeners = new Set<() => void>();
   const clearPreview = vi.fn(() => true);
   const runtime = {
-    getPreviewContext: () => ({ settings }),
+    getPreviewContext: () => appearanceContext,
     refreshAppearance: vi.fn(async () => {
       await catalog.refreshPackages();
     }),
+    subscribe: (listener: () => void) => {
+      runtimeListeners.add(listener);
+      return () => runtimeListeners.delete(listener);
+    },
     updateAppearanceSettings: vi.fn(
       async (changes: Pick<GlobalAppearancePreferences, "appTheme">) => {
         settings = { ...settings, ...changes };
+        appearanceContext = { settings };
         return settings;
       },
     ),

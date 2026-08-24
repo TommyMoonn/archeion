@@ -18,6 +18,7 @@ export type ThemeManagerRepository = Pick<
 export type ThemeManagerAppearanceRuntime = Readonly<{
   getPreviewContext: () => AppearancePreviewContext;
   refreshAppearance: () => Promise<void>;
+  subscribe: (listener: () => void) => () => void;
   updateAppearanceSettings: (
     changes: Readonly<{ appTheme: AppThemeSelection }>,
   ) => Promise<AppearancePreviewContext["settings"]>;
@@ -47,6 +48,11 @@ export function useThemeManagerController({
     catalog.subscribe,
     catalog.getSnapshot,
     catalog.getSnapshot,
+  );
+  const appearanceContext = useSyncExternalStore(
+    runtime.subscribe,
+    runtime.getPreviewContext,
+    runtime.getPreviewContext,
   );
   const [selectedKey, setSelectedKey] = useState(() =>
     initialSelectedKey(runtime.getPreviewContext(), catalog.getSnapshot()),
@@ -114,7 +120,7 @@ export function useThemeManagerController({
   const selectedEntry =
     entries.find((entry) => entryKey(entry) === selectedKey) ?? entries[0] ?? null;
   const effectiveSelectedKey = selectedEntry ? entryKey(selectedEntry) : selectedKey;
-  const activeAppThemeKey = appThemeEntryKey(runtime.getPreviewContext().settings.appTheme);
+  const activeAppThemeKey = appThemeEntryKey(appearanceContext.settings.appTheme);
   const previewActive = previewSnapshot.status !== "idle";
 
   function beginOperation(action: ThemeManagerBusyAction): number {

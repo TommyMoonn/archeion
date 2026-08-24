@@ -47,31 +47,44 @@ function deferred() {
 }
 
 function createServices() {
+  const customManifest = {
+    schemaVersion: 1 as const,
+    id: "moon-ink",
+    name: "Moon Ink",
+    base: "dark" as const,
+    app: { accent: "#8fc1e3" as const },
+  };
   const catalog = new ThemeCatalog(() => ({
-    listPackageDirectories: vi.fn(async () => []),
-    readManifest: vi.fn(async () => {
-      throw new Error("No custom packages are installed.");
-    }),
+    listPackageDirectories: vi.fn(async () => [customManifest.id]),
+    readManifest: vi.fn(async () => JSON.stringify(customManifest)),
   }));
   let settings: GlobalAppearancePreferences = {
     appTheme: { kind: "builtin", id: "dark" },
     readerTheme: { kind: "builtin", id: "dark" },
   };
+  let appearanceContext = { settings };
+  const listeners = new Set<() => void>();
   const runtime = {
-    getPreviewContext: () => ({ settings }),
+    getPreviewContext: () => appearanceContext,
     refreshAppearance: vi.fn(async () => {
       await catalog.refreshPackages();
     }),
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
     updateAppearanceSettings: vi.fn(
       async (changes: Pick<GlobalAppearancePreferences, "appTheme">) => {
         settings = { ...settings, ...changes };
+        appearanceContext = { settings };
         return settings;
       },
     ),
   } satisfies ThemeManagerControllerOptions["runtime"];
+  const clearPreview = vi.fn(() => true);
   const previewSession = new ThemePreviewSession({
     applyPreview: vi.fn(() => true),
-    clearPreview: vi.fn(() => true),
+    clearPreview,
     getPreviewContext: runtime.getPreviewContext,
     getSnapshot: () => ({
       app: resolveBuiltInAppTheme("dark"),
@@ -82,6 +95,7 @@ function createServices() {
   });
   return {
     catalog,
+    clearPreview,
     previewSession,
     repository: {
       deletePackage: vi.fn(async () => ({ revision: 1 })),
@@ -150,6 +164,35 @@ describe("ThemeManagerWindow", () => {
       await Promise.resolve();
     });
 
+    expect(mocks.close).toHaveBeenCalledOnce();
+  });
+
+  it("discards an uncommitted preview before closing the standalone window", async () => {
+    mocks.initialize.mockResolvedValue();
+    const services = createServices();
+    await act(async () => root.render(<ThemeManagerWindow services={services} />));
+    await settle();
+
+    act(() =>
+      [...container.querySelectorAll("button")]
+        .find((candidate) => candidate.textContent?.startsWith("Moon Ink"))
+        ?.click(),
+    );
+    act(() =>
+      [...container.querySelectorAll("button")]
+        .find((candidate) => candidate.textContent?.startsWith("Preview"))
+        ?.click(),
+    );
+    expect(container.querySelector(".theme-preview-controls")).not.toBeNull();
+
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="Close Theme Manager"]')!
+        .click(),
+    );
+
+    expect(services.clearPreview).toHaveBeenCalledOnce();
+    expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
     expect(mocks.close).toHaveBeenCalledOnce();
   });
 

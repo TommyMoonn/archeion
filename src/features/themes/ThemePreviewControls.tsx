@@ -2,14 +2,13 @@ import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { Button } from "../../components/Button";
 import { useTransientSurfaceOwnership } from "../../utils/transientSurfaceOwnership";
-import { themePreviewSession } from "../../themes/themePreviewSessionInstance";
 import type { ThemePreviewSession } from "../../themes/ThemePreviewSession";
 
 type ThemePreviewControlsProps = Readonly<{
-  session?: ThemePreviewSession;
+  session: ThemePreviewSession;
 }>;
 
-export function ThemePreviewControls({ session = themePreviewSession }: ThemePreviewControlsProps) {
+export function ThemePreviewControls({ session }: ThemePreviewControlsProps) {
   const snapshot = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
