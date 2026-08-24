@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
@@ -53,6 +53,7 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
   "repairMetadata",
   "rescanArchive",
 ]);
+const emptyFolders: readonly Folder[] = Object.freeze([]);
 
 export type SettingsDialogControllerOptions = {
   archiveAccess?: "required" | "unavailable";
@@ -93,15 +94,34 @@ export function useSettingsDialogController({
     storage === contextualStorage ? contextualStorage : null,
   );
   const archive = useArchive();
+  const currentArchiveIdentity =
+    archiveIdentity ?? (archive.status === "ready" ? archive.archive : null);
+  const archiveLocalScope = useMemo(
+    () => ({
+      archiveId: currentArchiveIdentity?.id ?? null,
+      generation: archiveGeneration,
+      rootPath: currentArchiveIdentity?.rootPath ?? null,
+      storage,
+    }),
+    [archiveGeneration, currentArchiveIdentity?.id, currentArchiveIdentity?.rootPath, storage],
+  );
+  const archiveLocalScopeRef = useRef(archiveLocalScope);
+  useLayoutEffect(() => {
+    archiveLocalScopeRef.current = archiveLocalScope;
+  }, [archiveLocalScope]);
   const preferences = useAppPreferences();
   const persistenceStatus = useAppPreferencesPersistenceStatus();
   const reader = preferences.reader;
   const library = preferences.library;
   const files = preferences.filesAndMetadata;
-  const [archiveImport, setArchiveImport] = useState<ArchiveImportSettings>({
-    ...defaultArchiveImportSettings,
-  });
-  const [folders, setFolders] = useState<Folder[]>([]);
+  const [archiveImportState, setArchiveImportState] = useState<{
+    scope: typeof archiveLocalScope;
+    value: ArchiveImportSettings;
+  }>({ scope: archiveLocalScope, value: { ...defaultArchiveImportSettings } });
+  const [foldersState, setFoldersState] = useState<{
+    scope: typeof archiveLocalScope;
+    value: Folder[];
+  }>({ scope: archiveLocalScope, value: [] });
   const [cache, setCache] = useState<CoverCacheStatus | null>(null);
   const [epubWritebackBackupStatus, setEpubWritebackBackupStatus] =
     useState<EpubWritebackBackupStatus | null>(null);
@@ -130,6 +150,11 @@ export function useSettingsDialogController({
     busyConfirmations.rescanArchive ||
     busyConfirmations.reextractMetadata ||
     busyConfirmations.repairMetadata;
+  const archiveImport =
+    archiveImportState.scope === archiveLocalScope
+      ? archiveImportState.value
+      : defaultArchiveImportSettings;
+  const folders = foldersState.scope === archiveLocalScope ? foldersState.value : emptyFolders;
 
   const importSettings: ImportSettings = {
     ...preferences.import,
@@ -195,7 +220,7 @@ export function useSettingsDialogController({
     epubWritebackBackupStatusLoadingRef.current = false;
     foldersLoadedRef.current = false;
     foldersLoadingRef.current = false;
-  }, [archiveGeneration, storage]);
+  }, [archiveLocalScope]);
 
   useEffect(() => {
     if (!archiveMaintenance) return;
@@ -224,17 +249,26 @@ export function useSettingsDialogController({
     }
 
     const activeStorage = storage;
+    const scope = archiveLocalScope;
     const generation = dataLoadGenerationRef.current;
     archiveImportLoadingRef.current = true;
     void activeStorage
       .getArchiveImportSettings()
       .then((loadedImportSettings) => {
-        if (dataLoadGenerationRef.current !== generation) return;
+        if (
+          dataLoadGenerationRef.current !== generation ||
+          archiveLocalScopeRef.current !== scope
+        ) {
+          return;
+        }
         archiveImportLoadedRef.current = true;
-        setArchiveImport(loadedImportSettings);
+        setArchiveImportState({ scope, value: loadedImportSettings });
       })
       .catch(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           setLocalStatus(
             "Import settings could not be loaded. Close and reopen Settings to try again.",
             "error",
@@ -242,11 +276,14 @@ export function useSettingsDialogController({
         }
       })
       .finally(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           archiveImportLoadingRef.current = false;
         }
       });
-  }, [loadArchiveImportSettings, storage, setLocalStatus]);
+  }, [archiveLocalScope, loadArchiveImportSettings, storage, setLocalStatus]);
 
   useEffect(() => {
     if (!storage || !loadFolders || foldersLoadedRef.current || foldersLoadingRef.current) {
@@ -254,17 +291,26 @@ export function useSettingsDialogController({
     }
 
     const activeStorage = storage;
+    const scope = archiveLocalScope;
     const generation = dataLoadGenerationRef.current;
     foldersLoadingRef.current = true;
     void activeStorage
       .listFolders()
       .then((loadedFolders) => {
-        if (dataLoadGenerationRef.current !== generation) return;
+        if (
+          dataLoadGenerationRef.current !== generation ||
+          archiveLocalScopeRef.current !== scope
+        ) {
+          return;
+        }
         foldersLoadedRef.current = true;
-        setFolders(loadedFolders);
+        setFoldersState({ scope, value: loadedFolders });
       })
       .catch(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           setLocalStatus(
             "Folder destinations could not be loaded. Close and reopen Settings to try again.",
             "error",
@@ -272,11 +318,14 @@ export function useSettingsDialogController({
         }
       })
       .finally(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           foldersLoadingRef.current = false;
         }
       });
-  }, [loadFolders, storage, setLocalStatus]);
+  }, [archiveLocalScope, loadFolders, storage, setLocalStatus]);
 
   useEffect(() => {
     if (
@@ -461,11 +510,16 @@ export function useSettingsDialogController({
 
   async function updateArchiveImport(changes: Partial<ArchiveImportSettings>): Promise<void> {
     if (!storage) return;
+    const activeStorage = storage;
+    const scope = archiveLocalScope;
     const next = { ...archiveImport, ...changes };
     const statusOperation = beginStatusOperation();
     try {
-      setArchiveImport(await storage.saveArchiveImportSettings(next));
+      const saved = await activeStorage.saveArchiveImportSettings(next);
+      if (archiveLocalScopeRef.current !== scope) return;
+      setArchiveImportState({ scope, value: saved });
     } catch {
+      if (archiveLocalScopeRef.current !== scope) return;
       publishStatusOperation(
         statusOperation,
         "Import destination could not be saved. The previous destination is unchanged. Try again.",
@@ -723,22 +777,25 @@ export function useSettingsDialogController({
     );
   }
 
-  async function resetImport() {
-    if (!storage) return;
-    const statusOperation = beginStatusOperation();
-    if (
-      !(await persistAppPreferences(
-        () => appPreferencesStore.update({ import: defaultAppPreferences.import }),
-        { statusOperation, successMessage: false },
-      ))
-    ) {
-      return;
-    }
+  async function resetImportDefaults() {
+    await updateAppPreferences(
+      { import: defaultAppPreferences.import },
+      { successMessage: "Import defaults reset." },
+    );
+  }
 
+  async function resetImportDestination() {
+    if (!storage) return;
+    const activeStorage = storage;
+    const scope = archiveLocalScope;
+    const statusOperation = beginStatusOperation();
     try {
-      setArchiveImport(await storage.resetArchiveImportSettings());
-      publishStatusOperation(statusOperation, "Import settings reset.", "success");
+      const reset = await activeStorage.resetArchiveImportSettings();
+      if (archiveLocalScopeRef.current !== scope) return;
+      setArchiveImportState({ scope, value: reset });
+      publishStatusOperation(statusOperation, "Import destination reset.", "success");
     } catch {
+      if (archiveLocalScopeRef.current !== scope) return;
       publishStatusOperation(
         statusOperation,
         "Import destination could not be reset. The previous destination is unchanged. Try again.",
@@ -769,7 +826,8 @@ export function useSettingsDialogController({
     reader,
     resetAppearance,
     resetGeneral,
-    resetImport,
+    resetImportDefaults,
+    resetImportDestination,
     resetLibrary,
     resetReader,
     resetStorage,

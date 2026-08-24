@@ -38,7 +38,8 @@ function createController(
     reader: preferences.reader,
     resetAppearance: vi.fn(),
     resetGeneral: vi.fn(),
-    resetImport: vi.fn(),
+    resetImportDefaults: vi.fn(),
+    resetImportDestination: vi.fn(),
     resetLibrary: vi.fn(),
     resetReader: vi.fn(),
     resetStorage: vi.fn(),
@@ -177,10 +178,13 @@ describe("settings section components", () => {
   it("disables archive reveal when no archive path is available", () => {
     const markup = renderToStaticMarkup(<ArchivesSettingsSection context={createController()} />);
 
-    expect(markup).toContain("Import");
+    expect(markup).toContain("Import defaults");
+    expect(markup).toContain("Archive destination");
     expect(markup).toContain("Default import mode");
     expect(markup).toContain("Default conflict handling");
     expect(markup).toContain("Default destination folder");
+    expect(markup).toContain("Reset import defaults");
+    expect(markup).toContain("Reset destination folder");
     expect(markup).toContain("No archive selected");
     expect(markup).toContain("disabled");
     expect(markup).toContain("Reveal archive folder");

@@ -602,7 +602,7 @@ export const settingsItems: readonly SettingsItem[] = [
   ...storageSettingsItems,
   {
     description: "Chooses how new EPUB files are added.",
-    groupLabel: "Import",
+    groupLabel: "Import defaults",
     id: "import.default-import-mode",
     label: "Default import mode",
     render: (context) => (
@@ -623,7 +623,7 @@ export const settingsItems: readonly SettingsItem[] = [
   },
   {
     description: "Chooses what happens when a file name already exists.",
-    groupLabel: "Import",
+    groupLabel: "Import defaults",
     id: "import.default-conflict-handling",
     label: "Default conflict handling",
     render: (context) => (
@@ -645,9 +645,23 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "archives",
   },
   {
+    groupLabel: "Import defaults",
+    id: "import.reset-defaults",
+    label: "Reset import defaults",
+    render: (context) => (
+      <SettingsActionRow label="Reset import defaults">
+        <Button onClick={() => void context.resetImportDefaults()} variant="secondary">
+          Reset defaults
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["reset", "import defaults"],
+    sectionId: "archives",
+  },
+  {
     description: "Stored per archive because folders differ.",
     deferredData: ["archiveImportSettings", "folders"],
-    groupLabel: "Import",
+    groupLabel: "Archive destination",
     id: "import.default-destination-folder",
     label: "Default destination folder",
     requiresArchive: true,
@@ -668,18 +682,18 @@ export const settingsItems: readonly SettingsItem[] = [
     sectionId: "archives",
   },
   {
-    groupLabel: "Import",
-    id: "import.reset",
-    label: "Reset import settings",
+    groupLabel: "Archive destination",
+    id: "import.reset-destination",
+    label: "Reset destination folder",
     requiresArchive: true,
     render: (context) => (
-      <SettingsActionRow label="Reset import settings">
-        <Button onClick={() => void context.resetImport()} variant="secondary">
-          Reset import
+      <SettingsActionRow label="Reset destination folder">
+        <Button onClick={() => void context.resetImportDestination()} variant="secondary">
+          Use archive root
         </Button>
       </SettingsActionRow>
     ),
-    searchTerms: ["reset"],
+    searchTerms: ["reset", "archive root", "destination"],
     sectionId: "archives",
   },
   ...keyboardSettingsItems,

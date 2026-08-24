@@ -118,6 +118,8 @@ export const settingsSections = [
       "conflict",
       "default destination folder",
       "destination",
+      "archive root",
+      "reset import defaults",
       "epub",
     ],
   },

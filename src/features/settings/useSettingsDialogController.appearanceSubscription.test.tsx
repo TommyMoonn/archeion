@@ -8,9 +8,12 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
+import { defaultAppPreferences } from "../../types/appSettings";
+import type { KnownArchive } from "../../types/archive";
 import {
   useSettingsDialogController,
   type SettingsDialogController,
+  type SettingsDialogControllerOptions,
 } from "./useSettingsDialogController";
 
 const archive = Object.freeze({ generation: 9, id: "archive-a", rootPath: "D:\\Archive" });
@@ -28,6 +31,7 @@ function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage 
     })),
     observeLibrarySnapshot: vi.fn(() => () => undefined),
     rescan: vi.fn().mockResolvedValue(undefined),
+    resetArchiveImportSettings: vi.fn().mockResolvedValue({}),
     saveArchiveImportSettings: vi.fn(),
     ...overrides,
   } as unknown as LibraryStorage;
@@ -45,8 +49,8 @@ function deferred<T>() {
 
 let latest: SettingsDialogController;
 
-function Harness() {
-  const controller = useSettingsDialogController();
+function Harness({ options }: { options?: SettingsDialogControllerOptions }) {
+  const controller = useSettingsDialogController(options);
   useEffect(() => {
     latest = controller;
   }, [controller]);
@@ -85,11 +89,11 @@ describe("Settings committed appearance subscription", () => {
     vi.restoreAllMocks();
   });
 
-  async function render() {
+  async function render(options?: SettingsDialogControllerOptions) {
     await act(async () => {
       root.render(
         <LibraryStorageContext value={storage}>
-          <Harness />
+          <Harness options={options} />
         </LibraryStorageContext>,
       );
       for (let index = 0; index < 5; index += 1) await Promise.resolve();
@@ -116,6 +120,116 @@ describe("Settings committed appearance subscription", () => {
     expect(update).toHaveBeenNthCalledWith(2, {
       readerTheme: { kind: "builtin", id: "sepia" },
     });
+  });
+
+  it("opens Archive Manager through the existing create-or-focus owner", async () => {
+    const openArchiveManagerWindow = vi
+      .spyOn(archiveStore, "openArchiveManagerWindow")
+      .mockResolvedValue(true);
+    await render();
+
+    await act(async () => {
+      await latest.openArchiveManager();
+    });
+
+    expect(openArchiveManagerWindow).toHaveBeenCalledTimes(1);
+  });
+
+  it("resets global import defaults without changing archive-local destination", async () => {
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await render();
+
+    await act(async () => {
+      await latest.resetImportDefaults();
+    });
+
+    expect(update).toHaveBeenCalledWith({ import: defaultAppPreferences.import });
+    expect(storage.resetArchiveImportSettings).not.toHaveBeenCalled();
+  });
+
+  it("resets archive-local destination without changing global import defaults", async () => {
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await render();
+
+    await act(async () => {
+      await latest.resetImportDestination();
+    });
+
+    expect(storage.resetArchiveImportSettings).toHaveBeenCalledTimes(1);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("persists import mode and conflict defaults only through global preferences", async () => {
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await render();
+    const currentImport = latest.preferences.import;
+
+    act(() => {
+      latest.updateImportDefaults({ defaultConflictAction: "replace", defaultMode: "move" });
+    });
+    await act(async () => Promise.resolve());
+
+    expect(update).toHaveBeenCalledWith({
+      import: { ...currentImport, defaultConflictAction: "replace", defaultMode: "move" },
+    });
+    expect(storage.saveArchiveImportSettings).not.toHaveBeenCalled();
+  });
+
+  it("persists destination changes only through the active archive storage", async () => {
+    const saveArchiveImportSettings = vi.fn().mockResolvedValue({});
+    storage = createStorage({ saveArchiveImportSettings });
+    const update = vi.spyOn(appPreferencesStore, "update");
+    await render();
+
+    act(() => latest.updateImportDestination("__archive-root__"));
+    await act(async () => Promise.resolve());
+
+    expect(saveArchiveImportSettings).toHaveBeenCalledWith({
+      defaultDestinationFolderPath: undefined,
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("ignores an archive A destination save that completes after switching to B", async () => {
+    const archiveASave = deferred<{ defaultDestinationFolderPath?: string }>();
+    const archiveAStorage = createStorage({
+      saveArchiveImportSettings: vi.fn(() => archiveASave.promise),
+    });
+    const archiveBStorage = createStorage({
+      saveArchiveImportSettings: vi
+        .fn()
+        .mockResolvedValue({ defaultDestinationFolderPath: "B\\Novels" }),
+    });
+    const archiveAIdentity: KnownArchive = {
+      createdAt: "1",
+      displayName: "Archive A",
+      id: "archive-a",
+      lastOpenedAt: "1",
+      rootPath: "D:\\Archive A",
+    };
+    const archiveBIdentity: KnownArchive = {
+      ...archiveAIdentity,
+      displayName: "Archive B",
+      id: "archive-b",
+      rootPath: "E:\\Archive B",
+    };
+    storage = archiveAStorage;
+    await render({ archiveGeneration: 1, archiveIdentity: archiveAIdentity });
+
+    act(() => latest.updateImportDestination("A\\Comics"));
+    storage = archiveBStorage;
+    await render({ archiveGeneration: 2, archiveIdentity: archiveBIdentity });
+    act(() => latest.updateImportDestination("B\\Novels"));
+    await act(async () => Promise.resolve());
+    expect(latest.importSettings.defaultDestinationFolderPath).toBe("B\\Novels");
+
+    await act(async () => {
+      archiveASave.resolve({ defaultDestinationFolderPath: "A\\Comics" });
+      await archiveASave.promise;
+      await Promise.resolve();
+    });
+
+    expect(latest.importSettings.defaultDestinationFolderPath).toBe("B\\Novels");
   });
 
   it("does not let a slow rescan success overwrite a newer maintenance error", async () => {
