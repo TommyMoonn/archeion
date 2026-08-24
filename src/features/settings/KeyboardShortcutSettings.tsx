@@ -1,9 +1,7 @@
-import { RotateCcw, X } from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
-import { IconButton } from "../../components/IconButton";
 import type { KeyboardBinding } from "../../types/keyboard";
 import {
   effectiveKeyboardBinding,
@@ -16,7 +14,8 @@ import {
   type CommandDefinition,
   type ConfigurableCommandId,
 } from "../commands/commandBindings";
-import { SettingsActionRow, StandardSettingsRow } from "./components/SettingsRows";
+import { KeyboardShortcutRow as KeyboardShortcutRowView } from "./components/KeyboardShortcutRow";
+import { CompactSettingsRow, SettingsActionRow } from "./components/SettingsRows";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
 export function KeyboardShortcutRow({
@@ -73,40 +72,13 @@ export function KeyboardShortcutRow({
 
   return (
     <>
-      <StandardSettingsRow label={command.label}>
-        <div className="keyboard-shortcut-row__controls">
-          <div className="keyboard-shortcut-binding-control">
-            <button
-              aria-label={`Change shortcut for ${command.label}`}
-              className="keyboard-shortcut-binding"
-              onClick={() => setCaptureOpen(true)}
-              type="button"
-            >
-              <kbd>{currentLabel}</kbd>
-            </button>
-            {current ? (
-              <IconButton
-                className="keyboard-shortcut-clear"
-                label={`Clear shortcut for ${command.label}`}
-                onClick={() => void clearShortcut()}
-                size="compact"
-              >
-                <X aria-hidden="true" strokeWidth={2.25} />
-              </IconButton>
-            ) : null}
-          </div>
-          {differsFromDefault ? (
-            <IconButton
-              className="keyboard-shortcut-reset"
-              label={`Reset ${command.label} to default`}
-              onClick={() => void resetShortcut()}
-              size="compact"
-            >
-              <RotateCcw aria-hidden="true" />
-            </IconButton>
-          ) : null}
-        </div>
-      </StandardSettingsRow>
+      <KeyboardShortcutRowView
+        bindingLabel={currentLabel}
+        label={command.label}
+        onChange={() => setCaptureOpen(true)}
+        onClear={current ? () => void clearShortcut() : undefined}
+        onReset={differsFromDefault ? () => void resetShortcut() : undefined}
+      />
       {captureOpen ? (
         <KeyboardShortcutCaptureDialog
           command={command}
@@ -121,11 +93,9 @@ export function KeyboardShortcutRow({
 
 export function KeyboardShortcutDocumentationRow({
   bindings,
-  description,
   label,
 }: {
   bindings: readonly KeyboardBinding[];
-  description?: string;
   label: string;
 }) {
   const control = (
@@ -138,11 +108,7 @@ export function KeyboardShortcutDocumentationRow({
     </div>
   );
 
-  return (
-    <StandardSettingsRow description={description} label={label}>
-      {control}
-    </StandardSettingsRow>
-  );
+  return <CompactSettingsRow label={label}>{control}</CompactSettingsRow>;
 }
 
 export function ResetKeyboardShortcutsRow({ context }: { context: SettingsDialogController }) {

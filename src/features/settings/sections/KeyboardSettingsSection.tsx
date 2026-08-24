@@ -4,7 +4,7 @@ import type { SettingsDialogController } from "../useSettingsDialogController";
 
 export function KeyboardSettingsSection({ context }: { context: SettingsDialogController }) {
   return (
-    <section className="settings-section">
+    <section className="settings-section settings-section--keyboard">
       <SettingsSectionHeader title="Keyboard" />
       <SettingsSectionItems context={context} sectionId="keyboard" />
     </section>

@@ -29,7 +29,9 @@ export const keyboardSettingsItems: readonly SettingsItem[] = [
       groupLabel: "Fixed Interaction Keys",
       id: `keyboard.documentation.fixed-${entry.label.toLocaleLowerCase().replaceAll(" ", "-")}`,
       label: entry.label,
-      render: () => <KeyboardShortcutDocumentationRow {...entry} />,
+      render: () => (
+        <KeyboardShortcutDocumentationRow bindings={entry.bindings} label={entry.label} />
+      ),
       searchTerms: [entry.label, description ?? "", "fixed interaction key"],
       sectionId: "keyboard",
     };

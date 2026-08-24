@@ -208,6 +208,10 @@ html[data-motion="on"] .settings-section-transition[data-transition="section-cha
   color: var(--muted);
 }
 
+.settings-section--keyboard .settings-section__group + .settings-section__group {
+  margin-top: 24px;
+}
+
 .settings-item-unavailable {
   min-width: 0;
   padding: 0;

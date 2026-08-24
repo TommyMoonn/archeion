@@ -12,7 +12,11 @@ import { defaultAppPreferences } from "../../types/appSettings";
 import type { KeyboardPreferences } from "../../types/keyboard";
 import { commandDefinitions } from "../commands/commandBindings";
 import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
-import { KeyboardShortcutRow, ResetKeyboardShortcutsRow } from "./KeyboardShortcutSettings";
+import {
+  KeyboardShortcutDocumentationRow,
+  KeyboardShortcutRow,
+  ResetKeyboardShortcutsRow,
+} from "./KeyboardShortcutSettings";
 import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
@@ -133,14 +137,27 @@ describe("Keyboard settings", () => {
     expect(markup).not.toContain(">Clear<");
   });
 
-  it("keeps shortcut rows on the standard rhythm until the dedicated redesign", () => {
+  it("renders configurable shortcuts through the compact row model", () => {
     const markup = renderToStaticMarkup(
       <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
     );
 
-    expect(markup).toContain('class="settings-row settings-row--standard"');
-    expect(markup).not.toContain('class="settings-row settings-row--compact"');
+    expect(markup).toContain('class="settings-row settings-row--compact"');
+    expect(markup).not.toContain('class="settings-row settings-row--standard"');
     expect(markup).not.toContain("settings-row__description");
+  });
+
+  it("renders fixed shortcut documentation without description placeholders", () => {
+    const markup = renderToStaticMarkup(
+      <KeyboardShortcutDocumentationRow
+        bindings={[commandDefinitions.closeTopmostSurface.defaultBinding]}
+        label="Close topmost surface"
+      />,
+    );
+
+    expect(markup).toContain('class="settings-row settings-row--compact"');
+    expect(markup).not.toContain("settings-row__description");
+    expect(markup).toContain('aria-label="Close topmost surface keys"');
   });
 
   it("keeps reset-all as the final Keyboard item after fixed interactions", () => {
