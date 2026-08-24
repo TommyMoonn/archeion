@@ -2,7 +2,7 @@ import { RefreshCw, BrushCleaning } from "lucide-react";
 
 import { Button } from "../../../components/Button";
 import { Toggle } from "../../../components/Toggle";
-import { SettingsRow } from "../SettingsRow";
+import { SettingsActionRow, StandardSettingsRow } from "../components/SettingsRows";
 import type { SettingsItem } from "../settingsItemTypes";
 import type { SettingsDialogController } from "../useSettingsDialogController";
 
@@ -15,13 +15,16 @@ export const storageSettingsItems = [
     id: "storage.scan-on-startup",
     label: "Scan on startup",
     render: (context) => (
-      <SettingsRow description="Checks the active archive when it opens." label="Scan on startup">
+      <StandardSettingsRow
+        description="Checks the active archive when it opens."
+        label="Scan on startup"
+      >
         <Toggle
           checked={context.files.scanOnStartup}
           label="Scan on startup"
           onChange={(scanOnStartup) => context.updateFiles({ scanOnStartup })}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["monitoring", "scan", "startup", "files"],
     sectionId: "storage",
@@ -32,7 +35,7 @@ export const storageSettingsItems = [
     id: "storage.live-filesystem-watcher",
     label: "Live filesystem watcher",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Refreshes the archive when files change on disk."
         label="Live filesystem watcher"
       >
@@ -41,7 +44,7 @@ export const storageSettingsItems = [
           label="Live filesystem watcher"
           onChange={(liveWatcherEnabled) => context.updateFiles({ liveWatcherEnabled })}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["monitoring", "live refresh", "filesystem", "watcher"],
     sectionId: "storage",
@@ -54,7 +57,7 @@ export const storageSettingsItems = [
     label: "Rescan archive",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Checks the active archive without changing EPUB files."
         label="Rescan archive"
       >
@@ -67,7 +70,7 @@ export const storageSettingsItems = [
         >
           Rescan archive
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["scanning", "rescan", "scan archive"],
     sectionId: "storage",
@@ -80,14 +83,14 @@ export const storageSettingsItems = [
     label: "Clear scanner cache",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Forces EPUB files to be checked again later."
         label="Clear scanner cache"
       >
         <Button onClick={() => context.openConfirmation("clearScannerCache")} variant="secondary">
           Clear scanner cache
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["scanning", "clear scanner cache", "scanner index"],
     sectionId: "storage",
@@ -100,7 +103,7 @@ export const storageSettingsItems = [
     label: "Re-extract EPUB source metadata",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Rebuilds parsed EPUB title and author data."
         label="Re-extract EPUB source metadata"
       >
@@ -112,7 +115,7 @@ export const storageSettingsItems = [
         >
           Re-extract source metadata
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["scanning", "source metadata", "re-extract", "epub metadata"],
     sectionId: "storage",
@@ -126,7 +129,7 @@ export const storageSettingsItems = [
     label: "Cover cache status",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Shows generated covers stored for this archive."
         label="Cover cache status"
         note={
@@ -142,7 +145,7 @@ export const storageSettingsItems = [
         >
           Clear cover cache
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["generated cover cache", "cover cache status", "clear cover cache"],
     sectionId: "storage",
@@ -154,7 +157,7 @@ export const storageSettingsItems = [
     id: "storage.keep-epub-writeback-backup",
     label: "Keep EPUB writeback backup",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Keep one recovery copy after metadata edits. Off by default."
         label="Keep EPUB writeback backup"
       >
@@ -163,7 +166,7 @@ export const storageSettingsItems = [
           label="Keep EPUB writeback backup"
           onChange={(keepEpubWritebackBackup) => context.updateFiles({ keepEpubWritebackBackup })}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["epub writeback backups", "epub backup", "metadata backup", "recovery copy"],
     sectionId: "storage",
@@ -177,7 +180,7 @@ export const storageSettingsItems = [
     label: "Clear EPUB writeback backups",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Remove saved recovery copies from successful metadata edits."
         label="Clear EPUB writeback backups"
         note={formatEpubWritebackBackupStatusNote(context)}
@@ -193,7 +196,7 @@ export const storageSettingsItems = [
         >
           Clear backups
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: [
       "epub writeback backups",
@@ -211,7 +214,7 @@ export const storageSettingsItems = [
     label: "Repair archive metadata",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Rebuilds corrupted sidecar files without changing EPUB files."
         label="Repair archive metadata"
       >
@@ -223,7 +226,7 @@ export const storageSettingsItems = [
         >
           Repair metadata
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["sidecar metadata", "recovery", "repair", "corrupt", ".archeion"],
     sectionId: "storage",
@@ -236,14 +239,14 @@ export const storageSettingsItems = [
     label: "Reveal .archeion folder",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Opens the active archive sidecar folder."
         label="Reveal .archeion folder"
       >
         <Button onClick={() => void context.revealMetadata()} variant="secondary">
           Reveal .archeion folder
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["sidecar metadata", "recovery", "metadata folder", ".archeion folder"],
     sectionId: "storage",
@@ -255,14 +258,14 @@ export const storageSettingsItems = [
     id: "storage.reset",
     label: "Reset storage preferences",
     render: (context) => (
-      <SettingsRow
+      <SettingsActionRow
         description="Restores file monitoring and backup retention preferences only."
         label="Reset storage preferences"
       >
         <Button onClick={() => void context.resetStorage()} variant="secondary">
           Reset storage
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset storage preferences", "monitoring defaults", "backup retention"],
     sectionId: "storage",

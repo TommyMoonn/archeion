@@ -1,13 +1,14 @@
 import { type ReactNode, useId } from "react";
 
-type SettingsRowProps = {
+type SettingsRowFrameProps = {
   children: ReactNode;
   description?: ReactNode;
   label: string;
   note?: ReactNode;
+  variant: "action" | "compact" | "feature" | "standard";
 };
 
-export function SettingsRow({ children, description, label, note }: SettingsRowProps) {
+function SettingsRowFrame({ children, description, label, note, variant }: SettingsRowFrameProps) {
   const generatedId = useId();
   const labelId = `settings-row-label-${generatedId}`;
   const descriptionId = description ? `settings-row-description-${generatedId}` : undefined;
@@ -18,7 +19,7 @@ export function SettingsRow({ children, description, label, note }: SettingsRowP
     <div
       aria-describedby={describedBy}
       aria-labelledby={labelId}
-      className="settings-row"
+      className={`settings-row settings-row--${variant}`}
       role="group"
     >
       <div className="settings-row__meta">
@@ -39,8 +40,50 @@ export function SettingsRow({ children, description, label, note }: SettingsRowP
   );
 }
 
-type SliderRowProps = {
+type StandardSettingsRowProps = {
+  children: ReactNode;
   description?: ReactNode;
+  label: string;
+  note?: ReactNode;
+};
+
+export function StandardSettingsRow(props: StandardSettingsRowProps) {
+  return <SettingsRowFrame {...props} variant="standard" />;
+}
+
+type CompactSettingsRowProps = {
+  children: ReactNode;
+  label: string;
+};
+
+export function CompactSettingsRow(props: CompactSettingsRowProps) {
+  return <SettingsRowFrame {...props} variant="compact" />;
+}
+
+type SettingsActionRowProps = {
+  children: ReactNode;
+  description?: ReactNode;
+  label: string;
+  note?: ReactNode;
+};
+
+export function SettingsActionRow(props: SettingsActionRowProps) {
+  return <SettingsRowFrame {...props} variant="action" />;
+}
+
+type FeatureSettingsRowProps = {
+  children: ReactNode;
+  description?: ReactNode;
+  label: string;
+  note?: ReactNode;
+};
+
+export function FeatureSettingsRow(props: FeatureSettingsRowProps) {
+  return <SettingsRowFrame {...props} variant="feature" />;
+}
+
+type SettingsSliderRowProps = {
+  description: ReactNode;
   label: string;
   max: number;
   min: number;
@@ -50,7 +93,7 @@ type SliderRowProps = {
   value: number;
 };
 
-export function SliderRow({
+export function SettingsSliderRow({
   description,
   label,
   max,
@@ -59,9 +102,9 @@ export function SliderRow({
   step,
   suffix = "",
   value,
-}: SliderRowProps) {
+}: SettingsSliderRowProps) {
   return (
-    <SettingsRow description={description} label={label} note={`${value}${suffix}`}>
+    <FeatureSettingsRow description={description} label={label} note={`${value}${suffix}`}>
       <input
         aria-label={label}
         max={max}
@@ -71,6 +114,6 @@ export function SliderRow({
         type="range"
         value={value}
       />
-    </SettingsRow>
+    </FeatureSettingsRow>
   );
 }

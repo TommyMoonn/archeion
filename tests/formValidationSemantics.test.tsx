@@ -8,7 +8,7 @@ import { Toggle } from "../src/components/Toggle";
 import { ArchiveCreateView } from "../src/features/archive/ArchiveCreateView";
 import { RenameFileDialog } from "../src/features/filesystem/RenameFileDialog";
 import { FolderNameDialog } from "../src/features/folders/FolderNameDialog";
-import { SettingsRow } from "../src/features/settings/SettingsRow";
+import { StandardSettingsRow } from "../src/features/settings/components/SettingsRows";
 import type { Book } from "../src/types/book";
 
 let container: HTMLDivElement;
@@ -69,9 +69,9 @@ describe("form validation semantics", () => {
   it("associates Settings helper text with its visible control group", () => {
     act(() => {
       root.render(
-        <SettingsRow description="Controls automatic archive scans." label="Watch archive">
+        <StandardSettingsRow description="Controls automatic archive scans." label="Watch archive">
           <Toggle checked label="Watch archive" onChange={vi.fn()} />
-        </SettingsRow>,
+        </StandardSettingsRow>,
       );
     });
 

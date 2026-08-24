@@ -16,7 +16,7 @@ import {
   type CommandDefinition,
   type ConfigurableCommandId,
 } from "../commands/commandBindings";
-import { SettingsRow } from "./SettingsRow";
+import { SettingsActionRow, StandardSettingsRow } from "./components/SettingsRows";
 import type { SettingsDialogController } from "./useSettingsDialogController";
 
 export function KeyboardShortcutRow({
@@ -73,7 +73,7 @@ export function KeyboardShortcutRow({
 
   return (
     <>
-      <SettingsRow label={command.label}>
+      <StandardSettingsRow label={command.label}>
         <div className="keyboard-shortcut-row__controls">
           <div className="keyboard-shortcut-binding-control">
             <button
@@ -106,7 +106,7 @@ export function KeyboardShortcutRow({
             </IconButton>
           ) : null}
         </div>
-      </SettingsRow>
+      </StandardSettingsRow>
       {captureOpen ? (
         <KeyboardShortcutCaptureDialog
           command={command}
@@ -128,23 +128,27 @@ export function KeyboardShortcutDocumentationRow({
   description?: string;
   label: string;
 }) {
+  const control = (
+    <div aria-label={`${label} keys`} className="keyboard-shortcut-keycaps">
+      {bindings.map((binding, index) => (
+        <kbd key={`${formatKeyboardBinding(binding)}-${index}`}>
+          {formatKeyboardBinding(binding)}
+        </kbd>
+      ))}
+    </div>
+  );
+
   return (
-    <SettingsRow description={description} label={label}>
-      <div aria-label={`${label} keys`} className="keyboard-shortcut-keycaps">
-        {bindings.map((binding, index) => (
-          <kbd key={`${formatKeyboardBinding(binding)}-${index}`}>
-            {formatKeyboardBinding(binding)}
-          </kbd>
-        ))}
-      </div>
-    </SettingsRow>
+    <StandardSettingsRow description={description} label={label}>
+      {control}
+    </StandardSettingsRow>
   );
 }
 
 export function ResetKeyboardShortcutsRow({ context }: { context: SettingsDialogController }) {
   const hasOverrides = Object.keys(context.preferences.keyboard.shortcuts).length > 0;
   return (
-    <SettingsRow label="Restore default shortcuts">
+    <SettingsActionRow label="Restore default shortcuts">
       <Button
         disabled={!hasOverrides}
         onClick={() =>
@@ -157,7 +161,7 @@ export function ResetKeyboardShortcutsRow({ context }: { context: SettingsDialog
       >
         Reset all
       </Button>
-    </SettingsRow>
+    </SettingsActionRow>
   );
 }
 

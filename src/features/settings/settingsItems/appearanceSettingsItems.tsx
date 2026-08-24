@@ -12,7 +12,11 @@ import {
   applicationThemeValue,
   decodeApplicationTheme,
 } from "../../themes/themeSelectionOptions";
-import { SettingsRow } from "../SettingsRow";
+import {
+  FeatureSettingsRow,
+  SettingsActionRow,
+  StandardSettingsRow,
+} from "../components/SettingsRows";
 import { densityOptions } from "../settingsOptions";
 import type { SettingsItem } from "../settingsItemTypes";
 
@@ -23,14 +27,14 @@ export const appearanceSettingsItems = [
     id: "reader.theme",
     label: "Reader theme",
     render: (context) => (
-      <SettingsRow description="Choose the colors used while reading." label="Reader theme">
+      <StandardSettingsRow description="Choose the colors used while reading." label="Reader theme">
         <ReaderThemeSelect
           entries={context.themeCatalogEntries}
           onChange={(readerTheme) => void context.updateAppearance({ readerTheme })}
           onOpen={() => void context.refreshThemeCatalog()}
           selection={context.preferences.readerTheme}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["theme", "light", "sepia", "dark", "epub reader", "custom reader theme"],
     sectionId: "reader",
@@ -42,7 +46,7 @@ export const appearanceSettingsItems = [
     id: "appearance.app-themes",
     label: "App themes",
     render: (context) => (
-      <SettingsRow description="Choose the theme used across Archeion." label="App themes">
+      <FeatureSettingsRow description="Choose the theme used across Archeion." label="App themes">
         <div className="settings-theme-control">
           <IconButton
             label="Open themes folder"
@@ -73,7 +77,7 @@ export const appearanceSettingsItems = [
             Manage themes
           </Button>
         </div>
-      </SettingsRow>
+      </FeatureSettingsRow>
     ),
     searchTerms: ["theme", "system", "dark", "light", "custom themes", "manage themes"],
     sectionId: "appearance",
@@ -84,7 +88,7 @@ export const appearanceSettingsItems = [
     id: "appearance.animations",
     label: "Animations",
     render: (context) => (
-      <SettingsRow description="Enable subtle app transitions." label="Animations">
+      <StandardSettingsRow description="Enable subtle app transitions." label="Animations">
         <Toggle
           checked={context.preferences.appearance.animationsEnabled}
           label="Animations"
@@ -92,7 +96,7 @@ export const appearanceSettingsItems = [
             void context.updateAppPreferences({ appearance: { animationsEnabled } })
           }
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["animations", "motion", "transitions", "app appearance"],
     sectionId: "appearance",
@@ -103,14 +107,14 @@ export const appearanceSettingsItems = [
     id: "appearance.display-density",
     label: "Display density",
     render: (context) => (
-      <SettingsRow description="Adjusts spacing across the app." label="Display density">
+      <StandardSettingsRow description="Adjusts spacing across the app." label="Display density">
         <SegmentedControl<InterfaceDensity>
           label="Display density"
           onChange={(density) => void context.updateAppPreferences({ density })}
           options={densityOptions}
           value={context.preferences.density}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["density", "comfortable", "compact", "app appearance"],
     sectionId: "appearance",
@@ -121,11 +125,11 @@ export const appearanceSettingsItems = [
     id: "appearance.reset-appearance",
     label: "Reset appearance settings",
     render: (context) => (
-      <SettingsRow label="Reset appearance settings">
+      <SettingsActionRow label="Reset appearance settings">
         <Button onClick={() => void context.resetAppearance()} variant="secondary">
           Reset appearance
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset", "app appearance"],
     sectionId: "appearance",

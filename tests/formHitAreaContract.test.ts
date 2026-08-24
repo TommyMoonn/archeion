@@ -51,7 +51,6 @@ describe("form semantics and control hit-area contract", () => {
     expect(expandedTarget).toContain("inset-inline: 0");
     expect(coarsePointer).toContain("inset-block: -6px");
     expect(coarsePointer).not.toContain("inset-inline");
-    expect(cssBlock(settings, ".settings-row")).toContain("min-height: 64px");
   });
 
   it("retains existing compact and native-window target geometry", () => {

@@ -133,6 +133,16 @@ describe("Keyboard settings", () => {
     expect(markup).not.toContain(">Clear<");
   });
 
+  it("keeps shortcut rows on the standard rhythm until the dedicated redesign", () => {
+    const markup = renderToStaticMarkup(
+      <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
+    );
+
+    expect(markup).toContain('class="settings-row settings-row--standard"');
+    expect(markup).not.toContain('class="settings-row settings-row--compact"');
+    expect(markup).not.toContain("settings-row__description");
+  });
+
   it("keeps reset-all as the final Keyboard item after fixed interactions", () => {
     expect(keyboardSettingsItems.at(-1)?.id).toBe("keyboard.reset-all");
     expect(keyboardSettingsItems.at(-1)?.groupLabel).toBe("Reset shortcuts");

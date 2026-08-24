@@ -11,7 +11,11 @@ import {
   archiveImportConflictOptions,
   archiveImportModeOptions,
 } from "../filesystem/archiveImport";
-import { SettingsRow, SliderRow } from "./SettingsRow";
+import {
+  SettingsActionRow,
+  SettingsSliderRow,
+  StandardSettingsRow,
+} from "./components/SettingsRows";
 import type { SettingsDeferredDataRequirement, SettingsItem } from "./settingsItemTypes";
 import { storageSettingsItems } from "./settingsItems/storageSettingsItems";
 import { appearanceSettingsItems } from "./settingsItems/appearanceSettingsItems";
@@ -62,14 +66,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "general.startup-behavior",
     label: "Startup behavior",
     render: (context) => (
-      <SettingsRow description="Choose what opens when Archeion starts." label="Startup behavior">
+      <StandardSettingsRow
+        description="Choose what opens when Archeion starts."
+        label="Startup behavior"
+      >
         <AppSelect
           ariaLabel="Startup behavior"
           onChange={(startupBehavior) => void context.updateAppPreferences({ startupBehavior })}
           options={startupOptions}
           value={context.preferences.startupBehavior}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["startup", "open last archive", "show archive manager"],
     sectionId: "general",
@@ -79,7 +86,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "general.confirm-destructive-file-actions",
     label: "Confirm destructive file actions",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Ask before deleting or replacing real files."
         label="Confirm destructive file actions"
       >
@@ -90,7 +97,7 @@ export const settingsItems: readonly SettingsItem[] = [
             void context.updateAppPreferences({ confirmDestructiveFileActions })
           }
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["confirm", "destructive", "delete", "replace"],
     sectionId: "general",
@@ -100,7 +107,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "general.restore-last-reader-route",
     label: "Restore last reader route",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Reopen the last book route when the file is still available."
         label="Restore last reader route"
       >
@@ -109,7 +116,7 @@ export const settingsItems: readonly SettingsItem[] = [
           label="Restore last reader route"
           onChange={(restoreLastReader) => void context.updateAppPreferences({ restoreLastReader })}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["restore reader", "last reader", "reopen last book route"],
     sectionId: "general",
@@ -120,7 +127,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "appearance.remember-window-state",
     label: "Remember window size and position",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Restores the previous window layout when supported."
         label="Remember window size and position"
       >
@@ -131,7 +138,7 @@ export const settingsItems: readonly SettingsItem[] = [
             void context.updateAppPreferences({ rememberWindowState })
           }
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["window", "size", "position", "window behavior"],
     sectionId: "general",
@@ -141,11 +148,11 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "appearance.reset-window",
     label: "Reset window settings",
     render: (context) => (
-      <SettingsRow label="Reset window settings">
+      <SettingsActionRow label="Reset window settings">
         <Button onClick={() => void context.resetWindow()} variant="secondary">
           Reset window
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset", "window behavior"],
     sectionId: "general",
@@ -154,11 +161,11 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "general.reset",
     label: "Reset general settings",
     render: (context) => (
-      <SettingsRow label="Reset general settings">
+      <SettingsActionRow label="Reset general settings">
         <Button onClick={() => void context.resetGeneral()} variant="secondary">
           Reset general
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset"],
     sectionId: "general",
@@ -169,7 +176,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.books.default-view",
     label: "Default book view",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Used for Library, Favorites, Smart Views, and books inside folders."
         label="Default book view"
       >
@@ -179,7 +186,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={viewOptions}
           value={context.library.collections.books.viewMode}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["books", "book view", "library view", "grid", "list"],
     sectionId: "library",
@@ -190,7 +197,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.books.default-sort",
     label: "Default book sort",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Used for Library, Favorites, Smart Views, and books inside folders."
         label="Default book sort"
       >
@@ -200,7 +207,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={defaultLibrarySortOptions}
           value={context.library.collections.books.sortBy}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["books", "book sort", "title", "author", "recently opened"],
     sectionId: "library",
@@ -211,14 +218,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.books.card-size",
     label: "Book card size",
     render: (context) => (
-      <SettingsRow description="Changes book cover size in grid view." label="Book card size">
+      <StandardSettingsRow
+        description="Changes book cover size in grid view."
+        label="Book card size"
+      >
         <AppSelect<CollectionCardSize>
           ariaLabel="Book card size"
           onChange={(cardSize) => context.updateLibraryCollection("books", { cardSize })}
           options={cardSizeOptions}
           value={context.library.collections.books.cardSize}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["books", "book card size", "cover size", "small", "medium", "large"],
     sectionId: "library",
@@ -229,7 +239,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.folders.default-view",
     label: "Default folder view",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Used when browsing the folders collection."
         label="Default folder view"
       >
@@ -239,7 +249,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={folderViewOptions}
           value={context.library.collections.folders.viewMode}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["folders", "folder view", "cards", "list"],
     sectionId: "library",
@@ -250,14 +260,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.folders.default-sort",
     label: "Default folder sort",
     render: (context) => (
-      <SettingsRow description="Sets the ordering of folder summaries." label="Default folder sort">
+      <StandardSettingsRow
+        description="Sets the ordering of folder summaries."
+        label="Default folder sort"
+      >
         <AppSelect<FolderSort>
           ariaLabel="Default folder sort"
           onChange={(sortBy) => context.updateLibraryCollection("folders", { sortBy })}
           options={folderSortOptions}
           value={context.library.collections.folders.sortBy}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["folders", "folder sort", "name", "path", "book count", "most books"],
     sectionId: "library",
@@ -268,7 +281,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.folders.card-size",
     label: "Folder card size",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Changes folder card density without affecting list view."
         label="Folder card size"
       >
@@ -278,7 +291,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={cardSizeOptions}
           value={context.library.collections.folders.cardSize}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["folders", "folder card size", "small", "medium", "large"],
     sectionId: "library",
@@ -289,14 +302,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.series.default-view",
     label: "Default series view",
     render: (context) => (
-      <SettingsRow description="Used when browsing series summaries." label="Default series view">
+      <StandardSettingsRow
+        description="Used when browsing series summaries."
+        label="Default series view"
+      >
         <SegmentedControl
           label="Default series view"
           onChange={(viewMode) => context.updateLibraryCollection("series", { viewMode })}
           options={viewOptions}
           value={context.library.collections.series.viewMode}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["series", "series view", "grid", "list"],
     sectionId: "library",
@@ -307,7 +323,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.series.default-sort",
     label: "Default series sort",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Sets the ordering of series summaries without changing volume order."
         label="Default series sort"
       >
@@ -317,7 +333,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={seriesSortOptions}
           value={context.library.collections.series.sortBy}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["series", "series sort", "recently opened", "volume count", "most volumes"],
     sectionId: "library",
@@ -328,7 +344,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.series.card-size",
     label: "Series card size",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Changes series overview cover size and card density."
         label="Series card size"
       >
@@ -338,7 +354,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={cardSizeOptions}
           value={context.library.collections.series.cardSize}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["series", "series card size", "cover size", "small", "medium", "large"],
     sectionId: "library",
@@ -348,7 +364,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.show-continue-reading",
     label: "Show Continue Reading",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Shows started books on the Library page."
         label="Show Continue Reading"
       >
@@ -359,7 +375,7 @@ export const settingsItems: readonly SettingsItem[] = [
             void context.updateAppPreferences({ showContinueReading })
           }
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["continue reading", "started books"],
     sectionId: "library",
@@ -370,7 +386,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.smart-views.enabled",
     label: "Show Smart Views",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Show selected built-in views in Library navigation."
         label="Show Smart Views"
       >
@@ -383,7 +399,7 @@ export const settingsItems: readonly SettingsItem[] = [
             })
           }
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["smart views", "navigation views", "built-in views"],
     sectionId: "library",
@@ -403,7 +419,7 @@ export const settingsItems: readonly SettingsItem[] = [
           ? "At least one Smart View must remain selected. Turn off Show Smart Views instead."
           : undefined;
       return (
-        <SettingsRow description={definition.description} label={definition.label}>
+        <StandardSettingsRow description={definition.description} label={definition.label}>
           <Toggle
             checked={checked}
             disabled={Boolean(disabledReason)}
@@ -411,7 +427,7 @@ export const settingsItems: readonly SettingsItem[] = [
             label={`Show ${definition.label} Smart View`}
             onChange={(visible) => updateSmartViewVisibility(context, definition.id, visible)}
           />
-        </SettingsRow>
+        </StandardSettingsRow>
       );
     },
     searchTerms: [definition.id, ...definition.searchTerms],
@@ -421,11 +437,11 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "library.reset",
     label: "Reset library display settings",
     render: (context) => (
-      <SettingsRow label="Reset library display settings">
+      <SettingsActionRow label="Reset library display settings">
         <Button onClick={() => void context.resetLibrary()} variant="secondary">
           Reset Library
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset"],
     sectionId: "library",
@@ -435,14 +451,14 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.font-family",
     label: "Font family",
     render: (context) => (
-      <SettingsRow description="Sets the default reader typeface." label="Font family">
+      <StandardSettingsRow description="Sets the default reader typeface." label="Font family">
         <AppSelect
           ariaLabel="Reader font family"
           onChange={(fontFamily) => updateReader(context, { fontFamily })}
           options={typefaceOptions}
           value={context.reader.fontFamily}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["font", "typeface", "serif", "sans", "literata", "atkinson", "hyperlegible"],
     sectionId: "reader",
@@ -452,7 +468,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.font-size",
     label: "Font size",
     render: (context) => (
-      <SliderRow
+      <SettingsSliderRow
         description="Sets the default text size in the reader."
         label="Font size"
         max={28}
@@ -470,7 +486,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.line-height",
     label: "Line height",
     render: (context) => (
-      <SliderRow
+      <SettingsSliderRow
         description="Adjusts spacing between lines in the reader."
         label="Line height"
         max={2}
@@ -488,7 +504,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.page-margin",
     label: "Page margin",
     render: (context) => (
-      <SliderRow
+      <SettingsSliderRow
         description="Adjusts page padding inside the reader."
         label="Page margin"
         max={72}
@@ -508,14 +524,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.progress-placement",
     label: "Progress placement",
     render: (context) => (
-      <SettingsRow description="Chooses where reading progress appears." label="Progress placement">
+      <StandardSettingsRow
+        description="Chooses where reading progress appears."
+        label="Progress placement"
+      >
         <SegmentedControl
           label="Reader progress placement"
           onChange={(progressPlacement) => updateReader(context, { progressPlacement })}
           options={progressPlacementOptions}
           value={context.reader.progressPlacement}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["progress", "reading position", "top", "side"],
     sectionId: "reader",
@@ -524,11 +543,11 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "reader.reset",
     label: "Reset reader settings",
     render: (context) => (
-      <SettingsRow label="Reset reader settings">
+      <SettingsActionRow label="Reset reader settings">
         <Button onClick={() => void context.resetReader()} variant="secondary">
           Reset Reader
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset"],
     sectionId: "reader",
@@ -539,7 +558,7 @@ export const settingsItems: readonly SettingsItem[] = [
     label: "Current archive folder",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="The active archive root on disk."
         label="Current archive folder"
         note={
@@ -558,7 +577,7 @@ export const settingsItems: readonly SettingsItem[] = [
         >
           Reveal archive folder
         </Button>
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["archive folder", "current archive", "reveal folder"],
     sectionId: "archives",
@@ -568,14 +587,14 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "archives.archive-manager",
     label: "Archive Manager",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Manage archive switching, naming, and removal."
         label="Archive Manager"
       >
         <Button onClick={() => void context.openArchiveManager()} variant="secondary">
           Open Archive Manager
         </Button>
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["archive manager", "switching", "naming", "removal"],
     sectionId: "archives",
@@ -587,14 +606,17 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "import.default-import-mode",
     label: "Default import mode",
     render: (context) => (
-      <SettingsRow description="Chooses how new EPUB files are added." label="Default import mode">
+      <StandardSettingsRow
+        description="Chooses how new EPUB files are added."
+        label="Default import mode"
+      >
         <SegmentedControl
           label="Default import mode"
           onChange={(defaultMode) => context.updateImportDefaults({ defaultMode })}
           options={archiveImportModeOptions}
           value={context.importSettings.defaultMode}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["import mode", "copy", "move", "epub"],
     sectionId: "archives",
@@ -605,7 +627,7 @@ export const settingsItems: readonly SettingsItem[] = [
     id: "import.default-conflict-handling",
     label: "Default conflict handling",
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Chooses what happens when a file name already exists."
         label="Default conflict handling"
       >
@@ -617,7 +639,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={archiveImportConflictOptions}
           value={context.importSettings.defaultConflictAction}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["conflict", "file name", "already exists"],
     sectionId: "archives",
@@ -630,7 +652,7 @@ export const settingsItems: readonly SettingsItem[] = [
     label: "Default destination folder",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow
+      <StandardSettingsRow
         description="Stored per archive because folders differ."
         label="Default destination folder"
       >
@@ -640,7 +662,7 @@ export const settingsItems: readonly SettingsItem[] = [
           options={context.destinationOptions}
           value={context.safeImportDestinationValue}
         />
-      </SettingsRow>
+      </StandardSettingsRow>
     ),
     searchTerms: ["destination", "folder", "archive folder"],
     sectionId: "archives",
@@ -651,11 +673,11 @@ export const settingsItems: readonly SettingsItem[] = [
     label: "Reset import settings",
     requiresArchive: true,
     render: (context) => (
-      <SettingsRow label="Reset import settings">
+      <SettingsActionRow label="Reset import settings">
         <Button onClick={() => void context.resetImport()} variant="secondary">
           Reset import
         </Button>
-      </SettingsRow>
+      </SettingsActionRow>
     ),
     searchTerms: ["reset"],
     sectionId: "archives",

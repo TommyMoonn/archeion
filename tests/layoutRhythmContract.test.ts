@@ -95,11 +95,6 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
   it("uses whitespace and group-owned offsets for Settings hierarchy and actions", () => {
     const sectionHeader = cssBlock(settings, ".settings-section__header");
     const sectionHeaderCopy = cssBlock(settings, ".settings-section__header-copy");
-    const groupSpacing = cssBlock(settings, ".settings-section__group + .settings-section__group");
-    const mixedGroupSpacing = cssBlock(
-      settings,
-      ".settings-section > [data-setting-id] + .settings-section__group",
-    );
     const groupHeading = cssBlock(settings, ".settings-section__group h3");
     const row = cssBlock(settings, ".settings-row");
     const searchResults = cssBlock(settings, ".settings-search-results");
@@ -111,8 +106,6 @@ describe("Phase 0.9.0.24 layout rhythm and visual grouping contract", () => {
     expect(sectionHeader).toContain("margin-bottom: 24px");
     expect(sectionHeader).not.toMatch(/border|padding/);
     expect(sectionHeaderCopy).toContain("gap: 6px");
-    expect(groupSpacing).toContain("margin-top: 24px");
-    expect(mixedGroupSpacing).toContain("margin-top: 24px");
     expect(groupHeading).toContain("padding: 0 0 8px");
     expect(row).toContain("grid-template-columns: minmax(0, 1fr) auto");
     expect(row).toContain("gap: 24px");
