@@ -5,7 +5,6 @@ import { SkipLink, THEME_MANAGER_MAIN_CONTENT_ID } from "../../components/SkipLi
 import { WindowTitlebar } from "../../components/WindowTitlebar";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { ThemeManagerSurface, type ThemeManagerServices } from "./ThemeManagerSurface";
-import { closeThemeManagerWindow } from "./themeManagerWindowLifecycle";
 
 type InitializationState = "loading" | "ready" | "error";
 
@@ -63,13 +62,7 @@ export function ThemeManagerWindow({ services }: ThemeManagerWindowProps = {}) {
               </Button>
             </section>
           ) : null}
-          {initializationState === "ready" ? (
-            <ThemeManagerSurface
-              onClose={() => void closeThemeManagerWindow()}
-              services={services}
-              standalone
-            />
-          ) : null}
+          {initializationState === "ready" ? <ThemeManagerSurface services={services} /> : null}
         </main>
       </div>
     </div>

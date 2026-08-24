@@ -1,4 +1,4 @@
-import { FilePlus, FolderOpen, RefreshCw, X } from "lucide-react";
+import { FilePlus, FolderOpen, RefreshCw } from "lucide-react";
 import { useId, useMemo, useRef, type ChangeEvent } from "react";
 
 import { Button } from "../../components/Button";
@@ -27,16 +27,10 @@ export type ThemeManagerServices = Readonly<{
 }>;
 
 type ThemeManagerSurfaceProps = Readonly<{
-  onClose: () => void;
   services?: ThemeManagerServices;
-  standalone?: boolean;
 }>;
 
-export function ThemeManagerSurface({
-  onClose,
-  services,
-  standalone = false,
-}: ThemeManagerSurfaceProps) {
+export function ThemeManagerSurface({ services }: ThemeManagerSurfaceProps) {
   const repository = useMemo(
     () => services?.repository ?? new ThemeRepository(),
     [services?.repository],
@@ -55,11 +49,6 @@ export function ThemeManagerSurface({
   const titleId = useId();
   const busy = controller.busyAction !== null;
 
-  function close() {
-    controller.disposePreview();
-    onClose();
-  }
-
   async function readChosenFile(
     event: ChangeEvent<HTMLInputElement>,
     action: (file: File) => Promise<boolean>,
@@ -70,12 +59,9 @@ export function ThemeManagerSurface({
   }
 
   return (
-    <section
-      aria-labelledby={standalone ? titleId : undefined}
-      className={`theme-manager-surface${standalone ? " theme-manager-surface--standalone" : ""}`}
-    >
+    <section aria-labelledby={titleId} className="theme-manager-surface">
       <div className="theme-manager__header">
-        {standalone ? <h1 id={titleId}>Theme Manager</h1> : null}
+        <h1 id={titleId}>Theme Manager</h1>
         <div className="theme-manager__toolbar">
           <div className="theme-manager__toolbar-actions">
             <Button
@@ -114,16 +100,6 @@ export function ThemeManagerSurface({
           </nav>
         </div>
       </div>
-      {!standalone ? (
-        <IconButton
-          className="theme-manager__close"
-          label="Close Theme Manager"
-          onClick={close}
-          size="compact"
-        >
-          <X aria-hidden="true" strokeWidth={2.25} />
-        </IconButton>
-      ) : null}
       <input
         accept=".json,application/json"
         aria-label="Import theme file"

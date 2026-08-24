@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 
-import { act, useState } from "react";
+import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,7 +8,7 @@ import type { GlobalAppearancePreferences } from "../../themes/AppearanceRuntime
 import { ThemeCatalog } from "../../themes/ThemeCatalog";
 import { resolveBuiltInAppTheme, resolveBuiltInReaderTheme } from "../../themes/resolveTheme";
 import { ThemePreviewSession } from "../../themes/ThemePreviewSession";
-import { ThemeManagerDialog } from "./ThemeManagerDialog";
+import { ThemeManagerSurface } from "./ThemeManagerSurface";
 import type { ThemeManagerControllerOptions } from "./useThemeManagerController";
 
 const customManifest = {
@@ -90,11 +90,6 @@ function createServices() {
   };
 }
 
-function Owner({ services }: Readonly<{ services: ReturnType<typeof createServices> }>) {
-  const [open, setOpen] = useState(true);
-  return open ? <ThemeManagerDialog onClose={() => setOpen(false)} services={services} /> : null;
-}
-
 function button(container: HTMLElement, label: string): HTMLButtonElement {
   const found = [...container.querySelectorAll("button")].find((candidate) =>
     candidate.textContent?.trim().startsWith(label),
@@ -109,7 +104,7 @@ async function settle() {
   });
 }
 
-describe("ThemeManagerDialog", () => {
+describe("ThemeManagerSurface behavior", () => {
   let container: HTMLDivElement;
   let root: Root;
 
@@ -128,7 +123,7 @@ describe("ThemeManagerDialog", () => {
 
   it("presents the shared app-theme management workflow", async () => {
     const services = createServices();
-    await act(async () => root.render(<Owner services={services} />));
+    await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
 
     expect(container.textContent).toContain("Import");
@@ -141,12 +136,8 @@ describe("ThemeManagerDialog", () => {
     expect(container.textContent).toContain("Theme guide");
     expect(container.textContent).toContain("Public schema");
     expect(container.textContent).not.toContain("Browse, preview, and manage application themes.");
-    expect(container.querySelector('button[aria-label="Close Theme Manager"]')).not.toBeNull();
-    expect(
-      container
-        .querySelector("dialog")
-        ?.contains(container.querySelector(".theme-manager-surface")),
-    ).toBe(true);
+    expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
+    expect(container.querySelector(".theme-manager-surface h1")?.textContent).toBe("Theme Manager");
 
     const toolbar = container.querySelector(".theme-manager__toolbar")!;
     const links = toolbar.querySelector(".theme-manager__toolbar-links")!;
@@ -181,7 +172,7 @@ describe("ThemeManagerDialog", () => {
 
   it("uses an explicit Update theme confirmation for duplicate imports", async () => {
     const services = createServices();
-    await act(async () => root.render(<Owner services={services} />));
+    await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
 
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
@@ -198,20 +189,20 @@ describe("ThemeManagerDialog", () => {
     await settle();
 
     const dialogs = container.querySelectorAll("dialog");
-    expect(dialogs).toHaveLength(2);
-    expect(dialogs[1]?.textContent).toContain("A theme with this ID already exists.");
-    expect(button(dialogs[1]!, "Update theme")).not.toBeNull();
-    expect(dialogs[1]?.textContent).not.toContain("Replace theme");
+    expect(dialogs).toHaveLength(1);
+    expect(dialogs[0]?.textContent).toContain("A theme with this ID already exists.");
+    expect(button(dialogs[0]!, "Update theme")).not.toBeNull();
+    expect(dialogs[0]?.textContent).not.toContain("Replace theme");
     expect(services.repository.replaceManifest).not.toHaveBeenCalled();
 
-    act(() => button(dialogs[1]!, "Update theme").click());
+    act(() => button(dialogs[0]!, "Update theme").click());
     await settle();
     expect(services.repository.replaceManifest).toHaveBeenCalledWith(replacement);
   });
 
-  it("owns preview controls inside its native dialog and reverts them on close", async () => {
+  it("owns preview controls in the surface and reverts them on unmount", async () => {
     const services = createServices();
-    await act(async () => root.render(<Owner services={services} />));
+    await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
 
     const readerSelection = services.runtime.getPreviewContext()?.settings.readerTheme;
@@ -219,9 +210,10 @@ describe("ThemeManagerDialog", () => {
     act(() => button(container, "Preview").click());
 
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
-    const dialog = container.querySelector("dialog");
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
-    expect(dialog?.contains(controls ?? null)).toBe(true);
+    expect(container.querySelector(".theme-manager-surface")?.contains(controls ?? null)).toBe(
+      true,
+    );
     expect(document.activeElement?.textContent).toContain("Revert");
     expect(
       [...container.querySelectorAll("button")].filter((candidate) =>
@@ -229,28 +221,25 @@ describe("ThemeManagerDialog", () => {
       ),
     ).toHaveLength(1);
 
-    act(() =>
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Close Theme Manager"]')!
-        .click(),
-    );
-    expect(container.querySelector("dialog")).toBeNull();
+    act(() => root.render(null));
     expect(services.clearPreview).toHaveBeenCalledOnce();
     expect(services.runtime.getPreviewContext()?.settings.readerTheme).toEqual(readerSelection);
   });
 
-  it("keeps package deletion confirmation in the manager modal subtree", async () => {
+  it("keeps package deletion confirmation in the manager surface", async () => {
     const services = createServices();
-    await act(async () => root.render(<Owner services={services} />));
+    await act(async () => root.render(<ThemeManagerSurface services={services} />));
     await settle();
 
     act(() => button(container, "Moon Ink").click());
     act(() => button(container, "Remove").click());
 
     const dialogs = container.querySelectorAll("dialog");
-    expect(dialogs).toHaveLength(2);
-    expect(dialogs[0]?.contains(dialogs[1] ?? null)).toBe(true);
-    expect(dialogs[1]?.textContent).toContain("Remove “Moon Ink” theme?");
-    expect(dialogs[1]?.textContent).toContain("from Archeion");
+    expect(dialogs).toHaveLength(1);
+    expect(container.querySelector(".theme-manager-surface")?.contains(dialogs[0] ?? null)).toBe(
+      true,
+    );
+    expect(dialogs[0]?.textContent).toContain("Remove “Moon Ink” theme?");
+    expect(dialogs[0]?.textContent).toContain("from Archeion");
   });
 });

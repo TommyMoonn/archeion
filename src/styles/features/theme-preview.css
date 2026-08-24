@@ -10,7 +10,7 @@
   background: transparent;
 }
 
-.theme-manager-surface--standalone .theme-preview-controls {
+.theme-preview-controls {
   margin-inline: 24px;
   margin-bottom: 24px;
 }
@@ -77,7 +77,7 @@
 }
 
 @media (max-width: 700px) {
-  .theme-manager-surface--standalone .theme-preview-controls {
+  .theme-preview-controls {
     margin-inline: 16px;
     margin-bottom: 16px;
   }

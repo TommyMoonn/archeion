@@ -22,19 +22,18 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     expect(runtimeTests).not.toMatch(/applyPreview\([^\n]+\{\s*app:[^}]+reader:/);
   });
 
-  it("keeps manual Settings synchronization and close-time catalog refresh removed", () => {
+  it("keeps Theme Manager mutations and Settings catalog reads on their global owners", () => {
     const managerController = source("src/features/themes/useThemeManagerController.ts");
-    const managerDialog = source("src/features/themes/ThemeManagerDialog.tsx");
+    const managerSurface = source("src/features/themes/ThemeManagerSurface.tsx");
     const settingsSurface = source("src/features/settings/SettingsSurface.tsx");
     const settingsController = source("src/features/settings/useSettingsController.ts");
     const catalogHook = source("src/features/themes/useThemeCatalogEntries.ts");
 
-    for (const productionSource of [managerController, managerDialog]) {
+    for (const productionSource of [managerController, managerSurface]) {
       expect(productionSource).not.toContain("onAppearanceChanged");
     }
     expect(settingsSurface).toContain("refreshThemeCatalog: themeCatalog.refresh");
-    expect(settingsSurface).toContain("onClose={() => setThemeManagerOpen(false)}");
-    expect(settingsSurface).not.toMatch(/onClose=\{\(\) =>\s*\{[^}]*themeCatalog\.refresh/s);
+    expect(settingsSurface).toContain("openThemeManagerWindow()");
     expect(settingsController).not.toContain("themeCatalogError");
     expect(catalogHook).toContain("appearanceRuntime.refreshAppearance()");
     expect(catalogHook).not.toContain("onAppearanceChanged");

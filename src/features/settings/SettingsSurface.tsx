@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getProgrammaticScrollBehavior, isAppMotionEnabled } from "../../utils/motion";
 import { ariaKeyShortcut, commandDefinitions } from "../commands/commandBindings";
 import { useQuickActions, useRegisterQuickActions } from "../quick-actions/QuickActionsContext";
-import { ThemeManagerDialog } from "../themes/ThemeManagerDialog";
 import { openThemeManagerWindow } from "../themes/themeManagerWindowLifecycle";
 import { useThemeCatalogEntries } from "../themes/useThemeCatalogEntries";
 import { SettingsConfirmations } from "./SettingsConfirmations";
@@ -66,7 +65,6 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [activeSection, setActiveSection] = useState<SettingsSection>("general");
   const [animateSectionChange, setAnimateSectionChange] = useState(false);
-  const [themeManagerOpen, setThemeManagerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const { getCommandBinding } = useQuickActions();
   const trimmedQuery = query.trim();
@@ -86,9 +84,7 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
     () => getSettingsItemsDataRequirements(visibleSettingsItems),
     [visibleSettingsItems],
   );
-  const themeCatalog = useThemeCatalogEntries(dataRequirements.has("themeCatalog"), {
-    reportRefreshFailure: !themeManagerOpen,
-  });
+  const themeCatalog = useThemeCatalogEntries(dataRequirements.has("themeCatalog"));
   const controller = useSettingsController({
     archiveGeneration: archiveBoundary?.snapshot.generation,
     archiveIdentity: archiveBoundary?.snapshot.archive,
@@ -99,14 +95,9 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
     loadFolders: dataRequirements.has("folders"),
     onOpenThemeManager: () => {
       themeCatalog.retireRefreshFailure();
-      void openThemeManagerWindow()
-        .then((opened) => {
-          if (!opened) setThemeManagerOpen(true);
-        })
-        .catch((error) => {
-          console.error("open_theme_manager_window failed", error);
-          setThemeManagerOpen(true);
-        });
+      void openThemeManagerWindow().catch((error) => {
+        console.error("open_theme_manager_window failed", error);
+      });
     },
     refreshThemeCatalog: themeCatalog.refresh,
     themeCatalogEntries: themeCatalog.entries,
@@ -199,8 +190,6 @@ export function SettingsSurface({ archiveBoundary }: SettingsSurfaceProps) {
         onRepairMetadata={controller.confirmRepairMetadata}
         onRescanArchive={controller.confirmRescanArchive}
       />
-
-      {themeManagerOpen ? <ThemeManagerDialog onClose={() => setThemeManagerOpen(false)} /> : null}
     </div>
   );
 }

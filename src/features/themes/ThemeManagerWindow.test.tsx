@@ -33,10 +33,6 @@ vi.mock("../../stores/appPreferencesStore", () => ({
     subscribe: () => () => undefined,
   },
 }));
-vi.mock("./themeManagerWindowLifecycle", () => ({
-  closeThemeManagerWindow: mocks.close,
-}));
-
 let container: HTMLDivElement;
 let root: Root;
 

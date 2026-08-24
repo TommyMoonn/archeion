@@ -14,26 +14,19 @@
   flex: 1;
   grid-template-rows: auto auto minmax(0, 1fr) auto;
   gap: 0;
-}
-
-.theme-manager-surface--standalone {
   padding: 0;
   background: var(--canvas);
 }
 
-.theme-manager-surface--standalone .theme-manager__header {
-  padding: 22px 24px 20px;
-}
-
 .theme-manager__header {
+  padding: 22px 24px 20px;
   display: grid;
   min-width: 0;
   gap: 14px;
-  padding-bottom: 20px;
   border-bottom: 1px solid var(--line-subtle);
 }
 
-.theme-manager-surface--standalone h1 {
+.theme-manager-surface h1 {
   margin: 0;
   color: var(--text-strong);
   font-family: var(--font-display);
@@ -42,32 +35,6 @@
   line-height: var(--type-page-title-line-height);
   letter-spacing: var(--type-page-title-letter-spacing);
   text-wrap: balance;
-}
-
-.theme-manager-dialog {
-  width: min(1060px, calc(100% - 32px));
-}
-
-.theme-manager-dialog .dialog__panel {
-  position: relative;
-  display: flex;
-  min-height: min(720px, calc(100dvh - 34px));
-  flex-direction: column;
-}
-
-.theme-manager-dialog .dialog__copy {
-  padding-inline-end: 40px;
-}
-
-.theme-manager-dialog .theme-manager-surface {
-  position: static;
-}
-
-.theme-manager__close {
-  position: absolute;
-  z-index: 2;
-  top: 18px;
-  inset-inline-end: 18px;
 }
 
 .theme-manager__toolbar {
@@ -126,7 +93,7 @@
   display: none;
 }
 
-.theme-manager-surface--standalone .theme-manager__notice-region {
+.theme-manager__notice-region {
   margin-inline: 24px;
 }
 
@@ -157,7 +124,7 @@
   background: var(--canvas);
 }
 
-.theme-manager-surface--standalone .theme-manager__workspace {
+.theme-manager__workspace {
   margin-top: 0;
 }
 
@@ -195,7 +162,7 @@
   scrollbar-gutter: stable;
 }
 
-.theme-manager-surface--standalone .theme-catalog-list__items {
+.theme-catalog-list__items {
   padding: 10px 14px 10px 24px;
 }
 
@@ -258,7 +225,7 @@
   scrollbar-gutter: stable;
 }
 
-.theme-manager-surface--standalone .theme-details {
+.theme-details {
   padding: 22px 24px 30px 26px;
 }
 
@@ -405,29 +372,17 @@
 }
 
 @media (max-width: 680px) {
-  .theme-manager-surface--standalone {
-    padding: 0;
-  }
-
-  .theme-manager-surface--standalone .theme-manager__header {
+  .theme-manager__header {
     padding: 18px 16px 16px;
   }
 
-  .theme-manager-surface--standalone .theme-manager__notice-region {
+  .theme-manager__notice-region {
     margin-inline: 16px;
   }
 
-  .theme-manager-surface--standalone .theme-catalog-list__items,
-  .theme-manager-surface--standalone .theme-details {
+  .theme-catalog-list__items,
+  .theme-details {
     padding-inline: 16px;
-  }
-
-  .theme-manager-dialog {
-    width: min(100% - 20px, 620px);
-  }
-
-  .theme-manager-dialog .dialog__panel {
-    min-height: calc(100dvh - 22px);
   }
 
   .theme-manager__toolbar {

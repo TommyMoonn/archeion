@@ -83,8 +83,8 @@ describe("ThemeManagerSurface preview ownership", () => {
     await act(async () =>
       root.render(
         <>
-          <ThemeManagerSurface onClose={() => undefined} services={services} />
-          <ThemeManagerSurface onClose={() => undefined} services={services} />
+          <ThemeManagerSurface services={services} />
+          <ThemeManagerSurface services={services} />
         </>,
       ),
     );
