@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import type { ArchiveImportResult } from "../../storage/LibraryStorage";
+import type { ArchiveImportResult, BulkActionResult } from "../../storage/LibraryStorage";
 import {
   createArchiveOperationWarningFeedbackToken,
+  createBulkActionFeedbackToken,
   createDeleteErrorFeedbackToken,
   createDeleteSuccessFeedbackToken,
   createFolderSuccessFeedbackToken,
@@ -84,18 +85,19 @@ describe("libraryFeedback", () => {
   });
 
   it("auto-dismisses routine scanner-cache rebuild warnings", () => {
-    expect(
-      createArchiveOperationWarningFeedbackToken({
-        kind: "scanner-cache",
-        message: "The scanner cache was discarded.",
-        repairRequired: false,
-      }),
-    ).toMatchObject({
+    const token = createArchiveOperationWarningFeedbackToken({
+      kind: "scanner-cache",
+      message: "File is locked at D:\\Archive\\Novel.epub",
+      repairRequired: false,
+    });
+
+    expect(token).toMatchObject({
       id: "scanner-cache-warning",
       tone: "warning",
       title: "Archive cache will be rebuilt.",
       autoDismiss: true,
     });
+    expect(JSON.stringify(token)).not.toContain("D:\\Archive");
   });
 
   it("keeps restart-safety warnings persistent and directs repair", () => {
@@ -118,7 +120,8 @@ describe("libraryFeedback", () => {
   it("keeps archive metadata recovery warnings persistent with an accurate action", () => {
     const token = createArchiveOperationWarningFeedbackToken({
       kind: "archive-metadata",
-      message: "The EPUB was deleted, but library metadata could not be saved.",
+      message:
+        "The original EPUB could not be restored. Its replacement backup remains available at D:\\Archive\\Novel.epub.replace-backup-123",
       repairRequired: true,
     });
 
@@ -130,7 +133,8 @@ describe("libraryFeedback", () => {
     });
     expect(token.detail).toContain("archive metadata cleanup is still required");
     expect(token.detail).toContain("Run Archive metadata repair");
-    expect(token.detail).not.toContain("library metadata could not be saved");
+    expect(JSON.stringify(token)).not.toContain("D:\\Archive");
+    expect(JSON.stringify(token)).not.toContain("replace-backup-123");
   });
 
   it("identifies source cleanup without presenting archive diagnostics", () => {
@@ -168,7 +172,6 @@ describe("libraryFeedback", () => {
     expect(createFolderSuccessFeedbackToken()).toMatchObject({
       id: "library-folder-created",
       tone: "success",
-      title: "Folder created.",
       autoDismiss: true,
     });
   });
@@ -177,17 +180,14 @@ describe("libraryFeedback", () => {
     expect(createDeleteErrorFeedbackToken("bookDeleteFailed")).toMatchObject({
       id: "library-delete-book-error",
       tone: "error",
-      title: "This book could not be deleted.",
     });
     expect(createDeleteErrorFeedbackToken("metadataRemoveFailed")).toMatchObject({
       id: "library-delete-metadata-error",
       tone: "error",
-      title: "The saved metadata could not be removed.",
     });
     expect(createDeleteErrorFeedbackToken("folderDeleteFailed")).toMatchObject({
       id: "library-delete-folder-error",
       tone: "error",
-      title: "This folder could not be deleted.",
     });
   });
 
@@ -195,19 +195,16 @@ describe("libraryFeedback", () => {
     expect(createDeleteSuccessFeedbackToken("bookDeleted")).toMatchObject({
       id: "library-delete-book",
       tone: "success",
-      title: "EPUB deleted.",
       autoDismiss: true,
     });
     expect(createDeleteSuccessFeedbackToken("metadataRemoved")).toMatchObject({
       id: "library-delete-metadata",
       tone: "success",
-      title: "Metadata removed.",
       autoDismiss: true,
     });
     expect(createDeleteSuccessFeedbackToken("folderDeleted")).toMatchObject({
       id: "library-delete-folder",
       tone: "success",
-      title: "Folder deleted.",
       autoDismiss: true,
     });
   });
@@ -215,22 +212,22 @@ describe("libraryFeedback", () => {
   it("creates distinct completion feedback for rename and move operations", () => {
     expect(createMutationSuccessFeedbackToken("bookRenamed")).toMatchObject({
       id: "library-rename-book",
-      title: "EPUB file renamed.",
+      tone: "success",
       autoDismiss: true,
     });
     expect(createMutationSuccessFeedbackToken("bookMoved")).toMatchObject({
       id: "library-move-book",
-      title: "EPUB moved.",
+      tone: "success",
       autoDismiss: true,
     });
     expect(createMutationSuccessFeedbackToken("folderRenamed")).toMatchObject({
       id: "library-rename-folder",
-      title: "Folder renamed.",
+      tone: "success",
       autoDismiss: true,
     });
     expect(createMutationSuccessFeedbackToken("folderMoved")).toMatchObject({
       id: "library-move-folder",
-      title: "Folder moved.",
+      tone: "success",
       autoDismiss: true,
     });
   });
@@ -243,58 +240,101 @@ describe("libraryFeedback", () => {
     expect(token).toMatchObject({
       id: "archive-import",
       tone: "success",
-      title: "EPUB added.",
-      detail: "1 added.",
       autoDismiss: true,
     });
   });
 
-  it("keeps skipped import details on a neutral token", () => {
+  it("keeps failed and skipped import feedback free of source and backup diagnostics", () => {
     const results: ArchiveImportResult[] = [
-      { status: "imported", fileName: "A.epub", sourcePath: "A.epub" },
+      {
+        status: "failed",
+        fileName: "Novel.epub",
+        sourcePath: "C:\\Users\\Private\\Novel.epub",
+        message: "Access denied at C:\\Users\\Private\\Novel.epub",
+        maintenanceWarning:
+          "The original EPUB could not be restored. Its replacement backup remains available at D:\\Archive\\Novel.epub.replace-backup-123",
+        sourceCleanupWarning: "Cleanup failed at C:\\Users\\Private\\Novel.epub",
+      },
       {
         status: "skipped",
-        fileName: "B.epub",
-        sourcePath: "B.epub",
-        message: "Already exists.",
+        fileName: "Existing.epub",
+        sourcePath: "C:\\Users\\Private\\Existing.epub",
+        message: "InternalSkipReason: database revision 42",
       },
     ];
+    const token = createImportFeedbackToken("archive-import", results);
+    const rendered = JSON.stringify(token);
 
-    expect(createImportFeedbackToken("archive-import", results)).toMatchObject({
-      tone: "warning",
-      title: "Some EPUBs were skipped.",
-      detail: "1 added. 1 skipped.",
+    expect(token).toMatchObject({
+      tone: "error",
       details: [
         {
-          label: "B.epub",
+          label: "Novel.epub",
+          message:
+            "EPUB could not be added. Check that the source file is available and the archive is writable, then try again.",
+        },
+        {
+          label: "Existing.epub",
           message: "EPUB was skipped because of the selected conflict setting.",
         },
       ],
     });
+    for (const unsafe of [
+      "Access denied",
+      "C:\\Users\\Private",
+      "D:\\Archive",
+      "replace-backup-123",
+      "InternalSkipReason",
+      "database revision 42",
+    ]) {
+      expect(rendered).not.toContain(unsafe);
+    }
   });
 
-  it("keeps failed import details on a persistent error token", () => {
-    const results: ArchiveImportResult[] = [
-      { status: "imported", fileName: "A.epub", sourcePath: "A.epub" },
-      {
-        status: "failed",
-        fileName: "B.epub",
-        sourcePath: "B.epub",
-        message: "Invalid EPUB.",
-      },
-    ];
+  it("uses book labels and operation-specific recovery without raw bulk errors", () => {
+    const result: BulkActionResult = {
+      failed: [{ bookId: "book-known", message: "File is locked at D:\\Archive\\Novel.epub" }],
+      requested: 1,
+      skipped: [],
+      succeeded: [],
+    };
+    const token = createBulkActionFeedbackToken("Move", result, new Map([["book-known", "Novel"]]));
+    const rendered = JSON.stringify(token);
 
-    expect(createImportFeedbackToken("archive-import", results)).toMatchObject({
-      tone: "error",
-      title: "Some EPUBs could not be added.",
-      detail: "1 added. 1 failed.",
-      details: [
+    expect(token.details).toEqual([
+      {
+        label: "Novel",
+        message:
+          "This EPUB could not be moved. Check that the archive is writable, then try again.",
+      },
+    ]);
+    expect(rendered).not.toContain("File is locked");
+    expect(rendered).not.toContain("D:\\Archive");
+  });
+
+  it("replaces missing bulk labels and unknown skip reasons with safe public feedback", () => {
+    const result: BulkActionResult = {
+      failed: [],
+      requested: 1,
+      skipped: [
         {
-          label: "B.epub",
-          message:
-            "EPUB could not be added. Check that the source file is available and the archive is writable, then try again.",
+          bookId: "book-internal-uuid-123",
+          reason: "InternalSkipReason: database revision 42",
         },
       ],
-    });
+      succeeded: [],
+    };
+    const token = createBulkActionFeedbackToken("Export", result, new Map());
+    const rendered = JSON.stringify(token);
+
+    expect(token.details).toEqual([
+      {
+        label: "Book no longer in Library",
+        message: "This EPUB was not exported. Check the destination folder and try again.",
+      },
+    ]);
+    expect(rendered).not.toContain("book-internal-uuid-123");
+    expect(rendered).not.toContain("InternalSkipReason");
+    expect(rendered).not.toContain("database revision 42");
   });
 });
