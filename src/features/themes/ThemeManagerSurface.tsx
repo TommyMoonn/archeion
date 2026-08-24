@@ -1,5 +1,5 @@
 import { FilePlus, FolderOpen, RefreshCw, X } from "lucide-react";
-import { useMemo, useRef, type ChangeEvent } from "react";
+import { useId, useMemo, useRef, type ChangeEvent } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -52,6 +52,7 @@ export function ThemeManagerSurface({
     runtime: services?.runtime ?? appearanceRuntime,
   });
   const importInputRef = useRef<HTMLInputElement>(null);
+  const titleId = useId();
   const busy = controller.busyAction !== null;
 
   function close() {
@@ -70,46 +71,47 @@ export function ThemeManagerSurface({
 
   return (
     <section
-      aria-labelledby={standalone ? "theme-manager-title" : undefined}
+      aria-labelledby={standalone ? titleId : undefined}
       className={`theme-manager-surface${standalone ? " theme-manager-surface--standalone" : ""}`}
     >
-      {standalone ? <h1 id="theme-manager-title">Theme Manager</h1> : null}
-      <div className="theme-manager__toolbar">
-        <span className="theme-manager__toolbar-links">
-          <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
-            Theme guide
-          </a>
-          <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
-            Public schema
-          </a>
-        </span>
-        <div className="theme-manager__toolbar-actions">
-          <IconButton
-            disabled={busy || controller.previewActive}
-            label="Reload themes"
-            onClick={() => void controller.reload()}
-            size="standard"
-          >
-            <RefreshCw aria-hidden="true" />
-          </IconButton>
-          <IconButton
-            disabled={busy || controller.previewActive}
-            label="Open themes folder"
-            onClick={() => void controller.openThemesFolder()}
-            size="standard"
-          >
-            <FolderOpen aria-hidden="true" />
-          </IconButton>
-          <Button
-            className="theme-manager__import"
-            disabled={busy || controller.previewActive}
-            icon={<FilePlus aria-hidden="true" />}
-            onClick={() => importInputRef.current?.click()}
-            size="standard"
-            variant="secondary"
-          >
-            Import
-          </Button>
+      <div className="theme-manager__header">
+        {standalone ? <h1 id={titleId}>Theme Manager</h1> : null}
+        <div className="theme-manager__toolbar">
+          <div className="theme-manager__toolbar-actions">
+            <Button
+              className="theme-manager__import"
+              disabled={busy || controller.previewActive}
+              icon={<FilePlus aria-hidden="true" />}
+              onClick={() => importInputRef.current?.click()}
+              size="standard"
+            >
+              Import
+            </Button>
+            <IconButton
+              disabled={busy || controller.previewActive}
+              label="Reload themes"
+              onClick={() => void controller.reload()}
+              size="standard"
+            >
+              <RefreshCw aria-hidden="true" />
+            </IconButton>
+            <IconButton
+              disabled={busy || controller.previewActive}
+              label="Open themes folder"
+              onClick={() => void controller.openThemesFolder()}
+              size="standard"
+            >
+              <FolderOpen aria-hidden="true" />
+            </IconButton>
+          </div>
+          <nav aria-label="Theme resources" className="theme-manager__toolbar-links">
+            <a href={THEME_GUIDE_URL} rel="noreferrer" target="_blank">
+              Theme guide
+            </a>
+            <a href={ARCHEION_THEME_SCHEMA_URL} rel="noreferrer" target="_blank">
+              Public schema
+            </a>
+          </nav>
         </div>
       </div>
       <IconButton
@@ -130,15 +132,17 @@ export function ThemeManagerSurface({
         type="file"
       />
 
-      {controller.error ? (
-        <p className="theme-manager__status" data-tone="error" role="alert">
-          {controller.error}
-        </p>
-      ) : controller.message ? (
-        <p className="theme-manager__status" aria-live="polite">
-          {controller.message}
-        </p>
-      ) : null}
+      <div className="theme-manager__notice-region">
+        {controller.error ? (
+          <p className="theme-manager__status" data-tone="error" role="alert">
+            {controller.error}
+          </p>
+        ) : controller.message ? (
+          <p className="theme-manager__status" aria-live="polite">
+            {controller.message}
+          </p>
+        ) : null}
+      </div>
 
       {controller.pendingReplacement ? (
         <Dialog

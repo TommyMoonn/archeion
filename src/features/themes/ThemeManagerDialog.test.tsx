@@ -126,7 +126,7 @@ describe("ThemeManagerDialog", () => {
     vi.restoreAllMocks();
   });
 
-  it("presents the final app-only flat manager workflow", async () => {
+  it("presents the shared app-theme management workflow", async () => {
     const services = createServices();
     await act(async () => root.render(<Owner services={services} />));
     await settle();
@@ -151,9 +151,15 @@ describe("ThemeManagerDialog", () => {
     const toolbar = container.querySelector(".theme-manager__toolbar")!;
     const links = toolbar.querySelector(".theme-manager__toolbar-links")!;
     const actions = toolbar.querySelector(".theme-manager__toolbar-actions")!;
-    expect(toolbar.firstElementChild).toBe(links);
-    expect(toolbar.lastElementChild).toBe(actions);
-    expect(actions.lastElementChild?.textContent).toContain("Import");
+    expect(toolbar.firstElementChild).toBe(actions);
+    expect(toolbar.lastElementChild).toBe(links);
+    expect(actions.firstElementChild?.textContent).toContain("Import");
+    expect(links.getAttribute("aria-label")).toBe("Theme resources");
+    const catalog = container.querySelector(".theme-catalog-list")!;
+    const catalogTitleId = catalog.getAttribute("aria-labelledby");
+    expect(catalogTitleId).toBeTruthy();
+    expect(container.querySelector(`#${CSS.escape(catalogTitleId!)}`)?.textContent).toBe("Themes");
+    expect(container.querySelector(".theme-details h2")?.textContent).toBe("Moon Ink");
     expect(container.textContent).toContain("Archeion Dark");
     expect(container.textContent).toContain("Archeion Light");
     expect(container.textContent).toContain("Moon Ink");
@@ -219,6 +225,11 @@ describe("ThemeManagerDialog", () => {
     const controls = container.querySelector<HTMLElement>(".theme-preview-controls");
     expect(dialog?.contains(controls ?? null)).toBe(true);
     expect(document.activeElement?.textContent).toContain("Revert");
+    expect(
+      [...container.querySelectorAll("button")].filter((candidate) =>
+        candidate.textContent?.includes("Use theme"),
+      ),
+    ).toHaveLength(1);
 
     act(() =>
       container

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 
 import { Button } from "../../components/Button";
 import { Dialog } from "../../components/Dialog";
@@ -12,6 +12,7 @@ type ThemeDetailsProps = Readonly<{
 
 export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const entry = controller.selectedEntry;
+  const titleId = useId();
   const swatches = useMemo(() => (entry ? applicationSwatches(entry) : []), [entry]);
   if (!entry) {
     return (
@@ -27,9 +28,9 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
   const author = entry.origin === "custom" ? entry.author : undefined;
 
   return (
-    <section className="theme-details" aria-labelledby="theme-details-title">
+    <section className="theme-details" aria-labelledby={titleId}>
       <header className="theme-details__header">
-        <h3 id="theme-details-title">{entry.name ?? entry.id}</h3>
+        <h2 id={titleId}>{entry.name ?? entry.id}</h2>
         <div className="theme-details__tags">
           {selected ? <span className="theme-details__status">Selected</span> : null}
           {!entry.applicable ? (
@@ -47,40 +48,42 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
         </div>
       ) : null}
 
-      <div className="theme-details__actions">
-        {canUse ? (
-          <Button
-            className="theme-details__action"
-            disabled={actionBlocked || selected}
-            onClick={() => void controller.useSelectedTheme()}
-            size="compact"
-          >
-            Use theme
-          </Button>
-        ) : null}
-        {canPreview ? (
-          <Button
-            className="theme-details__action"
-            disabled={actionBlocked}
-            onClick={() => controller.preview()}
-            size="compact"
-            variant="secondary"
-          >
-            Preview
-          </Button>
-        ) : null}
-        {entry.origin === "custom" ? (
-          <Button
-            className="theme-details__action"
-            disabled={actionBlocked}
-            onClick={controller.requestDelete}
-            size="compact"
-            variant="danger"
-          >
-            Remove
-          </Button>
-        ) : null}
-      </div>
+      {!controller.previewActive ? (
+        <div className="theme-details__actions">
+          {canUse ? (
+            <Button
+              className="theme-details__action"
+              disabled={actionBlocked || selected}
+              onClick={() => void controller.useSelectedTheme()}
+              size="compact"
+            >
+              Use theme
+            </Button>
+          ) : null}
+          {canPreview ? (
+            <Button
+              className="theme-details__action"
+              disabled={actionBlocked}
+              onClick={() => controller.preview()}
+              size="compact"
+              variant="secondary"
+            >
+              Preview
+            </Button>
+          ) : null}
+          {entry.origin === "custom" ? (
+            <Button
+              className="theme-details__action"
+              disabled={actionBlocked}
+              onClick={controller.requestDelete}
+              size="compact"
+              variant="danger"
+            >
+              Remove
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
 
       {entry.origin === "custom" && entry.diagnostics.length ? (
         <div className="theme-details__diagnostics" data-tone="error" role="alert">

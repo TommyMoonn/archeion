@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { entryKey } from "./useThemeManagerController";
 
@@ -16,8 +18,12 @@ export function ThemeCatalogList({
   onSelect,
   selectedKey,
 }: ThemeCatalogListProps) {
+  const titleId = useId();
   return (
-    <nav aria-label="Application themes" className="theme-catalog-list">
+    <nav aria-labelledby={titleId} className="theme-catalog-list">
+      <header className="theme-catalog-list__header">
+        <h2 id={titleId}>Themes</h2>
+      </header>
       <div className="theme-catalog-list__items">
         {entries.map((entry) => {
           const key = entryKey(entry);
