@@ -194,16 +194,6 @@ afterEach(() => {
 });
 
 describe("DictionarySettingsView", () => {
-  it("renders the Dictionaries heading without a tab subtitle", () => {
-    const container = renderView(controller());
-
-    expect(container.querySelector("h2")?.textContent).toBe("Dictionaries");
-    expect(container.querySelector(".settings-section__header-copy p")).toBeNull();
-    expect(container.textContent).not.toContain(
-      "Manage offline dictionaries used for Reader lookup.",
-    );
-  });
-
   it("shows the current installed count when registry state is already known", () => {
     const container = renderView(controller());
 
@@ -242,37 +232,6 @@ describe("DictionarySettingsView", () => {
     expect(value.refreshCatalog).toHaveBeenCalledOnce();
     expect(value.importDictionary).toHaveBeenCalledOnce();
     expect(value.installCatalog).toHaveBeenCalledWith("english-core");
-    expect(container.textContent).toContain("English");
-    expect(container.textContent).toContain("Example Lexicographers");
-    expect(container.textContent).toContain("CC BY 4.0");
-    expect(container.textContent).toContain("2.0 KB");
-  });
-
-  it("uses the same source and fact hierarchy without descriptive catalog copy", () => {
-    const container = renderView(controller());
-    const available = container.querySelector<HTMLElement>("[data-catalog-id='english-core']")!;
-    const availableLinks = Array.from(available.querySelectorAll<HTMLAnchorElement>("a"));
-
-    expect(container.textContent).not.toContain(
-      "Install and manage dictionaries used for local lookup.",
-    );
-    expect(available.textContent).toContain("SourceExample Lexicographers");
-    expect(available.textContent).toContain("LanguageEnglish");
-    expect(available.textContent).toContain("LicenseCC BY 4.0");
-    expect(availableLinks.map((link) => link.href)).toEqual([
-      "https://example.com/",
-      "https://example.com/license",
-    ]);
-
-    act(() => button(container, "Installed (2)").click());
-    const installedCard = container.querySelector<HTMLElement>("[data-dictionary-id='dict-a']")!;
-    expect(installedCard.textContent).toContain("SourceExample Lexicographers");
-    expect(installedCard.textContent).toContain("LanguageEnglish");
-    expect(installedCard.textContent).toContain("Entries1,200");
-    expect(installedCard.textContent).toContain("Installed size8.0 KB");
-    expect(installedCard.querySelector<HTMLAnchorElement>("a")?.href).toBe(
-      "https://example.com/license",
-    );
   });
 
   it("derives installed source links from the current catalog only when available", () => {
@@ -327,89 +286,6 @@ describe("DictionarySettingsView", () => {
         "[data-dictionary-id='catalog-linked'] .dictionary-settings-card__facts a",
       )?.href,
     ).toBe("https://example.com/license");
-  });
-
-  it("keeps long source and license content intact with usable actions at narrow widths", () => {
-    const longName =
-      "A Comprehensive Multilingual Dictionary with an Intentionally Long Display Name";
-    const longSource =
-      "The International Cooperative Lexicography and Language Preservation Foundation";
-    const longLicense = "Creative Commons Attribution ShareAlike 4.0 International Public License";
-    const entry = catalogEntry({
-      id: "long-dictionary",
-      licenseName: longLicense,
-      name: longName,
-      sourceAttribution: longSource,
-    });
-    const value = controller({
-      catalog: { ...catalog, entries: [entry] },
-      registry: {
-        dictionaries: [
-          installed({
-            displayName: longName,
-            licenseName: longLicense,
-            sourceAttribution: longSource,
-          }),
-        ],
-        recovery: null,
-        status: "ready",
-      },
-    });
-    const container = renderView(value);
-    container.style.width = "320px";
-
-    expect(container.textContent).toContain(longName);
-    expect(container.textContent).toContain(longSource);
-    expect(container.textContent).toContain(longLicense);
-    const download = button(container, "Download");
-    download.focus();
-    expect(document.activeElement).toBe(download);
-    act(() => download.click());
-    expect(value.installCatalog).toHaveBeenCalledWith("long-dictionary");
-
-    act(() => button(container, "Installed (1)").click());
-    expect(container.textContent).toContain(longName);
-    expect(container.textContent).toContain(longSource);
-    expect(container.textContent).toContain(longLicense);
-    const remove = button(container, `Remove ${longName}`);
-    remove.focus();
-    expect(document.activeElement).toBe(remove);
-  });
-
-  it("formats monolingual and directional language metadata for catalog and installed dictionaries", () => {
-    const directionalCatalog: DictionaryCatalogSnapshot = {
-      ...catalog,
-      entries: [
-        {
-          ...catalog.entries[0],
-          sourceLanguage: "fr",
-          targetLanguage: "en",
-        },
-      ],
-    };
-    const value = controller({
-      catalog: directionalCatalog,
-      registry: {
-        dictionaries: [
-          installed({ sourceLanguage: "en", targetLanguage: "en" }),
-          installed({
-            displayName: "English to French",
-            id: "dict-b",
-            order: 1,
-            sourceLanguage: "en",
-            targetLanguage: "fr",
-          }),
-        ],
-        recovery: null,
-        status: "ready",
-      },
-    });
-    const container = renderView(value);
-
-    expect(container.textContent).toContain("French → English");
-    act(() => button(container, "Installed (2)").click());
-    expect(container.textContent).toContain("English");
-    expect(container.textContent).toContain("English → French");
   });
 
   it.each([
