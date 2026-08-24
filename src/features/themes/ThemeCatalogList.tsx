@@ -1,5 +1,3 @@
-import { useId } from "react";
-
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { entryKey } from "./useThemeManagerController";
 
@@ -18,16 +16,14 @@ export function ThemeCatalogList({
   onSelect,
   selectedKey,
 }: ThemeCatalogListProps) {
-  const titleId = useId();
   return (
-    <nav aria-labelledby={titleId} className="theme-catalog-list">
-      <header className="theme-catalog-list__header">
-        <h2 id={titleId}>Themes</h2>
-      </header>
+    <nav aria-label="Themes" className="theme-catalog-list">
       <div className="theme-catalog-list__items">
         {entries.map((entry) => {
           const key = entryKey(entry);
           const active = key === activeThemeKey;
+          const name = entry.name ?? entry.id;
+          const status = !entry.applicable ? "Needs attention" : active ? "Selected" : null;
           return (
             <button
               aria-current={key === selectedKey ? "true" : undefined}
@@ -37,10 +33,12 @@ export function ThemeCatalogList({
               onClick={() => onSelect(key)}
               type="button"
             >
-              <span>{entry.name ?? entry.id}</span>
-              <small data-invalid={!entry.applicable || undefined}>
-                {!entry.applicable ? "Needs attention" : active ? "Selected" : ""}
-              </small>
+              <span className="theme-catalog-list__item-name" title={name}>
+                {entry.name ?? entry.id}
+              </span>
+              {status ? (
+                <small data-invalid={!entry.applicable || undefined}>{status}</small>
+              ) : null}
             </button>
           );
         })}

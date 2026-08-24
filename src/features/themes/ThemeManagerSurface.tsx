@@ -114,14 +114,16 @@ export function ThemeManagerSurface({
           </nav>
         </div>
       </div>
-      <IconButton
-        className="theme-manager__close"
-        label="Close Theme Manager"
-        onClick={close}
-        size="compact"
-      >
-        <X aria-hidden="true" strokeWidth={2.25} />
-      </IconButton>
+      {!standalone ? (
+        <IconButton
+          className="theme-manager__close"
+          label="Close Theme Manager"
+          onClick={close}
+          size="compact"
+        >
+          <X aria-hidden="true" strokeWidth={2.25} />
+        </IconButton>
+      ) : null}
       <input
         accept=".json,application/json"
         aria-label="Import theme file"

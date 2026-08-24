@@ -156,9 +156,7 @@ describe("ThemeManagerDialog", () => {
     expect(actions.firstElementChild?.textContent).toContain("Import");
     expect(links.getAttribute("aria-label")).toBe("Theme resources");
     const catalog = container.querySelector(".theme-catalog-list")!;
-    const catalogTitleId = catalog.getAttribute("aria-labelledby");
-    expect(catalogTitleId).toBeTruthy();
-    expect(container.querySelector(`#${CSS.escape(catalogTitleId!)}`)?.textContent).toBe("Themes");
+    expect(catalog.getAttribute("aria-label")).toBe("Themes");
     expect(container.querySelector(".theme-details h2")?.textContent).toBe("Moon Ink");
     expect(container.textContent).toContain("Archeion Dark");
     expect(container.textContent).toContain("Archeion Light");

@@ -1,16 +1,18 @@
 .theme-preview-controls {
-  position: sticky;
-  bottom: 0;
+  grid-row: 4;
   display: flex;
   align-items: center;
   gap: 22px;
-  margin-top: 18px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-card);
+  margin-top: 16px;
+  padding: 14px 2px 0;
+  border-top: 1px solid var(--line-subtle);
   color: var(--text);
-  background: var(--surface);
-  box-shadow: var(--shadow-card);
+  background: transparent;
+}
+
+.theme-manager-surface--standalone .theme-preview-controls {
+  margin-inline: 24px;
+  margin-bottom: 24px;
 }
 
 .theme-preview-controls__copy {
@@ -75,6 +77,11 @@
 }
 
 @media (max-width: 700px) {
+  .theme-manager-surface--standalone .theme-preview-controls {
+    margin-inline: 16px;
+    margin-bottom: 16px;
+  }
+
   .theme-preview-controls {
     display: grid;
     gap: 12px;

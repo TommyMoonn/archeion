@@ -30,36 +30,39 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
   return (
     <section className="theme-details" aria-labelledby={titleId}>
       <header className="theme-details__header">
-        <h2 id={titleId}>{entry.name ?? entry.id}</h2>
-        <div className="theme-details__tags">
-          {selected ? <span className="theme-details__status">Selected</span> : null}
-          {!entry.applicable ? (
-            <span className="theme-details__status" data-invalid="true">
-              Invalid
-            </span>
+        <div className="theme-details__header-copy">
+          <div className="theme-details__title-row">
+            <h2 id={titleId} title={entry.name ?? entry.id}>
+              {entry.name ?? entry.id}
+            </h2>
+            <div className="theme-details__tags">
+              {selected ? <span className="theme-details__status">Selected</span> : null}
+              {!entry.applicable ? (
+                <span className="theme-details__status" data-invalid="true">
+                  Invalid
+                </span>
+              ) : null}
+            </div>
+          </div>
+          {author ? <p className="theme-details__author">By {author}</p> : null}
+          {entry.description ? (
+            <p className="theme-details__description">{entry.description}</p>
           ) : null}
         </div>
+        {!controller.previewActive && canUse ? (
+          <Button
+            className="theme-details__primary-action"
+            disabled={actionBlocked || selected}
+            onClick={() => void controller.useSelectedTheme()}
+            size="compact"
+          >
+            Use theme
+          </Button>
+        ) : null}
       </header>
-
-      {author || entry.description ? (
-        <div className="theme-details__metadata">
-          {author ? <p>By {author}</p> : null}
-          {entry.description ? <p>{entry.description}</p> : null}
-        </div>
-      ) : null}
 
       {!controller.previewActive ? (
         <div className="theme-details__actions">
-          {canUse ? (
-            <Button
-              className="theme-details__action"
-              disabled={actionBlocked || selected}
-              onClick={() => void controller.useSelectedTheme()}
-              size="compact"
-            >
-              Use theme
-            </Button>
-          ) : null}
           {canPreview ? (
             <Button
               className="theme-details__action"
@@ -99,15 +102,17 @@ export function ThemeDetails({ controller }: ThemeDetailsProps) {
       ) : null}
 
       {swatches.length ? (
-        <div className="theme-details__swatches" aria-label="Application color preview">
+        <dl className="theme-details__swatches" aria-label="Application color preview">
           {swatches.map((swatch) => (
             <div className="theme-swatch" key={swatch.label}>
-              <span aria-hidden="true" style={{ backgroundColor: swatch.color }} />
-              <small>{swatch.label}</small>
-              <code>{swatch.color}</code>
+              <dt>{swatch.label}</dt>
+              <dd>
+                <span aria-hidden="true" style={{ backgroundColor: swatch.color }} />
+                <code>{swatch.color}</code>
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       ) : null}
 
       {controller.pendingDeleteKey === controller.selectedKey ? (

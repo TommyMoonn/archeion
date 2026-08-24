@@ -156,9 +156,6 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
       "border-radius: var(--radius-card)",
     );
     expect(cssBlock(series, ".series-card")).toContain("border-radius: var(--radius-card)");
-    expect(cssBlock(themePreview, ".theme-preview-controls")).toContain(
-      "box-shadow: var(--shadow-card)",
-    );
     expect(cssBlock(library, ".library-feedback__token")).toContain(
       "box-shadow: var(--shadow-popover)",
     );

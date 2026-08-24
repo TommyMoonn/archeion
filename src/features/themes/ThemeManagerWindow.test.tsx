@@ -17,7 +17,11 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("../../components/WindowTitlebar", () => ({
-  WindowTitlebar: () => <header data-testid="theme-manager-titlebar" />,
+  WindowTitlebar: () => (
+    <header data-testid="theme-manager-titlebar">
+      <button aria-label="Close window" onClick={() => void mocks.close()} type="button" />
+    </header>
+  ),
 }));
 vi.mock("../../stores/appPreferencesStore", () => ({
   appPreferencesStore: {
@@ -145,6 +149,7 @@ describe("ThemeManagerWindow", () => {
 
     expect(container.querySelector(".theme-manager-surface")).not.toBeNull();
     expect(container.querySelector("dialog")).toBeNull();
+    expect(container.querySelector('button[aria-label="Close Theme Manager"]')).toBeNull();
     expect(container.textContent).toContain("Archeion Dark");
     expect(showModal).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="theme-manager-titlebar"]')?.isConnected).toBe(
@@ -158,9 +163,7 @@ describe("ThemeManagerWindow", () => {
     await settle();
 
     await act(async () => {
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Close Theme Manager"]')
-        ?.click();
+      container.querySelector<HTMLButtonElement>('button[aria-label="Close window"]')?.click();
       await Promise.resolve();
     });
 
@@ -186,10 +189,10 @@ describe("ThemeManagerWindow", () => {
     expect(container.querySelector(".theme-preview-controls")).not.toBeNull();
 
     act(() =>
-      container
-        .querySelector<HTMLButtonElement>('button[aria-label="Close Theme Manager"]')!
-        .click(),
+      container.querySelector<HTMLButtonElement>('button[aria-label="Close window"]')!.click(),
     );
+    act(() => root.unmount());
+    root = createRoot(container);
 
     expect(services.clearPreview).toHaveBeenCalledOnce();
     expect(services.previewSession.getSnapshot()).toEqual({ status: "idle" });
