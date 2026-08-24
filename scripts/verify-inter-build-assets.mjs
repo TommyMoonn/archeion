@@ -31,9 +31,7 @@ function fail(message) {
 }
 
 if (!fs.existsSync(sourceRoot)) {
-  fail(
-    `${path.relative(projectRoot, sourceRoot)} is missing; install the pinned development dependencies first`,
-  );
+  fail(`${path.relative(projectRoot, sourceRoot)} is missing; install project dependencies first`);
 }
 
 if (!fs.existsSync(outputRoot)) {

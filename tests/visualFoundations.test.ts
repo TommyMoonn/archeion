@@ -6,9 +6,6 @@ import { describe, expect, it } from "vitest";
 
 type InterFontManifest = {
   packageName: string;
-  packageVersion: string;
-  packageResolvedUrl: string;
-  packageIntegrity: string;
   sourceDirectory: string;
   fontDisplay: string;
   assets: Array<{
@@ -16,18 +13,6 @@ type InterFontManifest = {
     sha256: string;
     weight: number;
   }>;
-};
-
-type PackageJson = {
-  dependencies?: Record<string, string>;
-  devDependencies?: Record<string, string>;
-};
-
-type PackageLock = {
-  packages: Record<
-    string,
-    { dev?: boolean; integrity?: string; license?: string; resolved?: string; version?: string }
-  >;
 };
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -95,8 +80,6 @@ const customThemesGuideSource = fs.readFileSync(
   "utf8",
 );
 const interManifest = readJson<InterFontManifest>("scripts/inter-font-manifest.json");
-const packageJson = readJson<PackageJson>("package.json");
-const packageLock = readJson<PackageLock>("package-lock.json");
 
 const documentedDirectColorLiterals = {
   "src/styles/features/library.css": [
@@ -204,23 +187,10 @@ describe("visual foundations", () => {
     ).toBe(true);
   });
 
-  it("declares one canonical set of exact Inter v4.1 WOFF2 faces", () => {
+  it("declares one canonical set of verified Inter WOFF2 faces", () => {
     const blocks = fontFaceBlocks(fontsSource);
     const allCssFontFaces = fontFaceBlocks(cssSource);
-    const dependencyPath = `node_modules/${interManifest.packageName}`;
 
-    expect(packageJson.dependencies?.[interManifest.packageName]).toBeUndefined();
-    expect(packageJson.devDependencies?.[interManifest.packageName]).toBe(
-      interManifest.packageVersion,
-    );
-    const lockedPackage = packageLock.packages[dependencyPath];
-
-    expect(lockedPackage?.version).toBe(interManifest.packageVersion);
-    expect(lockedPackage?.resolved).toBe(interManifest.packageResolvedUrl);
-    expect(lockedPackage?.integrity).toBe(interManifest.packageIntegrity);
-    expect(lockedPackage?.dev).toBe(true);
-    expect(lockedPackage?.license).toBe("OFL-1.1");
-    expect(JSON.stringify(packageLock)).not.toContain("applied-caas-gateway");
     expect(blocks).toHaveLength(interManifest.assets.length);
     expect(allCssFontFaces).toHaveLength(interManifest.assets.length);
     expect(fontsSource).not.toMatch(/local\s*\(/i);

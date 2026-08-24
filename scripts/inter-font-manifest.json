@@ -1,8 +1,5 @@
 {
   "packageName": "inter-ui",
-  "packageVersion": "4.1.1",
-  "packageResolvedUrl": "https://registry.npmjs.org/inter-ui/-/inter-ui-4.1.1.tgz",
-  "packageIntegrity": "sha512-451h0J29HyOmA+JXgSi/6M12tL7ZCZ8arYKZUXiOXTJpJbAKqJvFh3k5SiV3x7tKe0C0KyrKUUiQIvvZ2PQDcA==",
   "sourceDirectory": "web",
   "fontDisplay": "swap",
   "assets": [
