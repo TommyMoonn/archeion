@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-08-24
+
+Archeion 1.4.0 moves Settings and Theme Manager into independent application windows, makes preferences and themes consistent across archives, and clarifies which controls apply globally or only to the active archive.
+
+### Added
+
+- Added a standalone **Settings** window that can remain open beside the main application, focuses its existing instance when reopened, and keeps global preferences available even when no archive is active.
+- Added a standalone **Theme Manager** window for browsing, importing, previewing, applying, updating, deleting, and reloading application-wide themes without depending on the active archive.
+- Added live preference and theme-package synchronization so open Archeion windows reflect current global settings and custom-theme changes.
+
+### Changed
+
+- Made application and Reader theme selections application-wide so the same committed appearance carries across archives, Archive Manager, Settings, Theme Manager, and other open windows.
+- Moved custom theme packages into Archeion's application data. Compatible packages from registered archives are copied into global storage without modifying or deleting their original archive copies.
+- Reorganized Settings into **General**, **Appearance**, **Library**, **Reader**, **Archives**, **Storage**, **Dictionaries**, and **Keyboard**, with more compact shortcut rows and clearer preference, action, and maintenance controls.
+- Consolidated import controls under **Archives** while keeping import mode and conflict defaults global and the destination folder specific to the active archive.
+- Refined **Storage** around separate global policies and active-archive maintenance, with concise actions and current cache or backup status where available.
+- Kept Theme Manager previews temporary until **Use theme** is selected, while committed selections and package changes propagate to other open windows.
+
+### Fixed
+
+- Prevented older preference saves, theme refreshes, and cross-window events from replacing newer application-wide settings or theme state.
+- Prevented archive-specific destinations, folders, cache sizes, backup counts, and maintenance results from appearing under a different archive after switching.
+- Made archive rescans and metadata repair wait for the active Library state to finish reconciling before Settings reports success.
+- Corrected standalone Settings sizing and scrolling so long sections remain usable across supported window sizes, and allowed Dictionary import to open its native file picker from Settings.
+- Corrected the standalone Theme Manager startup path and simplified its list-and-detail workspace so it no longer depends on a modal surface.
+
 ## [1.3.0] - 2026-08-22
 
 Archeion 1.3.0 adds optional offline English dictionaries, including definitions for selected Reader text and application-wide controls for installing and managing dictionary sources.
@@ -456,7 +483,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/TommyMoonn/archeion/compare/v1.0.2...v1.1.0
