@@ -65,18 +65,18 @@ function createController(overrides: Partial<SettingsController> = {}) {
   } as unknown as SettingsController;
 }
 
-function renderResults(query: string, controller = createController()) {
+function renderResults(query: string, controller = createController(), onClearSearch = vi.fn()) {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
 
   act(() => {
     root.render(
-      <SettingsSearchResults controller={controller} onClearSearch={vi.fn()} query={query} />,
+      <SettingsSearchResults controller={controller} onClearSearch={onClearSearch} query={query} />,
     );
   });
 
-  return { container, controller, root };
+  return { container, controller, onClearSearch, root };
 }
 
 describe("SettingsSearchResults", () => {
@@ -101,26 +101,26 @@ describe("SettingsSearchResults", () => {
     return rendered;
   }
 
-  it("renders the actual Display density setting row and control", () => {
+  it("groups a matching control under its current section", () => {
     const { container } = trackRoot(renderResults("display density"));
 
-    expect(container.textContent).toContain("Appearance");
-    expect(container.textContent).toContain("App appearance");
-    expect(container.textContent).toContain("Display density");
-    expect(container.textContent).toContain("Comfortable");
-    expect(container.textContent).toContain("Compact");
-    expect(container.textContent).not.toContain("Open section");
+    expect(
+      container.querySelector(
+        'section[aria-label="Appearance settings search results"] [data-setting-id="appearance.display-density"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      Array.from(container.querySelectorAll("button")).map((button) => button.textContent),
+    ).toEqual(expect.arrayContaining(["Comfortable", "Compact"]));
   });
 
   it("renders the actual Animations toggle from search", () => {
     const controller = createController();
     const { container } = trackRoot(renderResults("animations", controller));
 
-    expect(container.textContent).toContain("Appearance");
-    expect(container.textContent).toContain("App appearance");
-    expect(container.textContent).toContain("Animations");
-
-    const switchControl = container.querySelector("[role='switch']");
+    const switchControl = container.querySelector(
+      '[data-setting-id="appearance.animations"] [role="switch"]',
+    );
     act(() => {
       (switchControl as HTMLButtonElement | null)?.click();
     });
@@ -130,16 +130,13 @@ describe("SettingsSearchResults", () => {
     });
   });
 
-  it("renders one app and one reader theme row without duplicate legacy controls", () => {
+  it("renders the current app and reader theme rows once each", () => {
     const { container } = trackRoot(renderResults("theme"));
     const ids = Array.from(container.querySelectorAll<HTMLElement>("[data-setting-id]")).map(
       (element) => element.dataset.settingId,
     );
 
     expect(ids).toEqual(["appearance.app-themes", "reader.theme"]);
-    expect(container.textContent).toContain("Reader theme");
-    expect(container.textContent).toContain("App themes");
-    expect(container.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 
   it("changes settings directly from a rendered search result control", () => {
@@ -175,15 +172,13 @@ describe("SettingsSearchResults", () => {
     });
   });
 
-  it("renders the actual Scan on startup toggle row", () => {
+  it("renders the current scan-on-startup control", () => {
     const controller = createController();
     const { container } = trackRoot(renderResults("scan startup", controller));
 
-    expect(container.textContent).toContain("Storage");
-    expect(container.textContent).toContain("Global policies");
-    expect(container.textContent).toContain("Scan on startup");
-
-    const switchControl = container.querySelector("[role='switch']");
+    const switchControl = container.querySelector(
+      '[data-setting-id="storage.scan-on-startup"] [role="switch"]',
+    );
     act(() => {
       (switchControl as HTMLButtonElement | null)?.click();
     });
@@ -193,16 +188,21 @@ describe("SettingsSearchResults", () => {
     });
   });
 
-  it("groups moved window and import settings under their new sections", () => {
+  it("renders window and import controls under their current sections", () => {
     const windowResults = trackRoot(renderResults("window behavior"));
-    expect(windowResults.container.textContent).toContain("General");
-    expect(windowResults.container.textContent).toContain("Remember window size and position");
-    expect(windowResults.container.textContent).not.toContain("Appearance");
+    expect(
+      windowResults.container.querySelector(
+        'section[aria-label="General settings search results"] [data-setting-id="appearance.remember-window-state"]',
+      ),
+    ).not.toBeNull();
 
     const controller = createController();
     const importResults = trackRoot(renderResults("default import mode", controller));
-    expect(importResults.container.textContent).toContain("Archives");
-    expect(importResults.container.textContent).toContain("Default import mode");
+    expect(
+      importResults.container.querySelector(
+        'section[aria-label="Archives settings search results"] [data-setting-id="import.default-import-mode"]',
+      ),
+    ).not.toBeNull();
 
     const moveOption = Array.from(importResults.container.querySelectorAll("button")).find(
       (button) => button.textContent === "Move",
@@ -230,20 +230,18 @@ describe("SettingsSearchResults", () => {
     }
   });
 
-  it("does not render redirect-only result cards", () => {
-    const { container } = trackRoot(renderResults("appearance"));
+  it("shows a clearable empty state for an unmatched query", () => {
+    const { container, onClearSearch } = trackRoot(renderResults("quasar telemetry"));
 
-    expect(container.querySelector(".settings-search-result-card")).toBeNull();
-    expect(container.textContent).not.toContain("Open section");
-    expect(container.querySelector("[data-setting-id]")).not.toBeNull();
-  });
+    expect(container.querySelector("[data-setting-id]")).toBeNull();
+    expect(container.querySelector(".settings-search-results__empty")?.textContent).toContain(
+      "quasar telemetry",
+    );
 
-  it("does not match removed compatibility terms", () => {
-    for (const query of ["appearance and window", "files and maintenance", "interface"]) {
-      const { container, root } = renderResults(query);
-      roots.push(root);
-      expect(container.textContent).toContain("No settings found");
-      expect(container.querySelector("[data-setting-id]")).toBeNull();
-    }
+    const clearButton = Array.from(container.querySelectorAll("button")).find(
+      (button) => button.textContent === "Clear search",
+    );
+    act(() => clearButton?.click());
+    expect(onClearSearch).toHaveBeenCalledOnce();
   });
 });

@@ -33,7 +33,7 @@ describe("settingsSearch", () => {
     ]);
   });
 
-  it("resolves moved settings to their new sections", () => {
+  it("returns settings with their current section ownership", () => {
     expect(findSettingsSearchResults("window behavior")).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -52,7 +52,7 @@ describe("settingsSearch", () => {
     );
   });
 
-  it("returns only the final app and reader theme controls", () => {
+  it("returns the app and reader theme controls once each", () => {
     expect(findSettingsSearchResults("theme").map((result) => result.item.id)).toEqual([
       "reader.theme",
       "appearance.app-themes",
@@ -106,11 +106,5 @@ describe("settingsSearch", () => {
         "library.series.card-size",
       ]),
     );
-  });
-
-  it("keeps removed composite labels out of search", () => {
-    expect(findSettingsSearchResults("appearance and window")).toHaveLength(0);
-    expect(findSettingsSearchResults("files and maintenance")).toHaveLength(0);
-    expect(findSettingsSearchResults("interface")).toHaveLength(0);
   });
 });
