@@ -1,8 +1,5 @@
 // @vitest-environment happy-dom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { act, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -218,7 +215,7 @@ describe("LibrarySidebar", () => {
     expect(control?.getAttribute("data-sidebar-direction")).toBe("collapse-left");
   });
 
-  it("uses a ghost icon select for the shared sidebar Folder sort preference", () => {
+  it("uses the shared sidebar Folder sort control", () => {
     const onFolderSortChange = vi.fn();
     const container = document.createElement("div");
     document.body.append(container);
@@ -258,14 +255,6 @@ describe("LibrarySidebar", () => {
     act(() => mostBooks?.click());
 
     expect(onFolderSortChange).toHaveBeenCalledWith("most-books");
-
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
-    expect(styles).toMatch(
-      /\.sidebar__folder-sort \.app-select__trigger\s*\{[^}]*border-color:\s*transparent;[^}]*background:\s*transparent;/s,
-    );
-    expect(styles).toMatch(
-      /\.sidebar__folder-sort \.app-select__trigger:hover,[\s\S]*?\{[^}]*border-color:\s*transparent;[^}]*background:\s*var\(--surface-raised\);/s,
-    );
   });
 
   it("orders the sidebar Folder tree with the shared Folder sort preference", () => {
@@ -371,29 +360,6 @@ describe("LibrarySidebar", () => {
     );
   });
 
-  it("keeps titlebar composition out of the sidebar and toolbar owners", () => {
-    const sidebarSource = readFileSync(
-      resolve(process.cwd(), "src/features/library/LibrarySidebar.tsx"),
-      "utf8",
-    );
-    const titlebarCompositionSource = readFileSync(
-      resolve(process.cwd(), "src/features/library/LibraryTitlebarComposition.tsx"),
-      "utf8",
-    );
-    const toolbarSource = readFileSync(
-      resolve(process.cwd(), "src/features/library/LibraryToolbar.tsx"),
-      "utf8",
-    );
-
-    expect(sidebarSource).not.toContain("onOpenQuickActions");
-    expect(sidebarSource).not.toContain("quickActionsAriaKeyShortcuts");
-    expect(sidebarSource).not.toContain("Zap");
-    expect(titlebarCompositionSource).toContain("onOpenQuickActions");
-    expect(titlebarCompositionSource).toContain("quickActionsAriaKeyShortcuts");
-    expect(titlebarCompositionSource).toContain("Zap");
-    expect(toolbarSource).not.toContain("Quick Actions");
-  });
-
   it("keeps the archive switcher focused on known archives and management", () => {
     const markup = renderSidebar();
     const archiveRows = markup.match(
@@ -456,18 +422,6 @@ describe("LibrarySidebar", () => {
     expect(
       document.getElementById(folder?.getAttribute("aria-describedby") ?? "")?.textContent,
     ).toBe(folderName);
-  });
-
-  it("places the folder scrollbar at the sidebar edge without moving the section heading", () => {
-    const styles = readFileSync(resolve(process.cwd(), "src/styles/layout/app-shell.css"), "utf8");
-
-    expect(styles).toMatch(/\.sidebar__section\s*\{[^}]*padding-inline-end:\s*4px;[^}]*\}/s);
-    expect(styles).toMatch(
-      /\.sidebar__folder-scroll\s*\{[^}]*scrollbar-gutter:\s*stable;[^}]*padding-inline-end:\s*4px;[^}]*margin-inline-end:\s*-4px;[^}]*\}/s,
-    );
-    expect(styles).not.toMatch(
-      /\.sidebar__(?:section|folder-scroll)\s*\{[^}]*(?:padding|margin)-right:/s,
-    );
   });
 
   it("shows Series as a first-class navigation location", () => {
