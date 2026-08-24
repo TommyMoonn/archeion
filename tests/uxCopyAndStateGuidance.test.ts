@@ -75,7 +75,8 @@ describe("Phase 0.9.0.27 UX copy and state guidance", () => {
     }
     expect(appearance).toContain("Reset appearance");
     expect(settings).toContain("Reset window");
-    expect(storage).toContain("Reset storage");
+    expect(storage).toContain('label="Storage preferences"');
+    expect(storage).toMatch(/<Button[\s\S]*?>\s*Reset\s*<\/Button>/);
   });
 
   it("uses specific verb-first labels while preserving concise collection controls", () => {

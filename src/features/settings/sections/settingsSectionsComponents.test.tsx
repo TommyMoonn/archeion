@@ -28,6 +28,7 @@ function createController(
     },
     destinationOptions: [{ label: "Archive root", value: "" }],
     epubWritebackBackupStatus: { fileCount: 1, totalBytes: 2048 },
+    epubWritebackBackupStatusState: "loaded",
     files: preferences.filesAndMetadata,
     importSettings: preferences.import,
     library: preferences.library,
@@ -143,29 +144,41 @@ describe("settings section components", () => {
     const markup = renderStorage();
 
     expect(markup).toContain("Storage");
-    expect(markup).toContain("File monitoring");
-    expect(markup).toContain("Archive scanning");
+    expect(markup).toContain("Global policies");
+    expect(markup).toContain("Archive maintenance");
     expect(markup).toContain("Generated cover cache");
     expect(markup).toContain("EPUB writeback backups");
-    expect(markup).toContain("Archive metadata and recovery");
-    expect(markup).toContain("Reset storage preferences");
-    expect(markup).not.toContain("Archive maintenance");
+    expect(markup).toContain("Archive metadata");
+    expect(markup).toContain("Storage preferences");
     expect(markup).toContain("Keep EPUB writeback backup");
-    expect(markup).toContain("Clear EPUB writeback backups");
+    expect(markup.indexOf(">Global policies<")).toBeLessThan(
+      markup.indexOf(">Archive maintenance<"),
+    );
+  });
 
-    const groups = [
-      "File monitoring",
-      "Archive scanning",
-      "Generated cover cache",
-      "EPUB writeback backups",
-      "Archive metadata and recovery",
-      "Reset",
+  it("uses object labels with concise maintenance verbs", () => {
+    const markup = renderStorage();
+    const actions = [
+      ["storage.rescan-archive", "Archive scan", "Run"],
+      ["storage.scanner-cache", "Scanner cache", "Clear"],
+      ["storage.reextract-source-metadata", "Source metadata", "Re-extract"],
+      ["storage.cover-cache-status", "Generated cover cache", "Clear"],
+      ["storage.clear-epub-writeback-backups", "EPUB writeback backups", "Clear"],
+      ["storage.repair-metadata", "Archive metadata", "Repair"],
+      ["storage.metadata-folder", "Metadata folder", "Open"],
+      ["storage.reset", "Storage preferences", "Reset"],
     ];
-    for (let index = 1; index < groups.length; index += 1) {
-      expect(markup.indexOf(`>${groups[index - 1]}<`)).toBeLessThan(
-        markup.indexOf(`>${groups[index]}<`),
-      );
+
+    for (const [id, label, verb] of actions) {
+      const row = markup.match(
+        new RegExp(`data-setting-id="${id}"[\\s\\S]*?(?=data-setting-id=|$)`),
+      )?.[0];
+      expect(row).toContain(`>${label}<`);
+      expect(row).toContain(`>${verb}<`);
     }
+
+    expect(markup).toContain("2 covers, 4.0 KB");
+    expect(markup).toContain("1 backup, 2.0 KB");
   });
 
   it("makes every Settings scan-producing action unavailable during archive scan activity", () => {

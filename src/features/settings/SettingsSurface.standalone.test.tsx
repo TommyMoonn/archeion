@@ -41,6 +41,10 @@ function destinationLabel() {
   )?.textContent;
 }
 
+function storageStatus(settingId: string) {
+  return container.querySelector(`[data-setting-id="${settingId}"]`)?.textContent ?? "";
+}
+
 function clickButton(label: string) {
   const button = Array.from(container.querySelectorAll("button")).find(
     (candidate) => candidate.textContent?.trim() === label,
@@ -258,6 +262,135 @@ describe("standalone Settings surface", () => {
     expect(
       container.querySelector('[data-setting-id="storage.rescan-archive"] fieldset:disabled'),
     ).toBeNull();
+  });
+
+  it("hides archive A Storage status while archive B status reads are pending", async () => {
+    const archiveA = availableArchiveBoundary();
+    const archiveB = availableArchiveBoundary("archive-b", "E:\\Archive B", 2);
+    const archiveBCache = deferred<{ fileCount: number; totalBytes: number }>();
+    const archiveBBackups = deferred<{ fileCount: number; totalBytes: number }>();
+    vi.mocked(archiveA.maintenance!.getCoverCacheStatus).mockResolvedValue({
+      fileCount: 2,
+      totalBytes: 4096,
+    });
+    vi.mocked(archiveA.maintenance!.getEpubWritebackBackupStatus).mockResolvedValue({
+      fileCount: 3,
+      totalBytes: 6144,
+    });
+    vi.mocked(archiveB.maintenance!.getCoverCacheStatus).mockReturnValue(archiveBCache.promise);
+    vi.mocked(archiveB.maintenance!.getEpubWritebackBackupStatus).mockReturnValue(
+      archiveBBackups.promise,
+    );
+
+    await act(async () =>
+      root.render(
+        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
+      ),
+    );
+    clickButton("Storage");
+    await act(async () => {
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+    expect(storageStatus("storage.cover-cache-status")).toContain("2 covers, 4.0 KB");
+    expect(storageStatus("storage.clear-epub-writeback-backups")).toContain("3 backups, 6.0 KB");
+
+    await act(async () =>
+      root.render(
+        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
+      ),
+    );
+    expect(storageStatus("storage.cover-cache-status")).not.toContain("2 covers, 4.0 KB");
+    expect(storageStatus("storage.clear-epub-writeback-backups")).not.toContain(
+      "3 backups, 6.0 KB",
+    );
+
+    await act(async () => {
+      archiveBCache.resolve({ fileCount: 5, totalBytes: 10240 });
+      archiveBBackups.resolve({ fileCount: 7, totalBytes: 14336 });
+      await Promise.all([archiveBCache.promise, archiveBBackups.promise]);
+      await Promise.resolve();
+    });
+    expect(storageStatus("storage.cover-cache-status")).toContain("5 covers, 10.0 KB");
+    expect(storageStatus("storage.clear-epub-writeback-backups")).toContain("7 backups, 14.0 KB");
+  });
+
+  it("does not retain archive A Storage status when archive B status reads fail", async () => {
+    const archiveA = availableArchiveBoundary();
+    const archiveB = availableArchiveBoundary("archive-b", "E:\\Archive B", 2);
+    vi.mocked(archiveA.maintenance!.getCoverCacheStatus).mockResolvedValue({
+      fileCount: 2,
+      totalBytes: 4096,
+    });
+    vi.mocked(archiveA.maintenance!.getEpubWritebackBackupStatus).mockResolvedValue({
+      fileCount: 3,
+      totalBytes: 6144,
+    });
+    vi.mocked(archiveB.maintenance!.getCoverCacheStatus).mockRejectedValue(
+      new Error("B cover status unavailable"),
+    );
+    vi.mocked(archiveB.maintenance!.getEpubWritebackBackupStatus).mockRejectedValue(
+      new Error("B backup status unavailable"),
+    );
+
+    await act(async () =>
+      root.render(
+        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
+      ),
+    );
+    clickButton("Storage");
+    await act(async () => {
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+
+    await act(async () =>
+      root.render(
+        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
+      ),
+    );
+    await act(async () => {
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+
+    expect(storageStatus("storage.cover-cache-status")).toContain("Unavailable");
+    expect(storageStatus("storage.cover-cache-status")).not.toContain("2 covers, 4.0 KB");
+    expect(storageStatus("storage.clear-epub-writeback-backups")).toContain(
+      "Backup status unavailable.",
+    );
+    expect(storageStatus("storage.clear-epub-writeback-backups")).not.toContain(
+      "3 backups, 6.0 KB",
+    );
+  });
+
+  it("does not present archive A Storage status without an active archive", async () => {
+    const archiveA = availableArchiveBoundary();
+    vi.mocked(archiveA.maintenance!.getCoverCacheStatus).mockResolvedValue({
+      fileCount: 2,
+      totalBytes: 4096,
+    });
+    vi.mocked(archiveA.maintenance!.getEpubWritebackBackupStatus).mockResolvedValue({
+      fileCount: 3,
+      totalBytes: 6144,
+    });
+
+    await act(async () =>
+      root.render(
+        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
+      ),
+    );
+    clickButton("Storage");
+    await act(async () => {
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+
+    await act(async () => root.render(<SettingsSurface archiveAccess="unavailable" standalone />));
+
+    expect(storageStatus("storage.cover-cache-status")).not.toContain("2 covers, 4.0 KB");
+    expect(storageStatus("storage.clear-epub-writeback-backups")).not.toContain(
+      "3 backups, 6.0 KB",
+    );
+    expect(
+      container.querySelector('[data-setting-id="storage.cover-cache-status"] fieldset:disabled'),
+    ).not.toBeNull();
   });
 
   it("restores persisted preferences but resets section and search state after remount", async () => {

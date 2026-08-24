@@ -6,23 +6,23 @@ import { storageSettingsItems } from "./storageSettingsItems";
 describe("storage settings items", () => {
   it("keeps the final ownership groups and item order", () => {
     expect(storageSettingsItems.map(({ groupLabel, id }) => ({ groupLabel, id }))).toEqual([
-      { groupLabel: "File monitoring", id: "storage.scan-on-startup" },
-      { groupLabel: "File monitoring", id: "storage.live-filesystem-watcher" },
-      { groupLabel: "Archive scanning", id: "storage.rescan-archive" },
-      { groupLabel: "Archive scanning", id: "storage.scanner-cache" },
-      { groupLabel: "Archive scanning", id: "storage.reextract-source-metadata" },
-      { groupLabel: "Generated cover cache", id: "storage.cover-cache-status" },
+      { groupLabel: "Global policies", id: "storage.scan-on-startup" },
+      { groupLabel: "Global policies", id: "storage.live-filesystem-watcher" },
       {
-        groupLabel: "EPUB writeback backups",
+        groupLabel: "Global policies",
         id: "storage.keep-epub-writeback-backup",
       },
+      { groupLabel: "Global policies", id: "storage.reset" },
+      { groupLabel: "Archive maintenance", id: "storage.rescan-archive" },
+      { groupLabel: "Archive maintenance", id: "storage.scanner-cache" },
+      { groupLabel: "Archive maintenance", id: "storage.reextract-source-metadata" },
+      { groupLabel: "Archive maintenance", id: "storage.cover-cache-status" },
       {
-        groupLabel: "EPUB writeback backups",
+        groupLabel: "Archive maintenance",
         id: "storage.clear-epub-writeback-backups",
       },
-      { groupLabel: "Archive metadata and recovery", id: "storage.repair-metadata" },
-      { groupLabel: "Archive metadata and recovery", id: "storage.metadata-folder" },
-      { groupLabel: "Reset", id: "storage.reset" },
+      { groupLabel: "Archive maintenance", id: "storage.repair-metadata" },
+      { groupLabel: "Archive maintenance", id: "storage.metadata-folder" },
     ]);
     expect(getSettingsItemsForSection("storage")).toEqual(storageSettingsItems);
   });

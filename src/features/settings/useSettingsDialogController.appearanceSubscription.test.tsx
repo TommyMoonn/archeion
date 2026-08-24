@@ -232,6 +232,123 @@ describe("Settings committed appearance subscription", () => {
     expect(latest.importSettings.defaultDestinationFolderPath).toBe("B\\Novels");
   });
 
+  it("ignores archive A status reads that complete after archive B becomes current", async () => {
+    const archiveACache = deferred<{ fileCount: number; totalBytes: number }>();
+    const archiveABackups = deferred<{ fileCount: number; totalBytes: number }>();
+    const archiveAStorage = createStorage({
+      getCoverCacheStatus: vi.fn(() => archiveACache.promise),
+      getEpubWritebackBackupStatus: vi.fn(() => archiveABackups.promise),
+    });
+    const archiveBStorage = createStorage({
+      getCoverCacheStatus: vi.fn().mockResolvedValue({ fileCount: 5, totalBytes: 10240 }),
+      getEpubWritebackBackupStatus: vi.fn().mockResolvedValue({ fileCount: 7, totalBytes: 14336 }),
+    });
+    const archiveAIdentity: KnownArchive = {
+      createdAt: "1",
+      displayName: "Archive A",
+      id: "archive-a",
+      lastOpenedAt: "1",
+      rootPath: "D:\\Archive A",
+    };
+    const archiveBIdentity: KnownArchive = {
+      ...archiveAIdentity,
+      displayName: "Archive B",
+      id: "archive-b",
+      rootPath: "E:\\Archive B",
+    };
+    const loadStatus = {
+      loadCoverCacheStatus: true,
+      loadEpubWritebackBackupStatus: true,
+    };
+    storage = archiveAStorage;
+    await render({ ...loadStatus, archiveGeneration: 1, archiveIdentity: archiveAIdentity });
+
+    storage = archiveBStorage;
+    await render({ ...loadStatus, archiveGeneration: 2, archiveIdentity: archiveBIdentity });
+    expect(latest.cache).toEqual({ fileCount: 5, totalBytes: 10240 });
+    expect(latest.epubWritebackBackupStatus).toEqual({ fileCount: 7, totalBytes: 14336 });
+
+    await act(async () => {
+      archiveACache.resolve({ fileCount: 2, totalBytes: 4096 });
+      archiveABackups.resolve({ fileCount: 3, totalBytes: 6144 });
+      await Promise.all([archiveACache.promise, archiveABackups.promise]);
+      await Promise.resolve();
+    });
+
+    expect(latest.cache).toEqual({ fileCount: 5, totalBytes: 10240 });
+    expect(latest.epubWritebackBackupStatus).toEqual({ fileCount: 7, totalBytes: 14336 });
+  });
+
+  it("ignores archive A clear results after archive B becomes current", async () => {
+    const archiveACacheClear = deferred<{ fileCount: number; totalBytes: number }>();
+    const archiveABackupClear = deferred<{ fileCount: number; totalBytes: number }>();
+    const archiveAStorage = createStorage({
+      clearCoverCache: vi.fn(() => archiveACacheClear.promise),
+      clearEpubWritebackBackups: vi.fn(() => archiveABackupClear.promise),
+    });
+    const archiveBStorage = createStorage({
+      getCoverCacheStatus: vi.fn().mockResolvedValue({ fileCount: 5, totalBytes: 10240 }),
+      getEpubWritebackBackupStatus: vi.fn().mockResolvedValue({ fileCount: 7, totalBytes: 14336 }),
+    });
+    const archiveAIdentity: KnownArchive = {
+      createdAt: "1",
+      displayName: "Archive A",
+      id: "archive-a",
+      lastOpenedAt: "1",
+      rootPath: "D:\\Archive A",
+    };
+    const archiveBIdentity: KnownArchive = {
+      ...archiveAIdentity,
+      displayName: "Archive B",
+      id: "archive-b",
+      rootPath: "E:\\Archive B",
+    };
+    storage = archiveAStorage;
+    await render({ archiveGeneration: 1, archiveIdentity: archiveAIdentity });
+    act(() => {
+      latest.confirmClearCoverCache();
+      latest.confirmClearEpubWritebackBackups();
+    });
+
+    storage = archiveBStorage;
+    await render({
+      archiveGeneration: 2,
+      archiveIdentity: archiveBIdentity,
+      loadCoverCacheStatus: true,
+      loadEpubWritebackBackupStatus: true,
+    });
+    expect(latest.cache).toEqual({ fileCount: 5, totalBytes: 10240 });
+    expect(latest.epubWritebackBackupStatus).toEqual({ fileCount: 7, totalBytes: 14336 });
+
+    await act(async () => {
+      archiveACacheClear.resolve({ fileCount: 0, totalBytes: 0 });
+      archiveABackupClear.resolve({ fileCount: 0, totalBytes: 0 });
+      await Promise.all([archiveACacheClear.promise, archiveABackupClear.promise]);
+      await Promise.resolve();
+    });
+
+    expect(latest.cache).toEqual({ fileCount: 5, totalBytes: 10240 });
+    expect(latest.epubWritebackBackupStatus).toEqual({ fileCount: 7, totalBytes: 14336 });
+  });
+
+  it("refreshes current archive status from successful clear results", async () => {
+    storage = createStorage({
+      clearCoverCache: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+      clearEpubWritebackBackups: vi.fn().mockResolvedValue({ fileCount: 0, totalBytes: 0 }),
+    });
+    await render();
+
+    await act(async () => {
+      latest.confirmClearCoverCache();
+      latest.confirmClearEpubWritebackBackups();
+      for (let index = 0; index < 3; index += 1) await Promise.resolve();
+    });
+
+    expect(latest.cache).toEqual({ fileCount: 0, totalBytes: 0 });
+    expect(latest.epubWritebackBackupStatus).toEqual({ fileCount: 0, totalBytes: 0 });
+    expect(latest.epubWritebackBackupStatusState).toBe("loaded");
+  });
+
   it("does not let a slow rescan success overwrite a newer maintenance error", async () => {
     const pendingRescan = deferred<void>();
     storage = createStorage({

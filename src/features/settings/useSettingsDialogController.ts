@@ -122,12 +122,15 @@ export function useSettingsDialogController({
     scope: typeof archiveLocalScope;
     value: Folder[];
   }>({ scope: archiveLocalScope, value: [] });
-  const [cache, setCache] = useState<CoverCacheStatus | null>(null);
-  const [epubWritebackBackupStatus, setEpubWritebackBackupStatus] =
-    useState<EpubWritebackBackupStatus | null>(null);
-  const [epubWritebackBackupStatusState, setEpubWritebackBackupStatusState] = useState<
-    "loading" | "loaded" | "unavailable"
-  >("loading");
+  const [cacheState, setCacheState] = useState<{
+    scope: typeof archiveLocalScope;
+    value: CoverCacheStatus | null;
+  }>({ scope: archiveLocalScope, value: null });
+  const [epubWritebackBackupStatusState, setEpubWritebackBackupStatusState] = useState<{
+    scope: typeof archiveLocalScope;
+    status: "loading" | "loaded" | "unavailable";
+    value: EpubWritebackBackupStatus | null;
+  }>({ scope: archiveLocalScope, status: "loading", value: null });
   const [status, setStatus] = useState<SettingsLocalStatus | null>(null);
   const archiveImportLoadedRef = useRef(false);
   const archiveImportLoadingRef = useRef(false);
@@ -141,6 +144,7 @@ export function useSettingsDialogController({
   const appPreferenceSaveRevisionRef = useRef(0);
   const statusOperationRevisionRef = useRef(0);
   const confirmationOperationLocksRef = useRef(new Set<SettingsConfirmationKey>());
+  const confirmationOperationRevisionsRef = useRef(new Map<SettingsConfirmationKey, number>());
   const [confirmations, setConfirmations] =
     useState<SettingsConfirmationState>(initialConfirmations);
   const [busyConfirmations, setBusyConfirmations] =
@@ -155,6 +159,12 @@ export function useSettingsDialogController({
       ? archiveImportState.value
       : defaultArchiveImportSettings;
   const folders = foldersState.scope === archiveLocalScope ? foldersState.value : emptyFolders;
+  const cache = cacheState.scope === archiveLocalScope ? cacheState.value : null;
+  const currentEpubWritebackBackupStatus =
+    epubWritebackBackupStatusState.scope === archiveLocalScope
+      ? epubWritebackBackupStatusState
+      : { status: "loading" as const, value: null };
+  const epubWritebackBackupStatus = currentEpubWritebackBackupStatus.value;
 
   const importSettings: ImportSettings = {
     ...preferences.import,
@@ -226,6 +236,7 @@ export function useSettingsDialogController({
     if (!archiveMaintenance) return;
     statusOperationRevisionRef.current += 1;
     confirmationOperationLocksRef.current.clear();
+    confirmationOperationRevisionsRef.current.clear();
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
@@ -339,16 +350,26 @@ export function useSettingsDialogController({
 
     const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
+    const scope = archiveLocalScope;
     coverCacheLoadingRef.current = true;
     void activeStorage
       .getCoverCacheStatus()
       .then((cacheStatus) => {
-        if (dataLoadGenerationRef.current !== generation) return;
+        if (
+          dataLoadGenerationRef.current !== generation ||
+          archiveLocalScopeRef.current !== scope
+        ) {
+          return;
+        }
         coverCacheLoadedRef.current = true;
-        setCache(cacheStatus);
+        setCacheState({ scope, value: cacheStatus });
       })
       .catch(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
+          setCacheState({ scope, value: null });
           setLocalStatus(
             "Cover cache status is unavailable. Close and reopen Settings to try again.",
             "error",
@@ -356,11 +377,14 @@ export function useSettingsDialogController({
         }
       })
       .finally(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           coverCacheLoadingRef.current = false;
         }
       });
-  }, [loadCoverCacheStatus, storage, setLocalStatus]);
+  }, [archiveLocalScope, loadCoverCacheStatus, storage, setLocalStatus]);
 
   useEffect(() => {
     if (
@@ -374,18 +398,26 @@ export function useSettingsDialogController({
 
     const activeStorage = storage;
     const generation = dataLoadGenerationRef.current;
+    const scope = archiveLocalScope;
     epubWritebackBackupStatusLoadingRef.current = true;
     void activeStorage
       .getEpubWritebackBackupStatus()
       .then((backupStatus) => {
-        if (dataLoadGenerationRef.current !== generation) return;
+        if (
+          dataLoadGenerationRef.current !== generation ||
+          archiveLocalScopeRef.current !== scope
+        ) {
+          return;
+        }
         epubWritebackBackupStatusLoadedRef.current = true;
-        setEpubWritebackBackupStatus(backupStatus);
-        setEpubWritebackBackupStatusState("loaded");
+        setEpubWritebackBackupStatusState({ scope, status: "loaded", value: backupStatus });
       })
       .catch(() => {
-        if (dataLoadGenerationRef.current === generation) {
-          setEpubWritebackBackupStatusState("unavailable");
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
+          setEpubWritebackBackupStatusState({ scope, status: "unavailable", value: null });
           setLocalStatus(
             "Backup status is unavailable. Close and reopen Settings to try again.",
             "error",
@@ -393,11 +425,14 @@ export function useSettingsDialogController({
         }
       })
       .finally(() => {
-        if (dataLoadGenerationRef.current === generation) {
+        if (
+          dataLoadGenerationRef.current === generation &&
+          archiveLocalScopeRef.current === scope
+        ) {
           epubWritebackBackupStatusLoadingRef.current = false;
         }
       });
-  }, [loadEpubWritebackBackupStatus, storage, setLocalStatus]);
+  }, [archiveLocalScope, loadEpubWritebackBackupStatus, storage, setLocalStatus]);
 
   function openConfirmation(confirmation: SettingsConfirmationKey) {
     if (!storage) return;
@@ -414,10 +449,17 @@ export function useSettingsDialogController({
     if (confirmationOperationLocksRef.current.has(confirmation)) return null;
     confirmationOperationLocksRef.current.add(confirmation);
     setBusyConfirmations((current) => ({ ...current, [confirmation]: true }));
-    return beginStatusOperation();
+    const operationRevision = beginStatusOperation();
+    confirmationOperationRevisionsRef.current.set(confirmation, operationRevision);
+    return operationRevision;
   }
 
-  function finishConfirmationOperation(confirmation: SettingsConfirmationKey) {
+  function finishConfirmationOperation(
+    confirmation: SettingsConfirmationKey,
+    operationRevision: number,
+  ) {
+    if (confirmationOperationRevisionsRef.current.get(confirmation) !== operationRevision) return;
+    confirmationOperationRevisionsRef.current.delete(confirmation);
     confirmationOperationLocksRef.current.delete(confirmation);
     setBusyConfirmations((current) => ({ ...current, [confirmation]: false }));
     setConfirmations((current) => ({ ...current, [confirmation]: false }));
@@ -571,7 +613,7 @@ export function useSettingsDialogController({
         "error",
       );
     } finally {
-      finishConfirmationOperation("rescanArchive");
+      finishConfirmationOperation("rescanArchive", statusOperation);
       if (claim) releaseArchiveScanOperation(claim);
     }
   }
@@ -625,19 +667,24 @@ export function useSettingsDialogController({
 
   async function clearCache() {
     if (!storage) return;
+    const activeStorage = storage;
+    const scope = archiveLocalScope;
     const statusOperation = beginConfirmationOperation("clearCoverCache");
     if (statusOperation === null) return;
     try {
-      setCache(await storage.clearCoverCache());
+      const clearedCache = await activeStorage.clearCoverCache();
+      if (archiveLocalScopeRef.current !== scope) return;
+      setCacheState({ scope, value: clearedCache });
       publishStatusOperation(statusOperation, "Cover cache cleared.", "success");
     } catch {
+      if (archiveLocalScopeRef.current !== scope) return;
       publishStatusOperation(
         statusOperation,
         "The cover cache could not be cleared. EPUB files are unchanged. Try again.",
         "error",
       );
     } finally {
-      finishConfirmationOperation("clearCoverCache");
+      finishConfirmationOperation("clearCoverCache", statusOperation);
     }
   }
 
@@ -655,26 +702,30 @@ export function useSettingsDialogController({
         "error",
       );
     } finally {
-      finishConfirmationOperation("clearScannerCache");
+      finishConfirmationOperation("clearScannerCache", statusOperation);
     }
   }
 
   async function clearEpubWritebackBackups() {
     if (!storage) return;
+    const activeStorage = storage;
+    const scope = archiveLocalScope;
     const statusOperation = beginConfirmationOperation("clearEpubWritebackBackups");
     if (statusOperation === null) return;
     try {
-      setEpubWritebackBackupStatus(await storage.clearEpubWritebackBackups());
-      setEpubWritebackBackupStatusState("loaded");
+      const clearedBackups = await activeStorage.clearEpubWritebackBackups();
+      if (archiveLocalScopeRef.current !== scope) return;
+      setEpubWritebackBackupStatusState({ scope, status: "loaded", value: clearedBackups });
       publishStatusOperation(statusOperation, "EPUB writeback backups cleared.", "success");
     } catch {
+      if (archiveLocalScopeRef.current !== scope) return;
       publishStatusOperation(
         statusOperation,
         "EPUB writeback backups could not be cleared. EPUB files are unchanged. Try again.",
         "error",
       );
     } finally {
-      finishConfirmationOperation("clearEpubWritebackBackups");
+      finishConfirmationOperation("clearEpubWritebackBackups", statusOperation);
     }
   }
 
@@ -694,7 +745,7 @@ export function useSettingsDialogController({
         "error",
       );
     } finally {
-      finishConfirmationOperation("reextractMetadata");
+      finishConfirmationOperation("reextractMetadata", statusOperation);
       if (claim) releaseArchiveScanOperation(claim);
     }
   }
@@ -714,7 +765,7 @@ export function useSettingsDialogController({
         "error",
       );
     } finally {
-      finishConfirmationOperation("repairMetadata");
+      finishConfirmationOperation("repairMetadata", statusOperation);
       if (claim) releaseArchiveScanOperation(claim);
     }
   }
@@ -814,7 +865,7 @@ export function useSettingsDialogController({
     destinationOptions,
     dismissStatus: clearLocalStatus,
     epubWritebackBackupStatus,
-    epubWritebackBackupStatusState,
+    epubWritebackBackupStatusState: currentEpubWritebackBackupStatus.status,
     files,
     importSettings,
     library,

@@ -1,5 +1,3 @@
-import { RefreshCw, BrushCleaning } from "lucide-react";
-
 import { Button } from "../../../components/Button";
 import { Toggle } from "../../../components/Toggle";
 import { SettingsActionRow, StandardSettingsRow } from "../components/SettingsRows";
@@ -11,7 +9,7 @@ const archiveScanUnavailableReason = "Wait for the archive scan to finish";
 export const storageSettingsItems = [
   {
     description: "Checks the active archive when it opens.",
-    groupLabel: "File monitoring",
+    groupLabel: "Global policies",
     id: "storage.scan-on-startup",
     label: "Scan on startup",
     render: (context) => (
@@ -31,7 +29,7 @@ export const storageSettingsItems = [
   },
   {
     description: "Refreshes the archive when files change on disk.",
-    groupLabel: "File monitoring",
+    groupLabel: "Global policies",
     id: "storage.live-filesystem-watcher",
     label: "Live filesystem watcher",
     render: (context) => (
@@ -50,110 +48,8 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
-    description: "Checks the active archive without changing EPUB files.",
-    groupLabel: "Archive scanning",
-    groupStyle: "actions",
-    id: "storage.rescan-archive",
-    label: "Rescan archive",
-    requiresArchive: true,
-    render: (context) => (
-      <SettingsActionRow
-        description="Checks the active archive without changing EPUB files."
-        label="Rescan archive"
-      >
-        <Button
-          disabled={context.archiveScanActive}
-          disabledReason={archiveScanUnavailableReason}
-          icon={<RefreshCw aria-hidden="true" />}
-          onClick={() => context.openConfirmation("rescanArchive")}
-          variant="secondary"
-        >
-          Rescan archive
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["scanning", "rescan", "scan archive"],
-    sectionId: "storage",
-  },
-  {
-    description: "Forces EPUB files to be checked again later.",
-    groupLabel: "Archive scanning",
-    groupStyle: "actions",
-    id: "storage.scanner-cache",
-    label: "Clear scanner cache",
-    requiresArchive: true,
-    render: (context) => (
-      <SettingsActionRow
-        description="Forces EPUB files to be checked again later."
-        label="Clear scanner cache"
-      >
-        <Button onClick={() => context.openConfirmation("clearScannerCache")} variant="secondary">
-          Clear scanner cache
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["scanning", "clear scanner cache", "scanner index"],
-    sectionId: "storage",
-  },
-  {
-    description: "Rebuilds parsed EPUB title and author data.",
-    groupLabel: "Archive scanning",
-    groupStyle: "actions",
-    id: "storage.reextract-source-metadata",
-    label: "Re-extract EPUB source metadata",
-    requiresArchive: true,
-    render: (context) => (
-      <SettingsActionRow
-        description="Rebuilds parsed EPUB title and author data."
-        label="Re-extract EPUB source metadata"
-      >
-        <Button
-          disabled={context.archiveScanActive}
-          disabledReason={archiveScanUnavailableReason}
-          onClick={() => context.openConfirmation("reextractMetadata")}
-          variant="secondary"
-        >
-          Re-extract source metadata
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["scanning", "source metadata", "re-extract", "epub metadata"],
-    sectionId: "storage",
-  },
-  {
-    deferredData: ["coverCacheStatus"],
-    description: "Shows generated covers stored for this archive.",
-    groupLabel: "Generated cover cache",
-    groupStyle: "actions",
-    id: "storage.cover-cache-status",
-    label: "Cover cache status",
-    requiresArchive: true,
-    render: (context) => (
-      <SettingsActionRow
-        description="Shows generated covers stored for this archive."
-        label="Cover cache status"
-        note={
-          context.cache
-            ? `${context.cache.fileCount} covers, ${formatBytes(context.cache.totalBytes)}`
-            : "Unavailable"
-        }
-      >
-        <Button
-          icon={<BrushCleaning aria-hidden="true" />}
-          onClick={() => context.openConfirmation("clearCoverCache")}
-          variant="secondary"
-        >
-          Clear cover cache
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["generated cover cache", "cover cache status", "clear cover cache"],
-    sectionId: "storage",
-  },
-  {
     description: "Keep one recovery copy after metadata edits. Off by default.",
-    groupLabel: "EPUB writeback backups",
-    groupStyle: "actions",
+    groupLabel: "Global policies",
     id: "storage.keep-epub-writeback-backup",
     label: "Keep EPUB writeback backup",
     render: (context) => (
@@ -172,17 +68,132 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
-    deferredData: ["epubWritebackBackupStatus"],
-    description: "Remove saved recovery copies from successful metadata edits.",
-    groupLabel: "EPUB writeback backups",
+    description: "Restores file monitoring and backup retention preferences only.",
+    groupLabel: "Global policies",
     groupStyle: "actions",
-    id: "storage.clear-epub-writeback-backups",
-    label: "Clear EPUB writeback backups",
+    id: "storage.reset",
+    label: "Storage preferences",
+    render: (context) => (
+      <SettingsActionRow
+        description="Restores file monitoring and backup retention preferences only."
+        label="Storage preferences"
+      >
+        <Button onClick={() => void context.resetStorage()} variant="secondary">
+          Reset
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["reset storage preferences", "monitoring defaults", "backup retention"],
+    sectionId: "storage",
+  },
+  {
+    description: "Checks the active archive without changing EPUB files.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.rescan-archive",
+    label: "Archive scan",
     requiresArchive: true,
     render: (context) => (
       <SettingsActionRow
-        description="Remove saved recovery copies from successful metadata edits."
-        label="Clear EPUB writeback backups"
+        description="Checks the active archive without changing EPUB files."
+        label="Archive scan"
+      >
+        <Button
+          disabled={context.archiveScanActive}
+          disabledReason={archiveScanUnavailableReason}
+          onClick={() => context.openConfirmation("rescanArchive")}
+          variant="secondary"
+        >
+          Run
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["scanning", "rescan", "scan archive"],
+    sectionId: "storage",
+  },
+  {
+    description: "Forces EPUB files to be checked again later.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.scanner-cache",
+    label: "Scanner cache",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Forces EPUB files to be checked again later."
+        label="Scanner cache"
+      >
+        <Button onClick={() => context.openConfirmation("clearScannerCache")} variant="secondary">
+          Clear
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["scanning", "clear scanner cache", "scanner index"],
+    sectionId: "storage",
+  },
+  {
+    description: "Rebuilds parsed EPUB title and author data.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.reextract-source-metadata",
+    label: "Source metadata",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Rebuilds parsed EPUB title and author data."
+        label="Source metadata"
+      >
+        <Button
+          disabled={context.archiveScanActive}
+          disabledReason={archiveScanUnavailableReason}
+          onClick={() => context.openConfirmation("reextractMetadata")}
+          variant="secondary"
+        >
+          Re-extract
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["scanning", "source metadata", "re-extract", "epub metadata"],
+    sectionId: "storage",
+  },
+  {
+    deferredData: ["coverCacheStatus"],
+    description: "Generated covers stored for the active archive.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.cover-cache-status",
+    label: "Generated cover cache",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Generated covers stored for the active archive."
+        label="Generated cover cache"
+        note={
+          context.cache
+            ? `${context.cache.fileCount} covers, ${formatBytes(context.cache.totalBytes)}`
+            : "Unavailable"
+        }
+      >
+        <Button onClick={() => context.openConfirmation("clearCoverCache")} variant="secondary">
+          Clear
+        </Button>
+      </SettingsActionRow>
+    ),
+    searchTerms: ["generated cover cache", "cover cache status", "clear cover cache"],
+    sectionId: "storage",
+  },
+  {
+    deferredData: ["epubWritebackBackupStatus"],
+    description: "Recovery copies from successful metadata edits.",
+    groupLabel: "Archive maintenance",
+    groupStyle: "actions",
+    id: "storage.clear-epub-writeback-backups",
+    label: "EPUB writeback backups",
+    requiresArchive: true,
+    render: (context) => (
+      <SettingsActionRow
+        description="Recovery copies from successful metadata edits."
+        label="EPUB writeback backups"
         note={formatEpubWritebackBackupStatusNote(context)}
       >
         <Button
@@ -194,7 +205,7 @@ export const storageSettingsItems = [
           onClick={() => context.openConfirmation("clearEpubWritebackBackups")}
           variant="secondary"
         >
-          Clear backups
+          Clear
         </Button>
       </SettingsActionRow>
     ),
@@ -208,15 +219,15 @@ export const storageSettingsItems = [
   },
   {
     description: "Rebuilds corrupted sidecar files without changing EPUB files.",
-    groupLabel: "Archive metadata and recovery",
+    groupLabel: "Archive maintenance",
     groupStyle: "actions",
     id: "storage.repair-metadata",
-    label: "Repair archive metadata",
+    label: "Archive metadata",
     requiresArchive: true,
     render: (context) => (
       <SettingsActionRow
         description="Rebuilds corrupted sidecar files without changing EPUB files."
-        label="Repair archive metadata"
+        label="Archive metadata"
       >
         <Button
           disabled={context.archiveScanActive}
@@ -224,7 +235,7 @@ export const storageSettingsItems = [
           onClick={() => context.openConfirmation("repairMetadata")}
           variant="secondary"
         >
-          Repair metadata
+          Repair
         </Button>
       </SettingsActionRow>
     ),
@@ -232,42 +243,23 @@ export const storageSettingsItems = [
     sectionId: "storage",
   },
   {
-    description: "Opens the active archive sidecar folder.",
-    groupLabel: "Archive metadata and recovery",
+    description: "The active archive's .archeion sidecar files.",
+    groupLabel: "Archive maintenance",
     groupStyle: "actions",
     id: "storage.metadata-folder",
-    label: "Reveal .archeion folder",
+    label: "Metadata folder",
     requiresArchive: true,
     render: (context) => (
       <SettingsActionRow
-        description="Opens the active archive sidecar folder."
-        label="Reveal .archeion folder"
+        description="The active archive's .archeion sidecar files."
+        label="Metadata folder"
       >
         <Button onClick={() => void context.revealMetadata()} variant="secondary">
-          Reveal .archeion folder
+          Open
         </Button>
       </SettingsActionRow>
     ),
     searchTerms: ["sidecar metadata", "recovery", "metadata folder", ".archeion folder"],
-    sectionId: "storage",
-  },
-  {
-    description: "Restores file monitoring and backup retention preferences only.",
-    groupLabel: "Reset",
-    groupStyle: "actions",
-    id: "storage.reset",
-    label: "Reset storage preferences",
-    render: (context) => (
-      <SettingsActionRow
-        description="Restores file monitoring and backup retention preferences only."
-        label="Reset storage preferences"
-      >
-        <Button onClick={() => void context.resetStorage()} variant="secondary">
-          Reset storage
-        </Button>
-      </SettingsActionRow>
-    ),
-    searchTerms: ["reset storage preferences", "monitoring defaults", "backup retention"],
     sectionId: "storage",
   },
 ] as const satisfies readonly SettingsItem[];

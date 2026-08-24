@@ -180,7 +180,7 @@ describe("SettingsSearchResults", () => {
     const { container } = trackRoot(renderResults("scan startup", controller));
 
     expect(container.textContent).toContain("Storage");
-    expect(container.textContent).toContain("File monitoring");
+    expect(container.textContent).toContain("Global policies");
     expect(container.textContent).toContain("Scan on startup");
 
     const switchControl = container.querySelector("[role='switch']");
@@ -221,8 +221,8 @@ describe("SettingsSearchResults", () => {
         epubWritebackBackupStatusState: state,
       });
       const { container } = trackRoot(renderResults("writeback backups", controller));
-      const clearButton = Array.from(container.querySelectorAll("button")).find(
-        (button) => button.textContent === "Clear backups",
+      const clearButton = container.querySelector<HTMLButtonElement>(
+        '[data-setting-id="storage.clear-epub-writeback-backups"] button',
       );
 
       expect(container.textContent).toContain(note);
@@ -239,12 +239,7 @@ describe("SettingsSearchResults", () => {
   });
 
   it("does not match removed compatibility terms", () => {
-    for (const query of [
-      "appearance and window",
-      "archive maintenance",
-      "files and maintenance",
-      "interface",
-    ]) {
+    for (const query of ["appearance and window", "files and maintenance", "interface"]) {
       const { container, root } = renderResults(query);
       roots.push(root);
       expect(container.textContent).toContain("No settings found");
