@@ -2,7 +2,7 @@ import { Button } from "../../../components/Button";
 import { Toggle } from "../../../components/Toggle";
 import { SettingsActionRow, StandardSettingsRow } from "../components/SettingsRows";
 import type { SettingsItem } from "../settingsItemTypes";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 
 const archiveScanUnavailableReason = "Wait for the archive scan to finish";
 
@@ -264,7 +264,7 @@ export const storageSettingsItems = [
   },
 ] as const satisfies readonly SettingsItem[];
 
-function formatEpubWritebackBackupStatusNote(context: SettingsDialogController) {
+function formatEpubWritebackBackupStatusNote(context: SettingsController) {
   if (context.epubWritebackBackupStatusState !== "loaded") {
     return context.epubWritebackBackupStatusState === "unavailable"
       ? "Backup status unavailable."

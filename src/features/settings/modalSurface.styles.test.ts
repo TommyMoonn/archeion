@@ -17,9 +17,7 @@ describe("shared modal surface presentation", () => {
     expect(dialogStyles).toMatch(
       /html\[data-motion="on"\] dialog\[open\] > \.modal-surface\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\) var\(--motion-ease-standard\);/s,
     );
-    expect(settingsStyles).not.toMatch(
-      /(?:settings-dialog|about-dialog)\[open\][^{]*\{[^}]*animation:/s,
-    );
+    expect(settingsStyles).not.toMatch(/about-dialog\[open\][^{]*\{[^}]*animation:/s);
   });
 
   it("inherits the application motion and reduced-motion token policy", () => {

@@ -18,7 +18,7 @@ import {
   ResetKeyboardShortcutsRow,
 } from "./KeyboardShortcutSettings";
 import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
@@ -53,7 +53,7 @@ afterEach(() => {
 function controller(
   keyboard: KeyboardPreferences = defaultAppPreferences.keyboard,
   updateAppPreferences = vi.fn(async () => true),
-): SettingsDialogController {
+): SettingsController {
   const preferences = { ...defaultAppPreferences, keyboard };
   return {
     preferences,
@@ -61,7 +61,7 @@ function controller(
     persistenceStatus: { status: "idle" },
     status: null,
     updateAppPreferences,
-  } as unknown as SettingsDialogController;
+  } as unknown as SettingsController;
 }
 
 function render(element: React.ReactNode) {

@@ -16,14 +16,14 @@ import {
 } from "../commands/commandBindings";
 import { KeyboardShortcutRow as KeyboardShortcutRowView } from "./components/KeyboardShortcutRow";
 import { CompactSettingsRow, SettingsActionRow } from "./components/SettingsRows";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 export function KeyboardShortcutRow({
   command,
   context,
 }: {
   command: CommandDefinition;
-  context: SettingsDialogController;
+  context: SettingsController;
 }) {
   const [captureOpen, setCaptureOpen] = useState(false);
   const current = effectiveKeyboardBinding(command, context.preferences.keyboard);
@@ -111,7 +111,7 @@ export function KeyboardShortcutDocumentationRow({
   return <CompactSettingsRow label={label}>{control}</CompactSettingsRow>;
 }
 
-export function ResetKeyboardShortcutsRow({ context }: { context: SettingsDialogController }) {
+export function ResetKeyboardShortcutsRow({ context }: { context: SettingsController }) {
   const hasOverrides = Object.keys(context.preferences.keyboard.shortcuts).length > 0;
   return (
     <SettingsActionRow label="Restore default shortcuts">
@@ -138,7 +138,7 @@ function KeyboardShortcutCaptureDialog({
   onSave,
 }: {
   command: CommandDefinition;
-  context: SettingsDialogController;
+  context: SettingsController;
   onClose: () => void;
   onSave: (binding: KeyboardBinding) => Promise<boolean>;
 }) {

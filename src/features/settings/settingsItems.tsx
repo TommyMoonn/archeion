@@ -32,7 +32,7 @@ import {
   viewOptions,
 } from "./settingsOptions";
 import type { SettingsSection } from "./settingsSections";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 export type {
   SettingsDeferredDataRequirement,
@@ -40,12 +40,12 @@ export type {
   SettingsItemGroupStyle,
 } from "./settingsItemTypes";
 
-function updateReader(context: SettingsDialogController, changes: Partial<ReaderSettings>) {
+function updateReader(context: SettingsController, changes: Partial<ReaderSettings>) {
   context.updateReader(changes);
 }
 
 function updateSmartViewVisibility(
-  context: SettingsDialogController,
+  context: SettingsController,
   smartView: (typeof LIBRARY_SMART_VIEWS)[number],
   visible: boolean,
 ) {

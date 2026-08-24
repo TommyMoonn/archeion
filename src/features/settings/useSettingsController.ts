@@ -2,7 +2,6 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import type { CoverCacheStatus, EpubWritebackBackupStatus } from "../../storage/LibraryStorage";
 import { defaultArchiveImportSettings } from "../../storage/metadataFiles";
-import { useOptionalLibraryStorage } from "../../storage/useLibraryStorage";
 import {
   appPreferencesStore,
   useAppPreferences,
@@ -14,13 +13,6 @@ import { defaultAppPreferences, type AppPreferences } from "../../types/appSetti
 import type { Folder } from "../../types/folder";
 import type { ArchiveImportSettings, ImportSettings } from "../../types/settings";
 import type { KnownArchive } from "../../types/archive";
-import {
-  releaseArchiveScanOperation,
-  tryAcquireArchiveScanOperation,
-  useArchiveScanActivity,
-  type ArchiveScanOperationClaim,
-} from "../archive/useArchiveScanActivity";
-import { useArchive } from "../archive/useArchive";
 import {
   createArchiveDestinationOptions,
   destinationValueFromFolderPath,
@@ -55,8 +47,7 @@ const archiveScanConfirmationKeys = new Set<SettingsConfirmationKey>([
 ]);
 const emptyFolders: readonly Folder[] = Object.freeze([]);
 
-export type SettingsDialogControllerOptions = {
-  archiveAccess?: "required" | "unavailable";
+export type SettingsControllerOptions = {
   archiveGeneration?: number;
   archiveIdentity?: KnownArchive | null;
   archiveMaintenance?: SettingsArchiveMaintenance | null;
@@ -70,8 +61,7 @@ export type SettingsDialogControllerOptions = {
   themeCatalogLoading?: boolean;
 };
 
-export function useSettingsDialogController({
-  archiveAccess = "required",
+export function useSettingsController({
   archiveGeneration = 0,
   archiveIdentity = null,
   archiveMaintenance = null,
@@ -83,19 +73,9 @@ export function useSettingsDialogController({
   refreshThemeCatalog = async () => false,
   themeCatalogEntries = [],
   themeCatalogLoading = false,
-}: SettingsDialogControllerOptions = {}) {
-  const contextualStorage = useOptionalLibraryStorage();
-  const storage =
-    archiveMaintenance ?? (archiveAccess === "unavailable" ? null : contextualStorage);
-  if (archiveAccess === "required" && !storage) {
-    throw new Error("LibraryStorageProvider is missing.");
-  }
-  const contextualArchiveScanActive = useArchiveScanActivity(
-    storage === contextualStorage ? contextualStorage : null,
-  );
-  const archive = useArchive();
-  const currentArchiveIdentity =
-    archiveIdentity ?? (archive.status === "ready" ? archive.archive : null);
+}: SettingsControllerOptions = {}) {
+  const storage = archiveMaintenance;
+  const currentArchiveIdentity = archiveIdentity;
   const archiveLocalScope = useMemo(
     () => ({
       archiveId: currentArchiveIdentity?.id ?? null,
@@ -150,7 +130,6 @@ export function useSettingsDialogController({
   const [busyConfirmations, setBusyConfirmations] =
     useState<SettingsConfirmationState>(initialBusyConfirmations);
   const archiveScanActive =
-    contextualArchiveScanActive ||
     busyConfirmations.rescanArchive ||
     busyConfirmations.reextractMetadata ||
     busyConfirmations.repairMetadata;
@@ -179,8 +158,7 @@ export function useSettingsDialogController({
   )
     ? importDestinationValue
     : destinationOptions[0]?.value;
-  const selectedArchivePath =
-    archiveIdentity?.rootPath ?? (storage && archive.status === "ready" ? archive.path : undefined);
+  const selectedArchivePath = archiveIdentity?.rootPath;
 
   const clearLocalStatus = useCallback(() => {
     setStatus(null);
@@ -467,18 +445,10 @@ export function useSettingsDialogController({
 
   function beginArchiveScanOperation(
     confirmation: SettingsConfirmationKey,
-  ): { claim: ArchiveScanOperationClaim | null; statusOperation: number } | null {
+  ): { statusOperation: number } | null {
     if (!storage) return null;
-    const claim =
-      storage === contextualStorage ? tryAcquireArchiveScanOperation(contextualStorage) : null;
-    if (storage === contextualStorage && !claim) return null;
-
     const statusOperation = beginConfirmationOperation(confirmation);
-    if (statusOperation === null) {
-      if (claim) releaseArchiveScanOperation(claim);
-      return null;
-    }
-    return { claim, statusOperation };
+    return statusOperation === null ? null : { statusOperation };
   }
 
   async function persistAppPreferences(
@@ -599,7 +569,7 @@ export function useSettingsDialogController({
     if (!storage) return;
     const operation = beginArchiveScanOperation("rescanArchive");
     if (!operation) return;
-    const { claim, statusOperation } = operation;
+    const { statusOperation } = operation;
     publishStatusOperation(statusOperation, "Rescanning archive", "neutral", {
       autoDismiss: false,
     });
@@ -614,7 +584,6 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("rescanArchive", statusOperation);
-      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 
@@ -634,14 +603,7 @@ export function useSettingsDialogController({
     const statusOperation = beginStatusOperation();
     if (!storage) return;
     try {
-      if (archiveMaintenance) {
-        await archiveMaintenance.revealArchiveFolder();
-      } else if (
-        archive.status !== "ready" ||
-        !(await archiveStore.revealArchive(archive.archive.id))
-      ) {
-        throw new Error("Archive could not be revealed.");
-      }
+      await storage.revealArchiveFolder();
     } catch {
       publishStatusOperation(
         statusOperation,
@@ -733,7 +695,7 @@ export function useSettingsDialogController({
     if (!storage) return;
     const operation = beginArchiveScanOperation("reextractMetadata");
     if (!operation) return;
-    const { claim, statusOperation } = operation;
+    const { statusOperation } = operation;
     try {
       await storage.clearScannerCache();
       await storage.rescan();
@@ -746,7 +708,6 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("reextractMetadata", statusOperation);
-      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 
@@ -754,7 +715,7 @@ export function useSettingsDialogController({
     if (!storage) return;
     const operation = beginArchiveScanOperation("repairMetadata");
     if (!operation) return;
-    const { claim, statusOperation } = operation;
+    const { statusOperation } = operation;
     try {
       await storage.repairArchiveMetadata();
       publishStatusOperation(statusOperation, "Archive metadata repaired.", "success");
@@ -766,7 +727,6 @@ export function useSettingsDialogController({
       );
     } finally {
       finishConfirmationOperation("repairMetadata", statusOperation);
-      if (claim) releaseArchiveScanOperation(claim);
     }
   }
 
@@ -908,4 +868,4 @@ export function useSettingsDialogController({
   };
 }
 
-export type SettingsDialogController = ReturnType<typeof useSettingsDialogController>;
+export type SettingsController = ReturnType<typeof useSettingsController>;

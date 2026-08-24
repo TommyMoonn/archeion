@@ -6,11 +6,11 @@ import { SettingsSectionHeader } from "./components/SettingsSectionHeader";
 import { findSettingsSearchResults } from "./settingsSearch";
 import type { SettingsItem } from "./settingsItemTypes";
 import { settingsSections, type SettingsSection } from "./settingsSections";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 import { SettingsItemContent } from "./SettingsSectionItems";
 
 type SettingsSearchResultsProps = {
-  controller: SettingsDialogController;
+  controller: SettingsController;
   onClearSearch: () => void;
   query: string;
 };

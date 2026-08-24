@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../../types/appSettings";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 import { StorageSettingsSection } from "./StorageSettingsSection";
 
 describe("StorageSettingsSection maintenance routing", () => {
@@ -38,7 +38,7 @@ describe("StorageSettingsSection maintenance routing", () => {
       resetStorage,
       revealMetadata,
       updateFiles: vi.fn(),
-    } as unknown as SettingsDialogController;
+    } as unknown as SettingsController;
 
     act(() => root.render(<StorageSettingsSection context={context} />));
 

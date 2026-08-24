@@ -73,7 +73,7 @@ describe("SettingsWindow", () => {
     await act(async () => initialization.resolve());
     expect(container.querySelector('[data-testid="settings-surface"]')).not.toBeNull();
     expect(mocks.surfaceProps).toHaveBeenLastCalledWith(
-      expect.objectContaining({ archiveBoundary: mocks.archiveBoundary, standalone: true }),
+      expect.objectContaining({ archiveBoundary: mocks.archiveBoundary }),
     );
     expect(container.querySelectorAll("main")).toHaveLength(1);
     expect(container.querySelector("dialog")).toBeNull();

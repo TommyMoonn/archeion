@@ -114,7 +114,6 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
   it("assigns blocking surfaces the dialog geometry and elevation role", () => {
     for (const block of [
       cssBlock(dialogs, ".dialog"),
-      cssBlock(settings, ".settings-window"),
       cssBlock(settings, ".about-window"),
       cssBlock(readerContentActions, ".reader-illustration-viewer"),
     ]) {
@@ -176,7 +175,6 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
       cssBlock(menus, ".menu-popover"),
       cssBlock(dropdowns, ".app-select__menu"),
       cssBlock(tooltips, ".app-tooltip"),
-      cssBlock(settings, ".settings-window"),
       cssBlock(settings, ".about-window"),
       cssBlock(quickActions, ".quick-actions"),
     ]) {

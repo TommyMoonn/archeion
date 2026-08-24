@@ -21,16 +21,16 @@ describe("openSettingsWindow", () => {
     isTauriMock.mockReturnValue(true);
     invokeMock.mockResolvedValue(undefined);
 
-    await expect(openSettingsWindow()).resolves.toBe(true);
+    await expect(openSettingsWindow()).resolves.toBeUndefined();
 
     expect(invokeMock).toHaveBeenCalledOnce();
     expect(invokeMock).toHaveBeenCalledWith("open_settings_window");
   });
 
-  it("leaves the existing dialog as the browser fallback", async () => {
+  it("is a no-op outside the desktop runtime", async () => {
     isTauriMock.mockReturnValue(false);
 
-    await expect(openSettingsWindow()).resolves.toBe(false);
+    await expect(openSettingsWindow()).resolves.toBeUndefined();
 
     expect(invokeMock).not.toHaveBeenCalled();
   });

@@ -1,8 +1,8 @@
 import { SettingsSectionItems } from "../SettingsSectionItems";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 
-export function KeyboardSettingsSection({ context }: { context: SettingsDialogController }) {
+export function KeyboardSettingsSection({ context }: { context: SettingsController }) {
   return (
     <section className="settings-section settings-section--keyboard">
       <SettingsSectionHeader title="Keyboard" />

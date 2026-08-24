@@ -8,11 +8,9 @@ import { GeneralSettingsSection } from "./GeneralSettingsSection";
 import { LibrarySettingsSection } from "./LibrarySettingsSection";
 import { ReaderSettingsSection } from "./ReaderSettingsSection";
 import { StorageSettingsSection } from "./StorageSettingsSection";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 
-function createController(
-  overrides: Partial<SettingsDialogController> = {},
-): SettingsDialogController {
+function createController(overrides: Partial<SettingsController> = {}): SettingsController {
   const preferences = { ...defaultAppPreferences };
 
   return {
@@ -63,7 +61,7 @@ function createController(
     confirmRepairMetadata: vi.fn(),
     confirmRescanArchive: vi.fn(),
     ...overrides,
-  } as unknown as SettingsDialogController;
+  } as unknown as SettingsController;
 }
 
 function renderAppearance() {
@@ -74,7 +72,7 @@ function renderGeneral() {
   return renderToStaticMarkup(<GeneralSettingsSection context={createController()} />);
 }
 
-function renderStorage(overrides: Partial<SettingsDialogController> = {}) {
+function renderStorage(overrides: Partial<SettingsController> = {}) {
   return renderToStaticMarkup(<StorageSettingsSection context={createController(overrides)} />);
 }
 

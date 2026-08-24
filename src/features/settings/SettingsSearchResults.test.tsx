@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../types/appSettings";
 import { SettingsSearchResults } from "./SettingsSearchResults";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
 
-function createController(overrides: Partial<SettingsDialogController> = {}) {
+function createController(overrides: Partial<SettingsController> = {}) {
   const preferences = { ...defaultAppPreferences };
 
   return {
@@ -62,7 +62,7 @@ function createController(overrides: Partial<SettingsDialogController> = {}) {
     confirmRepairMetadata: vi.fn(),
     confirmRescanArchive: vi.fn(),
     ...overrides,
-  } as unknown as SettingsDialogController;
+  } as unknown as SettingsController;
 }
 
 function renderResults(query: string, controller = createController()) {

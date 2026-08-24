@@ -142,7 +142,6 @@ function activeApplicationModalScope(
   const openDialogs = applicationDocument.querySelectorAll<HTMLDialogElement>("dialog[open]");
   const openDialog = closestDialog ?? openDialogs.item(openDialogs.length - 1);
   if (!openDialog) return null;
-  if (openDialog.classList.contains("settings-dialog")) return "settings";
   return "transient-surface";
 }
 

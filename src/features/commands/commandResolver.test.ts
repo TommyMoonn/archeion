@@ -196,7 +196,6 @@ describe("keyboard command resolver", () => {
 
   it("blocks EPUB-originating global and reader commands while a parent transient surface is open", () => {
     const dialog = document.createElement("dialog");
-    dialog.className = "settings-dialog";
     dialog.setAttribute("open", "");
     document.body.append(dialog);
 
@@ -213,22 +212,6 @@ describe("keyboard command resolver", () => {
         context(epubDocument),
       ),
     ).toBeNull();
-  });
-
-  it("allows the active parent Settings scope to own an EPUB-originating event", () => {
-    const dialog = document.createElement("dialog");
-    dialog.className = "settings-dialog";
-    dialog.setAttribute("open", "");
-    document.body.append(dialog);
-    const epubDocument = document.implementation.createHTMLDocument("EPUB");
-    const target = epubDocument.createElement("p");
-    epubDocument.body.append(target);
-    const settings = command("settings", "settings");
-
-    expect(
-      resolveKeyboardCommand(keyboardEvent(target), [settings], preferences, context(epubDocument))
-        ?.command,
-    ).toBe(settings);
   });
 
   it("normalizes browser Space for fixed reader navigation", () => {

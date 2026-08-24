@@ -14,7 +14,6 @@ import { flushSync } from "react-dom";
 import { router } from "../../app/router";
 import { focusPresentationRuntime } from "../../app/inputModality";
 import { DeferredTransientFallback } from "../../components/DeferredTransientFallback";
-import { DialogLoadingFallback } from "../../components/DialogLoadingFallback";
 import { captureFocusReturn, type FocusReturnRecord } from "../../utils/focusRestoration";
 import {
   appPreferencesStore,
@@ -40,21 +39,16 @@ import {
   type QuickActionThemeModeServices,
 } from "./quickActionThemeMode";
 import { QuickActionsContext, type QuickActionsContextValue } from "./QuickActionsContext";
-import type { SettingsSection } from "../settings/settingsSections";
 import { openSettingsWindow as openNativeSettingsWindow } from "../settings/settingsWindow";
 
 const loadQuickActionsPalette = () =>
   import("./QuickActionsPalette").then((module) => ({ default: module.QuickActionsPalette }));
-const loadSettingsDialog = () =>
-  import("../settings/SettingsDialog").then((module) => ({ default: module.SettingsDialog }));
-
 const QuickActionsPalette = lazy(loadQuickActionsPalette);
-const SettingsDialog = lazy(loadSettingsDialog);
 const quickActionsRegistry = new QuickActionsRegistry();
 
 type QuickActionsProviderProps = {
   children: ReactNode;
-  openSettingsWindow?: () => Promise<boolean>;
+  openSettingsWindow?: () => Promise<void>;
   themeModeServices?: QuickActionThemeModeServices;
 };
 
@@ -67,10 +61,6 @@ export function QuickActionsProvider({
   const [palette, setPalette] = useState<{
     archiveId: string | null;
     focusReturn: FocusReturnRecord;
-  } | null>(null);
-  const [settings, setSettings] = useState<{
-    focusReturn?: FocusReturnRecord;
-    initialSection?: SettingsSection;
   } | null>(null);
   const [animationRetryTarget, setAnimationRetryTarget] = useState<boolean | null>(null);
   const commandFocusReturnRef = useRef<FocusReturnRecord | null>(null);
@@ -104,33 +94,11 @@ export function QuickActionsProvider({
     });
   }, [archive]);
 
-  const preloadSettings = useCallback(() => {
-    void loadSettingsDialog();
-  }, []);
-
-  const openSettings = useCallback(
-    (initialSection?: SettingsSection, returnFocusTo?: HTMLElement) => {
-      const dialogState = {
-        focusReturn: commandFocusReturnRef.current ?? captureFocusReturn(returnFocusTo),
-        initialSection,
-      };
-      const openDialogFallback = () => {
-        if (!mountedRef.current) return;
-        preloadSettings();
-        setSettings(dialogState);
-      };
-
-      void openSettingsWindow()
-        .then((opened) => {
-          if (!opened) openDialogFallback();
-        })
-        .catch((error) => {
-          console.error("open_settings_window failed", error);
-          openDialogFallback();
-        });
-    },
-    [openSettingsWindow, preloadSettings],
-  );
+  const openSettings = useCallback(() => {
+    void openSettingsWindow().catch((error) => {
+      console.error("open_settings_window failed", error);
+    });
+  }, [openSettingsWindow]);
 
   const executeCommand = useCallback(
     (command: AppCommand, focusReturn?: FocusReturnRecord) => {
@@ -211,9 +179,7 @@ export function QuickActionsProvider({
       },
       {
         ...commandDefinitions.settings,
-        availability: settings
-          ? { available: false, reason: "Settings are already open." }
-          : { available: true },
+        availability: { available: true },
         execute: openSettings,
         keywords: ["preferences", "configuration"],
         order: 90,
@@ -324,15 +290,7 @@ export function QuickActionsProvider({
         scope: "global",
       },
     ];
-  }, [
-    animationRetryTarget,
-    archive,
-    openPalette,
-    openSettings,
-    preferences,
-    settings,
-    themeModeServices,
-  ]);
+  }, [animationRetryTarget, archive, openPalette, openSettings, preferences, themeModeServices]);
 
   useEffect(() => registry.register("app", appCommands), [appCommands, registry]);
 
@@ -350,17 +308,9 @@ export function QuickActionsProvider({
       handleKeyboardEvent,
       openPalette,
       openSettings,
-      preloadSettings,
       registerCommands,
     }),
-    [
-      getCommandBinding,
-      handleKeyboardEvent,
-      openPalette,
-      openSettings,
-      preloadSettings,
-      registerCommands,
-    ],
+    [getCommandBinding, handleKeyboardEvent, openPalette, openSettings, registerCommands],
   );
 
   return (
@@ -381,15 +331,6 @@ export function QuickActionsProvider({
               return { kind: "close" };
             }}
             registry={registry}
-          />
-        </Suspense>
-      ) : null}
-      {settings ? (
-        <Suspense fallback={<DialogLoadingFallback label="Opening settings" />}>
-          <SettingsDialog
-            focusReturn={settings.focusReturn}
-            initialSection={settings.initialSection}
-            onClose={() => setSettings(null)}
           />
         </Suspense>
       ) : null}

@@ -6,14 +6,14 @@ import {
 import { keyboardFixedDocumentation } from "../keyboardShortcutDocumentation";
 import { configurableCommandDefinitions } from "../../commands/commandBindings";
 import type { SettingsItem } from "../settingsItemTypes";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 
 const configurableItems = configurableCommandDefinitions.map((command): SettingsItem => ({
   description: `Configure ${command.label.toLocaleLowerCase()}.`,
   groupLabel: command.group,
   id: `keyboard.${command.id}`,
   label: command.label,
-  render: (context: SettingsDialogController) => (
+  render: (context: SettingsController) => (
     <KeyboardShortcutRow command={command} context={context} />
   ),
   searchTerms: [command.label, command.id, "shortcut", "hotkey", "key binding"],

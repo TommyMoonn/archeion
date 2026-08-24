@@ -797,10 +797,7 @@ export function ReaderPage() {
     },
     [appearanceController],
   );
-  const openDictionarySettings = useCallback(
-    (focusTarget?: HTMLElement) => openSettings("dictionaries", focusTarget),
-    [openSettings],
-  );
+  const openDictionarySettings = useCallback(() => openSettings(), [openSettings]);
 
   const handleReady = useCallback(
     (identity: Parameters<typeof readerSessionController.ready>[0]) => {

@@ -3,13 +3,13 @@ import { type ReactNode } from "react";
 import { getSettingsItemsForSection } from "./settingsItems";
 import type { SettingsItem, SettingsItemGroupStyle } from "./settingsItemTypes";
 import type { SettingsSection } from "./settingsSections";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 export function SettingsItemContent({
   context,
   item,
 }: {
-  context: SettingsDialogController;
+  context: SettingsController;
   item: SettingsItem;
 }) {
   if (!item.requiresArchive || context.archiveAvailable) {
@@ -31,7 +31,7 @@ export function SettingsSectionItems({
   context,
   sectionId,
 }: {
-  context: SettingsDialogController;
+  context: SettingsController;
   sectionId: SettingsSection;
 }) {
   const items = getSettingsItemsForSection(sectionId);

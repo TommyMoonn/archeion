@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { SettingsSection } from "./settingsSections";
-import type { SettingsDialogController } from "./useSettingsDialogController";
+import type { SettingsController } from "./useSettingsController";
 
 export type SettingsItemGroupStyle = "standard" | "actions";
 
@@ -20,7 +20,7 @@ export type SettingsItem = {
   id: string;
   label: string;
   requiresArchive?: boolean;
-  render: (context: SettingsDialogController) => ReactNode;
+  render: (context: SettingsController) => ReactNode;
   searchTerms?: readonly string[];
   sectionId: SettingsSection;
 };

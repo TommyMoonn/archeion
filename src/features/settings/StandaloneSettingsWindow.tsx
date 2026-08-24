@@ -63,11 +63,7 @@ export function SettingsWindow() {
           ) : null}
           {initializationState === "ready" ? (
             <QuickActionsProvider>
-              <SettingsSurface
-                archiveAccess="unavailable"
-                archiveBoundary={archiveBoundary}
-                standalone
-              />
+              <SettingsSurface archiveBoundary={archiveBoundary} />
             </QuickActionsProvider>
           ) : null}
         </main>

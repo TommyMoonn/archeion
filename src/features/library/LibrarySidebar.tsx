@@ -100,7 +100,6 @@ type LibrarySidebarProps = {
   onOpenAbout: () => void;
   onOpenSettings: () => void;
   onPreloadAbout?: () => void;
-  onPreloadSettings?: () => void;
   onRenameFolder: (folder: ReadonlyFolder) => void;
   onRevealFolder?: (folder: ReadonlyFolder) => void;
   folderSort: FolderSort;
@@ -128,7 +127,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onOpenAbout,
   onOpenSettings,
   onPreloadAbout,
-  onPreloadSettings,
   onRenameFolder,
   onRevealFolder,
   folderSort,
@@ -409,8 +407,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
           aria-keyshortcuts={settingsAriaKeyShortcuts}
           label="Settings"
           onClick={onOpenSettings}
-          onFocus={onPreloadSettings}
-          onPointerEnter={onPreloadSettings}
           tooltip="Settings"
           tooltipPlacement="top"
         >

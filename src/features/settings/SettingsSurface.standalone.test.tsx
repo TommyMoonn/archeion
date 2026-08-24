@@ -60,7 +60,7 @@ function changeInputValue(input: HTMLInputElement, value: string) {
 }
 
 async function renderSurface() {
-  await act(async () => root.render(<SettingsSurface archiveAccess="unavailable" standalone />));
+  await act(async () => root.render(<SettingsSurface />));
 }
 
 function availableArchiveBoundary(
@@ -172,22 +172,14 @@ describe("standalone Settings surface", () => {
       archiveBImport.promise,
     );
     vi.mocked(archiveB.maintenance!.listFolders).mockReturnValue(archiveBFolders.promise);
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
     clickButton("Archives");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
     expect(destinationLabel()).toContain("A\\Comics");
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
     expect(destinationLabel()).toContain("Archive root");
     expect(container.textContent).not.toContain("A\\Comics");
 
@@ -217,22 +209,14 @@ describe("standalone Settings surface", () => {
       new Error("B settings unavailable"),
     );
     vi.mocked(archiveB.maintenance!.listFolders).mockResolvedValue([]);
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
     clickButton("Archives");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
     expect(destinationLabel()).toContain("A\\Comics");
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
@@ -244,15 +228,7 @@ describe("standalone Settings surface", () => {
 
   it("enables archive controls through the standalone maintenance boundary", async () => {
     const archiveBoundary = availableArchiveBoundary();
-    await act(async () =>
-      root.render(
-        <SettingsSurface
-          archiveAccess="unavailable"
-          archiveBoundary={archiveBoundary}
-          standalone
-        />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveBoundary} />));
 
     clickButton("Storage");
     await act(async () => {
@@ -282,11 +258,7 @@ describe("standalone Settings surface", () => {
       archiveBBackups.promise,
     );
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
     clickButton("Storage");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
@@ -294,11 +266,7 @@ describe("standalone Settings surface", () => {
     expect(storageStatus("storage.cover-cache-status")).toContain("2 covers, 4.0 KB");
     expect(storageStatus("storage.clear-epub-writeback-backups")).toContain("3 backups, 6.0 KB");
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
     expect(storageStatus("storage.cover-cache-status")).not.toContain("2 covers, 4.0 KB");
     expect(storageStatus("storage.clear-epub-writeback-backups")).not.toContain(
       "3 backups, 6.0 KB",
@@ -332,21 +300,13 @@ describe("standalone Settings surface", () => {
       new Error("B backup status unavailable"),
     );
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
     clickButton("Storage");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveB} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveB} />));
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
@@ -372,17 +332,13 @@ describe("standalone Settings surface", () => {
       totalBytes: 6144,
     });
 
-    await act(async () =>
-      root.render(
-        <SettingsSurface archiveAccess="unavailable" archiveBoundary={archiveA} standalone />,
-      ),
-    );
+    await act(async () => root.render(<SettingsSurface archiveBoundary={archiveA} />));
     clickButton("Storage");
     await act(async () => {
       for (let index = 0; index < 3; index += 1) await Promise.resolve();
     });
 
-    await act(async () => root.render(<SettingsSurface archiveAccess="unavailable" standalone />));
+    await act(async () => root.render(<SettingsSurface />));
 
     expect(storageStatus("storage.cover-cache-status")).not.toContain("2 covers, 4.0 KB");
     expect(storageStatus("storage.clear-epub-writeback-backups")).not.toContain(

@@ -5,16 +5,16 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { LibraryStorage } from "../../storage/LibraryStorage";
-import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { KnownArchive } from "../../types/archive";
+import type { SettingsArchiveMaintenance } from "./settingsArchiveMaintenanceClient";
 import {
-  useSettingsDialogController,
-  type SettingsDialogController,
-  type SettingsDialogControllerOptions,
-} from "./useSettingsDialogController";
+  useSettingsController,
+  type SettingsController,
+  type SettingsControllerOptions,
+} from "./useSettingsController";
 
 const archive = Object.freeze({ generation: 9, id: "archive-a", rootPath: "D:\\Archive" });
 function createStorage(overrides: Partial<LibraryStorage> = {}): LibraryStorage {
@@ -47,10 +47,10 @@ function deferred<T>() {
   return { promise, reject, resolve };
 }
 
-let latest: SettingsDialogController;
+let latest: SettingsController;
 
-function Harness({ options }: { options?: SettingsDialogControllerOptions }) {
-  const controller = useSettingsDialogController(options);
+function Harness({ options }: { options?: SettingsControllerOptions }) {
+  const controller = useSettingsController(options);
   useEffect(() => {
     latest = controller;
   }, [controller]);
@@ -89,12 +89,15 @@ describe("Settings committed appearance subscription", () => {
     vi.restoreAllMocks();
   });
 
-  async function render(options?: SettingsDialogControllerOptions) {
+  async function render(options?: SettingsControllerOptions) {
     await act(async () => {
       root.render(
-        <LibraryStorageContext value={storage}>
-          <Harness options={options} />
-        </LibraryStorageContext>,
+        <Harness
+          options={{
+            archiveMaintenance: storage as unknown as SettingsArchiveMaintenance,
+            ...options,
+          }}
+        />,
       );
       for (let index = 0; index < 5; index += 1) await Promise.resolve();
     });

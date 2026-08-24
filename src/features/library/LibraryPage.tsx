@@ -105,7 +105,7 @@ export function LibraryPage() {
 function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   const activeArchive = archive.archive;
   const storage = useLibraryStorage();
-  const { getCommandBinding, openPalette, openSettings, preloadSettings } = useQuickActions();
+  const { getCommandBinding, openPalette, openSettings } = useQuickActions();
   const focusSearchAriaKeyShortcuts = ariaKeyShortcut(
     getCommandBinding(commandDefinitions.focusSearch.id),
   );
@@ -941,7 +941,6 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onOpenAbout: dialogActions.openAbout,
           onOpenSettings: openSettings,
           onPreloadAbout: preloadAboutDialog,
-          onPreloadSettings: preloadSettings,
           settingsAriaKeyShortcuts: ariaKeyShortcut(
             getCommandBinding(commandDefinitions.settings.id),
           ),

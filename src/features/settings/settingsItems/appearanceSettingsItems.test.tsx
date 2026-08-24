@@ -6,10 +6,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../../types/appSettings";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 import { appearanceSettingsItems } from "./appearanceSettingsItems";
 
-function controller(): SettingsDialogController {
+function controller(): SettingsController {
   const preferences = {
     ...defaultAppPreferences,
     appTheme: { kind: "custom" as const, id: "moon-ink" },
@@ -45,7 +45,7 @@ function controller(): SettingsDialogController {
     updateAppPreferences: vi.fn(async () => true),
     updateAppearance: vi.fn(async () => true),
     updateReader: vi.fn(),
-  } as unknown as SettingsDialogController;
+  } as unknown as SettingsController;
 }
 
 describe("appearanceSettingsItems", () => {
@@ -138,7 +138,7 @@ describe("appearanceSettingsItems", () => {
   });
 
   it("keeps global theme management accessible without an active archive", () => {
-    const context: SettingsDialogController = {
+    const context: SettingsController = {
       ...controller(),
       selectedArchivePath: undefined,
     };
@@ -157,7 +157,7 @@ describe("appearanceSettingsItems", () => {
   });
 
   it("keeps the compact Manage action unavailable while themes load", () => {
-    const context: SettingsDialogController = {
+    const context: SettingsController = {
       ...controller(),
       themeCatalogLoading: true,
     };

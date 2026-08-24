@@ -1,9 +1,9 @@
 import { SettingsSectionItems } from "../SettingsSectionItems";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
-import type { SettingsDialogController } from "../useSettingsDialogController";
+import type { SettingsController } from "../useSettingsController";
 
 type AppearanceSettingsSectionProps = {
-  context: SettingsDialogController;
+  context: SettingsController;
 };
 
 export function AppearanceSettingsSection({ context }: AppearanceSettingsSectionProps) {

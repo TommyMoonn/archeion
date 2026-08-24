@@ -246,13 +246,10 @@ describe("focus presentation contract", () => {
     expect(forcedColors).not.toContain("forced-color-adjust: none");
   });
 
-  it("keeps Settings and About initial focus explicit without auto-focusing Search", () => {
-    const settings = read("src/features/settings/SettingsDialog.tsx");
+  it("keeps About initial focus explicit", () => {
     const about = read("src/features/settings/AboutDialog.tsx");
 
-    expect(settings).toContain("initialFocusRef: closeButtonRef");
     expect(about).toContain("initialFocusRef: closeButtonRef");
-    expect(settings).not.toContain("autoFocus");
     expect(about).not.toContain("autoFocus");
   });
 

@@ -26,7 +26,7 @@ describe("Phase 0.5.0.11 legacy theme removal", () => {
     const managerController = source("src/features/themes/useThemeManagerController.ts");
     const managerDialog = source("src/features/themes/ThemeManagerDialog.tsx");
     const settingsSurface = source("src/features/settings/SettingsSurface.tsx");
-    const settingsController = source("src/features/settings/useSettingsDialogController.ts");
+    const settingsController = source("src/features/settings/useSettingsController.ts");
     const catalogHook = source("src/features/themes/useThemeCatalogEntries.ts");
 
     for (const productionSource of [managerController, managerDialog]) {
