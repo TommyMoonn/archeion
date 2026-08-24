@@ -33,6 +33,18 @@ describe("settingsSearch", () => {
     ]);
   });
 
+  it("finds configurable and fixed keyboard shortcuts", () => {
+    expect(findSettingsSearchResults("open quick actions").map((result) => result.item.id)).toEqual(
+      ["keyboard.system.quick-actions"],
+    );
+    expect(findSettingsSearchResults("book navigation").map((result) => result.item.id)).toEqual([
+      "keyboard.reader.open-toc",
+    ]);
+    expect(findSettingsSearchResults("context menu").map((result) => result.item.id)).toEqual([
+      "keyboard.documentation.fixed-context-menu",
+    ]);
+  });
+
   it("returns settings with their current section ownership", () => {
     expect(findSettingsSearchResults("window behavior")).toEqual(
       expect.arrayContaining([

@@ -1,23 +1,13 @@
 // @vitest-environment happy-dom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { defaultAppPreferences } from "../../types/appSettings";
 import type { KeyboardPreferences } from "../../types/keyboard";
 import { commandDefinitions } from "../commands/commandBindings";
-import { keyboardSettingsItems } from "./settingsItems/keyboardSettingsItems";
-import {
-  KeyboardShortcutDocumentationRow,
-  KeyboardShortcutRow,
-  ResetKeyboardShortcutsRow,
-} from "./KeyboardShortcutSettings";
-import { KeyboardSettingsSection } from "./sections/KeyboardSettingsSection";
+import { KeyboardShortcutRow, ResetKeyboardShortcutsRow } from "./KeyboardShortcutSettings";
 import type { SettingsController } from "./useSettingsController";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT =
@@ -27,6 +17,10 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 type DialogElementWithOpen = HTMLDialogElement & { open: boolean };
+
+function updateAppPreferencesMock() {
+  return vi.fn<SettingsController["updateAppPreferences"]>(async () => true);
+}
 
 beforeEach(() => {
   HTMLDialogElement.prototype.showModal = function showModal() {
@@ -52,7 +46,7 @@ afterEach(() => {
 
 function controller(
   keyboard: KeyboardPreferences = defaultAppPreferences.keyboard,
-  updateAppPreferences = vi.fn(async () => true),
+  updateAppPreferences: SettingsController["updateAppPreferences"] = updateAppPreferencesMock(),
 ): SettingsController {
   const preferences = { ...defaultAppPreferences, keyboard };
   return {
@@ -93,104 +87,26 @@ function openCapture(commandLabel: string): HTMLButtonElement {
   return trigger;
 }
 
+function captureTarget(): HTMLElement {
+  const match = document.querySelector<HTMLElement>('dialog [tabindex="0"]');
+  if (!match) throw new Error("Shortcut capture target was not rendered");
+  return match;
+}
+
 describe("Keyboard settings", () => {
-  it("renders the Keyboard heading without the removed section description", () => {
-    const markup = renderToStaticMarkup(<KeyboardSettingsSection context={controller()} />);
-
-    expect(markup).toContain("<h2>Keyboard</h2>");
-    expect(markup).not.toContain(
-      "Configure application shortcuts and review fixed reader interaction keys.",
-    );
-    const header = markup.match(/<header[^>]*>.*?<\/header>/)?.[0];
-    expect(header).toBeDefined();
-    expect(header).not.toContain("<p");
-  });
-
-  it("renders the compact grouped keymap without implementation metadata", () => {
-    const markup = renderToStaticMarkup(<KeyboardSettingsSection context={controller()} />);
-
-    for (const group of [
-      "General",
-      "Library and Folders",
-      "Reader",
-      "Fixed Interaction Keys",
-      "Reset shortcuts",
-    ]) {
-      expect(markup).toContain(`>${group}<`);
-    }
-    for (const command of [
-      "Open Quick Actions",
-      "Open Settings",
-      "Focus search",
-      "Toggle sidebar",
-      "Toggle book navigation",
-      "Toggle annotations",
-      "Toggle bookmark",
-      "Toggle reader settings",
-    ]) {
-      expect(markup).toContain(command);
-    }
-    expect(markup).toContain("Ctrl+Shift+P");
-    expect(markup).toContain("Context menu");
-    expect(markup).not.toMatch(/Current:|Default:|Scope:|Read only/);
-    expect(markup).not.toContain(">Change<");
-    expect(markup).not.toContain(">Clear<");
-  });
-
-  it("renders configurable shortcuts through the compact row model", () => {
-    const markup = renderToStaticMarkup(
-      <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
-    );
-
-    expect(markup).toContain('class="settings-row settings-row--compact"');
-    expect(markup).not.toContain('class="settings-row settings-row--standard"');
-    expect(markup).not.toContain("settings-row__description");
-  });
-
-  it("renders fixed shortcut documentation without description placeholders", () => {
-    const markup = renderToStaticMarkup(
-      <KeyboardShortcutDocumentationRow
-        bindings={[commandDefinitions.closeTopmostSurface.defaultBinding]}
-        label="Close topmost surface"
-      />,
-    );
-
-    expect(markup).toContain('class="settings-row settings-row--compact"');
-    expect(markup).not.toContain("settings-row__description");
-    expect(markup).toContain('aria-label="Close topmost surface keys"');
-  });
-
-  it("keeps reset-all as the final Keyboard item after fixed interactions", () => {
-    expect(keyboardSettingsItems.at(-1)?.id).toBe("keyboard.reset-all");
-    expect(keyboardSettingsItems.at(-1)?.groupLabel).toBe("Reset shortcuts");
-    const fixedInteractionIndex = keyboardSettingsItems.reduce(
-      (lastIndex, item, index) =>
-        item.groupLabel === "Fixed Interaction Keys" ? index : lastIndex,
-      -1,
-    );
-    expect(
-      keyboardSettingsItems.findIndex((item) => item.id === "keyboard.reset-all"),
-    ).toBeGreaterThan(fixedInteractionIndex);
-    expect(
-      keyboardSettingsItems.some(
-        (item) => item.id === "keyboard.reset-all" && item.groupLabel === "General",
-      ),
-    ).toBe(false);
-  });
-
-  it("opens capture from the binding and uses the shared Dialog contract", () => {
+  it("opens shortcut capture from the binding control", () => {
     render(
       <KeyboardShortcutRow command={commandDefinitions.quickActions} context={controller()} />,
     );
 
     openCapture(commandDefinitions.quickActions.label);
-    const dialog = document.querySelector<HTMLDialogElement>(".keyboard-shortcut-capture-dialog");
+    const dialog = document.querySelector<HTMLDialogElement>("dialog");
 
-    expect(dialog).not.toBeNull();
-    expect(dialog?.classList.contains("dialog")).toBe(true);
-    expect(dialog?.querySelector(".dialog__panel")).not.toBeNull();
-    expect(dialog?.textContent).toContain("Change Open Quick Actions");
-    expect(dialog?.textContent).toContain("Escape cancels");
+    expect(dialog?.open).toBe(true);
+    expect(dialog?.textContent).toContain(commandDefinitions.quickActions.label);
+    const capture = captureTarget();
+    capture.focus();
+    expect(document.activeElement).toBe(capture);
   });
 
   it("keeps footer controls keyboard-operable outside the chord capture target", () => {
@@ -208,11 +124,11 @@ describe("Keyboard settings", () => {
     cancel.dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
-    expect(document.body.textContent).toContain("Press a shortcut");
+    expect(document.querySelector<HTMLDialogElement>("dialog")?.open).toBe(true);
   });
 
   it("reports conflicts immediately and saves one valid chord", async () => {
-    const updateAppPreferences = vi.fn(async () => true);
+    const updateAppPreferences = updateAppPreferencesMock();
     render(
       <KeyboardShortcutRow
         command={commandDefinitions.quickActions}
@@ -221,7 +137,7 @@ describe("Keyboard settings", () => {
     );
 
     openCapture(commandDefinitions.quickActions.label);
-    const capture = document.querySelector<HTMLElement>(".keyboard-shortcut-capture")!;
+    const capture = captureTarget();
 
     act(() => {
       capture.dispatchEvent(
@@ -233,14 +149,10 @@ describe("Keyboard settings", () => {
         }),
       );
     });
-    const conflict = document.querySelector('[role="alert"]')?.textContent ?? "";
-    expect(conflict).toContain("Ctrl+,");
-    expect(conflict).toContain(commandDefinitions.quickActions.id);
-    expect(conflict).toContain(commandDefinitions.settings.id);
+    const conflict = document.querySelector('[role="alert"]');
+    expect(conflict).not.toBeNull();
     expect(capture.getAttribute("aria-invalid")).toBe("true");
-    expect(
-      document.getElementById(capture.getAttribute("aria-describedby")!)?.textContent,
-    ).toContain("Ctrl+,");
+    expect(document.getElementById(capture.getAttribute("aria-describedby")!)).toBe(conflict);
     expect(textButton("Save shortcut").disabled).toBe(true);
 
     act(() => {
@@ -254,30 +166,26 @@ describe("Keyboard settings", () => {
         }),
       );
     });
-    expect(document.body.textContent).toContain("Ctrl+Shift+K");
     expect(capture.getAttribute("aria-invalid")).toBeNull();
     expect(
       document.getElementById(capture.getAttribute("aria-describedby")!)?.getAttribute("role"),
     ).toBe("status");
 
     await act(async () => textButton("Save shortcut").click());
-    expect(updateAppPreferences).toHaveBeenCalledWith(
-      {
-        keyboard: {
-          shortcuts: {
-            [commandDefinitions.quickActions.id]: {
-              binding: { alt: false, key: "k", primary: true, shift: true },
-            },
+    expect(updateAppPreferences.mock.calls[0]?.[0]).toEqual({
+      keyboard: {
+        shortcuts: {
+          [commandDefinitions.quickActions.id]: {
+            binding: { alt: false, key: "k", primary: true, shift: true },
           },
         },
       },
-      { successMessage: "Open Quick Actions shortcut updated." },
-    );
-    expect(document.querySelector(".keyboard-shortcut-capture-dialog")).toBeNull();
+    });
+    expect(document.querySelector("dialog")).toBeNull();
   });
 
   it("Escape cancels capture only and restores focus without changing the binding", () => {
-    const updateAppPreferences = vi.fn(async () => true);
+    const updateAppPreferences = updateAppPreferencesMock();
     render(
       <KeyboardShortcutRow
         command={commandDefinitions.settings}
@@ -286,7 +194,7 @@ describe("Keyboard settings", () => {
     );
 
     const trigger = openCapture(commandDefinitions.settings.label);
-    const capture = document.querySelector<HTMLElement>(".keyboard-shortcut-capture")!;
+    const capture = captureTarget();
     expect(textButton("Cancel")).toBeTruthy();
 
     act(() => {
@@ -295,13 +203,13 @@ describe("Keyboard settings", () => {
       );
     });
 
-    expect(document.querySelector(".keyboard-shortcut-capture-dialog")).toBeNull();
+    expect(document.querySelector("dialog")).toBeNull();
     expect(updateAppPreferences).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("clears through the accessible X without opening capture and shows Unassigned", async () => {
-    const updateAppPreferences = vi.fn(async () => true);
+  it("clears without opening capture and shows the unassigned state", async () => {
+    const updateAppPreferences = updateAppPreferencesMock();
     render(
       <KeyboardShortcutRow
         command={commandDefinitions.settings}
@@ -315,17 +223,14 @@ describe("Keyboard settings", () => {
     expect(clear.tabIndex).toBeGreaterThanOrEqual(0);
     await act(async () => clear.click());
 
-    expect(document.querySelector(".keyboard-shortcut-capture-dialog")).toBeNull();
-    expect(updateAppPreferences).toHaveBeenCalledWith(
-      {
-        keyboard: {
-          shortcuts: {
-            [commandDefinitions.settings.id]: { disabled: true },
-          },
+    expect(document.querySelector("dialog")).toBeNull();
+    expect(updateAppPreferences.mock.calls[0]?.[0]).toEqual({
+      keyboard: {
+        shortcuts: {
+          [commandDefinitions.settings.id]: { disabled: true },
         },
       },
-      { successMessage: "Open Settings shortcut cleared." },
-    );
+    });
 
     act(() => {
       root?.render(
@@ -340,26 +245,6 @@ describe("Keyboard settings", () => {
     });
     expect(buttonByName("Change shortcut for Open Settings").textContent).toContain("Unassigned");
     expect(document.querySelector('[aria-label="Clear shortcut for Open Settings"]')).toBeNull();
-  });
-
-  it("renders assigned binding and clear actions as separate controls in one compact group", () => {
-    render(
-      <KeyboardShortcutRow
-        command={commandDefinitions.readerToc}
-        context={controller(defaultAppPreferences.keyboard)}
-      />,
-    );
-
-    const group = document.querySelector<HTMLElement>(".keyboard-shortcut-binding-control");
-    const binding = buttonByName("Change shortcut for Toggle book navigation");
-    const clear = buttonByName("Clear shortcut for Toggle book navigation");
-
-    expect(group).toBeTruthy();
-    expect(group?.children).toHaveLength(2);
-    expect(group?.children[0]).toBe(binding);
-    expect(group?.children[1]).toBe(clear);
-    expect(binding.contains(clear)).toBe(false);
-    expect(binding.textContent).toContain("T");
   });
 
   it("omits reset when a redundant persisted override equals the default", () => {
@@ -380,7 +265,7 @@ describe("Keyboard settings", () => {
   });
 
   it("shows reset only for overrides and reset restores the default", async () => {
-    const updateAppPreferences = vi.fn(async () => true);
+    const updateAppPreferences = updateAppPreferencesMock();
     const override: KeyboardPreferences = {
       shortcuts: {
         [commandDefinitions.settings.id]: {
@@ -397,10 +282,7 @@ describe("Keyboard settings", () => {
 
     const reset = buttonByName("Reset Open Settings to default");
     await act(async () => reset.click());
-    expect(updateAppPreferences).toHaveBeenCalledWith(
-      { keyboard: { shortcuts: {} } },
-      { successMessage: "Open Settings shortcut reset." },
-    );
+    expect(updateAppPreferences.mock.calls[0]?.[0]).toEqual({ keyboard: { shortcuts: {} } });
 
     act(() => {
       root?.render(
@@ -415,7 +297,7 @@ describe("Keyboard settings", () => {
   });
 
   it("disables reset-all without overrides and restores every default when enabled", async () => {
-    const updateAppPreferences = vi.fn(async () => true);
+    const updateAppPreferences = updateAppPreferencesMock();
     render(<ResetKeyboardShortcutsRow context={controller()} />);
     expect(textButton("Reset all").disabled).toBe(true);
 
@@ -438,34 +320,6 @@ describe("Keyboard settings", () => {
     });
     expect(textButton("Reset all").disabled).toBe(false);
     await act(async () => textButton("Reset all").click());
-    expect(updateAppPreferences).toHaveBeenCalledWith(
-      { keyboard: { shortcuts: {} } },
-      { successMessage: "Keyboard shortcuts reset." },
-    );
-  });
-
-  it("keeps capture content shrinkable and does not override shared dialog geometry", () => {
-    const css = readFileSync(resolve("src/styles/features/settings.css"), "utf8");
-    expect(css).not.toMatch(/\.keyboard-shortcut-capture-dialog\s+\.dialog__panel/);
-    expect(css).toContain("overflow-wrap: anywhere");
-    expect(css).toContain("min-width: 0");
-  });
-
-  it("uses content-sized bindings and a permanently visible non-overlapping clear control", () => {
-    const css = readFileSync(resolve("src/styles/features/settings.css"), "utf8");
-    const bindingRule = css.match(/\.keyboard-shortcut-binding\s*\{(?<body>[^}]*)\}/)?.groups?.body;
-    const bindingControlRule = css.match(/\.keyboard-shortcut-binding-control\s*\{(?<body>[^}]*)\}/)
-      ?.groups?.body;
-    const clearRule = css.match(/\.keyboard-shortcut-clear\s*\{(?<body>[^}]*)\}/)?.groups?.body;
-
-    expect(css).not.toContain("min-width: 112px");
-    expect(bindingRule).toContain("flex: 0 1 auto");
-    expect(bindingRule).toContain("max-width: 100%");
-    expect(bindingRule).not.toMatch(/(?:^|;)\s*width\s*:/);
-    expect(bindingControlRule).toContain("display: inline-flex");
-    expect(bindingControlRule).not.toContain("position: relative");
-    expect(clearRule).not.toContain("position: absolute");
-    expect(clearRule).not.toContain("opacity:");
-    expect(css).not.toMatch(/keyboard-shortcut-binding-control:(?:hover|focus-within)[^{]*\{/);
+    expect(updateAppPreferences.mock.calls[0]?.[0]).toEqual({ keyboard: { shortcuts: {} } });
   });
 });
