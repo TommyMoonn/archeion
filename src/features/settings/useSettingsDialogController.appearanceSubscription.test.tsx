@@ -8,7 +8,6 @@ import type { LibraryStorage } from "../../storage/LibraryStorage";
 import { LibraryStorageContext } from "../../storage/useLibraryStorage";
 import { appPreferencesStore } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import { ThemeRepository } from "../../themes/ThemeRepository";
 import {
   useSettingsDialogController,
   type SettingsDialogController,
@@ -117,17 +116,6 @@ describe("Settings committed appearance subscription", () => {
     expect(update).toHaveBeenNthCalledWith(2, {
       readerTheme: { kind: "builtin", id: "sepia" },
     });
-  });
-
-  it("opens the global themes folder with no active archive", async () => {
-    const reveal = vi
-      .spyOn(ThemeRepository.prototype, "revealThemesRoot")
-      .mockResolvedValue(undefined);
-    await render();
-
-    await act(async () => expect(await latest.openThemesFolder()).toBe(true));
-
-    expect(reveal).toHaveBeenCalledOnce();
   });
 
   it("does not let a slow rescan success overwrite a newer maintenance error", async () => {

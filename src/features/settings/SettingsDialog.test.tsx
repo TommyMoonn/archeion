@@ -273,7 +273,12 @@ describe("SettingsDialog responsiveness", () => {
     });
 
     expect(container.textContent).toContain("App themes");
-    expect(container.textContent).toContain("Manage");
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Manage themes"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Open themes folder"]'),
+    ).toBeNull();
     expect(container.textContent).not.toMatch(/fallback|override|inherit/i);
   });
 

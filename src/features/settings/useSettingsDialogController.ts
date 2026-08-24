@@ -9,7 +9,6 @@ import {
   useAppPreferencesPersistenceStatus,
 } from "../../stores/appPreferencesStore";
 import { archiveStore } from "../../stores/archiveStore";
-import { ThemeRepository } from "../../themes/ThemeRepository";
 import type { ThemeCatalogEntry } from "../../themes/themeCatalogReadModel";
 import { defaultAppPreferences, type AppPreferences } from "../../types/appSettings";
 import type { Folder } from "../../types/folder";
@@ -500,21 +499,6 @@ export function useSettingsDialogController({
     onOpenThemeManager();
   }
 
-  async function openThemesFolder(): Promise<boolean> {
-    const statusOperation = beginStatusOperation();
-    try {
-      await new ThemeRepository().revealThemesRoot();
-      return true;
-    } catch {
-      publishStatusOperation(
-        statusOperation,
-        "The themes folder could not be opened. Check application storage access and try again.",
-        "error",
-      );
-      return false;
-    }
-  }
-
   async function rescan() {
     if (!storage) return;
     const operation = beginArchiveScanOperation("rescanArchive");
@@ -779,7 +763,6 @@ export function useSettingsDialogController({
     library,
     openArchiveManager,
     openThemeManager,
-    openThemesFolder,
     openConfirmation,
     persistenceStatus,
     preferences,

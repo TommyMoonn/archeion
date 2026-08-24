@@ -530,7 +530,8 @@ html[data-motion="on"] .settings-status {
 }
 
 .settings-theme-control {
-  display: flex;
+  display: grid;
+  grid-template-columns: 188px auto;
   min-width: 0;
   align-items: center;
   justify-content: flex-end;
@@ -539,10 +540,6 @@ html[data-motion="on"] .settings-status {
 
 .settings-theme-control .app-select {
   width: 188px;
-}
-
-.settings-theme-control__manage {
-  border-radius: var(--radius-control);
 }
 
 .settings-row__unavailable {
@@ -856,8 +853,8 @@ html[data-motion="on"] .settings-status {
   }
 
   .settings-theme-control {
+    grid-template-columns: minmax(0, 1fr) auto;
     width: 100%;
-    flex-wrap: wrap;
   }
 
   .settings-row code,

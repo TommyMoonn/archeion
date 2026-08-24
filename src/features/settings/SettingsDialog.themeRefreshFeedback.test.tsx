@@ -97,7 +97,8 @@ function storage(): LibraryStorage {
 
 function click(container: HTMLElement, label: string) {
   const button = [...container.querySelectorAll("button")].find(
-    (candidate) => candidate.textContent?.trim() === label,
+    (candidate) =>
+      candidate.textContent?.trim() === label || candidate.getAttribute("aria-label") === label,
   );
   if (!button) throw new Error(`Button not found: ${label}`);
   act(() => button.click());

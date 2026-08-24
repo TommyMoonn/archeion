@@ -1,4 +1,4 @@
-import { FolderOpen } from "lucide-react";
+import { Palette } from "lucide-react";
 
 import { AppSelect } from "../../../components/AppSelect";
 import { Button } from "../../../components/Button";
@@ -48,13 +48,6 @@ export const appearanceSettingsItems = [
     render: (context) => (
       <FeatureSettingsRow description="Choose the theme used across Archeion." label="App themes">
         <div className="settings-theme-control">
-          <IconButton
-            label="Open themes folder"
-            onClick={() => void context.openThemesFolder()}
-            size="standard"
-          >
-            <FolderOpen aria-hidden="true" />
-          </IconButton>
           <AppSelect
             ariaLabel="App themes"
             onChange={(value) =>
@@ -67,15 +60,17 @@ export const appearanceSettingsItems = [
             )}
             value={applicationThemeValue(context.preferences.appTheme)}
           />
-          <Button
+          <IconButton
             className="settings-theme-control__manage"
             disabled={context.themeCatalogLoading}
+            disabledReason="Themes are loading."
+            label="Manage themes"
             onClick={context.openThemeManager}
             size="standard"
-            variant="secondary"
+            tooltip="Manage themes"
           >
-            Manage themes
-          </Button>
+            <Palette aria-hidden="true" />
+          </IconButton>
         </div>
       </FeatureSettingsRow>
     ),

@@ -17,7 +17,6 @@ function controller(): SettingsDialogController {
   };
   return {
     openThemeManager: vi.fn(),
-    openThemesFolder: vi.fn(async () => true),
     preferences,
     refreshThemeCatalog: vi.fn(async () => true),
     reader: preferences.reader,
@@ -79,7 +78,7 @@ describe("appearanceSettingsItems", () => {
     expect(markup).not.toMatch(/fallback|override|inherit/i);
   });
 
-  it("uses the folder, Manage, app selector, and shared reader selector actions", () => {
+  it("uses the compact Manage action, app selector, and shared reader selector actions", () => {
     const context = controller();
     const readerTheme = appearanceSettingsItems.find((item) => item.id === "reader.theme")!;
     const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
@@ -96,14 +95,15 @@ describe("appearanceSettingsItems", () => {
       );
     });
 
-    const folder = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Open themes folder"]',
-    )!;
-    const manage = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Manage themes",
+    const manage = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Manage themes"]',
     )!;
     expect(manage.classList).toContain("settings-theme-control__manage");
-    expect(manage.classList).toContain("button--standard");
+    expect(manage.classList).toContain("icon-button--standard");
+    expect(manage.textContent).toBe("");
+    expect(
+      container.querySelector<HTMLButtonElement>('button[aria-label="Open themes folder"]'),
+    ).toBeNull();
 
     const readerSelect = container.querySelector<HTMLButtonElement>(
       'button[aria-label="Reader theme"]',
@@ -112,7 +112,6 @@ describe("appearanceSettingsItems", () => {
       'button[aria-label="App themes"]',
     )!;
 
-    act(() => folder.click());
     act(() => manage.click());
     act(() => readerSelect.click());
     const lightReader = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
@@ -125,7 +124,6 @@ describe("appearanceSettingsItems", () => {
     )!;
     act(() => archeionLight.click());
 
-    expect(context.openThemesFolder).toHaveBeenCalledOnce();
     expect(context.openThemeManager).toHaveBeenCalledOnce();
     expect(context.refreshThemeCatalog).toHaveBeenCalledTimes(2);
     expect(context.updateAppearance).toHaveBeenNthCalledWith(1, {
@@ -139,7 +137,7 @@ describe("appearanceSettingsItems", () => {
     container.remove();
   });
 
-  it("keeps global theme storage accessible without an active archive", () => {
+  it("keeps global theme management accessible without an active archive", () => {
     const context: SettingsDialogController = {
       ...controller(),
       selectedArchivePath: undefined,
@@ -150,14 +148,32 @@ describe("appearanceSettingsItems", () => {
 
     act(() => root.render(appThemes.render(context)));
 
-    const folder = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="Open themes folder"]',
+    const manage = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Manage themes"]',
     )!;
-    const manage = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent === "Manage themes",
-    )!;
-    expect(folder.disabled).toBe(false);
     expect(manage.disabled).toBe(false);
+
+    act(() => root.unmount());
+  });
+
+  it("keeps the compact Manage action unavailable while themes load", () => {
+    const context: SettingsDialogController = {
+      ...controller(),
+      themeCatalogLoading: true,
+    };
+    const appThemes = appearanceSettingsItems.find((item) => item.id === "appearance.app-themes")!;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+
+    act(() => root.render(appThemes.render(context)));
+
+    const manage = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Manage themes"]',
+    )!;
+    expect(manage.getAttribute("aria-disabled")).toBe("true");
+    expect(container.textContent).toContain("Themes are loading.");
+    act(() => manage.click());
+    expect(context.openThemeManager).not.toHaveBeenCalled();
 
     act(() => root.unmount());
   });
