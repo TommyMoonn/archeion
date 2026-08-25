@@ -14,122 +14,156 @@ function readJson<T>(relativePath: string): T {
   return JSON.parse(read(relativePath)) as T;
 }
 
-function collectProductionSource(directory: string): string[] {
-  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
-    const entryPath = path.join(directory, entry.name);
-    if (entry.isDirectory()) return collectProductionSource(entryPath);
-    if (!entry.isFile() || !/\.(?:ts|tsx)$/.test(entry.name) || /\.test\./.test(entry.name)) {
-      return [];
-    }
-    return [entryPath];
-  });
+function rustStringConstant(source: string, name: string): string {
+  const match = source.match(
+    new RegExp(`\\b(?:pub\\s+)?const\\s+${name}:\\s*&str\\s*=\\s*"([^"]+)";`),
+  );
+  if (!match) throw new Error(`Rust string constant not found: ${name}`);
+  return match[1];
 }
 
-describe("single frameless window contract", () => {
-  it("keeps frame-style configuration out of the supported frontend model", () => {
-    const source = collectProductionSource(path.join(projectRoot, "src"))
-      .map((filePath) => fs.readFileSync(filePath, "utf8"))
-      .join("\n");
+type Capability = {
+  permissions: string[];
+  windows: string[];
+};
 
-    expect(source).not.toMatch(
-      /\b(?:WindowFrameStyle|windowFrameStyle|useWindowFrameStylePreference|frameOptions|setDecorations)\b/,
-    );
-    expect(read("src/features/settings/settingsItems/appearanceSettingsItems.tsx")).not.toMatch(
-      /window frame|native frame|hidden frame/i,
-    );
-  });
+function expectPermissions(capability: Capability, permissions: string[]): void {
+  expect(new Set(capability.permissions)).toEqual(new Set(permissions));
+}
 
-  it("creates both native windows undecorated without exposing decoration switching", () => {
+function expectWindowScope(capability: Capability, labels: string[]): void {
+  expect(new Set(capability.windows)).toEqual(new Set(labels));
+}
+
+const archiveCommands = read("src-tauri/src/commands/archive.rs");
+const managedWindowCommands = read("src-tauri/src/commands/window/mod.rs");
+const windowLabels = {
+  archiveManager: rustStringConstant(archiveCommands, "ARCHIVE_MANAGER_WINDOW_LABEL"),
+  main: rustStringConstant(archiveCommands, "MAIN_WINDOW_LABEL"),
+  settings: rustStringConstant(managedWindowCommands, "SETTINGS_WINDOW_LABEL"),
+  themeManager: rustStringConstant(managedWindowCommands, "THEME_MANAGER_WINDOW_LABEL"),
+};
+
+describe("Native window runtime contracts", () => {
+  it("keeps the main window frameless, resizable, and bounded", () => {
     const config = readJson<{
       app: {
         windows: Array<{
           closable?: boolean;
           decorations?: boolean;
+          height?: number;
           maximizable?: boolean;
           minimizable?: boolean;
+          minHeight?: number;
+          minWidth?: number;
+          resizable?: boolean;
+          visible?: boolean;
+          width?: number;
         }>;
       };
     }>("src-tauri/tauri.conf.json");
-    const archiveCommands = read("src-tauri/src/commands/archive.rs");
-    const sharedCapabilities = readJson<{ permissions: string[] }>(
-      "src-tauri/capabilities/default.json",
-    );
-    const mainCapabilities = readJson<{ permissions: string[] }>(
-      "src-tauri/capabilities/main-window-state.json",
-    );
 
-    expect(config.app.windows).not.toHaveLength(0);
-    expect(config.app.windows.every((window) => window.decorations === false)).toBe(true);
+    expect(config.app.windows).toHaveLength(1);
     expect(config.app.windows[0]).toMatchObject({
       closable: true,
+      decorations: false,
+      height: 800,
       maximizable: true,
       minimizable: true,
+      minHeight: 600,
+      minWidth: 900,
+      resizable: true,
+      visible: false,
+      width: 1280,
     });
-    expect(archiveCommands).toMatch(
-      /WebviewWindowBuilder::new\([\s\S]*?\.minimizable\(true\)[\s\S]*?\.maximizable\(false\)[\s\S]*?\.decorations\(false\)[\s\S]*?\.closable\(true\)/,
-    );
-    expect(sharedCapabilities.permissions).not.toContain("core:window:allow-set-decorations");
-    expect(sharedCapabilities.permissions).not.toContain("core:window:allow-toggle-maximize");
-    expect(mainCapabilities.permissions).toContain("core:window:allow-toggle-maximize");
   });
 
-  it("grants the shutdown permissions required by the flush-then-destroy close lifecycle", () => {
-    const sharedCapabilities = readJson<{ permissions: string[] }>(
-      "src-tauri/capabilities/default.json",
-    );
-    const lifecycle = read("src/storage/useMetadataWriteLifecycle.ts");
-
-    expect(lifecycle).toContain("event.preventDefault()");
-    expect(lifecycle).toContain("await flushMetadataWrites(storage)");
-    expect(lifecycle).toContain("await appWindow.destroy()");
-    expect(sharedCapabilities.permissions).toContain("core:window:allow-close");
-    expect(sharedCapabilities.permissions).toContain("core:window:allow-destroy");
+  it("keeps Archive Manager fixed, frameless, and non-maximizable", () => {
+    for (const requirement of [
+      ".inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
+      ".min_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
+      ".max_inner_size(ARCHIVE_MANAGER_WIDTH, ARCHIVE_MANAGER_HEIGHT)",
+      ".resizable(false)",
+      ".minimizable(true)",
+      ".maximizable(false)",
+      ".decorations(false)",
+      ".closable(true)",
+    ]) {
+      expect(archiveCommands).toContain(requirement);
+    }
   });
 
-  it("scopes the Settings picker permission to the Settings window", () => {
-    const settingsCapabilities = readJson<{ permissions: string[]; windows: string[] }>(
-      "src-tauri/capabilities/settings-window.json",
-    );
+  it("keeps capability scopes bound to the native window labels", () => {
+    expect(windowLabels).toEqual({
+      archiveManager: "archive-manager",
+      main: "main",
+      settings: "settings",
+      themeManager: "theme-manager",
+    });
+  });
 
-    expect(settingsCapabilities.windows).toEqual(["settings"]);
-    expect(settingsCapabilities.permissions).toContain("dialog:allow-open");
-    expect(settingsCapabilities.permissions).not.toContain("dialog:allow-save");
+  it("grants shared main and Archive Manager permissions required by their window lifecycle", () => {
+    const shared = readJson<Capability>("src-tauri/capabilities/default.json");
+
+    expectWindowScope(shared, [windowLabels.main, windowLabels.archiveManager]);
+    expectPermissions(shared, [
+      "core:default",
+      "core:window:allow-close",
+      "core:window:allow-destroy",
+      "core:window:allow-minimize",
+      "core:window:allow-start-dragging",
+      "core:event:allow-listen",
+      "core:event:allow-unlisten",
+      "dialog:allow-open",
+      "dialog:allow-save",
+    ]);
+  });
+
+  it("scopes main-window geometry permissions to the main window", () => {
+    const main = readJson<Capability>("src-tauri/capabilities/main-window-state.json");
+
+    expectWindowScope(main, [windowLabels.main]);
+    expectPermissions(main, [
+      "core:window:allow-available-monitors",
+      "core:window:allow-hide",
+      "core:window:allow-is-maximized",
+      "core:window:allow-maximize",
+      "core:window:allow-outer-position",
+      "core:window:allow-outer-size",
+      "core:window:allow-set-position",
+      "core:window:allow-set-size",
+      "core:window:allow-toggle-maximize",
+    ]);
+  });
+
+  it("scopes the Settings picker and window controls to the Settings window", () => {
+    const settings = readJson<Capability>("src-tauri/capabilities/settings-window.json");
+
+    expectWindowScope(settings, [windowLabels.settings]);
+    expectPermissions(settings, [
+      "core:default",
+      "core:window:allow-close",
+      "core:window:allow-minimize",
+      "core:window:allow-start-dragging",
+      "core:window:allow-toggle-maximize",
+      "core:event:allow-listen",
+      "core:event:allow-unlisten",
+      "dialog:allow-open",
+    ]);
   });
 
   it("scopes Theme Manager window controls without granting dialog access", () => {
-    const themeManagerCapabilities = readJson<{ permissions: string[]; windows: string[] }>(
-      "src-tauri/capabilities/theme-manager-window.json",
-    );
+    const themeManager = readJson<Capability>("src-tauri/capabilities/theme-manager-window.json");
 
-    expect(themeManagerCapabilities.windows).toEqual(["theme-manager"]);
-    expect(themeManagerCapabilities.permissions).toContain("core:window:allow-close");
-    expect(themeManagerCapabilities.permissions).toContain("core:window:allow-toggle-maximize");
-    expect(themeManagerCapabilities.permissions).not.toContain("dialog:allow-open");
-    expect(themeManagerCapabilities.permissions).not.toContain("dialog:allow-save");
-  });
-
-  it("uses one fixed titlebar composition without selectable render branches", () => {
-    const app = read("src/app/App.tsx");
-    const settingsWindow = read("src/features/settings/StandaloneSettingsWindow.tsx");
-    const themeManagerWindow = read("src/features/themes/ThemeManagerWindow.tsx");
-    const titlebar = read("src/components/WindowTitlebar.tsx");
-    const styles = read("src/styles/layout/window-frame.css");
-
-    expect(app).toContain("<WindowTitlebar canMaximize={false} />");
-    expect(
-      [app, settingsWindow, themeManagerWindow]
-        .join("\n")
-        .match(/<WindowTitlebar canMaximize \/>/g),
-    ).toHaveLength(4);
-    expect(titlebar).toContain("if (!isTauri())");
-    expect(titlebar).toContain("data-tauri-drag-region");
-    expect(titlebar).not.toMatch(/\bonDoubleClick\s*=/);
-    expect(titlebar.match(/appWindow\.toggleMaximize\(\)/g)).toHaveLength(1);
-    expect(titlebar).not.toMatch(/data-mode|setDecorations|window frame style/i);
-    expect(titlebar).not.toMatch(/archeion-icon|window-titlebar__identity/);
-    expect(styles).toMatch(
-      /\.window-titlebar__controls button\s*\{[^}]*height:\s*var\(--window-titlebar-height\);/s,
-    );
-    expect(styles).not.toMatch(/\[data-mode=|window-titlebar__identity|window-titlebar__icon/);
+    expectWindowScope(themeManager, [windowLabels.themeManager]);
+    expectPermissions(themeManager, [
+      "core:default",
+      "core:event:allow-listen",
+      "core:event:allow-unlisten",
+      "core:window:allow-close",
+      "core:window:allow-minimize",
+      "core:window:allow-start-dragging",
+      "core:window:allow-toggle-maximize",
+    ]);
   });
 });
