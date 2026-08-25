@@ -22,19 +22,15 @@ import { focusElementIfUsable } from "../../../utils/focusRestoration";
 import { SettingsSectionHeader } from "../components/SettingsSectionHeader";
 import { useDictionarySettings, type DictionarySettingsController } from "../useDictionarySettings";
 
-type DictionaryView = "available" | "installed";
+type DictionaryView = "all" | "installed" | "not-installed";
 
 const EMPTY_DICTIONARIES: InstalledDictionary[] = [];
 
-function catalogEntryMatchesQuery(entry: DictionaryCatalogEntry, query: string) {
+function dictionaryMetadataMatchesQuery(query: string, metadata: readonly string[]) {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return true;
 
-  return [
-    entry.name,
-    entry.sourceAttribution,
-    formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage),
-  ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+  return metadata.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 }
 
 function catalogActionLabel(
@@ -48,14 +44,12 @@ function catalogActionLabel(
   return operation.stagingToken ? "Retry installation" : "Retry download";
 }
 
-function AvailableDictionaryRow({
+function CatalogDictionaryRow({
   controller,
   entry,
-  installed,
 }: {
   controller: DictionarySettingsController;
   entry: DictionaryCatalogEntry;
-  installed: boolean;
 }) {
   const operation =
     controller.catalogOperation?.catalogId === entry.id ? controller.catalogOperation : null;
@@ -69,7 +63,6 @@ function AvailableDictionaryRow({
       <div className="dictionary-settings-card__main">
         <div className="dictionary-settings-card__heading">
           <h4>{entry.name}</h4>
-          {installed ? <span className="dictionary-settings-card__status">Installed</span> : null}
         </div>
         <p className="dictionary-settings-card__source">
           <span>Source</span>
@@ -135,8 +128,7 @@ function AvailableDictionaryRow({
         ) : (
           <Button
             busy={busy}
-            disabled={installed || busy || anotherOperationActive}
-            disabledReason={installed ? "This dictionary is already installed" : undefined}
+            disabled={busy || anotherOperationActive}
             icon={<Download aria-hidden="true" />}
             onClick={() => void controller.installCatalog(entry.id)}
             size="compact"
@@ -337,23 +329,55 @@ export function DictionarySettingsView({
 }: {
   controller: DictionarySettingsController;
 }) {
-  const [view, setView] = useState<DictionaryView>("available");
-  const [catalogQuery, setCatalogQuery] = useState("");
+  const [view, setView] = useState<DictionaryView>("all");
+  const [dictionaryQuery, setDictionaryQuery] = useState("");
   const [removing, setRemoving] = useState<InstalledDictionary | null>(null);
   const [removeTrigger, setRemoveTrigger] = useState<HTMLButtonElement | null>(null);
   const sectionRef = useRef<HTMLElement>(null);
   const removeButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const successfulRemovalFocusRef = useRef<readonly string[] | null>(null);
-  const installedCatalogIds = new Set(
-    controller.registry?.dictionaries.flatMap((dictionary) =>
-      dictionary.catalogId && dictionary.indexState !== "unavailable" ? [dictionary.catalogId] : [],
-    ) ?? [],
-  );
   const dictionaries = controller.registry?.dictionaries ?? EMPTY_DICTIONARIES;
   const catalogEntries = controller.catalog?.entries ?? [];
-  const filteredCatalogEntries = catalogEntries.filter((entry) =>
-    catalogEntryMatchesQuery(entry, catalogQuery),
+  const registeredCatalogIds = new Set(
+    dictionaries.flatMap((dictionary) => (dictionary.catalogId ? [dictionary.catalogId] : [])),
   );
+  const notInstalledCatalogEntries = catalogEntries.filter(
+    (entry) => !registeredCatalogIds.has(entry.id),
+  );
+  const filteredDictionaries =
+    view === "not-installed"
+      ? []
+      : dictionaries
+          .map((dictionary, index) => ({ dictionary, index }))
+          .filter(({ dictionary }) =>
+            dictionaryMetadataMatchesQuery(dictionaryQuery, [
+              dictionary.displayName,
+              dictionary.sourceAttribution,
+              formatDictionaryLanguagePair(dictionary.sourceLanguage, dictionary.targetLanguage),
+            ]),
+          );
+  const filteredCatalogEntries =
+    view === "installed"
+      ? []
+      : notInstalledCatalogEntries.filter((entry) =>
+          dictionaryMetadataMatchesQuery(dictionaryQuery, [
+            entry.name,
+            entry.sourceAttribution,
+            formatDictionaryLanguagePair(entry.sourceLanguage, entry.targetLanguage),
+          ]),
+        );
+  const selectedViewHasData =
+    view === "installed"
+      ? dictionaries.length > 0
+      : view === "not-installed"
+        ? notInstalledCatalogEntries.length > 0
+        : dictionaries.length > 0 || notInstalledCatalogEntries.length > 0;
+  const hasQuery = dictionaryQuery.trim().length > 0;
+  const queryHasNoMatches =
+    hasQuery &&
+    selectedViewHasData &&
+    filteredDictionaries.length === 0 &&
+    filteredCatalogEntries.length === 0;
 
   useLayoutEffect(() => {
     const neighboringDictionaryIds = successfulRemovalFocusRef.current;
@@ -422,19 +446,34 @@ export function DictionarySettingsView({
         title="Dictionaries"
       />
 
-      <SegmentedControl<DictionaryView>
-        className="dictionary-settings__tabs"
-        label="Dictionary views"
-        onChange={setView}
-        options={[
-          { label: "Available", value: "available" },
-          {
-            label: controller.registry ? `Installed (${dictionaries.length})` : "Installed",
-            value: "installed",
-          },
-        ]}
-        value={view}
-      />
+      <div className="dictionary-settings__controls">
+        <Input
+          autoComplete="off"
+          className="dictionary-settings__filter"
+          icon={<Search aria-hidden="true" />}
+          label="Filter dictionaries"
+          onChange={(event) => setDictionaryQuery(event.currentTarget.value)}
+          placeholder="Filter dictionaries"
+          size="standard"
+          type="search"
+          value={dictionaryQuery}
+        />
+
+        <SegmentedControl<DictionaryView>
+          className="dictionary-settings__tabs"
+          label="Dictionary views"
+          onChange={setView}
+          options={[
+            { label: "All", value: "all" },
+            {
+              label: controller.registry ? `Installed (${dictionaries.length})` : "Installed",
+              value: "installed",
+            },
+            { label: "Not installed", value: "not-installed" },
+          ]}
+          value={view}
+        />
+      </div>
 
       {controller.importError ? (
         <p className="dictionary-settings__error" role="alert">
@@ -442,117 +481,106 @@ export function DictionarySettingsView({
         </p>
       ) : null}
 
-      {view === "available" ? (
-        <div
-          aria-label="Available dictionaries"
-          className="dictionary-settings__available"
-          role="region"
-        >
-          {catalogEntries.length > 0 ? (
-            <Input
-              autoComplete="off"
-              className="dictionary-settings__filter"
-              icon={<Search aria-hidden="true" />}
-              label="Filter available dictionaries"
-              onChange={(event) => setCatalogQuery(event.currentTarget.value)}
-              placeholder="Filter dictionaries"
-              size="standard"
-              type="search"
-              value={catalogQuery}
-            />
-          ) : null}
-          <div className="dictionary-settings__list">
-            {controller.catalogError ? (
-              <div className="dictionary-settings__notice" role="alert">
-                <p>{controller.catalogError}</p>
-                <Button
-                  onClick={() => void controller.refreshCatalog()}
-                  size="compact"
-                  variant="secondary"
-                >
-                  Try again
-                </Button>
-              </div>
-            ) : null}
-            {controller.catalogState === "loading" ? <p>Loading available dictionaries…</p> : null}
-            {controller.catalogState === "ready" &&
-            (controller.catalog?.entries.length ?? 0) === 0 ? (
-              <div className="dictionary-settings__notice">
-                <p>No catalog has been loaded yet.</p>
-                <Button onClick={() => void controller.refreshCatalog()} size="compact">
-                  Refresh catalog
-                </Button>
-              </div>
-            ) : null}
-            {controller.catalog?.cacheWarning ? (
-              <p className="dictionary-settings__warning">{controller.catalog.cacheWarning}</p>
-            ) : null}
-            {catalogEntries.length > 0 && filteredCatalogEntries.length === 0 ? (
-              <p className="dictionary-settings__empty">No dictionaries match this filter.</p>
-            ) : null}
-            {filteredCatalogEntries.map((entry) => (
-              <AvailableDictionaryRow
-                controller={controller}
-                entry={entry}
-                installed={installedCatalogIds.has(entry.id)}
-                key={entry.id}
-              />
-            ))}
+      <div
+        aria-label={
+          view === "all"
+            ? "All dictionaries"
+            : view === "installed"
+              ? "Installed dictionaries"
+              : "Not installed dictionaries"
+        }
+        className="dictionary-settings__list"
+        role="region"
+      >
+        {view !== "installed" && controller.catalogError ? (
+          <div className="dictionary-settings__notice" role="alert">
+            <p>{controller.catalogError}</p>
+            <Button
+              onClick={() => void controller.refreshCatalog()}
+              size="compact"
+              variant="secondary"
+            >
+              Try again
+            </Button>
           </div>
-        </div>
-      ) : (
-        <div
-          aria-label="Installed dictionaries"
-          className="dictionary-settings__list"
-          role="region"
-        >
-          {controller.registryState === "loading" ? <p>Loading installed dictionaries…</p> : null}
-          {controller.registryError ? (
-            <p className="dictionary-settings__error" role="alert">
-              {controller.registryError}
+        ) : null}
+        {view !== "installed" && controller.catalogState === "loading" ? (
+          <p>Loading available dictionaries…</p>
+        ) : null}
+        {view !== "installed" &&
+        controller.catalogState === "ready" &&
+        catalogEntries.length === 0 ? (
+          <div className="dictionary-settings__notice">
+            <p>No catalog has been loaded yet.</p>
+            <Button onClick={() => void controller.refreshCatalog()} size="compact">
+              Refresh catalog
+            </Button>
+          </div>
+        ) : null}
+        {view !== "installed" && controller.catalog?.cacheWarning ? (
+          <p className="dictionary-settings__warning">{controller.catalog.cacheWarning}</p>
+        ) : null}
+        {view !== "not-installed" && controller.registryState === "loading" ? (
+          <p>Loading installed dictionaries…</p>
+        ) : null}
+        {view !== "not-installed" && controller.registryError ? (
+          <p className="dictionary-settings__error" role="alert">
+            {controller.registryError}
+          </p>
+        ) : null}
+        {view !== "not-installed" && controller.registry?.status === "recovery-required" ? (
+          <div className="dictionary-settings__notice" role="alert">
+            <p>
+              {controller.registry.recovery?.message ?? "Dictionary storage requires recovery."}
             </p>
-          ) : null}
-          {controller.registry?.status === "recovery-required" ? (
-            <div className="dictionary-settings__notice" role="alert">
-              <p>
-                {controller.registry.recovery?.message ?? "Dictionary storage requires recovery."}
-              </p>
-              <Button
-                busy={controller.recovering}
-                disabled={controller.recovering}
-                onClick={() => void controller.recoverResources()}
-                size="compact"
-                variant="secondary"
-              >
-                Try recovery
-              </Button>
-            </div>
-          ) : null}
-          {controller.registryState === "ready" &&
-          controller.registry?.status === "ready" &&
-          dictionaries.length === 0 ? (
-            <p className="dictionary-settings__empty">No dictionaries are installed.</p>
-          ) : null}
-          {dictionaries.map((dictionary, index) => (
-            <InstalledDictionaryRow
-              controller={controller}
-              dictionary={dictionary}
-              index={index}
-              key={dictionary.id}
-              onRequestRemove={(selected, trigger) => {
-                successfulRemovalFocusRef.current = null;
-                setRemoveTrigger(trigger);
-                setRemoving(selected);
-              }}
-              removeButtonRef={(element) => {
-                if (element) removeButtonRefs.current.set(dictionary.id, element);
-                else removeButtonRefs.current.delete(dictionary.id);
-              }}
-              total={dictionaries.length}
-            />
-          ))}
-        </div>
-      )}
+            <Button
+              busy={controller.recovering}
+              disabled={controller.recovering}
+              onClick={() => void controller.recoverResources()}
+              size="compact"
+              variant="secondary"
+            >
+              Try recovery
+            </Button>
+          </div>
+        ) : null}
+        {view === "installed" &&
+        controller.registryState === "ready" &&
+        controller.registry?.status === "ready" &&
+        dictionaries.length === 0 ? (
+          <p className="dictionary-settings__empty">No dictionaries are installed.</p>
+        ) : null}
+        {view === "not-installed" &&
+        controller.catalogState === "ready" &&
+        catalogEntries.length > 0 &&
+        notInstalledCatalogEntries.length === 0 ? (
+          <p className="dictionary-settings__empty">All catalog dictionaries are installed.</p>
+        ) : null}
+        {queryHasNoMatches ? (
+          <p className="dictionary-settings__empty">No dictionaries match this filter.</p>
+        ) : null}
+        {filteredDictionaries.map(({ dictionary, index }) => (
+          <InstalledDictionaryRow
+            controller={controller}
+            dictionary={dictionary}
+            index={index}
+            key={dictionary.id}
+            onRequestRemove={(selected, trigger) => {
+              successfulRemovalFocusRef.current = null;
+              setRemoveTrigger(trigger);
+              setRemoving(selected);
+            }}
+            removeButtonRef={(element) => {
+              if (element) removeButtonRefs.current.set(dictionary.id, element);
+              else removeButtonRefs.current.delete(dictionary.id);
+            }}
+            total={dictionaries.length}
+          />
+        ))}
+        {filteredCatalogEntries.map((entry) => (
+          <CatalogDictionaryRow controller={controller} entry={entry} key={entry.id} />
+        ))}
+      </div>
 
       {removing ? (
         <Dialog

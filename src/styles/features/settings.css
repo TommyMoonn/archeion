@@ -577,17 +577,21 @@ html[data-motion="on"] .settings-status {
   gap: 8px;
 }
 
-.dictionary-settings__tabs {
-  justify-self: start;
+.dictionary-settings__controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
 }
 
-.dictionary-settings__available {
-  display: grid;
-  gap: 12px;
+.dictionary-settings__tabs {
+  flex: none;
 }
 
 .dictionary-settings__filter.input-shell {
-  width: min(100%, 360px);
+  flex: 1 1 280px;
+  min-width: 180px;
+  max-width: 360px;
 }
 
 .dictionary-settings__list {
