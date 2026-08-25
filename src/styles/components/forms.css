@@ -22,6 +22,10 @@
   --input-height: var(--control-height-prominent);
 }
 
+.input-shell:has(input[type="search"]) {
+  border-radius: var(--radius-control);
+}
+
 .input-shell:focus-within {
   border-color: var(--accent-border);
   background: var(--surface-raised);
