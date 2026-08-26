@@ -26,6 +26,7 @@ import type { ImportSettings } from "../../types/settings";
 import { currentFocusOrigin, focusElementIfRestorationOwned } from "../../utils/focusRestoration";
 import { useDebouncedValue } from "../../utils/useDebouncedValue";
 import { useArchive } from "../archive/useArchive";
+import { openAboutWindow } from "../about/aboutWindowLifecycle";
 import {
   ARCHIVE_ROOT_DESTINATION,
   destinationValueToFolderPath,
@@ -38,7 +39,6 @@ import type { QuickActionRegistration } from "../quick-actions/quickActions";
 import { useLibrarySeriesState } from "../series/useLibrarySeriesState";
 import { hasActiveLibraryFilters } from "./libraryFilters";
 import { useLibraryDerivedState } from "./libraryDerivedState";
-import { preloadAboutDialog } from "./libraryLazySurfaces";
 import { LibraryWorkspaceDialogs } from "./LibraryWorkspaceDialogs";
 import { LibraryWorkspaceSurface } from "./LibraryWorkspaceSurface";
 import type { LibrarySelectionIntent } from "./librarySelection";
@@ -596,6 +596,16 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
   });
 
   const openArchiveManager = useCallback(() => void archiveStore.openArchiveManagerWindow(), []);
+  const openAbout = useCallback(() => {
+    const operation = beginFeedbackOperation("about-window");
+    void openAboutWindow().catch(() => {
+      publishFeedbackOperation(operation, {
+        id: "about-window-error",
+        tone: "error",
+        title: "The About window could not be opened. Try again.",
+      });
+    });
+  }, [beginFeedbackOperation, publishFeedbackOperation]);
   const revealActiveArchive = useCallback(
     () => void archiveStore.revealActiveArchive(activeArchive),
     [activeArchive],
@@ -938,9 +948,8 @@ function LibraryPageContent({ archive }: { archive: ReadyArchiveState }) {
           onLocationChange: enterLocation,
           onManageArchives: openArchiveManager,
           onMoveFolder: openMoveFolder,
-          onOpenAbout: dialogActions.openAbout,
+          onOpenAbout: openAbout,
           onOpenSettings: openSettings,
-          onPreloadAbout: preloadAboutDialog,
           settingsAriaKeyShortcuts: ariaKeyShortcut(
             getCommandBinding(commandDefinitions.settings.id),
           ),

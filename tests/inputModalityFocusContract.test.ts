@@ -246,13 +246,6 @@ describe("focus presentation contract", () => {
     expect(forcedColors).not.toContain("forced-color-adjust: none");
   });
 
-  it("keeps About initial focus explicit", () => {
-    const about = read("src/features/settings/AboutDialog.tsx");
-
-    expect(about).toContain("initialFocusRef: closeButtonRef");
-    expect(about).not.toContain("autoFocus");
-  });
-
   it("reports embedded Reader intent without adding publisher-document focus styles", () => {
     const registry = read("src/features/reader/readerContentDocumentRegistry.ts");
     const readerTheme = read("src/features/reader/readerTheme.ts");

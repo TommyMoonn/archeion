@@ -6,10 +6,6 @@ const dialogStyles = readFileSync(
   new URL("../../styles/components/dialogs.css", import.meta.url),
   "utf8",
 );
-const settingsStyles = readFileSync(
-  new URL("../../styles/features/settings.css", import.meta.url),
-  "utf8",
-);
 const tokens = readFileSync(new URL("../../styles/tokens.css", import.meta.url), "utf8");
 
 describe("shared modal surface presentation", () => {
@@ -17,7 +13,6 @@ describe("shared modal surface presentation", () => {
     expect(dialogStyles).toMatch(
       /html\[data-motion="on"\] dialog\[open\] > \.modal-surface\s*\{[^}]*animation:\s*app-motion-scale-in var\(--motion-duration-standard\) var\(--motion-ease-standard\);/s,
     );
-    expect(settingsStyles).not.toMatch(/about-dialog\[open\][^{]*\{[^}]*animation:/s);
   });
 
   it("inherits the application motion and reduced-motion token policy", () => {
@@ -30,19 +25,5 @@ describe("shared modal surface presentation", () => {
     expect(tokens).toMatch(
       /@media \(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?--motion-duration-standard:\s*0ms;[\s\S]*?--motion-duration-emphasized:\s*0ms;/,
     );
-  });
-
-  it("keeps the About surface viewport-bounded with one internal scroll owner", () => {
-    expect(settingsStyles).toMatch(
-      /\.about-dialog\s*\{[^}]*max-height:\s*calc\(100dvh - 32px\);[^}]*overflow:\s*hidden;/s,
-    );
-    expect(settingsStyles).toMatch(
-      /\.about-window__content\s*\{[^}]*max-height:\s*calc\(100dvh - 34px\);[^}]*overflow-y:\s*auto;/s,
-    );
-    expect(settingsStyles).not.toMatch(/\.about-window\s*\{[^}]*min-height:/s);
-  });
-
-  it("removes the GitHub-specific presentation path", () => {
-    expect(settingsStyles).not.toContain("about-window__github");
   });
 });

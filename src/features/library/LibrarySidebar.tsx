@@ -99,7 +99,6 @@ type LibrarySidebarProps = {
   onLocationChange: (location: LibraryLocation) => void;
   onOpenAbout: () => void;
   onOpenSettings: () => void;
-  onPreloadAbout?: () => void;
   onRenameFolder: (folder: ReadonlyFolder) => void;
   onRevealFolder?: (folder: ReadonlyFolder) => void;
   folderSort: FolderSort;
@@ -126,7 +125,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
   onLocationChange,
   onOpenAbout,
   onOpenSettings,
-  onPreloadAbout,
   onRenameFolder,
   onRevealFolder,
   folderSort,
@@ -396,8 +394,6 @@ export const LibrarySidebar = memo(function LibrarySidebar({
         <IconButton
           label="About Archeion"
           onClick={onOpenAbout}
-          onFocus={onPreloadAbout}
-          onPointerEnter={onPreloadAbout}
           tooltip="About Archeion"
           tooltipPlacement="top"
         >

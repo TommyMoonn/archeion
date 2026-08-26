@@ -21,7 +21,6 @@ import type { ImportSettings } from "../../types/settings";
 import { bookTitle } from "./libraryFilters";
 import { isInsideFolder } from "./libraryFolderRelations";
 import {
-  AboutDialog,
   AddEpubDialog,
   BookAdvancedMetadataDialog,
   BookCoverWritebackDialog,
@@ -237,14 +236,6 @@ export function LibraryWorkspaceDialogs({
           returnFocusTo={dialog.returnFocusTo}
           title="Move EPUB file"
         />
-      </Suspense>
-    );
-  }
-
-  if (dialog.type === "about") {
-    return (
-      <Suspense fallback={<DialogLoadingFallback label="Opening About" />}>
-        <AboutDialog onClose={dialogActions.close} />
       </Suspense>
     );
   }

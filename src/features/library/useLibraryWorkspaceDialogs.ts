@@ -26,7 +26,6 @@ export type LibraryWorkspaceDialog =
   | (BookDialogOwnership & { type: "move-book"; book: LibrarySnapshotBook })
   | (BookDialogOwnership & { type: "delete-book"; book: LibrarySnapshotBook })
   | (BookDialogOwnership & { type: "clear-progress"; book: LibrarySnapshotBook })
-  | { type: "about" }
   | { type: "create-folder" }
   | { type: "rename-folder"; folder: LibrarySnapshotFolder }
   | { type: "move-folder"; folder: LibrarySnapshotFolder }
@@ -146,7 +145,6 @@ export function useLibraryWorkspaceDialogs() {
       show({ type: "clear-progress", book, returnFocusTo: bookOrigin() }),
     [bookOrigin, show],
   );
-  const openAbout = useCallback(() => show({ type: "about" }), [show]);
   const openCreateFolder = useCallback(() => show({ type: "create-folder" }), [show]);
   const openRenameFolder = useCallback(
     (folder: LibrarySnapshotFolder) => show({ type: "rename-folder", folder }),
@@ -169,7 +167,6 @@ export function useLibraryWorkspaceDialogs() {
     () => ({
       close,
       closeBookEditor,
-      openAbout,
       openAddEpub,
       openBookCover,
       openBookDetails,
@@ -191,7 +188,6 @@ export function useLibraryWorkspaceDialogs() {
     [
       close,
       closeBookEditor,
-      openAbout,
       openAddEpub,
       openBookCover,
       openBookDetails,

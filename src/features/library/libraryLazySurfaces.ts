@@ -12,10 +12,6 @@ const loadRenameFileDialog = () =>
   import("../filesystem/RenameFileDialog").then((module) => ({
     default: module.RenameFileDialog,
   }));
-const loadAboutDialog = () =>
-  import("../settings/AboutDialog").then((module) => ({
-    default: module.AboutDialog,
-  }));
 const loadBookDetailsDrawer = () =>
   import("./BookDetailsDrawer").then((module) => ({
     default: module.BookDetailsDrawer,
@@ -54,7 +50,6 @@ const loadLibraryEpubIssuesView = () =>
 export const AddEpubDialog = lazy(loadAddEpubDialog);
 export const MoveToFolderDialog = lazy(loadMoveToFolderDialog);
 export const RenameFileDialog = lazy(loadRenameFileDialog);
-export const AboutDialog = lazy(loadAboutDialog);
 export const BookDetailsDrawer = lazy(loadBookDetailsDrawer);
 export const BookAdvancedMetadataDialog = lazy(loadBookAdvancedMetadataDialog);
 export const BookCoverWritebackDialog = lazy(loadBookCoverWritebackDialog);
@@ -65,7 +60,3 @@ export const SeriesDetail = lazy(loadSeriesDetail);
 export const SeriesOverview = lazy(loadSeriesOverview);
 export const LibraryDuplicatesView = lazy(loadLibraryDuplicatesView);
 export const LibraryEpubIssuesView = lazy(loadLibraryEpubIssuesView);
-
-export function preloadAboutDialog() {
-  void loadAboutDialog();
-}

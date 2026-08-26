@@ -330,21 +330,6 @@ html[data-motion="on"] .settings-status {
   animation: app-motion-notice-in var(--motion-duration-fast) var(--motion-ease-standard);
 }
 
-.about-dialog {
-  width: min(500px, calc(100% - 32px));
-  max-width: none;
-  max-height: calc(100dvh - 32px);
-  padding: 0;
-  border: 0;
-  color: var(--text);
-  background: transparent;
-  overflow: hidden;
-}
-
-.about-dialog::backdrop {
-  background: var(--backdrop);
-}
-
 .about-window {
   position: relative;
   max-height: calc(100dvh - 32px);
@@ -354,13 +339,6 @@ html[data-motion="on"] .settings-status {
   background: var(--canvas);
   box-shadow: var(--shadow-dialog);
   text-align: center;
-}
-
-.about-window__close {
-  position: absolute;
-  z-index: 2;
-  top: 10px;
-  inset-inline-end: 10px;
 }
 
 .about-window__content {
@@ -487,7 +465,6 @@ html[data-motion="on"] .settings-status {
 }
 
 @media (max-width: 480px) {
-  .about-dialog,
   .about-window {
     max-height: calc(100dvh - 20px);
   }
