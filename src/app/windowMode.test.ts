@@ -33,6 +33,16 @@ describe("resolveWindowMode", () => {
     ).toBe("theme-manager");
   });
 
+  it("resolves About mode from the Tauri window label", () => {
+    expect(
+      resolveWindowMode({
+        currentWindowLabel: "about",
+        isDesktop: true,
+        search: "",
+      }),
+    ).toBe("about");
+  });
+
   it("does not let the query string override a known Tauri main window label", () => {
     expect(
       resolveWindowMode({
@@ -71,6 +81,16 @@ describe("resolveWindowMode", () => {
         search: "?window=theme-manager",
       }),
     ).toBe("theme-manager");
+  });
+
+  it("uses the About query marker as a browser and test fallback", () => {
+    expect(
+      resolveWindowMode({
+        currentWindowLabel: null,
+        isDesktop: false,
+        search: "?window=about",
+      }),
+    ).toBe("about");
   });
 
   it("defaults to the main app window", () => {

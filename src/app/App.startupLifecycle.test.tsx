@@ -49,7 +49,7 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(async () => undefined),
   providerStorages: [] as unknown[],
   refreshActiveArchive: vi.fn(async () => true),
-  windowMode: "main" as "archive-manager" | "main" | "settings" | "theme-manager",
+  windowMode: "main" as "about" | "archive-manager" | "main" | "settings" | "theme-manager",
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -73,6 +73,9 @@ vi.mock("../features/archive/ArchiveGate", () => ({
 }));
 vi.mock("../features/archive/ArchiveManagerWindow", () => ({
   ArchiveManagerWindow: () => <main data-testid="archive-manager-root">Archive Manager</main>,
+}));
+vi.mock("../features/about/AboutWindow", () => ({
+  AboutWindow: () => <main data-testid="about-root">About</main>,
 }));
 vi.mock("../features/archive/archiveManagerLifecycle", () => ({
   hideMainWindowForStartup: vi.fn(async () => true),
@@ -242,6 +245,20 @@ describe("App window mode and startup shell ownership", () => {
     await renderApp();
 
     expect(container?.querySelector('[data-testid="theme-manager-root"]')).not.toBeNull();
+    expect(container?.querySelector('[data-testid="router"]')).toBeNull();
+    expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
+    expect(mocks.providerStorages).toHaveLength(0);
+    expect(mocks.gatePreparations).toHaveLength(0);
+    expect(mocks.focusMainWindow).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("mounts the standalone About root without the main application tree", async () => {
+    mocks.windowMode = "about";
+
+    await renderApp();
+
+    expect(container?.querySelector('[data-testid="about-root"]')).not.toBeNull();
     expect(container?.querySelector('[data-testid="router"]')).toBeNull();
     expect(mocks.initializeMainStartup).not.toHaveBeenCalled();
     expect(mocks.providerStorages).toHaveLength(0);

@@ -4,6 +4,7 @@ import { RouterProvider } from "react-router-dom";
 import { AppErrorBoundary } from "../components/AppErrorBoundary";
 import { Button } from "../components/Button";
 import {
+  ABOUT_MAIN_CONTENT_ID,
   ARCHIVE_MANAGER_MAIN_CONTENT_ID,
   MAIN_CONTENT_ID,
   SETTINGS_MAIN_CONTENT_ID,
@@ -40,6 +41,11 @@ import { focusPresentationRuntime } from "./inputModality";
 const ArchiveManagerWindow = lazy(() =>
   import("../features/archive/ArchiveManagerWindow").then((module) => ({
     default: module.ArchiveManagerWindow,
+  })),
+);
+const AboutWindow = lazy(() =>
+  import("../features/about/AboutWindow").then((module) => ({
+    default: module.AboutWindow,
   })),
 );
 const SettingsWindow = lazy(() =>
@@ -82,6 +88,18 @@ export function App() {
             </AppErrorBoundary>
           </div>
         </div>
+      </TooltipProvider>
+    );
+  }
+
+  if (windowMode === "about") {
+    return (
+      <TooltipProvider>
+        <AppErrorBoundary mainContentId={ABOUT_MAIN_CONTENT_ID}>
+          <Suspense fallback={null}>
+            <AboutWindow />
+          </Suspense>
+        </AppErrorBoundary>
       </TooltipProvider>
     );
   }
