@@ -1,8 +1,15 @@
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 
+pub const ABOUT_WINDOW_LABEL: &str = "about";
 pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 pub const THEME_MANAGER_WINDOW_LABEL: &str = "theme-manager";
 
+const ABOUT_WINDOW_QUERY: &str = "window=about";
+const ABOUT_WINDOW_APP_URL: &str = "index.html?window=about";
+const ABOUT_WINDOW_WIDTH: f64 = 520.0;
+const ABOUT_WINDOW_HEIGHT: f64 = 620.0;
+const ABOUT_WINDOW_MIN_WIDTH: f64 = 420.0;
+const ABOUT_WINDOW_MIN_HEIGHT: f64 = 420.0;
 const SETTINGS_WINDOW_QUERY: &str = "window=settings";
 const SETTINGS_WINDOW_APP_URL: &str = "index.html?window=settings";
 const SETTINGS_WINDOW_WIDTH: f64 = 1040.0;
@@ -27,6 +34,20 @@ enum WindowOpenAction {
     Create,
     FocusExisting,
     ReplaceUnhealthy,
+}
+
+#[cfg(test)]
+fn about_window_url_parts(
+    dev_url: Option<&tauri::Url>,
+    debug_build: bool,
+) -> Result<(WindowUrlKind, String), String> {
+    window_url_parts(
+        dev_url,
+        debug_build,
+        ABOUT_WINDOW_QUERY,
+        ABOUT_WINDOW_APP_URL,
+        "About",
+    )
 }
 
 #[cfg(test)]
@@ -144,12 +165,25 @@ struct ManagedWindowSpec {
     app_url: &'static str,
     height: f64,
     label: &'static str,
+    maximizable: bool,
     min_height: f64,
     min_width: f64,
     query: &'static str,
     title: &'static str,
     width: f64,
 }
+
+const ABOUT_WINDOW_SPEC: ManagedWindowSpec = ManagedWindowSpec {
+    app_url: ABOUT_WINDOW_APP_URL,
+    height: ABOUT_WINDOW_HEIGHT,
+    label: ABOUT_WINDOW_LABEL,
+    maximizable: false,
+    min_height: ABOUT_WINDOW_MIN_HEIGHT,
+    min_width: ABOUT_WINDOW_MIN_WIDTH,
+    query: ABOUT_WINDOW_QUERY,
+    title: "About Archeion",
+    width: ABOUT_WINDOW_WIDTH,
+};
 
 fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Result<(), String> {
     let existing_window = app.get_webview_window(spec.label);
@@ -179,7 +213,7 @@ fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Resul
     .center()
     .resizable(true)
     .minimizable(true)
-    .maximizable(true)
+    .maximizable(spec.maximizable)
     .decorations(false)
     .closable(true)
     .visible(false)
@@ -191,6 +225,11 @@ fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Resul
 }
 
 #[tauri::command]
+pub async fn open_about_window(app: tauri::AppHandle) -> Result<(), String> {
+    open_managed_window(&app, ABOUT_WINDOW_SPEC)
+}
+
+#[tauri::command]
 pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
     open_managed_window(
         &app,
@@ -198,6 +237,7 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
             app_url: SETTINGS_WINDOW_APP_URL,
             height: SETTINGS_WINDOW_HEIGHT,
             label: SETTINGS_WINDOW_LABEL,
+            maximizable: true,
             min_height: SETTINGS_WINDOW_MIN_HEIGHT,
             min_width: SETTINGS_WINDOW_MIN_WIDTH,
             query: SETTINGS_WINDOW_QUERY,
@@ -215,6 +255,7 @@ pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), Stri
             app_url: THEME_MANAGER_WINDOW_APP_URL,
             height: THEME_MANAGER_WINDOW_HEIGHT,
             label: THEME_MANAGER_WINDOW_LABEL,
+            maximizable: true,
             min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
             min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
             query: THEME_MANAGER_WINDOW_QUERY,
@@ -227,15 +268,15 @@ pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::{
-        settings_window_url_parts, theme_manager_window_url_parts, window_open_action,
-        WindowOpenAction, WindowUrlKind, SETTINGS_WINDOW_HEIGHT, SETTINGS_WINDOW_MIN_HEIGHT,
-        SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_WIDTH, THEME_MANAGER_WINDOW_HEIGHT,
-        THEME_MANAGER_WINDOW_MIN_HEIGHT, THEME_MANAGER_WINDOW_MIN_WIDTH,
-        THEME_MANAGER_WINDOW_WIDTH,
+        about_window_url_parts, settings_window_url_parts, theme_manager_window_url_parts,
+        window_open_action, WindowOpenAction, WindowUrlKind, SETTINGS_WINDOW_HEIGHT,
+        SETTINGS_WINDOW_MIN_HEIGHT, SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_WIDTH,
+        THEME_MANAGER_WINDOW_HEIGHT, THEME_MANAGER_WINDOW_MIN_HEIGHT,
+        THEME_MANAGER_WINDOW_MIN_WIDTH, THEME_MANAGER_WINDOW_WIDTH,
     };
 
     #[test]
-    fn settings_window_lifecycle_creates_focuses_or_replaces_one_window() {
+    fn managed_window_lifecycle_creates_focuses_or_replaces_one_window() {
         assert_eq!(window_open_action(None), WindowOpenAction::Create);
         assert_eq!(
             window_open_action(Some(false)),
@@ -245,6 +286,26 @@ mod tests {
             window_open_action(Some(true)),
             WindowOpenAction::ReplaceUnhealthy
         );
+    }
+
+    #[test]
+    fn about_window_dev_url_uses_external_server_with_mode_marker() {
+        let dev_url = tauri::Url::parse("http://localhost:1420").expect("dev URL should parse");
+
+        let (kind, url) =
+            about_window_url_parts(Some(&dev_url), true).expect("debug About URL should resolve");
+
+        assert_eq!(kind, WindowUrlKind::External);
+        assert_eq!(url, "http://localhost:1420/?window=about");
+    }
+
+    #[test]
+    fn about_window_production_url_uses_bundled_entry_with_mode_marker() {
+        let (kind, url) =
+            about_window_url_parts(None, false).expect("production About URL should resolve");
+
+        assert_eq!(kind, WindowUrlKind::App);
+        assert_eq!(url, "index.html?window=about");
     }
 
     #[test]

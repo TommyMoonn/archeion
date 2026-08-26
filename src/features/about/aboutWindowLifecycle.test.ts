@@ -1,0 +1,44 @@
+import { invoke, isTauri } from "@tauri-apps/api/core";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { openAboutWindow } from "./aboutWindowLifecycle";
+
+vi.mock("@tauri-apps/api/core", () => ({
+  invoke: vi.fn(),
+  isTauri: vi.fn(),
+}));
+
+const invokeMock = vi.mocked(invoke);
+const isTauriMock = vi.mocked(isTauri);
+
+describe("openAboutWindow", () => {
+  beforeEach(() => {
+    invokeMock.mockReset();
+    isTauriMock.mockReset();
+  });
+
+  it("invokes the native create-or-focus owner on desktop", async () => {
+    isTauriMock.mockReturnValue(true);
+    invokeMock.mockResolvedValue(undefined);
+
+    await expect(openAboutWindow()).resolves.toBeUndefined();
+
+    expect(invokeMock).toHaveBeenCalledOnce();
+    expect(invokeMock).toHaveBeenCalledWith("open_about_window");
+  });
+
+  it("is a no-op outside the desktop runtime", async () => {
+    isTauriMock.mockReturnValue(false);
+
+    await expect(openAboutWindow()).resolves.toBeUndefined();
+
+    expect(invokeMock).not.toHaveBeenCalled();
+  });
+
+  it("reports native creation failures to the caller", async () => {
+    isTauriMock.mockReturnValue(true);
+    invokeMock.mockRejectedValue(new Error("window unavailable"));
+
+    await expect(openAboutWindow()).rejects.toThrow("window unavailable");
+  });
+});

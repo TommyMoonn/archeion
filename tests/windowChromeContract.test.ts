@@ -38,6 +38,7 @@ function expectWindowScope(capability: Capability, labels: string[]): void {
 const archiveCommands = read("src-tauri/src/commands/archive.rs");
 const managedWindowCommands = read("src-tauri/src/commands/window/mod.rs");
 const windowLabels = {
+  about: rustStringConstant(managedWindowCommands, "ABOUT_WINDOW_LABEL"),
   archiveManager: rustStringConstant(archiveCommands, "ARCHIVE_MANAGER_WINDOW_LABEL"),
   main: rustStringConstant(archiveCommands, "MAIN_WINDOW_LABEL"),
   settings: rustStringConstant(managedWindowCommands, "SETTINGS_WINDOW_LABEL"),
@@ -95,11 +96,26 @@ describe("Native window runtime contracts", () => {
 
   it("keeps capability scopes bound to the native window labels", () => {
     expect(windowLabels).toEqual({
+      about: "about",
       archiveManager: "archive-manager",
       main: "main",
       settings: "settings",
       themeManager: "theme-manager",
     });
+  });
+
+  it("scopes About to its required window and event controls", () => {
+    const about = readJson<Capability>("src-tauri/capabilities/about-window.json");
+
+    expectWindowScope(about, [windowLabels.about]);
+    expectPermissions(about, [
+      "core:default",
+      "core:event:allow-listen",
+      "core:event:allow-unlisten",
+      "core:window:allow-close",
+      "core:window:allow-minimize",
+      "core:window:allow-start-dragging",
+    ]);
   });
 
   it("grants shared main and Archive Manager permissions required by their window lifecycle", () => {
