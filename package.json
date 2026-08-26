@@ -1,7 +1,7 @@
 {
   "name": "archeion",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "A local-first desktop EPUB reader and archive manager.",
   "author": "Khoa Luong",
   "license": "GPL-3.0-only",

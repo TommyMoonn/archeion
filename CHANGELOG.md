@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-08-26
+
+Archeion 1.4.1 refines dictionary discovery and definition reading, and makes search controls more consistent across the application.
+
+### Added
+
+- Added local shortcut search to **Keyboard** settings, including configurable shortcuts and fixed interaction-key documentation.
+
+### Changed
+
+- Unified **Dictionaries** into **All**, **Installed**, and **Not installed** views with one shared search and clearer discovery controls.
+- Reduced repeated headwords in Reader definitions, separated results by dictionary source, and moved source attribution below each definition group.
+- Aligned search-field corners with Archeion's standard controls across supported application surfaces.
+
 ## [1.4.0] - 2026-08-24
 
 Archeion 1.4.0 moves Settings and Theme Manager into independent application windows, makes preferences and themes consistent across archives, and clarifies which controls apply globally or only to the active archive.
@@ -483,7 +497,8 @@ Archeion's navigate-and-continue release for long EPUBs and multi-volume series.
 - Expanded regression coverage across EPUB navigation, reader lifecycle stability, table-of-contents interactions, chapter-aware controls, series derivation, natural volume ordering, continuation actions, metadata filters, Smart Views, archive switching, and progress clearing.
 - Added performance-focused coverage for lazy reader and Series surfaces, stable reader sessions, memoized derivations, and filter changes that do not rescan the archive.
 
-[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/TommyMoonn/archeion/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/TommyMoonn/archeion/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/TommyMoonn/archeion/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/TommyMoonn/archeion/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/TommyMoonn/archeion/compare/v1.1.0...v1.2.0
