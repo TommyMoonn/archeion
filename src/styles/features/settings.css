@@ -577,9 +577,10 @@ html[data-motion="on"] .settings-status {
   gap: 8px;
 }
 
-.dictionary-settings__controls {
+.dictionary-settings__toolbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 12px;
   min-width: 0;
 }
@@ -588,7 +589,7 @@ html[data-motion="on"] .settings-status {
   flex: none;
 }
 
-.dictionary-settings__filter.input-shell {
+.dictionary-settings__search.input-shell {
   flex: 1 1 280px;
   min-width: 180px;
   max-width: 360px;
@@ -770,6 +771,24 @@ html[data-motion="on"] .settings-status {
 
   .dictionary-settings-card__actions--installed {
     max-width: none;
+  }
+}
+
+@container settings-section (max-width: 480px) {
+  .dictionary-settings__toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dictionary-settings__search.input-shell,
+  .dictionary-settings__tabs {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+  }
+
+  .dictionary-settings__search.input-shell {
+    flex: none;
   }
 }
 

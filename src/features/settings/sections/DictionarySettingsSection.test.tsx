@@ -159,8 +159,8 @@ function renderView(value: DictionarySettingsController) {
 
 function setDictionaryQuery(container: HTMLElement, query: string) {
   const input = container.querySelector<HTMLInputElement>('input[type="search"]');
-  if (!input) throw new Error("Dictionary filter was not rendered");
-  expect(input.labels?.[0]?.textContent).toBe("Filter dictionaries");
+  if (!input) throw new Error("Dictionary search was not rendered");
+  expect(input.labels?.[0]?.textContent).toBe("Search dictionaries");
   const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
   act(() => {
     valueSetter?.call(input, query);
@@ -224,13 +224,28 @@ describe("DictionarySettingsView", () => {
     expect(button(container, "Installed (0)")).toBeInstanceOf(HTMLButtonElement);
   });
 
+  it("gives dictionary search an accessible name and keeps it available in every view", () => {
+    const container = renderView(controller());
+    const search = container.querySelector<HTMLInputElement>('input[type="search"]');
+
+    expect(search).toBeInstanceOf(HTMLInputElement);
+    expect(search?.labels?.[0]?.textContent).toBe("Search dictionaries");
+    expect(search?.placeholder).toBe("Search dictionaries");
+
+    for (const viewLabel of ["Installed (2)", "Not installed", "All"]) {
+      act(() => button(container, viewLabel).click());
+      expect(search?.isConnected).toBe(true);
+      expect(container.querySelector<HTMLInputElement>('input[type="search"]')).toBe(search);
+    }
+  });
+
   it("exposes refresh, catalog installation, and manual import as keyboard buttons", () => {
     const value = controller({
       registry: { dictionaries: [], recovery: null, status: "ready" },
     });
     const container = renderView(value);
 
-    for (const label of ["Refresh", "Import dictionary", "Download"]) {
+    for (const label of ["Refresh", "Import", "Download"]) {
       const control = button(container, label);
       control.focus();
       expect(document.activeElement).toBe(control);
@@ -382,21 +397,24 @@ describe("DictionarySettingsView", () => {
     ["lexique", "french-essentials"],
     ["french", "french-essentials"],
     ["german", "german-companion"],
-  ])("filters the selected dictionary view by user-facing metadata for %s", (query, expectedId) => {
-    const value = controller({
-      catalog: expandedCatalog,
-      registry: { dictionaries: [], recovery: null, status: "ready" },
-    });
-    const container = renderView(value);
+  ])(
+    "searches the selected dictionary view by user-facing metadata for %s",
+    (query, expectedId) => {
+      const value = controller({
+        catalog: expandedCatalog,
+        registry: { dictionaries: [], recovery: null, status: "ready" },
+      });
+      const container = renderView(value);
 
-    setDictionaryQuery(container, query);
+      setDictionaryQuery(container, query);
 
-    expect(renderedCatalogIds(container)).toEqual([expectedId]);
-    expect(value.refreshCatalog).not.toHaveBeenCalled();
-    expect(value.installCatalog).not.toHaveBeenCalled();
-  });
+      expect(renderedCatalogIds(container)).toEqual([expectedId]);
+      expect(value.refreshCatalog).not.toHaveBeenCalled();
+      expect(value.installCatalog).not.toHaveBeenCalled();
+    },
+  );
 
-  it("filters installed metadata and preserves the query while switching views", () => {
+  it("searches installed metadata and preserves the query while switching views", () => {
     const value = controller({
       catalog: expandedCatalog,
       registry: {
@@ -464,12 +482,12 @@ describe("DictionarySettingsView", () => {
     expect(renderedCatalogIds(container)).toEqual(["french-essentials", "german-companion"]);
   });
 
-  it("distinguishes no filter matches from empty source data", () => {
+  it("distinguishes no search matches from empty source data", () => {
     const filteredValue = controller({ catalog: expandedCatalog });
     const filteredContainer = renderView(filteredValue);
 
     setDictionaryQuery(filteredContainer, "no such dictionary");
-    expect(filteredContainer.textContent).toContain("No dictionaries match this filter.");
+    expect(filteredContainer.textContent).toContain("No dictionaries match this search.");
     expect(filteredContainer.textContent).not.toContain("No catalog has been loaded yet.");
     expect(filteredValue.refreshCatalog).not.toHaveBeenCalled();
     expect(filteredValue.installCatalog).not.toHaveBeenCalled();
@@ -481,7 +499,7 @@ describe("DictionarySettingsView", () => {
       }),
     );
     expect(emptyContainer.textContent).toContain("No catalog has been loaded yet.");
-    expect(emptyContainer.textContent).not.toContain("No dictionaries match this filter.");
+    expect(emptyContainer.textContent).not.toContain("No dictionaries match this search.");
     expect(emptyContainer.querySelector('input[type="search"]')).toBeInstanceOf(HTMLInputElement);
   });
 

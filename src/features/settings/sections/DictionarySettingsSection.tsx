@@ -438,7 +438,7 @@ export function DictionarySettingsView({
               size="compact"
               variant="secondary"
             >
-              Import dictionary
+              Import
             </Button>
           </div>
         }
@@ -446,14 +446,14 @@ export function DictionarySettingsView({
         title="Dictionaries"
       />
 
-      <div className="dictionary-settings__controls">
+      <div className="dictionary-settings__toolbar">
         <Input
           autoComplete="off"
-          className="dictionary-settings__filter"
+          className="dictionary-settings__search"
           icon={<Search aria-hidden="true" />}
-          label="Filter dictionaries"
+          label="Search dictionaries"
           onChange={(event) => setDictionaryQuery(event.currentTarget.value)}
-          placeholder="Filter dictionaries"
+          placeholder="Search dictionaries"
           size="standard"
           type="search"
           value={dictionaryQuery}
@@ -557,7 +557,7 @@ export function DictionarySettingsView({
           <p className="dictionary-settings__empty">All catalog dictionaries are installed.</p>
         ) : null}
         {queryHasNoMatches ? (
-          <p className="dictionary-settings__empty">No dictionaries match this filter.</p>
+          <p className="dictionary-settings__empty">No dictionaries match this search.</p>
         ) : null}
         {filteredDictionaries.map(({ dictionary, index }) => (
           <InstalledDictionaryRow
