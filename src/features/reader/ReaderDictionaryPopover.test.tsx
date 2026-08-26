@@ -52,13 +52,14 @@ function entry(
   dictionaryName: string,
   displayHeadword: string,
   definitionTextBlocks: readonly string[],
+  sourceAttribution = `${dictionaryName} source`,
 ): DictionaryDefinitionEntry {
   return {
     definitionTextBlocks,
     dictionaryId,
     dictionaryName,
     displayHeadword,
-    sourceAttribution: `${dictionaryName} source`,
+    sourceAttribution,
   };
 }
 
@@ -264,6 +265,51 @@ describe("ReaderDictionaryPopover", () => {
       Array.from(groups[1]?.querySelectorAll("h4") ?? [], (heading) => heading.textContent),
     ).toEqual(["school"]);
     expect(groups[1]?.querySelector("article")?.textContent).toBe("schoolSixth definition");
+  });
+
+  it("presents each dictionary source after its definitions without displacing the selected term", () => {
+    const openEnglishName = "Open English WordNet 2025 with an intentionally long source name";
+    const sources = [
+      "GNU Collaborative International Dictionary of English",
+      "Princeton University WordNet 3.0",
+      "Open English WordNet contributors and lexicographer community",
+    ];
+    mountPopover(
+      state("ready", {
+        selectedTerm: "school",
+        results: [
+          entry("gcide", "GCIDE", "School", ["GCIDE definition"], sources[0]),
+          entry("wordnet", "Princeton WordNet 3.0", "school", ["WordNet definition"], sources[1]),
+          entry("oewn", openEnglishName, "school", ["Open English WordNet definition"], sources[2]),
+        ],
+      }),
+    );
+
+    expect(container?.querySelector(".reader-dictionary-popover__header h2")?.textContent).toBe(
+      "school",
+    );
+    const groups = Array.from(
+      container?.querySelectorAll<HTMLElement>(".reader-dictionary-popover__group") ?? [],
+    );
+    expect(groups).toHaveLength(3);
+    expect(groups.map((group) => group.querySelector("h3")?.textContent)).toEqual([
+      "GCIDE",
+      "Princeton WordNet 3.0",
+      openEnglishName,
+    ]);
+    expect(groups.map((group) => group.querySelector("h3")?.title)).toEqual([
+      "GCIDE",
+      "Princeton WordNet 3.0",
+      openEnglishName,
+    ]);
+
+    groups.forEach((group, index) => {
+      const provenance = group.querySelector<HTMLElement>(".reader-dictionary-popover__source");
+      expect(provenance?.textContent).toBe(`Source ${sources[index]}`);
+      expect(provenance?.title).toBe(`Source ${sources[index]}`);
+      expect(group.lastElementChild).toBe(provenance);
+      expect(group.querySelector("article")?.textContent).toContain("definition");
+    });
   });
 
   it("owns scrolling focus and restores the Reader anchor after Escape", () => {

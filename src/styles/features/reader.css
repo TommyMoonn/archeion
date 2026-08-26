@@ -1984,36 +1984,35 @@ html[data-motion="on"] .reader-search__loading span {
 }
 
 .reader-dictionary-popover__group + .reader-dictionary-popover__group {
-  margin-top: 20px;
-  padding-top: 18px;
+  margin-top: 28px;
+  padding-top: 20px;
   border-top: 1px solid var(--reader-line);
 }
 
 .reader-dictionary-popover__group > header {
-  margin-bottom: 12px;
+  min-width: 0;
+  margin-bottom: 10px;
 }
 
 .reader-dictionary-popover__group h3,
-.reader-dictionary-popover__group header p,
 .reader-dictionary-popover__entry h4,
-.reader-dictionary-popover__entry p {
+.reader-dictionary-popover__entry p,
+.reader-dictionary-popover__source {
   margin: 0;
 }
 
 .reader-dictionary-popover__group h3 {
+  overflow: hidden;
   color: var(--reader-strong);
   font-size: var(--type-meta);
   font-weight: var(--font-weight-semibold);
-}
-
-.reader-dictionary-popover__group header p {
-  margin-top: 2px;
-  color: var(--reader-muted);
-  font-size: var(--type-caption);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .reader-dictionary-popover__entry + .reader-dictionary-popover__entry {
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .reader-dictionary-popover__entry h4 {
@@ -2034,6 +2033,20 @@ html[data-motion="on"] .reader-search__loading span {
 
 .reader-dictionary-popover__entry p + p {
   margin-top: 0.72em;
+}
+
+.reader-dictionary-popover__source {
+  margin-top: 12px;
+  overflow: hidden;
+  color: var(--reader-muted);
+  font-size: var(--type-caption);
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reader-dictionary-popover__source span {
+  font-weight: var(--font-weight-semibold);
 }
 
 .reader-dictionary-popover__truncated {

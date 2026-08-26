@@ -229,8 +229,7 @@ export function ReaderDictionaryPopover({
           ? groups.map((group) => (
               <section className="reader-dictionary-popover__group" key={group.dictionaryId}>
                 <header>
-                  <h3>{group.dictionaryName}</h3>
-                  <p>{group.sourceAttribution}</p>
+                  <h3 title={group.dictionaryName}>{group.dictionaryName}</h3>
                 </header>
                 {group.entries.map((entry, entryIndex) => {
                   const previousEntry = group.entries[entryIndex - 1];
@@ -250,6 +249,12 @@ export function ReaderDictionaryPopover({
                     </article>
                   );
                 })}
+                <p
+                  className="reader-dictionary-popover__source"
+                  title={`Source ${group.sourceAttribution}`}
+                >
+                  <span>Source</span> {group.sourceAttribution}
+                </p>
               </section>
             ))
           : null}
