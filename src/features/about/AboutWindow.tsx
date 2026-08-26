@@ -18,9 +18,7 @@ export function AboutWindow() {
       <WindowTitlebar canMaximize={false} />
       <div className="window-app__content">
         <main className="about-window-shell" id={ABOUT_MAIN_CONTENT_ID} tabIndex={-1}>
-          <section className="about-window">
-            <AboutSurface />
-          </section>
+          <AboutSurface />
         </main>
       </div>
     </div>

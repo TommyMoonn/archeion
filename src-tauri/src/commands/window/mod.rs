@@ -8,8 +8,8 @@ const ABOUT_WINDOW_QUERY: &str = "window=about";
 const ABOUT_WINDOW_APP_URL: &str = "index.html?window=about";
 const ABOUT_WINDOW_WIDTH: f64 = 520.0;
 const ABOUT_WINDOW_HEIGHT: f64 = 620.0;
-const ABOUT_WINDOW_MIN_WIDTH: f64 = 420.0;
-const ABOUT_WINDOW_MIN_HEIGHT: f64 = 420.0;
+const ABOUT_WINDOW_MIN_WIDTH: f64 = ABOUT_WINDOW_WIDTH;
+const ABOUT_WINDOW_MIN_HEIGHT: f64 = ABOUT_WINDOW_HEIGHT;
 const SETTINGS_WINDOW_QUERY: &str = "window=settings";
 const SETTINGS_WINDOW_APP_URL: &str = "index.html?window=settings";
 const SETTINGS_WINDOW_WIDTH: f64 = 1040.0;
@@ -143,16 +143,33 @@ fn existing_window_is_unhealthy(window: &tauri::WebviewWindow) -> bool {
 
 fn apply_window_constraints(
     window: &tauri::WebviewWindow,
-    min_width: f64,
-    min_height: f64,
+    spec: &ManagedWindowSpec,
 ) -> Result<(), String> {
+    let (min_width, min_height) = if spec.resizable {
+        (spec.min_width, spec.min_height)
+    } else {
+        window
+            .set_size(tauri::Size::Logical(tauri::LogicalSize::new(
+                spec.width,
+                spec.height,
+            )))
+            .map_err(|error| error.to_string())?;
+        window
+            .set_max_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
+                spec.width,
+                spec.height,
+            ))))
+            .map_err(|error| error.to_string())?;
+        (spec.width, spec.height)
+    };
+
     window
         .set_min_size(Some(tauri::Size::Logical(tauri::LogicalSize::new(
             min_width, min_height,
         ))))
         .map_err(|error| error.to_string())?;
     window
-        .set_resizable(true)
+        .set_resizable(spec.resizable)
         .map_err(|error| error.to_string())
 }
 
@@ -169,21 +186,25 @@ struct ManagedWindowSpec {
     min_height: f64,
     min_width: f64,
     query: &'static str,
+    resizable: bool,
     title: &'static str,
     width: f64,
 }
 
-const ABOUT_WINDOW_SPEC: ManagedWindowSpec = ManagedWindowSpec {
-    app_url: ABOUT_WINDOW_APP_URL,
-    height: ABOUT_WINDOW_HEIGHT,
-    label: ABOUT_WINDOW_LABEL,
-    maximizable: false,
-    min_height: ABOUT_WINDOW_MIN_HEIGHT,
-    min_width: ABOUT_WINDOW_MIN_WIDTH,
-    query: ABOUT_WINDOW_QUERY,
-    title: "About Archeion",
-    width: ABOUT_WINDOW_WIDTH,
-};
+fn about_window_spec() -> ManagedWindowSpec {
+    ManagedWindowSpec {
+        app_url: ABOUT_WINDOW_APP_URL,
+        height: ABOUT_WINDOW_HEIGHT,
+        label: ABOUT_WINDOW_LABEL,
+        maximizable: false,
+        min_height: ABOUT_WINDOW_MIN_HEIGHT,
+        min_width: ABOUT_WINDOW_MIN_WIDTH,
+        query: ABOUT_WINDOW_QUERY,
+        resizable: false,
+        title: "About Archeion",
+        width: ABOUT_WINDOW_WIDTH,
+    }
+}
 
 fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Result<(), String> {
     let existing_window = app.get_webview_window(spec.label);
@@ -192,7 +213,7 @@ fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Resul
     match action {
         WindowOpenAction::FocusExisting => {
             let window = existing_window.expect("focus action requires an existing window");
-            apply_window_constraints(&window, spec.min_width, spec.min_height)?;
+            apply_window_constraints(&window, &spec)?;
             return show_and_focus_window(&window);
         }
         WindowOpenAction::ReplaceUnhealthy => {
@@ -202,31 +223,38 @@ fn open_managed_window(app: &tauri::AppHandle, spec: ManagedWindowSpec) -> Resul
         WindowOpenAction::Create => {}
     }
 
-    let window = WebviewWindowBuilder::new(
+    let builder = WebviewWindowBuilder::new(
         app,
         spec.label,
         managed_window_webview_url(app, spec.query, spec.app_url, spec.title)?,
     )
     .title(spec.title)
     .inner_size(spec.width, spec.height)
-    .min_inner_size(spec.min_width, spec.min_height)
     .center()
-    .resizable(true)
+    .resizable(spec.resizable)
     .minimizable(true)
     .maximizable(spec.maximizable)
     .decorations(false)
     .closable(true)
-    .visible(false)
-    .build()
-    .map_err(|error| error.to_string())?;
+    .visible(false);
 
-    apply_window_constraints(&window, spec.min_width, spec.min_height)?;
+    let builder = if spec.resizable {
+        builder.min_inner_size(spec.min_width, spec.min_height)
+    } else {
+        builder
+            .min_inner_size(spec.width, spec.height)
+            .max_inner_size(spec.width, spec.height)
+    };
+
+    let window = builder.build().map_err(|error| error.to_string())?;
+
+    apply_window_constraints(&window, &spec)?;
     show_and_focus_window(&window)
 }
 
 #[tauri::command]
 pub async fn open_about_window(app: tauri::AppHandle) -> Result<(), String> {
-    open_managed_window(&app, ABOUT_WINDOW_SPEC)
+    open_managed_window(&app, about_window_spec())
 }
 
 #[tauri::command]
@@ -241,6 +269,7 @@ pub async fn open_settings_window(app: tauri::AppHandle) -> Result<(), String> {
             min_height: SETTINGS_WINDOW_MIN_HEIGHT,
             min_width: SETTINGS_WINDOW_MIN_WIDTH,
             query: SETTINGS_WINDOW_QUERY,
+            resizable: true,
             title: "Settings",
             width: SETTINGS_WINDOW_WIDTH,
         },
@@ -259,6 +288,7 @@ pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), Stri
             min_height: THEME_MANAGER_WINDOW_MIN_HEIGHT,
             min_width: THEME_MANAGER_WINDOW_MIN_WIDTH,
             query: THEME_MANAGER_WINDOW_QUERY,
+            resizable: true,
             title: "Theme Manager",
             width: THEME_MANAGER_WINDOW_WIDTH,
         },
@@ -268,10 +298,11 @@ pub async fn open_theme_manager_window(app: tauri::AppHandle) -> Result<(), Stri
 #[cfg(test)]
 mod tests {
     use super::{
-        about_window_url_parts, settings_window_url_parts, theme_manager_window_url_parts,
-        window_open_action, WindowOpenAction, WindowUrlKind, SETTINGS_WINDOW_HEIGHT,
-        SETTINGS_WINDOW_MIN_HEIGHT, SETTINGS_WINDOW_MIN_WIDTH, SETTINGS_WINDOW_WIDTH,
-        THEME_MANAGER_WINDOW_HEIGHT, THEME_MANAGER_WINDOW_MIN_HEIGHT,
+        about_window_spec, about_window_url_parts, settings_window_url_parts,
+        theme_manager_window_url_parts, window_open_action, WindowOpenAction, WindowUrlKind,
+        ABOUT_WINDOW_HEIGHT, ABOUT_WINDOW_MIN_HEIGHT, ABOUT_WINDOW_MIN_WIDTH, ABOUT_WINDOW_WIDTH,
+        SETTINGS_WINDOW_HEIGHT, SETTINGS_WINDOW_MIN_HEIGHT, SETTINGS_WINDOW_MIN_WIDTH,
+        SETTINGS_WINDOW_WIDTH, THEME_MANAGER_WINDOW_HEIGHT, THEME_MANAGER_WINDOW_MIN_HEIGHT,
         THEME_MANAGER_WINDOW_MIN_WIDTH, THEME_MANAGER_WINDOW_WIDTH,
     };
 
@@ -306,6 +337,17 @@ mod tests {
 
         assert_eq!(kind, WindowUrlKind::App);
         assert_eq!(url, "index.html?window=about");
+    }
+
+    #[test]
+    fn about_window_uses_one_fixed_supported_size() {
+        let spec = about_window_spec();
+
+        assert_eq!(
+            (ABOUT_WINDOW_MIN_WIDTH, ABOUT_WINDOW_MIN_HEIGHT),
+            (ABOUT_WINDOW_WIDTH, ABOUT_WINDOW_HEIGHT)
+        );
+        assert!(!spec.resizable);
     }
 
     #[test]

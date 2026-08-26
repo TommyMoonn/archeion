@@ -75,7 +75,6 @@ const elevatedSurfaceSelectors = [
   ".theme-preview-controls",
   ".settings-window",
   ".settings-status",
-  ".about-window",
   ".book-cover",
   ".details-cover__replace",
   ".details-drawer",
@@ -114,7 +113,6 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
   it("assigns blocking surfaces the dialog geometry and elevation role", () => {
     for (const block of [
       cssBlock(dialogs, ".dialog"),
-      cssBlock(settings, ".about-window"),
       cssBlock(readerContentActions, ".reader-illustration-viewer"),
     ]) {
       expect(block).toContain("border-radius: var(--radius-dialog)");
@@ -175,7 +173,6 @@ describe("Phase 0.9.0.22 shared surface geometry and elevation contract", () => 
       cssBlock(menus, ".menu-popover"),
       cssBlock(dropdowns, ".app-select__menu"),
       cssBlock(tooltips, ".app-tooltip"),
-      cssBlock(settings, ".about-window"),
       cssBlock(quickActions, ".quick-actions"),
     ]) {
       expect(block).toMatch(/border:\s*(?:var\(--border-width\)|1px) solid var\(--line\)/);

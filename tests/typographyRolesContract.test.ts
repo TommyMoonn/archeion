@@ -88,6 +88,7 @@ const forms = read("src/styles/components/forms.css");
 const menus = read("src/styles/components/menus.css");
 const statusPage = read("src/styles/components/status-page.css");
 const tooltips = read("src/styles/components/tooltips.css");
+const about = read("src/styles/features/about.css");
 const settings = read("src/styles/features/settings.css");
 const folders = read("src/features/folders/FolderBrowser.tsx");
 const folderStyles = read("src/styles/features/folders.css");
@@ -191,8 +192,8 @@ describe("Phase 0.9.0.26 typography roles and text resilience", () => {
         letterSpacing: true,
       },
       {
-        source: settings,
-        selector: ".about-window h1",
+        source: about,
+        selector: ".about-window__content h1",
         role: "page-title",
         letterSpacing: true,
       },
