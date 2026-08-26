@@ -82,7 +82,7 @@ const auditedErrorSources = [
   ],
   [
     "About external links",
-    "src/features/settings/AboutDialog.tsx",
+    "src/features/about/AboutSurface.tsx",
     /className="about-window__error" data-tone="error" role="alert"/,
   ],
   [
