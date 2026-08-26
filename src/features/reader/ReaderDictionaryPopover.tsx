@@ -50,6 +50,10 @@ function groupDictionaryResults(
   }));
 }
 
+function normalizeDisplayHeadword(headword: string): string {
+  return headword.toLowerCase();
+}
+
 export function ReaderDictionaryPopover({
   anchor,
   initialAnchorRect,
@@ -228,17 +232,24 @@ export function ReaderDictionaryPopover({
                   <h3>{group.dictionaryName}</h3>
                   <p>{group.sourceAttribution}</p>
                 </header>
-                {group.entries.map((entry, entryIndex) => (
-                  <article
-                    className="reader-dictionary-popover__entry"
-                    key={`${entry.displayHeadword}:${entryIndex}`}
-                  >
-                    <h4>{entry.displayHeadword}</h4>
-                    {entry.definitionTextBlocks.map((block, blockIndex) => (
-                      <p key={blockIndex}>{block}</p>
-                    ))}
-                  </article>
-                ))}
+                {group.entries.map((entry, entryIndex) => {
+                  const previousEntry = group.entries[entryIndex - 1];
+                  const showHeadword =
+                    !previousEntry ||
+                    normalizeDisplayHeadword(previousEntry.displayHeadword) !==
+                      normalizeDisplayHeadword(entry.displayHeadword);
+                  return (
+                    <article
+                      className="reader-dictionary-popover__entry"
+                      key={`${entry.displayHeadword}:${entryIndex}`}
+                    >
+                      {showHeadword ? <h4>{entry.displayHeadword}</h4> : null}
+                      {entry.definitionTextBlocks.map((block, blockIndex) => (
+                        <p key={blockIndex}>{block}</p>
+                      ))}
+                    </article>
+                  );
+                })}
               </section>
             ))
           : null}

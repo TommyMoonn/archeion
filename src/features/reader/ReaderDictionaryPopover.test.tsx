@@ -230,6 +230,42 @@ describe("ReaderDictionaryPopover", () => {
     expect(groups[0]?.querySelector("img")).toBeNull();
   });
 
+  it("suppresses only adjacent case-insensitive duplicate headwords within each dictionary", () => {
+    mountPopover(
+      state("ready", {
+        results: [
+          entry("dict-a", "First dictionary", "School", ["First definition"]),
+          entry("dict-a", "First dictionary", "school", ["Second definition"]),
+          entry("dict-a", "First dictionary", "Schoolhouse", ["Third definition"]),
+          entry("dict-a", "First dictionary", "SCHOOLHOUSE", ["Fourth definition"]),
+          entry("dict-a", "First dictionary", "school", ["Fifth definition"]),
+          entry("dict-b", "Second dictionary", "school", ["Sixth definition"]),
+        ],
+      }),
+    );
+
+    const groups = Array.from(
+      container?.querySelectorAll<HTMLElement>(".reader-dictionary-popover__group") ?? [],
+    );
+    expect(groups).toHaveLength(2);
+    expect(
+      Array.from(groups[0]?.querySelectorAll("h4") ?? [], (heading) => heading.textContent),
+    ).toEqual(["School", "Schoolhouse", "school"]);
+    expect(
+      Array.from(groups[0]?.querySelectorAll("article") ?? [], (article) => article.textContent),
+    ).toEqual([
+      "SchoolFirst definition",
+      "Second definition",
+      "SchoolhouseThird definition",
+      "Fourth definition",
+      "schoolFifth definition",
+    ]);
+    expect(
+      Array.from(groups[1]?.querySelectorAll("h4") ?? [], (heading) => heading.textContent),
+    ).toEqual(["school"]);
+    expect(groups[1]?.querySelector("article")?.textContent).toBe("schoolSixth definition");
+  });
+
   it("owns scrolling focus and restores the Reader anchor after Escape", () => {
     container = document.body.appendChild(document.createElement("div"));
     const viewer = document.body.appendChild(document.createElement("div"));
