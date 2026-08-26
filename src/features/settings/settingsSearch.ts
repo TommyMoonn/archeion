@@ -24,7 +24,7 @@ export type SettingsSearchResult = {
   sectionLabel: string;
 };
 
-function itemMatches(item: SettingsItem, query: string): boolean {
+export function settingsItemMatchesQuery(item: SettingsItem, query: string): boolean {
   const searchQuery = createSearchQuery(query);
   if (isEmptySearchQuery(searchQuery)) return false;
 
@@ -50,7 +50,7 @@ export function findSettingsSearchResults(
   }
 
   return items
-    .filter((item) => itemMatches(item, trimmedQuery))
+    .filter((item) => settingsItemMatchesQuery(item, trimmedQuery))
     .map((item) => ({
       item,
       sectionLabel: sectionLabels.get(item.sectionId) ?? item.sectionId,

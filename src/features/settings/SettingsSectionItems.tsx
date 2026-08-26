@@ -29,12 +29,14 @@ export function SettingsItemContent({
 
 export function SettingsSectionItems({
   context,
+  items: requestedItems,
   sectionId,
 }: {
   context: SettingsController;
+  items?: readonly SettingsItem[];
   sectionId: SettingsSection;
 }) {
-  const items = getSettingsItemsForSection(sectionId);
+  const items = requestedItems ?? getSettingsItemsForSection(sectionId);
   const nodes: ReactNode[] = [];
   let groupItems: SettingsItem[] = [];
   let activeGroup: string | undefined;
